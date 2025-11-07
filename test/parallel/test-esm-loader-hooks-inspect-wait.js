@@ -12,6 +12,7 @@ const { NodeInstance } = require('../common/inspector-helper.js');
 
 async function runTest() {
   const main = fixtures.path('es-module-loaders', 'register-loader.mjs');
+  process.env.NODE_DEBUG = 'esm,async_loader_worker';
   const child = new NodeInstance(['--inspect-wait=0'], '', main);
 
   const session = await child.connectInspectorSession();
@@ -24,7 +25,11 @@ async function runTest() {
   ]);
   await session.send({ method: 'NodeRuntime.disable' });
   await session.waitForDisconnect();
-  assert.strictEqual((await child.expectShutdown()).exitCode, 0);
+  const result = await child.expectShutdown();
+  assert.deepStrictEqual(result, {
+    exitCode: 0,
+    signal: null,
+  });
 }
 
 runTest();

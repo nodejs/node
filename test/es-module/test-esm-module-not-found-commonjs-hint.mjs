@@ -1,6 +1,6 @@
 import { spawnPromisified } from '../common/index.mjs';
 import { fixturesDir, fileURL as fixtureSubDir } from '../common/fixtures.mjs';
-import { match, notStrictEqual } from 'node:assert';
+import assert from 'node:assert';
 import { execPath } from 'node:process';
 import { describe, it } from 'node:test';
 
@@ -49,7 +49,7 @@ describe('ESM: module not found hint', { concurrency: !process.env.TEST_PARALLEL
       input,
     ], { cwd });
 
-    match(stderr, expected);
-    notStrictEqual(code, 0);
+    assert.match(stderr, expected);
+    assert.notStrictEqual(code, 0);
   });
 });

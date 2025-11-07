@@ -1,5 +1,5 @@
 import { mustCall } from '../common/index.mjs';
-import { ok, deepStrictEqual, strictEqual } from 'assert';
+import assert from 'assert';
 import { sep } from 'path';
 
 import { requireFixture, importFixture } from '../fixtures/pkgexports.mjs';
@@ -69,7 +69,7 @@ import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
 
     loadFixture(validSpecifier)
       .then(mustCall((actual) => {
-        deepStrictEqual({ ...actual }, expected);
+        assert.deepStrictEqual({ ...actual }, expected);
       }));
   }
 
@@ -128,7 +128,7 @@ import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
 
   for (const [specifier, subpath] of undefinedExports) {
     loadFixture(specifier).catch(mustCall((err) => {
-      strictEqual(err.code, 'ERR_PACKAGE_PATH_NOT_EXPORTED');
+      assert.strictEqual(err.code, 'ERR_PACKAGE_PATH_NOT_EXPORTED');
       assertStartsWith(err.message, 'Package subpath ');
       assertIncludes(err.message, subpath);
     }));
@@ -136,7 +136,7 @@ import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
 
   for (const [specifier, subpath] of invalidExports) {
     loadFixture(specifier).catch(mustCall((err) => {
-      strictEqual(err.code, 'ERR_INVALID_PACKAGE_TARGET');
+      assert.strictEqual(err.code, 'ERR_INVALID_PACKAGE_TARGET');
       assertStartsWith(err.message, 'Invalid "exports"');
       assertIncludes(err.message, subpath);
       if (!subpath.startsWith('./')) {
@@ -147,7 +147,7 @@ import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
 
   for (const [specifier, subpath] of invalidSpecifiers) {
     loadFixture(specifier).catch(mustCall((err) => {
-      strictEqual(err.code, 'ERR_INVALID_MODULE_SPECIFIER');
+      assert.strictEqual(err.code, 'ERR_INVALID_MODULE_SPECIFIER');
       assertStartsWith(err.message, 'Invalid module ');
       assertIncludes(err.message, 'is not a valid match in pattern');
       assertIncludes(err.message, subpath);
@@ -158,7 +158,7 @@ import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
   // of falling back to main
   if (isRequire) {
     loadFixture('pkgexports-main').catch(mustCall((err) => {
-      strictEqual(err.code, 'ERR_PACKAGE_PATH_NOT_EXPORTED');
+      assert.strictEqual(err.code, 'ERR_PACKAGE_PATH_NOT_EXPORTED');
       assertStartsWith(err.message, 'No "exports" main ');
     }));
   }
@@ -175,17 +175,17 @@ import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
   ]);
 
   if (!isRequire) {
-    const onDirectoryImport = (err) => {
-      strictEqual(err.code, 'ERR_UNSUPPORTED_DIR_IMPORT');
-      assertStartsWith(err.message, 'Directory import');
+    const onDirectoryImport = {
+      code: 'ERR_UNSUPPORTED_DIR_IMPORT',
+      message: /^Directory import/,
     };
-    loadFixture('pkgexports/subpath/dir1').catch(mustCall(onDirectoryImport));
-    loadFixture('pkgexports/subpath/dir2').catch(mustCall(onDirectoryImport));
+    assert.rejects(loadFixture('pkgexports/subpath/dir1'), onDirectoryImport).then(mustCall());
+    assert.rejects(loadFixture('pkgexports/subpath/dir2'), onDirectoryImport).then(mustCall());
   }
 
   for (const [specifier, request] of notFoundExports) {
     loadFixture(specifier).catch(mustCall((err) => {
-      strictEqual(err.code, (isRequire ? '' : 'ERR_') + 'MODULE_NOT_FOUND');
+      assert.strictEqual(err.code, (isRequire ? '' : 'ERR_') + 'MODULE_NOT_FOUND');
       assertIncludes(err.message, request);
       assertStartsWith(err.message, 'Cannot find module');
     }));
@@ -193,20 +193,20 @@ import fromInside from '../fixtures/node_modules/pkgexports/lib/hole.js';
 
   // The use of %2F and %5C escapes in paths fails loading
   loadFixture('pkgexports/sub/..%2F..%2Fbar.js').catch(mustCall((err) => {
-    strictEqual(err.code, 'ERR_INVALID_MODULE_SPECIFIER');
+    assert.strictEqual(err.code, 'ERR_INVALID_MODULE_SPECIFIER');
   }));
   loadFixture('pkgexports/sub/..%5C..%5Cbar.js').catch(mustCall((err) => {
-    strictEqual(err.code, 'ERR_INVALID_MODULE_SPECIFIER');
+    assert.strictEqual(err.code, 'ERR_INVALID_MODULE_SPECIFIER');
   }));
 
   // Package export with numeric index properties must throw a validation error
   loadFixture('pkgexports-numeric').catch(mustCall((err) => {
-    strictEqual(err.code, 'ERR_INVALID_PACKAGE_CONFIG');
+    assert.strictEqual(err.code, 'ERR_INVALID_PACKAGE_CONFIG');
   }));
 
   // Sugar conditional exports main mixed failure case
   loadFixture('pkgexports-sugar-fail').catch(mustCall((err) => {
-    strictEqual(err.code, 'ERR_INVALID_PACKAGE_CONFIG');
+    assert.strictEqual(err.code, 'ERR_INVALID_PACKAGE_CONFIG');
     assertStartsWith(err.message, 'Invalid package');
     assertIncludes(err.message, '"exports" cannot contain some keys starting ' +
     'with \'.\' and some not. The exports object must either be an object of ' +
@@ -232,17 +232,17 @@ const { requireFromInside, importFromInside } = fromInside;
 
     loadFromInside(validSpecifier)
       .then(mustCall((actual) => {
-        deepStrictEqual({ ...actual }, expected);
+        assert.deepStrictEqual({ ...actual }, expected);
       }));
   }
 });
 
 function assertStartsWith(actual, expected) {
   const start = actual.toString().slice(0, expected.length);
-  strictEqual(start, expected);
+  assert.strictEqual(start, expected);
 }
 
 function assertIncludes(actual, expected) {
-  ok(actual.toString().indexOf(expected) !== -1,
-     `${JSON.stringify(actual)} includes ${JSON.stringify(expected)}`);
+  assert.ok(actual.toString().indexOf(expected) !== -1,
+            `${JSON.stringify(actual)} includes ${JSON.stringify(expected)}`);
 }

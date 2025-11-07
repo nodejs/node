@@ -1,15 +1,10 @@
 // Flags: --expose-gc
 'use strict';
 
-require('../common');
+const common = require('../common');
 const { inspect } = require('util');
 
-const {
-  ok,
-  notStrictEqual,
-  strictEqual,
-  throws,
-} = require('assert');
+const assert = require('assert');
 
 const {
   test,
@@ -25,34 +20,34 @@ const { setTimeout: sleep } = require('timers/promises');
 test('Abort is fired with the correct event type on AbortControllers', () => {
   // Tests that abort is fired with the correct event type on AbortControllers
   const ac = new AbortController();
-  ok(ac.signal);
+  assert.ok(ac.signal);
 
-  const fn = mock.fn((event) => {
-    ok(event);
-    strictEqual(event.type, 'abort');
-  });
+  const fn = mock.fn(common.mustCall((event) => {
+    assert.ok(event);
+    assert.strictEqual(event.type, 'abort');
+  }, 2));
 
   ac.signal.onabort = fn;
   ac.signal.addEventListener('abort', fn);
 
   ac.abort();
   ac.abort();
-  ok(ac.signal.aborted);
+  assert.ok(ac.signal.aborted);
 
-  strictEqual(fn.mock.calls.length, 2);
+  assert.strictEqual(fn.mock.calls.length, 2);
 });
 
 test('Abort events are trusted', () => {
   // Tests that abort events are trusted
   const ac = new AbortController();
 
-  const fn = mock.fn((event) => {
-    ok(event.isTrusted);
-  });
+  const fn = mock.fn(common.mustCall((event) => {
+    assert.ok(event.isTrusted);
+  }));
 
   ac.signal.onabort = fn;
   ac.abort();
-  strictEqual(fn.mock.calls.length, 1);
+  assert.strictEqual(fn.mock.calls.length, 1);
 });
 
 test('Abort events have the same isTrusted reference', () => {
@@ -73,14 +68,14 @@ test('Abort events have the same isTrusted reference', () => {
   const firstTrusted = Reflect.getOwnPropertyDescriptor(Object.getPrototypeOf(ev1), 'isTrusted').get;
   const secondTrusted = Reflect.getOwnPropertyDescriptor(Object.getPrototypeOf(ev2), 'isTrusted').get;
   const untrusted = Reflect.getOwnPropertyDescriptor(Object.getPrototypeOf(ev3), 'isTrusted').get;
-  strictEqual(firstTrusted, secondTrusted);
-  strictEqual(untrusted, firstTrusted);
+  assert.strictEqual(firstTrusted, secondTrusted);
+  assert.strictEqual(untrusted, firstTrusted);
 });
 
 test('AbortSignal is impossible to construct manually', () => {
   // Tests that AbortSignal is impossible to construct manually
   const ac = new AbortController();
-  throws(() => new ac.signal.constructor(), {
+  assert.throws(() => new ac.signal.constructor(), {
     code: 'ERR_ILLEGAL_CONSTRUCTOR',
   });
 });
@@ -89,13 +84,13 @@ test('Symbol.toStringTag is correct', () => {
   // Symbol.toStringTag
   const toString = (o) => Object.prototype.toString.call(o);
   const ac = new AbortController();
-  strictEqual(toString(ac), '[object AbortController]');
-  strictEqual(toString(ac.signal), '[object AbortSignal]');
+  assert.strictEqual(toString(ac), '[object AbortController]');
+  assert.strictEqual(toString(ac.signal), '[object AbortSignal]');
 });
 
 test('AbortSignal.abort() creates an already aborted signal', () => {
   const signal = AbortSignal.abort();
-  ok(signal.aborted);
+  assert.ok(signal.aborted);
 });
 
 test('AbortController properties and methods valiate the receiver', () => {
@@ -106,7 +101,7 @@ test('AbortController properties and methods valiate the receiver', () => {
   const acAbort = AbortController.prototype.abort;
 
   const goodController = new AbortController();
-  ok(acSignalGet.call(goodController));
+  assert.ok(acSignalGet.call(goodController));
   acAbort.call(goodController);
 
   const badAbortControllers = [
@@ -119,11 +114,11 @@ test('AbortController properties and methods valiate the receiver', () => {
     { __proto__: AbortController.prototype },
   ];
   for (const badController of badAbortControllers) {
-    throws(
+    assert.throws(
       () => acSignalGet.call(badController),
       { name: 'TypeError' }
     );
-    throws(
+    assert.throws(
       () => acAbort.call(badController),
       { name: 'TypeError' }
     );
@@ -137,7 +132,7 @@ test('AbortSignal properties validate the receiver', () => {
   ).get;
 
   const goodSignal = new AbortController().signal;
-  strictEqual(signalAbortedGet.call(goodSignal), false);
+  assert.strictEqual(signalAbortedGet.call(goodSignal), false);
 
   const badAbortSignals = [
     null,
@@ -149,7 +144,7 @@ test('AbortSignal properties validate the receiver', () => {
     { __proto__: AbortSignal.prototype },
   ];
   for (const badSignal of badAbortSignals) {
-    throws(
+    assert.throws(
       () => signalAbortedGet.call(badSignal),
       { name: 'TypeError' }
     );
@@ -158,38 +153,38 @@ test('AbortSignal properties validate the receiver', () => {
 
 test('AbortController inspection depth 1 or null works', () => {
   const ac = new AbortController();
-  strictEqual(inspect(ac, { depth: 1 }),
-              'AbortController { signal: [AbortSignal] }');
-  strictEqual(inspect(ac, { depth: null }),
-              'AbortController { signal: AbortSignal { aborted: false } }');
+  assert.strictEqual(inspect(ac, { depth: 1 }),
+                     'AbortController { signal: [AbortSignal] }');
+  assert.strictEqual(inspect(ac, { depth: null }),
+                     'AbortController { signal: AbortSignal { aborted: false } }');
 });
 
 test('AbortSignal reason is set correctly', () => {
   // Test AbortSignal.reason
   const ac = new AbortController();
   ac.abort('reason');
-  strictEqual(ac.signal.reason, 'reason');
+  assert.strictEqual(ac.signal.reason, 'reason');
 });
 
 test('AbortSignal reasonable is set correctly with AbortSignal.abort()', () => {
   // Test AbortSignal.reason
   const signal = AbortSignal.abort('reason');
-  strictEqual(signal.reason, 'reason');
+  assert.strictEqual(signal.reason, 'reason');
 });
 
 test('AbortSignal.timeout() works as expected', async () => {
   // Test AbortSignal timeout
   const signal = AbortSignal.timeout(10);
-  ok(!signal.aborted);
+  assert.ok(!signal.aborted);
 
   const { promise, resolve } = Promise.withResolvers();
 
-  const fn = mock.fn(() => {
-    ok(signal.aborted);
-    strictEqual(signal.reason.name, 'TimeoutError');
-    strictEqual(signal.reason.code, 23);
+  const fn = mock.fn(common.mustCall(() => {
+    assert.ok(signal.aborted);
+    assert.strictEqual(signal.reason.name, 'TimeoutError');
+    assert.strictEqual(signal.reason.code, 23);
     resolve();
-  });
+  }));
 
   setTimeout(fn, 20);
   await promise;
@@ -205,7 +200,7 @@ test('AbortSignal.timeout() does not prevent the signal from being collected', a
 
   await sleep(10);
   globalThis.gc();
-  strictEqual(ref.deref(), undefined);
+  assert.strictEqual(ref.deref(), undefined);
 });
 
 test('AbortSignal with a timeout is not collected while there is an active listener', async () => {
@@ -220,14 +215,14 @@ test('AbortSignal with a timeout is not collected while there is an active liste
 
   await sleep(10);
   globalThis.gc();
-  notStrictEqual(ref.deref(), undefined);
-  ok(ref.deref() instanceof AbortSignal);
+  assert.notStrictEqual(ref.deref(), undefined);
+  assert.ok(ref.deref() instanceof AbortSignal);
 
   ref.deref().removeEventListener('abort', handler);
 
   await sleep(10);
   globalThis.gc();
-  strictEqual(ref.deref(), undefined);
+  assert.strictEqual(ref.deref(), undefined);
 });
 
 test('Setting a long timeout should not keep the process open', () => {
@@ -237,18 +232,18 @@ test('Setting a long timeout should not keep the process open', () => {
 test('AbortSignal.reason should default', () => {
   // Test AbortSignal.reason default
   const signal = AbortSignal.abort();
-  ok(signal.reason instanceof DOMException);
-  strictEqual(signal.reason.code, 20);
+  assert.ok(signal.reason instanceof DOMException);
+  assert.strictEqual(signal.reason.code, 20);
 
   const ac = new AbortController();
   ac.abort();
-  ok(ac.signal.reason instanceof DOMException);
-  strictEqual(ac.signal.reason.code, 20);
+  assert.ok(ac.signal.reason instanceof DOMException);
+  assert.strictEqual(ac.signal.reason.code, 20);
 });
 
 test('abortSignal.throwIfAborted() works as expected', () => {
   // Test abortSignal.throwIfAborted()
-  throws(() => AbortSignal.abort().throwIfAborted(), {
+  assert.throws(() => AbortSignal.abort().throwIfAborted(), {
     code: 20,
     name: 'AbortError',
   });
@@ -262,7 +257,7 @@ test('abortSignal.throwIfAobrted() works as expected (2)', () => {
   const originalDesc = Reflect.getOwnPropertyDescriptor(AbortSignal.prototype, 'aborted');
   const actualReason = new Error();
   Reflect.defineProperty(AbortSignal.prototype, 'aborted', { value: false });
-  throws(() => AbortSignal.abort(actualReason).throwIfAborted(), actualReason);
+  assert.throws(() => AbortSignal.abort(actualReason).throwIfAborted(), actualReason);
   Reflect.defineProperty(AbortSignal.prototype, 'aborted', originalDesc);
 });
 
@@ -271,6 +266,6 @@ test('abortSignal.throwIfAobrted() works as expected (3)', () => {
   const actualReason = new Error();
   const fakeExcuse = new Error();
   Reflect.defineProperty(AbortSignal.prototype, 'reason', { value: fakeExcuse });
-  throws(() => AbortSignal.abort(actualReason).throwIfAborted(), actualReason);
+  assert.throws(() => AbortSignal.abort(actualReason).throwIfAborted(), actualReason);
   Reflect.defineProperty(AbortSignal.prototype, 'reason', originalDesc);
 });

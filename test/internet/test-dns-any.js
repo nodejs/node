@@ -19,6 +19,7 @@ function checkWrap(req) {
   assert.ok(typeof req === 'object');
 }
 
+/* eslint-disable node-core/must-call-assert */
 const checkers = {
   checkA(r) {
     assert.ok(isIPv4(r.address));
@@ -80,13 +81,14 @@ const checkers = {
     assert.strictEqual(r.type, 'SRV');
   },
 };
+/* eslint-enable node-core/must-call-assert */
 
-function TEST(f) {
+function test(f) {
   function next() {
     const f = queue.shift();
     if (f) {
       running = true;
-      f(done);
+      f(done).then(common.mustCall());
     }
   }
 
@@ -115,7 +117,7 @@ function processResult(res) {
   return types;
 }
 
-TEST(async function test_sip2sip_for_naptr(done) {
+test(async function test_sip2sip_for_naptr(done) {
   function validateResult(res) {
     const types = processResult(res);
     assert.ok(types.A && types.NS && types.NAPTR && types.SOA,
@@ -135,7 +137,7 @@ TEST(async function test_sip2sip_for_naptr(done) {
   checkWrap(req);
 });
 
-TEST(async function test_google_for_cname_and_srv(done) {
+test(async function test_google_for_cname_and_srv(done) {
   function validateResult(res) {
     const types = processResult(res);
     assert.ok(types.SRV);
@@ -154,7 +156,7 @@ TEST(async function test_google_for_cname_and_srv(done) {
   checkWrap(req);
 });
 
-TEST(async function test_ptr(done) {
+test(async function test_ptr(done) {
   function validateResult(res) {
     const types = processResult(res);
     assert.ok(types.PTR);

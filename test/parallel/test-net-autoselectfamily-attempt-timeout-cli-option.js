@@ -7,4 +7,4 @@ const { platformTimeout } = require('../common');
 const assert = require('assert');
 const { getDefaultAutoSelectFamilyAttemptTimeout } = require('net');
 
-assert.strictEqual(getDefaultAutoSelectFamilyAttemptTimeout(), platformTimeout(123 * 10));
+assert.strictEqual(getDefaultAutoSelectFamilyAttemptTimeout(), platformTimeout(123 * 5));

@@ -1,5 +1,5 @@
 import '../common/index.mjs';
-import { strictEqual } from 'assert';
+import assert from 'assert';
 
 {
   const results = await Promise.allSettled([
@@ -7,8 +7,8 @@ import { strictEqual } from 'assert';
     import('../fixtures/empty.js'),
   ]);
 
-  strictEqual(results[0].status, 'rejected');
-  strictEqual(results[1].status, 'fulfilled');
+  assert.strictEqual(results[0].status, 'rejected');
+  assert.strictEqual(results[1].status, 'fulfilled');
 }
 
 {
@@ -17,8 +17,8 @@ import { strictEqual } from 'assert';
     import('../fixtures/empty.js', { with: { type: 'json' } }),
   ]);
 
-  strictEqual(results[0].status, 'fulfilled');
-  strictEqual(results[1].status, 'rejected');
+  assert.strictEqual(results[0].status, 'fulfilled');
+  assert.strictEqual(results[1].status, 'rejected');
 }
 
 {
@@ -27,8 +27,8 @@ import { strictEqual } from 'assert';
     import('../fixtures/empty.json'),
   ]);
 
-  strictEqual(results[0].status, 'fulfilled');
-  strictEqual(results[1].status, 'rejected');
+  assert.strictEqual(results[0].status, 'fulfilled');
+  assert.strictEqual(results[1].status, 'rejected');
 }
 
 {
@@ -37,6 +37,6 @@ import { strictEqual } from 'assert';
     import('../fixtures/empty.json', { with: { type: 'json' } }),
   ]);
 
-  strictEqual(results[0].status, 'rejected');
-  strictEqual(results[1].status, 'fulfilled');
+  assert.strictEqual(results[0].status, 'rejected');
+  assert.strictEqual(results[1].status, 'fulfilled');
 }

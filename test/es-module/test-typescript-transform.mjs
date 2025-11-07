@@ -1,6 +1,6 @@
 import { skip, spawnPromisified } from '../common/index.mjs';
 import * as fixtures from '../common/fixtures.mjs';
-import { match, strictEqual } from 'node:assert';
+import assert from 'node:assert';
 import { test } from 'node:test';
 
 if (!process.config.variables.node_use_amaro) skip('Requires Amaro');
@@ -12,9 +12,9 @@ test('execute a TypeScript file with transformation enabled', async () => {
     fixtures.path('typescript/ts/transformation/test-enum.ts'),
   ]);
 
-  strictEqual(result.stderr, '');
-  match(result.stdout, /Hello, TypeScript!/);
-  strictEqual(result.code, 0);
+  assert.strictEqual(result.stderr, '');
+  assert.match(result.stdout, /Hello, TypeScript!/);
+  assert.strictEqual(result.code, 0);
 });
 
 test('reconstruct error of a TypeScript file with transformation enabled and sourcemaps', async () => {
@@ -24,9 +24,9 @@ test('reconstruct error of a TypeScript file with transformation enabled and sou
     fixtures.path('typescript/ts/transformation/test-enum-stacktrace.ts'),
   ]);
 
-  match(result.stderr, /test-enum-stacktrace\.ts:4:7/);
-  strictEqual(result.stdout, '');
-  strictEqual(result.code, 1);
+  assert.match(result.stderr, /test-enum-stacktrace\.ts:4:7/);
+  assert.strictEqual(result.stdout, '');
+  assert.strictEqual(result.code, 1);
 });
 
 test('reconstruct error of a TypeScript file with transformation enabled without sourcemaps', async () => {
@@ -36,9 +36,9 @@ test('reconstruct error of a TypeScript file with transformation enabled without
     '--no-warnings',
     fixtures.path('typescript/ts/transformation/test-enum-stacktrace.ts'),
   ]);
-  match(result.stderr, /test-enum-stacktrace\.ts:5:7/);
-  strictEqual(result.stdout, '');
-  strictEqual(result.code, 1);
+  assert.match(result.stderr, /test-enum-stacktrace\.ts:5:7/);
+  assert.strictEqual(result.stdout, '');
+  assert.strictEqual(result.code, 1);
 });
 
 test('should not elide unused imports', async () => {
@@ -47,9 +47,9 @@ test('should not elide unused imports', async () => {
     '--no-warnings',
     fixtures.path('typescript/ts/transformation/test-unused-import.ts'),
   ]);
-  match(result.stderr, /ERR_UNSUPPORTED_DIR_IMPORT/);
-  strictEqual(result.stdout, '');
-  strictEqual(result.code, 1);
+  assert.match(result.stderr, /ERR_UNSUPPORTED_DIR_IMPORT/);
+  assert.strictEqual(result.stdout, '');
+  assert.strictEqual(result.code, 1);
 });
 
 test('execute a TypeScript file with namespace', async () => {
@@ -59,9 +59,9 @@ test('execute a TypeScript file with namespace', async () => {
     fixtures.path('typescript/ts/transformation/test-namespace.ts'),
   ]);
 
-  strictEqual(result.stderr, '');
-  match(result.stdout, /Hello, TypeScript!/);
-  strictEqual(result.code, 0);
+  assert.strictEqual(result.stderr, '');
+  assert.match(result.stdout, /Hello, TypeScript!/);
+  assert.strictEqual(result.code, 0);
 });
 
 // Decorators are currently ignored by transpilation
@@ -73,9 +73,9 @@ test('execute a TypeScript file with decorator', async () => {
     fixtures.path('typescript/ts/transformation/test-decorator.ts'),
   ]);
 
-  strictEqual(result.stdout, '');
-  match(result.stderr, /Invalid or unexpected token/);
-  strictEqual(result.code, 1);
+  assert.strictEqual(result.stdout, '');
+  assert.match(result.stderr, /Invalid or unexpected token/);
+  assert.strictEqual(result.code, 1);
 });
 
 test('execute a TypeScript file with legacy-module', async () => {
@@ -85,10 +85,10 @@ test('execute a TypeScript file with legacy-module', async () => {
     fixtures.path('typescript/ts/transformation/test-legacy-module.ts'),
   ]);
 
-  match(result.stderr, /ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX/);
-  match(result.stderr, /`module` keyword is not supported\. Use `namespace` instead/);
-  strictEqual(result.stdout, '');
-  strictEqual(result.code, 1);
+  assert.match(result.stderr, /ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX/);
+  assert.match(result.stderr, /`module` keyword is not supported\. Use `namespace` instead/);
+  assert.strictEqual(result.stdout, '');
+  assert.strictEqual(result.code, 1);
 });
 
 test('execute a TypeScript file with modern typescript syntax', async () => {
@@ -98,9 +98,9 @@ test('execute a TypeScript file with modern typescript syntax', async () => {
     fixtures.path('typescript/ts/transformation/test-modern-typescript.ts'),
   ]);
 
-  strictEqual(result.stderr, '');
-  match(result.stdout, /Hello, TypeScript!/);
-  strictEqual(result.code, 0);
+  assert.strictEqual(result.stderr, '');
+  assert.match(result.stdout, /Hello, TypeScript!/);
+  assert.strictEqual(result.code, 0);
 });
 
 test('execute a transpiled JavaScript file', async () => {
@@ -110,10 +110,10 @@ test('execute a transpiled JavaScript file', async () => {
     fixtures.path('typescript/ts/transformation/test-transformed-typescript.js'),
   ]);
 
-  match(result.stderr, /Stacktrace at line 28/);
-  match(result.stderr, /test-failing-arm64\.js:28:7/);
-  strictEqual(result.stdout, '');
-  strictEqual(result.code, 1);
+  assert.match(result.stderr, /Stacktrace at line 28/);
+  assert.match(result.stderr, /test-failing-arm64\.js:28:7/);
+  assert.strictEqual(result.stdout, '');
+  assert.strictEqual(result.code, 1);
 });
 
 test('execute TypeScript file with import = require', async () => {
@@ -123,7 +123,7 @@ test('execute TypeScript file with import = require', async () => {
     fixtures.path('typescript/cts/test-import-require.cts'),
   ]);
 
-  strictEqual(result.stderr, '');
-  match(result.stdout, /Hello, TypeScript!/);
-  strictEqual(result.code, 0);
+  assert.strictEqual(result.stderr, '');
+  assert.match(result.stdout, /Hello, TypeScript!/);
+  assert.strictEqual(result.code, 0);
 });

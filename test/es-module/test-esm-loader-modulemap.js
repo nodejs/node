@@ -3,7 +3,7 @@
 
 require('../common');
 
-const { strictEqual, throws } = require('assert');
+const assert = require('assert');
 const { createModuleLoader } = require('internal/modules/esm/loader');
 const { LoadCache, ResolveCache } = require('internal/modules/esm/module_map');
 const { ModuleJob } = require('internal/modules/esm/module_job');
@@ -30,21 +30,21 @@ const jsonModuleJob = new ModuleJob(loader, jsonModuleDataUrl,
   moduleMap.set(jsModuleDataUrl, undefined, jsModuleJob);
   moduleMap.set(jsonModuleDataUrl, 'json', jsonModuleJob);
 
-  strictEqual(moduleMap.get(jsModuleDataUrl), jsModuleJob);
-  strictEqual(moduleMap.get(jsonModuleDataUrl, 'json'), jsonModuleJob);
+  assert.strictEqual(moduleMap.get(jsModuleDataUrl), jsModuleJob);
+  assert.strictEqual(moduleMap.get(jsonModuleDataUrl, 'json'), jsonModuleJob);
 
-  strictEqual(moduleMap.has(jsModuleDataUrl), true);
-  strictEqual(moduleMap.has(jsModuleDataUrl, 'javascript'), true);
-  strictEqual(moduleMap.has(jsonModuleDataUrl, 'json'), true);
+  assert.strictEqual(moduleMap.has(jsModuleDataUrl), true);
+  assert.strictEqual(moduleMap.has(jsModuleDataUrl, 'javascript'), true);
+  assert.strictEqual(moduleMap.has(jsonModuleDataUrl, 'json'), true);
 
-  strictEqual(moduleMap.has('unknown'), false);
+  assert.strictEqual(moduleMap.has('unknown'), false);
 
   // The types must match
-  strictEqual(moduleMap.has(jsModuleDataUrl, 'json'), false);
-  strictEqual(moduleMap.has(jsonModuleDataUrl, 'javascript'), false);
-  strictEqual(moduleMap.has(jsonModuleDataUrl), false);
-  strictEqual(moduleMap.has(jsModuleDataUrl, 'unknown'), false);
-  strictEqual(moduleMap.has(jsonModuleDataUrl, 'unknown'), false);
+  assert.strictEqual(moduleMap.has(jsModuleDataUrl, 'json'), false);
+  assert.strictEqual(moduleMap.has(jsonModuleDataUrl, 'javascript'), false);
+  assert.strictEqual(moduleMap.has(jsonModuleDataUrl), false);
+  assert.strictEqual(moduleMap.has(jsModuleDataUrl, 'unknown'), false);
+  assert.strictEqual(moduleMap.has(jsonModuleDataUrl, 'unknown'), false);
 }
 
 // LoadCache.get, LoadCache.has and LoadCache.set should only accept string
@@ -59,9 +59,9 @@ const jsonModuleJob = new ModuleJob(loader, jsonModuleDataUrl,
   };
 
   [{}, [], true, 1].forEach((value) => {
-    throws(() => moduleMap.get(value), errorObj);
-    throws(() => moduleMap.has(value), errorObj);
-    throws(() => moduleMap.set(value, undefined, jsModuleJob), errorObj);
+    assert.throws(() => moduleMap.get(value), errorObj);
+    assert.throws(() => moduleMap.has(value), errorObj);
+    assert.throws(() => moduleMap.set(value, undefined, jsModuleJob), errorObj);
   });
 }
 
@@ -77,9 +77,9 @@ const jsonModuleJob = new ModuleJob(loader, jsonModuleDataUrl,
   };
 
   [{}, [], true, 1].forEach((value) => {
-    throws(() => moduleMap.get(jsModuleDataUrl, value), errorObj);
-    throws(() => moduleMap.has(jsModuleDataUrl, value), errorObj);
-    throws(() => moduleMap.set(jsModuleDataUrl, value, jsModuleJob), errorObj);
+    assert.throws(() => moduleMap.get(jsModuleDataUrl, value), errorObj);
+    assert.throws(() => moduleMap.has(jsModuleDataUrl, value), errorObj);
+    assert.throws(() => moduleMap.set(jsModuleDataUrl, value, jsModuleJob), errorObj);
   });
 }
 
@@ -88,7 +88,7 @@ const jsonModuleJob = new ModuleJob(loader, jsonModuleDataUrl,
   const moduleMap = new LoadCache();
 
   [{}, [], true, 1].forEach((value) => {
-    throws(() => moduleMap.set('', undefined, value), {
+    assert.throws(() => moduleMap.set('', undefined, value), {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
       message: /^The "job" argument must be an instance of ModuleJob/
@@ -99,17 +99,20 @@ const jsonModuleJob = new ModuleJob(loader, jsonModuleDataUrl,
 {
   const resolveMap = new ResolveCache();
 
-  strictEqual(resolveMap.serializeKey('./file', { __proto__: null }), './file::');
-  strictEqual(resolveMap.serializeKey('./file', { __proto__: null, type: 'json' }), './file::"type""json"');
-  strictEqual(resolveMap.serializeKey('./file::"type""json"', { __proto__: null }), './file::"type""json"::');
-  strictEqual(resolveMap.serializeKey('./file', { __proto__: null, c: 'd', a: 'b' }), './file::"a""b","c""d"');
-  strictEqual(resolveMap.serializeKey('./s', { __proto__: null, c: 'd', a: 'b', b: 'c' }), './s::"a""b","b""c","c""d"');
+  assert.strictEqual(resolveMap.serializeKey('./file', { __proto__: null }), './file::');
+  assert.strictEqual(resolveMap.serializeKey('./file', { __proto__: null, type: 'json' }), './file::"type""json"');
+  assert.strictEqual(resolveMap.serializeKey('./file::"type""json"', { __proto__: null }), './file::"type""json"::');
+  assert.strictEqual(resolveMap.serializeKey('./file', { __proto__: null, c: 'd', a: 'b' }), './file::"a""b","c""d"');
+  assert.strictEqual(
+    resolveMap.serializeKey('./s', { __proto__: null, c: 'd', a: 'b', b: 'c' }),
+    './s::"a""b","b""c","c""d"',
+  );
 
   resolveMap.set('key1', 'parent1', 1);
   resolveMap.set('key2', 'parent1', 2);
   resolveMap.set('key2', 'parent2', 3);
 
-  strictEqual(resolveMap.get('key1', 'parent1'), 1);
-  strictEqual(resolveMap.get('key2', 'parent1'), 2);
-  strictEqual(resolveMap.get('key2', 'parent2'), 3);
+  assert.strictEqual(resolveMap.get('key1', 'parent1'), 1);
+  assert.strictEqual(resolveMap.get('key2', 'parent1'), 2);
+  assert.strictEqual(resolveMap.get('key2', 'parent2'), 3);
 }

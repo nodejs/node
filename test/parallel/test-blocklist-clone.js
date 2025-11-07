@@ -6,10 +6,7 @@ const {
   BlockList,
 } = require('net');
 
-const {
-  ok,
-  notStrictEqual,
-} = require('assert');
+const assert = require('assert');
 
 const blocklist = new BlockList();
 blocklist.addAddress('123.123.123.123');
@@ -17,13 +14,13 @@ blocklist.addAddress('123.123.123.123');
 const mc = new MessageChannel();
 
 mc.port1.onmessage = common.mustCall(({ data }) => {
-  notStrictEqual(data, blocklist);
-  ok(data.check('123.123.123.123'));
-  ok(!data.check('123.123.123.124'));
+  assert.notStrictEqual(data, blocklist);
+  assert.ok(data.check('123.123.123.123'));
+  assert.ok(!data.check('123.123.123.124'));
 
   data.addAddress('123.123.123.124');
-  ok(blocklist.check('123.123.123.124'));
-  ok(data.check('123.123.123.124'));
+  assert.ok(blocklist.check('123.123.123.124'));
+  assert.ok(data.check('123.123.123.124'));
 
   mc.port1.close();
 });

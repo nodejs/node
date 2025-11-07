@@ -85,25 +85,42 @@ AllocationResult HeapAllocator::AllocateRawLargeInternal(
     int size_in_bytes, AllocationType allocation, AllocationOrigin origin,
     AllocationAlignment alignment, AllocationHint hint) {
   DCHECK_GT(size_in_bytes, heap_->MaxRegularHeapObjectSize(allocation));
+  AllocationResult allocation_result;
   switch (allocation) {
     case AllocationType::kYoung:
-      return new_lo_space()->AllocateRaw(local_heap_, size_in_bytes, hint);
+      allocation_result =
+          new_lo_space()->AllocateRaw(local_heap_, size_in_bytes, hint);
+      break;
     case AllocationType::kOld:
-      return lo_space()->AllocateRaw(local_heap_, size_in_bytes, hint);
+      allocation_result =
+          lo_space()->AllocateRaw(local_heap_, size_in_bytes, hint);
+      break;
     case AllocationType::kCode:
-      return code_lo_space()->AllocateRaw(local_heap_, size_in_bytes, hint);
+      allocation_result =
+          code_lo_space()->AllocateRaw(local_heap_, size_in_bytes, hint);
+      break;
     case AllocationType::kSharedOld:
-      return shared_lo_space()->AllocateRaw(local_heap_, size_in_bytes, hint);
+      allocation_result =
+          shared_lo_space()->AllocateRaw(local_heap_, size_in_bytes, hint);
+      break;
     case AllocationType::kTrusted:
-      return trusted_lo_space()->AllocateRaw(local_heap_, size_in_bytes, hint);
+      allocation_result =
+          trusted_lo_space()->AllocateRaw(local_heap_, size_in_bytes, hint);
+      break;
     case AllocationType::kSharedTrusted:
-      return shared_trusted_lo_space()->AllocateRaw(local_heap_, size_in_bytes,
-                                                    hint);
+      allocation_result = shared_trusted_lo_space()->AllocateRaw(
+          local_heap_, size_in_bytes, hint);
+      break;
     case AllocationType::kMap:
     case AllocationType::kReadOnly:
     case AllocationType::kSharedMap:
       UNREACHABLE();
   }
+  if (!allocation_result.IsFailure()) {
+    int allocated_size = ALIGN_TO_ALLOCATION_ALIGNMENT(size_in_bytes);
+    heap_->AddTotalAllocatedBytes(allocated_size);
+  }
+  return allocation_result;
 }
 
 namespace {

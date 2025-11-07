@@ -1,13 +1,9 @@
 // Flags: --expose-gc
 'use strict';
 
-require('../common');
+const common = require('../common');
 const { aborted } = require('util');
-const {
-  match,
-  rejects,
-  strictEqual,
-} = require('assert');
+const assert = require('assert');
 const { getEventListeners } = require('events');
 const { inspect } = require('util');
 
@@ -20,8 +16,8 @@ test('Aborted works when provided a resource', async () => {
   const promise = aborted(ac.signal, {});
   ac.abort();
   await promise;
-  strictEqual(ac.signal.aborted, true);
-  strictEqual(getEventListeners(ac.signal, 'abort').length, 0);
+  assert.strictEqual(ac.signal.aborted, true);
+  assert.strictEqual(getEventListeners(ac.signal, 'abort').length, 0);
 });
 
 test('Aborted with gc cleanup', async () => {
@@ -31,23 +27,23 @@ test('Aborted with gc cleanup', async () => {
   const abortedPromise = aborted(ac.signal, {});
   const { promise, resolve } = Promise.withResolvers();
 
-  setImmediate(() => {
+  setImmediate(common.mustCall(() => {
     globalThis.gc();
     ac.abort();
-    strictEqual(ac.signal.aborted, true);
-    strictEqual(getEventListeners(ac.signal, 'abort').length, 0);
+    assert.strictEqual(ac.signal.aborted, true);
+    assert.strictEqual(getEventListeners(ac.signal, 'abort').length, 0);
     resolve();
-  });
+  }));
 
   await promise;
 
   // Ensure that the promise is still pending
-  match(inspect(abortedPromise), /<pending>/);
+  assert.match(inspect(abortedPromise), /<pending>/);
 });
 
 test('Fails with error if not provided AbortSignal', async () => {
   await Promise.all([{}, null, undefined, Symbol(), [], 1, 0, 1n, true, false, 'a', () => {}].map((sig) =>
-    rejects(aborted(sig, {}), {
+    assert.rejects(aborted(sig, {}), {
       code: 'ERR_INVALID_ARG_TYPE',
     })
   ));
@@ -57,7 +53,7 @@ test('Fails if not provided a resource', async () => {
   // Fails if not provided a resource
   const ac = new AbortController();
   await Promise.all([null, undefined, 0, 1, 0n, 1n, Symbol(), '', 'a'].map((resource) =>
-    rejects(aborted(ac.signal, resource), {
+    assert.rejects(aborted(ac.signal, resource), {
       code: 'ERR_INVALID_ARG_TYPE',
     })
   ));
@@ -82,10 +78,10 @@ function lazySpawn() {
 test('Does not hang forever', { skip: !lazySpawn() }, async () => {
   const { promise, resolve } = Promise.withResolvers();
   const childProcess = spawn(process.execPath, ['--input-type=module']);
-  childProcess.on('exit', (code) => {
-    strictEqual(code, 13);
+  childProcess.on('exit', common.mustCall((code) => {
+    assert.strictEqual(code, 13);
     resolve();
-  });
+  }));
   childProcess.stdin.end(`
     import { aborted } from 'node:util';
     await aborted(new AbortController().signal, {});
