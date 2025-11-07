@@ -412,12 +412,11 @@ export default [
       },
     ] },
   },
-  // #endregion
-  // #region partials
+  
   ...benchmarkConfig,
   ...docConfig,
   ...libConfig,
   ...testConfig,
   ...toolsConfig,
-  // #endregion
+ 
 ];
