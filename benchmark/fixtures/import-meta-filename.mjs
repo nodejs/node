@@ -1,1 +1,1 @@
-export const filename = import.meta.filename;
+export default () => import.meta.filename;
