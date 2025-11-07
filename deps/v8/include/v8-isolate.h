@@ -951,6 +951,13 @@ class V8_EXPORT Isolate {
   void GetHeapStatistics(HeapStatistics* heap_statistics);
 
   /**
+   * Get total allocated bytes since isolate creation.
+   * This should be used only by Node.JS, since it's a temporary method
+   * to avoid breaking ABI on HeapStatistics.
+   */
+  uint64_t GetTotalAllocatedBytes();
+
+  /**
    * Returns the number of spaces in the heap.
    */
   size_t NumberOfHeapSpaces();

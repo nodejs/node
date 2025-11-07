@@ -2414,7 +2414,7 @@ class Heap final {
   // actually finished.
   bool is_full_gc_during_loading_ = false;
 
-    std::atomic<uint64_t> total_allocated_bytes_ = 0;
+  std::atomic<uint64_t> total_allocated_bytes_ = 0;
 
   // Classes in "heap" can be friends.
   friend class ActivateMemoryReducerTask;
