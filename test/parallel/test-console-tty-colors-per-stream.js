@@ -2,7 +2,7 @@
 require('../common');
 const { Console } = require('console');
 const { PassThrough } = require('stream');
-const { strict: assert } = require('assert');
+const assert = require('assert');
 
 const stdout = new PassThrough().setEncoding('utf8');
 const stderr = new PassThrough().setEncoding('utf8');

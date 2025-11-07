@@ -112,7 +112,7 @@ function expect(
   if (typeof want === 'string')
     want = new RegExp(want);
 
-  const test = (type) => common.mustCall((err, stdout) => {
+  const test = common.mustCallAtLeast((type) => common.mustCall((err, stdout) => {
     const o = JSON.stringify(opt);
     if (wantsError) {
       assert.ok(err, `${type}: expected error for ${o}`);
@@ -125,7 +125,7 @@ function expect(
     assert.fail(
       `${type}: for ${o}, failed to find ${want} in: <\n${stdout}\n>`
     );
-  });
+  }));
 
   exec(process.execPath, argv, opts, test('child process'));
   if (testWorker)

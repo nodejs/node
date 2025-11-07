@@ -9,7 +9,7 @@ if (cluster.isPrimary) {
   const worker1 = cluster.fork();
   worker1.on('listening', common.mustCall(() => {
     const worker2 = cluster.fork();
-    worker2.on('exit', (code, signal) => {
+    worker2.on('exit', common.mustCall((code, signal) => {
       assert.strictEqual(
         code,
         0,
@@ -21,7 +21,7 @@ if (cluster.isPrimary) {
         `worker${worker2.id} did not exit normally. Exit with signal: ${signal}`
       );
       worker1.disconnect();
-    });
+    }));
   }));
 
   worker1.on('exit', common.mustCall((code, signal) => {
@@ -41,13 +41,13 @@ if (cluster.isPrimary) {
   const server = net.createServer();
   server.listen(0, common.mustCall(() => {
     if (cluster.worker.id === 2) {
-      server.close(() => {
+      server.close(common.mustCall(() => {
         server.listen(0, common.mustCall(() => {
           server.close(() => {
             process.disconnect();
           });
         }));
-      });
+      }));
     }
   }));
 }
