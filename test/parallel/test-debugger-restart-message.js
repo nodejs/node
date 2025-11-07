@@ -31,6 +31,8 @@ const startCLI = require('../common/debugger');
     } finally {
       await cli.quit();
     }
+
+    assert.doesNotMatch(cli.stderrOutput, /MaxListenersExceededWarning/);
   }
 
   onWaitForInitialBreak();
