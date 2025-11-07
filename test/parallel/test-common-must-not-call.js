@@ -10,7 +10,7 @@ const testFunction1 = common.mustNotCall(message);
 
 const testFunction2 = common.mustNotCall(message);
 
-const createValidate = (line, args = []) => common.mustCall((e) => {
+const createValidate = common.mustCallAtLeast((line, args = []) => common.mustCall((e) => {
   const prefix = `${message} at `;
   assert.ok(e.message.startsWith(prefix));
   if (process.platform === 'win32') {
@@ -24,7 +24,7 @@ const createValidate = (line, args = []) => common.mustCall((e) => {
   const argsInfo = args.length > 0 ?
     `\ncalled with arguments: ${args.map(util.inspect).join(', ')}` : '';
   assert.strictEqual(rest, line + argsInfo);
-});
+}));
 
 const validate1 = createValidate('9');
 try {
