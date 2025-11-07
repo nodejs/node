@@ -113,13 +113,8 @@ MaybeLocal<Value> PrepareStackTraceCallback(Local<Context> context,
 
 void* NodeArrayBufferAllocator::Allocate(size_t size) {
   void* ret;
-  if (zero_fill_field_ || per_process::cli_options->zero_fill_all_buffers) {
-    COUNT_GENERIC_USAGE("NodeArrayBufferAllocator.Allocate.ZeroFilled");
-    ret = allocator_->Allocate(size);
-  } else {
-    COUNT_GENERIC_USAGE("NodeArrayBufferAllocator.Allocate.Uninitialized");
-    ret = allocator_->AllocateUninitialized(size);
-  }
+  COUNT_GENERIC_USAGE("NodeArrayBufferAllocator.Allocate.ZeroFilled");
+  ret = allocator_->Allocate(size);
   if (ret != nullptr) [[likely]] {
     total_mem_usage_.fetch_add(size, std::memory_order_relaxed);
   }
