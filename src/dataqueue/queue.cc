@@ -916,6 +916,7 @@ class FdEntry final : public EntryImpl {
               fs::FileHandle::New(realm->GetBindingData<fs::BindingData>(),
                                   file,
                                   Local<Object>(),
+                                  {},
                                   entry->start_,
                                   entry->end_ - entry->start_)),
           entry);
