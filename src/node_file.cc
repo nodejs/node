@@ -3184,42 +3184,6 @@ static void GetFormatOfExtensionlessFile(
   return args.GetReturnValue().Set(EXTENSIONLESS_FORMAT_JAVASCRIPT);
 }
 
-#ifdef _WIN32
-#define BufferValueToPath(str)                                                 \
-  std::filesystem::path(ConvertToWideString(str.ToString(), CP_UTF8))
-
-std::string ConvertWideToUTF8(const std::wstring& wstr) {
-  if (wstr.empty()) return std::string();
-
-  int size_needed = WideCharToMultiByte(CP_UTF8,
-                                        0,
-                                        &wstr[0],
-                                        static_cast<int>(wstr.size()),
-                                        nullptr,
-                                        0,
-                                        nullptr,
-                                        nullptr);
-  std::string strTo(size_needed, 0);
-  WideCharToMultiByte(CP_UTF8,
-                      0,
-                      &wstr[0],
-                      static_cast<int>(wstr.size()),
-                      &strTo[0],
-                      size_needed,
-                      nullptr,
-                      nullptr);
-  return strTo;
-}
-
-#define PathToString(path) ConvertWideToUTF8(path.wstring());
-
-#else  // _WIN32
-
-#define BufferValueToPath(str) std::filesystem::path(str.ToStringView());
-#define PathToString(path) path.native();
-
-#endif  // _WIN32
-
 static void CpSyncCheckPaths(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
@@ -3232,7 +3196,7 @@ static void CpSyncCheckPaths(const FunctionCallbackInfo<Value>& args) {
   THROW_IF_INSUFFICIENT_PERMISSIONS(
       env, permission::PermissionScope::kFileSystemRead, src.ToStringView());
 
-  auto src_path = BufferValueToPath(src);
+  auto src_path = src.ToPath();
 
   BufferValue dest(isolate, args[1]);
   CHECK_NOT_NULL(*dest);
@@ -3240,7 +3204,7 @@ static void CpSyncCheckPaths(const FunctionCallbackInfo<Value>& args) {
   THROW_IF_INSUFFICIENT_PERMISSIONS(
       env, permission::PermissionScope::kFileSystemWrite, dest.ToStringView());
 
-  auto dest_path = BufferValueToPath(dest);
+  auto dest_path = dest.ToPath();
   bool dereference = args[2]->IsTrue();
   bool recursive = args[3]->IsTrue();
 
@@ -3269,8 +3233,8 @@ static void CpSyncCheckPaths(const FunctionCallbackInfo<Value>& args) {
       (src_status.type() == std::filesystem::file_type::directory) ||
       (dereference && src_status.type() == std::filesystem::file_type::symlink);
 
-  auto src_path_str = PathToString(src_path);
-  auto dest_path_str = PathToString(dest_path);
+  auto src_path_str = ConvertPathToUTF8(src_path);
+  auto dest_path_str = ConvertPathToUTF8(dest_path);
 
   if (!error_code) {
     // Check if src and dest are identical.
@@ -3365,7 +3329,7 @@ static bool CopyUtimes(const std::filesystem::path& src,
   uv_fs_t req;
   auto cleanup = OnScopeLeave([&req]() { uv_fs_req_cleanup(&req); });
 
-  auto src_path_str = PathToString(src);
+  auto src_path_str = ConvertPathToUTF8(src);
   int result = uv_fs_stat(nullptr, &req, src_path_str.c_str(), nullptr);
   if (is_uv_error(result)) {
     env->ThrowUVException(result, "stat", nullptr, src_path_str.c_str());
@@ -3376,7 +3340,7 @@ static bool CopyUtimes(const std::filesystem::path& src,
   const double source_atime = s->st_atim.tv_sec + s->st_atim.tv_nsec / 1e9;
   const double source_mtime = s->st_mtim.tv_sec + s->st_mtim.tv_nsec / 1e9;
 
-  auto dest_file_path_str = PathToString(dest);
+  auto dest_file_path_str = ConvertPathToUTF8(dest);
   int utime_result = uv_fs_utime(nullptr,
                                  &req,
                                  dest_file_path_str.c_str(),
@@ -3511,7 +3475,7 @@ static void CpSyncCopyDir(const FunctionCallbackInfo<Value>& args) {
     std::error_code error;
     for (auto dir_entry : std::filesystem::directory_iterator(src)) {
       auto dest_file_path = dest / dir_entry.path().filename();
-      auto dest_str = PathToString(dest);
+      auto dest_str = ConvertPathToUTF8(dest);
 
       if (dir_entry.is_symlink()) {
         if (verbatim_symlinks) {
@@ -3570,7 +3534,7 @@ static void CpSyncCopyDir(const FunctionCallbackInfo<Value>& args) {
               }
             } else if (std::filesystem::is_regular_file(dest_file_path)) {
               if (!dereference || (!force && error_on_exist)) {
-                auto dest_file_path_str = PathToString(dest_file_path);
+                auto dest_file_path_str = ConvertPathToUTF8(dest_file_path);
                 env->ThrowStdErrException(
                     std::make_error_code(std::errc::file_exists),
                     "cp",
