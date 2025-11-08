@@ -526,6 +526,12 @@ class Stream::Outbound final : public MemoryRetainer {
           // Always make sure next_pending_ is false when we're done.
           auto on_exit = OnScopeLeave([this] { next_pending_ = false; });
 
+          // We need to hold a reference to stream and session
+          // so that it can not go away during the next calls.
+          BaseObjectPtr<Stream> stream = BaseObjectPtr<Stream>(stream_);
+          BaseObjectPtr<Session> session =
+              BaseObjectPtr<Session>(&stream_ ->session());
+
           // The status should never be wait here.
           DCHECK_NE(status, bob::Status::STATUS_WAIT);
 
@@ -534,7 +540,7 @@ class Stream::Outbound final : public MemoryRetainer {
             // being asynchronous, our stream is blocking waiting for the data,
             // but we have an error! oh no! We need to error the stream.
             if (next_pending_) {
-              stream_->Destroy(
+              stream->Destroy(
                   QuicError::ForNgtcp2Error(NGTCP2_INTERNAL_ERROR));
               // We do not need to worry about calling MarkErrored in this case
               // since we are immediately destroying the stream which will
@@ -553,7 +559,7 @@ class Stream::Outbound final : public MemoryRetainer {
             // in the uncommitted queue. We'll resume the stream so that the
             // session will try to read from it again.
             if (next_pending_) {
-              stream_->session().ResumeStream(stream_->id());
+              session->ResumeStream(stream_->id());
             }
             return;
           }
@@ -577,7 +583,7 @@ class Stream::Outbound final : public MemoryRetainer {
           // Now that we have data, let's resume the stream so the session will
           // pull from it again.
           if (next_pending_) {
-            stream_->session().ResumeStream(stream_->id());
+            stream->session().ResumeStream(stream_->id());
           }
         },
         bob::OPTIONS_SYNC,
@@ -1406,7 +1412,10 @@ JS_METHOD_IMPL(DataQueueFeeder::Submit) {
         static_cast<char*>(originalStore->Data()) + typedArray->ByteOffset();
     memcpy(backing->Data(), originalData, nread);
     auto& pending = feeder->pendingPulls_.front();
-    auto pop = OnScopeLeave([feeder] { feeder->pendingPulls_.pop_front(); });
+    auto pop = OnScopeLeave([feeder] {
+      if (feeder->pendingPulls_.size() > 0)
+        feeder->pendingPulls_.pop_front();
+    });
     DataQueue::Vec vec;
     vec.base = static_cast<uint8_t*>(backing->Data());
     vec.len = static_cast<uint64_t>(nread);
