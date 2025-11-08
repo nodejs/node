@@ -29,6 +29,7 @@ ls.on('close', (code) => {
 
 ```mjs
 import { spawn } from 'node:child_process';
+import { once } from 'node:events';
 const ls = spawn('ls', ['-lh', '/usr']);
 
 ls.stdout.on('data', (data) => {
@@ -39,9 +40,8 @@ ls.stderr.on('data', (data) => {
   console.error(`stderr: ${data}`);
 });
 
-ls.on('close', (code) => {
-  console.log(`child process exited with code ${code}`);
-});
+const [code] = await once(ls, 'close');
+console.log(`child process exited with code ${code}`);
 ```
 
 By default, pipes for `stdin`, `stdout`, and `stderr` are established between
@@ -770,6 +770,7 @@ ls.on('close', (code) => {
 
 ```mjs
 import { spawn } from 'node:child_process';
+import { once } from 'node:events';
 const ls = spawn('ls', ['-lh', '/usr']);
 
 ls.stdout.on('data', (data) => {
@@ -780,9 +781,8 @@ ls.stderr.on('data', (data) => {
   console.error(`stderr: ${data}`);
 });
 
-ls.on('close', (code) => {
-  console.log(`child process exited with code ${code}`);
-});
+const [code] = await once(ls, 'close');
+console.log(`child process exited with code ${code}`);
 ```
 
 Example: A very elaborate way to run `ps ax | grep ssh`
@@ -1481,6 +1481,7 @@ ls.on('exit', (code) => {
 
 ```mjs
 import { spawn } from 'node:child_process';
+import { once } from 'node:events';
 const ls = spawn('ls', ['-lh', '/usr']);
 
 ls.stdout.on('data', (data) => {
@@ -1494,6 +1495,9 @@ ls.on('close', (code) => {
 ls.on('exit', (code) => {
   console.log(`child process exited with code ${code}`);
 });
+
+const [code] = await once(ls, 'close');
+console.log(`child process close all stdio with code ${code}`);
 ```
 
 ### Event: `'disconnect'`
