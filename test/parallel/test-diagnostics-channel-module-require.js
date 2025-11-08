@@ -8,7 +8,7 @@ const events = [];
 let lastEvent;
 
 function track(name) {
-  return common.mustCall((event) =>{
+  return common.mustCall((event) => {
     // Verify every event after the first is the same object
     if (events.length) {
       assert.strictEqual(event, lastEvent);
