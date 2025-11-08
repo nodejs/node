@@ -61,6 +61,12 @@ changes:
 An [`Agent`][] object for HTTPS similar to [`http.Agent`][]. See
 [`https.request()`][] for more information.
 
+Like `http.Agent`, the `createConnection(options[, callback])` method can be overridden
+to customize how TLS connections are established.
+
+> See [`http.Agent#createConnection()`][] for details on overriding this method,
+> including asynchronous socket creation with a callback.
+
 ### `new Agent([options])`
 
 <!-- YAML
