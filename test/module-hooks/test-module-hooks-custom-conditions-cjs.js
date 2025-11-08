@@ -5,7 +5,6 @@ const common = require('../common');
 const { registerHooks } = require('node:module');
 const assert = require('node:assert');
 const { cjs, esm } = require('../fixtures/es-modules/custom-condition/load.cjs');
-const { mustCall } = require('../common/index.mjs');
 
 (async () => {
   // Without hooks, the default condition is used.
@@ -16,7 +15,7 @@ const { mustCall } = require('../common/index.mjs');
   // allow a CJS to be resolved with that condition.
   {
     const hooks = registerHooks({
-      resolve: mustCall((specifier, context, nextResolve) => {
+      resolve: common.mustCall((specifier, context, nextResolve) => {
         assert(Array.isArray(context.conditions));
         context.conditions = ['foo', ...context.conditions];
         return nextResolve(specifier, context);
@@ -31,7 +30,7 @@ const { mustCall } = require('../common/index.mjs');
   // allow a ESM to be resolved with that condition.
   {
     const hooks = registerHooks({
-      resolve: mustCall((specifier, context, nextResolve) => {
+      resolve: common.mustCall((specifier, context, nextResolve) => {
         assert(Array.isArray(context.conditions));
         context.conditions = ['foo-esm', ...context.conditions];
         return nextResolve(specifier, context);
@@ -45,7 +44,7 @@ const { mustCall } = require('../common/index.mjs');
   // Duplicating the 'foo' condition in the resolve hook should not change the result.
   {
     const hooks = registerHooks({
-      resolve: mustCall((specifier, context, nextResolve) => {
+      resolve: common.mustCall((specifier, context, nextResolve) => {
         assert(Array.isArray(context.conditions));
         context.conditions = ['foo', ...context.conditions, 'foo'];
         return nextResolve(specifier, context);
