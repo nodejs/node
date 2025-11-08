@@ -1600,6 +1600,9 @@ instead.
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/60635
+    description: End-of-Life.
   - version: v25.0.0
     pr-url: https://github.com/nodejs/node/pull/59060
     description: Runtime deprecation.
@@ -1608,7 +1611,7 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
 The `node:http` module `ServerResponse.prototype.writeHeader()` API is
 deprecated. Please use `ServerResponse.prototype.writeHead()` instead.
