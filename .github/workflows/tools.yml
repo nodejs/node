@@ -1,7 +1,7 @@
 name: Tools and deps update
 on:
   schedule:
-    # Run once a week at 00:05 AM UTC on Sunday.
+    
     - cron: 5 0 * * 0
 
   workflow_dispatch:
@@ -317,8 +317,8 @@ jobs:
           echo "COMMIT_MSG=${{ matrix.subsystem }}: update ${{ matrix.id }} to ${{ env.NEW_VERSION }}" >> "$GITHUB_ENV"
       - uses: peter-evans/create-pull-request@271a8d0340265f705b14b6d32b9829c1cb33d45e  # v7.0.8
         if: github.event_name == 'schedule' || inputs.id == 'all' || inputs.id == matrix.id
-        # Creates a PR or update the Action's existing PR, or
-        # no-op if the base branch is already up-to-date.
+
+       
         with:
           token: ${{ secrets.GH_USER_TOKEN }}
           branch: actions/tools-update-${{ matrix.id }}  # Custom branch *just* for this Action.
