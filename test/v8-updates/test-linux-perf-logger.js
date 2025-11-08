@@ -46,7 +46,7 @@ const testCases = [
     matches: [
       'JS:~functionOne .+/linux-perf-logger.js',
       'JS:~functionTwo .+/linux-perf-logger.js',
-      String.raw`RegExp\.> src: 'test-regex' flags: 'gi'`,
+      String.raw`RegExp\.< src: 'test-regex' flags: 'gi'`,
     ],
     noMatches: [
       String.raw`JS:\*'functionOne`,
@@ -57,7 +57,7 @@ const testCases = [
     title: '--perf-basic-prof compiled',
     nodeFlags: ['--allow-natives-syntax', '--perf-basic-prof', '--no-turbo-inlining'],
     matches: [
-      String.raw`RegExp\.> src: 'test-regex' flags: 'gi'`,
+      String.raw`RegExp\.< src: 'test-regex' flags: 'gi'`,
       'JS:~functionOne .+/linux-perf-logger.js',
       'JS:~functionTwo .+/linux-perf-logger.js',
       String.raw`JS:\*'functionOne .+/linux-perf-logger.js`,
