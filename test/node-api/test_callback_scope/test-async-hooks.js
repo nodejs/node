@@ -34,6 +34,6 @@ async_hooks.createHook({
   }),
 }).enable();
 
-runInCallbackScope(expectedResource, expectedResourceType, () => {
+runInCallbackScope(expectedResource, expectedResourceType, common.mustCall(() => {
   assert(insideHook);
-});
+}));

@@ -274,12 +274,12 @@ function testEncoding(options, assertionHash) {
   const hash = crypto.createHash('sha256', options);
   let hashValue = '';
 
-  hash.on('data', (data) => {
+  hash.on('data', common.mustCall((data) => {
     // The defaultEncoding has no effect on the hash value. It only affects data
     // consumed by the Hash transform stream.
     assert(Buffer.isBuffer(data));
     hashValue += data.toString('hex');
-  });
+  }));
 
   hash.on('end', common.mustCall(() => {
     assert.strictEqual(hashValue, assertionHash);
