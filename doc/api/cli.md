@@ -4043,7 +4043,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [debugging security implications]: https://nodejs.org/en/docs/guides/debugging-getting-started/#security-implications
 [deprecation warnings]: deprecations.md#list-of-deprecated-apis
 [emit_warning]: process.md#processemitwarningwarning-options
-[environment_variables]: #environment-variables
+[environment_variables]: #environment-variables_1
 [filtering tests by name]: test.md#filtering-tests-by-name
 [jitless]: https://v8.dev/blog/jitless
 [libuv threadpool documentation]: https://docs.libuv.org/en/latest/threadpool.html
