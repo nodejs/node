@@ -4,17 +4,14 @@ This file documents various terms and definitions used throughout the Node.js co
 
 * **ABI**: [Application Binary Interface][] - Defines the interface between two binary program modules.
 * **AFAICT**: As Far As I Can Tell.
-* **AFAICT**: As Far As I Can Tell.
-* **AFAIK**: As Far As I Know.
 * **AFAIK**: As Far As I Know.
 * **API**: [Application Programming Interface][] - A set of rules and protocols that allows different software
   applications to communicate with each other. APIs are used to enable integration between different systems.
 * **ASAP**: As Soon As Possible.
-* **ASLR**: Address Space Layout Randomization. A security technique that randomizes memory addresses to prevent certain attacks.
+* **ASLR**: Address Space Layout Randomization. A security technique that randomizes memory addresses
+  to prevent certain attacks.
 * **Backport**: The process of applying a fix or feature from a newer branch to an older supported
   branch (e.g., applying a security fix to an LTS release).
-* **BE** ([Big Endian]): Byte order in which the most significant byte is stored first in memory.
-  Opposite of **LE** (Little Endian).
 * **BE**: Big [Endian][] - A Byte Order where the largest bit comes first. The opposite of **LE**.
 * **Bootstrap**: Early phase in the Node.js process startup - sets up the execution environment and loads internal
   modules.

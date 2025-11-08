@@ -250,19 +250,19 @@ added: v0.11.4
 
 Produces a socket/stream to be used for HTTP requests.
 
-By default, this function behaves identically to [`net.createConnection(options)`][],
+By default, this function behaves identically to [`net.createConnection()`][],
 synchronously returning the created socket. The optional `callback` parameter in the
 signature is **not** used by this default implementation.
 
 However, custom agents may override this method to provide greater flexibility,
 for example, to create sockets asynchronously. When overriding `createConnection`:
 
-1.  **Synchronous socket creation**: The overriding method can return the
-    socket/stream directly.
-2.  **Asynchronous socket creation**: The overriding method can accept the `callback`
-    and pass the created socket/stream to it (e.g., `callback(null, newSocket)`).
-    If an error occurs during socket creation, it should be passed as the first
-    argument to the `callback` (e.g., `callback(err)`).
+1. **Synchronous socket creation**: The overriding method can return the
+   socket/stream directly.
+2. **Asynchronous socket creation**: The overriding method can accept the `callback`
+   and pass the created socket/stream to it (e.g., `callback(null, newSocket)`).
+   If an error occurs during socket creation, it should be passed as the first
+   argument to the `callback` (e.g., `callback(err)`).
 
 The agent will call the provided `createConnection` function with `options` and
 this internal `callback`. The `callback` provided by the agent has a signature
