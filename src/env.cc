@@ -674,12 +674,16 @@ void Environment::AssignToContext(Local<v8::Context> context,
                                   Realm* realm,
                                   const ContextInfo& info) {
   context->SetAlignedPointerInEmbedderData(ContextEmbedderIndex::kEnvironment,
-                                           this);
-  context->SetAlignedPointerInEmbedderData(ContextEmbedderIndex::kRealm, realm);
+                                           this,
+                                           EmbedderDataTag::kPerContextData);
+  context->SetAlignedPointerInEmbedderData(
+      ContextEmbedderIndex::kRealm, realm, EmbedderDataTag::kPerContextData);
 
   // ContextifyContexts will update this to a pointer to the native object.
   context->SetAlignedPointerInEmbedderData(
-      ContextEmbedderIndex::kContextifyContext, nullptr);
+      ContextEmbedderIndex::kContextifyContext,
+      nullptr,
+      EmbedderDataTag::kPerContextData);
 
   // This must not be done before other context fields are initialized.
   ContextEmbedderTag::TagNodeContext(context);
@@ -695,11 +699,15 @@ void Environment::AssignToContext(Local<v8::Context> context,
 void Environment::UnassignFromContext(Local<v8::Context> context) {
   if (!context.IsEmpty()) {
     context->SetAlignedPointerInEmbedderData(ContextEmbedderIndex::kEnvironment,
-                                             nullptr);
+                                             nullptr,
+                                             EmbedderDataTag::kPerContextData);
     context->SetAlignedPointerInEmbedderData(ContextEmbedderIndex::kRealm,
-                                             nullptr);
+                                             nullptr,
+                                             EmbedderDataTag::kPerContextData);
     context->SetAlignedPointerInEmbedderData(
-        ContextEmbedderIndex::kContextifyContext, nullptr);
+        ContextEmbedderIndex::kContextifyContext,
+        nullptr,
+        EmbedderDataTag::kPerContextData);
   }
   UntrackContext(context);
 }

@@ -45,7 +45,8 @@ BaseObject::~BaseObject() {
 
   {
     HandleScope handle_scope(realm()->isolate());
-    object()->SetAlignedPointerInInternalField(BaseObject::kSlot, nullptr);
+    object()->SetAlignedPointerInInternalField(
+        BaseObject::kSlot, nullptr, EmbedderDataTag::kDefault);
   }
 }
 

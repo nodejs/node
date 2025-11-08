@@ -196,9 +196,8 @@ inline Environment* Environment::GetCurrent(v8::Local<v8::Context> context) {
   if (!ContextEmbedderTag::IsNodeContext(context)) [[unlikely]] {
     return nullptr;
   }
-  return static_cast<Environment*>(
-      context->GetAlignedPointerFromEmbedderData(
-          ContextEmbedderIndex::kEnvironment));
+  return static_cast<Environment*>(context->GetAlignedPointerFromEmbedderData(
+      ContextEmbedderIndex::kEnvironment, EmbedderDataTag::kPerContextData));
 }
 
 inline Environment* Environment::GetCurrent(

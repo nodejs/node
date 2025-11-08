@@ -164,9 +164,12 @@ ContextifyContext::ContextifyContext(Environment* env,
   // This should only be done after the initial initializations of the context
   // global object is finished.
   DCHECK_NULL(v8_context->GetAlignedPointerFromEmbedderData(
-      ContextEmbedderIndex::kContextifyContext));
+      ContextEmbedderIndex::kContextifyContext,
+      EmbedderDataTag::kPerContextData));
   v8_context->SetAlignedPointerInEmbedderData(
-      ContextEmbedderIndex::kContextifyContext, this);
+      ContextEmbedderIndex::kContextifyContext,
+      this,
+      EmbedderDataTag::kPerContextData);
 }
 
 void ContextifyContext::InitializeGlobalTemplates(IsolateData* isolate_data) {
@@ -473,7 +476,8 @@ ContextifyContext* ContextifyContext::Get(Local<Object> object) {
   }
   return static_cast<ContextifyContext*>(
       context->GetAlignedPointerFromEmbedderData(
-          ContextEmbedderIndex::kContextifyContext));
+          ContextEmbedderIndex::kContextifyContext,
+          EmbedderDataTag::kPerContextData));
 }
 
 bool ContextifyContext::IsStillInitializing(const ContextifyContext* ctx) {

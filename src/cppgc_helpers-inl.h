@@ -19,8 +19,10 @@ void CppgcMixin::Wrap(T* ptr, Realm* realm, v8::Local<v8::Object> obj) {
   v8::Object::Wrap<v8::CppHeapPointerTag::kDefaultTag>(isolate, obj, wrappable);
   // Keep the layout consistent with BaseObjects.
   obj->SetAlignedPointerInInternalField(
-      kEmbedderType, realm->isolate_data()->embedder_id_for_cppgc());
-  obj->SetAlignedPointerInInternalField(kSlot, ptr);
+      kEmbedderType,
+      realm->isolate_data()->embedder_id_for_cppgc(),
+      EmbedderDataTag::kEmbedderType);
+  obj->SetAlignedPointerInInternalField(kSlot, ptr, EmbedderDataTag::kDefault);
   realm->TrackCppgcWrapper(ptr);
 }
 
@@ -41,7 +43,8 @@ T* CppgcMixin::Unwrap(v8::Local<v8::Object> obj) {
   if (obj->InternalFieldCount() != T::kInternalFieldCount) {
     return nullptr;
   }
-  T* ptr = static_cast<T*>(obj->GetAlignedPointerFromInternalField(T::kSlot));
+  T* ptr = static_cast<T*>(obj->GetAlignedPointerFromInternalField(
+      T::kSlot, EmbedderDataTag::kDefault));
   return ptr;
 }
 
