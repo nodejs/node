@@ -264,5 +264,5 @@ class Sink {
   writer.abort(new Error('boom'));
 
   assert.strictEqual(writer.desiredSize, null);
-  setImmediate(() => assert.strictEqual(writer.desiredSize, null));
+  setImmediate(common.mustCall(() => assert.strictEqual(writer.desiredSize, null)));
 }

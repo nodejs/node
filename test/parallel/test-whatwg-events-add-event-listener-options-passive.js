@@ -5,11 +5,7 @@ require('../common');
 // Manually converted from https://github.com/web-platform-tests/wpt/blob/master/dom/events/AddEventListenerOptions-passive.html
 // in order to define the `document` ourselves
 
-const {
-  fail,
-  ok,
-  strictEqual
-} = require('assert');
+const assert = require('assert');
 
 {
   const document = new EventTarget();
@@ -20,17 +16,17 @@ const {
       return false;
     },
     get dummy() {
-      fail('dummy value getter invoked');
+      assert.fail('dummy value getter invoked');
       return false;
     }
   };
 
   document.addEventListener('test_event', null, query_options);
-  ok(supportsPassive);
+  assert.ok(supportsPassive);
 
   supportsPassive = false;
   document.removeEventListener('test_event', null, query_options);
-  strictEqual(supportsPassive, false);
+  assert.strictEqual(supportsPassive, false);
 }
 {
   function testPassiveValue(optionsValue, expectedDefaultPrevented) {
@@ -38,7 +34,7 @@ const {
     let defaultPrevented;
     function handler(e) {
       if (e.defaultPrevented) {
-        fail('Event prematurely marked defaultPrevented');
+        assert.fail('Event prematurely marked defaultPrevented');
       }
       e.preventDefault();
       defaultPrevented = e.defaultPrevented;
@@ -49,8 +45,8 @@ const {
     const ev = new Event('test', { bubbles: true, cancelable: true });
     const uncanceled = document.dispatchEvent(ev);
 
-    strictEqual(defaultPrevented, expectedDefaultPrevented);
-    strictEqual(uncanceled, !expectedDefaultPrevented);
+    assert.strictEqual(defaultPrevented, expectedDefaultPrevented);
+    assert.strictEqual(uncanceled, !expectedDefaultPrevented);
 
     document.removeEventListener('test', handler, optionsValue);
   }

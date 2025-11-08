@@ -7,6 +7,14 @@ const message =
 const requireCall = 'CallExpression[callee.name="require"]';
 const assertModuleSpecifier = '/^(node:)?assert(.strict)?$/';
 
+const isObjectKeysOrEntries = (node) =>
+  node.type === 'CallExpression' &&
+  node.callee.type === 'MemberExpression' &&
+  node.callee.object.type === 'Identifier' &&
+  node.callee.object.name === 'Object' &&
+  node.callee.property.type === 'Identifier' &&
+  ['keys', 'entries'].includes(node.callee.property.name);
+
 const isPromiseAllCallArg = (node) =>
   node.parent?.type === 'CallExpression' &&
   node.parent.callee.type === 'MemberExpression' &&
@@ -26,7 +34,11 @@ function findEnclosingFunction(node) {
 
       if (
         node.parent.callee.type === 'MemberExpression' &&
-        (node.parent.callee.object.type === 'ArrayExpression' || node.parent.callee.object.type === 'Identifier') &&
+        (
+          node.parent.callee.object.type === 'ArrayExpression' ||
+          node.parent.callee.object.type === 'Identifier' ||
+          isObjectKeysOrEntries(node.parent.callee.object)
+        ) &&
         (
           node.parent.callee.property.name === 'forEach' ||
           (node.parent.callee.property.name === 'map' && isPromiseAllCallArg(node.parent))
@@ -69,6 +81,10 @@ module.exports = {
         const enclosingFn = findEnclosingFunction(node);
         const parent = enclosingFn?.parent;
         if (!parent) return; // Top-level
+        if (parent.type === 'BinaryExpression' && parent.operator === '+') {
+          // Function is stringified, e.g. to be passed to a child process or a worker.
+          return;
+        }
         if (parent.type === 'CallExpression') {
           switch (parent.callee.type) {
             case 'MemberExpression':

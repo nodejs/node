@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const Countdown = require('../common/countdown');
 const assert = require('assert');
 const { Worker } = require('worker_threads');
@@ -35,9 +35,9 @@ describe('Allocating uninitialized ArrayBuffers ...', () => {
       assert(fn.mock.calls.length > 0);
     });
 
-    w.on('message', (sum) => {
+    w.on('message', common.mustCallAtLeast((sum) => {
       assert.strictEqual(sum, 0);
       if (countdown.remaining) countdown.dec();
-    });
+    }));
   });
 });
