@@ -1071,17 +1071,18 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "ES module to preload (option can be repeated)",
             &EnvironmentOptions::preload_esm_modules,
             kAllowedInEnvvar);
-  AddOption("--experimental-strip-types",
-            "Experimental type-stripping for TypeScript files.",
-            &EnvironmentOptions::experimental_strip_types,
+  AddOption("--strip-types",
+            "Type-stripping for TypeScript files.",
+            &EnvironmentOptions::strip_types,
             kAllowedInEnvvar,
             true);
+  AddAlias("--experimental-strip-types", "--strip-types");
   AddOption("--experimental-transform-types",
             "enable transformation of TypeScript-only"
             "syntax into JavaScript code",
             &EnvironmentOptions::experimental_transform_types,
             kAllowedInEnvvar);
-  Implies("--experimental-transform-types", "--experimental-strip-types");
+  Implies("--experimental-transform-types", "--strip-types");
   Implies("--experimental-transform-types", "--enable-source-maps");
   AddOption("--interactive",
             "always enter the REPL even if stdin does not appear "
