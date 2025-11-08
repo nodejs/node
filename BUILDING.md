@@ -299,7 +299,7 @@ that flag to use all the shared dependencies, or specify only some dependencies:
 ```bash
 cat -> .envrc <<'EOF'
 use nix --arg sharedLibDeps '{
-  inherit (import <nixpkgs> {})
+  inherit (import ./tools/nix/sharedLibDeps.nix {})
     openssl
     zlib
   ;
