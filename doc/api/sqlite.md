@@ -4,6 +4,10 @@
 
 <!-- YAML
 added: v22.5.0
+changes:
+  - version: v22.13.0
+    pr-url: https://github.com/nodejs/node/pull/55890
+    description: SQLite is no longer behind `--experimental-sqlite` but still experimental.
 -->
 
 > Stability: 1.1 - Active development.
