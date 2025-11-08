@@ -514,7 +514,7 @@ By default, Node.js will run all files matching these patterns:
 * `**/test.{cjs,mjs,js}`
 * `**/test/**/*.{cjs,mjs,js}`
 
-Unless [`--no-experimental-strip-types`][] is supplied, the following
+Unless [`--no-strip-types`][] is supplied, the following
 additional patterns are also matched:
 
 * `**/*.test.{cts,mts,ts}`
@@ -3991,7 +3991,7 @@ Can be used to abort test subtasks when the test has been aborted.
 [`--experimental-test-coverage`]: cli.md#--experimental-test-coverage
 [`--experimental-test-module-mocks`]: cli.md#--experimental-test-module-mocks
 [`--import`]: cli.md#--importmodule
-[`--no-experimental-strip-types`]: cli.md#--no-experimental-strip-types
+[`--no-strip-types`]: cli.md#--no-strip-types
 [`--test-concurrency`]: cli.md#--test-concurrency
 [`--test-coverage-exclude`]: cli.md#--test-coverage-exclude
 [`--test-coverage-include`]: cli.md#--test-coverage-include
