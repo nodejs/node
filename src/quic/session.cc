@@ -2259,6 +2259,10 @@ void Session::ExtendOffset(size_t amount) {
 
 void Session::UpdateDataStats() {
   Debug(this, "Updating data stats");
+  if (!impl_) {
+    Debug(this, "Updating data stats failed, impl gone!");
+    return;
+  }
   auto& stats_ = impl_->stats_;
   ngtcp2_conn_info info;
   ngtcp2_conn_get_conn_info(*this, &info);
