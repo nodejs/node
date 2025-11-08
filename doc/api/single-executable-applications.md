@@ -508,6 +508,11 @@ console.log(myaddon.exports);
 fs.rmSync(addonPath);
 ```
 
+Known caveat: if the single-executable application is produced by postject running on a Linux arm64 docker container,
+[the produced ELF binary does not have the correct hash table to load the addons][postject-linux-arm64-issue] and
+will crash on `process.dlopen()`. Build the single-executable application on other platforms, or at least on
+a non-container Linux arm64 environment to work around this issue.
+
 ## Notes
 
 ### Single executable application creation process
@@ -560,6 +565,7 @@ to help us document them.
 [documentation about startup snapshot support in Node.js]: cli.md#--build-snapshot
 [fuse]: https://www.electronjs.org/docs/latest/tutorial/fuses
 [postject]: https://github.com/nodejs/postject
+[postject-linux-arm64-issue]: https://github.com/nodejs/postject/issues/105
 [signtool]: https://learn.microsoft.com/en-us/windows/win32/seccrypto/signtool
 [single executable applications]: https://github.com/nodejs/single-executable
 [supported by Node.js]: https://github.com/nodejs/node/blob/main/BUILDING.md#platform-list
