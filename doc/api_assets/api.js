@@ -188,15 +188,15 @@
   }
 
   function setupSidebarScroll() {
-    const sidebar = document.querySelector('#column2');
-    if (!sidebar) return;
+    const sidebarLinks = document.querySelectorAll('#column2 a');
 
-    const currentModule = window.location.pathname.split('/').pop();
-    if (!currentModule) return;
+    let link;
+    for (link of sidebarLinks) {
+      if (link.pathname === window.location.pathname) break;
+    }
 
-    const link = sidebar.querySelector(`a[href="${currentModule}"]`);
     if (!link) return;
-    
+
     link.scrollIntoView({ block: 'center' });
   }
 
