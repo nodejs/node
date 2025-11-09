@@ -22,10 +22,15 @@
 
 namespace node {
 
+using v8::ArrayBuffer;
 using v8::ArrayBufferView;
 using v8::BackingStore;
 using v8::Local;
 using v8::Object;
+using v8::ObjectTemplate;
+using v8::Promise;
+using v8::Uint8Array;
+using v8::TypedArray;
 using v8::Value;
 
 namespace {
@@ -1104,9 +1109,7 @@ class FdEntry final : public EntryImpl {
   friend class ReaderImpl;
 };
 
-}  // namespace
 // ============================================================================
-
 class FeederEntry final : public EntryImpl {
  public:
   FeederEntry(DataQueueFeeder* feeder) : feeder_(feeder) {}
@@ -1176,7 +1179,7 @@ class FeederEntry final : public EntryImpl {
     FeederEntry* entry_;
   };
 };
-
+}  // namespace
 // ============================================================================
 
 std::shared_ptr<DataQueue> DataQueue::CreateIdempotent(
@@ -1263,6 +1266,183 @@ void DataQueue::Initialize(Environment* env, v8::Local<v8::Object> target) {
 void DataQueue::RegisterExternalReferences(
     ExternalReferenceRegistry* registry) {
   // Nothing to do here currently.
+}
+
+
+DataQueueFeeder::DataQueueFeeder(Environment* env, Local<Object> object)
+    : AsyncWrap(env, object) {
+  MakeWeak();
+}
+
+
+void DataQueueFeeder::tryWakePulls() {
+  if (!readFinish_.IsEmpty()) {
+    v8::Local<v8::Promise::Resolver> resolver =
+        readFinish_.Get(env()->isolate());
+    // I do not think, that this can error...
+    [[maybe_unused]] v8::Maybe<bool> ignoredResult =
+        resolver->Resolve(env()->context(), v8::True(env()->isolate()));
+    readFinish_.Reset();
+  }
+}
+
+void DataQueueFeeder::DrainAndClose() {
+  if (done) return;
+  done = true;
+  // do not do this several time, and note,
+  // it may be called several times.
+  while (!pendingPulls_.empty()) {
+    auto& pending = pendingPulls_.front();
+    auto pop = OnScopeLeave([this] { pendingPulls_.pop_front(); });
+    pending.next(bob::STATUS_EOS, nullptr, 0, [](uint64_t) {});
+  }
+  if (!readFinish_.IsEmpty()) {
+    Local<v8::Promise::Resolver> resolver = readFinish_.Get(env()->isolate());
+    [[maybe_unused]] v8::Maybe<bool> ignoredResult =
+        resolver->Resolve(env()->context(), v8::False(env()->isolate()));
+    readFinish_.Reset();
+  }
+}
+
+JS_METHOD_IMPL(DataQueueFeeder::New) {
+  DCHECK(args.IsConstructCall());
+  auto env = Environment::GetCurrent(args);
+  new DataQueueFeeder(env, args.This());
+}
+
+JS_METHOD_IMPL(DataQueueFeeder::Ready) {
+  Environment* env = Environment::GetCurrent(args);
+  DataQueueFeeder* feeder;
+  ASSIGN_OR_RETURN_UNWRAP(&feeder, args.This());
+  if (feeder->pendingPulls_.size() > 0) {
+    feeder->readFinish_.Reset();
+    return;
+  } else {
+    Local<Promise::Resolver> readFinish =
+        Promise::Resolver::New(env->context()).ToLocalChecked();
+    feeder->readFinish_.Reset(env->isolate(), readFinish);
+    args.GetReturnValue().Set(readFinish->GetPromise());
+    return;
+  }
+}
+
+JS_METHOD_IMPL(DataQueueFeeder::Submit) {
+  Environment* env = Environment::GetCurrent(args);
+  DataQueueFeeder* feeder;
+  ASSIGN_OR_RETURN_UNWRAP(&feeder, args.This());
+
+  bool done = false;
+  if (args[1]->IsBoolean() && args[1].As<v8::Boolean>()->Value()) {
+    done = true;
+  }
+  if (!args[0].IsEmpty() && !args[0]->IsUndefined() && !args[0]->IsNull()) {
+    CHECK_GT(feeder->pendingPulls_.size(), 0);
+    auto chunk = args[0];
+
+    if (chunk->IsArrayBuffer()) {
+      auto buffer = chunk.As<ArrayBuffer>();
+      chunk = Uint8Array::New(buffer, 0, buffer->ByteLength());
+    }
+    if (!chunk->IsTypedArray()) {
+      THROW_ERR_INVALID_ARG_TYPE(
+          env, "Invalid data must be Arraybuffer or TypedArray");
+      return;
+    }
+    Local<TypedArray> typedArray = chunk.As<TypedArray>();
+    // now we create a copy
+    // detaching, would not be a good idea for example, such
+    // a limitation is not given with W3C Webtransport
+    // if we do not do it here, a transform stream would
+    // be needed to do the copy in the Webtransport case.
+    // there may be also troubles, if multiple Uint8Array
+    // are derived in a parser from a single ArrayBuffer
+    size_t nread = typedArray->ByteLength();
+    JS_TRY_ALLOCATE_BACKING(env, backingUniq, nread);
+    std::shared_ptr<BackingStore> backing = std::move(backingUniq);
+
+    auto originalStore = typedArray->Buffer()->GetBackingStore();
+    const void* originalData =
+        static_cast<char*>(originalStore->Data()) + typedArray->ByteOffset();
+    memcpy(backing->Data(), originalData, nread);
+    auto& pending = feeder->pendingPulls_.front();
+    auto pop = OnScopeLeave([feeder] {
+      if (feeder->pendingPulls_.size() > 0) feeder->pendingPulls_.pop_front();
+    });
+    DataQueue::Vec vec;
+    vec.base = static_cast<uint8_t*>(backing->Data());
+    vec.len = static_cast<uint64_t>(nread);
+    pending.next(bob::STATUS_CONTINUE, &vec, 1, [backing](uint64_t) {});
+  }
+  if (done) {
+    feeder->DrainAndClose();
+    feeder->readFinish_.Reset();
+    args.GetReturnValue().Set(v8::False(env->isolate()));
+    return;
+  } else {
+    if (feeder->pendingPulls_.size() > 0) {
+      feeder->readFinish_.Reset();
+      args.GetReturnValue().Set(v8::True(env->isolate()));
+      return;
+    } else {
+      Local<Promise::Resolver> readFinish =
+          Promise::Resolver::New(env->context()).ToLocalChecked();
+      feeder->readFinish_.Reset(env->isolate(), readFinish);
+      args.GetReturnValue().Set(readFinish->GetPromise());
+      return;
+    }
+  }
+}
+
+JS_METHOD_IMPL(DataQueueFeeder::Error) {
+  DataQueueFeeder* feeder;
+  ASSIGN_OR_RETURN_UNWRAP(&feeder, args.This());
+  // FIXME, how should I pass on the error
+  // ResetStream must be send also
+  feeder->DrainAndClose();
+}
+
+JS_METHOD_IMPL(DataQueueFeeder::AddFakePull) {
+  DataQueueFeeder* feeder;
+  ASSIGN_OR_RETURN_UNWRAP(&feeder, args.This());
+  // this adds a fake pull for testing code, not to be used anywhere else
+  Next dummyNext = [](int, const DataQueue::Vec*, size_t, bob::Done) {
+    // intentionally empty
+  };
+  feeder->addPendingPull(PendingPull(std::move(dummyNext)));
+  feeder->tryWakePulls();
+}
+
+using quic::BindingData;
+JS_CONSTRUCTOR_IMPL(DataQueueFeeder, dataqueuefeeder_constructor_template, {
+  auto isolate = env->isolate();
+  JS_NEW_CONSTRUCTOR();
+  JS_INHERIT(AsyncWrap);
+  JS_CLASS(dataqueuefeeder);
+  SetProtoMethod(isolate, tmpl, "error", Error);
+  SetProtoMethod(isolate, tmpl, "submit", Submit);
+  SetProtoMethod(isolate, tmpl, "ready", Ready);
+  SetProtoMethod(isolate, tmpl, "addFakePull", AddFakePull);
+})
+
+void DataQueueFeeder::InitPerIsolate(IsolateData* data,
+                                     Local<ObjectTemplate> target) {
+  // TODO(@jasnell): Implement the per-isolate state
+}
+
+void DataQueueFeeder::InitPerContext(Realm* realm, Local<Object> target) {
+  SetConstructorFunction(realm->context(),
+                         target,
+                         "DataQueueFeeder",
+                         GetConstructorTemplate(realm->env()));
+}
+
+void DataQueueFeeder::RegisterExternalReferences(
+    ExternalReferenceRegistry* registry) {
+  registry->Register(New);
+  registry->Register(Submit);
+  registry->Register(Error);
+  registry->Register(Ready);
+  registry->Register(AddFakePull);
 }
 
 }  // namespace node

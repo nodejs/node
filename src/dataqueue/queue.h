@@ -15,6 +15,8 @@
 #include <optional>
 #include <vector>
 
+#include "../quic/defs.h"
+
 namespace node {
 using v8::Local;
 using v8::Value;
@@ -313,6 +315,55 @@ class DataQueue : public MemoryRetainer {
 
   static void Initialize(Environment* env, v8::Local<v8::Object> target);
   static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
+};
+
+
+class DataQueueFeeder final : public AsyncWrap {
+ public:
+  using Next = bob::Next<DataQueue::Vec>;
+
+  DataQueueFeeder(Environment* env, v8::Local<v8::Object> object);
+
+  JS_CONSTRUCTOR(DataQueueFeeder);
+  JS_BINDING_INIT_BOILERPLATE();
+
+  static BaseObjectPtr<DataQueueFeeder> Create();
+
+  void setDataQueue(std::shared_ptr<DataQueue> queue) { dataQueue_ = queue; }
+
+
+  void clearPendingNext() { pendingPulls_.clear(); }
+
+  struct PendingPull {
+    Next next;
+    explicit PendingPull(Next next) : next(std::move(next)) {}
+  };
+
+  void addPendingPull(PendingPull toAdd) {
+    pendingPulls_.emplace_back(std::move(toAdd));
+  }
+
+  bool Done() { return done; }
+
+  void DrainAndClose();
+  void tryWakePulls();
+
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(DataQueueFeeder)
+  SET_SELF_SIZE(DataQueueFeeder)
+
+  JS_METHOD(New);
+  JS_METHOD(Submit);
+  JS_METHOD(Error);
+  JS_METHOD(Ready);
+  JS_METHOD(AddFakePull);
+
+ private:
+  std::shared_ptr<DataQueue> dataQueue_;
+  v8::Global<v8::Promise::Resolver> readFinish_;
+
+  std::deque<PendingPull> pendingPulls_;
+  bool done = false;
 };
 
 }  // namespace node
