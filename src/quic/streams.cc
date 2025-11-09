@@ -20,7 +20,6 @@ namespace node {
 using v8::Array;
 using v8::ArrayBuffer;
 using v8::ArrayBufferView;
-using v8::BackingStore;
 using v8::BigInt;
 using v8::Global;
 using v8::Integer;
