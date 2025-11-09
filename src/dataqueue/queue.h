@@ -3,8 +3,8 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include <base_object.h>
-#include <memory_tracker.h>
 #include <env.h>
+#include <memory_tracker.h>
 #include <node.h>
 #include <node_bob.h>
 #include <node_file.h>
