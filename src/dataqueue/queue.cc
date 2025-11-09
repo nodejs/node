@@ -22,6 +22,7 @@
 
 namespace node {
 
+using quic::BindingData;
 using v8::ArrayBuffer;
 using v8::ArrayBufferView;
 using v8::BackingStore;
@@ -29,8 +30,8 @@ using v8::Local;
 using v8::Object;
 using v8::ObjectTemplate;
 using v8::Promise;
-using v8::Uint8Array;
 using v8::TypedArray;
+using v8::Uint8Array;
 using v8::Value;
 
 namespace {
@@ -1412,7 +1413,6 @@ JS_METHOD_IMPL(DataQueueFeeder::AddFakePull) {
   feeder->tryWakePulls();
 }
 
-using quic::BindingData;
 JS_CONSTRUCTOR_IMPL(DataQueueFeeder, dataqueuefeeder_constructor_template, {
   auto isolate = env->isolate();
   JS_NEW_CONSTRUCTOR();
