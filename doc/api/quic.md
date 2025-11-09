@@ -832,6 +832,16 @@ added: v23.8.0
 
 The session that created this stream. Read only.
 
+### `stream.setOutbound(outbound)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `outbound` {ArrayBuffer|SharedArrayBuffer|ArrayBufferView|Blob|ReadableStream}
+
+Set the outbound datasource.
+
 ### `stream.stats`
 
 <!-- YAML
