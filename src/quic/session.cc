@@ -544,8 +544,9 @@ struct Session::Impl final : public MemoryRetainer {
         remote_address_(config.remote_address),
         application_(SelectApplication(session, config_)),
         timer_(session_->env(), [this] {
-          auto impl = session_->impl_;  // we hold a reference to ourself,
-          // as the reference from session to us may go away
+          BaseObjectPtr<Session> session = BaseObjectPtr<Session>(session_);
+          // we hold a reference to session,
+          // as the reference from session to us may go away otherwise
           // while we call OnTimeout
           session_->OnTimeout();
         }) {
@@ -564,10 +565,10 @@ struct Session::Impl final : public MemoryRetainer {
     state_->closing = 1;
     STAT_RECORD_TIMESTAMP(Stats, closing_at);
 
-    // we hold a reference to ourself,
-    // as the reference from session to us may go away
+    // we hold a reference to our session,
+    // as the reference from session to us may go away otherwise
     // while we destroy streams
-    auto impl = session_->impl_;
+    BaseObjectPtr<Session> session = BaseObjectPtr<Session>(session_);
 
     // Iterate through all of the known streams and close them. The streams
     // will remove themselves from the Session as soon as they are closed.
@@ -1308,7 +1309,7 @@ Session::Session(Endpoint* endpoint,
     : AsyncWrap(endpoint->env(), object, PROVIDER_QUIC_SESSION),
       side_(config.side),
       allocator_(BindingData::Get(env())),
-      impl_(std::make_shared<Impl>(this, endpoint, config)),
+      impl_(std::make_unique<Impl>(this, endpoint, config)),
       connection_(InitConnection()),
       tls_session_(tls_context->NewSession(this, session_ticket)) {
   DCHECK(impl_);
