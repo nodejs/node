@@ -562,7 +562,6 @@ class Stream::Outbound final : public MemoryRetainer {
             // in the uncommitted queue. We'll resume the stream so that the
             // session will try to read from it again.
             if (last_next_pending_state) {
-              fprintf(stderr, "next_pending ResumeStream EOS\n");
               session->ResumeStream(stream_->id());
             }
             return;
