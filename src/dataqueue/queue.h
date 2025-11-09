@@ -317,7 +317,6 @@ class DataQueue : public MemoryRetainer {
   static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 };
 
-
 class DataQueueFeeder final : public AsyncWrap {
  public:
   using Next = bob::Next<DataQueue::Vec>;
@@ -330,7 +329,6 @@ class DataQueueFeeder final : public AsyncWrap {
   static BaseObjectPtr<DataQueueFeeder> Create();
 
   void setDataQueue(std::shared_ptr<DataQueue> queue) { dataQueue_ = queue; }
-
 
   void clearPendingNext() { pendingPulls_.clear(); }
 
