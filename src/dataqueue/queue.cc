@@ -1269,12 +1269,10 @@ void DataQueue::RegisterExternalReferences(
   // Nothing to do here currently.
 }
 
-
 DataQueueFeeder::DataQueueFeeder(Environment* env, Local<Object> object)
     : AsyncWrap(env, object) {
   MakeWeak();
 }
-
 
 void DataQueueFeeder::tryWakePulls() {
   if (!readFinish_.IsEmpty()) {
