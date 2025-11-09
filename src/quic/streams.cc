@@ -534,7 +534,7 @@ class Stream::Outbound final : public MemoryRetainer {
           // so that it can not go away during the next calls.
           BaseObjectPtr<Stream> stream = BaseObjectPtr<Stream>(stream_);
           BaseObjectPtr<Session> session =
-              BaseObjectPtr<Session>(&stream_ ->session());
+              BaseObjectPtr<Session>(&stream_->session());
 
           // The status should never be wait here.
           DCHECK_NE(status, bob::Status::STATUS_WAIT);
@@ -544,8 +544,7 @@ class Stream::Outbound final : public MemoryRetainer {
             // being asynchronous, our stream is blocking waiting for the data,
             // but we have an error! oh no! We need to error the stream.
             if (last_next_pending_state) {
-              stream->Destroy(
-                  QuicError::ForNgtcp2Error(NGTCP2_INTERNAL_ERROR));
+              stream->Destroy(QuicError::ForNgtcp2Error(NGTCP2_INTERNAL_ERROR));
               // We do not need to worry about calling MarkErrored in this case
               // since we are immediately destroying the stream which will
               // release the outbound buffer anyway.
@@ -1418,8 +1417,7 @@ JS_METHOD_IMPL(DataQueueFeeder::Submit) {
     memcpy(backing->Data(), originalData, nread);
     auto& pending = feeder->pendingPulls_.front();
     auto pop = OnScopeLeave([feeder] {
-      if (feeder->pendingPulls_.size() > 0)
-        feeder->pendingPulls_.pop_front();
+      if (feeder->pendingPulls_.size() > 0) feeder->pendingPulls_.pop_front();
     });
     DataQueue::Vec vec;
     vec.base = static_cast<uint8_t*>(backing->Data());
