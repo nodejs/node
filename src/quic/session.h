@@ -497,11 +497,7 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
 
   Side side_;
   ngtcp2_mem allocator_;
-  std::shared_ptr<Impl> impl_;  // we need to have a shared ptr,
-  //  there are situations, where Impl calls the session and
-  // the session resets this pointer to Impl,
-  // in this case we need to hold a local shared ptr
-  // to prevent use after free
+  std::unique_ptr<Impl> impl_;
   QuicConnectionPointer connection_;
   std::unique_ptr<TLSSession> tls_session_;
   BaseObjectPtr<LogStream> qlog_stream_;
