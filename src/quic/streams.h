@@ -17,8 +17,6 @@
 
 namespace node {
 
-using v8::Global;
-using v8::Promise;
 namespace quic {
 
 class Session;
@@ -407,7 +405,7 @@ class DataQueueFeeder final : public AsyncWrap {
 
   void tryWakePulls() {
     if (!readFinish_.IsEmpty()) {
-      Local<Promise::Resolver> resolver = readFinish_.Get(env()->isolate());
+      v8::Local<v8::Promise::Resolver> resolver = readFinish_.Get(env()->isolate());
       // I do not think, that this can error...
       [[maybe_unused]] v8::Maybe<bool> ignoredResult =
           resolver->Resolve(env()->context(), v8::True(env()->isolate()));
@@ -426,7 +424,7 @@ class DataQueueFeeder final : public AsyncWrap {
       pending.next(bob::STATUS_EOS, nullptr, 0, [](uint64_t) {});
     }
     if (!readFinish_.IsEmpty()) {
-      Local<Promise::Resolver> resolver = readFinish_.Get(env()->isolate());
+      Local<v8::Promise::Resolver> resolver = readFinish_.Get(env()->isolate());
       [[maybe_unused]] v8::Maybe<bool> ignoredResult =
           resolver->Resolve(env()->context(), v8::False(env()->isolate()));
       readFinish_.Reset();
@@ -458,7 +456,7 @@ class DataQueueFeeder final : public AsyncWrap {
 
  private:
   std::shared_ptr<DataQueue> dataQueue_;
-  Global<Promise::Resolver> readFinish_;
+  v8::Global<v8::Promise::Resolver> readFinish_;
 
   std::deque<PendingPull> pendingPulls_;
   bool done = false;
