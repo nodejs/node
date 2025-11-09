@@ -523,8 +523,12 @@ class Stream::Outbound final : public MemoryRetainer {
     // that the pull is sync but allow for it to be async.
     int ret = reader_->Pull(
         [this](auto status, auto vecs, auto count, auto done) {
-          // Always make sure next_pending_ is false when we're done.
-          auto on_exit = OnScopeLeave([this] { next_pending_ = false; });
+          const bool last_next_pending_state = next_pending_;
+          next_pending_ = false;
+          // this ensures that next_pending is reset to false
+          // Note that for example ResumeStream below, may again call Pull
+          // so we have to erase next_pending_ to not block this call.
+          // Therefore the previous OnScopeLeave lead to a race condition.
 
           // We need to hold a reference to stream and session
           // so that it can not go away during the next calls.
@@ -536,10 +540,10 @@ class Stream::Outbound final : public MemoryRetainer {
           DCHECK_NE(status, bob::Status::STATUS_WAIT);
 
           if (status < 0) {
-            // If next_pending_ is true then a pull from the reader ended up
+            // If next_pending_ was true then a pull from the reader ended up
             // being asynchronous, our stream is blocking waiting for the data,
             // but we have an error! oh no! We need to error the stream.
-            if (next_pending_) {
+            if (last_next_pending_state) {
               stream->Destroy(
                   QuicError::ForNgtcp2Error(NGTCP2_INTERNAL_ERROR));
               // We do not need to worry about calling MarkErrored in this case
@@ -558,7 +562,8 @@ class Stream::Outbound final : public MemoryRetainer {
             // Here, there is no more data to read, but we will might have data
             // in the uncommitted queue. We'll resume the stream so that the
             // session will try to read from it again.
-            if (next_pending_) {
+            if (last_next_pending_state) {
+              fprintf(stderr, "next_pending ResumeStream EOS\n");
               session->ResumeStream(stream_->id());
             }
             return;
@@ -578,11 +583,11 @@ class Stream::Outbound final : public MemoryRetainer {
           // bytes in the queue.
           Append(vecs, count, std::move(done));
 
-          // If next_pending_ is true, then a pull from the reader ended up
+          // If next_pending_ was true, then a pull from the reader ended up
           // being asynchronous, our stream is blocking waiting for the data.
           // Now that we have data, let's resume the stream so the session will
           // pull from it again.
-          if (next_pending_) {
+          if (last_next_pending_state) {
             stream->session().ResumeStream(stream_->id());
           }
         },
