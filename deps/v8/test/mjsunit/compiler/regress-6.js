@@ -34,9 +34,5 @@ assertEquals(0, f(0, 0, 0));
 assertEquals(0, f(0, 1, 0));
 assertEquals(1, f(1, 0, 0));
 assertEquals(2, f(2, 1, 0));
-
-// Force deoptimization in --always-turbofan mode when evaluating
-// the 'a + c' expression. Make sure this doesn't end up
-// returning 'a'.
 assertEquals(1.5, f(1, 1, 0.5));
 assertEquals(2.5, f(2, 1, 0.5));

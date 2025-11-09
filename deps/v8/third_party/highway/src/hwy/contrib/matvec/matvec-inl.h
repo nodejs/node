@@ -22,6 +22,9 @@
 #define HIGHWAY_HWY_CONTRIB_MATVEC_MATVEC_INL_H_
 #endif
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include "hwy/cache_control.h"
 #include "hwy/contrib/thread_pool/thread_pool.h"
 #include "hwy/highway.h"
@@ -46,13 +49,13 @@ HWY_NOINLINE void MatVecAddImpl(const T* HWY_RESTRICT mat,
   // Process multiple rows at a time so that we write multiples of a cache line
   // to avoid false sharing (>= 64). 128 is better than 256. 512 has too little
   // parallelization potential.
-  constexpr size_t kChunkSize = 64 / sizeof(T);
-  const uint64_t num_chunks = static_cast<uint64_t>(kOuter / kChunkSize);
+  constexpr size_t kChunkSize2 = 64 / sizeof(T);
+  const uint64_t num_chunks = static_cast<uint64_t>(kOuter / kChunkSize2);
 
   const ScalableTag<T> d;
   const size_t N = Lanes(d);
   // Required for Stream loop, otherwise we might have partial vectors.
-  HWY_DASSERT(kChunkSize >= N);
+  HWY_DASSERT(kChunkSize2 >= N);
   pool.Run(0, num_chunks,
            [&](const uint64_t chunk, size_t /*thread*/) HWY_ATTR {
              // MSVC workaround: duplicate to ensure constexpr.
@@ -123,7 +126,7 @@ HWY_NOINLINE void MatVecAddImpl(const T* HWY_RESTRICT mat,
   hwy::FlushStream();
 
   // Handle remainder rows which are not a multiple of the chunk size.
-  for (size_t r = num_chunks * kChunkSize; r < kOuter; ++r) {
+  for (size_t r = num_chunks * kChunkSize2; r < kOuter; ++r) {
     auto sum0 = Zero(d);
 
     const T* HWY_RESTRICT row = &mat[r * kInner];
@@ -191,8 +194,8 @@ HWY_NOINLINE void MatVecAddImpl(const hwy::bfloat16_t* HWY_RESTRICT mat,
   // Process multiple rows at a time so that we write multiples of a cache line
   // to avoid false sharing (>= 64). 128 is better than 256. 512 has too little
   // parallelization potential.
-  constexpr size_t kChunkSize = 64 / sizeof(float);
-  const uint64_t num_chunks = static_cast<uint64_t>(kOuter / kChunkSize);
+  constexpr size_t kChunkSize2 = 64 / sizeof(float);
+  const uint64_t num_chunks = static_cast<uint64_t>(kOuter / kChunkSize2);
 
   const ScalableTag<float> d;
   const Repartition<hwy::bfloat16_t, decltype(d)> d16;
@@ -204,7 +207,7 @@ HWY_NOINLINE void MatVecAddImpl(const hwy::bfloat16_t* HWY_RESTRICT mat,
   using V16H = Vec<decltype(d16h)>;
   const size_t N = Lanes(d);
   // Required for Stream loop, otherwise we might have partial vectors.
-  HWY_DASSERT(kChunkSize >= N);
+  HWY_DASSERT(kChunkSize2 >= N);
   pool.Run(0, num_chunks,
            [&](const uint64_t chunk, size_t /*thread*/) HWY_ATTR {
              // MSVC workaround: duplicate to ensure constexpr.
@@ -282,7 +285,7 @@ HWY_NOINLINE void MatVecAddImpl(const hwy::bfloat16_t* HWY_RESTRICT mat,
   hwy::FlushStream();
 
   // Handle remainder rows which are not a multiple of the chunk size.
-  for (size_t r = num_chunks * kChunkSize; r < kOuter; ++r) {
+  for (size_t r = num_chunks * kChunkSize2; r < kOuter; ++r) {
     auto sum0 = Zero(d);
 
     const hwy::bfloat16_t* HWY_RESTRICT row = &mat[r * kInner];
@@ -331,15 +334,15 @@ HWY_NOINLINE void MatVecAddImpl(const hwy::bfloat16_t* HWY_RESTRICT mat,
   // Process multiple rows at a time so that we write multiples of a cache line
   // to avoid false sharing (>= 64). 128 is better than 256. 512 has too little
   // parallelization potential.
-  constexpr size_t kChunkSize = 64 / sizeof(bfloat16_t);
-  const uint64_t num_chunks = static_cast<uint64_t>(kOuter / kChunkSize);
+  constexpr size_t kChunkSize2 = 64 / sizeof(bfloat16_t);
+  const uint64_t num_chunks = static_cast<uint64_t>(kOuter / kChunkSize2);
 
   const ScalableTag<float> df;
   const Repartition<hwy::bfloat16_t, decltype(df)> d16;
   using V16 = Vec<decltype(d16)>;
   const size_t N = Lanes(d16);
   // Required for Stream loop, otherwise we might have partial vectors.
-  HWY_DASSERT(kChunkSize >= N);
+  HWY_DASSERT(kChunkSize2 >= N);
   pool.Run(0, num_chunks,
            [&](const uint64_t chunk, size_t /*thread*/) HWY_ATTR {
              // MSVC workaround: duplicate to ensure constexpr.
@@ -401,7 +404,7 @@ HWY_NOINLINE void MatVecAddImpl(const hwy::bfloat16_t* HWY_RESTRICT mat,
   hwy::FlushStream();
 
   // Handle remainder rows which are not a multiple of the chunk size.
-  for (size_t r = num_chunks * kChunkSize; r < kOuter; ++r) {
+  for (size_t r = num_chunks * kChunkSize2; r < kOuter; ++r) {
     auto sum0 = Zero(df);
     auto sum1 = Zero(df);
 

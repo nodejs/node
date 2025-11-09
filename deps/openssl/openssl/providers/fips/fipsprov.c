@@ -65,6 +65,7 @@ static OSSL_FUNC_core_vset_error_fn *c_vset_error;
 static OSSL_FUNC_core_set_error_mark_fn *c_set_error_mark;
 static OSSL_FUNC_core_clear_last_error_mark_fn *c_clear_last_error_mark;
 static OSSL_FUNC_core_pop_error_to_mark_fn *c_pop_error_to_mark;
+static OSSL_FUNC_core_count_to_mark_fn *c_count_to_mark;
 static OSSL_FUNC_CRYPTO_malloc_fn *c_CRYPTO_malloc;
 static OSSL_FUNC_CRYPTO_zalloc_fn *c_CRYPTO_zalloc;
 static OSSL_FUNC_CRYPTO_free_fn *c_CRYPTO_free;
@@ -797,6 +798,9 @@ int OSSL_provider_init_int(const OSSL_CORE_HANDLE *handle,
         case OSSL_FUNC_CORE_POP_ERROR_TO_MARK:
             set_func(c_pop_error_to_mark, OSSL_FUNC_core_pop_error_to_mark(in));
             break;
+        case OSSL_FUNC_CORE_COUNT_TO_MARK:
+            set_func(c_count_to_mark, OSSL_FUNC_core_count_to_mark(in));
+            break;
         case OSSL_FUNC_CRYPTO_MALLOC:
             set_func(c_CRYPTO_malloc, OSSL_FUNC_CRYPTO_malloc(in));
             break;
@@ -1033,6 +1037,11 @@ int ERR_clear_last_mark(void)
 int ERR_pop_to_mark(void)
 {
     return c_pop_error_to_mark(NULL);
+}
+
+int ERR_count_to_mark(void)
+{
+    return c_count_to_mark != NULL ? c_count_to_mark(NULL) : 0;
 }
 
 /*

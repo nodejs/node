@@ -254,11 +254,13 @@ size_t StringBytes::Write(Isolate* isolate,
         nbytes = std::min(buflen, static_cast<size_t>(input_view.length()));
         memcpy(buf, input_view.data8(), nbytes);
       } else {
-        uint8_t* const dst = reinterpret_cast<uint8_t*>(buf);
-        const int flags = String::HINT_MANY_WRITES_EXPECTED |
-                          String::NO_NULL_TERMINATION |
-                          String::REPLACE_INVALID_UTF8;
-        nbytes = str->WriteOneByte(isolate, dst, 0, buflen, flags);
+        nbytes = std::min(buflen, static_cast<size_t>(input_view.length()));
+        // Do not use v8::String::WriteOneByteV2 as it asserts the string to be
+        // a one byte string. For compatibility, convert the uint16_t to uint8_t
+        // even though this may loose accuracy.
+        for (size_t i = 0; i < nbytes; i++) {
+          buf[i] = static_cast<uint8_t>(input_view.data16()[i]);
+        }
       }
       break;
 
@@ -302,10 +304,10 @@ size_t StringBytes::Write(Isolate* isolate,
               input_view.length());
         }
       } else {
-        String::Value value(isolate, str);
+        TwoByteValue value(isolate, str);
         size_t written_len = buflen;
         auto result = simdutf::base64_to_binary_safe(
-            reinterpret_cast<const char16_t*>(*value),
+            reinterpret_cast<const char16_t*>(value.out()),
             value.length(),
             buf,
             written_len,
@@ -341,10 +343,10 @@ size_t StringBytes::Write(Isolate* isolate,
               input_view.length());
         }
       } else {
-        String::Value value(isolate, str);
+        TwoByteValue value(isolate, str);
         size_t written_len = buflen;
         auto result = simdutf::base64_to_binary_safe(
-            reinterpret_cast<const char16_t*>(*value),
+            reinterpret_cast<const char16_t*>(value.out()),
             value.length(),
             buf,
             written_len);
@@ -366,8 +368,8 @@ size_t StringBytes::Write(Isolate* isolate,
                               reinterpret_cast<const char*>(input_view.data8()),
                               input_view.length());
       } else {
-        String::Value value(isolate, str);
-        nbytes = nbytes::HexDecode(buf, buflen, *value, value.length());
+        TwoByteValue value(isolate, str);
+        nbytes = nbytes::HexDecode(buf, buflen, value.out(), value.length());
       }
       break;
 

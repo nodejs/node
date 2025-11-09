@@ -196,7 +196,7 @@ void RegExpMacroAssemblerIA32::CheckCharacterLT(base::uc16 limit,
   BranchOrBacktrack(less, on_less);
 }
 
-void RegExpMacroAssemblerIA32::CheckGreedyLoop(Label* on_equal) {
+void RegExpMacroAssemblerIA32::CheckFixedLengthLoop(Label* on_equal) {
   Label fallthrough;
   __ cmp(edi, Operand(backtrack_stackpointer(), 0));
   __ j(not_equal, &fallthrough);
@@ -582,15 +582,14 @@ void RegExpMacroAssemblerIA32::CheckBitInTable(
 
 void RegExpMacroAssemblerIA32::SkipUntilBitInTable(
     int cp_offset, Handle<ByteArray> table, Handle<ByteArray> nibble_table,
-    int advance_by) {
+    int advance_by, Label* on_match, Label* on_no_match) {
   // TODO(pthier): Optimize. Table can be loaded outside of the loop.
-  Label cont, again;
+  Label again;
   Bind(&again);
-  LoadCurrentCharacter(cp_offset, &cont, true);
-  CheckBitInTable(table, &cont);
+  LoadCurrentCharacter(cp_offset, on_no_match, true);
+  CheckBitInTable(table, on_match);
   AdvanceCurrentPosition(advance_by);
   GoTo(&again);
-  Bind(&cont);
 }
 
 bool RegExpMacroAssemblerIA32::CheckSpecialClassRanges(
@@ -1155,7 +1154,7 @@ void RegExpMacroAssemblerIA32::PushRegister(int register_index,
                                             StackCheckFlag check_stack_limit) {
   __ mov(eax, register_location(register_index));
   Push(eax);
-  if (check_stack_limit) {
+  if (check_stack_limit == StackCheckFlag::kCheckStackLimit) {
     CheckStackLimit();
   } else if (V8_UNLIKELY(v8_flags.slow_debug_code)) {
     AssertAboveStackLimitMinusSlack();
@@ -1269,7 +1268,7 @@ int RegExpMacroAssemblerIA32::CheckStackGuardState(Address* return_address,
                                                    Address re_frame,
                                                    uintptr_t extra_space) {
   Tagged<InstructionStream> re_code =
-      Cast<InstructionStream>(Tagged<Object>(raw_code));
+      SbxCast<InstructionStream>(Tagged<Object>(raw_code));
   return NativeRegExpMacroAssembler::CheckStackGuardState(
       frame_entry<Isolate*>(re_frame, kIsolateOffset),
       frame_entry<int>(re_frame, kStartIndexOffset),

@@ -553,6 +553,25 @@ void MacroAssembler::RecordWrite(Register object, Register slot_address,
   }
 }
 
+void MacroAssembler::CallVerifySkippedWriteBarrierStubSaveRegisters(
+    Register object, Register value, SaveFPRegsMode fp_mode) {
+  ASM_CODE_COMMENT(this);
+  PushCallerSaved(fp_mode);
+  CallVerifySkippedWriteBarrierStub(object, value);
+  PopCallerSaved(fp_mode);
+}
+
+void MacroAssembler::CallVerifySkippedWriteBarrierStub(Register object,
+                                                       Register value) {
+  ASM_CODE_COMMENT(this);
+  movd(kScratchDoubleReg, eax);
+  PrepareCallCFunction(2, eax);
+  movd(eax, kScratchDoubleReg);
+  mov(Operand(esp, 0 * kSystemPointerSize), object);
+  mov(Operand(esp, 1 * kSystemPointerSize), value);
+  CallCFunction(ExternalReference::verify_skipped_write_barrier(), 2);
+}
+
 void MacroAssembler::Cvtsi2ss(XMMRegister dst, Operand src) {
   xorps(dst, dst);
   cvtsi2ss(dst, src);
@@ -711,6 +730,19 @@ void MacroAssembler::LoadFeedbackVector(Register dst, Register closure,
   bind(&done);
 }
 
+void MacroAssembler::LoadInterpreterDataBytecodeArray(
+    Register destination, Register interpreter_data) {
+  mov(destination, FieldOperand(interpreter_data,
+                                offsetof(InterpreterData, bytecode_array_)));
+}
+
+void MacroAssembler::LoadInterpreterDataInterpreterTrampoline(
+    Register destination, Register interpreter_data) {
+  mov(destination,
+      FieldOperand(interpreter_data,
+                   offsetof(InterpreterData, interpreter_trampoline_)));
+}
+
 void MacroAssembler::CmpObjectType(Register heap_object, InstanceType type,
                                    Register map) {
   ASM_CODE_COMMENT(this);
@@ -739,7 +771,7 @@ void MacroAssembler::TestCodeIsMarkedForDeoptimization(Register code) {
 }
 
 Immediate MacroAssembler::ClearedValue() const {
-  return Immediate(static_cast<int32_t>(i::ClearedValue(isolate()).ptr()));
+  return Immediate(static_cast<int32_t>(i::kClearedWeakValue.ptr()));
 }
 
 namespace {
@@ -813,21 +845,6 @@ void MacroAssembler::AssertFeedbackVector(Register object, Register scratch) {
 }
 #endif  // V8_ENABLE_DEBUG_CODE
 
-void MacroAssembler::ReplaceClosureCodeWithOptimizedCode(
-    Register optimized_code, Register closure, Register value,
-    Register slot_address) {
-  ASM_CODE_COMMENT(this);
-#ifdef V8_ENABLE_LEAPTIERING
-  UNREACHABLE();
-#else
-  // Store the optimized code in the closure.
-  mov(FieldOperand(closure, JSFunction::kCodeOffset), optimized_code);
-  mov(value, optimized_code);  // Write barrier clobbers slot_address below.
-  RecordWriteField(closure, JSFunction::kCodeOffset, value, slot_address,
-                   SaveFPRegsMode::kIgnore, SmiCheck::kOmit);
-#endif  // V8_ENABLE_LEAPTIERING
-}
-
 void MacroAssembler::GenerateTailCallToReturnedCode(
     Runtime::FunctionId function_id) {
   // ----------- S t a t e -------------
@@ -848,7 +865,9 @@ void MacroAssembler::GenerateTailCallToReturnedCode(
     push(kJavaScriptCallTargetRegister);
 
     CallRuntime(function_id, 1);
+#ifndef V8_ENABLE_LEAPTIERING
     mov(ecx, eax);
+#endif
 
     // Restore target function, new target and actual argument count.
     pop(kJavaScriptCallArgCountRegister);
@@ -858,10 +877,25 @@ void MacroAssembler::GenerateTailCallToReturnedCode(
   }
 
   static_assert(kJavaScriptCallCodeStartRegister == ecx, "ABI mismatch");
+#ifdef V8_ENABLE_LEAPTIERING
+  JumpJSFunction(kJavaScriptCallTargetRegister);
+#else
   JumpCodeObject(ecx);
+#endif
 }
 
 #ifndef V8_ENABLE_LEAPTIERING
+
+void MacroAssembler::ReplaceClosureCodeWithOptimizedCode(
+    Register optimized_code, Register closure, Register value,
+    Register slot_address) {
+  ASM_CODE_COMMENT(this);
+  // Store the optimized code in the closure.
+  mov(FieldOperand(closure, JSFunction::kCodeOffset), optimized_code);
+  mov(value, optimized_code);  // Write barrier clobbers slot_address below.
+  RecordWriteField(closure, JSFunction::kCodeOffset, value, slot_address,
+                   SaveFPRegsMode::kIgnore, SmiCheck::kOmit);
+}
 
 // Read off the flags in the feedback vector and check if there
 // is optimized code or a tiering state that needs to be processed.
@@ -1250,7 +1284,7 @@ void MacroAssembler::LeaveExitFrame(Register scratch) {
 #ifdef DEBUG
   push(eax);
   mov(ExternalReferenceAsOperand(context_address, eax),
-      Immediate(Context::kInvalidContext));
+      Immediate(Context::kNoContext));
   pop(eax);
 #endif
 }
@@ -1999,17 +2033,25 @@ int MacroAssembler::CallCFunction(Register function, int num_arguments,
   int call_pc_offset = pc_offset();
   bind(&get_pc);
   if (return_location) bind(return_location);
+  // Restoring the stack pointer has to happen right after the call. The
+  // deoptimizer may overwrite everything after restoring the SP.
+  int before_offset = pc_offset();
+  if (base::OS::ActivationFrameAlignment() != 0) {
+    mov(esp, Operand(esp, num_arguments * kSystemPointerSize));
+  } else {
+    add(esp, Immediate(num_arguments * kSystemPointerSize));
+  }
+  Nop(kMaxSizeOfMoveAfterFastCall - (pc_offset() - before_offset));
+  // We assume that with the nop padding, the move instruction uses
+  // kMaxSizeOfMoveAfterFastCall bytes. When we patch in the deopt trampoline,
+  // we patch it in after the move instruction, so that the stack has been
+  // restored correctly.
+  CHECK_EQ(kMaxSizeOfMoveAfterFastCall, pc_offset() - before_offset);
 
   if (set_isolate_data_slots == SetIsolateDataSlots::kYes) {
     // We don't unset the PC; the FP is the source of truth.
     mov(ExternalReferenceAsOperand(IsolateFieldId::kFastCCallCallerFP),
         Immediate(0));
-  }
-
-  if (base::OS::ActivationFrameAlignment() != 0) {
-    mov(esp, Operand(esp, num_arguments * kSystemPointerSize));
-  } else {
-    add(esp, Immediate(num_arguments * kSystemPointerSize));
   }
 
   return call_pc_offset;
@@ -2145,7 +2187,8 @@ void MacroAssembler::LoadEntrypointFromJSDispatchTable(
 
   DCHECK(!AreAliased(dispatch_handle, eax));
   movd(xmm0, eax);
-  LoadAddress(eax, ExternalReference::js_dispatch_table_address());
+  CHECK(root_array_available());
+  mov(eax, ExternalReferenceAsOperand(IsolateFieldId::kJSDispatchTable));
   mov(destination, Operand(eax, dispatch_handle, times_1,
                            JSDispatchEntry::kEntrypointOffset));
   movd(eax, xmm0);
@@ -2267,6 +2310,50 @@ void MacroAssembler::CheckPageFlag(Register object, Register scratch, int mask,
     test(Operand(scratch, MemoryChunk::FlagsOffset()), Immediate(mask));
   }
   j(cc, condition_met, condition_met_distance);
+}
+
+void MacroAssembler::PreCheckSkippedWriteBarrier(Register object,
+                                                 Register value,
+                                                 Register scratch, Label* ok) {
+  ASM_CODE_COMMENT(this);
+  DCHECK(!AreAliased(object, scratch));
+  DCHECK(!AreAliased(value, scratch));
+
+  // The most common case: Static write barrier elimination is allowed on the
+  // last young allocation.
+  lea(scratch, Operand(object, -kHeapObjectTag));
+  cmp(scratch,
+      Operand(kRootRegister, IsolateData::last_young_allocation_offset()));
+  j(Condition::equal, ok);
+
+  // Write barier can also be removed if value is in read-only space.
+  CheckPageFlag(value, scratch, MemoryChunk::kIsInReadOnlyHeapMask, not_zero,
+                ok);
+
+  Label not_ok;
+
+  // Handle allocation folding, allow WB removal if:
+  //   LAB start <= last_young_allocation_ < (object address+1) < LAB top
+  // Note that object has tag bit set, so object == object address+1.
+
+  // Check LAB start <= last_young_allocation_.
+  mov(scratch,
+      Operand(kRootRegister, IsolateData::last_young_allocation_offset()));
+  cmp(scratch,
+      Operand(kRootRegister, IsolateData::new_allocation_info_start_offset()));
+  j(Condition::kUnsignedLessThan, &not_ok);
+
+  // Check last_young_allocation_ < (object address+1).
+  cmp(scratch, object);
+  j(Condition::kUnsignedGreaterThanEqual, &not_ok);
+
+  // Check (object address+1) < LAB top.
+  cmp(object,
+      Operand(kRootRegister, IsolateData::new_allocation_info_top_offset()));
+  j(Condition::kUnsignedLessThan, ok);
+
+  // Slow path: Potentially check more cases in C++.
+  bind(&not_ok);
 }
 
 void MacroAssembler::ComputeCodeStartAddress(Register dst) {

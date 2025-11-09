@@ -85,6 +85,9 @@ Allow using native addons when using the permission model.
 .It Fl -allow-child-process
 Allow spawning process when using the permission model.
 .
+.It Fl -allow-inspector
+Allow inspector access when using the permission model.
+.
 .It Fl -allow-net
 Allow network access when using the permission model.
 .
@@ -204,8 +207,8 @@ Enable experimental support for the EventSource Web API.
 .It Fl -no-experimental-websocket
 Disable experimental support for the WebSocket API.
 .
-.It Fl -experimental-webstorage
-Enable experimental support for the Web Storage API.
+.It Fl -no-webstorage
+Disable webstorage.
 .
 .It Fl -no-experimental-repl-await
 Disable top-level await keyword support in REPL.
@@ -213,8 +216,8 @@ Disable top-level await keyword support in REPL.
 .It Fl -no-experimental-sqlite
 Disable the experimental node:sqlite module.
 .
-.It Fl -no-experimental-strip-types
-Disable experimental type-stripping for TypeScript files.
+.It Fl -no-strip-types
+Disable type-stripping for TypeScript files.
 .
 .It Fl -experimental-vm-modules
 Enable experimental ES module support in VM module.
@@ -336,7 +339,7 @@ The file used to store localStorage data.
 Specify the maximum size of HTTP headers in bytes. Defaults to 16 KiB.
 .
 .It Fl -max-old-space-size-percentage Ns = Ns Ar percentage
-Sets the max memory size of V8's old memory section as a percentage of available system memory.
+Sets the maximum memory size of V8's old memory section as a percentage of available system memory.
 This flag takes precedence over
 .Fl -max-old-space-size
 when both are specified.
@@ -344,6 +347,10 @@ The
 .Ar percentage
 parameter must be a number greater than 0 and up to 100, representing the percentage
 of available system memory to allocate to the V8 heap.
+.Pp
+Note: This flag utilizes
+.Fl -max-old-space-size ,
+which may be unreliable on 32-bit platforms due to integer overflow issues.
 .
 .It Fl -napi-modules
 This option is a no-op.
@@ -492,6 +499,10 @@ A test reporter to use when running tests.
 .
 .It Fl -test-reporter-destination
 The destination for the corresponding test reporter.
+.
+.It Fl -test-rerun-failures
+Configures the tests runner to persist the state of tests to allow
+rerunning only failed tests.
 .
 .It Fl -test-only
 Configures the test runner to only execute top level tests that have the `only`
@@ -718,6 +729,13 @@ Enable the
 .Sy module compile cache
 for the Node.js instance.
 .
+.It Ev NODE_COMPILE_CACHE_PORTABLE
+When set to '1' or 'true', the
+.Sy module compile cache
+will be hit as long as the location of the modules relative to the cache directory remain
+consistent. This can be used in conjunction with .Ev NODE_COMPILE_CACHE
+to enable portable on-disk caching.
+.
 .It Ev NODE_DEBUG Ar modules...
 Comma-separated list of core modules that should print debug information.
 .
@@ -843,6 +861,12 @@ environment variables during startup, and tunnels requests over the specified pr
 This currently only affects requests sent over
 .Ar fetch() .
 Support for other built-in http and https methods is under way.
+.
+.It Ev NODE_USE_SYSTEM_CA
+Similar to
+.Fl -use-system-ca .
+Use the trusted CA certificates present in the system store, in addition to the certificates in the
+bundled Mozilla CA store and certificates from `NODE_EXTRA_CA_CERTS`.
 .
 .It Ev NODE_V8_COVERAGE Ar dir
 When set, Node.js writes JavaScript code coverage information to

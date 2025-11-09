@@ -45,6 +45,8 @@ V8_OBJECT class HeapNumber : public PrimitiveHeapObject {
   static const int kMantissaBitsInTopWord = 20;
   static const int kNonMantissaBitsInTopWord = 12;
 
+  static const int kValueOffset;
+
   DECL_PRINTER(HeapNumber)
   DECL_VERIFIER(HeapNumber)
   V8_EXPORT_PRIVATE void HeapNumberShortPrint(std::ostream& os);
@@ -61,10 +63,13 @@ V8_OBJECT class HeapNumber : public PrimitiveHeapObject {
   friend class compiler::GraphAssembler;
   friend class compiler::JSContextSpecialization;
   friend class TorqueGeneratedHeapNumberAsserts;
-  friend AllocationAlignment HeapObject::RequiredAlignment(Tagged<Map> map);
+  friend AllocationAlignment HeapObject::RequiredAlignment(
+      InSharedSpace in_shared_space, Tagged<Map> map);
 
   UnalignedDoubleMember value_;
 } V8_OBJECT_END;
+
+constexpr int HeapNumber::kValueOffset = offsetof(HeapNumber, value_);
 
 }  // namespace internal
 }  // namespace v8

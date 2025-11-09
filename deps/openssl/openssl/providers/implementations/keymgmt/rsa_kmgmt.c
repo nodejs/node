@@ -25,6 +25,7 @@
 #include "prov/provider_ctx.h"
 #include "crypto/rsa.h"
 #include "crypto/cryptlib.h"
+#include "internal/fips.h"
 #include "internal/param_build_set.h"
 
 static OSSL_FUNC_keymgmt_new_fn rsa_newdata;

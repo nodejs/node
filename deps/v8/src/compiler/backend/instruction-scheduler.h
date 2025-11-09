@@ -171,7 +171,7 @@ class InstructionScheduler final : public ZoneObject {
   }
 
   bool CanTrap(const Instruction* instr) const {
-    return instr->IsTrap() ||
+    return instr->IsTrap() || instr->IsConditionalTrap() ||
            (instr->HasMemoryAccessMode() &&
             instr->memory_access_mode() != kMemoryAccessDirect);
   }

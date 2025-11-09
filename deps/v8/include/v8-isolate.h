@@ -154,6 +154,10 @@ class V8_EXPORT ResourceConstraints {
     initial_young_generation_size_ = initial_size;
   }
 
+  uint64_t physical_memory_size_in_bytes() const {
+    return physical_memory_size_;
+  }
+
  private:
   static constexpr size_t kMB = 1048576u;
   size_t code_range_size_ = 0;
@@ -161,6 +165,7 @@ class V8_EXPORT ResourceConstraints {
   size_t max_young_generation_size_ = 0;
   size_t initial_old_generation_size_ = 0;
   size_t initial_young_generation_size_ = 0;
+  uint64_t physical_memory_size_ = 0;
   uint32_t* stack_limit_ = nullptr;
 };
 
@@ -252,6 +257,17 @@ class V8_EXPORT IsolateGroup {
   bool operator!=(const IsolateGroup& other) const {
     return !operator==(other);
   }
+
+#ifdef V8_ENABLE_SANDBOX
+  /**
+   * Whether the sandbox of the isolate group contains a given pointer.
+   * Will always return true if the sandbox is not enabled.
+   */
+  bool SandboxContains(void* pointer) const;
+  VirtualAddressSpace* GetSandboxAddressSpace();
+#else
+  V8_INLINE bool SandboxContains(void* pointer) const { return true; }
+#endif
 
  private:
   friend class Isolate;
@@ -345,7 +361,9 @@ class V8_EXPORT Isolate {
      * for wrapped API objects and are used by the fast C API
      * (for details see v8-fast-api-calls.h).
      */
+    V8_DEPRECATE_SOON("This field is unused.")
     int embedder_wrapper_type_index = -1;
+    V8_DEPRECATE_SOON("This field is unused.")
     int embedder_wrapper_object_index = -1;
 
     /**
@@ -557,7 +575,8 @@ class V8_EXPORT Isolate {
     kBreakIteratorTypeWord = 88,
     kBreakIteratorTypeLine = 89,
     kInvalidatedArrayBufferDetachingProtector = 90,
-    kInvalidatedArrayConstructorProtector = 91,
+    kInvalidatedArrayConstructorProtector V8_DEPRECATE_SOON(
+        "The ArrayConstructorProtector has been removed") = 91,
     kInvalidatedArrayIteratorLookupChainProtector = 92,
     kInvalidatedArraySpeciesLookupChainProtector = 93,
     kInvalidatedIsConcatSpreadableLookupChainProtector = 94,
@@ -575,8 +594,8 @@ class V8_EXPORT Isolate {
     kWasmSimdOpcodes = 106,
     kVarRedeclaredCatchBinding = 107,
     kWasmRefTypes = 108,
-    kOBSOLETE_WasmBulkMemory = 109,
-    kOBSOLETE_WasmMultiValue = 110,
+    kWasmBulkMemory = 109,
+    kWasmMultiValue = 110,
     kWasmExceptionHandling = 111,
     kInvalidatedMegaDOMProtector = 112,
     kFunctionPrototypeArguments = 113,
@@ -634,6 +653,21 @@ class V8_EXPORT Isolate {
     kFloat16Array = 165,
     kExplicitResourceManagement = 166,
     kWasmBranchHinting = 167,
+    kWasmMutableGlobals = 168,
+    kUint8ArrayToFromBase64AndHex = 169,
+    kAtomicsPause = 170,
+    kTopLevelAwait = 171,
+    kLogicalAssignment = 172,
+    kNullishCoalescing = 173,
+    kInvalidatedNoDateTimeConfigurationChangeProtector = 174,
+    kWasmNonTrappingFloatToInt = 175,
+    kWasmSignExtensionOps = 176,
+    kRegExpCompile = 177,
+    kRegExpStaticProperties = 178,
+    kRegExpStaticPropertiesWithLastMatch = 179,
+    kWithStatement = 180,
+    kHtmlWrapperMethods = 181,
+    kWasmCustomDescriptors = 182,
 
     // If you add new values here, you'll also need to update Chromium's:
     // web_feature.mojom, use_counter_callback.cc, and enums.xml. V8 changes to
@@ -937,13 +971,30 @@ class V8_EXPORT Isolate {
    * Returns the value that was set or restored by
    * SetContinuationPreservedEmbedderData(), if any.
    */
+  V8_DEPRECATED("Use GetContinuationPreservedEmbedderDataV2 instead")
   Local<Value> GetContinuationPreservedEmbedderData();
 
   /**
    * Sets a value that will be stored on continuations and reset while the
    * continuation runs.
    */
+  V8_DEPRECATED("Use SetContinuationPreservedEmbedderDataV2 instead")
   void SetContinuationPreservedEmbedderData(Local<Value> data);
+
+  /**
+   * Returns the value set by `SetContinuationPreservedEmbedderDataV2()` or
+   * restored during microtask execution for the currently running continuation,
+   * if any. Returns undefiend if no continuation preserved embedder data was
+   * set.
+   */
+  Local<Data> GetContinuationPreservedEmbedderDataV2();
+
+  /**
+   * Sets a value that will be stored on continuations and restored while the
+   * continuation runs. If `data` is empty, the continuation preserved embedder
+   * data is set to undefined.
+   */
+  void SetContinuationPreservedEmbedderDataV2(Local<Data> data);
 
   /**
    * Get statistics about the heap memory usage.
@@ -1657,13 +1708,11 @@ class V8_EXPORT Isolate {
 
   void SetWasmLoadSourceMapCallback(WasmLoadSourceMapCallback callback);
 
-  void SetWasmImportedStringsEnabledCallback(
-      WasmImportedStringsEnabledCallback callback);
+  void SetWasmCustomDescriptorsEnabledCallback(
+      WasmCustomDescriptorsEnabledCallback callback);
 
   void SetSharedArrayBufferConstructorEnabledCallback(
       SharedArrayBufferConstructorEnabledCallback callback);
-
-  void SetWasmJSPIEnabledCallback(WasmJSPIEnabledCallback callback);
 
   /**
    * This function can be called by the embedder to signal V8 that the dynamic

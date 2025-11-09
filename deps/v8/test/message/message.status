@@ -47,6 +47,7 @@
   'wasm-trace-memory-liftoff': [SKIP],
   'wasm-trace-memory64-liftoff': [SKIP],
   'wasm-trace-liftoff': [SKIP],
+  'wasm-trace-globals-liftoff': [SKIP],
 }], # arch != x64 and arch != ia32 and arch != arm64 and arch != arm and arch != s390x
 
 ['variant == code_serializer', {
@@ -85,6 +86,7 @@
 
   # Tests that require compilation
   'fail/wasm-async-compile-fail': [SKIP],
+  'js-wasm-wrapper-inlining-turbolev*': [SKIP],
   'wasm-speculative-inlining': [SKIP],
   'wasm-trace-turbofan': [SKIP],
 
@@ -115,6 +117,8 @@
   'wasm-trace-memory-liftoff': [SKIP],
   'wasm-trace-memory64': [SKIP],
   'wasm-trace-memory64-liftoff': [SKIP],
+  'wasm-trace-globals': [SKIP],
+  'wasm-trace-globals-liftoff': [SKIP],
 }],  # no_simd_hardware == True
 
 ##############################################################################
@@ -141,11 +145,24 @@
 ##############################################################################
 # Behavioural differences between Maglev and Turbofan when the former is used
 # for OptimizeFunctionOnNextCall  or as a frontend for Turboshaft.
-['variant in (stress_maglev, stress_maglev_non_eager_inlining, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan, turbolev)', {
+['variant in (stress_maglev, stress_maglev_non_eager_inlining, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan, turbolev, turbolev_future, stress_turbolev_future)', {
   # Maglev doesn't support inlining of Wasm code.
   'wasm-inlining-into-js': [FAIL],
   'wasm-in-js-inlining-turboshaft': [FAIL],
-}],  # variant in (stress_maglev, stress_maglev_non_eager_inlining, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan)
+}],  # variant in (stress_maglev, stress_maglev_non_eager_inlining, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan, turbolev_future, stress_turbolev_future)
+
+##############################################################################
+# The output for Turbolev wrapper inlining tests can be different with these
+# variants.
+['variant in (stress_concurrent_inlining, stress_incremental_marking)', {
+  'js-wasm-wrapper-inlining-turbolev*': [SKIP],
+}],  # variant in (stress_concurrent_inlining, stress_incremental_marking)
+
+##############################################################################
+# Tests that require optimizing compilers.
+['variant in (jitless, nooptimization)', {
+  'js-wasm-wrapper-inlining-turbolev*': [SKIP],
+}],  # variant in (jitless, nooptimization)
 
 ##############################################################################
 # On 32 bit platforms we have int64 lowering.
@@ -154,6 +171,12 @@
 }],
 ['(arch != ia32 and arch != arm) or no_simd_hardware', {
   'wasm-trace-deopt-32': [SKIP],
+}],
+
+##############################################################################
+# On 32 bit platforms we can't inline JS-to_Wasm wrappers with I64 args.
+['arch != x64 and arch != arm64', {
+  'js-wasm-wrapper-inlining-turbolev-64': [SKIP],
 }],
 
 ##############################################################################

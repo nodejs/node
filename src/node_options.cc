@@ -10,6 +10,7 @@
 #include "uv.h"
 #if HAVE_OPENSSL
 #include "openssl/opensslv.h"
+#include "quic/guard.h"
 #endif
 
 #include <algorithm>
@@ -127,7 +128,15 @@ void PerIsolateOptions::HandleMaxOldSpaceSizePercentage(
   }
 
   // Get available memory in bytes
+#ifdef V8_COMPRESS_POINTERS
+  // When pointer compression is enabled, V8 uses a 4 GiB heap limit.
+  // We'll use the smaller of that or the total system memory as
+  // reported by uv.
+  uint64_t total_memory =
+      std::min(uv_get_total_memory(), kMaxPointerCompressionHeap);  // 4 GiB
+#else
   uint64_t total_memory = uv_get_total_memory();
+#endif
   uint64_t constrained_memory = uv_get_constrained_memory();
 
   // Use constrained memory if available, otherwise use total memory
@@ -137,6 +146,11 @@ void PerIsolateOptions::HandleMaxOldSpaceSizePercentage(
       (constrained_memory > 0 && constrained_memory != UINT64_MAX)
           ? constrained_memory
           : total_memory;
+
+  if (available_memory == 0) {
+    errors->push_back("the available memory can not be calculated");
+    return;
+  }
 
   // Convert to MB and calculate the percentage
   uint64_t memory_mb = available_memory / (1024 * 1024);
@@ -236,7 +250,7 @@ void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors,
     } else if (test_runner_force_exit) {
       errors->push_back("either --watch or --test-force-exit "
                         "can be used, not both");
-    } else if (!test_runner && (argv->size() < 1 || (*argv)[1].empty())) {
+    } else if (!test_runner && watch_mode_paths.empty() && argv->size() < 1) {
       errors->push_back("--watch requires specifying a file");
     }
 
@@ -417,10 +431,6 @@ void Parse(
 // TODO(addaleax): Make that unnecessary.
 
 DebugOptionsParser::DebugOptionsParser() {
-#ifndef DISABLE_SINGLE_EXECUTABLE_APPLICATION
-  if (sea::IsSingleExecutable()) return;
-#endif
-
   AddOption("--inspect-port",
             "set host:port for inspector",
             &DebugOptions::host_port,
@@ -549,19 +559,20 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             kAllowedInEnvvar,
             true);
   AddOption("--experimental-quic",
-            "" /* undocumented until its development */,
-#ifdef NODE_OPENSSL_HAS_QUIC
+#ifndef OPENSSL_NO_QUIC
+            "experimental QUIC support",
             &EnvironmentOptions::experimental_quic,
 #else
-            // Option is a no-op if the NODE_OPENSSL_HAS_QUIC
-            // compile flag is not enabled
+            "" /* undocumented when no-op */,
             NoOp{},
 #endif
             kAllowedInEnvvar);
-  AddOption("--experimental-webstorage",
-            "experimental Web Storage API",
-            &EnvironmentOptions::experimental_webstorage,
-            kAllowedInEnvvar);
+  AddOption("--webstorage",
+            "Web Storage API",
+            &EnvironmentOptions::webstorage,
+            kAllowedInEnvvar,
+            true);
+  AddAlias("--experimental-webstorage", "--webstorage");
   AddOption("--localstorage-file",
             "file used to persist localStorage data",
             &EnvironmentOptions::localstorage_file,
@@ -604,6 +615,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddOption("--allow-child-process",
             "allow use of child process when any permissions are set",
             &EnvironmentOptions::allow_child_process,
+            kAllowedInEnvvar);
+  AddOption("--allow-inspector",
+            "allow use of inspector when any permissions are set",
+            &EnvironmentOptions::allow_inspector,
             kAllowedInEnvvar);
   AddOption("--allow-net",
             "allow use of network when any permissions are set",
@@ -918,6 +933,11 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::test_global_setup_path,
             kAllowedInEnvvar,
             OptionNamespaces::kTestRunnerNamespace);
+  AddOption("--test-rerun-failures",
+            "specifies the path to the rerun state file",
+            &EnvironmentOptions::test_rerun_failures_path,
+            kAllowedInEnvvar,
+            OptionNamespaces::kTestRunnerNamespace);
   AddOption("--test-udp-no-try-send",
             "",  // For testing only.
             &EnvironmentOptions::test_udp_no_try_send,
@@ -1001,20 +1021,26 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddOption("--watch",
             "run in watch mode",
             &EnvironmentOptions::watch_mode,
-            kAllowedInEnvvar);
+            kAllowedInEnvvar,
+            false,
+            OptionNamespaces::kWatchNamespace);
   AddOption("--watch-path",
             "path to watch",
             &EnvironmentOptions::watch_mode_paths,
-            kAllowedInEnvvar);
+            kAllowedInEnvvar,
+            OptionNamespaces::kWatchNamespace);
   AddOption("--watch-kill-signal",
             "kill signal to send to the process on watch mode restarts"
             "(default: SIGTERM)",
             &EnvironmentOptions::watch_mode_kill_signal,
-            kAllowedInEnvvar);
+            kAllowedInEnvvar,
+            OptionNamespaces::kWatchNamespace);
   AddOption("--watch-preserve-output",
             "preserve outputs on watch mode restart",
             &EnvironmentOptions::watch_mode_preserve_output,
-            kAllowedInEnvvar);
+            kAllowedInEnvvar,
+            false,
+            OptionNamespaces::kWatchNamespace);
   Implies("--watch-path", "--watch");
   AddOption("--check",
             "syntax check script without executing",
@@ -1045,17 +1071,18 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "ES module to preload (option can be repeated)",
             &EnvironmentOptions::preload_esm_modules,
             kAllowedInEnvvar);
-  AddOption("--experimental-strip-types",
-            "Experimental type-stripping for TypeScript files.",
-            &EnvironmentOptions::experimental_strip_types,
+  AddOption("--strip-types",
+            "Type-stripping for TypeScript files.",
+            &EnvironmentOptions::strip_types,
             kAllowedInEnvvar,
             true);
+  AddAlias("--experimental-strip-types", "--strip-types");
   AddOption("--experimental-transform-types",
             "enable transformation of TypeScript-only"
             "syntax into JavaScript code",
             &EnvironmentOptions::experimental_transform_types,
             kAllowedInEnvvar);
-  Implies("--experimental-transform-types", "--experimental-strip-types");
+  Implies("--experimental-transform-types", "--strip-types");
   Implies("--experimental-transform-types", "--enable-source-maps");
   AddOption("--interactive",
             "always enter the REPL even if stdin does not appear "
@@ -1867,6 +1894,117 @@ void GetNamespaceOptionsInputType(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(namespaces_map);
 }
 
+// Return an array containing all currently active options as flag
+// strings from all sources (command line, NODE_OPTIONS, config file)
+void GetOptionsAsFlags(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
+  Environment* env = Environment::GetCurrent(context);
+
+  if (!env->has_run_bootstrapping_code()) {
+    // No code because this is an assertion.
+    THROW_ERR_OPTIONS_BEFORE_BOOTSTRAPPING(
+        isolate, "Should not query options before bootstrapping is done");
+  }
+  env->set_has_serialized_options(true);
+
+  Mutex::ScopedLock lock(per_process::cli_options_mutex);
+  IterateCLIOptionsScope s(env);
+
+  std::vector<std::string> flags;
+  PerProcessOptions* opts = per_process::cli_options.get();
+
+  for (const auto& item : _ppop_instance.options_) {
+    const std::string& option_name = item.first;
+    const auto& option_info = item.second;
+    auto field = option_info.field;
+
+    // TODO(pmarchini): Skip internal options for the moment as probably not
+    // required
+    if (option_name.empty() || option_name.starts_with('[')) {
+      continue;
+    }
+
+    // Skip V8 options and NoOp options - only Node.js-specific options
+    if (option_info.type == kNoOp || option_info.type == kV8Option) {
+      continue;
+    }
+
+    switch (option_info.type) {
+      case kBoolean: {
+        bool current_value = *_ppop_instance.Lookup<bool>(field, opts);
+        // For boolean options with default_is_true, we want the opposite logic
+        if (option_info.default_is_true) {
+          if (!current_value) {
+            // If default is true and current is false, add --no-* flag
+            flags.push_back("--no-" + option_name.substr(2));
+          }
+        } else {
+          if (current_value) {
+            // If default is false and current is true, add --flag
+            flags.push_back(option_name);
+          }
+        }
+        break;
+      }
+      case kInteger: {
+        int64_t current_value = *_ppop_instance.Lookup<int64_t>(field, opts);
+        flags.push_back(option_name + "=" + std::to_string(current_value));
+        break;
+      }
+      case kUInteger: {
+        uint64_t current_value = *_ppop_instance.Lookup<uint64_t>(field, opts);
+        flags.push_back(option_name + "=" + std::to_string(current_value));
+        break;
+      }
+      case kString: {
+        const std::string& current_value =
+            *_ppop_instance.Lookup<std::string>(field, opts);
+        // Only include if not empty
+        if (!current_value.empty()) {
+          flags.push_back(option_name + "=" + current_value);
+        }
+        break;
+      }
+      case kStringList: {
+        const std::vector<std::string>& current_values =
+            *_ppop_instance.Lookup<StringVector>(field, opts);
+        // Add each string in the list as a separate flag
+        for (const std::string& value : current_values) {
+          flags.push_back(option_name + "=" + value);
+        }
+        break;
+      }
+      case kHostPort: {
+        const HostPort& host_port =
+            *_ppop_instance.Lookup<HostPort>(field, opts);
+        // Only include if host is not empty or port is not default
+        if (!host_port.host().empty() || host_port.port() != 0) {
+          std::string host_port_str = host_port.host();
+          if (host_port.port() != 0) {
+            if (!host_port_str.empty()) {
+              host_port_str += ":";
+            }
+            host_port_str += std::to_string(host_port.port());
+          }
+          if (!host_port_str.empty()) {
+            flags.push_back(option_name + "=" + host_port_str);
+          }
+        }
+        break;
+      }
+      default:
+        // Skip unknown types
+        break;
+    }
+  }
+
+  Local<Value> result;
+  CHECK(ToV8Value(context, flags).ToLocal(&result));
+
+  args.GetReturnValue().Set(result);
+}
+
 void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context,
@@ -1877,6 +2015,8 @@ void Initialize(Local<Object> target,
       context, target, "getCLIOptionsValues", GetCLIOptionsValues);
   SetMethodNoSideEffect(
       context, target, "getCLIOptionsInfo", GetCLIOptionsInfo);
+  SetMethodNoSideEffect(
+      context, target, "getOptionsAsFlags", GetOptionsAsFlags);
   SetMethodNoSideEffect(
       context, target, "getEmbedderOptions", GetEmbedderOptions);
   SetMethodNoSideEffect(
@@ -1909,6 +2049,7 @@ void Initialize(Local<Object> target,
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(GetCLIOptionsValues);
   registry->Register(GetCLIOptionsInfo);
+  registry->Register(GetOptionsAsFlags);
   registry->Register(GetEmbedderOptions);
   registry->Register(GetEnvOptionsInputType);
   registry->Register(GetNamespaceOptionsInputType);

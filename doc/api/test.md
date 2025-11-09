@@ -153,6 +153,46 @@ test('skip() method with message', (t) => {
 });
 ```
 
+## Rerunning failed tests
+
+The test runner supports persisting the state of the run to a file, allowing
+the test runner to rerun failed tests without having to re-run the entire test suite.
+Use the [`--test-rerun-failures`][] command-line option to specify a file path where the
+state of the run is stored. if the state file does not exist, the test runner will
+create it.
+the state file is a JSON file that contains an array of run attempts.
+Each run attempt is an object mapping successful tests to the attempt they have passed in.
+The key identifying a test in this map is the test file path, with the line and column where the test is defined.
+in a case where a test defined in a specific location is run multiple times,
+for example within a function or a loop,
+a counter will be appended to the key, to disambiguate the test runs.
+note changing the order of test execution or the location of a test can lead the test runner
+to consider tests as passed on a previous attempt,
+meaning `--test-rerun-failures` should be used when tests run in a deterministic order.
+
+example of a state file:
+
+```json
+[
+  {
+    "test.js:10:5": { "passed_on_attempt": 0, "name": "test 1" },
+  },
+  {
+    "test.js:10:5": { "passed_on_attempt": 0, "name": "test 1" },
+    "test.js:20:5": { "passed_on_attempt": 1, "name": "test 2" }
+  }
+]
+```
+
+in this example, there are two run attempts, with two tests defined in `test.js`,
+the first test succeeded on the first attempt, and the second test succeeded on the second attempt.
+
+When the `--test-rerun-failures` option is used, the test runner will only run tests that have not yet passed.
+
+```bash
+node --test-rerun-failures /path/to/state/file
+```
+
 ## TODO tests
 
 Individual tests can be marked as flaky or incomplete by passing the `todo`
@@ -474,7 +514,7 @@ By default, Node.js will run all files matching these patterns:
 * `**/test.{cjs,mjs,js}`
 * `**/test/**/*.{cjs,mjs,js}`
 
-Unless [`--no-experimental-strip-types`][] is supplied, the following
+Unless [`--no-strip-types`][] is supplied, the following
 additional patterns are also matched:
 
 * `**/*.test.{cts,mts,ts}`
@@ -519,6 +559,24 @@ are all run within the same context, it is possible for tests to interact with
 each other in ways that are not possible when isolation is enabled. For example,
 if a test relies on global state, it is possible for that state to be modified
 by a test originating from another file.
+
+#### Child process option inheritance
+
+When running tests in process isolation mode (the default), spawned child processes
+inherit Node.js options from the parent process, including those specified in
+[configuration files][]. However, certain flags are filtered out to enable proper
+test runner functionality:
+
+* `--test` - Prevented to avoid recursive test execution
+* `--experimental-test-coverage` - Managed by the test runner
+* `--watch` - Watch mode is handled at the parent level
+* `--experimental-default-config-file` - Config file loading is handled by the parent
+* `--test-reporter` - Reporting is managed by the parent process
+* `--test-reporter-destination` - Output destinations are controlled by the parent
+* `--experimental-config-file` - Config file paths are managed by the parent
+
+All other Node.js options from command line arguments, environment variables,
+and configuration files are inherited by the child processes.
 
 ## Collecting code coverage
 
@@ -1324,6 +1382,9 @@ added:
   - v18.9.0
   - v16.19.0
 changes:
+  - version: v24.7.0
+    pr-url: https://github.com/nodejs/node/pull/59443
+    description: Added a rerunFailuresFilePath option.
   - version: v23.0.0
     pr-url: https://github.com/nodejs/node/pull/54705
     description: Added the `cwd` option.
@@ -1414,6 +1475,10 @@ changes:
       that specifies the index of the shard to run. This option is _required_.
     * `total` {number} is a positive integer that specifies the total number
       of shards to split the test files to. This option is _required_.
+  * `rerunFailuresFilePath` {string} A file path where the test runner will
+    store the state of the tests to allow rerunning only the failed tests on a next run.
+    see \[Rerunning failed tests]\[] for more information.
+    **Default:** `undefined`.
   * `coverage` {boolean} enable [code coverage][] collection.
     **Default:** `false`.
   * `coverageExcludeGlobs` {string|Array} Excludes specific files from code coverage
@@ -2070,7 +2135,9 @@ Resets the implementation of the mock module.
 ## Class: `MockPropertyContext`
 
 <!-- YAML
-added: v24.3.0
+added:
+  - v24.3.0
+  - v22.20.0
 -->
 
 The `MockPropertyContext` class is used to inspect or manipulate the behavior
@@ -2356,7 +2423,9 @@ test('mocks a builtin module in both module systems', async (t) => {
 ### `mock.property(object, propertyName[, value])`
 
 <!-- YAML
-added: v24.3.0
+added:
+  - v24.3.0
+  - v22.20.0
 -->
 
 * `object` {Object} The object whose value is being mocked.
@@ -3202,6 +3271,8 @@ Emitted when a test is enqueued for execution.
       * `cause` {Error} The actual error thrown by the test.
     * `type` {string|undefined} The type of the test, used to denote whether
       this is a suite.
+    * `attempt` {number|undefined} The attempt number of the test run,
+      present only when using the [`--test-rerun-failures`][] flag.
   * `file` {string|undefined} The path of the test file,
     `undefined` if test was run through the REPL.
   * `line` {number|undefined} The line number where the test is defined, or
@@ -3226,6 +3297,10 @@ The corresponding execution ordered event is `'test:complete'`.
     * `duration_ms` {number} The duration of the test in milliseconds.
     * `type` {string|undefined} The type of the test, used to denote whether
       this is a suite.
+    * `attempt` {number|undefined} The attempt number of the test run,
+      present only when using the [`--test-rerun-failures`][] flag.
+    * `passed_on_attempt` {number|undefined} The attempt number the test passed on,
+      present only when using the [`--test-rerun-failures`][] flag.
   * `file` {string|undefined} The path of the test file,
     `undefined` if test was run through the REPL.
   * `line` {number|undefined} The line number where the test is defined, or
@@ -3921,7 +3996,7 @@ Can be used to abort test subtasks when the test has been aborted.
 [`--experimental-test-coverage`]: cli.md#--experimental-test-coverage
 [`--experimental-test-module-mocks`]: cli.md#--experimental-test-module-mocks
 [`--import`]: cli.md#--importmodule
-[`--no-experimental-strip-types`]: cli.md#--no-experimental-strip-types
+[`--no-strip-types`]: cli.md#--no-strip-types
 [`--test-concurrency`]: cli.md#--test-concurrency
 [`--test-coverage-exclude`]: cli.md#--test-coverage-exclude
 [`--test-coverage-include`]: cli.md#--test-coverage-include
@@ -3929,6 +4004,7 @@ Can be used to abort test subtasks when the test has been aborted.
 [`--test-only`]: cli.md#--test-only
 [`--test-reporter-destination`]: cli.md#--test-reporter-destination
 [`--test-reporter`]: cli.md#--test-reporter
+[`--test-rerun-failures`]: cli.md#--test-rerun-failures
 [`--test-skip-pattern`]: cli.md#--test-skip-pattern
 [`--test-update-snapshots`]: cli.md#--test-update-snapshots
 [`--test`]: cli.md#--test
@@ -3950,6 +4026,7 @@ Can be used to abort test subtasks when the test has been aborted.
 [`suite()`]: #suitename-options-fn
 [`test()`]: #testname-options-fn
 [code coverage]: #collecting-code-coverage
+[configuration files]: cli.md#--experimental-config-fileconfig
 [describe options]: #describename-options-fn
 [it options]: #testname-options-fn
 [running tests from the command line]: #running-tests-from-the-command-line

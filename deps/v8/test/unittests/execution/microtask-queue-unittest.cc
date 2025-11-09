@@ -487,6 +487,62 @@ TEST_P(MicrotaskQueueTest, DetachGlobal_ResolveThenableForeignThen) {
       IsTrue(*Object::GetElement(isolate(), result, 0).ToHandleChecked()));
 }
 
+TEST_P(MicrotaskQueueTest, DetachGlobal_ResolveThenableNativeThen) {
+  microtask_queue()->set_microtasks_policy(MicrotasksPolicy::kExplicit);
+
+  // A native promise object built in the main context.
+  DirectHandle<JSPromise> resolution =
+      RunJS<JSPromise>("Promise.resolve(true)");
+
+  {
+    // Create a context with its own microtask queue.
+    std::unique_ptr<MicrotaskQueue> sub_microtask_queue =
+        MicrotaskQueue::New(isolate());
+    sub_microtask_queue->set_microtasks_policy(MicrotasksPolicy::kExplicit);
+    Local<v8::Context> sub_context = v8::Context::New(
+        v8_isolate(),
+        /* extensions= */ nullptr,
+        /* global_template= */ MaybeLocal<ObjectTemplate>(),
+        /* global_object= */ MaybeLocal<Value>(),
+        /* internal_fields_deserializer= */ DeserializeInternalFieldsCallback(),
+        sub_microtask_queue.get());
+
+    {
+      v8::Context::Scope scope(sub_context);
+      CHECK(sub_context->Global()
+                ->Set(sub_context, NewString("resolution"),
+                      Utils::ToLocal(Cast<JSReceiver>(resolution)))
+                .FromJust());
+
+      // A native promise object built in the sub-context.
+      DirectHandle<JSPromise> sub_resolution =
+          RunJS<JSPromise>("Promise.resolve(true)");
+
+      CHECK(sub_context->Global()
+                ->Set(sub_context, NewString("sub_resolution"),
+                      Utils::ToLocal(Cast<JSReceiver>(sub_resolution)))
+                .FromJust());
+
+      ASSERT_EQ(0, microtask_queue()->size());
+      ASSERT_EQ(0, sub_microtask_queue->size());
+
+      // With a resolution from the sub-context, a microtask is enqueued on the
+      // sub-context.
+      RunJS<JSPromise>("(async () => { await sub_resolution; })()");
+      EXPECT_EQ(0, microtask_queue()->size());
+      EXPECT_EQ(1, sub_microtask_queue->size());
+
+      // But when the resolution comes from the main context, a microtask is
+      // enqueued on the main context.
+      RunJS<JSPromise>("(async () => { await resolution; })()");
+      EXPECT_EQ(1, microtask_queue()->size());
+      EXPECT_EQ(1, sub_microtask_queue->size());
+    }
+
+    sub_context->DetachGlobal();
+  }
+}
+
 TEST_P(MicrotaskQueueTest, DetachGlobal_HandlerContext) {
   // EnqueueMicrotask should use the context associated to the handler instead
   // of the current context. E.g.

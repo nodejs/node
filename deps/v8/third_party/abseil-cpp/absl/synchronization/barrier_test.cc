@@ -37,7 +37,7 @@ TEST(Barrier, SanityTest) {
     }
 
     // Increment the counter.
-    absl::MutexLock lock(&mutex);
+    absl::MutexLock lock(mutex);
     ++counter;
   };
 
@@ -57,7 +57,7 @@ TEST(Barrier, SanityTest) {
   // The counter should still be zero since no thread should have
   // been able to pass the barrier yet.
   {
-    absl::MutexLock lock(&mutex);
+    absl::MutexLock lock(mutex);
     EXPECT_EQ(counter, 0);
   }
 
@@ -70,6 +70,6 @@ TEST(Barrier, SanityTest) {
   }
 
   // All threads should now have incremented the counter.
-  absl::MutexLock lock(&mutex);
+  absl::MutexLock lock(mutex);
   EXPECT_EQ(counter, kNumThreads);
 }

@@ -32,8 +32,6 @@ enum class IsolateFieldId : uint8_t;
     "Address of the InterpreterEntryTrampoline instruction start")             \
   V(interpreter_dispatch_counters, "Interpreter::dispatch_counters")           \
   V(interpreter_dispatch_table_address, "Interpreter::dispatch_table_address") \
-  V(date_cache_stamp, "date_cache_stamp")                                      \
-  V(stress_deopt_count, "Isolate::stress_deopt_count_address()")               \
   V(force_slow_path, "Isolate::force_slow_path_address()")                     \
   V(isolate_root, "Isolate::isolate_root()")                                   \
   V(allocation_sites_list_address, "Heap::allocation_sites_list_address()")    \
@@ -46,12 +44,7 @@ enum class IsolateFieldId : uint8_t;
   V(heap_is_minor_marking_flag_address, "heap_is_minor_marking_flag_address")  \
   V(is_shared_space_isolate_flag_address,                                      \
     "is_shared_space_isolate_flag_address")                                    \
-  V(new_space_allocation_top_address, "Heap::NewSpaceAllocationTopAddress()")  \
-  V(new_space_allocation_limit_address,                                        \
-    "Heap::NewSpaceAllocationLimitAddress()")                                  \
-  V(old_space_allocation_top_address, "Heap::OldSpaceAllocationTopAddress")    \
-  V(old_space_allocation_limit_address,                                        \
-    "Heap::OldSpaceAllocationLimitAddress")                                    \
+  V(last_young_allocation_address, "last_young_allocation_address")            \
   V(array_buffer_max_allocation_address,                                       \
     "Heap::ArrayBufferMaxAllocationAddress")                                   \
   V(handle_scope_level_address, "HandleScope::level")                          \
@@ -78,8 +71,6 @@ enum class IsolateFieldId : uint8_t;
     "RegExpStack::stack_pointer_address()")                                    \
   V(address_of_regexp_static_result_offsets_vector,                            \
     "Isolate::address_of_regexp_static_result_offsets_vector")                 \
-  V(thread_in_wasm_flag_address_address,                                       \
-    "Isolate::thread_in_wasm_flag_address_address")                            \
   EXTERNAL_REFERENCE_LIST_WITH_ISOLATE_SANDBOX(V)
 
 #ifdef V8_ENABLE_SANDBOX
@@ -116,13 +107,11 @@ enum class IsolateFieldId : uint8_t;
     "v8_flags.mock_arraybuffer_allocator")                                     \
   V(address_of_one_half, "LDoubleConstant::one_half")                          \
   V(address_of_runtime_stats_flag, "TracingFlags::runtime_stats")              \
-  V(address_of_script_context_cells_flag, "v8_flags.script_context_cells")     \
   V(address_of_shared_string_table_flag, "v8_flags.shared_string_table")       \
   V(address_of_the_hole_nan, "the_hole_nan")                                   \
   V(address_of_uint32_bias, "uint32_bias")                                     \
   V(allocate_and_initialize_young_external_pointer_table_entry,                \
     "AllocateAndInitializeYoungExternalPointerTableEntry")                     \
-  V(baseline_pc_for_bytecode_offset, "BaselinePCForBytecodeOffset")            \
   V(baseline_pc_for_next_executed_bytecode,                                    \
     "BaselinePCForNextExecutedBytecode")                                       \
   V(bytecode_size_table_address, "Bytecodes::bytecode_size_table_address")     \
@@ -259,8 +248,19 @@ enum class IsolateFieldId : uint8_t;
     "name_to_index_hashtable_lookup_forwarded_string")                         \
   V(name_to_index_hashtable_find_insertion_entry_forwarded_string,             \
     "name_to_index_hashtable_find_insertion_entry_forwarded_string")           \
-  IF_WASM(V, wasm_switch_stacks, "wasm_switch_stacks")                         \
-  IF_WASM(V, wasm_return_switch, "wasm_return_switch")                         \
+  V(simple_name_dictionary_lookup_forwarded_string,                            \
+    "simple_name_dictionary_lookup_forwarded_string")                          \
+  V(simple_name_dictionary_find_insertion_entry_forwarded_string,              \
+    "simple_name_dictionary_find_insertion_entry_forwarded_string")            \
+  V(verify_skipped_indirect_write_barrier,                                     \
+    "Heap::VerifySkippedIndirectWriteBarrier")                                 \
+  V(verify_skipped_write_barrier, "Heap::VerifySkippedWriteBarrier")           \
+  IF_WASM(V, wasm_start_stack, "wasm_start_stack")                             \
+  IF_WASM(V, wasm_suspender_has_js_frames, "wasm_suspender_has_js_frames")     \
+  IF_WASM(V, wasm_suspend_stack, "wasm_suspend_stack")                         \
+  IF_WASM(V, wasm_resume_jspi_stack, "wasm_resume_jspi_stack")                 \
+  IF_WASM(V, wasm_resume_wasmfx_stack, "wasm_resume_wasmfx_stack")             \
+  IF_WASM(V, wasm_return_stack, "wasm_return_stack")                           \
   IF_WASM(V, wasm_switch_to_the_central_stack,                                 \
           "wasm::switch_to_the_central_stack")                                 \
   IF_WASM(V, wasm_switch_from_the_central_stack,                               \
@@ -502,6 +502,8 @@ enum class IsolateFieldId : uint8_t;
 #define EXTERNAL_REFERENCE_LIST_SANDBOX(V)                               \
   V(sandbox_base_address, "Sandbox::base()")                             \
   V(sandbox_end_address, "Sandbox::end()")                               \
+  V(sandboxed_mode_pkey_mask_address,                                    \
+    "SandboxHardwareSupport::sandboxed_mode_pkey_mask()")                \
   V(empty_backing_store_buffer, "EmptyBackingStoreBuffer()")             \
   V(memory_chunk_metadata_table_address, "MemoryChunkMetadata::Table()") \
   V(global_code_pointer_table_base_address,                              \
@@ -610,8 +612,10 @@ class ExternalReference {
          const CFunctionInfo* const* c_signatures, unsigned num_functions);
   static ExternalReference Create(const Runtime::Function* f);
   static ExternalReference Create(IsolateAddressId id, Isolate* isolate);
-  static ExternalReference Create(Runtime::FunctionId id);
-  static ExternalReference Create(IsolateFieldId id);
+  static V8_EXPORT_PRIVATE ExternalReference Create(Runtime::FunctionId id);
+  static ExternalReference Create(IsolateFieldId id) {
+    return ExternalReference{id};
+  }
   static V8_EXPORT_PRIVATE ExternalReference
   Create(Address address, Type type = ExternalReference::BUILTIN_CALL);
 

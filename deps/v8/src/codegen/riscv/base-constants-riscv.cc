@@ -231,6 +231,17 @@ uint32_t InstructionGetters<T>::Rvvuimm() const {
 }
 
 template <class T>
+uint32_t InstructionGetters<T>::MopNumber() {
+  if ((this->InstructionBits() & kMopMask) == RO_MOP_R_N) {
+    return this->Bits(21, 20) | this->Bits(27, 26) << 2 |
+           this->Bits(30, 30) << 4;
+  } else {
+    DCHECK_EQ((this->InstructionBits() & kMopMask), RO_MOP_RR_N);
+    return this->Bits(27, 26) | this->Bits(30, 30) << 2;
+  }
+}
+
+template <class T>
 bool InstructionGetters<T>::IsLoad() {
   switch (OperandFunct3()) {
     case RO_LB:
@@ -251,8 +262,37 @@ bool InstructionGetters<T>::IsLoad() {
 #endif
       return v8_flags.riscv_c_extension && this->IsShortInstruction();
     default:
-      return BaseOpcode() == LOAD_FP;
+      break;
   }
+  if (BaseOpcode() == LOAD_FP) return true;
+  // Atomic instructions.
+  switch (this->InstructionBits() &
+          (kBaseOpcodeMask | kFunct3Mask | kFunct5Mask)) {
+    case RO_LR_W:
+    case RO_AMOSWAP_W:
+    case RO_AMOADD_W:
+    case RO_AMOXOR_W:
+    case RO_AMOAND_W:
+    case RO_AMOOR_W:
+    case RO_AMOMIN_W:
+    case RO_AMOMAX_W:
+    case RO_AMOMINU_W:
+    case RO_AMOMAXU_W:
+#ifdef V8_TARGET_ARCH_RISCV64
+    case RO_LR_D:
+    case RO_AMOSWAP_D:
+    case RO_AMOADD_D:
+    case RO_AMOXOR_D:
+    case RO_AMOAND_D:
+    case RO_AMOOR_D:
+    case RO_AMOMIN_D:
+    case RO_AMOMAX_D:
+    case RO_AMOMINU_D:
+    case RO_AMOMAXU_D:
+#endif
+      return true;
+  }
+  return false;
 }
 
 template <class T>
@@ -273,8 +313,37 @@ bool InstructionGetters<T>::IsStore() {
 #endif
       return v8_flags.riscv_c_extension && this->IsShortInstruction();
     default:
-      return BaseOpcode() == STORE_FP;
+      break;
   }
+  if (BaseOpcode() == STORE_FP) return true;
+  // Atomic instructions.
+  switch (this->InstructionBits() &
+          (kBaseOpcodeMask | kFunct3Mask | kFunct5Mask)) {
+    case RO_SC_W:
+    case RO_AMOSWAP_W:
+    case RO_AMOADD_W:
+    case RO_AMOXOR_W:
+    case RO_AMOAND_W:
+    case RO_AMOOR_W:
+    case RO_AMOMIN_W:
+    case RO_AMOMAX_W:
+    case RO_AMOMINU_W:
+    case RO_AMOMAXU_W:
+#ifdef V8_TARGET_ARCH_RISCV64
+    case RO_SC_D:
+    case RO_AMOSWAP_D:
+    case RO_AMOADD_D:
+    case RO_AMOXOR_D:
+    case RO_AMOAND_D:
+    case RO_AMOOR_D:
+    case RO_AMOMIN_D:
+    case RO_AMOMAX_D:
+    case RO_AMOMINU_D:
+    case RO_AMOMAXU_D:
+#endif
+      return true;
+  }
+  return false;
 }
 
 template class InstructionGetters<InstructionBase>;

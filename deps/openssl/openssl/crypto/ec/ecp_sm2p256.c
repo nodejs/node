@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2023-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -54,10 +54,6 @@ ALIGN32 static const BN_ULONG def_yG[P256_LIMBS] = {
 /* p and order for SM2 according to GB/T 32918.5-2017 */
 ALIGN32 static const BN_ULONG def_p[P256_LIMBS] = {
     0xffffffffffffffff, 0xffffffff00000000,
-    0xffffffffffffffff, 0xfffffffeffffffff
-};
-ALIGN32 static const BN_ULONG def_ord[P256_LIMBS] = {
-    0x53bbf40939d54123, 0x7203df6b21c6052b,
     0xffffffffffffffff, 0xfffffffeffffffff
 };
 
@@ -175,13 +171,6 @@ static ossl_inline int is_greater(const BN_ULONG *a, const BN_ULONG *b)
 static ossl_inline void ecp_sm2p256_mod_inverse(BN_ULONG* out,
                                                 const BN_ULONG* in) {
     BN_MOD_INV(out, in, ecp_sm2p256_div_by_2, ecp_sm2p256_sub, def_p);
-}
-
-/* Modular inverse mod order |out| = |in|^(-1) % |ord|. */
-static ossl_inline void ecp_sm2p256_mod_ord_inverse(BN_ULONG* out,
-                                                    const BN_ULONG* in) {
-    BN_MOD_INV(out, in, ecp_sm2p256_div_by_2_mod_ord, ecp_sm2p256_sub_mod_ord,
-               def_ord);
 }
 
 /* Point double: R <- P + P */
@@ -454,52 +443,6 @@ static int ecp_sm2p256_is_affine_G(const EC_POINT *generator)
 }
 #endif
 
-/*
- * Convert Jacobian coordinate point into affine coordinate (x,y)
- */
-static int ecp_sm2p256_get_affine(const EC_GROUP *group,
-                                  const EC_POINT *point,
-                                  BIGNUM *x, BIGNUM *y, BN_CTX *ctx)
-{
-    ALIGN32 BN_ULONG z_inv2[P256_LIMBS] = {0};
-    ALIGN32 BN_ULONG z_inv3[P256_LIMBS] = {0};
-    ALIGN32 BN_ULONG x_aff[P256_LIMBS] = {0};
-    ALIGN32 BN_ULONG y_aff[P256_LIMBS] = {0};
-    ALIGN32 BN_ULONG point_x[P256_LIMBS] = {0};
-    ALIGN32 BN_ULONG point_y[P256_LIMBS] = {0};
-    ALIGN32 BN_ULONG point_z[P256_LIMBS] = {0};
-
-    if (EC_POINT_is_at_infinity(group, point)) {
-        ECerr(ERR_LIB_EC, EC_R_POINT_AT_INFINITY);
-        return 0;
-    }
-
-    if (ecp_sm2p256_bignum_field_elem(point_x, point->X) <= 0
-        || ecp_sm2p256_bignum_field_elem(point_y, point->Y) <= 0
-        || ecp_sm2p256_bignum_field_elem(point_z, point->Z) <= 0) {
-        ECerr(ERR_LIB_EC, EC_R_COORDINATES_OUT_OF_RANGE);
-        return 0;
-    }
-
-    ecp_sm2p256_mod_inverse(z_inv3, point_z);
-    ecp_sm2p256_sqr(z_inv2, z_inv3);
-
-    if (x != NULL) {
-        ecp_sm2p256_mul(x_aff, point_x, z_inv2);
-        if (!bn_set_words(x, x_aff, P256_LIMBS))
-            return 0;
-    }
-
-    if (y != NULL) {
-        ecp_sm2p256_mul(z_inv3, z_inv3, z_inv2);
-        ecp_sm2p256_mul(y_aff, point_y, z_inv3);
-        if (!bn_set_words(y, y_aff, P256_LIMBS))
-            return 0;
-    }
-
-    return 1;
-}
-
 /* r = sum(scalar[i]*point[i]) */
 static int ecp_sm2p256_windowed_mul(const EC_GROUP *group,
                                     P256_POINT *r,
@@ -689,44 +632,6 @@ static int ecp_sm2p256_field_sqr(const EC_GROUP *group, BIGNUM *r,
     return 1;
 }
 
-static int ecp_sm2p256_inv_mod_ord(const EC_GROUP *group, BIGNUM *r,
-                                             const BIGNUM *x, BN_CTX *ctx)
-{
-    int ret = 0;
-    ALIGN32 BN_ULONG t[P256_LIMBS] = {0};
-    ALIGN32 BN_ULONG out[P256_LIMBS] = {0};
-
-    if (bn_wexpand(r, P256_LIMBS) == NULL) {
-        ECerr(ERR_LIB_EC, ERR_R_BN_LIB);
-        goto err;
-    }
-
-    if ((BN_num_bits(x) > 256) || BN_is_negative(x)) {
-        BIGNUM *tmp;
-
-        if ((tmp = BN_CTX_get(ctx)) == NULL
-            || !BN_nnmod(tmp, x, group->order, ctx)) {
-            ECerr(ERR_LIB_EC, ERR_R_BN_LIB);
-            goto err;
-        }
-        x = tmp;
-    }
-
-    if (!ecp_sm2p256_bignum_field_elem(t, x)) {
-        ECerr(ERR_LIB_EC, EC_R_COORDINATES_OUT_OF_RANGE);
-        goto err;
-    }
-
-    ecp_sm2p256_mod_ord_inverse(out, t);
-
-    if (!bn_set_words(r, out, P256_LIMBS))
-        goto err;
-
-    ret = 1;
-err:
-    return ret;
-}
-
 const EC_METHOD *EC_GFp_sm2p256_method(void)
 {
     static const EC_METHOD ret = {
@@ -747,7 +652,7 @@ const EC_METHOD *EC_GFp_sm2p256_method(void)
         ossl_ec_GFp_simple_point_copy,
         ossl_ec_GFp_simple_point_set_to_infinity,
         ossl_ec_GFp_simple_point_set_affine_coordinates,
-        ecp_sm2p256_get_affine,
+        ossl_ec_GFp_simple_point_get_affine_coordinates,
         0, 0, 0,
         ossl_ec_GFp_simple_add,
         ossl_ec_GFp_simple_dbl,
@@ -763,7 +668,7 @@ const EC_METHOD *EC_GFp_sm2p256_method(void)
         ecp_sm2p256_field_mul,
         ecp_sm2p256_field_sqr,
         0 /* field_div */,
-        0 /* field_inv */,
+        ossl_ec_GFp_simple_field_inv,
         0 /* field_encode */,
         0 /* field_decode */,
         0 /* field_set_to_one */,
@@ -779,7 +684,7 @@ const EC_METHOD *EC_GFp_sm2p256_method(void)
         ossl_ecdsa_simple_sign_setup,
         ossl_ecdsa_simple_sign_sig,
         ossl_ecdsa_simple_verify_sig,
-        ecp_sm2p256_inv_mod_ord,
+        0, /* use constant‑time fallback for inverse mod order */
         0, /* blind_coordinates */
         0, /* ladder_pre */
         0, /* ladder_step */

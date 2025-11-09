@@ -48,7 +48,10 @@ enum class WellKnownImport : uint8_t {
   kStringToUtf8Array,
   kStringToWtf16Array,
 
-  kLastCompileTimeImport = kStringToWtf16Array,
+  // JS Prototypes setup (Custom Descriptors proposal)
+  kConfigureAllPrototypes,
+
+  kLastCompileTimeImport = kConfigureAllPrototypes,
   ////////////////////////////////////////////////////////
   // End of compile-time "builtin" imports.
   ////////////////////////////////////////////////////////

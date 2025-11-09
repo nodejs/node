@@ -17,6 +17,7 @@
 #include "src/base/vector.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/codegen/source-position.h"
+#include "src/common/scoped-modification.h"
 #include "src/compiler/node-origin-table.h"
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/graph.h"
@@ -689,7 +690,7 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
     if (V8_UNLIKELY(v8_flags.turboshaft_verify_reductions)) {
       if (new_index.valid()) {
         const Operation& new_op = Asm().output_graph().Get(new_index);
-        if (!new_op.Is<TupleOp>()) {
+        if (!new_op.Is<MakeTupleOp>()) {
           // Checking that the outputs_rep of the new operation are the same as
           // the old operation. (except for tuples, since they don't have
           // outputs_rep)
@@ -740,6 +741,12 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
     while (block_to_inline_now_) {
       Block* input_block = block_to_inline_now_;
       block_to_inline_now_ = nullptr;
+      // We need to set {current_block_needs_variables_} to true, because even
+      // though we're cloning a block that has a single predecessor (and thus
+      // that shouldn't be emitted multiple times, and thus shouldn't need
+      // Variables), we could be unrolling a loop, in which case this block will
+      // be cloned in the same fashion multiple times and will indeed require
+      // Variables.
       ScopedModification<bool> set_true(&current_block_needs_variables_, true);
       if constexpr (trace_reduction) {
         std::cout << "Inlining " << PrintAsBlockHeader{*input_block} << "\n";
@@ -830,6 +837,9 @@ class GraphVisitor : public OutputGraphAssembler<GraphVisitor<AfterNext>,
     return OpIndex::Invalid();
   }
   V8_INLINE OpIndex AssembleOutputGraphBranch(const BranchOp& op) {
+    // Did you forget to Bind/BIND a Block/Label that you are branching to?
+    DCHECK(op.if_true->index().valid());
+    DCHECK(op.if_false->index().valid());
     Block* if_true = MapToNewGraph(op.if_true);
     Block* if_false = MapToNewGraph(op.if_false);
     return Asm().ReduceBranch(MapToNewGraph(op.condition()), if_true, if_false,

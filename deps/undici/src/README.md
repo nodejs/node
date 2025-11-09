@@ -1,6 +1,6 @@
 # undici
 
-[![Node CI](https://github.com/nodejs/undici/actions/workflows/nodejs.yml/badge.svg)](https://github.com/nodejs/undici/actions/workflows/nodejs.yml) [![neostandard javascript style](https://img.shields.io/badge/neo-standard-7fffff?style=flat\&labelColor=ff80ff)](https://github.com/neostandard/neostandard) [![npm version](https://badge.fury.io/js/undici.svg)](https://badge.fury.io/js/undici) [![codecov](https://codecov.io/gh/nodejs/undici/branch/main/graph/badge.svg?token=yZL6LtXkOA)](https://codecov.io/gh/nodejs/undici)
+[![Node CI](https://github.com/nodejs/undici/actions/workflows/ci.yml/badge.svg)](https://github.com/nodejs/undici/actions/workflows/nodejs.yml) [![neostandard javascript style](https://img.shields.io/badge/neo-standard-7fffff?style=flat\&labelColor=ff80ff)](https://github.com/neostandard/neostandard) [![npm version](https://badge.fury.io/js/undici.svg)](https://badge.fury.io/js/undici) [![codecov](https://codecov.io/gh/nodejs/undici/branch/main/graph/badge.svg?token=yZL6LtXkOA)](https://codecov.io/gh/nodejs/undici)
 
 An HTTP/1.1 client, written from scratch for Node.js.
 
@@ -440,13 +440,14 @@ This behavior is intentional for server-side environments where CORS restriction
 * https://fetch.spec.whatwg.org/#garbage-collection
 
 The [Fetch Standard](https://fetch.spec.whatwg.org) allows users to skip consuming the response body by relying on
-[garbage collection](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Memory_Management#garbage_collection) to release connection resources. Undici does not do the same. Therefore, it is important to always either consume or cancel the response body.
+[garbage collection](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Memory_Management#garbage_collection) to release connection resources.
 
 Garbage collection in Node is less aggressive and deterministic
 (due to the lack of clear idle periods that browsers have through the rendering refresh rate)
 which means that leaving the release of connection resources to the garbage collector can lead
 to excessive connection usage, reduced performance (due to less connection re-use), and even
 stalls or deadlocks when running out of connections.
+Therefore, __it is important to always either consume or cancel the response body anyway__.
 
 ```js
 // Do
@@ -459,7 +460,15 @@ for await (const chunk of body) {
 const { headers } = await fetch(url);
 ```
 
-The same applies for `request` too:
+However, if you want to get only headers, it might be better to use `HEAD` request method. Usage of this method will obviate the need for consumption or cancelling of the response body. See [MDN - HTTP - HTTP request methods - HEAD](https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/HEAD) for more details.
+
+```js
+const headers = await fetch(url, { method: 'HEAD' })
+  .then(res => res.headers)
+```
+
+Note that consuming the response body is _mandatory_ for `request`:
+
 ```js
 // Do
 const { body, headers } = await request(url);
@@ -467,13 +476,6 @@ await res.body.dump(); // force consumption of body
 
 // Do not
 const { headers } = await request(url);
-```
-
-However, if you want to get only headers, it might be better to use `HEAD` request method. Usage of this method will obviate the need for consumption or cancelling of the response body. See [MDN - HTTP - HTTP request methods - HEAD](https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/HEAD) for more details.
-
-```js
-const headers = await fetch(url, { method: 'HEAD' })
-  .then(res => res.headers)
 ```
 
 #### Forbidden and Safelisted Header Names
@@ -620,11 +622,11 @@ and `undici.Agent`) which will enable the family autoselection algorithm when es
 
 Undici aligns with the Node.js LTS schedule. The following table shows the supported versions:
 
-| Version | Node.js     | End of Life |
-|---------|-------------|-------------|
-| 5.x     | v18.x       | 2024-04-30  |
-| 6.x     | v20.x v22.x | 2026-04-30  |
-| 7.x     | v24.x       | 2027-04-30  |
+| Undici Version | Bundled in Node.js | Node.js Versions Supported | End of Life |
+|----------------|-------------------|----------------------------|-------------|
+| 5.x           | 18.x              | ≥14.0 (tested: 14, 16, 18) | 2024-04-30  |
+| 6.x           | 20.x, 22.x       | ≥18.17 (tested: 18, 20, 21, 22) | 2026-04-30  |
+| 7.x           | 24.x              | ≥20.18.1 (tested: 20, 22, 24) | 2027-04-30  |
 
 ## License
 

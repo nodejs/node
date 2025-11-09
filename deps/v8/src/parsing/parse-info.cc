@@ -30,8 +30,6 @@ UnoptimizedCompileFlags::UnoptimizedCompileFlags(Isolate* isolate,
       parsing_while_debugging_(ParsingWhileDebugging::kNo) {
   set_coverage_enabled(!isolate->is_best_effort_code_coverage());
   set_block_coverage_enabled(isolate->is_block_code_coverage());
-  set_might_always_turbofan(v8_flags.always_turbofan ||
-                            v8_flags.prepare_always_turbofan);
   set_allow_natives_syntax(v8_flags.allow_natives_syntax);
   set_allow_lazy_compile(true);
   set_collect_source_positions(!v8_flags.enable_lazy_source_positions ||

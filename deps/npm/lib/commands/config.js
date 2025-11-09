@@ -15,7 +15,7 @@ const { redact } = require('@npmcli/redact')
 // validate valid configs during "npm config set", and folks may have old
 // invalid entries lying around in a config file that we still want to protect
 // when running "npm config list"
-// This is a more general list of values to consider protected.  You can not
+// This is a more general list of values to consider protected.  You cannot
 // "npm config get" them, and they will not display during "npm config list"
 const protected = [
   'auth',
@@ -176,7 +176,7 @@ class Config extends BaseCommand {
       const deprecated = this.npm.config.definitions[baseKey]?.deprecated
       if (deprecated) {
         throw new Error(
-          `The \`${baseKey}\` option is deprecated, and can not be set in this way${deprecated}`
+          `The \`${baseKey}\` option is deprecated, and cannot be set in this way${deprecated}`
         )
       }
 
@@ -203,7 +203,7 @@ class Config extends BaseCommand {
     for (const key of keys) {
       const val = this.npm.config.get(key)
       if (isPrivate(key, val)) {
-        throw new Error(`The ${key} option is protected, and can not be retrieved in this way`)
+        throw new Error(`The ${key} option is protected, and cannot be retrieved in this way`)
       }
 
       const pref = keys.length > 1 ? `${key}=` : ''

@@ -17,21 +17,52 @@ namespace internal {
 
 namespace {
 
-struct BytecodeArgument {
-  int offset;
-  int length;
+class BytecodeArgument {
+ public:
+  BytecodeArgument(int offset, int length) : offset_(offset), length_(length) {}
 
-  BytecodeArgument(int offset, int length) : offset(offset), length(length) {}
+  int offset() const { return offset_; }
+  int length() const { return length_; }
+
+ private:
+  int offset_;
+  int length_;
 };
 
-struct BytecodeArgumentMapping : BytecodeArgument {
-  int new_length;
+class BytecodeArgumentMapping : public BytecodeArgument {
+ public:
+  enum class Type : uint8_t { kDefault, kSpecial };
+  enum class SpecialType : uint8_t { kOffsetAfterSequence };
 
   BytecodeArgumentMapping(int offset, int length, int new_length)
-      : BytecodeArgument(offset, length), new_length(new_length) {}
+      : BytecodeArgument(offset, length),
+        type_(Type::kDefault),
+        value_{.new_length = new_length} {}
+
+  explicit BytecodeArgumentMapping(SpecialType special_type)
+      : BytecodeArgument(-1, -1),
+        type_(Type::kSpecial),
+        value_{.special_type = special_type} {}
+
+  Type type() const { return type_; }
+  int new_length() const {
+    DCHECK_EQ(type(), Type::kDefault);
+    return value_.new_length;
+  }
+  SpecialType special_type() const {
+    DCHECK_EQ(type(), Type::kSpecial);
+    return value_.special_type;
+  }
+
+ private:
+  Type type_;
+  union {
+    int new_length;
+    SpecialType special_type;
+  } value_;
 };
 
-struct BytecodeArgumentCheck : BytecodeArgument {
+struct BytecodeArgumentCheck : public BytecodeArgument {
   enum CheckType { kCheckAddress = 0, kCheckValue };
   CheckType type;
   int check_offset;
@@ -79,6 +110,13 @@ class BytecodeSequenceNode {
                                     int argument_offset,
                                     int argument_byte_length,
                                     int new_argument_byte_length = 0);
+  // Emits the offset after the whole sequence.
+  // This should be used for every sequence that doesn't end in an unconditional
+  // jump. The offset isn't statically known, as bytecodes might be preserved
+  // after the sequence if they were jump targets from bytecodes outside the
+  // sequence. The emitted offset is after these potentially preserved
+  // bytecodes.
+  BytecodeSequenceNode& EmitOffsetAfterSequence();
   // Adds a check to the sequence node making it only a valid sequence when the
   // argument of the current bytecode at the specified offset matches the offset
   // to check against.
@@ -332,6 +370,13 @@ BytecodeSequenceNode& BytecodeSequenceNode::MapArgument(
   return *this;
 }
 
+BytecodeSequenceNode& BytecodeSequenceNode::EmitOffsetAfterSequence() {
+  DCHECK(IsSequence());
+  argument_mapping_->push_back(BytecodeArgumentMapping{
+      BytecodeArgumentMapping::SpecialType::kOffsetAfterSequence});
+  return *this;
+}
+
 BytecodeSequenceNode& BytecodeSequenceNode::IfArgumentEqualsOffset(
     int argument_offset, int argument_byte_length, int check_byte_offset) {
   DCHECK_LT(argument_offset, RegExpBytecodeLength(bytecode_));
@@ -390,8 +435,8 @@ bool BytecodeSequenceNode::CheckArguments(const uint8_t* bytecode, int pc) {
   bool is_valid = true;
   for (auto check_iter = argument_check_->begin();
        check_iter != argument_check_->end() && is_valid; check_iter++) {
-    auto value =
-        GetArgumentValue(bytecode, pc + check_iter->offset, check_iter->length);
+    auto value = GetArgumentValue(bytecode, pc + check_iter->offset(),
+                                  check_iter->length());
     if (check_iter->type == BytecodeArgumentCheck::kCheckAddress) {
       is_valid &= value == pc + check_iter->check_offset;
     } else if (check_iter->type == BytecodeArgumentCheck::kCheckValue) {
@@ -614,6 +659,36 @@ void RegExpBytecodePeephole::DefineStandardSequences() {
       .IgnoreArgument(2, 4, 4)   // indirect loop jump
       .IgnoreArgument(3, 4, 4)   // jump out of loop
       .IgnoreArgument(4, 4, 4);  // loop jump
+
+  CreateSequence(BC_CHECK_CURRENT_POSITION)
+      .FollowedBy(BC_LOAD_4_CURRENT_CHARS_UNCHECKED)
+      .FollowedBy(BC_AND_CHECK_4_CHARS)
+      // Jump target is the offset of the next AND_CHECK_4_CHARS (right after
+      // ADVANCE_CP_AND_GOTO).
+      .IfArgumentEqualsOffset(12, 4, 0x24)
+      .FollowedBy(BC_ADVANCE_CP_AND_GOTO)
+      // Jump target of ADVANCE_CP_AND_GOTO is the first bytecode in this
+      // sequence.
+      .IfArgumentEqualsOffset(4, 4, 0)
+      .FollowedBy(BC_AND_CHECK_4_CHARS)
+      .FollowedBy(BC_AND_CHECK_NOT_4_CHARS)
+      // Jump target is ADVANCE_CP_AND_GOTO.
+      .IfArgumentEqualsOffset(12, 4, 0x1c)
+      .ReplaceWith(BC_SKIP_UNTIL_ONE_OF_MASKED)
+      .MapArgument(1, 1, 3)       // load offset
+      .MapArgument(3, 1, 3, 4)    // advance_by
+      .MapArgument(2, 4, 4)       // c
+      .MapArgument(2, 8, 4)       // mask
+      .MapArgument(0, 1, 3, 4)    // maximum offset
+      .MapArgument(4, 4, 4)       // exact chars1
+      .MapArgument(4, 8, 4)       // exact mask1
+      .MapArgument(5, 4, 4)       // exact chars2
+      .MapArgument(5, 8, 4)       // exact mask2
+      .MapArgument(4, 12, 4)      // goto when match1
+      .EmitOffsetAfterSequence()  // fallthrough / goto when match2
+      .MapArgument(0, 4, 4)       // goto on failure
+      .IgnoreArgument(3, 4, 4)    // loop jump
+      .IgnoreArgument(2, 12, 4);  // jump to the second AND_CHECK_4_CHARS
 }
 
 bool RegExpBytecodePeephole::OptimizeBytecode(const uint8_t* bytecode,
@@ -692,33 +767,50 @@ void RegExpBytecodePeephole::EmitOptimization(
   // information when we have to preserve bytecodes at the end.
   // TODO(pthier): Replace with a stack-allocated data structure.
   ZoneLinkedList<int> delete_jumps = ZoneLinkedList<int>(zone());
+  // List of offsets in the optimized sequence that need to be patched to the
+  // offset value right after the optimized sequence.
+  ZoneLinkedList<uint32_t> after_sequence_offsets =
+      ZoneLinkedList<uint32_t>(zone());
 
   uint32_t bc = last_node.OptimizedBytecode();
   EmitValue(bc);
 
   for (size_t arg = 0; arg < last_node.ArgumentSize(); arg++) {
     BytecodeArgumentMapping arg_map = last_node.ArgumentMapping(arg);
-    int arg_pos = start_pc + arg_map.offset;
-    // If we map any jump source we mark the old source for deletion and insert
-    // a new jump.
-    auto jump_edge_iter = jump_edges_.find(arg_pos);
-    if (jump_edge_iter != jump_edges_.end()) {
-      int jump_source = jump_edge_iter->first;
-      int jump_destination = jump_edge_iter->second;
-      // Add new jump edge add current position.
-      jump_edges_mapped_.emplace(Length(), jump_destination);
-      // Mark old jump edge for deletion.
-      delete_jumps.push_back(jump_source);
-      // Decrement usage count of jump destination.
-      auto jump_count_iter = jump_usage_counts_.find(jump_destination);
-      DCHECK(jump_count_iter != jump_usage_counts_.end());
-      int& usage_count = jump_count_iter->second;
-      --usage_count;
+    if (arg_map.type() == BytecodeArgumentMapping::Type::kDefault) {
+      int arg_pos = start_pc + arg_map.offset();
+      // If we map any jump source we mark the old source for deletion and
+      // insert a new jump.
+      auto jump_edge_iter = jump_edges_.find(arg_pos);
+      if (jump_edge_iter != jump_edges_.end()) {
+        int jump_source = jump_edge_iter->first;
+        int jump_destination = jump_edge_iter->second;
+        // Add new jump edge add current position.
+        jump_edges_mapped_.emplace(Length(), jump_destination);
+        // Mark old jump edge for deletion.
+        delete_jumps.push_back(jump_source);
+        // Decrement usage count of jump destination.
+        auto jump_count_iter = jump_usage_counts_.find(jump_destination);
+        DCHECK(jump_count_iter != jump_usage_counts_.end());
+        int& usage_count = jump_count_iter->second;
+        --usage_count;
+      }
+      // TODO(pthier): DCHECK that mapped arguments are never sources of jumps
+      // to destinations inside the sequence.
+      EmitArgument(start_pc, bytecode, arg_map);
+    } else {
+      DCHECK_EQ(arg_map.type(), BytecodeArgumentMapping::Type::kSpecial);
+      using enum BytecodeArgumentMapping::SpecialType;
+      switch (arg_map.special_type()) {
+        case kOffsetAfterSequence:
+          after_sequence_offsets.push_back(pc());
+          // Reserve space to overwrite later with the pc after this sequence.
+          EmitValue<uint32_t>(0);
+          break;
+      }
     }
-    // TODO(pthier): DCHECK that mapped arguments are never sources of jumps
-    // to destinations inside the sequence.
-    EmitArgument(start_pc, bytecode, arg_map);
   }
+
   DCHECK_EQ(pc(), optimized_start_pc +
                       RegExpBytecodeLength(last_node.OptimizedBytecode()));
 
@@ -726,7 +818,7 @@ void RegExpBytecodePeephole::EmitOptimization(
   if (last_node.HasIgnoredArguments()) {
     for (auto ignored_arg = last_node.ArgumentIgnoredBegin();
          ignored_arg != last_node.ArgumentIgnoredEnd(); ignored_arg++) {
-      auto jump_edge_iter = jump_edges_.find(start_pc + ignored_arg->offset);
+      auto jump_edge_iter = jump_edges_.find(start_pc + ignored_arg->offset());
       if (jump_edge_iter != jump_edges_.end()) {
         int jump_source = jump_edge_iter->first;
         int jump_destination = jump_edge_iter->second;
@@ -776,7 +868,7 @@ void RegExpBytecodePeephole::EmitOptimization(
     }
 
     // We preserve everything to the end of the sequence. This is conservative
-    // since it would be enough to preserve all bytecudes up to an unconditional
+    // since it would be enough to preserve all bytecodes up to an unconditional
     // jump.
     int preserve_length = start_pc + last_node.SequenceLength() - preserve_from;
     fixup_length += preserve_length;
@@ -802,6 +894,11 @@ void RegExpBytecodePeephole::EmitOptimization(
     if (del < preserve_from) {
       jump_edges_.erase(del);
     }
+  }
+
+  for (uint32_t offset : after_sequence_offsets) {
+    DCHECK_EQ(optimized_bytecode_buffer_[offset], 0);
+    OverwriteValue<uint32_t>(offset, pc());
   }
 }
 
@@ -935,14 +1032,14 @@ void RegExpBytecodePeephole::SetRange(uint8_t value, int count) {
 
 void RegExpBytecodePeephole::EmitArgument(int start_pc, const uint8_t* bytecode,
                                           BytecodeArgumentMapping arg) {
-  int arg_pos = start_pc + arg.offset;
-  switch (arg.length) {
+  int arg_pos = start_pc + arg.offset();
+  switch (arg.length()) {
     case 1:
-      DCHECK_EQ(arg.new_length, arg.length);
+      DCHECK_EQ(arg.new_length(), arg.length());
       EmitValue(GetValue<uint8_t>(bytecode, arg_pos));
       break;
     case 2:
-      DCHECK_EQ(arg.new_length, arg.length);
+      DCHECK_EQ(arg.new_length(), arg.length());
       EmitValue(GetValue<uint16_t>(bytecode, arg_pos));
       break;
     case 3: {
@@ -957,7 +1054,7 @@ void RegExpBytecodePeephole::EmitArgument(int start_pc, const uint8_t* bytecode,
       int32_t val = GetValue<int32_t>(bytecode, arg_pos - 1) >> kBitsPerByte;
 #endif  // V8_TARGET_BIG_ENDIAN
 
-      switch (arg.new_length) {
+      switch (arg.new_length()) {
         case 2:
           EmitValue<uint16_t>(val);
           break;
@@ -984,18 +1081,18 @@ void RegExpBytecodePeephole::EmitArgument(int start_pc, const uint8_t* bytecode,
       break;
     }
     case 4:
-      DCHECK_EQ(arg.new_length, arg.length);
+      DCHECK_EQ(arg.new_length(), arg.length());
       EmitValue(GetValue<uint32_t>(bytecode, arg_pos));
       break;
     case 8:
-      DCHECK_EQ(arg.new_length, arg.length);
+      DCHECK_EQ(arg.new_length(), arg.length());
       EmitValue(GetValue<uint64_t>(bytecode, arg_pos));
       break;
     default:
       CopyRangeToOutput(bytecode, arg_pos,
-                        std::min(arg.length, arg.new_length));
-      if (arg.length < arg.new_length) {
-        SetRange(0x00, arg.new_length - arg.length);
+                        std::min(arg.length(), arg.new_length()));
+      if (arg.length() < arg.new_length()) {
+        SetRange(0x00, arg.new_length() - arg.length());
       }
       break;
   }

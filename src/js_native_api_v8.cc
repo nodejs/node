@@ -1,7 +1,9 @@
 #include <algorithm>
 #include <climits>  // INT_MAX
 #include <cmath>
+#ifndef NAPI_EXPERIMENTAL
 #define NAPI_EXPERIMENTAL
+#endif
 #include "env-inl.h"
 #include "js_native_api.h"
 #include "js_native_api_v8.h"
@@ -1591,6 +1593,50 @@ napi_status NAPI_CDECL napi_create_object(napi_env env, napi_value* result) {
   return napi_clear_last_error(env);
 }
 
+napi_status NAPI_CDECL
+napi_create_object_with_properties(napi_env env,
+                                   napi_value prototype_or_null,
+                                   napi_value* property_names,
+                                   napi_value* property_values,
+                                   size_t property_count,
+                                   napi_value* result) {
+  CHECK_ENV_NOT_IN_GC(env);
+  CHECK_ARG(env, result);
+
+  if (property_count > 0) {
+    CHECK_ARG(env, property_names);
+    CHECK_ARG(env, property_values);
+  }
+
+  v8::Local<v8::Value> v8_prototype_or_null;
+  if (prototype_or_null == nullptr) {
+    v8_prototype_or_null = v8::Null(env->isolate);
+  } else {
+    v8_prototype_or_null = v8impl::V8LocalValueFromJsValue(prototype_or_null);
+  }
+
+  v8::LocalVector<v8::Name> v8_names(env->isolate, property_count);
+  v8::LocalVector<v8::Value> v8_values(env->isolate, property_count);
+
+  for (size_t i = 0; i < property_count; i++) {
+    v8::Local<v8::Value> name_value =
+        v8impl::V8LocalValueFromJsValue(property_names[i]);
+    RETURN_STATUS_IF_FALSE(env, name_value->IsName(), napi_name_expected);
+    v8_names[i] = name_value.As<v8::Name>();
+    v8_values[i] = v8impl::V8LocalValueFromJsValue(property_values[i]);
+  }
+
+  v8::Local<v8::Object> obj = v8::Object::New(env->isolate,
+                                              v8_prototype_or_null,
+                                              v8_names.data(),
+                                              v8_values.data(),
+                                              property_count);
+
+  RETURN_STATUS_IF_FALSE(env, !obj.IsEmpty(), napi_generic_failure);
+  *result = v8impl::JsValueFromV8LocalValue(obj);
+  return napi_clear_last_error(env);
+}
+
 napi_status NAPI_CDECL napi_create_array(napi_env env, napi_value* result) {
   CHECK_ENV_NOT_IN_GC(env);
   CHECK_ARG(env, result);
@@ -2773,7 +2819,8 @@ napi_status NAPI_CDECL napi_create_reference(napi_env env,
 // there are other references to it.
 // For a napi_reference returned from `napi_wrap`, this must be called in the
 // finalizer.
-napi_status NAPI_CDECL napi_delete_reference(napi_env env, napi_ref ref) {
+napi_status NAPI_CDECL napi_delete_reference(node_api_basic_env env,
+                                             napi_ref ref) {
   // Omit NAPI_PREAMBLE and GET_RETURN_STATUS because V8 calls here cannot throw
   // JS exceptions.
   CHECK_ENV(env);
@@ -3076,19 +3123,66 @@ napi_status NAPI_CDECL napi_get_arraybuffer_info(napi_env env,
   CHECK_ARG(env, arraybuffer);
 
   v8::Local<v8::Value> value = v8impl::V8LocalValueFromJsValue(arraybuffer);
-  RETURN_STATUS_IF_FALSE(env, value->IsArrayBuffer(), napi_invalid_arg);
 
-  v8::Local<v8::ArrayBuffer> ab = value.As<v8::ArrayBuffer>();
+  if (value->IsArrayBuffer()) {
+    v8::Local<v8::ArrayBuffer> ab = value.As<v8::ArrayBuffer>();
 
-  if (data != nullptr) {
-    *data = ab->Data();
-  }
+    if (data != nullptr) {
+      *data = ab->Data();
+    }
 
-  if (byte_length != nullptr) {
-    *byte_length = ab->ByteLength();
+    if (byte_length != nullptr) {
+      *byte_length = ab->ByteLength();
+    }
+  } else if (value->IsSharedArrayBuffer()) {
+    v8::Local<v8::SharedArrayBuffer> sab = value.As<v8::SharedArrayBuffer>();
+
+    if (data != nullptr) {
+      *data = sab->Data();
+    }
+
+    if (byte_length != nullptr) {
+      *byte_length = sab->ByteLength();
+    }
+  } else {
+    return napi_set_last_error(env, napi_invalid_arg);
   }
 
   return napi_clear_last_error(env);
+}
+
+napi_status NAPI_CDECL node_api_is_sharedarraybuffer(napi_env env,
+                                                     napi_value value,
+                                                     bool* result) {
+  CHECK_ENV_NOT_IN_GC(env);
+  CHECK_ARG(env, value);
+  CHECK_ARG(env, result);
+
+  v8::Local<v8::Value> val = v8impl::V8LocalValueFromJsValue(value);
+  *result = val->IsSharedArrayBuffer();
+
+  return napi_clear_last_error(env);
+}
+
+napi_status NAPI_CDECL node_api_create_sharedarraybuffer(napi_env env,
+                                                         size_t byte_length,
+                                                         void** data,
+                                                         napi_value* result) {
+  NAPI_PREAMBLE(env);
+  CHECK_ARG(env, result);
+
+  v8::Isolate* isolate = env->isolate;
+  v8::Local<v8::SharedArrayBuffer> buffer =
+      v8::SharedArrayBuffer::New(isolate, byte_length);
+
+  // Optionally return a pointer to the buffer's data, to avoid another call to
+  // retrieve it.
+  if (data != nullptr) {
+    *data = buffer->Data();
+  }
+
+  *result = v8impl::JsValueFromV8LocalValue(buffer);
+  return GET_RETURN_STATUS(env);
 }
 
 napi_status NAPI_CDECL napi_is_typedarray(napi_env env,

@@ -28,8 +28,11 @@
   using Label = compiler::turboshaft::Label<Ts...>;                            \
   template <typename... Ts>                                                    \
   using LoopLabel = compiler::turboshaft::LoopLabel<Ts...>;                    \
+  template <typename... Args>                                                  \
+  using Tuple = compiler::turboshaft::Tuple<Args...>;                          \
   using Block = compiler::turboshaft::Block;                                   \
   using OpIndex = compiler::turboshaft::OpIndex;                               \
+  using None = compiler::turboshaft::None;                                     \
   using Word32 = compiler::turboshaft::Word32;                                 \
   using Word64 = compiler::turboshaft::Word64;                                 \
   using WordPtr = compiler::turboshaft::WordPtr;                               \
@@ -37,7 +40,8 @@
   using Float64 = compiler::turboshaft::Float64;                               \
   using RegisterRepresentation = compiler::turboshaft::RegisterRepresentation; \
   using MemoryRepresentation = compiler::turboshaft::MemoryRepresentation;     \
-  using BuiltinCallDescriptor = compiler::turboshaft::BuiltinCallDescriptor;   \
+  using BuiltinCallDescriptor =                                                \
+      compiler::turboshaft::deprecated::BuiltinCallDescriptor;                 \
   using AccessBuilderTS = compiler::turboshaft::AccessBuilderTS;
 
 #define BUILTIN_REDUCER(name)          \
@@ -191,6 +195,8 @@ class FeedbackCollectorReducer : public Next {
     feedback_ = __ SmiConstant(Smi::FromInt(new_feedback));
   }
 
+  // TODO(nicohartmann): Generalize this to allow nested scopes to set this
+  // feedback.
   void CombineFeedbackOnException(int additional_feedback) {
     feedback_on_exception_ = __ SmiConstant(Smi::FromInt(additional_feedback));
   }
@@ -202,6 +208,11 @@ class FeedbackCollectorReducer : public Next {
   V<Word32> FeedbackIs(int checked_feedback) {
     return __ SmiEqual(feedback_,
                        __ SmiConstant(Smi::FromInt(checked_feedback)));
+  }
+
+  V<Word32> FeedbackHas(int checked_feedback) {
+    V<Smi> mask = __ SmiConstant(Smi::FromInt(checked_feedback));
+    return __ SmiEqual(__ SmiBitwiseAnd(feedback_, mask), mask);
   }
 
   V<FeedbackVectorOrUndefined> LoadFeedbackVector() {
@@ -253,6 +264,7 @@ class FeedbackCollectorReducer : public Next {
                  compiler::WriteBarrierKind::kNoWriteBarrier);
         return;
       }
+      case SKIP_WRITE_BARRIER_SCOPE:
       case UNSAFE_SKIP_WRITE_BARRIER:
         UNIMPLEMENTED();
       case UPDATE_WRITE_BARRIER:
@@ -326,12 +338,18 @@ class FeedbackCollectorReducer : public Next {
   }
 
   V<Smi> SmiBitwiseOr(V<Smi> a, V<Smi> b) {
-    return __ BitcastWord32ToSmi(
-        __ Word32BitwiseOr(__ BitcastSmiToWord32(a), __ BitcastSmiToWord32(b)));
+    return __ BitcastWordPtrToSmi(__ WordPtrBitwiseOr(
+        __ BitcastSmiToWordPtr(a), __ BitcastSmiToWordPtr(b)));
+  }
+
+  V<Smi> SmiBitwiseAnd(V<Smi> a, V<Smi> b) {
+    return __ BitcastWordPtrToSmi(__ WordPtrBitwiseAnd(
+        __ BitcastSmiToWordPtr(a), __ BitcastSmiToWordPtr(b)));
   }
 
   V<Word32> SmiEqual(V<Smi> a, V<Smi> b) {
-    return __ Word32Equal(__ BitcastSmiToWord32(a), __ BitcastSmiToWord32(b));
+    return __ WordPtrEqual(__ BitcastSmiToWordPtr(a),
+                           __ BitcastSmiToWordPtr(b));
   }
 
   V<WordPtr> ChangePositiveInt32ToIntPtr(V<Word32> input) {
@@ -355,6 +373,18 @@ class FeedbackCollectorReducer : public Next {
     return __ IntPtrLessThanOrEqual(offset, last_offset);
   }
 
+  using ReturnOp = compiler::turboshaft::ReturnOp;
+  using OperationStorageSlot = compiler::turboshaft::OperationStorageSlot;
+
+  V<None> REDUCE(Return)(V<Word32> pop_count,
+                         base::Vector<const OpIndex> return_values,
+                         bool spill_caller_frame_slots) {
+    // Store feedback first, before we return from the function.
+    UpdateFeedback();
+    return Next::ReduceReturn(pop_count, return_values,
+                              spill_caller_frame_slots);
+  }
+
  private:
   V<FeedbackVectorOrUndefined> maybe_feedback_vector_;
   V<WordPtr> slot_id_;
@@ -375,6 +405,7 @@ class NoFeedbackCollectorReducer : public Next {
   void OverwriteFeedback(int new_feedback) {}
 
   V<Word32> FeedbackIs(int checked_feedback) { UNREACHABLE(); }
+  V<Word32> FeedbackHas(int checked_feedbac) { UNREACHABLE(); }
 
   void UpdateFeedback() {}
   void CombineExceptionFeedback() {}
@@ -400,7 +431,7 @@ class BuiltinsReducer : public Next {
     }
     // TODO(nicohartmann): CSA tracks some debug information here.
     // Emit stack check.
-    if (Builtins::KindOf(builtin_id) == Builtins::TSJ) {
+    if (Builtins::KindOf(builtin_id) == Builtins::TFJ_TSA) {
       __ PerformStackCheck(__ JSContextParameter());
     }
   }
@@ -558,7 +589,7 @@ class BuiltinsReducer : public Next {
         __ OverwriteFeedback(BinaryOperationFeedback::kNumberOrOddball);
         V<Float64> oddball_value =
             __ LoadField(V<Oddball>::Cast(value_heap_object),
-                         AccessBuilderTS::ForHeapNumberOrOddballOrHoleValue());
+                         AccessBuilderTS::ForHeapNumberOrOddballValue());
         GOTO(if_number, __ JSTruncateFloat64ToWord32(oddball_value));
       }
 
@@ -570,10 +601,10 @@ class BuiltinsReducer : public Next {
 
       using Builtin =
           std::conditional_t<Conversion == Object::Conversion::kToNumeric,
-                             BuiltinCallDescriptor::NonNumberToNumeric,
-                             BuiltinCallDescriptor::NonNumberToNumber>;
+                             compiler::turboshaft::builtin::NonNumberToNumeric,
+                             compiler::turboshaft::builtin::NonNumberToNumber>;
       converted_value = __ template CallBuiltin<Builtin>(
-          isolate(), context, {V<JSAnyNotNumber>::Cast(value_heap_object)});
+          {}, context, {.input = V<JSAnyNotNumber>::Cast(value_heap_object)});
 
       GOTO_IF(__ IsSmi(converted_value), if_number,
               __ UntagSmi(V<Smi>::Cast(converted_value)));
@@ -606,6 +637,26 @@ class TurboshaftBuiltinsAssembler
       : Base(data, graph, graph, phase_zone) {}
 
   using Base::Asm;
+
+  template <typename Desc>
+    requires(!Desc::kCanTriggerLazyDeopt)
+  auto CallBuiltin(compiler::turboshaft::V<Context> context,
+                   const Desc::Arguments& args) {
+    return Base::template CallBuiltin<Desc>(context, args);
+  }
+
+  template <typename Desc>
+    requires(Desc::kCanTriggerLazyDeopt)
+  auto CallBuiltin(compiler::turboshaft::V<Context> context,
+                   const Desc::Arguments& args) {
+    return Base::template CallBuiltin<Desc>(
+        compiler::turboshaft::OptionalV<
+            compiler::turboshaft::FrameState>::Nullopt(),
+        context, args, compiler::LazyDeoptOnThrow::kNo);
+  }
+
+  Isolate* isolate() { return Base::data()->isolate(); }
+  Factory* factory() { return isolate()->factory(); }
 };
 
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"

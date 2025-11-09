@@ -250,7 +250,7 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
   {
     DisallowGarbageCollection no_gc;
     Tagged<ScopeInfo> scope_info = *scope_info_handle;
-    WriteBarrierMode mode = scope_info->GetWriteBarrierMode(no_gc);
+    WriteBarrierModeScope mode = scope_info->GetWriteBarrierMode(no_gc);
 
     bool has_simple_parameters = false;
     bool is_asm_module = false;
@@ -278,14 +278,15 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
         HasSimpleParametersBit::encode(has_simple_parameters) |
         FunctionKindBits::encode(function_kind) |
         HasOuterScopeInfoBit::encode(has_outer_scope_info) |
-        IsDebugEvaluateScopeBit::encode(scope->is_debug_evaluate_scope()) |
+        IsDebugEvaluateScopeBit::encode(false) |
         ForceContextAllocationBit::encode(
             scope->ForceContextForLanguageMode()) |
         PrivateNameLookupSkipsOuterClassBit::encode(
             scope->private_name_lookup_skips_outer_class()) |
         HasContextExtensionSlotBit::encode(scope->HasContextExtensionSlot()) |
         IsHiddenBit::encode(scope->is_hidden()) |
-        IsWrappedFunctionBit::encode(scope->is_wrapped_function());
+        IsWrappedFunctionBit::encode(scope->is_wrapped_function()) |
+        HasContextCellsBit::encode(scope->has_context_cells());
     scope_info->set_flags(flags, kRelaxedStore);
 
     scope_info->set_parameter_count(parameter_count);
@@ -326,7 +327,7 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
               IsStaticFlagBit::encode(var->is_static_flag());
           if (has_inlined_local_names) {
             scope_info->set(context_local_base + local_index, *var->name(),
-                            mode);
+                            *mode);
           } else {
             Handle<NameToIndexHashTable> new_table = NameToIndexHashTable::Add(
                 isolate, local_names_hashtable, var->name(), local_index);
@@ -342,7 +343,7 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
               module_var_entry +
                   TorqueGeneratedModuleVariableOffsets::kNameOffset /
                       kTaggedSize,
-              *var->name(), mode);
+              *var->name(), *mode);
           scope_info->set(
               module_var_entry +
                   TorqueGeneratedModuleVariableOffsets::kIndexOffset /
@@ -412,7 +413,7 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
         var_index = var->index();
         name = *var->name();
       }
-      scope_info->set(index++, name, mode);
+      scope_info->set(index++, name, *mode);
       scope_info->set(index++, Smi::FromInt(var_index));
       DCHECK(function_name_info != VariableAllocationInfo::CONTEXT ||
              var_index == scope_info->ContextLength() - 1);
@@ -427,7 +428,7 @@ Handle<ScopeInfo> ScopeInfo::Create(IsolateT* isolate, Zone* zone, Scope* scope,
     // If present, add the outer scope info.
     DCHECK_EQ(index, scope_info->OuterScopeInfoIndex());
     if (has_outer_scope_info) {
-      scope_info->set(index++, *outer_scope.ToHandleChecked(), mode);
+      scope_info->set(index++, *outer_scope.ToHandleChecked(), *mode);
     }
 
     // Module-specific information (only for module scopes).
@@ -521,7 +522,17 @@ DirectHandle<ScopeInfo> ScopeInfo::CreateGlobalThisBinding(Isolate* isolate) {
 
 // static
 DirectHandle<ScopeInfo> ScopeInfo::CreateForEmptyFunction(Isolate* isolate) {
-  return CreateForBootstrapping(isolate, BootstrappingType::kFunction);
+  DirectHandle<ScopeInfo> scope_info =
+      CreateForBootstrapping(isolate, BootstrappingType::kFunction);
+  if (v8_flags.function_context_cells) {
+    // An empty function scope will set the has_context_cells_ flag, since it is
+    // set to true for all function scopes with the number of context locals (in
+    // this case zero) below the threshold
+    // v8_flags.function_context_cells_max_size.
+    scope_info->set_flags(
+        scope_info->Flags() | HasContextCellsBit::encode(true), kRelaxedStore);
+  }
+  return scope_info;
 }
 
 // static
@@ -582,7 +593,8 @@ DirectHandle<ScopeInfo> ScopeInfo::CreateForBootstrapping(
       ForceContextAllocationBit::encode(false) |
       PrivateNameLookupSkipsOuterClassBit::encode(false) |
       HasContextExtensionSlotBit::encode(is_native_context) |
-      IsHiddenBit::encode(false) | IsWrappedFunctionBit::encode(false);
+      IsHiddenBit::encode(false) | IsWrappedFunctionBit::encode(false) |
+      HasContextCellsBit::encode(false);
   Tagged<ScopeInfo> raw_scope_info = *scope_info;
   raw_scope_info->set_flags(flags, kRelaxedStore);
   raw_scope_info->set_parameter_count(parameter_count);

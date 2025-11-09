@@ -4,6 +4,7 @@
 
 #include "src/base/logging.h"
 #include "src/codegen/arm64/assembler-arm64-inl.h"
+#include "src/codegen/arm64/constants-arm64.h"
 #include "src/codegen/arm64/register-arm64.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/maglev/arm64/maglev-assembler-arm64-inl.h"
@@ -238,6 +239,109 @@ void CheckFloat64SameValue::GenerateCode(MaglevAssembler* masm,
     __ CompareFloat64AndJumpIf(double_scratch, target, kNotEqual, fail, fail);
   }
 }
+void Int32Add::SetValueLocationConstraints() {
+  UseRegister(left_input());
+  if (TryGetAddImmediateInt32ConstantInput(this, kRightIndex)) {
+    UseAny(right_input());
+  } else {
+    UseRegister(right_input());
+  }
+  DefineAsRegister(this);
+}
+
+void Int32Add::GenerateCode(MaglevAssembler* masm,
+                            const ProcessingState& state) {
+  Register left = ToRegister(left_input()).W();
+  Register out = ToRegister(result()).W();
+  if (!right_input().operand().IsRegister()) {
+    auto right_const = TryGetInt32ConstantInput(kRightIndex);
+    DCHECK(right_const);
+    __ Add(out, left, *right_const);
+  } else {
+    Register right = ToRegister(right_input()).W();
+    __ Add(out, left, right);
+  }
+}
+
+void Int32Subtract::SetValueLocationConstraints() {
+  UseRegister(left_input());
+  if (TryGetAddImmediateInt32ConstantInput(this, kRightIndex)) {
+    UseAny(right_input());
+  } else {
+    UseRegister(right_input());
+  }
+  DefineAsRegister(this);
+}
+void Int32Subtract::GenerateCode(MaglevAssembler* masm,
+                                 const ProcessingState& state) {
+  Register left = ToRegister(left_input()).W();
+  Register out = ToRegister(result()).W();
+  if (!right_input().operand().IsRegister()) {
+    auto right_const = TryGetInt32ConstantInput(kRightIndex);
+    DCHECK(right_const);
+    __ Sub(out, left, *right_const);
+  } else {
+    Register right = ToRegister(right_input()).W();
+    __ Sub(out, left, right);
+  }
+}
+
+void Int32Multiply::SetValueLocationConstraints() {
+  UseRegister(left_input());
+  UseRegister(right_input());
+  DefineAsRegister(this);
+}
+void Int32Multiply::GenerateCode(MaglevAssembler* masm,
+                                 const ProcessingState& state) {
+  Register left = ToRegister(left_input()).W();
+  Register right = ToRegister(right_input()).W();
+  Register out = ToRegister(result()).X();
+
+  // TODO(leszeks): peephole optimise multiplication by a constant.
+  __ Smull(out, left, right);
+
+  // Making sure that the 32-bit output is zero-extended.
+  __ Move(out.W(), out.W());
+}
+
+void Int32MultiplyOverflownBits::SetValueLocationConstraints() {
+  UseRegister(left_input());
+  UseRegister(right_input());
+  DefineAsRegister(this);
+}
+
+void Int32MultiplyOverflownBits::GenerateCode(MaglevAssembler* masm,
+                                              const ProcessingState& state) {
+  Register left = ToRegister(left_input()).W();
+  Register right = ToRegister(right_input()).W();
+  Register out = ToRegister(result()).X();
+
+  // TODO(leszeks): peephole optimise multiplication by a constant.
+  __ Smull(out, left, right);
+
+  // Note: this has to be a Lsr rather than a Asr to ensure that the 32-bit
+  // output is zero-extended.
+  __ Lsr(out, out, 32);
+}
+
+void Int32Divide::SetValueLocationConstraints() {
+  UseRegister(left_input());
+  UseRegister(right_input());
+  DefineAsRegister(this);
+}
+void Int32Divide::GenerateCode(MaglevAssembler* masm,
+                               const ProcessingState& state) {
+  Register left = ToRegister(left_input()).W();
+  Register right = ToRegister(right_input()).W();
+  Register out = ToRegister(result()).W();
+
+  // TODO(leszeks): peephole optimise division by a constant.
+
+  // On ARM, integer division does not trap on overflow or division by zero.
+  // - Division by zero returns 0.
+  // - Signed overflow (INT_MIN / -1) returns INT_MIN.
+  __ Sdiv(out, left, right);
+}
 
 void Int32AddWithOverflow::SetValueLocationConstraints() {
   UseRegister(left_input());
@@ -339,9 +443,10 @@ void Int32MultiplyWithOverflow::GenerateCode(MaglevAssembler* masm,
             __ GetDeoptLabel(this, DeoptimizeReason::kOverflow));
   }
   __ Bind(&end);
-  if (out_alias_input) {
-    __ Move(out, res.W());
-  }
+
+  // Making sure that the 32-bit output is zero-extended (and moving it to the
+  // right register if {out_alias_input} is true).
+  __ Move(out, res.W());
 }
 
 void Int32DivideWithOverflow::SetValueLocationConstraints() {
@@ -725,6 +830,29 @@ void Float64Ieee754Unary::GenerateCode(MaglevAssembler* masm,
   __ CallCFunction(ieee_function_ref(), 1);
 }
 
+int Float64Ieee754Binary::MaxCallStackArgs() const { return 0; }
+void Float64Ieee754Binary::SetValueLocationConstraints() {
+  UseFixed(input_lhs(), v0);
+  UseFixed(input_rhs(), v1);
+  DefineSameAsFirst(this);
+}
+void Float64Ieee754Binary::GenerateCode(MaglevAssembler* masm,
+                                        const ProcessingState& state) {
+  AllowExternalCallThatCantCauseGC scope(masm);
+  __ CallCFunction(ieee_function_ref(), 2);
+}
+
+void Float64Sqrt::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineSameAsFirst(this);
+}
+void Float64Sqrt::GenerateCode(MaglevAssembler* masm,
+                               const ProcessingState& state) {
+  DoubleRegister value = ToDoubleRegister(input());
+  DoubleRegister result_register = ToDoubleRegister(result());
+  __ fsqrt(result_register, value);
+}
+
 void LoadTypedArrayLength::SetValueLocationConstraints() {
   UseRegister(receiver_input());
   DefineAsRegister(this);
@@ -788,6 +916,37 @@ void HoleyFloat64ToMaybeNanFloat64::GenerateCode(MaglevAssembler* masm,
   __ CanonicalizeNaN(ToDoubleRegister(result()), ToDoubleRegister(input()));
 }
 
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
+void Float64ToHoleyFloat64::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineAsRegister(this);
+}
+void Float64ToHoleyFloat64::GenerateCode(MaglevAssembler* masm,
+                                         const ProcessingState& state) {
+  // A Float64 value could contain a NaN with the bit pattern that has a special
+  // interpretation in the HoleyFloat64 representation, so we need to canicalize
+  // those before changing representation.
+  __ CanonicalizeNaN(ToDoubleRegister(result()), ToDoubleRegister(input()));
+}
+
+void ConvertHoleNanToUndefinedNan::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineSameAsFirst(this);
+  set_temporaries_needed(1);
+}
+void ConvertHoleNanToUndefinedNan::GenerateCode(MaglevAssembler* masm,
+                                                const ProcessingState& state) {
+  DoubleRegister value = ToDoubleRegister(input());
+  Label done;
+
+  MaglevAssembler::TemporaryRegisterScope temps(masm);
+  Register scratch = temps.Acquire();
+  __ JumpIfNotHoleNan(value, scratch.W(), &done);
+  __ Move(value, UndefinedNan());
+  __ Bind(&done);
+}
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
+
 namespace {
 
 enum class ReduceInterruptBudgetType { kLoop, kReturn };
@@ -795,6 +954,11 @@ enum class ReduceInterruptBudgetType { kLoop, kReturn };
 void HandleInterruptsAndTiering(MaglevAssembler* masm, ZoneLabelRef done,
                                 Node* node, ReduceInterruptBudgetType type,
                                 Register scratch0) {
+  if (v8_flags.verify_write_barriers) {
+    // The safepoint/interrupt might trigger GC.
+    __ ResetLastYoungAllocation();
+  }
+
   // For loops, first check for interrupts. Don't do this for returns, as we
   // can't lazy deopt to the end of a return.
   if (type == ReduceInterruptBudgetType::kLoop) {

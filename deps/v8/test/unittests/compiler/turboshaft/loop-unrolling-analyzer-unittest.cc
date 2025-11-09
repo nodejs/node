@@ -296,7 +296,7 @@ using LoopUnrollingAnalyzerSmallLoopTest =
 TEST_P(LoopUnrollingAnalyzerSmallLoopTest, ExactLoopIterCount) {
   BoundedLoop params = GetParam();
   auto test = CreateFromGraph(1, [&params](auto& Asm) {
-    using AssemblerT = std::remove_reference<decltype(Asm)>::type::Assembler;
+    using AssemblerT = std::remove_reference_t<decltype(Asm)>::Assembler;
     OpIndex cond = Asm.GetParameter(0);
 
     ScopedVar<Word32, AssemblerT> index(&Asm, params.init);
@@ -335,7 +335,7 @@ using LoopUnrollingAnalyzerLargeLoopTest =
 TEST_P(LoopUnrollingAnalyzerLargeLoopTest, LargeLoopIterCount) {
   BoundedLoop params = GetParam();
   auto test = CreateFromGraph(1, [&params](auto& Asm) {
-    using AssemblerT = std::remove_reference<decltype(Asm)>::type::Assembler;
+    using AssemblerT = std::remove_reference_t<decltype(Asm)>::Assembler;
     OpIndex cond = Asm.GetParameter(0);
 
     ScopedVar<Word32, AssemblerT> index(&Asm, params.init);
@@ -387,7 +387,7 @@ using LoopUnrollingAnalyzerOverflowTest =
 TEST_P(LoopUnrollingAnalyzerOverflowTest, LargeLoopIterCount) {
   BoundedLoop params = GetParam();
   auto test = CreateFromGraph(1, [&params](auto& Asm) {
-    using AssemblerT = std::remove_reference<decltype(Asm)>::type::Assembler;
+    using AssemblerT = std::remove_reference_t<decltype(Asm)>::Assembler;
     OpIndex cond = Asm.GetParameter(0);
 
     ScopedVar<Word32, AssemblerT> index(&Asm, params.init);
@@ -452,7 +452,7 @@ using LoopUnrollingAnalyzerPartialUnrollTest =
 TEST_P(LoopUnrollingAnalyzerPartialUnrollTest, PartialUnrollCount) {
   BoundedPartialLoop params = GetParam();
   auto test = CreateFromGraph(1, [&params](auto& Asm) {
-    using AssemblerT = std::remove_reference<decltype(Asm)>::type::Assembler;
+    using AssemblerT = std::remove_reference_t<decltype(Asm)>::Assembler;
     OpIndex cond = Asm.GetParameter(0);
 
     ScopedVar<Word32, AssemblerT> index(&Asm, params.init);

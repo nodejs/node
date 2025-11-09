@@ -131,13 +131,27 @@
         'xcode_settings': {
           # -Wno-invalid-offsetof
           'GCC_WARN_ABOUT_INVALID_OFFSETOF_MACRO': 'NO',
+        },
+        'msvs_settings': {
+          'VCCLCompilerTool': {
+            'AdditionalOptions': ['-Wno-invalid-offsetof'],
+          },
+        },
+      }],
+      ['clang==1', {
+        'cflags_cc': [
+          '-Wno-nullability-completeness',
+        ],
+        'xcode_settings': {
           'OTHER_CFLAGS': [
             '-Wno-nullability-completeness',
           ],
         },
         'msvs_settings': {
           'VCCLCompilerTool': {
-            'AdditionalOptions': ['-Wno-invalid-offsetof'],
+            'AdditionalOptions': [
+              '-Wno-nullability-completeness',
+            ],
           },
         },
       }],

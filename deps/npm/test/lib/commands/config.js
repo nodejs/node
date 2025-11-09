@@ -225,7 +225,7 @@ t.test('config delete single key', async t => {
 
   await npm.exec('config', ['delete', 'access'])
 
-  t.equal(npm.config.get('access'), null, 'acces should be defaulted')
+  t.equal(npm.config.get('access'), null, 'access should be defaulted')
 
   const contents = await fs.readFile(join(home, '.npmrc'), { encoding: 'utf8' })
   const rc = ini.parse(contents)
@@ -294,7 +294,7 @@ t.test('config delete key --global', async t => {
 t.test('config set invalid option', async t => {
   const { npm } = await loadMockNpm(t)
   await t.rejects(
-    npm.exec('config', ['set', 'nonexistantconfigoption', 'something']),
+    npm.exec('config', ['set', 'nonexistentconfigoption', 'something']),
     /not a valid npm option/
   )
 })
@@ -317,7 +317,7 @@ t.test('config set nerf-darted option', async t => {
   )
 })
 
-t.test('config set scoped optoin', async t => {
+t.test('config set scoped option', async t => {
   const { npm } = await loadMockNpm(t)
   await npm.exec('config', ['set', '@npm:registry', 'https://registry.npmjs.org'])
   t.equal(

@@ -52,6 +52,11 @@ namespace internal {
   V(f8)  V(f9)  V(f10) V(f11) V(f12) V(f13) V(f14) V(f15) \
   V(f16) V(f17) V(f18) V(f19) V(f20) V(f21) V(f22) V(f23) \
   V(f24) V(f25) V(f26) V(f27) V(f28)
+
+#define C_CALL_CALLEE_SAVE_REGISTERS fp, s0, s1, s2, s3, s4, s5, s6, s7, s8
+
+#define C_CALL_CALLEE_SAVE_FP_REGISTERS f24, f25, f26, f27, f28, f29, f30, f31
+
 // clang-format on
 
 // Note that the bit values must match those used in actual instruction

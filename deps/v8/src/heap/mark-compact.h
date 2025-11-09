@@ -7,6 +7,7 @@
 
 #include <vector>
 
+#include "absl/container/flat_hash_set.h"
 #include "include/v8-internal.h"
 #include "src/common/globals.h"
 #include "src/heap/marking-state.h"
@@ -116,9 +117,7 @@ class MarkCompactCollector final {
   void StartMarking(
       std::shared_ptr<::heap::base::IncrementalMarkingSchedule> schedule = {});
 
-  static inline bool IsOnEvacuationCandidate(Tagged<MaybeObject> obj) {
-    return MemoryChunk::FromAddress(obj.ptr())->IsEvacuationCandidate();
-  }
+  static inline bool IsOnEvacuationCandidate(Tagged<MaybeObject> obj);
 
   struct RecordRelocSlotInfo {
     MutablePageMetadata* page_metadata;
@@ -135,11 +134,13 @@ class MarkCompactCollector final {
 
   static void RecordRelocSlot(Tagged<InstructionStream> host, RelocInfo* rinfo,
                               Tagged<HeapObject> target);
-  template <typename THeapObjectSlot>
+  template <typename THeapObjectSlot,
+            RecordYoungSlot kRecordYoung = RecordYoungSlot::kNo>
   V8_INLINE static void RecordSlot(Tagged<HeapObject> object,
                                    THeapObjectSlot slot,
                                    Tagged<HeapObject> target);
-  template <typename THeapObjectSlot>
+  template <typename THeapObjectSlot,
+            RecordYoungSlot kRecordYoung = RecordYoungSlot::kNo>
   V8_INLINE static void RecordSlot(MemoryChunk* source_chunk,
                                    THeapObjectSlot slot,
                                    Tagged<HeapObject> target);
@@ -209,7 +210,7 @@ class MarkCompactCollector final {
   void MarkLiveObjects();
 
   // Marks the object and adds it to the worklist.
-  V8_INLINE void MarkObject(Tagged<HeapObject> host, Tagged<HeapObject> obj,
+  V8_INLINE void MarkObject(Tagged<HeapObject> obj,
                             MarkingHelper::WorklistTarget target_worklist);
 
   // Marks the root object and adds it to the worklist.
@@ -305,10 +306,6 @@ class MarkCompactCollector final {
   void FlushSFI(Tagged<SharedFunctionInfo> sfi,
                 bool bytecode_already_decompiled);
 
-#ifndef V8_ENABLE_LEAPTIERING
-  void ProcessFlushedBaselineCandidates();
-#endif  // !V8_ENABLE_LEAPTIERING
-
   // Resets any JSFunctions which have had their bytecode flushed.
   void ClearFlushedJsFunctions();
 
@@ -358,7 +355,7 @@ class MarkCompactCollector final {
 
   // Goes through the list of encountered JSWeakRefs and WeakCells and clears
   // those with dead values.
-  void ClearJSWeakRefs();
+  void ProcessJSWeakRefs();
 
   // Starts sweeping of spaces by contributing on the main thread and setting
   // up other pages for sweeping. Does not start sweeper tasks.
@@ -371,13 +368,14 @@ class MarkCompactCollector final {
   void EvacuatePagesInParallel();
   void UpdatePointersAfterEvacuation();
 
-  void ReleaseEvacuationCandidates();
+  void ReleasePage(PagedSpaceBase* space, PageMetadata* page);
+
   // Returns number of aborted pages.
   size_t PostProcessAbortedEvacuationCandidates();
   void ReportAbortedEvacuationCandidateDueToOOM(Address failed_start,
                                                 PageMetadata* page);
-  void ReportAbortedEvacuationCandidateDueToFlags(PageMetadata* page,
-                                                  MemoryChunk* chunk);
+  void ReportAbortedEvacuationCandidateDueToFlags(PageMetadata* page);
+  void ReportAbortedEvacuationCandidateDueToRunningCode(PageMetadata* page);
 
   static const int kEphemeronChunkSize = 8 * KB;
 
@@ -441,6 +439,8 @@ class MarkCompactCollector final {
       aborted_evacuation_candidates_due_to_oom_;
   std::vector<PageMetadata*> aborted_evacuation_candidates_due_to_flags_;
   std::vector<LargePageMetadata*> promoted_large_pages_;
+  absl::flat_hash_set<PageMetadata*>
+      aborted_evacuation_candidates_due_to_running_code_;
 
   // Map which stores ephemeron pairs for the linear-time algorithm.
   KeyToValues key_to_values_;
@@ -465,6 +465,8 @@ class MarkCompactCollector final {
   std::vector<PageMetadata*> empty_new_space_pages_to_be_swept_;
 
   bool use_background_threads_in_cycle_ = false;
+
+  bool in_conservative_stack_scanning_ = false;
 
   friend class Evacuator;
   friend class RecordMigratedSlotVisitor;

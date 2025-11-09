@@ -1,5 +1,7 @@
 // Copyright 2021 Google LLC
+// Copyright 2025 Arm Limited and/or its affiliates <open-source-office@arm.com>
 // SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: BSD-3-Clause
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,6 +24,19 @@
 #include "hwy/base.h"
 
 namespace hwy {
+
+// Based on https://github.com/numpy/numpy/issues/16313#issuecomment-641897028
+static HWY_INLINE uint64_t RandomBits(uint64_t* HWY_RESTRICT state) {
+  const uint64_t a = state[0];
+  const uint64_t b = state[1];
+  const uint64_t w = state[2] + 1;
+  const uint64_t next = a ^ w;
+  state[0] = (b + (b << 3)) ^ (b >> 11);
+  const uint64_t rot = (b << 24) | (b >> 40);
+  state[1] = rot + next;
+  state[2] = w;
+  return next;
+}
 
 // Internal constants - these are to avoid magic numbers/literals and cannot be
 // changed without also changing the associated code.
@@ -128,10 +143,18 @@ static_assert(SortConstants::MaxBufBytes<2>(64) <= 1664, "Unexpectedly high");
 // due to https://gcc.gnu.org/bugzilla/show_bug.cgi?id=97696. Armv8 Clang
 // hwasan/msan/tsan/asan also fail to build SVE (b/335157772).
 #undef VQSORT_ENABLED
-#if (HWY_TARGET == HWY_SCALAR) ||                                   \
-    (HWY_COMPILER_MSVC && !HWY_IS_DEBUG_BUILD) ||                   \
-    (HWY_ARCH_ARM_V7 && HWY_IS_DEBUG_BUILD) ||                      \
-    (HWY_ARCH_ARM_A64 && HWY_COMPILER_GCC_ACTUAL && HWY_IS_ASAN)
+#undef VQSORT_COMPILER_COMPATIBLE
+
+#if (HWY_COMPILER_MSVC && !HWY_IS_DEBUG_BUILD) || \
+    (HWY_ARCH_ARM_V7 && HWY_IS_DEBUG_BUILD) ||    \
+    (HWY_ARCH_ARM_A64 && HWY_IS_ASAN) ||          \
+    (HWY_ARCH_RISCV && HWY_COMPILER_GCC_ACTUAL < 1400)
+#define VQSORT_COMPILER_COMPATIBLE 0
+#else
+#define VQSORT_COMPILER_COMPATIBLE 1
+#endif
+
+#if (HWY_TARGET == HWY_SCALAR) || !VQSORT_COMPILER_COMPATIBLE
 #define VQSORT_ENABLED 0
 #else
 #define VQSORT_ENABLED 1

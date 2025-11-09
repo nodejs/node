@@ -89,41 +89,36 @@ class AsAtomicImpl {
   }
 
   template <typename T>
-  static void SeqCst_Store(T* addr,
-                           typename std::remove_reference<T>::type new_value) {
+  static void SeqCst_Store(T* addr, std::remove_reference_t<T> new_value) {
     static_assert(sizeof(T) <= sizeof(AtomicStorageType));
     base::SeqCst_Store(to_storage_addr(addr),
                        cast_helper<T>::to_storage_type(new_value));
   }
 
   template <typename T>
-  static void Release_Store(T* addr,
-                            typename std::remove_reference<T>::type new_value) {
+  static void Release_Store(T* addr, std::remove_reference_t<T> new_value) {
     static_assert(sizeof(T) <= sizeof(AtomicStorageType));
     base::Release_Store(to_storage_addr(addr),
                         cast_helper<T>::to_storage_type(new_value));
   }
 
   template <typename T>
-  static void Relaxed_Store(T* addr,
-                            typename std::remove_reference<T>::type new_value) {
+  static void Relaxed_Store(T* addr, std::remove_reference_t<T> new_value) {
     static_assert(sizeof(T) <= sizeof(AtomicStorageType));
     base::Relaxed_Store(to_storage_addr(addr),
                         cast_helper<T>::to_storage_type(new_value));
   }
 
   template <typename T>
-  static T SeqCst_Swap(T* addr,
-                       typename std::remove_reference<T>::type new_value) {
+  static T SeqCst_Swap(T* addr, std::remove_reference_t<T> new_value) {
     static_assert(sizeof(T) <= sizeof(AtomicStorageType));
     return base::SeqCst_AtomicExchange(
         to_storage_addr(addr), cast_helper<T>::to_storage_type(new_value));
   }
 
   template <typename T>
-  static T Release_CompareAndSwap(
-      T* addr, typename std::remove_reference<T>::type old_value,
-      typename std::remove_reference<T>::type new_value) {
+  static T Release_CompareAndSwap(T* addr, std::remove_reference_t<T> old_value,
+                                  std::remove_reference_t<T> new_value) {
     static_assert(sizeof(T) <= sizeof(AtomicStorageType));
     return cast_helper<T>::to_return_type(base::Release_CompareAndSwap(
         to_storage_addr(addr), cast_helper<T>::to_storage_type(old_value),
@@ -131,9 +126,8 @@ class AsAtomicImpl {
   }
 
   template <typename T>
-  static T Relaxed_CompareAndSwap(
-      T* addr, typename std::remove_reference<T>::type old_value,
-      typename std::remove_reference<T>::type new_value) {
+  static T Relaxed_CompareAndSwap(T* addr, std::remove_reference_t<T> old_value,
+                                  std::remove_reference_t<T> new_value) {
     static_assert(sizeof(T) <= sizeof(AtomicStorageType));
     return cast_helper<T>::to_return_type(base::Relaxed_CompareAndSwap(
         to_storage_addr(addr), cast_helper<T>::to_storage_type(old_value),
@@ -141,9 +135,16 @@ class AsAtomicImpl {
   }
 
   template <typename T>
-  static T AcquireRelease_CompareAndSwap(
-      T* addr, typename std::remove_reference<T>::type old_value,
-      typename std::remove_reference<T>::type new_value) {
+  static T Relaxed_FetchOr(T* addr, std::remove_reference_t<T> bits) {
+    static_assert(sizeof(T) <= sizeof(AtomicStorageType));
+    return cast_helper<T>::to_return_type(base::Relaxed_FetchOr(
+        to_storage_addr(addr), cast_helper<T>::to_storage_type(bits)));
+  }
+
+  template <typename T>
+  static T AcquireRelease_CompareAndSwap(T* addr,
+                                         std::remove_reference_t<T> old_value,
+                                         std::remove_reference_t<T> new_value) {
     static_assert(sizeof(T) <= sizeof(AtomicStorageType));
     return cast_helper<T>::to_return_type(base::AcquireRelease_CompareAndSwap(
         to_storage_addr(addr), cast_helper<T>::to_storage_type(old_value),
@@ -151,9 +152,8 @@ class AsAtomicImpl {
   }
 
   template <typename T>
-  static T SeqCst_CompareAndSwap(
-      T* addr, typename std::remove_reference<T>::type old_value,
-      typename std::remove_reference<T>::type new_value) {
+  static T SeqCst_CompareAndSwap(T* addr, std::remove_reference_t<T> old_value,
+                                 std::remove_reference_t<T> new_value) {
     static_assert(sizeof(T) <= sizeof(AtomicStorageType));
     return cast_helper<T>::to_return_type(base::SeqCst_CompareAndSwap(
         to_storage_addr(addr), cast_helper<T>::to_storage_type(old_value),
@@ -192,6 +192,18 @@ class AsAtomicImpl {
       old_value = Relaxed_CompareAndSwap(addr, old_value, new_value);
     } while (old_value != old_value_before_cas);
     return true;
+  }
+
+  // Atomically sets bits selected by the mask to 1. Returns false if the bits
+  // are already set as needed.
+  template <typename T>
+  static bool Relaxed_SetBits(T* addr, T mask) {
+    static_assert(sizeof(T) <= sizeof(AtomicStorageType));
+    T old_value = Relaxed_Load(addr);
+    if ((old_value & mask) == mask) return false;
+
+    T old_value_before_fo = Relaxed_FetchOr(addr, mask);
+    return (old_value_before_fo | mask) != old_value_before_fo;
   }
 
  private:
@@ -275,7 +287,7 @@ template <typename T>
 inline void CheckedIncrement(
     std::atomic<T>* number, T amount,
     std::memory_order order = std::memory_order_seq_cst)
-  requires std::is_unsigned<T>::value
+  requires std::is_unsigned_v<T>
 {
   const T old = number->fetch_add(amount, order);
   DCHECK_GE(old + amount, old);
@@ -286,7 +298,7 @@ template <typename T>
 inline void CheckedDecrement(
     std::atomic<T>* number, T amount,
     std::memory_order order = std::memory_order_seq_cst)
-  requires std::is_unsigned<T>::value
+  requires std::is_unsigned_v<T>
 {
   const T old = number->fetch_sub(amount, order);
   DCHECK_GE(old, amount);

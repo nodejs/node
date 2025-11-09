@@ -107,7 +107,18 @@ v8::Local<v8::Array> AsyncHooks::js_execution_async_resources() {
 
 v8::Local<v8::Object> AsyncHooks::native_execution_async_resource(size_t i) {
   if (i >= native_execution_async_resources_.size()) return {};
-  return native_execution_async_resources_[i];
+  auto resource = native_execution_async_resources_[i];
+  if (std::holds_alternative<v8::Global<v8::Object>*>(resource)) [[unlikely]] {
+    auto* global = std::get<v8::Global<v8::Object>*>(resource);
+    if (global == nullptr) [[unlikely]]
+      return {};
+    return global->Get(env()->isolate());
+  } else {
+    auto* local = std::get<v8::Local<v8::Object>*>(resource);
+    if (local == nullptr) [[unlikely]]
+      return {};
+    return *local;
+  }
 }
 
 inline v8::Local<v8::String> AsyncHooks::provider_string(int idx) {
@@ -185,9 +196,8 @@ inline Environment* Environment::GetCurrent(v8::Local<v8::Context> context) {
   if (!ContextEmbedderTag::IsNodeContext(context)) [[unlikely]] {
     return nullptr;
   }
-  return static_cast<Environment*>(
-      context->GetAlignedPointerFromEmbedderData(
-          ContextEmbedderIndex::kEnvironment));
+  return static_cast<Environment*>(context->GetAlignedPointerFromEmbedderData(
+      ContextEmbedderIndex::kEnvironment, EmbedderDataTag::kPerContextData));
 }
 
 inline Environment* Environment::GetCurrent(
@@ -695,6 +705,10 @@ inline uint64_t Environment::thread_id() const {
   return thread_id_;
 }
 
+inline std::string_view Environment::thread_name() const {
+  return thread_name_;
+}
+
 inline worker::Worker* Environment::worker_context() const {
   return isolate_data()->worker_context();
 }
@@ -833,6 +847,7 @@ void Environment::set_process_exit_handler(
     return PropertyName##_.Get(isolate_);                                      \
   }                                                                            \
   inline void IsolateData::set_##PropertyName(v8::Local<TypeName> value) {     \
+    CHECK(PropertyName##_.IsEmpty());                                          \
     PropertyName##_.Set(isolate_, value);                                      \
   }
   PER_ISOLATE_TEMPLATE_PROPERTIES(V)

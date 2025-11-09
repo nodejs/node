@@ -1,7 +1,6 @@
 'use strict'
 
-const { kProxy, kClose, kDestroy, kDispatch, kConnector } = require('../core/symbols')
-const { URL } = require('node:url')
+const { kProxy, kClose, kDestroy, kDispatch } = require('../core/symbols')
 const Agent = require('./agent')
 const Pool = require('./pool')
 const DispatcherBase = require('./dispatcher-base')
@@ -27,61 +26,70 @@ function defaultFactory (origin, opts) {
 
 const noop = () => {}
 
-class ProxyClient extends DispatcherBase {
-  #client = null
-  constructor (origin, opts) {
-    if (typeof origin === 'string') {
-      origin = new URL(origin)
-    }
+function defaultAgentFactory (origin, opts) {
+  if (opts.connections === 1) {
+    return new Client(origin, opts)
+  }
+  return new Pool(origin, opts)
+}
 
-    if (origin.protocol !== 'http:' && origin.protocol !== 'https:') {
-      throw new InvalidArgumentError('ProxyClient only supports http and https protocols')
+class Http1ProxyWrapper extends DispatcherBase {
+  #client
+
+  constructor (proxyUrl, { headers = {}, connect, factory }) {
+    if (!proxyUrl) {
+      throw new InvalidArgumentError('Proxy URL is mandatory')
     }
 
     super()
 
-    this.#client = new Client(origin, opts)
+    this[kProxyHeaders] = headers
+    if (factory) {
+      this.#client = factory(proxyUrl, { connect })
+    } else {
+      this.#client = new Client(proxyUrl, { connect })
+    }
   }
 
-  async [kClose] () {
-    await this.#client.close()
-  }
-
-  async [kDestroy] () {
-    await this.#client.destroy()
-  }
-
-  async [kDispatch] (opts, handler) {
-    const { method, origin } = opts
-    if (method === 'CONNECT') {
-      this.#client[kConnector]({
-        origin,
-        port: opts.port || defaultProtocolPort(opts.protocol),
-        path: opts.host,
-        signal: opts.signal,
-        headers: {
-          ...this[kProxyHeaders],
-          host: opts.host
-        },
-        servername: this[kProxyTls]?.servername || opts.servername
-      },
-      (err, socket) => {
-        if (err) {
-          handler.callback(err)
-        } else {
-          handler.callback(null, { socket, statusCode: 200 })
+  [kDispatch] (opts, handler) {
+    const onHeaders = handler.onHeaders
+    handler.onHeaders = function (statusCode, data, resume) {
+      if (statusCode === 407) {
+        if (typeof handler.onError === 'function') {
+          handler.onError(new InvalidArgumentError('Proxy Authentication Required (407)'))
         }
+        return
       }
-      )
-      return
-    }
-    if (typeof origin === 'string') {
-      opts.origin = new URL(origin)
+      if (onHeaders) onHeaders.call(this, statusCode, data, resume)
     }
 
-    return this.#client.dispatch(opts, handler)
+    // Rewrite request as an HTTP1 Proxy request, without tunneling.
+    const {
+      origin,
+      path = '/',
+      headers = {}
+    } = opts
+
+    opts.path = origin + path
+
+    if (!('host' in headers) && !('Host' in headers)) {
+      const { host } = new URL(origin)
+      headers.host = host
+    }
+    opts.headers = { ...this[kProxyHeaders], ...headers }
+
+    return this.#client[kDispatch](opts, handler)
+  }
+
+  [kClose] () {
+    return this.#client.close()
+  }
+
+  [kDestroy] (err) {
+    return this.#client.destroy(err)
   }
 }
+
 class ProxyAgent extends DispatcherBase {
   constructor (opts) {
     if (!opts || (typeof opts === 'object' && !(opts instanceof URL) && !opts.uri)) {
@@ -104,6 +112,7 @@ class ProxyAgent extends DispatcherBase {
     this[kRequestTls] = opts.requestTls
     this[kProxyTls] = opts.proxyTls
     this[kProxyHeaders] = opts.headers || {}
+    this[kTunnelProxy] = proxyTunnel
 
     if (opts.auth && opts.token) {
       throw new InvalidArgumentError('opts.auth cannot be used in combination with opts.token')
@@ -116,21 +125,25 @@ class ProxyAgent extends DispatcherBase {
       this[kProxyHeaders]['proxy-authorization'] = `Basic ${Buffer.from(`${decodeURIComponent(username)}:${decodeURIComponent(password)}`).toString('base64')}`
     }
 
-    const factory = (!proxyTunnel && protocol === 'http:')
-      ? (origin, options) => {
-          if (origin.protocol === 'http:') {
-            return new ProxyClient(origin, options)
-          }
-          return new Client(origin, options)
-        }
-      : undefined
-
     const connect = buildConnector({ ...opts.proxyTls })
     this[kConnectEndpoint] = buildConnector({ ...opts.requestTls })
-    this[kClient] = clientFactory(url, { connect, factory })
-    this[kTunnelProxy] = proxyTunnel
+
+    const agentFactory = opts.factory || defaultAgentFactory
+    const factory = (origin, options) => {
+      const { protocol } = new URL(origin)
+      if (!this[kTunnelProxy] && protocol === 'http:' && this[kProxy].protocol === 'http:') {
+        return new Http1ProxyWrapper(this[kProxy].uri, {
+          headers: this[kProxyHeaders],
+          connect,
+          factory: agentFactory
+        })
+      }
+      return agentFactory(origin, options)
+    }
+    this[kClient] = clientFactory(url, { connect })
     this[kAgent] = new Agent({
       ...opts,
+      factory,
       connect: async (opts, callback) => {
         let requestedPath = opts.host
         if (!opts.port) {
@@ -185,10 +198,6 @@ class ProxyAgent extends DispatcherBase {
       headers.host = host
     }
 
-    if (!this.#shouldConnect(new URL(opts.origin))) {
-      opts.path = opts.origin + opts.path
-    }
-
     return this[kAgent].dispatch(
       {
         ...opts,
@@ -199,7 +208,7 @@ class ProxyAgent extends DispatcherBase {
   }
 
   /**
-   * @param {import('../types/proxy-agent').ProxyAgent.Options | string | URL} opts
+   * @param {import('../../types/proxy-agent').ProxyAgent.Options | string | URL} opts
    * @returns {URL}
    */
   #getUrl (opts) {
@@ -212,27 +221,18 @@ class ProxyAgent extends DispatcherBase {
     }
   }
 
-  async [kClose] () {
-    await this[kAgent].close()
-    await this[kClient].close()
+  [kClose] () {
+    return Promise.all([
+      this[kAgent].close(),
+      this[kClient].close()
+    ])
   }
 
-  async [kDestroy] () {
-    await this[kAgent].destroy()
-    await this[kClient].destroy()
-  }
-
-  #shouldConnect (uri) {
-    if (typeof uri === 'string') {
-      uri = new URL(uri)
-    }
-    if (this[kTunnelProxy]) {
-      return true
-    }
-    if (uri.protocol !== 'http:' || this[kProxy].protocol !== 'http:') {
-      return true
-    }
-    return false
+  [kDestroy] () {
+    return Promise.all([
+      this[kAgent].destroy(),
+      this[kClient].destroy()
+    ])
   }
 }
 

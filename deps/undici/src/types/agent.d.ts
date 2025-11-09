@@ -22,14 +22,11 @@ declare namespace Agent {
   export interface Options extends Pool.Options {
     /** Default: `(origin, opts) => new Pool(origin, opts)`. */
     factory?(origin: string | URL, opts: Object): Dispatcher;
-    /** Integer. Default: `0` */
-    maxRedirections?: number;
 
     interceptors?: { Agent?: readonly Dispatcher.DispatchInterceptor[] } & Pool.Options['interceptors']
+    maxOrigins?: number
   }
 
   export interface DispatchOptions extends Dispatcher.DispatchOptions {
-    /** Integer. */
-    maxRedirections?: number;
   }
 }

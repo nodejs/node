@@ -25,30 +25,22 @@ For more info about `node inspect`, see the [debugger][] documentation.
 
 The program entry point is a specifier-like string. If the string is not an
 absolute path, it's resolved as a relative path from the current working
-directory. That path is then resolved by [CommonJS][] module loader. If no
-corresponding file is found, an error is thrown.
+directory. That entry point string is then resolved as if it's been requested
+by `require()` from the current working directory. If no corresponding file
+is found, an error is thrown.
 
-If a file is found, its path will be passed to the
-[ES module loader][Modules loaders] under any of the following conditions:
+By default, the resolved path is also loaded as if it's been requested by `require()`,
+unless one of the conditions below apply—then it's loaded as if it's been requested
+by `import()`:
 
 * The program was started with a command-line flag that forces the entry
   point to be loaded with ECMAScript module loader, such as `--import`.
-* The file has an `.mjs` or `.wasm` extension.
+* The file has an `.mjs`, `.mts` or `.wasm` extension.
 * The file does not have a `.cjs` extension, and the nearest parent
   `package.json` file contains a top-level [`"type"`][] field with a value of
   `"module"`.
 
-Otherwise, the file is loaded using the CommonJS module loader. See
-[Modules loaders][] for more details.
-
-### ECMAScript modules loader entry point caveat
-
-When loading, the [ES module loader][Modules loaders] loads the program
-entry point, the `node` command will accept as input only files with `.js`,
-`.mjs`, or `.cjs` extensions. With the following flags, additional file
-extensions are enabled:
-
-* [`--experimental-addon-modules`][] for files with `.node` extension.
+See [module resolution and loading][] for more details.
 
 ## Options
 
@@ -275,10 +267,40 @@ When passing a single flag with a comma a warning will be displayed.
 
 Examples can be found in the [File System Permissions][] documentation.
 
+### `--allow-inspector`
+
+<!-- YAML
+added: v25.0.0
+-->
+
+> Stability: 1.0 - Early development
+
+When using the [Permission Model][], the process will not be able to connect
+through inspector protocol.
+
+Attempts to do so will throw an `ERR_ACCESS_DENIED` unless the
+user explicitly passes the `--allow-inspector` flag when starting Node.js.
+
+Example:
+
+```js
+const { Session } = require('node:inspector/promises');
+
+const session = new Session();
+session.connect();
+```
+
+```console
+$ node --permission index.js
+Error: connect ERR_ACCESS_DENIED Access to this API has been restricted. Use --allow-inspector to manage permissions.
+  code: 'ERR_ACCESS_DENIED',
+}
+```
+
 ### `--allow-net`
 
 <!-- YAML
-added: REPLACEME
+added: v25.0.0
 -->
 
 > Stability: 1.1 - Active development
@@ -628,9 +650,13 @@ property throw an exception with the code `ERR_PROTO_ACCESS`.
 added:
   - v23.7.0
   - v22.14.0
+changes:
+  - version:
+    - v24.8.0
+    - v22.20.0
+    pr-url: https://github.com/nodejs/node/pull/59707
+    description: The option is no longer experimental.
 -->
-
-> Stability: 1.2 - Release candidate
 
 Disable the ability of starting a debugging session by sending a
 `SIGUSR1` signal to the process.
@@ -849,9 +875,13 @@ node --entry-url 'data:text/javascript,console.log("Hello")'
 
 <!-- YAML
 added: v22.9.0
+changes:
+  - version:
+     - v24.10.0
+     - v22.21.0
+    pr-url: https://github.com/nodejs/node/pull/59925
+    description: The `--env-file-if-exists` flag is no longer experimental.
 -->
-
-> Stability: 1.1 - Active development
 
 Behavior is the same as [`--env-file`][], but an error is not thrown if the file
 does not exist.
@@ -862,13 +892,16 @@ does not exist.
 added: v20.6.0
 changes:
   - version:
+     - v24.10.0
+     - v22.21.0
+    pr-url: https://github.com/nodejs/node/pull/59925
+    description: The `--env-file` flag is no longer experimental.
+  - version:
     - v21.7.0
     - v20.12.0
     pr-url: https://github.com/nodejs/node/pull/51289
     description: Add support to multi-line values.
 -->
-
-> Stability: 1.1 - Active development
 
 Loads environment variables from a file relative to the current directory,
 making them available to applications on `process.env`. The [environment
@@ -944,12 +977,14 @@ only recognizes double `"` for quoting. In Powershell or Git bash, both `'`
 and `"` are usable.
 
 It is possible to run code containing inline types unless the
-[`--no-experimental-strip-types`][] flag is provided.
+[`--no-strip-types`][] flag is provided.
 
 ### `--experimental-addon-modules`
 
 <!-- YAML
-added: v23.6.0
+added:
+  - v23.6.0
+  - v22.20.0
 -->
 
 > Stability: 1.0 - Early development
@@ -983,6 +1018,9 @@ in the `$schema` must be replaced with the version of Node.js you are using.
   },
   "testRunner": {
     "test-isolation": "process"
+  },
+  "watch": {
+    "watch-preserve-output": true
   }
 }
 ```
@@ -1077,6 +1115,7 @@ Previously gated the entire `import.meta.resolve` feature.
 <!-- YAML
 added:
   - v24.5.0
+  - v22.19.0
 -->
 
 > Stability: 1.1 - Active Development
@@ -1133,6 +1172,16 @@ added:
 If the ES module being `require()`'d contains top-level `await`, this flag
 allows Node.js to evaluate the module, try to locate the
 top-level awaits, and print their location to help users find them.
+
+### `--experimental-quic`
+
+<!-- YAML
+added: v25.0.0
+-->
+
+> Stability: 1.1 - Active development
+
+Enable experimental support for the QUIC protocol.
 
 ### `--experimental-require-module`
 
@@ -1257,14 +1306,6 @@ changes:
 -->
 
 Enable experimental WebAssembly System Interface (WASI) support.
-
-### `--experimental-webstorage`
-
-<!-- YAML
-added: v22.4.0
--->
-
-Enable experimental [`Web Storage`][] support.
 
 ### `--experimental-worker-inspection`
 
@@ -1545,7 +1586,7 @@ changes:
 
 This configures Node.js to interpret `--eval` or `STDIN` input as CommonJS or
 as an ES module. Valid values are `"commonjs"`, `"module"`, `"module-typescript"` and `"commonjs-typescript"`.
-The `"-typescript"` values are not available with the flag `--no-experimental-strip-types`.
+The `"-typescript"` values are not available with the flag `--no-strip-types`.
 The default is no value, or `"commonjs"` if `--no-experimental-detect-module` is passed.
 
 If `--input-type` is not provided,
@@ -1706,8 +1747,8 @@ added: v22.4.0
 
 The file used to store `localStorage` data. If the file does not exist, it is
 created the first time `localStorage` is accessed. The same file may be shared
-between multiple Node.js processes concurrently. This flag is a no-op unless
-Node.js is started with the `--experimental-webstorage` flag.
+between multiple Node.js processes concurrently. This flag is a no-op if
+Node.js is started with the `--no-webstorage` (or `--no-experimental-webstorage`) flag.
 
 ### `--max-http-header-size=size`
 
@@ -1723,13 +1764,16 @@ changes:
 
 Specify the maximum size, in bytes, of HTTP headers. Defaults to 16 KiB.
 
-### `--max-old-space-size-percentage=PERCENTAGE`
+### `--max-old-space-size-percentage=percentage`
 
-Sets the max memory size of V8's old memory section as a percentage of available system memory.
+Sets the maximum memory size of V8's old memory section as a percentage of available system memory.
 This flag takes precedence over `--max-old-space-size` when both are specified.
 
-The `PERCENTAGE` parameter must be a number greater than 0 and up to 100. representing the percentage
+The `percentage` parameter must be a number greater than 0 and up to 100, representing the percentage
 of available system memory to allocate to the V8 heap.
+
+**Note:** This flag utilizes `--max-old-space-size`, which may be unreliable on 32-bit platforms due to
+integer overflow issues.
 
 ```bash
 # Using 50% of available system memory
@@ -1858,23 +1902,6 @@ changes:
 
 Disable the experimental [`node:sqlite`][] module.
 
-### `--no-experimental-strip-types`
-
-<!-- YAML
-added: v22.6.0
-changes:
-  - version:
-      - v23.6.0
-      - v22.18.0
-    pr-url: https://github.com/nodejs/node/pull/56350
-    description: Type stripping is enabled by default.
--->
-
-> Stability: 1.2 - Release candidate
-
-Disable experimental type-stripping for TypeScript files.
-For more information, see the [TypeScript type-stripping][] documentation.
-
 ### `--no-experimental-websocket`
 
 <!-- YAML
@@ -1924,6 +1951,24 @@ changes:
 Disables the family autoselection algorithm unless connection options explicitly
 enables it.
 
+### `--no-strip-types`
+
+<!-- YAML
+added: v22.6.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/60600
+    description: Type stripping is now stable.
+  - version:
+      - v23.6.0
+      - v22.18.0
+    pr-url: https://github.com/nodejs/node/pull/56350
+    description: Type stripping is enabled by default.
+-->
+
+Disable type-stripping for TypeScript files.
+For more information, see the [TypeScript type-stripping][] documentation.
+
 ### `--no-warnings`
 
 <!-- YAML
@@ -1931,6 +1976,14 @@ added: v6.0.0
 -->
 
 Silence all process warnings (including deprecations).
+
+### `--no-webstorage`
+
+<!-- YAML
+added: v25.0.0
+-->
+
+Disable [`Web Storage`][] support.
 
 ### `--node-memory-debug`
 
@@ -2647,6 +2700,20 @@ changes:
 The destination for the corresponding test reporter. See the documentation on
 [test reporters][] for more details.
 
+### `--test-rerun-failures`
+
+<!-- YAML
+added:
+  - v24.7.0
+-->
+
+A path to a file allowing the test runner to persist the state of the test
+suite between runs. The test runner will use this file to determine which tests
+have already succeeded or failed, allowing for re-running of failed tests
+without having to re-run the entire test suite. The test runner will create this
+file if it does not exist.
+See the documentation on [test reruns][] for more details.
+
 ### `--test-shard`
 
 <!-- YAML
@@ -3024,7 +3091,9 @@ See `SSL_CERT_DIR` and `SSL_CERT_FILE`.
 ### `--use-env-proxy`
 
 <!-- YAML
-added: v24.5.0
+added:
+ - v24.5.0
+ - v22.21.0
 -->
 
 > Stability: 1.1 - Active Development
@@ -3072,21 +3141,18 @@ On platforms other than Windows and macOS, this loads certificates from the dire
 and file trusted by OpenSSL, similar to `--use-openssl-ca`, with the difference being
 that it caches the certificates after first load.
 
-On Windows and macOS, the certificate trust policy is planned to follow
-[Chromium's policy for locally trusted certificates][]:
+On Windows and macOS, the certificate trust policy is similar to
+[Chromium's policy for locally trusted certificates][], but with some differences:
 
 On macOS, the following settings are respected:
 
 * Default and System Keychains
   * Trust:
     * Any certificate where the “When using this certificate” flag is set to “Always Trust” or
-    * Any certificate where the “Secure Sockets Layer (SSL)” flag is set to “Always Trust.”
-  * Distrust:
-    * Any certificate where the “When using this certificate” flag is set to “Never Trust” or
-    * Any certificate where the “Secure Sockets Layer (SSL)” flag is set to “Never Trust.”
+    * Any certificate where the “Secure Sockets Layer (SSL)” flag is set to “Always Trust”.
+  * The certificate must also be valid, with "X.509 Basic Policy" set to  “Always Trust”.
 
-On Windows, the following settings are respected (unlike Chromium's policy, distrust
-and intermediate CA are not currently supported):
+On Windows, the following settings are respected:
 
 * Local Machine (accessed via `certlm.msc`)
   * Trust:
@@ -3101,8 +3167,11 @@ and intermediate CA are not currently supported):
     * Trusted Root Certification Authorities
     * Enterprise Trust -> Group Policy -> Trusted Root Certification Authorities
 
-On Windows and macOS, Node.js would check that the user settings for the certificates
-do not forbid them for TLS server authentication before using them.
+On Windows and macOS, Node.js would check that the user settings for the trusted
+certificates do not forbid them for TLS server authentication before using them.
+
+Node.js currently does not support distrust/revocation of certificates
+from another source based on system settings.
 
 On other systems, Node.js loads certificates from the default certificate file
 (typically `/etc/ssl/cert.pem`) and default certificate directory (typically
@@ -3284,6 +3353,11 @@ added: v22.1.0
 Enable the [module compile cache][] for the Node.js instance. See the documentation of
 [module compile cache][] for details.
 
+### `NODE_COMPILE_CACHE_PORTABLE=1`
+
+When set to 1, the [module compile cache][]  can be reused across different directory
+locations as long as the module layout relative to the cache directory remains the same.
+
 ### `NODE_DEBUG=module[,…]`
 
 <!-- YAML
@@ -3400,6 +3474,7 @@ one is included in the list below.
 * `--allow-child-process`
 * `--allow-fs-read`
 * `--allow-fs-write`
+* `--allow-inspector`
 * `--allow-net`
 * `--allow-wasi`
 * `--allow-worker`
@@ -3427,6 +3502,7 @@ one is included in the list below.
 * `--experimental-loader`
 * `--experimental-modules`
 * `--experimental-print-required-tla`
+* `--experimental-quic`
 * `--experimental-require-module`
 * `--experimental-shadow-realm`
 * `--experimental-specifier-resolution`
@@ -3435,7 +3511,6 @@ one is included in the list below.
 * `--experimental-transform-types`
 * `--experimental-vm-modules`
 * `--experimental-wasi-unstable-preview1`
-* `--experimental-webstorage`
 * `--force-context-aware`
 * `--force-fips`
 * `--force-node-api-uncaught-exceptions-policy`
@@ -3469,11 +3544,14 @@ one is included in the list below.
 * `--no-experimental-sqlite`
 * `--no-experimental-strip-types`
 * `--no-experimental-websocket`
+* `--no-experimental-webstorage`
 * `--no-extra-info-on-fatal-exception`
 * `--no-force-async-hooks-checks`
 * `--no-global-search-paths`
 * `--no-network-family-autoselection`
+* `--no-strip-types`
 * `--no-warnings`
+* `--no-webstorage`
 * `--node-memory-debug`
 * `--openssl-config`
 * `--openssl-legacy-provider`
@@ -3508,6 +3586,7 @@ one is included in the list below.
 * `--test-only`
 * `--test-reporter-destination`
 * `--test-reporter`
+* `--test-rerun-failures`
 * `--test-shard`
 * `--test-skip-pattern`
 * `--throw-deprecation`
@@ -3684,7 +3763,9 @@ variable is strongly discouraged.
 ### `NODE_USE_ENV_PROXY=1`
 
 <!-- YAML
-added: v24.0.0
+added:
+ - v24.0.0
+ - v22.21.0
 -->
 
 > Stability: 1.1 - Active Development
@@ -3695,6 +3776,20 @@ specified proxy.
 
 This can also be enabled using the [`--use-env-proxy`][] command-line flag.
 When both are set, `--use-env-proxy` takes precedence.
+
+### `NODE_USE_SYSTEM_CA=1`
+
+<!-- YAML
+added:
+ - v24.6.0
+ - v22.19.0
+-->
+
+Node.js uses the trusted CA certificates present in the system store along with
+the `--use-bundled-ca` option and the `NODE_EXTRA_CA_CERTS` environment variable.
+
+This can also be enabled using the [`--use-system-ca`][] command-line flag.
+When both are set, `--use-system-ca` takes precedence.
 
 ### `NODE_V8_COVERAGE=dir`
 
@@ -3898,6 +3993,8 @@ documented here:
 
 ### `--harmony-shadow-realm`
 
+### `--heap-snapshot-on-oom`
+
 ### `--interpreted-frames-native-stack`
 
 ### `--jitless`
@@ -3978,7 +4075,6 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [#42511]: https://github.com/nodejs/node/issues/42511
 [Chrome DevTools Protocol]: https://chromedevtools.github.io/devtools-protocol/
 [Chromium's policy for locally trusted certificates]: https://chromium.googlesource.com/chromium/src/+/main/net/data/ssl/chrome_root_store/faq.md#does-the-chrome-certificate-verifier-consider-local-trust-decisions
-[CommonJS]: modules.md
 [CommonJS module]: modules.md
 [DEP0025 warning]: deprecations.md#dep0025-requirenodesys
 [ECMAScript module]: esm.md#modules-ecmascript-modules
@@ -3988,7 +4084,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [Loading ECMAScript modules using `require()`]: modules.md#loading-ecmascript-modules-using-require
 [Module customization hooks]: module.md#customization-hooks
 [Module customization hooks: enabling]: module.md#enabling
-[Modules loaders]: packages.md#modules-loaders
+[Module resolution and loading]: packages.md#module-resolution-and-loading
 [Navigator API]: globals.md#navigator
 [Node.js issue tracker]: https://github.com/nodejs/node/issues
 [OSSL_PROVIDER-legacy]: https://www.openssl.org/docs/man3.0/man7/OSSL_PROVIDER-legacy.html
@@ -4014,17 +4110,17 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`--disable-sigusr1`]: #--disable-sigusr1
 [`--env-file-if-exists`]: #--env-file-if-existsfile
 [`--env-file`]: #--env-filefile
-[`--experimental-addon-modules`]: #--experimental-addon-modules
 [`--experimental-sea-config`]: single-executable-applications.md#generating-single-executable-preparation-blobs
 [`--heap-prof-dir`]: #--heap-prof-dir
 [`--import`]: #--importmodule
-[`--no-experimental-strip-types`]: #--no-experimental-strip-types
+[`--no-strip-types`]: #--no-strip-types
 [`--openssl-config`]: #--openssl-configfile
 [`--preserve-symlinks`]: #--preserve-symlinks
 [`--print`]: #-p---print-script
 [`--redirect-warnings`]: #--redirect-warningsfile
 [`--require`]: #-r---require-module
 [`--use-env-proxy`]: #--use-env-proxy
+[`--use-system-ca`]: #--use-system-ca
 [`AsyncLocalStorage`]: async_context.md#class-asynclocalstorage
 [`Buffer`]: buffer.md#class-buffer
 [`CRYPTO_secure_malloc_init`]: https://www.openssl.org/docs/man3.0/man3/CRYPTO_secure_malloc_init.html
@@ -4054,7 +4150,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [debugging security implications]: https://nodejs.org/en/docs/guides/debugging-getting-started/#security-implications
 [deprecation warnings]: deprecations.md#list-of-deprecated-apis
 [emit_warning]: process.md#processemitwarningwarning-options
-[environment_variables]: #environment-variables
+[environment_variables]: #environment-variables_1
 [filtering tests by name]: test.md#filtering-tests-by-name
 [global setup and teardown]: test.md#global-setup-and-teardown
 [jitless]: https://v8.dev/blog/jitless
@@ -4069,6 +4165,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [snapshot testing]: test.md#snapshot-testing
 [syntax detection]: packages.md#syntax-detection
 [test reporters]: test.md#test-reporters
+[test reruns]: test.md#rerunning-failed-tests
 [test runner execution model]: test.md#test-runner-execution-model
 [timezone IDs]: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
 [tracking issue for user-land snapshots]: https://github.com/nodejs/node/issues/44014

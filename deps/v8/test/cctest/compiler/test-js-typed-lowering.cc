@@ -27,8 +27,7 @@ class JSTypedLoweringTester : public HandleAndZoneScope,
                               public JSHeapBrokerTestBase {
  public:
   explicit JSTypedLoweringTester(int num_parameters = 0)
-      : HandleAndZoneScope(kCompressGraphZone),
-        JSHeapBrokerTestBase(main_isolate(), main_zone()),
+      : JSHeapBrokerTestBase(main_isolate(), main_zone()),
         isolate(main_isolate()),
         binop(nullptr),
         unop(nullptr),

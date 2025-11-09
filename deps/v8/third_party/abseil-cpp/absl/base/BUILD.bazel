@@ -14,6 +14,9 @@
 # limitations under the License.
 #
 
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_test.bzl", "cc_test")
 load(
     "//absl:copts/configure_copts.bzl",
     "ABSL_DEFAULT_COPTS",
@@ -82,13 +85,26 @@ cc_library(
 
 cc_library(
     name = "nullability",
-    srcs = ["internal/nullability_deprecated.h"],
     hdrs = ["nullability.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":config",
         ":core_headers",
+    ],
+)
+
+cc_library(
+    name = "nullability_traits_internal",
+    hdrs = ["internal/nullability_traits.h"],
+    copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = [
+        "//absl:__subpackages__",
+    ],
+    deps = [
+        ":config",
+        ":nullability",
     ],
 )
 
@@ -638,6 +654,18 @@ cc_test(
 )
 
 cc_test(
+    name = "nullability_traits_test",
+    srcs = ["internal/nullability_traits_test.cc"],
+    deps = [
+        ":config",
+        ":nullability",
+        ":nullability_traits_internal",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
     name = "raw_logging_test",
     srcs = ["raw_logging_test.cc"],
     copts = ABSL_TEST_COPTS,
@@ -682,7 +710,6 @@ cc_test(
 
 cc_test(
     name = "thread_identity_test",
-    size = "small",
     srcs = ["internal/thread_identity_test.cc"],
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
@@ -718,6 +745,7 @@ cc_library(
     testonly = True,
     srcs = ["internal/scoped_set_env.cc"],
     hdrs = ["internal/scoped_set_env.h"],
+    copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
         "//absl:__subpackages__",

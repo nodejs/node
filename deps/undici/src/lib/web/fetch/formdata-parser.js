@@ -6,9 +6,6 @@ const { HTTP_TOKEN_CODEPOINTS, isomorphicDecode } = require('./data-url')
 const { makeEntry } = require('./formdata')
 const { webidl } = require('../webidl')
 const assert = require('node:assert')
-const { File: NodeFile } = require('node:buffer')
-
-const File = globalThis.File ?? NodeFile
 
 const formDataNameBuffer = Buffer.from('form-data; name="')
 const filenameBuffer = Buffer.from('filename')

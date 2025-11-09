@@ -152,29 +152,12 @@ void BaselineAssembler::JumpIf(Condition cc, Register lhs, const Operand& rhs,
   __ b(to_condition(cc), target);
 }
 
-#if V8_STATIC_ROOTS_BOOL
-void BaselineAssembler::JumpIfJSAnyIsPrimitive(Register heap_object,
-                                               Label* target,
-                                               Label::Distance distance) {
-  __ AssertNotSmi(heap_object);
-  ScratchRegisterScope temps(this);
-  Register scratch = temps.AcquireScratch();
-  __ JumpIfJSAnyIsPrimitive(heap_object, scratch, target, distance);
-}
-#endif  // V8_STATIC_ROOTS_BOOL
-
 void BaselineAssembler::JumpIfObjectTypeFast(Condition cc, Register object,
                                              InstanceType instance_type,
                                              Label* target,
                                              Label::Distance distance) {
   ScratchRegisterScope temps(this);
   Register scratch = temps.AcquireScratch();
-  if (cc == eq || cc == ne) {
-    Register scratch2 = temps.AcquireScratch();
-    __ IsObjectType(object, scratch, scratch2, instance_type);
-    __ b(to_condition(cc), target);
-    return;
-  }
   JumpIfObjectType(cc, object, instance_type, scratch, target, distance);
 }
 
@@ -475,7 +458,7 @@ void BaselineAssembler::TryLoadOptimizedOsrCode(Register scratch_and_result,
     ScratchRegisterScope temps(this);
 
     // The entry references a CodeWrapper object. Unwrap it now.
-    __ LoadCodePointerField(
+    __ LoadTaggedField(
         scratch_and_result,
         FieldMemOperand(scratch_and_result, CodeWrapper::kCodeOffset), r0);
 

@@ -423,7 +423,9 @@ test_tag
     del(fake_config["DEFAULT_CWD"])
 
     self.Expect([
-      Cmd("fetch v8", "", cwd=work_dir),
+      Cmd("git cl creds-check", "", cwd=work_dir),
+      Cmd("git clone https://chromium.googlesource.com/v8/v8", "",
+          cwd=work_dir),
     ])
     FakeScript(fake_config, self).Run(["--work-dir", work_dir])
 
@@ -448,8 +450,8 @@ test_tag
           re.search(r"#define V8_IS_CANDIDATE_VERSION\s+0", version))
 
     expectations = [
-      Cmd("git fetch origin +refs/heads/*:refs/heads/*", ""),
       Cmd("git checkout -f origin/main", "", cb=self.WriteFakeWatchlistsFile),
+      Cmd("git fetch origin +refs/heads/*:refs/heads/*", ""),
       Cmd("git branch", ""),
       Cmd("git fetch origin +refs/tags/*:refs/tags/*", ""),
       Cmd("git tag", self.TAGS),

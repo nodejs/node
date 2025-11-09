@@ -84,7 +84,7 @@ class BaseCommand {
     }
 
     if (config.get('workspaces') === false && config.get('workspace').length) {
-      throw new Error('Can not use --no-workspaces and --workspace at the same time')
+      throw new Error('Cannot use --no-workspaces and --workspace at the same time')
     }
   }
 

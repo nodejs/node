@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -16,6 +16,7 @@
 #include <stdio.h>
 #include "internal/cryptlib.h"
 #include <openssl/bn.h>
+#include <openssl/self_test.h>
 #include "dh_local.h"
 #include "crypto/dh.h"
 
@@ -329,17 +330,27 @@ end:
  * FFC pairwise check from SP800-56A R3.
  *    Section 5.6.2.1.4 Owner Assurance of Pair-wise Consistency
  */
-int ossl_dh_check_pairwise(const DH *dh)
+int ossl_dh_check_pairwise(const DH *dh, int return_on_null_numbers)
 {
     int ret = 0;
     BN_CTX *ctx = NULL;
     BIGNUM *pub_key = NULL;
+    OSSL_SELF_TEST *st = NULL;
+    OSSL_CALLBACK *stcb = NULL;
+    void *stcbarg = NULL;
 
     if (dh->params.p == NULL
         || dh->params.g == NULL
         || dh->priv_key == NULL
         || dh->pub_key == NULL)
-        return 0;
+        return return_on_null_numbers;
+
+    OSSL_SELF_TEST_get_callback(dh->libctx, &stcb, &stcbarg);
+    st = OSSL_SELF_TEST_new(stcb, stcbarg);
+    if (st == NULL)
+        goto err;
+    OSSL_SELF_TEST_onbegin(st, OSSL_SELF_TEST_TYPE_PCT,
+                           OSSL_SELF_TEST_DESC_PCT_DH);
 
     ctx = BN_CTX_new_ex(dh->libctx);
     if (ctx == NULL)
@@ -351,10 +362,27 @@ int ossl_dh_check_pairwise(const DH *dh)
     /* recalculate the public key = (g ^ priv) mod p */
     if (!ossl_dh_generate_public_key(ctx, dh, dh->priv_key, pub_key))
         goto err;
+
+#ifdef FIPS_MODULE
+    {
+        int len;
+        unsigned char bytes[1024] = {0};    /* Max key size of 8192 bits */
+
+        if (BN_num_bytes(pub_key) > (int)sizeof(bytes))
+            goto err;
+        len = BN_bn2bin(pub_key, bytes);
+        OSSL_SELF_TEST_oncorrupt_byte(st, bytes);
+        if (BN_bin2bn(bytes, len, pub_key) == NULL)
+            goto err;
+    }
+#endif
     /* check it matches the existing public_key */
     ret = BN_cmp(pub_key, dh->pub_key) == 0;
-err:
+ err:
     BN_free(pub_key);
     BN_CTX_free(ctx);
+
+    OSSL_SELF_TEST_onend(st, ret);
+    OSSL_SELF_TEST_free(st);
     return ret;
 }

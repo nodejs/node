@@ -7,8 +7,6 @@
 .*
 # Exclude specific dotfiles that we want to track.
 !deps/**/.*
-!.devcontainer/
-!.devcontainer/.devcontainer.json
 !test/fixtures/**/.*
 !.clang-format
 !.cpplint
@@ -22,6 +20,7 @@
 !.nycrc
 !.yamllint.yaml
 !.configurations/
+!/.npmrc
 
 # === Rules for root dir ===
 /core
@@ -167,3 +166,10 @@ __pycache__
 
 # === Rules for C++ development ===
 compile_commands.json
+
+# === Dev Container rules ===
+# Only track the shared base devcontainer.json; ignore everything else under .devcontainer
+!.devcontainer/
+.devcontainer/**
+!.devcontainer/base/
+!.devcontainer/base/devcontainer.json

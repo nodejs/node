@@ -3,17 +3,13 @@
 const { iteratorMixin } = require('./util')
 const { kEnumerableProperty } = require('../../core/util')
 const { webidl } = require('../webidl')
-const { File: NativeFile } = require('node:buffer')
 const nodeUtil = require('node:util')
-
-/** @type {globalThis['File']} */
-const File = globalThis.File ?? NativeFile
 
 // https://xhr.spec.whatwg.org/#formdata
 class FormData {
   #state = []
 
-  constructor (form) {
+  constructor (form = undefined) {
     webidl.util.markAsUncloneable(this)
 
     if (form !== undefined) {

@@ -185,11 +185,26 @@ experimental domain Network
       boolean success
       optional IO.StreamHandle stream
 
+  # WebSocket response data.
+  type WebSocketResponse extends object
+    properties
+      # HTTP response status code.
+      integer status
+      # HTTP response status text.
+      string statusText
+      # HTTP response headers.
+      Headers headers
+
   # Disables network tracking, prevents network events from being sent to the client.
   command disable
 
   # Enables network tracking, network events will now be delivered to the client.
   command enable
+    parameters
+      # Buffer size in bytes to use when preserving network payloads (XHRs, etc).
+      experimental optional integer maxTotalBufferSize
+      # Per-resource buffer size in bytes to use when preserving network payloads (XHRs, etc).
+      experimental optional integer maxResourceBufferSize
 
   # Returns post data sent with the request. Returns an error when no data was sent with the request.
   command getRequestPostData
@@ -285,6 +300,31 @@ experimental domain Network
       integer encodedDataLength
       # Data that was received.
       experimental optional binary data
+  # Fired upon WebSocket creation.
+  event webSocketCreated
+    parameters
+      # Request identifier.
+      RequestId requestId
+      # WebSocket request URL.
+      string url
+      # Request initiator.
+      Initiator initiator
+  # Fired when WebSocket is closed.
+  event webSocketClosed
+    parameters
+      # Request identifier.
+      RequestId requestId
+      # Timestamp.
+      MonotonicTime timestamp
+  # Fired when WebSocket handshake response becomes available.
+  event webSocketHandshakeResponseReceived
+    parameters
+      # Request identifier.
+      RequestId requestId
+      # Timestamp.
+      MonotonicTime timestamp
+      # WebSocket response data.
+      WebSocketResponse response
 
 # Support for inspecting node process state.
 experimental domain NodeRuntime

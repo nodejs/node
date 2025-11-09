@@ -16,6 +16,7 @@
 #include "src/codegen/machine-type.h"
 #include "src/codegen/signature.h"
 #include "src/wasm/wasm-constants.h"
+#include "src/wasm/wasm-features.h"
 #include "src/wasm/wasm-limits.h"
 
 namespace v8 {
@@ -73,6 +74,10 @@ ASSERT_TRIVIALLY_COPYABLE(ModuleTypeIndex);
 constexpr ModuleTypeIndex ModuleTypeIndex::Invalid() {
   return ModuleTypeIndex{ModuleTypeIndex::kInvalid};
 }
+
+// Used as the supertype for a type at the top of the type hierarchy.
+constexpr ModuleTypeIndex kNoSuperType = ModuleTypeIndex::Invalid();
+constexpr ModuleTypeIndex kNoType = ModuleTypeIndex::Invalid();
 
 struct CanonicalTypeIndex : public TypeIndex {
   inline static constexpr CanonicalTypeIndex Invalid();
@@ -159,18 +164,15 @@ using HasIndexOrSentinelField = IsRefField::Next<bool, 1>;
 #define CONT value_type_impl::RefTypeKindField::encode(RefTypeKind::kCont)
 #define REF value_type_impl::IsRefField::encode(true)
 #define SENTINEL value_type_impl::HasIndexOrSentinelField::encode(true)
-#define EXACT value_type_impl::IsExactField::encode(Exactness::kExact)
 
 // Abstract ref types that can occur in wire bytes.
-// We mark them as "exact" to require less special-casing in the subtyping
-// implementation.
 // Format: kName, ValueTypeCode, extra_bits, printable_name
 #define FOREACH_NONE_TYPE(V) /*                               force 80 cols */ \
-  V(NoCont, NoCont, REF | CONT | EXACT, "nocont")                              \
-  V(NoExn, NoExn, REF | EXACT, "noexn")                                        \
-  V(NoExtern, NoExtern, REF | EXACT, "noextern")                               \
-  V(NoFunc, NoFunc, REF | FUNC | EXACT, "nofunc")                              \
-  V(None, None, REF | EXACT, "none")
+  V(NoCont, NoCont, REF | CONT, "nocont")                                      \
+  V(NoExn, NoExn, REF, "noexn")                                                \
+  V(NoExtern, NoExtern, REF, "noextern")                                       \
+  V(NoFunc, NoFunc, REF | FUNC, "nofunc")                                      \
+  V(None, None, REF, "none")
 
 #define FOREACH_ABSTRACT_TYPE(V) /*                           force 80 cols */ \
   FOREACH_NONE_TYPE(V)                                                         \
@@ -195,7 +197,7 @@ using HasIndexOrSentinelField = IsRefField::Next<bool, 1>;
 #define FOREACH_INTERNAL_TYPE(V) /*                           force 80 cols */ \
   V(Void, Void, SENTINEL, "<void>")                                            \
   V(Top, Void, SENTINEL, "<top>")                                              \
-  V(Bottom, Void, SENTINEL | EXACT, "<bot>")                                   \
+  V(Bottom, Void, SENTINEL, "<bot>")                                           \
   V(ExternString, Void, REF, "<extern_string>")
 
 #define FOREACH_GENERIC_TYPE(V) /*                            force 80 cols */ \
@@ -243,8 +245,7 @@ static_assert(ReservedField::kShift + ReservedField::kSize == 32);
 
 // Useful for HeapTypes, whose "shared" bit is orthogonal to their kind.
 static constexpr uint32_t kGenericKindMask =
-    PayloadField::kMask | RefTypeKindField::kMask | TypeKindField::kMask |
-    IsExactField::kMask;
+    PayloadField::kMask | RefTypeKindField::kMask | TypeKindField::kMask;
 // Useful for numeric types which are always considered "shared".
 static constexpr uint32_t kNumericKindMask =
     kGenericKindMask | IsSharedField::kMask;
@@ -297,7 +298,6 @@ enum class NumericKind : uint32_t {
 #undef CONT
 #undef REF
 #undef SENTINEL
-#undef EXACT
 
 namespace value_type_impl {
 
@@ -546,18 +546,21 @@ class ValueTypeBase {
     return is_abstract_ref() && is_shared();
   }
 
-  constexpr bool encoding_needs_exact() const {
-    return has_index() && is_exact();
-  }
+  constexpr bool encoding_needs_exact() const { return is_exact(); }
 
   V8_EXPORT_PRIVATE ValueTypeCode value_type_code_numeric() const;
   V8_EXPORT_PRIVATE ValueTypeCode value_type_code_generic() const;
 
   /****************************** Pretty-printing *****************************/
   constexpr char short_name() const {
-    DCHECK(!is_sentinel());  // Caller's responsibility.
     if (is_ref()) {
       return is_nullable() ? 'n' : 'r';
+    }
+    if (is_sentinel()) {
+      if (is_void()) return 'v';
+      if (is_top()) return '\\';
+      if (is_bottom()) return '*';
+      // Otherwise fall through to the DCHECK in {numeric_kind()}.
     }
     constexpr const char kNumericShortName[] = {
 #define SHORT_NAME(kind, log2, code, mtype, shortName, ...) shortName,
@@ -587,6 +590,8 @@ class ValueTypeBase {
     if (!has_index()) {
       // Generic types must be part of the predefined set.
       if (payload >= value_type_impl::kNumberOfGenericKinds) return false;
+      // Only indexed types can be exact.
+      if (is_exact()) return false;
     }
     // Both generic and indexed ref types must leave the reserved bits free.
     return value_type_impl::ReservedField::decode(bit_field_) == 0;
@@ -627,6 +632,10 @@ class ValueTypeBase {
       case kBottom:
         UNREACHABLE();
     }
+    // The input value of the switch is untrusted, so even if it's exhaustive,
+    // it can skip all cases and end up here, triggering UB since there's no
+    // return.
+    SBXCHECK(false);
   }
 
   constexpr ValueKind kind() const {
@@ -749,6 +758,7 @@ class HeapType : public ValueTypeBase {
   }
 
   constexpr HeapType AsExact(Exactness exact = Exactness::kExact) const {
+    DCHECK(exact == Exactness::kAnySubtype || has_index());
     return HeapType{ValueTypeBase(
         value_type_impl::IsExactField::update(raw_bit_field(), exact))};
   }
@@ -871,6 +881,10 @@ constexpr uint32_t ValueTypeBase::raw_heap_representation(
     case GenericKind::kVoid:
       UNREACHABLE();
   }
+  // The input value of the switch is untrusted, so even if it's exhaustive,
+  // it can skip all cases and end up here, triggering UB since there's no
+  // return.
+  SBXCHECK(false);
 }
 
 class CanonicalValueType;
@@ -923,16 +937,21 @@ class ValueType : public ValueTypeBase {
   }
 
   constexpr ValueType AsExact(Exactness exact = Exactness::kExact) const {
-    DCHECK(!is_numeric());
+    DCHECK(exact == Exactness::kAnySubtype || has_index());
     return ValueType{ValueTypeBase(
         value_type_impl::IsExactField::update(raw_bit_field(), exact))};
   }
 
+  constexpr ValueType AsExactIfIndexed(Exactness exact) const {
+    if (!has_index()) return *this;
+    return AsExact(exact);
+  }
+
   // This will be replaced by direct calls to {AsExact} once the proposal
   // has shipped by default and the flag is removed.
-  ValueType AsExactIfProposalEnabled(
-      Exactness exact = Exactness::kExact) const {
-    if V8_LIKELY (!v8_flags.experimental_wasm_custom_descriptors) return *this;
+  ValueType AsExactIfEnabled(WasmEnabledFeatures enabled,
+                             Exactness exact = Exactness::kExact) const {
+    if V8_LIKELY (!enabled.has_custom_descriptors()) return *this;
     return AsExact(exact);
   }
 
@@ -1041,16 +1060,16 @@ class CanonicalValueType : public ValueTypeBase {
 
   constexpr CanonicalValueType AsExact(
       Exactness exact = Exactness::kExact) const {
-    DCHECK(!is_numeric());
+    DCHECK(exact == Exactness::kAnySubtype || has_index());
     return CanonicalValueType{ValueTypeBase(
         value_type_impl::IsExactField::update(raw_bit_field(), exact))};
   }
 
   // This will be replaced by direct calls to {AsExact} once the proposal
   // has shipped by default and the flag is removed.
-  CanonicalValueType AsExactIfProposalEnabled(
-      Exactness exact = Exactness::kExact) const {
-    if V8_LIKELY (!v8_flags.experimental_wasm_custom_descriptors) return *this;
+  CanonicalValueType AsExactIfEnabled(
+      WasmEnabledFeatures enabled, Exactness exact = Exactness::kExact) const {
+    if V8_LIKELY (!enabled.has_custom_descriptors()) return *this;
     return AsExact(exact);
   }
 
@@ -1062,8 +1081,15 @@ class CanonicalValueType : public ValueTypeBase {
     return bit_field_ == other.bit_field_;
   }
 
+  // For hashing everything except the index.
+  constexpr uint32_t all_bits_without_index() const {
+    static_assert(std::is_same_v<uint32_t, decltype(bit_field_)>);
+    return bit_field_ & ~kIndexBits;
+  }
+
+  // For checking equality of everything except the index.
   constexpr bool is_equal_except_index(CanonicalValueType other) const {
-    return (bit_field_ & ~kIndexBits) == (other.bit_field_ & ~kIndexBits);
+    return all_bits_without_index() == other.all_bits_without_index();
   }
 
   constexpr bool IsFunctionType() const {
@@ -1244,6 +1270,8 @@ constexpr IndependentHeapType kWasmBottom{GenericKind::kBottom, kNonNullable};
 // Established reference-type and wasm-gc proposal shorthands.
 constexpr IndependentHeapType kWasmFuncRef{GenericKind::kFunc};
 constexpr IndependentHeapType kWasmAnyRef{GenericKind::kAny};
+constexpr IndependentHeapType kWasmSharedAnyRef{GenericKind::kAny, kNullable,
+                                                true};
 constexpr IndependentHeapType kWasmExternRef{GenericKind::kExtern};
 constexpr IndependentHeapType kWasmRefExtern{GenericKind::kExtern,
                                              kNonNullable};
@@ -1267,6 +1295,7 @@ constexpr IndependentHeapType kWasmStringViewWtf16{
 constexpr IndependentHeapType kWasmStringViewIter{GenericKind::kStringViewIter,
                                                   kNonNullable};
 constexpr IndependentHeapType kWasmNullRef{GenericKind::kNone};
+constexpr IndependentHeapType kWasmRefNone{GenericKind::kNone, kNonNullable};
 constexpr IndependentHeapType kWasmNullExternRef{GenericKind::kNoExtern};
 constexpr IndependentHeapType kWasmNullExnRef{GenericKind::kNoExn};
 constexpr IndependentHeapType kWasmNullFuncRef{GenericKind::kNoFunc};
@@ -1293,13 +1322,20 @@ class CanonicalSig : public Signature<CanonicalValueType> {
     Builder(Zone* zone, size_t return_count, size_t parameter_count)
         : SignatureBuilder<CanonicalSig, CanonicalValueType>(zone, return_count,
                                                              parameter_count) {}
-    CanonicalSig* Get() const;
+    const CanonicalSig* Get(CanonicalTypeIndex index) const;
   };
 
   uint64_t signature_hash() const { return signature_hash_; }
 
+  CanonicalTypeIndex index() const { return index_; }
+
  private:
+  // These fields are initialized by `Builder::Get()` and never modified
+  // afterwards. We cannot make them `const` for technical reasons (this would
+  // require a `const_cast` which would be UB).
   uint64_t signature_hash_;
+
+  CanonicalTypeIndex index_;
 };
 
 // This is the special case where comparing module-specific to canonical

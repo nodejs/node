@@ -73,6 +73,40 @@ try {
 }
 ```
 
+## Asymmetric key types
+
+The following table lists the asymmetric key types recognized by the [`KeyObject`][] API:
+
+| Key Type                           | Description        | OID                     |
+| ---------------------------------- | ------------------ | ----------------------- |
+| `'dh'`                             | Diffie-Hellman     | 1.2.840.113549.1.3.1    |
+| `'dsa'`                            | DSA                | 1.2.840.10040.4.1       |
+| `'ec'`                             | Elliptic curve     | 1.2.840.10045.2.1       |
+| `'ed25519'`                        | Ed25519            | 1.3.101.112             |
+| `'ed448'`                          | Ed448              | 1.3.101.113             |
+| `'ml-dsa-44'`[^openssl35]          | ML-DSA-44          | 2.16.840.1.101.3.4.3.17 |
+| `'ml-dsa-65'`[^openssl35]          | ML-DSA-65          | 2.16.840.1.101.3.4.3.18 |
+| `'ml-dsa-87'`[^openssl35]          | ML-DSA-87          | 2.16.840.1.101.3.4.3.19 |
+| `'ml-kem-512'`[^openssl35]         | ML-KEM-512         | 2.16.840.1.101.3.4.4.1  |
+| `'ml-kem-768'`[^openssl35]         | ML-KEM-768         | 2.16.840.1.101.3.4.4.2  |
+| `'ml-kem-1024'`[^openssl35]        | ML-KEM-1024        | 2.16.840.1.101.3.4.4.3  |
+| `'rsa-pss'`                        | RSA PSS            | 1.2.840.113549.1.1.10   |
+| `'rsa'`                            | RSA                | 1.2.840.113549.1.1.1    |
+| `'slh-dsa-sha2-128f'`[^openssl35]  | SLH-DSA-SHA2-128f  | 2.16.840.1.101.3.4.3.21 |
+| `'slh-dsa-sha2-128s'`[^openssl35]  | SLH-DSA-SHA2-128s  | 2.16.840.1.101.3.4.3.22 |
+| `'slh-dsa-sha2-192f'`[^openssl35]  | SLH-DSA-SHA2-192f  | 2.16.840.1.101.3.4.3.23 |
+| `'slh-dsa-sha2-192s'`[^openssl35]  | SLH-DSA-SHA2-192s  | 2.16.840.1.101.3.4.3.24 |
+| `'slh-dsa-sha2-256f'`[^openssl35]  | SLH-DSA-SHA2-256f  | 2.16.840.1.101.3.4.3.25 |
+| `'slh-dsa-sha2-256s'`[^openssl35]  | SLH-DSA-SHA2-256s  | 2.16.840.1.101.3.4.3.26 |
+| `'slh-dsa-shake-128f'`[^openssl35] | SLH-DSA-SHAKE-128f | 2.16.840.1.101.3.4.3.27 |
+| `'slh-dsa-shake-128s'`[^openssl35] | SLH-DSA-SHAKE-128s | 2.16.840.1.101.3.4.3.28 |
+| `'slh-dsa-shake-192f'`[^openssl35] | SLH-DSA-SHAKE-192f | 2.16.840.1.101.3.4.3.29 |
+| `'slh-dsa-shake-192s'`[^openssl35] | SLH-DSA-SHAKE-192s | 2.16.840.1.101.3.4.3.30 |
+| `'slh-dsa-shake-256f'`[^openssl35] | SLH-DSA-SHAKE-256f | 2.16.840.1.101.3.4.3.31 |
+| `'slh-dsa-shake-256s'`[^openssl35] | SLH-DSA-SHAKE-256s | 2.16.840.1.101.3.4.3.32 |
+| `'x25519'`                         | X25519             | 1.3.101.110             |
+| `'x448'`                           | X448               | 1.3.101.111             |
+
 ## Class: `Certificate`
 
 <!-- YAML
@@ -1916,6 +1950,9 @@ This can be called many times with new data as it is streamed.
 <!-- YAML
 added: v11.6.0
 changes:
+  - version: v24.6.0
+    pr-url: https://github.com/nodejs/node/pull/59259
+    description: Add support for ML-DSA keys.
   - version:
     - v14.5.0
     - v12.19.0
@@ -2021,6 +2058,15 @@ Other key details might be exposed via this API using additional attributes.
 <!-- YAML
 added: v11.6.0
 changes:
+  - version: v24.8.0
+    pr-url: https://github.com/nodejs/node/pull/59537
+    description: Add support for SLH-DSA keys.
+  - version: v24.7.0
+    pr-url: https://github.com/nodejs/node/pull/59461
+    description: Add support for ML-KEM keys.
+  - version: v24.6.0
+    pr-url: https://github.com/nodejs/node/pull/59259
+    description: Add support for ML-DSA keys.
   - version:
      - v13.9.0
      - v12.17.0
@@ -2043,18 +2089,8 @@ changes:
 
 * Type: {string}
 
-For asymmetric keys, this property represents the type of the key. Supported key
-types are:
-
-* `'rsa'` (OID 1.2.840.113549.1.1.1)
-* `'rsa-pss'` (OID 1.2.840.113549.1.1.10)
-* `'dsa'` (OID 1.2.840.10040.4.1)
-* `'ec'` (OID 1.2.840.10045.2.1)
-* `'x25519'` (OID 1.3.101.110)
-* `'x448'` (OID 1.3.101.111)
-* `'ed25519'` (OID 1.3.101.112)
-* `'ed448'` (OID 1.3.101.113)
-* `'dh'` (OID 1.2.840.113549.1.3.1)
+For asymmetric keys, this property represents the type of the key. See the
+supported [asymmetric key types][].
 
 This property is `undefined` for unrecognized `KeyObject` types and symmetric
 keys.
@@ -2681,16 +2717,6 @@ added: v15.6.0
 Checks whether the public key for this certificate is consistent with
 the given private key.
 
-### `x509.extKeyUsage`
-
-<!-- YAML
-added: v15.6.0
--->
-
-* Type: {string\[]}
-
-An array detailing the key extended usages for this certificate.
-
 ### `x509.fingerprint`
 
 <!-- YAML
@@ -2781,6 +2807,16 @@ added: v15.9.0
 
 The issuer certificate or `undefined` if the issuer certificate is not
 available.
+
+### `x509.keyUsage`
+
+<!-- YAML
+added: v15.6.0
+-->
+
+* Type: {string\[]}
+
+An array detailing the key extended usages for this certificate.
 
 ### `x509.publicKey`
 
@@ -2935,6 +2971,26 @@ added:
 
 The date/time until which this certificate is valid, encapsulated in a `Date` object.
 
+### `x509.signatureAlgorithm`
+
+<!-- YAML
+added: v24.9.0
+-->
+
+* Type: {string|undefined}
+
+The algorithm used to sign the certificate or `undefined` if the signature algorithm is unknown by OpenSSL.
+
+### `x509.signatureAlgorithmOid`
+
+<!-- YAML
+added: v24.9.0
+-->
+
+* Type: {string}
+
+The OID of the algorithm used to sign the certificate.
+
 ### `x509.verify(publicKey)`
 
 <!-- YAML
@@ -2948,6 +3004,171 @@ Verifies that this certificate was signed by the given public key.
 Does not perform any other validation checks on the certificate.
 
 ## `node:crypto` module methods and properties
+
+### `crypto.argon2(algorithm, parameters, callback)`
+
+<!-- YAML
+added: v24.7.0
+-->
+
+> Stability: 1.2 - Release candidate
+
+* `algorithm` {string} Variant of Argon2, one of `"argon2d"`, `"argon2i"` or `"argon2id"`.
+* `parameters` {Object}
+  * `message` {string|ArrayBuffer|Buffer|TypedArray|DataView} REQUIRED, this is the password for password
+    hashing applications of Argon2.
+  * `nonce` {string|ArrayBuffer|Buffer|TypedArray|DataView} REQUIRED, must be at
+    least 8 bytes long. This is the salt for password hashing applications of Argon2.
+  * `parallelism` {number} REQUIRED, degree of parallelism determines how many computational chains (lanes)
+    can be run. Must be greater than 1 and less than `2**24-1`.
+  * `tagLength` {number} REQUIRED, the length of the key to generate. Must be greater than 4 and
+    less than `2**32-1`.
+  * `memory` {number} REQUIRED, memory cost in 1KiB blocks. Must be greater than
+    `8 * parallelism` and less than `2**32-1`. The actual number of blocks is rounded
+    down to the nearest multiple of `4 * parallelism`.
+  * `passes` {number} REQUIRED, number of passes (iterations). Must be greater than 1 and less
+    than `2**32-1`.
+  * `secret` {string|ArrayBuffer|Buffer|TypedArray|DataView|undefined} OPTIONAL, Random additional input,
+    similar to the salt, that should **NOT** be stored with the derived key. This is known as pepper in
+    password hashing applications. If used, must have a length not greater than `2**32-1` bytes.
+  * `associatedData` {string|ArrayBuffer|Buffer|TypedArray|DataView|undefined} OPTIONAL, Additional data to
+    be added to the hash, functionally equivalent to salt or secret, but meant for
+    non-random data. If used, must have a length not greater than `2**32-1` bytes.
+* `callback` {Function}
+  * `err` {Error}
+  * `derivedKey` {Buffer}
+
+Provides an asynchronous [Argon2][] implementation. Argon2 is a password-based
+key derivation function that is designed to be expensive computationally and
+memory-wise in order to make brute-force attacks unrewarding.
+
+The `nonce` should be as unique as possible. It is recommended that a nonce is
+random and at least 16 bytes long. See [NIST SP 800-132][] for details.
+
+When passing strings for `message`, `nonce`, `secret` or `associatedData`, please
+consider [caveats when using strings as inputs to cryptographic APIs][].
+
+The `callback` function is called with two arguments: `err` and `derivedKey`.
+`err` is an exception object when key derivation fails, otherwise `err` is
+`null`. `derivedKey` is passed to the callback as a [`Buffer`][].
+
+An exception is thrown when any of the input arguments specify invalid values
+or types.
+
+```mjs
+const { argon2, randomBytes } = await import('node:crypto');
+
+const parameters = {
+  message: 'password',
+  nonce: randomBytes(16),
+  parallelism: 4,
+  tagLength: 64,
+  memory: 65536,
+  passes: 3,
+};
+
+argon2('argon2id', parameters, (err, derivedKey) => {
+  if (err) throw err;
+  console.log(derivedKey.toString('hex'));  // 'af91dad...9520f15'
+});
+```
+
+```cjs
+const { argon2, randomBytes } = require('node:crypto');
+
+const parameters = {
+  message: 'password',
+  nonce: randomBytes(16),
+  parallelism: 4,
+  tagLength: 64,
+  memory: 65536,
+  passes: 3,
+};
+
+argon2('argon2id', parameters, (err, derivedKey) => {
+  if (err) throw err;
+  console.log(derivedKey.toString('hex'));  // 'af91dad...9520f15'
+});
+```
+
+### `crypto.argon2Sync(algorithm, parameters)`
+
+<!-- YAML
+added: v24.7.0
+-->
+
+> Stability: 1.2 - Release candidate
+
+* `algorithm` {string} Variant of Argon2, one of `"argon2d"`, `"argon2i"` or `"argon2id"`.
+* `parameters` {Object}
+  * `message` {string|ArrayBuffer|Buffer|TypedArray|DataView} REQUIRED, this is the password for password
+    hashing applications of Argon2.
+  * `nonce` {string|ArrayBuffer|Buffer|TypedArray|DataView} REQUIRED, must be at
+    least 8 bytes long. This is the salt for password hashing applications of Argon2.
+  * `parallelism` {number} REQUIRED, degree of parallelism determines how many computational chains (lanes)
+    can be run. Must be greater than 1 and less than `2**24-1`.
+  * `tagLength` {number} REQUIRED, the length of the key to generate. Must be greater than 4 and
+    less than `2**32-1`.
+  * `memory` {number} REQUIRED, memory cost in 1KiB blocks. Must be greater than
+    `8 * parallelism` and less than `2**32-1`. The actual number of blocks is rounded
+    down to the nearest multiple of `4 * parallelism`.
+  * `passes` {number} REQUIRED, number of passes (iterations). Must be greater than 1 and less
+    than `2**32-1`.
+  * `secret` {string|ArrayBuffer|Buffer|TypedArray|DataView|undefined} OPTIONAL, Random additional input,
+    similar to the salt, that should **NOT** be stored with the derived key. This is known as pepper in
+    password hashing applications. If used, must have a length not greater than `2**32-1` bytes.
+  * `associatedData` {string|ArrayBuffer|Buffer|TypedArray|DataView|undefined} OPTIONAL, Additional data to
+    be added to the hash, functionally equivalent to salt or secret, but meant for
+    non-random data. If used, must have a length not greater than `2**32-1` bytes.
+* Returns: {Buffer}
+
+Provides a synchronous [Argon2][] implementation. Argon2 is a password-based
+key derivation function that is designed to be expensive computationally and
+memory-wise in order to make brute-force attacks unrewarding.
+
+The `nonce` should be as unique as possible. It is recommended that a nonce is
+random and at least 16 bytes long. See [NIST SP 800-132][] for details.
+
+When passing strings for `message`, `nonce`, `secret` or `associatedData`, please
+consider [caveats when using strings as inputs to cryptographic APIs][].
+
+An exception is thrown when key derivation fails, otherwise the derived key is
+returned as a [`Buffer`][].
+
+An exception is thrown when any of the input arguments specify invalid values
+or types.
+
+```mjs
+const { argon2Sync, randomBytes } = await import('node:crypto');
+
+const parameters = {
+  message: 'password',
+  nonce: randomBytes(16),
+  parallelism: 4,
+  tagLength: 64,
+  memory: 65536,
+  passes: 3,
+};
+
+const derivedKey = argon2Sync('argon2id', parameters);
+console.log(derivedKey.toString('hex'));  // 'af91dad...9520f15'
+```
+
+```cjs
+const { argon2Sync, randomBytes } = require('node:crypto');
+
+const parameters = {
+  message: 'password',
+  nonce: randomBytes(16),
+  parallelism: 4,
+  tagLength: 64,
+  memory: 65536,
+  passes: 3,
+};
+
+const derivedKey = argon2Sync('argon2id', parameters);
+console.log(derivedKey.toString('hex'));  // 'af91dad...9520f15'
+```
 
 ### `crypto.checkPrime(candidate[, options], callback)`
 
@@ -3403,6 +3624,9 @@ input.on('readable', () => {
 <!-- YAML
 added: v11.6.0
 changes:
+  - version: v24.6.0
+    pr-url: https://github.com/nodejs/node/pull/59259
+    description: Add support for ML-DSA keys.
   - version: v15.12.0
     pr-url: https://github.com/nodejs/node/pull/37254
     description: The key can also be a JWK object.
@@ -3439,6 +3663,9 @@ of the passphrase is limited to 1024 bytes.
 <!-- YAML
 added: v11.6.0
 changes:
+  - version: v24.6.0
+    pr-url: https://github.com/nodejs/node/pull/59259
+    description: Add support for ML-DSA keys.
   - version: v15.12.0
     pr-url: https://github.com/nodejs/node/pull/37254
     description: The key can also be a JWK object.
@@ -3549,6 +3776,40 @@ the corresponding digest algorithm. This does not work for all signature
 algorithms, such as `'ecdsa-with-SHA256'`, so it is best to always use digest
 algorithm names.
 
+### `crypto.decapsulate(key, ciphertext[, callback])`
+
+<!-- YAML
+added: v24.7.0
+-->
+
+> Stability: 1.2 - Release candidate
+
+* `key` {Object|string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject} Private Key
+* `ciphertext` {ArrayBuffer|Buffer|TypedArray|DataView}
+* `callback` {Function}
+  * `err` {Error}
+  * `sharedKey` {Buffer}
+* Returns: {Buffer} if the `callback` function is not provided.
+
+<!--lint enable maximum-line-length remark-lint-->
+
+Key decapsulation using a KEM algorithm with a private key.
+
+Supported key types and their KEM algorithms are:
+
+* `'rsa'`[^openssl30] RSA Secret Value Encapsulation
+* `'ec'`[^openssl32] DHKEM(P-256, HKDF-SHA256), DHKEM(P-384, HKDF-SHA256), DHKEM(P-521, HKDF-SHA256)
+* `'x25519'`[^openssl32] DHKEM(X25519, HKDF-SHA256)
+* `'x448'`[^openssl32] DHKEM(X448, HKDF-SHA512)
+* `'ml-kem-512'`[^openssl35] ML-KEM
+* `'ml-kem-768'`[^openssl35] ML-KEM
+* `'ml-kem-1024'`[^openssl35] ML-KEM
+
+If `key` is not a [`KeyObject`][], this function behaves as if `key` had been
+passed to [`crypto.createPrivateKey()`][].
+
+If the `callback` function is provided this function uses libuv's threadpool.
+
 ### `crypto.diffieHellman(options[, callback])`
 
 <!-- YAML
@@ -3569,9 +3830,46 @@ changes:
   * `secret` {Buffer}
 * Returns: {Buffer} if the `callback` function is not provided.
 
-Computes the Diffie-Hellman secret based on a `privateKey` and a `publicKey`.
-Both keys must have the same `asymmetricKeyType`, which must be one of `'dh'`
-(for Diffie-Hellman), `'ec'`, `'x448'`, or `'x25519'` (for ECDH).
+Computes the Diffie-Hellman shared secret based on a `privateKey` and a `publicKey`.
+Both keys must have the same `asymmetricKeyType` and must support either the DH or
+ECDH operation.
+
+If the `callback` function is provided this function uses libuv's threadpool.
+
+### `crypto.encapsulate(key[, callback])`
+
+<!-- YAML
+added: v24.7.0
+-->
+
+> Stability: 1.2 - Release candidate
+
+* `key` {Object|string|ArrayBuffer|Buffer|TypedArray|DataView|KeyObject} Public Key
+* `callback` {Function}
+  * `err` {Error}
+  * `result` {Object}
+    * `sharedKey` {Buffer}
+    * `ciphertext` {Buffer}
+* Returns: {Object} if the `callback` function is not provided.
+  * `sharedKey` {Buffer}
+  * `ciphertext` {Buffer}
+
+<!--lint enable maximum-line-length remark-lint-->
+
+Key encapsulation using a KEM algorithm with a public key.
+
+Supported key types and their KEM algorithms are:
+
+* `'rsa'`[^openssl30] RSA Secret Value Encapsulation
+* `'ec'`[^openssl32] DHKEM(P-256, HKDF-SHA256), DHKEM(P-384, HKDF-SHA256), DHKEM(P-521, HKDF-SHA256)
+* `'x25519'`[^openssl32] DHKEM(X25519, HKDF-SHA256)
+* `'x448'`[^openssl32] DHKEM(X448, HKDF-SHA512)
+* `'ml-kem-512'`[^openssl35] ML-KEM
+* `'ml-kem-768'`[^openssl35] ML-KEM
+* `'ml-kem-1024'`[^openssl35] ML-KEM
+
+If `key` is not a [`KeyObject`][], this function behaves as if `key` had been
+passed to [`crypto.createPublicKey()`][].
 
 If the `callback` function is provided this function uses libuv's threadpool.
 
@@ -3648,6 +3946,15 @@ underlying hash function. See [`crypto.createHmac()`][] for more information.
 <!-- YAML
 added: v10.12.0
 changes:
+  - version: v24.8.0
+    pr-url: https://github.com/nodejs/node/pull/59537
+    description: Add support for SLH-DSA key pairs.
+  - version: v24.7.0
+    pr-url: https://github.com/nodejs/node/pull/59461
+    description: Add support for ML-KEM key pairs.
+  - version: v24.6.0
+    pr-url: https://github.com/nodejs/node/pull/59259
+    description: Add support for ML-DSA key pairs.
   - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
@@ -3677,8 +3984,8 @@ changes:
                  produce key objects if no encoding was specified.
 -->
 
-* `type` {string} Must be `'rsa'`, `'rsa-pss'`, `'dsa'`, `'ec'`, `'ed25519'`,
-  `'ed448'`, `'x25519'`, `'x448'`, or `'dh'`.
+* `type` {string} The asymmetric key type to generate. See the
+  supported [asymmetric key types][].
 * `options` {Object}
   * `modulusLength` {number} Key size in bits (RSA, DSA).
   * `publicExponent` {number} Public exponent (RSA). **Default:** `0x10001`.
@@ -3702,8 +4009,8 @@ changes:
   * `publicKey` {string | Buffer | KeyObject}
   * `privateKey` {string | Buffer | KeyObject}
 
-Generates a new asymmetric key pair of the given `type`. RSA, RSA-PSS, DSA, EC,
-Ed25519, Ed448, X25519, X448, and DH are currently supported.
+Generates a new asymmetric key pair of the given `type`. See the
+supported [asymmetric key types][].
 
 If a `publicKeyEncoding` or `privateKeyEncoding` was specified, this function
 behaves as if [`keyObject.export()`][] had been called on its result. Otherwise,
@@ -3767,6 +4074,15 @@ a `Promise` for an `Object` with `publicKey` and `privateKey` properties.
 <!-- YAML
 added: v10.12.0
 changes:
+  - version: v24.8.0
+    pr-url: https://github.com/nodejs/node/pull/59537
+    description: Add support for SLH-DSA key pairs.
+  - version: v24.7.0
+    pr-url: https://github.com/nodejs/node/pull/59461
+    description: Add support for ML-KEM key pairs.
+  - version: v24.6.0
+    pr-url: https://github.com/nodejs/node/pull/59259
+    description: Add support for ML-DSA key pairs.
   - version: v16.10.0
     pr-url: https://github.com/nodejs/node/pull/39927
     description: Add ability to define `RSASSA-PSS-params` sequence parameters
@@ -3791,8 +4107,8 @@ changes:
                  produce key objects if no encoding was specified.
 -->
 
-* `type` {string} Must be `'rsa'`, `'rsa-pss'`, `'dsa'`, `'ec'`, `'ed25519'`,
-  `'ed448'`, `'x25519'`, `'x448'`, or `'dh'`.
+* `type` {string} The asymmetric key type to generate. See the
+  supported [asymmetric key types][].
 * `options` {Object}
   * `modulusLength` {number} Key size in bits (RSA, DSA).
   * `publicExponent` {number} Public exponent (RSA). **Default:** `0x10001`.
@@ -3815,8 +4131,8 @@ changes:
   * `publicKey` {string | Buffer | KeyObject}
   * `privateKey` {string | Buffer | KeyObject}
 
-Generates a new asymmetric key pair of the given `type`. RSA, RSA-PSS, DSA, EC,
-Ed25519, Ed448, X25519, X448, and DH are currently supported.
+Generates a new asymmetric key pair of the given `type`. See the
+supported [asymmetric key types][].
 
 If a `publicKeyEncoding` or `privateKeyEncoding` was specified, this function
 behaves as if [`keyObject.export()`][] had been called on its result. Otherwise,
@@ -5416,6 +5732,15 @@ Throws an error if FIPS mode is not available.
 <!-- YAML
 added: v12.0.0
 changes:
+  - version: v24.8.0
+    pr-url: https://github.com/nodejs/node/pull/59570
+    description: Add support for ML-DSA, Ed448, and SLH-DSA context parameter.
+  - version: v24.8.0
+    pr-url: https://github.com/nodejs/node/pull/59537
+    description: Add support for SLH-DSA signing.
+  - version: v24.6.0
+    pr-url: https://github.com/nodejs/node/pull/59259
+    description: Add support for ML-DSA signing.
   - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
@@ -5445,7 +5770,10 @@ changes:
 
 Calculates and returns the signature for `data` using the given private key and
 algorithm. If `algorithm` is `null` or `undefined`, then the algorithm is
-dependent upon the key type (especially Ed25519 and Ed448).
+dependent upon the key type.
+
+`algorithm` is required to be `null` or `undefined` for Ed25519, Ed448, and
+ML-DSA.
 
 If `key` is not a [`KeyObject`][], this function behaves as if `key` had been
 passed to [`crypto.createPrivateKey()`][]. If it is an object, the following
@@ -5467,6 +5795,9 @@ additional properties can be passed:
   `crypto.constants.RSA_PSS_SALTLEN_DIGEST` sets the salt length to the digest
   size, `crypto.constants.RSA_PSS_SALTLEN_MAX_SIGN` (default) sets it to the
   maximum permissible value.
+* `context` {ArrayBuffer|Buffer|TypedArray|DataView} For Ed448, ML-DSA, and SLH-DSA,
+  this option specifies the optional context to differentiate signatures generated
+  for different purposes with the same key.
 
 If the `callback` function is provided this function uses libuv's threadpool.
 
@@ -5526,6 +5857,15 @@ not introduce timing vulnerabilities.
 <!-- YAML
 added: v12.0.0
 changes:
+  - version: v24.8.0
+    pr-url: https://github.com/nodejs/node/pull/59570
+    description: Add support for ML-DSA, Ed448, and SLH-DSA context parameter.
+  - version: v24.8.0
+    pr-url: https://github.com/nodejs/node/pull/59537
+    description: Add support for SLH-DSA signature verification.
+  - version: v24.6.0
+    pr-url: https://github.com/nodejs/node/pull/59259
+    description: Add support for ML-DSA signature verification.
   - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
@@ -5561,7 +5901,10 @@ changes:
 
 Verifies the given signature for `data` using the given key and algorithm. If
 `algorithm` is `null` or `undefined`, then the algorithm is dependent upon the
-key type (especially Ed25519 and Ed448).
+key type.
+
+`algorithm` is required to be `null` or `undefined` for Ed25519, Ed448, and
+ML-DSA.
 
 If `key` is not a [`KeyObject`][], this function behaves as if `key` had been
 passed to [`crypto.createPublicKey()`][]. If it is an object, the following
@@ -5583,6 +5926,9 @@ additional properties can be passed:
   `crypto.constants.RSA_PSS_SALTLEN_DIGEST` sets the salt length to the digest
   size, `crypto.constants.RSA_PSS_SALTLEN_MAX_SIGN` (default) sets it to the
   maximum permissible value.
+* `context` {ArrayBuffer|Buffer|TypedArray|DataView} For Ed448, ML-DSA, and SLH-DSA,
+  this option specifies the optional context to differentiate signatures generated
+  for different purposes with the same key.
 
 The `signature` argument is the previously calculated signature for the `data`.
 
@@ -6150,6 +6496,12 @@ See the [list of SSL OP Flags][] for details.
   </tr>
 </table>
 
+[^openssl30]: Requires OpenSSL >= 3.0
+
+[^openssl32]: Requires OpenSSL >= 3.2
+
+[^openssl35]: Requires OpenSSL >= 3.5
+
 [AEAD algorithms]: https://en.wikipedia.org/wiki/Authenticated_encryption
 [CCM mode]: #ccm-mode
 [CVE-2021-44532]: https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2021-44532
@@ -6231,6 +6583,8 @@ See the [list of SSL OP Flags][] for details.
 [`verify.verify()`]: #verifyverifyobject-signature-signatureencoding
 [`x509.fingerprint256`]: #x509fingerprint256
 [`x509.verify(publicKey)`]: #x509verifypublickey
+[argon2]: https://www.rfc-editor.org/rfc/rfc9106.html
+[asymmetric key types]: #asymmetric-key-types
 [caveats when using strings as inputs to cryptographic APIs]: #using-strings-as-inputs-to-cryptographic-apis
 [certificate object]: tls.md#certificate-object
 [encoding]: buffer.md#buffers-and-character-encodings

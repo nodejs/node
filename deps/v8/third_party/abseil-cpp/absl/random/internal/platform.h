@@ -35,7 +35,6 @@
 //   Darwin (macOS and iOS)            __APPLE__
 //   Akaros (http://akaros.org)        __ros__
 //   Windows                           _WIN32
-//   NaCL                              __native_client__
 //   AsmJS                             __asmjs__
 //   WebAssembly                       __wasm__
 //   Fuchsia                           __Fuchsia__
@@ -125,12 +124,6 @@
 
 #endif
 
-// NaCl does not allow AES.
-#if defined(__native_client__)
-#undef ABSL_HAVE_ACCELERATED_AES
-#define ABSL_HAVE_ACCELERATED_AES 0
-#endif
-
 // ABSL_RANDOM_INTERNAL_AES_DISPATCH indicates whether the currently active
 // platform has, or should use run-time dispatch for selecting the
 // accelerated Randen implementation.
@@ -160,12 +153,6 @@
 // (This captures a lot of Android configurations.)
 #undef ABSL_RANDOM_INTERNAL_AES_DISPATCH
 #define ABSL_RANDOM_INTERNAL_AES_DISPATCH 1
-#endif
-
-// NaCl does not allow dispatch.
-#if defined(__native_client__)
-#undef ABSL_RANDOM_INTERNAL_AES_DISPATCH
-#define ABSL_RANDOM_INTERNAL_AES_DISPATCH 0
 #endif
 
 #endif  // ABSL_RANDOM_INTERNAL_PLATFORM_H_

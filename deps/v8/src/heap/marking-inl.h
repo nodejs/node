@@ -26,7 +26,7 @@ inline void MarkingBitmap::SetBitsInCell<AccessMode::NON_ATOMIC>(
 template <>
 inline void MarkingBitmap::SetBitsInCell<AccessMode::ATOMIC>(
     uint32_t cell_index, MarkBit::CellType mask) {
-  base::AsAtomicWord::Relaxed_SetBits(cells() + cell_index, mask, mask);
+  base::AsAtomicWord::Relaxed_SetBits(cells() + cell_index, mask);
 }
 
 template <>
@@ -149,21 +149,34 @@ inline void MarkingBitmap::ClearRange(MarkBitIndex start_index,
 }
 
 // static
-MarkingBitmap* MarkingBitmap::FromAddress(Address address) {
+MarkingBitmap* MarkingBitmap::FromAddress(const Isolate* isolate,
+                                          Address address) {
   Address metadata_address =
-      MutablePageMetadata::FromAddress(address)->MetadataAddress();
+      MutablePageMetadata::FromAddress(isolate, address)->MetadataAddress();
   return Cast(metadata_address + MutablePageMetadata::MarkingBitmapOffset());
-}
-
-// static
-MarkBit MarkingBitmap::MarkBitFromAddress(Address address) {
-  return MarkBitFromAddress(FromAddress(address), address);
 }
 
 // static
 MarkBit MarkingBitmap::MarkBitFromAddress(MarkingBitmap* bitmap,
                                           Address address) {
-  DCHECK_EQ(bitmap, FromAddress(address));
+  DCHECK_EQ(bitmap, FromAddress(Isolate::Current(), address));
+  const auto index = AddressToIndex(address);
+  const auto mask = IndexInCellMask(index);
+  MarkBit::CellType* cell = bitmap->cells() + IndexToCell(index);
+  return MarkBit(cell, mask);
+}
+
+// static
+MarkBit MarkingBitmap::MarkBitFromAddress(const Isolate* isolate,
+                                          Address address) {
+  return MarkBitFromAddress(isolate, FromAddress(isolate, address), address);
+}
+
+// static
+MarkBit MarkingBitmap::MarkBitFromAddress(const Isolate* isolate,
+                                          MarkingBitmap* bitmap,
+                                          Address address) {
+  DCHECK_EQ(bitmap, FromAddress(isolate, address));
   const auto index = AddressToIndex(address);
   const auto mask = IndexInCellMask(index);
   MarkBit::CellType* cell = bitmap->cells() + IndexToCell(index);
@@ -265,13 +278,13 @@ inline Address MarkingBitmap::FindPreviousValidObject(const PageMetadata* page,
 }
 
 // static
-MarkBit MarkBit::From(Address address) {
-  return MarkingBitmap::MarkBitFromAddress(address);
+MarkBit MarkBit::From(const Isolate* isolate, Address address) {
+  return MarkingBitmap::MarkBitFromAddress(isolate, address);
 }
 
 // static
-MarkBit MarkBit::From(Tagged<HeapObject> heap_object) {
-  return MarkingBitmap::MarkBitFromAddress(heap_object.ptr());
+MarkBit MarkBit::From(const Isolate* isolate, Tagged<HeapObject> heap_object) {
+  return MarkingBitmap::MarkBitFromAddress(isolate, heap_object.ptr());
 }
 
 // static

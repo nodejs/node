@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -19,10 +19,12 @@
 #include <openssl/core_names.h>
 #include <openssl/bn.h>
 #include <openssl/err.h>
+#include <openssl/self_test.h>
 #include "prov/implementations.h"
 #include "prov/providercommon.h"
 #include "prov/provider_ctx.h"
 #include "crypto/dh.h"
+#include "internal/fips.h"
 #include "internal/sizes.h"
 
 static OSSL_FUNC_keymgmt_new_fn dh_newdata;
@@ -440,7 +442,7 @@ static int dh_validate(const void *keydata, int selection, int checktype)
 
     if ((selection & OSSL_KEYMGMT_SELECT_KEYPAIR)
             == OSSL_KEYMGMT_SELECT_KEYPAIR)
-        ok = ok && ossl_dh_check_pairwise(dh);
+        ok = ok && ossl_dh_check_pairwise(dh, 0);
     return ok;
 }
 
@@ -792,6 +794,15 @@ static void *dh_gen(void *genctx, OSSL_CALLBACK *osslcb, void *cbarg)
                                      gctx->gen_type == DH_PARAMGEN_TYPE_FIPS_186_2);
         if (DH_generate_key(dh) <= 0)
             goto end;
+#ifdef FIPS_MODULE
+        if (!ossl_fips_self_testing()) {
+            ret = ossl_dh_check_pairwise(dh, 0);
+            if (ret <= 0) {
+                ossl_set_error_state(OSSL_SELF_TEST_TYPE_PCT);
+                goto end;
+            }
+        }
+#endif /* FIPS_MODULE */
     }
     DH_clear_flags(dh, DH_FLAG_TYPE_MASK);
     DH_set_flags(dh, gctx->dh_type);

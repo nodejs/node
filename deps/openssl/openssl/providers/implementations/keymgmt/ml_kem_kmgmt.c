@@ -475,7 +475,7 @@ static int ml_kem_import(void *vkey, int selection, const OSSL_PARAM params[])
     if (res > 0 && include_private
         && !ml_kem_pairwise_test(key, key->prov_flags)) {
 #ifdef FIPS_MODULE
-        ossl_set_error_state(OSSL_SELF_TEST_TYPE_PCT);
+        ossl_set_error_state(OSSL_SELF_TEST_TYPE_PCT_IMPORT);
 #endif
         ossl_ml_kem_key_reset(key);
         res = 0;
@@ -504,7 +504,7 @@ static const OSSL_PARAM *ml_kem_gettable_params(void *provctx)
 }
 
 #ifndef FIPS_MODULE
-void *ml_kem_load(const void *reference, size_t reference_sz)
+static void *ml_kem_load(const void *reference, size_t reference_sz)
 {
     ML_KEM_KEY *key = NULL;
     uint8_t *encoded_dk = NULL;

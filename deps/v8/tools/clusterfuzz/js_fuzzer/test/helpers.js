@@ -15,6 +15,7 @@ const fs = require('fs');
 
 const corpus = require('../corpus.js');
 const sourceHelpers = require('../source_helpers.js');
+const scriptMutator = require('../script_mutator.js');
 
 const BASE_DIR = path.join(path.dirname(__dirname), 'test_data');
 const DB_DIR = path.join(BASE_DIR, 'fake_db');
@@ -23,12 +24,24 @@ const TEST_CORPUS = new sourceHelpers.BaseCorpus(BASE_DIR);
 const V8_TEST_CORPUS = corpus.create(BASE_DIR, 'v8');
 const FUZZILLI_TEST_CORPUS = corpus.create(
     BASE_DIR, 'fuzzilli', false, V8_TEST_CORPUS);
+const FUZZILLI_DIFF_FUZZ_TEST_CORPUS = corpus.create(
+    BASE_DIR, 'fuzzilli', false, V8_TEST_CORPUS, true);
 
 const HEADER = `// Copyright 2025 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 `;
+
+function zeroSettings() {
+  const settings = scriptMutator.defaultSettings();
+  for (const key of Object.keys(settings)) {
+    settings[key] = 0.0;
+  }
+  settings['engine'] = 'v8';
+  settings['testing'] = true;
+  return settings;
+}
 
 /**
  * Create a function that returns one of `probs` when called. It rotates
@@ -123,6 +136,7 @@ module.exports = {
   BASE_DIR: BASE_DIR,
   DB_DIR: DB_DIR,
   FUZZILLI_TEST_CORPUS: FUZZILLI_TEST_CORPUS,
+  FUZZILLI_DIFF_FUZZ_TEST_CORPUS: FUZZILLI_DIFF_FUZZ_TEST_CORPUS,
   TEST_CORPUS: TEST_CORPUS,
   assertFile: assertFile,
   assertExpectedPath: assertExpectedPath,
@@ -132,4 +146,5 @@ module.exports = {
   loadFuzzilliTestData: loadFuzzilliTestData,
   loadTestData: loadTestData,
   loadV8TestData: loadV8TestData,
+  zeroSettings: zeroSettings,
 }

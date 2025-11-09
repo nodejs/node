@@ -15,6 +15,13 @@ you informed of the progress being made towards a fix and full announcement,
 and may ask for additional information or guidance surrounding the reported
 issue.
 
+If you do not receive an acknowledgement of your report within 6 business
+days, or if you cannot find a private security contact for the project, you
+may escalate to the OpenJS Foundation CNA at `security@lists.openjsf.org`.
+
+If the project acknowledges your report but does not provide any further
+response or engagement within 14 days, escalation is also appropriate.
+
 ### Node.js bug bounty program
 
 The Node.js project engages in an official bug bounty program for security
@@ -101,6 +108,22 @@ For a vulnerability to be eligible for a bug bounty, it must be a
 vulnerability in the context of the Node.js threat model. In other
 words, it cannot assume that a trusted element (such as the operating
 system) has been compromised.
+
+### Experimental platforms
+
+Node.js maintains a tier-based support system for operating systems and
+hardware combinations (Tier 1, Tier 2, and Experimental). For platforms
+classified as "Experimental" in the [supported platforms](BUILDING.md#supported-platforms)
+documentation:
+
+* Security vulnerabilities that only affect experimental platforms will **not** be accepted as valid security issues.
+* Any issues on experimental platforms will be treated as normal bugs.
+* No CVEs will be issued for issues that only affect experimental platforms
+* Bug bounty rewards are not available for experimental platform-specific issues
+
+This policy recognizes that experimental platforms may not compile, may not
+pass the test suite, and do not have the same level of testing and support
+infrastructure as Tier 1 and Tier 2 platforms.
 
 Being able to cause the following through control of the elements that Node.js
 does not trust is considered a vulnerability:
@@ -284,3 +307,8 @@ Security notifications will be distributed via the following methods.
 If you have suggestions on how this process could be improved, please visit
 the [nodejs/security-wg](https://github.com/nodejs/security-wg)
 repository.
+
+## Incident Response Plan
+
+In the event of a security incident, please refer to the
+[Security Incident Response Plan](https://github.com/nodejs/security-wg/blob/main/INCIDENT_RESPONSE_PLAN.md).

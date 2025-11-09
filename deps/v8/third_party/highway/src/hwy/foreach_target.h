@@ -143,6 +143,17 @@
 #endif
 #endif
 
+#if (HWY_TARGETS & HWY_AVX10_2) && (HWY_STATIC_TARGET != HWY_AVX10_2)
+#undef HWY_TARGET
+#define HWY_TARGET HWY_AVX10_2
+#include HWY_TARGET_INCLUDE
+#ifdef HWY_TARGET_TOGGLE
+#undef HWY_TARGET_TOGGLE
+#else
+#define HWY_TARGET_TOGGLE
+#endif
+#endif
+
 // ------------------------------ HWY_ARCH_ARM
 
 #if (HWY_TARGETS & HWY_NEON_WITHOUT_AES) && \
@@ -311,6 +322,30 @@
 #if (HWY_TARGETS & HWY_RVV) && (HWY_STATIC_TARGET != HWY_RVV)
 #undef HWY_TARGET
 #define HWY_TARGET HWY_RVV
+#include HWY_TARGET_INCLUDE
+#ifdef HWY_TARGET_TOGGLE
+#undef HWY_TARGET_TOGGLE
+#else
+#define HWY_TARGET_TOGGLE
+#endif
+#endif
+
+// ------------------------------ HWY_ARCH_LOONGARCH
+
+#if (HWY_TARGETS & HWY_LSX) && (HWY_STATIC_TARGET != HWY_LSX)
+#undef HWY_TARGET
+#define HWY_TARGET HWY_LSX
+#include HWY_TARGET_INCLUDE
+#ifdef HWY_TARGET_TOGGLE
+#undef HWY_TARGET_TOGGLE
+#else
+#define HWY_TARGET_TOGGLE
+#endif
+#endif
+
+#if (HWY_TARGETS & HWY_LASX) && (HWY_STATIC_TARGET != HWY_LASX)
+#undef HWY_TARGET
+#define HWY_TARGET HWY_LASX
 #include HWY_TARGET_INCLUDE
 #ifdef HWY_TARGET_TOGGLE
 #undef HWY_TARGET_TOGGLE

@@ -258,6 +258,7 @@ void InstructionScheduler::Schedule() {
 int InstructionScheduler::GetInstructionFlags(const Instruction* instr) const {
   switch (instr->arch_opcode()) {
     case kArchNop:
+    case kArchPause:
     case kArchStackCheckOffset:
     case kArchFramePointer:
     case kArchParentFramePointer:
@@ -271,7 +272,6 @@ int InstructionScheduler::GetInstructionFlags(const Instruction* instr) const {
     case kArchBinarySearchSwitch:
     case kArchRet:
     case kArchTableSwitch:
-    case kArchThrowTerminator:
       return kNoOpcodeFlags;
 
     case kArchTruncateDoubleToI:
@@ -331,7 +331,6 @@ int InstructionScheduler::GetInstructionFlags(const Instruction* instr) const {
       return kIsBarrier;
 
     case kArchCallCFunction:
-    case kArchCallCFunctionWithFrameState:
     case kArchCallCodeObject:
     case kArchCallJSFunction:
 #if V8_ENABLE_WEBASSEMBLY
@@ -348,6 +347,11 @@ int InstructionScheduler::GetInstructionFlags(const Instruction* instr) const {
     case kArchStoreWithWriteBarrier:
     case kArchAtomicStoreWithWriteBarrier:
     case kArchStoreIndirectWithWriteBarrier:
+      return kHasSideEffect;
+
+    case kArchStoreSkippedWriteBarrier:
+    case kArchAtomicStoreSkippedWriteBarrier:
+    case kArchStoreIndirectSkippedWriteBarrier:
       return kHasSideEffect;
 
     case kAtomicLoadInt8:
@@ -367,11 +371,13 @@ int InstructionScheduler::GetInstructionFlags(const Instruction* instr) const {
     case kAtomicExchangeInt16:
     case kAtomicExchangeUint16:
     case kAtomicExchangeWord32:
+    case kAtomicExchangeWithWriteBarrier:
     case kAtomicCompareExchangeInt8:
     case kAtomicCompareExchangeUint8:
     case kAtomicCompareExchangeInt16:
     case kAtomicCompareExchangeUint16:
     case kAtomicCompareExchangeWord32:
+    case kAtomicCompareExchangeWithWriteBarrier:
     case kAtomicAddInt8:
     case kAtomicAddUint8:
     case kAtomicAddInt16:

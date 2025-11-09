@@ -1,6 +1,6 @@
 'use strict';
 
-const { hasCrypto } = require('../common');
+const { mustCall, hasCrypto } = require('../common');
 const assert = require('assert');
 const util = require('util');
 const { test } = require('node:test');
@@ -223,10 +223,10 @@ function assertNotDeepOrStrict(a, b, err, options) {
     () => assert.deepStrictEqual(b, a),
     err || { code: 'ERR_ASSERTION' }
   );
-  const partial = () => {
+  const partial = mustCall(() => {
     assert.partialDeepStrictEqual(b, a);
     assert.partialDeepStrictEqual(a, b);
-  };
+  });
   if (options?.partial === 'pass') {
     partial();
   } else {
@@ -1632,4 +1632,11 @@ test('Inherited null prototype without own constructor properties should check t
   /* eslint-disable no-restricted-properties */
   assert.deepEqual(a, b);
   assert.deepEqual(b, a);
+});
+
+test('Promises should fail deepEqual', () => {
+  const a = Promise.resolve(1);
+  const b = Promise.resolve(1);
+  assertDeepAndStrictEqual(a, a);
+  assertNotDeepOrStrict(a, b);
 });

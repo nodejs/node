@@ -220,10 +220,11 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   void AssembleArchDeoptBranch(Instruction* instr, BranchInfo* branch);
 
   void AssembleArchBoolean(Instruction* instr, FlagsCondition condition);
-  void AssembleArchConditionalBoolean(Instruction* instr);
   void AssembleArchSelect(Instruction* instr, FlagsCondition condition);
 #if V8_ENABLE_WEBASSEMBLY
   void AssembleArchTrap(Instruction* instr, FlagsCondition condition);
+  void AssembleArchConditionalTrap(Instruction* instr,
+                                   FlagsCondition condition);
 #endif  // V8_ENABLE_WEBASSEMBLY
 #if V8_TARGET_ARCH_X64
   void AssembleArchBinarySearchSwitchRange(

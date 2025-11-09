@@ -41,6 +41,18 @@ namespace {
 
 base::SmallVector<TaskRunner*, 2> task_runners;
 
+// Sets global[@@toStringTag] to "global".
+class GlobalToStringTagExtension
+    : public InspectorIsolateData::SetupGlobalTask {
+ public:
+  ~GlobalToStringTagExtension() override = default;
+  void Run(v8::Isolate* isolate,
+           v8::Local<v8::ObjectTemplate> global) override {
+    global->Set(v8::Symbol::GetToStringTag(isolate),
+                v8::String::NewFromUtf8Literal(isolate, "global"));
+  }
+};
+
 class UtilsExtension : public InspectorIsolateData::SetupGlobalTask {
  public:
   ~UtilsExtension() override = default;
@@ -868,6 +880,7 @@ int InspectorTestMain(int argc, char* argv[]) {
 
   {
     InspectorIsolateData::SetupGlobalTasks frontend_extensions;
+    frontend_extensions.emplace_back(new GlobalToStringTagExtension());
     frontend_extensions.emplace_back(new UtilsExtension());
     frontend_extensions.emplace_back(new ConsoleExtension());
     TaskRunner frontend_runner(std::move(frontend_extensions),
@@ -883,6 +896,7 @@ int InspectorTestMain(int argc, char* argv[]) {
                 });
 
     InspectorIsolateData::SetupGlobalTasks backend_extensions;
+    backend_extensions.emplace_back(new GlobalToStringTagExtension());
     backend_extensions.emplace_back(new SetTimeoutExtension());
     backend_extensions.emplace_back(new ConsoleExtension());
     backend_extensions.emplace_back(new InspectorExtension());

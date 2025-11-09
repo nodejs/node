@@ -7,26 +7,23 @@ const {
   AsyncLocalStorage,
 } = require('async_hooks');
 
-const {
-  strictEqual,
-  throws,
-} = require('assert');
+const assert = require('assert');
 
 // ============================================================================
 // The defaultValue option
 const als1 = new AsyncLocalStorage();
-strictEqual(als1.getStore(), undefined, 'value should be undefined');
+assert.strictEqual(als1.getStore(), undefined);
 
 const als2 = new AsyncLocalStorage({ defaultValue: 'default' });
-strictEqual(als2.getStore(), 'default', 'value should be "default"');
+assert.strictEqual(als2.getStore(), 'default');
 
 const als3 = new AsyncLocalStorage({ defaultValue: 42 });
-strictEqual(als3.getStore(), 42, 'value should be 42');
+assert.strictEqual(als3.getStore(), 42);
 
 const als4 = new AsyncLocalStorage({ defaultValue: null });
-strictEqual(als4.getStore(), null, 'value should be null');
+assert.strictEqual(als4.getStore(), null);
 
-throws(() => new AsyncLocalStorage(null), {
+assert.throws(() => new AsyncLocalStorage(null), {
   code: 'ERR_INVALID_ARG_TYPE',
 });
 
@@ -34,7 +31,7 @@ throws(() => new AsyncLocalStorage(null), {
 // The name option
 
 const als5 = new AsyncLocalStorage({ name: 'test' });
-strictEqual(als5.name, 'test');
+assert.strictEqual(als5.name, 'test');
 
 const als6 = new AsyncLocalStorage();
-strictEqual(als6.name, '');
+assert.strictEqual(als6.name, '');

@@ -187,6 +187,8 @@ class V8_EXPORT_PRIVATE GCTracer {
     State state;
 
     GarbageCollectionReason gc_reason;
+    GarbageCollectionReason incremental_marking_reason{
+        GarbageCollectionReason::kUnknown};
     const char* collector_reason;
 
     // The Isolate's priority during the current GC cycle. The priority is set
@@ -203,6 +205,9 @@ class V8_EXPORT_PRIVATE GCTracer {
     // Memory reduction flag set.
     bool reduce_memory = false;
 
+    // Currently in loading state.
+    bool is_loading = false;
+
     // Size of objects in heap set in constructor.
     size_t start_object_size = 0;
 
@@ -214,6 +219,21 @@ class V8_EXPORT_PRIVATE GCTracer {
 
     // Size of memory allocated from OS set in destructor.
     size_t end_memory_size = 0;
+
+    // Consumed bytes used to evaluate old generation allocation limits.
+    size_t old_generation_consumed_baseline = 0;
+    size_t old_generation_consumed_limit = 0;
+    size_t old_generation_consumed_current = 0;
+    size_t max_old_generation_memory = 0;
+
+    // Consumed bytes used to evaluate global allocation limits.
+    size_t global_consumed_baseline = 0;
+    size_t global_consumed_limit = 0;
+    size_t global_consumed_current = 0;
+    size_t max_global_memory = 0;
+
+    // External memory at the start of GC.
+    size_t external_memory_bytes = 0;
 
     // Total amount of space either wasted or contained in one of free lists
     // before the current GC.
@@ -606,7 +626,7 @@ class V8_EXPORT_PRIVATE GCTracer {
   base::TimeDelta background_scopes_[Scope::NUMBER_OF_SCOPES];
 
 #if defined(V8_USE_PERFETTO)
-  perfetto::ThreadTrack parent_track_;
+  perfetto::NamedTrack parent_track_;
 #endif
 
   FRIEND_TEST(GCTracerTest, AllocationThroughput);

@@ -234,6 +234,12 @@ using kWord64ShiftRightLogical =
                    WordRepresentation::Word64()>;
 using kShiftLeft = ShiftKindMask::For<ShiftOp::Kind::kShiftLeft>;
 
+using WordBinopDeoptOnOverflowMask =
+    MaskBuilder<WordBinopDeoptOnOverflowOp,
+                FIELD(WordBinopDeoptOnOverflowOp, kind)>;
+using kWordSignedAddDeoptOnOverflow = WordBinopDeoptOnOverflowMask::For<
+    WordBinopDeoptOnOverflowOp::Kind::kSignedAdd>;
+
 using PhiMask = MaskBuilder<PhiOp, FIELD(PhiOp, rep)>;
 using kTaggedPhi = PhiMask::For<RegisterRepresentation::Tagged()>;
 
@@ -241,9 +247,12 @@ using ConstantMask = MaskBuilder<ConstantOp, FIELD(ConstantOp, kind)>;
 
 using kWord32Constant = ConstantMask::For<ConstantOp::Kind::kWord32>;
 using kWord64Constant = ConstantMask::For<ConstantOp::Kind::kWord64>;
+using kFloat64Constant = ConstantMask::For<ConstantOp::Kind::kFloat64>;
 using kExternalConstant = ConstantMask::For<ConstantOp::Kind::kExternal>;
 using kHeapConstant = ConstantMask::For<ConstantOp::Kind::kHeapObject>;
 using kSmiConstant = ConstantMask::For<ConstantOp::Kind::kSmi>;
+using kWasmStubCallConstant =
+    ConstantMask::For<ConstantOp::Kind::kRelocatableWasmStubCall>;
 
 using ProjectionMask = MaskBuilder<ProjectionOp, FIELD(ProjectionOp, index)>;
 

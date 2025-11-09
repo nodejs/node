@@ -13,6 +13,7 @@
 
 #if HAVE_OPENSSL
 #include "openssl/opensslv.h"
+#include "quic/guard.h"
 #endif
 
 namespace node {
@@ -126,8 +127,8 @@ class EnvironmentOptions : public Options {
   bool experimental_fetch = true;
   bool experimental_websocket = true;
   bool experimental_sqlite = true;
-  bool experimental_webstorage = false;
-#ifdef NODE_OPENSSL_HAS_QUIC
+  bool webstorage = true;
+#ifndef OPENSSL_NO_QUIC
   bool experimental_quic = false;
 #endif
   std::string localstorage_file;
@@ -140,6 +141,7 @@ class EnvironmentOptions : public Options {
   std::vector<std::string> allow_fs_read;
   std::vector<std::string> allow_fs_write;
   bool allow_addons = false;
+  bool allow_inspector = false;
   bool allow_child_process = false;
   bool allow_net = false;
   bool allow_wasi = false;
@@ -153,7 +155,7 @@ class EnvironmentOptions : public Options {
   int64_t heap_snapshot_near_heap_limit = 0;
   std::string heap_snapshot_signal;
   bool network_family_autoselection = true;
-  uint64_t network_family_autoselection_attempt_timeout = 250;
+  uint64_t network_family_autoselection_attempt_timeout = 500;
   uint64_t max_http_header_size = 16 * 1024;
   bool deprecation = true;
   bool force_async_hooks_checks = true;
@@ -183,8 +185,8 @@ class EnvironmentOptions : public Options {
 #endif  // HAVE_INSPECTOR
   std::string redirect_warnings;
   std::string diagnostic_dir;
-  std::string env_file;
-  std::string optional_env_file;
+  std::vector<std::string> env_file;
+  std::vector<std::string> optional_env_file;
   bool has_env_file_string = false;
   bool test_runner = false;
   uint64_t test_runner_concurrency = 0;
@@ -198,6 +200,7 @@ class EnvironmentOptions : public Options {
   bool test_runner_update_snapshots = false;
   std::vector<std::string> test_name_pattern;
   std::vector<std::string> test_reporter;
+  std::string test_rerun_failures_path;
   std::vector<std::string> test_reporter_destination;
   std::string test_global_setup_path;
   bool test_only = false;
@@ -256,7 +259,7 @@ class EnvironmentOptions : public Options {
 
   std::vector<std::string> preload_esm_modules;
 
-  bool experimental_strip_types = true;
+  bool strip_types = true;
   bool experimental_transform_types = false;
 
   std::vector<std::string> user_argv;
@@ -412,7 +415,8 @@ std::vector<std::string> MapAvailableNamespaces();
 // Define all namespace entries
 #define OPTION_NAMESPACE_LIST(V)                                               \
   V(kNoNamespace, "")                                                          \
-  V(kTestRunnerNamespace, "testRunner")
+  V(kTestRunnerNamespace, "testRunner")                                        \
+  V(kWatchNamespace, "watch")
 
 enum class OptionNamespaces {
 #define V(name, _) name,
@@ -648,6 +652,8 @@ class OptionsParser {
       std::string namespace_name);
   friend std::vector<std::string> MapAvailableNamespaces();
   friend void GetEnvOptionsInputType(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  friend void GetOptionsAsFlags(
       const v8::FunctionCallbackInfo<v8::Value>& args);
 };
 

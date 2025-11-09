@@ -42,6 +42,7 @@ Pod::Spec.new do |s|
     'USER_HEADER_SEARCH_PATHS' => '$(inherited) "$(PODS_TARGET_SRCROOT)"',
     'USE_HEADERMAP' => 'NO',
     'ALWAYS_SEARCH_USER_PATHS' => 'NO',
+    'CLANG_CXX_LANGUAGE_STANDARD' => 'c++17',
   }
   s.ios.deployment_target = '12.0'
   s.osx.deployment_target = '10.13'

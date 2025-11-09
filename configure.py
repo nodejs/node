@@ -20,9 +20,9 @@ os.chdir(Path(__file__).parent)
 original_argv = sys.argv[1:]
 
 # gcc and g++ as defaults matches what GYP's Makefile generator does,
-# except on OS X.
-CC = os.environ.get('CC', 'cc' if sys.platform == 'darwin' else 'gcc')
-CXX = os.environ.get('CXX', 'c++' if sys.platform == 'darwin' else 'g++')
+# except on macOS and Windows.
+CC = os.environ.get('CC', 'cc' if sys.platform == 'darwin' else 'clang' if sys.platform == 'win32' else 'gcc')
+CXX = os.environ.get('CXX', 'c++' if sys.platform == 'darwin' else 'clang' if sys.platform == 'win32' else 'g++')
 
 tools_path = Path('tools')
 
@@ -628,6 +628,12 @@ parser.add_argument('--enable-d8',
     default=None,
     help=argparse.SUPPRESS)  # Unsupported, undocumented.
 
+parser.add_argument('--enable-v8windbg',
+    action='store_true',
+    dest='enable_v8windbg',
+    default=None,
+    help=argparse.SUPPRESS)  # Undocumented.
+
 parser.add_argument('--enable-trace-maps',
     action='store_true',
     dest='trace_maps',
@@ -639,6 +645,12 @@ parser.add_argument('--experimental-enable-pointer-compression',
     dest='enable_pointer_compression',
     default=None,
     help='[Experimental] Enable V8 pointer compression (limits max heap to 4GB and breaks ABI compatibility)')
+
+parser.add_argument('--experimental-pointer-compression-shared-cage',
+    action='store_true',
+    dest='pointer_compression_shared_cage',
+    default=None,
+    help='[Experimental] Use V8 pointer compression with shared cage (requires --experimental-enable-pointer-compression)')
 
 parser.add_argument('--v8-options',
     action='store',
@@ -845,12 +857,6 @@ parser.add_argument('--without-siphash',
     help=argparse.SUPPRESS)
 
 # End dummy list.
-
-parser.add_argument('--with-quic',
-    action='store_true',
-    dest='quic',
-    default=None,
-    help='build with QUIC support')
 
 parser.add_argument('--without-ssl',
     action='store_true',
@@ -1113,22 +1119,24 @@ def try_check_compiler(cc, lang):
     proc = subprocess.Popen(shlex.split(cc) + ['-E', '-P', '-x', lang, '-'],
                             stdin=subprocess.PIPE, stdout=subprocess.PIPE)
   except OSError:
-    return (False, False, '', '')
+    return (False, False, '', '', False)
 
   with proc:
     proc.stdin.write(b'__clang__ __GNUC__ __GNUC_MINOR__ __GNUC_PATCHLEVEL__ '
-                     b'__clang_major__ __clang_minor__ __clang_patchlevel__')
+                     b'__clang_major__ __clang_minor__ __clang_patchlevel__ '
+                     b'__APPLE__')
 
     if sys.platform == 'zos':
-      values = (to_utf8(proc.communicate()[0]).split('\n')[-2].split() + ['0'] * 7)[0:7]
+      values = (to_utf8(proc.communicate()[0]).split('\n')[-2].split() + ['0'] * 7)[0:8]
     else:
-      values = (to_utf8(proc.communicate()[0]).split() + ['0'] * 7)[0:7]
+      values = (to_utf8(proc.communicate()[0]).split() + ['0'] * 7)[0:8]
 
   is_clang = values[0] == '1'
   gcc_version = tuple(map(int, values[1:1+3]))
   clang_version = tuple(map(int, values[4:4+3])) if is_clang else None
+  is_apple = values[7] == '1'
 
-  return (True, is_clang, clang_version, gcc_version)
+  return (True, is_clang, clang_version, gcc_version, is_apple)
 
 
 #
@@ -1205,7 +1213,7 @@ def get_gas_version(cc):
   warn(f'Could not recognize `gas`: {gas_ret}')
   return '0.0'
 
-def get_openssl_version():
+def get_openssl_version(o):
   """Parse OpenSSL version from opensslv.h header file.
 
   Returns the version as a number matching OPENSSL_VERSION_NUMBER format:
@@ -1219,6 +1227,9 @@ def get_openssl_version():
       args = ['-I', 'deps/openssl/openssl/include'] + args
     elif options.shared_openssl_includes:
       args = ['-I', options.shared_openssl_includes] + args
+    else:
+      for dir in o['include_dirs']:
+        args = ['-I', dir] + args
 
     proc = subprocess.Popen(
       shlex.split(CC) + args,
@@ -1289,18 +1300,18 @@ def check_compiler(o):
         o['variables']['openssl_no_asm'] = 1
     return
 
-  ok, is_clang, clang_version, gcc_version = try_check_compiler(CXX, 'c++')
+  ok, is_clang, clang_version, gcc_version, is_apple = try_check_compiler(CXX, 'c++')
   o['variables']['clang'] = B(is_clang)
   version_str = ".".join(map(str, clang_version if is_clang else gcc_version))
-  print_verbose(f"Detected {'clang ' if is_clang else ''}C++ compiler (CXX={CXX}) version: {version_str}")
+  print_verbose(f"Detected {'Apple ' if is_apple else ''}{'clang ' if is_clang else ''}C++ compiler (CXX={CXX}) version: {version_str}")
   if not ok:
     warn(f'failed to autodetect C++ compiler version (CXX={CXX})')
-  elif clang_version < (19, 1, 0) if is_clang else gcc_version < (12, 2, 0):
-    warn(f'C++ compiler (CXX={CXX}, {version_str}) too old, need g++ 12.2.0 or clang++ 19.1.0')
+  elif ((is_apple and clang_version < (17, 0, 0)) or (not is_apple and clang_version < (19, 1, 0))) if is_clang else gcc_version < (12, 2, 0):
+    warn(f"C++ compiler (CXX={CXX}, {version_str}) too old, need g++ 12.2.0 or clang++ 19.1.0{' or Apple clang++ 17.0.0' if is_apple else ''}")
 
-  ok, is_clang, clang_version, gcc_version = try_check_compiler(CC, 'c')
+  ok, is_clang, clang_version, gcc_version, is_apple = try_check_compiler(CC, 'c')
   version_str = ".".join(map(str, clang_version if is_clang else gcc_version))
-  print_verbose(f"Detected {'clang ' if is_clang else ''}C compiler (CC={CC}) version: {version_str}")
+  print_verbose(f"Detected {'Apple ' if is_apple else ''}{'clang ' if is_clang else ''}C compiler (CC={CC}) version: {version_str}")
   if not ok:
     warn(f'failed to autodetect C compiler version (CC={CC})')
   elif not is_clang and gcc_version < (4, 2, 0):
@@ -1478,7 +1489,7 @@ def configure_zos(o):
 
 def clang_version_ge(version_checked):
   for compiler in [(CC, 'c'), (CXX, 'c++')]:
-    _, is_clang, clang_version, _1 = (
+    _, is_clang, clang_version, _1, _2 = (
       try_check_compiler(compiler[0], compiler[1])
     )
     if is_clang and clang_version >= version_checked:
@@ -1487,7 +1498,7 @@ def clang_version_ge(version_checked):
 
 def gcc_version_ge(version_checked):
   for compiler in [(CC, 'c'), (CXX, 'c++')]:
-    _, is_clang, _1, gcc_version = (
+    _, is_clang, _1, gcc_version, _2 = (
       try_check_compiler(compiler[0], compiler[1])
     )
     if is_clang or gcc_version < version_checked:
@@ -1784,7 +1795,10 @@ def configure_v8(o, configs):
   # Note that enabling pointer compression without enabling sandbox is unsupported by V8,
   # so this can be broken at any time.
   o['variables']['v8_enable_sandbox'] = 0
-  o['variables']['v8_enable_pointer_compression_shared_cage'] = 1 if options.enable_pointer_compression else 0
+  # We set v8_enable_pointer_compression_shared_cage to 0 always, even when
+  # pointer compression is enabled so that we don't accidentally enable shared
+  # cage mode when pointer compression is on.
+  o['variables']['v8_enable_pointer_compression_shared_cage'] = 1 if options.pointer_compression_shared_cage else 0
   o['variables']['v8_enable_external_code_space'] = 1 if options.enable_pointer_compression else 0
   o['variables']['v8_enable_31bit_smis_on_64bit_arch'] = 1 if options.enable_pointer_compression else 0
   o['variables']['v8_enable_extensible_ro_snapshot'] = 0
@@ -1793,10 +1807,13 @@ def configure_v8(o, configs):
   o['variables']['node_use_bundled_v8'] = b(not options.without_bundled_v8)
   o['variables']['force_dynamic_crt'] = 1 if options.shared else 0
   o['variables']['node_enable_d8'] = b(options.enable_d8)
+  o['variables']['node_enable_v8windbg'] = b(options.enable_v8windbg)
   if options.enable_d8:
     o['variables']['test_isolation_mode'] = 'noop'  # Needed by d8.gyp.
   if options.without_bundled_v8 and options.enable_d8:
     raise Exception('--enable-d8 is incompatible with --without-bundled-v8.')
+  if options.without_bundled_v8 and options.enable_v8windbg:
+    raise Exception('--enable-v8windbg is incompatible with --without-bundled-v8.')
   if options.static_zoslib_gyp:
     o['variables']['static_zoslib_gyp'] = options.static_zoslib_gyp
   if flavor != 'linux' and options.v8_enable_hugepage:
@@ -1821,7 +1838,6 @@ def configure_openssl(o):
   variables['node_shared_ngtcp2'] = b(options.shared_ngtcp2)
   variables['node_shared_nghttp3'] = b(options.shared_nghttp3)
   variables['openssl_is_fips'] = b(options.openssl_is_fips)
-  variables['node_quic'] = b(options.quic)
   variables['node_fipsinstall'] = b(False)
 
   if options.openssl_no_asm:
@@ -1883,13 +1899,9 @@ def configure_openssl(o):
   if options.openssl_is_fips and not options.shared_openssl:
     variables['node_fipsinstall'] = b(True)
 
-  variables['openssl_quic'] = b(options.quic)
-  if options.quic:
-    o['defines'] += ['NODE_OPENSSL_HAS_QUIC']
-
-  o['variables']['openssl_version'] = get_openssl_version()
-
   configure_library('openssl', o)
+
+  o['variables']['openssl_version'] = get_openssl_version(o)
 
 def configure_sqlite(o):
   o['variables']['node_use_sqlite'] = b(not options.without_sqlite)

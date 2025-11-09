@@ -1,7 +1,6 @@
 #pragma once
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
-#if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
 
 #include <base_object.h>
 #include <crypto/crypto_context.h>
@@ -9,6 +8,7 @@
 #include <memory_tracker.h>
 #include <ncrypto.h>
 #include <ngtcp2/ngtcp2_crypto.h>
+#include <ngtcp2/ngtcp2_crypto_ossl.h>
 #include "bindingdata.h"
 #include "data.h"
 #include "defs.h"
@@ -19,6 +19,53 @@ namespace node::quic {
 class Session;
 class TLSContext;
 
+#if OPENSSL_IS_BORING
+static_assert(false,
+              "This implementation of tlscontext relies on OpenSSL APIS "
+              "that are not available in BoringSSL. An alternative impl "
+              "using the equivalent BoringSSL APIs is possible but not "
+              "yet implemented.");
+#endif
+
+// The OSSLContext is a wrapper around the ngtcp2_crypto_ossl_ctx that
+// holds the state for the OpenSSL TLS session. The ngtcp2_crypto_ossl_ctx
+// is required by ngtcp2's adapter for OpenSSL.
+class OSSLContext final {
+ public:
+  OSSLContext();
+  ~OSSLContext();
+  DISALLOW_COPY_AND_MOVE(OSSLContext)
+
+  operator SSL*() const;
+  operator ngtcp2_crypto_ossl_ctx*() const;
+
+  void Initialize(SSL* ssl,
+                  ngtcp2_crypto_conn_ref* ref,
+                  ngtcp2_conn* connection,
+                  SSL_CTX* ssl_ctx);
+
+  std::string get_cipher_name() const;
+  std::string get_selected_alpn() const;
+  std::string_view get_negotiated_group() const;
+
+  bool set_alpn_protocols(std::string_view protocols) const;
+  bool set_hostname(std::string_view hostname) const;
+  bool set_early_data_enabled() const;
+  bool set_transport_params(const ngtcp2_vec& tp) const;
+
+  bool get_early_data_accepted() const;
+
+  bool ConfigureServer() const;
+  bool ConfigureClient() const;
+
+  void reset();
+  inline operator bool() const { return ctx_ != nullptr; }
+
+ private:
+  ngtcp2_crypto_ossl_ctx* ctx_;
+  ngtcp2_conn* connection_ = nullptr;
+};
+
 // Every QUIC Session has exactly one TLSSession that maintains the state
 // of the TLS handshake and negotiated keys after the handshake has been
 // completed. It is separated out from the main Session class only as a
@@ -27,6 +74,15 @@ class TLSContext;
 // the context.
 class TLSSession final : public MemoryRetainer {
  public:
+  // TODO(@jasnell): In order to support using QUIC with host embedders
+  // like Electron, we need to abstract the TLSContext and TLSSession
+  // more so that they can use either the OpenSSL 3.5 or BoringSSL APIs.
+  // This can be done by creatig an internal TLSSession::Impl and
+  // TLSContext::Impl abstractions that can be implemented using either
+  // of the two APIs, keeping the TLSSession and TLSContext APIs the same
+  // for each.
+
+  // Gets the TLSSession from the SSL pointer app data.
   static const TLSSession& From(const SSL* ssl);
 
   // The constructor is public in order to satisfy the call to std::make_unique
@@ -35,9 +91,8 @@ class TLSSession final : public MemoryRetainer {
              std::shared_ptr<TLSContext> context,
              const std::optional<SessionTicket>& maybeSessionTicket);
   DISALLOW_COPY_AND_MOVE(TLSSession)
-  ~TLSSession();
 
-  inline operator bool() const { return ssl_ != nullptr; }
+  inline operator bool() const { return ossl_context_; }
   inline Session& session() const { return *session_; }
   inline TLSContext& context() const { return *context_; }
 
@@ -56,7 +111,7 @@ class TLSSession final : public MemoryRetainer {
   const std::string_view servername() const;
 
   // The ALPN (protocol name) negotiated for the session
-  const std::string_view protocol() const;
+  const std::string protocol() const;
 
   // Triggers key update to begin. This will fail and return false if either a
   // previous key update is in progress or if the initial handshake has not yet
@@ -71,29 +126,28 @@ class TLSSession final : public MemoryRetainer {
   // Checks the peer identity against the configured CA and CRL. If the peer
   // certificate is valid, std::nullopt is returned. Otherwise a
   // PeerIdentityValidationError is returned with the reason and code for the
-  // failure.
+  // failure. If there was an error setting the reason or code, the fields
+  // will be empty but the PeerIdentityValidationError will still be returned.
+  // This is an indication that an exception has been scheduled by v8.
   std::optional<PeerIdentityValidationError> VerifyPeerIdentity(
       Environment* env);
 
-  inline const std::string_view validation_error() const {
-    return validation_error_;
-  }
+  inline std::string_view validation_error() const { return validation_error_; }
 
-  SET_NO_MEMORY_INFO()
+  void MemoryInfo(MemoryTracker* tracker) const override;
   SET_MEMORY_INFO_NAME(TLSSession)
   SET_SELF_SIZE(TLSSession)
 
  private:
   operator SSL*() const;
-  ncrypto::SSLPointer Initialize(
-      const std::optional<SessionTicket>& maybeSessionTicket);
+  void Initialize(const std::optional<SessionTicket>& maybeSessionTicket);
 
   static ngtcp2_conn* connection(ngtcp2_crypto_conn_ref* ref);
 
   ngtcp2_crypto_conn_ref ref_;
   std::shared_ptr<TLSContext> context_;
+  OSSLContext ossl_context_;
   Session* session_;
-  ncrypto::SSLPointer ssl_;
   ncrypto::BIOPointer bio_trace_;
   std::string validation_error_ = "";
   bool in_key_update_ = false;
@@ -189,6 +243,7 @@ class TLSContext final : public MemoryRetainer,
   inline Side side() const { return side_; }
   inline const Options& options() const { return options_; }
   inline operator bool() const { return ctx_ != nullptr; }
+  inline operator const ncrypto::SSLCtxPointer&() const { return ctx_; }
 
   inline const std::string_view validation_error() const {
     return validation_error_;
@@ -224,5 +279,4 @@ class TLSContext final : public MemoryRetainer,
 
 }  // namespace node::quic
 
-#endif  // HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS

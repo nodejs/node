@@ -331,8 +331,8 @@ MaybeHandle<JSObject> InstantiateObject(Isolate* isolate,
   const auto new_js_object_type =
       constructor->has_initial_map() &&
               IsJSApiWrapperObjectMap(constructor->initial_map())
-          ? NewJSObjectType::kAPIWrapper
-          : NewJSObjectType::kNoAPIWrapper;
+          ? NewJSObjectType::kMaybeEmbedderFieldsAndApiWrapper
+          : NewJSObjectType::kMaybeEmbedderFieldsAndNoApiWrapper;
   Handle<JSObject> object;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, object,
@@ -497,27 +497,26 @@ MaybeHandle<JSFunction> ApiNatives::InstantiateFunction(
     DirectHandle<FunctionTemplateInfo> data,
     MaybeDirectHandle<Name> maybe_name) {
   InvokeScope invoke_scope(isolate);
-  return ::v8::internal::InstantiateFunction(isolate, native_context, data,
-                                             maybe_name);
+  return ::i::InstantiateFunction(isolate, native_context, data, maybe_name);
 }
 
 MaybeHandle<JSFunction> ApiNatives::InstantiateFunction(
     Isolate* isolate, DirectHandle<FunctionTemplateInfo> data,
     MaybeDirectHandle<Name> maybe_name) {
   InvokeScope invoke_scope(isolate);
-  return ::v8::internal::InstantiateFunction(isolate, data, maybe_name);
+  return ::i::InstantiateFunction(isolate, data, maybe_name);
 }
 
 MaybeHandle<JSObject> ApiNatives::InstantiateObject(
     Isolate* isolate, DirectHandle<ObjectTemplateInfo> data,
     DirectHandle<JSReceiver> new_target) {
   InvokeScope invoke_scope(isolate);
-  return ::v8::internal::InstantiateObject(isolate, data, new_target, false);
+  return ::i::InstantiateObject(isolate, data, new_target, false);
 }
 
 MaybeHandle<JSObject> ApiNatives::InstantiateRemoteObject(
     DirectHandle<ObjectTemplateInfo> data) {
-  Isolate* isolate = data->GetIsolate();
+  Isolate* isolate = Isolate::Current();
   InvokeScope invoke_scope(isolate);
 
   DirectHandle<FunctionTemplateInfo> constructor(
@@ -533,7 +532,7 @@ MaybeHandle<JSObject> ApiNatives::InstantiateRemoteObject(
 
   Handle<JSObject> object = isolate->factory()->NewJSObjectFromMap(
       object_map, AllocationType::kYoung, DirectHandle<AllocationSite>::null(),
-      NewJSObjectType::kAPIWrapper);
+      NewJSObjectType::kMaybeEmbedderFieldsAndApiWrapper);
   JSObject::ForceSetPrototype(isolate, object,
                               isolate->factory()->null_value());
 

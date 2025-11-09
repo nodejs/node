@@ -125,23 +125,10 @@ TF_BUILTIN(WasmFloat64ToNumber, WasmBuiltinsAssembler) {
 
 TF_BUILTIN(WasmFloat64ToString, WasmBuiltinsAssembler) {
   TNode<Float64T> val = UncheckedParameter<Float64T>(Descriptor::kValue);
-  // Having to allocate a HeapNumber is a bit unfortunate, but the subsequent
-  // runtime call will have to allocate a string anyway, which probably
-  // dwarfs the cost of one more small allocation here.
-  TNode<Number> tagged = ChangeFloat64ToTagged(val);
-  Return(NumberToString(tagged));
+  Return(Float64ToString(val));
 }
 
 TF_BUILTIN(JSToWasmLazyDeoptContinuation, WasmBuiltinsAssembler) {
-  // Reset thread_in_wasm_flag.
-  TNode<ExternalReference> thread_in_wasm_flag_address_address =
-      ExternalConstant(
-          ExternalReference::thread_in_wasm_flag_address_address(isolate()));
-  auto thread_in_wasm_flag_address =
-      Load<RawPtrT>(thread_in_wasm_flag_address_address);
-  StoreNoWriteBarrier(MachineRepresentation::kWord32,
-                      thread_in_wasm_flag_address, Int32Constant(0));
-
   // Return the argument.
   auto value = Parameter<Object>(Descriptor::kArgument);
   Return(value);
@@ -162,6 +149,79 @@ TF_BUILTIN(WasmToJsWrapperInvalidSig, WasmBuiltinsAssembler) {
 
   CallRuntime(Runtime::kWasmThrowJSTypeError, context);
   Unreachable();
+}
+
+// Suppose we wanted to generate JavaScript constructor functions that wrap
+// exported Wasm functions as follows:
+//
+//   function MakeConstructor(wasm_instance, name) {
+//     let wasm_func = wasm_instance.exports[name];
+//     return function(...args) {
+//       return wasm_func(...args);
+//     }
+//   }
+//   let Foo = MakeConstructor(...);
+//   let foo = new Foo(1, 2, 3);
+//
+// This builtin models the code that these functions would have: it fetches the
+// target Wasm function from a Context slot and tail-calls to it with the
+// existing arguments on the stack. So when mass-creating such constructors,
+// we don't need to compile any bytecode, we only need to allocate an
+// appropriate Context and use this builtin as the code.
+TF_BUILTIN(WasmConstructorWrapper, WasmBuiltinsAssembler) {
+  auto argc = UncheckedParameter<Int32T>(Descriptor::kJSActualArgumentsCount);
+  TNode<Context> context = Parameter<Context>(Descriptor::kContext);
+  static constexpr int kSlot = wasm::kConstructorFunctionContextSlot;
+  TNode<JSFunction> target = CAST(LoadContextElementNoCell(context, kSlot));
+  TailCallBuiltin(Builtin::kCallFunction_ReceiverIsNullOrUndefined, context,
+                  target, argc);
+}
+
+// Similar, but for exported Wasm functions that can be called as methods,
+// i.e. that pass their JS-side receiver as their Wasm-side first parameter.
+// To wrap a Wasm function like the following:
+//
+//   (func (export "bar") (param $recv externref) (param $other ...)
+//     (do-something-with $recv)
+//   )
+//
+// we create wrappers here that behave as if they were created by this
+// JS snippet:
+//
+//   function MakeMethod(wasm_instance, name) {
+//     let wasm_func = wasm_instance.exports[name];
+//     return function(...args) {
+//       return wasm_func(this, ...args);
+//     }
+//   }
+//   Foo.prototype.bar = MakeMethod(..., "bar");
+//
+// So that when called like this:
+//
+//   let foo = new Foo();
+//   foo.bar("other");
+//
+// the Wasm function receives {foo} as $recv and "other" as $other.
+TF_BUILTIN(WasmMethodWrapper, WasmBuiltinsAssembler) {
+  auto argc = UncheckedParameter<Int32T>(Descriptor::kJSActualArgumentsCount);
+  CodeStubArguments args(this, argc);
+  TNode<Context> context = Parameter<Context>(Descriptor::kContext);
+  static constexpr int kSlot = wasm::kMethodWrapperContextSlot;
+  TNode<JSFunction> target = CAST(LoadContextElementNoCell(context, kSlot));
+  TNode<Int32T> start_index = Int32Constant(0);
+  TNode<Object> receiver = args.GetReceiver();
+  // We push the receiver twice: once into the usual receiver slot, where
+  // the Wasm function callee ignores it; once more as the first parameter.
+  TNode<Int32T> already_on_stack = Int32Constant(2);
+  TNode<Object> result =
+      CallBuiltin(Builtin::kCallFunctionForwardVarargs, context, target,
+                  already_on_stack, start_index, receiver, receiver);
+  args.PopAndReturn(CAST(result));
+}
+
+TNode<BoolT> WasmBuiltinsAssembler::InSharedSpace(TNode<HeapObject> object) {
+  TNode<IntPtrT> address = BitcastTaggedToWord(object);
+  return IsPageFlagSet(address, MemoryChunk::kInSharedHeap);
 }
 
 #include "src/codegen/undef-code-stub-assembler-macros.inc"

@@ -1,29 +1,21 @@
 'use strict';
 
 const common = require('../common');
-const ArrayStream = require('../common/arraystream');
 const assert = require('assert');
-const repl = require('repl');
+const { startNewREPLServer } = require('../common/repl');
 
 common.skipIfInspectorDisabled();
 
-const inputStream = new ArrayStream();
-const outputStream = new ArrayStream();
-repl.start({
-  input: inputStream,
-  output: outputStream,
-  useGlobal: false,
-  terminal: true,
-  useColors: true
-});
+const { input, output } = startNewREPLServer(
+  { useColors: true }, { disableDomainErrorAssert: true }
+);
 
-let output = '';
-outputStream.write = (chunk) => output += chunk;
+output.accumulator = '';
 
 for (const char of ['\\n', '\\v', '\\r']) {
-  inputStream.emit('data', `"${char}"()`);
+  input.emit('data', `"${char}"()`);
   // Make sure the output is on a single line
-  assert.strictEqual(output, `"${char}"()\n\x1B[90mTypeError: "\x1B[39m\x1B[9G\x1B[1A`);
-  inputStream.run(['']);
-  output = '';
+  assert.strictEqual(output.accumulator, `"${char}"()\n\x1B[90mTypeError: "\x1B[39m\x1B[7G\x1B[1A`);
+  input.run(['']);
+  output.accumulator = '';
 }

@@ -24,6 +24,7 @@
 #include "src/compiler/turboshaft/graph.h"
 #include "src/compiler/turboshaft/sidetable.h"
 #include "src/compiler/turboshaft/zone-with-name.h"
+#include "src/interpreter/interpreter.h"
 #include "src/logging/runtime-call-stats.h"
 #include "src/zone/accounting-allocator.h"
 #include "src/zone/zone.h"
@@ -118,10 +119,11 @@ struct ComponentWithZone {
 
 struct BuiltinComponent {
   const CallDescriptor* call_descriptor;
-  std::optional<BytecodeHandlerData> bytecode_handler_data;
+  std::optional<interpreter::BytecodeHandlerData> bytecode_handler_data;
 
-  BuiltinComponent(const CallDescriptor* call_descriptor,
-                   std::optional<BytecodeHandlerData> bytecode_handler_data)
+  BuiltinComponent(
+      const CallDescriptor* call_descriptor,
+      std::optional<interpreter::BytecodeHandlerData> bytecode_handler_data)
       : call_descriptor(call_descriptor),
         bytecode_handler_data(std::move(bytecode_handler_data)) {}
 };
@@ -215,7 +217,8 @@ class V8_EXPORT_PRIVATE PipelineData {
 
   void InitializeBuiltinComponent(
       const CallDescriptor* call_descriptor,
-      std::optional<BytecodeHandlerData> bytecode_handler_data = {}) {
+      std::optional<interpreter::BytecodeHandlerData> bytecode_handler_data =
+          {}) {
     DCHECK(!builtin_component_.has_value());
     builtin_component_.emplace(call_descriptor,
                                std::move(bytecode_handler_data));
@@ -341,7 +344,7 @@ class V8_EXPORT_PRIVATE PipelineData {
     DCHECK(builtin_component_.has_value());
     return builtin_component_->call_descriptor;
   }
-  std::optional<BytecodeHandlerData>& bytecode_handler_data() {
+  std::optional<interpreter::BytecodeHandlerData>& bytecode_handler_data() {
     DCHECK(builtin_component_.has_value());
     return builtin_component_->bytecode_handler_data;
   }
@@ -459,6 +462,25 @@ class V8_EXPORT_PRIVATE PipelineData {
   }
 
   void clear_wasm_shuffle_analyzer() { wasm_shuffle_analyzer_ = nullptr; }
+
+  bool has_wasm_type_cast_rtt_in_loop() const {
+    // If this DCHECK fails, then you may need to check that the
+    // WasmLoopTypeCastRttPreFinder reducer has indeed run, and that nothing
+    // cleared has_wasm_type_cast_rtt_in_loop_ since then.
+    DCHECK(has_wasm_type_cast_rtt_in_loop_.has_value());
+    return has_wasm_type_cast_rtt_in_loop_.value();
+  }
+  void set_has_wasm_type_cast_rtt_in_loop() {
+    DCHECK(has_wasm_type_cast_rtt_in_loop_.has_value());
+    has_wasm_type_cast_rtt_in_loop_ = true;
+  }
+  void initialize_has_wasm_type_cast_rtt_in_loop() {
+    DCHECK(!has_wasm_type_cast_rtt_in_loop_.has_value());
+    has_wasm_type_cast_rtt_in_loop_ = false;
+  }
+  void reset_has_wasm_type_cast_rtt_in_loop() {
+    has_wasm_type_cast_rtt_in_loop_.reset();
+  }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   bool is_wasm() const {
@@ -536,6 +558,7 @@ class V8_EXPORT_PRIVATE PipelineData {
   const wasm::WasmModule* wasm_module_ = nullptr;
   bool wasm_shared_ = false;
   WasmShuffleAnalyzer* wasm_shuffle_analyzer_ = nullptr;
+  std::optional<bool> has_wasm_type_cast_rtt_in_loop_ = std::nullopt;
 #ifdef V8_ENABLE_WASM_SIMD256_REVEC
 
   WasmRevecAnalyzer* wasm_revec_analyzer_ = nullptr;

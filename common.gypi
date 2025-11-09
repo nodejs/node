@@ -38,7 +38,7 @@
 
     # Reset this number to 0 on major V8 upgrades.
     # Increment by one for each non-official patch applied to deps/v8.
-    'v8_embedder_string': '-node.17',
+    'v8_embedder_string': '-node.10',
 
     ##### V8 defaults for Node.js #####
 
@@ -83,7 +83,6 @@
     'v8_enable_external_code_space%': 0,
     'v8_enable_sandbox%': 0,
     'v8_enable_v8_checks%': 0,
-    'v8_enable_zone_compression%': 0,
     'v8_use_perfetto': 0,
     'tsan%': 0,
 
@@ -444,17 +443,14 @@
       ['v8_enable_pointer_compression == 1', {
         'defines': ['V8_COMPRESS_POINTERS'],
       }],
+      ['v8_enable_pointer_compression == 1 and v8_enable_pointer_compression_shared_cage != 1', {
+        'defines': ['V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES'],
+      }],
       ['v8_enable_pointer_compression_shared_cage == 1', {
         'defines': ['V8_COMPRESS_POINTERS_IN_SHARED_CAGE'],
       }],
-      ['v8_enable_pointer_compression == 1 and v8_enable_pointer_compression_shared_cage != 1', {
-        'defines': ['V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE'],
-      }],
       ['v8_enable_pointer_compression == 1 or v8_enable_31bit_smis_on_64bit_arch == 1', {
         'defines': ['V8_31BIT_SMIS_ON_64BIT_ARCH'],
-      }],
-      ['v8_enable_zone_compression == 1', {
-        'defines': ['V8_COMPRESS_ZONES',],
       }],
       ['v8_enable_sandbox == 1', {
         'defines': ['V8_ENABLE_SANDBOX',],
@@ -530,7 +526,12 @@
                 'ldflags': [ '-m64' ],
               }],
               [ 'host_arch=="ppc64" and OS not in "aix os400"', {
-                'cflags': [ '-m64', '-mminimal-toc' ],
+                'conditions': [
+                  [ 'clang==0', {
+                    'cflags': [ '-mminimal-toc' ],
+                  }],
+                ],
+                'cflags': [ '-m64' ],
                 'ldflags': [ '-m64' ],
               }],
               [ 'host_arch=="s390x" and OS=="linux"', {
@@ -550,7 +551,12 @@
                 'ldflags': [ '-m64' ],
               }],
               [ 'target_arch=="ppc64" and OS not in "aix os400"', {
-                'cflags': [ '-m64', '-mminimal-toc' ],
+                'conditions': [
+                  [ 'clang==0', {
+                    'cflags': [ '-mminimal-toc' ],
+                  }],
+                ],
+                'cflags': [ '-m64' ],
                 'ldflags': [ '-m64' ],
               }],
               [ 'target_arch=="s390x" and OS=="linux"', {

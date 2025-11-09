@@ -138,7 +138,7 @@ RuntimeCallStats::RuntimeCallStats(ThreadType thread_type)
 #define CALL_RUNTIME_COUNTER(name) #name,
       FOR_EACH_MANUAL_COUNTER(CALL_RUNTIME_COUNTER)  //
 #undef CALL_RUNTIME_COUNTER
-#define CALL_RUNTIME_COUNTER(name, nargs, ressize) #name,
+#define CALL_RUNTIME_COUNTER(name, nargs, ressize, ...) #name,
       FOR_EACH_INTRINSIC(CALL_RUNTIME_COUNTER)  //
 #undef CALL_RUNTIME_COUNTER
 #define CALL_BUILTIN_COUNTER(name, Argc) #name,
@@ -302,8 +302,6 @@ base::Thread::LocalStorageKey WorkerThreadRuntimeCallStats::GetKey() {
 }
 
 RuntimeCallStats* WorkerThreadRuntimeCallStats::NewTable() {
-  // Never create a new worker table on the isolate's main thread.
-  DCHECK_NE(ThreadId::Current(), isolate_thread_id_);
   std::unique_ptr<RuntimeCallStats> new_table =
       std::make_unique<RuntimeCallStats>(RuntimeCallStats::kWorkerThread);
   RuntimeCallStats* result = new_table.get();

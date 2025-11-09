@@ -242,7 +242,8 @@ static int ch_init(QUIC_CHANNEL *ch)
         goto err;
 
     if ((ch->ackm = ossl_ackm_new(get_time, ch, &ch->statm,
-                                  ch->cc_method, ch->cc_data)) == NULL)
+                                  ch->cc_method, ch->cc_data,
+                                  ch->is_server)) == NULL)
         goto err;
 
     if (!ossl_quic_stream_map_init(&ch->qsm, get_stream_limit, ch,
@@ -1330,8 +1331,20 @@ static int ch_on_transport_params(const unsigned char *params,
     ossl_unused uint64_t rx_max_idle_timeout = 0;
     ossl_unused const void *stateless_reset_token_p = NULL;
     QUIC_PREFERRED_ADDR pfa;
+    SSL_CONNECTION *sc = SSL_CONNECTION_FROM_SSL(ch->tls);
 
-    if (ch->got_remote_transport_params) {
+    /*
+     * When HRR happens the client sends the transport params in the new client
+     * hello again. Reset the transport params here and load them again.
+     */
+    if (ch->is_server && sc->hello_retry_request != SSL_HRR_NONE
+        && ch->got_remote_transport_params) {
+        ch->max_local_streams_bidi = 0;
+        ch->max_local_streams_uni = 0;
+        ch->got_local_transport_params = 0;
+        OPENSSL_free(ch->local_transport_params);
+        ch->local_transport_params = NULL;
+    } else if (ch->got_remote_transport_params) {
         reason = "multiple transport parameter extensions";
         goto malformed;
     }
@@ -2422,7 +2435,6 @@ static void ch_rx_handle_packet(QUIC_CHANNEL *ch, int channel_only)
             if (!PACKET_get_net_4(&vpkt, &supported_ver))
                 return;
 
-            supported_ver = ntohl(supported_ver);
             if (supported_ver == QUIC_VERSION_1) {
                 /*
                  * If the server supports version 1, set it as

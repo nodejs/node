@@ -69,7 +69,6 @@ declare namespace MockInterceptor {
     headers?: Headers | Record<string, string>;
     origin?: string;
     body?: BodyInit | Dispatcher.DispatchOptions['body'] | null;
-    maxRedirections?: number;
   }
 
   export type MockResponseDataHandler<TData extends object = object> = (

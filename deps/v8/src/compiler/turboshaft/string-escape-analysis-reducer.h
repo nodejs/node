@@ -56,8 +56,7 @@ class StringEscapeAnalyzer {
   void ProcessFrameState(V<FrameState> index, const FrameStateOp& framestate);
   void MarkNextFrameStateInputAsEscaping(FrameStateData::Iterator* it);
   void MarkAllInputsAsEscaping(const Operation& op);
-  void RecursivelyMarkAllStringConcatInputsAsEscaping(
-      const StringConcatOp* concat);
+  void RecursivelyMarkAllStringConcatInputsAsEscaping(const Operation* concat);
   void ReprocessStringConcats();
   void ComputeFrameStatesToReconstruct();
 
@@ -176,6 +175,21 @@ class StringEscapeAnalysisReducer : public Next {
     return V<String>::Invalid();
   }
 
+  V<String> REDUCE_INPUT_GRAPH(NewConsString)(V<String> ig_index,
+                                              const NewConsStringOp& op) {
+    LABEL_BLOCK(no_change) {
+      return Next::ReduceInputGraphNewConsString(ig_index, op);
+    }
+    if (!v8_flags.turboshaft_string_concat_escape_analysis) goto no_change;
+    if (analyzer_.IsEscaping(ig_index)) goto no_change;
+
+    // We're eliding this NewConsString.
+    ElidedStringPart left = GetElidedStringInput(op.first());
+    ElidedStringPart right = GetElidedStringInput(op.second());
+    elided_strings_.insert({ig_index, std::pair{left, right}});
+    return V<String>::Invalid();
+  }
+
   V<FrameState> REDUCE_INPUT_GRAPH(FrameState)(
       V<FrameState> ig_index, const FrameStateOp& frame_state) {
     LABEL_BLOCK(no_change) {
@@ -196,11 +210,18 @@ class StringEscapeAnalysisReducer : public Next {
     if (!v8_flags.turboshaft_string_concat_escape_analysis) goto no_change;
 
     V<String> input_index = op.string();
-    if (const StringConcatOp* input = __ input_graph()
-                                          .Get(input_index)
-                                          .template TryCast<StringConcatOp>();
-        input && !analyzer_.IsEscaping(input_index)) {
-      return __ UntagSmi(__ MapToNewGraph(input->length()));
+    if (const StringConcatOp* string_concat_input =
+            __ input_graph()
+                .Get(input_index)
+                .template TryCast<StringConcatOp>();
+        string_concat_input && !analyzer_.IsEscaping(input_index)) {
+      return __ UntagSmi(__ MapToNewGraph(string_concat_input->length()));
+    } else if (const NewConsStringOp* new_cons_string_input =
+                   __ input_graph()
+                       .Get(input_index)
+                       .template TryCast<NewConsStringOp>();
+               new_cons_string_input && !analyzer_.IsEscaping(input_index)) {
+      return __ MapToNewGraph(new_cons_string_input->length());
     } else {
       goto no_change;
     }

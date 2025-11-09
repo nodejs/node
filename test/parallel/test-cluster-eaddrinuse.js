@@ -49,13 +49,13 @@ if (id === 'undefined') {
   server.on('error', common.mustCall(function(e) {
     assert(e.code, 'EADDRINUSE');
     process.send('stop-listening');
-    process.once('message', function(msg) {
+    process.once('message', common.mustCall((msg) => {
       if (msg !== 'stopped-listening') return;
       server = net.createServer(common.mustNotCall());
       server.listen(port, common.mustCall(function() {
         server.close();
       }));
-    });
+    }));
   }));
 } else {
   assert(0);  // Bad argument.

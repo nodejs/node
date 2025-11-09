@@ -45,6 +45,9 @@
             }
           ]
         },
+        "allow-inspector": {
+          "type": "boolean"
+        },
         "allow-net": {
           "type": "boolean"
         },
@@ -159,6 +162,9 @@
         "experimental-print-required-tla": {
           "type": "boolean"
         },
+        "experimental-quic": {
+          "type": "boolean"
+        },
         "experimental-repl-await": {
           "type": "boolean"
         },
@@ -171,9 +177,6 @@
         "experimental-sqlite": {
           "type": "boolean"
         },
-        "experimental-strip-types": {
-          "type": "boolean"
-        },
         "experimental-transform-types": {
           "type": "boolean"
         },
@@ -181,9 +184,6 @@
           "type": "boolean"
         },
         "experimental-websocket": {
-          "type": "boolean"
-        },
-        "experimental-webstorage": {
           "type": "boolean"
         },
         "extra-info-on-fatal-exception": {
@@ -358,6 +358,9 @@
         "stack-trace-limit": {
           "type": "number"
         },
+        "strip-types": {
+          "type": "boolean"
+        },
         "test-coverage-branches": {
           "type": "number"
         },
@@ -445,6 +448,9 @@
               "type": "array"
             }
           ]
+        },
+        "test-rerun-failures": {
+          "type": "string"
         },
         "test-shard": {
           "type": "string"
@@ -588,6 +594,9 @@
         "watch-preserve-output": {
           "type": "boolean"
         },
+        "webstorage": {
+          "type": "boolean"
+        },
         "zero-fill-buffers": {
           "type": "boolean"
         }
@@ -698,6 +707,9 @@
             }
           ]
         },
+        "test-rerun-failures": {
+          "type": "string"
+        },
         "test-shard": {
           "type": "string"
         },
@@ -719,6 +731,35 @@
           "type": "number"
         },
         "test-update-snapshots": {
+          "type": "boolean"
+        }
+      }
+    },
+    "watch": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "watch": {
+          "type": "boolean"
+        },
+        "watch-kill-signal": {
+          "type": "string"
+        },
+        "watch-path": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string",
+                "minItems": 1
+              },
+              "type": "array"
+            }
+          ]
+        },
+        "watch-preserve-output": {
           "type": "boolean"
         }
       }

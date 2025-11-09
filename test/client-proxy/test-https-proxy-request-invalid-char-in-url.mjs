@@ -21,9 +21,10 @@ const server = https.createServer({
   cert: fixtures.readKey('agent8-cert.pem'),
   key: fixtures.readKey('agent8-key.pem'),
 }, (req, res) => {
+  console.log(`[Upstream server] responding to request for ${inspect(req.url)}`);
   requests.add(`https://localhost:${server.address().port}${req.url}`);
   res.writeHead(200, { 'Content-Type': 'text/plain' });
-  res.end(`Response for ${req.url}`);
+  res.end(`Response for ${inspect(req.url)}`);
 });
 
 server.listen(0);
@@ -54,7 +55,7 @@ https.globalAgent = new https.Agent({
 
 const severHost = `localhost:${server.address().port}`;
 
-let counter = testCases.length;
+let counter = 0;
 const expectedUrls = new Set();
 const expectedProxyLogs = new Set();
 for (const testCase of testCases) {
@@ -66,19 +67,36 @@ for (const testCase of testCases) {
     url: severHost,
     headers: { host: severHost },
   });
-  https.request(url, (res) => {
+  https.request(url, common.mustCall((res) => {
     res.on('error', common.mustNotCall());
     res.setEncoding('utf8');
-    res.on('data', () => {});
-    res.on('end', common.mustCall(() => {
-      console.log(`#${counter--} eneded response for: ${inspect(url)}`);
+    res.on('data', (data) => {
+      console.log(`[Proxy client] Received response from server for ${inspect(url)}: ${data.toString()}`);
+    });
+    res.on('close', common.mustCall(() => {
+      console.log(`[Proxy client] #${++counter} closed request for: ${inspect(url)}`);
       // Finished all test cases.
-      if (counter === 0) {
-        proxy.close();
-        server.close();
-        assert.deepStrictEqual(requests, expectedUrls);
-        assert.deepStrictEqual(new Set(logs), expectedProxyLogs);
+      if (counter === testCases.length) {
+        setImmediate(common.mustCall(() => {
+          console.log('All requests completed, shutting down.');
+          proxy.close();
+          server.close();
+          assert.deepStrictEqual(requests, expectedUrls);
+          const logSet = new Set(logs);
+          for (const log of logSet) {
+            if (log.source === 'proxy connect' && log.error?.code === 'EPIPE') {
+              // There can be a race from eagerly shutting down the servers and severing
+              // two pipes at the same time but for the purpose of this test, we only
+              // care about whether the requests are initiated from the client as expected,
+              // not how the upstream/proxy servers behave. Ignore EPIPE errors from them..
+              // Refs: https://github.com/nodejs/node/issues/59741
+              console.log('Ignoring EPIPE error from proxy connect', log.error);
+              logSet.delete(log);
+            }
+          }
+          assert.deepStrictEqual(logSet, expectedProxyLogs);
+        }));
       }
     }));
-  }).on('error', common.mustNotCall()).end();
+  })).on('error', common.mustNotCall()).end();
 }

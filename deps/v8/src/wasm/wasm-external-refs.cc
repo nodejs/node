@@ -703,41 +703,6 @@ void f16x8_qfms_wrapper(Address data) {
 }
 
 namespace {
-class V8_NODISCARD ThreadNotInWasmScope {
-// Asan on Windows triggers exceptions to allocate shadow memory lazily. When
-// this function is called from WebAssembly, these exceptions would be handled
-// by the trap handler before they get handled by Asan, and thereby confuse the
-// thread-in-wasm flag. Therefore we disable ASAN for this function.
-// Alternatively we could reset the thread-in-wasm flag before calling this
-// function. However, as this is only a problem with Asan on Windows, we did not
-// consider it worth the overhead.
-#if defined(RESET_THREAD_IN_WASM_FLAG_FOR_ASAN_ON_WINDOWS)
-
- public:
-  ThreadNotInWasmScope() : thread_was_in_wasm_(trap_handler::IsThreadInWasm()) {
-    if (thread_was_in_wasm_) {
-      trap_handler::ClearThreadInWasm();
-    }
-  }
-
-  ~ThreadNotInWasmScope() {
-    if (thread_was_in_wasm_) {
-      trap_handler::SetThreadInWasm();
-    }
-  }
-
- private:
-  bool thread_was_in_wasm_;
-#else
-
- public:
-  ThreadNotInWasmScope() {
-    // This is needed to avoid compilation errors (unused variable).
-    USE(this);
-  }
-#endif
-};
-
 inline uint8_t* EffectiveAddress(Tagged<WasmTrustedInstanceData> trusted_data,
                                  uint32_t mem_index, uintptr_t index) {
   return trusted_data->memory_base(mem_index) + index;
@@ -757,10 +722,9 @@ constexpr int32_t kOutOfBounds = 0;
 int32_t memory_init_wrapper(Address trusted_data_addr, uint32_t mem_index,
                             uintptr_t dst, uint32_t src, uint32_t seg_index,
                             uint32_t size) {
-  ThreadNotInWasmScope thread_not_in_wasm_scope;
   DisallowGarbageCollection no_gc;
   Tagged<WasmTrustedInstanceData> trusted_data =
-      Cast<WasmTrustedInstanceData>(Tagged<Object>{trusted_data_addr});
+      TrustedCast<WasmTrustedInstanceData>(Tagged<Object>{trusted_data_addr});
 
   uint64_t mem_size = trusted_data->memory_size(mem_index);
   if (!base::IsInBounds<uint64_t>(dst, size, mem_size)) return kOutOfBounds;
@@ -778,10 +742,9 @@ int32_t memory_init_wrapper(Address trusted_data_addr, uint32_t mem_index,
 int32_t memory_copy_wrapper(Address trusted_data_addr, uint32_t dst_mem_index,
                             uint32_t src_mem_index, uintptr_t dst,
                             uintptr_t src, uintptr_t size) {
-  ThreadNotInWasmScope thread_not_in_wasm_scope;
   DisallowGarbageCollection no_gc;
   Tagged<WasmTrustedInstanceData> trusted_data =
-      Cast<WasmTrustedInstanceData>(Tagged<Object>{trusted_data_addr});
+      TrustedCast<WasmTrustedInstanceData>(Tagged<Object>{trusted_data_addr});
 
   size_t dst_mem_size = trusted_data->memory_size(dst_mem_index);
   size_t src_mem_size = trusted_data->memory_size(src_mem_index);
@@ -797,11 +760,10 @@ int32_t memory_copy_wrapper(Address trusted_data_addr, uint32_t dst_mem_index,
 
 int32_t memory_fill_wrapper(Address trusted_data_addr, uint32_t mem_index,
                             uintptr_t dst, uint8_t value, uintptr_t size) {
-  ThreadNotInWasmScope thread_not_in_wasm_scope;
   DisallowGarbageCollection no_gc;
 
   Tagged<WasmTrustedInstanceData> trusted_data =
-      Cast<WasmTrustedInstanceData>(Tagged<Object>{trusted_data_addr});
+      TrustedCast<WasmTrustedInstanceData>(Tagged<Object>{trusted_data_addr});
 
   uint64_t mem_size = trusted_data->memory_size(mem_index);
   if (!base::IsInBounds<uint64_t>(dst, size, mem_size)) return kOutOfBounds;
@@ -826,7 +788,6 @@ void array_copy_wrapper(Address raw_dst_array, uint32_t dst_index,
                         Address raw_src_array, uint32_t src_index,
                         uint32_t length) {
   DCHECK_GT(length, 0);
-  ThreadNotInWasmScope thread_not_in_wasm_scope;
   DisallowGarbageCollection no_gc;
   Tagged<WasmArray> dst_array = Cast<WasmArray>(Tagged<Object>(raw_dst_array));
   Tagged<WasmArray> src_array = Cast<WasmArray>(Tagged<Object>(raw_src_array));
@@ -864,7 +825,6 @@ void array_copy_wrapper(Address raw_dst_array, uint32_t dst_index,
 void array_fill_wrapper(Address raw_array, uint32_t index, uint32_t length,
                         uint32_t emit_write_barrier, uint32_t raw_type,
                         Address initial_value_addr) {
-  ThreadNotInWasmScope thread_not_in_wasm_scope;
   DisallowGarbageCollection no_gc;
   ValueType type = ValueType::FromRawBitField(raw_type);
   int8_t* initial_element_address = reinterpret_cast<int8_t*>(
@@ -983,12 +943,79 @@ double flat_string_to_f64(Address string_address) {
                             std::numeric_limits<double>::quiet_NaN());
 }
 
-void switch_stacks(Isolate* isolate, wasm::StackMemory* from) {
-  isolate->SwitchStacks(from, isolate->isolate_data()->active_stack());
+void start_stack(Isolate* isolate, wasm::StackMemory* to, Address sp,
+                 Address fp, Address pc) {
+  wasm::StackMemory* from = isolate->isolate_data()->active_stack();
+  if (v8_flags.trace_wasm_stack_switching) {
+    PrintF("Switch from stack %d to %d (start)\n", from->id(), to->id());
+  }
+  isolate->SwitchStacks<JumpBuffer::Inactive, JumpBuffer::Suspended>(
+      from, to, sp, fp, pc);
 }
 
-void return_switch(Isolate* isolate, wasm::StackMemory* from) {
-  isolate->SwitchStacks(from, isolate->isolate_data()->active_stack());
+// The active stack is checked inline in the wasm-to-js wrapper. This only
+// checks the inactive stacks.
+int32_t suspender_has_js_frames(Isolate* isolate) {
+  wasm::StackMemory* from_stack = isolate->isolate_data()->active_stack();
+  Tagged<WasmSuspenderObject> suspender =
+      isolate->isolate_data()->active_suspender();
+  Tagged<WasmSuspenderObject> parent = suspender->parent();
+  wasm::StackMemory* to_stack = parent->stack();
+  for (wasm::StackMemory* stack = from_stack; stack != to_stack;
+       stack = stack->jmpbuf()->parent) {
+    if (stack->jmpbuf()->is_on_central_stack) {
+      return true;
+    }
+  }
+  return false;
+}
+
+void suspend_stack(Isolate* isolate, wasm::StackMemory* to, Address sp,
+                   Address fp, Address pc) {
+  wasm::StackMemory* from = isolate->isolate_data()->active_stack();
+  auto suspender = isolate->isolate_data()->active_suspender();
+  suspender->set_stack(isolate, from);
+  if (v8_flags.trace_wasm_stack_switching) {
+    PrintF("Switch from stack %d to %d (suspend)\n", from->id(), to->id());
+  }
+  isolate->SwitchStacks<JumpBuffer::Suspended, JumpBuffer::Inactive>(
+      from, to, sp, fp, pc);
+}
+
+void resume_jspi_stack(Isolate* isolate, wasm::StackMemory* to, Address sp,
+                       Address fp, Address pc, Address suspender_raw) {
+  Tagged<Object> suspender_obj(suspender_raw);
+  auto suspender = TrustedCast<WasmSuspenderObject>(suspender_obj);
+  Tagged<WasmSuspenderObject> active_suspender =
+      isolate->isolate_data()->active_suspender();
+  suspender->set_parent(active_suspender);
+  wasm::StackMemory* from = isolate->isolate_data()->active_stack();
+  if (v8_flags.trace_wasm_stack_switching) {
+    PrintF("Switch from stack %d to %d (resume)\n", from->id(), to->id());
+  }
+  isolate->isolate_data()->set_active_suspender(suspender);
+  isolate->SwitchStacks<JumpBuffer::Inactive, JumpBuffer::Suspended>(
+      from, to, sp, fp, pc);
+}
+
+void resume_wasmfx_stack(Isolate* isolate, wasm::StackMemory* to, Address sp,
+                         Address fp, Address pc) {
+  wasm::StackMemory* from = isolate->isolate_data()->active_stack();
+  if (v8_flags.trace_wasm_stack_switching) {
+    PrintF("Switch from stack %d to %d (resume)\n", from->id(), to->id());
+  }
+  isolate->SwitchStacks<JumpBuffer::Inactive, JumpBuffer::Suspended>(
+      from, to, sp, fp, pc);
+}
+
+void return_stack(Isolate* isolate, wasm::StackMemory* to) {
+  // The active stack was already updated by the builtin.
+  wasm::StackMemory* from = isolate->isolate_data()->active_stack();
+  if (v8_flags.trace_wasm_stack_switching) {
+    PrintF("Switch from stack %d to %d (return)\n", from->id(), to->id());
+  }
+  isolate->SwitchStacks<JumpBuffer::Retired, JumpBuffer::Inactive>(
+      from, to, kNullAddress, kNullAddress, kNullAddress);
   isolate->RetireWasmStack(from);
 }
 
@@ -1008,6 +1035,7 @@ intptr_t switch_to_the_central_stack(Isolate* isolate, uintptr_t current_sp) {
   auto counter = isolate->wasm_switch_to_the_central_stack_counter();
   isolate->set_wasm_switch_to_the_central_stack_counter(counter + 1);
 
+  DCHECK_NE(thread_local_top->central_stack_sp_, kNullAddress);
   return thread_local_top->central_stack_sp_;
 }
 
@@ -1030,6 +1058,7 @@ intptr_t switch_to_the_central_stack_for_js(Isolate* isolate, Address fp) {
   StackGuard* stack_guard = isolate->stack_guard();
   wasm::StackMemory* stack = isolate->isolate_data()->active_stack();
   Address central_stack_sp = thread_local_top->central_stack_sp_;
+  DCHECK_NE(central_stack_sp, kNullAddress);
   stack->set_stack_switch_info(fp, central_stack_sp);
   stack_guard->SetStackLimitForStackSwitching(
       thread_local_top->central_stack_limit_);
@@ -1054,13 +1083,16 @@ Address grow_stack(Isolate* isolate, void* current_sp, size_t frame_size,
   // Check if this is a real stack overflow.
   StackLimitCheck check(isolate);
   if (check.WasmHasOverflowed(gap)) {
-    // If there is no parent, then the current stack is the main isolate stack.
     wasm::StackMemory* active_stack = isolate->isolate_data()->active_stack();
-    if (active_stack->jmpbuf()->parent == nullptr) {
+    if (isolate->IsOnCentralStack()) {
+      // Should not grow the central stack.
       return 0;
     }
     DCHECK(active_stack->IsActive());
-    if (!active_stack->Grow(current_fp)) {
+    // Grow by at least the new frame size plus the stack limit margin.
+    size_t min =
+        gap + frame_size + StackMemory::JSGrowableStackLimitMarginKB() * KB;
+    if (!active_stack->Grow(current_fp, min)) {
       return 0;
     }
 

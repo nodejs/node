@@ -98,8 +98,7 @@ DirectHandle<Code> BuildSetupFunction(
     CallDescriptor* teardown_call_descriptor,
     std::vector<AllocatedOperand> parameters,
     const std::vector<AllocatedOperand>& results) {
-  CodeAssemblerTester tester(isolate, JSParameterCount(2), CodeKind::BUILTIN,
-                             "setup");
+  CodeAssemblerTester tester(isolate, JSParameterCount(2), "setup");
   CodeStubAssembler assembler(tester.state());
   std::vector<Node*> params;
   // The first parameter is always the callee.
@@ -620,7 +619,7 @@ class TestEnvironment : public HandleAndZoneScope {
     const int kTotalStackParameterCount = stack_slot_count_ + 1;
     return main_zone()->New<CallDescriptor>(
         CallDescriptor::kCallCodeObject,  // kind
-        kDefaultCodeEntrypointTag,        // tag
+        kCodeEntrypointTagForTesting,     // tag
         MachineType::AnyTagged(),         // target MachineType
         LinkageLocation::ForAnyRegister(
             MachineType::AnyTagged()),  // target location
@@ -1314,7 +1313,7 @@ class CodeGeneratorTester {
                          kReturnRegister0.code()),
         ImmediateOperand(
             ImmediateOperand::INLINE_INT32,
-            (kDefaultCodeEntrypointTag >> kCodeEntrypointTagShift)),
+            (kCodeEntrypointTagForTesting >> kCodeEntrypointTagShift)),
         ImmediateOperand(ImmediateOperand::INLINE_INT32, optional_padding_slot),
         ImmediateOperand(ImmediateOperand::INLINE_INT32,
                          first_unused_stack_slot)};
@@ -1672,7 +1671,7 @@ TEST(Regress_1171759) {
   CallDescriptor* desc = compiler::GetWasmCallDescriptor(
       &zone, builder.Get(), WasmCallKind::kWasmIndirectFunction);
 
-  HandleAndZoneScope handles(kCompressGraphZone);
+  HandleAndZoneScope handles;
   RawMachineAssembler m(handles.main_isolate(),
                         handles.main_zone()->New<TFGraph>(handles.main_zone()),
                         desc, MachineType::PointerRepresentation(),

@@ -123,7 +123,7 @@ void JsonPrintFunctionSource(std::ostream& os, int source_id,
           os << AsEscapedUC16ForJSON(c);
         }
 #if V8_ENABLE_WEBASSEMBLY
-      } else if (shared->HasWasmExportedFunctionData()) {
+      } else if (shared->HasWasmExportedFunctionData(isolate)) {
         Tagged<WasmExportedFunctionData> function_data =
             shared->wasm_exported_function_data();
         wasm::NativeModule* native_module =
@@ -178,7 +178,8 @@ void JsonPrintInlinedFunctionInfo(
 }  // namespace
 
 void JsonPrintAllBytecodeSources(std::ostream& os,
-                                 OptimizedCompilationInfo* info) {
+                                 OptimizedCompilationInfo* info,
+                                 Isolate* isolate) {
   os << "\"bytecodeSources\" : {";
 
   JsonPrintBytecodeSource(os, -1, info->shared_info()->DebugNameCStr(),
@@ -191,7 +192,7 @@ void JsonPrintAllBytecodeSources(std::ostream& os,
   for (unsigned id = 0; id < inlined.size(); id++) {
     Handle<SharedFunctionInfo> shared_info = inlined[id].shared_info;
 #if V8_ENABLE_WEBASSEMBLY
-    if (shared_info->HasWasmFunctionData()) {
+    if (shared_info->HasWasmFunctionData(isolate)) {
       continue;
     }
 #endif  // V8_ENABLE_WEBASSEMBLY

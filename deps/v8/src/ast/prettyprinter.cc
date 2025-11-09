@@ -72,20 +72,22 @@ void CallPrinter::Find(AstNode* node, bool print) {
   }
 }
 
+bool CallPrinter::ShouldPrint() { return found_ && !done_; }
+
 void CallPrinter::Print(char c) {
-  if (!found_ || done_) return;
+  if (!ShouldPrint()) return;
   num_prints_++;
   builder_.AppendCharacter(c);
 }
 
 void CallPrinter::Print(const char* str) {
-  if (!found_ || done_) return;
+  if (!ShouldPrint()) return;
   num_prints_++;
   builder_.AppendCString(str);
 }
 
 void CallPrinter::Print(DirectHandle<String> str) {
-  if (!found_ || done_) return;
+  if (!ShouldPrint()) return;
   num_prints_++;
   builder_.AppendString(str);
 }
@@ -276,6 +278,7 @@ void CallPrinter::VisitConditional(Conditional* node) {
 
 
 void CallPrinter::VisitLiteral(Literal* node) {
+  if (!ShouldPrint()) return;
   // TODO(adamk): Teach Literal how to print its values without
   // allocating on the heap.
   PrintLiteral(node->BuildValue(isolate_), true);
@@ -417,6 +420,7 @@ void CallPrinter::VisitProperty(Property* node) {
     Print(".");
     // TODO(adamk): Teach Literal how to print its values without
     // allocating on the heap.
+    if (!ShouldPrint()) return;
     PrintLiteral(literal->BuildValue(isolate_), false);
   } else {
     Find(node->obj(), true);
@@ -625,7 +629,12 @@ void CallPrinter::FindArguments(const ZonePtrList<Expression>* arguments) {
 }
 
 void CallPrinter::PrintLiteral(DirectHandle<Object> value, bool quote) {
-  if (IsString(*value)) {
+  if (!ShouldPrint()) return;
+
+  if (IsAnyHole(*value)) {
+    // Holes can occur in array literals, and should show up as empty entries.
+    Print("");
+  } else if (IsString(*value)) {
     if (quote) Print("\"");
     Print(Cast<String>(value));
     if (quote) Print("\"");

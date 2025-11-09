@@ -59,8 +59,6 @@
    'skip-stack-guard-page': '--sim-stack-size=8192',
 }],  # 'arch == riscv64'
 
-
-
 ['arch == riscv32', {
    # These tests need larger stack size on simulator.
    'skip-stack-guard-page': '--sim-stack-size=8192',

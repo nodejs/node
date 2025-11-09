@@ -49,13 +49,15 @@ void HeapObjectRange::iterator::AdvanceToNextObject() {
     if (IsFreeSpaceOrFiller(obj, cage_base())) {
       cur_addr_ += cur_size_;
     } else {
+#ifdef DEBUG
       if (IsInstructionStream(obj, cage_base())) {
         DCHECK_EQ(PageMetadata::FromHeapObject(obj)->owner_identity(),
                   CODE_SPACE);
-        DCHECK_CODEOBJECT_SIZE(cur_size_);
+        DCHECK_VALID_REGULAR_CODEOBJECT_SIZE(cur_size_);
       } else {
-        DCHECK_OBJECT_SIZE(cur_size_);
+        DCHECK_VALID_REGULAR_OBJECT_SIZE(cur_size_);
       }
+#endif  // DEBUG
       return;
     }
   }
@@ -76,12 +78,12 @@ Tagged<HeapObject> PagedSpaceObjectIterator::Next() {
 }
 
 bool PagedSpaceBase::Contains(Address addr) const {
-  return PageMetadata::FromAddress(addr)->owner() == this;
+  return PageMetadata::FromAddress(heap()->isolate(), addr)->owner() == this;
 }
 
 bool PagedSpaceBase::Contains(Tagged<Object> o) const {
   if (!IsHeapObject(o)) return false;
-  return PageMetadata::FromAddress(o.ptr())->owner() == this;
+  return PageMetadata::FromAddress(heap()->isolate(), o.ptr())->owner() == this;
 }
 
 template <bool during_sweep>
@@ -92,14 +94,16 @@ size_t PagedSpaceBase::FreeInternal(Address start, size_t size_in_bytes) {
     WritableJitPage jit_page(start, size_in_bytes);
     WritableFreeSpace free_space = jit_page.FreeRange(start, size_in_bytes);
     heap()->CreateFillerObjectAtBackground(free_space);
-    wasted = free_list_->Free(
-        free_space, during_sweep ? kDoNotLinkCategory : kLinkCategory);
+    wasted =
+        free_list_->Free(heap()->isolate(), free_space,
+                         during_sweep ? kDoNotLinkCategory : kLinkCategory);
   } else {
     WritableFreeSpace free_space =
         WritableFreeSpace::ForNonExecutableMemory(start, size_in_bytes);
     heap()->CreateFillerObjectAtBackground(free_space);
-    wasted = free_list_->Free(
-        free_space, during_sweep ? kDoNotLinkCategory : kLinkCategory);
+    wasted =
+        free_list_->Free(heap()->isolate(), free_space,
+                         during_sweep ? kDoNotLinkCategory : kLinkCategory);
   }
 
   if constexpr (!during_sweep) {

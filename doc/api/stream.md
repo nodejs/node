@@ -2315,6 +2315,8 @@ import { Resolver } from 'node:dns/promises';
 
 await Readable.from([1, 2, 3, 4]).toArray(); // [1, 2, 3, 4]
 
+const resolver = new Resolver();
+
 // Make dns queries concurrently using .map and collect
 // the results into an array using toArray
 const dnsResults = await Readable.from([
@@ -3084,9 +3086,16 @@ changes:
 -->
 
 * `stream` {Readable|Duplex|ReadableStream}
-* Returns: {boolean}
+* Returns: {boolean|null} - Only returns `null` if `stream` is not a valid `Readable`, `Duplex` or `ReadableStream`.
 
 Returns whether the stream is readable.
+
+### `stream.isWritable(stream)`
+
+* `stream` {Writable|Duplex|WritableStream}
+* Returns: {boolean|null} - Only returns `null` if `stream` is not a valid `Writable`, `Duplex` or `WritableStream`.
+
+Returns whether the stream is writable.
 
 ### `stream.Readable.from(iterable[, options])`
 

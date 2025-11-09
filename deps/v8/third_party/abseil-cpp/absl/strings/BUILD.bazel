@@ -13,6 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_test.bzl", "cc_test")
 load(
     "//absl:copts/configure_copts.bzl",
     "ABSL_DEFAULT_COPTS",
@@ -250,6 +253,7 @@ cc_binary(
     visibility = ["//visibility:private"],
     deps = [
         ":strings",
+        "//absl/random",
         "@google_benchmark//:benchmark_main",
     ],
 )
@@ -328,6 +332,7 @@ cc_test(
     visibility = ["//visibility:private"],
     deps = [
         ":internal",
+        ":string_view",
         "//absl/base:core_headers",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
@@ -360,6 +365,7 @@ cc_binary(
         ":strings",
         "//absl/base:core_headers",
         "//absl/base:raw_logging_internal",
+        "//absl/random",
         "@google_benchmark//:benchmark_main",
     ],
 )
@@ -1314,6 +1320,7 @@ cc_library(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = ["//visibility:private"],
     deps = [
+        ":internal",
         ":strings",
         "//absl/base:config",
         "//absl/base:core_headers",
@@ -1358,6 +1365,7 @@ cc_test(
         ":str_format",
         ":str_format_internal",
         ":strings",
+        "//absl/random",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],
@@ -1457,6 +1465,7 @@ cc_library(
     testonly = True,
     srcs = ["internal/pow10_helper.cc"],
     hdrs = ["internal/pow10_helper.h"],
+    copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = ["//visibility:private"],
     deps = ["//absl/base:config"],

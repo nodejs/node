@@ -128,14 +128,13 @@ class JSBindingsConnection : public BaseObject {
   }
 
   static void Dispatch(const FunctionCallbackInfo<Value>& info) {
-    Environment* env = Environment::GetCurrent(info);
     JSBindingsConnection* session;
     ASSIGN_OR_RETURN_UNWRAP(&session, info.This());
     CHECK(info[0]->IsString());
 
     if (session->session_) {
       session->session_->Dispatch(
-          ToInspectorString(env->isolate(), info[0])->string());
+          ToInspectorString(info.GetIsolate(), info[0])->string());
     }
   }
 
@@ -241,8 +240,8 @@ static void AsyncTaskScheduledWrapper(const FunctionCallbackInfo<Value>& args) {
 
   CHECK(args[0]->IsString());
   Local<String> task_name = args[0].As<String>();
-  String::Value task_name_value(args.GetIsolate(), task_name);
-  StringView task_name_view(*task_name_value, task_name_value.length());
+  TwoByteValue task_name_value(args.GetIsolate(), task_name);
+  StringView task_name_view(task_name_value.out(), task_name_value.length());
 
   CHECK(args[1]->IsNumber());
   int64_t task_id;

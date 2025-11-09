@@ -1,8 +1,12 @@
 #include <cstdlib>
+#if HAVE_OPENSSL
+#include "crypto/crypto_util.h"
+#endif  // HAVE_OPENSSL
 #include "env_properties.h"
 #include "node.h"
 #include "node_builtins.h"
 #include "node_context_data.h"
+#include "node_debug.h"
 #include "node_errors.h"
 #include "node_exit_code.h"
 #include "node_internals.h"
@@ -15,7 +19,7 @@
 #include "node_wasm_web_api.h"
 #include "uv.h"
 #ifdef NODE_ENABLE_VTUNE_PROFILING
-#include "../deps/v8/src/third_party/vtune/v8-vtune.h"
+#include "../deps/v8/third_party/vtune/v8-vtune.h"
 #endif
 #if HAVE_INSPECTOR
 #include "inspector/worker_inspector.h"  // ParentInspectorHandle
@@ -34,6 +38,7 @@ using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::HandleScope;
 using v8::Isolate;
+using v8::IsolateGroup;
 using v8::Just;
 using v8::JustVoid;
 using v8::Local;
@@ -108,10 +113,13 @@ MaybeLocal<Value> PrepareStackTraceCallback(Local<Context> context,
 
 void* NodeArrayBufferAllocator::Allocate(size_t size) {
   void* ret;
-  if (zero_fill_field_ || per_process::cli_options->zero_fill_all_buffers)
+  if (zero_fill_field_ || per_process::cli_options->zero_fill_all_buffers) {
+    COUNT_GENERIC_USAGE("NodeArrayBufferAllocator.Allocate.ZeroFilled");
     ret = allocator_->Allocate(size);
-  else
+  } else {
+    COUNT_GENERIC_USAGE("NodeArrayBufferAllocator.Allocate.Uninitialized");
     ret = allocator_->AllocateUninitialized(size);
+  }
   if (ret != nullptr) [[likely]] {
     total_mem_usage_.fetch_add(size, std::memory_order_relaxed);
   }
@@ -119,6 +127,7 @@ void* NodeArrayBufferAllocator::Allocate(size_t size) {
 }
 
 void* NodeArrayBufferAllocator::AllocateUninitialized(size_t size) {
+  COUNT_GENERIC_USAGE("NodeArrayBufferAllocator.Allocate.Uninitialized");
   void* ret = allocator_->AllocateUninitialized(size);
   if (ret != nullptr) [[likely]] {
     total_mem_usage_.fetch_add(size, std::memory_order_relaxed);
@@ -301,6 +310,17 @@ void SetIsolateUpForNode(v8::Isolate* isolate) {
   SetIsolateUpForNode(isolate, settings);
 }
 
+//
+IsolateGroup GetOrCreateIsolateGroup() {
+  // When pointer compression is disabled, we cannot create new groups,
+  // in which case we'll always return the default.
+  if (IsolateGroup::CanCreateNewGroups()) {
+    return IsolateGroup::Create();
+  }
+
+  return IsolateGroup::GetDefault();
+}
+
 // TODO(joyeecheung): we may want to expose this, but then we need to be
 // careful about what we override in the params.
 Isolate* NewIsolate(Isolate::CreateParams* params,
@@ -308,7 +328,8 @@ Isolate* NewIsolate(Isolate::CreateParams* params,
                     MultiIsolatePlatform* platform,
                     const SnapshotData* snapshot_data,
                     const IsolateSettings& settings) {
-  Isolate* isolate = Isolate::Allocate();
+  IsolateGroup group = GetOrCreateIsolateGroup();
+  Isolate* isolate = Isolate::Allocate(group);
   if (isolate == nullptr) return nullptr;
 
   if (snapshot_data != nullptr) {
@@ -414,6 +435,25 @@ Environment* CreateEnvironment(
     EnvironmentFlags::Flags flags,
     ThreadId thread_id,
     std::unique_ptr<InspectorParentHandle> inspector_parent_handle) {
+  return CreateEnvironment(isolate_data,
+                           context,
+                           args,
+                           exec_args,
+                           flags,
+                           thread_id,
+                           std::move(inspector_parent_handle),
+                           {});
+}
+
+Environment* CreateEnvironment(
+    IsolateData* isolate_data,
+    Local<Context> context,
+    const std::vector<std::string>& args,
+    const std::vector<std::string>& exec_args,
+    EnvironmentFlags::Flags flags,
+    ThreadId thread_id,
+    std::unique_ptr<InspectorParentHandle> inspector_parent_handle,
+    std::string_view thread_name) {
   Isolate* isolate = isolate_data->isolate();
 
   Isolate::Scope isolate_scope(isolate);
@@ -434,7 +474,8 @@ Environment* CreateEnvironment(
                                      exec_args,
                                      env_snapshot_info,
                                      flags,
-                                     thread_id);
+                                     thread_id,
+                                     thread_name);
   CHECK_NOT_NULL(env);
 
   if (use_snapshot) {
@@ -512,8 +553,19 @@ NODE_EXTERN std::unique_ptr<InspectorParentHandle> GetInspectorParentHandle(
 
 NODE_EXTERN std::unique_ptr<InspectorParentHandle> GetInspectorParentHandle(
     Environment* env, ThreadId thread_id, const char* url, const char* name) {
-  CHECK_NOT_NULL(env);
+  if (url == nullptr) url = "";
   if (name == nullptr) name = "";
+  std::string_view url_view(url);
+  std::string_view name_view(name);
+  return GetInspectorParentHandle(env, thread_id, url_view, name_view);
+}
+
+NODE_EXTERN std::unique_ptr<InspectorParentHandle> GetInspectorParentHandle(
+    Environment* env,
+    ThreadId thread_id,
+    std::string_view url,
+    std::string_view name) {
+  CHECK_NOT_NULL(env);
   CHECK_NE(thread_id.id, static_cast<uint64_t>(-1));
   if (!env->should_create_inspector()) {
     return nullptr;
@@ -594,7 +646,7 @@ std::unique_ptr<MultiIsolatePlatform> MultiIsolatePlatform::Create(
 
 MaybeLocal<Object> GetPerContextExports(Local<Context> context,
                                         IsolateData* isolate_data) {
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   EscapableHandleScope handle_scope(isolate);
 
   Local<Object> global = context->Global();
@@ -640,7 +692,7 @@ void ProtoThrower(const FunctionCallbackInfo<Value>& info) {
 // This runs at runtime, regardless of whether the context
 // is created from a snapshot.
 Maybe<void> InitializeContextRuntime(Local<Context> context) {
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   HandleScope handle_scope(isolate);
 
   // When `IsCodeGenerationFromStringsAllowed` is true, V8 takes the fast path
@@ -719,7 +771,7 @@ Maybe<void> InitializeContextRuntime(Local<Context> context) {
 }
 
 Maybe<void> InitializeBaseContextForSnapshot(Local<Context> context) {
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   HandleScope handle_scope(isolate);
 
   // Delete `Intl.v8BreakIterator`
@@ -744,7 +796,7 @@ Maybe<void> InitializeBaseContextForSnapshot(Local<Context> context) {
 }
 
 Maybe<void> InitializeMainContextForSnapshot(Local<Context> context) {
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   HandleScope handle_scope(isolate);
 
   // Initialize the default values.
@@ -762,7 +814,7 @@ Maybe<void> InitializeMainContextForSnapshot(Local<Context> context) {
 MaybeLocal<Object> InitializePrivateSymbols(Local<Context> context,
                                             IsolateData* isolate_data) {
   CHECK(isolate_data);
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   EscapableHandleScope scope(isolate);
   Context::Scope context_scope(context);
 
@@ -786,7 +838,7 @@ MaybeLocal<Object> InitializePrivateSymbols(Local<Context> context,
 MaybeLocal<Object> InitializePerIsolateSymbols(Local<Context> context,
                                                IsolateData* isolate_data) {
   CHECK(isolate_data);
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   EscapableHandleScope scope(isolate);
   Context::Scope context_scope(context);
 
@@ -812,15 +864,14 @@ MaybeLocal<Object> InitializePerIsolateSymbols(Local<Context> context,
 Maybe<void> InitializePrimordials(Local<Context> context,
                                   IsolateData* isolate_data) {
   // Run per-context JS files.
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   Context::Scope context_scope(context);
   Local<Object> exports;
 
   if (!GetPerContextExports(context).ToLocal(&exports)) {
     return Nothing<void>();
   }
-  Local<String> primordials_string =
-      FIXED_ONE_BYTE_STRING(isolate, "primordials");
+  Local<String> primordials_string = isolate_data->primordials_string();
   // Ensure that `InitializePrimordials` is called exactly once on a given
   // context.
   CHECK(!exports->Has(context, primordials_string).FromJust());
@@ -973,6 +1024,11 @@ void DefaultProcessExitHandlerInternal(Environment* env, ExitCode exit_code) {
   // in node_v8_platform-inl.h
   uv_library_shutdown();
   DisposePlatform();
+
+#if HAVE_OPENSSL
+  crypto::CleanupCachedRootCertificates();
+#endif  // HAVE_OPENSSL
+
   Exit(exit_code);
 }
 

@@ -24,6 +24,7 @@
 #include "src/objects/js-function-inl.h"
 #include "src/objects/js-objects-inl.h"
 #include "src/objects/managed.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/oddball-inl.h"
 #include "src/objects/script-inl.h"
 #include "src/roots/roots.h"
@@ -63,6 +64,7 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(WasmResumeData)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WasmStruct)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WasmSuspenderObject)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WasmSuspendingObject)
+TQ_OBJECT_CONSTRUCTORS_IMPL(WasmContinuationObject)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WasmTableObject)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WasmTagObject)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WasmTypeInfo)
@@ -90,15 +92,6 @@ wasm::NativeModule* WasmModuleObject::native_module() const {
 const std::shared_ptr<wasm::NativeModule>&
 WasmModuleObject::shared_native_module() const {
   return managed_native_module()->get();
-}
-const wasm::WasmModule* WasmModuleObject::module() const {
-  // TODO(clemensb): Remove this helper (inline in callers).
-  return native_module()->module();
-}
-bool WasmModuleObject::is_asm_js() {
-  bool asm_js = is_asmjs_module(module());
-  DCHECK_EQ(asm_js, script()->IsUserJavaScript());
-  return asm_js;
 }
 
 // WasmMemoryObject
@@ -194,14 +187,6 @@ PRIMITIVE_ACCESSORS(WasmTrustedInstanceData, memory0_size, size_t,
 PROTECTED_POINTER_ACCESSORS(WasmTrustedInstanceData, managed_native_module,
                             TrustedManaged<wasm::NativeModule>,
                             kProtectedManagedNativeModuleOffset)
-PRIMITIVE_ACCESSORS(WasmTrustedInstanceData, new_allocation_limit_address,
-                    Address*, kNewAllocationLimitAddressOffset)
-PRIMITIVE_ACCESSORS(WasmTrustedInstanceData, new_allocation_top_address,
-                    Address*, kNewAllocationTopAddressOffset)
-PRIMITIVE_ACCESSORS(WasmTrustedInstanceData, old_allocation_limit_address,
-                    Address*, kOldAllocationLimitAddressOffset)
-PRIMITIVE_ACCESSORS(WasmTrustedInstanceData, old_allocation_top_address,
-                    Address*, kOldAllocationTopAddressOffset)
 PRIMITIVE_ACCESSORS(WasmTrustedInstanceData, globals_start, uint8_t*,
                     kGlobalsStartOffset)
 ACCESSORS(WasmTrustedInstanceData, imported_mutable_globals,
@@ -265,8 +250,6 @@ ACCESSORS(WasmTrustedInstanceData, feedback_vectors, Tagged<FixedArray>,
           kFeedbackVectorsOffset)
 ACCESSORS(WasmTrustedInstanceData, well_known_imports, Tagged<FixedArray>,
           kWellKnownImportsOffset)
-PRIMITIVE_ACCESSORS(WasmTrustedInstanceData, stress_deopt_counter_address,
-                    Address, kStressDeoptCounterOffset)
 
 void WasmTrustedInstanceData::clear_padding() {
   constexpr int kPaddingBytes = FIELD_SIZE(kOptionalPaddingOffset);
@@ -296,8 +279,7 @@ size_t WasmTrustedInstanceData::memory_size(int memory_index) const {
 Tagged<WasmDispatchTable> WasmTrustedInstanceData::dispatch_table(
     uint32_t table_index) {
   Tagged<Object> table = dispatch_tables()->get(table_index);
-  DCHECK(IsWasmDispatchTable(table));
-  return Cast<WasmDispatchTable>(table);
+  return TrustedCast<WasmDispatchTable>(table);
 }
 
 bool WasmTrustedInstanceData::has_dispatch_table(uint32_t table_index) {
@@ -327,7 +309,7 @@ TRUSTED_POINTER_ACCESSORS(WasmInstanceObject, trusted_data,
 // incorrect WasmModule! For security-relevant code, prefer reading
 // {native_module()} from a {WasmTrustedInstanceData}.
 const wasm::WasmModule* WasmInstanceObject::module() const {
-  return module_object()->module();
+  return module_object()->native_module()->module();
 }
 
 ImportedFunctionEntry::ImportedFunctionEntry(
@@ -359,13 +341,6 @@ void WasmDispatchTable::set_table_type(wasm::CanonicalValueType type) {
   WriteField(kTableTypeOffset, type.raw_bit_field());
 }
 
-void WasmDispatchTable::clear_entry_padding(int index) {
-  static_assert(kEntryPaddingBytes == 0 || kEntryPaddingBytes == kIntSize);
-  if constexpr (kEntryPaddingBytes != 0) {
-    WriteField<int>(OffsetOf(index) + kEntryPaddingOffset, 0);
-  }
-}
-
 int WasmDispatchTable::length(AcquireLoadTag) const {
   return ACQUIRE_READ_INT32_FIELD(*this, kLengthOffset);
 }
@@ -388,6 +363,7 @@ inline Tagged<Object> WasmDispatchTable::implicit_arg(int index) const {
 inline WasmCodePointer WasmDispatchTable::target(int index) const {
   DCHECK_LT(index, length());
   if (v8_flags.wasm_jitless) return wasm::kInvalidWasmCodePointer;
+  static_assert(sizeof(WasmCodePointer) == sizeof(uint32_t));
   return WasmCodePointer{ReadField<uint32_t>(OffsetOf(index) + kTargetBias)};
 }
 
@@ -473,14 +449,6 @@ PROTECTED_POINTER_ACCESSORS(WasmExportedFunctionData, instance_data,
 CODE_POINTER_ACCESSORS(WasmExportedFunctionData, c_wrapper_code,
                        kCWrapperCodeOffset)
 
-PRIMITIVE_ACCESSORS(WasmExportedFunctionData, sig, const wasm::CanonicalSig*,
-                    kSigOffset)
-
-wasm::CanonicalTypeIndex WasmExportedFunctionData::sig_index() const {
-  return wasm::CanonicalTypeIndex{
-      static_cast<uint32_t>(canonical_type_index())};
-}
-
 bool WasmExportedFunctionData::is_promising() const {
   return WasmFunctionData::PromiseField::decode(js_promise_flags()) ==
          wasm::kPromise;
@@ -519,11 +487,6 @@ struct CastTraits<WasmJSFunction> {
     return WasmJSFunction::IsWasmJSFunction(value);
   }
 };
-
-// WasmCapiFunctionData
-wasm::CanonicalTypeIndex WasmCapiFunctionData::sig_index() const {
-  return wasm::CanonicalTypeIndex{static_cast<uint32_t>(canonical_sig_index())};
-}
 
 // WasmCapiFunction
 WasmCapiFunction::WasmCapiFunction(Address ptr) : JSFunction(ptr) {
@@ -584,6 +547,13 @@ TRUSTED_POINTER_ACCESSORS(WasmTableObject, trusted_data,
 TRUSTED_POINTER_ACCESSORS(WasmTableObject, trusted_dispatch_table,
                           WasmDispatchTable, kTrustedDispatchTableOffset,
                           kWasmDispatchTableIndirectPointerTag)
+
+TRUSTED_POINTER_ACCESSORS(WasmResumeData, trusted_suspender,
+                          WasmSuspenderObject, kTrustedSuspenderOffset,
+                          kWasmSuspenderIndirectPointerTag)
+
+PROTECTED_POINTER_ACCESSORS(WasmSuspenderObject, parent, WasmSuspenderObject,
+                            kParentOffset)
 
 wasm::ValueType WasmTableObject::type(const wasm::WasmModule* module) {
   wasm::ValueType type = unsafe_type();
@@ -709,11 +679,11 @@ ElementType WasmObject::FromNumber(Tagged<Object> value) {
 
   } else if (IsHeapNumber(value)) {
     double double_value = Cast<HeapNumber>(value)->value();
-    if (std::is_same<ElementType, double>::value ||
-        std::is_same<ElementType, float>::value) {
+    if (std::is_same_v<ElementType, double> ||
+        std::is_same_v<ElementType, float>) {
       return static_cast<ElementType>(double_value);
     } else {
-      CHECK(std::is_integral<ElementType>::value);
+      CHECK(std::is_integral_v<ElementType>);
       return static_cast<ElementType>(DoubleToInt32(double_value));
     }
   }
@@ -753,13 +723,15 @@ ObjectSlot WasmStruct::RawField(int raw_offset) {
   return ObjectSlot(RawFieldAddress(raw_offset));
 }
 
-inline Tagged<Map> WasmStruct::get_described_rtt() const {
-  return TaggedField<Map, kHeaderSize>::load(*this);
+void WasmStruct::SetTaggedFieldValue(int raw_offset, Tagged<Object> value,
+                                     WriteBarrierMode mode) {
+  int offset = WasmStruct::kHeaderSize + raw_offset;
+  TaggedField<Object>::store(*this, offset, value);
+  CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);
 }
 
-void WasmStruct::set_described_rtt(Tagged<Map> rtt) {
-  TaggedField<Object, kHeaderSize>::store(*this, rtt);
-}
+ACCESSORS_CHECKED(WasmStruct, described_rtt, Tagged<Map>, kHeaderSize,
+                  GcSafeType(map())->is_descriptor())
 
 wasm::CanonicalTypeIndex WasmArray::type_index(Tagged<Map> map) {
   DCHECK_EQ(WASM_ARRAY_TYPE, map->instance_type());
@@ -822,6 +794,9 @@ int WasmArray::DecodeElementSizeFromMap(Tagged<Map> map) {
 }
 
 EXTERNAL_POINTER_ACCESSORS(WasmSuspenderObject, stack, wasm::StackMemory*,
+                           kStackOffset, kWasmStackMemoryTag)
+
+EXTERNAL_POINTER_ACCESSORS(WasmContinuationObject, stack, wasm::StackMemory*,
                            kStackOffset, kWasmStackMemoryTag)
 
 TRUSTED_POINTER_ACCESSORS(WasmTagObject, trusted_data, WasmTrustedInstanceData,

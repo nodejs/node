@@ -15,6 +15,7 @@
 #include "src/base/strings.h"
 #include "src/common/globals.h"
 #include "src/execution/thread-id.h"
+#include "src/heap/base/unsafe-json-emitter.h"
 #include "src/heap/cppgc-js/cpp-heap.h"
 #include "src/heap/cppgc/metric-recorder.h"
 #include "src/heap/gc-tracer-inl.h"
@@ -181,7 +182,7 @@ GCTracer::GCTracer(Heap* heap, base::TimeTicks startup_time,
       previous_mark_compact_end_time_(startup_time)
 #if defined(V8_USE_PERFETTO)
       ,
-      parent_track_(perfetto::ThreadTrack::Current())
+      parent_track_(heap->tracing_track())
 #endif
 {
   // All accesses to incremental_marking_scope assume that incremental marking
@@ -216,6 +217,8 @@ void GCTracer::UpdateCurrentEvent(GarbageCollectionReason gc_reason,
          current_.type == Event::Type::INCREMENTAL_MINOR_MARK_SWEEPER);
   DCHECK_EQ(Event::State::ATOMIC, current_.state);
   DCHECK(IsInObservablePause());
+  DCHECK_NE(current_.incremental_marking_reason,
+            GarbageCollectionReason::kUnknown);
   current_.gc_reason = gc_reason;
   current_.collector_reason = collector_reason;
   // TODO(chromium:1154636): The start_time of the current event contains
@@ -290,7 +293,25 @@ void GCTracer::StartCycle(GarbageCollector collector,
                      (v8_flags.minor_ms &&
                       collector == GarbageCollector::MINOR_MARK_SWEEPER));
       DCHECK(!IsInObservablePause());
+      DCHECK_NE(gc_reason, GarbageCollectionReason::kUnknown);
+      current_.incremental_marking_reason = gc_reason;
       break;
+  }
+  current_.is_loading = heap_->IsLoading();
+
+  if (collector == GarbageCollector::MARK_COMPACTOR) {
+    current_.old_generation_consumed_baseline =
+        heap_->OldGenerationConsumedBytesAtLastGC();
+    current_.old_generation_consumed_current =
+        heap_->OldGenerationConsumedBytes();
+    current_.old_generation_consumed_limit =
+        heap_->old_generation_allocation_limit();
+    current_.max_old_generation_memory = heap_->max_old_generation_size();
+    current_.global_consumed_baseline = heap_->GlobalConsumedBytesAtLastGC();
+    current_.global_consumed_current = heap_->GlobalConsumedBytes();
+    current_.global_consumed_limit = heap_->global_allocation_limit();
+    current_.max_global_memory = heap_->max_global_memory_size();
+    current_.external_memory_bytes = heap_->external_memory();
   }
 
   if (Heap::IsYoungGenerationCollector(collector)) {
@@ -309,7 +330,6 @@ void GCTracer::StartInSafepoint(base::TimeTicks time) {
   SampleAllocation(current_.start_time, heap_->NewSpaceAllocationCounter(),
                    heap_->OldGenerationAllocationCounter(),
                    heap_->EmbedderAllocationCounter());
-
   current_.start_object_size = heap_->SizeOfObjects();
   current_.start_memory_size = heap_->memory_allocator()->Size();
   current_.start_holes_size = CountTotalHolesSize(heap_);
@@ -574,9 +594,9 @@ void GCTracer::NotifyFullSweepingCompletedAndStopCycleIfFinished() {
 
 void GCTracer::NotifyYoungSweepingCompleted() {
   DCHECK(Event::IsYoungGenerationEvent(current_.type));
-  if (v8_flags.verify_heap) {
-    // If heap verification is enabled, sweeping finalization can also be
-    // triggered from inside a full GC cycle's atomic pause.
+  if (v8_flags.verify_heap || v8_flags.code_stats) {
+    // If heap verification or code stats are enabled, sweeping finalization can
+    // also be triggered from inside a full GC cycle's atomic pause.
     DCHECK(current_.type == Event::Type::MINOR_MARK_SWEEPER ||
            current_.type == Event::Type::INCREMENTAL_MINOR_MARK_SWEEPER ||
            current_.type == Event::Type::SCAVENGER);
@@ -838,418 +858,280 @@ void GCTracer::PrintNVP() const {
   // Avoid data races when printing the background scopes.
   base::MutexGuard guard(&background_scopes_mutex_);
 
+  ::heap::base::UnsafeJsonEmitter json;
+
+  json.object_start()
+      .p("pause", duration.InMillisecondsF())
+      .p("mutator", spent_in_mutator.InMillisecondsF())
+      .p("gc", ToString(current_.type, true))
+      .p("reduce_memory", current_.reduce_memory)
+      .p("time_to_safepoint",
+         current_.scopes[Scope::TIME_TO_SAFEPOINT].InMillisecondsF())
+      .p("stack", heap_->IsGCWithStack())
+      .p("reason", ToString(current_.gc_reason))
+      .p("start_object_size", current_.start_object_size)
+      .p("end_object_size", current_.end_object_size)
+      .p("start_memory_size", current_.start_memory_size)
+      .p("end_memory_size", current_.end_memory_size)
+      .p("start_holes_size", current_.start_holes_size)
+      .p("end_holes_size", current_.end_holes_size)
+      .p("pool_local_chunks", heap_->memory_allocator()->GetPooledChunksCount())
+      .p("pool_shared_chunks",
+         heap_->memory_allocator()->GetSharedPooledChunksCount())
+      .p("pool_total_chunks",
+         heap_->memory_allocator()->GetTotalPooledChunksCount())
+      .p("new_space_capacity",
+         heap_->new_space() ? heap_->new_space()->TotalCapacity() : 0)
+      .p("old_gen_allocation_limit", heap_->old_generation_allocation_limit())
+      .p("global_allocation_limit", heap_->global_allocation_limit())
+      .p("allocation_throughput", AllocationThroughputInBytesPerMillisecond())
+      .p("new_space_allocation_throughput",
+         NewSpaceAllocationThroughputInBytesPerMillisecond())
+      .p("new_space_survive_rate", heap_->new_space_surviving_rate_)
+      .p("allocated", allocated_since_last_gc)
+      .p("promoted", heap_->promoted_objects_size())
+      .p("new_space_survived", heap_->new_space_surviving_object_size())
+      .p("nodes_died_in_new", heap_->nodes_died_in_new_space_)
+      .p("nodes_copied_in_new", heap_->nodes_copied_in_new_space_)
+      .p("nodes_promoted", heap_->nodes_promoted_)
+      .p("promotion_ratio", heap_->promotion_ratio_)
+      .p("average_survival_ratio", AverageSurvivalRatio())
+      .p("promotion_rate", heap_->promotion_rate_);
+
   switch (current_.type) {
     case Event::Type::SCAVENGER:
-      heap_->isolate()->PrintWithTimestamp(
-          "pause=%.1f "
-          "mutator=%.1f "
-          "gc=%s "
-          "reduce_memory=%d "
-          "during_sweeping=%d "
-          "time_to_safepoint=%.2f "
-          "heap.prologue=%.2f "
-          "heap.epilogue=%.2f "
-          "heap.external.prologue=%.2f "
-          "heap.external.epilogue=%.2f "
-          "heap.external_weak_global_handles=%.2f "
-          "complete.sweep_array_buffers=%.2f "
-          "scavenge=%.2f "
-          "scavenge.free_remembered_set=%.2f "
-          "scavenge.roots=%.2f "
-          "scavenge.weak=%.2f "
-          "scavenge.weak_global_handles.identify=%.2f "
-          "scavenge.weak_global_handles.process=%.2f "
-          "scavenge.parallel=%.2f "
-          "scavenge.update_refs=%.2f "
-          "scavenge.pin_objects=%.2f "
-          "scavenge.restore_pinned=%.2f "
-          "scavenge.sweep_array_buffers=%.2f "
-          "scavenge.resize_new_space=%.2f "
-          "background.scavenge.parallel=%.2f "
-          "incremental.steps_count=%d "
-          "incremental.steps_took=%.1f "
-          "scavenge_throughput=%.f "
-          "start_object_size=%zu "
-          "end_object_size=%zu "
-          "start_memory_size=%zu "
-          "end_memory_size=%zu "
-          "start_holes_size=%zu "
-          "end_holes_size=%zu "
-          "allocated=%zu "
-          "promoted=%zu "
-          "quarantined_size=%zu "
-          "quarantined_pages=%zu "
-          "new_space_survived=%zu "
-          "nodes_died_in_new=%d "
-          "nodes_copied_in_new=%d "
-          "nodes_promoted=%d "
-          "promotion_ratio=%.1f%% "
-          "average_survival_ratio=%.1f%% "
-          "promotion_rate=%.1f%% "
-          "new_space_survive_rate_=%.1f%% "
-          "new_space_allocation_throughput=%.1f "
-          "new_space_capacity=%zu "
-          "old_gen_allocation_limit=%zu "
-          "global_allocation_limit=%zu "
-          "allocation_throughput=%.1f "
-          "pool_local_chunks=%zu "
-          "pool_shared_chunks=%zu "
-          "pool_total_chunks=%zu\n",
-          duration.InMillisecondsF(), spent_in_mutator.InMillisecondsF(),
-          ToString(current_.type, true), current_.reduce_memory,
-          young_gc_during_full_gc_sweeping_,
-          current_.scopes[Scope::TIME_TO_SAFEPOINT].InMillisecondsF(),
-          current_scope(Scope::HEAP_PROLOGUE),
-          current_scope(Scope::HEAP_EPILOGUE),
-          current_scope(Scope::HEAP_EXTERNAL_PROLOGUE),
-          current_scope(Scope::HEAP_EXTERNAL_EPILOGUE),
-          current_scope(Scope::HEAP_EXTERNAL_WEAK_GLOBAL_HANDLES),
-          current_scope(Scope::SCAVENGER_COMPLETE_SWEEP_ARRAY_BUFFERS),
-          current_scope(Scope::SCAVENGER_SCAVENGE),
-          current_scope(Scope::SCAVENGER_FREE_REMEMBERED_SET),
-          current_scope(Scope::SCAVENGER_SCAVENGE_ROOTS),
-          current_scope(Scope::SCAVENGER_SCAVENGE_WEAK),
-          current_scope(Scope::SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_IDENTIFY),
-          current_scope(Scope::SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_PROCESS),
-          current_scope(Scope::SCAVENGER_SCAVENGE_PARALLEL),
-          current_scope(Scope::SCAVENGER_SCAVENGE_UPDATE_REFS),
-          current_scope(Scope::SCAVENGER_SCAVENGE_PIN_OBJECTS),
-          current_scope(
-              Scope::SCAVENGER_SCAVENGE_RESTORE_AND_QUARANTINE_PINNED),
-          current_scope(Scope::SCAVENGER_SWEEP_ARRAY_BUFFERS),
-          current_scope(Scope::SCAVENGER_RESIZE_NEW_SPACE),
-          current_scope(Scope::SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL),
-          incremental_scope(GCTracer::Scope::MC_INCREMENTAL).steps,
-          current_scope(Scope::MC_INCREMENTAL),
-          YoungGenerationSpeedInBytesPerMillisecond(
-              YoungGenerationSpeedMode::kOnlyAtomicPause)
-              .value_or(0.0),
-          current_.start_object_size, current_.end_object_size,
-          current_.start_memory_size, current_.end_memory_size,
-          current_.start_holes_size, current_.end_holes_size,
-          allocated_since_last_gc, heap_->promoted_objects_size(),
-          heap_->semi_space_new_space()->QuarantinedSize(),
-          heap_->semi_space_new_space()->QuarantinedPageCount(),
-          heap_->new_space_surviving_object_size(),
-          heap_->nodes_died_in_new_space_, heap_->nodes_copied_in_new_space_,
-          heap_->nodes_promoted_, heap_->promotion_ratio_,
-          AverageSurvivalRatio(), heap_->promotion_rate_,
-          heap_->new_space_surviving_rate_,
-          NewSpaceAllocationThroughputInBytesPerMillisecond(),
-          heap_->new_space() ? heap_->new_space()->TotalCapacity() : 0,
-          heap_->old_generation_allocation_limit(),
-          heap_->global_allocation_limit(),
-          AllocationThroughputInBytesPerMillisecond(),
-          heap_->memory_allocator()->GetPooledChunksCount(),
-          heap_->memory_allocator()->GetSharedPooledChunksCount(),
-          heap_->memory_allocator()->GetTotalPooledChunksCount());
+      json.p("during_sweeping", young_gc_during_full_gc_sweeping_)
+          .p("heap.prologue", current_scope(Scope::HEAP_PROLOGUE))
+          .p("heap.epilogue", current_scope(Scope::HEAP_EPILOGUE))
+          .p("heap.external.prologue",
+             current_scope(Scope::HEAP_EXTERNAL_PROLOGUE))
+          .p("heap.external.epilogue",
+             current_scope(Scope::HEAP_EXTERNAL_EPILOGUE))
+          .p("heap.external_weak_global_handles",
+             current_scope(Scope::HEAP_EXTERNAL_WEAK_GLOBAL_HANDLES))
+          .p("complete.sweep_array_buffers",
+             current_scope(Scope::SCAVENGER_COMPLETE_SWEEP_ARRAY_BUFFERS))
+          .p("scavenge", current_scope(Scope::SCAVENGER_SCAVENGE))
+          .p("scavenge.free_remembered_set",
+             current_scope(Scope::SCAVENGER_FREE_REMEMBERED_SET))
+          .p("scavenge.roots", current_scope(Scope::SCAVENGER_SCAVENGE_ROOTS))
+          .p("scavenge.weak", current_scope(Scope::SCAVENGER_SCAVENGE_WEAK))
+          .p("scavenge.weak_global_handles.identify",
+             current_scope(
+                 Scope::SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_IDENTIFY))
+          .p("scavenge.weak_global_handles.process",
+             current_scope(
+                 Scope::SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_PROCESS))
+          .p("scavenge.parallel",
+             current_scope(Scope::SCAVENGER_SCAVENGE_PARALLEL))
+          .p("scavenge.update_refs",
+             current_scope(Scope::SCAVENGER_SCAVENGE_UPDATE_REFS))
+          .p("scavenge.pin_objects",
+             current_scope(Scope::SCAVENGER_SCAVENGE_PIN_OBJECTS))
+          .p("scavenge.restore_pinned",
+             current_scope(
+                 Scope::SCAVENGER_SCAVENGE_RESTORE_AND_QUARANTINE_PINNED))
+          .p("scavenge.sweep_array_buffers",
+             current_scope(Scope::SCAVENGER_SWEEP_ARRAY_BUFFERS))
+          .p("scavenge.resize_new_space",
+             current_scope(Scope::SCAVENGER_RESIZE_NEW_SPACE))
+          .p("background.scavenge.parallel",
+             current_scope(Scope::SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL))
+          .p("incremental.steps_count",
+             incremental_scope(GCTracer::Scope::MC_INCREMENTAL).steps)
+          .p("incremental.steps_took", current_scope(Scope::MC_INCREMENTAL))
+          .p("scavenge_throughput",
+             YoungGenerationSpeedInBytesPerMillisecond(
+                 YoungGenerationSpeedMode::kOnlyAtomicPause)
+                 .value_or(0.0))
+          .p("quarantined_size",
+             heap_->semi_space_new_space()->QuarantinedSize())
+          .p("quarantined_pages",
+             heap_->semi_space_new_space()->QuarantinedPageCount());
       break;
     case Event::Type::MINOR_MARK_SWEEPER:
     case Event::Type::INCREMENTAL_MINOR_MARK_SWEEPER:
-      heap_->isolate()->PrintWithTimestamp(
-          "pause=%.1f "
-          "mutator=%.1f "
-          "gc=%s "
-          "reduce_memory=%d "
-          "minor_ms=%.2f "
-          "time_to_safepoint=%.2f "
-          "mark=%.2f "
-          "mark.incremental_seed=%.2f "
-          "mark.finish_incremental=%.2f "
-          "mark.seed=%.2f "
-          "mark.traced_handles=%.2f "
-          "mark.closure_parallel=%.2f "
-          "mark.closure=%.2f "
-          "mark.conservative_stack=%.2f "
-          "clear=%.2f "
-          "clear.string_forwarding_table=%.2f "
-          "clear.string_table=%.2f "
-          "clear.global_handles=%.2f "
-          "complete.sweep_array_buffers=%.2f "
-          "complete.sweeping=%.2f "
-          "sweep=%.2f "
-          "sweep.new=%.2f "
-          "sweep.new_lo=%.2f "
-          "sweep.update_string_table=%.2f "
-          "sweep.start_jobs=%.2f "
-          "sweep.array_buffers=%.2f "
-          "finish=%.2f "
-          "finish.ensure_capacity=%.2f "
-          "finish.sweep_array_buffers=%.2f "
-          "background.mark=%.2f "
-          "background.sweep=%.2f "
-          "background.sweep.array_buffers=%.2f "
-          "conservative_stack_scanning=%.2f "
-          "start_object_size=%zu "
-          "end_object_size=%zu "
-          "start_memory_size=%zu "
-          "end_memory_size=%zu "
-          "start_holes_size=%zu "
-          "end_holes_size=%zu "
-          "allocated=%zu "
-          "promoted=%zu "
-          "new_space_survived=%zu "
-          "nodes_died_in_new=%d "
-          "nodes_copied_in_new=%d "
-          "nodes_promoted=%d "
-          "promotion_ratio=%.1f%% "
-          "average_survival_ratio=%.1f%% "
-          "promotion_rate=%.1f%% "
-          "new_space_survive_rate_=%.1f%% "
-          "new_space_capacity=%zu "
-          "old_gen_allocation_limit=%zu "
-          "global_allocation_limit=%zu "
-          "new_space_allocation_throughput=%.1f "
-          "allocation_throughput=%.1f\n",
-          duration.InMillisecondsF(), spent_in_mutator.InMillisecondsF(), "mms",
-          current_.reduce_memory, current_scope(Scope::MINOR_MS),
-          current_scope(Scope::TIME_TO_SAFEPOINT),
-          current_scope(Scope::MINOR_MS_MARK),
-          current_scope(Scope::MINOR_MS_MARK_INCREMENTAL_SEED),
-          current_scope(Scope::MINOR_MS_MARK_FINISH_INCREMENTAL),
-          current_scope(Scope::MINOR_MS_MARK_SEED),
-          current_scope(Scope::MINOR_MS_MARK_TRACED_HANDLES),
-          current_scope(Scope::MINOR_MS_MARK_CLOSURE_PARALLEL),
-          current_scope(Scope::MINOR_MS_MARK_CLOSURE),
-          current_scope(Scope::MINOR_MS_MARK_CONSERVATIVE_STACK),
-          current_scope(Scope::MINOR_MS_CLEAR),
-          current_scope(Scope::MINOR_MS_CLEAR_STRING_FORWARDING_TABLE),
-          current_scope(Scope::MINOR_MS_CLEAR_STRING_TABLE),
-          current_scope(Scope::MINOR_MS_CLEAR_WEAK_GLOBAL_HANDLES),
-          current_scope(Scope::MINOR_MS_COMPLETE_SWEEP_ARRAY_BUFFERS),
-          current_scope(Scope::MINOR_MS_COMPLETE_SWEEPING),
-          current_scope(Scope::MINOR_MS_SWEEP),
-          current_scope(Scope::MINOR_MS_SWEEP_NEW),
-          current_scope(Scope::MINOR_MS_SWEEP_NEW_LO),
-          current_scope(Scope::MINOR_MS_SWEEP_UPDATE_STRING_TABLE),
-          current_scope(Scope::MINOR_MS_SWEEP_START_JOBS),
-          current_scope(Scope::YOUNG_ARRAY_BUFFER_SWEEP),
-          current_scope(Scope::MINOR_MS_FINISH),
-          current_scope(Scope::MINOR_MS_FINISH_ENSURE_CAPACITY),
-          current_scope(Scope::MINOR_MS_FINISH_SWEEP_ARRAY_BUFFERS),
-          current_scope(Scope::MINOR_MS_BACKGROUND_MARKING),
-          current_scope(Scope::MINOR_MS_BACKGROUND_SWEEPING),
-          current_scope(Scope::BACKGROUND_YOUNG_ARRAY_BUFFER_SWEEP),
-          current_scope(Scope::CONSERVATIVE_STACK_SCANNING),
-          current_.start_object_size, current_.end_object_size,
-          current_.start_memory_size, current_.end_memory_size,
-          current_.start_holes_size, current_.end_holes_size,
-          allocated_since_last_gc, heap_->promoted_objects_size(),
-          heap_->new_space_surviving_object_size(),
-          heap_->nodes_died_in_new_space_, heap_->nodes_copied_in_new_space_,
-          heap_->nodes_promoted_, heap_->promotion_ratio_,
-          AverageSurvivalRatio(), heap_->promotion_rate_,
-          heap_->new_space_surviving_rate_,
-          heap_->new_space() ? heap_->new_space()->TotalCapacity() : 0,
-          heap_->old_generation_allocation_limit(),
-          heap_->global_allocation_limit(),
-          NewSpaceAllocationThroughputInBytesPerMillisecond(),
-          AllocationThroughputInBytesPerMillisecond());
+      json.p("minor_ms", current_scope(Scope::MINOR_MS))
+          .p("mark", current_scope(Scope::MINOR_MS_MARK))
+          .p("mark.incremental_seed",
+             current_scope(Scope::MINOR_MS_MARK_INCREMENTAL_SEED))
+          .p("mark.finish_incremental",
+             current_scope(Scope::MINOR_MS_MARK_FINISH_INCREMENTAL))
+          .p("mark.seed", current_scope(Scope::MINOR_MS_MARK_SEED))
+          .p("mark.traced_handles",
+             current_scope(Scope::MINOR_MS_MARK_TRACED_HANDLES))
+          .p("mark.closure_parallel",
+             current_scope(Scope::MINOR_MS_MARK_CLOSURE_PARALLEL))
+          .p("mark.closure", current_scope(Scope::MINOR_MS_MARK_CLOSURE))
+          .p("mark.conservative_stack",
+             current_scope(Scope::MINOR_MS_MARK_CONSERVATIVE_STACK))
+          .p("clear", current_scope(Scope::MINOR_MS_CLEAR))
+          .p("clear.string_forwarding_table",
+             current_scope(Scope::MINOR_MS_CLEAR_STRING_FORWARDING_TABLE))
+          .p("clear.string_table",
+             current_scope(Scope::MINOR_MS_CLEAR_STRING_TABLE))
+          .p("clear.global_handles",
+             current_scope(Scope::MINOR_MS_CLEAR_WEAK_GLOBAL_HANDLES))
+          .p("complete.sweep_array_buffers",
+             current_scope(Scope::MINOR_MS_COMPLETE_SWEEP_ARRAY_BUFFERS))
+          .p("complete.sweeping",
+             current_scope(Scope::MINOR_MS_COMPLETE_SWEEPING))
+          .p("sweep", current_scope(Scope::MINOR_MS_SWEEP))
+          .p("sweep.new", current_scope(Scope::MINOR_MS_SWEEP_NEW))
+          .p("sweep.new_lo", current_scope(Scope::MINOR_MS_SWEEP_NEW_LO))
+          .p("sweep.update_string_table",
+             current_scope(Scope::MINOR_MS_SWEEP_UPDATE_STRING_TABLE))
+          .p("sweep.start_jobs",
+             current_scope(Scope::MINOR_MS_SWEEP_START_JOBS))
+          .p("sweep.array_buffers",
+             current_scope(Scope::YOUNG_ARRAY_BUFFER_SWEEP))
+          .p("finish", current_scope(Scope::MINOR_MS_FINISH))
+          .p("finish.ensure_capacity",
+             current_scope(Scope::MINOR_MS_FINISH_ENSURE_CAPACITY))
+          .p("finish.sweep_array_buffers",
+             current_scope(Scope::MINOR_MS_FINISH_SWEEP_ARRAY_BUFFERS))
+          .p("background.mark",
+             current_scope(Scope::MINOR_MS_BACKGROUND_MARKING))
+          .p("background.sweep",
+             current_scope(Scope::MINOR_MS_BACKGROUND_SWEEPING))
+          .p("background.sweep.array_buffers",
+             current_scope(Scope::BACKGROUND_YOUNG_ARRAY_BUFFER_SWEEP))
+          .p("conservative_stack_scanning",
+             current_scope(Scope::CONSERVATIVE_STACK_SCANNING));
       break;
     case Event::Type::MARK_COMPACTOR:
     case Event::Type::INCREMENTAL_MARK_COMPACTOR:
-      heap_->isolate()->PrintWithTimestamp(
-          "pause=%.1f "
-          "mutator=%.1f "
-          "gc=%s "
-          "reduce_memory=%d "
-          "time_to_safepoint=%.2f "
-          "heap.prologue=%.2f "
-          "heap.embedder_tracing_epilogue=%.2f "
-          "heap.epilogue=%.2f "
-          "heap.external.prologue=%.1f "
-          "heap.external.epilogue=%.1f "
-          "heap.external.weak_global_handles=%.1f "
-          "clear=%1.f "
-          "clear.external_string_table=%.1f "
-          "clear.string_forwarding_table=%.1f "
-          "clear.weak_global_handles=%.1f "
-          "clear.dependent_code=%.1f "
-          "clear.maps=%.1f "
-          "clear.slots_buffer=%.1f "
-          "clear.weak_collections=%.1f "
-          "clear.weak_lists=%.1f "
-          "clear.weak_references_trivial=%.1f "
-          "clear.weak_references_non_trivial=%.1f "
-          "clear.weak_references_filter_non_trivial=%.1f "
-          "clear.js_weak_references=%.1f "
-          "clear.join_filter_job=%.1f"
-          "clear.join_job=%.1f "
-          "weakness_handling=%.1f "
-          "complete.sweep_array_buffers=%.1f "
-          "complete.sweeping=%.1f "
-          "epilogue=%.1f "
-          "evacuate=%.1f "
-          "evacuate.pin_pages=%.1f "
-          "evacuate.candidates=%.1f "
-          "evacuate.clean_up=%.1f "
-          "evacuate.copy=%.1f "
-          "evacuate.prologue=%.1f "
-          "evacuate.epilogue=%.1f "
-          "evacuate.rebalance=%.1f "
-          "evacuate.update_pointers=%.1f "
-          "evacuate.update_pointers.to_new_roots=%.1f "
-          "evacuate.update_pointers.slots.main=%.1f "
-          "evacuate.update_pointers.weak=%.1f "
-          "finish=%.1f "
-          "finish.sweep_array_buffers=%.1f "
-          "mark=%.1f "
-          "mark.finish_incremental=%.1f "
-          "mark.roots=%.1f "
-          "mark.full_closure_parallel=%.1f "
-          "mark.full_closure=%.1f "
-          "mark.ephemeron.marking=%.1f "
-          "mark.ephemeron.linear=%.1f "
-          "mark.embedder_prologue=%.1f "
-          "mark.embedder_tracing=%.1f "
-          "prologue=%.1f "
-          "sweep=%.1f "
-          "sweep.code=%.1f "
-          "sweep.map=%.1f "
-          "sweep.new=%.1f "
-          "sweep.new_lo=%.1f "
-          "sweep.old=%.1f "
-          "sweep.start_jobs=%.1f "
-          "incremental=%.1f "
-          "incremental.finalize.external.prologue=%.1f "
-          "incremental.finalize.external.epilogue=%.1f "
-          "incremental.layout_change=%.1f "
-          "incremental.sweep_array_buffers=%.1f "
-          "incremental.sweeping=%.1f "
-          "incremental.embedder_tracing=%.1f "
-          "incremental_wrapper_tracing_longest_step=%.1f "
-          "incremental_longest_step=%.1f "
-          "incremental_steps_count=%d "
-          "incremental_marking_throughput=%.f "
-          "incremental_walltime_duration=%.f "
-          "background.mark=%.1f "
-          "background.sweep=%.1f "
-          "background.evacuate.copy=%.1f "
-          "background.evacuate.update_pointers=%.1f "
-          "conservative_stack_scanning=%.2f "
-          "start_object_size=%zu "
-          "end_object_size=%zu "
-          "start_memory_size=%zu "
-          "end_memory_size=%zu "
-          "start_holes_size=%zu "
-          "end_holes_size=%zu "
-          "allocated=%zu "
-          "promoted=%zu "
-          "new_space_survived=%zu "
-          "nodes_died_in_new=%d "
-          "nodes_copied_in_new=%d "
-          "nodes_promoted=%d "
-          "promotion_ratio=%.1f%% "
-          "average_survival_ratio=%.1f%% "
-          "promotion_rate=%.1f%% "
-          "new_space_survive_rate=%.1f%% "
-          "new_space_allocation_throughput=%.1f "
-          "new_space_capacity=%zu "
-          "old_gen_allocation_limit=%zu "
-          "global_allocation_limit=%zu "
-          "allocation_throughput=%.1f "
-          "pool_local_chunks=%zu "
-          "pool_shared_chunks=%zu "
-          "pool_total_chunks=%zu "
-          "compaction_speed=%.1f\n",
-          duration.InMillisecondsF(), spent_in_mutator.InMillisecondsF(),
-          ToString(current_.type, true), current_.reduce_memory,
-          current_scope(Scope::TIME_TO_SAFEPOINT),
-          current_scope(Scope::HEAP_PROLOGUE),
-          current_scope(Scope::HEAP_EMBEDDER_TRACING_EPILOGUE),
-          current_scope(Scope::HEAP_EPILOGUE),
-          current_scope(Scope::HEAP_EXTERNAL_PROLOGUE),
-          current_scope(Scope::HEAP_EXTERNAL_EPILOGUE),
-          current_scope(Scope::HEAP_EXTERNAL_WEAK_GLOBAL_HANDLES),
-          current_scope(Scope::MC_CLEAR),
-          current_scope(Scope::MC_CLEAR_EXTERNAL_STRING_TABLE),
-          current_scope(Scope::MC_CLEAR_STRING_FORWARDING_TABLE),
-          current_scope(Scope::MC_CLEAR_WEAK_GLOBAL_HANDLES),
-          current_scope(Scope::MC_CLEAR_DEPENDENT_CODE),
-          current_scope(Scope::MC_CLEAR_MAPS),
-          current_scope(Scope::MC_CLEAR_SLOTS_BUFFER),
-          current_scope(Scope::MC_CLEAR_WEAK_COLLECTIONS),
-          current_scope(Scope::MC_CLEAR_WEAK_LISTS),
-          current_scope(Scope::MC_CLEAR_WEAK_REFERENCES_TRIVIAL),
-          current_scope(Scope::MC_CLEAR_WEAK_REFERENCES_NON_TRIVIAL),
-          current_scope(Scope::MC_CLEAR_WEAK_REFERENCES_FILTER_NON_TRIVIAL),
-          current_scope(Scope::MC_CLEAR_JS_WEAK_REFERENCES),
-          current_scope(Scope::MC_CLEAR_WEAK_REFERENCES_JOIN_FILTER_JOB),
-          current_scope(Scope::MC_CLEAR_JOIN_JOB),
-          current_scope(Scope::MC_WEAKNESS_HANDLING),
-          current_scope(Scope::MC_COMPLETE_SWEEP_ARRAY_BUFFERS),
-          current_scope(Scope::MC_COMPLETE_SWEEPING),
-          current_scope(Scope::MC_EPILOGUE), current_scope(Scope::MC_EVACUATE),
-          current_scope(Scope::MC_EVACUATE_PIN_PAGES),
-          current_scope(Scope::MC_EVACUATE_CANDIDATES),
-          current_scope(Scope::MC_EVACUATE_CLEAN_UP),
-          current_scope(Scope::MC_EVACUATE_COPY),
-          current_scope(Scope::MC_EVACUATE_PROLOGUE),
-          current_scope(Scope::MC_EVACUATE_EPILOGUE),
-          current_scope(Scope::MC_EVACUATE_REBALANCE),
-          current_scope(Scope::MC_EVACUATE_UPDATE_POINTERS),
-          current_scope(Scope::MC_EVACUATE_UPDATE_POINTERS_TO_NEW_ROOTS),
-          current_scope(Scope::MC_EVACUATE_UPDATE_POINTERS_SLOTS_MAIN),
-          current_scope(Scope::MC_EVACUATE_UPDATE_POINTERS_WEAK),
-          current_scope(Scope::MC_FINISH),
-          current_scope(Scope::MC_FINISH_SWEEP_ARRAY_BUFFERS),
-          current_scope(Scope::MC_MARK),
-          current_scope(Scope::MC_MARK_FINISH_INCREMENTAL),
-          current_scope(Scope::MC_MARK_ROOTS),
-          current_scope(Scope::MC_MARK_FULL_CLOSURE_PARALLEL),
-          current_scope(Scope::MC_MARK_FULL_CLOSURE),
-          current_scope(Scope::MC_MARK_WEAK_CLOSURE_EPHEMERON_MARKING),
-          current_scope(Scope::MC_MARK_WEAK_CLOSURE_EPHEMERON_LINEAR),
-          current_scope(Scope::MC_MARK_EMBEDDER_PROLOGUE),
-          current_scope(Scope::MC_MARK_EMBEDDER_TRACING),
-          current_scope(Scope::MC_PROLOGUE), current_scope(Scope::MC_SWEEP),
-          current_scope(Scope::MC_SWEEP_CODE),
-          current_scope(Scope::MC_SWEEP_MAP),
-          current_scope(Scope::MC_SWEEP_NEW),
-          current_scope(Scope::MC_SWEEP_NEW_LO),
-          current_scope(Scope::MC_SWEEP_OLD),
-          current_scope(Scope::MC_SWEEP_START_JOBS),
-          current_scope(Scope::MC_INCREMENTAL),
-          current_scope(Scope::MC_INCREMENTAL_EXTERNAL_PROLOGUE),
-          current_scope(Scope::MC_INCREMENTAL_EXTERNAL_EPILOGUE),
-          current_scope(Scope::MC_INCREMENTAL_LAYOUT_CHANGE),
-          current_scope(Scope::MC_INCREMENTAL_START),
-          current_scope(Scope::MC_INCREMENTAL_SWEEPING),
-          current_scope(Scope::MC_INCREMENTAL_EMBEDDER_TRACING),
-          incremental_scope(Scope::MC_INCREMENTAL_EMBEDDER_TRACING)
-              .longest_step.InMillisecondsF(),
-          incremental_scope(Scope::MC_INCREMENTAL)
-              .longest_step.InMillisecondsF(),
-          incremental_scope(Scope::MC_INCREMENTAL).steps,
-          IncrementalMarkingSpeedInBytesPerMillisecond(),
-          incremental_walltime_duration.InMillisecondsF(),
-          current_scope(Scope::MC_BACKGROUND_MARKING),
-          current_scope(Scope::MC_BACKGROUND_SWEEPING),
-          current_scope(Scope::MC_BACKGROUND_EVACUATE_COPY),
-          current_scope(Scope::MC_BACKGROUND_EVACUATE_UPDATE_POINTERS),
-          current_scope(Scope::CONSERVATIVE_STACK_SCANNING),
-          current_.start_object_size, current_.end_object_size,
-          current_.start_memory_size, current_.end_memory_size,
-          current_.start_holes_size, current_.end_holes_size,
-          allocated_since_last_gc, heap_->promoted_objects_size(),
-          heap_->new_space_surviving_object_size(),
-          heap_->nodes_died_in_new_space_, heap_->nodes_copied_in_new_space_,
-          heap_->nodes_promoted_, heap_->promotion_ratio_,
-          AverageSurvivalRatio(), heap_->promotion_rate_,
-          heap_->new_space_surviving_rate_,
-          NewSpaceAllocationThroughputInBytesPerMillisecond(),
-          heap_->new_space() ? heap_->new_space()->TotalCapacity() : 0,
-          heap_->old_generation_allocation_limit(),
-          heap_->global_allocation_limit(),
-          AllocationThroughputInBytesPerMillisecond(),
-          heap_->memory_allocator()->GetPooledChunksCount(),
-          heap_->memory_allocator()->GetSharedPooledChunksCount(),
-          heap_->memory_allocator()->GetTotalPooledChunksCount(),
-          CompactionSpeedInBytesPerMillisecond().value_or(0.0));
+      json.p("heap.prologue", current_scope(Scope::HEAP_PROLOGUE))
+          .p("heap.embedder_tracing_epilogue",
+             current_scope(Scope::HEAP_EMBEDDER_TRACING_EPILOGUE))
+          .p("heap.epilogue", current_scope(Scope::HEAP_EPILOGUE))
+          .p("heap.external.prologue",
+             current_scope(Scope::HEAP_EXTERNAL_PROLOGUE))
+          .p("heap.external.epilogue",
+             current_scope(Scope::HEAP_EXTERNAL_EPILOGUE))
+          .p("heap.external.weak_global_handles",
+             current_scope(Scope::HEAP_EXTERNAL_WEAK_GLOBAL_HANDLES))
+          .p("clear", current_scope(Scope::MC_CLEAR))
+          .p("clear.external_string_table",
+             current_scope(Scope::MC_CLEAR_EXTERNAL_STRING_TABLE))
+          .p("clear.string_forwarding_table",
+             current_scope(Scope::MC_CLEAR_STRING_FORWARDING_TABLE))
+          .p("clear.weak_global_handles",
+             current_scope(Scope::MC_CLEAR_WEAK_GLOBAL_HANDLES))
+          .p("clear.dependent_code",
+             current_scope(Scope::MC_CLEAR_DEPENDENT_CODE))
+          .p("clear.maps", current_scope(Scope::MC_CLEAR_MAPS))
+          .p("clear.slots_buffer", current_scope(Scope::MC_CLEAR_SLOTS_BUFFER))
+          .p("clear.weak_collections",
+             current_scope(Scope::MC_CLEAR_WEAK_COLLECTIONS))
+          .p("clear.weak_lists", current_scope(Scope::MC_CLEAR_WEAK_LISTS))
+          .p("clear.weak_references_trivial",
+             current_scope(Scope::MC_CLEAR_WEAK_REFERENCES_TRIVIAL))
+          .p("clear.weak_references_non_trivial",
+             current_scope(Scope::MC_CLEAR_WEAK_REFERENCES_NON_TRIVIAL))
+          .p("clear.weak_references_filter_non_trivial",
+             current_scope(Scope::MC_CLEAR_WEAK_REFERENCES_FILTER_NON_TRIVIAL))
+          .p("clear.js_weak_references",
+             current_scope(Scope::MC_CLEAR_JS_WEAK_REFERENCES))
+          .p("clear.join_filter_job",
+             current_scope(Scope::MC_CLEAR_WEAK_REFERENCES_JOIN_FILTER_JOB))
+          .p("clear.join_job", current_scope(Scope::MC_CLEAR_JOIN_JOB))
+          .p("weakness_handling", current_scope(Scope::MC_WEAKNESS_HANDLING))
+          .p("complete.sweep_array_buffers",
+             current_scope(Scope::MC_COMPLETE_SWEEP_ARRAY_BUFFERS))
+          .p("complete.sweeping", current_scope(Scope::MC_COMPLETE_SWEEPING))
+          .p("epilogue", current_scope(Scope::MC_EPILOGUE))
+          .p("evacuate", current_scope(Scope::MC_EVACUATE))
+          .p("evacuate.pin_pages", current_scope(Scope::MC_EVACUATE_PIN_PAGES))
+          .p("evacuate.candidates",
+             current_scope(Scope::MC_EVACUATE_CANDIDATES))
+          .p("evacuate.clean_up", current_scope(Scope::MC_EVACUATE_CLEAN_UP))
+          .p("evacuate.copy", current_scope(Scope::MC_EVACUATE_COPY))
+          .p("evacuate.prologue", current_scope(Scope::MC_EVACUATE_PROLOGUE))
+          .p("evacuate.epilogue", current_scope(Scope::MC_EVACUATE_EPILOGUE))
+          .p("evacuate.rebalance", current_scope(Scope::MC_EVACUATE_REBALANCE))
+          .p("evacuate.update_pointers",
+             current_scope(Scope::MC_EVACUATE_UPDATE_POINTERS))
+          .p("evacuate.update_pointers.to_new_roots",
+             current_scope(Scope::MC_EVACUATE_UPDATE_POINTERS_TO_NEW_ROOTS))
+          .p("evacuate.update_pointers.slots.main",
+             current_scope(Scope::MC_EVACUATE_UPDATE_POINTERS_SLOTS_MAIN))
+          .p("evacuate.update_pointers.weak",
+             current_scope(Scope::MC_EVACUATE_UPDATE_POINTERS_WEAK))
+          .p("finish", current_scope(Scope::MC_FINISH))
+          .p("finish.sweep_array_buffers",
+             current_scope(Scope::MC_FINISH_SWEEP_ARRAY_BUFFERS))
+          .p("mark", current_scope(Scope::MC_MARK))
+          .p("mark.finish_incremental",
+             current_scope(Scope::MC_MARK_FINISH_INCREMENTAL))
+          .p("mark.roots", current_scope(Scope::MC_MARK_ROOTS))
+          .p("mark.full_closure_parallel",
+             current_scope(Scope::MC_MARK_FULL_CLOSURE_PARALLEL))
+          .p("mark.full_closure", current_scope(Scope::MC_MARK_FULL_CLOSURE))
+          .p("mark.ephemeron.marking",
+             current_scope(Scope::MC_MARK_WEAK_CLOSURE_EPHEMERON_MARKING))
+          .p("mark.ephemeron.linear",
+             current_scope(Scope::MC_MARK_WEAK_CLOSURE_EPHEMERON_LINEAR))
+          .p("mark.embedder_prologue",
+             current_scope(Scope::MC_MARK_EMBEDDER_PROLOGUE))
+          .p("mark.embedder_tracing",
+             current_scope(Scope::MC_MARK_EMBEDDER_TRACING))
+          .p("prologue", current_scope(Scope::MC_PROLOGUE))
+          .p("sweep", current_scope(Scope::MC_SWEEP))
+          .p("sweep.code", current_scope(Scope::MC_SWEEP_CODE))
+          .p("sweep.map", current_scope(Scope::MC_SWEEP_MAP))
+          .p("sweep.new", current_scope(Scope::MC_SWEEP_NEW))
+          .p("sweep.new_lo", current_scope(Scope::MC_SWEEP_NEW_LO))
+          .p("sweep.old", current_scope(Scope::MC_SWEEP_OLD))
+          .p("sweep.start_jobs", current_scope(Scope::MC_SWEEP_START_JOBS))
+          .p("incremental", current_scope(Scope::MC_INCREMENTAL))
+          .p("incremental.finalize.external.prologue",
+             current_scope(Scope::MC_INCREMENTAL_EXTERNAL_PROLOGUE))
+          .p("incremental.finalize.external.epilogue",
+             current_scope(Scope::MC_INCREMENTAL_EXTERNAL_EPILOGUE))
+          .p("incremental.layout_change",
+             current_scope(Scope::MC_INCREMENTAL_LAYOUT_CHANGE))
+          .p("incremental.sweep_array_buffers",
+             current_scope(Scope::MC_INCREMENTAL_START))
+          .p("incremental.sweeping",
+             current_scope(Scope::MC_INCREMENTAL_SWEEPING))
+          .p("incremental.embedder_tracing",
+             current_scope(Scope::MC_INCREMENTAL_EMBEDDER_TRACING))
+          .p("incremental_wrapper_tracing_longest_step",
+             incremental_scope(Scope::MC_INCREMENTAL_EMBEDDER_TRACING)
+                 .longest_step.InMillisecondsF())
+          .p("incremental_longest_step",
+             incremental_scope(Scope::MC_INCREMENTAL)
+                 .longest_step.InMillisecondsF())
+          .p("incremental_steps_count",
+             incremental_scope(Scope::MC_INCREMENTAL).steps)
+          .p("incremental_marking_throughput",
+             IncrementalMarkingSpeedInBytesPerMillisecond())
+          .p("incremental_walltime_duration",
+             incremental_walltime_duration.InMillisecondsF())
+          .p("background.mark", current_scope(Scope::MC_BACKGROUND_MARKING))
+          .p("background.sweep", current_scope(Scope::MC_BACKGROUND_SWEEPING))
+          .p("background.evacuate.copy",
+             current_scope(Scope::MC_BACKGROUND_EVACUATE_COPY))
+          .p("background.evacuate.update_pointers",
+             current_scope(Scope::MC_BACKGROUND_EVACUATE_UPDATE_POINTERS))
+          .p("conservative_stack_scanning",
+             current_scope(Scope::CONSERVATIVE_STACK_SCANNING))
+          .p("compaction_speed",
+             CompactionSpeedInBytesPerMillisecond().value_or(0.0));
       break;
     case Event::Type::START:
       break;
   }
+
+  std::string json_str = json.object_end().ToString();
+  heap_->isolate()->PrintWithTimestamp("GC: %s\n", json_str.c_str());
+
+#if defined(V8_USE_PERFETTO)
+  TRACE_EVENT_INSTANT1(TRACE_DISABLED_BY_DEFAULT("v8.gc"), "V8.GCTraceGCNVP",
+                       TRACE_EVENT_SCOPE_THREAD, "value",
+                       TRACE_STR_COPY(json_str.c_str()));
+#endif
 }
 
 void GCTracer::RecordIncrementalMarkingSpeed(size_t bytes,
@@ -1526,13 +1408,13 @@ void GCTracer::RecordGCSumCounters() {
 void GCTracer::RecordGCSizeCounters() const {
 #if defined(V8_USE_PERFETTO)
   TRACE_COUNTER(
-      TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+      "v8.memory",
       perfetto::CounterTrack("OldGenerationConsumedBytes", parent_track_),
       heap_->OldGenerationConsumedBytes());
-  TRACE_COUNTER(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+  TRACE_COUNTER("v8.memory",
                 perfetto::CounterTrack("GlobalConsumedBytes", parent_track_),
                 heap_->GlobalConsumedBytes());
-  TRACE_COUNTER(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+  TRACE_COUNTER("v8.memory",
                 perfetto::CounterTrack("ExternalMemoryBytes", parent_track_),
                 heap_->external_memory());
 #endif
@@ -1634,7 +1516,11 @@ void GCTracer::ReportFullCycleToRecorder() {
 
   v8::metrics::GarbageCollectionFullCycle event;
   event.reason = static_cast<int>(current_.gc_reason);
+  event.incremental_marking_reason =
+      static_cast<int>(current_.incremental_marking_reason);
   event.priority = current_.priority;
+  event.reduce_memory = current_.reduce_memory;
+  event.is_loading = current_.is_loading;
 
   // Managed C++ heap statistics:
   if (cpp_heap) {
@@ -1769,6 +1655,21 @@ void GCTracer::ReportFullCycleToRecorder() {
       current_.start_memory_size > current_.end_memory_size
           ? current_.start_memory_size - current_.end_memory_size
           : 0U;
+  // Old generation Consumed Bytes:
+  event.old_generation_consumed.bytes_baseline =
+      current_.old_generation_consumed_baseline;
+  event.old_generation_consumed.bytes_limit =
+      current_.old_generation_consumed_limit;
+  event.old_generation_consumed.bytes_current =
+      current_.old_generation_consumed_current;
+  event.old_generation_consumed.bytes_max = current_.max_old_generation_memory;
+  // Global Consumed Bytes:
+  event.global_consumed.bytes_baseline = current_.global_consumed_baseline;
+  event.global_consumed.bytes_limit = current_.global_consumed_limit;
+  event.global_consumed.bytes_current = current_.global_consumed_current;
+  event.global_consumed.bytes_max = current_.max_global_memory;
+  // External memory Bytes
+  event.external_memory_bytes = current_.external_memory_bytes;
   // Collection Rate:
   if (event.objects.bytes_before == 0) {
     event.collection_rate_in_percent = 0;
@@ -1799,6 +1700,8 @@ void GCTracer::ReportFullCycleToRecorder() {
     event.collection_weight_in_percent = 0;
     event.main_thread_collection_weight_in_percent = 0;
   } else {
+    event.total_duration_since_last_mark_compact =
+        total_duration_since_last_mark_compact_.InMicroseconds();
     event.collection_weight_in_percent =
         static_cast<double>(event.total.total_wall_clock_duration_in_us) /
         total_duration_since_last_mark_compact_.InMicroseconds();
@@ -1861,7 +1764,13 @@ void GCTracer::ReportYoungCycleToRecorder() {
   const std::shared_ptr<metrics::Recorder>& recorder =
       heap_->isolate()->metrics_recorder();
   DCHECK_NOT_NULL(recorder);
-  if (!recorder->HasEmbedderRecorder()) return;
+  auto* cpp_heap = v8::internal::CppHeap::From(heap_->cpp_heap());
+  if (!recorder->HasEmbedderRecorder()) {
+    if (cpp_heap) {
+      cpp_heap->GetMetricRecorder()->ClearCachedYoungEvents();
+    }
+    return;
+  }
 
   v8::metrics::GarbageCollectionYoungCycle event;
   // Reason:
@@ -1869,7 +1778,6 @@ void GCTracer::ReportYoungCycleToRecorder() {
   event.priority = current_.priority;
 #if defined(CPPGC_YOUNG_GENERATION)
   // Managed C++ heap statistics:
-  auto* cpp_heap = v8::internal::CppHeap::From(heap_->cpp_heap());
   if (cpp_heap && cpp_heap->generational_gc_supported()) {
     auto* metric_recorder = cpp_heap->GetMetricRecorder();
     const std::optional<cppgc::internal::MetricRecorder::GCCycle>

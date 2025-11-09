@@ -283,7 +283,7 @@ void RegExpMacroAssemblerARM64::CheckCharacters(
   }
 }
 
-void RegExpMacroAssemblerARM64::CheckGreedyLoop(Label* on_equal) {
+void RegExpMacroAssemblerARM64::CheckFixedLengthLoop(Label* on_equal) {
   __ Ldr(w10, MemOperand(backtrack_stackpointer()));
   __ Cmp(current_input_offset(), w10);
   __ Cset(x11, eq);
@@ -640,8 +640,9 @@ void RegExpMacroAssemblerARM64::CheckBitInTable(
 
 void RegExpMacroAssemblerARM64::SkipUntilBitInTable(
     int cp_offset, Handle<ByteArray> table,
-    Handle<ByteArray> nibble_table_array, int advance_by) {
-  Label cont, scalar_repeat;
+    Handle<ByteArray> nibble_table_array, int advance_by, Label* on_match,
+    Label* on_no_match) {
+  Label scalar_repeat;
 
   const bool use_simd = SkipUntilBitInTableUseSimd(advance_by);
   if (use_simd) {
@@ -730,7 +731,7 @@ void RegExpMacroAssemblerARM64::SkipUntilBitInTable(
       __ And(x8, x8, Immediate(0xfffe));
     }
     __ Add(current_input_offset(), current_input_offset(), w8);
-    __ B(&cont);
+    __ B(on_match);
     Bind(&scalar);
   }
 
@@ -739,7 +740,7 @@ void RegExpMacroAssemblerARM64::SkipUntilBitInTable(
   __ Mov(table_reg, Operand(table));
 
   Bind(&scalar_repeat);
-  CheckPosition(cp_offset, &cont);
+  CheckPosition(cp_offset, on_no_match);
   LoadCurrentCharacterUnchecked(cp_offset, 1);
   Register index = w10;
   if ((mode_ != LATIN1) || (kTableMask != String::kMaxOneByteCharCode)) {
@@ -751,14 +752,175 @@ void RegExpMacroAssemblerARM64::SkipUntilBitInTable(
   }
   Register found_in_table = w11;
   __ Ldrb(found_in_table, MemOperand(table_reg, index, UXTW));
-  __ Cbnz(found_in_table, &cont);
+  __ Cbnz(found_in_table, on_match);
   AdvanceCurrentPosition(advance_by);
   __ B(&scalar_repeat);
-
-  Bind(&cont);
 }
 
 bool RegExpMacroAssemblerARM64::SkipUntilBitInTableUseSimd(int advance_by) {
+  // We only use SIMD instead of the scalar version if we advance by 1 byte
+  // in each iteration. For higher values the scalar version performs better.
+  return v8_flags.regexp_simd && advance_by * char_size() == 1;
+}
+
+void RegExpMacroAssemblerARM64::SkipUntilOneOfMasked(
+    int cp_offset, int advance_by, unsigned both_chars, unsigned both_mask,
+    int max_offset, unsigned chars1, unsigned mask1, unsigned chars2,
+    unsigned mask2, Label* on_match1, Label* on_match2, Label* on_failure) {
+  Label scalar_repeat;
+  const bool use_simd = SkipUntilOneOfMaskedUseSimd(advance_by);
+  const int character_count =
+      4 - base::bits::CountLeadingZeros32(both_chars) / kBitsPerByte;
+  DCHECK_EQ(character_count,
+            4 - base::bits::CountLeadingZeros32(both_mask) / kBitsPerByte);
+  DCHECK_EQ(character_count, 4);  // TODO(pthier): Support other variants.
+  DCHECK_EQ(mode_, LATIN1);       // TODO(pthier): Support 2-byte.
+  if (use_simd) {
+    // We load the 16 characters from the subject into 4 different vector
+    // registers, each offset by 1. This is required as we want to check 4
+    // contiguous characters.
+    // E.g. "This is a sample subject" will be loaded as:
+    // input_vec1 = "This is a sample"
+    // input_vec2 = "his is a sample "
+    // input_vec3 = "is is a sample s"
+    // input_vec4 = "s is a sample su"
+    // We then check each of these vectors against both_mask and both_chars
+    // (each containing 4 characters). Whenever we find a match, we simply
+    // delegate the task of finding the exact match index to the scalar version
+    // (getting the correct index from vector registers is complicated and
+    // slower).
+    Label simd_repeat, found, scalar;
+    static constexpr int kVectorSize = kQRegSize;
+    const int kCharsPerVector = kVectorSize / char_size();
+
+    // Fallback to scalar version if there are less than kCharsPerVector +
+    // character_count - 1 chars left in the subject. We subtract 1 from
+    // kCharsPerVector because CheckPosition assumes we are reading 1 character
+    // plus max_offset. So the -1 is the the character that is assumed to be
+    // read by default.
+    const int max_stride_offset =
+        max_offset + kCharsPerVector - 1 + character_count - 1;
+    CheckPosition(max_stride_offset, &scalar);
+
+    // Load constants.
+    VRegister both_chars_vec = v0;
+    VRegister both_mask_vec = v1;
+    VRegister chars1_vec = v2;
+    VRegister mask1_vec = v3;
+    VRegister chars2_vec = v4;
+    VRegister mask2_vec = v5;
+    VRegister combine_result_mask = v6;
+    __ Movi(both_chars_vec.V4S(), both_chars);
+    __ Movi(both_mask_vec.V4S(), both_mask);
+    __ Movi(chars1_vec.V4S(), chars1);
+    __ Movi(mask1_vec.V4S(), mask1);
+    __ Movi(chars2_vec.V4S(), chars2);
+    __ Movi(mask2_vec.V4S(), mask2);
+    // Lookup mask to extract 1 byte from each word.
+    // It doesn't matter which byte we take, as all words are either 0xFFFF or
+    // 0x0000.
+    const uint64_t combine_result_mask_imm = 0x1c181410'0c080400;
+    __ Movi(combine_result_mask.V1D(), combine_result_mask_imm);
+
+    Bind(&simd_repeat);
+
+    // Load next characters into vectors.
+    VRegister input_vec1 = v20;
+    VRegister input_vec2 = v21;
+    VRegister input_vec3 = v22;
+    VRegister input_vec4 = v23;
+
+    Register input_index = x8;
+    __ Add(input_index, input_end(), Operand(current_input_offset(), SXTW));
+    __ Add(input_index, input_index, cp_offset * char_size());
+    __ Ldr(input_vec1.V16B(), MemOperand(input_index));
+    __ Ldr(input_vec2.V16B(), MemOperand(input_index, 1));
+    __ Ldr(input_vec3.V16B(), MemOperand(input_index, 2));
+    __ Ldr(input_vec4.V16B(), MemOperand(input_index, 3));
+
+    // Helper to check if any of 4 input vectors matches. I.e. computes (input &
+    // mask) == characters for each input. If any input matched, |result| is set
+    // to a value != 0. We don't try to compute the exact match index, as this
+    // is rather expensive on ARM64. Instead we use the scalar version to find
+    // the exact match index within a block.
+    VRegister tmp_vec1 = v24;
+    VRegister tmp_vec2 = v25;
+    VRegister tmp_vec3 = v26;
+    VRegister tmp_vec4 = v27;
+    auto AndCheck4CharsSimd = [&](Register result, VRegister characters,
+                                  VRegister mask) {
+      __ And(tmp_vec1.V16B(), mask.V16B(), input_vec1.V16B());
+      __ And(tmp_vec2.V16B(), mask.V16B(), input_vec2.V16B());
+      __ And(tmp_vec3.V16B(), mask.V16B(), input_vec3.V16B());
+      __ And(tmp_vec4.V16B(), mask.V16B(), input_vec4.V16B());
+
+      // Compare each word (4 characters).
+      // This will result in either FFFFFFFF or 00000000 for each word.
+      __ Cmeq(tmp_vec1.V4S(), characters.V4S(), tmp_vec1.V4S());
+      __ Cmeq(tmp_vec2.V4S(), characters.V4S(), tmp_vec2.V4S());
+      __ Cmeq(tmp_vec3.V4S(), characters.V4S(), tmp_vec3.V4S());
+      __ Cmeq(tmp_vec4.V4S(), characters.V4S(), tmp_vec4.V4S());
+
+      // Combine all results into a single vector.
+      __ Orr(tmp_vec1.V16B(), tmp_vec1.V16B(), tmp_vec2.V16B());
+      __ Orr(tmp_vec2.V16B(), tmp_vec3.V16B(), tmp_vec4.V16B());
+      // Extract 1 byte from each word in tmp_vec1 and tmp_vec2.
+      VRegister combined_result = tmp_vec3;
+      __ Tbl(combined_result.V8B(), tmp_vec1.V16B(), tmp_vec2.V16B(),
+             combine_result_mask.V8B());
+
+      // Move the lower 64 bits into a general purpose register.
+      __ Fmov(result, combined_result.D());
+    };
+
+    Register result = ReassignRegister(input_index);
+    // Check both_chars with both_mask.
+    AndCheck4CharsSimd(result, both_chars_vec, both_mask_vec);
+    __ Cbnz(result, &found);
+    AdvanceCurrentPosition(kCharsPerVector);
+    CheckPosition(max_stride_offset, &scalar);
+    __ B(&simd_repeat);
+
+    Bind(&found);
+    // Check chars1 with mask1.
+    AndCheck4CharsSimd(result, chars1_vec, mask1_vec);
+    __ Cbnz(result, &scalar);
+    // Check chars2 with mask2.
+    AndCheck4CharsSimd(result, chars2_vec, mask2_vec);
+    __ Cbnz(result, &scalar);
+
+    AdvanceCurrentPosition(kCharsPerVector);
+    CheckPosition(max_stride_offset, &scalar);
+    __ B(&simd_repeat);
+
+    Bind(&scalar);
+  }
+
+  // Scalar version.
+  {
+    Label found;
+    Bind(&scalar_repeat);
+    CheckPosition(max_offset, on_failure);
+    LoadCurrentCharacterUnchecked(cp_offset, character_count);
+    __ And(w10, current_character(), both_mask);
+    __ Cmp(w10, both_chars);
+    __ B(eq, &found);
+    AdvanceCurrentPosition(advance_by);
+    __ B(&scalar_repeat);
+
+    Bind(&found);
+    __ And(w10, current_character(), mask1);
+    __ Cmp(w10, chars1);
+    __ B(eq, on_match1);
+    __ And(w10, current_character(), mask2);
+    __ Cmp(w10, chars2);
+    __ B(eq, on_match2);
+    AdvanceCurrentPosition(advance_by);
+    __ B(&scalar_repeat);
+  }
+}
+
+bool RegExpMacroAssemblerARM64::SkipUntilOneOfMaskedUseSimd(int advance_by) {
   // We only use SIMD instead of the scalar version if we advance by 1 byte
   // in each iteration. For higher values the scalar version performs better.
   return v8_flags.regexp_simd && advance_by * char_size() == 1;
@@ -1388,7 +1550,7 @@ void RegExpMacroAssemblerARM64::PushRegister(int register_index,
                                              StackCheckFlag check_stack_limit) {
   Register to_push = GetRegister(register_index, w10);
   Push(to_push);
-  if (check_stack_limit) {
+  if (check_stack_limit == StackCheckFlag::kCheckStackLimit) {
     CheckStackLimit();
   } else if (V8_UNLIKELY(v8_flags.slow_debug_code)) {
     AssertAboveStackLimitMinusSlack();
@@ -1555,7 +1717,7 @@ int RegExpMacroAssemblerARM64::CheckStackGuardState(
     int start_index, const uint8_t** input_start, const uint8_t** input_end,
     uintptr_t extra_space) {
   Tagged<InstructionStream> re_code =
-      Cast<InstructionStream>(Tagged<Object>(raw_code));
+      SbxCast<InstructionStream>(Tagged<Object>(raw_code));
   return NativeRegExpMacroAssembler::CheckStackGuardState(
       frame_entry<Isolate*>(re_frame, kIsolateOffset), start_index,
       static_cast<RegExp::CallOrigin>(
@@ -1651,19 +1813,11 @@ void RegExpMacroAssemblerARM64::CompareAndBranchOrBacktrack(Register reg,
                                                             int immediate,
                                                             Condition condition,
                                                             Label* to) {
-  if ((immediate == 0) && ((condition == eq) || (condition == ne))) {
-    if (to == nullptr) {
-      to = &backtrack_label_;
-    }
-    if (condition == eq) {
-      __ Cbz(reg, to);
-    } else {
-      __ Cbnz(reg, to);
-    }
-  } else {
-    __ Cmp(reg, immediate);
-    BranchOrBacktrack(condition, to);
+  DCHECK_NE(condition, al);
+  if (to == nullptr) {
+    to = &backtrack_label_;
   }
+  __ CompareAndBranch(reg, immediate, condition, to);
 }
 
 void RegExpMacroAssemblerARM64::CallCFunctionFromIrregexpCode(

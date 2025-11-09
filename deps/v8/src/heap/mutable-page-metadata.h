@@ -27,6 +27,8 @@ class Space;
 
 using ActiveSystemPages = ::heap::base::ActiveSystemPages;
 
+enum class MarkingMode { kNoMarking, kMinorMarking, kMajorMarking };
+
 enum RememberedSetType {
   OLD_TO_NEW,
   OLD_TO_NEW_BACKGROUND,
@@ -71,10 +73,12 @@ class MutablePageMetadata : public MemoryChunkMetadata {
       MutablePageMetadata* to, size_t amount);
 
   // Only works if the pointer is in the first kPageSize of the MemoryChunk.
-  V8_INLINE static MutablePageMetadata* FromAddress(Address a);
+  V8_INLINE static MutablePageMetadata* FromAddress(const Isolate* i,
+                                                    Address a);
 
   // Only works if the object is in the first kPageSize of the MemoryChunk.
-  V8_INLINE static MutablePageMetadata* FromHeapObject(Tagged<HeapObject> o);
+  V8_INLINE static MutablePageMetadata* FromHeapObject(const Isolate* i,
+                                                       Tagged<HeapObject> o);
 
   static MutablePageMetadata* cast(MemoryChunkMetadata* metadata) {
     SBXCHECK(metadata->IsMutablePageMetadata());
@@ -86,18 +90,30 @@ class MutablePageMetadata : public MemoryChunkMetadata {
     return static_cast<const MutablePageMetadata*>(metadata);
   }
 
-  MutablePageMetadata(Heap* heap, BaseSpace* space, size_t size,
-                      Address area_start, Address area_end,
-                      VirtualMemory reservation, PageSize page_size);
+  static MemoryChunk::MainThreadFlags OldGenerationPageFlags(
+      MarkingMode marking_mode, AllocationSpace space);
+  static MemoryChunk::MainThreadFlags YoungGenerationPageFlags(
+      MarkingMode marking_mode);
 
-  MemoryChunk::MainThreadFlags InitialFlags(Executability executable) const;
+  void SetOldGenerationPageFlags(MarkingMode marking_mode);
+  void SetYoungGenerationPageFlags(MarkingMode marking_mode);
+  V8_INLINE void SetMajorGCInProgress();
+  V8_INLINE void ResetMajorGCInProgress();
+  V8_INLINE void ClearFlagsNonExecutable(MemoryChunk::MainThreadFlags flags);
+  V8_INLINE void SetFlagsNonExecutable(
+      MemoryChunk::MainThreadFlags flags,
+      MemoryChunk::MainThreadFlags mask = MemoryChunk::kAllFlagsMask);
+  V8_INLINE void ClearFlagNonExecutable(MemoryChunk::Flag flag);
+  V8_INLINE void SetFlagNonExecutable(MemoryChunk::Flag flag);
+  void SetFlagMaybeExecutable(MemoryChunk::Flag flag);
+  void ClearFlagMaybeExecutable(MemoryChunk::Flag flag);
+  // TODO(mlippautz): Replace those with non-executable or slow versions.
+  V8_INLINE void SetFlagUnlocked(MemoryChunk::Flag flag);
+  V8_INLINE void ClearFlagUnlocked(MemoryChunk::Flag flag);
+
+  V8_EXPORT_PRIVATE void MarkNeverEvacuate();
 
   size_t BucketsInSlotSet() const { return SlotSet::BucketsForSize(size()); }
-
-  V8_INLINE void SetOldGenerationPageFlags(MarkingMode marking_mode);
-  void SetYoungGenerationPageFlags(MarkingMode marking_mode) {
-    return Chunk()->SetYoungGenerationPageFlags(marking_mode);
-  }
 
   base::Mutex& mutex() { return mutex_; }
   const base::Mutex& mutex() const { return mutex_; }
@@ -203,10 +219,6 @@ class MutablePageMetadata : public MemoryChunkMetadata {
     return reinterpret_cast<Space*>(MemoryChunkMetadata::owner());
   }
 
-  // Gets the chunk's allocation space, potentially dealing with a null owner_
-  // (like read-only chunks have).
-  inline AllocationSpace owner_identity() const;
-
   heap::ListNode<MutablePageMetadata>& list_node() { return list_node_; }
   const heap::ListNode<MutablePageMetadata>& list_node() const {
     return list_node_;
@@ -274,14 +286,15 @@ class MutablePageMetadata : public MemoryChunkMetadata {
 
   bool IsLivenessClear() const;
 
-  bool IsLargePage() {
-    // The active_system_pages_ will be nullptr for large pages, so we uses
-    // that here instead of (for example) adding another enum member. See also
-    // the constructor where this field is set.
-    return active_system_pages_.get() == nullptr;
-  }
-
  protected:
+  MutablePageMetadata(Heap* heap, BaseSpace* space, size_t size,
+                      Address area_start, Address area_end,
+                      VirtualMemory reservation, PageSize page_size,
+                      Executability executability);
+
+  MemoryChunk::MainThreadFlags ComputeInitialFlags(
+      Executability executable) const;
+
   // Release all memory allocated by the chunk. Should be called when memory
   // chunk is about to be freed.
   void ReleaseAllAllocatedMemory();
@@ -350,6 +363,9 @@ class MutablePageMetadata : public MemoryChunkMetadata {
   // counter is reset to 0 whenever the page is empty.
   size_t age_in_new_space_ = 0;
 
+  MemoryChunk::MainThreadFlags trusted_main_thread_flags_ =
+      MemoryChunk::Flag::NO_FLAGS;
+
   MarkingBitmap marking_bitmap_;
 
   // Possibly platform-dependent fields should go last. We depend on the marking
@@ -361,6 +377,13 @@ class MutablePageMetadata : public MemoryChunkMetadata {
   base::Mutex object_mutex_;
 
  private:
+  V8_INLINE void RawSetTrustedAndUntrustedFlags(
+      MemoryChunk::MainThreadFlags new_flags);
+  V8_INLINE void SetFlagsUnlocked(
+      MemoryChunk::MainThreadFlags flags,
+      MemoryChunk::MainThreadFlags mask = MemoryChunk::kAllFlagsMask);
+  V8_INLINE void ClearFlagsUnlocked(MemoryChunk::MainThreadFlags flags);
+
   static constexpr intptr_t MarkingBitmapOffset() {
     return offsetof(MutablePageMetadata, marking_bitmap_);
   }
@@ -373,7 +396,7 @@ class MutablePageMetadata : public MemoryChunkMetadata {
 
   // For ReleaseAllAllocatedMemory().
   friend class MemoryAllocator;
-  friend class PagePool;
+  friend class MemoryPool;
   // For set_typed_slot_set().
   template <RememberedSetType>
   friend class RememberedSet;

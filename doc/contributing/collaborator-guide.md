@@ -154,10 +154,13 @@ requirements. If a pull request meets all requirements except the
 
 Collaborators can object to a pull request by using the "Request
 Changes" GitHub feature. Dissent comments alone don't constitute an
-objection. Any pull request objection must include a clear reason for that
-objection, and the objector must remain responsive for further discussion
-towards consensus about the direction of the pull request. Where possible,
-provide a set of actionable steps alongside the objection.
+objection, nor do dissenting comments made in any associated issue.
+A blocking objection to a change must be made in the pull request that
+specifically proposes that change. Any pull request objection must include
+a clear reason for that objection, and the objector must remain responsive
+for further discussion towards consensus about the direction of the pull
+request. Where possible, provide a set of actionable steps alongside the
+objection.
 
 If the objection is not clear to others, another collaborator can ask an
 objecting collaborator to explain their objection or to provide actionable
@@ -168,7 +171,22 @@ dismiss the objection.
 Pull requests with outstanding objections must remain open until all
 objections are satisfied. If reaching consensus is not possible, a
 collaborator can escalate the issue to the TSC by pinging `@nodejs/tsc` and
-adding the `tsc-agenda` label to the issue.
+adding the `tsc-agenda` label to the issue. The change cannot proceed without
+either reaching consensus or a TSC decision to dismiss the objection(s). If the
+TSC does choose to dismiss any objections, a clear explanation of the reasoning
+or a link to the public vote must be given in the pull request before it lands.
+
+All Collaborator objections are considered equal. There is no greater weight given to
+objections from TSC members than from any other Collaborator.
+
+Mistakes do happen. If a pull request is merged with an unresolved objection,
+submit a fix. Simple issues may be fixed with a follow-up PR that addresses
+the concern. More difficult issues may require a full revert. Most corrections
+can be fast-tracked. If deemed necessary take a slower route to ensure stability
+and consensus.
+
+Collaborators objecting to a pull request can best ensure their objections
+are addressed by remaining engaged and responsive in the discussion.
 
 #### Helpful resources
 
@@ -851,50 +869,48 @@ might impact an LTS release.
 
 ## Who to CC in the issue tracker
 
-| Subsystem                                                                  | Maintainers                                                                   |
-| -------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| `benchmark/*`                                                              | @nodejs/benchmarking, @mscdex                                                 |
-| `doc/*`, `*.md`                                                            | @nodejs/documentation                                                         |
-| `lib/assert`                                                               | @nodejs/assert                                                                |
-| `lib/async_hooks`                                                          | @nodejs/async\_hooks for bugs/reviews (+ @nodejs/diagnostics for API)         |
-| `lib/buffer`                                                               | @nodejs/buffer                                                                |
-| `lib/child_process`                                                        | @nodejs/child\_process                                                        |
-| `lib/cluster`                                                              | @nodejs/cluster                                                               |
-| `lib/{crypto,tls,https}`                                                   | @nodejs/crypto                                                                |
-| `lib/dgram`                                                                | @nodejs/dgram                                                                 |
-| `lib/domains`                                                              | @nodejs/domains                                                               |
-| `lib/fs`, `src/{fs,file}`                                                  | @nodejs/fs                                                                    |
-| `lib/{_}http{*}`                                                           | @nodejs/http                                                                  |
-| `lib/inspector.js`, `src/inspector_*`                                      | @nodejs/v8-inspector                                                          |
-| `lib/internal/bootstrap/*`                                                 | @nodejs/process                                                               |
-| `lib/internal/url`, `src/node_url`                                         | @nodejs/url                                                                   |
-| `lib/net`                                                                  | @bnoordhuis, @indutny, @nodejs/streams                                        |
-| `lib/repl`                                                                 | @nodejs/repl                                                                  |
-| `lib/{_}stream{*}`                                                         | @nodejs/streams                                                               |
-| `lib/internal/test_runner`                                                 | @nodejs/test\_runner                                                          |
-| `lib/timers`                                                               | @nodejs/timers                                                                |
-| `lib/util`                                                                 | @nodejs/util                                                                  |
-| `lib/zlib`                                                                 | @nodejs/zlib                                                                  |
-| `src/async_wrap.*`                                                         | @nodejs/async\_hooks                                                          |
-| `src/node_api.*`                                                           | @nodejs/node-api                                                              |
-| `src/node_crypto.*`, `src/crypto`                                          | @nodejs/crypto                                                                |
-| `test/*`                                                                   | @nodejs/testing                                                               |
-| `tools/eslint`, `eslint.config.mjs`                                        | @nodejs/linting                                                               |
-| build                                                                      | @nodejs/build                                                                 |
-| `src/module_wrap.*`, `lib/internal/modules/*`, `lib/internal/vm/module.js` | @nodejs/modules                                                               |
-| GYP                                                                        | @nodejs/gyp                                                                   |
-| performance                                                                | @nodejs/performance                                                           |
-| platform specific                                                          | @nodejs/platform-{aix,arm,freebsd,macos,ppc,smartos,s390,windows,windows-arm} |
-| python code                                                                | @nodejs/python                                                                |
-| upgrading c-ares                                                           | @rvagg                                                                        |
-| upgrading http-parser                                                      | @nodejs/http, @nodejs/http2                                                   |
-| upgrading libuv                                                            | @nodejs/libuv                                                                 |
-| upgrading npm                                                              | @nodejs/npm                                                                   |
-| upgrading V8                                                               | @nodejs/V8, @nodejs/post-mortem                                               |
-| Embedded use or delivery of Node.js                                        | @nodejs/delivery-channels                                                     |
+| Subsystem                             | Maintainers                                                                                                               |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `benchmark/*`                         | [@nodejs/benchmarking][]                                                                                                  |
+| `doc/*`, `*.md`                       | [@nodejs/documentation][]                                                                                                 |
+| `lib/assert`                          | [@nodejs/assert][]                                                                                                        |
+| `lib/async_hooks`                     | [@nodejs/async\_hooks][@nodejs/async_hooks] for bugs/reviews (+ [@nodejs/diagnostics][] for API)                          |
+| `lib/buffer`                          | [@nodejs/buffer][]                                                                                                        |
+| `lib/child_process`                   | [@nodejs/child\_process][@nodejs/child_process]                                                                           |
+| `lib/cluster`                         | [@nodejs/cluster][]                                                                                                       |
+| `lib/{crypto,tls,https}`              | [@nodejs/crypto][]                                                                                                        |
+| `lib/dgram`                           | [@nodejs/dgram][]                                                                                                         |
+| `lib/domains`                         | [@nodejs/domains][]                                                                                                       |
+| `lib/fs`, `src/{fs,file}`             | [@nodejs/fs][]                                                                                                            |
+| `lib/{_}http{*}`                      | [@nodejs/http][]                                                                                                          |
+| `lib/inspector.js`, `src/inspector_*` | [@nodejs/v8-inspector][]                                                                                                  |
+| `lib/internal/bootstrap/*`            | [@nodejs/process][]                                                                                                       |
+| `lib/internal/url`, `src/node_url`    | [@nodejs/url][]                                                                                                           |
+| `lib/net`                             | [@nodejs/streams][]                                                                                                       |
+| `lib/repl`                            | [@nodejs/repl][]                                                                                                          |
+| `lib/{_}stream{*}`                    | [@nodejs/streams][]                                                                                                       |
+| `lib/internal/test_runner`            | [@nodejs/test\_runner][@nodejs/test_runner]                                                                               |
+| `lib/timers`                          | [@nodejs/timers][]                                                                                                        |
+| `lib/zlib`                            | [@nodejs/zlib][]                                                                                                          |
+| `src/async_wrap.*`                    | [@nodejs/async\_hooks][@nodejs/async_hooks]                                                                               |
+| `src/node_api.*`                      | [@nodejs/node-api][]                                                                                                      |
+| `src/node_crypto.*`, `src/crypto`     | [@nodejs/crypto][]                                                                                                        |
+| `src/node_sqlite.*`                   | [@nodejs/sqlite][]                                                                                                        |
+| `test/*`                              | [@nodejs/testing][]                                                                                                       |
+| `tools/eslint`, `eslint.config.mjs`   | [@nodejs/linting][]                                                                                                       |
+| build                                 | [@nodejs/build][]                                                                                                         |
+| GYP                                   | [@nodejs/gyp][]                                                                                                           |
+| performance                           | [@nodejs/performance][]                                                                                                   |
+| platform specific                     | @nodejs/platform-{[aix][], [arm][], [freebsd][], [macos][], [ppc][], [smartos][], [s390][], [windows][], [windows-arm][]} |
+| python code                           | [@nodejs/python][]                                                                                                        |
+| upgrading http-parser                 | [@nodejs/http][], [@nodejs/http2][]                                                                                       |
+| upgrading libuv                       | [@nodejs/libuv][]                                                                                                         |
+| upgrading npm                         | [@nodejs/npm][]                                                                                                           |
+| upgrading V8                          | [@nodejs/V8][], [@nodejs/post-mortem][]                                                                                   |
+| Embedded use or delivery of Node.js   | [@nodejs/delivery-channels][]                                                                                             |
 
 When things need extra attention, are controversial, or `semver-major`:
-@nodejs/tsc
+[@nodejs/tsc][]
 
 If you cannot find who to cc for a file, `git shortlog -n -s <file>` can help.
 
@@ -982,6 +998,42 @@ need to be attached anymore, as only important bugfixes will be included.
   * No `x86{_64}` label because it is the implied default
 
 ["Merge pull request"]: https://help.github.com/articles/merging-a-pull-request/#merging-a-pull-request-on-github
+[@nodejs/V8]: https://github.com/orgs/nodejs/teams/V8
+[@nodejs/assert]: https://github.com/orgs/nodejs/teams/assert
+[@nodejs/async_hooks]: https://github.com/orgs/nodejs/teams/async_hooks
+[@nodejs/benchmarking]: https://github.com/orgs/nodejs/teams/benchmarking
+[@nodejs/buffer]: https://github.com/orgs/nodejs/teams/buffer
+[@nodejs/build]: https://github.com/orgs/nodejs/teams/build
+[@nodejs/child_process]: https://github.com/orgs/nodejs/teams/child_process
+[@nodejs/cluster]: https://github.com/orgs/nodejs/teams/cluster
+[@nodejs/crypto]: https://github.com/orgs/nodejs/teams/crypto
+[@nodejs/delivery-channels]: https://github.com/orgs/nodejs/teams/delivery-channels
+[@nodejs/dgram]: https://github.com/orgs/nodejs/teams/dgram
+[@nodejs/diagnostics]: https://github.com/orgs/nodejs/teams/diagnostics
+[@nodejs/documentation]: https://github.com/orgs/nodejs/teams/documentation
+[@nodejs/domains]: https://github.com/orgs/nodejs/teams/domains
+[@nodejs/fs]: https://github.com/orgs/nodejs/teams/fs
+[@nodejs/gyp]: https://github.com/orgs/nodejs/teams/gyp
+[@nodejs/http]: https://github.com/orgs/nodejs/teams/http
+[@nodejs/http2]: https://github.com/orgs/nodejs/teams/http2
+[@nodejs/libuv]: https://github.com/orgs/nodejs/teams/libuv
+[@nodejs/linting]: https://github.com/orgs/nodejs/teams/linting
+[@nodejs/node-api]: https://github.com/orgs/nodejs/teams/node-api
+[@nodejs/npm]: https://github.com/orgs/nodejs/teams/npm
+[@nodejs/performance]: https://github.com/orgs/nodejs/teams/performance
+[@nodejs/post-mortem]: https://github.com/orgs/nodejs/teams/post-mortem
+[@nodejs/process]: https://github.com/orgs/nodejs/teams/process
+[@nodejs/python]: https://github.com/orgs/nodejs/teams/python
+[@nodejs/repl]: https://github.com/orgs/nodejs/teams/repl
+[@nodejs/sqlite]: https://github.com/orgs/nodejs/teams/sqlite
+[@nodejs/streams]: https://github.com/orgs/nodejs/teams/streams
+[@nodejs/test_runner]: https://github.com/orgs/nodejs/teams/test_runner
+[@nodejs/testing]: https://github.com/orgs/nodejs/teams/testing
+[@nodejs/timers]: https://github.com/orgs/nodejs/teams/timers
+[@nodejs/tsc]: https://github.com/orgs/nodejs/teams/tsc
+[@nodejs/url]: https://github.com/orgs/nodejs/teams/url
+[@nodejs/v8-inspector]: https://github.com/orgs/nodejs/teams/v8-inspector
+[@nodejs/zlib]: https://github.com/orgs/nodejs/teams/zlib
 [Deprecation]: https://en.wikipedia.org/wiki/Deprecation
 [SECURITY.md]: https://github.com/nodejs/node/blob/HEAD/SECURITY.md
 [Stability Index]: ../api/documentation.md#stability-index
@@ -989,14 +1041,23 @@ need to be attached anymore, as only important bugfixes will be included.
 [`--pending-deprecation`]: ../api/cli.md#--pending-deprecation
 [`--throw-deprecation`]: ../api/cli.md#--throw-deprecation
 [`@node-core/utils`]: https://github.com/nodejs/node-core-utils
+[aix]: https://github.com/orgs/nodejs/teams/platform-aix
+[arm]: https://github.com/orgs/nodejs/teams/platform-arm
 [backporting guide]: backporting-to-release-lines.md
 [commit message guidelines]: pull-requests.md#commit-message-guidelines
 [commit-example]: https://github.com/nodejs/node/commit/b636ba8186
 [commit-queue.md]: ./commit-queue.md
+[freebsd]: https://github.com/orgs/nodejs/teams/platform-freebsd
 [git-email]: https://help.github.com/articles/setting-your-commit-email-address-in-git/
 [git-node]: https://github.com/nodejs/node-core-utils/blob/HEAD/docs/git-node.md
 [git-node-metadata]: https://github.com/nodejs/node-core-utils/blob/HEAD/docs/git-node.md#git-node-metadata
 [git-username]: https://help.github.com/articles/setting-your-username-in-git/
+[macos]: https://github.com/orgs/nodejs/teams/platform-macos
 [node-core-utils-credentials]: https://github.com/nodejs/node-core-utils#setting-up-credentials
 [node-core-utils-issues]: https://github.com/nodejs/node-core-utils/issues
+[ppc]: https://github.com/orgs/nodejs/teams/platform-ppc
+[s390]: https://github.com/orgs/nodejs/teams/platform-s390
+[smartos]: https://github.com/orgs/nodejs/teams/platform-smartos
 [unreliable tests]: https://github.com/nodejs/node/issues?q=is%3Aopen+is%3Aissue+label%3A%22CI+%2F+flaky+test%22
+[windows]: https://github.com/orgs/nodejs/teams/platform-windows
+[windows-arm]: https://github.com/orgs/nodejs/teams/platform-windows-arm

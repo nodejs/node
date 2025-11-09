@@ -205,15 +205,9 @@ MemOperand::MemOperand(Register rm, int32_t unit, int32_t multiplier,
   offset_ = unit * multiplier + offset_addend;
 }
 
-void Assembler::AllocateAndInstallRequestedHeapNumbers(LocalIsolate* isolate) {
-  DCHECK_IMPLIES(isolate == nullptr, heap_number_requests_.empty());
-  for (auto& request : heap_number_requests_) {
-    Handle<HeapObject> object;
-    object = isolate->factory()->NewHeapNumber<AllocationType::kOld>(
-        request.heap_number());
-    Address pc = reinterpret_cast<Address>(buffer_start_) + request.offset();
-    set_target_value_at(pc, reinterpret_cast<uint64_t>(object.location()));
-  }
+void Assembler::PatchInHeapNumberRequest(Address pc,
+                                         Handle<HeapNumber> object) {
+  set_target_value_at(pc, reinterpret_cast<uint64_t>(object.location()));
 }
 
 // -----------------------------------------------------------------------------

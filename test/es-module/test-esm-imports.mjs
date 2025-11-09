@@ -1,5 +1,5 @@
 import { mustCall } from '../common/index.mjs';
-import { ok, deepStrictEqual, strictEqual } from 'assert';
+import assert from 'assert';
 
 import importer from '../fixtures/es-modules/pkgimports/importer.js';
 import { requireFixture } from '../fixtures/pkgexports.mjs';
@@ -36,7 +36,7 @@ const { requireImport, importImport } = importer;
 
     loadFixture(validSpecifier)
       .then(mustCall((actual) => {
-        deepStrictEqual({ ...actual }, expected);
+        assert.deepStrictEqual({ ...actual }, expected);
       }));
   }
 
@@ -49,7 +49,7 @@ const { requireImport, importImport } = importer;
 
   for (const [specifier, subpath] of invalidImportTargets) {
     loadFixture(specifier).catch(mustCall((err) => {
-      strictEqual(err.code, 'ERR_INVALID_PACKAGE_TARGET');
+      assert.strictEqual(err.code, 'ERR_INVALID_PACKAGE_TARGET');
       assertStartsWith(err.message, 'Invalid "imports"');
       assertIncludes(err.message, subpath);
       assertNotIncludes(err.message, 'targets must start with');
@@ -73,7 +73,7 @@ const { requireImport, importImport } = importer;
 
   for (const [specifier, expected] of invalidImportSpecifiers) {
     loadFixture(specifier).catch(mustCall((err) => {
-      strictEqual(err.code, 'ERR_INVALID_MODULE_SPECIFIER');
+      assert.strictEqual(err.code, 'ERR_INVALID_MODULE_SPECIFIER');
       assertStartsWith(err.message, 'Invalid module');
       assertIncludes(err.message, expected);
     }));
@@ -98,7 +98,7 @@ const { requireImport, importImport } = importer;
 
   for (const specifier of undefinedImports) {
     loadFixture(specifier).catch(mustCall((err) => {
-      strictEqual(err.code, 'ERR_PACKAGE_IMPORT_NOT_DEFINED');
+      assert.strictEqual(err.code, 'ERR_PACKAGE_IMPORT_NOT_DEFINED');
       assertStartsWith(err.message, 'Package import ');
       assertIncludes(err.message, specifier);
     }));
@@ -115,28 +115,28 @@ const { requireImport, importImport } = importer;
   ]);
   for (const specifier of nonDefinedImports) {
     loadFixture(specifier).catch(mustCall((err) => {
-      strictEqual(err.code,
-                  isRequire ? 'MODULE_NOT_FOUND' : 'ERR_MODULE_NOT_FOUND');
+      assert.strictEqual(err.code,
+                         isRequire ? 'MODULE_NOT_FOUND' : 'ERR_MODULE_NOT_FOUND');
     }));
   }
 });
 
 // CJS resolver must still support #package packages in node_modules
 requireFixture('#cjs').then(mustCall((actual) => {
-  strictEqual(actual.default, 'cjs backcompat');
+  assert.strictEqual(actual.default, 'cjs backcompat');
 }));
 
 function assertStartsWith(actual, expected) {
   const start = actual.toString().slice(0, expected.length);
-  strictEqual(start, expected);
+  assert.strictEqual(start, expected);
 }
 
 function assertIncludes(actual, expected) {
-  ok(actual.toString().indexOf(expected) !== -1,
-     `${JSON.stringify(actual)} includes ${JSON.stringify(expected)}`);
+  assert.ok(actual.toString().indexOf(expected) !== -1,
+            `${JSON.stringify(actual)} includes ${JSON.stringify(expected)}`);
 }
 
 function assertNotIncludes(actual, expected) {
-  ok(actual.toString().indexOf(expected) === -1,
-     `${JSON.stringify(actual)} doesn't include ${JSON.stringify(expected)}`);
+  assert.ok(actual.toString().indexOf(expected) === -1,
+            `${JSON.stringify(actual)} doesn't include ${JSON.stringify(expected)}`);
 }

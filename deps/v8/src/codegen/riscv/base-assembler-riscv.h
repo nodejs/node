@@ -37,9 +37,13 @@
 
 #include <stdio.h>
 
+#include <fstream>
 #include <memory>
 #include <set>
 
+#include "src/base/platform/platform.h"
+#include "src/base/strings.h"
+#include "src/base/vector.h"
 #include "src/codegen/assembler.h"
 #include "src/codegen/constant-pool.h"
 #include "src/codegen/external-reference.h"
@@ -53,9 +57,29 @@
 namespace v8 {
 namespace internal {
 
-#define DEBUG_PRINTF(...)     \
-  if (v8_flags.riscv_debug) { \
-    printf(__VA_ARGS__);      \
+class DebugFile : public std::ofstream {
+ public:
+  static DebugFile& GetDebugFile() {
+    static DebugFile debug_file;
+    return debug_file;
+  }
+  ~DebugFile() { flush(); }
+  DebugFile(const DebugFile&) = delete;
+  DebugFile& operator=(const DebugFile&) = delete;
+
+ private:
+  DebugFile() : std::ofstream(v8_flags.riscv_debug_file_path) {}
+};
+
+#define DEBUG_PRINTF(...) /*                                  force 80 cols */ \
+  if (v8_flags.riscv_debug) [[unlikely]] {                                     \
+    if (v8_flags.riscv_debug_file_path) {                                      \
+      base::EmbeddedVector<char, 1024> chars;                                  \
+      SNPrintF(chars, __VA_ARGS__);                                            \
+      DebugFile::GetDebugFile() << chars.begin();                              \
+    } else {                                                                   \
+      PrintF(__VA_ARGS__);                                                     \
+    }                                                                          \
   }
 
 class SafepointTableBuilder;
@@ -74,6 +98,7 @@ class AssemblerRiscvBase {
     kOffset11 = 11,  // RISCV C_J
     kOffset9 = 9     // RISCV compressed branch
   };
+
   virtual int32_t branch_offset_helper(Label* L, OffsetSize bits) = 0;
 
   virtual void emit(Instr x) = 0;
@@ -81,6 +106,10 @@ class AssemblerRiscvBase {
   virtual void emit(uint64_t x) = 0;
 
   virtual void ClearVectorunit() = 0;
+
+  // Record the last known safepoint location to the current pc.
+  virtual void RecordPcForSafepoint() = 0;
+
   // Instruction generation.
 
   // ----- Top-level instruction formats match those in the ISA manual
@@ -186,7 +215,6 @@ class AssemblerRiscvBase {
                         FPURegister rs1, Register rs2);
   void GenInstrALUFP_rr(uint8_t funct7, uint8_t funct3, Register rd,
                         FPURegister rs1, FPURegister rs2);
-  virtual void BlockTrampolinePoolFor(int instructions) = 0;
 };
 
 }  // namespace internal

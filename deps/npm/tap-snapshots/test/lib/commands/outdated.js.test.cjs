@@ -289,7 +289,7 @@ exports[`test/lib/commands/outdated.js TAP workspaces should display ws outdated
 :theta@1.0.1:MISSING:theta@1.0.1:e
 `
 
-exports[`test/lib/commands/outdated.js TAP workspaces should highlight ws in dependend by section > output 1`] = `
+exports[`test/lib/commands/outdated.js TAP workspaces should highlight ws in depended by section > output 1`] = `
 [1m[4mPackage[24m[22m  [1m[4mCurrent[24m[22m  [1m[4mWanted[24m[22m  [1m[4mLatest[24m[22m  [1m[4mLocation[24m[22m          [1m[4mDepended by[24m[22m
 [31mcat[39m        1.0.0   [36m1.0.1[39m   [34m1.0.1[39m  node_modules/cat  [34ma@1.0.0[39m
 [33mdog[39m        1.0.1   [36m1.0.1[39m   [34m2.0.0[39m  node_modules/dog  prefix

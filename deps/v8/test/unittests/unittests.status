@@ -40,6 +40,10 @@
 
   # BUG(13660): Flaky test.
   'OS.RemapPages': [SKIP],
+
+  # Those smoke tests fail nondeterministically to test fuzzer infrastructure.
+  # We cannot run them in unittest mode as they would produce flakes.
+  'SmokeTest.*': [SKIP],
 }],  # ALWAYS
 
 ##############################################################################
@@ -49,6 +53,22 @@
 }],
 
 ##############################################################################
+['system == macos', {
+  # Throwing C++ exceptions doesn't work; probably because the unittests
+  # binary on macOS is built with -fno-exceptions?
+  'LanguageServerJson.LexerError': [SKIP],
+  'LanguageServerJson.ParserError': [SKIP],
+  'Torque.DoubleUnderScorePrefixIllegalForIdentifiers': [SKIP],
+  'Torque.Enums': [SKIP],
+  'Torque.ImportNonExistentFile': [SKIP],
+}],  # system == macos
+
+['system == macos and target_cpu == arm64', {
+  # The read-write-execute handling in the test hasn't been updated to
+  # support the later macOS versions that run on ARM64.
+  'MemoryAllocationPermissionsTest.DoTest': [FAIL],
+}],  # system == macos and target_cpu == arm64
+
 ['system == macos and asan', {
   # BUG(820416).
   'BitsDeathTest*': [SKIP],
@@ -61,22 +81,6 @@
   'RandomNumberGenerator.NextSampleSlowInvalidParam1': [SKIP],
   'RandomNumberGenerator.NextSampleSlowInvalidParam2': [SKIP],
 }],  # system == macos and asan
-
-['system == macos and arch == arm64 and not simulator_run', {
-  # Throwing C++ exceptions doesn't work; probably because the unittests
-  # binary is built with -fno-exceptions?
-  'LanguageServerJson.*': [SKIP],
-  'LanguageServer.*': [SKIP],
-  'Torque.*': [SKIP],
-
-  # Test uses fancy signal handling. Needs investigation.
-  'MemoryAllocationPermissionsTest.DoTest': [SKIP],
-
-  # Time tick resolution appears to be ~42 microseconds. Tests expect 1 us.
-  'TimeTicks.NowResolution': [FAIL],
-  'RuntimeCallStatsTest.BasicJavaScript': [SKIP],
-  'RuntimeCallStatsTest.FunctionLengthGetter': [SKIP],
-}],  # system == macos and arch == arm64 and not simulator_run
 
 # TODO(v8:12824): Enable this test once this is resolved.
 ['arch == arm64 and msan', {
@@ -115,7 +119,7 @@
   'SweeperTest.DiscardingNormalPageMemory': [SKIP],
 
   # https://crbug.com/v8/8766
-  'BytecodeGeneratorTest.WideRegisters': [SKIP],
+  'AllGolden/BytecodeGeneratorTest.CompilationMatchesExpectation/WideRegisters': [SKIP],
 }],  # arch == ppc64
 
 ##############################################################################
@@ -156,6 +160,9 @@
   'LogMapsCodeTest.LogMapsDetailsCode': [SKIP],
   'LogMapsTest.LogMapsDetailsStartup': [SKIP],
   'LogMapsTest.LogMapsDetailsContexts': [SKIP],
+
+  # These tests need a lot of memory on TSan.
+  'ModuleGenerationTest.*': [PASS, HEAVY],
 }],  # tsan == True
 
 ##############################################################################
@@ -183,9 +190,17 @@
 }],
 
 ################################################################################
-['not clang and (arch == riscv64 or arch == riscv32)',{
-  'LoggingTest.SourceLocation':[SKIP]  # issue-174
-}],
+['arch == riscv64 or arch == riscv32', {
+  # TODO(kasperl@rivosinc.com): Temporarily allow the tests to fail as we
+  # investigate what sometimes gives unexpected values for functions like
+  # f32.{min,max,neg} and friends.
+  'Float32CrossCompilerDeterminismTest.TestBinOp': [PASS, FAIL],
+  'Float32CrossCompilerDeterminismTest.TestUnOp': [PASS, FAIL],
+}],  # arch == riscv64 or arch == riscv32
+
+['(arch == riscv64 or arch == riscv32) and not clang', {
+  'LoggingTest.SourceLocation': [SKIP]  # issue-174
+}],  # (arch == riscv64 or arch == riscv32) and not clang
 
 ##############################################################################
 ['lite_mode', {
@@ -292,6 +307,7 @@
 ##############################################################################
 ['no_simd_hardware == True', {
   'WasmDisassemblerTest.Simd': [SKIP],
+  'SimdCrossCompilerDeterminismTest.*': [SKIP],
 }],  # no_simd_hardware == True
 
 ['tsan and mode == debug', {
@@ -351,5 +367,29 @@
   'MacroAssemblerTest.TestCheck': [SKIP],
   'MacroAssemblerTest.TestHardAbort': [SKIP],
 }],  # simulator_run
+
+##############################################################################
+['sandbox_hardware_support', {
+  # Tests that require the sampler/profiler, which doesn't work on older kernel
+  # versions if hardware sandboxing is active. See https://crbug.com/429173713.
+  'LogTest.*': [SKIP],
+  'LogMapsTest.*': [SKIP],
+  'LogAllTest.LogAll': [SKIP],
+  'LogTimerTest.ConsoleTimeEvents': [SKIP],
+  'LogInterpretedFramesNativeStackTest.LogInterpretedFramesNativeStack': [SKIP],
+  'LogInterpretedFramesNativeStackWithSerializationTest.LogInterpretedFramesNativeStackWithSerialization': [SKIP],
+  'LogExternalLogEventListenerTest.ExternalLogEventListener': [SKIP],
+  'LogExternalLogEventListenerInnerFunctionTest.ExternalLogEventListenerInnerFunctions': [SKIP],
+  'LogExternalInterpretedFramesNativeStackTest.ExternalLogEventListenerWithInterpretedFramesNativeStack': [SKIP],
+  'LogMapsCodeTest.LogMapsDetailsCode': [SKIP],
+  'LogFunctionEventsTest.LogFunctionEvents': [SKIP],
+  'CompilerTest.ProfilerEnabledDuringBackgroundCompile': [SKIP],
+}],
+
+##############################################################################
+['full_debug', {
+  # Tests too slow in non-optimized debug mode.
+  'LogAllTest.LogAll': [SKIP],
+}],  # 'full_debug'
 
 ]

@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef VERIFY_HEAP
+
 #include "src/heap/heap-verifier.h"
 
 #include <optional>
@@ -35,7 +37,10 @@
 #include "src/objects/slots-inl.h"
 #include "src/objects/string-table.h"
 
-#ifdef VERIFY_HEAP
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/wasm-export-wrapper-cache.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 namespace v8 {
 namespace internal {
 
@@ -141,6 +146,14 @@ void VerifyPointersVisitor::VisitMapPointer(Tagged<HeapObject> host) {
 void VerifyPointersVisitor::VerifyHeapObjectImpl(
     Tagged<HeapObject> heap_object) {
   CHECK(IsValidHeapObject(heap_, heap_object));
+#if V8_STATIC_ROOTS_BOOL
+  // In static roots builds, holes are unmapped in RO space -- skip verifying
+  // them beyond the RO space check.
+  if (SafeIsAnyHole(heap_object)) {
+    CHECK(HeapLayout::InReadOnlySpace(heap_object));
+    return;
+  }
+#endif
   CHECK(IsMap(heap_object->map(cage_base())));
   // Heap::InToPage() is not available with sticky mark-bits.
   CHECK_IMPLIES(
@@ -356,15 +369,7 @@ void HeapVerification::Verify() {
     CHECK(maybe_rtt.IsWeak());
     CHECK(IsMap(maybe_rtt.GetHeapObjectAssumeWeak()));
   }
-
-  // js_to_wasm_wrappers holds weak references to code or cleared values.
-  Tagged<WeakFixedArray> wrappers = heap()->js_to_wasm_wrappers();
-  for (int i = 0, e = wrappers->length(); i < e; ++i) {
-    Tagged<MaybeObject> maybe_wrapper = wrappers->get(i);
-    if (maybe_wrapper.IsCleared()) continue;
-    CHECK(maybe_wrapper.IsWeak());
-    CHECK(IsCodeWrapper(maybe_wrapper.GetHeapObjectAssumeWeak()));
-  }
+  wasm::WasmExportWrapperCache::Verify(heap());
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   // The heap verifier can't deal with partially deserialized objects, so
@@ -410,10 +415,13 @@ void HeapVerification::VerifyPage(const MemoryChunkMetadata* chunk_metadata) {
   const MemoryChunk* chunk = chunk_metadata->Chunk();
 
   CHECK(!current_chunk_.has_value());
-  CHECK(!chunk->IsFlagSet(MemoryChunk::PAGE_NEW_OLD_PROMOTION));
-  CHECK(!chunk->IsFlagSet(MemoryChunk::FROM_PAGE));
-  CHECK(!chunk->IsFlagSet(MemoryChunk::WILL_BE_PROMOTED));
-  CHECK(!chunk->IsQuarantined());
+#ifndef V8_ENABLE_STICKY_MARK_BITS_BOOL
+  CHECK(!chunk->IsFromPage());
+#endif
+  CHECK(!chunk_metadata->will_be_promoted());
+  CHECK(!chunk_metadata->is_quarantined());
+  CHECK_EQ(chunk_metadata->is_evacuation_candidate(),
+           chunk->IsEvacuationCandidate());
   if (chunk->InReadOnlySpace()) {
     CHECK_NULL(chunk_metadata->owner());
   } else {
@@ -429,7 +437,8 @@ void HeapVerification::VerifyPageDone(const MemoryChunkMetadata* chunk) {
 }
 
 void HeapVerification::VerifyObject(Tagged<HeapObject> object) {
-  CHECK_EQ(MemoryChunkMetadata::FromHeapObject(object), *current_chunk_);
+  CHECK_EQ(MemoryChunkMetadata::FromHeapObject(isolate(), object),
+           *current_chunk_);
 
   // Verify object map.
   VerifyObjectMap(object);
@@ -493,7 +502,7 @@ void HeapVerification::VerifyObjectMap(Tagged<HeapObject> object) {
     // The object should not be code or a map.
     CHECK(!IsMap(object, cage_base_));
     CHECK(!IsAbstractCode(object, cage_base_));
-  } else if (current_space_identity() == RO_SPACE) {
+  } else if (current_space_identity() == RO_SPACE && !IsAnyHole(object)) {
     CHECK(!IsExternalString(object));
     CHECK(!IsJSArrayBuffer(object));
   }
@@ -624,22 +633,24 @@ class OldToNewSlotVerifyingVisitor : public SlotVerifyingVisitor {
            !HeapLayout::InYoungGeneration(host);
   }
 
-  void VisitEphemeron(Tagged<HeapObject> host, int index, ObjectSlot key,
+  void VisitEphemeron(Tagged<HeapObject> host, int index, ObjectSlot key_slot,
                       ObjectSlot target) override {
     VisitPointer(host, target);
     if (v8_flags.minor_ms) return;
-    // Keys are handled separately and should never appear in this set.
-    CHECK(!InUntypedSet(key));
-    Tagged<Object> k = *key;
-    if (!HeapLayout::InYoungGeneration(host) &&
-        HeapLayout::InYoungGeneration(k)) {
-      Tagged<EphemeronHashTable> table = i::Cast<EphemeronHashTable>(host);
-      auto it = ephemeron_remembered_set_->find(table);
-      CHECK(it != ephemeron_remembered_set_->end());
-      int slot_index =
-          EphemeronHashTable::SlotToIndex(table.address(), key.address());
-      InternalIndex entry = EphemeronHashTable::IndexToEntry(slot_index);
-      CHECK(it->second.find(entry.as_int()) != it->second.end());
+    Tagged<EphemeronHashTable> table = i::Cast<EphemeronHashTable>(host);
+    if (!heap_->incremental_marking()->IsMajorMarking()) {
+      // Keys are handled separately and should never appear in this set.
+      CHECK(!InUntypedSet(key_slot));
+      Tagged<Object> k = *key_slot;
+      if (!HeapLayout::InYoungGeneration(host) &&
+          HeapLayout::InYoungGeneration(k)) {
+        auto it = ephemeron_remembered_set_->find(table);
+        CHECK(it != ephemeron_remembered_set_->end());
+        int slot_index = EphemeronHashTable::SlotToIndex(table.address(),
+                                                         key_slot.address());
+        InternalIndex entry = EphemeronHashTable::IndexToEntry(slot_index);
+        CHECK(it->second.find(entry.as_int()) != it->second.end());
+      }
     }
   }
 
@@ -748,7 +759,8 @@ void HeapVerification::VerifyRememberedSetFor(Tagged<HeapObject> object) {
     return;
   }
 
-  MutablePageMetadata* chunk = MutablePageMetadata::FromHeapObject(object);
+  MutablePageMetadata* chunk =
+      MutablePageMetadata::FromHeapObject(isolate(), object);
 
   Address start = object.address();
   Address end = start + object->Size(cage_base_);
@@ -776,7 +788,7 @@ void HeapVerification::VerifyRememberedSetFor(Tagged<HeapObject> object) {
       &trusted_to_shared_trusted);
   old_to_shared_visitor.Visit(object);
 
-  if (!MemoryChunk::FromHeapObject(object)->IsTrusted()) {
+  if (!MemoryChunk::FromHeapObject(object)->Metadata()->is_trusted()) {
     CHECK_NULL(chunk->slot_set<TRUSTED_TO_TRUSTED>());
     CHECK_NULL(chunk->slot_set<TRUSTED_TO_SHARED_TRUSTED>());
   }
@@ -858,7 +870,7 @@ void HeapVerifier::VerifyObjectLayoutChange(Heap* heap,
                                             Tagged<HeapObject> object,
                                             Tagged<Map> new_map) {
   // Object layout changes are currently not supported on background threads.
-  CHECK_NULL(LocalHeap::Current());
+  CHECK(LocalHeap::Current()->is_main_thread());
 
   if (!v8_flags.verify_heap) return;
 

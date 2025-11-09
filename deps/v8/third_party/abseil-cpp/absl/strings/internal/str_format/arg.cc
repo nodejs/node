@@ -26,6 +26,7 @@
 #include <cstring>
 #include <cwchar>
 #include <string>
+#include <string_view>
 #include <type_traits>
 
 #include "absl/base/config.h"
@@ -34,12 +35,9 @@
 #include "absl/numeric/int128.h"
 #include "absl/strings/internal/str_format/extension.h"
 #include "absl/strings/internal/str_format/float_conversion.h"
+#include "absl/strings/internal/utf8.h"
 #include "absl/strings/numbers.h"
 #include "absl/strings/string_view.h"
-
-#if defined(ABSL_HAVE_STD_STRING_VIEW)
-#include <string_view>
-#endif
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
@@ -311,68 +309,16 @@ inline bool ConvertStringArg(string_view v, const FormatConversionSpecImpl conv,
                                conv.has_left_flag());
 }
 
-struct ShiftState {
-  bool saw_high_surrogate = false;
-  uint8_t bits = 0;
-};
-
-// Converts `v` from UTF-16 or UTF-32 to UTF-8 and writes to `buf`. `buf` is
-// assumed to have enough space for the output. `s` is used to carry state
-// between successive calls with a UTF-16 surrogate pair. Returns the number of
-// chars written, or `static_cast<size_t>(-1)` on failure.
-//
-// This is basically std::wcrtomb(), but always outputting UTF-8 instead of
-// respecting the current locale.
-inline size_t WideToUtf8(wchar_t wc, char *buf, ShiftState &s) {
-  const auto v = static_cast<uint32_t>(wc);
-  if (v < 0x80) {
-    *buf = static_cast<char>(v);
-    return 1;
-  } else if (v < 0x800) {
-    *buf++ = static_cast<char>(0xc0 | (v >> 6));
-    *buf = static_cast<char>(0x80 | (v & 0x3f));
-    return 2;
-  } else if (v < 0xd800 || (v - 0xe000) < 0x2000) {
-    *buf++ = static_cast<char>(0xe0 | (v >> 12));
-    *buf++ = static_cast<char>(0x80 | ((v >> 6) & 0x3f));
-    *buf = static_cast<char>(0x80 | (v & 0x3f));
-    return 3;
-  } else if ((v - 0x10000) < 0x100000) {
-    *buf++ = static_cast<char>(0xf0 | (v >> 18));
-    *buf++ = static_cast<char>(0x80 | ((v >> 12) & 0x3f));
-    *buf++ = static_cast<char>(0x80 | ((v >> 6) & 0x3f));
-    *buf = static_cast<char>(0x80 | (v & 0x3f));
-    return 4;
-  } else if (v < 0xdc00) {
-    s.saw_high_surrogate = true;
-    s.bits = static_cast<uint8_t>(v & 0x3);
-    const uint8_t high_bits = ((v >> 6) & 0xf) + 1;
-    *buf++ = static_cast<char>(0xf0 | (high_bits >> 2));
-    *buf =
-        static_cast<char>(0x80 | static_cast<uint8_t>((high_bits & 0x3) << 4) |
-                          static_cast<uint8_t>((v >> 2) & 0xf));
-    return 2;
-  } else if (v < 0xe000 && s.saw_high_surrogate) {
-    *buf++ = static_cast<char>(0x80 | static_cast<uint8_t>(s.bits << 4) |
-                               static_cast<uint8_t>((v >> 6) & 0xf));
-    *buf = static_cast<char>(0x80 | (v & 0x3f));
-    s.saw_high_surrogate = false;
-    s.bits = 0;
-    return 2;
-  } else {
-    return static_cast<size_t>(-1);
-  }
-}
-
 inline bool ConvertStringArg(const wchar_t *v,
                              size_t len,
                              const FormatConversionSpecImpl conv,
                              FormatSinkImpl *sink) {
   FixedArray<char> mb(len * 4);
-  ShiftState s;
+  strings_internal::ShiftState s;
   size_t chars_written = 0;
   for (size_t i = 0; i < len; ++i) {
-    const size_t chars = WideToUtf8(v[i], &mb[chars_written], s);
+    const size_t chars =
+        strings_internal::WideToUtf8(v[i], &mb[chars_written], s);
     if (chars == static_cast<size_t>(-1)) { return false; }
     chars_written += chars;
   }
@@ -382,8 +328,8 @@ inline bool ConvertStringArg(const wchar_t *v,
 bool ConvertWCharTImpl(wchar_t v, const FormatConversionSpecImpl conv,
                        FormatSinkImpl *sink) {
   char mb[4];
-  ShiftState s;
-  const size_t chars_written = WideToUtf8(v, mb, s);
+  strings_internal::ShiftState s;
+  const size_t chars_written = strings_internal::WideToUtf8(v, mb, s);
   return chars_written != static_cast<size_t>(-1) && !s.saw_high_surrogate &&
          ConvertStringArg(string_view(mb, chars_written), conv, sink);
 }
@@ -510,13 +456,11 @@ StringConvertResult FormatConvertImpl(string_view v,
   return {ConvertStringArg(v, conv, sink)};
 }
 
-#if defined(ABSL_HAVE_STD_STRING_VIEW)
 StringConvertResult FormatConvertImpl(std::wstring_view v,
                                       const FormatConversionSpecImpl conv,
                                       FormatSinkImpl* sink) {
   return {ConvertStringArg(v.data(), v.size(), conv, sink)};
 }
-#endif
 
 StringPtrConvertResult FormatConvertImpl(const char* v,
                                          const FormatConversionSpecImpl conv,

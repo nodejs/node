@@ -251,10 +251,9 @@ class ObjectVisitorWithCageBases : public ObjectVisitor {
 
 // A wrapper class for root visitors that are used by client isolates during a
 // shared garbage collection. The wrapped visitor only visits heap objects in
-// the shared spaces and ignores everything else. The type parameter `Visitor`
-// should be a subclass of `RootVisitor`, or a similar class that provides the
-// required interface.
+// the shared spaces and ignores everything else.
 template <typename Visitor = RootVisitor>
+  requires(is_subtype_v<Visitor, RootVisitor>)
 class ClientRootVisitor final : public RootVisitor {
  public:
   explicit ClientRootVisitor(Visitor* actual_visitor)

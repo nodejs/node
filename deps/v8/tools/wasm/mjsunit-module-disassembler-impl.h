@@ -298,9 +298,13 @@ class MjsunitNamesProvider {
 
   void PrintHeapType(StringBuilder& out, HeapType type, OutputContext mode) {
     switch (type.representation()) {
-#define CASE(kCpp, JS, JSCode)                       \
-  case HeapType::kCpp:                               \
-    out << (mode == kEmitWireBytes ? #JSCode : #JS); \
+#define CASE(kCpp, JS, JSCode)                                             \
+  case HeapType::kCpp:                                                     \
+    out << (mode == kEmitWireBytes ? #JSCode : #JS);                       \
+    return;                                                                \
+  case HeapType::kCpp##Shared:                                             \
+    out << (mode == kEmitWireBytes ? "kWasmSharedTypeForm, " #JSCode       \
+                                   : "wasmRefNullType(" #JS ").shared()"); \
     return;
       ABSTRACT_TYPE_LIST(CASE)
       ABSTRACT_NN_TYPE_LIST(CASE)
@@ -538,8 +542,6 @@ class MjsunitFunctionDis : public WasmDecoder<Decoder::FullValidationTag> {
         indentation_(indentation) {}
 
   void WriteMjsunit(MultiLineStringBuilder& out);
-
-  // TODO(jkummerow): Support for compilation hints is missing.
 
   void DecodeGlobalInitializer(StringBuilder& out);
 
@@ -974,6 +976,18 @@ class MjsunitImmediatesPrinter {
     }
   }
 
+  void MemoryOrder(const MemoryOrderImmediate& memory_order) {
+    switch (memory_order.order) {
+      case AtomicMemoryOrder::kAcqRel:
+        out_ << " kAtomicAcqRel,";
+        return;
+      case AtomicMemoryOrder::kSeqCst:
+        out_ << " kAtomicSeqCst,";
+        return;
+    }
+    out_ << " /* INVALID */ " << static_cast<int>(memory_order.order) << ',';
+  }
+
   void SimdLane(SimdLaneImmediate& imm) { out_ << " " << imm.lane << ","; }
 
   void Field(FieldImmediate& imm) {
@@ -1194,7 +1208,7 @@ class MjsunitModuleDis {
             "that can be\n"
             "// found in the LICENSE file.\n"
             "\n"
-            "// Flags: --wasm-staging --wasm-inlining-call-indirect"
+            "// Flags: --experimental-fuzzing --wasm-staging"
          << extra_flags
          << "\n\n"
             "d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');\n"
@@ -1224,16 +1238,20 @@ class MjsunitModuleDis {
       needed_at[ht.ref_index().index] = here;
     };
     for (uint32_t i = 0; i < module_->types.size(); i++) {
+      const TypeDefinition& type = module_->types[i];
+      if (type.has_descriptor()) needed_at[type.descriptor.index] = i;
+      if (type.is_descriptor()) needed_at[type.describes.index] = i;
+      if (type.supertype != kNoSuperType) needed_at[type.supertype.index] = i;
       if (module_->has_struct(ModuleTypeIndex{i})) {
-        const StructType* struct_type = module_->types[i].struct_type;
+        const StructType* struct_type = type.struct_type;
         for (uint32_t fi = 0; fi < struct_type->field_count(); fi++) {
           MarkAsNeededHere(struct_type->field(fi), i);
         }
       } else if (module_->has_array(ModuleTypeIndex{i})) {
-        MarkAsNeededHere(module_->types[i].array_type->element_type(), i);
+        MarkAsNeededHere(type.array_type->element_type(), i);
       } else {
         DCHECK(module_->has_signature(ModuleTypeIndex{i}));
-        const FunctionSig* sig = module_->types[i].function_sig;
+        const FunctionSig* sig = type.function_sig;
         for (size_t pi = 0; pi < sig->parameter_count(); pi++) {
           MarkAsNeededHere(sig->GetParam(pi), i);
         }
@@ -1278,9 +1296,10 @@ class MjsunitModuleDis {
           out_.NextLine(0);
         }
       }
-      ModuleTypeIndex supertype = module_->types[i].supertype;
-      bool is_final = module_->types[i].is_final;
-      if (needed_at[i] == kMaxUInt32) {
+      const TypeDefinition& type = module_->types[i];
+      ModuleTypeIndex supertype = type.supertype;
+      bool is_final = type.is_final;
+      if (needed_at[i] > i) {
         out_ << "let ";
         names()->PrintTypeVariableName(out_, ModuleTypeIndex{i});
         out_ << " = ";
@@ -1290,8 +1309,8 @@ class MjsunitModuleDis {
         out_ << " */ ";
       }
       if (module_->has_struct(ModuleTypeIndex{i})) {
-        const StructType* struct_type = module_->types[i].struct_type;
-        out_ << "builder.addStruct([";
+        const StructType* struct_type = type.struct_type;
+        out_ << "builder.addStruct({fields: [";
         for (uint32_t fi = 0; fi < struct_type->field_count(); fi++) {
           if (fi > 0) out_ << ", ";
           out_ << "makeField(";
@@ -1299,13 +1318,22 @@ class MjsunitModuleDis {
           out_ << ", " << (struct_type->mutability(fi) ? "true" : "false");
           out_ << ")";
         }
-        out_ << "], ";
+        out_ << "]";
         if (supertype != kNoSuperType) {
-          names()->PrintTypeIndex(out_, supertype, kEmitObjects);
-        } else {
-          out_ << "kNoSuperType";
+          out_ << ", supertype: ";
+          names()->PrintTypeVariableName(out_, supertype);
         }
-        out_ << ", " << (is_final ? "true" : "false") << ");";
+        if (is_final) out_ << ", final: true";
+        if (type.is_shared) out_ << ", shared: true";
+        if (type.has_descriptor()) {
+          out_ << ", descriptor: ";
+          names()->PrintTypeVariableName(out_, type.descriptor);
+        }
+        if (type.is_descriptor()) {
+          out_ << ", describes: ";
+          names()->PrintTypeVariableName(out_, type.describes);
+        }
+        out_ << "});";
         out_.NextLine(0);
       } else if (module_->has_array(ModuleTypeIndex{i})) {
         const ArrayType* array_type = module_->types[i].array_type;

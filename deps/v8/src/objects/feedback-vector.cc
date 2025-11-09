@@ -200,6 +200,7 @@ const char* FeedbackMetadata::Kind2String(FeedbackSlotKind kind) {
     case FeedbackSlotKind::kStringAddAndInternalize:
       return "StringAddAndInternalize";
   }
+  UNREACHABLE();
 }
 
 FeedbackSlotKind FeedbackVector::GetKind(FeedbackSlot slot) const {
@@ -291,7 +292,7 @@ Handle<FeedbackVector> FeedbackVector::New(
       case FeedbackSlotKind::kStoreGlobalSloppy:
       case FeedbackSlotKind::kStoreGlobalStrict:
       case FeedbackSlotKind::kJumpLoop:
-        vector->Set(slot, ClearedValue(isolate), SKIP_WRITE_BARRIER);
+        vector->Set(slot, kClearedWeakValue, SKIP_WRITE_BARRIER);
         break;
       case FeedbackSlotKind::kForIn:
       case FeedbackSlotKind::kCompareOp:
@@ -416,7 +417,7 @@ void FeedbackVector::SetOptimizedCode(IsolateForSandbox isolate,
     state = MaybeHasTurbofanCodeBit::update(state, false);
   }
   // TODO(mythria): We could see a CompileOptimized state here either from
-  // tests that use %OptimizeFunctionOnNextCall, --always-turbofan or because we
+  // tests that use %OptimizeFunctionOnNextCall or because we
   // re-mark the function for non-concurrent optimization after an OSR. We
   // should avoid these cases and also check that marker isn't
   // TieringState::kRequestTurbofan*.
@@ -438,7 +439,7 @@ void FeedbackVector::SetOptimizedCode(IsolateForSandbox isolate,
 void FeedbackVector::ClearOptimizedCode() {
   DCHECK(has_optimized_code());
   DCHECK(maybe_has_maglev_code() || maybe_has_turbofan_code());
-  set_maybe_optimized_code(ClearedValue(GetIsolate()));
+  set_maybe_optimized_code(kClearedWeakValue);
   set_maybe_has_maglev_code(false);
   set_maybe_has_turbofan_code(false);
 }
@@ -486,7 +487,7 @@ void FeedbackVector::SetOptimizedOsrCode(Isolate* isolate, FeedbackSlot slot,
                                          Tagged<Code> code) {
   DCHECK(CodeKindIsOptimizedJSFunction(code->kind()));
   DCHECK(!slot.IsInvalid());
-  auto current = GetOptimizedOsrCode(isolate, slot);
+  auto current = GetOptimizedOsrCode(isolate, {}, slot);
   if (V8_UNLIKELY(current && current.value()->kind() > code->kind())) {
     return;
   }
@@ -508,7 +509,8 @@ bool FeedbackVector::ClearSlots(Isolate* isolate, ClearBehavior behavior) {
       FeedbackVector::RawUninitializedSentinel(isolate);
 
   bool feedback_updated = false;
-  FeedbackMetadataIterator iter(metadata());
+  DisallowGarbageCollection no_gc;
+  FeedbackMetadataIterator iter(metadata(), no_gc);
   while (iter.HasNext()) {
     FeedbackSlot slot = iter.Next();
 
@@ -613,13 +615,12 @@ DirectHandle<WeakFixedArray> FeedbackNexus::CreateArrayOfSize(int length) {
 }
 
 void FeedbackNexus::ConfigureUninitialized() {
-  Isolate* isolate = config()->isolate();
   switch (kind()) {
     case FeedbackSlotKind::kStoreGlobalSloppy:
     case FeedbackSlotKind::kStoreGlobalStrict:
     case FeedbackSlotKind::kLoadGlobalNotInsideTypeof:
     case FeedbackSlotKind::kLoadGlobalInsideTypeof:
-      SetFeedback(ClearedValue(isolate), SKIP_WRITE_BARRIER,
+      SetFeedback(kClearedWeakValue, SKIP_WRITE_BARRIER,
                   UninitializedSentinel(), SKIP_WRITE_BARRIER);
       break;
     case FeedbackSlotKind::kCloneObject:
@@ -645,7 +646,7 @@ void FeedbackNexus::ConfigureUninitialized() {
                   UninitializedSentinel(), SKIP_WRITE_BARRIER);
       break;
     case FeedbackSlotKind::kJumpLoop:
-      SetFeedback(ClearedValue(isolate), SKIP_WRITE_BARRIER);
+      SetFeedback(kClearedWeakValue, SKIP_WRITE_BARRIER);
       break;
     default:
       UNREACHABLE();
@@ -720,10 +721,9 @@ bool FeedbackNexus::Clear(ClearBehavior behavior) {
 
 bool FeedbackNexus::ConfigureMegamorphic() {
   DisallowGarbageCollection no_gc;
-  Isolate* isolate = config()->isolate();
   Tagged<MaybeObject> sentinel = MegamorphicSentinel();
   if (GetFeedback() != sentinel) {
-    SetFeedback(sentinel, SKIP_WRITE_BARRIER, ClearedValue(isolate));
+    SetFeedback(sentinel, SKIP_WRITE_BARRIER, kClearedWeakValue);
     return true;
   }
 
@@ -984,7 +984,7 @@ void FeedbackNexus::ConfigureHandlerMode(
     const MaybeObjectDirectHandle& handler) {
   DCHECK(IsGlobalICKind(kind()));
   DCHECK(IC::IsHandler(*handler));
-  SetFeedback(ClearedValue(config()->isolate()), UPDATE_WRITE_BARRIER, *handler,
+  SetFeedback(kClearedWeakValue, UPDATE_WRITE_BARRIER, *handler,
               UPDATE_WRITE_BARRIER);
 }
 
@@ -1029,7 +1029,7 @@ void FeedbackNexus::ConfigureCloneObject(
         raw_array->set(1, GetFeedbackExtra());
         raw_array->set(2, MakeWeak(*source_map));
         raw_array->set(3, GetHandler());
-        SetFeedback(raw_array, UPDATE_WRITE_BARRIER, ClearedValue(isolate));
+        SetFeedback(raw_array, UPDATE_WRITE_BARRIER, kClearedWeakValue);
       }
       break;
     case InlineCacheState::POLYMORPHIC: {
@@ -1051,7 +1051,7 @@ void FeedbackNexus::ConfigureCloneObject(
         if (i == kMaxElements) {
           // Transition to MEGAMORPHIC.
           Tagged<MaybeObject> sentinel = MegamorphicSentinel();
-          SetFeedback(sentinel, SKIP_WRITE_BARRIER, ClearedValue(isolate));
+          SetFeedback(sentinel, SKIP_WRITE_BARRIER, kClearedWeakValue);
           break;
         }
 
@@ -1096,6 +1096,15 @@ void FeedbackNexus::SetSpeculationMode(SpeculationMode mode) {
   // but we don't to make WB verification happy.
   SetFeedback(feedback, UPDATE_WRITE_BARRIER, Smi::FromInt(count),
               SKIP_WRITE_BARRIER);
+}
+
+void FeedbackNexus::NextSpeculationMode(SpeculationMode mode) {
+  SpeculationMode cur = GetSpeculationMode();
+  if (cur == SpeculationMode::kAllowSpeculation) {
+    SetSpeculationMode(mode);
+  } else {
+    SetSpeculationMode(SpeculationMode::kDisallowSpeculation);
+  }
 }
 
 SpeculationMode FeedbackNexus::GetSpeculationMode() {
@@ -1333,7 +1342,7 @@ KeyedAccessStoreMode FeedbackNexus::GetKeyedAccessStoreMode() const {
         if (!StoreModeIsInBounds(mode)) return mode;
         continue;
       } else {
-        Tagged<Code> code = Cast<Code>(data_handler->smi_handler());
+        Tagged<Code> code = TrustedCast<Code>(data_handler->smi_handler());
         builtin_handler = code->builtin_id();
       }
 
@@ -1352,7 +1361,7 @@ KeyedAccessStoreMode FeedbackNexus::GetKeyedAccessStoreMode() const {
       continue;
     } else {
       // Element store without prototype chain check.
-      Tagged<Code> code = Cast<Code>(*maybe_code_handler.object());
+      Tagged<Code> code = TrustedCast<Code>(*maybe_code_handler.object());
       builtin_handler = code->builtin_id();
     }
 
@@ -1367,6 +1376,25 @@ KeyedAccessStoreMode FeedbackNexus::GetKeyedAccessStoreMode() const {
   return mode;
 }
 
+bool FeedbackNexus::IsOneMapManyNames() const {
+  // "1 map, many names" mode is currently only used for Wasm maps, and
+  // {IsWasmObjectMap} is currently only defined for Wasm-enabled builds.
+#if V8_ENABLE_WEBASSEMBLY
+  if (!IsKeyedLoadICKind(kind()) && !IsKeyedStoreICKind(kind())) return false;
+  auto pair = GetFeedbackPair();
+  Tagged<HeapObject> heap_object;
+  if (!pair.first.GetHeapObjectIfWeak(&heap_object)) return false;
+  if (!IsMap(heap_object)) return false;
+  if (!IsWasmObjectMap(Cast<Map>(heap_object))) return false;
+  if (!IsSmi(pair.second)) return false;
+  Tagged<Smi> handler = pair.second.ToSmi();
+  return handler == LoadHandler::LoadGeneric() ||
+         handler == StoreHandler::StoreGeneric();
+#else
+  return false;
+#endif  // V8_ENABLE_WEBASSEMBLY
+}
+
 IcCheckType FeedbackNexus::GetKeyType() const {
   DCHECK(IsKeyedStoreICKind(kind()) || IsKeyedLoadICKind(kind()) ||
          IsStoreInArrayLiteralICKind(kind()) || IsKeyedHasICKind(kind()) ||
@@ -1376,6 +1404,9 @@ IcCheckType FeedbackNexus::GetKeyType() const {
   Tagged<MaybeObject> feedback = pair.first;
   if (feedback == MegamorphicSentinel()) {
     return static_cast<IcCheckType>(Smi::ToInt(Cast<Smi>(pair.second)));
+  }
+  if (IsOneMapManyNames()) {
+    return IcCheckType::kProperty;
   }
   Tagged<MaybeObject> maybe_name =
       IsDefineKeyedOwnPropertyInLiteralKind(kind()) ||

@@ -12,7 +12,6 @@
 #include "src/codegen/machine-type.h"
 #include "src/codegen/tick-counter.h"
 #include "src/common/globals.h"
-#include "src/compiler/backend/instruction-selector-adapter.h"
 #include "src/compiler/backend/instruction-selector-impl.h"
 #include "src/compiler/backend/instruction.h"
 #include "src/compiler/compiler-source-position-table.h"
@@ -35,7 +34,7 @@ namespace internal {
 namespace compiler {
 
 #define VISIT_UNSUPPORTED_OP(op) \
-  void InstructionSelectorT::Visit##op(OpIndex) { UNIMPLEMENTED(); }
+  void InstructionSelector::Visit##op(OpIndex) { UNIMPLEMENTED(); }
 
 using namespace turboshaft;  // NOLINT(build/namespaces)
 
@@ -48,7 +47,7 @@ constexpr EffectDimensions kTurboshaftEffectLevelMask =
     OpEffects().CanReadMemory().produces;
 }
 
-InstructionSelectorT::InstructionSelectorT(
+InstructionSelector::InstructionSelector(
     Zone* zone, size_t node_count, Linkage* linkage,
     InstructionSequence* sequence, Graph* schedule,
     source_position_table_t* source_positions, Frame* frame,
@@ -59,8 +58,9 @@ InstructionSelectorT::InstructionSelectorT(
     Features features, InstructionSelector::EnableScheduling enable_scheduling,
     InstructionSelector::EnableRootsRelativeAddressing
         enable_roots_relative_addressing,
-    InstructionSelector::EnableTraceTurboJson trace_turbo)
-    : TurboshaftAdapter(schedule),
+    InstructionSelector::EnableTraceTurboJson trace_turbo,
+    InstructionSelector::EnsureDeterministicNan ensure_deterministic_nan)
+    : OperationMatcher(*schedule),
       zone_(zone),
       linkage_(linkage),
       sequence_(sequence),
@@ -88,6 +88,7 @@ InstructionSelectorT::InstructionSelectorT(
       instruction_selection_failed_(false),
       instr_origins_(sequence->zone()),
       trace_turbo_(trace_turbo),
+      ensure_deterministic_nan_(ensure_deterministic_nan),
       tick_counter_(tick_counter),
       broker_(broker),
       max_unoptimized_frame_height_(max_unoptimized_frame_height),
@@ -109,12 +110,12 @@ InstructionSelectorT::InstructionSelectorT(
   continuation_inputs_.reserve(5);
   continuation_outputs_.reserve(2);
 
-  if (trace_turbo_ == InstructionSelector::kEnableTraceTurboJson) {
+  if (trace_turbo_) {
     instr_origins_.assign(node_count, {-1, 0});
   }
 }
 
-std::optional<BailoutReason> InstructionSelectorT::SelectInstructions() {
+std::optional<BailoutReason> InstructionSelector::SelectInstructions() {
   // Mark the inputs of all phis in loop headers as used.
   ZoneVector<Block*> blocks = rpo_order(schedule());
   for (const Block* block : blocks) {
@@ -135,7 +136,7 @@ std::optional<BailoutReason> InstructionSelectorT::SelectInstructions() {
   for (auto i = blocks.rbegin(); i != blocks.rend(); ++i) {
     VisitBlock(*i);
     if (instruction_selection_failed())
-      return BailoutReason::kCodeGenerationFailed;
+      return BailoutReason::kTurbofanCodeGenerationFailed;
   }
 
   // Schedule the selected instructions.
@@ -169,7 +170,7 @@ std::optional<BailoutReason> InstructionSelectorT::SelectInstructions() {
   return std::nullopt;
 }
 
-void InstructionSelectorT::StartBlock(RpoNumber rpo) {
+void InstructionSelector::StartBlock(RpoNumber rpo) {
   if (UseInstructionScheduling()) {
     DCHECK_NOT_NULL(scheduler_);
     scheduler_->StartBlock(rpo);
@@ -178,7 +179,7 @@ void InstructionSelectorT::StartBlock(RpoNumber rpo) {
   }
 }
 
-void InstructionSelectorT::EndBlock(RpoNumber rpo) {
+void InstructionSelector::EndBlock(RpoNumber rpo) {
   if (UseInstructionScheduling()) {
     DCHECK_NOT_NULL(scheduler_);
     scheduler_->EndBlock(rpo);
@@ -187,7 +188,7 @@ void InstructionSelectorT::EndBlock(RpoNumber rpo) {
   }
 }
 
-void InstructionSelectorT::AddTerminator(Instruction* instr) {
+void InstructionSelector::AddTerminator(Instruction* instr) {
   if (UseInstructionScheduling()) {
     DCHECK_NOT_NULL(scheduler_);
     scheduler_->AddTerminator(instr);
@@ -196,7 +197,7 @@ void InstructionSelectorT::AddTerminator(Instruction* instr) {
   }
 }
 
-void InstructionSelectorT::AddInstruction(Instruction* instr) {
+void InstructionSelector::AddInstruction(Instruction* instr) {
   if (UseInstructionScheduling()) {
     DCHECK_NOT_NULL(scheduler_);
     scheduler_->AddInstruction(instr);
@@ -205,27 +206,27 @@ void InstructionSelectorT::AddInstruction(Instruction* instr) {
   }
 }
 
-Instruction* InstructionSelectorT::Emit(InstructionCode opcode,
-                                        InstructionOperand output,
-                                        size_t temp_count,
-                                        InstructionOperand* temps) {
+Instruction* InstructionSelector::Emit(InstructionCode opcode,
+                                       InstructionOperand output,
+                                       size_t temp_count,
+                                       InstructionOperand* temps) {
   size_t output_count = output.IsInvalid() ? 0 : 1;
   return Emit(opcode, output_count, &output, 0, nullptr, temp_count, temps);
 }
 
-Instruction* InstructionSelectorT::Emit(InstructionCode opcode,
-                                        InstructionOperand output,
-                                        InstructionOperand a, size_t temp_count,
-                                        InstructionOperand* temps) {
+Instruction* InstructionSelector::Emit(InstructionCode opcode,
+                                       InstructionOperand output,
+                                       InstructionOperand a, size_t temp_count,
+                                       InstructionOperand* temps) {
   size_t output_count = output.IsInvalid() ? 0 : 1;
   return Emit(opcode, output_count, &output, 1, &a, temp_count, temps);
 }
 
-Instruction* InstructionSelectorT::Emit(InstructionCode opcode,
-                                        InstructionOperand output,
-                                        InstructionOperand a,
-                                        InstructionOperand b, size_t temp_count,
-                                        InstructionOperand* temps) {
+Instruction* InstructionSelector::Emit(InstructionCode opcode,
+                                       InstructionOperand output,
+                                       InstructionOperand a,
+                                       InstructionOperand b, size_t temp_count,
+                                       InstructionOperand* temps) {
   size_t output_count = output.IsInvalid() ? 0 : 1;
   InstructionOperand inputs[] = {a, b};
   size_t input_count = arraysize(inputs);
@@ -233,12 +234,12 @@ Instruction* InstructionSelectorT::Emit(InstructionCode opcode,
               temps);
 }
 
-Instruction* InstructionSelectorT::Emit(InstructionCode opcode,
-                                        InstructionOperand output,
-                                        InstructionOperand a,
-                                        InstructionOperand b,
-                                        InstructionOperand c, size_t temp_count,
-                                        InstructionOperand* temps) {
+Instruction* InstructionSelector::Emit(InstructionCode opcode,
+                                       InstructionOperand output,
+                                       InstructionOperand a,
+                                       InstructionOperand b,
+                                       InstructionOperand c, size_t temp_count,
+                                       InstructionOperand* temps) {
   size_t output_count = output.IsInvalid() ? 0 : 1;
   InstructionOperand inputs[] = {a, b, c};
   size_t input_count = arraysize(inputs);
@@ -246,7 +247,7 @@ Instruction* InstructionSelectorT::Emit(InstructionCode opcode,
               temps);
 }
 
-Instruction* InstructionSelectorT::Emit(
+Instruction* InstructionSelector::Emit(
     InstructionCode opcode, InstructionOperand output, InstructionOperand a,
     InstructionOperand b, InstructionOperand c, InstructionOperand d,
     size_t temp_count, InstructionOperand* temps) {
@@ -257,7 +258,7 @@ Instruction* InstructionSelectorT::Emit(
               temps);
 }
 
-Instruction* InstructionSelectorT::Emit(
+Instruction* InstructionSelector::Emit(
     InstructionCode opcode, InstructionOperand output, InstructionOperand a,
     InstructionOperand b, InstructionOperand c, InstructionOperand d,
     InstructionOperand e, size_t temp_count, InstructionOperand* temps) {
@@ -268,7 +269,7 @@ Instruction* InstructionSelectorT::Emit(
               temps);
 }
 
-Instruction* InstructionSelectorT::Emit(
+Instruction* InstructionSelector::Emit(
     InstructionCode opcode, InstructionOperand output, InstructionOperand a,
     InstructionOperand b, InstructionOperand c, InstructionOperand d,
     InstructionOperand e, InstructionOperand f, size_t temp_count,
@@ -280,7 +281,7 @@ Instruction* InstructionSelectorT::Emit(
               temps);
 }
 
-Instruction* InstructionSelectorT::Emit(
+Instruction* InstructionSelector::Emit(
     InstructionCode opcode, InstructionOperand output, InstructionOperand a,
     InstructionOperand b, InstructionOperand c, InstructionOperand d,
     InstructionOperand e, InstructionOperand f, InstructionOperand g,
@@ -292,7 +293,7 @@ Instruction* InstructionSelectorT::Emit(
               temps);
 }
 
-Instruction* InstructionSelectorT::Emit(
+Instruction* InstructionSelector::Emit(
     InstructionCode opcode, size_t output_count, InstructionOperand* outputs,
     size_t input_count, InstructionOperand* inputs, size_t temp_count,
     InstructionOperand* temps) {
@@ -309,7 +310,7 @@ Instruction* InstructionSelectorT::Emit(
   return Emit(instr);
 }
 
-Instruction* InstructionSelectorT::Emit(Instruction* instr) {
+Instruction* InstructionSelector::Emit(Instruction* instr) {
   instructions_.push_back(instr);
   return instr;
 }
@@ -353,8 +354,8 @@ bool is_exclusive_user_of(const Graph* graph, OpIndex user, OpIndex value) {
   if (value_op.Is<ProjectionOp>()) {
     // Projections always have a Tuple use, but it shouldn't count as a use as
     // far as is_exclusive_user_of is concerned, since no instructions are
-    // emitted for the TupleOp, which is just a Turboshaft "meta operation".
-    // We thus increase the use_count by 1, to attribute the TupleOp use to
+    // emitted for the MakeTupleOp, which is just a Turboshaft "meta operation".
+    // We thus increase the use_count by 1, to attribute the MakeTupleOp use to
     // the current operation.
     use_count++;
   }
@@ -364,7 +365,7 @@ bool is_exclusive_user_of(const Graph* graph, OpIndex user, OpIndex value) {
 }
 }  // namespace
 
-bool InstructionSelectorT::CanCover(OpIndex user, OpIndex node) const {
+bool InstructionSelector::CanCover(OpIndex user, OpIndex node) const {
   // 1. Both {user} and {node} must be in the same basic block.
   if (block(schedule(), node) != current_block_) {
     return false;
@@ -385,8 +386,8 @@ bool InstructionSelectorT::CanCover(OpIndex user, OpIndex node) const {
   return is_exclusive_user_of(schedule(), user, node);
 }
 
-bool InstructionSelectorT::CanCoverProtectedLoad(OpIndex user,
-                                                 OpIndex node) const {
+bool InstructionSelector::CanCoverProtectedLoad(OpIndex user,
+                                                OpIndex node) const {
   DCHECK(CanCover(user, node));
   const Graph* graph = this->turboshaft_graph();
   for (OpIndex next = graph->NextIndex(node); next.valid();
@@ -401,8 +402,8 @@ bool InstructionSelectorT::CanCoverProtectedLoad(OpIndex user,
   return true;
 }
 
-bool InstructionSelectorT::IsOnlyUserOfNodeInSameBlock(OpIndex user,
-                                                       OpIndex node) const {
+bool InstructionSelector::IsOnlyUserOfNodeInSameBlock(OpIndex user,
+                                                      OpIndex node) const {
   Block* bb_user = this->block(schedule(), user);
   Block* bb_node = this->block(schedule(), node);
   if (bb_user != bb_node) return false;
@@ -416,8 +417,8 @@ bool InstructionSelectorT::IsOnlyUserOfNodeInSameBlock(OpIndex user,
     return true;
 }
 
-OptionalOpIndex InstructionSelectorT::FindProjection(OpIndex node,
-                                                     size_t projection_index) {
+OptionalOpIndex InstructionSelector::FindProjection(OpIndex node,
+                                                    size_t projection_index) {
   const Graph* graph = this->turboshaft_graph();
   // Projections are always emitted right after the operation.
   for (OpIndex next = graph->NextIndex(node); next.valid();
@@ -429,7 +430,7 @@ OptionalOpIndex InstructionSelectorT::FindProjection(OpIndex node,
       // If the projection has a single use, it is the following tuple, so we
       // don't return it, since there is no point in emitting it.
       DCHECK(turboshaft_uses(next).size() == 1 &&
-             graph->Get(turboshaft_uses(next)[0]).Is<TupleOp>());
+             graph->Get(turboshaft_uses(next)[0]).Is<MakeTupleOp>());
       continue;
     }
     if (projection->index == projection_index) return next;
@@ -448,7 +449,7 @@ OptionalOpIndex InstructionSelectorT::FindProjection(OpIndex node,
         // (which doesn't count as a regular use since it is just an artifact of
         // the Turboshaft graph).
         DCHECK(turboshaft_uses(use).size() == 1 &&
-               graph->Get(turboshaft_uses(use)[0]).Is<TupleOp>());
+               graph->Get(turboshaft_uses(use)[0]).Is<MakeTupleOp>());
       }
     }
   }
@@ -456,13 +457,13 @@ OptionalOpIndex InstructionSelectorT::FindProjection(OpIndex node,
   return OpIndex::Invalid();
 }
 
-void InstructionSelectorT::UpdateRenames(Instruction* instruction) {
+void InstructionSelector::UpdateRenames(Instruction* instruction) {
   for (size_t i = 0; i < instruction->InputCount(); i++) {
     TryRename(instruction->InputAt(i));
   }
 }
 
-void InstructionSelectorT::UpdateRenamesInPhi(PhiInstruction* phi) {
+void InstructionSelector::UpdateRenamesInPhi(PhiInstruction* phi) {
   for (size_t i = 0; i < phi->operands().size(); i++) {
     int vreg = phi->operands()[i];
     int renamed = GetRename(vreg);
@@ -472,7 +473,7 @@ void InstructionSelectorT::UpdateRenamesInPhi(PhiInstruction* phi) {
   }
 }
 
-int InstructionSelectorT::GetRename(int virtual_register) {
+int InstructionSelector::GetRename(int virtual_register) {
   int rename = virtual_register;
   while (true) {
     if (static_cast<size_t>(rename) >= virtual_register_rename_.size()) break;
@@ -485,7 +486,7 @@ int InstructionSelectorT::GetRename(int virtual_register) {
   return rename;
 }
 
-void InstructionSelectorT::TryRename(InstructionOperand* op) {
+void InstructionSelector::TryRename(InstructionOperand* op) {
   if (!op->IsUnallocated()) return;
   UnallocatedOperand* unalloc = UnallocatedOperand::cast(op);
   int vreg = unalloc->virtual_register();
@@ -495,7 +496,7 @@ void InstructionSelectorT::TryRename(InstructionOperand* op) {
   }
 }
 
-void InstructionSelectorT::SetRename(OpIndex node, OpIndex rename) {
+void InstructionSelector::SetRename(OpIndex node, OpIndex rename) {
   int vreg = GetVirtualRegister(node);
   if (static_cast<size_t>(vreg) >= virtual_register_rename_.size()) {
     int invalid = InstructionOperand::kInvalidVirtualRegister;
@@ -504,7 +505,7 @@ void InstructionSelectorT::SetRename(OpIndex node, OpIndex rename) {
   virtual_register_rename_[vreg] = GetVirtualRegister(rename);
 }
 
-int InstructionSelectorT::GetVirtualRegister(OpIndex node) {
+int InstructionSelector::GetVirtualRegister(OpIndex node) {
   DCHECK(node.valid());
   size_t const id = node.id();
   DCHECK_LT(id, virtual_registers_.size());
@@ -517,7 +518,7 @@ int InstructionSelectorT::GetVirtualRegister(OpIndex node) {
 }
 
 const std::map<uint32_t, int>
-InstructionSelectorT::GetVirtualRegistersForTesting() const {
+InstructionSelector::GetVirtualRegistersForTesting() const {
   std::map<uint32_t, int> virtual_registers;
   for (size_t n = 0; n < virtual_registers_.size(); ++n) {
     if (virtual_registers_[n] != InstructionOperand::kInvalidVirtualRegister) {
@@ -528,17 +529,17 @@ InstructionSelectorT::GetVirtualRegistersForTesting() const {
   return virtual_registers;
 }
 
-bool InstructionSelectorT::IsDefined(OpIndex node) const {
+bool InstructionSelector::IsDefined(OpIndex node) const {
   DCHECK(node.valid());
   return defined_.Contains(node.id());
 }
 
-void InstructionSelectorT::MarkAsDefined(OpIndex node) {
+void InstructionSelector::MarkAsDefined(OpIndex node) {
   DCHECK(node.valid());
   defined_.Add(node.id());
 }
 
-bool InstructionSelectorT::IsUsed(OpIndex node) const {
+bool InstructionSelector::IsUsed(OpIndex node) const {
   DCHECK(node.valid());
   if (!ShouldSkipOptimizationStep() && ShouldSkipOperation(this->Get(node))) {
     return false;
@@ -547,7 +548,7 @@ bool InstructionSelectorT::IsUsed(OpIndex node) const {
   return used_.Contains(node.id());
 }
 
-bool InstructionSelectorT::IsReallyUsed(OpIndex node) const {
+bool InstructionSelector::IsReallyUsed(OpIndex node) const {
   DCHECK(node.valid());
   if (!ShouldSkipOptimizationStep() && ShouldSkipOperation(this->Get(node))) {
     return false;
@@ -555,33 +556,33 @@ bool InstructionSelectorT::IsReallyUsed(OpIndex node) const {
   return used_.Contains(node.id());
 }
 
-void InstructionSelectorT::MarkAsUsed(OpIndex node) {
+void InstructionSelector::MarkAsUsed(OpIndex node) {
   DCHECK(node.valid());
   used_.Add(node.id());
 }
 
-int InstructionSelectorT::GetEffectLevel(OpIndex node) const {
+int InstructionSelector::GetEffectLevel(OpIndex node) const {
   DCHECK(node.valid());
   size_t const id = node.id();
   DCHECK_LT(id, effect_level_.size());
   return effect_level_[id];
 }
 
-int InstructionSelectorT::GetEffectLevel(OpIndex node,
-                                         FlagsContinuation* cont) const {
+int InstructionSelector::GetEffectLevel(OpIndex node,
+                                        FlagsContinuation* cont) const {
   return cont->IsBranch() ? GetEffectLevel(this->block_terminator(
                                 this->PredecessorAt(cont->true_block(), 0)))
                           : GetEffectLevel(node);
 }
 
-void InstructionSelectorT::SetEffectLevel(OpIndex node, int effect_level) {
+void InstructionSelector::SetEffectLevel(OpIndex node, int effect_level) {
   DCHECK(node.valid());
   size_t const id = node.id();
   DCHECK_LT(id, effect_level_.size());
   effect_level_[id] = effect_level;
 }
 
-bool InstructionSelectorT::CanAddressRelativeToRootsRegister(
+bool InstructionSelector::CanAddressRelativeToRootsRegister(
     const ExternalReference& reference) const {
   // There are three things to consider here:
   // 1. CanUseRootsRegister: Is kRootRegister initialized?
@@ -592,10 +593,7 @@ bool InstructionSelectorT::CanAddressRelativeToRootsRegister(
   //    through the root register, i.e. are root-relative addresses to arbitrary
   //    addresses guaranteed not to change between code generation and
   //    execution?
-  const bool all_root_relative_offsets_are_constant =
-      (enable_roots_relative_addressing_ ==
-       InstructionSelector::kEnableRootsRelativeAddressing);
-  if (all_root_relative_offsets_are_constant) return true;
+  if (enable_roots_relative_addressing_) return true;
 
   // 3. IsAddressableThroughRootRegister: Is the target address guaranteed to
   //    have a fixed root-relative offset? If so, we can ignore 2.
@@ -605,25 +603,25 @@ bool InstructionSelectorT::CanAddressRelativeToRootsRegister(
   return this_root_relative_offset_is_constant;
 }
 
-bool InstructionSelectorT::CanUseRootsRegister() const {
+bool InstructionSelector::CanUseRootsRegister() const {
   return linkage()->GetIncomingDescriptor()->flags() &
          CallDescriptor::kCanUseRoots;
 }
 
-void InstructionSelectorT::MarkAsRepresentation(MachineRepresentation rep,
-                                                const InstructionOperand& op) {
+void InstructionSelector::MarkAsRepresentation(MachineRepresentation rep,
+                                               const InstructionOperand& op) {
   UnallocatedOperand unalloc = UnallocatedOperand::cast(op);
   sequence()->MarkAsRepresentation(rep, unalloc.virtual_register());
 }
 
-void InstructionSelectorT::MarkAsRepresentation(MachineRepresentation rep,
-                                                OpIndex node) {
+void InstructionSelector::MarkAsRepresentation(MachineRepresentation rep,
+                                               OpIndex node) {
   sequence()->MarkAsRepresentation(rep, GetVirtualRegister(node));
 }
 
 namespace {
 
-InstructionOperand OperandForDeopt(Isolate* isolate, OperandGeneratorT* g,
+InstructionOperand OperandForDeopt(Isolate* isolate, OperandGenerator* g,
                                    OpIndex input, FrameStateInputKind kind,
                                    MachineRepresentation rep) {
   if (rep == MachineRepresentation::kNone) {
@@ -746,7 +744,7 @@ class TurboshaftStateObjectDeduplicator {
   ZoneAbslFlatHashMap<uint32_t, uint32_t> string_ids_mapping_;
 };
 
-struct InstructionSelectorT::CachedStateValues : public ZoneObject {
+struct InstructionSelector::CachedStateValues : public ZoneObject {
  public:
   CachedStateValues(Zone* zone, StateValueList* values, size_t values_start,
                     InstructionOperandVector* inputs, size_t inputs_start)
@@ -765,8 +763,8 @@ struct InstructionSelectorT::CachedStateValues : public ZoneObject {
 };
 
 size_t AddOperandToStateValueDescriptor(
-    InstructionSelectorT* selector, StateValueList* values,
-    InstructionOperandVector* inputs, OperandGeneratorT* g,
+    InstructionSelector* selector, StateValueList* values,
+    InstructionOperandVector* inputs, OperandGenerator* g,
     TurboshaftStateObjectDeduplicator* deduplicator,
     FrameStateData::Iterator* it, FrameStateInputKind kind, Zone* zone) {
   switch (it->current_instr()) {
@@ -888,7 +886,7 @@ size_t AddOperandToStateValueDescriptor(
 }
 
 // Returns the number of instruction operands added to inputs.
-size_t InstructionSelectorT::AddInputsToFrameStateDescriptor(
+size_t InstructionSelector::AddInputsToFrameStateDescriptor(
     FrameStateDescriptor* descriptor, OpIndex state_node, OperandGenerator* g,
     TurboshaftStateObjectDeduplicator* deduplicator,
     InstructionOperandVector* inputs, FrameStateInputKind kind, Zone* zone) {
@@ -962,12 +960,12 @@ size_t InstructionSelectorT::AddInputsToFrameStateDescriptor(
   return entries;
 }
 
-Instruction* InstructionSelectorT::EmitWithContinuation(
+Instruction* InstructionSelector::EmitWithContinuation(
     InstructionCode opcode, InstructionOperand a, FlagsContinuation* cont) {
   return EmitWithContinuation(opcode, 0, nullptr, 1, &a, cont);
 }
 
-Instruction* InstructionSelectorT::EmitWithContinuation(
+Instruction* InstructionSelector::EmitWithContinuation(
     InstructionCode opcode, InstructionOperand a, InstructionOperand b,
     FlagsContinuation* cont) {
   InstructionOperand inputs[] = {a, b};
@@ -975,7 +973,7 @@ Instruction* InstructionSelectorT::EmitWithContinuation(
                               cont);
 }
 
-Instruction* InstructionSelectorT::EmitWithContinuation(
+Instruction* InstructionSelector::EmitWithContinuation(
     InstructionCode opcode, InstructionOperand a, InstructionOperand b,
     InstructionOperand c, FlagsContinuation* cont) {
   InstructionOperand inputs[] = {a, b, c};
@@ -983,14 +981,14 @@ Instruction* InstructionSelectorT::EmitWithContinuation(
                               cont);
 }
 
-Instruction* InstructionSelectorT::EmitWithContinuation(
+Instruction* InstructionSelector::EmitWithContinuation(
     InstructionCode opcode, size_t output_count, InstructionOperand* outputs,
     size_t input_count, InstructionOperand* inputs, FlagsContinuation* cont) {
   return EmitWithContinuation(opcode, output_count, outputs, input_count,
                               inputs, 0, nullptr, cont);
 }
 
-Instruction* InstructionSelectorT::EmitWithContinuation(
+Instruction* InstructionSelector::EmitWithContinuation(
     InstructionCode opcode, size_t output_count, InstructionOperand* outputs,
     size_t input_count, InstructionOperand* inputs, size_t temp_count,
     InstructionOperand* temps, FlagsContinuation* cont) {
@@ -1023,7 +1021,7 @@ Instruction* InstructionSelectorT::EmitWithContinuation(
     AppendDeoptimizeArguments(&continuation_inputs_, cont->reason(),
                               cont->node_id(), cont->feedback(),
                               cont->frame_state());
-  } else if (cont->IsSet() || cont->IsConditionalSet()) {
+  } else if (cont->IsSet()) {
     continuation_outputs_.push_back(g.DefineAsRegister(cont->result()));
   } else if (cont->IsSelect()) {
     // The {Select} should put one of two values into the output register,
@@ -1033,7 +1031,7 @@ Instruction* InstructionSelectorT::EmitWithContinuation(
     // condition.
     AddOutputToSelectContinuation(&g, static_cast<int>(input_count) - 2,
                                   cont->result());
-  } else if (cont->IsTrap()) {
+  } else if (cont->IsTrap() || cont->IsConditionalTrap()) {
     int trap_id = static_cast<int>(cont->trap_id());
     continuation_inputs_.push_back(g.UseImmediate(trap_id));
   } else {
@@ -1052,7 +1050,25 @@ Instruction* InstructionSelectorT::EmitWithContinuation(
               emit_inputs, emit_temps_size, emit_temps);
 }
 
-void InstructionSelectorT::AppendDeoptimizeArguments(
+bool InstructionSelector::IsProtectedLoad(turboshaft::OpIndex node) const {
+#if V8_ENABLE_WEBASSEMBLY
+  if (Get(node).opcode == turboshaft::Opcode::kSimd128LoadTransform) {
+    return true;
+  }
+#if V8_ENABLE_WASM_SIMD256_REVEC
+  if (Get(node).opcode == turboshaft::Opcode::kSimd256LoadTransform) {
+    return true;
+  }
+#endif  // V8_ENABLE_WASM_SIMD256_REVEC
+#endif  // V8_ENABLE_WEBASSEMBLY
+
+  if (!IsLoadOrLoadImmutable(node)) return false;
+
+  bool traps_on_null;
+  return LoadView(schedule_, node).is_protected(&traps_on_null);
+}
+
+void InstructionSelector::AppendDeoptimizeArguments(
     InstructionOperandVector* args, DeoptimizeReason reason, uint32_t node_id,
     FeedbackSource const& feedback, OpIndex frame_state, DeoptimizeKind kind) {
   OperandGenerator g(this);
@@ -1069,9 +1085,9 @@ void InstructionSelectorT::AppendDeoptimizeArguments(
 // An internal helper class for generating the operands to calls.
 // TODO(bmeurer): Get rid of the CallBuffer business and make
 // InstructionSelector::VisitCall platform independent instead.
-struct CallBufferT {
-  CallBufferT(Zone* zone, const CallDescriptor* call_descriptor,
-              FrameStateDescriptor* frame_state)
+struct CallBuffer {
+  CallBuffer(Zone* zone, const CallDescriptor* call_descriptor,
+             FrameStateDescriptor* frame_state)
       : descriptor(call_descriptor),
         frame_state_descriptor(frame_state),
         output_nodes(zone),
@@ -1086,10 +1102,10 @@ struct CallBufferT {
 
   const CallDescriptor* descriptor;
   FrameStateDescriptor* frame_state_descriptor;
-  ZoneVector<PushParameterT> output_nodes;
+  ZoneVector<PushParameter> output_nodes;
   InstructionOperandVector outputs;
   InstructionOperandVector instruction_args;
-  ZoneVector<PushParameterT> pushed_nodes;
+  ZoneVector<PushParameter> pushed_nodes;
 
   size_t input_count() const { return descriptor->InputCount(); }
 
@@ -1105,7 +1121,7 @@ struct CallBufferT {
 
 // TODO(bmeurer): Get rid of the CallBuffer business and make
 // InstructionSelector::VisitCall platform independent instead.
-void InstructionSelectorT::InitializeCallBuffer(
+void InstructionSelector::InitializeCallBuffer(
     OpIndex node, CallBuffer* buffer, CallBufferFlags flags, OpIndex callee,
     OptionalOpIndex frame_state_opt, base::Vector<const OpIndex> arguments,
     int return_count, int stack_param_delta) {
@@ -1174,6 +1190,7 @@ void InstructionSelectorT::InitializeCallBuffer(
   bool call_code_immediate = (flags & kCallCodeImmediate) != 0;
   bool call_address_immediate = (flags & kCallAddressImmediate) != 0;
   bool call_use_fixed_target_reg = (flags & kCallFixedTargetRegister) != 0;
+  DeoptimizeKind deopt_kind = DeoptimizeKind::kLazy;
   switch (buffer->descriptor->kind()) {
     case CallDescriptor::kCallCodeObject:
       buffer->instruction_args.push_back(
@@ -1184,6 +1201,10 @@ void InstructionSelectorT::InitializeCallBuffer(
               : g.UseRegister(callee));
       break;
     case CallDescriptor::kCallAddress:
+      // TODO(ahaas): Rename kLazyAfterFastCall and similarly called fields on
+      // the isolate to reflect that they are used for every direct call to C++
+      // and not just for fast API calls.
+      deopt_kind = DeoptimizeKind::kLazyAfterFastCall;
       buffer->instruction_args.push_back(
           (call_address_immediate && this->IsExternalConstant(callee))
               ? g.UseImmediate(callee)
@@ -1202,6 +1223,10 @@ void InstructionSelectorT::InitializeCallBuffer(
           : call_use_fixed_target_reg
               ? g.UseFixed(callee, kJavaScriptCallCodeStartRegister)
               : g.UseRegister(callee));
+      break;
+    case CallDescriptor::kResumeWasmContinuation:
+      DCHECK(!call_use_fixed_target_reg);
+      buffer->instruction_args.push_back(g.UseRegister(callee));
       break;
 #endif  // V8_ENABLE_WEBASSEMBLY
     case CallDescriptor::kCallBuiltinPointer: {
@@ -1257,8 +1282,8 @@ void InstructionSelectorT::InitializeCallBuffer(
     }
 
     int const state_id = sequence()->AddDeoptimizationEntry(
-        buffer->frame_state_descriptor, DeoptimizeKind::kLazy,
-        DeoptimizeReason::kUnknown, node.id(), FeedbackSource());
+        buffer->frame_state_descriptor, deopt_kind, DeoptimizeReason::kUnknown,
+        node.id(), FeedbackSource());
     buffer->instruction_args.push_back(g.TempImmediate(state_id));
 
     StateObjectDeduplicator deduplicator(instruction_zone());
@@ -1327,12 +1352,12 @@ void InstructionSelectorT::InitializeCallBuffer(
   }
 }
 
-void InstructionSelectorT::UpdateSourcePosition(Instruction* instruction,
-                                                OpIndex node) {
+void InstructionSelector::UpdateSourcePosition(Instruction* instruction,
+                                               OpIndex node) {
   sequence()->SetSourcePosition(instruction, (*source_positions_)[node]);
 }
 
-bool InstructionSelectorT::IsSourcePositionUsed(OpIndex node) {
+bool InstructionSelector::IsSourcePositionUsed(OpIndex node) {
   if (source_position_mode_ == InstructionSelector::kAllSourcePositions) {
     return true;
   }
@@ -1378,7 +1403,7 @@ bool InstructionSelectorT::IsSourcePositionUsed(OpIndex node) {
     return false;
 }
 
-bool InstructionSelectorT::IsCommutative(turboshaft::OpIndex node) const {
+bool InstructionSelector::IsCommutative(turboshaft::OpIndex node) const {
   const turboshaft::Operation& op = Get(node);
   if (const auto word_binop = op.TryCast<turboshaft::WordBinopOp>()) {
     return turboshaft::WordBinopOp::IsCommutative(word_binop->kind);
@@ -1387,17 +1412,19 @@ bool InstructionSelectorT::IsCommutative(turboshaft::OpIndex node) const {
     return turboshaft::OverflowCheckedBinopOp::IsCommutative(
         overflow_binop->kind);
   } else if (const auto float_binop = op.TryCast<turboshaft::FloatBinopOp>()) {
-    return turboshaft::FloatBinopOp::IsCommutative(float_binop->kind);
+    return !ensure_deterministic_nan_ &&
+           turboshaft::FloatBinopOp::IsCommutative(float_binop->kind);
   } else if (const auto comparison = op.TryCast<turboshaft::ComparisonOp>()) {
     return turboshaft::ComparisonOp::IsCommutative(comparison->kind);
   }
   return false;
 }
 namespace {
-bool increment_effect_level_for_node(TurboshaftAdapter* adapter, OpIndex node) {
+bool increment_effect_level_for_node(InstructionSelector* selector,
+                                     OpIndex node) {
   // We need to increment the effect level if the operation consumes any of the
   // dimensions of the {kTurboshaftEffectLevelMask}.
-  const Operation& op = adapter->Get(node);
+  const Operation& op = selector->Get(node);
   if (op.Is<RetainOp>()) {
     // Retain has CanWrite effect so that it's not reordered before the last
     // read it protects, but it shouldn't increment the effect level, since
@@ -1412,7 +1439,7 @@ bool increment_effect_level_for_node(TurboshaftAdapter* adapter, OpIndex node) {
 }
 }  // namespace
 
-void InstructionSelectorT::VisitBlock(const Block* block) {
+void InstructionSelector::VisitBlock(const Block* block) {
   DCHECK(!current_block_);
   current_block_ = block;
   auto current_num_instructions = [&] {
@@ -1495,9 +1522,20 @@ void InstructionSelectorT::VisitBlock(const Block* block) {
       // up".
       current_effect_level_ = GetEffectLevel(node);
       VisitNode(node);
+
+      // Nodes that don't produce a value won't be marked as Defined by
+      // VisitNode (simply because nodes are marked as defined when instruction
+      // selectors do something like `DefinedAsRegister(node)`, which isn't done
+      // for non-value nodes like Store). So, we mark every visitted nodes as
+      // Defined here, so that it's clear when processing the next nodes (which
+      // are earlier in the graph), that this use has already been processed
+      // (which is useful for instance when trying to cover inputs, like in
+      // `TryPrepareScheduleFirstProjection`).
+      MarkAsDefined(node);
+
       if (!FinishEmittedInstructions(node, current_node_end)) return;
     }
-    if (trace_turbo_ == InstructionSelector::kEnableTraceTurboJson) {
+    if (trace_turbo_) {
       instr_origins_[node.id()] = {current_num_instructions(),
                                    current_node_end};
     }
@@ -1515,7 +1553,7 @@ void InstructionSelectorT::VisitBlock(const Block* block) {
   current_block_ = nullptr;
 }
 
-FlagsCondition InstructionSelectorT::GetComparisonFlagCondition(
+FlagsCondition InstructionSelector::GetComparisonFlagCondition(
     const ComparisonOp& op) const {
   switch (op.kind) {
     case ComparisonOp::Kind::kEqual:
@@ -1531,7 +1569,7 @@ FlagsCondition InstructionSelectorT::GetComparisonFlagCondition(
   }
 }
 
-void InstructionSelectorT::MarkPairProjectionsAsWord32(OpIndex node) {
+void InstructionSelector::MarkPairProjectionsAsWord32(OpIndex node) {
   OptionalOpIndex projection0 = FindProjection(node, 0);
   if (projection0.valid()) {
     MarkAsWord32(projection0.value());
@@ -1542,8 +1580,8 @@ void InstructionSelectorT::MarkPairProjectionsAsWord32(OpIndex node) {
   }
 }
 
-void InstructionSelectorT::ConsumeEqualZero(OpIndex* user, OpIndex* value,
-                                            FlagsContinuation* cont) {
+void InstructionSelector::ConsumeEqualZero(OpIndex* user, OpIndex* value,
+                                           FlagsContinuation* cont) {
   // Try to combine with comparisons against 0 by simply inverting the branch.
   while (const ComparisonOp* equal =
              TryCast<Opmask::kComparisonEqual>(*value)) {
@@ -1567,136 +1605,136 @@ void InstructionSelectorT::ConsumeEqualZero(OpIndex* user, OpIndex* value,
 }
 
 #if V8_ENABLE_WEBASSEMBLY
-void InstructionSelectorT::VisitI8x16RelaxedSwizzle(OpIndex node) {
+void InstructionSelector::VisitI8x16RelaxedSwizzle(OpIndex node) {
   return VisitI8x16Swizzle(node);
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-void InstructionSelectorT::VisitStackPointerGreaterThan(OpIndex node) {
+void InstructionSelector::VisitStackPointerGreaterThan(OpIndex node) {
   FlagsContinuation cont =
       FlagsContinuation::ForSet(kStackPointerGreaterThanCondition, node);
   VisitStackPointerGreaterThan(node, &cont);
 }
 
-void InstructionSelectorT::VisitLoadStackCheckOffset(OpIndex node) {
+void InstructionSelector::VisitLoadStackCheckOffset(OpIndex node) {
   OperandGenerator g(this);
   Emit(kArchStackCheckOffset, g.DefineAsRegister(node));
 }
 
-void InstructionSelectorT::VisitLoadFramePointer(OpIndex node) {
+void InstructionSelector::VisitLoadFramePointer(OpIndex node) {
   OperandGenerator g(this);
   Emit(kArchFramePointer, g.DefineAsRegister(node));
 }
 
 #if V8_ENABLE_WEBASSEMBLY
-void InstructionSelectorT::VisitLoadStackPointer(OpIndex node) {
+void InstructionSelector::VisitLoadStackPointer(OpIndex node) {
   OperandGenerator g(this);
   Emit(kArchStackPointer, g.DefineAsRegister(node));
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-void InstructionSelectorT::VisitLoadParentFramePointer(OpIndex node) {
+void InstructionSelector::VisitLoadParentFramePointer(OpIndex node) {
   OperandGenerator g(this);
   Emit(kArchParentFramePointer, g.DefineAsRegister(node));
 }
 
-void InstructionSelectorT::VisitLoadRootRegister(OpIndex node) {
+void InstructionSelector::VisitLoadRootRegister(OpIndex node) {
   OperandGenerator g(this);
   Emit(kArchRootPointer, g.DefineAsRegister(node));
 }
 
-void InstructionSelectorT::VisitFloat64Acos(OpIndex node) {
+void InstructionSelector::VisitFloat64Acos(OpIndex node) {
   VisitFloat64Ieee754Unop(node, kIeee754Float64Acos);
 }
 
-void InstructionSelectorT::VisitFloat64Acosh(OpIndex node) {
+void InstructionSelector::VisitFloat64Acosh(OpIndex node) {
   VisitFloat64Ieee754Unop(node, kIeee754Float64Acosh);
 }
 
-void InstructionSelectorT::VisitFloat64Asin(OpIndex node) {
+void InstructionSelector::VisitFloat64Asin(OpIndex node) {
   VisitFloat64Ieee754Unop(node, kIeee754Float64Asin);
 }
 
-void InstructionSelectorT::VisitFloat64Asinh(OpIndex node) {
+void InstructionSelector::VisitFloat64Asinh(OpIndex node) {
   VisitFloat64Ieee754Unop(node, kIeee754Float64Asinh);
 }
 
-void InstructionSelectorT::VisitFloat64Atan(OpIndex node) {
+void InstructionSelector::VisitFloat64Atan(OpIndex node) {
   VisitFloat64Ieee754Unop(node, kIeee754Float64Atan);
 }
 
-void InstructionSelectorT::VisitFloat64Atanh(OpIndex node) {
+void InstructionSelector::VisitFloat64Atanh(OpIndex node) {
   VisitFloat64Ieee754Unop(node, kIeee754Float64Atanh);
 }
 
-void InstructionSelectorT::VisitFloat64Atan2(OpIndex node) {
+void InstructionSelector::VisitFloat64Atan2(OpIndex node) {
   VisitFloat64Ieee754Binop(node, kIeee754Float64Atan2);
 }
 
-void InstructionSelectorT::VisitFloat64Cbrt(OpIndex node) {
+void InstructionSelector::VisitFloat64Cbrt(OpIndex node) {
   VisitFloat64Ieee754Unop(node, kIeee754Float64Cbrt);
 }
 
-void InstructionSelectorT::VisitFloat64Cos(OpIndex node) {
+void InstructionSelector::VisitFloat64Cos(OpIndex node) {
   VisitFloat64Ieee754Unop(node, kIeee754Float64Cos);
 }
 
-void InstructionSelectorT::VisitFloat64Cosh(OpIndex node) {
+void InstructionSelector::VisitFloat64Cosh(OpIndex node) {
   VisitFloat64Ieee754Unop(node, kIeee754Float64Cosh);
 }
 
-void InstructionSelectorT::VisitFloat64Exp(OpIndex node) {
+void InstructionSelector::VisitFloat64Exp(OpIndex node) {
   VisitFloat64Ieee754Unop(node, kIeee754Float64Exp);
 }
 
-void InstructionSelectorT::VisitFloat64Expm1(OpIndex node) {
+void InstructionSelector::VisitFloat64Expm1(OpIndex node) {
   VisitFloat64Ieee754Unop(node, kIeee754Float64Expm1);
 }
 
-void InstructionSelectorT::VisitFloat64Log(OpIndex node) {
+void InstructionSelector::VisitFloat64Log(OpIndex node) {
   VisitFloat64Ieee754Unop(node, kIeee754Float64Log);
 }
 
-void InstructionSelectorT::VisitFloat64Log1p(OpIndex node) {
+void InstructionSelector::VisitFloat64Log1p(OpIndex node) {
   VisitFloat64Ieee754Unop(node, kIeee754Float64Log1p);
 }
 
-void InstructionSelectorT::VisitFloat64Log2(OpIndex node) {
+void InstructionSelector::VisitFloat64Log2(OpIndex node) {
   VisitFloat64Ieee754Unop(node, kIeee754Float64Log2);
 }
 
-void InstructionSelectorT::VisitFloat64Log10(OpIndex node) {
+void InstructionSelector::VisitFloat64Log10(OpIndex node) {
   VisitFloat64Ieee754Unop(node, kIeee754Float64Log10);
 }
 
-void InstructionSelectorT::VisitFloat64Pow(OpIndex node) {
+void InstructionSelector::VisitFloat64Pow(OpIndex node) {
   VisitFloat64Ieee754Binop(node, kIeee754Float64Pow);
 }
 
-void InstructionSelectorT::VisitFloat64Sin(OpIndex node) {
+void InstructionSelector::VisitFloat64Sin(OpIndex node) {
   VisitFloat64Ieee754Unop(node, kIeee754Float64Sin);
 }
 
-void InstructionSelectorT::VisitFloat64Sinh(OpIndex node) {
+void InstructionSelector::VisitFloat64Sinh(OpIndex node) {
   VisitFloat64Ieee754Unop(node, kIeee754Float64Sinh);
 }
 
-void InstructionSelectorT::VisitFloat64Tan(OpIndex node) {
+void InstructionSelector::VisitFloat64Tan(OpIndex node) {
   VisitFloat64Ieee754Unop(node, kIeee754Float64Tan);
 }
 
-void InstructionSelectorT::VisitFloat64Tanh(OpIndex node) {
+void InstructionSelector::VisitFloat64Tanh(OpIndex node) {
   VisitFloat64Ieee754Unop(node, kIeee754Float64Tanh);
 }
 
-void InstructionSelectorT::MarkAsTableSwitchTarget(
+void InstructionSelector::MarkAsTableSwitchTarget(
     const turboshaft::Block* block) {
   sequence()
       ->InstructionBlockAt(this->rpo_number(block))
       ->set_table_switch_target(true);
 }
 
-void InstructionSelectorT::EmitTableSwitch(
+void InstructionSelector::EmitTableSwitch(
     const SwitchInfo& sw, InstructionOperand const& index_operand) {
   OperandGenerator g(this);
   size_t input_count = 2 + sw.value_range();
@@ -1722,7 +1760,7 @@ void InstructionSelectorT::EmitTableSwitch(
   Emit(kArchTableSwitch, 0, nullptr, input_count, inputs, 0, nullptr);
 }
 
-void InstructionSelectorT::EmitBinarySearchSwitch(
+void InstructionSelector::EmitBinarySearchSwitch(
     const SwitchInfo& sw, InstructionOperand const& value_operand) {
   OperandGenerator g(this);
   size_t input_count = 2 + sw.case_count() * 2;
@@ -1740,17 +1778,17 @@ void InstructionSelectorT::EmitBinarySearchSwitch(
   Emit(kArchBinarySearchSwitch, 0, nullptr, input_count, inputs, 0, nullptr);
 }
 
-void InstructionSelectorT::VisitBitcastTaggedToWord(OpIndex node) {
+void InstructionSelector::VisitBitcastTaggedToWord(OpIndex node) {
   EmitIdentity(node);
 }
 
-void InstructionSelectorT::VisitBitcastWordToTagged(OpIndex node) {
+void InstructionSelector::VisitBitcastWordToTagged(OpIndex node) {
   OperandGenerator g(this);
   Emit(kArchNop, g.DefineSameAsFirst(node),
        g.Use(this->Get(node).Cast<TaggedBitcastOp>().input()));
 }
 
-void InstructionSelectorT::VisitBitcastSmiToWord(OpIndex node) {
+void InstructionSelector::VisitBitcastSmiToWord(OpIndex node) {
   // TODO(dmercadier): using EmitIdentity here is not ideal, because users of
   // {node} will then use its input, which may not have the Word32
   // representation. This might in turn lead to the register allocator wrongly
@@ -1760,7 +1798,10 @@ void InstructionSelectorT::VisitBitcastSmiToWord(OpIndex node) {
   // move is then truncating or extending). As a temporary work-around until the
   // register allocator is fixed, we use Emit(kArchNop) in DEBUG mode to silence
   // the register allocator verifier.
-#ifdef DEBUG
+  // Loong64/RISCV64 port needs this gap move to sign-extend the Smis in 64-bit
+  // registers.
+#if defined(DEBUG) || defined(V8_TARGET_ARCH_LOONG64) || \
+    defined(V8_TARGET_ARCH_RISCV64)
   OperandGenerator g(this);
   Emit(kArchNop, g.DefineSameAsFirst(node),
        g.Use(this->Get(node).Cast<TaggedBitcastOp>().input()));
@@ -1837,39 +1878,39 @@ VISIT_UNSUPPORTED_OP(Word32PairSar)
 #endif  // V8_TARGET_ARCH_64_BIT
 
 #if !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_RISCV32
-void InstructionSelectorT::VisitWord32AtomicPairLoad(OpIndex node) {
+void InstructionSelector::VisitWord32AtomicPairLoad(OpIndex node) {
   UNIMPLEMENTED();
 }
 
-void InstructionSelectorT::VisitWord32AtomicPairStore(OpIndex node) {
+void InstructionSelector::VisitWord32AtomicPairStore(OpIndex node) {
   UNIMPLEMENTED();
 }
 
-void InstructionSelectorT::VisitWord32AtomicPairAdd(OpIndex node) {
+void InstructionSelector::VisitWord32AtomicPairAdd(OpIndex node) {
   UNIMPLEMENTED();
 }
 
-void InstructionSelectorT::VisitWord32AtomicPairSub(OpIndex node) {
+void InstructionSelector::VisitWord32AtomicPairSub(OpIndex node) {
   UNIMPLEMENTED();
 }
 
-void InstructionSelectorT::VisitWord32AtomicPairAnd(OpIndex node) {
+void InstructionSelector::VisitWord32AtomicPairAnd(OpIndex node) {
   UNIMPLEMENTED();
 }
 
-void InstructionSelectorT::VisitWord32AtomicPairOr(OpIndex node) {
+void InstructionSelector::VisitWord32AtomicPairOr(OpIndex node) {
   UNIMPLEMENTED();
 }
 
-void InstructionSelectorT::VisitWord32AtomicPairXor(OpIndex node) {
+void InstructionSelector::VisitWord32AtomicPairXor(OpIndex node) {
   UNIMPLEMENTED();
 }
 
-void InstructionSelectorT::VisitWord32AtomicPairExchange(OpIndex node) {
+void InstructionSelector::VisitWord32AtomicPairExchange(OpIndex node) {
   UNIMPLEMENTED();
 }
 
-void InstructionSelectorT::VisitWord32AtomicPairCompareExchange(OpIndex node) {
+void InstructionSelector::VisitWord32AtomicPairCompareExchange(OpIndex node) {
   UNIMPLEMENTED();
 }
 #endif  // !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM
@@ -1926,9 +1967,12 @@ IF_WASM(VISIT_UNSUPPORTED_OP, F64x2AddReduce)
 IF_WASM(VISIT_UNSUPPORTED_OP, I8x2Shuffle)
 IF_WASM(VISIT_UNSUPPORTED_OP, I8x4Shuffle)
 IF_WASM(VISIT_UNSUPPORTED_OP, I8x8Shuffle)
+
+IF_WASM(VISIT_UNSUPPORTED_OP, MemoryCopy)
+IF_WASM(VISIT_UNSUPPORTED_OP, MemoryFill)
 #endif  // !V8_TARGET_ARCH_ARM64
 
-void InstructionSelectorT::VisitParameter(OpIndex node) {
+void InstructionSelector::VisitParameter(OpIndex node) {
   const ParameterOp& parameter = Cast<ParameterOp>(node);
   const int index = parameter.parameter_index;
   OperandGenerator g(this);
@@ -1964,19 +2008,19 @@ constexpr InstructionCode EncodeCallDescriptorFlags(
 
 }  // namespace
 
-void InstructionSelectorT::VisitIfException(OpIndex node) {
+void InstructionSelector::VisitIfException(OpIndex node) {
   OperandGenerator g(this);
   Emit(kArchNop, g.DefineAsLocation(node, ExceptionLocation()));
 }
 
-void InstructionSelectorT::VisitOsrValue(OpIndex node) {
+void InstructionSelector::VisitOsrValue(OpIndex node) {
   const OsrValueOp& osr_value = Cast<OsrValueOp>(node);
   OperandGenerator g(this);
   Emit(kArchNop, g.DefineAsLocation(
                      node, linkage()->GetOsrValueLocation(osr_value.index)));
 }
 
-void InstructionSelectorT::VisitPhi(OpIndex node) {
+void InstructionSelector::VisitPhi(OpIndex node) {
   const Operation& op = Get(node);
   DCHECK_EQ(op.input_count, PredecessorCount(current_block_));
   PhiInstruction* phi = instruction_zone()->template New<PhiInstruction>(
@@ -1990,7 +2034,7 @@ void InstructionSelectorT::VisitPhi(OpIndex node) {
   }
 }
 
-void InstructionSelectorT::VisitProjection(OpIndex node) {
+void InstructionSelector::VisitProjection(OpIndex node) {
   const ProjectionOp& projection = this->Get(node).Cast<ProjectionOp>();
   const Operation& value_op = this->Get(projection.input());
   if (value_op.Is<OverflowCheckedBinopOp>() ||
@@ -2018,7 +2062,7 @@ void InstructionSelectorT::VisitProjection(OpIndex node) {
   }
 }
 
-bool InstructionSelectorT::CanDoBranchIfOverflowFusion(OpIndex binop) {
+bool InstructionSelector::CanDoBranchIfOverflowFusion(OpIndex binop) {
   const Graph* graph = this->turboshaft_graph();
   DCHECK(graph->Get(binop).template Is<OverflowCheckedBinopOp>() ||
          graph->Get(binop).template Is<OverflowCheckedUnaryOp>());
@@ -2041,7 +2085,7 @@ bool InstructionSelectorT::CanDoBranchIfOverflowFusion(OpIndex binop) {
     // If the projection has a single use, it is the following tuple, so we
     // don't care about the value, and can do branch-if-overflow fusion.
     DCHECK(turboshaft_uses(projection0_index).size() == 1 &&
-           graph->Get(turboshaft_uses(projection0_index)[0]).Is<TupleOp>());
+           graph->Get(turboshaft_uses(projection0_index)[0]).Is<MakeTupleOp>());
     return true;
   }
 
@@ -2056,7 +2100,7 @@ bool InstructionSelectorT::CanDoBranchIfOverflowFusion(OpIndex binop) {
   // defined, which will imply that it's fine to define {projection0} and
   // {binop} now.
   for (OpIndex use : turboshaft_uses(projection0_index)) {
-    if (this->Get(use).template Is<TupleOp>()) {
+    if (this->Get(use).template Is<MakeTupleOp>()) {
       // The Tuple won't have any uses since it would have to be accessed
       // through Projections, and Projections on Tuples return the original
       // Projection instead (see Assembler::ReduceProjection in
@@ -2107,18 +2151,18 @@ bool InstructionSelectorT::CanDoBranchIfOverflowFusion(OpIndex binop) {
   return true;
 }
 
-void InstructionSelectorT::VisitConstant(OpIndex node) {
+void InstructionSelector::VisitConstant(OpIndex node) {
   // We must emit a NOP here because every live range needs a defining
   // instruction in the register allocator.
   OperandGenerator g(this);
   Emit(kArchNop, g.DefineAsConstant(node));
 }
 
-void InstructionSelectorT::UpdateMaxPushedArgumentCount(size_t count) {
+void InstructionSelector::UpdateMaxPushedArgumentCount(size_t count) {
   *max_pushed_argument_count_ = std::max(count, *max_pushed_argument_count_);
 }
 
-void InstructionSelectorT::VisitCall(OpIndex node, Block* handler) {
+void InstructionSelector::VisitCall(OpIndex node, Block* handler) {
   OperandGenerator g(this);
   const CallOp& call_op = Cast<CallOp>(node);
   const CallDescriptor* call_descriptor = call_op.descriptor->descriptor;
@@ -2132,9 +2176,7 @@ void InstructionSelectorT::VisitCall(OpIndex node, Block* handler) {
   }
 
   FrameStateDescriptor* frame_state_descriptor = nullptr;
-  bool needs_frame_state = false;
   if (call_descriptor->NeedsFrameState()) {
-    needs_frame_state = true;
     frame_state_descriptor =
         GetFrameStateDescriptor(call_op.frame_state().value());
   }
@@ -2207,10 +2249,12 @@ void InstructionSelectorT::VisitCall(OpIndex node, Block* handler) {
         fp_param_count |= 1 << kHasFunctionDescriptorBitShift;
       }
 #endif
-      opcode = needs_frame_state ? kArchCallCFunctionWithFrameState
-                                 : kArchCallCFunction;
-      opcode |= ParamField::encode(gp_param_count) |
-                FPParamField::encode(fp_param_count);
+      // We store the param counts as a separate input because they need too
+      // many bits to be encoded in the opcode.
+      buffer.instruction_args.push_back(
+          g.UseImmediate(ParamField::encode(gp_param_count) |
+                         FPParamField::encode(fp_param_count)));
+      opcode = EncodeCallDescriptorFlags(kArchCallCFunction, flags);
       break;
     }
     case CallDescriptor::kCallCodeObject:
@@ -2230,6 +2274,9 @@ void InstructionSelectorT::VisitCall(OpIndex node, Block* handler) {
       DCHECK(!this->IsRelocatableWasmConstant(call_op.callee()));
       opcode = EncodeCallDescriptorFlags(kArchCallWasmFunctionIndirect, flags);
       break;
+    case CallDescriptor::kResumeWasmContinuation:
+      // Should be called via Builtin::kWasmFXResume.
+      UNREACHABLE();
 #endif  // V8_ENABLE_WEBASSEMBLY
     case CallDescriptor::kCallBuiltinPointer:
       opcode = EncodeCallDescriptorFlags(kArchCallBuiltinPointer, flags);
@@ -2254,7 +2301,7 @@ void InstructionSelectorT::VisitCall(OpIndex node, Block* handler) {
   }
 }
 
-void InstructionSelectorT::VisitTailCall(OpIndex node) {
+void InstructionSelector::VisitTailCall(OpIndex node) {
   OperandGenerator g(this);
 
   const TailCallOp& call_op = Cast<TailCallOp>(node);
@@ -2337,13 +2384,13 @@ void InstructionSelectorT::VisitTailCall(OpIndex node) {
        temps.empty() ? nullptr : &temps.front());
 }
 
-void InstructionSelectorT::VisitGoto(Block* target) {
+void InstructionSelector::VisitGoto(Block* target) {
   // jump to the next block.
   OperandGenerator g(this);
   Emit(kArchJmp, g.NoOutput(), g.Label(target));
 }
 
-void InstructionSelectorT::VisitReturn(OpIndex node) {
+void InstructionSelector::VisitReturn(OpIndex node) {
   const ReturnOp& ret = schedule()->Get(node).Cast<ReturnOp>();
 
   OperandGenerator g(this);
@@ -2376,8 +2423,8 @@ void InstructionSelectorT::VisitReturn(OpIndex node) {
   Emit(kArchRet, 0, nullptr, input_count, value_locations);
 }
 
-void InstructionSelectorT::VisitBranch(OpIndex branch_node, Block* tbranch,
-                                       Block* fbranch) {
+void InstructionSelector::VisitBranch(OpIndex branch_node, Block* tbranch,
+                                      Block* fbranch) {
   const BranchOp& branch = Cast<BranchOp>(branch_node);
   TryPrepareScheduleFirstProjection(branch.condition());
 
@@ -2413,7 +2460,7 @@ void InstructionSelectorT::VisitBranch(OpIndex branch_node, Block* tbranch,
 // TryPrepareScheduleFirstProjection is thus called from
 // VisitDeoptimizeIf/VisitBranch and detects if the 1st
 // projection could be scheduled now, and, if so, defines it.
-void InstructionSelectorT::TryPrepareScheduleFirstProjection(
+void InstructionSelector::TryPrepareScheduleFirstProjection(
     OpIndex maybe_projection) {
   // The DeoptimizeIf/Branch condition is not a projection.
   const ProjectionOp* projection = TryCast<ProjectionOp>(maybe_projection);
@@ -2464,9 +2511,9 @@ void InstructionSelectorT::TryPrepareScheduleFirstProjection(
   // {result} back into it through the back edge. In this case, it's
   // normal to schedule {result} before the Phi that uses it.
   for (OpIndex use : turboshaft_uses(result.value())) {
-    // We ignore TupleOp uses, since TupleOp don't lead to emitted machine
-    // instructions and are just Turboshaft "meta operations".
-    if (!Is<TupleOp>(use) && !IsDefined(use) &&
+    // We ignore MakeTupleOp uses, since MakeTupleOp don't lead to emitted
+    // machine instructions and are just Turboshaft "meta operations".
+    if (!Is<MakeTupleOp>(use) && !IsDefined(use) &&
         block(schedule_, use) == current_block_ && !Is<PhiOp>(use)) {
       return;
     }
@@ -2483,7 +2530,7 @@ void InstructionSelectorT::TryPrepareScheduleFirstProjection(
   VisitProjection(result.value());
 }
 
-void InstructionSelectorT::VisitDeoptimizeIf(OpIndex node) {
+void InstructionSelector::VisitDeoptimizeIf(OpIndex node) {
   const DeoptimizeIfOp& deopt = Cast<DeoptimizeIfOp>(node);
 
   TryPrepareScheduleFirstProjection(deopt.condition());
@@ -2494,7 +2541,7 @@ void InstructionSelectorT::VisitDeoptimizeIf(OpIndex node) {
   VisitWordCompareZero(node, deopt.condition(), &cont);
 }
 
-void InstructionSelectorT::VisitSelect(OpIndex node) {
+void InstructionSelector::VisitSelect(OpIndex node) {
   const SelectOp& select = Cast<SelectOp>(node);
   DCHECK_EQ(select.input_count, 3);
   FlagsContinuation cont = FlagsContinuation::ForSelect(
@@ -2502,7 +2549,7 @@ void InstructionSelectorT::VisitSelect(OpIndex node) {
   VisitWordCompareZero(node, select.cond(), &cont);
 }
 
-void InstructionSelectorT::VisitTrapIf(OpIndex node) {
+void InstructionSelector::VisitTrapIf(OpIndex node) {
 #if V8_ENABLE_WEBASSEMBLY
   const TrapIfOp& trap_if = Cast<TrapIfOp>(node);
   // FrameStates are only used for wasm traps inlined in JS. In that case the
@@ -2517,38 +2564,33 @@ void InstructionSelectorT::VisitTrapIf(OpIndex node) {
 #endif
 }
 
-void InstructionSelectorT::EmitIdentity(OpIndex node) {
+void InstructionSelector::EmitIdentity(OpIndex node) {
   const Operation& op = Get(node);
   MarkAsUsed(op.input(0));
   MarkAsDefined(node);
   SetRename(node, op.input(0));
 }
 
-void InstructionSelectorT::VisitDeoptimize(DeoptimizeReason reason,
-                                           uint32_t node_id,
-                                           FeedbackSource const& feedback,
-                                           OpIndex frame_state) {
+void InstructionSelector::VisitDeoptimize(DeoptimizeReason reason,
+                                          uint32_t node_id,
+                                          FeedbackSource const& feedback,
+                                          OpIndex frame_state) {
   InstructionOperandVector args(instruction_zone());
   AppendDeoptimizeArguments(&args, reason, node_id, feedback, frame_state);
   Emit(kArchDeoptimize, 0, nullptr, args.size(), &args.front(), 0, nullptr);
 }
 
-void InstructionSelectorT::VisitThrow(Node* node) {
-  OperandGenerator g(this);
-  Emit(kArchThrowTerminator, g.NoOutput());
-}
-
-void InstructionSelectorT::VisitDebugBreak(OpIndex node) {
+void InstructionSelector::VisitDebugBreak(OpIndex node) {
   OperandGenerator g(this);
   Emit(kArchDebugBreak, g.NoOutput());
 }
 
-void InstructionSelectorT::VisitUnreachable(OpIndex node) {
+void InstructionSelector::VisitUnreachable(OpIndex node) {
   OperandGenerator g(this);
   Emit(kArchDebugBreak, g.NoOutput());
 }
 
-void InstructionSelectorT::VisitStaticAssert(OpIndex node) {
+void InstructionSelector::VisitStaticAssert(OpIndex node) {
   const StaticAssertOp& op = Cast<StaticAssertOp>(node);
   DCHECK_EQ(op.input_count, 1);
   OpIndex asserted = op.condition();
@@ -2562,7 +2604,7 @@ void InstructionSelectorT::VisitStaticAssert(OpIndex node) {
         op.source);
 }
 
-void InstructionSelectorT::VisitComment(OpIndex node) {
+void InstructionSelector::VisitComment(OpIndex node) {
   OperandGenerator g(this);
   const CommentOp& comment =
       this->turboshaft_graph()->Get(node).template Cast<CommentOp>();
@@ -2573,14 +2615,18 @@ void InstructionSelectorT::VisitComment(OpIndex node) {
   Emit(kArchComment, 0, nullptr, 1, &operand);
 }
 
-void InstructionSelectorT::VisitRetain(OpIndex node) {
+void InstructionSelector::VisitPause(OpIndex node) {
+  Emit(kArchPause, 0, nullptr, 0, nullptr);
+}
+
+void InstructionSelector::VisitRetain(OpIndex node) {
   const RetainOp& retain = Cast<RetainOp>(node);
   OperandGenerator g(this);
   DCHECK_EQ(retain.input_count, 1);
   Emit(kArchNop, g.NoOutput(), g.UseAny(retain.retained()));
 }
 
-void InstructionSelectorT::VisitControl(const Block* block) {
+void InstructionSelector::VisitControl(const Block* block) {
 #ifdef DEBUG
   // SSA deconstruction requires targets of branches not to have phis.
   // Edge split form guarantees this property, but is more strict.
@@ -2661,14 +2707,14 @@ void InstructionSelectorT::VisitControl(const Block* block) {
     }
   }
 
-  if (trace_turbo_ == InstructionSelector::kEnableTraceTurboJson) {
+  if (trace_turbo_) {
     DCHECK(node.valid());
     int instruction_start = static_cast<int>(instructions_.size());
     instr_origins_[node.id()] = {instruction_start, instruction_end};
   }
 }
 
-void InstructionSelectorT::VisitNode(OpIndex node) {
+void InstructionSelector::VisitNode(OpIndex node) {
   tick_counter_->TickAndMaybeEnterSafepoint();
   const Operation& op = this->Get(node);
   using Opcode = Opcode;
@@ -3310,6 +3356,7 @@ void InstructionSelectorT::VisitNode(OpIndex node) {
       MarkAsRepresentation(loaded_type.representation(), node);
       if (load.kind.maybe_unaligned) {
         DCHECK(!load.kind.with_trap_handler);
+        DCHECK(!load.kind.is_atomic);
         if (loaded_type.representation() == MachineRepresentation::kWord8 ||
             InstructionSelector::AlignmentRequirements()
                 .IsUnalignedLoadSupported(loaded_type.representation())) {
@@ -3320,9 +3367,11 @@ void InstructionSelectorT::VisitNode(OpIndex node) {
       } else if (load.kind.is_atomic) {
         if (load.result_rep == Rep::Word32()) {
           return VisitWord32AtomicLoad(node);
-        } else {
-          DCHECK_EQ(load.result_rep, Rep::Word64());
+        } else if (load.result_rep == Rep::Word64()) {
           return VisitWord64AtomicLoad(node);
+        } else if (load.result_rep == Rep::Tagged()) {
+          return kTaggedSize == 4 ? VisitWord32AtomicLoad(node)
+                                  : VisitWord64AtomicLoad(node);
         }
       } else if (load.kind.with_trap_handler) {
         DCHECK(!load.kind.maybe_unaligned);
@@ -3508,8 +3557,7 @@ void InstructionSelectorT::VisitNode(OpIndex node) {
           case AtomicRMWOp::BinOp::kCompareExchange:
             return VisitWord32AtomicCompareExchange(node);
         }
-      } else {
-        DCHECK_EQ(atomic_op.in_out_rep, Rep::Word64());
+      } else if (atomic_op.in_out_rep == Rep::Word64()) {
         switch (atomic_op.bin_op) {
           case AtomicRMWOp::BinOp::kAdd:
             return VisitWord64AtomicAdd(node);
@@ -3526,11 +3574,21 @@ void InstructionSelectorT::VisitNode(OpIndex node) {
           case AtomicRMWOp::BinOp::kCompareExchange:
             return VisitWord64AtomicCompareExchange(node);
         }
+      } else {
+        CHECK_EQ(atomic_op.in_out_rep, Rep::Tagged());
+        if (atomic_op.bin_op == AtomicRMWOp::BinOp::kExchange) {
+          return VisitTaggedAtomicExchange(node);
+        }
+        CHECK_EQ(atomic_op.bin_op, AtomicRMWOp::BinOp::kCompareExchange);
+        return VisitTaggedAtomicCompareExchange(node);
       }
       UNREACHABLE();
     }
     case Opcode::kMemoryBarrier:
       return VisitMemoryBarrier(node);
+
+    case Opcode::kPause:
+      return VisitPause(node);
 
     case Opcode::kComment:
       return VisitComment(node);
@@ -3816,6 +3874,12 @@ void InstructionSelectorT::VisitNode(OpIndex node) {
       this->frame_->set_invalidates_sp();
       return VisitSetStackPointer(node);
 
+    case Opcode::kMemoryCopy:
+      return VisitMemoryCopy(node);
+
+    case Opcode::kMemoryFill:
+      return VisitMemoryFill(node);
+
 #endif  // V8_ENABLE_WEBASSEMBLY
 #define UNREACHABLE_CASE(op) case Opcode::k##op:
       TURBOSHAFT_JS_OPERATION_LIST(UNREACHABLE_CASE)
@@ -3823,26 +3887,16 @@ void InstructionSelectorT::VisitNode(OpIndex node) {
       TURBOSHAFT_WASM_OPERATION_LIST(UNREACHABLE_CASE)
       TURBOSHAFT_OTHER_OPERATION_LIST(UNREACHABLE_CASE)
       UNREACHABLE_CASE(PendingLoopPhi)
-      UNREACHABLE_CASE(Tuple)
+      UNREACHABLE_CASE(MakeTuple)
       UNREACHABLE_CASE(Dead)
       UNREACHABLE();
 #undef UNREACHABLE_CASE
   }
 }
 
-bool InstructionSelectorT::CanProduceSignalingNaN(Node* node) {
-  // TODO(jarin) Improve the heuristic here.
-  if (node->opcode() == IrOpcode::kFloat64Add ||
-      node->opcode() == IrOpcode::kFloat64Sub ||
-      node->opcode() == IrOpcode::kFloat64Mul) {
-    return false;
-  }
-  return true;
-}
-
 #if V8_TARGET_ARCH_64_BIT
-bool InstructionSelectorT::ZeroExtendsWord32ToWord64(OpIndex node,
-                                                     int recursion_depth) {
+bool InstructionSelector::ZeroExtendsWord32ToWord64(OpIndex node,
+                                                    int recursion_depth) {
   // To compute whether a Node sets its upper 32 bits to zero, there are three
   // cases.
   // 1. Phi node, with a computed result already available in phi_states_:
@@ -3895,7 +3949,7 @@ bool InstructionSelectorT::ZeroExtendsWord32ToWord64(OpIndex node,
   return ZeroExtendsWord32ToWord64NoPhis(node);
 }
 
-void InstructionSelectorT::MarkNodeAsNotZeroExtended(OpIndex node) {
+void InstructionSelector::MarkNodeAsNotZeroExtended(OpIndex node) {
   if (phi_states_[node.id()] == Upper32BitsState::kMayBeNonZero) return;
   phi_states_[node.id()] = Upper32BitsState::kMayBeNonZero;
   ZoneVector<OpIndex> worklist(zone_);
@@ -3953,7 +4007,7 @@ FrameStateDescriptor* GetFrameStateDescriptorInternal(
 
 }  // namespace
 
-FrameStateDescriptor* InstructionSelectorT::GetFrameStateDescriptor(
+FrameStateDescriptor* InstructionSelector::GetFrameStateDescriptor(
     OpIndex node) {
   const FrameStateOp& state =
       this->turboshaft_graph()->Get(node).template Cast<FrameStateOp>();
@@ -3968,8 +4022,7 @@ FrameStateDescriptor* InstructionSelectorT::GetFrameStateDescriptor(
 
 #if V8_ENABLE_WEBASSEMBLY
 // static
-void InstructionSelectorT::SwapShuffleInputs(
-    TurboshaftAdapter::SimdShuffleView& view) {
+void InstructionSelector::SwapShuffleInputs(SimdShuffleView& view) {
   view.SwapInputs();
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -3982,44 +4035,16 @@ InstructionSelector InstructionSelector::ForTurboshaft(
     size_t* max_pushed_argument_count, SourcePositionMode source_position_mode,
     Features features, EnableScheduling enable_scheduling,
     EnableRootsRelativeAddressing enable_roots_relative_addressing,
-    EnableTraceTurboJson trace_turbo) {
+    EnableTraceTurboJson trace_turbo,
+    EnsureDeterministicNan ensure_deterministic_nan) {
   return InstructionSelector(
-      nullptr,
-      new InstructionSelectorT(
-          zone, node_count, linkage, sequence, graph,
-          &graph->source_positions(), frame, enable_switch_jump_table,
-          tick_counter, broker, max_unoptimized_frame_height,
-          max_pushed_argument_count, source_position_mode, features,
-          enable_scheduling, enable_roots_relative_addressing, trace_turbo));
+      zone, node_count, linkage, sequence, graph, &graph->source_positions(),
+      frame, enable_switch_jump_table, tick_counter, broker,
+      max_unoptimized_frame_height, max_pushed_argument_count,
+      source_position_mode, features, enable_scheduling,
+      enable_roots_relative_addressing, trace_turbo, ensure_deterministic_nan);
 }
 
-InstructionSelector::InstructionSelector(std::nullptr_t,
-                                         InstructionSelectorT* turboshaft_impl)
-    : turboshaft_impl_(turboshaft_impl) {}
-
-InstructionSelector::~InstructionSelector() { delete turboshaft_impl_; }
-
-#define DISPATCH_TO_IMPL(...) return turboshaft_impl_->__VA_ARGS__;
-
-std::optional<BailoutReason> InstructionSelector::SelectInstructions() {
-  DISPATCH_TO_IMPL(SelectInstructions())
-}
-
-bool InstructionSelector::IsSupported(CpuFeature feature) const {
-  DISPATCH_TO_IMPL(IsSupported(feature))
-}
-
-const ZoneVector<std::pair<int, int>>& InstructionSelector::instr_origins()
-    const {
-  DISPATCH_TO_IMPL(instr_origins())
-}
-
-const std::map<NodeId, int> InstructionSelector::GetVirtualRegistersForTesting()
-    const {
-  DISPATCH_TO_IMPL(GetVirtualRegistersForTesting());
-}
-
-#undef DISPATCH_TO_IMPL
 #undef VISIT_UNSUPPORTED_OP
 
 }  // namespace compiler

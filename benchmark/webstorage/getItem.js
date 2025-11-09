@@ -12,7 +12,7 @@ function nextLocalStorage() {
 }
 
 const options = {
-  flags: ['--experimental-webstorage', `--localstorage-file=${nextLocalStorage()}`],
+  flags: [`--localstorage-file=${nextLocalStorage()}`],
 };
 
 const bench = common.createBenchmark(main, {

@@ -15,10 +15,10 @@ namespace base {
 
 // We assume that doubles and uint64_t have the same endianness.
 inline constexpr uint64_t double_to_uint64(double d) {
-  return std::bit_cast<uint64_t>(d);
+  return base::bit_cast<uint64_t>(d);
 }
 inline constexpr double uint64_to_double(uint64_t d64) {
-  return std::bit_cast<double>(d64);
+  return base::bit_cast<double>(d64);
 }
 
 // Helper functions for doubles.

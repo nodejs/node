@@ -57,14 +57,14 @@ class ParentInspectorHandle {
  public:
   ParentInspectorHandle(
       uint64_t id,
-      const std::string& url,
+      std::string_view url,
       std::shared_ptr<MainThreadHandle> parent_thread,
       bool wait_for_connect,
-      const std::string& name,
+      std::string_view name,
       std::shared_ptr<NetworkResourceManager> network_resource_manager);
   ~ParentInspectorHandle();
   std::unique_ptr<ParentInspectorHandle> NewParentInspectorHandle(
-      uint64_t thread_id, const std::string& url, const std::string& name) {
+      uint64_t thread_id, std::string_view url, std::string_view name) {
     return std::make_unique<ParentInspectorHandle>(
         thread_id, url, parent_thread_, wait_, name, network_resource_manager_);
   }
@@ -97,8 +97,8 @@ class WorkerManager : public std::enable_shared_from_this<WorkerManager> {
 
   std::unique_ptr<ParentInspectorHandle> NewParentHandle(
       uint64_t thread_id,
-      const std::string& url,
-      const std::string& name,
+      std::string_view url,
+      std::string_view name,
       std::shared_ptr<NetworkResourceManager> network_resource_manager);
   void WorkerStarted(uint64_t session_id, const WorkerInfo& info, bool waiting);
   void WorkerFinished(uint64_t session_id);

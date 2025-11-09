@@ -1,7 +1,9 @@
 #include "async_context_frame.h"
 #include "async_wrap-inl.h"
 #include "env-inl.h"
+#ifndef NAPI_EXPERIMENTAL
 #define NAPI_EXPERIMENTAL
+#endif
 #include "js_native_api_v8.h"
 #include "memory_tracker-inl.h"
 #include "node_api.h"
@@ -212,7 +214,7 @@ class ThreadSafeFunction : public node::AsyncResource {
                      napi_threadsafe_function_call_js call_js_cb_)
       : AsyncResource(env_->isolate,
                       resource,
-                      *v8::String::Utf8Value(env_->isolate, name)),
+                      node::Utf8Value(env_->isolate, name).ToStringView()),
         thread_count(thread_count_),
         is_closing(false),
         dispatch_state(kDispatchIdle),
@@ -538,19 +540,13 @@ class AsyncContext {
  public:
   AsyncContext(node_napi_env env,
                v8::Local<v8::Object> resource_object,
-               const v8::Local<v8::String> resource_name,
-               bool externally_managed_resource)
+               v8::Local<v8::String> resource_name)
       : env_(env) {
     async_id_ = node_env()->new_async_id();
     trigger_async_id_ = node_env()->get_default_trigger_async_id();
     v8::Isolate* isolate = node_env()->isolate();
     resource_.Reset(isolate, resource_object);
     context_frame_.Reset(isolate, node::async_context_frame::current(isolate));
-    lost_reference_ = false;
-    if (externally_managed_resource) {
-      resource_.SetWeak(
-          this, AsyncContext::WeakCallback, v8::WeakCallbackType::kParameter);
-    }
 
     node::AsyncWrap::EmitAsyncInit(node_env(),
                                    resource_object,
@@ -559,18 +555,13 @@ class AsyncContext {
                                    trigger_async_id_);
   }
 
-  ~AsyncContext() {
-    resource_.Reset();
-    lost_reference_ = true;
-    node::AsyncWrap::EmitDestroy(node_env(), async_id_);
-  }
+  ~AsyncContext() { node::AsyncWrap::EmitDestroy(node_env(), async_id_); }
 
   inline v8::MaybeLocal<v8::Value> MakeCallback(
       v8::Local<v8::Object> recv,
       const v8::Local<v8::Function> callback,
       int argc,
       v8::Local<v8::Value> argv[]) {
-    EnsureReference();
     return node::InternalMakeCallback(
         node_env(),
         resource(),
@@ -583,20 +574,9 @@ class AsyncContext {
   }
 
   inline napi_callback_scope OpenCallbackScope() {
-    EnsureReference();
-    napi_callback_scope it =
-        reinterpret_cast<napi_callback_scope>(new CallbackScope(this));
+    auto scope = new HeapAllocatedCallbackScope(this);
     env_->open_callback_scopes++;
-    return it;
-  }
-
-  inline void EnsureReference() {
-    if (lost_reference_) {
-      const v8::HandleScope handle_scope(node_env()->isolate());
-      resource_.Reset(node_env()->isolate(),
-                      v8::Object::New(node_env()->isolate()));
-      lost_reference_ = false;
-    }
+    return scope->to_opaque();
   }
 
   inline node::Environment* node_env() { return env_->node_env(); }
@@ -609,32 +589,34 @@ class AsyncContext {
 
   static inline void CloseCallbackScope(node_napi_env env,
                                         napi_callback_scope s) {
-    CallbackScope* callback_scope = reinterpret_cast<CallbackScope*>(s);
-    delete callback_scope;
+    delete HeapAllocatedCallbackScope::FromOpaque(s);
+    CHECK_GT(env->open_callback_scopes, 0);
     env->open_callback_scopes--;
   }
 
-  static void WeakCallback(const v8::WeakCallbackInfo<AsyncContext>& data) {
-    AsyncContext* async_context = data.GetParameter();
-    async_context->resource_.Reset();
-    async_context->lost_reference_ = true;
-  }
-
  private:
-  class CallbackScope : public node::CallbackScope {
+  class HeapAllocatedCallbackScope final {
    public:
-    explicit CallbackScope(AsyncContext* async_context)
-        : node::CallbackScope(async_context->node_env(),
-                              async_context->resource_.Get(
-                                  async_context->node_env()->isolate()),
-                              async_context->async_context()) {}
+    napi_callback_scope to_opaque() {
+      return reinterpret_cast<napi_callback_scope>(this);
+    }
+    static HeapAllocatedCallbackScope* FromOpaque(napi_callback_scope s) {
+      return reinterpret_cast<HeapAllocatedCallbackScope*>(s);
+    }
+
+    explicit HeapAllocatedCallbackScope(AsyncContext* async_context)
+        : cs_(async_context->node_env(),
+              &async_context->resource_,
+              async_context->async_context()) {}
+
+   private:
+    node::CallbackScope cs_;
   };
 
   node_napi_env env_;
   double async_id_;
   double trigger_async_id_;
   v8::Global<v8::Object> resource_;
-  bool lost_reference_;
   v8::Global<v8::Value> context_frame_;
 };
 
@@ -932,23 +914,17 @@ napi_status NAPI_CDECL napi_async_init(napi_env env,
   v8::Local<v8::Context> context = env->context();
 
   v8::Local<v8::Object> v8_resource;
-  bool externally_managed_resource;
   if (async_resource != nullptr) {
     CHECK_TO_OBJECT(env, context, v8_resource, async_resource);
-    externally_managed_resource = true;
   } else {
     v8_resource = v8::Object::New(isolate);
-    externally_managed_resource = false;
   }
 
   v8::Local<v8::String> v8_resource_name;
   CHECK_TO_STRING(env, context, v8_resource_name, async_resource_name);
 
-  v8impl::AsyncContext* async_context =
-      new v8impl::AsyncContext(reinterpret_cast<node_napi_env>(env),
-                               v8_resource,
-                               v8_resource_name,
-                               externally_managed_resource);
+  v8impl::AsyncContext* async_context = new v8impl::AsyncContext(
+      reinterpret_cast<node_napi_env>(env), v8_resource, v8_resource_name);
 
   *result = reinterpret_cast<napi_async_context>(async_context);
 
@@ -1176,7 +1152,7 @@ class Work : public node::AsyncResource, public node::ThreadPoolWork {
       : AsyncResource(
             env->isolate,
             async_resource,
-            *v8::String::Utf8Value(env->isolate, async_resource_name)),
+            node::Utf8Value(env->isolate, async_resource_name).ToStringView()),
         ThreadPoolWork(env->node_env(), "node_api"),
         _env(env),
         _data(data),

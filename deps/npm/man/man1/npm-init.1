@@ -1,4 +1,4 @@
-.TH "NPM-INIT" "1" "July 2025" "NPM@11.5.1" ""
+.TH "NPM-INIT" "1" "October 2025" "NPM@11.6.2" ""
 .SH "NAME"
 \fBnpm-init\fR - Create a package.json file
 .SS "Synopsis"
@@ -44,8 +44,7 @@ If the initializer is omitted (by just calling \fBnpm init\fR), init will fall b
 
 .SS "Forwarding additional options"
 .P
-Any additional options will be passed directly to the command, so \fBnpm init
-foo -- --hello\fR will map to \fBnpm exec -- create-foo --hello\fR.
+Any additional options will be passed directly to the command, so \fBnpm init foo -- --hello\fR will map to \fBnpm exec -- create-foo --hello\fR.
 .P
 To better illustrate how options are forwarded, here's a more evolved example showing options passed to both the \fBnpm cli\fR and a create package, both following commands are equivalent:
 .RS 0
@@ -57,7 +56,7 @@ To better illustrate how options are forwarded, here's a more evolved example sh
 
 .SS "Examples"
 .P
-Create a new React-based project using \fB\fBcreate-react-app\fR\fR \fI\(lahttps://npm.im/create-react-app\(ra\fR:
+Create a new React-based project using \fB\[rs]fBcreate-react-app\[rs]fR\fR \fI\(lahttps://npm.im/create-react-app\(ra\fR:
 .P
 .RS 2
 .nf
@@ -65,7 +64,7 @@ $ npm init react-app ./my-react-app
 .fi
 .RE
 .P
-Create a new \fBesm\fR-compatible package using \fB\fBcreate-esm\fR\fR \fI\(lahttps://npm.im/create-esm\(ra\fR:
+Create a new \fBesm\fR-compatible package using \fB\[rs]fBcreate-esm\[rs]fR\fR \fI\(lahttps://npm.im/create-esm\(ra\fR:
 .P
 .RS 2
 .nf
@@ -132,7 +131,7 @@ That will generate a new folder and \fBpackage.json\fR file, while also updating
 .fi
 .RE
 .P
-The workspaces init also supports the \fBnpm init <initializer> -w <dir>\fR syntax, following the same set of rules explained earlier in the initial \fBDescription\fR section of this page. Similar to the previous example of creating a new React-based project using \fB\fBcreate-react-app\fR\fR \fI\(lahttps://npm.im/create-react-app\(ra\fR, the following syntax will make sure to create the new react app as a nested \fBworkspace\fR within your project and configure your \fBpackage.json\fR to recognize it as such:
+The workspaces init also supports the \fBnpm init <initializer> -w <dir>\fR syntax, following the same set of rules explained earlier in the initial \fBDescription\fR section of this page. Similar to the previous example of creating a new React-based project using \fB\[rs]fBcreate-react-app\[rs]fR\fR \fI\(lahttps://npm.im/create-react-app\(ra\fR, the following syntax will make sure to create the new react app as a nested \fBworkspace\fR within your project and configure your \fBpackage.json\fR to recognize it as such:
 .P
 .RS 2
 .nf

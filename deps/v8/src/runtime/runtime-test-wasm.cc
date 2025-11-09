@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include <cinttypes>
+#include <cstring>
 #include <type_traits>
 
 #include "include/v8-wasm.h"
@@ -11,13 +12,13 @@
 #include "src/builtins/builtins-inl.h"
 #include "src/execution/arguments-inl.h"
 #include "src/execution/frames-inl.h"
+#include "src/handles/handles.h"
 #include "src/heap/heap-inl.h"
 #include "src/objects/property-descriptor.h"
 #include "src/objects/smi.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/fuzzing/random-module-generation.h"
-#include "src/wasm/memory-tracing.h"
 #include "src/wasm/module-compiler.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-code-pointer-table-inl.h"
@@ -26,6 +27,7 @@
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-result.h"
 #include "src/wasm/wasm-serialization.h"
+#include "src/wasm/wasm-tracing.h"
 
 namespace v8::internal {
 
@@ -165,7 +167,7 @@ RUNTIME_FUNCTION(Runtime_CountUnoptimizedWasmToJSWrapper) {
   Tagged<WasmTrustedInstanceData> trusted_data =
       instance_object->trusted_data(isolate);
   Address wrapper_entry =
-      Builtins::EntryOf(Builtin::kWasmToJsWrapperAsm, isolate);
+      Builtins::EmbeddedEntryOf(Builtin::kWasmToJsWrapperAsm);
 
   int result = 0;
   Tagged<WasmDispatchTable> dispatch_table =
@@ -182,7 +184,7 @@ RUNTIME_FUNCTION(Runtime_CountUnoptimizedWasmToJSWrapper) {
   for (int table_index = 0; table_index < table_count; ++table_index) {
     if (dispatch_tables->get(table_index) == Smi::zero()) continue;
     Tagged<WasmDispatchTable> table =
-        Cast<WasmDispatchTable>(dispatch_tables->get(table_index));
+        TrustedCast<WasmDispatchTable>(dispatch_tables->get(table_index));
     int table_size = table->length();
     for (int entry_index = 0; entry_index < table_size; ++entry_index) {
       WasmCodePointer target = table->target(entry_index);
@@ -201,12 +203,13 @@ RUNTIME_FUNCTION(Runtime_HasUnoptimizedWasmToJSWrapper) {
   }
   Tagged<JSFunction> function = Cast<JSFunction>(args[0]);
   Tagged<SharedFunctionInfo> sfi = function->shared();
-  if (!sfi->HasWasmFunctionData()) return isolate->heap()->ToBoolean(false);
+  if (!sfi->HasWasmFunctionData(isolate))
+    return isolate->heap()->ToBoolean(false);
   Tagged<WasmFunctionData> func_data = sfi->wasm_function_data();
   WasmCodePointer call_target = func_data->internal()->call_target();
 
   Address wrapper_entry =
-      Builtins::EntryOf(Builtin::kWasmToJsWrapperAsm, isolate);
+      Builtins::EmbeddedEntryOf(Builtin::kWasmToJsWrapperAsm);
   return isolate->heap()->ToBoolean(
       wasm::GetProcessWideWasmCodePointerTable()->EntrypointEqualTo(
           call_target, wrapper_entry));
@@ -407,17 +410,17 @@ RUNTIME_FUNCTION(Runtime_IsWasmCode) {
 
 RUNTIME_FUNCTION(Runtime_IsWasmTrapHandlerEnabled) {
   DisallowGarbageCollection no_gc;
+#if defined(V8_ENABLE_DRUMBRAKE) && defined(V8_DRUMBRAKE_BOUNDS_CHECKS)
+  if (v8_flags.wasm_jitless) {
+    return *isolate->factory()->false_value();
+  }
+#endif  // defined(V8_ENABLE_DRUMBRAKE) && defined(V8_DRUMBRAKE_BOUNDS_CHECKS)
   return isolate->heap()->ToBoolean(trap_handler::IsTrapHandlerEnabled());
 }
 
 RUNTIME_FUNCTION(Runtime_IsWasmPartialOOBWriteNoop) {
   DisallowGarbageCollection no_gc;
   return isolate->heap()->ToBoolean(wasm::kPartialOOBWritesAreNoops);
-}
-
-RUNTIME_FUNCTION(Runtime_IsThreadInWasm) {
-  DisallowGarbageCollection no_gc;
-  return isolate->heap()->ToBoolean(trap_handler::IsThreadInWasm());
 }
 
 RUNTIME_FUNCTION(Runtime_GetWasmRecoveredTrapCount) {
@@ -479,67 +482,6 @@ RUNTIME_FUNCTION(Runtime_GetWasmExceptionValues) {
   return *isolate->factory()->NewJSArrayWithElements(externalized_values);
 }
 
-RUNTIME_FUNCTION(Runtime_SerializeWasmModule) {
-  HandleScope scope(isolate);
-  if (args.length() != 1 || !IsWasmModuleObject(args[0])) {
-    return CrashUnlessFuzzing(isolate);
-  }
-  DirectHandle<WasmModuleObject> module_obj = args.at<WasmModuleObject>(0);
-
-  wasm::NativeModule* native_module = module_obj->native_module();
-  DCHECK(!native_module->compilation_state()->failed());
-
-  wasm::WasmSerializer wasm_serializer(native_module);
-  size_t byte_length = wasm_serializer.GetSerializedNativeModuleSize();
-
-  DirectHandle<JSArrayBuffer> array_buffer =
-      isolate->factory()
-          ->NewJSArrayBufferAndBackingStore(byte_length,
-                                            InitializedFlag::kUninitialized)
-          .ToHandleChecked();
-
-  bool serialized_successfully = wasm_serializer.SerializeNativeModule(
-      {static_cast<uint8_t*>(array_buffer->backing_store()), byte_length});
-  CHECK(serialized_successfully || v8_flags.fuzzing);
-  return *array_buffer;
-}
-
-// Take an array buffer and attempt to reconstruct a compiled wasm module.
-// Return undefined if unsuccessful.
-RUNTIME_FUNCTION(Runtime_DeserializeWasmModule) {
-  HandleScope scope(isolate);
-  // This isn't exposed to fuzzers so doesn't need to handle invalid arguments.
-  CHECK_EQ(2, args.length());
-  CHECK(IsJSArrayBuffer(args[0]));
-  CHECK(IsJSTypedArray(args[1]));
-
-  DirectHandle<JSArrayBuffer> buffer = args.at<JSArrayBuffer>(0);
-  DirectHandle<JSTypedArray> wire_bytes = args.at<JSTypedArray>(1);
-  CHECK(!buffer->was_detached());
-  CHECK(!wire_bytes->WasDetached());
-
-  DirectHandle<JSArrayBuffer> wire_bytes_buffer = wire_bytes->GetBuffer();
-  base::Vector<const uint8_t> wire_bytes_vec{
-      reinterpret_cast<const uint8_t*>(wire_bytes_buffer->backing_store()) +
-          wire_bytes->byte_offset(),
-      wire_bytes->byte_length()};
-  base::Vector<uint8_t> buffer_vec{
-      reinterpret_cast<uint8_t*>(buffer->backing_store()),
-      buffer->byte_length()};
-
-  // Note that {wasm::DeserializeNativeModule} will allocate. We assume the
-  // JSArrayBuffer backing store doesn't get relocated.
-  wasm::CompileTimeImports compile_imports{};
-  MaybeDirectHandle<WasmModuleObject> maybe_module_object =
-      wasm::DeserializeNativeModule(isolate, buffer_vec, wire_bytes_vec,
-                                    compile_imports, {});
-  DirectHandle<WasmModuleObject> module_object;
-  if (!maybe_module_object.ToHandle(&module_object)) {
-    return ReadOnlyRoots(isolate).undefined_value();
-  }
-  return *module_object;
-}
-
 RUNTIME_FUNCTION(Runtime_WasmGetNumberOfInstances) {
   SealHandleScope shs(isolate);
   if (args.length() != 1 || !IsWasmModuleObject(args[0])) {
@@ -575,28 +517,64 @@ RUNTIME_FUNCTION(Runtime_WasmNumCodeSpaces) {
   return *isolate->factory()->NewNumberFromSize(num_spaces);
 }
 
-namespace {
+RUNTIME_FUNCTION(Runtime_WasmTraceGlobal) {
+  CHECK(v8_flags.trace_wasm_globals);
+  HandleScope handle_scope(isolate);
+  if (args.length() != 1 || !IsSmi(args[0])) {
+    return CrashUnlessFuzzing(isolate);
+  }
+  DisallowGarbageCollection no_gc;
+  auto info_addr = Cast<Smi>(args[0]);
 
-template <typename T1, typename T2 = T1>
-void PrintRep(Address address, const char* str) {
-  PrintF("%4s:", str);
-  const auto t1 = base::ReadLittleEndianValue<T1>(address);
-  if constexpr (std::is_floating_point_v<T1>) {
-    PrintF("%f", t1);
-  } else if constexpr (sizeof(T1) > sizeof(uint32_t)) {
-    PrintF("%" PRIu64, t1);
+  wasm::GlobalTracingInfo* info =
+      reinterpret_cast<wasm::GlobalTracingInfo*>(info_addr.ptr());
+
+  wasm::WasmCodeRefScope wasm_code_ref_scope;
+  DebuggableStackFrameIterator it(isolate);
+  DCHECK(!it.done());
+  DCHECK(it.is_wasm());
+  WasmFrame* frame = WasmFrame::cast(it.frame());
+  Tagged<WasmInstanceObject> instance = frame->wasm_instance();
+
+  const wasm::WasmGlobal& global =
+      instance->module()->globals[info->global_index];
+
+  wasm::ExecutionTier tier = frame->wasm_code()->tier();
+
+  wasm::WasmValue value =
+      instance->trusted_data(isolate)->GetGlobalValue(isolate, global);
+
+  wasm::GlobalTraceEntry trace_entry = {
+      .function_index = frame->function_index(),
+      .global_index = info->global_index,
+      .frame_position = frame->position(),
+      .tier = tier,
+      .kind = global.type.kind(),
+      .is_store = static_cast<bool>(info->is_store),
+      .value_bytes = {}};
+  CHECK_GE(sizeof(trace_entry.value_bytes), value.type().value_kind_size());
+
+  if (value.type().is_numeric()) {
+    value.CopyTo(trace_entry.value_bytes);
   } else {
-    PrintF("%u", t1);
+    DirectHandle<Object> ref_handle = value.to_ref();
+    base::WriteUnalignedValue<Address>(
+        reinterpret_cast<Address>(trace_entry.value_bytes),
+        (*ref_handle).ptr());
   }
-  const auto t2 = base::ReadLittleEndianValue<T2>(address);
-  if constexpr (sizeof(T1) > sizeof(uint32_t)) {
-    PrintF(" / %016" PRIx64 "\n", t2);
+
+  wasm::WasmTracesForTesting& traces = wasm::GetWasmTracesForTesting();
+  if (traces.should_store_trace) {
+    traces.global_trace.push_back(trace_entry);
   } else {
-    PrintF(" / %0*x\n", static_cast<int>(2 * sizeof(T2)), t2);
+    std::ostringstream ss;
+    PrintGlobalTraceString(trace_entry, frame->native_module(), ss);
+    ss << "\n";
+    PrintF("%s", ss.str().c_str());
   }
+
+  return ReadOnlyRoots(isolate).undefined_value();
 }
-
-}  // namespace
 
 RUNTIME_FUNCTION(Runtime_WasmTraceMemory) {
   SealHandleScope scope(isolate);
@@ -619,52 +597,39 @@ RUNTIME_FUNCTION(Runtime_WasmTraceMemory) {
 #endif  // V8_ENABLE_DRUMBRAKE
   WasmFrame* frame = WasmFrame::cast(it.frame());
 
-  PrintF("%-11s func:%6d:0x%-4x %s %016" PRIuPTR " val: ",
-         ExecutionTierToString(frame->wasm_code()->is_liftoff()
-                                   ? wasm::ExecutionTier::kLiftoff
-                                   : wasm::ExecutionTier::kTurbofan),
-         frame->function_index(), frame->position(),
-         // Note: The extra leading space makes " store to" the same width as
-         // "load from".
-         info->is_store ? " store to" : "load from", info->offset);
-  // TODO(14259): Fix for multi-memory.
+  wasm::ExecutionTier tier = frame->wasm_code()->tier();
+  MachineRepresentation mem_rep =
+      static_cast<MachineRepresentation>(info->mem_rep);
+
   const Address address =
       reinterpret_cast<Address>(frame->trusted_instance_data()
-                                    ->memory_object(0)
+                                    ->memory_object(info->mem_index)
                                     ->array_buffer()
                                     ->backing_store()) +
       info->offset;
-  switch (static_cast<MachineRepresentation>(info->mem_rep)) {
-    case MachineRepresentation::kWord8:
-      PrintRep<uint8_t>(address, "i8");
-      break;
-    case MachineRepresentation::kWord16:
-      PrintRep<uint16_t>(address, "i16");
-      break;
-    case MachineRepresentation::kWord32:
-      PrintRep<uint32_t>(address, "i32");
-      break;
-    case MachineRepresentation::kWord64:
-      PrintRep<uint64_t>(address, "i64");
-      break;
-    case MachineRepresentation::kFloat32:
-      PrintRep<float, uint32_t>(address, "f32");
-      break;
-    case MachineRepresentation::kFloat64:
-      PrintRep<double, uint64_t>(address, "f64");
-      break;
-    case MachineRepresentation::kSimd128: {
-      const auto a = base::ReadLittleEndianValue<uint32_t>(address);
-      const auto b = base::ReadLittleEndianValue<uint32_t>(address + 4);
-      const auto c = base::ReadLittleEndianValue<uint32_t>(address + 8);
-      const auto d = base::ReadLittleEndianValue<uint32_t>(address + 12);
-      PrintF("s128:%u %u %u %u / %08x %08x %08x %08x\n", a, b, c, d, a, b, c,
-             d);
-      break;
-    }
-    default:
-      PrintF("unknown\n");
-      break;
+
+  wasm::MemoryTraceEntry trace_entry = {
+      .offset = info->offset,
+      .function_index = frame->function_index(),
+      .mem_index = info->mem_index,
+      .frame_position = frame->position(),
+      .tier = tier,
+      .representation = mem_rep,
+      .is_store = static_cast<bool>(info->is_store),
+      .value_bytes = {}};
+  int mem_rep_size = ElementSizeInBytes(mem_rep);
+  CHECK_GE(sizeof(trace_entry.value_bytes), mem_rep_size);
+  memcpy(trace_entry.value_bytes, reinterpret_cast<void*>(address),
+         mem_rep_size);
+
+  wasm::WasmTracesForTesting& traces = wasm::GetWasmTracesForTesting();
+  if (traces.should_store_trace) {
+    traces.memory_trace.push_back(trace_entry);
+  } else {
+    std::ostringstream ss;
+    PrintMemoryTraceString(trace_entry, frame->native_module(), ss);
+    ss << "\n";
+    PrintF("%s", ss.str().c_str());
   }
 
   return ReadOnlyRoots(isolate).undefined_value();
@@ -746,12 +711,6 @@ RUNTIME_FUNCTION(Runtime_WasmTriggerTierUpForTesting) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-RUNTIME_FUNCTION(Runtime_WasmNull) {
-  // This isn't exposed to fuzzers. (Wasm nulls may not appear in JS.)
-  HandleScope scope(isolate);
-  return ReadOnlyRoots(isolate).wasm_null();
-}
-
 static Tagged<Object> CreateWasmObject(Isolate* isolate,
                                        base::Vector<const uint8_t> module_bytes,
                                        bool is_struct) {
@@ -782,21 +741,20 @@ static Tagged<Object> CreateWasmObject(Isolate* isolate,
     DCHECK(isolate->has_exception());
     return ReadOnlyRoots(isolate).exception();
   }
+  const wasm::WasmModule* module = module_object->native_module()->module();
   wasm::WasmValue value(int64_t{0x7AADF00DBAADF00D});
   wasm::ModuleTypeIndex type_index{0};
   Tagged<Map> map = Tagged<Map>::cast(
       instance->trusted_data(isolate)->managed_object_maps()->get(
           type_index.index));
   if (is_struct) {
-    const wasm::StructType* struct_type =
-        instance->module()->struct_type(type_index);
+    const wasm::StructType* struct_type = module->struct_type(type_index);
     DCHECK_EQ(struct_type->field_count(), 1);
     DCHECK_EQ(struct_type->field(0), wasm::kWasmI64);
     return *isolate->factory()->NewWasmStruct(struct_type, &value,
                                               direct_handle(map, isolate));
   } else {
-    DCHECK_EQ(instance->module()->array_type(type_index)->element_type(),
-              wasm::kWasmI64);
+    DCHECK_EQ(module->array_type(type_index)->element_type(), wasm::kWasmI64);
     return *isolate->factory()->NewWasmArray(wasm::kWasmI64, 1, value,
                                              direct_handle(map, isolate));
   }
@@ -962,28 +920,9 @@ RUNTIME_FUNCTION(Runtime_FreezeWasmLazyCompilation) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-// This runtime function enables WebAssembly imported strings through an
-// embedder callback and thereby bypasses the value in v8_flags.
-RUNTIME_FUNCTION(Runtime_SetWasmImportedStringsEnabled) {
-  if (args.length() != 1) {
-    return CrashUnlessFuzzing(isolate);
-  }
-  bool enable = Object::BooleanValue(*args.at(0), isolate);
-  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
-  WasmImportedStringsEnabledCallback enabled = [](v8::Local<v8::Context>) {
-    return true;
-  };
-  WasmImportedStringsEnabledCallback disabled = [](v8::Local<v8::Context>) {
-    return false;
-  };
-  v8_isolate->SetWasmImportedStringsEnabledCallback(enable ? enabled
-                                                           : disabled);
-  return ReadOnlyRoots(isolate).undefined_value();
-}
-
 RUNTIME_FUNCTION(Runtime_FlushLiftoffCode) {
-  auto [code_size, metadata_size] = wasm::GetWasmEngine()->FlushLiftoffCode();
-  return Smi::FromInt(static_cast<int>(code_size + metadata_size));
+  wasm::GetWasmEngine()->FlushLiftoffCode();
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_WasmTriggerCodeGC) {

@@ -332,10 +332,17 @@ syncBuiltinESMExports();
 fs.readFileSync === readFileSync;
 ```
 
+> When importing built-in modules, all the named exports (i.e. properties of the module exports object)
+> are populated even if they are not individually accessed.
+> This can make initial imports of built-in modules slightly slower compared to loading them with
+> `require()` or `process.getBuiltinModule()`, where the module exports object is evaluated immediately,
+> but some of its properties may only be initialized when first accessed individually.
+
 ## `import()` expressions
 
-[Dynamic `import()`][] is supported in both CommonJS and ES modules. In CommonJS
-modules it can be used to load ES modules.
+[Dynamic `import()`][] provides an asynchronous way to import modules. It is
+supported in both CommonJS and ES modules, and can be used to load both CommonJS
+and ES modules.
 
 ## `import.meta`
 
@@ -708,7 +715,9 @@ imported from the same path.
 
 <!-- YAML
 changes:
-  - version: v24.5.0
+  - version:
+     - v24.5.0
+     - v22.19.0
     pr-url: https://github.com/nodejs/node/pull/57038
     description: Wasm modules no longer require the `--experimental-wasm-modules` flag.
 -->
@@ -759,7 +768,9 @@ const instance = await WebAssembly.instantiate(dynamicLibrary, importObject);
 > Stability: 1.2 - Release candidate
 
 <!-- YAML
-added: v24.5.0
+added:
+ - v24.5.0
+ - v22.19.0
 -->
 
 When importing WebAssembly modules, the
@@ -832,7 +843,9 @@ would provide the exports interface for the instantiation of `library.wasm`.
 ### Reserved Wasm Namespaces
 
 <!-- YAML
-added: v24.5.0
+added:
+ - v24.5.0
+ - v22.19.0
 -->
 
 When importing WebAssembly module instances, they cannot use import module

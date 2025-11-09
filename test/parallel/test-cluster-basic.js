@@ -92,7 +92,7 @@ if (cluster.isWorker) {
   const stateNames = Object.keys(checks.worker.states);
 
   // Check events, states, and emit arguments
-  forEach(checks.cluster.events, (bool, name, index) => {
+  forEach(checks.cluster.events, common.mustCallAtLeast((bool, name, index) => {
 
     // Listen on event
     cluster.on(name, common.mustCall(function(/* worker */) {
@@ -107,7 +107,7 @@ if (cluster.isWorker) {
       const state = stateNames[index];
       checks.worker.states[state] = (state === worker.state);
     }));
-  });
+  }));
 
   // Kill worker when listening
   cluster.on('listening', common.mustCall(() => {
@@ -124,7 +124,7 @@ if (cluster.isWorker) {
          'the worker is not a instance of the Worker constructor');
 
   // Check event
-  forEach(checks.worker.events, function(bool, name, index) {
+  forEach(checks.worker.events, common.mustCallAtLeast((bool, name, index) => {
     worker.on(name, common.mustCall(function() {
       // Set event
       checks.worker.events[name] = true;
@@ -157,7 +157,7 @@ if (cluster.isWorker) {
           break;
       }
     }));
-  });
+  }));
 
   // Check all values
   process.once('exit', () => {

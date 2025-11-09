@@ -185,6 +185,14 @@ class JSONEncoder : public ParserHandler {
       return;
     state_.top().StartElement(out_);
     Emit('"');
+    // Fast path for input strings that can be emitted as-is.
+    if (std::all_of(chars.begin(), chars.end(), [](uint8_t c) {
+          return c != '"' && c != '\\' && c >= 32 && c <= 127;
+        })) {
+      Emit(chars);
+      Emit('"');
+      return;
+    }
     for (size_t ii = 0; ii < chars.size(); ++ii) {
       uint8_t c = chars[ii];
       if (c == '"') {
@@ -346,10 +354,11 @@ class JSONEncoder : public ParserHandler {
     if (!status_->ok())
       return;
     state_.top().StartElement(out_);
-    if (value)
+    if (value) {
       Emit("true");
-    else
+    } else {
       Emit("false");
+    }
   }
 
   void HandleNull() override {
@@ -373,6 +382,9 @@ class JSONEncoder : public ParserHandler {
   }
   inline void Emit(const std::string& str) {
     out_->insert(out_->end(), str.begin(), str.end());
+  }
+  inline void Emit(const span<uint8_t>& bytes) {
+    out_->insert(out_->end(), bytes.begin(), bytes.end());
   }
 
   C* out_;
@@ -898,7 +910,7 @@ class JsonParser {
           HandleError(Error::JSON_PARSER_INVALID_STRING, token_start);
           return;
         }
-        handler_->HandleString16(span<uint16_t>(value.data(), value.size()));
+        handler_->HandleString16(value);
         break;
       }
       case ArrayBegin: {
@@ -945,7 +957,7 @@ class JsonParser {
             HandleError(Error::JSON_PARSER_INVALID_STRING, token_start);
             return;
           }
-          handler_->HandleString16(span<uint16_t>(key.data(), key.size()));
+          handler_->HandleString16(key);
           start = token_end;
 
           token = ParseToken(start, end, &token_start, &token_end);

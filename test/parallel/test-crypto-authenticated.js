@@ -248,49 +248,24 @@ for (const test of TEST_CASES) {
 // Test that create(De|C)ipheriv throws if the mode is CCM and an invalid
 // authentication tag length has been specified.
 {
-  for (const authTagLength of [-1, true, false, NaN, 5.5]) {
-    assert.throws(() => {
-      crypto.createCipheriv('aes-256-ccm',
-                            'FxLKsqdmv0E9xrQhp0b1ZgI0K7JFZJM8',
-                            'qkuZpJWCewa6S',
-                            {
-                              authTagLength
-                            });
-    }, {
-      name: 'TypeError',
-      code: 'ERR_INVALID_ARG_VALUE',
-      message: "The property 'options.authTagLength' is invalid. " +
-               `Received ${inspect(authTagLength)}`
-    });
-
-    assert.throws(() => {
-      crypto.createDecipheriv('aes-256-ccm',
+  if (!ciphers.includes('aes-256-ccm')) {
+    common.printSkipMessage(`unsupported aes-256-ccm test`);
+  } else {
+    for (const authTagLength of [-1, true, false, NaN, 5.5]) {
+      assert.throws(() => {
+        crypto.createCipheriv('aes-256-ccm',
                               'FxLKsqdmv0E9xrQhp0b1ZgI0K7JFZJM8',
                               'qkuZpJWCewa6S',
                               {
                                 authTagLength
                               });
-    }, {
-      name: 'TypeError',
-      code: 'ERR_INVALID_ARG_VALUE',
-      message: "The property 'options.authTagLength' is invalid. " +
-        `Received ${inspect(authTagLength)}`
-    });
-  }
+      }, {
+        name: 'TypeError',
+        code: 'ERR_INVALID_ARG_VALUE',
+        message: "The property 'options.authTagLength' is invalid. " +
+                `Received ${inspect(authTagLength)}`
+      });
 
-  // The following values will not be caught by the JS layer and thus will not
-  // use the default error codes.
-  for (const authTagLength of [0, 1, 2, 3, 5, 7, 9, 11, 13, 15, 17, 18]) {
-    assert.throws(() => {
-      crypto.createCipheriv('aes-256-ccm',
-                            'FxLKsqdmv0E9xrQhp0b1ZgI0K7JFZJM8',
-                            'qkuZpJWCewa6S',
-                            {
-                              authTagLength
-                            });
-    }, errMessages.authTagLength);
-
-    if (!isFipsEnabled) {
       assert.throws(() => {
         crypto.createDecipheriv('aes-256-ccm',
                                 'FxLKsqdmv0E9xrQhp0b1ZgI0K7JFZJM8',
@@ -298,7 +273,36 @@ for (const test of TEST_CASES) {
                                 {
                                   authTagLength
                                 });
+      }, {
+        name: 'TypeError',
+        code: 'ERR_INVALID_ARG_VALUE',
+        message: "The property 'options.authTagLength' is invalid. " +
+          `Received ${inspect(authTagLength)}`
+      });
+    }
+
+    // The following values will not be caught by the JS layer and thus will not
+    // use the default error codes.
+    for (const authTagLength of [0, 1, 2, 3, 5, 7, 9, 11, 13, 15, 17, 18]) {
+      assert.throws(() => {
+        crypto.createCipheriv('aes-256-ccm',
+                              'FxLKsqdmv0E9xrQhp0b1ZgI0K7JFZJM8',
+                              'qkuZpJWCewa6S',
+                              {
+                                authTagLength
+                              });
       }, errMessages.authTagLength);
+
+      if (!isFipsEnabled) {
+        assert.throws(() => {
+          crypto.createDecipheriv('aes-256-ccm',
+                                  'FxLKsqdmv0E9xrQhp0b1ZgI0K7JFZJM8',
+                                  'qkuZpJWCewa6S',
+                                  {
+                                    authTagLength
+                                  });
+        }, errMessages.authTagLength);
+      }
     }
   }
 }
@@ -307,6 +311,11 @@ for (const test of TEST_CASES) {
 // authentication tag length has been specified.
 {
   for (const mode of ['ccm', 'ocb']) {
+    if (!ciphers.includes(`aes-256-${mode}`)) {
+      common.printSkipMessage(`unsupported aes-256-${mode} test`);
+      continue;
+    }
+
     assert.throws(() => {
       crypto.createCipheriv(`aes-256-${mode}`,
                             'FxLKsqdmv0E9xrQhp0b1ZgI0K7JFZJM8',
@@ -330,84 +339,96 @@ for (const test of TEST_CASES) {
 
 // Test that setAAD throws if an invalid plaintext length has been specified.
 {
-  const cipher = crypto.createCipheriv('aes-256-ccm',
-                                       'FxLKsqdmv0E9xrQhp0b1ZgI0K7JFZJM8',
-                                       'qkuZpJWCewa6S',
-                                       {
-                                         authTagLength: 10
-                                       });
-
-  for (const plaintextLength of [-1, true, false, NaN, 5.5]) {
-    assert.throws(() => {
-      cipher.setAAD(Buffer.from('0123456789', 'hex'), { plaintextLength });
-    }, {
-      name: 'TypeError',
-      code: 'ERR_INVALID_ARG_VALUE',
-      message: "The property 'options.plaintextLength' is invalid. " +
-        `Received ${inspect(plaintextLength)}`
-    });
-  }
-}
-
-// Test that setAAD and update throw if the plaintext is too long.
-{
-  for (const ivLength of [13, 12]) {
-    const maxMessageSize = (1 << (8 * (15 - ivLength))) - 1;
-    const key = 'FxLKsqdmv0E9xrQhp0b1ZgI0K7JFZJM8';
-    const cipher = () => crypto.createCipheriv('aes-256-ccm', key,
-                                               '0'.repeat(ivLength),
-                                               {
-                                                 authTagLength: 10
-                                               });
-
-    assert.throws(() => {
-      cipher().setAAD(Buffer.alloc(0), {
-        plaintextLength: maxMessageSize + 1
-      });
-    }, /Invalid message length$/);
-
-    const msg = Buffer.alloc(maxMessageSize + 1);
-    assert.throws(() => {
-      cipher().update(msg);
-    }, /Invalid message length/);
-
-    const c = cipher();
-    c.setAAD(Buffer.alloc(0), {
-      plaintextLength: maxMessageSize
-    });
-    c.update(msg.slice(1));
-  }
-}
-
-// Test that setAAD throws if the mode is CCM and the plaintext length has not
-// been specified.
-{
-  assert.throws(() => {
+  if (!ciphers.includes('aes-256-ccm')) {
+    common.printSkipMessage(`unsupported aes-256-ccm test`);
+  } else {
     const cipher = crypto.createCipheriv('aes-256-ccm',
                                          'FxLKsqdmv0E9xrQhp0b1ZgI0K7JFZJM8',
                                          'qkuZpJWCewa6S',
                                          {
                                            authTagLength: 10
                                          });
-    cipher.setAAD(Buffer.from('0123456789', 'hex'));
-  }, /options\.plaintextLength required for CCM mode with AAD/);
 
-  if (!isFipsEnabled) {
+    for (const plaintextLength of [-1, true, false, NaN, 5.5]) {
+      assert.throws(() => {
+        cipher.setAAD(Buffer.from('0123456789', 'hex'), { plaintextLength });
+      }, {
+        name: 'TypeError',
+        code: 'ERR_INVALID_ARG_VALUE',
+        message: "The property 'options.plaintextLength' is invalid. " +
+          `Received ${inspect(plaintextLength)}`
+      });
+    }
+  }
+}
+
+// Test that setAAD and update throw if the plaintext is too long.
+{
+  if (!ciphers.includes('aes-256-ccm')) {
+    common.printSkipMessage(`unsupported aes-256-ccm test`);
+  } else {
+    for (const ivLength of [13, 12]) {
+      const maxMessageSize = (1 << (8 * (15 - ivLength))) - 1;
+      const key = 'FxLKsqdmv0E9xrQhp0b1ZgI0K7JFZJM8';
+      const cipher = () => crypto.createCipheriv('aes-256-ccm', key,
+                                                 '0'.repeat(ivLength),
+                                                 {
+                                                   authTagLength: 10
+                                                 });
+
+      assert.throws(() => {
+        cipher().setAAD(Buffer.alloc(0), {
+          plaintextLength: maxMessageSize + 1
+        });
+      }, /Invalid message length$/);
+
+      const msg = Buffer.alloc(maxMessageSize + 1);
+      assert.throws(() => {
+        cipher().update(msg);
+      }, /Invalid message length/);
+
+      const c = cipher();
+      c.setAAD(Buffer.alloc(0), {
+        plaintextLength: maxMessageSize
+      });
+      c.update(msg.slice(1));
+    }
+  }
+}
+
+// Test that setAAD throws if the mode is CCM and the plaintext length has not
+// been specified.
+{
+  if (!ciphers.includes('aes-256-ccm')) {
+    common.printSkipMessage(`unsupported aes-256-ccm test`);
+  } else {
     assert.throws(() => {
-      const cipher = crypto.createDecipheriv('aes-256-ccm',
-                                             'FxLKsqdmv0E9xrQhp0b1ZgI0K7JFZJM8',
-                                             'qkuZpJWCewa6S',
-                                             {
-                                               authTagLength: 10
-                                             });
+      const cipher = crypto.createCipheriv('aes-256-ccm',
+                                           'FxLKsqdmv0E9xrQhp0b1ZgI0K7JFZJM8',
+                                           'qkuZpJWCewa6S',
+                                           {
+                                             authTagLength: 10
+                                           });
       cipher.setAAD(Buffer.from('0123456789', 'hex'));
     }, /options\.plaintextLength required for CCM mode with AAD/);
+
+    if (!isFipsEnabled) {
+      assert.throws(() => {
+        const cipher = crypto.createDecipheriv('aes-256-ccm',
+                                               'FxLKsqdmv0E9xrQhp0b1ZgI0K7JFZJM8',
+                                               'qkuZpJWCewa6S',
+                                               {
+                                                 authTagLength: 10
+                                               });
+        cipher.setAAD(Buffer.from('0123456789', 'hex'));
+      }, /options\.plaintextLength required for CCM mode with AAD/);
+    }
   }
 }
 
 // Test that final() throws in CCM mode when no authentication tag is provided.
 {
-  if (!isFipsEnabled) {
+  if (!isFipsEnabled && ciphers.includes('aes-128-ccm')) {
     const key = Buffer.from('1ed2233fa2223ef5d7df08546049406c', 'hex');
     const iv = Buffer.from('7305220bca40d4c90e1791e9', 'hex');
     const ct = Buffer.from('8beba09d4d4d861f957d51c0794f4abf8030848e', 'hex');
@@ -439,12 +460,16 @@ for (const test of TEST_CASES) {
 
 // Test that an IV length of 11 does not overflow max_message_size_.
 {
-  const key = 'x'.repeat(16);
-  const iv = Buffer.from('112233445566778899aabb', 'hex');
-  const options = { authTagLength: 8 };
-  const encrypt = crypto.createCipheriv('aes-128-ccm', key, iv, options);
-  encrypt.update('boom');  // Should not throw 'Message exceeds maximum size'.
-  encrypt.final();
+  if (!ciphers.includes('aes-128-ccm')) {
+    common.printSkipMessage(`unsupported aes-128-ccm test`);
+  } else {
+    const key = 'x'.repeat(16);
+    const iv = Buffer.from('112233445566778899aabb', 'hex');
+    const options = { authTagLength: 8 };
+    const encrypt = crypto.createCipheriv('aes-128-ccm', key, iv, options);
+    encrypt.update('boom');  // Should not throw 'Message exceeds maximum size'.
+    encrypt.final();
+  }
 }
 
 // Test that the authentication tag can be set at any point before calling
@@ -499,6 +524,11 @@ for (const test of TEST_CASES) {
   }
 
   for (const alg of ['aes-256-gcm', 'aes-256-ocb', 'chacha20-poly1305']) {
+    if (!ciphers.includes(alg)) {
+      common.printSkipMessage(`unsupported ${alg} test`);
+      continue;
+    }
+
     for (const authTagLength of alg === 'aes-256-gcm' ? [undefined, 8] : [8]) {
       for (const [useAAD, useMessage] of [
         [false, false],  // No AAD, no update.
@@ -520,6 +550,11 @@ for (const test of TEST_CASES) {
   const opts = { authTagLength: 8 };
 
   for (const mode of ['gcm', 'ccm', 'ocb']) {
+    if (!ciphers.includes(`aes-128-${mode}`)) {
+      common.printSkipMessage(`unsupported aes-128-${mode} test`);
+      continue;
+    }
+
     const cipher = crypto.createCipheriv(`aes-128-${mode}`, key, iv, opts);
     const ciphertext = Buffer.concat([cipher.update(plain), cipher.final()]);
     const tag = cipher.getAuthTag();
@@ -563,25 +598,29 @@ for (const test of TEST_CASES) {
     tampered: false,
   };
 
-  // Invalid IV lengths should be detected:
-  // - 12 and below are valid.
-  // - 13-16 are not detected as invalid by some OpenSSL versions.
-  check(13);
-  check(14);
-  check(15);
-  check(16);
-  // - 17 and above were always detected as invalid by OpenSSL.
-  check(17);
+  if (!ciphers.includes(valid.algo)) {
+    common.printSkipMessage(`unsupported ${valid.algo} test`);
+  } else {
+    // Invalid IV lengths should be detected:
+    // - 12 and below are valid.
+    // - 13-16 are not detected as invalid by some OpenSSL versions.
+    check(13);
+    check(14);
+    check(15);
+    check(16);
+    // - 17 and above were always detected as invalid by OpenSSL.
+    check(17);
 
-  function check(ivLength) {
-    const prefix = ivLength - valid.iv.length / 2;
-    assert.throws(() => crypto.createCipheriv(
-      valid.algo,
-      Buffer.from(valid.key, 'hex'),
-      Buffer.from(H(prefix) + valid.iv, 'hex')
-    ), errMessages.length, `iv length ${ivLength} was not rejected`);
+    function check(ivLength) {
+      const prefix = ivLength - valid.iv.length / 2;
+      assert.throws(() => crypto.createCipheriv(
+        valid.algo,
+        Buffer.from(valid.key, 'hex'),
+        Buffer.from(H(prefix) + valid.iv, 'hex')
+      ), errMessages.length, `iv length ${ivLength} was not rejected`);
 
-    function H(length) { return '00'.repeat(length); }
+      function H(length) { return '00'.repeat(length); }
+    }
   }
 }
 

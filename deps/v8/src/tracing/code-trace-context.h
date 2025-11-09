@@ -60,7 +60,7 @@ class CodeTraceContext {
 
 #if V8_ENABLE_WEBASSEMBLY
   uint64_t InternWasmScript(Isolate& isolate, int script_id,
-                            const std::string& url,
+                            std::string_view url,
                             wasm::NativeModule* native_module) {
     return incremental_state_.InternWasmScript(isolate, script_id, url,
                                                native_module);

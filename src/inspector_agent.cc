@@ -1155,7 +1155,7 @@ void Agent::SetParentHandle(
 }
 
 std::unique_ptr<ParentInspectorHandle> Agent::GetParentHandle(
-    uint64_t thread_id, const std::string& url, const std::string& name) {
+    uint64_t thread_id, std::string_view url, std::string_view name) {
   THROW_IF_INSUFFICIENT_PERMISSIONS(parent_env_,
                                     permission::PermissionScope::kInspector,
                                     "GetParentHandle",

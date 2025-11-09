@@ -15,7 +15,7 @@ const mockDisplay = async (t, { mocks, load } = {}) => {
   const displayLoad = async (opts) => display.load({
     loglevel: 'silly',
     stderrColor: false,
-    stdoutColot: false,
+    stdoutColor: false,
     heading: 'npm',
     ...opts,
   })
@@ -37,7 +37,9 @@ t.test('can log cleanly', async (t) => {
   const { log, logs } = await mockDisplay(t)
 
   log.error('', 'test\x00message')
+  log.info('', 'fetch DELETE 200 https://registry.npmjs.org/-/user/token/npm_000000000000000000000000000000000000 477ms')
   t.match(logs.error, ['test^@message'])
+  t.match(logs.info, ['fetch DELETE 200 https://registry.npmjs.org/-/user/token/npm_*** 477ms'])
 })
 
 t.test('can handle special eresolves', async (t) => {

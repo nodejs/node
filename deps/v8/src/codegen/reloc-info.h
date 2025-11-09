@@ -113,7 +113,10 @@ class RelocInfo {
     // TODO(ishell): rename to NEAR_CODE_TARGET.
     RELATIVE_CODE_TARGET,  // LAST_CODE_TARGET_MODE
     COMPRESSED_EMBEDDED_OBJECT,
-    FULL_EMBEDDED_OBJECT,  // LAST_GCED_ENUM
+    FULL_EMBEDDED_OBJECT,
+    // An integer JSDispatchHandle, referring to an entry in the
+    // JSDispatchTable.
+    JS_DISPATCH_HANDLE,  // LAST_GCED_ENUM
 
     WASM_CALL,  // FIRST_SHAREABLE_RELOC_MODE
     WASM_STUB_CALL,
@@ -127,11 +130,8 @@ class RelocInfo {
     // and PPC.
     INTERNAL_REFERENCE_ENCODED,
 
-    // An integer JSDispatchHandle, referring to an entry in the
-    // JSDispatchTable.
-    JS_DISPATCH_HANDLE,
-
-    // An off-heap instruction stream target. See http://goo.gl/Z2HUiM.
+    // An off-heap instruction stream target. See:
+    // https://docs.google.com/document/d/1XmiXT54FQ0qqroWzRc8nzrpSSo_xoyFRkVgmonONEJk
     // TODO(ishell): rename to BUILTIN_ENTRY.
     OFF_HEAP_TARGET,  // FIRST_BUILTIN_ENTRY_MODE
     // An un-embedded off-heap instruction stream target.
@@ -162,7 +162,7 @@ class RelocInfo {
     LAST_REAL_RELOC_MODE = VENEER_POOL,
     FIRST_EMBEDDED_OBJECT_RELOC_MODE = COMPRESSED_EMBEDDED_OBJECT,
     LAST_EMBEDDED_OBJECT_RELOC_MODE = FULL_EMBEDDED_OBJECT,
-    LAST_GCED_ENUM = LAST_EMBEDDED_OBJECT_RELOC_MODE,
+    LAST_GCED_ENUM = JS_DISPATCH_HANDLE,
     FIRST_BUILTIN_ENTRY_MODE = OFF_HEAP_TARGET,
     LAST_BUILTIN_ENTRY_MODE = NEAR_BUILTIN_ENTRY,
     FIRST_SHAREABLE_RELOC_MODE = WASM_CALL,
@@ -353,6 +353,11 @@ class RelocInfo {
   // Return the JSDispatchHandle this relocation applies to;
   // can only be called if rmode_ is JS_DISPATCH_HANDLE.
   V8_INLINE JSDispatchHandle js_dispatch_handle();
+
+  // Returns address and size of a slot for garbage collection reasons. Only
+  // usable if `IsGCRelocMode()` is true.
+  V8_INLINE Address target_address_address_for_gc();
+  V8_INLINE uint32_t target_address_size_for_gc();
 
   template <typename ObjectVisitor>
   void Visit(Tagged<InstructionStream> host, ObjectVisitor* visitor);

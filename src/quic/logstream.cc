@@ -1,5 +1,6 @@
-#if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
-
+#if HAVE_OPENSSL
+#include "guard.h"
+#ifndef OPENSSL_NO_QUIC
 #include "logstream.h"
 #include <async_wrap-inl.h>
 #include <base_object-inl.h>
@@ -19,29 +20,15 @@ using v8::Object;
 
 namespace quic {
 
-Local<FunctionTemplate> LogStream::GetConstructorTemplate(Environment* env) {
-  auto& state = BindingData::Get(env);
-  auto tmpl = state.logstream_constructor_template();
-  if (tmpl.IsEmpty()) {
-    tmpl = FunctionTemplate::New(env->isolate());
-    tmpl->Inherit(AsyncWrap::GetConstructorTemplate(env));
-    tmpl->InstanceTemplate()->SetInternalFieldCount(
-        StreamBase::kInternalFieldCount);
-    tmpl->SetClassName(state.logstream_string());
-    StreamBase::AddMethods(env, tmpl);
-    state.set_logstream_constructor_template(tmpl);
-  }
-  return tmpl;
-}
+JS_CONSTRUCTOR_IMPL(LogStream, logstream_constructor_template, {
+  tmpl = FunctionTemplate::New(env->isolate());
+  JS_INHERIT(AsyncWrap);
+  JS_CLASS_FIELDS(logstream, StreamBase::kInternalFieldCount);
+  StreamBase::AddMethods(env, tmpl);
+})
 
 BaseObjectPtr<LogStream> LogStream::Create(Environment* env) {
-  Local<Object> obj;
-  if (!GetConstructorTemplate(env)
-           ->InstanceTemplate()
-           ->NewInstance(env->context())
-           .ToLocal(&obj)) {
-    return {};
-  }
+  JS_NEW_INSTANCE_OR_RETURN(env, obj, nullptr);
   return MakeDetachedBaseObject<LogStream>(env, obj);
 }
 
@@ -149,4 +136,5 @@ void LogStream::ensure_space(size_t amt) {
 }  // namespace quic
 }  // namespace node
 
-#endif  // HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
+#endif  // OPENSSL_NO_QUIC
+#endif  // HAVE_OPENSSL

@@ -48,15 +48,15 @@ template <typename T>
 class FooTest : public testing::Test {
  public:
   ...
-  typedef std::list<T> List;
+  using List = ::std::list<T>;
   static T shared_;
   T value_;
 };
 
 // Next, associate a list of types with the test suite, which will be
-// repeated for each type in the list.  The typedef is necessary for
+// repeated for each type in the list.  The using-declaration is necessary for
 // the macro to parse correctly.
-typedef testing::Types<char, int, unsigned int> MyTypes;
+using MyTypes = ::testing::Types<char, int, unsigned int>;
 TYPED_TEST_SUITE(FooTest, MyTypes);
 
 // If the type list contains only one type, you can write that type
@@ -157,7 +157,7 @@ REGISTER_TYPED_TEST_SUITE_P(FooTest,
 // argument to the INSTANTIATE_* macro is a prefix that will be added
 // to the actual test suite name.  Remember to pick unique prefixes for
 // different instances.
-typedef testing::Types<char, int, unsigned int> MyTypes;
+using MyTypes = ::testing::Types<char, int, unsigned int>;
 INSTANTIATE_TYPED_TEST_SUITE_P(My, FooTest, MyTypes);
 
 // If the type list contains only one type, you can write that type

@@ -24,7 +24,7 @@ set(ABSL_INTERNAL_DLL_FILES
   "base/internal/low_level_alloc.cc"
   "base/internal/low_level_alloc.h"
   "base/internal/low_level_scheduling.h"
-  "base/internal/nullability_deprecated.h"
+  "base/internal/nullability_traits.h"
   "base/internal/per_thread_tls.h"
   "base/internal/poison.cc"
   "base/internal/poison.h"
@@ -159,8 +159,6 @@ set(ABSL_INTERNAL_DLL_FILES
   "hash/internal/hash.h"
   "hash/internal/hash.cc"
   "hash/internal/spy_hash_state.h"
-  "hash/internal/low_level_hash.h"
-  "hash/internal/low_level_hash.cc"
   "hash/internal/weakly_mixed_integer.h"
   "log/absl_check.h"
   "log/absl_log.h"
@@ -203,6 +201,7 @@ set(ABSL_INTERNAL_DLL_FILES
   "log/initialize.cc"
   "log/initialize.h"
   "log/log.h"
+  "log/log_entry.cc"
   "log/log_entry.h"
   "log/log_sink.cc"
   "log/log_sink.h"
@@ -217,10 +216,14 @@ set(ABSL_INTERNAL_DLL_FILES
   "numeric/int128.h"
   "numeric/internal/bits.h"
   "numeric/internal/representation.h"
+  "profiling/hashtable.cc"
+  "profiling/hashtable.h"
   "profiling/internal/exponential_biased.cc"
   "profiling/internal/exponential_biased.h"
   "profiling/internal/periodic_sampler.cc"
   "profiling/internal/periodic_sampler.h"
+  "profiling/internal/profile_builder.cc"
+  "profiling/internal/profile_builder.h"
   "profiling/internal/sample_recorder.h"
   "random/bernoulli_distribution.h"
   "random/beta_distribution.h"
@@ -718,8 +721,10 @@ int main() { return 0; }
 
 if(ABSL_INTERNAL_AT_LEAST_CXX20)
   set(ABSL_INTERNAL_CXX_STD_FEATURE cxx_std_20)
-else()
+elseif(ABSL_INTERNAL_AT_LEAST_CXX17)
   set(ABSL_INTERNAL_CXX_STD_FEATURE cxx_std_17)
+else()
+  message(FATAL_ERROR "The compiler defaults to or is configured for C++ < 17. C++ >= 17 is required and Abseil and all libraries that use Abseil must use the same C++ language standard")
 endif()
 
 function(absl_internal_dll_contains)
@@ -824,6 +829,9 @@ function(absl_make_dll)
       ${_dll_libs}
       ${ABSL_DEFAULT_LINKOPTS}
       $<$<BOOL:${ANDROID}>:-llog>
+      $<$<BOOL:${MINGW}>:-ladvapi32>
+      $<$<BOOL:${MINGW}>:-ldbghelp>
+      $<$<BOOL:${MINGW}>:-lbcrypt>
   )
   set_target_properties(${_dll} PROPERTIES
     LINKER_LANGUAGE "CXX"

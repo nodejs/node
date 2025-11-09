@@ -99,7 +99,7 @@ TEST_F(DisasmPpcTest, DisasmPPC) {
   COMPARE(addc(r9, r7, r9), "7d274814       addc    r9, r7, r9");
   COMPARE(addic(r3, r5, Operand(20)), "30650014       addic   r3, r5, 20");
   COMPARE(addi(r0, ip, Operand(63)), "380c003f       addi    r0, ip, 63");
-  COMPARE(add(r5, r7, r0), "7ca70214       add     r5, r7, r0");
+  COMPARE(add(r5, r7, r0), "7ca70214       add      r5, r7, r0");
   COMPARE(addze(r0, r0, LeaveOE, SetRC), "7c000195       addze.   r0, r0");
   COMPARE(andi(r0, r3, Operand(4)), "70600004       andi.   r0, r3, 4");
   COMPARE(and_(r3, r6, r5), "7cc32838       and     r3, r6, r5");

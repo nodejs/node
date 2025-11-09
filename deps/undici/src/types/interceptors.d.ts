@@ -9,6 +9,10 @@ declare namespace Interceptors {
   export type DumpInterceptorOpts = { maxSize?: number }
   export type RetryInterceptorOpts = RetryHandler.RetryOptions
   export type RedirectInterceptorOpts = { maxRedirections?: number }
+  export type DecompressInterceptorOpts = {
+    skipErrorResponses?: boolean
+    skipStatusCodes?: number[]
+  }
 
   export type ResponseErrorInterceptorOpts = { throwOnError: boolean }
   export type CacheInterceptorOpts = CacheHandler.CacheOptions
@@ -28,6 +32,7 @@ declare namespace Interceptors {
   export function dump (opts?: DumpInterceptorOpts): Dispatcher.DispatcherComposeInterceptor
   export function retry (opts?: RetryInterceptorOpts): Dispatcher.DispatcherComposeInterceptor
   export function redirect (opts?: RedirectInterceptorOpts): Dispatcher.DispatcherComposeInterceptor
+  export function decompress (opts?: DecompressInterceptorOpts): Dispatcher.DispatcherComposeInterceptor
   export function responseError (opts?: ResponseErrorInterceptorOpts): Dispatcher.DispatcherComposeInterceptor
   export function dns (opts?: DNSInterceptorOpts): Dispatcher.DispatcherComposeInterceptor
   export function cache (opts?: CacheInterceptorOpts): Dispatcher.DispatcherComposeInterceptor

@@ -71,8 +71,6 @@ export declare namespace Client {
     /** TODO */
     maxCachedSessions?: number;
     /** TODO */
-    maxRedirections?: number;
-    /** TODO */
     connect?: Partial<buildConnector.BuildOptions> | buildConnector.connector;
     /** TODO */
     maxRequestsPerClient?: number;

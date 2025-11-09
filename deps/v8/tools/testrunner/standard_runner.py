@@ -52,7 +52,7 @@ VARIANT_ALIASES = {
     # Additional variants, run on a subset of bots.
     'extra': [
         'jitless', 'nooptimization', 'no_wasm_traps', 'instruction_scheduling',
-        'always_sparkplug_and_stress_regexp_jit', 'turboshaft'
+        'always_sparkplug_and_stress_regexp_jit',
     ],
 }
 

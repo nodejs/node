@@ -20,12 +20,14 @@
 #include <openssl/err.h>
 #include <openssl/objects.h>
 #include <openssl/proverr.h>
+#include <openssl/self_test.h>
 #include "crypto/bn.h"
 #include "crypto/ec.h"
 #include "prov/implementations.h"
 #include "prov/providercommon.h"
 #include "prov/provider_ctx.h"
 #include "prov/securitycheck.h"
+#include "internal/fips.h"
 #include "internal/param_build_set.h"
 
 #ifndef FIPS_MODULE
@@ -1330,6 +1332,21 @@ static void *ec_gen(void *genctx, OSSL_CALLBACK *osslcb, void *cbarg)
     if (gctx->group_check != NULL)
         ret = ret && ossl_ec_set_check_group_type_from_name(ec,
                                                             gctx->group_check);
+#ifdef FIPS_MODULE
+    if (ret > 0
+            && !ossl_fips_self_testing()
+            && EC_KEY_get0_public_key(ec) != NULL
+            && EC_KEY_get0_private_key(ec) != NULL
+            && EC_KEY_get0_group(ec) != NULL) {
+        BN_CTX *bnctx = BN_CTX_new_ex(ossl_ec_key_get_libctx(ec));
+
+        ret = bnctx != NULL && ossl_ec_key_pairwise_check(ec, bnctx);
+        BN_CTX_free(bnctx);
+        if (ret <= 0)
+            ossl_set_error_state(OSSL_SELF_TEST_TYPE_PCT);
+    }
+#endif  /* FIPS_MODULE */
+
     if (ret)
         return ec;
 err:

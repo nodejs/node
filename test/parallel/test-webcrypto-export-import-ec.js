@@ -423,14 +423,14 @@ async function testImportRaw({ name, publicUsages }, namedCurve) {
       subtle.importKey(
         'spki',
         rsaPublic.export({ format: 'der', type: 'spki' }),
-        { name, hash: 'SHA-256', namedCurve: 'P-256' },
+        { name, namedCurve: 'P-256' },
         true, publicUsages), { message: /Invalid key type/ },
     ).then(common.mustCall());
     assert.rejects(
       subtle.importKey(
         'pkcs8',
         rsaPrivate.export({ format: 'der', type: 'pkcs8' }),
-        { name, hash: 'SHA-256', namedCurve: 'P-256' },
+        { name, namedCurve: 'P-256' },
         true, privateUsages), { message: /Invalid key type/ },
     ).then(common.mustCall());
   }
@@ -491,7 +491,7 @@ async function testImportRaw({ name, publicUsages }, namedCurve) {
         subtle.importKey(
           'pkcs8',
           pkcs8,
-          { name, hash: 'SHA-256', namedCurve },
+          { name, namedCurve },
           true, privateUsages), { name: 'DataError', message: /Invalid keyData/ },
       ).then(common.mustCall());
     }

@@ -179,6 +179,8 @@ The configuration currently reads the following top-level fields:
   "disableExperimentalSEAWarning": true, // Default: false
   "useSnapshot": false,  // Default: false
   "useCodeCache": true, // Default: false
+  "execArgv": ["--no-warnings", "--max-old-space-size=4096"], // Optional
+  "execArgvExtension": "env", // Default: "env", options: "none", "env", "cli"
   "assets": {  // Optional
     "a.dat": "/path/to/a.dat",
     "b.txt": "/path/to/b.txt"
@@ -219,7 +221,10 @@ executable, users can retrieve the assets using the [`sea.getAsset()`][] and
 The single-executable application can access the assets as follows:
 
 ```cjs
-const { getAsset, getAssetAsBlob, getRawAsset } = require('node:sea');
+const { getAsset, getAssetAsBlob, getRawAsset, getAssetKeys } = require('node:sea');
+// Get all asset keys.
+const keys = getAssetKeys();
+console.log(keys); // ['a.jpg', 'b.txt']
 // Returns a copy of the data in an ArrayBuffer.
 const image = getAsset('a.jpg');
 // Returns a string decoded from the asset as UTF8.
@@ -230,17 +235,17 @@ const blob = getAssetAsBlob('a.jpg');
 const raw = getRawAsset('a.jpg');
 ```
 
-See documentation of the [`sea.getAsset()`][], [`sea.getAssetAsBlob()`][] and [`sea.getRawAsset()`][]
-APIs for more information.
+See documentation of the [`sea.getAsset()`][], [`sea.getAssetAsBlob()`][],
+[`sea.getRawAsset()`][] and [`sea.getAssetKeys()`][] APIs for more information.
 
 ### Startup snapshot support
 
 The `useSnapshot` field can be used to enable startup snapshot support. In this
-case the `main` script would not be when the final executable is launched.
+case, the `main` script would not be executed when the final executable is launched.
 Instead, it would be run when the single executable application preparation
 blob is generated on the building machine. The generated preparation blob would
 then include a snapshot capturing the states initialized by the `main` script.
-The final executable with the preparation blob injected would deserialize
+The final executable, with the preparation blob injected, would deserialize
 the snapshot at run time.
 
 When `useSnapshot` is true, the main script must invoke the
@@ -275,6 +280,79 @@ scratch, Node.js would use the code cache to speed up the compilation, then
 execute the script, which would improve the startup performance.
 
 **Note:** `import()` does not work when `useCodeCache` is `true`.
+
+### Execution arguments
+
+The `execArgv` field can be used to specify Node.js-specific
+arguments that will be automatically applied when the single
+executable application starts. This allows application developers
+to configure Node.js runtime options without requiring end users
+to be aware of these flags.
+
+For example, the following configuration:
+
+```json
+{
+  "main": "/path/to/bundled/script.js",
+  "output": "/path/to/write/the/generated/blob.blob",
+  "execArgv": ["--no-warnings", "--max-old-space-size=2048"]
+}
+```
+
+will instruct the SEA to be launched with the `--no-warnings` and
+`--max-old-space-size=2048` flags. In the scripts embedded in the executable, these flags
+can be accessed using the `process.execArgv` property:
+
+```js
+// If the executable is launched with `sea user-arg1 user-arg2`
+console.log(process.execArgv);
+// Prints: ['--no-warnings', '--max-old-space-size=2048']
+console.log(process.argv);
+// Prints ['/path/to/sea', 'path/to/sea', 'user-arg1', 'user-arg2']
+```
+
+The user-provided arguments are in the `process.argv` array starting from index 2,
+similar to what would happen if the application is started with:
+
+```console
+node --no-warnings --max-old-space-size=2048 /path/to/bundled/script.js user-arg1 user-arg2
+```
+
+### Execution argument extension
+
+The `execArgvExtension` field controls how additional execution arguments can be
+provided beyond those specified in the `execArgv` field. It accepts one of three string values:
+
+* `"none"`: No extension is allowed. Only the arguments specified in `execArgv` will be used,
+  and the `NODE_OPTIONS` environment variable will be ignored.
+* `"env"`: _(Default)_ The `NODE_OPTIONS` environment variable can extend the execution arguments.
+  This is the default behavior to maintain backward compatibility.
+* `"cli"`: The executable can be launched with `--node-options="--flag1 --flag2"`, and those flags
+  will be parsed as execution arguments for Node.js instead of being passed to the user script.
+  This allows using arguments that are not supported by the `NODE_OPTIONS` environment variable.
+
+For example, with `"execArgvExtension": "cli"`:
+
+```json
+{
+  "main": "/path/to/bundled/script.js",
+  "output": "/path/to/write/the/generated/blob.blob",
+  "execArgv": ["--no-warnings"],
+  "execArgvExtension": "cli"
+}
+```
+
+The executable can be launched as:
+
+```console
+./my-sea --node-options="--trace-exit" user-arg1 user-arg2
+```
+
+This would be equivalent to running:
+
+```console
+node --no-warnings --trace-exit /path/to/bundled/script.js user-arg1 user-arg2
+```
 
 ## In the injected main script
 
@@ -354,6 +432,21 @@ writes to the returned array buffer is likely to result in a crash.
   `assets` field in the single-executable application configuration.
 * Returns: {ArrayBuffer}
 
+### `sea.getAssetKeys()`
+
+<!-- YAML
+added:
+  - v24.8.0
+  - v22.20.0
+-->
+
+* Returns {string\[]} An array containing all the keys of the assets
+  embedded in the executable. If no assets are embedded, returns an empty array.
+
+This method can be used to retrieve an array of all the keys of assets
+embedded into the single-executable application.
+An error is thrown when not running inside a single-executable application.
+
 ### `require(id)` in the injected main script is not file based
 
 `require()` in the injected main script is not the same as the [`require()`][]
@@ -428,6 +521,7 @@ to help us document them.
 [`require.main`]: modules.md#accessing-the-main-module
 [`sea.getAsset()`]: #seagetassetkey-encoding
 [`sea.getAssetAsBlob()`]: #seagetassetasblobkey-options
+[`sea.getAssetKeys()`]: #seagetassetkeys
 [`sea.getRawAsset()`]: #seagetrawassetkey
 [`v8.startupSnapshot.setDeserializeMainFunction()`]: v8.md#v8startupsnapshotsetdeserializemainfunctioncallback-data
 [`v8.startupSnapshot` API]: v8.md#startup-snapshot-api

@@ -120,6 +120,10 @@ the Resource Timeline. If `name` is provided, removes only the named resource.
 added:
  - v14.10.0
  - v12.19.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/60370
+    description: Added `perf_hooks.eventLoopUtilization` alias.
 -->
 
 * `utilization1` {Object} The result of a previous call to
@@ -131,62 +135,9 @@ added:
   * `active` {number}
   * `utilization` {number}
 
-The `eventLoopUtilization()` method returns an object that contains the
-cumulative duration of time the event loop has been both idle and active as a
-high resolution milliseconds timer. The `utilization` value is the calculated
-Event Loop Utilization (ELU).
+This is an alias of [`perf_hooks.eventLoopUtilization()`][].
 
-If bootstrapping has not yet finished on the main thread the properties have
-the value of `0`. The ELU is immediately available on [Worker threads][] since
-bootstrap happens within the event loop.
-
-Both `utilization1` and `utilization2` are optional parameters.
-
-If `utilization1` is passed, then the delta between the current call's `active`
-and `idle` times, as well as the corresponding `utilization` value are
-calculated and returned (similar to [`process.hrtime()`][]).
-
-If `utilization1` and `utilization2` are both passed, then the delta is
-calculated between the two arguments. This is a convenience option because,
-unlike [`process.hrtime()`][], calculating the ELU is more complex than a
-single subtraction.
-
-ELU is similar to CPU utilization, except that it only measures event loop
-statistics and not CPU usage. It represents the percentage of time the event
-loop has spent outside the event loop's event provider (e.g. `epoll_wait`).
-No other CPU idle time is taken into consideration. The following is an example
-of how a mostly idle process will have a high ELU.
-
-```mjs
-import { eventLoopUtilization } from 'node:perf_hooks';
-import { spawnSync } from 'node:child_process';
-
-setImmediate(() => {
-  const elu = eventLoopUtilization();
-  spawnSync('sleep', ['5']);
-  console.log(eventLoopUtilization(elu).utilization);
-});
-```
-
-```cjs
-'use strict';
-const { eventLoopUtilization } = require('node:perf_hooks').performance;
-const { spawnSync } = require('node:child_process');
-
-setImmediate(() => {
-  const elu = eventLoopUtilization();
-  spawnSync('sleep', ['5']);
-  console.log(eventLoopUtilization(elu).utilization);
-});
-```
-
-Although the CPU is mostly idle while running this script, the value of
-`utilization` is `1`. This is because the call to
-[`child_process.spawnSync()`][] blocks the event loop from proceeding.
-
-Passing in a user-defined object instead of the result of a previous call to
-`eventLoopUtilization()` will lead to undefined behavior. The return values
-are not guaranteed to reflect any correct state of the event loop.
+_This property is an extension by Node.js. It is not available in Web browsers._
 
 ### `performance.getEntries()`
 
@@ -424,6 +375,9 @@ which the current `node` process began, measured in Unix time.
 <!-- YAML
 added: v8.5.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/60370
+    description: Added `perf_hooks.timerify` alias.
   - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/37475
     description: Added the histogram option.
@@ -439,62 +393,9 @@ changes:
     `perf_hooks.createHistogram()` that will record runtime durations in
     nanoseconds.
 
+This is an alias of [`perf_hooks.timerify()`][].
+
 _This property is an extension by Node.js. It is not available in Web browsers._
-
-Wraps a function within a new function that measures the running time of the
-wrapped function. A `PerformanceObserver` must be subscribed to the `'function'`
-event type in order for the timing details to be accessed.
-
-```mjs
-import { performance, PerformanceObserver } from 'node:perf_hooks';
-
-function someFunction() {
-  console.log('hello world');
-}
-
-const wrapped = performance.timerify(someFunction);
-
-const obs = new PerformanceObserver((list) => {
-  console.log(list.getEntries()[0].duration);
-
-  performance.clearMarks();
-  performance.clearMeasures();
-  obs.disconnect();
-});
-obs.observe({ entryTypes: ['function'] });
-
-// A performance timeline entry will be created
-wrapped();
-```
-
-```cjs
-const {
-  performance,
-  PerformanceObserver,
-} = require('node:perf_hooks');
-
-function someFunction() {
-  console.log('hello world');
-}
-
-const wrapped = performance.timerify(someFunction);
-
-const obs = new PerformanceObserver((list) => {
-  console.log(list.getEntries()[0].duration);
-
-  performance.clearMarks();
-  performance.clearMeasures();
-  obs.disconnect();
-});
-obs.observe({ entryTypes: ['function'] });
-
-// A performance timeline entry will be created
-wrapped();
-```
-
-If the wrapped function returns a promise, a finally handler will be attached
-to the promise and the duration will be reported once the finally handler is
-invoked.
 
 ### `performance.toJSON()`
 
@@ -1722,6 +1623,78 @@ added:
 
 Returns a {RecordableHistogram}.
 
+## `perf_hooks.eventLoopUtilization([utilization1[, utilization2]])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `utilization1` {Object} The result of a previous call to
+  `eventLoopUtilization()`.
+* `utilization2` {Object} The result of a previous call to
+  `eventLoopUtilization()` prior to `utilization1`.
+* Returns: {Object}
+  * `idle` {number}
+  * `active` {number}
+  * `utilization` {number}
+
+The `eventLoopUtilization()` function returns an object that contains the
+cumulative duration of time the event loop has been both idle and active as a
+high resolution milliseconds timer. The `utilization` value is the calculated
+Event Loop Utilization (ELU).
+
+If bootstrapping has not yet finished on the main thread the properties have
+the value of `0`. The ELU is immediately available on [Worker threads][] since
+bootstrap happens within the event loop.
+
+Both `utilization1` and `utilization2` are optional parameters.
+
+If `utilization1` is passed, then the delta between the current call's `active`
+and `idle` times, as well as the corresponding `utilization` value are
+calculated and returned (similar to [`process.hrtime()`][]).
+
+If `utilization1` and `utilization2` are both passed, then the delta is
+calculated between the two arguments. This is a convenience option because,
+unlike [`process.hrtime()`][], calculating the ELU is more complex than a
+single subtraction.
+
+ELU is similar to CPU utilization, except that it only measures event loop
+statistics and not CPU usage. It represents the percentage of time the event
+loop has spent outside the event loop's event provider (e.g. `epoll_wait`).
+No other CPU idle time is taken into consideration. The following is an example
+of how a mostly idle process will have a high ELU.
+
+```mjs
+import { eventLoopUtilization } from 'node:perf_hooks';
+import { spawnSync } from 'node:child_process';
+
+setImmediate(() => {
+  const elu = eventLoopUtilization();
+  spawnSync('sleep', ['5']);
+  console.log(eventLoopUtilization(elu).utilization);
+});
+```
+
+```cjs
+'use strict';
+const { eventLoopUtilization } = require('node:perf_hooks');
+const { spawnSync } = require('node:child_process');
+
+setImmediate(() => {
+  const elu = eventLoopUtilization();
+  spawnSync('sleep', ['5']);
+  console.log(eventLoopUtilization(elu).utilization);
+});
+```
+
+Although the CPU is mostly idle while running this script, the value of
+`utilization` is `1`. This is because the call to
+[`child_process.spawnSync()`][] blocks the event loop from proceeding.
+
+Passing in a user-defined object instead of the result of a previous call to
+`eventLoopUtilization()` will lead to undefined behavior. The return values
+are not guaranteed to reflect any correct state of the event loop.
+
 ## `perf_hooks.monitorEventLoopDelay([options])`
 
 <!-- YAML
@@ -1774,6 +1747,76 @@ console.log(h.percentiles);
 console.log(h.percentile(50));
 console.log(h.percentile(99));
 ```
+
+## `perf_hooks.timerify(fn[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `fn` {Function}
+* `options` {Object}
+  * `histogram` {RecordableHistogram} A histogram object created using
+    `perf_hooks.createHistogram()` that will record runtime durations in
+    nanoseconds.
+
+_This property is an extension by Node.js. It is not available in Web browsers._
+
+Wraps a function within a new function that measures the running time of the
+wrapped function. A `PerformanceObserver` must be subscribed to the `'function'`
+event type in order for the timing details to be accessed.
+
+```mjs
+import { timerify, performance, PerformanceObserver } from 'node:perf_hooks';
+
+function someFunction() {
+  console.log('hello world');
+}
+
+const wrapped = timerify(someFunction);
+
+const obs = new PerformanceObserver((list) => {
+  console.log(list.getEntries()[0].duration);
+
+  performance.clearMarks();
+  performance.clearMeasures();
+  obs.disconnect();
+});
+obs.observe({ entryTypes: ['function'] });
+
+// A performance timeline entry will be created
+wrapped();
+```
+
+```cjs
+const {
+  timerify,
+  performance,
+  PerformanceObserver,
+} = require('node:perf_hooks');
+
+function someFunction() {
+  console.log('hello world');
+}
+
+const wrapped = timerify(someFunction);
+
+const obs = new PerformanceObserver((list) => {
+  console.log(list.getEntries()[0].duration);
+
+  performance.clearMarks();
+  performance.clearMeasures();
+  obs.disconnect();
+});
+obs.observe({ entryTypes: ['function'] });
+
+// A performance timeline entry will be created
+wrapped();
+```
+
+If the wrapped function returns a promise, a finally handler will be attached
+to the promise and the duration will be reported once the finally handler is
+invoked.
 
 ## Class: `Histogram`
 
@@ -2306,6 +2349,8 @@ dns.promises.resolve('localhost');
 [Worker threads]: worker_threads.md#worker-threads
 [`'exit'`]: process.md#event-exit
 [`child_process.spawnSync()`]: child_process.md#child_processspawnsynccommand-args-options
+[`perf_hooks.eventLoopUtilization()`]: #perf_hookseventlooputilizationutilization1-utilization2
+[`perf_hooks.timerify()`]: #perf_hookstimerifyfn-options
 [`process.hrtime()`]: process.md#processhrtimetime
 [`timeOrigin`]: https://w3c.github.io/hr-time/#dom-performance-timeorigin
 [`window.performance.toJSON`]: https://developer.mozilla.org/en-US/docs/Web/API/Performance/toJSON

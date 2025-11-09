@@ -491,7 +491,26 @@ test('Custom errors', () => {
 });
 
 test('Verify that throws() and doesNotThrow() throw on non-functions', () => {
-  const testBlockTypeError = (method, fn) => {
+  [
+    [assert.throws, 'string'],
+    [assert.doesNotThrow, 'string'],
+    [assert.throws, 1],
+    [assert.doesNotThrow, 1],
+    [assert.throws, true],
+    [assert.doesNotThrow, true],
+    [assert.throws, false],
+    [assert.doesNotThrow, false],
+    [assert.throws, []],
+    [assert.doesNotThrow, []],
+    [assert.throws, {}],
+    [assert.doesNotThrow, {}],
+    [assert.throws, /foo/],
+    [assert.doesNotThrow, /foo/],
+    [assert.throws, null],
+    [assert.doesNotThrow, null],
+    [assert.throws, undefined],
+    [assert.doesNotThrow, undefined],
+  ].forEach(([method, fn]) => {
     assert.throws(
       () => method(fn),
       {
@@ -501,26 +520,7 @@ test('Verify that throws() and doesNotThrow() throw on non-functions', () => {
                  invalidArgTypeHelper(fn)
       }
     );
-  };
-
-  testBlockTypeError(assert.throws, 'string');
-  testBlockTypeError(assert.doesNotThrow, 'string');
-  testBlockTypeError(assert.throws, 1);
-  testBlockTypeError(assert.doesNotThrow, 1);
-  testBlockTypeError(assert.throws, true);
-  testBlockTypeError(assert.doesNotThrow, true);
-  testBlockTypeError(assert.throws, false);
-  testBlockTypeError(assert.doesNotThrow, false);
-  testBlockTypeError(assert.throws, []);
-  testBlockTypeError(assert.doesNotThrow, []);
-  testBlockTypeError(assert.throws, {});
-  testBlockTypeError(assert.doesNotThrow, {});
-  testBlockTypeError(assert.throws, /foo/);
-  testBlockTypeError(assert.doesNotThrow, /foo/);
-  testBlockTypeError(assert.throws, null);
-  testBlockTypeError(assert.doesNotThrow, null);
-  testBlockTypeError(assert.throws, undefined);
-  testBlockTypeError(assert.doesNotThrow, undefined);
+  });
 });
 
 test('https://github.com/nodejs/node/issues/3275', () => {
@@ -582,6 +582,7 @@ test('NaN is handled correctly', () => {
 });
 
 test('Test strict assert', () => {
+  // eslint-disable-next-line node-core/must-call-assert
   const { strict } = require('assert');
 
   strict.throws(() => strict.equal(1, true), strict.AssertionError);
@@ -624,7 +625,7 @@ test('Test strict assert', () => {
       code: 'ERR_ASSERTION',
       constructor: strict.AssertionError,
       message: 'The expression evaluated to a falsy value:\n\n  ' +
-               "strict.ok(\n    typeof 123 === 'string'\n  )\n"
+               'strict.ok(\n'
     }
   );
   Error.stackTraceLimit = tmpLimit;
@@ -904,10 +905,9 @@ test('Additional asserts', () => {
   assert.throws(
     () => assert(false, Symbol('foo')),
     {
-      code: 'ERR_ASSERTION',
-      constructor: assert.AssertionError,
-      generatedMessage: false,
-      message: 'Symbol(foo)'
+      code: 'ERR_INVALID_ARG_TYPE',
+      constructor: TypeError,
+      message: /"message" argument.+Symbol\(foo\)/
     }
   );
 
@@ -1017,20 +1017,20 @@ test('Additional asserts', () => {
     }
   );
 
-  // Works in eval.
+  // Works in eval. Source code in eval can be shown.
   assert.throws(
     () => new Function('assert', 'assert(1 === 2);')(assert),
     {
       code: 'ERR_ASSERTION',
       constructor: assert.AssertionError,
-      message: 'false == true'
+      message: 'The expression evaluated to a falsy value:\n\n  assert(1 === 2)\n'
     }
   );
   assert.throws(
     () => eval('console.log("FOO");\nassert.ok(1 === 2);'),
     {
       code: 'ERR_ASSERTION',
-      message: 'false == true'
+      message: 'The expression evaluated to a falsy value:\n\n  assert.ok(1 === 2)\n'
     }
   );
 
@@ -1592,7 +1592,191 @@ test('Additional assert', () => {
 });
 
 test('assert/strict exists', () => {
+  // eslint-disable-next-line node-core/must-call-assert
   assert.strictEqual(require('assert/strict'), assert.strict);
+});
+
+test('Printf-like format strings as error message', () => {
+  assert.throws(
+    () => assert.equal(1, 2, 'The answer to all questions is %i', 42),
+    /The answer to all questions is 42/
+  );
+
+  assert.throws(
+    () => assert.strictEqual(1, 2, 'The answer to all questions is %i', 42),
+    /The answer to all questions is 42/
+  );
+
+  assert.throws(
+    () => assert.notEqual(1, 1, 'The answer to all questions is %i', 42),
+    /The answer to all questions is 42/
+  );
+
+  assert.throws(
+    () => assert.notStrictEqual(1, 1, 'The answer to all questions is %i', 42),
+    /The answer to all questions is 42/
+  );
+
+  assert.throws(
+    () => assert.deepEqual(1, 2, 'The answer to all questions is %i', 42),
+    /The answer to all questions is 42/
+  );
+
+  assert.throws(
+    () => assert.notDeepEqual(1, 1, 'The answer to all questions is %i', 42),
+    /The answer to all questions is 42/
+  );
+
+  assert.throws(
+    () => assert.deepStrictEqual(1, 2, 'The answer to all questions is %i', 42),
+    /The answer to all questions is 42/
+  );
+
+  assert.throws(
+    () => assert.notDeepStrictEqual(1, 1, 'The answer to all questions is %i', 42),
+    /The answer to all questions is 42/
+  );
+
+  assert.throws(
+    () => assert.partialDeepStrictEqual(1, 2, 'The answer to all questions is %i', 42),
+    /The answer to all questions is 42/
+  );
+
+  assert.throws(
+    () => assert.match('foo', /bar/, 'The answer to all questions is %i', 42),
+    /The answer to all questions is 42/
+  );
+
+  assert.throws(
+    () => assert.doesNotMatch('foo', /foo/, 'The answer to all questions is %i', 42),
+    /The answer to all questions is 42/
+  );
+});
+
+test('Functions as error message', () => {
+  function errorMessage(actual, expected) {
+    return `Nice message including ${actual} and ${expected}`;
+  }
+  assert.throws(
+    () => assert.equal(1, 2, errorMessage),
+    { message: 'Nice message including 1 and 2' }
+  );
+
+  assert.throws(
+    () => assert.strictEqual(1, 2, errorMessage),
+    // TODO(BridgeAR): Align input arguments with generated message for all
+    // methods.
+    // TODO(BridgeAR): Check how to handle this for custom messages. Do
+    // we need this? Should it be skipped for methods like these?
+    { message: 'Nice message including 1 and 2\n\n1 !== 2\n' }
+  );
+
+  assert.throws(
+    () => assert.notEqual(1, 1, errorMessage),
+    { message: 'Nice message including 1 and 1' }
+  );
+
+  assert.throws(
+    () => assert.notStrictEqual(1, 1, errorMessage),
+    { message: 'Nice message including 1 and 1' }
+  );
+
+  assert.throws(
+    () => assert.deepEqual(1, 2, errorMessage),
+    { message: 'Nice message including 1 and 2' }
+  );
+
+  assert.throws(
+    () => assert.notDeepEqual(1, 1, errorMessage),
+    { message: 'Nice message including 1 and 1' }
+  );
+
+  assert.throws(
+    () => assert.deepStrictEqual(1, 2, errorMessage),
+    { message: 'Nice message including 1 and 2\n\n1 !== 2\n' }
+  );
+
+  assert.throws(
+    () => assert.notDeepStrictEqual(1, 1, errorMessage),
+    { message: 'Nice message including 1 and 1' }
+  );
+
+  assert.throws(
+    () => assert.partialDeepStrictEqual(1, 2, errorMessage),
+    { message: 'Nice message including 1 and 2\n\n1 !== 2\n' }
+  );
+
+  assert.throws(
+    () => assert.match('foo', /bar/, errorMessage),
+    { message: 'Nice message including foo and /bar/' }
+  );
+
+  assert.throws(
+    () => assert.doesNotMatch('foo', /foo/, errorMessage),
+    { message: 'Nice message including foo and /foo/' }
+  );
+});
+
+test('Ambiguous error messages fail', () => {
+  function errorMessage(actual, expected) {
+    return `Nice message including ${actual} and ${expected}`;
+  }
+
+  assert.throws(
+    () => assert.doesNotMatch('foo', /foo/, errorMessage, 'foobar'),
+    {
+      code: 'ERR_AMBIGUOUS_ARGUMENT',
+      message: /errorMessage/
+    }
+  );
+
+  assert.throws(
+    () => assert.doesNotMatch('foo', /foo/, new Error('baz'), 'foobar'),
+    {
+      code: 'ERR_AMBIGUOUS_ARGUMENT',
+      message: /baz/
+    }
+  );
+});
+
+test('Faulty message functions', () => {
+  assert.throws(
+    () => assert.doesNotMatch('foo', /foo/, (a, b) => 123),
+    {
+      code: 'ERR_ASSERTION',
+      message: "'foo' doesNotMatch /foo/"
+    }
+  );
+
+  assert.throws(
+    () => assert.match('foo', /123/, (a, b) => { new Error('baz'); }),
+    {
+      code: 'ERR_ASSERTION',
+      message: "'foo' match /123/"
+    }
+  );
+});
+
+test('Functions as error message', () => {
+  function errorMessage(actual, expected) {
+    return `Nice message including ${actual} and ${expected}`;
+  }
+
+  assert.throws(
+    () => assert.equal('foo', 'bar', errorMessage),
+    {
+      code: 'ERR_ASSERTION',
+      message: /Nice message including foo and bar/
+    }
+  );
+
+  assert.throws(
+    () => assert.doesNotMatch('foo', /foo/, errorMessage),
+    {
+      code: 'ERR_ASSERTION',
+      message: /Nice message including foo and \/foo\//
+    }
+  );
 });
 
 /* eslint-enable no-restricted-syntax */

@@ -123,7 +123,7 @@ class InstructionSelectorTest : public TestWithNativeContextAndZone {
 
       return zone->New<CallDescriptor>(  // --
           CallDescriptor::kCallAddress,  // kind
-          kDefaultCodeEntrypointTag,     // tag
+          kCodeEntrypointTagForTesting,  // tag
           target_type,                   // target MachineType
           target_loc,                    // target location
           locations.Get(),               // location_sig

@@ -186,7 +186,9 @@ added:
 > Stability: 1 - Experimental
 
  <!-- YAML
-added: v24.5.0
+added:
+ - v24.5.0
+ - v22.19.0
 -->
 
 ```js
@@ -208,7 +210,9 @@ blockList.fromJSON(JSON.stringify(data));
 > Stability: 1 - Experimental
 
  <!-- YAML
-added: v24.5.0
+added:
+ - v24.5.0
+ - v22.19.0
 -->
 
 * Returns Blocklist.rules
@@ -1901,7 +1905,7 @@ added:
 -->
 
 Gets the current default value of the `autoSelectFamilyAttemptTimeout` option of [`socket.connect(options)`][].
-The initial default value is `250` or the value specified via the command line
+The initial default value is `500` or the value specified via the command line
 option `--network-family-autoselection-attempt-timeout`.
 
 * Returns: {number} The current default value of the `autoSelectFamilyAttemptTimeout` option.
