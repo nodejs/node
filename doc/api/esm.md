@@ -502,6 +502,37 @@ a second argument:
 * `parent` {string|URL} An optional absolute parent module URL to resolve from.
   **Default:** `import.meta.url`
 
+### `import.meta.sync(specifier)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.0 - Early development
+
+* `specifier` {string} The module specifier to synchronously import.
+* Returns: {Object} The module namespace object.
+
+`import.meta.sync()` provides a way to synchronously import ES modules,
+offering feature parity with `require()` for conditional synchronous imports
+in ES modules. This is particularly useful when migrating from CommonJS to ES modules
+while maintaining the ability to conditionally load dependencies in synchronous code paths.
+
+The primary use case is conditional synchronous importing:
+
+```js
+let mod;
+try {
+  mod = import.meta.sync('./module-a.js');
+} catch {
+  mod = import.meta.sync('./module-b.js');
+}
+```
+
+If the imported module or any of its
+dependencies use top-level `await`, `import.meta.sync()` will throw an
+[`ERR_REQUIRE_ASYNC_MODULE`][] error.
+
 ## Interoperability with CommonJS
 
 ### `import` statements
@@ -1304,6 +1335,7 @@ resolution for ESM specifiers is [commonjs-extension-resolution-loader][].
 [`"exports"`]: packages.md#exports
 [`"type"`]: packages.md#type
 [`--input-type`]: cli.md#--input-typetype
+[`ERR_REQUIRE_ASYNC_MODULE`]: #err_require_async_module
 [`data:` URLs]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
 [`export`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/export
 [`import()`]: #import-expressions
