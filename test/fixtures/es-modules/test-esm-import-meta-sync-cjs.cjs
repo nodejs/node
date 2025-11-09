@@ -1,0 +1,1 @@
+exports.cjsValue = 'CJS works';

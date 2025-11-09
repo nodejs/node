@@ -184,6 +184,8 @@ class ModuleWrap : public BaseObject {
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetImportMetaResolveInitializer(
       const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetImportMetaSyncInitializer(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetInitializeImportMetaObjectCallback(
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static v8::MaybeLocal<v8::Value> SyntheticModuleEvaluationStepsCallback(

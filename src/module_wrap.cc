@@ -1220,6 +1220,18 @@ void ModuleWrap::SetImportMetaResolveInitializer(
   realm->set_host_import_meta_resolve_initializer(initializer);
 }
 
+void ModuleWrap::SetImportMetaSyncInitializer(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  Realm* realm = Realm::GetCurrent(args);
+  HandleScope handle_scope(isolate);
+
+  CHECK_EQ(args.Length(), 1);
+  CHECK(args[0]->IsFunction());
+  Local<Function> initializer = args[0].As<Function>();
+  realm->set_host_import_meta_sync_initializer(initializer);
+}
+
 static void ImportMetaResolveLazyGetter(
     Local<v8::Name> name, const PropertyCallbackInfo<Value>& info) {
   Isolate* isolate = info.GetIsolate();
@@ -1245,6 +1257,42 @@ static void ImportMetaResolveLazyGetter(
   }
 
   // This should be createImportMetaResolve(). The loader argument is already
+  // bound at initialization time.
+  Local<Value> args[] = {info.Data()};
+  Local<Value> ret;
+  if (!initializer
+           ->Call(context, Undefined(realm->isolate()), arraysize(args), args)
+           .ToLocal(&ret)) {
+    return;
+  }
+  info.GetReturnValue().Set(ret);
+}
+
+static void ImportMetaSyncLazyGetter(Local<v8::Name> name,
+                                     const PropertyCallbackInfo<Value>& info) {
+  Isolate* isolate = info.GetIsolate();
+  Local<Value> receiver_val = info.This();
+  if (!receiver_val->IsObject()) {
+    THROW_ERR_INVALID_INVOCATION(isolate);
+    return;
+  }
+  Local<Object> receiver = receiver_val.As<Object>();
+  Local<Context> context;
+  if (!receiver->GetCreationContext().ToLocal(&context)) {
+    THROW_ERR_INVALID_INVOCATION(isolate);
+    return;
+  }
+  Realm* realm = Realm::GetCurrent(context);
+  if (realm == nullptr) {
+    THROW_ERR_INVALID_INVOCATION(isolate);
+  }
+  Local<Function> initializer = realm->host_import_meta_sync_initializer();
+  if (initializer.IsEmpty()) {
+    THROW_ERR_INVALID_INVOCATION(isolate);
+    return;
+  }
+
+  // This should be createImportMetaSync(). The loader argument is already
   // bound at initialization time.
   Local<Value> args[] = {info.Data()};
   Local<Value> ret;
@@ -1356,6 +1404,18 @@ static Maybe<void> DefaultImportMetaObjectInitializer(Realm* realm,
       meta->SetLazyDataProperty(context,
                                 FIXED_ONE_BYTE_STRING(isolate, "resolve"),
                                 ImportMetaResolveLazyGetter,
+                                url)
+          .IsNothing()) {
+    return Nothing<void>();
+  }
+
+  // Set a lazy getter of import.meta.sync
+  Local<Function> import_meta_sync_initializer =
+      realm->host_import_meta_sync_initializer();
+  if (!import_meta_sync_initializer.IsEmpty() &&
+      meta->SetLazyDataProperty(context,
+                                FIXED_ONE_BYTE_STRING(isolate, "sync"),
+                                ImportMetaSyncLazyGetter,
                                 url)
           .IsNothing()) {
     return Nothing<void>();
@@ -1631,6 +1691,10 @@ void ModuleWrap::CreatePerIsolateProperties(IsolateData* isolate_data,
             SetImportMetaResolveInitializer);
   SetMethod(isolate,
             target,
+            "setImportMetaSyncInitializer",
+            SetImportMetaSyncInitializer);
+  SetMethod(isolate,
+            target,
             "createRequiredModuleFacade",
             CreateRequiredModuleFacade);
   SetMethod(isolate, target, "throwIfPromiseRejected", ThrowIfPromiseRejected);
@@ -1683,6 +1747,7 @@ void ModuleWrap::RegisterExternalReferences(
   registry->Register(SetImportModuleDynamicallyCallback);
   registry->Register(SetInitializeImportMetaObjectCallback);
   registry->Register(SetImportMetaResolveInitializer);
+  registry->Register(SetImportMetaSyncInitializer);
   registry->Register(ThrowIfPromiseRejected);
 }
 }  // namespace loader
