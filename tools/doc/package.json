@@ -5,6 +5,7 @@
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
     "@nodejs/doc-kit": "github:nodejs/doc-kit#d980054cf97d367f48d27b0aa9126de94f0251f8"
 =======
     "@nodejs/doc-kit": "github:nodejs/doc-kit#189a0a88158f9feee8c7007b0250d637acdf77fd"
@@ -15,5 +16,8 @@
 =======
     "@nodejs/doc-kit": "github:nodejs/doc-kit#dca59d63bff0ada59fad2fb739079b38c5e9bc66"
 >>>>>>> 1e2e9f7fda (deps: updated-doc-kit version)
+=======
+    "@nodejs/doc-kit": "github:nodejs/doc-kit#0a64160684293efe445348293497df556e304abb"
+>>>>>>> 5657860fb0 (doc,tool: updated version of doc-kit)
   }
 }
