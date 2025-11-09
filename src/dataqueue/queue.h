@@ -4,6 +4,7 @@
 
 #include <base_object.h>
 #include <memory_tracker.h>
+#include <env.h>
 #include <node.h>
 #include <node_bob.h>
 #include <node_file.h>
