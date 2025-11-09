@@ -4224,6 +4224,9 @@ npx codemod@latest @nodejs/repl-builtin-modules
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/60658
+    description: End-of-Life.
   - version:
       - v24.2.0
       - v22.17.0
@@ -4232,7 +4235,7 @@ changes:
     description: Runtime deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
 The `node:_tls_common` and `node:_tls_wrap` modules are deprecated as they should be considered
 an internal nodejs implementation rather than a public facing API, use `node:tls` instead.
