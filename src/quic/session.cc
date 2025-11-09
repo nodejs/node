@@ -1404,17 +1404,10 @@ bool Session::is_destroyed_or_closing() const {
 
 void Session::Close(CloseMethod method) {
   if (is_destroyed()) return;
-  // auto& stats_ = impl_->stats_;
 
   if (impl_->last_error_) {
     Debug(this, "Closing with error: %s", impl_->last_error_);
   }
-
-  // This is done already in the implmentation
-  // STAT_RECORD_TIMESTAMP(Stats, closing_at);
-  // The next line would prevent,
-  // that close of the implementation is executed!
-  // impl_->state_->closing = 1;
 
   // With both the DEFAULT and SILENT options, we will proceed to closing
   // the session immediately. All open streams will be immediately destroyed
@@ -1469,9 +1462,6 @@ void Session::FinishClose() {
   // and as a result of, Close()
   // being called first.
   DCHECK(!is_destroyed());
-  // The next line does not make sense, as in the implementation
-  // is also checking if closing is not in progress
-  // DCHECK(impl_->state_->closing);
 
   // If impl_->Close() returns true, then the session can be destroyed
   // immediately without round-tripping through JavaScript.
