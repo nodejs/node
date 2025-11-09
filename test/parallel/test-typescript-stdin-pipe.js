@@ -13,7 +13,7 @@ console.log(message);
 `;
 
 
-const [cmd, opts] = common.escapePOSIXShell`echo ${tsCode} | ${process.execPath} /dev/stdin`;
+const [cmd, opts] = common.escapePOSIXShell`printf "${tsCode}" | ${process.execPath} /dev/stdin`;
 
 exec(cmd, opts, common.mustSucceed((stdout, stderr) => {
   assert.strictEqual(stdout.trim(), 'JavaScript from pipe');
