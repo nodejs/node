@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const Countdown = require('../common/countdown');
 const assert = require('assert');
 const { Worker } = require('worker_threads');

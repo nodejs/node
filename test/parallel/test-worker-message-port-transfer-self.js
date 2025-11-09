@@ -39,6 +39,6 @@ port2.onmessage = common.mustCall((message) => {
     const inspectedPort2 = util.inspect(port2);
     assert(inspectedPort1.includes('active: false'), inspectedPort1);
     assert(inspectedPort2.includes('active: false'), inspectedPort2);
-  }, 10));
+  }, 1));
 });
 port1.postMessage(2);
