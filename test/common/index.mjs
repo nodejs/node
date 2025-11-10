@@ -47,6 +47,7 @@ const {
   skipIfInspectorDisabled,
   skipIfSQLiteMissing,
   spawnPromisified,
+  sleepSync,
 } = common;
 
 const getPort = () => common.PORT;
@@ -97,4 +98,5 @@ export {
   skipIfInspectorDisabled,
   skipIfSQLiteMissing,
   spawnPromisified,
+  sleepSync,
 };
