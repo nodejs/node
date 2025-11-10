@@ -51,7 +51,12 @@ child.on('message', (msg) => {
     const match = msg.match(/script ready (\d+)/);
     if (match) {
       firstGrandchildPid = match[1];  // This is the first grandchild
-      writeFileSync(indexPath, indexContents);
+      const writeDelay = 1000;  // Delay to reduce the chance of fs events coalescing
+      console.log(`[PARENT] writing to restart ${firstGrandchildPid} after ${writeDelay}ms`);
+      setTimeout(() => {
+        console.log(`[PARENT] writing to ${indexPath} to restart ${firstGrandchildPid}`);
+        writeFileSync(indexPath, indexContents);
+      }, writeDelay);
     }
   }
 });
