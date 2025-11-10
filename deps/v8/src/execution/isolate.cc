@@ -867,6 +867,9 @@ class CallSiteBuilder {
     DCHECK_GT(index_, 0);
     Tagged<CallSiteInfo> info =
         Tagged<CallSiteInfo>::cast(elements_->get(index_ - 1));
+#if V8_ENABLE_WEBASSEMBLY
+    if (info->IsWasm()) return;
+#endif
     info->set_flags(info->flags() | CallSiteInfo::kIsConstructor);
   }
 
