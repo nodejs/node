@@ -4,6 +4,7 @@
 
 #include <async_wrap.h>
 #include <base_object.h>
+#include <v8.h>
 #include <env.h>
 #include <memory_tracker.h>
 #include <node.h>
@@ -11,7 +12,6 @@
 #include <node_file.h>
 #include <stream_base.h>
 #include <uv.h>
-#include <v8.h>
 
 #include <memory>
 #include <optional>
