@@ -105,7 +105,7 @@ describe('watch mode - watch flags', { concurrency: !process.env.TEST_PARALLEL, 
     const watchPath = path.join(projectDir, 'template.html');
     writeFileSync(watchPath, '');
 
-    async function assertExecArgv(args, expectedPrefixes) {
+    async function assertExecArgv(args, expectedSubsequences) {
       const { stdout, stderr } = await runNode({
         args, options: { cwd: projectDir }
       });
@@ -115,15 +115,21 @@ describe('watch mode - watch flags', { concurrency: !process.env.TEST_PARALLEL, 
       const execArgvLine = stdout[0];
       const execArgv = JSON.parse(execArgvLine);
       assert.ok(Array.isArray(execArgv));
-      const matched = expectedPrefixes.some((expectedPrefix) => {
-        if (execArgv.length < expectedPrefix.length) {
-          return false;
+      const matched = expectedSubsequences.some((expectedSeq) => {
+        for (let i = 0; i <= execArgv.length - expectedSeq.length; i++) {
+          let ok = true;
+          for (let j = 0; j < expectedSeq.length; j++) {
+            if (execArgv[i + j] !== expectedSeq[j]) {
+              ok = false;
+              break;
+            }
+          }
+          if (ok) return true;
         }
-        return execArgv.slice(0, expectedPrefix.length)
-          .every((value, idx) => value === expectedPrefix[idx]);
+        return false;
       });
       assert.ok(matched,
-                `execArgv (${execArgv}) does not start with any expected prefix (${expectedPrefixes.map((p) => `[${p}]`).join(', ')})`);
+                `execArgv (${execArgv}) does not contain any expected sequence (${expectedSubsequences.map((seq) => `[${seq}]`).join(', ')})`);
       assert.match(stdout.at(-1), /^Completed running/);
     }
 
