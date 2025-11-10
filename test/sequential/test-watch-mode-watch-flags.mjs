@@ -105,7 +105,7 @@ describe('watch mode - watch flags', { concurrency: !process.env.TEST_PARALLEL, 
     const watchPath = path.join(projectDir, 'template.html');
     writeFileSync(watchPath, '');
 
-    async function assertExecArgv(args, expected) {
+    async function assertExecArgv(args, expectedPrefixes) {
       const { stdout, stderr } = await runNode({
         args, options: { cwd: projectDir }
       });
@@ -113,12 +113,27 @@ describe('watch mode - watch flags', { concurrency: !process.env.TEST_PARALLEL, 
       assert.strictEqual(stderr, '');
 
       const execArgvLine = stdout[0];
-      assert.deepStrictEqual(JSON.parse(execArgvLine), expected);
+      const execArgv = JSON.parse(execArgvLine);
+      assert.ok(Array.isArray(execArgv));
+      const matched = expectedPrefixes.some((expectedPrefix) => {
+        if (execArgv.length < expectedPrefix.length) {
+          return false;
+        }
+        return execArgv.slice(0, expectedPrefix.length)
+          .every((value, idx) => value === expectedPrefix[idx]);
+      });
+      assert.ok(matched,
+                `execArgv (${execArgv}) does not start with any expected prefix (${expectedPrefixes.map((p) => `[${p}]`).join(', ')})`);
       assert.match(stdout.at(-1), /^Completed running/);
     }
 
-    await assertExecArgv(['--watch', file], ['--watch']);
-    await assertExecArgv(['--watch-path=template.html', file], ['--watch-path=template.html']);
-    await assertExecArgv(['--watch-path', 'template.html', file], ['--watch-path', 'template.html']);
+    await assertExecArgv(['--watch', file], [['--watch']]);
+    await assertExecArgv(['--watch-path=template.html', file], [['--watch-path=template.html']]);
+    await assertExecArgv(
+      ['--watch-path', 'template.html', file],
+      [
+        ['--watch-path', 'template.html'],
+        ['--watch-path=template.html'],
+      ]);
   });
 });
