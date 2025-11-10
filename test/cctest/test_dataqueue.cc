@@ -1,8 +1,8 @@
-#include <dataqueue/queue.h>
 #include <gtest/gtest.h>
 #include <node_bob-inl.h>
 #include <util-inl.h>
 #include <v8.h>
+#include <dataqueue/queue.h>
 #include <memory>
 #include <vector>
 
