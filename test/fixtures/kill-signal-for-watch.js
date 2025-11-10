@@ -7,4 +7,7 @@ process.on('SIGINT', () => {
   process.exit();
 });
 process.send(`script ready ${process.pid}`);
-setTimeout(() => {}, 100_000);
+const timeout = 100_000;
+setTimeout(() => {
+  process._rawDebug(`[CHILD] Timeout ${timeout} fired`);
+}, timeout);
