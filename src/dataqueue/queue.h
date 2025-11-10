@@ -2,6 +2,7 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include <async_wrap.h>
 #include <base_object.h>
 #include <env.h>
 #include <memory_tracker.h>
