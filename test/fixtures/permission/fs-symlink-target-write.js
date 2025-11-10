@@ -26,8 +26,7 @@ const writeOnlyFolder = process.env.WRITEONLYFOLDER;
     fs.symlinkSync(path.join(readOnlyFolder, 'file'), path.join(readWriteFolder, 'link-to-read-only'), 'file');
   }, common.expectsError({
     code: 'ERR_ACCESS_DENIED',
-    permission: 'FileSystemWrite',
-    resource: path.toNamespacedPath(path.join(readOnlyFolder, 'file')),
+    message: 'fs.symlink API requires full fs.read and fs.write permissions.',
   }));
   assert.throws(() => {
     fs.linkSync(path.join(readOnlyFolder, 'file'), path.join(readWriteFolder, 'link-to-read-only'));
@@ -37,18 +36,6 @@ const writeOnlyFolder = process.env.WRITEONLYFOLDER;
     resource: path.toNamespacedPath(path.join(readOnlyFolder, 'file')),
   }));
 
-  // App will be able to symlink to a writeOnlyFolder
-  fs.symlink(path.join(readWriteFolder, 'file'), path.join(writeOnlyFolder, 'link-to-read-write'), 'file', (err) => {
-    assert.ifError(err);
-    // App will won't be able to read the symlink
-    fs.readFile(path.join(writeOnlyFolder, 'link-to-read-write'), common.expectsError({
-      code: 'ERR_ACCESS_DENIED',
-      permission: 'FileSystemRead',
-    }));
-
-    // App will be able to write to the symlink
-    fs.writeFile(path.join(writeOnlyFolder, 'link-to-read-write'), 'some content', common.mustSucceed());
-  });
   fs.link(path.join(readWriteFolder, 'file'), path.join(writeOnlyFolder, 'link-to-read-write2'), (err) => {
     assert.ifError(err);
     // App will won't be able to read the link
@@ -66,8 +53,7 @@ const writeOnlyFolder = process.env.WRITEONLYFOLDER;
     fs.symlinkSync(path.join(readWriteFolder, 'file'), path.join(readOnlyFolder, 'link-to-read-only'), 'file');
   }, common.expectsError({
     code: 'ERR_ACCESS_DENIED',
-    permission: 'FileSystemWrite',
-    resource: path.toNamespacedPath(path.join(readOnlyFolder, 'link-to-read-only')),
+    message: 'fs.symlink API requires full fs.read and fs.write permissions.',
   }));
   assert.throws(() => {
     fs.linkSync(path.join(readWriteFolder, 'file'), path.join(readOnlyFolder, 'link-to-read-only'));
