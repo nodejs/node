@@ -37,6 +37,7 @@ if (!isMainThread) {
 
 const expectFilePath = common.isWindows ||
                        common.isLinux ||
+                       common.isAndroid ||
                        common.isMacOS ||
                        common.isAIX;
 

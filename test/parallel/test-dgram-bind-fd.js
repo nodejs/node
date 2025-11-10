@@ -77,7 +77,7 @@ const BUFFER_SIZE = 4096;
         const sendBufferSize = socket.getSendBufferSize();
 
         // note: linux will double the buffer size
-        const expectedBufferSize = common.isLinux ?
+        const expectedBufferSize = (common.isLinux || common.isAndroid) ?
           BUFFER_SIZE * 2 : BUFFER_SIZE;
         assert.strictEqual(recvBufferSize, expectedBufferSize);
         assert.strictEqual(sendBufferSize, expectedBufferSize);
