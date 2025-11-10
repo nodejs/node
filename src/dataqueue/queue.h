@@ -2,10 +2,9 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include <aliased_struct.h>
 #include <async_wrap.h>
 #include <base_object.h>
-#include <env.h>
+#include <env-inl.h>
 #include <memory_tracker.h>
 #include <node.h>
 #include <node_bob.h>
