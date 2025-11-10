@@ -22,7 +22,9 @@ let apicontent = '';
 const seen = new Set(['all.html', 'index.html']);
 
 for (const link of toc.match(/<a.*?>/g)) {
-  const href = /href="(.*?)"/.exec(link)[1];
+  const hrefMatch = /href="(.*?)"/.exec(link);
+  if (!hrefMatch) continue;
+  const href = hrefMatch[1];
   if (!htmlFiles.includes(href) || seen.has(href)) continue;
   const data = fs.readFileSync(new URL(`./${href}`, source), 'utf8');
 
@@ -69,6 +71,11 @@ for (const link of toc.match(/<a.*?>/g)) {
   seen.add(href);
 }
 
+const aggregatedToc =
+  '<details role="navigation" id="toc" open><summary>Table of contents</summary>\n' +
+  '<ul>\n' + contents + '</ul>\n' +
+  '</details>\n';
+
 // Replace various mentions of index with all.
 let all = toc.replace(/index\.html/g, 'all.html')
   .replace('<a href="all.html">', '<a href="index.html">')
@@ -81,12 +88,28 @@ let all = toc.replace(/index\.html/g, 'all.html')
 all = all.replace(/<title>.*?\| /, '<title>');
 
 // Insert the combined table of contents.
-const tocStart = /<!-- TOC -->/.exec(all);
-all = all.slice(0, tocStart.index + tocStart[0].length) +
-  '<details id="toc" open><summary>Table of contents</summary>\n' +
-  '<ul>\n' + contents + '</ul>\n' +
-  '</details>\n' +
-  all.slice(tocStart.index + tocStart[0].length);
+const tocPlaceholder = '<!-- TOC -->';
+if (all.includes(tocPlaceholder)) {
+  all = all.replace(
+    tocPlaceholder,
+    `${tocPlaceholder}\n${aggregatedToc}`,
+  );
+} else {
+  const tocElement = /<details[^>]+id="toc"[^>]*>[\s\S]*?<\/details>/;
+  if (!tocElement.test(all)) {
+    throw new Error('Failed to locate a TOC container in index.html');
+  }
+  all = all.replace(tocElement, aggregatedToc);
+}
+
+const tocPickerRegex =
+  /<div class="toc"><ul id="toc-picker">[\s\S]*?<\/ul>\s*<\/div>/;
+if (tocPickerRegex.test(all)) {
+  all = all.replace(
+    tocPickerRegex,
+    `<div class="toc"><ul id="toc-picker">\n${contents}</ul></div>`,
+  );
+}
 
 // Replace apicontent with the concatenated set of apicontents from each source.
 const apiStart = /<\w+ role="main" id="apicontent">\s*/.exec(all);

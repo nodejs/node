@@ -871,6 +871,16 @@ out/doc/api/all.json: $(apidocs_json) tools/doc/alljson.mjs | out/doc/api
 		$(call available-node, tools/doc/alljson.mjs) \
 	fi
 
+# Ensure the documentation landing page mirrors About this documentation.
+out/doc/api/documentation.html out/doc/api/documentation.json: \
+		doc/api/index.md
+
+out/doc/api/index.html: out/doc/api/documentation.html doc/api/index.md
+	cp $< $@
+
+out/doc/api/index.json: out/doc/api/documentation.json doc/api/index.md
+	cp $< $@
+
 .PHONY: out/doc/api/stability
 out/doc/api/stability: out/doc/api/all.json tools/doc/stability.mjs | out/doc/api
 	@if [ "$(shell $(node_use_icu))" != "true" ]; then \

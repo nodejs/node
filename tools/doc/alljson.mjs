@@ -28,7 +28,9 @@ const seen = new Set(['all.json', 'index.json']);
 // Extract (and concatenate) the selected data from each document.
 // Expand hrefs found in json to include source HTML file.
 for (const link of toc.match(/<a.*?>/g)) {
-  const href = /href="(.*?)"/.exec(link)[1];
+  const hrefMatch = /href="(.*?)"/.exec(link);
+  if (!hrefMatch) continue;
+  const href = hrefMatch[1];
   const json = href.replace('.html', '.json');
   if (!jsonFiles.includes(json) || seen.has(json)) continue;
   const data = JSON.parse(
