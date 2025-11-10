@@ -1,4 +1,4 @@
-// Flags: --experimental-permission --allow-fs-read=* --allow-fs-write=*
+// Flags: --experimental-permission --allow-fs-read=*
 'use strict';
 
 const common = require('../common');
@@ -10,7 +10,7 @@ const { symlinkSync, symlink, promises: { symlink: symlinkAsync } } = require('f
 
 const error = {
   code: 'ERR_ACCESS_DENIED',
-  message: /relative symbolic link target/,
+  message: /symlink API requires full fs\.read and fs\.write permissions/,
 };
 
 for (const targetString of ['a', './b/c', '../d', 'e/../f', 'C:drive-relative', 'ntfs:alternate']) {
@@ -27,14 +27,14 @@ for (const targetString of ['a', './b/c', '../d', 'e/../f', 'C:drive-relative', 
   }
 }
 
-// Absolute should not throw
+// Absolute should throw too
 for (const targetString of [path.resolve('.')]) {
   for (const target of [targetString, Buffer.from(targetString)]) {
     for (const path of [__filename]) {
       symlink(target, path, common.mustCall((err) => {
         assert(err);
-        assert.strictEqual(err.code, 'EEXIST');
-        assert.match(err.message, /file already exists/);
+        assert.strictEqual(err.code, error.code);
+        assert.match(err.message, error.message);
       }));
     }
   }
