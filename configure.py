@@ -14,15 +14,11 @@ import bz2
 import io
 from pathlib import Path
 
-
-
-# If not run from node/, cd to node/.
 os.chdir(Path(__file__).parent)
 
 original_argv = sys.argv[1:]
 
-# gcc and g++ as defaults matches what GYP's Makefile generator does,
-# except on macOS and Windows.
+
 CC = os.environ.get('CC', 'cc' if sys.platform == 'darwin' else 'clang' if sys.platform == 'win32' else 'gcc')
 CXX = os.environ.get('CXX', 'c++' if sys.platform == 'darwin' else 'clang' if sys.platform == 'win32' else 'g++')
 
@@ -32,18 +28,18 @@ sys.path.insert(0, str(tools_path / 'gyp' / 'pylib'))
 from gyp.common import GetFlavor
 from packaging.version import Version
 
-# imports in tools/configure.d
+
 sys.path.insert(0, str(tools_path / 'configure.d'))
 import nodedownload
 
-# imports in tools/
+
 sys.path.insert(0, 'tools')
 import getmoduleversion
 import getnapibuildversion
 from gyp_node import run_gyp
 from utils import SearchFiles
 
-# parse our options
+
 parser = argparse.ArgumentParser()
 
 valid_os = ('win', 'mac', 'solaris', 'freebsd', 'openbsd', 'linux',
@@ -59,14 +55,14 @@ valid_intl_modes = ('none', 'small-icu', 'full-icu', 'system-icu')
 icu_versions = json.loads((tools_path / 'icu' / 'icu_versions.json').read_text(encoding='utf-8'))
 maglev_enabled_architectures = ('x64', 'arm', 'arm64')
 
-# builtins may be removed later if they have been disabled by options
+
 shareable_builtins = {'cjs_module_lexer/lexer': 'deps/cjs-module-lexer/lexer.js',
                      'cjs_module_lexer/dist/lexer': 'deps/cjs-module-lexer/dist/lexer.js',
                      'undici/undici': 'deps/undici/undici.js',
                      'amaro/dist/index': 'deps/amaro/dist/index.js'
 }
 
-# create option groups
+
 shared_optgroup = parser.add_argument_group("Shared libraries",
     "Flags that allows you to control whether you want to build against "
     "built-in dependencies or its shared representations. If necessary, "
@@ -83,8 +79,7 @@ shared_builtin_optgroup = parser.add_argument_group("Shared builtins",
     "Flags that allows you to control whether you want to build against "
     "internal builtins or shared files.")
 
-# Options should be in alphabetical order but keep --prefix at the top,
-# that's arguably the one people will be looking for most.
+
 parser.add_argument('--prefix',
     action='store',
     dest='prefix',
@@ -1045,10 +1040,10 @@ parser.add_argument('--use-ccache-win',
 
 (options, args) = parser.parse_known_args()
 
-# Expand ~ in the install prefix now, it gets written to multiple files.
+
 options.prefix = str(Path(options.prefix or '').expanduser())
 
-# set up auto-download list
+
 auto_downloads = nodedownload.parse(options.download_list)
 
 
@@ -1062,7 +1057,7 @@ def warn(msg):
   prefix = '\033[1m\033[93mWARNING\033[0m' if os.isatty(1) else 'WARNING'
   print(f'{prefix}: {msg}')
 
-# track if warnings occurred
+
 warn.warned = False
 
 def info(msg):
@@ -1093,7 +1088,7 @@ def pkg_config(pkg):
   Returns ("-l flags", "-I flags", "-L flags", "version")
   otherwise (None, None, None, None)"""
   pkg_config = os.environ.get('PKG_CONFIG', 'pkg-config')
-  args = []  # Print pkg-config warnings on first round.
+  args = []  
   retval = []
   for flag in ['--libs-only-l', '--cflags-only-I',
                '--libs-only-L', '--modversion']:
@@ -1141,12 +1136,7 @@ def try_check_compiler(cc, lang):
   return (True, is_clang, clang_version, gcc_version, is_apple)
 
 
-#
-# The version of asm compiler is needed for building openssl asm files.
-# See deps/openssl/openssl.gypi for detail.
-# Commands and regular expressions to obtain its version number are taken from
-# https://github.com/openssl/openssl/blob/OpenSSL_1_0_2-stable/crypto/sha/asm/sha512-x86_64.pl#L112-L129
-#
+
 def get_version_helper(cc, regexp):
   try:
     proc = subprocess.Popen(shlex.split(cc) + ['-v'], stdin=subprocess.PIPE,
@@ -1223,7 +1213,7 @@ def get_openssl_version(o):
   """
 
   try:
-    # Use the C compiler to extract preprocessor macros from opensslv.h
+    
     args = ['-E', '-dM', '-include', 'openssl/opensslv.h', '-']
     if not options.shared_openssl:
       args = ['-I', 'deps/openssl/openssl/include'] + args
@@ -1247,7 +1237,7 @@ def get_openssl_version(o):
       warn('Failed to extract OpenSSL version from opensslv.h header')
       return 0
 
-    # Parse the macro definitions
+    
     macros = {}
     for line in out.split('\n'):
       if line.startswith('#define OPENSSL_VERSION_'):
@@ -1257,15 +1247,13 @@ def get_openssl_version(o):
           macro_value = parts[2]
           macros[macro_name] = macro_value
 
-    # Extract version components
     major = int(macros.get('OPENSSL_VERSION_MAJOR', '0'))
     minor = int(macros.get('OPENSSL_VERSION_MINOR', '0'))
     patch = int(macros.get('OPENSSL_VERSION_PATCH', '0'))
 
-    # Check if it's a pre-release (has non-empty PRE_RELEASE string)
+   
     pre_release = macros.get('OPENSSL_VERSION_PRE_RELEASE', '""').strip('"')
     status = 0x0 if pre_release else 0xf
-    # Construct version number: 0xMNN00PPSL
     version_number = ((major << 28) |
                      (minor << 20) |
                      (patch << 4) |
@@ -1277,10 +1265,7 @@ def get_openssl_version(o):
     warn(f'Failed to determine OpenSSL version from header: {e}')
     return 0
 
-# Note: Apple clang self-reports as clang 4.2.0 and gcc 4.2.1.  It passes
-# the version check more by accident than anything else but a more rigorous
-# check involves checking the build number against an allowlist.  I'm not
-# quite prepared to go that far yet.
+
 def check_compiler(o):
   o['variables']['use_ccache_win'] = 0
 
@@ -1317,14 +1302,12 @@ def check_compiler(o):
   if not ok:
     warn(f'failed to autodetect C compiler version (CC={CC})')
   elif not is_clang and gcc_version < (4, 2, 0):
-    # clang 3.2 is a little white lie because any clang version will probably
-    # do for the C bits.  However, we might as well encourage people to upgrade
-    # to a version that is not completely ancient.
+   
     warn(f'C compiler (CC={CC}, {version_str}) too old, need gcc 4.2 or clang 3.2')
 
   o['variables']['llvm_version'] = get_llvm_version(CC) if is_clang else '0.0'
 
-  # Need xcode_version or gas_version when openssl asm files are compiled.
+  
   if options.without_ssl or options.openssl_no_asm or options.shared_openssl:
     return
 
@@ -1378,10 +1361,7 @@ def is_arch_armv6():
 
 def is_arm_hard_float_abi():
   """Check for hardfloat or softfloat eabi on ARM"""
-  # GCC versions 4.6 and above define __ARM_PCS or __ARM_PCS_VFP to specify
-  # the Floating Point ABI used (PCS stands for Procedure Call Standard).
-  # We use these as well as a couple of other defines to statically determine
-  # what FP ABI used.
+ 
 
   return '__ARM_PCS_VFP' in cc_macros()
 
@@ -2314,9 +2294,7 @@ def make_bin_override():
       raise e
   os.symlink(sys.executable, python_link)
 
-  # We need to set the environment right now so that when gyp (in run_gyp)
-  # shells out, it finds the right python (specifically at
-  # https://github.com/nodejs/node/blob/d82e107/deps/v8/gypfiles/toolchain.gypi#L43)
+ 
   os.environ['PATH'] = str(bin_override) + ':' + os.environ['PATH']
 
   return bin_override
@@ -2452,15 +2430,11 @@ write('config.mk', do_not_edit + config_str)
 gyp_args = ['--no-parallel', '-Dconfiguring_node=1']
 gyp_args += ['-Dbuild_type=' + config['BUILDTYPE']]
 
-# Remove the trailing .exe from the executable name, otherwise the python.exe
-# would be rewrote as python_host.exe due to hack in GYP for supporting cross
-# compilation on Windows.
-# See https://github.com/nodejs/node/pull/32867 for related change.
+
 python = sys.executable
 if flavor == 'win' and python.lower().endswith('.exe'):
   python = python[:-4]
-# Always set 'python' variable, otherwise environments that only have python3
-# will fail to run python scripts.
+
 gyp_args += ['-Dpython=' + python]
 
 if options.use_ninja:
@@ -2476,7 +2450,7 @@ if options.compile_commands_json:
     os.path.lexists('./compile_commands.json') and os.unlink('./compile_commands.json')
     os.symlink('./out/' + config['BUILDTYPE'] + '/compile_commands.json', './compile_commands.json')
 
-# pass the leftover non-whitespace positional arguments to GYP
+
 gyp_args += [arg for arg in args if not str.isspace(arg)]
 
 if warn.warned and not options.verbose:
