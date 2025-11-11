@@ -19,9 +19,13 @@ if (spawnSync('strace').error !== undefined) {
   const allowedOpenCalls = new Set([
     '/etc/ssl/openssl.cnf',
   ]);
+  const syscalls = ['openat'];
+  if (process.arch !== 'riscv64' && process.arch !== 'riscv32') {
+    syscalls.push('open');
+  }
   const strace = spawn('strace', [
     '-f', '-ff',
-    '-e', 'trace=open,openat',
+    '-e', `trace=${syscalls.join(',')}`,
     '-s', '512',
     '-D', process.execPath, '-e', 'require("crypto")',
   ]);
