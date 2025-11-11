@@ -10,10 +10,9 @@ updates:
       semver-major-days: 5
       semver-minor-days: 5
       semver-patch-days: 5
-
     commit-message:
       prefix: meta
-    open-pull-requests-limit: ${{secrets.OPEN_PR_LIMIT}}
+    open-pull-requests-limit: 10
 
   - package-ecosystem: npm
     directory: /tools/eslint
@@ -25,7 +24,7 @@ updates:
       semver-patch-days: 5
     commit-message:
       prefix: tools
-    open-pull-requests-limit: ${{secrets.OPEN_PR_LIMIT}}
+    open-pull-requests-limit: 10
     groups:
       eslint:
         applies-to: version-updates
@@ -42,7 +41,7 @@ updates:
       semver-patch-days: 5
     commit-message:
       prefix: tools
-    open-pull-requests-limit: ${{secrets.OPEN_PR_LIMIT}}
+    open-pull-requests-limit: 10
     groups:
       lint-md:
         applies-to: version-updates
@@ -59,7 +58,7 @@ updates:
       semver-patch-days: 5
     commit-message:
       prefix: tools
-    open-pull-requests-limit: ${{secrets.OPEN_PR_LIMIT}}
+    open-pull-requests-limit: 10
     groups:
       doc:
         applies-to: version-updates
