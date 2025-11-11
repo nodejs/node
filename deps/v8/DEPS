@@ -140,7 +140,7 @@ deps = {
       }
     ],
     'dep_type': 'cipd',
-    'condition': 'host_os == "linux" and host_cpu != "s390" and host_os != "zos" and host_cpu != "ppc"',
+    'condition': 'host_os == "linux" and host_cpu != "s390x" and host_os != "zos" and host_cpu != "ppc64"',
   },
   'buildtools/mac': {
     'packages': [
@@ -170,7 +170,7 @@ deps = {
       }
     ],
     'dep_type': 'cipd',
-    'condition': '(host_os == "linux" or host_os == "mac" or host_os == "win") and host_cpu != "s390" and host_os != "zos" and host_cpu != "ppc" and (host_cpu != "arm64" or host_os == "mac")',
+    'condition': '(host_os == "linux" or host_os == "mac" or host_os == "win") and host_cpu != "s390x" and host_os != "zos" and host_cpu != "ppc64" and (host_cpu != "arm64" or host_os == "mac")',
   },
   'test/benchmarks/data':
     Var('chromium_url') + '/v8/deps/third_party/benchmarks.git' + '@' + '05d7188267b4560491ff9155c5ee13e207ecd65f',
@@ -464,7 +464,7 @@ deps = {
       }
     ],
     'dep_type': 'cipd',
-    'condition': 'host_cpu != "s390" and host_os != "zos" and host_cpu != "ppc"'
+    'condition': 'host_cpu != "s390x" and host_os != "zos" and host_cpu != "ppc64"'
   },
   'third_party/partition_alloc': {
     'url': Var('chromium_url') + '/chromium/src/base/allocator/partition_allocator.git@' + Var('partition_alloc_version'),
@@ -526,7 +526,7 @@ deps = {
       }
     ],
     'dep_type': 'cipd',
-    'condition': 'not build_with_chromium and host_cpu != "s390" and host_os != "zos" and host_cpu != "ppc"',
+    'condition': 'not build_with_chromium and host_cpu != "s390x" and host_os != "zos" and host_cpu != "ppc64"',
   },
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '788cb3c270e8700b425c7bdca1f9ce6b0c1400a9',
