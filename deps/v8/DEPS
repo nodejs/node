@@ -121,7 +121,7 @@ deps = {
       }
     ],
     'dep_type': 'cipd',
-    'condition': 'host_os == "linux" and host_cpu != "s390" and host_cpu != "ppc"',
+    'condition': 'host_os == "linux" and host_cpu != "s390x" and host_os != "zos" and host_cpu != "ppc64"',
   },
   'buildtools/mac': {
     'packages': [
@@ -157,7 +157,7 @@ deps = {
       }
     ],
     'dep_type': 'cipd',
-    'condition': '(host_os == "linux" or host_os == "mac" or host_os == "win") and host_cpu != "s390" and host_cpu != "ppc" and host_cpu != "arm64"',
+    'condition': '(host_os == "linux" or host_os == "mac" or host_os == "win") and host_cpu != "s390x" and host_os != "zos" and host_cpu != "ppc64" and (host_cpu != "arm64" or host_os == "mac")',
   },
   'test/benchmarks/data':
     Var('chromium_url') + '/v8/deps/third_party/benchmarks.git' + '@' + '05d7188267b4560491ff9155c5ee13e207ecd65f',
@@ -262,7 +262,7 @@ deps = {
       }
     ],
     'dep_type': 'cipd',
-    'condition': 'host_cpu != "s390" and host_cpu != "ppc"'
+    'condition': 'host_cpu != "s390x" and host_os != "zos" and host_cpu != "ppc64"'
   },
   'third_party/perfetto':
     Var('android_url') + '/platform/external/perfetto.git' + '@' + '0d180f46481a96cbe8340734fa5cdce3bba636c8',
