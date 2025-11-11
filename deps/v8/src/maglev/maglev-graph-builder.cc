@@ -4531,9 +4531,20 @@ ValueNode* MaglevGraphBuilder::ConvertForField(ValueNode* value,
                                                AllocationType allocation_type) {
   switch (desc.type) {
     case vobj::FieldType::kTagged: {
-      if (value->Is<Float64Constant>() &&
-          !NodeTypeIs(GetType(value), NodeType::kSmi)) {
-        // Note that NodeType::kSmi MUST go through GetTaggedValue for proper
+      // Subtle: we don't use `NodeTypeIs(...)` since the predicate must NOT
+      // be true for NodeType::kNone.
+      // TODO(jgruber): NodeType::kNone should never reach here.
+      if (GetType(value) == NodeType::kSmi) {
+        // TODO(jgruber): This is needed because HoleyFloat64ToTagged does not
+        // canonicalize smis by default in GetTaggedValue. We rely on
+        // canonicalization though in TryReduceConstructArrayConstructor.
+        // We should make this more robust.
+        MaybeReduceResult res = GetSmiValue(value);
+        CHECK(res.IsDoneWithValue());
+        return res.value();
+      }
+      if (value->Is<Float64Constant>()) {
+        // Note that NodeType::kSmi MUST go through GetSmiValue for proper
         // canonicalization. If we see a Float64Constant with type kSmi, it has
         // passed BuildCheckSmi, i.e. the runtime value is guaranteed to be
         // convertible to smi (we would have deoptimized otherwise).
