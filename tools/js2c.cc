@@ -9,6 +9,7 @@
 #include <string>
 #include <string_view>
 #include <vector>
+#include "builtin_info.h"
 #include "embedded_data.h"
 #include "executable_wrapper.h"
 #include "simdutf.h"
@@ -687,15 +688,26 @@ int AddModule(const std::string& filename,
   std::string var = GetVariableName(file_id);
 
   definitions->emplace_back(GetDefinition(var, code));
-
+  std::string source_type = builtins::GetBuiltinSourceTypeName(
+      builtins::GetBuiltinSourceType(file_id, filename));
   // Initializers of the BuiltinSourceMap:
-  // {"fs", UnionBytes{&fs_resource}},
-  Fragment& init_buf = initializers->emplace_back(Fragment(256, 0));
+  // {"fs",
+  //   BuiltinSource{UnionBytes(&fs_resource), BuiltinSourceType::kFunction}},
+  // {"internal/deps/v8/tools/tickprocessor-driver",
+  //  BuiltinSource{UnionBytes(&fs_resource),
+  //                BuiltinSourceType::kSourceTextModule}},
+  Fragment& init_buf = initializers->emplace_back(Fragment(512, 0));
   int init_size = snprintf(init_buf.data(),
                            init_buf.size(),
-                           "    {\"%s\", UnionBytes(&%s_resource) },",
+                           "    {\"%s\","
+                           " BuiltinSource{"
+                           " \"%s\","
+                           " UnionBytes(&%s_resource),"
+                           " BuiltinSourceType::%s} },",
                            file_id.c_str(),
-                           var.c_str());
+                           file_id.c_str(),
+                           var.c_str(),
+                           source_type.c_str());
   init_buf.resize(init_size);
 
   // Registrations:
