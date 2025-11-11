@@ -102,7 +102,7 @@ server.listen(0, common.mustCall(() => {
     request5.client.write(requestBodyPart2);
   }, headersTimeout * 0.8);
 
-  setTimeout(() => {
+  setTimeout(common.mustCall(() => {
     // After the first timeout, the first request should have been completed and second timedout
     assert(request1.completed);
     assert(request2.completed);
@@ -112,14 +112,14 @@ server.listen(0, common.mustCall(() => {
 
     assert(request1.response.startsWith(responseOk));
     assert(request2.response.startsWith(responseTimeout)); // It is expired due to headersTimeout
-  }, headersTimeout * 1.4);
+  }), headersTimeout * 1.4);
 
   setTimeout(() => {
     // Complete the body for the fourth request
     request4.client.write(requestBodyPart3);
   }, headersTimeout * 1.5);
 
-  setTimeout(() => {
+  setTimeout(common.mustCall(() => {
     // All request should be completed now, either with 200 or 408
     assert(request3.completed);
     assert(request4.completed);
@@ -129,5 +129,5 @@ server.listen(0, common.mustCall(() => {
     assert(request4.response.startsWith(responseOk));
     assert(request5.response.startsWith(responseTimeout)); // It is expired due to requestTimeout
     server.close();
-  }, headersTimeout * 3 + connectionsCheckingInterval);
+  }), headersTimeout * 3 + connectionsCheckingInterval);
 }));

@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const cluster = require('cluster');
 const net = require('net');
@@ -41,7 +41,7 @@ let server;
 // 4 destroy connection
 // 5 confirm it does exit
 if (cluster.isPrimary) {
-  server = net.createServer(function(conn) {
+  server = net.createServer(common.mustCall((conn) => {
     server.close();
     worker.disconnect();
     worker.once('disconnect', function() {
@@ -49,13 +49,13 @@ if (cluster.isPrimary) {
         conn.destroy();
         destroyed = true;
       }, 1000);
-    }).once('exit', function() {
+    }).once('exit', common.mustCall(() => {
       // Worker should not exit while it has a connection
       assert(destroyed, 'worker exited before connection destroyed');
       success = true;
-    });
+    }));
 
-  }).listen(0, function() {
+  })).listen(0, function() {
     const port = this.address().port;
 
     worker = cluster.fork()

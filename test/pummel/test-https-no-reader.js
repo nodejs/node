@@ -43,20 +43,20 @@ const server = https.createServer(options, function(req, res) {
   res.end();
 });
 
-server.listen(0, function() {
+server.listen(0, common.mustCall(() => {
   const req = https.request({
     method: 'POST',
     port: server.address().port,
     rejectUnauthorized: false,
-  }, function(res) {
+  }, common.mustCall((res) => {
     res.read(0);
 
-    setTimeout(function() {
+    setTimeout(common.mustCall(() => {
       // Read buffer should be somewhere near high watermark
       // (i.e. should not leak)
       assert(res.readableLength < 100 * 1024);
       process.exit(0);
-    }, 2000);
-  });
+    }), 2000);
+  }));
   req.end();
-});
+}));
