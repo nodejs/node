@@ -104,7 +104,7 @@ if (process.argv[2] === 'child') {
     const child = exec(...escapedArgs);
 
     if (child) {
-      child.on('exit', function onChildExited(exitCode, signal) {
+      child.on('exit', common.mustCall(function onChildExited(exitCode, signal) {
         // When throwing errors from the top-level domain error handler
         // outside of a try/catch block, the process should not exit gracefully
         if (!options.useTryCatch && options.throwInDomainErrHandler) {
@@ -124,7 +124,7 @@ if (process.argv[2] === 'child') {
           assert.strictEqual(exitCode, 0);
           assert.strictEqual(signal, null);
         }
-      });
+      }));
     }
   }
 

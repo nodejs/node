@@ -84,6 +84,10 @@ tester.run('must-call-assert', rule, {
         val = await asyncTask(val);
         assert.strictEqual(val, 3);
       })).then(common.mustCall());
+      Promise.all(Object.keys(keys).map(async (val) => {
+        val = await asyncTask(val);
+        assert.strictEqual(val, 3);
+      })).then(common.mustCall());
     }));
     `,
     `
@@ -106,6 +110,9 @@ tester.run('must-call-assert', rule, {
       },
     );
     `,
+    'eval("(" + function() {} + ")()")',
+    // eslint-disable-next-line no-template-curly-in-string
+    'eval(`(${function() {}})()`)',
   ],
   invalid: [
     {
@@ -128,6 +135,14 @@ tester.run('must-call-assert', rule, {
     },
     {
       code: 'process.once("message", (code) => {if(2+2 === 5) { assert.strictEqual(code, 0)} });',
+      errors: [{ message }],
+    },
+    {
+      code: 'process.once("message", (code) => { assert(code) });',
+      errors: [{ message }],
+    },
+    {
+      code: 'process.once("message", (code) => { setTimeout(mustCall()); });',
       errors: [{ message }],
     },
     {

@@ -194,7 +194,7 @@ export default [
       ].join(',')}}/**/*.{js,mjs,cjs}`,
       `test/parallel/test-{${
         // 0x61 is code for 'a', this generates a string enumerating latin letters: 'a*,b*,…'
-        Array.from({ length: 3 }, (_, i) => String.fromCharCode(0x61 + i, 42)).join(',')
+        Array.from({ length: 4 }, (_, i) => String.fromCharCode(0x61 + i, 42)).join(',')
       },${
         // 0x61 is code for 'a', this generates a string enumerating latin letters: 'z*,y*,…'
         Array.from({ length: 2 }, (_, i) => String.fromCharCode(0x61 + 25 - i, 42)).join(',')

@@ -44,8 +44,8 @@ if (cluster.isPrimary) {
     worker.send({ message: 'listen', port: server.address().port });
   });
 } else {
-  process.on('message', (msg, handle) => {
-    if (msg.message && msg.message === 'listen') {
+  process.on('message', common.mustCallAtLeast((msg, handle) => {
+    if (msg.message === 'listen') {
       assert(msg.port);
       const client1 = net.connect({
         host: 'localhost',
@@ -69,5 +69,5 @@ if (cluster.isPrimary) {
     } else {
       process.send('reply', handle);
     }
-  });
+  }));
 }

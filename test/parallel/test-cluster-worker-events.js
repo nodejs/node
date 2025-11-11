@@ -66,14 +66,14 @@ const check = common.mustCallAtLeast((m) => {
   process.emit('error', 'HI');
 });
 
-process.on('message', (m) => {
+process.on('message', common.mustCall((m) => {
   assert(!sawProcess);
   sawProcess = true;
   check(m);
-});
+}));
 
-cluster.worker.on('message', (m) => {
+cluster.worker.on('message', common.mustCall((m) => {
   assert(!sawWorker);
   sawWorker = true;
   check(m);
-});
+}));
