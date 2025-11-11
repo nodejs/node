@@ -14,7 +14,7 @@ const {
 
 const GC_OPTIONS = {
   type: 'major',
-  execution: 'beforeUserJS',
+  execution: 'sync',
 };
 
 assert.strictEqual(states[kDestructCount], 0);
