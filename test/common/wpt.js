@@ -519,6 +519,14 @@ const limit = (concurrency) => {
 
 class WPTRunner {
   constructor(path, { concurrency = os.availableParallelism() - 1 || 1 } = {}) {
+    // RISC-V has very limited virtual address space in the currently common
+    // sv39 mode, in which we can only create a very limited number of wasm
+    // memories(27 from a fresh node repl). Limit the concurrency to avoid
+    // creating too many wasm memories that would fail.
+    if (process.arch === 'riscv64' || process.arch === 'riscv32') {
+      concurrency = Math.min(10, concurrency);
+    }
+
     this.path = path;
     this.resource = new ResourceLoader(path);
     this.concurrency = concurrency;
