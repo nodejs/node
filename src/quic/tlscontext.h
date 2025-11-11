@@ -229,10 +229,12 @@ class TLSContext final : public MemoryRetainer,
     std::string ToString() const;
   };
 
-  static std::shared_ptr<TLSContext> CreateClient(const Options& options);
-  static std::shared_ptr<TLSContext> CreateServer(const Options& options);
+  static std::shared_ptr<TLSContext> CreateClient(Environment* env,
+                                                  const Options& options);
+  static std::shared_ptr<TLSContext> CreateServer(Environment* env,
+                                                  const Options& options);
 
-  TLSContext(Side side, const Options& options);
+  TLSContext(Environment* env, Side side, const Options& options);
   DISALLOW_COPY_AND_MOVE(TLSContext)
 
   // Each QUIC Session has exactly one TLSSession. Each TLSSession maintains
@@ -242,6 +244,7 @@ class TLSContext final : public MemoryRetainer,
 
   inline Side side() const { return side_; }
   inline const Options& options() const { return options_; }
+  inline Environment* env() const { return env_; }
   inline operator bool() const { return ctx_ != nullptr; }
   inline operator const ncrypto::SSLCtxPointer&() const { return ctx_; }
 
@@ -269,6 +272,7 @@ class TLSContext final : public MemoryRetainer,
 
   Side side_;
   Options options_;
+  Environment* env_;
   ncrypto::X509Pointer cert_;
   ncrypto::X509Pointer issuer_;
   ncrypto::SSLCtxPointer ctx_;
