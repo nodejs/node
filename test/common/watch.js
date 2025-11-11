@@ -47,20 +47,58 @@ function refreshForTestRunnerWatch() {
   }
 }
 
+async function performFileOperation(operation, useRunApi, timeout = 1000) {
+  if (useRunApi) {
+    const interval = setInterval(() => {
+      operation();
+      clearInterval(interval);
+    }, common.platformTimeout(timeout));
+  } else {
+    operation();
+    await setTimeout(common.platformTimeout(timeout));
+  }
+}
+
+function assertTestOutput(run, shouldCheckRecursion = false) {
+  if (shouldCheckRecursion) {
+    assert.doesNotMatch(run, /run\(\) is being called recursively/);
+  }
+  assert.match(run, /tests 1/);
+  assert.match(run, /pass 1/);
+  assert.match(run, /fail 0/);
+  assert.match(run, /cancelled 0/);
+}
+
 async function testRunnerWatch({
   fileToUpdate,
   file,
   action = 'update',
   fileToCreate,
   isolation,
+  useRunApi = false,
+  cwd = tmpdir.path,
+  runnerCwd,
 }) {
   const ran1 = Promise.withResolvers();
   const ran2 = Promise.withResolvers();
-  const child = spawn(process.execPath,
-                      ['--watch', '--test', '--test-reporter=spec',
-                       isolation ? `--test-isolation=${isolation}` : '',
-                       file ? fixturePaths[file] : undefined].filter(Boolean),
-                      { encoding: 'utf8', stdio: 'pipe', cwd: tmpdir.path });
+
+  let args;
+  if (useRunApi) {
+    // Use the fixture that calls run() API
+    const runner = fixtures.path('test-runner-watch.mjs');
+    args = [runner];
+    if (file) args.push('--file', file);
+    if (runnerCwd) args.push('--cwd', runnerCwd);
+    if (isolation) args.push('--isolation', isolation);
+  } else {
+    // Use CLI --watch --test flags
+    args = ['--watch', '--test', '--test-reporter=spec',
+            isolation ? `--test-isolation=${isolation}` : '',
+            file ? fixturePaths[file] : undefined].filter(Boolean);
+  }
+
+  const child = spawn(process.execPath, args,
+                      { encoding: 'utf8', stdio: 'pipe', cwd });
   let stdout = '';
   let currentRun = '';
   const runs = [];
@@ -79,9 +117,20 @@ async function testRunnerWatch({
     currentRun = '';
     const content = fixtureContent[fileToUpdate];
     const path = fixturePaths[fileToUpdate];
-    writeFileSync(path, content);
-    await setTimeout(common.platformTimeout(1000));
-    await ran2.promise;
+
+    if (useRunApi) {
+      const interval = setInterval(
+        () => writeFileSync(path, content),
+        common.platformTimeout(1000),
+      );
+      await ran2.promise;
+      clearInterval(interval);
+    } else {
+      writeFileSync(path, content);
+      await setTimeout(common.platformTimeout(1000));
+      await ran2.promise;
+    }
+
     runs.push(currentRun);
     child.kill();
     await once(child, 'exit');
@@ -89,10 +138,7 @@ async function testRunnerWatch({
     assert.strictEqual(runs.length, 2);
 
     for (const run of runs) {
-      assert.match(run, /tests 1/);
-      assert.match(run, /pass 1/);
-      assert.match(run, /fail 0/);
-      assert.match(run, /cancelled 0/);
+      assertTestOutput(run, useRunApi);
     }
   };
 
@@ -102,21 +148,28 @@ async function testRunnerWatch({
     currentRun = '';
     const fileToRenamePath = tmpdir.resolve(fileToUpdate);
     const newFileNamePath = tmpdir.resolve(`test-renamed-${fileToUpdate}`);
-    renameSync(fileToRenamePath, newFileNamePath);
-    await setTimeout(common.platformTimeout(1000));
+
+    await performFileOperation(
+      () => renameSync(fileToRenamePath, newFileNamePath),
+      useRunApi,
+    );
     await ran2.promise;
+
     runs.push(currentRun);
     child.kill();
     await once(child, 'exit');
 
     assert.strictEqual(runs.length, 2);
 
-    for (const run of runs) {
-      assert.match(run, /tests 1/);
-      assert.match(run, /pass 1/);
-      assert.match(run, /fail 0/);
-      assert.match(run, /cancelled 0/);
+    const [firstRun, secondRun] = runs;
+    assertTestOutput(firstRun, useRunApi);
+
+    if (action === 'rename2') {
+      assert.match(secondRun, /MODULE_NOT_FOUND/);
+      return;
     }
+
+    assertTestOutput(secondRun, useRunApi);
   };
 
   const testDelete = async () => {
@@ -124,9 +177,24 @@ async function testRunnerWatch({
     runs.push(currentRun);
     currentRun = '';
     const fileToDeletePath = tmpdir.resolve(fileToUpdate);
-    unlinkSync(fileToDeletePath);
-    await setTimeout(common.platformTimeout(2000));
-    ran2.resolve();
+
+    if (useRunApi) {
+      const { existsSync } = require('node:fs');
+      const interval = setInterval(() => {
+        if (existsSync(fileToDeletePath)) {
+          unlinkSync(fileToDeletePath);
+        } else {
+          ran2.resolve();
+          clearInterval(interval);
+        }
+      }, common.platformTimeout(1000));
+      await ran2.promise;
+    } else {
+      unlinkSync(fileToDeletePath);
+      await setTimeout(common.platformTimeout(2000));
+      ran2.resolve();
+    }
+
     runs.push(currentRun);
     child.kill();
     await once(child, 'exit');
@@ -143,25 +211,29 @@ async function testRunnerWatch({
     runs.push(currentRun);
     currentRun = '';
     const newFilePath = tmpdir.resolve(fileToCreate);
-    writeFileSync(newFilePath, 'module.exports = {};');
-    await setTimeout(common.platformTimeout(1000));
+
+    await performFileOperation(
+      () => writeFileSync(newFilePath, 'module.exports = {};'),
+      useRunApi,
+    );
     await ran2.promise;
+
     runs.push(currentRun);
     child.kill();
     await once(child, 'exit');
 
     for (const run of runs) {
-      assert.match(run, /tests 1/);
-      assert.match(run, /pass 1/);
-      assert.match(run, /fail 0/);
-      assert.match(run, /cancelled 0/);
+      assertTestOutput(run, false);
     }
   };
 
   action === 'update' && await testUpdate();
   action === 'rename' && await testRename();
+  action === 'rename2' && await testRename();
   action === 'delete' && await testDelete();
   action === 'create' && await testCreate();
+
+  return runs;
 }
 
 
@@ -170,4 +242,6 @@ module.exports = {
   skipIfNoWatchModeSignals,
   testRunnerWatch,
   refreshForTestRunnerWatch,
+  fixtureContent,
+  fixturePaths,
 };
