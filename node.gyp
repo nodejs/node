@@ -73,6 +73,7 @@
       'src/async_context_frame.cc',
       'src/async_wrap.cc',
       'src/base_object.cc',
+      'src/builtin_info.cc',
       'src/cares_wrap.cc',
       'src/cleanup_queue.cc',
       'src/compile_cache.cc',
@@ -214,6 +215,7 @@
       'src/base_object_types.h',
       'src/blob_serializer_deserializer.h',
       'src/blob_serializer_deserializer-inl.h',
+      "src/builtin_info.h",
       'src/callback_queue.h',
       'src/callback_queue-inl.h',
       'src/cleanup_queue.h',
@@ -1381,6 +1383,8 @@
         'tools/executable_wrapper.h',
         'src/embedded_data.h',
         'src/embedded_data.cc',
+        'src/builtin_info.h',
+        'src/builtin_info.cc',
       ],
       'conditions': [
         [ 'node_shared_simdutf=="false"', {

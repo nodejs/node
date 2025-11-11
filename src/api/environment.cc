@@ -914,7 +914,7 @@ Maybe<void> InitializePrimordials(Local<Context> context,
         exports, primordials, private_symbols, per_isolate_symbols};
 
     if (builtin_loader
-            .CompileAndCall(
+            .CompileAndCallWith(
                 context, *module, arraysize(arguments), arguments, nullptr)
             .IsEmpty()) {
       // Execution failed during context creation.

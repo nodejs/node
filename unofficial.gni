@@ -323,6 +323,8 @@ template("node_gn_build") {
       "tools/executable_wrapper.h",
       "src/embedded_data.cc",
       "src/embedded_data.h",
+      "src/builtin_info.cc",
+      "src/builtin_info.h",
     ]
     include_dirs = [ "src" ]
   }
