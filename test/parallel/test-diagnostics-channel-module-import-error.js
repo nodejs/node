@@ -9,7 +9,7 @@ const events = [];
 let lastEvent;
 
 function track(name) {
-  return (event) => {
+  return common.mustCall((event) => {
     // Verify every event after the first is the same object
     if (events.length) {
       assert.strictEqual(event, lastEvent);
@@ -17,7 +17,7 @@ function track(name) {
     lastEvent = event;
 
     events.push({ name, ...event });
-  };
+  });
 }
 
 trace.subscribe({

@@ -26,12 +26,12 @@ const server = http.createServer(common.mustCall((req, res) => {
   res.write(content);
   res.end();
 }));
-server.on('timeout', () => {
+server.on('timeout', common.mustCallAtLeast(() => {
   // TODO(apapirovski): This test is faulty on certain Windows systems
   // as no queue is ever created
   assert(!socket._handle || socket._handle.writeQueueSize === 0,
          'Should not timeout');
-});
+}, 0));
 
 server.listen(0, common.mustCall(() => {
   http.get({

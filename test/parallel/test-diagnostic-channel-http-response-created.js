@@ -32,7 +32,7 @@ const server = http.createServer(common.mustCall((_, res) => {
   res.end('done');
 }));
 
-server.listen(() => {
+server.listen(common.mustCall(() => {
   const { port } = server.address();
   http.get({
     port,
@@ -42,4 +42,4 @@ server.listen(() => {
   }, common.mustCall(() => {
     server.close();
   }));
-});
+}));

@@ -218,9 +218,8 @@ algorithms.forEach(([ hash, secret, salt, info, length ]) => {
 
 if (!hasOpenSSL3) {
   const kKnownUnsupported = ['shake128', 'shake256'];
-  getHashes()
-    .filter((hash) => !kKnownUnsupported.includes(hash))
-    .forEach((hash) => {
-      assert(hkdfSync(hash, 'key', 'salt', 'info', 5));
-    });
+  for (const hash of getHashes()) {
+    if (kKnownUnsupported.includes(hash)) continue;
+    assert(hkdfSync(hash, 'key', 'salt', 'info', 5));
+  }
 }

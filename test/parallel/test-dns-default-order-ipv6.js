@@ -28,12 +28,12 @@ function allowFailed(fn) {
 
 (async () => {
   let callsLength = 0;
-  const checkParameter = (expected) => {
+  const checkParameter = common.mustCallAtLeast((expected) => {
     assert.strictEqual(calls.length, callsLength + 1);
     const order = calls[callsLength][4];
     assert.strictEqual(order, expected);
     callsLength += 1;
-  };
+  });
 
   await allowFailed(promisify(dns.lookup)('example.org'));
   checkParameter(cares.DNS_ORDER_IPV6_FIRST);

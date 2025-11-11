@@ -22,12 +22,12 @@ const server = tls.createServer({
   cert: fixtures.readKey('agent1-cert.pem'),
 })
   .listen(client)
-  .on('secureConnection', (serverTlsSock) => {
-    serverTlsSock.on('data', (chunk) => {
+  .on('secureConnection', common.mustCall((serverTlsSock) => {
+    serverTlsSock.on('data', common.mustCallAtLeast((chunk) => {
       assert.strictEqual(chunk.toString(), HEAD);
       subserver.emit('connection', serverTlsSock);
-    });
-  });
+    }));
+  }));
 
 function client() {
   const down = tls.connect({

@@ -27,10 +27,10 @@ const handlers = {
 
 channel.subscribe(handlers);
 
-channel.tracePromise(function(value) {
+channel.tracePromise(common.mustCall(function(value) {
   assert.deepStrictEqual(this, thisArg);
   return Promise.reject(value);
-}, input, thisArg, expectedError).then(
+}), input, thisArg, expectedError).then(
   common.mustNotCall(),
   common.mustCall((value) => {
     assert.deepStrictEqual(value, expectedError);
