@@ -2002,7 +2002,7 @@ added:
  - v23.0.0
  - v22.10.0
 changes:
-  - version: REPLACEME
+  - version: v25.2.0
     pr-url: https://github.com/nodejs/node/pull/60600
     description: Type stripping is now stable.
 -->
