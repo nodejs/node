@@ -24,8 +24,6 @@ test-snapshot-incompatible: SKIP
 test-inspector-network-fetch: PASS, FLAKY
 # https://github.com/nodejs/node/issues/54808
 test-async-context-frame: PASS, FLAKY
-# https://github.com/nodejs/node/issues/54534
-test-runner-run-watch: PASS, FLAKY
 # https://github.com/nodejs/node/issues/59636
 test-fs-cp-sync-error-on-exist: SKIP
 test-fs-cp-sync-symlink-points-to-dest-error: SKIP
@@ -43,8 +41,6 @@ test-without-async-context-frame: PASS, FLAKY
 test-performance-function: PASS, FLAKY
 # https://github.com/nodejs/node/issues/54346
 test-esm-loader-hooks-inspect-wait: PASS, FLAKY
-# https://github.com/nodejs/node/issues/54534
-test-runner-run-watch: PASS, FLAKY
 
 [$system==linux && $arch==s390x]
 # https://github.com/nodejs/node/issues/58353
@@ -54,8 +50,6 @@ test-http2-debug: PASS, FLAKY
 # https://github.com/nodejs/node/issues/42741
 test-http-server-headers-timeout-keepalive: PASS,FLAKY
 test-http-server-request-timeout-keepalive: PASS,FLAKY
-# https://github.com/nodejs/node/issues/54534
-test-runner-run-watch: PASS, FLAKY
 # https://github.com/nodejs/node/issues/60050
 test-cluster-dgram-1: SKIP
 
@@ -85,8 +79,6 @@ test-esm-loader-hooks-inspect-wait: PASS, FLAKY
 test-fs-promises-watch-iterator: SKIP
 # https://github.com/nodejs/node/issues/50050
 test-tick-processor-arguments: SKIP
-# https://github.com/nodejs/node/issues/54534
-test-runner-run-watch: PASS, FLAKY
 
 [$system==freebsd]
 # https://github.com/nodejs/node/issues/54346
