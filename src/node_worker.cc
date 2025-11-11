@@ -20,7 +20,6 @@
 
 using node::kAllowedInEnvvar;
 using node::kDisallowedInEnvvar;
-using v8::AllocationProfile;
 using v8::Array;
 using v8::ArrayBuffer;
 using v8::Boolean;
@@ -33,7 +32,6 @@ using v8::Float64Array;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
-using v8::HeapProfiler;
 using v8::HeapStatistics;
 using v8::Integer;
 using v8::Isolate;
@@ -1087,63 +1085,6 @@ void Worker::StartHeapProfile(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
-static void buildHeapProfileNode(Isolate* isolate,
-                                 const AllocationProfile::Node* node,
-                                 JSONWriter* writer) {
-  size_t selfSize = 0;
-  for (const auto& allocation : node->allocations)
-    selfSize += allocation.size * allocation.count;
-
-  writer->json_keyvalue("selfSize", selfSize);
-  writer->json_keyvalue("id", node->node_id);
-  writer->json_objectstart("callFrame");
-  writer->json_keyvalue("scriptId", node->script_id);
-  writer->json_keyvalue("lineNumber", node->line_number - 1);
-  writer->json_keyvalue("columnNumber", node->column_number - 1);
-  node::Utf8Value name(isolate, node->name);
-  node::Utf8Value script_name(isolate, node->script_name);
-  writer->json_keyvalue("functionName", *name);
-  writer->json_keyvalue("url", *script_name);
-  writer->json_objectend();
-
-  writer->json_arraystart("children");
-  for (const auto* child : node->children) {
-    writer->json_start();
-    buildHeapProfileNode(isolate, child, writer);
-    writer->json_end();
-  }
-  writer->json_arrayend();
-}
-
-static bool serializeProfile(Isolate* isolate, std::ostringstream& out_stream) {
-  HandleScope scope(isolate);
-  HeapProfiler* profiler = isolate->GetHeapProfiler();
-  std::unique_ptr<AllocationProfile> profile(profiler->GetAllocationProfile());
-  if (!profile) {
-    return false;
-  }
-  JSONWriter writer(out_stream, false);
-  writer.json_start();
-
-  writer.json_arraystart("samples");
-  for (const auto& sample : profile->GetSamples()) {
-    writer.json_start();
-    writer.json_keyvalue("size", sample.size * sample.count);
-    writer.json_keyvalue("nodeId", sample.node_id);
-    writer.json_keyvalue("ordinal", static_cast<double>(sample.sample_id));
-    writer.json_end();
-  }
-  writer.json_arrayend();
-
-  writer.json_objectstart("head");
-  buildHeapProfileNode(isolate, profile->GetRootNode(), &writer);
-  writer.json_objectend();
-
-  writer.json_end();
-  profiler->StopSamplingHeapProfiler();
-  return true;
-}
-
 void Worker::StopHeapProfile(const FunctionCallbackInfo<Value>& args) {
   Worker* w;
   ASSIGN_OR_RETURN_UNWRAP(&w, args.This());
@@ -1163,7 +1104,8 @@ void Worker::StopHeapProfile(const FunctionCallbackInfo<Value>& args) {
   bool scheduled = w->RequestInterrupt([taker = std::move(taker),
                                         env](Environment* worker_env) mutable {
     std::ostringstream out_stream;
-    bool success = serializeProfile(worker_env->isolate(), out_stream);
+    bool success =
+        node::SerializeHeapProfile(worker_env->isolate(), out_stream);
     env->SetImmediateThreadsafe(
         [taker = std::move(taker),
          out_stream = std::move(out_stream),

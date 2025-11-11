@@ -353,6 +353,7 @@ const customTypesMap = {
   'CPUProfileHandle': 'v8.html#class-cpuprofilehandle',
   'HeapProfileHandle': 'v8.html#class-heapprofilehandle',
   'SyncCPUProfileHandle': 'v8.html#class-synccpuprofilehandle',
+  'SyncHeapProfileHandle': 'v8.html#class-syncheapprofilehandle',
 };
 
 const arrayPart = /(?:\[])+$/;

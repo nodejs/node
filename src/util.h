@@ -1063,6 +1063,8 @@ inline v8::MaybeLocal<v8::Object> NewDictionaryInstanceNullProto(
     v8::Local<v8::DictionaryTemplate> tmpl,
     v8::MemorySpan<v8::MaybeLocal<v8::Value>> property_values);
 
+bool SerializeHeapProfile(v8::Isolate* isolate, std::ostringstream& out_stream);
+
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
