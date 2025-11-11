@@ -892,7 +892,7 @@ void Endpoint::Listen(const Session::Options& options) {
                        "not what you want.");
   }
 
-  auto context = TLSContext::CreateServer(options.tls_options);
+  auto context = TLSContext::CreateServer(env(), options.tls_options);
   if (!*context) {
     THROW_ERR_INVALID_STATE(
         env(), "Failed to create TLS context: %s", context->validation_error());
@@ -925,7 +925,7 @@ BaseObjectPtr<Session> Endpoint::Connect(
         config,
         session_ticket.has_value() ? "yes" : "no");
 
-  auto tls_context = TLSContext::CreateClient(options.tls_options);
+  auto tls_context = TLSContext::CreateClient(env(), options.tls_options);
   if (!*tls_context) {
     THROW_ERR_INVALID_STATE(env(),
                             "Failed to create TLS context: %s",
