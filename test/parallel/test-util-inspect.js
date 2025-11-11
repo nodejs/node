@@ -2551,6 +2551,23 @@ assert.strictEqual(
       "'foobar', { x: 1 } },\n  inc: [Getter: NaN]\n}");
 }
 
+// Test for property getter throwing an error with a bad message.
+{
+  const error = {
+    // The message itself is a getter that throws
+    get message() { throw new Error('Oops'); }
+  };
+
+  const thrower = {
+    get foo() { throw error; }
+  };
+
+  assert.strictEqual(
+    inspect(thrower, { getters: true }),
+    '{ foo: [Getter: <Inspection threw>] }'
+  );
+}
+
 // Check compact number mode.
 {
   let obj = {
