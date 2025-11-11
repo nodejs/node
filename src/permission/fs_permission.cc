@@ -70,10 +70,11 @@ bool is_tree_granted(
   }
 #endif
   auto _is_granted = granted_tree->Lookup(resolved_param, true);
-  node::Debug(env, node::DebugCategory::PERMISSION_MODEL,
-      "Access %d to %s\n",
-      _is_granted,
-      param);
+  node::Debug(env,
+              node::DebugCategory::PERMISSION_MODEL,
+              "Access %d to %s\n",
+              _is_granted,
+              param);
 
   return _is_granted;
 }
