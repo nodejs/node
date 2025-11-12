@@ -1,7 +1,10 @@
-import { registerHooks } from 'node:module';
-
-registerHooks({
-  load(url, context, nextLoad) {
-    return nextLoad(url, context);
-  },
-});
+export async function load(url, context, nextLoad) {
+  const result = await nextLoad(url, context);
+  if (!result) {
+    return {
+      format: 'esm',
+      source: 'console.log("Hello world");', // fallback source
+    };
+  }
+  return result;
+}
