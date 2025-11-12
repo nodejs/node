@@ -1,9 +1,9 @@
-# Onboarding
+# Onboarding.
 
 This document is an outline of the things we tell new collaborators at their
 onboarding session.
 
-## One week before the onboarding session
+## One week before the onboarding session.
 
 * If the new Collaborator is not yet a member of the nodejs GitHub organization,
   confirm that they are using [two-factor authentication][]. It will not be
@@ -13,14 +13,14 @@ onboarding session.
 * Suggest the new Collaborator install [`@node-core/utils`][] and
   [set up the credentials][] for it.
 
-## Fifteen minutes before the onboarding session
+## Fifteen minutes before the onboarding session.
 
 * Prior to the onboarding session, add the new Collaborator to
   [the collaborators team](https://github.com/orgs/nodejs/teams/collaborators).
 * Ask them if they want to join any [subsystem teams](https://github.com/orgs/nodejs/teams/core/teams)
   and add them accordingly. See [Who to CC in the issue tracker][who-to-cc].
 
-## Onboarding session
+## Onboarding session.
 
 * This session will cover:
   * [local setup](#local-setup)
@@ -29,7 +29,7 @@ onboarding session.
   * [reviewing pull requests](#reviewing-pull-requests)
   * [landing pull requests](#landing-pull-requests)
 
-## Local setup
+## Local setup.
 
 * git:
   * Make sure you have whitespace=fix: `git config --global --add
@@ -61,7 +61,7 @@ The project has a venue for real-time discussion:
 * [`#nodejs-core`](https://openjs-foundation.slack.com/archives/C019Y2T6STH) on
   the [OpenJS Foundation Slack](https://slack-invite.openjsf.org/)
 
-## Project goals and values
+## Project goals and values.
 
 * Collaborators are the collective owners of the project
   * The project has the goals of its contributors
@@ -75,7 +75,7 @@ The project has a venue for real-time discussion:
 * You are expected to follow _and_ hold others accountable to the
   [Code of Conduct][].
 
-## Managing the issue tracker
+## Managing the issue tracker.
 
 * You have (mostly) free rein; don't hesitate to close an issue if you are
   confident that it should be closed.
