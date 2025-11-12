@@ -2551,7 +2551,38 @@ assert.strictEqual(
       "'foobar', { x: 1 } },\n  inc: [Getter: NaN]\n}");
 }
 
-// Test for property getter throwing an error with a bad message.
+// Property getter throwing throwing uncommon values.
+{
+  assert.strictEqual(
+    inspect({
+      /* eslint-disable-next-line no-throw-literal */
+      get foo() { throw null; }
+    }, { getters: true }),
+    '{ foo: [Getter: <Inspection threw>] }'
+  );
+  assert.strictEqual(
+    inspect({
+      /* eslint-disable-next-line no-throw-literal */
+      get foo() { throw true; }
+    }, { getters: true }),
+    '{ foo: [Getter: <Inspection threw (undefined)>] }'
+  );
+  assert.strictEqual(
+    inspect({
+      /* eslint-disable-next-line no-throw-literal */
+      get foo() { throw {}; }
+    }, { getters: true }),
+    '{ foo: [Getter: <Inspection threw (undefined)>] }'
+  );
+  assert.strictEqual(
+    inspect({
+      get foo() { throw Error; }
+    }, { getters: true }),
+    '{ foo: [Getter: <Inspection threw (undefined)>] }'
+  );
+}
+
+// Property getter throwing an error with message getter that throws.
 {
   const error = {
     // The message itself is a getter that throws
@@ -2565,6 +2596,28 @@ assert.strictEqual(
   assert.strictEqual(
     inspect(thrower, { getters: true }),
     '{ foo: [Getter: <Inspection threw>] }'
+  );
+}
+
+// Property getter throwing an error with a bad message.
+{
+  assert.strictEqual(
+    inspect({
+      get foo() { throw new Error(undefined); }
+    }, { getters: true }),
+    '{ foo: [Getter: <Inspection threw ()>] }'
+  );
+  assert.strictEqual(
+    inspect({
+      get foo() { throw new Error(''); }
+    }, { getters: true }),
+    '{ foo: [Getter: <Inspection threw ()>] }'
+  );
+  assert.strictEqual(
+    inspect({
+      get foo() { throw new Error(null); }
+    }, { getters: true }),
+    '{ foo: [Getter: <Inspection threw (null)>] }'
   );
 }
 
