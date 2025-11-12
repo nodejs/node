@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Test cross-origin fetch redirects have the right values.</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<body>
+<script>
+const load_font = url => {
+  document.body.innerHTML = `
+    <style>
+    @font-face {
+        font-family: ahem;
+        src: url('${url}');
+    }
+    </style>
+    <div style="font-family: ahem;">This fetches ahem font.</div>
+  `;
+  return document.fonts.ready;
+};
+
+const run_test = async (t, url) => {
+  // Set up PerformanceObserver
+  const href = new URL(url).href;
+  const setPerformanceObserver = new Promise(resolve => {
+    const po = new PerformanceObserver(resolve);
+    po.observe({type: "resource"});
+  });
+
+  // Load the font resource and wait for it to be fetched.
+  await load_font(href);
+
+  // Wait for an entry
+  const timeout = new Promise(resolve => t.step_timeout(resolve, 3000));
+  const list = await Promise.race([setPerformanceObserver, timeout]);
+  assert_equals(typeof(list), "object", "No iframe entry was fired");
+  const entries = list.getEntriesByName(url);
+  assert_equals(entries.length, 1);
+
+  // Test entry values
+  const entry = entries[0];
+  assert_greater_than(entry.fetchStart, 0, "fetchStart should be greater than 0 in redirects.");
+  assert_greater_than_equal(entry.domainLookupStart, entry.fetchStart, "domainLookupStart should be more than 0 in same-origin redirect.");
+  assert_greater_than_equal(entry.domainLookupEnd, entry.domainLookupStart, "domainLookupEnd should be more than 0 in same-origin redirect.");
+  assert_greater_than_equal(entry.connectStart, entry.domainLookupEnd, "connectStart should be more than 0 in same-origin redirect.");
+  assert_greater_than_equal(entry.secureConnectionStart, entry.connectStart, "secureConnectionStart should be more than 0 in same-origin redirect.");
+  assert_greater_than_equal(entry.connectEnd, entry.secureConnectionStart, "connectEnd should be more than 0 in same-origin redirect.");
+  assert_greater_than_equal(entry.requestStart, entry.connectEnd, "requestStart should be more than 0 in same-origin redirect.");
+  assert_greater_than_equal(entry.responseStart, entry.requestStart, "responseStart should be more than 0 in same-origin redirect.");
+  assert_greater_than_equal(entry.responseEnd, entry.responseStart, "responseEnd should be greater than 0 in redirects.");
+  assert_greater_than_equal(entry.duration, 0, "duration should be greater than 0 in redirects.");
+}
+
+const {HTTPS_REMOTE_ORIGIN} = get_host_info();
+promise_test(t => {
+  return run_test(t, HTTPS_REMOTE_ORIGIN + "/fonts/Ahem.ttf");
+}, "Test a font's timestamps");
+
+promise_test(t => {
+  return run_test(t, HTTPS_REMOTE_ORIGIN + "/resource-timing/resources/cors-ahem.py?pipe=trickle(d1)");
+}, "Test a font's timestamps with delays");
+</script>

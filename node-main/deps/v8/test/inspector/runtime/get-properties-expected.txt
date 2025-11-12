@@ -1,0 +1,220 @@
+Checks Runtime.getProperties method
+
+Running test: testObject5
+  foo own string cat
+Internal properties
+  [[PrimitiveValue]] number 5
+  [[Prototype]] object undefined
+
+Running test: testNotOwn
+  __defineGetter__ inherited function undefined
+  __defineSetter__ inherited function undefined
+  __lookupGetter__ inherited function undefined
+  __lookupSetter__ inherited function undefined
+  __proto__ inherited no value, getter, setter
+  a own number 2
+  b own no value, getter, setter
+  c inherited number 4
+  constructor inherited function undefined
+  d inherited no value, getter
+  hasOwnProperty inherited function undefined
+  isPrototypeOf inherited function undefined
+  propertyIsEnumerable inherited function undefined
+  toLocaleString inherited function undefined
+  toString inherited function undefined
+  valueOf inherited function undefined
+Internal properties
+  [[Prototype]] object undefined
+
+Running test: testNotOwnSet
+  Symbol(Symbol.iterator) inherited function undefined
+  Symbol(Symbol.toStringTag) inherited string Set
+  __defineGetter__ inherited function undefined
+  __defineSetter__ inherited function undefined
+  __lookupGetter__ inherited function undefined
+  __lookupSetter__ inherited function undefined
+  __proto__ inherited no value, getter, setter
+  add inherited function undefined
+  clear inherited function undefined
+  constructor inherited function undefined
+  delete inherited function undefined
+  difference inherited function undefined
+  entries inherited function undefined
+  forEach inherited function undefined
+  has inherited function undefined
+  hasOwnProperty inherited function undefined
+  intersection inherited function undefined
+  isDisjointFrom inherited function undefined
+  isPrototypeOf inherited function undefined
+  isSubsetOf inherited function undefined
+  isSupersetOf inherited function undefined
+  keys inherited function undefined
+  propertyIsEnumerable inherited function undefined
+  size inherited number 3
+  symmetricDifference inherited function undefined
+  toLocaleString inherited function undefined
+  toString inherited function undefined
+  union inherited function undefined
+  valueOf inherited function undefined
+  values inherited function undefined
+Internal properties
+  [[Entries]] object undefined
+  [[Prototype]] object undefined
+
+Running test: testAccessorsOnly
+  b own no value, getter, setter
+  d own no value, setter
+
+Running test: testArray
+  0 own string red
+  1 own string green
+  2 own string blue
+  length own number 3
+Internal properties
+  [[Prototype]] object undefined
+
+Running test: testBound
+  length own number 0
+  name own string bound Number
+Internal properties
+  [[BoundArgs]] object undefined
+  [[BoundThis]] object undefined
+  [[Prototype]] function undefined
+  [[TargetFunction]] function undefined
+
+Running test: testObjectThrowsLength
+  length own no value, getter
+Internal properties
+  [[Prototype]] object undefined
+
+Running test: testTypedArrayWithoutLength
+Internal properties
+  [[Prototype]] object undefined
+
+Running test: testClassWithPrivateFields
+  baz own number 4
+Internal properties
+  [[Prototype]] object undefined
+Private properties
+  #bar number 3
+  #foo number 2
+  baz own number 4
+Internal properties
+  [[Prototype]] object undefined
+Private properties
+  #bar number 3
+  #baz number 1
+  #foo number 2
+Internal properties
+  [[Handler]] object undefined
+  [[IsRevoked]] boolean false
+  [[Target]] object undefined
+Private properties
+  #bar number 3
+  #foo number 2
+
+Running test: testArrayBuffer
+[[Prototype]]
+  Symbol(Symbol.toStringTag) own string ArrayBuffer
+  byteLength own no value, getter
+  constructor own function undefined
+  detached own no value, getter
+  maxByteLength own no value, getter
+  resizable own no value, getter
+  resize own function undefined
+  slice own function undefined
+  transfer own function undefined
+  transferToFixedLength own function undefined
+Internal properties
+  [[Prototype]] object undefined
+[[Int8Array]]
+  0 own number 1
+  1 own number 1
+  2 own number 1
+  3 own number 1
+  4 own number 1
+  5 own number 1
+  6 own number 1
+  7 own number 1
+Internal properties
+  [[Prototype]] object undefined
+[[Uint8Array]]
+  0 own number 1
+  1 own number 1
+  2 own number 1
+  3 own number 1
+  4 own number 1
+  5 own number 1
+  6 own number 1
+  7 own number 1
+Internal properties
+  [[Prototype]] object undefined
+[[Int16Array]]
+  0 own number 257
+  1 own number 257
+  2 own number 257
+  3 own number 257
+Internal properties
+  [[Prototype]] object undefined
+[[Int32Array]]
+  0 own number 16843009
+  1 own number 16843009
+Internal properties
+  [[Prototype]] object undefined
+[[ArrayBufferByteLength]]
+[[ArrayBufferData]]
+
+Running test: testArrayBufferFromWebAssemblyMemory
+[[Prototype]]
+  Symbol(Symbol.toStringTag) own string ArrayBuffer
+  byteLength own no value, getter
+  constructor own function undefined
+  detached own no value, getter
+  maxByteLength own no value, getter
+  resizable own no value, getter
+  resize own function undefined
+  slice own function undefined
+  transfer own function undefined
+  transferToFixedLength own function undefined
+Internal properties
+  [[Prototype]] object undefined
+[[Int8Array]]
+[[Uint8Array]]
+[[Int16Array]]
+[[Int32Array]]
+[[ArrayBufferByteLength]]
+[[ArrayBufferData]]
+[[WebAssemblyMemory]]
+Internal properties
+  [[Prototype]] object undefined
+
+Running test: testDetachedArrayBuffer
+[[Prototype]] undefined
+[[IsDetached]] true
+
+Running test: testArrayBufferWithBrokenUintCtor
+Internal properties
+  [[ArrayBufferByteLength]] number 7
+  [[ArrayBufferData]] number 4
+  [[Int8Array]] object undefined
+  [[Prototype]] object undefined
+  [[Uint8Array]] object undefined
+
+Running test: testObjectWithProtoProperty
+  __proto__ own object undefined
+Internal properties
+  [[Prototype]] object undefined
+
+Running test: testArrayNonIndexedPropertiesOnly
+  length own number 2
+Internal properties
+  [[Prototype]] object undefined
+
+Running test: testTypedArrayNonIndexedPropertiesOnly
+Internal properties
+  [[Prototype]] object undefined
+
+Running test: testWeakRef
+Internal properties
+  [[Prototype]] object undefined
+  [[WeakRefTarget]] object undefined

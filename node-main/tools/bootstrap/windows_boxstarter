@@ -1,0 +1,24 @@
+# Boxstarter (http://boxstarter.org/) script for Node.js prerequisites
+#
+# To install either open this link in IE or Edge:
+#  http://boxstarter.org/package/nr/url?https://raw.githubusercontent.com/nodejs/node/HEAD/tools/bootstrap/windows_boxstarter
+#
+# Or run those commands in an elevated Powershell terminal:
+#  iex ((New-Object System.Net.WebClient).DownloadString('http://boxstarter.org/bootstrapper.ps1'))
+#  get-boxstarter -Force
+#  Install-BoxstarterPackage https://raw.githubusercontent.com/nodejs/node/HEAD/tools/bootstrap/windows_boxstarter -DisableReboots
+#
+# For more detail see
+# https://github.com/nodejs/node/blob/HEAD/tools/bootstrap/README.md
+#
+
+# Git and Unix tools will be added to the PATH
+choco install git -params /GitAndUnixToolsOnPath -y
+choco install python3 -y
+
+# Installs VS 2022 Build Tools
+choco install visualstudio2022buildtools -y
+choco install visualstudio2022-workload-vctools -y --params="--add Microsoft.VisualStudio.Component.VC.Tools.ARM64 --add Microsoft.VisualStudio.Component.VC.ATL.ARM64 --add Microsoft.NetCore.Component.SDK --add Microsoft.VisualStudio.Component.VC.Llvm.Clang --add Microsoft.VisualStudio.Component.VC.Llvm.ClangToolset"
+
+# NASM
+choco install nasm -y

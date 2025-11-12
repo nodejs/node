@@ -1,0 +1,72 @@
+Tests for ES6 class syntax "extends"
+
+On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE".
+
+
+PASS (new Base) instanceof Base is true
+PASS Object.getPrototypeOf(new Base) is Base.prototype
+PASS (new Derived) instanceof Derived is true
+PASS Object.getPrototypeOf(new Derived) is Derived.prototype
+PASS Object.getPrototypeOf(Derived.prototype) is Base.prototype
+PASS (new Derived).baseMethod() is "base"
+PASS (new Derived).overridenMethod() is "derived"
+PASS Derived.staticBaseMethod() is "base"
+PASS Derived.staticOverridenMethod() is "derived"
+PASS x = class extends threw exception SyntaxError: Unexpected end of input.
+PASS x = class extends threw exception SyntaxError: Unexpected end of input.
+PASS x = class extends Base { threw exception SyntaxError: Unexpected end of input.
+PASS x = class extends Base { } did not throw exception.
+PASS x = class extends Base { constructor() { } } did not throw exception.
+PASS x.__proto__ is Base
+PASS Object.getPrototypeOf(x) is Base
+PASS x.prototype.__proto__ is Base.prototype
+PASS Object.getPrototypeOf(x.prototype) is Base.prototype
+PASS x = class extends null { constructor() { } }; x.__proto__ is Function.prototype
+PASS x.__proto__ is Function.prototype
+PASS x = class extends 3 { constructor() { } }; x.__proto__ threw exception TypeError: Class extends value 3 is not a constructor or null.
+PASS x = class extends "abc" { constructor() { } }; x.__proto__ threw exception TypeError: Class extends value abc is not a constructor or null.
+PASS baseWithBadPrototype = function () {}; baseWithBadPrototype.prototype = 3; new baseWithBadPrototype did not throw exception.
+PASS x = class extends baseWithBadPrototype { constructor() { } } threw exception TypeError: Class extends value does not have valid prototype property 3.
+PASS baseWithBadPrototype.prototype = "abc" did not throw exception.
+PASS x = class extends baseWithBadPrototype { constructor() { } } threw exception TypeError: Class extends value does not have valid prototype property abc.
+PASS baseWithBadPrototype.prototype = null; x = class extends baseWithBadPrototype { constructor() { } } did not throw exception.
+PASS x = 1; c = class extends ++x { constructor() { } }; threw exception SyntaxError: Unexpected token '++'.
+PASS x = 1; c = class extends x++ { constructor() { } }; threw exception SyntaxError: Unexpected token '++'.
+PASS x = 1; c = class extends (++x) { constructor() { } }; threw exception TypeError: Class extends value 2 is not a constructor or null.
+PASS x = 1; c = class extends (x++) { constructor() { } }; threw exception TypeError: Class extends value 1 is not a constructor or null.
+PASS x = 1; try { c = class extends (++x) { constructor() { } } } catch (e) { }; x is 2
+PASS x = 1; try { c = class extends (x++) { constructor() { } } } catch (e) { }; x is 2
+PASS namespace = {}; namespace.A = class { }; namespace.B = class extends namespace.A { } did not throw exception.
+PASS namespace = {}; namespace.A = class A { }; namespace.B = class B extends namespace.A { } did not throw exception.
+PASS namespace = {}; namespace.A = class { constructor() { } }; namespace.B = class extends namespace.A { constructor() { } } did not throw exception.
+PASS namespace = {}; namespace.A = class A { constructor() { } }; namespace.B = class B extends namespace.A { constructor() { } } did not throw exception.
+PASS namespace = {}; namespace.A = class { constructor() { } }; namespace.B = class extends (namespace.A) { constructor() { } } did not throw exception.
+PASS namespace = {}; namespace.A = class { constructor() { } }; namespace.B = class extends namespace["A"] { constructor() { } } did not throw exception.
+PASS namespace = {}; namespace.A = class { constructor() { } }; function getClassA() { return namespace.A }; namespace.B = class extends getClassA() { constructor() { } } did not throw exception.
+PASS namespace = {}; namespace.A = class { constructor() { } }; function getClass(prop) { return namespace[prop] }; namespace.B = class extends getClass("A") { constructor() { } } did not throw exception.
+PASS namespace = {}; namespace.A = class { constructor() { } }; namespace.B = class extends (false||null||namespace.A) { constructor() { } } did not throw exception.
+PASS namespace = {}; namespace.A = class { constructor() { } }; namespace.B = class extends false||null||namespace.A { constructor() { } } threw exception SyntaxError: Unexpected token '||'.
+PASS x = 1; namespace = {}; namespace.A = class { constructor() { } }; namespace.B = class extends (x++, namespace.A) { constructor() { } }; did not throw exception.
+PASS x = 1; namespace = {}; namespace.A = class { constructor() { } }; namespace.B = class extends (namespace.A, x++) { constructor() { } }; threw exception TypeError: Class extends value 1 is not a constructor or null.
+PASS namespace = {}; namespace.A = class { constructor() { } }; namespace.B = class extends new namespace.A { constructor() { } } threw exception TypeError: Class extends value [object Object] is not a constructor or null.
+PASS namespace = {}; namespace.A = class { constructor() { } }; namespace.B = class extends new namespace.A() { constructor() { } } threw exception TypeError: Class extends value [object Object] is not a constructor or null.
+PASS x = 1; namespace = {}; namespace.A = class { constructor() { } }; try { namespace.B = class extends (x++, namespace.A) { constructor() { } } } catch (e) { } x is 2
+PASS x = 1; namespace = {}; namespace.A = class { constructor() { } }; try { namespace.B = class extends (namespace.A, x++) { constructor() { } } } catch (e) { } x is 2
+PASS Object.getPrototypeOf((class { constructor () { } }).prototype) is Object.prototype
+PASS Object.getPrototypeOf((class extends null { constructor () { super(); } }).prototype) is null
+PASS new (class extends undefined { constructor () { this } }) threw exception TypeError: Class extends value undefined is not a constructor or null.
+PASS new (class extends undefined { constructor () { super(); } }) threw exception TypeError: Class extends value undefined is not a constructor or null.
+PASS x = {}; new (class extends undefined { constructor () { return x; } }) threw exception TypeError: Class extends value undefined is not a constructor or null.
+PASS y = 12; new (class extends undefined { constructor () { return y; } }) threw exception TypeError: Class extends value undefined is not a constructor or null.
+PASS class x {}; new (class extends null { constructor () { return new x; } }) instanceof x is true
+PASS new (class extends null { constructor () { this; } }) threw exception ReferenceError: Must call super constructor in derived class before accessing 'this' or returning from derived constructor.
+PASS new (class extends null { constructor () { super(); } }) threw exception TypeError: Super constructor null of anonymous class is not a constructor.
+PASS x = {}; new (class extends null { constructor () { return x } }) is x
+PASS y = 12; new (class extends null { constructor () { return y; } }) threw exception TypeError: Derived constructors may only return object or undefined.
+PASS class x {}; new (class extends null { constructor () { return new x; } }) instanceof x is true
+PASS x = null; Object.getPrototypeOf((class extends x { }).prototype) is null
+PASS Object.prototype.isPrototypeOf(class { }) is true
+PASS Function.prototype.isPrototypeOf(class { }) is true
+PASS successfullyParsed is true
+
+TEST COMPLETE

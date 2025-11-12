@@ -1,0 +1,53 @@
+Tests line and column numbers in console messages
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                description : 239
+                type : number
+                value : 239
+            }
+        ]
+        executionContextId : <executionContextId>
+        stackTrace : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 8
+                    functionName : 
+                    lineNumber : 0
+                    scriptId : <scriptId>
+                    url : 
+                }
+            ]
+        }
+        timestamp : <timestamp>
+        type : log
+    }
+}
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                description : 239
+                type : number
+                value : 239
+            }
+        ]
+        executionContextId : <executionContextId>
+        stackTrace : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 2
+                    functionName : 
+                    lineNumber : 1
+                    scriptId : <scriptId>
+                    url : 
+                }
+            ]
+        }
+        timestamp : <timestamp>
+        type : log
+    }
+}

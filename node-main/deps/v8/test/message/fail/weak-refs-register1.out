@@ -1,0 +1,6 @@
+*%(basename)s:*: TypeError: FinalizationRegistry.prototype.register: invalid target
+fg.register(1);
+   ^
+TypeError: FinalizationRegistry.prototype.register: invalid target
+    at FinalizationRegistry.register (<anonymous>)
+    at *%(basename)s:*:4

@@ -1,0 +1,18 @@
+Regression test for crbug.com/1319828
+
+Running test: testDebuggerGetPossibleBreakpoints
+
+function foo() {
+  |_|console.|C|log('Hello World!');
+|R|}
+
+
+Running test: testDebuggerSetBreakpointByUrl
+function foo() {
+  #console.log('Hello World!');
+}
+
+function foo() {
+  console.#log('Hello World!');
+}
+

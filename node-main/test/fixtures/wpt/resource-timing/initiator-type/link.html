@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>Resource Timing initiator type: link</title>
+<link rel="author" title="Google" href="http://www.google.com/" />
+<link rel="help" href="https://www.w3.org/TR/resource-timing-2/#dom-performanceresourcetiming-initiatortype"/>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/resource-timing/resources/observe-entry.js"></script>
+<script src="resources/initiator-type-test.js"></script>
+</head>
+<body>
+<link rel="stylesheet" href="/resource-timing/resources/nested.css">
+<link rel="prefetch"
+    href="/resource-timing/resources/resource_timing_test0.css?id=prefetch">
+<link rel="preload" as="style"
+    href="/resource-timing/resources/resource_timing_test0.css?id=preload">
+<link rel="prerender" href="/resource-timing/resources/green.html?id=prerender">
+<link rel="manifest" href="/resource-timing/resources/manifest.json">
+<link rel="modulepreload" href="resources/empty.js?id=modulePreload">
+<script>
+  initiator_type_test("nested.css", "link", "<link>");
+
+  // Verify there are entries for each of nested.css' nested resources.
+  initiator_type_test("resource_timing_test0.css?id=n1", "css", "css resources embedded in css");
+  initiator_type_test("fonts/Ahem.ttf?id=n1", "css", "font resources embedded in css");
+  initiator_type_test("blue.png?id=n1", "css", "image resources embedded in css");
+
+  initiator_type_test("resource_timing_test0.css?id=prefetch", "link", "<link prefetch>");
+  initiator_type_test("resource_timing_test0.css?id=preload", "link", "<link preload>");
+  initiator_type_test("green.html?id=prerender", "link", "<link prerender>");
+  initiator_type_test("manifest.json", "link", "<link manifest>");
+  initiator_type_test("resources/empty.js?id=modulePreload", "other", "module preload");
+</script>
+<ol>This content forces a font to get fetched</ol>
+</body>
+</html>

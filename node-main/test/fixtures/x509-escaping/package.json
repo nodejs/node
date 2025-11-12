@@ -1,0 +1,12 @@
+{
+  "name": "x509-escaping",
+  "version": "1.0.0",
+  "description": "create certificates for x509-escaping test",
+  "main": "createCert.js",
+  "license": "SEE LICENSE IN ../../../LICENSE",
+  "private": true,
+  "dependencies": {
+    "asn1.js": "^5.4.1",
+    "asn1.js-rfc5280": "^3.0.0"
+  }
+}

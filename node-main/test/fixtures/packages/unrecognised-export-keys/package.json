@@ -1,0 +1,10 @@
+{
+  "name": "pkg-with-unrecognised-export-keys",
+  "exports": {
+    ".": {
+      "default": "./index.js",
+      "FtLcAG": "./whatever.ext",
+      "types": "./index.d.ts"
+    }
+  }
+}

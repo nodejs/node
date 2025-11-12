@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<meta charset="utf-8">
+<title>FileAPI Test: Creating Blob URL via XMLHttpRequest as image source</title>
+<link rel="author" title="Intel" href="http://www.intel.com">
+<link rel="author" title="JunChen Xia" href="mailto:xjconlyme@gmail.com">
+<link rel="match" href="url_xmlhttprequest_img-ref.html">
+
+<p>Test passes if there is a filled blue square.</p>
+
+<p>
+  <img id="fileDisplay">
+</p>
+
+<script src="/common/reftest-wait.js"></script>
+<script>
+  var http = new XMLHttpRequest();
+  http.open("GET", "/images/blue96x96.png", true);
+  http.responseType = "blob";
+  http.onloadend = function() {
+    var fileDisplay = document.querySelector("#fileDisplay");
+    fileDisplay.src = window.URL.createObjectURL(http.response);
+    fileDisplay.onload = takeScreenshot;
+  };
+  http.send();
+</script>
+</html>

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<!--
+Copyright 2019 the V8 project authors. All rights reserved.  Use of this source
+code is governed by a BSD-style license that can be found in the LICENSE file.
+-->
+<head>
+  <!-- This will be overwritten by the v8.dev/tools exporter -->
+<!-- ANALYTICS_PLACEHOLDER -->
+  <meta charset="utf-8">
+  <title>V8 Turbolizer</title>
+  <link rel="stylesheet" href="css/turbo-visualizer.css">
+  <link rel="stylesheet" href="css/turbo-visualizer-ranges.css">
+  <link rel="stylesheet" href="css/tabs.css">
+  <link rel="stylesheet" href="css/turboshaft.css">
+  <link rel="icon" href="turbolizer.png">
+</head>
+
+<body>
+  <div id="history" class="content"></div>
+  <div id="left" class="content"></div>
+  <div id="resizer-left" class="resizer"></div>
+  <div id="middle">
+    <div id="load-file">
+      <input type="file" id="upload-helper">
+      <input type="image" id="upload" class="button-input" title="load graph" src="img/upload-icon.png" alt="upload graph">
+    </div>
+    <div id="resizer-ranges" class="resizer" style="visibility:hidden;"></div>
+    <div id="ranges" class="content" style="visibility:hidden;"></div>
+    <div id="show-hide-ranges" class="show-hide-pane" style="visibility: hidden;">
+      <input type="image" id="ranges-expand-vert" class="button-input invisible" title="show ranges" src="img/arrows/up-arrow.png">
+      <input type="image" id="ranges-shrink-vert" class="button-input" title="hide ranges" src="img/arrows/down-arrow.png">
+      <input type="image" id="ranges-expand-hor" class="button-input invisible" title="show ranges" src="img/arrows/left-arrow.png">
+      <input type="image" id="ranges-shrink-hor" class="button-input invisible" title="hide ranges" src="img/arrows/right-arrow.png">
+    </div>
+  </div>
+  <div id="resizer-right" class="resizer"></div>
+  <div id="right" class="content"></div>
+  <div id="show-hide-source" class="show-hide-pane">
+    <input type="image" id="source-expand" class="button-input invisible" title="show source" src="img/arrows/right-arrow.png">
+    <input type="image" id="source-shrink" class="button-input" title="hide source" src="img/arrows/left-arrow.png">
+  </div>
+  <div id="show-hide-disassembly" class="show-hide-pane">
+    <input type="image" id="disassembly-expand" class="button-input invisible" title="show disassembly" src="img/arrows/left-arrow.png">
+    <input type="image" id="disassembly-shrink" class="button-input" title="hide disassembly" src="img/arrows/right-arrow.png">
+  </div>
+  <div id="text-placeholder" style="width: 0; height: 0; position: absolute; top:100000px;">
+    <svg>
+      <text style="text-anchor: end;">
+        <tspan id="text-measure" style="white-space: inherit;"></tspan>
+      </text>
+    </svg>
+  </div>
+  <script src="https://cdn.jsdelivr.net/gh/google/code-prettify@master/loader/run_prettify.js"></script>
+  <script src="build/turbolizer.js"></script>
+</body>
+</html>

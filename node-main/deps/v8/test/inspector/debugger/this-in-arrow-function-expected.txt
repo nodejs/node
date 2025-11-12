@@ -1,0 +1,107 @@
+Checks this in arrow function scope
+    (function() {
+      let f = () => { #debugger; };
+      f();
+
+This on callFrame:
+{
+    type : undefined
+}
+This in evaluateOnCallFrame:
+{
+    type : undefined
+}
+Values equal: true
+
+      let f = () => { debugger; };
+      #f();
+    }).call('a');
+
+This on callFrame:
+{
+    className : String
+    description : String
+    objectId : <objectId>
+    type : object
+}
+This in evaluateOnCallFrame:
+{
+    className : String
+    description : String
+    objectId : <objectId>
+    type : object
+}
+Values equal: true
+
+      f();
+    }).#call('a');
+    return a;
+
+This on callFrame:
+{
+    className : Number
+    description : Number
+    objectId : <objectId>
+    type : object
+}
+This in evaluateOnCallFrame:
+{
+    className : Number
+    description : Number
+    objectId : <objectId>
+    type : object
+}
+Values equal: true
+
+function boo() {
+  foo.call(1)#();
+}
+
+This on callFrame:
+{
+    className : Object
+    description : Object
+    objectId : <objectId>
+    type : object
+}
+This in evaluateOnCallFrame:
+{
+    className : Object
+    description : Object
+    objectId : <objectId>
+    type : object
+}
+Values equal: true
+
+}
+(() => boo.#call({}))();
+
+This on callFrame:
+{
+    type : undefined
+}
+This in evaluateOnCallFrame:
+{
+    type : undefined
+}
+Values equal: true
+
+}
+(() => boo.call({}))#();
+
+This on callFrame:
+{
+    className : global
+    description : global
+    objectId : <objectId>
+    type : object
+}
+This in evaluateOnCallFrame:
+{
+    className : global
+    description : global
+    objectId : <objectId>
+    type : object
+}
+Values equal: true
+
