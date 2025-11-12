@@ -2555,21 +2555,21 @@ assert.strictEqual(
 {
   assert.strictEqual(
     inspect({
-      /* eslint-disable-next-line no-throw-literal */
+      // eslint-disable-next-line no-throw-literal
       get foo() { throw null; }
     }, { getters: true }),
     '{ foo: [Getter: <Inspection threw>] }'
   );
   assert.strictEqual(
     inspect({
-      /* eslint-disable-next-line no-throw-literal */
+      // eslint-disable-next-line no-throw-literal
       get foo() { throw true; }
     }, { getters: true }),
     '{ foo: [Getter: <Inspection threw>] }'
   );
   assert.strictEqual(
     inspect({
-      /* eslint-disable-next-line no-throw-literal */
+      // eslint-disable-next-line no-throw-literal
       get foo() { throw {}; }
     }, { getters: true }),
     '{ foo: [Getter: <Inspection threw>] }'
