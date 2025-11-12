@@ -25,6 +25,7 @@
 #include "src/codegen/safepoint-table.h"
 #include "src/codegen/source-position.h"
 #include "src/handles/handles.h"
+#include "src/logging/counters.h"
 #include "src/sandbox/sandbox-malloc.h"
 #include "src/tasks/operations-barrier.h"
 #include "src/trap-handler/trap-handler.h"
@@ -40,8 +41,8 @@ namespace v8 {
 class CFunctionInfo;
 namespace internal {
 
-class InstructionStream;
 class CodeDesc;
+class InstructionStream;
 class Isolate;
 
 namespace wasm {
@@ -252,6 +253,17 @@ class V8_EXPORT_PRIVATE WasmCode final {
         protected_instructions_data());
   }
 
+  struct __attribute__((packed)) EffectHandler {
+    int call_offset;
+    int tag_index;
+    int handler_offset;
+  };
+  static_assert(sizeof(WasmCode::EffectHandler) == 3 * kIntSize);
+
+  base::Vector<const EffectHandler> effect_handlers() const {
+    return effect_handlers_.as_vector();
+  }
+
   bool IsProtectedInstruction(Address pc);
 
   void Validate() const;
@@ -401,7 +413,9 @@ class V8_EXPORT_PRIVATE WasmCode final {
            base::Vector<const uint8_t> inlining_positions,
            base::Vector<const uint8_t> deopt_data, Kind kind,
            ExecutionTier tier, ForDebugging for_debugging,
-           uint64_t signature_hash, bool frame_has_feedback_slot = false)
+           uint64_t signature_hash,
+           base::OwnedVector<const EffectHandler> effect_handlers,
+           bool frame_has_feedback_slot = false)
       : native_module_(native_module),
         instructions_(instructions.begin()),
         signature_hash_(signature_hash),
@@ -424,6 +438,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
         code_comments_offset_(code_comments_offset),
         jump_table_info_offset_(jump_table_info_offset),
         unpadded_binary_size_(unpadded_binary_size),
+        effect_handlers_(std::move(effect_handlers)),
         flags_(KindField::encode(kind) | ExecutionTierField::encode(tier) |
                ForDebuggingField::encode(for_debugging) |
                FrameHasFeedbackSlotField::encode(frame_has_feedback_slot)) {
@@ -490,6 +505,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
   const int jump_table_info_offset_;
   const int unpadded_binary_size_;
   int trap_handler_index_ = -1;
+  base::OwnedVector<const EffectHandler> effect_handlers_;
 
   const uint8_t flags_;  // Bit field, see below.
   // Bits encoded in {flags_}:
@@ -529,13 +545,19 @@ struct UnpublishedWasmCode {
   static constexpr AssumptionsJournal* kNoAssumptions = nullptr;
 };
 
-// Manages the code reservations and allocations of a single {NativeModule}.
+// Manages the code reservations and allocations of a single {NativeModule} or
+// the {WasmImportWrapperCache}.
 class WasmCodeAllocator {
  public:
-  explicit WasmCodeAllocator(std::shared_ptr<Counters> async_counters);
+  // The passed {DelayedCounterUpdates} object must outlive the
+  // {WasmCodeAllocator}. It's typically a field in the class which also holds
+  // the code allocator.
+  explicit WasmCodeAllocator(DelayedCounterUpdates*);
+
   ~WasmCodeAllocator();
 
-  // Call before use, after the {NativeModule} is set up completely.
+  // Call before use, after the {NativeModule} / {WasmImportWrapperCache} is set
+  // up completely.
   void Init(VirtualMemory code_space);
 
   // Call on newly allocated code ranges, to write platform-specific headers.
@@ -572,8 +594,6 @@ class WasmCodeAllocator {
   // Hold the {NativeModule}'s {allocation_mutex_} when calling this method.
   size_t GetNumCodeSpaces() const;
 
-  Counters* counters() const { return async_counters_.get(); }
-
  private:
   //////////////////////////////////////////////////////////////////////////////
   // These fields are protected by the mutex in {NativeModule}.
@@ -594,7 +614,7 @@ class WasmCodeAllocator {
   std::atomic<size_t> generated_code_size_{0};
   std::atomic<size_t> freed_code_size_{0};
 
-  std::shared_ptr<Counters> async_counters_;
+  DelayedCounterUpdates* counter_updates_;
 };
 
 class V8_EXPORT_PRIVATE NativeModule final {
@@ -629,18 +649,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
   uint32_t DisassembleForLcov(
       std::ostream& out, std::vector<int>& function_body_offsets,
       std::map<uint32_t, uint32_t>& bytecode_disasm_offsets);
-
-  // {AddCode} is thread safe w.r.t. other calls to {AddCode} or methods adding
-  // code below, i.e. it can be called concurrently from background threads.
-  // The returned code still needs to be published via {PublishCode}.
-  std::unique_ptr<WasmCode> AddCode(
-      int index, const CodeDesc& desc, int stack_slots, int ool_spill_count,
-      uint32_t tagged_parameter_slots,
-      base::Vector<const uint8_t> protected_instructions,
-      base::Vector<const uint8_t> source_position_table,
-      base::Vector<const uint8_t> inlining_positions,
-      base::Vector<const uint8_t> deopt_data, WasmCode::Kind kind,
-      ExecutionTier tier, ForDebugging for_debugging);
 
   // {PublishCode} makes the code available to the system by entering it into
   // the code table and patching the jump table. It returns a raw pointer to the
@@ -682,7 +690,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
       base::Vector<const uint8_t> source_position_table,
       base::Vector<const uint8_t> inlining_positions,
       base::Vector<const uint8_t> deopt_data, WasmCode::Kind kind,
-      ExecutionTier tier);
+      ExecutionTier tier,
+      base::OwnedVector<const WasmCode::EffectHandler> effect_handlers);
 
   // Adds anonymous code for testing purposes.
   WasmCode* AddCodeForTesting(DirectHandle<Code> code, uint64_t signature_hash);
@@ -770,12 +779,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
   }
   size_t liftoff_bailout_count() const {
     return liftoff_bailout_count_.load(std::memory_order_relaxed);
-  }
-  size_t liftoff_code_size() const {
-    return liftoff_code_size_.load(std::memory_order_relaxed);
-  }
-  size_t turbofan_code_size() const {
-    return turbofan_code_size_.load(std::memory_order_relaxed);
   }
 
   void AddLazyCompilationTimeSample(int64_t sample);
@@ -884,8 +887,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
     return tiering_budgets_.get();
   }
 
-  Counters* counters() const { return code_allocator_.counters(); }
-
   // Returns an approximation of current off-heap memory used by this module.
   size_t EstimateCurrentMemoryConsumption() const;
   // Print the current memory consumption estimate to standard output.
@@ -969,6 +970,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
     return continuation_wrapper_;
   }
 
+  DelayedCounterUpdates* counter_updates() { return &counter_updates_; }
+
  private:
   friend class WasmCode;
   friend class WasmCodeAllocator;
@@ -986,7 +989,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
                WasmDetectedFeatures detected_features,
                CompileTimeImports compile_imports, VirtualMemory code_space,
                std::shared_ptr<const WasmModule> module,
-               std::shared_ptr<Counters> async_counters,
                std::shared_ptr<NativeModule>* shared_this);
 
   std::unique_ptr<WasmCode> AddCodeWithCodeSpace(
@@ -997,6 +999,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
       base::Vector<const uint8_t> inlining_positions,
       base::Vector<const uint8_t> deopt_data, WasmCode::Kind kind,
       ExecutionTier tier, ForDebugging for_debugging,
+      base::OwnedVector<const WasmCode::EffectHandler> effect_handlers,
       bool frame_has_feedback_slot, base::Vector<uint8_t> code_space,
       const JumpTablesRef& jump_tables_ref);
 
@@ -1011,8 +1014,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // {GetNearRuntimeStubEntry} to avoid the overhead of looking this information
   // up there. Return an empty struct if no suitable jump tables exist.
   JumpTablesRef FindJumpTablesForRegionLocked(base::AddressRegion) const;
-
-  void UpdateCodeSize(size_t, ExecutionTier, ForDebugging);
 
   // Hold the {allocation_mutex_} when calling one of these methods.
   // {slot_index} is the index in the declared functions, i.e. function index
@@ -1154,8 +1155,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   bool lazy_compile_frozen_ = false;
   std::atomic<size_t> liftoff_bailout_count_{0};
-  std::atomic<size_t> liftoff_code_size_{0};
-  std::atomic<size_t> turbofan_code_size_{0};
 
   // Metrics for lazy compilation.
   std::atomic<int> num_lazy_compilations_{0};
@@ -1181,6 +1180,11 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // TODO(thibaudm): Share the wrappers across modules, and cache them per
   // signature once we support arguments and return values.
   WasmCode* continuation_wrapper_{nullptr};
+
+  // The native module does not belong to an isolate, so we cannot immediately
+  // update counters in an isolate. Store them here instead and publish them the
+  // next time we get hold of an isolate.
+  DelayedCounterUpdates counter_updates_;
 };
 
 class V8_EXPORT_PRIVATE WasmCodeManager final {
@@ -1243,7 +1247,7 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
   friend class WasmImportWrapperCache;
 
   std::shared_ptr<NativeModule> NewNativeModule(
-      Isolate* isolate, WasmEnabledFeatures enabled_features,
+      WasmEnabledFeatures enabled_features,
       WasmDetectedFeatures detected_features,
       CompileTimeImports compile_imports, size_t code_size_estimate,
       std::shared_ptr<const WasmModule> module);

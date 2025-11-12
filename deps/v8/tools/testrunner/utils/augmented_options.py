@@ -72,6 +72,7 @@ class AugmentedOptions(optparse.Values):
     add('interrupt', self.stress_interrupt_budget)
     add('marking', self.stress_marking)
     add('scavenge', self.stress_scavenge)
+    add('scavenge_chaos', self.scavenge_chaos)
     add('gc_interval', self.stress_gc)
     add('stack', self.stress_stack_size)
     add('threads', self.stress_thread_pool_size)

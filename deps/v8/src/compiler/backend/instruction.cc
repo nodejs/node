@@ -1028,6 +1028,11 @@ void InstructionSequence::EndBlock(RpoNumber rpo) {
   current_block_ = nullptr;
 }
 
+void InstructionSequence::EndBlock(RpoNumber rpo, Instruction* terminator) {
+  AddInstruction(terminator);
+  EndBlock(rpo);
+}
+
 int InstructionSequence::AddInstruction(Instruction* instr) {
   DCHECK_NOT_NULL(current_block_);
   int index = static_cast<int>(instructions_.size());

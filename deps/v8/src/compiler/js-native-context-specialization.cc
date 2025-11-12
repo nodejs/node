@@ -3274,12 +3274,16 @@ JSNativeContextSpecialization::BuildPropertyStore(
       }
       effect = graph()->NewNode(
           common()->BeginRegion(RegionObservability::kObservable), effect);
+      effect = graph()->NewNode(simplified()->StoreField(field_access), storage,
+                                value, effect, control);
+      // We store the map only at the end of the transition to avoid a potential
+      // race with background threads: a background thread could otherwise read
+      // a map, then try to read the new field based on this map, but this field
+      // hasn't been written yet.
       effect = graph()->NewNode(
           simplified()->StoreField(AccessBuilder::ForMap()), receiver,
           jsgraph()->ConstantNoHole(transition_map_ref, broker()), effect,
           control);
-      effect = graph()->NewNode(simplified()->StoreField(field_access), storage,
-                                value, effect, control);
       effect = graph()->NewNode(common()->FinishRegion(),
                                 jsgraph()->UndefinedConstant(), effect);
     } else {

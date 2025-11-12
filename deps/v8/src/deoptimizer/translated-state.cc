@@ -2187,6 +2187,8 @@ void TranslatedState::MaterializeFixedDoubleArray(TranslatedFrame* frame,
              frame->values_[*value_index].kind());
     DirectHandle<Object> value = frame->values_[*value_index].GetValue();
     if (value.is_identical_to(isolate()->factory()->the_hole_value())) {
+      // See is_hole_nan conversions in maglev-code-generator.cc and
+      // turbolev-graph-builder.cc.
       array->set_the_hole(isolate(), i);
     } else {
       CHECK(IsNumber(*value));
@@ -2203,9 +2205,16 @@ void TranslatedState::MaterializeHeapNumber(TranslatedFrame* frame,
   CHECK_NE(TranslatedValue::kCapturedObject,
            frame->values_[*value_index].kind());
   DirectHandle<Object> value = frame->values_[*value_index].GetValue();
-  CHECK(IsNumber(*value));
-  Handle<HeapNumber> box =
-      isolate()->factory()->NewHeapNumber(Object::NumberValue(*value));
+  Handle<HeapNumber> box;
+  if (value.is_identical_to(isolate()->factory()->the_hole_value())) {
+    // See is_hole_nan conversions in maglev-code-generator.cc and
+    // turbolev-graph-builder.cc.
+    box = isolate()->factory()->NewHeapNumber(
+        std::numeric_limits<double>::quiet_NaN());
+  } else {
+    CHECK(IsNumber(*value));
+    box = isolate()->factory()->NewHeapNumber(Object::NumberValue(*value));
+  }
   (*value_index)++;
   slot->set_storage(box);
 }
@@ -2556,7 +2565,6 @@ void TranslatedState::InitializeJSObjectAt(
     uint8_t marker = object_storage->ReadField<uint8_t>(offset);
     InstanceType instance_type = map->instance_type();
     USE(instance_type);
-#ifdef V8_ENABLE_LEAPTIERING
     if (InstanceTypeChecker::IsJSFunction(instance_type) &&
         offset == JSFunction::kDispatchHandleOffset) {
       // The JSDispatchHandle will be materialized as a number, but we need
@@ -2569,7 +2577,6 @@ void TranslatedState::InitializeJSObjectAt(
           JSFunction::kDispatchHandleOffset, handle.value());
       continue;
     }
-#endif  // V8_ENABLE_LEAPTIERING
 #ifdef V8_ENABLE_SANDBOX
     if (InstanceTypeChecker::IsJSRegExp(instance_type) &&
         offset == JSRegExp::kDataOffset) {

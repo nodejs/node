@@ -12,8 +12,10 @@
 #include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/arguments-inl.h"
+#include "src/execution/frames-inl.h"
 #include "src/execution/frames.h"
 #include "src/heap/factory.h"
+#include "src/heap/read-only-heap.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/property-descriptor.h"
@@ -354,6 +356,7 @@ RUNTIME_FUNCTION(Runtime_WasmReThrow) {
 RUNTIME_FUNCTION(Runtime_WasmStackGuard) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
+  TRACE_EVENT0("v8.execute", "V8.StackGuard");
 
   uint32_t gap = args.positive_smi_value_at(0);
 
@@ -365,6 +368,22 @@ RUNTIME_FUNCTION(Runtime_WasmStackGuard) {
       StackGuard::InterruptLevel::kAnyEffect);
 }
 
+// For loop back edges in optimized code. Avoids triggering side effects that
+// could get in the way of optimizations, and doesn't need to check for real
+// stack overflows because loops don't change the stack height.
+// Note: API interrupts for debugging purposes can execute arbitrary JS,
+// and we don't guard against that here. So for very particular (and presumably
+// very unlikely) circumstances, debugging sessions can cause crashes.
+// To properly fix that, we should implement lazy-deopt support for Wasm.
+RUNTIME_FUNCTION(Runtime_WasmStackGuardLoop) {
+  DCHECK_EQ(0, args.length());
+  SealHandleScope shs(isolate);
+  TRACE_EVENT0("v8.execute", "V8.StackGuard");
+
+  return isolate->stack_guard()->HandleInterrupts(
+      StackGuard::InterruptLevel::kNoHeapWrites);
+}
+
 RUNTIME_FUNCTION(Runtime_WasmCompileLazy) {
   DCHECK_EQ(2, args.length());
   Tagged<WasmTrustedInstanceData> trusted_instance_data =
@@ -374,23 +393,23 @@ RUNTIME_FUNCTION(Runtime_WasmCompileLazy) {
   TRACE_EVENT1("v8.wasm", "wasm.CompileLazy", "func_index", func_index);
   DisallowHeapAllocation no_gc;
   SealHandleScope scope(isolate);
+  wasm::NativeModule* native_module = trusted_instance_data->native_module();
 
   DCHECK(isolate->context().is_null());
-  if (trusted_instance_data->has_native_context()) {
-    isolate->set_context(trusted_instance_data->native_context());
-  }
-  bool success = wasm::CompileLazy(isolate, trusted_instance_data, func_index);
+  DCHECK(trusted_instance_data->has_native_context());
+  isolate->set_context(trusted_instance_data->native_context());
+  bool success = wasm::CompileLazy(isolate, native_module, func_index);
+  native_module->counter_updates()->Publish(isolate);
   if (!success) {
     DCHECK(v8_flags.wasm_lazy_validation);
     AllowHeapAllocation throwing_unwinds_the_stack;
-    wasm::ThrowLazyCompilationError(
-        isolate, trusted_instance_data->native_module(), func_index);
+    wasm::ThrowLazyCompilationError(isolate, native_module, func_index);
     DCHECK(isolate->has_exception());
     return ReadOnlyRoots{isolate}.exception();
   }
 
   return Smi::FromInt(
-      wasm::JumpTableOffset(trusted_instance_data->module(), func_index));
+      wasm::JumpTableOffset(native_module->module(), func_index));
 }
 
 namespace {
@@ -617,16 +636,22 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
         cache->GetCompiled(isolate, kind, expected_arity, suspend, sig);
     DCHECK_EQ(TrustedCast<WasmInternalFunction>(*origin)->call_target(),
               wrapper_handle->code_pointer());
+    cache->PublishCounterUpdates(isolate);
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
 #ifdef DEBUG
-  DirectHandle<WasmDispatchTable> dispatch_table =
-      CheckedCast<WasmDispatchTable>(origin);
   int table_slot = import_data->table_slot();
+  DirectHandle<WasmDispatchTable> dispatch_table;
+  DirectHandle<WasmDispatchTableForImports> dispatch_table_for_imports;
+  if (IsWasmDispatchTable(*origin)) {
+    dispatch_table = TrustedCast<WasmDispatchTable>(origin);
+    DCHECK_EQ(sig->index(), dispatch_table->sig(table_slot));
+  } else {
+    dispatch_table_for_imports =
+        CheckedCast<WasmDispatchTableForImports>(origin);
+  }
 #endif  // DEBUG
-  // Check consistency of the signature index stored in the dispatch table.
-  DCHECK_EQ(sig->index(), dispatch_table->sig(table_slot));
 
   // Compile a wrapper for the target callable.
   DirectHandle<JSReceiver> callable(Cast<JSReceiver>(import_data->callable()),
@@ -650,10 +675,20 @@ RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
   std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle =
       cache->GetCompiled(isolate, kind, expected_arity, suspend, sig);
 
+#ifdef DEBUG
   // Check consistency of the dispatch table's target code pointer. The code
   // pointer is owned by the import wrapper cache and was updated when compiling
   // the wrapper.
-  DCHECK_EQ(dispatch_table->target(table_slot), wrapper_handle->code_pointer());
+  if (!dispatch_table.is_null()) {
+    DCHECK_EQ(dispatch_table->target(table_slot),
+              wrapper_handle->code_pointer());
+  } else {
+    DCHECK_EQ(dispatch_table_for_imports->target(table_slot),
+              wrapper_handle->code_pointer());
+  }
+#endif  // DEBUG
+
+  cache->PublishCounterUpdates(isolate);
 
   return ReadOnlyRoots(isolate).undefined_value();
 }
@@ -2240,6 +2275,8 @@ RUNTIME_FUNCTION(Runtime_WasmStringEncodeWtf16) {
   uint16_t* dst = reinterpret_cast<uint16_t*>(
       trusted_instance_data->memory_base(memory) + offset);
   String::WriteToFlat(string, dst, start, length);
+
+  return Smi::zero();  // Unused.
 #elif defined(V8_TARGET_BIG_ENDIAN)
   // TODO(12868): The host is big-endian but we need to write the string
   // contents as little-endian.
@@ -2249,8 +2286,6 @@ RUNTIME_FUNCTION(Runtime_WasmStringEncodeWtf16) {
 #else
 #error Unknown endianness
 #endif
-
-  return Smi::zero();  // Unused.
 }
 
 RUNTIME_FUNCTION(Runtime_WasmStringAsWtf8) {
@@ -2403,6 +2438,9 @@ RUNTIME_FUNCTION(Runtime_WasmStringHash) {
   return Smi::FromInt(static_cast<int>(hash));
 }
 
+// For cont.new: this initializes the continuation with a new stack and with the
+// given function reference, such that calling "resume" on it will call the
+// function on the new stack.
 RUNTIME_FUNCTION(Runtime_WasmAllocateContinuation) {
   DCHECK_EQ(2, args.length());
   HandleScope scope(isolate);
@@ -2410,14 +2448,42 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateContinuation) {
       TrustedCast<WasmTrustedInstanceData>(args[0]), isolate);
   DirectHandle<WasmFuncRef> func_ref =
       handle(Cast<WasmFuncRef>(args[1]), isolate);
-  DirectHandle<WasmContinuationObject> cont =
-      isolate->factory()->NewWasmContinuationObject();
+  std::unique_ptr<wasm::StackMemory> stack = wasm::StackMemory::New();
+  stack->jmpbuf()->fp = kNullAddress;
+  stack->jmpbuf()->sp = stack->base();
+  stack->jmpbuf()->state = wasm::JumpBuffer::Suspended;
+  stack->jmpbuf()->stack_limit = stack->jslimit();
+  stack->jmpbuf()->is_on_central_stack = false;
+  stack->jmpbuf()->parent = nullptr;
+  stack->set_index(isolate->wasm_stacks().size());
   // TODO(thibaudm): Store the WasmCodePointer instead.
-  cont->stack()->jmpbuf()->pc = trusted_instance_data->native_module()
-                                    ->continuation_wrapper()
-                                    ->instruction_start();
-  cont->stack()->set_func_ref(*func_ref);
+  stack->jmpbuf()->pc = trusted_instance_data->native_module()
+                            ->continuation_wrapper()
+                            ->instruction_start();
+  stack->set_func_ref(*func_ref);
+  wasm::StackMemory* stack_ptr = stack.get();
+  isolate->wasm_stacks().emplace_back(std::move(stack));
+  DirectHandle<WasmContinuationObject> cont =
+      isolate->factory()->NewWasmContinuationObject(stack_ptr);
+  stack_ptr->set_current_continuation(*cont);
   return *cont;
+}
+
+// For suspend: allocates an uninitialized continuation, to be initialized by
+// the suspend builtin with the current stack and register state.
+RUNTIME_FUNCTION(Runtime_WasmAllocateEmptyContinuation) {
+  DCHECK_EQ(0, args.length());
+  HandleScope scope(isolate);
+  DirectHandle<WasmContinuationObject> cont =
+      isolate->factory()->NewWasmContinuationObject(nullptr);
+  return *cont;
+}
+
+RUNTIME_FUNCTION(Runtime_WasmTypeAssertionFailed) {
+  DCHECK_EQ(0, args.length());
+  // The "FuzzerSecurityIssueHigh" is needed to label crashes of this as
+  // security issues in ClusterFuzz.
+  FATAL("[FuzzerSecurityIssueHigh] Wasm type assertion violation");
 }
 
 }  // namespace v8::internal

@@ -153,11 +153,11 @@ V<Word32> EmitCmp(TestInstance& test_instance, Cmp cmp, ConstOrV<Word32> left,
                   ConstOrV<Word32> right) {
   cmp = GreaterThanToLessThan(cmp, &left, &right);
   switch (cmp) {
-#define CASE(name)   \
-  case Cmp::k##name: \
+#define CASE_CMP(name) \
+  case Cmp::k##name:   \
     return test_instance.Asm().name(left, right);
-    BUILTIN_CMP_LIST(CASE)
-#undef CASE
+    BUILTIN_CMP_LIST(CASE_CMP)
+#undef CASE_CMP
     default:
       UNREACHABLE();
   }

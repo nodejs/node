@@ -20,8 +20,8 @@
 #include <functional>
 
 #include "absl/base/config.h"
+#include "absl/base/const_init.h"
 #include "absl/base/internal/raw_logging.h"
-#include "absl/base/internal/spinlock.h"
 #include "absl/base/thread_annotations.h"
 #include "absl/strings/internal/cord_internal.h"
 #include "absl/strings/internal/cordz_functions.h"
@@ -121,12 +121,10 @@ class ABSL_LOCKABLE CordzInfo : public CordzHandle {
   CordzInfo& operator=(const CordzInfo&) = delete;
 
   // Retrieves the oldest existing CordzInfo.
-  static CordzInfo* Head(const CordzSnapshot& snapshot)
-      ABSL_NO_THREAD_SAFETY_ANALYSIS;
+  static CordzInfo* Head(const CordzSnapshot& snapshot);
 
   // Retrieves the next oldest existing CordzInfo older than 'this' instance.
-  CordzInfo* Next(const CordzSnapshot& snapshot) const
-      ABSL_NO_THREAD_SAFETY_ANALYSIS;
+  CordzInfo* Next(const CordzSnapshot& snapshot) const;
 
   // Locks this instance for the update identified by `method`.
   // Increases the count for `method` in `update_tracker`.
@@ -185,17 +183,14 @@ class ABSL_LOCKABLE CordzInfo : public CordzHandle {
   int64_t sampling_stride() const { return sampling_stride_; }
 
  private:
-  using SpinLock = absl::base_internal::SpinLock;
-  using SpinLockHolder = ::absl::base_internal::SpinLockHolder;
-
   // Global cordz info list. CordzInfo stores a pointer to the global list
   // instance to harden against ODR violations.
   struct List {
-    constexpr explicit List(absl::ConstInitType) {}
-
-    SpinLock mutex;
-    std::atomic<CordzInfo*> head ABSL_GUARDED_BY(mutex){nullptr};
+    absl::Mutex mutex;
+    CordzInfo* head ABSL_GUARDED_BY(mutex){nullptr};
   };
+
+  static List* GlobalList();
 
   static constexpr size_t kMaxStackDepth = 64;
 
@@ -221,7 +216,7 @@ class ABSL_LOCKABLE CordzInfo : public CordzHandle {
 
   void ODRCheck() const {
 #ifndef NDEBUG
-    ABSL_RAW_CHECK(list_ == &global_list_, "ODR violation in Cord");
+    ABSL_RAW_CHECK(list_ == GlobalList(), "ODR violation in Cord");
 #endif
   }
 
@@ -231,12 +226,11 @@ class ABSL_LOCKABLE CordzInfo : public CordzHandle {
   static void MaybeTrackCordImpl(InlineData& cord, const InlineData& src,
                                  MethodIdentifier method);
 
-  ABSL_CONST_INIT static List global_list_;
-  List* const list_ = &global_list_;
+  List* const list_ = GlobalList();
 
   // ci_prev_ and ci_next_ require the global list mutex to be held.
   // Unfortunately we can't use thread annotations such that the thread safety
-  // analysis understands that list_ and global_list_ are one and the same.
+  // analysis understands that list_ and GlobalList() are one and the same.
   std::atomic<CordzInfo*> ci_prev_{nullptr};
   std::atomic<CordzInfo*> ci_next_{nullptr};
 

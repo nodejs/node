@@ -530,19 +530,18 @@ void WasmFunctionCompiler::Build(base::Vector<const uint8_t> bytes) {
   std::optional<WasmCompilationResult> result;
   if (builder_->test_execution_tier() ==
       TestExecutionTier::kLiftoffForFuzzing) {
-    result.emplace(
-        ExecuteLiftoffCompilation(&env, func_body,
-                                  LiftoffOptions{}
-                                      .set_func_index(function_->func_index)
-                                      .set_for_debugging(kForDebugging)
-                                      .set_max_steps(builder_->max_steps_ptr())
-                                      .set_detect_nondeterminism(true)));
+    result.emplace(ExecuteLiftoffCompilation(
+        &env, func_body,
+        LiftoffOptions{.func_index = static_cast<int>(function_->func_index),
+                       .for_debugging = kForDebugging,
+                       .counter_updates = native_module->counter_updates(),
+                       .max_steps = builder_->max_steps_ptr()}));
   } else {
     WasmCompilationUnit unit(function_->func_index, builder_->execution_tier(),
                              for_debugging);
     result.emplace(unit.ExecuteCompilation(
         &env, native_module->compilation_state()->GetWireBytesStorage().get(),
-        nullptr, &unused_detected_features));
+        native_module->counter_updates(), &unused_detected_features));
   }
   CHECK(result->succeeded());
   WasmCode* code =

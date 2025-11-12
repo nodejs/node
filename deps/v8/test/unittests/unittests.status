@@ -331,9 +331,6 @@
 ['variant in (stress_maglev, stress_maglev_non_eager_inlining, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan)', {
   # Maglev doesn't support compiler::NodeObserver machinery.
   'SloppyEqualityTest.SloppyEqualityTest': [FAIL],
-  # Maglev doesn't produce optimized enough code to trigger expected
-  # deoptimization.
-  'FeedbackVectorTest.VectorCallSpeculationModeAndFeedbackContent': [FAIL],
 }],  # variant in (stress_maglev, stress_maglev_non_eager_inlining, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan)
 
 ##############################################################################

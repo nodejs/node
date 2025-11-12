@@ -1346,6 +1346,14 @@ void CppHeap::StartIncrementalGarbageCollection(cppgc::internal::GCConfig) {
   UNIMPLEMENTED();
 }
 
+bool CppHeap::RetryAllocate(v8::base::FunctionRef<bool()> allocate) {
+  if (!IsGCAllowed()) {
+    return false;
+  }
+  return isolate_->heap()->allocator()->RetryCustomAllocate(
+      std::move(allocate), AllocationType::kOld);
+}
+
 size_t CppHeap::epoch() const { UNIMPLEMENTED(); }
 
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT
@@ -1380,12 +1388,6 @@ bool CppHeap::IsDetachedGCAllowed() const {
 
 bool CppHeap::IsGCAllowed() const {
   return isolate_ && HeapBase::IsGCAllowed();
-}
-
-bool CppHeap::IsGCForbidden() const {
-  return (isolate_ && isolate_->InFastCCall() &&
-          !v8_flags.allow_allocation_in_fast_api_call) ||
-         HeapBase::IsGCForbidden();
 }
 
 bool CppHeap::CurrentThreadIsHeapThread() const {

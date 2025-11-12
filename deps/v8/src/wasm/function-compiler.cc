@@ -27,7 +27,7 @@ namespace v8::internal::wasm {
 
 WasmCompilationResult WasmCompilationUnit::ExecuteCompilation(
     CompilationEnv* env, const WireBytesStorage* wire_bytes_storage,
-    Counters* counters, WasmDetectedFeatures* detected) {
+    DelayedCounterUpdates* counter_updates, WasmDetectedFeatures* detected) {
   DCHECK_GE(func_index_, static_cast<int>(env->module->num_imported_functions));
   const WasmFunction* func = &env->module->functions[func_index_];
   base::Vector<const uint8_t> code = wire_bytes_storage->GetCode(func->code);
@@ -35,21 +35,8 @@ WasmCompilationResult WasmCompilationUnit::ExecuteCompilation(
   wasm::FunctionBody func_body{func->sig, func->code.offset(), code.begin(),
                                code.end(), is_shared};
 
-  std::optional<TimedHistogramScope> wasm_compile_function_time_scope;
-  std::optional<TimedHistogramScope> wasm_compile_huge_function_time_scope;
-  if (counters && base::TimeTicks::IsHighResolution()) {
-    if (func_body.end - func_body.start >= 100 * KB) {
-      auto huge_size_histogram = SELECT_WASM_COUNTER(
-          counters, env->module->origin, wasm, huge_function_size_bytes);
-      huge_size_histogram->AddSample(
-          static_cast<int>(func_body.end - func_body.start));
-      wasm_compile_huge_function_time_scope.emplace(
-          counters->wasm_compile_huge_function_time());
-    }
-    auto timed_histogram = SELECT_WASM_COUNTER(counters, env->module->origin,
-                                               wasm_compile, function_time);
-    wasm_compile_function_time_scope.emplace(timed_histogram);
-  }
+  base::ElapsedTimer compile_timer;
+  if (base::TimeTicks::IsHighResolution()) compile_timer.Start();
 
   // Before executing compilation, make sure that the function was validated.
   // Both Liftoff and TurboFan compilation do not perform validation, so can
@@ -103,23 +90,22 @@ WasmCompilationResult WasmCompilationUnit::ExecuteCompilation(
       }
 
       if (V8_LIKELY(try_liftoff)) {
-        auto options = LiftoffOptions{}
-                           .set_func_index(func_index_)
-                           .set_for_debugging(for_debugging_)
-                           .set_counters(counters)
-                           .set_detected_features(detected);
+        LiftoffOptions options{.func_index = func_index_,
+                               .for_debugging = for_debugging_,
+                               .counter_updates = counter_updates,
+                               .detected_features = detected};
         // We do not use the debug side table, we only (optionally) pass it to
         // cover different code paths in Liftoff for testing.
         std::unique_ptr<DebugSideTable> unused_debug_sidetable;
         if (V8_UNLIKELY(declared_index < 32 &&
                         (v8_flags.wasm_debug_mask_for_testing &
                          (1 << declared_index)) != 0)) {
-          options.set_debug_sidetable(&unused_debug_sidetable);
-          if (!for_debugging_) options.set_for_debugging(kForDebugging);
+          options.debug_sidetable = &unused_debug_sidetable;
+          if (!for_debugging_) options.for_debugging = kForDebugging;
         }
         if (v8_flags.wasm_code_coverage &&
             options.for_debugging == kNotForDebugging) {
-          options.set_for_debugging(kForDebugging);
+          options.for_debugging = kForDebugging;
         }
         result = ExecuteLiftoffCompilation(env, func_body, options);
         if (result.succeeded()) break;
@@ -140,7 +126,7 @@ WasmCompilationResult WasmCompilationUnit::ExecuteCompilation(
       data.func_index = func_index_;
       data.wire_bytes_storage = wire_bytes_storage;
       result = compiler::turboshaft::ExecuteTurboshaftWasmCompilation(
-          env, data, detected, counters);
+          env, data, detected, counter_updates);
       // In exceptional cases it can happen that compilation requests for
       // debugging end up being executed by Turbofan, e.g. if Liftoff bails out
       // because of unsupported features or the --wasm-tier-mask-for-testing is
@@ -153,22 +139,39 @@ WasmCompilationResult WasmCompilationUnit::ExecuteCompilation(
   }
 
   DCHECK(result.succeeded());
-  if (counters) {
-    counters->wasm_generated_code_size()->Increment(
-        result.code_desc.instr_size);
-    counters->wasm_reloc_size()->Increment(result.code_desc.reloc_size);
-    counters->wasm_deopt_data_size()->Increment(
-        static_cast<int>(result.deopt_data.size()));
-  }
+  counter_updates->AddIncrement(&Counters::wasm_generated_code_size,
+                                result.code_desc.instr_size);
+  counter_updates->AddIncrement(&Counters::wasm_reloc_size,
+                                result.code_desc.reloc_size);
+  counter_updates->AddIncrement(&Counters::wasm_deopt_data_size,
+                                static_cast<int>(result.deopt_data.size()));
 
   result.func_index = func_index_;
 
+  if (compile_timer.IsStarted()) {
+    base::TimeDelta compile_time = compile_timer.Elapsed();
+    if (func_body.end - func_body.start >= 100 * KB) {
+      DelayedCounterUpdates::GetHistogramFn huge_size_histogram =
+          is_asmjs_module(env->module)
+              ? &Counters::wasm_asm_huge_function_size_bytes
+              : &Counters::wasm_wasm_huge_function_size_bytes;
+      counter_updates->AddSample(
+          huge_size_histogram,
+          static_cast<int>(func_body.end - func_body.start));
+      counter_updates->AddTimedSample(
+          &Counters::wasm_compile_huge_function_time, compile_time);
+    }
+    DelayedCounterUpdates::GetTimedHistogramFn compile_time_histogram =
+        is_asmjs_module(env->module)
+            ? &Counters::wasm_compile_asm_function_time
+            : &Counters::wasm_compile_wasm_function_time;
+    counter_updates->AddTimedSample(compile_time_histogram, compile_time);
+  }
   return result;
 }
 
 // static
-void WasmCompilationUnit::CompileWasmFunction(Counters* counters,
-                                              NativeModule* native_module,
+void WasmCompilationUnit::CompileWasmFunction(NativeModule* native_module,
                                               WasmDetectedFeatures* detected,
                                               const WasmFunction* function,
                                               ExecutionTier tier) {
@@ -189,7 +192,7 @@ void WasmCompilationUnit::CompileWasmFunction(Counters* counters,
           CompileTimeImport::kDisableDenormalFloats));
   WasmCompilationResult result = unit.ExecuteCompilation(
       &env, native_module->compilation_state()->GetWireBytesStorage().get(),
-      counters, detected);
+      native_module->counter_updates(), detected);
   if (result.succeeded()) {
     WasmCodeRefScope code_ref_scope;
     native_module->PublishCode(native_module->AddCompiledCode(result));

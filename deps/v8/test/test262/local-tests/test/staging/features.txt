@@ -50,19 +50,11 @@ json-parse-with-source
 # https://github.com/tc39/proposal-explicit-resource-management
 explicit-resource-management
 
-# Math.sumPrecise
-# https://github.com/tc39/proposal-math-sum
-Math.sumPrecise
-
 # Source Phase Imports
 ## https://github.com/tc39/proposal-source-phase-imports
 source-phase-imports
 ## test262 special specifier
 source-phase-imports-module-source
-
-# Uint8Array Base64
-# https://github.com/tc39/proposal-arraybuffer-base64
-uint8array-base64
 
 # Atomics.pause
 # https://github.com/tc39/proposal-atomics-microwait
@@ -87,6 +79,10 @@ upsert
 # Immutable Array Buffer
 # https://github.com/tc39/proposal-immutable-arraybuffer
 immutable-arraybuffer
+
+# Non-extensible Applies to Private
+# https://github.com/tc39/proposal-nonextensible-applies-to-private
+nonextensible-applies-to-private
 
 ## Standard language features
 #
@@ -180,6 +176,7 @@ json-superset
 let
 logical-assignment-operators
 Map
+Math.sumPrecise
 new.target
 numeric-separator-literal
 object-rest
@@ -214,6 +211,8 @@ rest-parameters
 Set
 set-methods
 SharedArrayBuffer
+stable-array-sort  # https://github.com/tc39/ecma262/pull/1340
+stable-typedarray-sort  # https://github.com/tc39/ecma262/pull/1433
 string-trimming
 String.fromCodePoint
 String.prototype.at
@@ -249,6 +248,7 @@ TypedArray
 TypedArray.prototype.at
 u180e
 Uint8Array
+uint8array-base64
 Uint16Array
 Uint32Array
 Uint8ClampedArray

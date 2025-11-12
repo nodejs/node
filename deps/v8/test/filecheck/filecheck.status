@@ -17,6 +17,7 @@
 
 ['variant == jitless', {
   'wasm-pause': [SKIP],
+  'crash/wasm-failed-type-assertion': [SKIP],
 }],  # variant == jitless
 
 ['variant in (jitless, nooptimization)', {
@@ -30,6 +31,11 @@
 }], # single_generation
 
 ['not has_webassembly', {
-  'wasm-pause': [SKIP],
-}], # single_generation
+  'wasm-*': [SKIP],
+  'crash/wasm-*': [SKIP],
+}], # not has_webassembly
+
+['official_build', {
+  'crash/wasm-failed-type-assertion': [SKIP],
+}], # official_build
 ]

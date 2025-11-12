@@ -39,6 +39,7 @@
 #include <type_traits>
 #include <utility>
 
+#include "absl/base/attributes.h"
 #include "absl/base/config.h"
 #include "absl/base/nullability.h"
 #include "absl/functional/internal/any_invocable.h"
@@ -159,7 +160,7 @@ ABSL_NAMESPACE_BEGIN
 //   AnyInvocable<void()> empty;
 //   empty();  // WARNING: Undefined behavior!
 template <class Sig>
-class ABSL_NULLABILITY_COMPATIBLE AnyInvocable
+class ABSL_NULLABILITY_COMPATIBLE ABSL_ATTRIBUTE_OWNER AnyInvocable
     : private internal_any_invocable::Impl<Sig> {
  private:
   static_assert(
@@ -171,6 +172,7 @@ class ABSL_NULLABILITY_COMPATIBLE AnyInvocable
  public:
   // The return type of Sig
   using result_type = typename Impl::result_type;
+  using absl_internal_is_view = std::false_type;
 
   // Constructors
 

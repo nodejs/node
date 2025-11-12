@@ -73,15 +73,9 @@ class V8_EXPORT_PRIVATE LoopFinder {
   const ZoneUnorderedMap<const Block*, LoopInfo>& LoopHeaders() const {
     return loop_header_info_;
   }
-
-  // Return the loop header for the loop containing {block}. Careful: if {block}
-  // is a loop header itself, GetLoopHeader doesn't return {block} but rather
-  // the header for the outer loop that contains {block} (or nullptr if there is
-  // no such loop).
   const Block* GetLoopHeader(const Block* block) const {
     return loop_headers_[block->index()];
   }
-
   LoopInfo GetLoopInfo(const Block* block) const {
     DCHECK(block->IsLoop());
     auto it = loop_header_info_.find(block);

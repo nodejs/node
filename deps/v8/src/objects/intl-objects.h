@@ -39,6 +39,7 @@ class TimeZone;
 class UnicodeString;
 namespace number {
 class LocalizedNumberFormatter;
+class Notation;
 }  //  namespace number
 }  // namespace U_ICU_NAMESPACE
 
@@ -78,6 +79,30 @@ class Intl {
   enum class BoundFunctionContextSlot {
     kBoundFunction = Context::MIN_CONTEXT_SLOTS,
     kLength
+  };
+
+  // [[Notation]] is one of the String values "standard", "scientific",
+  // "engineering", or "compact", specifying whether the number should be
+  // displayed without scaling, scaled to the units place with the power of ten
+  // in scientific notation, scaled to the nearest thousand with the power of
+  // ten in scientific notation, or scaled to the nearest locale-dependent
+  // compact decimal notation power of ten with the corresponding compact
+  // decimal notation affix.
+
+  enum class Notation {
+    STANDARD,
+    SCIENTIFIC,
+    ENGINEERING,
+    COMPACT,
+  };
+
+  // [[CompactDisplay]] is one of the String values "short" or "long",
+  // specifying whether to display compact notation affixes in short form ("5K")
+  // or long form ("5 thousand") if formatting with the "compact" notation. It
+  // is only used when [[Notation]] has the value "compact".
+  enum class CompactDisplay {
+    SHORT,
+    LONG,
   };
 
   enum class FormatRangeSource { kShared, kStartRange, kEndRange };
@@ -466,13 +491,16 @@ class Intl {
   static std::string TimeZoneIdToString(const icu::UnicodeString& id);
   static std::string DefaultTimeZone();
 
-  V8_WARN_UNUSED_RESULT static MaybeHandle<String> CanonicalizeTimeZoneName(
-      Isolate* isolate, DirectHandle<String> identifier);
+  static icu::number::Notation ToICUNotation(
+      Intl::Notation notation, Intl::CompactDisplay compact_display);
 
-  // ecma402/#sec-coerceoptionstoobject
-  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSReceiver>
-  CoerceOptionsToObject(Isolate* isolate, DirectHandle<Object> options,
-                        const char* service);
+  V8_WARN_UNUSED_RESULT static Notation NotationFromSkeleton(
+      const icu::UnicodeString& skeleton);
+  V8_WARN_UNUSED_RESULT static DirectHandle<String> NotationAsString(
+      Isolate* isolate, Notation notation);
+
+  V8_WARN_UNUSED_RESULT static DirectHandle<String> CompactDisplayString(
+      Isolate* isolate, const icu::UnicodeString& skeleton);
 };
 
 }  // namespace v8::internal

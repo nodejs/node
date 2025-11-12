@@ -1461,10 +1461,13 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsDictionaryMap(TNode<Map> map);
 
   // Load the Name::hash() value of a name as an uint32 value.
-  // If {if_hash_not_computed} label is specified then it also checks if
-  // hash is actually computed.
-  TNode<Uint32T> LoadNameHash(TNode<Name> name,
-                              Label* if_hash_not_computed = nullptr);
+  // The caller is responsible to deal with hashes that are not computed via
+  // |if_hash_not_computed|. If the hash is guaranteed to be computed, use
+  // LoadNameHashAssumeComputed instead.
+  TNode<Uint32T> LoadNameHash(TNode<Name> name, Label* if_hash_not_computed);
+  // Load the Name::hash() value of a name as uint32 value. Use only if the hash
+  // is guaranteed to be computed, otherwise use LoadNameHash and handle the
+  // non-computed case manually.
   TNode<Uint32T> LoadNameHashAssumeComputed(TNode<Name> name);
 
   // Load the Name::RawHash() value of a name as an uint32 value. Follows
@@ -4643,12 +4646,16 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                     const ForEachKeyValueFunction& body,
                                     Label* bailout);
 
+  // |value| is the property backing store's contents, which is either a value
+  // or an accessor pair, as specified by |details|. |holder| is a JSReceiver
+  // or empty std::nullopt if holder is not available.
+  // Returns either the original value, or the result of the getter call.
   TNode<Object> CallGetterIfAccessor(
-      TNode<Object> value, TNode<Union<JSReceiver, PropertyCell>> holder,
+      TNode<Object> value, std::optional<TNode<JSReceiver>> holder,
       TNode<Uint32T> details, TNode<Context> context, TNode<JSAny> receiver,
-      TNode<Object> name, Label* if_bailout,
-      GetOwnPropertyMode mode = kCallJSGetterDontUseCachedName,
-      ExpectedReceiverMode expected_receiver_mode = kExpectingJSReceiver);
+      ExpectedReceiverMode expected_receiver_mode, TNode<Object> name,
+      Label* if_bailout,
+      GetOwnPropertyMode mode = kCallJSGetterDontUseCachedName);
 
   TNode<IntPtrT> TryToIntptr(TNode<Object> key, Label* if_not_intptr,
                              TVariable<Int32T>* var_instance_type = nullptr);

@@ -682,6 +682,15 @@ void Serializer::ObjectSerializer::SerializeJSArrayBuffer() {
   }
 }
 
+void Serializer::ObjectSerializer::SerializeNativeContext() {
+  DisallowGarbageCollection no_gc;
+  Tagged<Context> context = Cast<Context>(*object_);
+  Tagged<Object> saved_next_context_link = context->next_context_link();
+  context->set_next_context_link(ReadOnlyRoots(isolate()).undefined_value());
+  SerializeObject();
+  context->set_next_context_link(saved_next_context_link);
+}
+
 void Serializer::ObjectSerializer::SerializeExternalString() {
   // For external strings with known resources, we replace the resource field
   // with the encoded external reference, which we restore upon deserialize.
@@ -844,6 +853,10 @@ void Serializer::ObjectSerializer::Serialize(SlotType slot_type) {
   }
   if (InstanceTypeChecker::IsJSArrayBuffer(instance_type)) {
     SerializeJSArrayBuffer();
+    return;
+  }
+  if (InstanceTypeChecker::IsNativeContext(instance_type)) {
+    SerializeNativeContext();
     return;
   }
   if (InstanceTypeChecker::IsScript(instance_type)) {

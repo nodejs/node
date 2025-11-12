@@ -62,6 +62,8 @@ class JSLocale : public TorqueGeneratedJSLocale<JSLocale, JSObject> {
                                      DirectHandle<JSLocale> locale);
   static DirectHandle<Object> Region(Isolate* isolate,
                                      DirectHandle<JSLocale> locale);
+  static DirectHandle<Object> Variants(Isolate* isolate,
+                                       DirectHandle<JSLocale> locale);
   static DirectHandle<String> BaseName(Isolate* isolate,
                                        DirectHandle<JSLocale> locale);
   static DirectHandle<Object> Calendar(Isolate* isolate,

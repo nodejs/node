@@ -160,9 +160,9 @@ std::optional<BailoutReason> InstructionSelector::SelectInstructions() {
         AddInstruction(instructions_[start]);
       }
       UpdateRenames(instructions_[end]);
-      AddTerminator(instructions_[end]);
     }
-    EndBlock(this->rpo_number(block));
+    Instruction* terminator = instructions_[end];
+    EndBlock(this->rpo_number(block), terminator);
   }
 #if DEBUG
   sequence()->ValidateSSA();
@@ -179,21 +179,12 @@ void InstructionSelector::StartBlock(RpoNumber rpo) {
   }
 }
 
-void InstructionSelector::EndBlock(RpoNumber rpo) {
+void InstructionSelector::EndBlock(RpoNumber rpo, Instruction* terminator) {
   if (UseInstructionScheduling()) {
     DCHECK_NOT_NULL(scheduler_);
-    scheduler_->EndBlock(rpo);
+    scheduler_->EndBlock(rpo, terminator);
   } else {
-    sequence()->EndBlock(rpo);
-  }
-}
-
-void InstructionSelector::AddTerminator(Instruction* instr) {
-  if (UseInstructionScheduling()) {
-    DCHECK_NOT_NULL(scheduler_);
-    scheduler_->AddTerminator(instr);
-  } else {
-    sequence()->AddInstruction(instr);
+    sequence()->EndBlock(rpo, terminator);
   }
 }
 
@@ -1250,6 +1241,16 @@ void InstructionSelector::InitializeCallBuffer(
       break;
     }
     case CallDescriptor::kCallJSFunction:
+      // TODO(olivf): Implement the required kArchCallJSFunction with
+      // immediate argument on all architectures.
+#if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_ARM) ||     \
+    defined(V8_TARGET_ARCH_ARM64) || defined(V8_TARGET_ARCH_PPC64) || \
+    defined(V8_TARGET_ARCH_S390X)
+      if (this->IsHeapConstant(callee)) {
+        buffer->instruction_args.push_back(g.UseImmediate(callee));
+        break;
+      }
+#endif
       buffer->instruction_args.push_back(
           g.UseLocation(callee, buffer->descriptor->GetInputLocation(0)));
       break;
@@ -2162,7 +2163,9 @@ void InstructionSelector::UpdateMaxPushedArgumentCount(size_t count) {
   *max_pushed_argument_count_ = std::max(count, *max_pushed_argument_count_);
 }
 
-void InstructionSelector::VisitCall(OpIndex node, Block* handler) {
+void InstructionSelector::VisitCall(
+    OpIndex node, Block* exception_handler,
+    base::Vector<EffectHandler> effect_handlers) {
   OperandGenerator g(this);
   const CallOp& call_op = Cast<CallOp>(node);
   const CallDescriptor* call_descriptor = call_op.descriptor->descriptor;
@@ -2222,15 +2225,28 @@ void InstructionSelector::VisitCall(OpIndex node, Block* handler) {
   }
 
   // Pass label of exception handler block.
-  if (handler) {
+  bool lazy_deopt_on_throw =
+      call_op.descriptor->lazy_deopt_on_throw == LazyDeoptOnThrow::kYes;
+  if (exception_handler) {
     flags |= CallDescriptor::kHasExceptionHandler;
-    buffer.instruction_args.push_back(g.Label(handler));
-  } else {
-    if (call_op.descriptor->lazy_deopt_on_throw == LazyDeoptOnThrow::kYes) {
-      flags |= CallDescriptor::kHasExceptionHandler;
-      buffer.instruction_args.push_back(
-          g.UseImmediate(kLazyDeoptOnThrowSentinel));
+    buffer.instruction_args.push_back(g.Label(exception_handler));
+  } else if (lazy_deopt_on_throw) {
+    flags |= CallDescriptor::kHasExceptionHandler;
+    buffer.instruction_args.push_back(
+        g.UseImmediate(kLazyDeoptOnThrowSentinel));
+  }
+  if (!effect_handlers.empty()) {
+    flags |= CallDescriptor::kHasEffectHandler;
+    for (auto& handler : effect_handlers) {
+      buffer.instruction_args.push_back(g.Label(handler.block));
+      buffer.instruction_args.push_back(g.UseImmediate(handler.tag_index));
     }
+    buffer.instruction_args.push_back(
+        g.UseImmediate(static_cast<int>(effect_handlers.size())));
+  } else {
+    // This bit had a different meaning before isel, so ensure that it is
+    // cleared:
+    flags &= ~CallDescriptor::kHasEffectHandler;
   }
 
   // Select the appropriate opcode based on the call type.
@@ -2692,7 +2708,8 @@ void InstructionSelector::VisitControl(const Block* block) {
     }
     case Opcode::kCheckException: {
       const CheckExceptionOp& check = op.Cast<CheckExceptionOp>();
-      VisitCall(check.throwing_operation(), check.catch_block);
+      VisitCall(check.throwing_operation(), check.catch_block,
+                check.effect_handlers);
       VisitGoto(check.didnt_throw_block);
       return;
     }

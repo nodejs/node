@@ -54,13 +54,18 @@ class Deoptimizer : public Malloced {
   //
   //  for (;;) {
   //    for (;;) {
-  //    }  // OSR is triggered on this backedge.
+  //    }  // OSR is triggered on this backedge (osr_offset = JumpLoop's
+  //    offset).
   //  }  // This is the outermost loop containing the osr'd loop.
   static bool DeoptExitIsInsideOsrLoop(Isolate* isolate,
                                        Tagged<JSFunction> function,
                                        BytecodeOffset deopt_exit_offset,
                                        BytecodeOffset osr_offset,
                                        CodeKind code_kind);
+  static bool GetOutermostOuterLoopWithCodeKind(
+      Isolate* isolate, Tagged<JSFunction> function, BytecodeOffset osr_offset,
+      CodeKind outer_loop_code_kind, BytecodeOffset* outer_loop_osr_offset);
+
   static DeoptInfo GetDeoptInfo(Tagged<Code> code, Address from);
   DeoptInfo GetDeoptInfo() const {
     return Deoptimizer::GetDeoptInfo(compiled_code_, from_);

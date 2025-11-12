@@ -1242,6 +1242,9 @@ TEST(HashOf, DoubleSignCollision) {
 
 // Test for collisions in short strings if PrecombineLengthMix is low quality.
 TEST(PrecombineLengthMix, ShortStringCollision) {
+#if defined(__wasm__)
+  GTEST_SKIP() << "Fails flakily on wasm due to no ASLR and 32-bit size_t.";
+#endif
   std::string s1 = "00";
   std::string s2 = "000";
   constexpr char kMinChar = 0;

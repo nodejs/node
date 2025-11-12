@@ -864,7 +864,7 @@ bool IsReadOnlyLengthDescriptor(Isolate* isolate,
                                 DirectHandle<Map> jsarray_map) {
   DCHECK(!jsarray_map->is_dictionary_map());
   Tagged<DescriptorArray> descriptors =
-      jsarray_map->instance_descriptors(isolate, kRelaxedLoad);
+      jsarray_map->instance_descriptors(isolate, kAcquireLoad);
   static_assert(
       JSArray::kLengthOffset == JSObject::kHeaderSize,
       "The length should be the first property on the descriptor array");
@@ -1615,7 +1615,7 @@ ObjectRef AllocationSiteRef::nested_site(JSHeapBroker* broker) const {
   return MakeRefAssumeMemoryFence(broker, object()->nested_site());
 }
 
-HEAP_ACCESSOR_C(AllocationSite, bool, CanInlineCall)
+HEAP_ACCESSOR_C(AllocationSite, bool, IsSpeculationDisabled)
 HEAP_ACCESSOR_C(AllocationSite, bool, PointsToLiteral)
 HEAP_ACCESSOR_C(AllocationSite, ElementsKind, GetElementsKind)
 HEAP_ACCESSOR_C(AllocationSite, AllocationType, GetAllocationType)

@@ -68,8 +68,15 @@ class WasmInJSInliningReducer : public Next {
       result = TryInlineJSWasmCallWrapperAndBody(
           native_module, func_idx, arguments, js_closure, js_context,
           descriptor->js_wasm_call_parameters->receiver_is_first_param(),
-          frame_state.value());
-    } else {
+          frame_state.value(), descriptor->lazy_deopt_on_throw);
+    } else if (descriptor->lazy_deopt_on_throw != LazyDeoptOnThrow::kYes) {
+      // TODO(mliedtke,dlehmann): support lazy deopts in Wasm in order to allow
+      // inlining calls that have LazyDeoptOnThrow::kYes.
+
+      // TODO(dlehmann): Investigate if we need to prevent inlining into
+      // try-blocks (due to wasm traps ignoring catch handlers in the inlined JS
+      // frame).
+
       // We shouldn't have attached `JSWasmCallParameters` at this call, unless
       // we have TS Wasm-in-JS inlining enabled.
       CHECK(v8_flags.turboshaft_wasm_in_js_inlining);
@@ -91,7 +98,8 @@ class WasmInJSInliningReducer : public Next {
       wasm::NativeModule* native_module, uint32_t func_idx,
       base::Vector<const OpIndex> arguments, V<JSFunction> js_closure,
       V<Context> js_context, bool receiver_is_first_param,
-      V<turboshaft::FrameState> frame_state);
+      V<turboshaft::FrameState> frame_state,
+      compiler::LazyDeoptOnThrow lazy_deopt_on_throw);
 
   V<turboshaft::FrameState> CreateJSWasmCallBuiltinContinuationFrameState(
       V<Context> js_context, V<turboshaft::FrameState> outer_frame_state,
@@ -671,6 +679,12 @@ class WasmInJsInliningInterface {
   void Resume(FullDecoder* decoder, const wasm::ContIndexImmediate& imm,
               base::Vector<wasm::HandlerCase> handlers, const Value& cont_ref,
               const Value args[], const Value returns[]) {
+    Bailout(decoder);
+  }
+
+  void ResumeHandler(FullDecoder* decoder,
+                     base::Vector<const wasm::HandlerCase> handlers,
+                     int handler_index, Value* cont_val) {
     Bailout(decoder);
   }
 
@@ -1263,7 +1277,8 @@ V<Any> WasmInJSInliningReducer<Next>::TryInlineJSWasmCallWrapperAndBody(
     wasm::NativeModule* native_module, uint32_t func_idx,
     base::Vector<const OpIndex> arguments, V<JSFunction> js_closure,
     V<Context> js_context, bool receiver_is_first_param,
-    V<turboshaft::FrameState> outer_frame_state) {
+    V<turboshaft::FrameState> outer_frame_state,
+    compiler::LazyDeoptOnThrow lazy_deopt_on_throw) {
   const wasm::WasmModule* module = native_module->module();
   DCHECK_LT(func_idx, module->functions.size());
   const wasm::WasmFunction& func = module->functions[func_idx];
@@ -1286,9 +1301,11 @@ V<Any> WasmInJSInliningReducer<Next>::TryInlineJSWasmCallWrapperAndBody(
         << JSInliner::WasmFunctionNameForTrace(native_module, func_idx)
         << " of module " << module);
 
-  GraphBuilder builder(Asm().phase_zone(), Asm(), sig, inlined_function_data);
+  GraphBuilder builder(__ data()->isolate(), Asm().phase_zone(), Asm(), sig,
+                       inlined_function_data);
   return builder.BuildJSToWasmWrapperImpl(receiver_is_first_param, js_closure,
-                                          js_context, arguments, frame_state);
+                                          js_context, arguments, frame_state,
+                                          lazy_deopt_on_throw);
 }
 
 template <class Next>
@@ -1350,13 +1367,25 @@ V<Any> WasmInJSInliningReducer<Next>::TryInlineWasmCall(
   Block* unreachable = __ NewBlock();
   __ Bind(unreachable);
 
+  // Before executing compilation, make sure that the function was validated.
+  if (V8_UNLIKELY(!env.module->function_was_validated(func_idx))) {
+    CHECK(v8_flags.wasm_lazy_validation);
+    if (ValidateFunctionBody(Asm().phase_zone(), env.enabled_features,
+                             env.module, &detected, func_body)
+            .failed()) {
+      TRACE("- not inlining: validation failed");
+      __ Bind(inlinee_body_and_rest);
+      return OpIndex::Invalid();
+    }
+    env.module->set_function_validated(func_idx);
+  }
+
   using Interface = WasmInJsInliningInterface<Assembler<ReducerList>>;
   using Decoder =
       wasm::WasmFullDecoder<typename Interface::ValidationTag, Interface>;
   Decoder can_inline_decoder(Asm().phase_zone(), env.module,
                              env.enabled_features, &detected, func_body, Asm(),
                              arguments_without_instance, trusted_instance_data);
-  DCHECK(env.module->function_was_validated(func_idx));
   can_inline_decoder.Decode();
 
   // The function was already validated, so decoding can only fail if we bailed

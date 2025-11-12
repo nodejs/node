@@ -27,7 +27,6 @@
 
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
-#include "absl/base/internal/identity.h"
 #include "absl/base/macros.h"
 #include "absl/container/internal/compressed_tuple.h"
 #include "absl/memory/memory.h"
@@ -127,7 +126,7 @@ struct MallocAdapter {
 };
 
 template <typename A, typename ValueAdapter>
-void ConstructElements(absl::internal::type_identity_t<A>& allocator,
+void ConstructElements(absl::type_identity_t<A>& allocator,
                        Pointer<A> construct_first, ValueAdapter& values,
                        SizeType<A> construct_size) {
   for (SizeType<A> i = 0; i < construct_size; ++i) {

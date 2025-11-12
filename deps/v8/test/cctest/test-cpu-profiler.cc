@@ -996,6 +996,10 @@ static const char* native_accessor_test_source =
     "  }\n"
     "}\n";
 
+// This tag value has been picked arbitrarily between 0 and
+// V8_EXTERNAL_POINTER_TAG_COUNT.
+constexpr v8::ExternalPointerTypeTag kTestApiCallbacksTag = 19;
+
 class TestApiCallbacks {
  public:
   explicit TestApiCallbacks(int min_duration_ms)
@@ -1034,7 +1038,7 @@ class TestApiCallbacks {
 
   template <typename T>
   static TestApiCallbacks* FromInfo(const T& info) {
-    void* data = v8::External::Cast(*info.Data())->Value();
+    void* data = v8::External::Cast(*info.Data())->Value(kTestApiCallbacksTag);
     return reinterpret_cast<TestApiCallbacks*>(data);
   }
 
@@ -1057,7 +1061,8 @@ TEST(NativeAccessorUninitializedIC) {
       func_template->InstanceTemplate();
 
   TestApiCallbacks accessors(100);
-  v8::Local<v8::External> data = v8::External::New(isolate, &accessors);
+  v8::Local<v8::External> data =
+      v8::External::New(isolate, &accessors, kTestApiCallbacksTag);
   instance_template->SetNativeDataProperty(v8_str("foo"),
                                            &TestApiCallbacks::Getter,
                                            &TestApiCallbacks::Setter, data);
@@ -1097,7 +1102,8 @@ TEST(NativeAccessorMonomorphicIC) {
       func_template->InstanceTemplate();
 
   TestApiCallbacks accessors(1);
-  v8::Local<v8::External> data = v8::External::New(isolate, &accessors);
+  v8::Local<v8::External> data =
+      v8::External::New(isolate, &accessors, kTestApiCallbacksTag);
   instance_template->SetNativeDataProperty(v8_str("foo"),
                                            &TestApiCallbacks::Getter,
                                            &TestApiCallbacks::Setter, data);
@@ -1148,7 +1154,8 @@ TEST(NativeMethodUninitializedIC) {
   v8::HandleScope scope(isolate);
 
   TestApiCallbacks callbacks(100);
-  v8::Local<v8::External> data = v8::External::New(isolate, &callbacks);
+  v8::Local<v8::External> data =
+      v8::External::New(isolate, &callbacks, kTestApiCallbacksTag);
 
   v8::Local<v8::FunctionTemplate> func_template =
       v8::FunctionTemplate::New(isolate);
@@ -1189,7 +1196,8 @@ TEST(NativeMethodMonomorphicIC) {
   v8::HandleScope scope(isolate);
 
   TestApiCallbacks callbacks(1);
-  v8::Local<v8::External> data = v8::External::New(isolate, &callbacks);
+  v8::Local<v8::External> data =
+      v8::External::New(isolate, &callbacks, kTestApiCallbacksTag);
 
   v8::Local<v8::FunctionTemplate> func_template =
       v8::FunctionTemplate::New(isolate);

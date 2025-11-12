@@ -12,6 +12,7 @@
 #include <unordered_map>
 
 #include "src/base/platform/mutex.h"
+#include "src/logging/counters.h"
 #include "src/wasm/module-instantiate.h"
 #include "src/wasm/wasm-code-manager.h"
 
@@ -68,10 +69,8 @@ class WasmImportWrapperCache {
     base::MutexGuard guard_;
   };
 
-  WasmImportWrapperCache() = default;
+  WasmImportWrapperCache() : code_allocator_{&counter_updates_} {}
   ~WasmImportWrapperCache() = default;
-
-  void LazyInitialize(Isolate* triggering_isolate);
 
   void Free(std::vector<WasmCode*>& wrappers);
 
@@ -105,6 +104,12 @@ class WasmImportWrapperCache {
   V8_EXPORT_PRIVATE bool IsCompiledWrapper(WasmCodePointer code_pointer);
 #endif
 
+  // Call this from time to time (after creating / tiering up import wrappers)
+  // to publish delayed counter updates in the given isolate.
+  void PublishCounterUpdates(Isolate* isolate) {
+    counter_updates_.Publish(isolate);
+  }
+
  private:
   std::optional<Builtin> BuiltinForWrapper(ImportCallKind kind,
                                            const wasm::CanonicalSig* sig,
@@ -115,7 +120,7 @@ class WasmImportWrapperCache {
       const wasm::CanonicalSig* sig,
       std::shared_ptr<WasmImportWrapperHandle> optional_handle);
 
-  std::unique_ptr<WasmCodeAllocator> code_allocator_;
+  WasmCodeAllocator code_allocator_;
   mutable base::Mutex mutex_;
   std::unordered_map<CacheKey, std::weak_ptr<WasmImportWrapperHandle>,
                      CacheKeyHash>
@@ -123,6 +128,10 @@ class WasmImportWrapperCache {
 
   // Lookup support. The map key is the instruction start address.
   std::map<Address, WasmCode*> codes_;
+
+  // Since the cache is not owned by a single isolate, we store histogram
+  // samples and publish them in the next best isolate.
+  DelayedCounterUpdates counter_updates_;
 
   friend class WasmImportWrapperHandle;
 };

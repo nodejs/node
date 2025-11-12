@@ -276,8 +276,8 @@ class Trace {
     // ignored and need not be written.
     kFlushSuccess
   };
-  void Flush(RegExpCompiler* compiler, RegExpNode* successor,
-             FlushMode mode = kFlushFull);
+  EmitResult Flush(RegExpCompiler* compiler, RegExpNode* successor,
+                   FlushMode mode = kFlushFull);
 
   // Some callers add/subtract 1 from cp_offset, assuming that the result is
   // still valid. That's obviously not the case when our `cp_offset` is only
@@ -345,7 +345,7 @@ class Trace {
     quick_check_performed_ = *d;
   }
   void InvalidateCurrentCharacter();
-  void AdvanceCurrentPositionInTrace(int by, RegExpCompiler* compiler);
+  EmitResult AdvanceCurrentPositionInTrace(int by, RegExpCompiler* compiler);
   const Trace* next() const { return next_; }
 
   class ConstIterator final {
@@ -561,6 +561,7 @@ class RegExpCompiler {
   inline void set_flags(RegExpFlags flags) { flags_ = flags; }
 
   void SetRegExpTooBig() { reg_exp_too_big_ = true; }
+  bool IsRegExpTooBig() const { return reg_exp_too_big_; }
 
   inline bool one_byte() { return one_byte_; }
   inline bool optimize() { return optimize_; }

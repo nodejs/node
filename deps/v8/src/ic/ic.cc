@@ -507,18 +507,6 @@ MaybeDirectHandle<Object> LoadGlobalIC::Load(Handle<Name> name,
 
 namespace {
 
-bool AddOneReceiverMapIfMissing(MapHandles* receiver_maps,
-                                Handle<Map> new_receiver_map) {
-  DCHECK(!new_receiver_map.is_null());
-  for (DirectHandle<Map> map : *receiver_maps) {
-    if (!map.is_null() && map.is_identical_to(new_receiver_map)) {
-      return false;
-    }
-  }
-  receiver_maps->push_back(new_receiver_map);
-  return true;
-}
-
 bool AddOneReceiverMapIfMissing(MapsAndHandlers* receiver_maps_and_handlers,
                                 Handle<Map> new_receiver_map) {
   DCHECK(!new_receiver_map.is_null());
@@ -1172,16 +1160,17 @@ void KeyedLoadIC::UpdateLoadElement(DirectHandle<HeapObject> receiver,
   Handle<Map> receiver_map(receiver->map(), isolate());
   DCHECK(receiver_map->instance_type() !=
          JS_PRIMITIVE_WRAPPER_TYPE);  // Checked by caller.
-  MapHandles target_receiver_maps(isolate());
-  TargetMaps(&target_receiver_maps);
 
-  if (target_receiver_maps.empty()) {
+  MapsAndHandlers target_maps_and_handlers(isolate());
+  nexus()->ExtractMapsAndHandlers(&target_maps_and_handlers);
+
+  if (target_maps_and_handlers.empty()) {
     DirectHandle<Object> handler =
         LoadElementHandler(receiver_map, new_load_mode);
     return ConfigureVectorState(DirectHandle<Name>(), receiver_map, handler);
   }
 
-  for (DirectHandle<Map> map : target_receiver_maps) {
+  for (DirectHandle<Map> map : target_maps_and_handlers.maps()) {
     if (map.is_null()) continue;
     if (map->instance_type() == JS_PRIMITIVE_WRAPPER_TYPE) {
       set_slow_stub_reason("JSPrimitiveWrapper");
@@ -1203,7 +1192,7 @@ void KeyedLoadIC::UpdateLoadElement(DirectHandle<HeapObject> receiver,
   if (state() == MONOMORPHIC) {
     if ((IsJSObject(*receiver) &&
          IsMoreGeneralElementsKindTransition(
-             target_receiver_maps.at(0)->elements_kind(),
+             target_maps_and_handlers[0].first->elements_kind(),
              Cast<JSObject>(receiver)->GetElementsKind())) ||
         IsWasmObject(*receiver)) {
       DirectHandle<Object> handler =
@@ -1217,7 +1206,7 @@ void KeyedLoadIC::UpdateLoadElement(DirectHandle<HeapObject> receiver,
   // Determine the list of receiver maps that this call site has seen,
   // adding the map that was just encountered.
   KeyedAccessLoadMode old_load_mode = KeyedAccessLoadMode::kInBounds;
-  if (!AddOneReceiverMapIfMissing(&target_receiver_maps, receiver_map)) {
+  if (!AddOneReceiverMapIfMissing(&target_maps_and_handlers, receiver_map)) {
     old_load_mode = GetKeyedAccessLoadModeFor(receiver_map);
     if (!AllowedHandlerChange(old_load_mode, new_load_mode)) {
       set_slow_stub_reason("same map added twice");
@@ -1227,29 +1216,29 @@ void KeyedLoadIC::UpdateLoadElement(DirectHandle<HeapObject> receiver,
 
   // If the maximum number of receiver maps has been exceeded, use the generic
   // version of the IC.
-  if (static_cast<int>(target_receiver_maps.size()) >
+  if (static_cast<int>(target_maps_and_handlers.size()) >
       v8_flags.max_valid_polymorphic_map_count) {
     set_slow_stub_reason("max polymorph exceeded");
     return;
   }
 
-  MaybeObjectHandles handlers;
-  handlers.reserve(target_receiver_maps.size());
+  MapsAndHandlers new_maps_and_handlers(isolate());
+  new_maps_and_handlers.reserve(target_maps_and_handlers.size());
   KeyedAccessLoadMode load_mode =
       GeneralizeKeyedAccessLoadMode(old_load_mode, new_load_mode);
-  LoadElementPolymorphicHandlers(&target_receiver_maps, &handlers, load_mode);
-  if (target_receiver_maps.empty()) {
+
+  // Update the polymorphic handlers with load_mode.
+  LoadElementPolymorphicHandlers(&target_maps_and_handlers,
+                                 &new_maps_and_handlers, load_mode);
+  if (new_maps_and_handlers.empty()) {
     DirectHandle<Object> handler =
         LoadElementHandler(receiver_map, new_load_mode);
     ConfigureVectorState(DirectHandle<Name>(), receiver_map, handler);
-  } else if (target_receiver_maps.size() == 1) {
-    ConfigureVectorState(DirectHandle<Name>(), target_receiver_maps[0],
-                         handlers[0]);
+  } else if (new_maps_and_handlers.size() == 1) {
+    ConfigureVectorState(DirectHandle<Name>(), new_maps_and_handlers[0].first,
+                         new_maps_and_handlers[0].second);
   } else {
-    ConfigureVectorState(DirectHandle<Name>(),
-                         MapHandlesSpan(target_receiver_maps.begin(),
-                                        target_receiver_maps.end()),
-                         &handlers);
+    ConfigureVectorState(DirectHandle<Name>(), new_maps_and_handlers);
   }
 }
 
@@ -1304,10 +1293,6 @@ bool IsOutOfBoundsAccess(DirectHandle<Object> receiver, size_t index) {
   return index >= length;
 }
 
-bool AllowReadingHoleElement(ElementsKind elements_kind) {
-  return IsHoleyElementsKind(elements_kind);
-}
-
 KeyedAccessLoadMode GetNewKeyedLoadMode(Isolate* isolate,
                                         DirectHandle<HeapObject> receiver,
                                         size_t index, bool is_found,
@@ -1351,7 +1336,7 @@ KeyedAccessLoadMode GetNewKeyedLoadMode(Isolate* isolate,
 
   // Read a hole.
   DCHECK(!is_found && !is_oob_access);
-  bool handle_hole = AllowReadingHoleElement(elements_kind);
+  bool handle_hole = IsHoleyElementsKind(elements_kind);
   DCHECK_IMPLIES(always_handle_holes, handle_hole);
   return handle_hole ? KeyedAccessLoadMode::kHandleHoles
                      : KeyedAccessLoadMode::kInBounds;
@@ -1359,6 +1344,7 @@ KeyedAccessLoadMode GetNewKeyedLoadMode(Isolate* isolate,
 
 KeyedAccessLoadMode GetUpdatedLoadModeForMap(Isolate* isolate,
                                              DirectHandle<Map> map,
+                                             KeyedAccessLoadMode old_load_mode,
                                              KeyedAccessLoadMode load_mode) {
   // If we are not allowed to convert a hole to undefined, then we should not
   // handle OOB nor reading holes.
@@ -1366,20 +1352,17 @@ KeyedAccessLoadMode GetUpdatedLoadModeForMap(Isolate* isolate,
     return KeyedAccessLoadMode::kInBounds;
   }
   // Check if the elements kind allow reading a hole.
-  bool allow_reading_hole_element =
-      AllowReadingHoleElement(map->elements_kind());
-  switch (load_mode) {
-    case KeyedAccessLoadMode::kInBounds:
-    case KeyedAccessLoadMode::kHandleOOB:
-      return load_mode;
-    case KeyedAccessLoadMode::kHandleHoles:
-      return allow_reading_hole_element ? KeyedAccessLoadMode::kHandleHoles
-                                        : KeyedAccessLoadMode::kInBounds;
-    case KeyedAccessLoadMode::kHandleOOBAndHoles:
-      return allow_reading_hole_element
-                 ? KeyedAccessLoadMode::kHandleOOBAndHoles
-                 : KeyedAccessLoadMode::kHandleOOB;
-  }
+  bool allow_reading_hole_element = IsHoleyElementsKind(map->elements_kind());
+
+  bool old_allow_oob = LoadModeHandlesOOB(old_load_mode);
+  bool old_allow_holes = LoadModeHandlesHoles(old_load_mode);
+  bool new_allow_oob = LoadModeHandlesOOB(load_mode);
+  bool new_allow_holes = LoadModeHandlesHoles(load_mode);
+
+  bool updated_allow_oob = old_allow_oob || new_allow_oob;
+  bool updated_allow_holes =
+      allow_reading_hole_element && (old_allow_holes || new_allow_holes);
+  return CreateKeyedAccessLoadMode(updated_allow_oob, updated_allow_holes);
 }
 
 }  // namespace
@@ -1437,7 +1420,7 @@ Handle<Object> KeyedLoadIC::LoadElementHandler(
          IsTypedArrayOrRabGsabTypedArrayElementsKind(elements_kind));
   DCHECK_IMPLIES(
       LoadModeHandlesHoles(new_load_mode),
-      AllowReadingHoleElement(elements_kind) &&
+      IsHoleyElementsKind(elements_kind) &&
           AllowConvertHoleElementToUndefined(isolate(), receiver_map));
   DirectHandle<Map> transition_target;
   if (is_js_array && maybe_transition_target.ToHandle(&transition_target)) {
@@ -1452,36 +1435,43 @@ Handle<Object> KeyedLoadIC::LoadElementHandler(
 }
 
 void KeyedLoadIC::LoadElementPolymorphicHandlers(
-    MapHandles* receiver_maps, MaybeObjectHandles* handlers,
-    KeyedAccessLoadMode new_load_mode) {
-  // Filter out deprecated maps to ensure their instances get migrated.
-  auto new_end = std::remove_if(
-      receiver_maps->begin(), receiver_maps->end(),
-      [](const DirectHandle<Map>& map) { return map->is_deprecated(); });
-  receiver_maps->erase(new_end, receiver_maps->end());
+    MapsAndHandlers* old_maps_and_handlers,
+    MapsAndHandlers* new_maps_and_handlers, KeyedAccessLoadMode new_load_mode) {
+  for (auto [old_map, maybe_old_handler] : *old_maps_and_handlers) {
+    // Filter out deprecated maps to ensure their instances get migrated.
+    if (old_map->is_deprecated()) continue;
 
-  for (DirectHandle<Map> receiver_map : *receiver_maps) {
-      Tagged<Map> tmap = receiver_map->FindElementsKindTransitionedMap(
-          isolate(),
-          MapHandlesSpan(receiver_maps->begin(), receiver_maps->end()),
-          ConcurrencyMode::kSynchronous);
-      if (!tmap.is_null()) {
-        // Mark all stable receiver maps that have elements kind transition map
-        // among receiver_maps as unstable because the ICs and the optimizing
-        // compilers may perform an elements kind transition for this kind of
-        // receivers.
-        if (receiver_map->is_stable()) {
-          receiver_map->NotifyLeafMapLayoutChange(isolate());
-        }
-        handlers->push_back(MaybeObjectHandle(LoadElementHandler(
-            receiver_map,
-            GetUpdatedLoadModeForMap(isolate(), receiver_map, new_load_mode),
-            handle(tmap, isolate()))));
-      } else {
-        handlers->push_back(MaybeObjectHandle(LoadElementHandler(
-            receiver_map,
-            GetUpdatedLoadModeForMap(isolate(), receiver_map, new_load_mode))));
+    KeyedAccessLoadMode old_load_mode = KeyedAccessLoadMode::kInBounds;
+    if (!maybe_old_handler.is_null()) {
+      old_load_mode = LoadHandler::GetKeyedAccessLoadMode(*maybe_old_handler);
+    }
+
+    Tagged<Map> tmap = old_map->FindElementsKindTransitionedMap(
+        isolate(),
+        MapHandlesSpan(old_maps_and_handlers->maps().begin(),
+                       old_maps_and_handlers->maps().end()),
+        ConcurrencyMode::kSynchronous);
+    if (!tmap.is_null()) {
+      // Mark all stable receiver maps that have elements kind transition map
+      // among receiver_maps as unstable because the ICs and the optimizing
+      // compilers may perform an elements kind transition for this kind of
+      // receivers.
+      if (old_map->is_stable()) {
+        old_map->NotifyLeafMapLayoutChange(isolate());
       }
+      new_maps_and_handlers->emplace_back(
+          old_map, MaybeObjectHandle(LoadElementHandler(
+                       old_map,
+                       GetUpdatedLoadModeForMap(isolate(), old_map,
+                                                old_load_mode, new_load_mode),
+                       handle(tmap, isolate()))));
+    } else {
+      new_maps_and_handlers->emplace_back(
+          old_map,
+          MaybeObjectHandle(LoadElementHandler(
+              old_map, GetUpdatedLoadModeForMap(
+                           isolate(), old_map, old_load_mode, new_load_mode))));
+    }
   }
 }
 

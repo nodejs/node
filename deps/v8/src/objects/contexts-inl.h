@@ -154,6 +154,10 @@ void Context::set_previous(Tagged<Context> context, WriteBarrierMode mode) {
 Tagged<Object> Context::next_context_link() const {
   return get(Context::NEXT_CONTEXT_LINK, kRelaxedLoad);
 }
+void Context::set_next_context_link(Tagged<Object> object,
+                                    WriteBarrierMode mode) {
+  set(Context::NEXT_CONTEXT_LINK, object, mode);
+}
 
 bool Context::has_extension() const {
   return scope_info()->HasContextExtensionSlot() && !IsUndefined(extension());

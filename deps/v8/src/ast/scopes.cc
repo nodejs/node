@@ -822,16 +822,17 @@ void DeclarationScope::DeclareDefaultFunctionVariables(
 
   DeclareThis(ast_value_factory);
   bool was_added;
-  new_target_ = Declare(zone(), ast_value_factory->new_target_string(),
+  new_target_ = Declare(zone(), ast_value_factory->dot_new_target_string(),
                         VariableMode::kConst, NORMAL_VARIABLE,
                         kCreatedInitialized, kNotAssigned, &was_added);
   DCHECK(was_added);
 
   if (IsConciseMethod(function_kind_) || IsClassConstructor(function_kind_) ||
       IsAccessorFunction(function_kind_)) {
-    EnsureRareData()->this_function = Declare(
-        zone(), ast_value_factory->this_function_string(), VariableMode::kConst,
-        NORMAL_VARIABLE, kCreatedInitialized, kNotAssigned, &was_added);
+    EnsureRareData()->this_function =
+        Declare(zone(), ast_value_factory->dot_this_function_string(),
+                VariableMode::kConst, NORMAL_VARIABLE, kCreatedInitialized,
+                kNotAssigned, &was_added);
     DCHECK(was_added);
   }
 }

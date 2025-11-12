@@ -46,7 +46,7 @@ static constexpr int kGetDescIndex = -6;
 // All "load-like" special cases use the same fake size and type. The specific
 // values we use don't matter; for accurate alias analysis, the type should
 // be "unrelated" to any struct type.
-static constexpr wasm::ModuleTypeIndex kLoadLikeType{wasm::HeapType::kExtern};
+static constexpr wasm::ModuleTypeIndex kLoadLikeType{wasm::kV8MaxWasmTypes + 1};
 static constexpr int kLoadLikeSize = 4;  // Chosen by fair dice roll.
 
 struct WasmMemoryAddress {

@@ -1992,9 +1992,7 @@ inline Condition MaglevAssembler::FunctionEntryStackCheck(
   return kZero;
 }
 
-inline void MaglevAssembler::FinishCode() {
-  ForceConstantPoolEmissionWithoutJump();
-}
+inline void MaglevAssembler::FinishCode() { Assembler::FinishCode(); }
 
 template <>
 inline void MaglevAssembler::MoveRepr(MachineRepresentation repr, Register dst,

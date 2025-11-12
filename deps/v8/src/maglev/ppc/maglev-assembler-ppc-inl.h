@@ -267,7 +267,7 @@ inline void MaglevAssembler::SmiAddConstant(Register dst, Register src,
       JumpIf(ne, fail);
     }
   } else {
-    AddS64(dst, src, scratch, LeaveOE, SetRC);
+    AddS64(dst, src, scratch, SetOE, SetRC);
     JumpIf(kOverflow, fail, distance);
   }
 }
@@ -297,7 +297,7 @@ inline void MaglevAssembler::SmiSubConstant(Register dst, Register src,
       JumpIf(ne, fail);
     }
   } else {
-    SubS64(dst, src, scratch, LeaveOE, SetRC);
+    SubS64(dst, src, scratch, SetOE, SetRC);
     JumpIf(kOverflow, fail, distance);
   }
 }

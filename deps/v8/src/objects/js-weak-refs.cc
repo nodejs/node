@@ -115,7 +115,7 @@ void JSFinalizationRegistry::RemoveCellFromUnregisterTokenMap(
       // of the key in the hash table.
       Tagged<WeakCell> next = Cast<WeakCell>(weak_cell->key_list_next());
       DCHECK_EQ(next->key_list_prev(), weak_cell);
-      next->set_key_list_prev(undefined);
+      next->set_key_list_prev(undefined, SKIP_WRITE_BARRIER);
       key_map->ValueAtPut(entry, next);
     }
   } else {
@@ -130,9 +130,9 @@ void JSFinalizationRegistry::RemoveCellFromUnregisterTokenMap(
 
   // weak_cell is now removed from the unregister token map, so clear its
   // unregister token-related fields.
-  weak_cell->set_unregister_token(undefined);
-  weak_cell->set_key_list_prev(undefined);
-  weak_cell->set_key_list_next(undefined);
+  weak_cell->set_unregister_token(undefined, SKIP_WRITE_BARRIER);
+  weak_cell->set_key_list_prev(undefined, SKIP_WRITE_BARRIER);
+  weak_cell->set_key_list_next(undefined, SKIP_WRITE_BARRIER);
 }
 
 #ifdef OBJECT_PRINT

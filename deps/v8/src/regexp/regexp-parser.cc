@@ -358,12 +358,16 @@ class RegExpParserState : public ZoneObject {
         group_type_(group_type),
         lookaround_type_(lookaround_type),
         disjunction_capture_index_(disjunction_capture_index),
-        capture_name_(capture_name) {
+        capture_name_(capture_name),
+        non_participating_capture_group_intervals_(zone) {
     if (previous_state != nullptr) {
-      non_participating_capture_group_interval_ =
-          previous_state->non_participating_capture_group_interval();
+      non_participating_capture_group_intervals_.insert(
+          non_participating_capture_group_intervals_.begin(),
+          previous_state->non_participating_capture_group_intervals_);
     }
   }
+  using IntervalVector = SmallZoneVector<Interval, 1>;
+
   // Parser state of containing expression, if any.
   RegExpParserState* previous_state() const { return previous_state_; }
   bool IsSubexpression() { return previous_state_ != nullptr; }
@@ -380,8 +384,8 @@ class RegExpParserState : public ZoneObject {
   // The name of the current sub-expression, if group_type is CAPTURE. Only
   // used for named captures.
   const ZoneVector<base::uc16>* capture_name() const { return capture_name_; }
-  std::pair<int, int> non_participating_capture_group_interval() const {
-    return non_participating_capture_group_interval_;
+  const IntervalVector& non_participating_capture_group_intervals() const {
+    return non_participating_capture_group_intervals_;
   }
 
   bool IsNamedCapture() const { return capture_name_ != nullptr; }
@@ -411,14 +415,23 @@ class RegExpParserState : public ZoneObject {
   }
 
   void NewAlternative(int captures_started) {
-    if (non_participating_capture_group_interval().second != 0) {
-      // Extend the non-participating interval.
-      non_participating_capture_group_interval_.second = captures_started;
+    // Nothing to do if there were no new captures started before the
+    // alternative.
+    if (capture_index() == captures_started) return;
+
+    // +1 to create a closed interval (capture_index() is exclusive).
+    int from = capture_index() + 1;
+    int to = captures_started;
+    DCHECK_LE(from, to);
+    // Extend the last interval if we increase its range by exactly 1.
+    if (!non_participating_capture_group_intervals().empty() &&
+        non_participating_capture_group_intervals().back().to() + 1 == to) {
+      Interval& interval = non_participating_capture_group_intervals_.back();
+      DCHECK(!interval.is_empty());
+      DCHECK_GE(from, interval.from());
+      interval = interval.Union({from, to});
     } else {
-      // Create new non-participating interval from the start of the current
-      // enclosing group to all captures created within that group so far.
-      non_participating_capture_group_interval_ =
-          std::make_pair(capture_index(), captures_started);
+      non_participating_capture_group_intervals_.push_back({from, to});
     }
   }
 
@@ -435,11 +448,11 @@ class RegExpParserState : public ZoneObject {
   const int disjunction_capture_index_;
   // Stored capture name (if any).
   const ZoneVector<base::uc16>* const capture_name_;
-  // Interval of (named) capture indices ]from, to] that are not participating
-  // in the current state (i.e. they cannot match).
+  // List of Intervals of (named) capture indices [from, to] that are not
+  // participating in the current state (i.e. they cannot match).
   // Capture indices are not participating if they were created in a different
   // alternative.
-  std::pair<int, int> non_participating_capture_group_interval_;
+  IntervalVector non_participating_capture_group_intervals_;
 };
 
 template <class CharT>
@@ -1623,8 +1636,8 @@ template <class CharT>
 bool RegExpParserImpl<CharT>::CreateNamedCaptureAtIndex(
     const RegExpParserState* state, int index) {
   const ZoneVector<base::uc16>* name = state->capture_name();
-  const std::pair<int, int> non_participating_capture_group_interval =
-      state->non_participating_capture_group_interval();
+  const auto& non_participating_capture_group_intervals =
+      state->non_participating_capture_group_intervals();
   DCHECK(0 < index && index <= captures_started_);
   DCHECK_NOT_NULL(name);
 
@@ -1645,8 +1658,23 @@ bool RegExpParserImpl<CharT>::CreateNamedCaptureAtIndex(
         DCHECK_NOT_NULL(named_capture_indices);
         DCHECK(!named_capture_indices->is_empty());
         for (int named_index : *named_capture_indices) {
-          if (named_index <= non_participating_capture_group_interval.first ||
-              named_index > non_participating_capture_group_interval.second) {
+          bool is_duplicate = true;
+          for (Interval interval : non_participating_capture_group_intervals) {
+            DCHECK(!interval.is_empty());
+            // We can stop as soon as we are inside one non-participating
+            // interval. There can't be a non-participating and participating
+            // interval, as intervals are never decreasing.
+            if (interval.Contains(named_index)) {
+              is_duplicate = false;
+              break;
+            }
+            // Intervals are ordered strictly increasing, so we can stop early
+            // when the current interval is past the current index.
+            if (named_index <= interval.from()) {
+              break;
+            }
+          }
+          if (is_duplicate) {
             ReportError(RegExpError::kDuplicateCaptureGroupName);
             return false;
           }

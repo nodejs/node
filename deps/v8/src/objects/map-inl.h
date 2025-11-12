@@ -8,6 +8,7 @@
 #include "src/objects/map.h"
 // Include the non-inl header before the rest of the headers.
 
+#include "src/common/globals.h"
 #include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/api-callbacks-inl.h"
@@ -49,8 +50,6 @@ ACCESSORS_CHECKED(Map, custom_descriptor, Tagged<WasmStruct>,
                   kInstanceDescriptorsOffset, IsWasmStructMap(*this))
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-RELAXED_ACCESSORS(Map, instance_descriptors, Tagged<DescriptorArray>,
-                  kInstanceDescriptorsOffset)
 RELEASE_ACQUIRE_ACCESSORS(Map, instance_descriptors, Tagged<DescriptorArray>,
                           kInstanceDescriptorsOffset)
 
@@ -729,7 +728,7 @@ bool Map::is_stable() const {
 
 bool Map::CanBeDeprecated() const {
   for (InternalIndex i : IterateOwnDescriptors()) {
-    PropertyDetails details = instance_descriptors(kRelaxedLoad)->GetDetails(i);
+    PropertyDetails details = instance_descriptors(kAcquireLoad)->GetDetails(i);
     if (details.representation().MightCauseMapDeprecation()) return true;
     if (details.kind() == PropertyKind::kData &&
         details.location() == PropertyLocation::kDescriptor) {
@@ -891,7 +890,29 @@ Tagged<Map> Map::ElementsTransitionMap(Isolate* isolate,
       .SearchSpecial(ReadOnlyRoots(isolate).elements_transition_symbol());
 }
 
+#if V8_ENABLE_WEBASSEMBLY
+DEF_GETTER(Map, dependent_code, Tagged<DependentCode>) {
+  Tagged<Object> value =
+      TaggedField<Tagged<Object>, kDependentCodeOffset>::load(cage_base, *this);
+  if (!IsDependentCode(value)) {
+    DCHECK(IsWasmStructMap(*this));
+    return DependentCode::empty_dependent_code(GetReadOnlyRoots());
+  }
+  return Cast<DependentCode>(value);
+}
+void Map::set_dependent_code(Tagged<DependentCode> value,
+                             WriteBarrierMode mode) {
+  // Only the Factory may call this for Wasm object maps, when default-
+  // initializing them. Use the WB mode as a sentinel for that situation.
+  DCHECK(mode == SKIP_WRITE_BARRIER || !IsWasmObjectMap(*this));
+  TaggedField<Tagged<DependentCode>, kDependentCodeOffset>::store(*this, value);
+  CONDITIONAL_WRITE_BARRIER(*this, kDependentCodeOffset, value, mode);
+}
+ACCESSORS_CHECKED(Map, immediate_supertype_map, Tagged<Map>,
+                  kImmediateSupertypeOffset, IsWasmObjectMap(*this))
+#else   // V8_ENABLE_WEBASSEMBLY
 ACCESSORS(Map, dependent_code, Tagged<DependentCode>, kDependentCodeOffset)
+#endif  // V8_ENABLE_WEBASSEMBLY
 RELAXED_ACCESSORS(Map, prototype_validity_cell, (Tagged<UnionOf<Smi, Cell>>),
                   kPrototypeValidityCellOffset)
 ACCESSORS_CHECKED2(Map, constructor_or_back_pointer, Tagged<Object>,

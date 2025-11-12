@@ -530,6 +530,12 @@ void BaselineCompiler::VisitSingleBytecode() {
     }
   }
 
+#ifdef DEBUG
+  // We've now executed the bytecode, so any remaining effects (e.g. tracing)
+  // are skippable.
+  effect_state_.safe_to_skip = true;
+#endif
+
 #ifdef V8_TRACE_UNOPTIMIZED
   TraceBytecode(Runtime::kTraceUnoptimizedBytecodeExit);
 #endif
@@ -639,6 +645,18 @@ constexpr static bool BuiltinMayDeopt(Builtin id) {
       return true;
   }
 }
+constexpr static bool RuntimeFunctionMayDeopt(Runtime::FunctionId function) {
+  switch (function) {
+#ifdef V8_TRACE_UNOPTIMIZED
+    case Runtime::kTraceUnoptimizedBytecodeEntry:
+    case Runtime::kTraceUnoptimizedBytecodeExit:
+      return false;
+#endif
+    default:
+      return true;
+  }
+}
+
 #endif  // DEBUG || V8_ENABLE_CET_SHADOW_STACK
 
 template <Builtin kBuiltin, typename... Args>
@@ -672,13 +690,17 @@ template <typename... Args>
 void BaselineCompiler::CallRuntime(Runtime::FunctionId function, Args... args) {
 #ifdef DEBUG
   effect_state_.CheckEffect();
-  effect_state_.MayDeopt();
+  if (RuntimeFunctionMayDeopt(function)) {
+    effect_state_.MayDeopt();
+  }
 #endif
   __ LoadContext(kContextRegister);
   int nargs = __ Push(args...);
   __ CallRuntime(function, nargs);
 #ifdef V8_ENABLE_CET_SHADOW_STACK
-  __ MaybeEmitPlaceHolderForDeopt();
+  if (RuntimeFunctionMayDeopt(function)) {
+    __ MaybeEmitPlaceHolderForDeopt();
+  }
 #endif  // V8_ENABLE_CET_SHADOW_STACK
 }
 
@@ -2467,10 +2489,18 @@ void BaselineCompiler::VisitResumeGenerator() {
 }
 
 void BaselineCompiler::VisitForOfNext() {
-  SaveAccumulatorScope accumulator_scope(this, &basm_);
-  CallBuiltin<Builtin::kForOfNextBaseline>(RegisterOperand(0),   // object
-                                           RegisterOperand(1));  // next
-  StoreRegisterPair(2, kReturnRegister0, kReturnRegister1);
+  BaselineAssembler::ScratchRegisterScope scratch_scope(&basm_);
+  Register object = scratch_scope.AcquireScratch();
+  Register next = scratch_scope.AcquireScratch();
+  __ LoadRegister(object, RegisterOperand(0));
+  __ LoadRegister(next, RegisterOperand(1));
+  // Pass the output register slot as an argument, so that the builtin
+  // is responsible for writing into the slots.
+  Register out_reg_address = scratch_scope.AcquireScratch();
+  basm_.RegisterFrameAddress(RegisterOperand(2), out_reg_address);
+  CallBuiltin<Builtin::kForOfNextBaseline>(object,            // object
+                                           next,              // next
+                                           out_reg_address);  // out_reg
 }
 
 void BaselineCompiler::VisitGetIterator() {

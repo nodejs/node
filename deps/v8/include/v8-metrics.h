@@ -125,63 +125,43 @@ struct GarbageCollectionYoungCycle {
 #endif  // defined(CPPGC_YOUNG_GENERATION)
 };
 
+// Note: These structs do not define any constructor, and declare most fields as
+// const, to force initializing them when using aggregate (designated)
+// initialization.
+// Those structs are meant to be created in V8 and read by embedders.
 struct WasmModuleDecoded {
-  WasmModuleDecoded() = default;
-  WasmModuleDecoded(bool async, bool streamed, bool success,
-                    size_t module_size_in_bytes, size_t function_count,
-                    int64_t wall_clock_duration_in_us)
-      : async(async),
-        streamed(streamed),
-        success(success),
-        module_size_in_bytes(module_size_in_bytes),
-        function_count(function_count),
-        wall_clock_duration_in_us(wall_clock_duration_in_us) {}
-
-  bool async = false;
-  bool streamed = false;
-  bool success = false;
-  size_t module_size_in_bytes = 0;
-  size_t function_count = 0;
+  const bool async;
+  const bool streamed;
+  const bool success;
+  const size_t module_size_in_bytes;
+  const size_t function_count;
+  // Optional field; only set if a high-resolution clock is available.
   int64_t wall_clock_duration_in_us = -1;
 };
 
 struct WasmModuleCompiled {
-  WasmModuleCompiled() = default;
-
-  WasmModuleCompiled(bool async, bool streamed, bool cached, bool deserialized,
-                     bool lazy, bool success, size_t code_size_in_bytes,
-                     size_t liftoff_bailout_count,
-                     int64_t wall_clock_duration_in_us)
-      : async(async),
-        streamed(streamed),
-        cached(cached),
-        deserialized(deserialized),
-        lazy(lazy),
-        success(success),
-        code_size_in_bytes(code_size_in_bytes),
-        liftoff_bailout_count(liftoff_bailout_count),
-        wall_clock_duration_in_us(wall_clock_duration_in_us) {}
-
-  bool async = false;
-  bool streamed = false;
-  bool cached = false;
-  bool deserialized = false;
-  bool lazy = false;
-  bool success = false;
-  size_t code_size_in_bytes = 0;
-  size_t liftoff_bailout_count = 0;
+  const bool async;
+  const bool streamed;
+  const bool cached;
+  const bool deserialized;
+  const bool lazy;
+  const bool success;
+  const size_t code_size_in_bytes;
+  const size_t liftoff_bailout_count;
+  // Optional field; only set if a high-resolution clock is available.
   int64_t wall_clock_duration_in_us = -1;
 };
 
 struct WasmModuleInstantiated {
-  bool async = false;
-  bool success = false;
-  size_t imported_function_count = 0;
+  const bool async;
+  const bool success;
+  const size_t imported_function_count;
+  // Optional field; only set if a high-resolution clock is available.
   int64_t wall_clock_duration_in_us = -1;
 };
 
 struct WasmModulesPerIsolate {
-  size_t count = 0;
+  const size_t count;
 };
 
 /**

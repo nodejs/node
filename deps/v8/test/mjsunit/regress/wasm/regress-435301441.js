@@ -14,12 +14,12 @@ let $struct0 = builder.addStruct({descriptor: $desc1});
 builder.endRecGroup();
 
 builder.addFunction("main", kSig_v_v).exportFunc().addBody([
-  kExprRefNull, $struct0,
+  kExprRefNull, kWasmExact, $struct0,
   kGCPrefix, kExprRefGetDesc, $struct0,
-  kExprRefNull, $struct0,
+  kExprRefNull, kWasmExact, $struct0,
   kGCPrefix, kExprRefGetDesc, $struct0,
   kGCPrefix, kExprRefCastDescNull, $struct0,
-  kExprRefNull, $struct0,
+  kExprRefNull, kWasmExact, $struct0,
   kGCPrefix, kExprRefGetDesc, $struct0,
   kGCPrefix, kExprStructNewDefault, $struct0,
   kExprDrop,

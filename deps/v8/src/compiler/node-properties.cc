@@ -409,11 +409,6 @@ NodeProperties::InferMapsResult NodeProperties::InferMapsUnsafe(
   HeapObjectMatcher m(receiver);
   if (m.HasResolvedValue()) {
     HeapObjectRef ref = m.Ref(broker);
-    if (ref.IsTheHole()) {
-      // Holes should never make it past hole checks, so they will never
-      // provide helpful map inference.
-      return kNoMaps;
-    }
     // We don't use ICs for the Array.prototype and the Object.prototype
     // because the runtime has to be able to intercept them properly, so
     // we better make sure that TurboFan doesn't outsmart the system here

@@ -52,6 +52,10 @@ static inline size_t gvn_hash_value(const PolymorphicAccessInfo& access_info) {
   return access_info.hash_value();
 }
 
+static inline size_t gvn_hash_value(const PropertyKey& key) {
+  return base::hash_value(key.data());
+}
+
 template <typename T>
 static inline size_t gvn_hash_value(
     const v8::internal::ZoneCompactSet<T>& vector) {
@@ -127,13 +131,16 @@ NodeT* MaglevReducer<BaseT>::AddNewNodeNoAbort(
   if constexpr (Node::participate_in_cse(Node::opcode_of<NodeT>) &&
                 ReducerBaseWithKNA<BaseT>) {
     if (v8_flags.maglev_cse) {
-      return AddNewNodeOrGetEquivalent<NodeT>(true, inputs,
-                                              std::forward<Args>(args)...);
+      ReduceResult result = AddNewNodeOrGetEquivalent<NodeT>(
+          true, inputs, std::forward<Args>(args)...);
+      CHECK(result.IsDoneWithPayload());
+      return result.node()->Cast<NodeT>();
     }
   }
   NodeT* node =
       NodeBase::New<NodeT>(zone(), inputs.size(), std::forward<Args>(args)...);
-  SetNodeInputsOld(node, inputs);
+  ReduceResult result = SetNodeInputs(node, inputs);
+  CHECK(result.IsDoneWithoutPayload());
   return AttachExtraInfoAndAddToGraph(node);
 }
 
@@ -145,8 +152,11 @@ NodeT* MaglevReducer<BaseT>::AddNewNodeNoInputConversion(
   if constexpr (Node::participate_in_cse(Node::opcode_of<NodeT>) &&
                 ReducerBaseWithKNA<BaseT>) {
     if (v8_flags.maglev_cse) {
-      return AddNewNodeOrGetEquivalent<NodeT>(false, inputs,
-                                              std::forward<Args>(args)...);
+      ReduceResult result = AddNewNodeOrGetEquivalent<NodeT>(
+          false, inputs, std::forward<Args>(args)...);
+      // Without input conversion, AddNewNodeOrGetEquivalent cannot bail out.
+      DCHECK(result.IsDoneWithPayload());
+      return result.node()->Cast<NodeT>();
     }
   }
   NodeT* node =
@@ -175,7 +185,8 @@ void MaglevReducer<BaseT>::AddNewControlNode(
     std::initializer_list<ValueNode*> inputs, Args&&... args) {
   ControlNodeT* control_node = NodeBase::New<ControlNodeT>(
       zone(), inputs.size(), std::forward<Args>(args)...);
-  SetNodeInputsOld(control_node, inputs);
+  ReduceResult result = SetNodeInputs(control_node, inputs);
+  CHECK(result.IsDoneWithoutPayload());
   AttachEagerDeoptInfo(control_node);
   AttachDeoptCheckpoint(control_node);
   static_assert(!ControlNodeT::kProperties.can_lazy_deopt());
@@ -199,7 +210,7 @@ void MaglevReducer<BaseT>::AddNewControlNode(
 
 template <typename BaseT>
 template <typename NodeT, typename... Args>
-NodeT* MaglevReducer<BaseT>::AddNewNodeOrGetEquivalent(
+ReduceResult MaglevReducer<BaseT>::AddNewNodeOrGetEquivalent(
     bool convert_inputs, std::initializer_list<ValueNode*> raw_inputs,
     Args&&... args) {
   DCHECK(v8_flags.maglev_cse);
@@ -220,9 +231,8 @@ NodeT* MaglevReducer<BaseT>::AddNewNodeOrGetEquivalent(
     constexpr UseReprHintRecording hint = ShouldRecordUseReprHint<NodeT>();
     for (ValueNode* raw_input : raw_inputs) {
       if (convert_inputs) {
-        // TODO(marja): Here we might already have the empty type for the
-        // node. Generate a deopt and make callers handle it.
-        inputs[i] = ConvertInputTo<hint>(raw_input, NodeT::kInputTypes[i]);
+        GET_VALUE_OR_ABORT(
+            inputs[i], ConvertInputTo<hint>(raw_input, NodeT::kInputTypes[i]));
       } else {
         CHECK(ValueRepresentationIs(
             raw_input->properties().value_representation(),
@@ -284,8 +294,8 @@ void MaglevReducer<BaseT>::AddInitializedNodeToGraph(Node* node) {
 
 template <typename BaseT>
 template <UseReprHintRecording hint>
-ValueNode* MaglevReducer<BaseT>::ConvertInputTo(ValueNode* input,
-                                                ValueRepresentation expected) {
+ReduceResult MaglevReducer<BaseT>::ConvertInputTo(
+    ValueNode* input, ValueRepresentation expected) {
   ValueRepresentation repr = input->properties().value_representation();
   if (repr == expected) return input;
   // If the reducer base does not track KNA, it must convert its own input.
@@ -296,8 +306,9 @@ ValueNode* MaglevReducer<BaseT>::ConvertInputTo(ValueNode* input,
       case ValueRepresentation::kInt32:
         return GetInt32(input);
       case ValueRepresentation::kFloat64:
-      case ValueRepresentation::kHoleyFloat64:
         return GetFloat64(input);
+      case ValueRepresentation::kHoleyFloat64:
+        return GetHoleyFloat64(input);
       case ValueRepresentation::kUint32:
       case ValueRepresentation::kIntPtr:
       case ValueRepresentation::kNone:
@@ -316,24 +327,20 @@ ValueNode* MaglevReducer<BaseT>::ConvertInputTo(ValueNode* input,
 template <typename BaseT>
 template <typename NodeT, typename InputsT>
 ReduceResult MaglevReducer<BaseT>::SetNodeInputs(NodeT* node, InputsT inputs) {
-  // TODO(marja): Abort if input conversion fails.
-  SetNodeInputsOld(node, inputs);
-  return ReduceResult::Done();
-}
-
-template <typename BaseT>
-template <typename NodeT, typename InputsT>
-void MaglevReducer<BaseT>::SetNodeInputsOld(NodeT* node, InputsT inputs) {
   // Nodes with zero input count don't have kInputTypes defined.
   if constexpr (NodeT::kInputCount > 0) {
     constexpr UseReprHintRecording hint = ShouldRecordUseReprHint<NodeT>();
     int i = 0;
     for (ValueNode* input : inputs) {
       DCHECK_NOT_NULL(input);
-      node->set_input(i, ConvertInputTo<hint>(input, NodeT::kInputTypes[i]));
+      ValueNode* converted;
+      GET_VALUE_OR_ABORT(converted,
+                         ConvertInputTo<hint>(input, NodeT::kInputTypes[i]));
+      node->set_input(i, converted);
       i++;
     }
   }
+  return ReduceResult::Done();
 }
 
 template <typename BaseT>
@@ -428,7 +435,8 @@ void MaglevReducer<BaseT>::MarkPossibleSideEffect(NodeT* node) {
   if constexpr (!NodeT::kProperties.can_write()) return;
 
   if constexpr (ReducerBaseWithKNA<BaseT>) {
-    known_node_aspects().increment_effect_epoch();
+    known_node_aspects().MarkPossibleSideEffect(node, broker(),
+                                                is_tracing_enabled());
   }
 }
 
@@ -524,8 +532,9 @@ ValueNode* MaglevReducer<BaseT>::GetTaggedValue(
       return graph()->GetSmiConstant(*as_int32_constant);
     }
   }
-  if (auto as_float64_constant = TryGetFloat64Constant(
-          value, TaggedToFloat64ConversionType::kOnlyNumber)) {
+  if (auto as_float64_constant =
+          TryGetFloat64Constant(UseRepresentation::kFloat64, value,
+                                TaggedToFloat64ConversionType::kOnlyNumber)) {
     if (std::isnan(*as_float64_constant)) {
       return graph()->GetRootConstant(RootIndex::kNanValue);
     }
@@ -877,7 +886,8 @@ ValueNode* MaglevReducer<BaseT>::GetFloat64ForToNumber(
 
   // Process constants first to avoid allocating NodeInfo for them.
   if (auto cst = TryGetFloat64Constant(
-          value, GetTaggedToFloat64ConversionType(allowed_input_type))) {
+          UseRepresentation::kFloat64, value,
+          GetTaggedToFloat64ConversionType(allowed_input_type))) {
     return graph()->GetFloat64Constant(cst.value());
   }
   // We could emit unconditional eager deopts for other kinds of constant, but
@@ -964,6 +974,12 @@ ValueNode* MaglevReducer<BaseT>::GetFloat64ForToNumber(
 }
 
 template <typename BaseT>
+ValueNode* MaglevReducer<BaseT>::GetHoleyFloat64(ValueNode* value) {
+  value->MaybeRecordUseReprHint(UseRepresentation::kHoleyFloat64);
+  return GetHoleyFloat64ForToNumber(value, NodeType::kNumberOrUndefined);
+}
+
+template <typename BaseT>
 ValueNode* MaglevReducer<BaseT>::GetHoleyFloat64ForToNumber(
     ValueNode* value, NodeType allowed_input_type) {
   value->MaybeRecordUseReprHint(UseRepresentation::kHoleyFloat64);
@@ -981,7 +997,10 @@ void MaglevReducer<BaseT>::EnsureInt32(ValueNode* value,
 
 template <typename BaseT>
 std::optional<double> MaglevReducer<BaseT>::TryGetFloat64Constant(
-    ValueNode* value, TaggedToFloat64ConversionType conversion_type) {
+    UseRepresentation use_repr, ValueNode* value,
+    TaggedToFloat64ConversionType conversion_type) {
+  DCHECK(use_repr == UseRepresentation::kFloat64 ||
+         use_repr == UseRepresentation::kHoleyFloat64);
   switch (value->opcode()) {
     case Opcode::kConstant: {
       compiler::ObjectRef object = value->Cast<Constant>()->object();
@@ -1012,7 +1031,10 @@ std::optional<double> MaglevReducer<BaseT>::TryGetFloat64Constant(
           // We use the undefined nan and silence it to produce the same result
           // as a computation from non-constants would.
           auto ud = Float64::FromBits(kUndefinedNanInt64);
-          return ud.to_quiet_nan().get_scalar();
+          if (use_repr != UseRepresentation::kHoleyFloat64) {
+            ud = ud.to_quiet_nan();
+          }
+          return ud.get_scalar();
         }
 #endif  // V8_ENABLE_UNDEFINED_DOUBLE
         return Cast<Oddball>(root_object)->to_number_raw();
@@ -1026,7 +1048,7 @@ std::optional<double> MaglevReducer<BaseT>::TryGetFloat64Constant(
       break;
   }
   if (auto c = TryGetConstantAlternative(value)) {
-    return TryGetFloat64Constant(*c, conversion_type);
+    return TryGetFloat64Constant(use_repr, *c, conversion_type);
   }
   return {};
 }
@@ -1135,18 +1157,35 @@ template <typename BaseT>
 ValueNode* MaglevReducer<BaseT>::BuildNumberOrOddballToFloat64(
     ValueNode* node, NodeType allowed_input_type) {
   NodeType old_type;
-  auto conversion_type = GetTaggedToFloat64ConversionType(allowed_input_type);
+  TaggedToFloat64ConversionType conversion_type =
+      GetTaggedToFloat64ConversionType(allowed_input_type);
   if (EnsureType(node, allowed_input_type, &old_type)) {
     if (old_type == NodeType::kSmi) {
       ValueNode* untagged_smi = BuildSmiUntag(node);
       return AddNewNodeNoAbort<ChangeInt32ToFloat64>({untagged_smi});
     }
-    return AddNewNodeNoAbort<UncheckedNumberOrOddballToFloat64>(
-        {node}, conversion_type);
+    if (conversion_type == TaggedToFloat64ConversionType::kOnlyNumber) {
+      return AddNewNodeNoAbort<UncheckedNumberToFloat64>({node});
+
+    } else {
+      return AddNewNodeNoAbort<UncheckedNumberOrOddballToFloat64>(
+          {node}, conversion_type);
+    }
   } else {
-    return AddNewNodeNoAbort<CheckedNumberOrOddballToFloat64>({node},
-                                                              conversion_type);
+    if (conversion_type == TaggedToFloat64ConversionType::kOnlyNumber) {
+      return AddNewNodeNoAbort<CheckedNumberToFloat64>({node});
+
+    } else {
+      return AddNewNodeNoAbort<CheckedNumberOrOddballToFloat64>(
+          {node}, conversion_type);
+    }
   }
+}
+
+template <typename BaseT>
+ValueNode* MaglevReducer<BaseT>::BuildHoleyFloat64SilenceNumberNans(
+    ValueNode* node) {
+  return AddNewNodeNoAbort<HoleyFloat64SilenceNumberNans>({node});
 }
 
 template <typename BaseT>
@@ -1429,7 +1468,8 @@ template <typename BaseT>
 template <Operation kOperation>
 MaybeReduceResult MaglevReducer<BaseT>::TryFoldFloat64UnaryOperationForToNumber(
     TaggedToFloat64ConversionType conversion_type, ValueNode* value) {
-  auto cst = TryGetFloat64Constant(value, conversion_type);
+  auto cst = TryGetFloat64Constant(UseRepresentation::kFloat64, value,
+                                   conversion_type);
   if (!cst.has_value()) return {};
   switch (kOperation) {
     case Operation::kNegate:
@@ -1443,13 +1483,25 @@ MaybeReduceResult MaglevReducer<BaseT>::TryFoldFloat64UnaryOperationForToNumber(
   }
 }
 
+namespace details {
+inline bool Float64Equal(std::optional<double> left,
+                         std::optional<double> right) {
+  if (!left.has_value() || !right.has_value()) return false;
+  // This is basically `==` but it returns false for mismatching +0.0/-0.0 and
+  // it returns true for NaN.
+  return base::bit_cast<uint64_t>(*left) == base::bit_cast<uint64_t>(*right) ||
+         (std::isnan(*left) && std::isnan(*right));
+}
+}  // namespace details
+
 template <typename BaseT>
 template <Operation kOperation>
 MaybeReduceResult
 MaglevReducer<BaseT>::TryFoldFloat64BinaryOperationForToNumber(
     TaggedToFloat64ConversionType conversion_type, ValueNode* left,
     ValueNode* right) {
-  auto cst_right = TryGetFloat64Constant(right, conversion_type);
+  auto cst_right = TryGetFloat64Constant(UseRepresentation::kFloat64, right,
+                                         conversion_type);
   if (!cst_right.has_value()) return {};
   return TryFoldFloat64BinaryOperationForToNumber<kOperation>(
       conversion_type, left, cst_right.value());
@@ -1461,8 +1513,27 @@ MaybeReduceResult
 MaglevReducer<BaseT>::TryFoldFloat64BinaryOperationForToNumber(
     TaggedToFloat64ConversionType conversion_type, ValueNode* left,
     double cst_right) {
-  auto cst_left = TryGetFloat64Constant(left, conversion_type);
-  if (!cst_left.has_value()) return {};
+  auto cst_left =
+      TryGetFloat64Constant(UseRepresentation::kFloat64, left, conversion_type);
+  if (!cst_left.has_value()) {
+    if (details::Float64Equal(cst_right, Float64Identity<kOperation>())) {
+      // This needs to return a Float64.
+      if (left->is_holey_float64()) {
+        // However we can treat Undefineds (Holes) as NaNs.
+        left = AddNewNodeNoInputConversion<UnsafeHoleyFloat64ToFloat64>({left});
+      } else {
+        left = GetFloat64(left);
+      }
+      return left->Unwrap();
+    }
+    // TODO(dmercadier): we could still do strength reduction, like
+    //     x * 2  ==> x + x
+    //     x ** 2 ==> x * x
+    //     etc.
+    // For inspiration, REDUCE(FloatBinop) in machine-optimization-reducer.h
+    // contains a lot of these.
+    return {};
+  }
   switch (kOperation) {
     case Operation::kAdd:
       return GetNumberConstant(cst_left.value() + cst_right);
@@ -1480,6 +1551,83 @@ MaglevReducer<BaseT>::TryFoldFloat64BinaryOperationForToNumber(
     default:
       UNREACHABLE();
   }
+}
+
+template <typename BaseT>
+MaybeReduceResult MaglevReducer<BaseT>::TryFoldFloat64Min(ValueNode* lhs,
+                                                          ValueNode* rhs) {
+  // lhs and rhs need to be already converted to HoleyFloat64. Otherwise
+  // equality checking is not valid.
+  DCHECK(ValueRepresentationIs(lhs->value_representation(),
+                               ValueRepresentation::kHoleyFloat64));
+  DCHECK(ValueRepresentationIs(rhs->value_representation(),
+                               ValueRepresentation::kHoleyFloat64));
+  if (lhs == rhs) {
+    return lhs->Unwrap();
+  }
+
+  std::optional<double> lhs_const =
+      TryGetFloat64Constant(UseRepresentation::kFloat64, lhs,
+                            TaggedToFloat64ConversionType::kNumberOrOddball);
+  if (!lhs_const) return {};
+  std::optional<double> rhs_const =
+      TryGetFloat64Constant(UseRepresentation::kFloat64, rhs,
+                            TaggedToFloat64ConversionType::kNumberOrOddball);
+  if (!rhs_const) return {};
+
+  if (std::isnan(*lhs_const) || std::isnan(*rhs_const)) {
+    return GetFloat64Constant(std::numeric_limits<double>::quiet_NaN());
+  }
+  if (*lhs_const == 0 && *rhs_const == 0) {
+    // Handle -0 vs 0.
+    if (std::signbit(*lhs_const)) {
+      return GetFloat64Constant(*lhs_const);
+    }
+    return GetFloat64Constant(*rhs_const);
+  }
+  if (*lhs_const <= *rhs_const) {
+    return GetFloat64Constant(*lhs_const);
+  }
+  return GetFloat64Constant(*rhs_const);
+}
+
+template <typename BaseT>
+MaybeReduceResult MaglevReducer<BaseT>::TryFoldFloat64Max(ValueNode* lhs,
+                                                          ValueNode* rhs) {
+  // lhs and rhs need to be already converted to HoleyFloat64. Otherwise
+  // equality checking is not valid.
+  DCHECK(ValueRepresentationIs(lhs->value_representation(),
+                               ValueRepresentation::kHoleyFloat64));
+  DCHECK(ValueRepresentationIs(rhs->value_representation(),
+                               ValueRepresentation::kHoleyFloat64));
+  if (lhs == rhs) {
+    return lhs->Unwrap();
+  }
+
+  std::optional<double> lhs_const =
+      TryGetFloat64Constant(UseRepresentation::kFloat64, lhs,
+                            TaggedToFloat64ConversionType::kNumberOrOddball);
+  if (!lhs_const) return {};
+
+  std::optional<double> rhs_const =
+      TryGetFloat64Constant(UseRepresentation::kFloat64, rhs,
+                            TaggedToFloat64ConversionType::kNumberOrOddball);
+  if (!rhs_const) return {};
+
+  if (std::isnan(*lhs_const) || std::isnan(*rhs_const)) {
+    return GetFloat64Constant(std::numeric_limits<double>::quiet_NaN());
+  }
+  if (*lhs_const == 0 && *rhs_const == 0) {
+    // Handle -0 vs 0.
+    if (std::signbit(*lhs_const)) {
+      return GetFloat64Constant(*rhs_const);
+    }
+    return GetFloat64Constant(*lhs_const);
+  }
+  if (*lhs_const >= *rhs_const) {
+    return GetFloat64Constant(*lhs_const);
+  }
+  return GetFloat64Constant(*rhs_const);
 }
 
 }  // namespace maglev

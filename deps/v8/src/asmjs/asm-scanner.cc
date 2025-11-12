@@ -101,13 +101,13 @@ void AsmJsScanner::Next() {
     switch (ch) {
       case ' ':
       case '\t':
-      case '\r':
         // Ignore whitespace.
         break;
 
+      case '\r':
       case '\n':
-        // Track when we've passed a newline for optional semicolon support,
-        // but keep scanning.
+        // Track when we've passed a line terminator for optional semicolon
+        // support, but keep scanning.
         preceded_by_newline_ = true;
         break;
 
@@ -321,7 +321,7 @@ void AsmJsScanner::ConsumeNumber(base::uc32 ch) {
     token_ = '.';
     return;
   }
-  // Decode numbers, with seperate paths for prefixes and implicit octals.
+  // Decode numbers, with separate paths for prefixes and implicit octals.
   if (has_prefix && number[0] == '0') {
     // "0[xob]" by itself is a parse error.
     if (number.size() <= 2) {
@@ -391,7 +391,7 @@ bool AsmJsScanner::ConsumeCComment() {
       if (Consume('/')) return true;
     }
 
-    if (Consume('\n')) {
+    if (Consume('\n') || Consume('\r')) {
       preceded_by_newline_ = true;
     } else {
       Advance();
@@ -402,7 +402,7 @@ bool AsmJsScanner::ConsumeCComment() {
 
 void AsmJsScanner::ConsumeCPPComment() {
   while (HasMoreChars()) {
-    if (Consume('\n')) {
+    if (Consume('\n') || Consume('\r')) {
       preceded_by_newline_ = true;
       return;
     }

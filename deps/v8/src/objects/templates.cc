@@ -233,10 +233,12 @@ DirectHandle<JSObject> CreateSlowJSObjectWithProperties(
     if (!property_values[i].ToLocal(&property_value)) {
       continue;
     }
-    properties = PropertyDictionary::Add(
-        isolate, Cast<PropertyDictionary>(properties),
-        Cast<String>(handle(property_names->get(i), isolate)),
-        Utils::OpenDirectHandle(*property_value), PropertyDetails::Empty());
+    properties =
+        PropertyDictionary::Add(
+            isolate, Cast<PropertyDictionary>(properties),
+            Cast<String>(handle(property_names->get(i), isolate)),
+            Utils::OpenDirectHandle(*property_value), PropertyDetails::Empty())
+            .ToHandleChecked();
   }
   object->set_raw_properties_or_hash(*properties);
   return object;

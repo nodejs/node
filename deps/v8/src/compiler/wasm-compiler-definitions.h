@@ -14,7 +14,6 @@
 #include "src/base/hashing.h"
 #include "src/base/vector.h"
 #include "src/codegen/linkage-location.h"
-#include "src/codegen/register.h"
 #include "src/codegen/signature.h"
 #include "src/wasm/signature-hashing.h"
 #include "src/wasm/value-type.h"
@@ -48,6 +47,9 @@ V8_INLINE std::ostream& operator<<(std::ostream& os,
       return os << "kExactMatchLastSupertype";
   }
 }
+
+SubtypeCheckExactness GetExactness(const wasm::WasmModule* module,
+                                   wasm::HeapType target);
 
 // If {to} is nullable, it means that null passes the check.
 // {from} may change in compiler optimization passes as the object's type gets

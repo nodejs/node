@@ -98,6 +98,30 @@ MaybeDirectHandle<JSPluralRules> JSPluralRules::New(
   MAYBE_RETURN(maybe_type, MaybeDirectHandle<JSPluralRules>());
   Type type = maybe_type.FromJust();
 
+  Intl::Notation notation = Intl::Notation::STANDARD;
+  // 9. Let notation be ? GetOption(options, "notation", "string", «
+  // "standard", "scientific",  "engineering", "compact" », "standard").
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, notation,
+      GetStringOption<Intl::Notation>(
+          isolate, options, isolate->factory()->notation_string(), service,
+          std::to_array<const std::string_view>(
+              {"standard", "scientific", "engineering", "compact"}),
+          std::array{Intl::Notation::STANDARD, Intl::Notation::SCIENTIFIC,
+                     Intl::Notation::ENGINEERING, Intl::Notation::COMPACT},
+          Intl::Notation::STANDARD));
+  // 10. Set pluralRules.[[Notation]] to notation.
+  // 28. Let compactDisplay be ? GetOption(options, "compactDisplay",
+  // "string", « "short", "long" »,  "short").
+  Maybe<Intl::CompactDisplay> maybe_compact_display =
+      GetStringOption<Intl::CompactDisplay>(
+          isolate, options, isolate->factory()->compactDisplay_string(),
+          service, std::to_array<const std::string_view>({"short", "long"}),
+          std::array{Intl::CompactDisplay::SHORT, Intl::CompactDisplay::LONG},
+          Intl::CompactDisplay::SHORT);
+  MAYBE_RETURN(maybe_compact_display, MaybeDirectHandle<JSPluralRules>());
+  Intl::CompactDisplay compact_display = maybe_compact_display.FromJust();
+
   // Note: The spec says we should do ResolveLocale after performing
   // SetNumberFormatDigitOptions but we need the locale to create all
   // the ICU data structures.
@@ -135,9 +159,18 @@ MaybeDirectHandle<JSPluralRules> JSPluralRules::New(
     }
   }
 
-  // 9. Perform ? SetNumberFormatDigitOptions(pluralRules, options, 0, 3).
+  // The default notation in ICU is Simple, which mapped from STANDARD
+  // so we can skip setting it.
+  if (notation != Intl::Notation::STANDARD) {
+    settings =
+        settings.notation(Intl::ToICUNotation(notation, compact_display));
+  }
+
+  // 11. Perform ? SetNumberFormatDigitOptions(pluralRules, options, 0, 3,
+  // notation).
   Maybe<Intl::NumberFormatDigitOptions> maybe_digit_options =
-      Intl::SetNumberFormatDigitOptions(isolate, options, 0, 3, false, service);
+      Intl::SetNumberFormatDigitOptions(
+          isolate, options, 0, 3, notation == Intl::Notation::COMPACT, service);
   MAYBE_RETURN(maybe_digit_options, MaybeDirectHandle<JSPluralRules>());
   Intl::NumberFormatDigitOptions digit_options = maybe_digit_options.FromJust();
   settings =
@@ -264,6 +297,20 @@ DirectHandle<JSObject> JSPluralRules::ResolvedOptions(
   icu::UnicodeString skeleton = icu_number_formatter->toSkeleton(status);
   DCHECK(U_SUCCESS(status));
 
+  Factory* factory = isolate->factory();
+  Intl::Notation notation = Intl::NotationFromSkeleton(skeleton);
+  CHECK(JSReceiver::CreateDataProperty(
+            isolate, options, factory->notation_string(),
+            Intl::NotationAsString(isolate, notation), Just(kDontThrow))
+            .FromJust());
+  if (notation == Intl::Notation::COMPACT) {
+    // https://github.com/tc39/ecma402/issues/1031
+    CHECK(JSReceiver::CreateDataProperty(
+              isolate, options, factory->compactDisplay_string(),
+              Intl::CompactDisplayString(isolate, skeleton), Just(kDontThrow))
+              .FromJust());
+  }
+
   CreateDataPropertyForOptions(
       isolate, options,
       JSNumberFormat::MinimumIntegerDigitsFromSkeleton(skeleton),
@@ -296,7 +343,6 @@ DirectHandle<JSObject> JSPluralRules::ResolvedOptions(
   int32_t count = categories->count(status);
   DCHECK(U_SUCCESS(status));
 
-  Factory* factory = isolate->factory();
   DirectHandle<FixedArray> plural_categories = factory->NewFixedArray(count);
   const std::vector<const char*> kCategories = {"zero", "one",  "two",
                                                 "few",  "many", "other"};

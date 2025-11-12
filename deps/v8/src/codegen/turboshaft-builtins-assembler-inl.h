@@ -174,6 +174,13 @@ class BuiltinArgumentsTS {
   V<WordPtr> base_;
 };
 
+// Deduction guide.
+template <typename A, typename T>
+BuiltinArgumentsTS(
+    A*, compiler::turboshaft::V<T>,
+    compiler::turboshaft::OptionalV<compiler::turboshaft::WordPtr>)
+    -> BuiltinArgumentsTS<A>;
+
 }  // namespace detail
 
 template <typename Next>
@@ -265,8 +272,8 @@ class FeedbackCollectorReducer : public Next {
         return;
       }
       case SKIP_WRITE_BARRIER_SCOPE:
+      case SKIP_WRITE_BARRIER_FOR_GC:
       case UNSAFE_SKIP_WRITE_BARRIER:
-        UNIMPLEMENTED();
       case UPDATE_WRITE_BARRIER:
         UNIMPLEMENTED();
       case UPDATE_EPHEMERON_KEY_WRITE_BARRIER:
@@ -445,9 +452,8 @@ class BuiltinsReducer : public Next {
         V<Object> exception = __ CatchBlockBegin();
         __ CombineExceptionFeedback();
         __ UpdateFeedback();
-        __ template CallRuntime<
-            compiler::turboshaft::RuntimeCallDescriptor::ReThrow>(
-            __ data()->isolate(), __ NoContextConstant(), {exception});
+        __ template CallRuntime<compiler::turboshaft::runtime::ReThrow>(
+            __ NoContextConstant(), {.exception = exception});
         __ Unreachable();
       }
     }

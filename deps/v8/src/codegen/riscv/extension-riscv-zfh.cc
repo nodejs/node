@@ -113,7 +113,7 @@ void AssemblerRISCVZfh::fcvt_h_w(FPURegister rd, Register rs1,
 
 void AssemblerRISCVZfh::fcvt_h_wu(FPURegister rd, Register rs1,
                                   FPURoundingMode frm) {
-  GenInstrALUFP_rr(0b1101010, frm, rd, rs1, ToRegister(1));
+  GenInstrALUFP_rr(0b1101010, frm, rd, rs1, Register::from_code(1));
 }
 
 void AssemblerRISCVZfh::fcvt_w_h(Register rd, FPURegister rs1,
@@ -123,7 +123,7 @@ void AssemblerRISCVZfh::fcvt_w_h(Register rd, FPURegister rs1,
 
 void AssemblerRISCVZfh::fcvt_wu_h(Register rd, FPURegister rs1,
                                   FPURoundingMode frm) {
-  GenInstrALUFP_rr(0b1100010, frm, rd, rs1, ToRegister(1));
+  GenInstrALUFP_rr(0b1100010, frm, rd, rs1, Register::from_code(1));
 }
 
 void AssemblerRISCVZfh::fmv_h_x(FPURegister rd, Register rs1) {
@@ -136,11 +136,11 @@ void AssemblerRISCVZfh::fmv_x_h(Register rd, FPURegister rs1) {
 
 void AssemblerRISCVZfh::fcvt_h_d(FPURegister rd, FPURegister rs1,
                                  FPURoundingMode frm) {
-  GenInstrALUFP_rr(0b0100010, frm, rd, rs1, ToRegister(1));
+  GenInstrALUFP_rr(0b0100010, frm, rd, rs1, Register::from_code(1));
 }
 void AssemblerRISCVZfh::fcvt_d_h(FPURegister rd, FPURegister rs1,
                                  FPURoundingMode frm) {
-  GenInstrALUFP_rr(0b0100001, frm, rd, rs1, ToRegister(2));
+  GenInstrALUFP_rr(0b0100001, frm, rd, rs1, Register::from_code(2));
 }
 
 void AssemblerRISCVZfh::fcvt_h_s(FPURegister rd, FPURegister rs1,
@@ -149,7 +149,7 @@ void AssemblerRISCVZfh::fcvt_h_s(FPURegister rd, FPURegister rs1,
 }
 void AssemblerRISCVZfh::fcvt_s_h(FPURegister rd, FPURegister rs1,
                                  FPURoundingMode frm) {
-  GenInstrALUFP_rr(0b0100000, frm, rd, rs1, ToRegister(2));
+  GenInstrALUFP_rr(0b0100000, frm, rd, rs1, Register::from_code(2));
 }
 
 #ifdef V8_TARGET_ARCH_RISCV64
@@ -157,22 +157,22 @@ void AssemblerRISCVZfh::fcvt_s_h(FPURegister rd, FPURegister rs1,
 
 void AssemblerRISCVZfh::fcvt_l_h(Register rd, FPURegister rs1,
                                  FPURoundingMode frm) {
-  GenInstrALUFP_rr(0b1100010, frm, rd, rs1, ToRegister(2));
+  GenInstrALUFP_rr(0b1100010, frm, rd, rs1, Register::from_code(2));
 }
 
 void AssemblerRISCVZfh::fcvt_lu_h(Register rd, FPURegister rs1,
                                   FPURoundingMode frm) {
-  GenInstrALUFP_rr(0b1100010, frm, rd, rs1, ToRegister(3));
+  GenInstrALUFP_rr(0b1100010, frm, rd, rs1, Register::from_code(3));
 }
 
 void AssemblerRISCVZfh::fcvt_h_l(FPURegister rd, Register rs1,
                                  FPURoundingMode frm) {
-  GenInstrALUFP_rr(0b1101010, frm, rd, rs1, ToRegister(2));
+  GenInstrALUFP_rr(0b1101010, frm, rd, rs1, Register::from_code(2));
 }
 
 void AssemblerRISCVZfh::fcvt_h_lu(FPURegister rd, Register rs1,
                                   FPURoundingMode frm) {
-  GenInstrALUFP_rr(0b1101010, frm, rd, rs1, ToRegister(3));
+  GenInstrALUFP_rr(0b1101010, frm, rd, rs1, Register::from_code(3));
 }
 #endif
 

@@ -262,13 +262,12 @@ inline constexpr size_t RoundUpToPowerOfTwo(size_t value) {
 // RoundDownToPowerOfTwo32(value) returns the greatest power of two which is
 // less than or equal to |value|. If you pass in a |value| that is already a
 // power of two, it is returned as is.
-inline uint32_t RoundDownToPowerOfTwo32(uint32_t value) {
+inline constexpr uint32_t RoundDownToPowerOfTwo32(uint32_t value) {
   if (value > 0x80000000u) return 0x80000000u;
   uint32_t result = RoundUpToPowerOfTwo32(value);
   if (result > value) result >>= 1;
   return result;
 }
-
 
 // Precondition: 0 <= shift < 32
 inline constexpr uint32_t RotateRight32(uint32_t value, uint32_t shift) {

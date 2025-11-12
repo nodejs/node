@@ -54,8 +54,8 @@ TEST_F(MemoryControllerTest, HeapGrowingFactor) {
 
 TEST_F(MemoryControllerTest, MaxHeapGrowingFactor) {
   const uint64_t physical_memory = 0;
-  const size_t min_heap_size = i::Heap::DefaulMinHeapSize(physical_memory);
-  const size_t max_heap_size = i::Heap::DefaulMaxHeapSize(physical_memory);
+  const size_t min_heap_size = i::Heap::DefaultMinHeapSize(physical_memory);
+  const size_t max_heap_size = i::Heap::DefaultMaxHeapSize(physical_memory);
 
   CheckEqualRounded(
       1.3, V8Controller::MaxGrowingFactor(physical_memory, min_heap_size));

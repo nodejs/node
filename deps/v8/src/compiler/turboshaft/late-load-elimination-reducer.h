@@ -867,10 +867,10 @@ class V8_EXPORT_PRIVATE LateLoadEliminationReducer : public Next {
                   __ NoContextConstant());
             } else {
 #endif
-              __ CallRuntime_Abort(
-                  __ data()->isolate(), __ NoContextConstant(),
-                  __ TagSmi(static_cast<int>(
-                      AbortReason::kTurboshaftLoadEliminationError)));
+              __ template CallRuntime<runtime::Abort>(
+                  __ NoContextConstant(),
+                  {.messageOrMessageId = __ SmiConstant(Smi::FromEnum(
+                       AbortReason::kTurboshaftLoadEliminationError))});
 #if V8_ENABLE_WEBASSEMBLY
             }
 #endif

@@ -29,7 +29,8 @@ namespace absl {
 ABSL_NAMESPACE_BEGIN
 
 template <typename T>
-class ABSL_MUST_USE_RESULT StatusOr;
+class ABSL_MUST_USE_RESULT
+    StatusOr;
 
 namespace internal_statusor {
 

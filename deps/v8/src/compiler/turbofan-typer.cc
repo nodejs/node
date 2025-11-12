@@ -1261,7 +1261,7 @@ Type Typer::Visitor::TypeJSWasmCall(Node* node) {
   DCHECK_EQ(1, func->sig->return_count());
   wasm::ValueType return_type = func->sig->GetReturn();
   DCHECK_IMPLIES(return_type.is_ref(),
-                 return_type.is_reference_to(wasm::HeapType::kExtern));
+                 return_type.is_reference_to(wasm::GenericKind::kExtern));
   return JSWasmCallNode::TypeForWasmReturnKind(return_type.kind());
 }
 #endif  // V8_ENABLE_WEBASSEMBLY

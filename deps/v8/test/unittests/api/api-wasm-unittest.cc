@@ -76,7 +76,7 @@ void WasmStreamingCallbackTestFinishWithSuccess(
       WasmStreaming::Unpack(info.GetIsolate(), info.Data());
   streaming->OnBytesReceived(kMinimalWasmModuleBytes,
                              arraysize(kMinimalWasmModuleBytes));
-  streaming->Finish();
+  streaming->Finish(WasmStreaming::ModuleCachingCallback{});
 }
 
 void WasmStreamingCallbackTestFinishWithFailure(
@@ -84,7 +84,7 @@ void WasmStreamingCallbackTestFinishWithFailure(
   CHECK(i::ValidateCallbackInfo(info));
   std::shared_ptr<WasmStreaming> streaming =
       WasmStreaming::Unpack(info.GetIsolate(), info.Data());
-  streaming->Finish();
+  streaming->Finish(WasmStreaming::ModuleCachingCallback{});
 }
 
 void WasmStreamingCallbackTestAbortWithReject(

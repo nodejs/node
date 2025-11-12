@@ -15,8 +15,14 @@
 // Generates probe length statistics for many combinations of key types and key
 // distributions, all using the default hash function for swisstable.
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <limits>
 #include <memory>
 #include <regex>  // NOLINT
+#include <string>
+#include <utility>
 #include <vector>
 
 #include "absl/base/no_destructor.h"
@@ -227,24 +233,6 @@ Ptr<Align>* MakePtr(uintptr_t v) {
   return reinterpret_cast<Ptr<Align>*>(v);
 }
 
-struct IntIdentity {
-  uint64_t i;
-  friend bool operator==(IntIdentity a, IntIdentity b) { return a.i == b.i; }
-  IntIdentity operator++(int) { return IntIdentity{i++}; }
-};
-
-template <int Align>
-struct PtrIdentity {
-  explicit PtrIdentity(uintptr_t val = PointerForAlignment<Align>()) : i(val) {}
-  uintptr_t i;
-  friend bool operator==(PtrIdentity a, PtrIdentity b) { return a.i == b.i; }
-  PtrIdentity operator++(int) {
-    PtrIdentity p(i);
-    i += Align;
-    return p;
-  }
-};
-
 enum class StringSize { kSmall, kMedium, kLarge, kExtraLarge };
 constexpr char kStringFormat[] = "%s/name-%07d-of-9999999.txt";
 
@@ -268,20 +256,6 @@ struct String {
         return "";
     }
   }
-};
-
-template <>
-struct DefaultHash<IntIdentity> {
-  struct type {
-    size_t operator()(IntIdentity t) const { return t.i; }
-  };
-};
-
-template <int Align>
-struct DefaultHash<PtrIdentity<Align>> {
-  struct type {
-    size_t operator()(PtrIdentity<Align> t) const { return t.i; }
-  };
 };
 
 template <class T>
@@ -389,20 +363,6 @@ struct Random<Ptr<Align>*, Dist> {
   }
 };
 
-template <class Dist>
-struct Random<IntIdentity, Dist> {
-  IntIdentity operator()() const {
-    return IntIdentity{Random<uint64_t, Dist>{}()};
-  }
-};
-
-template <class Dist, int Align>
-struct Random<PtrIdentity<Align>, Dist> {
-  PtrIdentity<Align> operator()() const {
-    return PtrIdentity<Align>{Random<uintptr_t, Dist>{}() * Align};
-  }
-};
-
 template <class Dist, StringSize size>
 struct Random<String<size>, Dist> {
   std::string operator()() const {
@@ -423,16 +383,10 @@ std::string Name();
 
 std::string Name(uint32_t*) { return "u32"; }
 std::string Name(uint64_t*) { return "u64"; }
-std::string Name(IntIdentity*) { return "IntIdentity"; }
 
 template <int Align>
 std::string Name(Ptr<Align>**) {
   return absl::StrCat("Ptr", Align);
-}
-
-template <int Align>
-std::string Name(PtrIdentity<Align>*) {
-  return absl::StrCat("PtrIdentity", Align);
 }
 
 template <StringSize size>
@@ -558,15 +512,10 @@ int main(int argc, char** argv) {
 
   std::vector<Result> results;
   RunForType<uint64_t>(results);
-  RunForType<IntIdentity>(results);
   RunForType<Ptr<8>*>(results);
   RunForType<Ptr<16>*>(results);
   RunForType<Ptr<32>*>(results);
   RunForType<Ptr<64>*>(results);
-  RunForType<PtrIdentity<8>>(results);
-  RunForType<PtrIdentity<16>>(results);
-  RunForType<PtrIdentity<32>>(results);
-  RunForType<PtrIdentity<64>>(results);
   RunForType<std::pair<uint32_t, uint32_t>>(results);
   RunForType<String<StringSize::kSmall>>(results);
   RunForType<String<StringSize::kMedium>>(results);

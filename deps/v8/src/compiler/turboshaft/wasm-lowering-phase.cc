@@ -22,7 +22,6 @@ void WasmLoweringPhase::Run(PipelineData* data, Zone* temp_zone) {
   // elimination that follows this phase eliminate more loads.
   CopyingPhase<WasmLoweringReducer, MachineOptimizationReducer>::Run(data,
                                                                      temp_zone);
-  data->reset_has_wasm_type_cast_rtt_in_loop();
 }
 
 }  // namespace v8::internal::compiler::turboshaft

@@ -12,9 +12,9 @@ function dateFormat(locale) {
 }
 
 // Locales that are affected by the flag
-assertEquals("Wednesday 14 June 2023", dateFormat("en-AU"));
-assertEquals("Wednesday 14 June 2023", dateFormat("en-GB"));
-assertEquals("Wednesday 14 June, 2023", dateFormat("en-IN"));
+assertEquals("Wednesday, 14 June 2023", dateFormat("en-AU"));
+assertEquals("Wednesday, 14 June 2023", dateFormat("en-GB"));
+assertEquals("Wednesday, 14 June 2023", dateFormat("en-IN"));
 
 // Locales that are not affected by the flag
 assertEquals("Wednesday, June 14, 2023", dateFormat("en"));
