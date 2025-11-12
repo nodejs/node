@@ -2565,20 +2565,20 @@ assert.strictEqual(
       /* eslint-disable-next-line no-throw-literal */
       get foo() { throw true; }
     }, { getters: true }),
-    '{ foo: [Getter: <Inspection threw (undefined)>] }'
+    '{ foo: [Getter: <Inspection threw>] }'
   );
   assert.strictEqual(
     inspect({
       /* eslint-disable-next-line no-throw-literal */
       get foo() { throw {}; }
     }, { getters: true }),
-    '{ foo: [Getter: <Inspection threw (undefined)>] }'
+    '{ foo: [Getter: <Inspection threw>] }'
   );
   assert.strictEqual(
     inspect({
       get foo() { throw Error; }
     }, { getters: true }),
-    '{ foo: [Getter: <Inspection threw (undefined)>] }'
+    '{ foo: [Getter: <Inspection threw>] }'
   );
 }
 
