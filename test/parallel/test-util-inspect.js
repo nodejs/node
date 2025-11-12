@@ -3347,9 +3347,9 @@ assert.strictEqual(
     '      [length]: 0,\n' +
     "      [name]: 'Bar',\n" +
     '      [prototype]: [Circular *1],\n' +
-    // Heh? I don't know how to override the error stakc to make it predictable
-    '      [Symbol(Symbol.species)]: ' +
-    "[Getter: <Inspection threw (TypeError: Symbol.prototype.toString requires that 'this' be a Symbol\n" +
+    '      [Symbol(Symbol.species)]: [Getter: <Inspection threw ' +
+      // Heh? I don't know how to override the error stack to make it predictable
+      "(TypeError: Symbol.prototype.toString requires that 'this' be a Symbol\n" +
     '    at Bar.toString (<anonymous>)\n' +
     '    at formatPrimitive (node:internal/util/inspect:2246:13)\n' +
     '    at formatProperty (node:internal/util/inspect:2556:29)\n' +
