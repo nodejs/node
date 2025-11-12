@@ -123,6 +123,16 @@ def CppLintWorker(command):
           ' in your third_party directory. Lint check skipped.')
     process.kill()
 
+def ClangFormatWorker(command):
+  try:
+    # Run unchecked to only flag timeouts.
+    subprocess.run(
+        command, stderr=subprocess.PIPE, check=False, timeout=30)
+  except:
+    sys.stdout.write(f'Got a clang-format timeout with {command.pop()}\n')
+    return 1
+  return 0
+
 def TorqueLintWorker(command):
   try:
     process = subprocess.Popen(command, stderr=subprocess.PIPE)
@@ -437,6 +447,7 @@ class TorqueLintProcessor(CacheableSourceFileProcessor):
 
     return None, arguments
 
+
 class JSLintProcessor(CacheableSourceFileProcessor):
   """
   Check .{m}js file to verify they follow the JS Style guide.
@@ -458,6 +469,49 @@ class JSLintProcessor(CacheableSourceFileProcessor):
   def GetProcessorScript(self):
     jslint = join(DEPS_DEPOT_TOOLS_PATH, 'clang_format.py')
     return jslint, []
+
+
+class ClangFormatProcessor(CacheableSourceFileProcessor):
+  """
+  Check if clang-format runs into timeouts with any files.
+
+  Note, we are not actually enforcing the format as that creates too
+  many differences on config updates.
+  """
+
+  def __init__(self, use_cache=True):
+    super(ClangFormatProcessor, self).__init__(
+      use_cache=use_cache, cache_file_path='.clang-format-cache', file_type='C/C++')
+
+  def IsRelevant(self, name):
+    return name.endswith('.cc') or name.endswith('.h')
+
+  def IgnoreDir(self, name):
+    return (super(ClangFormatProcessor, self).IgnoreDir(name)
+            or (name == 'third_party'))
+
+  # Clang-format is too slow on these files.
+  IGNORE_FORMAT = [
+    'gay-fixed.cc',
+    'gay-precision.cc',
+    'gay-shortest.cc',
+  ]
+
+  def IgnoreFile(self, name):
+    return (super(ClangFormatProcessor, self).IgnoreFile(name)
+              or (name in ClangFormatProcessor.IGNORE_FORMAT))
+
+  def GetPathsToSearch(self):
+    dirs = ['include', 'samples', 'src']
+    test_dirs = ['cctest', 'common', 'fuzzer', 'inspector', 'unittests']
+    return dirs + [join('test', dir) for dir in test_dirs]
+
+  def GetProcessorWorker(self):
+    return ClangFormatWorker
+
+  def GetProcessorScript(self):
+    arguments = ['--fail-on-incomplete-format', '--Werror', '-n']
+    return join(DEPS_DEPOT_TOOLS_PATH, 'clang_format.py'), arguments
 
 
 COPYRIGHT_HEADER_PATTERN = re.compile(
@@ -887,6 +941,7 @@ def Main():
   use_linter_cache = not options.no_linter_cache
   checks = [
     CheckDeps,
+    ClangFormatProcessor(use_cache=use_linter_cache),
     TorqueLintProcessor(use_cache=use_linter_cache),
     JSLintProcessor(use_cache=use_linter_cache),
     SourceProcessor(),

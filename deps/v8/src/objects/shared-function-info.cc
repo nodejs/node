@@ -72,12 +72,8 @@ void SharedFunctionInfo::Init(ReadOnlyRoots ro_roots, int unique_id) {
   clear_padding();
 }
 
+// LINT.IfChange(GetSharedFunctionInfoCode)
 Tagged<Code> SharedFunctionInfo::GetCode(Isolate* isolate) const {
-  // ======
-  // NOTE: This chain of checks MUST be kept in sync with the equivalent CSA
-  // GetSharedFunctionInfoCode method in code-stub-assembler.cc.
-  // ======
-
   Tagged<Object> data = GetTrustedData(isolate);
   if (data != Smi::zero()) {
     DCHECK(HasTrustedData());
@@ -150,6 +146,7 @@ Tagged<Code> SharedFunctionInfo::GetCode(Isolate* isolate) const {
 
   UNREACHABLE();
 }
+// LINT.ThenChange(/src/codegen/code-stub-assembler.cc:GetSharedFunctionInfoCode)
 
 SharedFunctionInfo::ScriptIterator::ScriptIterator(Isolate* isolate,
                                                    Tagged<Script> script)
@@ -324,7 +321,7 @@ std::unique_ptr<char[]> SharedFunctionInfo::DebugNameCStr() const {
 #if V8_ENABLE_WEBASSEMBLY
   if (HasWasmExportedFunctionData(GetCurrentIsolateForSandbox())) {
     return WasmExportedFunction::GetDebugName(
-        wasm_exported_function_data()->sig());
+        wasm_exported_function_data()->internal()->sig());
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
   DisallowGarbageCollection no_gc;

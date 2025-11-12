@@ -151,10 +151,10 @@ FieldAccess AccessBuilder::ForJSObjectPropertiesOrHash() {
 // static
 FieldAccess AccessBuilder::ForJSObjectPropertiesOrHashKnownPointer() {
   FieldAccess access = {
-      kTaggedBase,          JSObject::kPropertiesOrHashOffset,
-      MaybeHandle<Name>(),  OptionalMapRef(),
-      Type::Any(),          MachineType::TaggedPointer(),
-      kPointerWriteBarrier, "JSObjectPropertiesOrHashKnownPointer"};
+      kTaggedBase,         JSObject::kPropertiesOrHashOffset,
+      MaybeHandle<Name>(), OptionalMapRef(),
+      Type::Any(),         MachineType::AnyTagged(),
+      kFullWriteBarrier,   "JSObjectPropertiesOrHashKnownPointer"};
   return access;
 }
 
@@ -233,7 +233,7 @@ FieldAccess AccessBuilder::ForJSExternalObjectValue() {
       "JSExternalObjectValue",
       ConstFieldInfo::None(),
       false,
-      kExternalObjectValueTag,
+      kFastApiExternalTypeTag,
   };
   return access;
 }

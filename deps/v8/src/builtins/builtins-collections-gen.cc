@@ -1195,7 +1195,7 @@ template <typename CollectionType>
 void CollectionsBuiltinsAssembler::FindOrderedHashTableEntryForStringKey(
     TNode<CollectionType> table, TNode<String> key_tagged,
     TVariable<IntPtrT>* result, Label* entry_found, Label* not_found) {
-  const TNode<Uint32T> hash = LoadNameHash(key_tagged);
+  const TNode<Uint32T> hash = LoadNameHashAssumeComputed(key_tagged);
   *result = Signed(ChangeUint32ToWord(hash));
   FindOrderedHashTableEntry<CollectionType>(
       table, hash,
@@ -1554,38 +1554,61 @@ CollectionsBuiltinsAssembler::NextKeyValueIndexTuple(
   return TorqueStructKeyValueIndexTuple{key, value, next_index};
 }
 
-TF_BUILTIN(MapPrototypeGet, CollectionsBuiltinsAssembler) {
-  const auto receiver = Parameter<Object>(Descriptor::kReceiver);
-  const auto key = Parameter<Object>(Descriptor::kKey);
-  const auto context = Parameter<Context>(Descriptor::kContext);
+TNode<OrderedHashMap> CollectionsBuiltinsAssembler::LoadTable(
+    TNode<JSMap> receiver) {
+  CSA_DCHECK(this, HasInstanceType(receiver, JS_MAP_TYPE));
+  return LoadObjectField<OrderedHashMap>(receiver, JSMap::kTableOffset);
+}
 
-  ThrowIfNotInstanceType(context, receiver, JS_MAP_TYPE, "Map.prototype.get");
-
-  const TNode<Object> table =
-      LoadObjectField<Object>(CAST(receiver), JSMap::kTableOffset);
-  TNode<Smi> index =
+TNode<JSAny> CollectionsBuiltinsAssembler::TableGetIfExists(
+    const TNode<Context> context, TNode<JSMap> receiver,
+    TNode<OrderedHashMap> table, const TNode<Object> key, Label* if_found,
+    Label* if_not_found) {
+  const TNode<Smi> index =
       CAST(CallBuiltin(Builtin::kFindOrderedHashMapEntry, context, table, key));
 
+  Label if_found_internal(this);
+  Branch(SmiGreaterThanOrEqual(index, SmiConstant(0)), &if_found_internal,
+         if_not_found);
+
+  BIND(&if_found_internal);
+  TNode<JSAny> res =
+      CAST(LoadValueFromOrderedHashMapEntry(table, SmiUntag(index)));
+  Goto(if_found);
+
+  return res;
+}
+
+TF_BUILTIN(MapPrototypeGet, CollectionsBuiltinsAssembler) {
+  const auto orig_receiver = Parameter<JSAny>(Descriptor::kReceiver);
+  const auto key = Parameter<JSAny>(Descriptor::kKey);
+  const auto context = Parameter<Context>(Descriptor::kContext);
+
+  ThrowIfNotInstanceType(context, orig_receiver, JS_MAP_TYPE,
+                         "Map.prototype.get");
+  const TNode<JSMap> receiver = CAST(orig_receiver);
+
   Label if_found(this), if_not_found(this);
-  Branch(SmiGreaterThanOrEqual(index, SmiConstant(0)), &if_found,
-         &if_not_found);
+  TNode<Object> res = TableGetIfExists(context, receiver, LoadTable(receiver),
+                                       key, &if_found, &if_not_found);
 
   BIND(&if_found);
-  Return(LoadValueFromOrderedHashMapEntry(CAST(table), SmiUntag(index)));
+  Return(res);
 
   BIND(&if_not_found);
   Return(UndefinedConstant());
 }
 
 TF_BUILTIN(MapPrototypeHas, CollectionsBuiltinsAssembler) {
-  const auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  const auto orig_receiver = Parameter<JSAny>(Descriptor::kReceiver);
   const auto key = Parameter<JSAny>(Descriptor::kKey);
   const auto context = Parameter<Context>(Descriptor::kContext);
 
-  ThrowIfNotInstanceType(context, receiver, JS_MAP_TYPE, "Map.prototype.has");
+  ThrowIfNotInstanceType(context, orig_receiver, JS_MAP_TYPE,
+                         "Map.prototype.has");
+  const TNode<JSMap> receiver = CAST(orig_receiver);
 
-  const TNode<OrderedHashMap> table =
-      CAST(LoadObjectField(CAST(receiver), JSMap::kTableOffset));
+  const TNode<OrderedHashMap> table = LoadTable(receiver);
 
   Label if_found(this), if_not_found(this);
   Branch(TableHasKey(context, table, key), &if_found, &if_not_found);
@@ -1628,8 +1651,8 @@ template <typename CollectionType>
 TNode<CollectionType> CollectionsBuiltinsAssembler::AddToOrderedHashTable(
     const TNode<CollectionType> table, TVariable<JSAny>* key,
     const GrowCollection<CollectionType>& grow,
-    const StoreAtEntry<CollectionType>& store_at_new_entry,
-    const StoreAtEntry<CollectionType>& store_at_existing_entry) {
+    const ApplyAtEntry<CollectionType>& store_at_new_entry,
+    const ApplyAtEntry<CollectionType>& store_at_existing_entry) {
   TVARIABLE(CollectionType, table_var, table);
   TVARIABLE(IntPtrT, entry_start_position_or_hash, IntPtrConstant(0));
   Label entry_found(this), not_found(this), done(this);
@@ -1704,45 +1727,123 @@ TNode<CollectionType> CollectionsBuiltinsAssembler::AddToOrderedHashTable(
   return table_var.value();
 }
 
-TF_BUILTIN(MapPrototypeSet, CollectionsBuiltinsAssembler) {
-  const auto receiver = Parameter<Object>(Descriptor::kReceiver);
-  auto original_key = Parameter<JSAny>(Descriptor::kKey);
-  const auto value = Parameter<Object>(Descriptor::kValue);
-  const auto context = Parameter<Context>(Descriptor::kContext);
-
-  TVARIABLE(JSAny, key, original_key);
-  ThrowIfNotInstanceType(context, receiver, JS_MAP_TYPE, "Map.prototype.set");
-
+void CollectionsBuiltinsAssembler::TableSet(const TNode<Context> context,
+                                            TNode<JSMap> receiver,
+                                            TNode<OrderedHashMap> table,
+                                            TVariable<JSAny>* key,
+                                            TNode<JSAny> value) {
   GrowCollection<OrderedHashMap> grow = [this, context, receiver]() {
     CallRuntime(Runtime::kMapGrow, context, receiver);
-    return LoadObjectField<OrderedHashMap>(CAST(receiver), JSMap::kTableOffset);
+    return LoadTable(receiver);
   };
 
-  StoreAtEntry<OrderedHashMap> store_at_new_entry =
-      [this, &key, value](const TNode<OrderedHashMap> table,
+  ApplyAtEntry<OrderedHashMap> store_at_new_entry =
+      [this, &key, value](const TNode<OrderedHashMap> tbl,
                           const TNode<IntPtrT> entry_start) {
-        UnsafeStoreKeyValueInOrderedHashMapEntry(table, key.value(), value,
+        UnsafeStoreKeyValueInOrderedHashMapEntry(tbl, key->value(), value,
                                                  entry_start);
       };
 
-  StoreAtEntry<OrderedHashMap> store_at_existing_entry =
-      [this, value](const TNode<OrderedHashMap> table,
+  ApplyAtEntry<OrderedHashMap> store_at_existing_entry =
+      [this, value](const TNode<OrderedHashMap> tbl,
                     const TNode<IntPtrT> entry_start) {
-        UnsafeStoreValueInOrderedHashMapEntry(table, value, entry_start);
+        UnsafeStoreValueInOrderedHashMapEntry(tbl, value, entry_start);
       };
 
-  const TNode<OrderedHashMap> table =
-      LoadObjectField<OrderedHashMap>(CAST(receiver), JSMap::kTableOffset);
-  AddToOrderedHashTable(table, &key, grow, store_at_new_entry,
+  AddToOrderedHashTable(table, key, grow, store_at_new_entry,
                         store_at_existing_entry);
+}
+
+TF_BUILTIN(MapPrototypeSet, CollectionsBuiltinsAssembler) {
+  const auto orig_receiver = Parameter<JSAny>(Descriptor::kReceiver);
+  auto original_key = Parameter<JSAny>(Descriptor::kKey);
+  const auto value = Parameter<JSAny>(Descriptor::kValue);
+  const auto context = Parameter<Context>(Descriptor::kContext);
+
+  TVARIABLE(JSAny, key, original_key);
+  ThrowIfNotInstanceType(context, orig_receiver, JS_MAP_TYPE,
+                         "Map.prototype.set");
+  const TNode<JSMap> receiver = CAST(orig_receiver);
+
+  TableSet(context, receiver, LoadTable(receiver), &key, value);
+
   Return(receiver);
+}
+
+TF_BUILTIN(MapPrototypeGetOrInsert, CollectionsBuiltinsAssembler) {
+  const auto orig_receiver = Parameter<JSAny>(Descriptor::kReceiver);
+  auto original_key = Parameter<JSAny>(Descriptor::kKey);
+  const auto value = Parameter<JSAny>(Descriptor::kValue);
+  const auto context = Parameter<Context>(Descriptor::kContext);
+
+  TVARIABLE(JSAny, key, original_key);
+  ThrowIfNotInstanceType(context, orig_receiver, JS_MAP_TYPE,
+                         "Map.prototype.getOrInsert");
+  const TNode<JSMap> receiver = CAST(orig_receiver);
+
+  TVARIABLE(JSAny, res);
+
+  GrowCollection<OrderedHashMap> grow = [this, context, receiver]() {
+    CallRuntime(Runtime::kMapGrow, context, receiver);
+    return LoadTable(receiver);
+  };
+
+  ApplyAtEntry<OrderedHashMap> store_at_new_entry =
+      [this, &key, value, &res](const TNode<OrderedHashMap> tbl,
+                                const TNode<IntPtrT> entry_start) {
+        UnsafeStoreKeyValueInOrderedHashMapEntry(tbl, key.value(), value,
+                                                 entry_start);
+        res = value;
+      };
+
+  ApplyAtEntry<OrderedHashMap> load_at_existing_entry =
+      [this, value, &res](const TNode<OrderedHashMap> tbl,
+                          const TNode<IntPtrT> entry_start) {
+        res = CAST(LoadValueFromOrderedHashMapEntry(tbl, entry_start));
+      };
+
+  AddToOrderedHashTable(LoadTable(receiver), &key, grow, store_at_new_entry,
+                        load_at_existing_entry);
+
+  Return(res.value());
+}
+
+TF_BUILTIN(MapPrototypeGetOrInsertComputed, CollectionsBuiltinsAssembler) {
+  const auto orig_receiver = Parameter<JSAny>(Descriptor::kReceiver);
+  auto original_key = Parameter<JSAny>(Descriptor::kKey);
+  const auto callback = Parameter<JSAny>(Descriptor::kCallbackfn);
+  const auto context = Parameter<Context>(Descriptor::kContext);
+
+  TVARIABLE(JSAny, key, original_key);
+  ThrowIfNotInstanceType(context, orig_receiver, JS_MAP_TYPE,
+                         "Map.prototype.getOrInsertComputed");
+  const TNode<JSMap> receiver = CAST(orig_receiver);
+  ThrowIfNotCallable(context, callback, "Map.prototype.getOrInsertComputed");
+
+  Label if_found(this), if_not_found(this);
+  TNode<Object> res = TableGetIfExists(context, receiver, LoadTable(receiver),
+                                       key.value(), &if_found, &if_not_found);
+
+  BIND(&if_found);
+  Return(res);
+
+  BIND(&if_not_found);
+  key = NormalizeNumberKey(key.value());
+  TNode<JSAny> value =
+      Call(context, callback, UndefinedConstant(), key.value());
+  // NOTE: The Map may have been modified during execution of _callback_.
+  // TODO(olivf): Add a fastcase similar to GetOrInsert for when it doesn't.
+
+  TableSet(context, receiver, LoadTable(receiver), &key, value);
+
+  Return(value);
 }
 
 template <typename CollectionType>
 void CollectionsBuiltinsAssembler::StoreOrderedHashTableNewEntry(
     const TNode<CollectionType> table, const TNode<IntPtrT> hash,
     const TNode<IntPtrT> number_of_buckets, const TNode<IntPtrT> occupancy,
-    const StoreAtEntry<CollectionType>& store_at_new_entry) {
+    const ApplyAtEntry<CollectionType>& store_at_new_entry) {
   const TNode<IntPtrT> bucket =
       WordAnd(hash, IntPtrSub(number_of_buckets, IntPtrConstant(1)));
   TNode<Smi> bucket_entry = CAST(UnsafeLoadFixedArrayElement(
@@ -1779,7 +1880,7 @@ template <typename CollectionType>
 void CollectionsBuiltinsAssembler::AddNewToOrderedHashTable(
     const TNode<CollectionType> table, const TNode<JSAny> normalised_key,
     const TNode<IntPtrT> number_of_buckets, const TNode<IntPtrT> occupancy,
-    const StoreAtEntry<CollectionType>& store_at_new_entry) {
+    const ApplyAtEntry<CollectionType>& store_at_new_entry) {
   Label if_key_smi(this), if_key_string(this), if_key_heap_number(this),
       if_key_bigint(this), if_key_other(this), call_store(this);
   TVARIABLE(IntPtrT, hash, IntPtrConstant(0));
@@ -1810,7 +1911,8 @@ void CollectionsBuiltinsAssembler::AddNewToOrderedHashTable(
   {
     CSA_DCHECK(this, IsInternalizedStringInstanceType(key_instance_type));
 
-    hash = Signed(ChangeUint32ToWord(LoadNameHash(CAST(normalised_key))));
+    hash = Signed(
+        ChangeUint32ToWord(LoadNameHashAssumeComputed(CAST(normalised_key))));
     Goto(&call_store);
   }
 
@@ -1921,13 +2023,13 @@ TF_BUILTIN(SetPrototypeAdd, CollectionsBuiltinsAssembler) {
     return LoadObjectField<OrderedHashSet>(CAST(receiver), JSSet::kTableOffset);
   };
 
-  StoreAtEntry<OrderedHashSet> store_at_new_entry =
+  ApplyAtEntry<OrderedHashSet> store_at_new_entry =
       [this, &key](const TNode<OrderedHashSet> table,
                    const TNode<IntPtrT> entry_start) {
         UnsafeStoreKeyInOrderedHashSetEntry(table, key.value(), entry_start);
       };
 
-  StoreAtEntry<OrderedHashSet> store_at_existing_entry =
+  ApplyAtEntry<OrderedHashSet> store_at_existing_entry =
       [](const TNode<OrderedHashSet>, const TNode<IntPtrT>) {
         // If the entry was found, there is nothing to do.
       };
@@ -1952,13 +2054,13 @@ TNode<OrderedHashSet> CollectionsBuiltinsAssembler::AddToSetTable(
     return new_table;
   };
 
-  StoreAtEntry<OrderedHashSet> store_at_new_entry =
+  ApplyAtEntry<OrderedHashSet> store_at_new_entry =
       [this, &key](const TNode<OrderedHashSet> table,
                    const TNode<IntPtrT> entry_start) {
         UnsafeStoreKeyInOrderedHashSetEntry(table, key.value(), entry_start);
       };
 
-  StoreAtEntry<OrderedHashSet> store_at_existing_entry =
+  ApplyAtEntry<OrderedHashSet> store_at_existing_entry =
       [](const TNode<OrderedHashSet>, const TNode<IntPtrT>) {
         // If the entry was found, there is nothing to do.
       };
@@ -2549,7 +2651,7 @@ const TNode<OrderedHashMap> CollectionsBuiltinsAssembler::AddValueToKeyedGroup(
     return new_groups;
   };
 
-  StoreAtEntry<OrderedHashMap> store_at_new_entry =
+  ApplyAtEntry<OrderedHashMap> store_at_new_entry =
       [this, &key, value](const TNode<OrderedHashMap> table,
                           const TNode<IntPtrT> entry_start) {
         TNode<ArrayList> array = AllocateArrayList(SmiConstant(1));
@@ -2559,7 +2661,7 @@ const TNode<OrderedHashMap> CollectionsBuiltinsAssembler::AddValueToKeyedGroup(
                                            entry_start);
       };
 
-  StoreAtEntry<OrderedHashMap> store_at_existing_entry =
+  ApplyAtEntry<OrderedHashMap> store_at_existing_entry =
       [this, &key, value](const TNode<OrderedHashMap> table,
                           const TNode<IntPtrT> entry_start) {
         TNode<ArrayList> array =
@@ -2602,7 +2704,7 @@ TNode<IntPtrT> WeakCollectionsBuiltinsAssembler::GetHash(
   CSA_DCHECK(this, Word32BinaryNot(
                        Word32And(LoadSymbolFlags(CAST(key)),
                                  Symbol::IsInPublicSymbolTableBit::kMask)));
-  var_hash = Signed(ChangeUint32ToWord(LoadNameHash(CAST(key), nullptr)));
+  var_hash = Signed(ChangeUint32ToWord(LoadNameHashAssumeComputed(CAST(key))));
   Goto(&return_result);
   Bind(&return_result);
   return var_hash.value();
@@ -2867,39 +2969,55 @@ TF_BUILTIN(WeakMapLookupHashIndex, WeakCollectionsBuiltinsAssembler) {
   Return(SmiConstant(-1));
 }
 
-TF_BUILTIN(WeakMapGet, WeakCollectionsBuiltinsAssembler) {
-  const auto receiver = Parameter<Object>(Descriptor::kReceiver);
-  const auto key = Parameter<Object>(Descriptor::kKey);
+TNode<JSAny> WeakCollectionsBuiltinsAssembler::TableGetIfExists(
+    const TNode<Context> context, TNode<JSWeakMap> receiver,
+    TNode<EphemeronHashTable> table, const TNode<JSAny> key, Label* if_found,
+    Label* if_not_found) {
+  const TNode<Smi> index =
+      CAST(CallBuiltin(Builtin::kWeakMapLookupHashIndex, context, table, key));
+
+  GotoIf(TaggedEqual(index, SmiConstant(-1)), if_not_found);
+
+  TNode<JSAny> res = CAST(LoadFixedArrayElement(table, SmiUntag(index)));
+  Goto(if_found);
+
+  return res;
+}
+
+TF_BUILTIN(WeakMapPrototypeGet, WeakCollectionsBuiltinsAssembler) {
+  const auto orig_receiver = Parameter<JSAny>(Descriptor::kReceiver);
+  const auto key = Parameter<JSAny>(Descriptor::kKey);
   const auto context = Parameter<Context>(Descriptor::kContext);
 
   Label return_undefined(this);
 
-  ThrowIfNotInstanceType(context, receiver, JS_WEAK_MAP_TYPE,
+  ThrowIfNotInstanceType(context, orig_receiver, JS_WEAK_MAP_TYPE,
                          "WeakMap.prototype.get");
+  TNode<JSWeakMap> receiver = CAST(orig_receiver);
 
-  const TNode<EphemeronHashTable> table = LoadTable(CAST(receiver));
-  const TNode<Smi> index =
-      CAST(CallBuiltin(Builtin::kWeakMapLookupHashIndex, context, table, key));
+  Label if_found(this), if_not_found(this);
+  TNode<Object> res = TableGetIfExists(context, receiver, LoadTable(receiver),
+                                       key, &if_found, &if_not_found);
 
-  GotoIf(TaggedEqual(index, SmiConstant(-1)), &return_undefined);
+  BIND(&if_found);
+  Return(res);
 
-  Return(LoadFixedArrayElement(table, SmiUntag(index)));
-
-  BIND(&return_undefined);
+  BIND(&if_not_found);
   Return(UndefinedConstant());
 }
 
 TF_BUILTIN(WeakMapPrototypeHas, WeakCollectionsBuiltinsAssembler) {
-  const auto receiver = Parameter<Object>(Descriptor::kReceiver);
-  const auto key = Parameter<Object>(Descriptor::kKey);
+  const auto orig_receiver = Parameter<JSAny>(Descriptor::kReceiver);
+  const auto key = Parameter<JSAny>(Descriptor::kKey);
   const auto context = Parameter<Context>(Descriptor::kContext);
 
   Label return_false(this);
 
-  ThrowIfNotInstanceType(context, receiver, JS_WEAK_MAP_TYPE,
+  ThrowIfNotInstanceType(context, orig_receiver, JS_WEAK_MAP_TYPE,
                          "WeakMap.prototype.has");
+  TNode<JSWeakMap> receiver = CAST(orig_receiver);
 
-  const TNode<EphemeronHashTable> table = LoadTable(CAST(receiver));
+  const TNode<EphemeronHashTable> table = LoadTable(receiver);
   const TNode<Object> index =
       CallBuiltin(Builtin::kWeakMapLookupHashIndex, context, table, key);
 
@@ -2942,17 +3060,13 @@ TF_BUILTIN(WeakCollectionDelete, WeakCollectionsBuiltinsAssembler) {
                      SmiTag(hash)));
 }
 
-// Helper that sets the key and value to the backing store (EphemeronHashTable)
-// of a WeakMap or WeakSet.
-TF_BUILTIN(WeakCollectionSet, WeakCollectionsBuiltinsAssembler) {
-  auto context = Parameter<Context>(Descriptor::kContext);
-  auto collection = Parameter<JSWeakCollection>(Descriptor::kCollection);
-  auto key = Parameter<HeapObject>(Descriptor::kKey);
-  auto value = Parameter<Object>(Descriptor::kValue);
-
+void WeakCollectionsBuiltinsAssembler::AddToEphemeronHashTable(
+    const TNode<Context> context, const TNode<JSWeakCollection> collection,
+    const TNode<HeapObject> key, const TNode<JSAny> value,
+    const ApplyAtEntry& existing_entry) {
   CSA_DCHECK(this, Word32Or(IsJSReceiver(key), IsSymbol(key)));
 
-  Label call_runtime(this), if_no_hash(this), if_not_found(this);
+  Label call_runtime(this), if_no_hash(this), if_not_found(this), done(this);
 
   TNode<EphemeronHashTable> table = LoadTable(collection);
   TNode<IntPtrT> capacity = LoadTableCapacity(table);
@@ -2960,9 +3074,8 @@ TF_BUILTIN(WeakCollectionSet, WeakCollectionsBuiltinsAssembler) {
   TVARIABLE(IntPtrT, var_hash, GetHash(key, &if_no_hash));
   TNode<IntPtrT> key_index =
       FindKeyIndexForKey(table, key, var_hash.value(), capacity, &if_not_found);
-
-  StoreFixedArrayElement(table, ValueIndexFromKeyIndex(key_index), value);
-  Return(collection);
+  existing_entry(table, ValueIndexFromKeyIndex(key_index), value);
+  Goto(&done);
 
   BIND(&if_no_hash);
   {
@@ -2989,14 +3102,36 @@ TF_BUILTIN(WeakCollectionSet, WeakCollectionsBuiltinsAssembler) {
     TNode<IntPtrT> insertion_key_index =
         FindKeyIndexForInsertion(table, var_hash.value(), capacity);
     AddEntry(table, insertion_key_index, key, value, number_of_elements);
-    Return(collection);
+    Goto(&done);
   }
   BIND(&call_runtime);
   {
     CallRuntime(Runtime::kWeakCollectionSet, context, collection, key, value,
                 SmiTag(var_hash.value()));
-    Return(collection);
+    Goto(&done);
   }
+  BIND(&done);
+}
+
+// Helper that sets the key and value to the backing store (EphemeronHashTable)
+// of a WeakMap or WeakSet.
+TF_BUILTIN(WeakCollectionSet, WeakCollectionsBuiltinsAssembler) {
+  auto context = Parameter<Context>(Descriptor::kContext);
+  auto collection = Parameter<JSWeakCollection>(Descriptor::kCollection);
+  auto key = Parameter<HeapObject>(Descriptor::kKey);
+  auto value = Parameter<JSAny>(Descriptor::kValue);
+
+  CSA_DCHECK(this, Word32Or(IsJSReceiver(key), IsSymbol(key)));
+
+  auto store_at_existing_entry = [this](const TNode<EphemeronHashTable> table,
+                                        const TNode<IntPtrT> entry_start,
+                                        const TNode<JSAny> value) {
+    StoreFixedArrayElement(table, entry_start, value);
+  };
+  AddToEphemeronHashTable(context, collection, key, value,
+                          store_at_existing_entry);
+
+  Return(collection);
 }
 
 TF_BUILTIN(WeakMapPrototypeDelete, CodeStubAssembler) {
@@ -3027,6 +3162,69 @@ TF_BUILTIN(WeakMapPrototypeSet, WeakCollectionsBuiltinsAssembler) {
 
   Return(
       CallBuiltin(Builtin::kWeakCollectionSet, context, receiver, key, value));
+
+  BIND(&throw_invalid_key);
+  ThrowTypeError(context, MessageTemplate::kInvalidWeakMapKey, key);
+}
+
+TF_BUILTIN(WeakMapPrototypeGetOrInsert, WeakCollectionsBuiltinsAssembler) {
+  auto context = Parameter<Context>(Descriptor::kContext);
+  auto orig_receiver = Parameter<JSAny>(Descriptor::kReceiver);
+  auto key = Parameter<Object>(Descriptor::kKey);
+  auto orig_value = Parameter<JSAny>(Descriptor::kValue);
+
+  ThrowIfNotInstanceType(context, orig_receiver, JS_WEAK_MAP_TYPE,
+                         "WeakMap.prototype.getOrInsert");
+  const TNode<JSWeakMap> receiver = CAST(orig_receiver);
+
+  Label throw_invalid_key(this);
+  GotoIfCannotBeHeldWeakly(key, &throw_invalid_key);
+
+  TVARIABLE(JSAny, value, orig_value);
+  auto existing_entry = [this, &value](const TNode<EphemeronHashTable> table,
+                                       const TNode<IntPtrT> entry_start,
+                                       const TNode<JSAny> _) {
+    value = CAST(LoadFixedArrayElement(table, entry_start));
+  };
+
+  AddToEphemeronHashTable(context, receiver, CAST(key), orig_value,
+                          existing_entry);
+  Return(value.value());
+
+  BIND(&throw_invalid_key);
+  ThrowTypeError(context, MessageTemplate::kInvalidWeakMapKey, key);
+}
+
+TF_BUILTIN(WeakMapPrototypeGetOrInsertComputed,
+           WeakCollectionsBuiltinsAssembler) {
+  auto context = Parameter<Context>(Descriptor::kContext);
+  auto orig_receiver = Parameter<JSAny>(Descriptor::kReceiver);
+  auto key = Parameter<Object>(Descriptor::kKey);
+  auto callback = Parameter<Object>(Descriptor::kCallbackfn);
+
+  ThrowIfNotInstanceType(context, orig_receiver, JS_WEAK_MAP_TYPE,
+                         "WeakMap.prototype.getOrInsertComputed");
+  const TNode<JSWeakMap> receiver = CAST(orig_receiver);
+  ThrowIfNotCallable(context, callback,
+                     "WeakMap.prototype.getOrInsertComputed");
+
+  Label throw_invalid_key(this);
+  GotoIfCannotBeHeldWeakly(key, &throw_invalid_key);
+
+  Label if_found(this), if_not_found(this);
+  TNode<JSAny> res = TableGetIfExists(context, receiver, LoadTable(receiver),
+                                      CAST(key), &if_found, &if_not_found);
+
+  BIND(&if_found);
+  Return(res);
+
+  BIND(&if_not_found);
+  TNode<Object> value = Call(context, callback, UndefinedConstant(), key);
+  // NOTE: The WeakMap may have been modified during execution of _callback_.
+  // TODO(olivf): Add a fastcase similar to GetOrInsert for when it doesn't.
+
+  CallBuiltin(Builtin::kWeakCollectionSet, context, receiver, key, value);
+  Return(value);
 
   BIND(&throw_invalid_key);
   ThrowTypeError(context, MessageTemplate::kInvalidWeakMapKey, key);
@@ -3065,16 +3263,17 @@ TF_BUILTIN(WeakSetPrototypeDelete, CodeStubAssembler) {
 }
 
 TF_BUILTIN(WeakSetPrototypeHas, WeakCollectionsBuiltinsAssembler) {
-  const auto receiver = Parameter<Object>(Descriptor::kReceiver);
-  const auto key = Parameter<Object>(Descriptor::kKey);
+  const auto orig_receiver = Parameter<JSAny>(Descriptor::kReceiver);
+  const auto key = Parameter<JSAny>(Descriptor::kKey);
   const auto context = Parameter<Context>(Descriptor::kContext);
 
   Label return_false(this);
 
-  ThrowIfNotInstanceType(context, receiver, JS_WEAK_SET_TYPE,
+  ThrowIfNotInstanceType(context, orig_receiver, JS_WEAK_SET_TYPE,
                          "WeakSet.prototype.has");
+  TNode<JSWeakSet> receiver = CAST(orig_receiver);
 
-  const TNode<EphemeronHashTable> table = LoadTable(CAST(receiver));
+  const TNode<EphemeronHashTable> table = LoadTable(receiver);
   const TNode<Object> index =
       CallBuiltin(Builtin::kWeakMapLookupHashIndex, context, table, key);
 

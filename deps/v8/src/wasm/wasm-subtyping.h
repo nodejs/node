@@ -143,8 +143,11 @@ V8_EXPORT_PRIVATE TypeInModule Union(ValueType type1, ValueType type2,
 V8_EXPORT_PRIVATE TypeInModule Intersection(ValueType type1, ValueType type2,
                                             const WasmModule* module);
 
-// Returns the matching abstract null type (none, nofunc, noextern).
+// Returns the matching abstract null type (none, nofunc, noextern, ...).
 ValueType ToNullSentinel(TypeInModule type);
+
+// Returns the matching top type (any, func, extern, ...).
+ValueType ToTopType(ValueType type);
 
 // Returns if two types share the same type hierarchy (any, extern, funcref).
 bool IsSameTypeHierarchy(HeapType type1, HeapType type2,

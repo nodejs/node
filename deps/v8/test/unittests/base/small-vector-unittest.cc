@@ -8,6 +8,7 @@
 #include <array>
 #include <initializer_list>
 #include <stack>
+#include <type_traits>
 #include <vector>
 
 #include "testing/gmock-support.h"
@@ -2377,6 +2378,45 @@ TEST(SmallVectorTest, Stack) {
   EXPECT_EQ(1, stack.top());
   stack.pop();
   EXPECT_EQ(0U, stack.size());
+}
+
+namespace {
+struct ImplicitLifetimeNonTrivialConstructor {
+  int val = -42;
+};
+// As the struct is trivially copy constructible and trivially destructible,
+// base::SmallVector sets kHasTrivialElement treating it as a "trivial" type as
+// this classifies it as an implicit lifetime type.
+static_assert(std::is_trivially_copy_constructible_v<
+              ImplicitLifetimeNonTrivialConstructor>);
+static_assert(
+    std::is_trivially_destructible_v<ImplicitLifetimeNonTrivialConstructor>);
+// Still, the constructor is non-trivial and therefore the SmallVector needs to
+// explicitly perform default-initialization.
+static_assert(!std::is_trivially_default_constructible_v<
+              ImplicitLifetimeNonTrivialConstructor>);
+}  // anonymous namespace
+
+TEST(SmallVectorTest, ImplicitLifetimeNonTrivialConstructor) {
+  using ElementType = ImplicitLifetimeNonTrivialConstructor;
+  {  // Construct with size, expect default-initialization.
+    base::SmallVector<ElementType, 0> on_heap(2);
+    EXPECT_EQ(-42, on_heap.at(0).val);
+    EXPECT_EQ(-42, on_heap.at(1).val);
+    // Growing default-initializes the new elements as well.
+    on_heap.resize(4);
+    EXPECT_EQ(-42, on_heap.at(2).val);
+    EXPECT_EQ(-42, on_heap.at(3).val);
+  }
+  {  // Construct with size, expect default-initialization.
+    base::SmallVector<ElementType, 4> on_stack(2);
+    EXPECT_EQ(-42, on_stack.at(0).val);
+    EXPECT_EQ(-42, on_stack.at(1).val);
+    // Growing default-initializes the new elements as well.
+    on_stack.resize(4);
+    EXPECT_EQ(-42, on_stack.at(2).val);
+    EXPECT_EQ(-42, on_stack.at(3).val);
+  }
 }
 
 }  // namespace v8::base

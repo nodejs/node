@@ -229,14 +229,12 @@ DirectHandle<ClosureFeedbackCellArray> ClosureFeedbackCellArray::New(
   cells.reserve(length);
   for (int i = 0; i < length; i++) {
     DirectHandle<FeedbackCell> cell = isolate->factory()->NewNoClosuresCell();
-#ifdef V8_ENABLE_LEAPTIERING
     uint16_t parameter_count =
         shared->feedback_metadata()->GetCreateClosureParameterCount(i);
     auto initial_code = BUILTIN_CODE(isolate, CompileLazy);
     FeedbackCell::AllocateAndInstallJSDispatchHandle(
         cell, FeedbackCell::kDispatchHandleOffset, isolate, parameter_count,
         initial_code);
-#endif
     cells.push_back(cell);
   }
 
@@ -269,12 +267,6 @@ Handle<FeedbackVector> FeedbackVector::New(
 
   DCHECK_EQ(vector->shared_function_info(), *shared);
   DCHECK_EQ(vector->invocation_count(), 0);
-#ifndef V8_ENABLE_LEAPTIERING
-  DCHECK_EQ(vector->tiering_state(), TieringState::kNone);
-  DCHECK(!vector->maybe_has_maglev_code());
-  DCHECK(!vector->maybe_has_turbofan_code());
-  DCHECK(vector->maybe_optimized_code().IsCleared());
-#endif  // !V8_ENABLE_LEAPTIERING
 
   // Ensure we can skip the write barrier
   DirectHandle<Symbol> uninitialized_sentinel = UninitializedSentinel(isolate);
@@ -390,94 +382,13 @@ void FeedbackVector::AddToVectorsForProfilingTools(
   isolate->SetFeedbackVectorsForProfilingTools(*list);
 }
 
-#ifdef V8_ENABLE_LEAPTIERING
-
 void FeedbackVector::set_tiering_in_progress(bool in_progress) {
   set_flags(TieringInProgressBit::update(flags(), in_progress));
 }
 
-#else
-
-void FeedbackVector::SetOptimizedCode(IsolateForSandbox isolate,
-                                      Tagged<Code> code) {
-  DCHECK(CodeKindIsOptimizedJSFunction(code->kind()));
-  int32_t state = flags();
-  // Skip setting optimized code if it would cause us to tier down.
-  if (!has_optimized_code()) {
-    state = MaybeHasTurbofanCodeBit::update(state, false);
-  } else if (!CodeKindCanTierUp(optimized_code(isolate)->kind()) ||
-             optimized_code(isolate)->kind() > code->kind()) {
-    if (!v8_flags.stress_concurrent_inlining_attach_code &&
-        !optimized_code(isolate)->marked_for_deoptimization()) {
-      return;
-    }
-    // If we fall through, we may be tiering down. This is fine since we only do
-    // that when the current code is marked for deoptimization, or because we're
-    // stress testing.
-    state = MaybeHasTurbofanCodeBit::update(state, false);
-  }
-  // TODO(mythria): We could see a CompileOptimized state here either from
-  // tests that use %OptimizeFunctionOnNextCall or because we
-  // re-mark the function for non-concurrent optimization after an OSR. We
-  // should avoid these cases and also check that marker isn't
-  // TieringState::kRequestTurbofan*.
-  set_maybe_optimized_code(MakeWeak(code->wrapper()));
-  // TODO(leszeks): Reconsider whether this could clear the tiering state vs.
-  // the callers doing so.
-  state = TieringStateBits::update(state, TieringState::kNone);
-  if (code->is_maglevved()) {
-    DCHECK(!MaybeHasTurbofanCodeBit::decode(state));
-    state = MaybeHasMaglevCodeBit::update(state, true);
-  } else {
-    DCHECK(code->is_turbofanned());
-    state = MaybeHasTurbofanCodeBit::update(state, true);
-    state = MaybeHasMaglevCodeBit::update(state, false);
-  }
-  set_flags(state);
-}
-
-void FeedbackVector::ClearOptimizedCode() {
-  DCHECK(has_optimized_code());
-  DCHECK(maybe_has_maglev_code() || maybe_has_turbofan_code());
-  set_maybe_optimized_code(kClearedWeakValue);
-  set_maybe_has_maglev_code(false);
-  set_maybe_has_turbofan_code(false);
-}
-
-void FeedbackVector::EvictOptimizedCodeMarkedForDeoptimization(
-    Isolate* isolate, Tagged<SharedFunctionInfo> shared, const char* reason) {
-  Tagged<MaybeObject> slot = maybe_optimized_code();
-  if (slot.IsCleared()) {
-    set_maybe_has_maglev_code(false);
-    set_maybe_has_turbofan_code(false);
-    return;
-  }
-
-  Tagged<Code> code = Cast<CodeWrapper>(slot.GetHeapObject())->code(isolate);
-  if (code->marked_for_deoptimization()) {
-    Deoptimizer::TraceEvictFromOptimizedCodeCache(isolate, shared, reason);
-    ClearOptimizedCode();
-  }
-}
-
-void FeedbackVector::set_tiering_state(TieringState state) {
-  int32_t new_flags = flags();
-  new_flags = TieringStateBits::update(new_flags, state);
-  set_flags(new_flags);
-}
-
-#endif  // V8_ENABLE_LEAPTIERING
-
 void FeedbackVector::reset_flags() {
   set_flags(
-#ifdef V8_ENABLE_LEAPTIERING
       TieringInProgressBit::encode(false) |
-#else
-      TieringStateBits::encode(TieringState::kNone) |
-      LogNextExecutionBit::encode(false) |
-      MaybeHasMaglevCodeBit::encode(false) |
-      MaybeHasTurbofanCodeBit::encode(false) |
-#endif  // V8_ENABLE_LEAPTIERING
       OsrTieringInProgressBit::encode(false) |
       MaybeHasMaglevOsrCodeBit::encode(false) |
       MaybeHasTurbofanOsrCodeBit::encode(false));
@@ -1160,8 +1071,19 @@ void FeedbackNexus::ConfigurePolymorphic(
   DCHECK_GT(receiver_count, 1);
   DirectHandle<WeakFixedArray> array = CreateArrayOfSize(receiver_count * 2);
 
-  for (int current = 0; current < receiver_count; ++current) {
+  int current = 0;
+
+  for (; current < receiver_count; ++current) {
     auto [map, handler] = maps_and_handlers[current];
+    if (map->is_deprecated()) continue;
+    array->set(current * 2, MakeWeak(*map));
+    DCHECK(IC::IsHandler(*handler));
+    array->set(current * 2 + 1, *handler);
+  }
+
+  for (; current < receiver_count; ++current) {
+    auto [map, handler] = maps_and_handlers[current];
+    if (!map->is_deprecated()) continue;
     array->set(current * 2, MakeWeak(*map));
     DCHECK(IC::IsHandler(*handler));
     array->set(current * 2 + 1, *handler);

@@ -68,6 +68,9 @@ FEATURE_FLAGS = {
     'Error.isError': '--js-error-iserror',
     'uint8array-base64': '--js-base-64',
     'RegExp.escape': '--js-regexp-escape',
+    'upsert': '--js-upsert',
+    'Intl.Locale': '--js-intl-locale-variants',
+    'nonextensible-applies-to-private': '--js-nonextensible-applies-to-private',
 }
 
 SKIPPED_FEATURES = set([])

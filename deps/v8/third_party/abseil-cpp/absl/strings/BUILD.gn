@@ -68,6 +68,7 @@ absl_source_set("strings") {
   deps = [
     ":charset",
     ":internal",
+    ":resize_and_overwrite",
     ":string_view",
     "//third_party/abseil-cpp/absl/base",
     "//third_party/abseil-cpp/absl/base:config",
@@ -102,6 +103,25 @@ absl_source_set("internal") {
     "//third_party/abseil-cpp/absl/base:endian",
     "//third_party/abseil-cpp/absl/base:raw_logging_internal",
     "//third_party/abseil-cpp/absl/meta:type_traits",
+  ]
+}
+
+absl_source_set("resize_and_overwrite") {
+  public = [ "resize_and_overwrite.h" ]
+  deps = [
+    "//third_party/abseil-cpp/absl/base:dynamic_annotations",
+    "//third_party/abseil-cpp/absl/base:config",
+    "//third_party/abseil-cpp/absl/base:core_headers",
+    "//third_party/abseil-cpp/absl/base:throw_delegate",
+  ]
+}
+
+absl_test("resize_and_overwrite_test") {
+  sources = [ "resize_and_overwrite_test.cc" ]
+  deps = [
+    ":resize_and_overwrite",
+    "//third_party/abseil-cpp/absl/base:dynamic_annotations",
+    "//third_party/abseil-cpp/absl/log:absl_check",
   ]
 }
 
@@ -366,6 +386,7 @@ absl_source_set("cord") {
     ":cordz_update_scope",
     ":cordz_update_tracker",
     ":internal",
+    ":resize_and_overwrite",
     ":string_view",
     ":strings",
     "//third_party/abseil-cpp/absl/base:config",
@@ -411,6 +432,7 @@ absl_source_set("cordz_info") {
     "//third_party/abseil-cpp/absl/base",
     "//third_party/abseil-cpp/absl/base:config",
     "//third_party/abseil-cpp/absl/base:core_headers",
+    "//third_party/abseil-cpp/absl/base:no_destructor",
     "//third_party/abseil-cpp/absl/base:raw_logging_internal",
     "//third_party/abseil-cpp/absl/container:inlined_vector",
     "//third_party/abseil-cpp/absl/debugging:stacktrace",

@@ -626,6 +626,7 @@ const ExitMachineGraphParameters& ExitMachineGraphParametersOf(
   V(TrapRemByZero)                 \
   V(TrapFloatUnrepresentable)      \
   V(TrapTableOutOfBounds)          \
+  V(TrapNullFunc)                  \
   V(TrapFuncSigMismatch)
 
 #define CACHED_PARAMETER_LIST(V) \

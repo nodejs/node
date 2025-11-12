@@ -53,7 +53,8 @@ class JSFinalizationRegistry
   inline bool RemoveUnregisterToken(
       Tagged<HeapObject> unregister_token, Isolate* isolate,
       RemoveUnregisterTokenMode removal_mode,
-      GCNotifyUpdatedSlotCallback gc_notify_updated_slot);
+      GCNotifyUpdatedSlotCallback gc_notify_updated_slot,
+      WriteBarrierMode write_barrier_mode = UPDATE_WRITE_BARRIER);
 
   // Returns true if the cleared_cells list is non-empty.
   inline bool NeedsCleanup() const;
@@ -76,15 +77,6 @@ class JSFinalizationRegistry
   // key map. Asserts that weak_cell has a non-undefined unregister token.
   V8_EXPORT_PRIVATE void RemoveCellFromUnregisterTokenMap(
       Isolate* isolate, Tagged<WeakCell> weak_cell);
-
-  inline void set_next_dirty_unchecked(
-      Tagged<JSFinalizationRegistry> value,
-      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  inline void set_active_cells_unchecked(
-      Tagged<Union<Undefined, WeakCell>> value,
-      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  inline void set_cleared_cells_unchecked(
-      Tagged<WeakCell> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // Bitfields in flags.
   DEFINE_TORQUE_GENERATED_FINALIZATION_REGISTRY_FLAGS()
@@ -142,15 +134,17 @@ V8_OBJECT class WeakCell : public HeapObjectLayout {
   // slots via the gc_notify_updated_slot function. The normal write barrier is
   // not enough, since it's disabled before GC.
   template <typename GCNotifyUpdatedSlotCallback>
-  inline void GCSafeNullify(Isolate* isolate,
-                            GCNotifyUpdatedSlotCallback gc_notify_updated_slot);
+  inline void Nullify(Isolate* isolate,
+                      GCNotifyUpdatedSlotCallback gc_notify_updated_slot);
 
   inline void RemoveFromFinalizationRegistryCells(Isolate* isolate);
 
  private:
-  inline void set_target(Tagged<UnionOf<Symbol, JSReceiver, Undefined>> value);
+  inline void set_target(Tagged<UnionOf<Symbol, JSReceiver, Undefined>> value,
+                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   inline void set_unregister_token(
-      Tagged<UnionOf<Symbol, JSReceiver, Undefined>> value);
+      Tagged<UnionOf<Symbol, JSReceiver, Undefined>> value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   TaggedMember<JSFinalizationRegistry> finalization_registry_;
   TaggedMember<JSAny> holdings_;
@@ -168,7 +162,7 @@ V8_OBJECT class WeakCell : public HeapObjectLayout {
   // `Scavenger and `ScavengerCollector` for accessing `set_target` and
   // `set_unregister_token` for updating references during GC.
   friend class Scavenger;
-  friend class ScavengerCollector;
+  friend class ScavengerWeakObjectsProcessor;
   friend class TorqueGeneratedWeakCellAsserts;
   friend class V8HeapExplorer;
 } V8_OBJECT_END;

@@ -312,25 +312,6 @@ class FeedbackVector
   DEFINE_TORQUE_GENERATED_OSR_STATE()
   DEFINE_TORQUE_GENERATED_FEEDBACK_VECTOR_FLAGS()
 
-#ifndef V8_ENABLE_LEAPTIERING
-  static_assert(TieringStateBits::is_valid(TieringState::kLastTieringState));
-
-  static constexpr uint32_t kFlagsMaybeHasTurbofanCode =
-      FeedbackVector::MaybeHasTurbofanCodeBit::kMask;
-  static constexpr uint32_t kFlagsMaybeHasMaglevCode =
-      FeedbackVector::MaybeHasMaglevCodeBit::kMask;
-  static constexpr uint32_t kFlagsHasAnyOptimizedCode =
-      FeedbackVector::MaybeHasMaglevCodeBit::kMask |
-      FeedbackVector::MaybeHasTurbofanCodeBit::kMask;
-  static constexpr uint32_t kFlagsTieringStateIsAnyRequested =
-      kNoneOrInProgressMask << FeedbackVector::TieringStateBits::kShift;
-  static constexpr uint32_t kFlagsLogNextExecution =
-      FeedbackVector::LogNextExecutionBit::kMask;
-
-  static constexpr inline uint32_t FlagMaskForNeedsProcessingCheckFrom(
-      CodeKind code_kind);
-#endif  // !V8_ENABLE_LEAPTIERING
-
   inline bool is_empty() const;
 
   DECL_GETTER(has_metadata, bool)
@@ -373,28 +354,6 @@ class FeedbackVector
   // The `osr_state` contains the osr_urgency and maybe_has_optimized_osr_code.
   inline void reset_osr_state();
 
-#ifndef V8_ENABLE_LEAPTIERING
-  inline bool log_next_execution() const;
-  inline void set_log_next_execution(bool value = true);
-
-  inline Tagged<Code> optimized_code(IsolateForSandbox isolate) const;
-  // Whether maybe_optimized_code contains a cached Code object.
-  inline bool has_optimized_code() const;
-
-  // Similar to above, but represented internally as a bit that can be
-  // efficiently checked by generated code. May lag behind the actual state of
-  // the world, thus 'maybe'.
-  inline bool maybe_has_maglev_code() const;
-  inline void set_maybe_has_maglev_code(bool value);
-  inline bool maybe_has_turbofan_code() const;
-  inline void set_maybe_has_turbofan_code(bool value);
-
-  void SetOptimizedCode(IsolateForSandbox isolate, Tagged<Code> code);
-  void EvictOptimizedCodeMarkedForDeoptimization(
-      Isolate* isolate, Tagged<SharedFunctionInfo> shared, const char* reason);
-  void ClearOptimizedCode();
-#endif  // !V8_ENABLE_LEAPTIERING
-
   // Optimized OSR'd code is cached in JumpLoop feedback vector slots. The
   // slots either contain a Code object or the ClearedValue.
   inline std::optional<Tagged<Code>> GetOptimizedOsrCode(
@@ -405,14 +364,8 @@ class FeedbackVector
   inline void RecomputeOptimizedOsrCodeFlags(
       Isolate* isolate, Handle<BytecodeArray> bytecode_array);
 
-#ifdef V8_ENABLE_LEAPTIERING
   inline bool tiering_in_progress() const;
   void set_tiering_in_progress(bool);
-#else
-  inline TieringState tiering_state() const;
-  V8_EXPORT_PRIVATE void set_tiering_state(TieringState state);
-  inline void reset_tiering_state();
-#endif  // !V8_ENABLE_LEAPTIERING
 
   bool osr_tiering_in_progress();
   void set_osr_tiering_in_progress(bool osr_in_progress);

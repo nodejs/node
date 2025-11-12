@@ -440,9 +440,10 @@ Reduction WasmLoadElimination::ReduceOtherNode(Node* node) {
   // without {kNoWrite}), set its state to the immutable half-state of its
   // input state, otherwise to its input state.
   // Any cached StringPrepareForGetCodeUnit nodes must be killed at any point
-  // that can cause internalization of strings (i.e. that can turn sequential
-  // strings into thin strings). Currently, that can only happen in JS, so
-  // from Wasm's point of view only in calls.
+  // that can cause internalization or externalization of strings (i.e. that
+  // can turn sequential strings into thin strings, or move characters
+  // off-heap). Currently, that can only happen in JS, so from Wasm's point
+  // of view only in calls.
   return UpdateState(node, node->opcode() == IrOpcode::kCall &&
                                    !node->op()->HasProperty(Operator::kNoWrite)
                                ? zone()->New<AbstractState>(

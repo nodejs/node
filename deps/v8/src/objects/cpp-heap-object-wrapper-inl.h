@@ -56,15 +56,6 @@ void* CppHeapObjectWrapper::GetCppHeapWrappable(
       object_->ReadCppHeapPointerField(offset_, isolate, tag_range));
 }
 
-template <CppHeapPointerTag tag>
-void CppHeapObjectWrapper::SetCppHeapWrappable(
-    IsolateForPointerCompression isolate, void* instance) {
-  object_->WriteLazilyInitializedCppHeapPointerField<tag>(
-      offset_, isolate, reinterpret_cast<Address>(instance));
-  WriteBarrier::ForCppHeapPointer(
-      object_, object_->RawCppHeapPointerField(offset_), instance);
-}
-
 void CppHeapObjectWrapper::SetCppHeapWrappable(
     IsolateForPointerCompression isolate, void* instance,
     CppHeapPointerTag tag) {

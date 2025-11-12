@@ -80,6 +80,9 @@ class RootVisitor {
   // Visits a contiguous arrays of off-heap pointers in the half-open range
   // [start, end). Any or all of the values may be modified on return.
   //
+  // On compressed pointer builds, the pointers will be compressed although
+  // they are off-heap.
+  //
   // This should be implemented for any visitor that visits off-heap data
   // structures, of which there are currently only two: the string table and the
   // shared struct type registry. Visitors for those structures are limited in
@@ -90,9 +93,9 @@ class RootVisitor {
   //
   //   1) Making this function pure virtual, and
   //   2) Implementing it for all visitors.
-  virtual void VisitRootPointers(Root root, const char* description,
-                                 OffHeapObjectSlot start,
-                                 OffHeapObjectSlot end) {
+  virtual void VisitCompressedRootPointers(Root root, const char* description,
+                                           OffHeapObjectSlot start,
+                                           OffHeapObjectSlot end) {
     UNREACHABLE();
   }
 
@@ -271,9 +274,10 @@ class ClientRootVisitor final : public RootVisitor {
     }
   }
 
-  void VisitRootPointers(Root root, const char* description,
-                         OffHeapObjectSlot start, OffHeapObjectSlot end) final {
-    actual_visitor_->VisitRootPointers(root, description, start, end);
+  void VisitCompressedRootPointers(Root root, const char* description,
+                                   OffHeapObjectSlot start,
+                                   OffHeapObjectSlot end) final {
+    actual_visitor_->VisitCompressedRootPointers(root, description, start, end);
   }
 
   inline void VisitRunningCode(FullObjectSlot code_slot,

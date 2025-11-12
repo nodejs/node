@@ -542,6 +542,7 @@ class CallSiteFeedback {
     if (is_monomorphic()) return index_or_count_;
     return polymorphic_storage()[i].function_index;
   }
+  // The call count of the function at this particular call site.
   int call_count(int i) const {
     DCHECK(!is_invalid() && !is_megamorphic());
     if (is_monomorphic()) return static_cast<int>(frequency_or_ool_);
@@ -581,6 +582,9 @@ struct FunctionTypeFeedback {
   // For "call", it holds the index of the called function, for "call_indirect"
   // and "call_ref" the value will be a sentinel {kCallIndirect} / {kCallRef}.
   base::OwnedVector<uint32_t> call_targets;
+
+  // The number of times this function was invoked.
+  int num_invocations = 0;
 
   // {tierup_priority} is updated and used when triggering tier-up.
   // TODO(clemensb): This does not belong here; find a better place.

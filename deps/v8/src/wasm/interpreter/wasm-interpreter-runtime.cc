@@ -2582,7 +2582,7 @@ bool WasmInterpreterRuntime::SubtypeCheck(const WasmRef obj,
                                           const DirectHandle<Map> rtt,
                                           const ModuleTypeIndex target_type,
                                           bool null_succeeds) const {
-  bool is_cast_from_any = obj_type.is_reference_to(HeapType::kAny);
+  bool is_cast_from_any = obj_type.is_reference_to(wasm::GenericKind::kAny);
 
   // Skip the null check if casting from any and not {null_succeeds}.
   // In that case the instance type check will identify null as not being a

@@ -56,7 +56,9 @@ class Writer {
   }
 
   template <typename T>
-  void WriteVector(const base::Vector<T> v) {
+  void WriteVector(const base::Vector<T> v)
+    requires(std::is_trivially_copyable_v<T>)
+  {
     base::Vector<const uint8_t> bytes = base::Vector<const uint8_t>::cast(v);
     DCHECK_GE(current_size(), bytes.size());
     if (!bytes.empty()) {
@@ -114,6 +116,22 @@ class Reader {
                      << std::endl;
     }
     return base::Vector<const T>::cast(bytes);
+  }
+
+  base::OwnedVector<WasmCode::EffectHandler> ReadEffectHandlers() {
+    int count = Read<int>();
+    if (count == 0) return {};
+    size_t size = count * sizeof(WasmCode::EffectHandler);
+    DCHECK_GE(current_size(), size);
+    auto result = base::OwnedVector<WasmCode::EffectHandler>::New(count);
+    memcpy(result.begin(), current_location(), size);
+    pos_ += size;
+    if (v8_flags.trace_wasm_serialization) {
+      StdoutStream{} << "read vector of " << count
+                     << " effect handlers (total size " << size << ")"
+                     << std::endl;
+    }
+    return result;
   }
 
   void Skip(size_t size) { pos_ += size; }
@@ -231,6 +249,7 @@ constexpr size_t kCodeHeaderSize = sizeof(uint8_t) +  // code kind
                                    sizeof(int) +  // inlining positions size
                                    sizeof(int) +  // deopt data size
                                    sizeof(int) +  // protected instructions size
+                                   sizeof(int) +  // effect handler count
                                    sizeof(WasmCode::Kind) +  // code kind
                                    sizeof(ExecutionTier);    // tier
 
@@ -352,7 +371,9 @@ size_t NativeModuleSerializer::MeasureCode(const WasmCode* code) const {
   return kCodeHeaderSize + code->instructions().size() +
          code->reloc_info().size() + code->source_positions().size() +
          code->inlining_positions().size() +
-         code->protected_instructions_data().size() + code->deopt_data().size();
+         code->protected_instructions_data().size() +
+         code->deopt_data().size() +
+         code->effect_handlers().size() * sizeof(WasmCode::EffectHandler);
 }
 
 size_t NativeModuleSerializer::Measure() const {
@@ -460,6 +481,8 @@ void NativeModuleSerializer::WriteCode(
   writer->Write(code->inlining_positions().length());
   writer->Write(code->deopt_data().length());
   writer->Write(code->protected_instructions_data().length());
+  writer->Write(static_cast<int>(code->effect_handlers().size()));
+  writer->WriteVector(code->effect_handlers());
   writer->Write(code->kind());
   writer->Write(code->tier());
 
@@ -923,6 +946,7 @@ DeserializationUnit NativeModuleDeserializer::ReadCode(int fn_index,
   // TODO(mliedtke): protected_instructions_data is the first part of the
   // meta_data_ array. Ideally the sizes would be in the same order...
   int protected_instructions_size = reader->Read<int>();
+  auto owned_effect_handlers = reader->ReadEffectHandlers();
   WasmCode::Kind kind = reader->Read<WasmCode::Kind>();
   ExecutionTier tier = reader->Read<ExecutionTier>();
 
@@ -959,7 +983,7 @@ DeserializationUnit NativeModuleDeserializer::ReadCode(int fn_index,
       tagged_parameter_slots, safepoint_table_offset, handler_table_offset,
       constant_pool_offset, code_comment_offset, jump_table_info_offset,
       unpadded_binary_size, protected_instructions, reloc_info, source_pos,
-      inlining_pos, deopt_data, kind, tier);
+      inlining_pos, deopt_data, kind, tier, std::move(owned_effect_handlers));
   unit.jump_tables = current_jump_tables_;
   if (v8_flags.wasm_lazy_validation) {
     // There can't be code for it if the function wasn't validated.
@@ -1096,12 +1120,11 @@ bool IsSupportedVersion(base::Vector<const uint8_t> header,
 }
 
 MaybeDirectHandle<WasmModuleObject> DeserializeNativeModule(
-    Isolate* isolate, base::Vector<const uint8_t> data,
+    Isolate* isolate, WasmEnabledFeatures enabled_features,
+    base::Vector<const uint8_t> data,
     base::Vector<const uint8_t> wire_bytes_vec,
     const CompileTimeImports& compile_imports,
     base::Vector<const char> source_url) {
-  WasmEnabledFeatures enabled_features =
-      WasmEnabledFeatures::FromIsolate(isolate);
   if (!IsWasmCodegenAllowed(isolate, isolate->native_context())) return {};
   if (!IsSupportedVersion(data, enabled_features)) return {};
 
@@ -1122,8 +1145,10 @@ MaybeDirectHandle<WasmModuleObject> DeserializeNativeModule(
 
   WasmEngine* wasm_engine = GetWasmEngine();
   auto shared_native_module = wasm_engine->MaybeGetNativeModule(
-      module->origin, owned_wire_bytes.as_vector(), compile_imports, isolate);
-  if (shared_native_module == nullptr) {
+      module->origin, owned_wire_bytes.as_vector(), compile_imports);
+  if (shared_native_module) {
+    wasm_engine->UseNativeModuleInIsolate(shared_native_module.get(), isolate);
+  } else {
     size_t code_size_estimate =
         wasm::WasmCodeManager::EstimateNativeModuleCodeSize(module.get());
     shared_native_module = wasm_engine->NewNativeModule(

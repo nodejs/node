@@ -142,13 +142,18 @@ describe('Regression tests', () => {
 
   it('resolves flag contradictions', () => {
     sandbox.stub(exceptions, 'CONTRADICTORY_FLAGS').value(
-        [['--flag1', '--flag2']])
+        [['--flag1', '--flag2']]);
     const {file, flags} = createFuzzTest(
         'test_data/regress/empty_db',
         this.settings,
         ['v8/regress/contradictions/input1.js',
          'v8/regress/contradictions/input2.js']);
-    assert.deepEqual(['--flag1'], flags);
+
+    const isFlag1 = flags.length === 1 && flags[0] === '--flag1';
+    const isFlag2 = flags.length === 1 && flags[0] === '--flag2';
+
+    assert.ok(isFlag1 || isFlag2,
+      `Expected flags to be either ['--flag1'] or ['--flag2'], but got [${flags}]`);
   });
 
   it('skips mjs flags', () => {

@@ -258,21 +258,21 @@ struct MarkingHelper final : public AllStatic {
 
   // Returns whether the markbit of an object should be considered or whether
   // the object is always considered as live.
-  static V8_INLINE LivenessMode GetLivenessMode(Heap* heap,
+  static V8_INLINE LivenessMode GetLivenessMode(const Heap* heap,
                                                 Tagged<HeapObject> object);
 
   // Returns true if the object is marked or resides on an always live page.
   template <typename MarkingStateT>
-  static V8_INLINE bool IsMarkedOrAlwaysLive(Heap* heap,
-                                             MarkingStateT* marking_state,
+  static V8_INLINE bool IsMarkedOrAlwaysLive(const Heap* heap,
+                                             const MarkingStateT* marking_state,
                                              Tagged<HeapObject> object);
 
   // Returns true if the object is unmarked and doesn't reside on an always live
   // page.
   template <typename MarkingStateT>
-  static V8_INLINE bool IsUnmarkedAndNotAlwaysLive(Heap* heap,
-                                                   MarkingStateT* marking_state,
-                                                   Tagged<HeapObject> object);
+  static V8_INLINE bool IsUnmarkedAndNotAlwaysLive(
+      const Heap* heap, const MarkingStateT* marking_state,
+      Tagged<HeapObject> object);
 
   // Convenience helper around marking and pushing an object.
   //

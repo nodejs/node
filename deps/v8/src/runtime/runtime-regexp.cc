@@ -2203,7 +2203,9 @@ inline void RegExpMatchGlobalAtom_OneCharPattern(
   while (stride * max_count <= static_cast<size_t>(end - block)) {
     for (int i = 0; i < max_count; i++, block += stride) {
       const auto input = hw::LoadU(tag, block);
-      const auto match = input == mask;
+      // TODO(floitsch): use an operator for the comparison when it is available
+      // on RISC-V.
+      const auto match = hw::Eq(input, mask);
       // Lanes with matches have all bits set, so we subtract to increase the
       // count by 1.
       submatches = hw::Sub(submatches, hw::VecFromMask(tag, match));
@@ -2224,7 +2226,9 @@ inline void RegExpMatchGlobalAtom_OneCharPattern(
   DCHECK_LT(end - block, stride * max_count);
   for (; stride <= static_cast<size_t>(end - block); block += stride) {
     const auto input = hw::LoadU(tag, block);
-    const auto match = input == mask;
+    // TODO(floitsch): use an operator for the comparison when it is available
+    // on RISC-V.
+    const auto match = hw::Eq(input, mask);
     submatches = hw::Sub(submatches, hw::VecFromMask(tag, match));
     if (!hw::AllFalse(tag, match)) {
       last_match_block = block;

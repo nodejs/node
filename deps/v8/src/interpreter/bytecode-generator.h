@@ -72,7 +72,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   static constexpr int kInitialPropertyCount = 64;
 
   bool IsPrototypeAssignment(
-      Statement* stmt, Variable** var,
+      Statement* stmt, Variable** var, HoleCheckMode* hole_check_mode,
       base::SmallVector<std::pair<const AstRawString*, Expression*>,
                         kInitialPropertyCount>& properties,
       std::unordered_set<const AstRawString*>& duplicate);
@@ -80,7 +80,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void VisitConsecutivePrototypeAssignments(
       const base::SmallVector<std::pair<const AstRawString*, Expression*>,
                               kInitialPropertyCount>& properties,
-      Variable* var);
+      Variable* var, HoleCheckMode hole_check_mode);
   // Visiting function for declarations list and statements are overridden.
   void VisitModuleDeclarations(Declaration::List* declarations);
   void VisitGlobalDeclarations(Declaration::List* declarations);

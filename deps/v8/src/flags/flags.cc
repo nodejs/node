@@ -138,7 +138,9 @@ bool Flag::CheckFlagChange(SetBy new_set_by, bool change_flag,
     struct FatalError : public std::ostringstream {
       // MSVC complains about non-returning destructor; disable that.
       MSVC_SUPPRESS_WARNING(4722)
-      ~FatalError() { FATAL("%s.\n%s", str().c_str(), kHint); }
+      ~FatalError() {
+        base::FatalNoSecurityImpact("%s.\n%s", str().c_str(), kHint);
+      }
     };
     // Readonly flags cannot change value.
     if (change_flag && IsReadOnly()) {
@@ -1182,6 +1184,16 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
 
       // https://crbug.com/393401455
       RESET_WHEN_FUZZING(turboshaft),
+
+      // OOBs are expected when using --mock-arraybuffer-allocator.
+      RESET_WHEN_FUZZING(mock_arraybuffer_allocator),
+
+#if V8_ENABLE_WEBASSEMBLY
+      // https://crbug.com/448681081
+      // Lazy validation does change whether or when exceptions are thrown for
+      // invalid function bodies.
+      RESET_WHEN_CORRECTNESS_FUZZING(wasm_lazy_validation),
+#endif  // V8_ENABLE_WEBASSEMBLY
   };
   for (auto [flag1, flag2] : contradictions) {
     if (!flag1 || !flag2) continue;

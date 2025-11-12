@@ -209,6 +209,7 @@
 #include <tuple>
 #include <type_traits>
 
+#include "v8-external.h"      // NOLINT(build/include_directory)
 #include "v8-internal.h"      // NOLINT(build/include_directory)
 #include "v8-local-handle.h"  // NOLINT(build/include_directory)
 #include "v8-typed-array.h"   // NOLINT(build/include_directory)
@@ -774,6 +775,9 @@ bool V8_EXPORT V8_WARN_UNUSED_RESULT
 TryToCopyAndConvertArrayToCppBuffer<CTypeInfoBuilder<double>::Build().GetId(),
                                     double>(Local<Array> src, double* dst,
                                             uint32_t max_length);
+
+constexpr v8::ExternalPointerTypeTag kFastAPIPointerTag =
+    V8_EXTERNAL_POINTER_TAG_COUNT - 1;
 
 }  // namespace v8
 

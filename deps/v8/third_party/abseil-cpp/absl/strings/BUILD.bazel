@@ -102,6 +102,7 @@ cc_library(
     deps = [
         ":charset",
         ":internal",
+        ":resize_and_overwrite",
         ":string_view",
         "//absl/base",
         "//absl/base:config",
@@ -139,6 +140,33 @@ cc_library(
         "//absl/base:endian",
         "//absl/base:raw_logging_internal",
         "//absl/meta:type_traits",
+    ],
+)
+
+cc_library(
+    name = "resize_and_overwrite",
+    hdrs = ["resize_and_overwrite.h"],
+    copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [
+        "//absl/base:config",
+        "//absl/base:core_headers",
+        "//absl/base:dynamic_annotations",
+        "//absl/base:throw_delegate",
+    ],
+)
+
+cc_test(
+    name = "resize_and_overwrite_test",
+    srcs = ["resize_and_overwrite_test.cc"],
+    copts = ABSL_TEST_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [
+        ":resize_and_overwrite",
+        "//absl/base:dynamic_annotations",
+        "//absl/log:absl_check",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -602,6 +630,7 @@ cc_library(
         ":cordz_update_scope",
         ":cordz_update_tracker",
         ":internal",
+        ":resize_and_overwrite",
         ":strings",
         "//absl/base:config",
         "//absl/base:core_headers",
@@ -654,6 +683,7 @@ cc_library(
         "//absl/base",
         "//absl/base:config",
         "//absl/base:core_headers",
+        "//absl/base:no_destructor",
         "//absl/base:raw_logging_internal",
         "//absl/container:inlined_vector",
         "//absl/debugging:stacktrace",
@@ -1095,12 +1125,12 @@ cc_test(
     name = "resize_uninitialized_test",
     size = "small",
     srcs = [
-        "internal/resize_uninitialized.h",
         "internal/resize_uninitialized_test.cc",
     ],
     copts = ABSL_TEST_COPTS,
     visibility = ["//visibility:private"],
     deps = [
+        ":internal",
         "//absl/base:core_headers",
         "//absl/meta:type_traits",
         "@googletest//:gtest",

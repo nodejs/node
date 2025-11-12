@@ -57,21 +57,6 @@ void FeedbackMetadata::set(int index, int32_t value) {
   WriteField<int32_t>(offset, value);
 }
 
-#ifndef V8_ENABLE_LEAPTIERING
-// static
-constexpr uint32_t FeedbackVector::FlagMaskForNeedsProcessingCheckFrom(
-    CodeKind code_kind) {
-  DCHECK(CodeKindCanTierUp(code_kind));
-  uint32_t flag_mask = FeedbackVector::kFlagsTieringStateIsAnyRequested |
-                       FeedbackVector::kFlagsLogNextExecution |
-                       FeedbackVector::kFlagsMaybeHasTurbofanCode;
-  if (code_kind != CodeKind::MAGLEV) {
-    flag_mask |= FeedbackVector::kFlagsMaybeHasMaglevCode;
-  }
-  return flag_mask;
-}
-#endif  // !V8_ENABLE_LEAPTIERING
-
 bool FeedbackMetadata::is_empty() const {
   DCHECK_IMPLIES(slot_count() == 0, create_closure_slot_count() == 0);
   return slot_count() == 0;
@@ -207,74 +192,9 @@ void FeedbackVector::set_was_once_deoptimized() {
                                      kRelaxedStore);
 }
 
-#ifdef V8_ENABLE_LEAPTIERING
-
 bool FeedbackVector::tiering_in_progress() const {
   return TieringInProgressBit::decode(flags());
 }
-
-#else
-
-TieringState FeedbackVector::tiering_state() const {
-  return TieringStateBits::decode(flags());
-}
-
-void FeedbackVector::reset_tiering_state() {
-  set_tiering_state(TieringState::kNone);
-}
-
-bool FeedbackVector::log_next_execution() const {
-  return LogNextExecutionBit::decode(flags());
-}
-
-void FeedbackVector::set_log_next_execution(bool value) {
-  set_flags(LogNextExecutionBit::update(flags(), value));
-}
-
-Tagged<Code> FeedbackVector::optimized_code(IsolateForSandbox isolate) const {
-  Tagged<MaybeWeak<HeapObject>> slot = maybe_optimized_code();
-  DCHECK(slot.IsWeakOrCleared());
-  Tagged<HeapObject> heap_object;
-  Tagged<Code> code;
-  if (slot.GetHeapObject(&heap_object)) {
-    code = Cast<CodeWrapper>(heap_object)->code(isolate);
-  }
-  // It is possible that the maybe_optimized_code slot is cleared but the flags
-  // haven't been updated yet. We update them when we execute the function next
-  // time / when we create new closure.
-  DCHECK_IMPLIES(!code.is_null(),
-                 maybe_has_maglev_code() || maybe_has_turbofan_code());
-  DCHECK_IMPLIES(!code.is_null() && code->is_maglevved(),
-                 maybe_has_maglev_code());
-  DCHECK_IMPLIES(!code.is_null() && code->is_turbofanned(),
-                 maybe_has_turbofan_code());
-  return code;
-}
-
-bool FeedbackVector::has_optimized_code() const {
-  bool is_cleared = maybe_optimized_code().IsCleared();
-  DCHECK_IMPLIES(!is_cleared,
-                 maybe_has_maglev_code() || maybe_has_turbofan_code());
-  return !is_cleared;
-}
-
-bool FeedbackVector::maybe_has_maglev_code() const {
-  return MaybeHasMaglevCodeBit::decode(flags());
-}
-
-void FeedbackVector::set_maybe_has_maglev_code(bool value) {
-  set_flags(MaybeHasMaglevCodeBit::update(flags(), value));
-}
-
-bool FeedbackVector::maybe_has_turbofan_code() const {
-  return MaybeHasTurbofanCodeBit::decode(flags());
-}
-
-void FeedbackVector::set_maybe_has_turbofan_code(bool value) {
-  set_flags(MaybeHasTurbofanCodeBit::update(flags(), value));
-}
-
-#endif  // V8_ENABLE_LEAPTIERING
 
 std::optional<Tagged<Code>> FeedbackVector::GetOptimizedOsrCode(
     Isolate* isolate, Handle<BytecodeArray> bytecode, FeedbackSlot slot) {

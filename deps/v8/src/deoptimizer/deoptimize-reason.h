@@ -173,6 +173,9 @@ constexpr bool AlwaysPreserveDeoptReason(DeoptimizeReason reason) {
 #undef CASE
     return true;
     default:
+      // OSR related deopt handling (e.g., not discarding optimized code on OSR
+      // deopt) relies on checking the deoptimization reason, so we need to
+      // preserve the OSR related deopt reasons.
       return IsDeoptimizationWithoutCodeInvalidation(reason);
   }
 }

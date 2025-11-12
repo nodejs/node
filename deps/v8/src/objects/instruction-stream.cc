@@ -10,6 +10,7 @@
 #include "src/codegen/reloc-info-inl.h"
 #include "src/codegen/reloc-info.h"
 #include "src/objects/instruction-stream-inl.h"
+#include "src/objects/objects.h"
 
 namespace v8 {
 namespace internal {
@@ -29,12 +30,12 @@ void InstructionStream::Relocate(WritableJitAllocation& jit_allocation,
 }
 
 // This function performs the relocations but doesn't trigger any write barriers
-// yet. We skip the write barriers here with UNSAFE_SKIP_WRITE_BARRIER but the
+// yet. We skip the write barriers here using SKIP_WRITE_BARRIER_SCOPE but the
 // caller needs to call RelocateFromDescWriteBarriers afterwards.
 InstructionStream::WriteBarrierPromise InstructionStream::RelocateFromDesc(
     WritableJitAllocation& jit_allocation, Heap* heap, const CodeDesc& desc,
     Address constant_pool, const DisallowGarbageCollection& no_gc) {
-  WriteBarrierPromise write_barrier_promise;
+  WriteBarrierPromise write_barrier_promise(*this);
   Assembler* origin = desc.origin;
   const int mode_mask = RelocInfo::PostCodegenRelocationMask();
   for (WritableRelocIterator it(jit_allocation, *this, constant_pool,
@@ -46,7 +47,7 @@ InstructionStream::WriteBarrierPromise InstructionStream::RelocateFromDesc(
     RelocInfo::Mode mode = it.rinfo()->rmode();
     if (RelocInfo::IsEmbeddedObjectMode(mode)) {
       DirectHandle<HeapObject> p = it.rinfo()->target_object_handle(origin);
-      it.rinfo()->set_target_object(*this, *p, UNSAFE_SKIP_WRITE_BARRIER,
+      it.rinfo()->set_target_object(*this, *p, SKIP_WRITE_BARRIER_SCOPE,
                                     SKIP_ICACHE_FLUSH);
       write_barrier_promise.RegisterAddress(it.rinfo()->pc());
     } else if (RelocInfo::IsCodeTargetMode(mode)) {
@@ -56,7 +57,7 @@ InstructionStream::WriteBarrierPromise InstructionStream::RelocateFromDesc(
       Tagged<InstructionStream> target_istream =
           TrustedCast<Code>(*p)->instruction_stream();
       it.rinfo()->set_target_address(*this, target_istream->instruction_start(),
-                                     UNSAFE_SKIP_WRITE_BARRIER,
+                                     SKIP_WRITE_BARRIER_SCOPE,
                                      SKIP_ICACHE_FLUSH);
       write_barrier_promise.RegisterAddress(it.rinfo()->pc());
     } else if (RelocInfo::IsNearBuiltinEntry(mode)) {

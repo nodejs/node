@@ -14,6 +14,7 @@
 
 #include "perfetto/tracing/track_event.h"
 #include "perfetto/tracing/track_event_legacy.h"
+#include "src/base/platform/time.h"
 
 // Trace category prefixes used in tests.
 PERFETTO_DEFINE_TEST_CATEGORY_PREFIXES("v8-cat", "cat", "v8.Test2");
@@ -71,6 +72,16 @@ PERFETTO_DEFINE_CATEGORIES_IN_NAMESPACE_WITH_ATTRS(
         "v8.inspector") "," TRACE_DISABLED_BY_DEFAULT("v8.stack_trace")));
 
 PERFETTO_USE_CATEGORIES_FROM_NAMESPACE(v8);
+
+namespace perfetto {
+
+template <>
+struct V8_EXPORT_PRIVATE TraceTimestampTraits<::v8::base::TimeTicks> {
+  static TraceTimestamp ConvertTimestampToTraceTimeNs(
+      const ::v8::base::TimeTicks& ticks);
+};
+
+}  // namespace perfetto
 
 #endif  // defined(V8_USE_PERFETTO)
 

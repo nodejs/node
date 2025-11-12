@@ -233,6 +233,16 @@ uint16_t SharedFunctionInfo::internal_formal_parameter_count_with_receiver()
   return param_count;
 }
 
+bool SharedFunctionInfo::IsSloppyNormalJSFunction() const {
+  // TODO(dcarney): Fix the empty scope and push this down into
+  //                ScopeInfo::IsSloppyNormalJSFunction.
+  return kind() == FunctionKind::kNormalFunction && is_sloppy(language_mode());
+}
+
+bool SharedFunctionInfo::CanOnlyAccessFixedFormalParameters() const {
+  return scope_info(kAcquireLoad)->CanOnlyAccessFixedFormalParameters();
+}
+
 uint16_t SharedFunctionInfo::internal_formal_parameter_count_without_receiver()
     const {
   const uint16_t param_count = TorqueGeneratedClass::formal_parameter_count();
@@ -766,7 +776,7 @@ IsBaselineCompiledScope::IsBaselineCompiledScope(
   }
 }
 
-bool SharedFunctionInfo::has_simple_parameters() {
+bool SharedFunctionInfo::has_simple_parameters() const {
   return scope_info(kAcquireLoad)->HasSimpleParameters();
 }
 

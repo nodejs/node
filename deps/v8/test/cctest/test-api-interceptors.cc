@@ -5479,11 +5479,15 @@ struct PreprocessExceptionTestConfig {
   bool descriptor_should_throw : 1 = false;
 };
 
+// This tag value has been picked arbitrarily between 0 and
+// V8_EXTERNAL_POINTER_TAG_COUNT.
+constexpr v8::ExternalPointerTypeTag kTestConfigTag = 14;
+
 template <typename T>
 PreprocessExceptionTestConfig* GetPETConfig(
     const v8::PropertyCallbackInfo<T>& info) {
   return reinterpret_cast<PreprocessExceptionTestConfig*>(
-      v8::External::Cast(*info.Data())->Value());
+      v8::External::Cast(*info.Data())->Value(kTestConfigTag));
 }
 
 const char* ToString(v8::ExceptionContext kind) {
@@ -5932,13 +5936,13 @@ TEST(PreprocessExceptionFromInterceptorsWithoutDescriptorCallback) {
       nullptr,  // enumerator
       PETNamedDefiner,
       nullptr,  // descriptor
-      v8::External::New(isolate, &config)));
+      v8::External::New(isolate, &config, kTestConfigTag)));
   obj_template->SetHandler(v8::IndexedPropertyHandlerConfiguration(
       PETIndexedGetter, PETIndexedSetter, PETIndexedQuery, PETIndexedDeleter,
       nullptr,  // enumerator
       PETIndexedDefiner,
       nullptr,  // descriptor
-      v8::External::New(isolate, &config)));
+      v8::External::New(isolate, &config, kTestConfigTag)));
 
   LocalContext env;
   Local<Context> ctx = env.local();
@@ -5971,12 +5975,12 @@ TEST(PreprocessExceptionFromInterceptorsWithDescriptorCallback) {
       PETNamedGetter, PETNamedSetter, PETNamedQuery, PETNamedDeleter,
       nullptr,  // enumerator
       PETNamedDefiner, PETNamedDescriptor,
-      v8::External::New(isolate, &config)));
+      v8::External::New(isolate, &config, kTestConfigTag)));
   obj_template->SetHandler(v8::IndexedPropertyHandlerConfiguration(
       PETIndexedGetter, PETIndexedSetter, PETIndexedQuery, PETIndexedDeleter,
       nullptr,  // enumerator
       PETIndexedDefiner, PETIndexedDescriptor,
-      v8::External::New(isolate, &config)));
+      v8::External::New(isolate, &config, kTestConfigTag)));
 
   LocalContext env;
   Local<Context> ctx = env.local();
@@ -6535,10 +6539,12 @@ TEST(Regress609134Interceptor) {
 
 namespace {
 
+constexpr v8::ExternalPointerTypeTag kCallsTag = 15;
+
 v8::Intercepted Regress42204611_Getter(
     Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
   std::vector<std::string>* calls = reinterpret_cast<std::vector<std::string>*>(
-      info.Data().As<v8::External>()->Value());
+      info.Data().As<v8::External>()->Value(kCallsTag));
 
   calls->push_back("getter");
   return v8::Intercepted::kNo;
@@ -6547,7 +6553,7 @@ v8::Intercepted Regress42204611_Setter(
     Local<Name> name, Local<Value> value,
     const v8::PropertyCallbackInfo<void>& info) {
   std::vector<std::string>* calls = reinterpret_cast<std::vector<std::string>*>(
-      info.Data().As<v8::External>()->Value());
+      info.Data().As<v8::External>()->Value(kCallsTag));
 
   calls->push_back("setter");
   return v8::Intercepted::kNo;
@@ -6556,7 +6562,7 @@ v8::Intercepted Regress42204611_Definer(
     Local<Name> name, const v8::PropertyDescriptor& descriptor,
     const v8::PropertyCallbackInfo<void>& info) {
   std::vector<std::string>* calls = reinterpret_cast<std::vector<std::string>*>(
-      info.Data().As<v8::External>()->Value());
+      info.Data().As<v8::External>()->Value(kCallsTag));
 
   calls->push_back("definer");
   return v8::Intercepted::kNo;
@@ -6571,7 +6577,8 @@ THREADED_TEST(Regress42204611) {
   v8::HandleScope handle_scope(isolate);
 
   std::vector<std::string> calls;
-  Local<v8::External> calls_ext = v8::External::New(CcTest::isolate(), &calls);
+  Local<v8::External> calls_ext =
+      v8::External::New(CcTest::isolate(), &calls, kCallsTag);
 
   v8::Local<v8::ObjectTemplate> object_template =
       v8::ObjectTemplate::New(isolate);

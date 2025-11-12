@@ -26,6 +26,7 @@
 .cache
 .ccls-cache
 .clangd
+.clang-format-cache
 .cpplint-cache
 .cproject
 .DS_Store
@@ -153,6 +154,7 @@ bazel-bin
 bazel-out
 bazel-testlogs
 bazel-v8
+launch.json
 !/third_party/jinja2
 !/third_party/markupsafe
 !/third_party/zlib

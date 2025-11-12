@@ -16,12 +16,11 @@
     registries.push(new FinalizationRegistry(() => { }));
   }
 
-  // 2) Force two GCs to ensure that JSFinalizatonRegistry objects are tenured.
-  // Here and below, we need to invoke GC asynchronously and wait for it to
-  // finish, so that it doesn't need to scan the stack. Otherwise, the objects
-  // may not be reclaimed because of conservative stack scanning and the test
-  // may not work as intended.
-  await gc({ type: 'major', execution: 'async' });
+  // 2) Force a major GC to ensure that JSFinalizatonRegistry objects are
+  // tenured. Here and below, we need to invoke GC asynchronously and wait for
+  // it to finish, so that it doesn't need to scan the stack. Otherwise, the
+  // objects may not be reclaimed because of conservative stack scanning and
+  // the test may not work as intended.
   await gc({ type: 'major', execution: 'async' });
 
   // 3) In a function: create a dummy target and register it in all

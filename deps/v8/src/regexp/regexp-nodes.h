@@ -130,6 +130,23 @@ struct EatsAtLeastInfo final {
   uint8_t eats_at_least_from_not_start;
 };
 
+class EmitResult final {
+ public:
+  static EmitResult Success() { return EmitResult(kSuccess); }
+  static EmitResult Error() { return EmitResult(kError); }
+
+  bool IsSuccess() const { return result_ == kSuccess; }
+  bool IsError() const { return result_ == kError; }
+
+ private:
+  enum Result { kSuccess, kError };
+  constexpr explicit EmitResult(Result result) : result_(result) {}
+  Result result_;
+};
+
+#define RETURN_IF_ERROR(stmt) \
+  if (EmitResult r = (stmt); V8_UNLIKELY(r.IsError())) return r
+
 class RegExpNode : public ZoneObject {
  public:
   explicit RegExpNode(Zone* zone)
@@ -142,7 +159,8 @@ class RegExpNode : public ZoneObject {
   virtual ~RegExpNode();
   virtual void Accept(NodeVisitor* visitor) = 0;
   // Generates a goto to this node or actually generates the code at this point.
-  virtual void Emit(RegExpCompiler* compiler, Trace* trace) = 0;
+  V8_WARN_UNUSED_RESULT virtual EmitResult Emit(RegExpCompiler* compiler,
+                                                Trace* trace) = 0;
   // How many characters must this node consume at a minimum in order to
   // succeed.  The not_at_start argument is used to indicate that we know we are
   // not at the start of the input.  In this case anchored branches will always
@@ -362,7 +380,8 @@ class ActionNode : public SeqRegExpNode {
   static ActionNode* ModifyFlags(RegExpFlags flags, RegExpNode* on_success);
   ActionNode* AsActionNode() override { return this; }
   void Accept(NodeVisitor* visitor) override;
-  void Emit(RegExpCompiler* compiler, Trace* trace) override;
+  V8_WARN_UNUSED_RESULT EmitResult Emit(RegExpCompiler* compiler,
+                                        Trace* trace) override;
   void GetQuickCheckDetails(QuickCheckDetails* details,
                             RegExpCompiler* compiler, int filled_in,
                             bool not_at_start) override;
@@ -476,7 +495,8 @@ class TextNode : public SeqRegExpNode {
                                           RegExpNode* on_success);
   TextNode* AsTextNode() override { return this; }
   void Accept(NodeVisitor* visitor) override;
-  void Emit(RegExpCompiler* compiler, Trace* trace) override;
+  V8_WARN_UNUSED_RESULT EmitResult Emit(RegExpCompiler* compiler,
+                                        Trace* trace) override;
   void GetQuickCheckDetails(QuickCheckDetails* details,
                             RegExpCompiler* compiler, int characters_filled_in,
                             bool not_at_start) override;
@@ -534,7 +554,8 @@ class AssertionNode : public SeqRegExpNode {
   }
   AssertionNode* AsAssertionNode() override { return this; }
   void Accept(NodeVisitor* visitor) override;
-  void Emit(RegExpCompiler* compiler, Trace* trace) override;
+  V8_WARN_UNUSED_RESULT EmitResult Emit(RegExpCompiler* compiler,
+                                        Trace* trace) override;
   void GetQuickCheckDetails(QuickCheckDetails* details,
                             RegExpCompiler* compiler, int filled_in,
                             bool not_at_start) override;
@@ -545,10 +566,11 @@ class AssertionNode : public SeqRegExpNode {
  private:
   friend Zone;
 
-  void EmitBoundaryCheck(RegExpCompiler* compiler, Trace* trace);
+  V8_WARN_UNUSED_RESULT EmitResult EmitBoundaryCheck(RegExpCompiler* compiler,
+                                                     Trace* trace);
   enum IfPrevious { kIsNonWord, kIsWord };
-  void BacktrackIfPrevious(RegExpCompiler* compiler, Trace* trace,
-                           IfPrevious backtrack_if_previous);
+  V8_WARN_UNUSED_RESULT EmitResult BacktrackIfPrevious(
+      RegExpCompiler* compiler, Trace* trace, IfPrevious backtrack_if_previous);
   AssertionNode(AssertionType t, RegExpNode* on_success)
       : SeqRegExpNode(on_success), assertion_type_(t) {}
   AssertionType assertion_type_;
@@ -567,7 +589,8 @@ class BackReferenceNode : public SeqRegExpNode {
   int start_register() { return start_reg_; }
   int end_register() { return end_reg_; }
   bool read_backward() { return read_backward_; }
-  void Emit(RegExpCompiler* compiler, Trace* trace) override;
+  V8_WARN_UNUSED_RESULT EmitResult Emit(RegExpCompiler* compiler,
+                                        Trace* trace) override;
   void GetQuickCheckDetails(QuickCheckDetails* details,
                             RegExpCompiler* compiler, int characters_filled_in,
                             bool not_at_start) override {
@@ -588,7 +611,8 @@ class EndNode : public RegExpNode {
   EndNode(Action action, Zone* zone) : RegExpNode(zone), action_(action) {}
   EndNode* AsEndNode() override { return this; }
   void Accept(NodeVisitor* visitor) override;
-  void Emit(RegExpCompiler* compiler, Trace* trace) override;
+  V8_WARN_UNUSED_RESULT EmitResult Emit(RegExpCompiler* compiler,
+                                        Trace* trace) override;
   void GetQuickCheckDetails(QuickCheckDetails* details,
                             RegExpCompiler* compiler, int characters_filled_in,
                             bool not_at_start) override {
@@ -615,7 +639,8 @@ class NegativeSubmatchSuccess : public EndNode {
         current_position_register_(position_reg),
         clear_capture_count_(clear_capture_count),
         clear_capture_start_(clear_capture_start) {}
-  void Emit(RegExpCompiler* compiler, Trace* trace) override;
+  V8_WARN_UNUSED_RESULT EmitResult Emit(RegExpCompiler* compiler,
+                                        Trace* trace) override;
 
  private:
   int stack_pointer_register_;
@@ -668,7 +693,8 @@ class ChoiceNode : public RegExpNode {
     alternatives()->Add(node, zone());
   }
   ZoneList<GuardedAlternative>* alternatives() { return alternatives_; }
-  void Emit(RegExpCompiler* compiler, Trace* trace) override;
+  V8_WARN_UNUSED_RESULT EmitResult Emit(RegExpCompiler* compiler,
+                                        Trace* trace) override;
   void GetQuickCheckDetails(QuickCheckDetails* details,
                             RegExpCompiler* compiler, int characters_filled_in,
                             bool not_at_start) override;
@@ -696,23 +722,25 @@ class ChoiceNode : public RegExpNode {
   void GenerateGuard(RegExpMacroAssembler* macro_assembler, Guard* guard,
                      Trace* trace);
   int CalculatePreloadCharacters(RegExpCompiler* compiler, int eats_at_least);
-  void EmitOutOfLineContinuation(RegExpCompiler* compiler, Trace* trace,
-                                 GuardedAlternative alternative,
-                                 AlternativeGeneration* alt_gen,
-                                 int preload_characters,
-                                 bool next_expects_preload);
+  V8_WARN_UNUSED_RESULT EmitResult EmitOutOfLineContinuation(
+      RegExpCompiler* compiler, Trace* trace, GuardedAlternative alternative,
+      AlternativeGeneration* alt_gen, int preload_characters,
+      bool next_expects_preload);
   void SetUpPreLoad(RegExpCompiler* compiler, Trace* current_trace,
                     PreloadState* preloads);
   void AssertGuardsMentionRegisters(Trace* trace);
   int EmitOptimizedUnanchoredSearch(RegExpCompiler* compiler, Trace* trace);
-  Trace* EmitFixedLengthLoop(RegExpCompiler* compiler, Trace* trace,
-                             AlternativeGenerationList* alt_gens,
-                             PreloadState* preloads,
-                             FixedLengthLoopState* fixed_length_loop_state,
-                             int text_length);
-  void EmitChoices(RegExpCompiler* compiler,
-                   AlternativeGenerationList* alt_gens, int first_choice,
-                   Trace* trace, PreloadState* preloads);
+  // Returns nullptr on failure.
+  // TODO(jgruber): Consider wrapping the return value in EmitResult.
+  V8_WARN_UNUSED_RESULT Trace* EmitFixedLengthLoop(
+      RegExpCompiler* compiler, Trace* trace,
+      AlternativeGenerationList* alt_gens, PreloadState* preloads,
+      FixedLengthLoopState* fixed_length_loop_state, int text_length,
+      RegExpFlags flags);
+  V8_WARN_UNUSED_RESULT EmitResult
+  EmitChoices(RegExpCompiler* compiler, AlternativeGenerationList* alt_gens,
+              int first_choice, Trace* trace, PreloadState* preloads,
+              RegExpFlags flags);
 
   // If true, this node is never checked at the start of the input.
   // Allows a new trace to start with at_start() set to false.
@@ -774,7 +802,8 @@ class LoopChoiceNode : public ChoiceNode {
         min_loop_iterations_(min_loop_iterations) {}
   void AddLoopAlternative(GuardedAlternative alt);
   void AddContinueAlternative(GuardedAlternative alt);
-  void Emit(RegExpCompiler* compiler, Trace* trace) override;
+  V8_WARN_UNUSED_RESULT EmitResult Emit(RegExpCompiler* compiler,
+                                        Trace* trace) override;
   void GetQuickCheckDetails(QuickCheckDetails* details,
                             RegExpCompiler* compiler, int characters_filled_in,
                             bool not_at_start) override;

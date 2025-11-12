@@ -203,11 +203,6 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   inline void set_map_safe_transition(IsolateT* isolate, Tagged<Map> value,
                                       ReleaseStoreTag);
 
-  // Compare-and-swaps map word using release store, returns true if the map
-  // word was actually swapped.
-  inline bool release_compare_and_swap_map_word_forwarded(
-      MapWord old_map_word, Tagged<HeapObject> new_target_object);
-
   // Compare-and-swaps map word using relaxed store, returns true if the map
   // word was actually swapped.
   inline bool relaxed_compare_and_swap_map_word_forwarded(
@@ -327,9 +322,15 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   inline void InitExternalPointerField(
       size_t offset, IsolateForSandbox isolate, Address value,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline void InitExternalPointerField(
+      size_t offset, IsolateForSandbox isolate, ExternalPointerTag tag,
+      Address value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   template <ExternalPointerTagRange tag_range>
   inline Address ReadExternalPointerField(size_t offset,
                                           IsolateForSandbox isolate) const;
+  inline Address ReadExternalPointerField(
+      size_t offset, IsolateForSandbox isolate,
+      ExternalPointerTagRange tag_range) const;
   // Similar to `ReadExternalPointerField()` but uses the CppHeapPointerTable.
   template <CppHeapPointerTag lower_bound, CppHeapPointerTag upper_bound>
   inline Address ReadCppHeapPointerField(
@@ -341,6 +342,9 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   inline void WriteExternalPointerField(size_t offset,
                                         IsolateForSandbox isolate,
                                         Address value);
+  inline void WriteExternalPointerField(size_t offset,
+                                        IsolateForSandbox isolate,
+                                        ExternalPointerTag tag, Address value);
 
   // Set up a lazily-initialized external pointer field. If the sandbox is
   // enabled, this will set the field to the kNullExternalPointerHandle. It will
@@ -372,9 +376,6 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
       ExternalPointerTag tag);
 
   inline void SetupLazilyInitializedCppHeapPointerField(size_t offset);
-  template <CppHeapPointerTag tag>
-  inline void WriteLazilyInitializedCppHeapPointerField(
-      size_t offset, IsolateForPointerCompression isolate, Address value);
   inline void WriteLazilyInitializedCppHeapPointerField(
       size_t offset, IsolateForPointerCompression isolate, Address value,
       CppHeapPointerTag tag);

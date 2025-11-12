@@ -104,10 +104,47 @@ DirectHandle<WeakCell> FinalizationRegistryRegister(
                                       undefined, isolate);
 }
 
+class FakeAtomicPauseScope {
+ public:
+  explicit FakeAtomicPauseScope(Heap* heap)
+      : heap_(heap), tracer_(heap_->tracer()) {
+    tracer_->StartObservablePause(base::TimeTicks::Now());
+    tracer_->StartCycle(GarbageCollector::MARK_COMPACTOR,
+                        GarbageCollectionReason::kTesting, "heap unittest",
+                        GCTracer::MarkingType::kAtomic);
+    tracer_->StartAtomicPause();
+    heap_->SetGCState(Heap::MARK_COMPACT);
+  }
+
+  ~FakeAtomicPauseScope() {
+    heap_->SetGCState(Heap::NOT_IN_GC);
+    tracer_->StopAtomicPause();
+    tracer_->StopObservablePause(GarbageCollector::MARK_COMPACTOR,
+                                 base::TimeTicks::Now());
+    if (heap_->cpp_heap()) {
+      cppgc::internal::StatsCollector* stats_collector =
+          CppHeap::From(heap_->cpp_heap())->stats_collector();
+      stats_collector->NotifyMarkingStarted(
+          cppgc::internal::CollectionType::kMajor,
+          cppgc::Heap::MarkingType::kAtomic,
+          cppgc::internal::MarkingConfig::IsForcedGC::kNotForced);
+      stats_collector->NotifyMarkingCompleted(0);
+      stats_collector->NotifySweepingCompleted(
+          cppgc::Heap::SweepingType::kAtomic);
+    }
+    tracer_->NotifyFullSweepingCompletedAndStopCycleIfFinished();
+  }
+
+ private:
+  Heap* const heap_;
+  GCTracer* const tracer_;
+};
+
 void NullifyWeakCell(DirectHandle<WeakCell> weak_cell, Isolate* isolate) {
   auto empty_func = [](Tagged<HeapObject> object, ObjectSlot slot,
                        Tagged<Object> target) {};
-  weak_cell->GCSafeNullify(isolate, empty_func);
+  FakeAtomicPauseScope fake_atomic_pause_scope(isolate->heap());
+  weak_cell->Nullify(isolate, empty_func);
 #ifdef VERIFY_HEAP
   weak_cell->WeakCellVerify(isolate);
 #endif  // VERIFY_HEAP
@@ -294,6 +331,7 @@ TEST(TestRegisterWithKey) {
 }
 
 TEST(TestWeakCellNullify1) {
+  ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   LocalContext context;
   Isolate* isolate = CcTest::i_isolate();
@@ -328,6 +366,7 @@ TEST(TestWeakCellNullify1) {
 }
 
 TEST(TestWeakCellNullify2) {
+  ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   LocalContext context;
   Isolate* isolate = CcTest::i_isolate();
@@ -361,6 +400,7 @@ TEST(TestWeakCellNullify2) {
 }
 
 TEST(TestJSFinalizationRegistryPopClearedCellHoldings1) {
+  ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   LocalContext context;
   Isolate* isolate = CcTest::i_isolate();
@@ -422,6 +462,7 @@ TEST(TestJSFinalizationRegistryPopClearedCellHoldings1) {
 TEST(TestJSFinalizationRegistryPopClearedCellHoldings2) {
   // Test that when all WeakCells for a key are popped, the key is removed from
   // the key map.
+  ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   LocalContext context;
   Isolate* isolate = CcTest::i_isolate();
@@ -528,6 +569,7 @@ TEST(TestUnregisterActiveCells) {
 }
 
 TEST(TestUnregisterActiveAndClearedCells) {
+  ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   LocalContext context;
   Isolate* isolate = CcTest::i_isolate();
@@ -630,6 +672,7 @@ TEST(TestWeakCellUnregisterTwice) {
 }
 
 TEST(TestWeakCellUnregisterPopped) {
+  ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   LocalContext context;
   Isolate* isolate = CcTest::i_isolate();
@@ -715,8 +758,12 @@ TEST(TestJSWeakRef) {
 }
 
 TEST(TestJSWeakRefMinorGC) {
+  // This test assumes objects reside in the young generation, so that minor GCs
+  // can handle them. If scavenger chaos mode is enabled, object may randomly
+  // move to the old generation, which will make the test fail.
   if (v8_flags.single_generation ||
-      !v8_flags.handle_weak_ref_weakly_in_minor_gc) {
+      !v8_flags.handle_weak_ref_weakly_in_minor_gc ||
+      v8_flags.scavenger_chaos_mode) {
     return;
   }
   ManualGCScope manual_gc_scope;
@@ -857,6 +904,7 @@ TEST(TestJSWeakRefKeepDuringJobIncrementalMarking) {
 }
 
 TEST(TestRemoveUnregisterToken) {
+  ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   LocalContext context;
   Isolate* isolate = CcTest::i_isolate();

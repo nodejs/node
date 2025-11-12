@@ -16,6 +16,9 @@ namespace internal {
 
 enum class LazyDeoptimizeReason : uint8_t;
 
+using DependableObject =
+    Union<Map, PropertyCell, AllocationSite, ContextCell, ScopeInfo>;
+
 // Dependent code is conceptually the list of {Code, DependencyGroup} tuples
 // associated with an object, where the dependency group is a reason that could
 // lead to a deopt of the corresponding code.
@@ -76,10 +79,9 @@ class DependentCode : public WeakArrayList {
 
   // Register a dependency of {code} on {object}, of the kinds given by
   // {groups}.
-  V8_EXPORT_PRIVATE static void InstallDependency(Isolate* isolate,
-                                                  Handle<Code> code,
-                                                  Handle<HeapObject> object,
-                                                  DependencyGroups groups);
+  V8_EXPORT_PRIVATE static void InstallDependency(
+      Isolate* isolate, Handle<Code> code, Handle<DependableObject> object,
+      DependencyGroups groups);
 
   template <typename ObjectT>
   static void DeoptimizeDependencyGroups(Isolate* isolate, ObjectT object,
@@ -108,8 +110,9 @@ class DependentCode : public WeakArrayList {
 
  private:
   // Get/Set {object}'s {DependentCode}.
-  static Tagged<DependentCode> GetDependentCode(Tagged<HeapObject> object);
-  static void SetDependentCode(DirectHandle<HeapObject> object,
+  static Tagged<DependentCode> GetDependentCode(
+      Tagged<DependableObject> object);
+  static void SetDependentCode(DirectHandle<DependableObject> object,
                                DirectHandle<DependentCode> dep);
 
   static DirectHandle<DependentCode> InsertWeakCode(

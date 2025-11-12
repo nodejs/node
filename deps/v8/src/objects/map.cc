@@ -711,7 +711,7 @@ Tagged<Map> Map::FindRootMap(PtrComprCageBase cage_base) const {
 #if DEBUG
       if (IsJSObjectMap(result)) {
         DCHECK_LE(result->NumberOfOwnDescriptors(),
-                  result->instance_descriptors(cage_base, kRelaxedLoad)
+                  result->instance_descriptors(cage_base, kAcquireLoad)
                       ->number_of_descriptors());
       }
 #endif
@@ -725,7 +725,7 @@ Tagged<Map> Map::FindFieldOwner(PtrComprCageBase cage_base,
                                 InternalIndex descriptor) const {
   DisallowGarbageCollection no_gc;
   DCHECK_EQ(PropertyLocation::kField,
-            instance_descriptors(cage_base, kRelaxedLoad)
+            instance_descriptors(cage_base, kAcquireLoad)
                 ->GetDetails(descriptor)
                 .location());
   Tagged<Map> result = *this;
@@ -773,9 +773,9 @@ MaybeHandle<Map> Map::TryUpdate(Isolate* isolate, Handle<Map> old_map) {
       isolate, *old_map, ConcurrencyMode::kSynchronous);
   if (!new_map.has_value()) return MaybeHandle<Map>();
   if (v8_flags.fast_map_update) {
-    TransitionsAccessor::SetMigrationTarget(isolate, old_map, new_map.value());
+    TransitionsAccessor::SetMigrationTarget(isolate, old_map, *new_map);
   }
-  return handle(new_map.value(), isolate);
+  return handle(*new_map, isolate);
 }
 
 Tagged<Map> Map::TryReplayPropertyTransitions(Isolate* isolate,
@@ -1184,7 +1184,7 @@ Handle<Map> Map::AsElementsKind(Isolate* isolate, DirectHandle<Map> map,
 
 int Map::NumberOfEnumerableProperties() const {
   int result = 0;
-  Tagged<DescriptorArray> descs = instance_descriptors(kRelaxedLoad);
+  Tagged<DescriptorArray> descs = instance_descriptors(kAcquireLoad);
   for (InternalIndex i : IterateOwnDescriptors()) {
     if ((int{descs->GetDetails(i).attributes()} & ONLY_ENUMERABLE) == 0 &&
         !Object::FilterKey(descs->GetKey(i), ENUMERABLE_STRINGS)) {
@@ -1196,7 +1196,7 @@ int Map::NumberOfEnumerableProperties() const {
 
 int Map::NextFreePropertyIndex() const {
   int number_of_own_descriptors = NumberOfOwnDescriptors();
-  Tagged<DescriptorArray> descs = instance_descriptors(kRelaxedLoad);
+  Tagged<DescriptorArray> descs = instance_descriptors(kAcquireLoad);
   // Search properties backwards to find the last field.
   for (int i = number_of_own_descriptors - 1; i >= 0; --i) {
     PropertyDetails details = descs->GetDetails(InternalIndex(i));

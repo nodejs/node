@@ -266,7 +266,9 @@ void OS::Initialize(AbortMode abort_mode, const char* const gc_fake_mmap) {
 
 // static
 void* OS::Allocate(void* address, size_t size, size_t alignment,
-                   MemoryPermission access) {
+                   MemoryPermission access, PlatformSharedMemoryHandle handle) {
+  // File handles aren't supported.
+  DCHECK_EQ(handle, kInvalidSharedMemoryHandle);
   PlacementMode placement =
       address != nullptr ? PlacementMode::kUseHint : PlacementMode::kAnywhere;
   return CreateAndMapVmo(*zx::vmar::root_self(), g_root_vmar_base,
@@ -337,8 +339,8 @@ bool OS::CanReserveAddressSpace() { return true; }
 
 // static
 std::optional<AddressSpaceReservation> OS::CreateAddressSpaceReservation(
-    void* hint, size_t size, size_t alignment,
-    MemoryPermission max_permission) {
+    void* hint, size_t size, size_t alignment, MemoryPermission max_permission,
+    PlatformSharedMemoryHandle handle) {
   DCHECK_EQ(0, reinterpret_cast<Address>(hint) % alignment);
   zx::vmar child;
   zx_vaddr_t child_addr;

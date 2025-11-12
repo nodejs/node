@@ -275,6 +275,8 @@ int FuzzIt(base::Vector<const uint8_t> data) {
   // parameters and returns with all kinds of types.
   const bool optimize_main_function =
       inlinees.empty() || data.empty() || !(data.last() & 1);
+  const bool assert_types = !data.empty() && (data.last() & 2);
+  FlagScope<bool> assert_types_scope(&v8_flags.wasm_assert_types, assert_types);
 
   if (v8_flags.wasm_fuzzer_gen_test) {
     StdoutStream os;
@@ -406,10 +408,10 @@ int FuzzIt(base::Vector<const uint8_t> data) {
 }  // anonymous namespace
 
 V8_SYMBOL_USED extern "C" int LLVMFuzzerInitialize(int* argc, char*** argv) {
-  // shared_heap and shared_string_table are needed for
+  // shared_heap and shared_strings are needed for
   // shared-everything-threads fuzzing.
   i::v8_flags.shared_heap = true;
-  i::v8_flags.shared_string_table = true;
+  i::v8_flags.shared_strings = true;
   i::v8_flags.experimental_wasm_shared = true;
 
   v8_fuzzer::FuzzerSupport::InitializeFuzzerSupport(argc, argv);

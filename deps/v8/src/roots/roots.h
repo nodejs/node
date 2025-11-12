@@ -148,6 +148,8 @@ class RootVisitor;
   IF_WASM(V, Map, wasm_import_data_map, WasmImportDataMap)                     \
   IF_WASM(V, Map, wasm_capi_function_data_map, WasmCapiFunctionDataMap)        \
   IF_WASM(V, Map, wasm_dispatch_table_map, WasmDispatchTableMap)               \
+  IF_WASM(V, Map, wasm_dispatch_table_for_imports_map,                         \
+          WasmDispatchTableForImportsMap)                                      \
   IF_WASM(V, Map, wasm_exported_function_data_map,                             \
           WasmExportedFunctionDataMap)                                         \
   IF_WASM(V, Map, wasm_internal_function_map, WasmInternalFunctionMap)         \

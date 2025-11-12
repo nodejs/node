@@ -53,37 +53,6 @@ void WasmImportWrapperHandle::set_code(WasmCode* code) {
   code_.store(code, std::memory_order_release);
 }
 
-// The wrapper cache is shared per-process; but it is initialized on demand, and
-// this action is triggered by some isolate; so we use this isolate for error
-// reporting and running GCs if required.
-void WasmImportWrapperCache::LazyInitialize(Isolate* triggering_isolate) {
-  base::MutexGuard lock(&mutex_);
-  if (code_allocator_.get() != nullptr) return;  // Already initialized.
-  // Most wrappers are small (200-300 bytes), most modules don't need many.
-  // 32K is enough for ~100 wrappers.
-  static constexpr size_t kInitialReservationSize = 1 << 15;
-  // See {NewNativeModule} for reasoning.
-  static constexpr int kAllocationRetries = 2;
-  VirtualMemory code_space;
-  for (int retries = 0;; ++retries) {
-    code_space = GetWasmCodeManager()->TryAllocate(kInitialReservationSize);
-    if (code_space.IsReserved()) break;
-    if (retries == kAllocationRetries) {
-      V8::FatalProcessOutOfMemory(
-          triggering_isolate,
-          "Failed to allocate code space for import wrappers");
-      UNREACHABLE();
-    }
-    triggering_isolate->heap()->MemoryPressureNotification(
-        MemoryPressureLevel::kCritical, true);
-  }
-  code_allocator_.reset(
-      new WasmCodeAllocator(triggering_isolate->async_counters()));
-  base::AddressRegion initial_region = code_space.region();
-  code_allocator_->Init(std::move(code_space));
-  code_allocator_->InitializeCodeRange(nullptr, initial_region);
-}
-
 WasmCode* WasmImportWrapperCache::ModificationScope::AddWrapper(
     WasmCompilationResult result, WasmCode::Kind kind, uint64_t signature_hash,
     std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle) {
@@ -92,7 +61,7 @@ WasmCode* WasmImportWrapperCache::ModificationScope::AddWrapper(
   // Equivalent of NativeModule::AddCode().
   const CodeDesc& desc = result.code_desc;
   base::Vector<uint8_t> code_space =
-      cache_->code_allocator_->AllocateForWrapper(desc.instr_size);
+      cache_->code_allocator_.AllocateForWrapper(desc.instr_size);
 
   // Equivalent of NativeModule::AddCodeWithCodeSpace().
   base::Vector<uint8_t> reloc_info{
@@ -154,6 +123,7 @@ WasmCode* WasmImportWrapperCache::ModificationScope::AddWrapper(
                                 ExecutionTier::kNone,
                                 wasm::kNotForDebugging,
                                 signature_hash,
+                                {},  // effect handlers
                                 frame_has_feedback_slot};
 
   code->Validate();
@@ -191,7 +161,7 @@ void WasmImportWrapperCache::Free(std::vector<WasmCode*>& wrappers) {
       it++;
     }
   }
-  code_allocator_->FreeCode(base::VectorOf(wrappers));
+  code_allocator_.FreeCode(base::VectorOf(wrappers));
   for (WasmCode* wrapper : wrappers) {
     // TODO(407003348): Drop this check if it doesn't trigger in the wild.
     CHECK_EQ(wrapper->ref_count_bitfield_.load(std::memory_order_acquire),
@@ -428,10 +398,12 @@ WasmCode* WasmImportWrapperCache::Lookup(Address pc) const {
 }
 
 size_t WasmImportWrapperCache::EstimateCurrentMemoryConsumption() const {
-  UPDATE_WHEN_CLASS_CHANGES(WasmImportWrapperCache, 88);
+  UPDATE_WHEN_CLASS_CHANGES(WasmImportWrapperCache, 232);
   base::MutexGuard lock(&mutex_);
   return sizeof(WasmImportWrapperCache) + ContentSize(entry_map_) +
-         ContentSize(codes_);
+         ContentSize(codes_) +
+         (counter_updates_.EstimateCurrentMemoryConsumption() -
+          sizeof(counter_updates_));
 }
 
 }  // namespace v8::internal::wasm

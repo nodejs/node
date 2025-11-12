@@ -61,7 +61,7 @@ class WasmCompileHelper : public AllStatic {
           remaining_bytes.SubVector(0, split_point));
       remaining_bytes += split_point;
     }
-    streaming_decoder->Finish(true);
+    streaming_decoder->Finish({});
 
     while (resolver->pending()) {
       v8::platform::PumpMessageLoop(i::V8::GetCurrentPlatform(),

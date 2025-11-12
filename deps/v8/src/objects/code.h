@@ -196,6 +196,9 @@ class Code : public ExposedTrustedObject {
   inline Builtin builtin_id() const;
   inline bool is_builtin() const;
 
+  inline bool is_disabled_builtin() const;
+  inline void set_is_disabled_builtin(bool value);
+
   inline bool is_optimized_code() const;
   inline bool is_wasm_code() const;
 
@@ -275,10 +278,8 @@ class Code : public ExposedTrustedObject {
   inline Address metadata_start() const;
   inline Address metadata_end() const;
 
-#ifdef V8_ENABLE_LEAPTIERING
   inline void set_js_dispatch_handle(JSDispatchHandle handle);
   inline JSDispatchHandle js_dispatch_handle() const;
-#endif  // V8_ENABLE_LEAPTIERING
 
   // The size of the associated InstructionStream object, if it exists.
   inline int InstructionStreamObjectSize() const;
@@ -417,8 +418,7 @@ class Code : public ExposedTrustedObject {
   /* referenced via the kSelfIndirectPointerOffset field */                    \
   V(kInstructionStartOffset, V8_ENABLE_SANDBOX_BOOL ? 0 : kSystemPointerSize)  \
   /* The serializer needs to copy bytes starting from here verbatim. */        \
-  V(kDispatchHandleOffset,                                                     \
-    V8_ENABLE_LEAPTIERING_BOOL ? kJSDispatchHandleSize : 0)                    \
+  V(kDispatchHandleOffset, kJSDispatchHandleSize)                              \
   V(kFlagsOffset, kUInt32Size)                                                 \
   V(kInstructionSizeOffset, kIntSize)                                          \
   V(kMetadataSizeOffset, kIntSize)                                             \
@@ -465,6 +465,7 @@ class Code : public ExposedTrustedObject {
   // Flags layout.
 #define FLAGS_BIT_FIELDS(V, _)                \
   V(KindField, CodeKind, 4, _)                \
+  V(IsDisabledBuiltinField, bool, 1, _)       \
   V(IsTurbofannedField, bool, 1, _)           \
   V(IsContextSpecializedField, bool, 1, _)    \
   WITH_GEARBOX_FLAG(V, _)                     \

@@ -592,8 +592,15 @@ void CallPrinter::VisitTemplateLiteral(TemplateLiteral* node) {
 
 void CallPrinter::VisitImportCallExpression(ImportCallExpression* node) {
   Print("import");
-  if (node->phase() == ModuleImportPhase::kSource) {
-    Print(".source");
+  switch (node->phase()) {
+    case ModuleImportPhase::kSource:
+      Print(".source");
+      break;
+    case ModuleImportPhase::kDefer:
+      Print(".defer");
+      break;
+    case ModuleImportPhase::kEvaluation:
+      break;
   }
   Print("(");
   Find(node->specifier(), true);

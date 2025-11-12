@@ -307,12 +307,12 @@ class OutOfLineVerifySkippedWriteBarrier final : public OutOfLineCode {
       __ DecompressTagged(value_, value_);
     }
 
+    __ PreCheckSkippedWriteBarrier(object_, value_, scratch_, exit());
+
     if (must_save_ra_) {
       // We need to save and restore ra if the frame was elided.
       __ Push(ra);
     }
-
-    __ PreCheckSkippedWriteBarrier(object_, value_, scratch_, exit());
 
     SaveFPRegsMode const save_fp_mode = frame()->DidAllocateDoubleRegisters()
                                             ? SaveFPRegsMode::kSave
@@ -341,20 +341,30 @@ class OutOfLineVerifySkippedIndirectWriteBarrier final : public OutOfLineCode {
       : OutOfLineCode(gen),
         object_(object),
         value_(value),
+        must_save_ra_(!gen->frame_access_state()->has_frame()),
         zone_(gen->zone()) {}
 
   void Generate() final {
+    if (must_save_ra_) {
+      // We need to save and restore ra if the frame was elided.
+      __ Push(ra);
+    }
+
     SaveFPRegsMode const save_fp_mode = frame()->DidAllocateDoubleRegisters()
                                             ? SaveFPRegsMode::kSave
                                             : SaveFPRegsMode::kIgnore;
 
     __ CallVerifySkippedIndirectWriteBarrierStubSaveRegisters(object_, value_,
                                                               save_fp_mode);
+    if (must_save_ra_) {
+      __ Pop(ra);
+    }
   }
 
  private:
   Register const object_;
   Register const value_;
+  const bool must_save_ra_;
   Zone* zone_;
 };
 

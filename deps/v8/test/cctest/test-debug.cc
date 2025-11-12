@@ -539,6 +539,7 @@ TEST(BreakPointConstructCallWithGC) {
 
 
 TEST(BreakPointBuiltin) {
+  i::v8_flags.verify_get_js_builtin_state = false;
   LocalContext env;
   v8::HandleScope scope(env.isolate());
 
@@ -570,6 +571,7 @@ TEST(BreakPointBuiltin) {
 }
 
 TEST(BreakPointApiIntrinsics) {
+  i::v8_flags.verify_get_js_builtin_state = false;
   LocalContext env;
   v8::HandleScope scope(env.isolate());
 
@@ -673,6 +675,7 @@ TEST(BreakPointApiIntrinsics) {
 }
 
 TEST(BreakPointJSBuiltin) {
+  i::v8_flags.verify_get_js_builtin_state = false;
   LocalContext env;
   v8::HandleScope scope(env.isolate());
 
@@ -704,6 +707,7 @@ TEST(BreakPointJSBuiltin) {
 }
 
 TEST(BreakPointBoundBuiltin) {
+  i::v8_flags.verify_get_js_builtin_state = false;
   LocalContext env;
   v8::HandleScope scope(env.isolate());
 
@@ -737,6 +741,7 @@ TEST(BreakPointBoundBuiltin) {
 }
 
 TEST(BreakPointConstructorBuiltin) {
+  i::v8_flags.verify_get_js_builtin_state = false;
   LocalContext env;
   v8::HandleScope scope(env.isolate());
 
@@ -799,6 +804,7 @@ TEST(BreakPointConstructorBuiltin) {
 }
 
 TEST(BreakPointInlinedBuiltin) {
+  i::v8_flags.verify_get_js_builtin_state = false;
   i::v8_flags.allow_natives_syntax = true;
   LocalContext env;
   v8::HandleScope scope(env.isolate());
@@ -843,6 +849,7 @@ TEST(BreakPointInlinedBuiltin) {
 }
 
 TEST(BreakPointInlineBoundBuiltin) {
+  i::v8_flags.verify_get_js_builtin_state = false;
   i::v8_flags.allow_natives_syntax = true;
   LocalContext env;
   v8::HandleScope scope(env.isolate());
@@ -891,6 +898,7 @@ TEST(BreakPointInlineBoundBuiltin) {
 }
 
 TEST(BreakPointInlinedConstructorBuiltin) {
+  i::v8_flags.verify_get_js_builtin_state = false;
   i::v8_flags.allow_natives_syntax = true;
   LocalContext env;
   v8::HandleScope scope(env.isolate());
@@ -935,6 +943,7 @@ TEST(BreakPointInlinedConstructorBuiltin) {
 }
 
 TEST(BreakPointBuiltinConcurrentOpt) {
+  i::v8_flags.verify_get_js_builtin_state = false;
   i::v8_flags.allow_natives_syntax = true;
   LocalContext env;
   v8::HandleScope scope(env.isolate());
@@ -976,6 +985,7 @@ TEST(BreakPointBuiltinConcurrentOpt) {
 }
 
 TEST(BreakPointBuiltinTFOperator) {
+  i::v8_flags.verify_get_js_builtin_state = false;
   i::v8_flags.allow_natives_syntax = true;
   LocalContext env;
   v8::HandleScope scope(env.isolate());
@@ -1020,6 +1030,7 @@ TEST(BreakPointBuiltinTFOperator) {
 }
 
 TEST(BreakPointBuiltinNewContext) {
+  i::v8_flags.verify_get_js_builtin_state = false;
   LocalContext env;
   v8::HandleScope scope(env.isolate());
 
@@ -1514,6 +1525,7 @@ TEST(BreakPointInlineApiFunction) {
 
 // Test that a break point can be set at a return store location.
 TEST(BreakPointConditionBuiltin) {
+  i::v8_flags.verify_get_js_builtin_state = false;
   i::v8_flags.allow_natives_syntax = true;
   LocalContext env;
   v8::HandleScope scope(env.isolate());
@@ -4161,6 +4173,10 @@ TEST(DebugBreakOffThreadTerminate) {
   CHECK(try_catch.HasTerminated());
 }
 
+// This tag value has been picked arbitrarily between 0 and
+// V8_EXTERNAL_POINTER_TAG_COUNT.
+constexpr v8::ExternalPointerTypeTag kArchiveRestoreThreadTag = 20;
+
 class ArchiveRestoreThread : public v8::base::Thread,
                              public v8::debug::DebugDelegate {
  public:
@@ -4185,11 +4201,13 @@ class ArchiveRestoreThread : public v8::base::Thread,
         v8::Local<v8::Value> value = info.Data();
         CHECK(value->IsExternal());
         auto art = static_cast<ArchiveRestoreThread*>(
-            v8::Local<v8::External>::Cast(value)->Value());
+            v8::Local<v8::External>::Cast(value)->Value(
+                kArchiveRestoreThreadTag));
         art->MaybeSpawnChildThread();
       };
       v8::Local<v8::FunctionTemplate> fun = v8::FunctionTemplate::New(
-          isolate_, callback, v8::External::New(isolate_, this));
+          isolate_, callback,
+          v8::External::New(isolate_, this, kArchiveRestoreThreadTag));
       CHECK(context->Global()
                 ->Set(context, v8_str("maybeSpawnChildThread"),
                       fun->GetFunction(context).ToLocalChecked())
@@ -5975,6 +5993,7 @@ TEST(TerminateOnResumeAtException) {
 }
 
 TEST(TerminateOnResumeAtBreakOnEntry) {
+  i::v8_flags.verify_get_js_builtin_state = false;
   LocalContext env;
   v8::HandleScope scope(env.isolate());
   SetTerminateOnResumeDelegate delegate;
@@ -6053,11 +6072,15 @@ TEST(TerminateOnResumeAtUnhandledRejection) {
 }
 
 namespace {
+// This tag value has been picked arbitrarily between 0 and
+// V8_EXTERNAL_POINTER_TAG_COUNT.
+constexpr v8::ExternalPointerTypeTag kDataTag = 21;
+
 void RejectPromiseThroughCppInternal(
     const v8::FunctionCallbackInfo<v8::Value>& info, bool silent) {
   CHECK(i::ValidateCallbackInfo(info));
   auto data = reinterpret_cast<std::pair<v8::Isolate*, LocalContext*>*>(
-      info.Data().As<v8::External>()->Value());
+      info.Data().As<v8::External>()->Value(kDataTag));
 
   v8::Local<v8::String> value1 =
       v8::String::NewFromUtf8Literal(data->first, "foo");
@@ -6099,7 +6122,7 @@ TEST(TerminateOnResumeAtUnhandledRejectionCppImpl) {
     // get the callback if there is at least one JavaScript frame in the stack.
     v8::Local<v8::Function> func =
         v8::Function::New(env.local(), RejectPromiseThroughCpp,
-                          v8::External::New(isolate, &data))
+                          v8::External::New(isolate, &data, kDataTag))
             .ToLocalChecked();
     CHECK(env->Global()
               ->Set(env.local(), v8_str("RejectPromiseThroughCpp"), func)
@@ -6129,7 +6152,7 @@ TEST(NoTerminateOnResumeAtSilentUnhandledRejectionCppImpl) {
     // on the stack.
     v8::Local<v8::Function> func =
         v8::Function::New(env.local(), SilentRejectPromiseThroughCpp,
-                          v8::External::New(isolate, &data))
+                          v8::External::New(isolate, &data, kDataTag))
             .ToLocalChecked();
     CHECK(env->Global()
               ->Set(env.local(), v8_str("RejectPromiseThroughCpp"), func)

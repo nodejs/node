@@ -529,9 +529,10 @@ macro JSToWasmWrapperHelper(
     }
   }
 
-  const sig = functionData.sig;
+  const internalFunction = functionData.internal;
+  const sig = internalFunction.sig;
   const implicitArg: WasmImportData|WasmTrustedInstanceData =
-      functionData.internal.implicit_arg;
+      internalFunction.implicit_arg;
 
   const paramCount = *GetRefAt<intptr>(sig, kWasmParameterCountOffset);
 

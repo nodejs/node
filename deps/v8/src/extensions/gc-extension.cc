@@ -22,6 +22,7 @@
 
 namespace v8::internal {
 namespace {
+const char kDefaultHeapSnapshotFileName[] = "heap.heapsnapshot";
 
 enum class GCType { kMinor, kMajor, kMajorWithSnapshot };
 enum class ExecutionType { kAsync, kSync };
@@ -29,12 +30,16 @@ enum class Flavor { kRegular, kLastResort };
 
 struct GCOptions {
   static GCOptions GetDefault() {
-    return {GCType::kMajor, ExecutionType::kSync, Flavor::kRegular,
-            "heap.heapsnapshot"};
+    const char* filename = v8_flags.heap_snapshot_path
+                               ? v8_flags.heap_snapshot_path
+                               : kDefaultHeapSnapshotFileName;
+    return {GCType::kMajor, ExecutionType::kSync, Flavor::kRegular, filename};
   }
   static GCOptions GetDefaultForTruthyWithoutOptionsBag() {
-    return {GCType::kMinor, ExecutionType::kSync, Flavor::kRegular,
-            "heap.heapsnapshot"};
+    const char* filename = v8_flags.heap_snapshot_path
+                               ? v8_flags.heap_snapshot_path
+                               : kDefaultHeapSnapshotFileName;
+    return {GCType::kMinor, ExecutionType::kSync, Flavor::kRegular, filename};
   }
 
   // Used with Nothing<GCOptions>.

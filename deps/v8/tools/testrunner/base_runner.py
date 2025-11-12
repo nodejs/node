@@ -92,13 +92,10 @@ TEST_MAP = {
 }
 
 DEFAULT_FLAGS = {
-  'standard_runner': [
-    '--testing-d8-test-runner',
-  ],
+  'standard_runner': [],
   'num_fuzzer': [
     '--fuzzing',
     '--exit-on-contradictory-flags',
-    '--testing-d8-test-runner',
     '--no-fail',
   ],
 }

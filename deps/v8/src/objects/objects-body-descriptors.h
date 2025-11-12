@@ -70,11 +70,9 @@ class BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateProtectedPointer(Tagged<HeapObject> obj, int offset,
                                              ObjectVisitor* v);
-#ifdef V8_ENABLE_LEAPTIERING
   template <typename ObjectVisitor>
   static inline void IterateJSDispatchEntry(Tagged<HeapObject> obj, int offset,
                                             ObjectVisitor* v);
-#endif  // V8_ENABLE_LEAPTIERING
 
  protected:
   // Returns true for all header and embedder fields.
@@ -247,14 +245,17 @@ class FlexibleWeakBodyDescriptor
 template <class ParentBodyDescriptor, class ChildBodyDescriptor>
 class SubclassBodyDescriptor : public BodyDescriptorBase {
  public:
-  // The parent must end be before the child's start offset, to make sure that
-  // their slots are disjoint.
-  static_assert(ParentBodyDescriptor::kSize <=
-                ChildBodyDescriptor::kStartOffset);
-
   template <typename ObjectVisitor>
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  ObjectVisitor* v) {
+    if constexpr (!std::is_same_v<DataOnlyBodyDescriptor,
+                                  ChildBodyDescriptor>) {
+      // The parent must end before the child's start offset, to make sure that
+      // their slots are disjoint.
+      static_assert(ParentBodyDescriptor::kSize <=
+                    ChildBodyDescriptor::kStartOffset);
+    }
+
     ParentBodyDescriptor::IterateBody(map, obj, v);
     ChildBodyDescriptor::IterateBody(map, obj, v);
   }

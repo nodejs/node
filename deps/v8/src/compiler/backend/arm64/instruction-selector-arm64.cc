@@ -4372,14 +4372,16 @@ void InstructionSelector::VisitFloat32Mul(OpIndex node) {
   const FloatBinopOp& mul = this->Get(node).template Cast<FloatBinopOp>();
   const Operation& lhs = this->Get(mul.left());
 
-  if (lhs.Is<Opmask::kFloat32Negate>() && CanCover(node, mul.left())) {
+  if (!ensure_deterministic_nan_ && lhs.Is<Opmask::kFloat32Negate>() &&
+      CanCover(node, mul.left())) {
     Emit(kArm64Float32Fnmul, g.DefineAsRegister(node),
          g.UseRegister(lhs.input(0)), g.UseRegister(mul.right()));
     return;
   }
 
   const Operation& rhs = this->Get(mul.right());
-  if (rhs.Is<Opmask::kFloat32Negate>() && CanCover(node, mul.right())) {
+  if (!ensure_deterministic_nan_ && rhs.Is<Opmask::kFloat32Negate>() &&
+      CanCover(node, mul.right())) {
     Emit(kArm64Float32Fnmul, g.DefineAsRegister(node),
          g.UseRegister(rhs.input(0)), g.UseRegister(mul.left()));
     return;

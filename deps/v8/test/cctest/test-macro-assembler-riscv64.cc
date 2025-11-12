@@ -153,20 +153,9 @@ TEST(LoadAddress) {
   __ jr(ra);
   __ nop();
   __ bind(&skip);
-  __ li(a4,
-        Operand(masm.jump_address(&to_jump),
-                RelocInfo::INTERNAL_REFERENCE_ENCODED),
-        ADDRESS_LOAD);
+  __ LoadAddress(a4, &to_jump);
   int check_size = masm.InstructionsGeneratedSince(&skip);
-#ifdef RISCV_USE_SV39
-  // NOTE (RISCV): current li generates 4 instructions, if the sequence is
-  // changed, need to adjust the CHECK_EQ value too
-  CHECK_EQ(4, check_size);
-#else
-  // NOTE (RISCV): current li generates 6 instructions, if the sequence is
-  // changed, need to adjust the CHECK_EQ value too
-  CHECK_EQ(6, check_size);
-#endif
+  CHECK_EQ(2, check_size);  // auipc, addi
   __ jr(a4);
   __ nop();
   __ stop();

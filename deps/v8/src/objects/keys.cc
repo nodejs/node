@@ -688,7 +688,12 @@ MaybeHandle<FixedArray> FastKeyAccumulator::GetKeysWithPrototypeInfoCache(
 }
 
 bool FastKeyAccumulator::MayHaveElements(Tagged<JSReceiver> receiver) {
-  if (!IsJSObject(receiver)) return true;
+  if (!IsJSObject(receiver)) {
+#if V8_ENABLE_WEBASSEMBLY
+    if (IsWasmObject(*receiver)) return false;
+#endif  // V8_ENABLE_WEBASSEMBLY
+    return true;
+  }
   Tagged<JSObject> object = Cast<JSObject>(receiver);
   if (object->HasEnumerableElements()) return true;
   if (object->HasIndexedInterceptor()) return true;
@@ -698,6 +703,9 @@ bool FastKeyAccumulator::MayHaveElements(Tagged<JSReceiver> receiver) {
 bool FastKeyAccumulator::TryPrototypeInfoCache(
     DirectHandle<JSReceiver> receiver) {
   if (may_have_elements_ && !only_own_has_simple_elements_) return false;
+#if V8_ENABLE_WEBASSEMBLY
+  if (IsWasmObject(*receiver)) return false;
+#endif  // V8_ENABLE_WEBASSEMBLY
   DirectHandle<JSObject> object = Cast<JSObject>(receiver);
   if (!object->HasFastProperties()) return false;
   if (object->HasNamedInterceptor()) return false;

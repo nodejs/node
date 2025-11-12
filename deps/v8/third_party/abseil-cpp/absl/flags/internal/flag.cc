@@ -26,6 +26,7 @@
 #include <memory>
 #include <string>
 #include <typeinfo>
+#include <utility>
 #include <vector>
 
 #include "absl/base/attributes.h"
@@ -139,8 +140,8 @@ class FlagState : public flags_internal::FlagStateInterface {
   friend class FlagImpl;
 
   // Restores the flag to the saved state.
-  void Restore() const override {
-    if (!flag_impl_.RestoreState(*this)) return;
+  void Restore() && override {
+    if (!std::move(flag_impl_).RestoreState(*this)) return;
 
     ABSL_INTERNAL_LOG(INFO,
                       absl::StrCat("Restore saved value of ", flag_impl_.Name(),

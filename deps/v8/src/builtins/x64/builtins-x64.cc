@@ -5,11 +5,9 @@
 #if V8_TARGET_ARCH_X64
 
 #include "src/api/api-arguments.h"
-#include "src/base/bits-iterator.h"
 #include "src/base/iterator.h"
 #include "src/builtins/builtins-descriptors.h"
 #include "src/builtins/builtins-inl.h"
-#include "src/codegen/code-factory.h"
 #include "src/codegen/interface-descriptors-inl.h"
 // For interpreter_entry_return_pc_offset. TODO(jkummerow): Drop.
 #include "src/codegen/macro-assembler-inl.h"
@@ -21,10 +19,8 @@
 #include "src/execution/frames.h"
 #include "src/heap/heap-inl.h"
 #include "src/logging/counters.h"
-#include "src/objects/cell.h"
 #include "src/objects/code.h"
 #include "src/objects/debug-objects.h"
-#include "src/objects/foreign.h"
 #include "src/objects/heap-number.h"
 #include "src/objects/js-generator.h"
 #include "src/objects/objects-inl.h"
@@ -3309,6 +3305,9 @@ void Builtins::Generate_WasmLiftoffFrameSetup(MacroAssembler* masm) {
   Label allocate_vector, done;
   __ JumpIfSmi(vector, &allocate_vector);
   __ bind(&done);
+  // Increment the total invocation count of the function.
+  __ SmiAddConstant(FieldOperand(vector, OFFSET_OF_DATA_START(FixedArray)),
+                    Smi::FromInt(1));
   __ Push(kWasmImplicitArgRegister);
   __ Push(vector);
   __ Push(calling_pc);
@@ -3450,15 +3449,16 @@ void LoadTargetJumpBuffer(MacroAssembler* masm, Register target_stack) {
 
 // Updates the stack limit and central stack info, and validates the switch.
 void SwitchStacks(MacroAssembler* masm, ExternalReference fn,
-                  Register old_stack, Label* saved_pc, Register maybe_suspender,
+                  Register target_stack, Label* saved_pc,
+                  Register maybe_suspender,
                   const std::initializer_list<Register> keep) {
   for (auto reg : keep) {
     __ Push(reg);
   }
   {
     FrameScope scope(masm, StackFrame::MANUAL);
-    DCHECK(old_stack.is_valid());
-    __ Move(kCArgRegs[1], old_stack);
+    DCHECK(target_stack.is_valid());
+    __ Move(kCArgRegs[1], target_stack);
     bool is_return = fn == ExternalReference::wasm_return_stack();
     DCHECK_IMPLIES(is_return, maybe_suspender == no_reg);
     int num_args = is_return ? 2 : maybe_suspender.is_valid() ? 6 : 5;
@@ -4039,6 +4039,50 @@ void Builtins::Generate_WasmFXResume(MacroAssembler* masm) {
   LoadJumpBuffer(masm, target_stack, true);
   __ Trap();
   __ bind(&suspend);
+  __ endbr64();
+  __ LeaveFrame(StackFrame::WASM_STACK_EXIT);
+  __ ret(0);
+}
+
+void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
+  __ EnterFrame(StackFrame::WASM_STACK_EXIT);
+  Register tag = WasmFXSuspendDescriptor::GetRegisterParameter(0);
+  Register cont = WasmFXSuspendDescriptor::GetRegisterParameter(1);
+  Label resume;
+  __ Push(cont);
+  __ Push(kContextRegister);
+  {
+    FrameScope scope(masm, StackFrame::MANUAL);
+    __ PrepareCallCFunction(6);
+#ifdef V8_TARGET_OS_WIN
+    __ movq(MemOperand(rsp, 4 * kSystemPointerSize), tag);
+    __ movq(MemOperand(rsp, 5 * kSystemPointerSize), cont);
+#else
+    DCHECK_NE(kCArgRegs[4], cont);
+    __ Move(kCArgRegs[4], tag);
+    __ Move(kCArgRegs[5], cont);
+#endif
+    __ Move(kCArgRegs[0], ExternalReference::isolate_address());
+    __ Move(kCArgRegs[1], rsp);
+    __ Move(kCArgRegs[2], rbp);
+    __ leaq(kCArgRegs[3], MemOperand(&resume, 0));
+    __ CallCFunction(ExternalReference::wasm_suspend_wasmfx_stack(), 6);
+  }
+  Register target_stack = rbx;
+  __ Move(target_stack, kReturnRegister0);
+  __ Pop(kContextRegister);
+  cont = kReturnRegister0;
+  __ Pop(cont);
+
+  Label ok;
+  __ JumpIf(not_equal, target_stack, 0, &ok);
+  // No handler found.
+  __ CallRuntime(Runtime::kThrowWasmSuspendError);
+
+  __ bind(&ok);
+  LoadJumpBuffer(masm, target_stack, true);
+  __ Trap();
+  __ bind(&resume);
   __ endbr64();
   __ LeaveFrame(StackFrame::WASM_STACK_EXIT);
   __ ret(0);

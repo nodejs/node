@@ -93,10 +93,10 @@ class RegExpImpl final : public AllStatic {
       DirectHandle<String> subject, int index, int32_t* result_offsets_vector,
       uint32_t result_offsets_vector_length);
 
-  static bool CompileIrregexpFromSource(Isolate* isolate,
-                                        DirectHandle<IrRegExpData> re_data,
-                                        DirectHandle<String> sample_subject,
-                                        bool is_one_byte);
+  static bool CompileIrregexpFromSource(
+      Isolate* isolate, DirectHandle<IrRegExpData> re_data,
+      DirectHandle<String> sample_subject, bool is_one_byte,
+      RegExpCompilationTarget compilation_target);
   static bool CompileIrregexpFromBytecode(Isolate* isolate,
                                           DirectHandle<IrRegExpData> re_data,
                                           DirectHandle<String> sample_subject,
@@ -587,8 +587,16 @@ bool RegExpImpl::EnsureCompiledIrregexp(Isolate* isolate,
           reinterpret_cast<void*>(re_data->ptr()));
     }
   }
+  // The compilation target is a kBytecode if we're interpreting all regexp
+  // objects, or if we're using the tier-up strategy but the tier-up hasn't
+  // happened yet. The compilation target is a kNative if we're using the
+  // tier-up strategy and we need to recompile to tier-up, or if we're producing
+  // native code for all regexp objects.
+  RegExpCompilationTarget compilation_target =
+      re_data->ShouldProduceBytecode() ? RegExpCompilationTarget::kBytecode
+                                       : RegExpCompilationTarget::kNative;
   return CompileIrregexpFromSource(isolate, re_data, sample_subject,
-                                   is_one_byte);
+                                   is_one_byte, compilation_target);
 }
 
 namespace {
@@ -654,10 +662,10 @@ DirectHandle<FixedArray> RegExp::CreateCaptureNameMap(
   return array;
 }
 
-bool RegExpImpl::CompileIrregexpFromSource(Isolate* isolate,
-                                           DirectHandle<IrRegExpData> re_data,
-                                           DirectHandle<String> sample_subject,
-                                           bool is_one_byte) {
+bool RegExpImpl::CompileIrregexpFromSource(
+    Isolate* isolate, DirectHandle<IrRegExpData> re_data,
+    DirectHandle<String> sample_subject, bool is_one_byte,
+    RegExpCompilationTarget compilation_target) {
   // Since we can't abort gracefully during compilation, check for sufficient
   // stack space (including the additional gap as used for Turbofan
   // compilation) here in advance.
@@ -692,14 +700,7 @@ bool RegExpImpl::CompileIrregexpFromSource(Isolate* isolate,
   }
   const bool can_be_zero_length = compile_data.tree->min_match() == 0;
   re_data->set_can_be_zero_length(can_be_zero_length);
-  // The compilation target is a kBytecode if we're interpreting all regexp
-  // objects, or if we're using the tier-up strategy but the tier-up hasn't
-  // happened yet. The compilation target is a kNative if we're using the
-  // tier-up strategy and we need to recompile to tier-up, or if we're producing
-  // native code for all regexp objects.
-  compile_data.compilation_target = re_data->ShouldProduceBytecode()
-                                        ? RegExpCompilationTarget::kBytecode
-                                        : RegExpCompilationTarget::kNative;
+  compile_data.compilation_target = compilation_target;
   const bool compilation_succeeded =
       Compile(isolate, &zone, &compile_data, flags, pattern, sample_subject,
               re_data, is_one_byte);
@@ -832,13 +833,11 @@ bool RegExpImpl::CompileIrregexpFromBytecode(
     // subject strings or global mode. For this case we create bytecode and
     // immediately assemble JIT code from it.
     DCHECK(!re_data->has_code(is_one_byte));
-    re_data->ResetLastTierUpTick();
-    DCHECK(re_data->ShouldProduceBytecode());
-    if (V8_UNLIKELY(!CompileIrregexpFromSource(isolate, re_data, sample_subject,
-                                               is_one_byte))) {
+    if (V8_UNLIKELY(!CompileIrregexpFromSource(
+            isolate, re_data, sample_subject, is_one_byte,
+            RegExpCompilationTarget::kBytecode))) {
       return false;
     }
-    re_data->MarkTierUpForNextExec();
   }
 
   DCHECK(re_data->has_bytecode(is_one_byte));
@@ -1250,7 +1249,8 @@ bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, RegExpCompileData* data,
   {
 #ifdef ENABLE_DISASSEMBLER
     if (v8_flags.print_regexp_code &&
-        data->compilation_target == RegExpCompilationTarget::kNative) {
+        data->compilation_target == RegExpCompilationTarget::kNative &&
+        result.Succeeded()) {
       CodeTracer::Scope trace_scope(isolate->GetCodeTracer());
       OFStream os(trace_scope.file());
       auto code = CheckedCast<Code>(result.code);
@@ -1259,7 +1259,8 @@ bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, RegExpCompileData* data,
     }
 #endif
     if (v8_flags.print_regexp_bytecode &&
-        data->compilation_target == RegExpCompilationTarget::kBytecode) {
+        data->compilation_target == RegExpCompilationTarget::kBytecode &&
+        result.Succeeded()) {
       auto bytecode = CheckedCast<TrustedByteArray>(result.code);
       std::unique_ptr<char[]> pattern_cstring = pattern->ToCString();
       RegExpBytecodeDisassemble(bytecode->begin(), bytecode->length(),

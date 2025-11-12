@@ -38,10 +38,9 @@ class InstructionScheduler final : public ZoneObject {
                                          InstructionSequence* sequence);
 
   V8_EXPORT_PRIVATE void StartBlock(RpoNumber rpo);
-  V8_EXPORT_PRIVATE void EndBlock(RpoNumber rpo);
+  V8_EXPORT_PRIVATE void EndBlock(RpoNumber rpo, Instruction* terminator);
 
   V8_EXPORT_PRIVATE void AddInstruction(Instruction* instr);
-  V8_EXPORT_PRIVATE void AddTerminator(Instruction* instr);
 
   static bool SchedulerSupported();
 
@@ -50,6 +49,8 @@ class InstructionScheduler final : public ZoneObject {
   // Represent an instruction and their dependencies.
   class ScheduleGraphNode : public ZoneObject {
    public:
+    using SuccessorList = SmallZoneVector<ScheduleGraphNode*, 8>;
+
     ScheduleGraphNode(Zone* zone, Instruction* instr);
 
     // Mark the instruction represented by 'node' as a dependency of this one.
@@ -69,7 +70,7 @@ class InstructionScheduler final : public ZoneObject {
     }
 
     Instruction* instruction() { return instr_; }
-    ZoneDeque<ScheduleGraphNode*>& successors() { return successors_; }
+    SuccessorList& successors() { return successors_; }
     int latency() const { return latency_; }
 
     int total_latency() const { return total_latency_; }
@@ -80,7 +81,7 @@ class InstructionScheduler final : public ZoneObject {
 
    private:
     Instruction* instr_;
-    ZoneDeque<ScheduleGraphNode*> successors_;
+    SuccessorList successors_;
 
     // Number of unscheduled predecessors for this node.
     int unscheduled_predecessors_count_;
@@ -104,70 +105,40 @@ class InstructionScheduler final : public ZoneObject {
   // have been scheduled. Note that this class is inteded to be extended by
   // concrete implementation of the scheduling queue which define the policy
   // to pop node from the queue.
-  class SchedulingQueueBase {
+  class SchedulingQueue {
    public:
-    explicit SchedulingQueueBase(InstructionScheduler* scheduler)
-        : scheduler_(scheduler), nodes_(scheduler->zone()) {}
+    explicit SchedulingQueue(Zone* zone);
 
+    void Advance(int cycle);
     void AddNode(ScheduleGraphNode* node);
+    void AddReady(ScheduleGraphNode* node);
 
-    bool IsEmpty() const { return nodes_.empty(); }
-
-   protected:
-    InstructionScheduler* scheduler_;
-    ZoneLinkedList<ScheduleGraphNode*> nodes_;
-  };
-
-  // A scheduling queue which prioritize nodes on the critical path (we look
-  // for the instruction with the highest latency on the path to reach the end
-  // of the graph).
-  class CriticalPathFirstQueue : public SchedulingQueueBase {
-   public:
-    explicit CriticalPathFirstQueue(InstructionScheduler* scheduler)
-        : SchedulingQueueBase(scheduler) {}
-
-    // Look for the best candidate to schedule, remove it from the queue and
-    // return it.
-    ScheduleGraphNode* PopBestCandidate(int cycle);
-  };
-
-  // A queue which pop a random node from the queue to perform stress tests on
-  // the scheduler.
-  class StressSchedulerQueue : public SchedulingQueueBase {
-   public:
-    explicit StressSchedulerQueue(InstructionScheduler* scheduler)
-        : SchedulingQueueBase(scheduler) {}
-
+    bool IsEmpty() const { return ready_.empty() && waiting_.empty(); }
     ScheduleGraphNode* PopBestCandidate(int cycle);
 
    private:
-    base::RandomNumberGenerator* random_number_generator() {
-      return scheduler_->random_number_generator();
-    }
+    SmallZoneVector<ScheduleGraphNode*, 8> ready_;
+    SmallZoneVector<ScheduleGraphNode*, 16> waiting_;
+    std::optional<base::RandomNumberGenerator> random_number_generator_;
   };
 
   // Perform scheduling for the current block specifying the queue type to
   // use to determine the next best candidate.
-  template <typename QueueType>
   void Schedule();
 
   // Return the scheduling properties of the given instruction.
   V8_EXPORT_PRIVATE int GetInstructionFlags(const Instruction* instr) const;
   int GetTargetInstructionFlags(const Instruction* instr) const;
 
-  bool IsBarrier(const Instruction* instr) const {
-    return (GetInstructionFlags(instr) & kIsBarrier) != 0;
-  }
+  bool IsBarrier(int flags) const { return (flags & kIsBarrier) != 0; }
 
   // Check whether the given instruction has side effects (e.g. function call,
   // memory store).
-  bool HasSideEffect(const Instruction* instr) const {
-    return (GetInstructionFlags(instr) & kHasSideEffect) != 0;
-  }
+  bool HasSideEffect(int flags) const { return (flags & kHasSideEffect) != 0; }
 
   // Return true if the instruction is a memory load.
-  bool IsLoadOperation(const Instruction* instr) const {
-    return (GetInstructionFlags(instr) & kIsLoadOperation) != 0;
+  bool IsLoadOperation(int flags) const {
+    return (flags & kIsLoadOperation) != 0;
   }
 
   bool CanTrap(const Instruction* instr) const {
@@ -189,9 +160,9 @@ class InstructionScheduler final : public ZoneObject {
 
   // Return true if the instruction cannot be moved before the last deopt or
   // trap point we encountered.
-  bool DependsOnDeoptOrTrap(const Instruction* instr) const {
+  bool DependsOnDeoptOrTrap(const Instruction* instr, int flags) const {
     return MayNeedDeoptOrTrapCheck(instr) || instr->IsDeoptimizeCall() ||
-           CanTrap(instr) || HasSideEffect(instr) || IsLoadOperation(instr);
+           CanTrap(instr) || HasSideEffect(flags) || IsLoadOperation(flags);
   }
 
   // Identify nops used as a definition point for live-in registers at
@@ -211,13 +182,11 @@ class InstructionScheduler final : public ZoneObject {
 
   Zone* zone() { return zone_; }
   InstructionSequence* sequence() { return sequence_; }
-  base::RandomNumberGenerator* random_number_generator() {
-    return &random_number_generator_.value();
-  }
 
   Zone* zone_;
   InstructionSequence* sequence_;
   ZoneVector<ScheduleGraphNode*> graph_;
+  SchedulingQueue ready_list_;
 
   friend class InstructionSchedulerTester;
 
@@ -242,9 +211,7 @@ class InstructionScheduler final : public ZoneObject {
 
   // Keep track of definition points for virtual registers. This is used to
   // record operand dependencies in the scheduling graph.
-  ZoneMap<int32_t, ScheduleGraphNode*> operands_map_;
-
-  std::optional<base::RandomNumberGenerator> random_number_generator_;
+  ZoneUnorderedMap<int32_t, ScheduleGraphNode*> operands_map_;
 };
 
 }  // namespace compiler

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-gc --no-incremental-marking --no-single-generation --no-gc-global --handle-weak-ref-weakly-in-minor-gc --allow-natives-syntax
+// Flags: --expose-gc --no-incremental-marking --no-single-generation --no-gc-global --no-minor-ms --handle-weak-ref-weakly-in-minor-gc --no-scavenger-chaos-mode --allow-natives-syntax
 
 (async function() {
   let callback_called = false;

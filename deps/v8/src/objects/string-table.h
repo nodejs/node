@@ -30,6 +30,9 @@ class StringTableKey {
   inline uint32_t hash() const;
   uint32_t length() const { return length_; }
 
+  virtual bool IsThinString() { return false; }
+  virtual Tagged<String> UnwrapThinString() { UNREACHABLE(); }
+
  protected:
   inline void set_raw_hash_field(uint32_t raw_hash_field);
 

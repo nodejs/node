@@ -478,6 +478,7 @@ IterationCount StaticCanonicalForLoopMatcher::CountIterationsImpl(
         return {};
       }
 
+      if (DivWillOverflow(max - init, binop_cst)) return {};
       Int remainder = (max - init) % binop_cst;
       if (remainder != 0) {
         // Will loop forever or rely on over/underflow wrap-around to eventually

@@ -73,7 +73,7 @@ class V8_EXPORT_PRIVATE V8_NODISCARD StackGuard final {
   V(API_INTERRUPT, ApiInterrupt, 4, InterruptLevel::kNoHeapWrites)             \
   V(DEOPT_MARKED_ALLOCATION_SITES, DeoptMarkedAllocationSites, 5,              \
     InterruptLevel::kNoHeapWrites)                                             \
-  V(GROW_SHARED_MEMORY, GrowSharedMemory, 6, InterruptLevel::kAnyEffect)       \
+  V(GROW_SHARED_MEMORY, GrowSharedMemory, 6, InterruptLevel::kNoGC)            \
   V(LOG_WASM_CODE, LogWasmCode, 7, InterruptLevel::kAnyEffect)                 \
   V(WASM_CODE_GC, WasmCodeGC, 8, InterruptLevel::kNoHeapWrites)                \
   V(INSTALL_MAGLEV_CODE, InstallMaglevCode, 9, InterruptLevel::kAnyEffect)     \
@@ -145,6 +145,12 @@ class V8_EXPORT_PRIVATE V8_NODISCARD StackGuard final {
   static constexpr int real_jslimit_offset() {
     return offsetof(StackGuard, thread_local_) +
            offsetof(ThreadLocal, real_jslimit_);
+  }
+
+  static constexpr int no_heap_write_interrupt_request_offset() {
+    return offsetof(StackGuard, thread_local_) +
+           offsetof(ThreadLocal, interrupt_requested_) +
+           static_cast<size_t>(InterruptLevel::kNoHeapWrites);
   }
 
   // If the stack guard is triggered, but it is not an actual

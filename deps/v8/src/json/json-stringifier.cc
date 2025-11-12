@@ -3385,9 +3385,11 @@ bool FastJsonStringifier<Char>::AppendStringSIMD(
 
   for (; block + (stride - 1) < end; block += stride) {
     const auto input = hw::LoadU(tag, block);
-    const auto has_lower_than_0x20 = input < mask_0x20;
-    const auto has_0x22 = input == mask_0x22;
-    const auto has_0x5c = input == mask_0x5c;
+    // TODO(floitsch): use operators for the comparisons when they are available
+    // on RISC-V.
+    const auto has_lower_than_0x20 = hw::Lt(input, mask_0x20);
+    const auto has_0x22 = hw::Eq(input, mask_0x22);
+    const auto has_0x5c = hw::Eq(input, mask_0x5c);
     const auto result = hw::Or(hw::Or(has_lower_than_0x20, has_0x22), has_0x5c);
 
     // No character that needs escaping found in block.

@@ -54,6 +54,9 @@ class NumFuzzer(base_runner.BaseTestRunner):
         type="int",
         help="probability [0-10] of adding allocation padding "
         "to the test")
+    parser.add_option("--scavenge-chaos", default=0, type="int",
+                      help="probability [0-10] of adding scavenger-chaos "
+                           "flags to the test")
     parser.add_option("--stress-marking", default=0, type="int",
                       help="probability [0-10] of adding --stress-marking "
                            "flag to the test")

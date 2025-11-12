@@ -347,6 +347,28 @@ void Int32MultiplyOverflownBits::GenerateCode(MaglevAssembler* masm,
 #endif
 }
 
+void Int32Increment::SetValueLocationConstraints() {
+  UseRegister(value_input());
+  DefineAsRegister(this);
+}
+void Int32Increment::GenerateCode(MaglevAssembler* masm,
+                                  const ProcessingState& state) {
+  Register value = ToRegister(value_input());
+  Register out = ToRegister(result());
+  __ addiw(out, value, 1);
+}
+
+void Int32Decrement::SetValueLocationConstraints() {
+  UseRegister(value_input());
+  DefineAsRegister(this);
+}
+void Int32Decrement::GenerateCode(MaglevAssembler* masm,
+                                  const ProcessingState& state) {
+  Register value = ToRegister(value_input());
+  Register out = ToRegister(result());
+  __ addiw(out, value, -1);
+}
+
 void Int32Divide::SetValueLocationConstraints() {
   UseRegister(left_input());
   UseRegister(right_input());
@@ -847,6 +869,35 @@ void Float64Exponentiate::GenerateCode(MaglevAssembler* masm,
   __ CallCFunction(ExternalReference::ieee754_pow_function(), 2);
 }
 
+void Float64Min::SetValueLocationConstraints() {
+  UseRegister(left_input());
+  UseRegister(right_input());
+  DefineAsRegister(this);
+}
+void Float64Min::GenerateCode(MaglevAssembler* masm,
+                              const ProcessingState& state) {
+  DoubleRegister left = ToDoubleRegister(left_input());
+  DoubleRegister right = ToDoubleRegister(right_input());
+  DoubleRegister out = ToDoubleRegister(result());
+
+  __ FloatMinMaxHelper<double>(out, left, right, MaxMinKind::kMin);
+}
+
+void Float64Max::SetValueLocationConstraints() {
+  UseRegister(left_input());
+  UseRegister(right_input());
+  DefineAsRegister(this);
+}
+
+void Float64Max::GenerateCode(MaglevAssembler* masm,
+                              const ProcessingState& state) {
+  DoubleRegister left = ToDoubleRegister(left_input());
+  DoubleRegister right = ToDoubleRegister(right_input());
+  DoubleRegister out = ToDoubleRegister(result());
+
+  __ FloatMinMaxHelper<double>(out, left, right, MaxMinKind::kMax);
+}
+
 int Float64Ieee754Unary::MaxCallStackArgs() const { return 0; }
 void Float64Ieee754Unary::SetValueLocationConstraints() {
   UseFixed(input(), fa0);
@@ -949,6 +1000,18 @@ void HoleyFloat64ToMaybeNanFloat64::GenerateCode(MaglevAssembler* masm,
                                                  const ProcessingState& state) {
   // The hole value is a signalling NaN, so just silence it to get the float64
   // value.
+  __ FPUCanonicalizeNaN(ToDoubleRegister(result()), ToDoubleRegister(input()));
+}
+
+void Float64ToHoleyFloat64::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineAsRegister(this);
+}
+void Float64ToHoleyFloat64::GenerateCode(MaglevAssembler* masm,
+                                         const ProcessingState& state) {
+  // A Float64 value could contain a NaN with the bit pattern that has a special
+  // interpretation in the HoleyFloat64 representation, so we need to canicalize
+  // those before changing representation.
   __ FPUCanonicalizeNaN(ToDoubleRegister(result()), ToDoubleRegister(input()));
 }
 

@@ -148,6 +148,7 @@ cc_library(
         "//absl/base:tracing_internal",
         "//absl/debugging:stacktrace",
         "//absl/debugging:symbolize",
+        "//absl/meta:type_traits",
         "//absl/time",
     ] + select({
         "//conditions:default": [],

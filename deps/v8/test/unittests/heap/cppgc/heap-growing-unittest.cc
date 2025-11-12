@@ -36,6 +36,10 @@ class FakeGarbageCollector : public GarbageCollector {
     UNREACHABLE();
   }
 
+  bool RetryAllocate(v8::base::FunctionRef<bool()> allocate) override {
+    UNREACHABLE();
+  }
+
   size_t epoch() const override { return callcount_; }
   std::optional<EmbedderStackState> overridden_stack_state() const override {
     return {};
@@ -56,6 +60,7 @@ class MockGarbageCollector : public GarbageCollector {
  public:
   MOCK_METHOD(void, CollectGarbage, (GCConfig), (override));
   MOCK_METHOD(void, StartIncrementalGarbageCollection, (GCConfig), (override));
+  MOCK_METHOD(bool, RetryAllocate, (v8::base::FunctionRef<bool()>), (override));
   MOCK_METHOD(size_t, epoch, (), (const, override));
   MOCK_METHOD(std::optional<EmbedderStackState>, overridden_stack_state, (),
               (const, override));

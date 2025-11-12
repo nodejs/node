@@ -154,6 +154,13 @@ inline ReduceResult MaybeReduceResult::Checked() { return ReduceResult(*this); }
     variable = res.value()->Cast<T>();                                 \
   } while (false)
 
+#define RETURN_VALUE(result)          \
+  do {                                \
+    MaybeReduceResult res = (result); \
+    CHECK(res.IsDoneWithValue());     \
+    return res.value();               \
+  } while (false)
+
 #define GET_VALUE_OR_ABORT(variable, result)                           \
   do {                                                                 \
     MaybeReduceResult res = (result);                                  \
@@ -280,6 +287,11 @@ class MaglevReducer {
 
   void AddInitializedNodeToGraph(Node* node);
 
+  // TODO(marja): When we have C++26, `inputs` can be std::span<ValueNode*>,
+  // since std::intializer_list can be converted to std::span.
+  template <typename NodeT, typename InputsT>
+  ReduceResult SetNodeInputs(NodeT* node, InputsT inputs);
+
   ReduceResult EmitUnconditionalDeopt(DeoptimizeReason reason);
 
   compiler::OptionalHeapObjectRef TryGetConstant(
@@ -287,7 +299,8 @@ class MaglevReducer {
   std::optional<int32_t> TryGetInt32Constant(ValueNode* value);
   std::optional<uint32_t> TryGetUint32Constant(ValueNode* value);
   std::optional<double> TryGetFloat64Constant(
-      ValueNode* value, TaggedToFloat64ConversionType conversion_type);
+      UseRepresentation use_repr, ValueNode* value,
+      TaggedToFloat64ConversionType conversion_type);
 
   template <typename MapContainer>
   MaybeReduceResult TryFoldCheckMaps(ValueNode* object,
@@ -297,6 +310,7 @@ class MaglevReducer {
 
   ValueNode* BuildNumberOrOddballToFloat64(ValueNode* node,
                                            NodeType allowed_input_type);
+  ValueNode* BuildHoleyFloat64SilenceNumberNans(ValueNode* node);
 
   // Get a tagged representation node whose value is equivalent to the given
   // node.
@@ -327,6 +341,8 @@ class MaglevReducer {
 
   ValueNode* GetFloat64ForToNumber(ValueNode* value,
                                    NodeType allowed_input_type);
+
+  ValueNode* GetHoleyFloat64(ValueNode* value);
 
   ValueNode* GetHoleyFloat64ForToNumber(ValueNode* value,
                                         NodeType allowed_input_type);
@@ -394,7 +410,7 @@ class MaglevReducer {
   }
 
   template <UseReprHintRecording hint = UseReprHintRecording::kRecord>
-  ValueNode* ConvertInputTo(ValueNode* input, ValueRepresentation expected);
+  ReduceResult ConvertInputTo(ValueNode* input, ValueRepresentation expected);
 
 #ifdef DEBUG
   // TODO(victorgomes): Investigate if we can create a better API for this!
@@ -490,6 +506,9 @@ class MaglevReducer {
       TaggedToFloat64ConversionType conversion_type, ValueNode* left,
       double cst_right);
 
+  MaybeReduceResult TryFoldFloat64Min(ValueNode* left, ValueNode* right);
+  MaybeReduceResult TryFoldFloat64Max(ValueNode* left, ValueNode* right);
+
   bool CheckType(ValueNode* node, NodeType type, NodeType* old = nullptr) {
     return known_node_aspects().CheckType(broker(), node, type, old);
   }
@@ -528,9 +547,9 @@ class MaglevReducer {
   };
 
   template <typename NodeT, typename... Args>
-  NodeT* AddNewNodeOrGetEquivalent(bool convert_inputs,
-                                   std::initializer_list<ValueNode*> raw_inputs,
-                                   Args&&... args);
+  ReduceResult AddNewNodeOrGetEquivalent(
+      bool convert_inputs, std::initializer_list<ValueNode*> raw_inputs,
+      Args&&... args);
 
   template <typename NodeT>
   static constexpr UseReprHintRecording ShouldRecordUseReprHint() {
@@ -544,14 +563,6 @@ class MaglevReducer {
       return UseReprHintRecording::kRecord;
     }
   }
-
-  // TODO(marja): When we have C++26, `inputs` can be std::span<ValueNode*>,
-  // since std::intializer_list can be converted to std::span.
-  template <typename NodeT, typename InputsT>
-  ReduceResult SetNodeInputs(NodeT* node, InputsT inputs);
-
-  template <typename NodeT, typename InputsT>
-  void SetNodeInputsOld(NodeT* node, InputsT inputs);
 
   // TODO(marja): When we have C++26, `inputs` can be std::span<ValueNode*>,
   // since std::intializer_list can be converted to std::span.

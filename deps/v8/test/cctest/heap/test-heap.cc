@@ -5993,7 +5993,8 @@ TEST(Regress598319) {
     }
   }
 
-  IsolateSafepointScope safepoint_scope(heap);
+  SafepointScope safepoint_scope(heap->isolate(),
+                                 kGlobalSafepointForSharedSpaceIsolate);
   MarkingBarrier::PublishAll(heap);
 
   // Finish marking with bigger steps to speed up test.
@@ -6014,6 +6015,7 @@ TEST(Regress598319) {
 }
 
 DirectHandle<FixedArray> ShrinkArrayAndCheckSize(Heap* heap, int length) {
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
   // Make sure there is no garbage and the compilation cache is empty.
   for (int i = 0; i < 5; i++) {
     heap::InvokeMajorGC(heap);
@@ -6023,8 +6025,9 @@ DirectHandle<FixedArray> ShrinkArrayAndCheckSize(Heap* heap, int length) {
   // are correct.
   heap->DisableInlineAllocation();
   size_t size_before_allocation = heap->SizeOfObjects();
-  DirectHandle<FixedArray> array =
-      heap->isolate()->factory()->NewFixedArray(length, AllocationType::kOld);
+  IndirectHandle<FixedArray> array(
+      *heap->isolate()->factory()->NewFixedArray(length, AllocationType::kOld),
+      heap->isolate());
   size_t size_after_allocation = heap->SizeOfObjects();
   CHECK_EQ(size_after_allocation, size_before_allocation + array->Size());
   array->RightTrim(heap->isolate(), 1);
@@ -6687,12 +6690,13 @@ HEAP_TEST(Regress670675) {
   heap->tracer()->StopFullCycleIfFinished();
   i::IncrementalMarking* marking = CcTest::heap()->incremental_marking();
   if (marking->IsStopped()) {
-    IsolateSafepointScope safepoint_scope(heap);
+    SafepointScope safepoint_scope(heap->isolate(),
+                                   kGlobalSafepointForSharedSpaceIsolate);
     heap->tracer()->StartCycle(
         GarbageCollector::MARK_COMPACTOR, GarbageCollectionReason::kTesting,
         "collector cctest", GCTracer::MarkingType::kIncremental);
     marking->Start(GarbageCollector::MARK_COMPACTOR,
-                   i::GarbageCollectionReason::kTesting);
+                   i::GarbageCollectionReason::kTesting, "testing");
   }
   size_t array_length = 128 * KB;
   size_t n = heap->OldGenerationSpaceAvailable() / array_length;
@@ -7289,12 +7293,16 @@ UNINITIALIZED_TEST(HugeHeapLimit) {
 
 UNINITIALIZED_TEST(HeapLimit) {
   uint64_t kMemoryGB = 8;
+  v8_flags.high_end_android_physical_memory_threshold =
+      static_cast<unsigned int>(kMemoryGB);
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   create_params.constraints.ConfigureDefaults(kMemoryGB * GB, kMemoryGB * GB);
   v8::Isolate* isolate = v8::Isolate::New(create_params);
   Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
-#if defined(V8_TARGET_ARCH_64_BIT) && !defined(V8_OS_ANDROID)
+#if defined(V8_TARGET_ARCH_64_BIT)
+  // Because we explicitly set --high_end_android_physical_memory_threshold,
+  // Android has the same expected heap limit.
   size_t kExpectedHeapLimit = size_t{2} * GB;
 #else
   size_t kExpectedHeapLimit = size_t{1} * GB;

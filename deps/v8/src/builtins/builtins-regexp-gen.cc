@@ -1141,9 +1141,8 @@ TF_BUILTIN(RegExpExecAtom, RegExpBuiltinsAssembler) {
                      subject_string);
     StoreObjectField(match_info, offsetof(RegExpMatchInfo, last_input_),
                      subject_string);
-    UnsafeStoreArrayElement(match_info, 0, match_from,
-                            UNSAFE_SKIP_WRITE_BARRIER);
-    UnsafeStoreArrayElement(match_info, 1, match_to, UNSAFE_SKIP_WRITE_BARRIER);
+    UnsafeStoreArrayElement(match_info, 0, match_from, SKIP_WRITE_BARRIER);
+    UnsafeStoreArrayElement(match_info, 1, match_to, SKIP_WRITE_BARRIER);
 
     Return(match_info);
   }

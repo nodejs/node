@@ -250,7 +250,7 @@
       "path": ["Iterators"],
       "main": "run.js",
       "resources": ["forof.js"],
-      "flags": ["--max-opt=0", "--for_of_optimization"],
+      "flags": ["--for_of_optimization"],
       "results_regexp": "^%s\\-Iterators\\(Score\\): (.+)$",
       "tests": [
         {"name": "ForOf"}

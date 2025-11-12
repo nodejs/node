@@ -33,6 +33,7 @@ extern runtime WasmThrow(Context, Object, FixedArray): JSAny;
 extern runtime WasmReThrow(Context, Object): JSAny;
 extern runtime WasmTriggerTierUp(Context, WasmTrustedInstanceData): JSAny;
 extern runtime WasmStackGuard(Context, Smi): JSAny;
+extern runtime WasmStackGuardLoop(Context): JSAny;
 extern runtime ThrowWasmStackOverflow(Context): JSAny;
 extern runtime WasmTraceGlobal(NoContext, Smi): JSAny;
 extern runtime WasmTraceMemory(NoContext, Smi): JSAny;
@@ -88,6 +89,7 @@ extern runtime AllocateInSharedHeap(Context, Smi, Smi): HeapObject;
 
 extern runtime WasmConfigureAllPrototypesOpt(
     Context, Object, JSAny, WasmTrustedInstanceData): Object;
+extern runtime WasmTypeAssertionFailed(NoContext): never;
 }
 
 extern operator '.wasm_exported_function_data' macro
@@ -486,6 +488,10 @@ builtin WasmGrowableStackGuard(paramSlotsSize: intptr): JSAny {
 
 builtin WasmStackGuard(): JSAny {
   tail runtime::WasmStackGuard(LoadContextFromFrame(), SmiConstant(0));
+}
+
+builtin WasmStackGuardLoop(): JSAny {
+  tail runtime::WasmStackGuardLoop(LoadContextFromFrame());
 }
 
 builtin WasmStackOverflow(): JSAny {
@@ -902,6 +908,10 @@ builtin ThrowWasmTrapFuncSigMismatch(): JSAny {
   tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapFuncSigMismatch));
 }
 
+builtin ThrowWasmTrapNullFunc(): JSAny {
+  tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapNullFunc));
+}
+
 builtin ThrowWasmTrapDataSegmentOutOfBounds(): JSAny {
   tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapDataSegmentOutOfBounds));
 }
@@ -937,6 +947,14 @@ builtin ThrowWasmTrapArrayTooLarge(): JSAny {
 
 builtin ThrowWasmTrapStringOffsetOutOfBounds(): JSAny {
   tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapStringOffsetOutOfBounds));
+}
+
+builtin WasmTypeAssertionFailed(): JSAny {
+  runtime::WasmTypeAssertionFailed(kNoContext);
+}
+
+builtin ThrowWasmTrapResume(): JSAny {
+  tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapResume));
 }
 
 macro GetRefAt<T: type, From: type>(base: From, offset: intptr): &T {

@@ -260,13 +260,14 @@ class DebugInfoImpl {
     }
     WasmCompilationResult result = ExecuteLiftoffCompilation(
         &env, body,
-        LiftoffOptions{}
-            .set_func_index(func_index)
-            .set_for_debugging(for_debugging)
-            .set_breakpoints(offsets)
-            .set_dead_breakpoint(dead_breakpoint)
-            .set_debug_sidetable(generate_debug_sidetable ? &debug_sidetable
-                                                          : nullptr));
+        LiftoffOptions{.func_index = func_index,
+                       .for_debugging = for_debugging,
+                       .counter_updates = native_module_->counter_updates(),
+                       .breakpoints = offsets,
+                       .debug_sidetable = generate_debug_sidetable
+                                              ? &debug_sidetable
+                                              : nullptr,
+                       .dead_breakpoint = dead_breakpoint});
     // Liftoff compilation failure is a FATAL error. We rely on complete Liftoff
     // support for debugging.
     if (!result.succeeded()) FATAL("Liftoff compilation failed");

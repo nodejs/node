@@ -24,6 +24,7 @@
 #include "src/execution/isolate-inl.h"
 #include "src/execution/protectors-inl.h"
 #include "src/execution/v8threads.h"
+#include "src/flags/flags.h"
 #include "src/handles/global-handles-inl.h"
 #include "src/heap/heap-inl.h"  // For NextDebuggingId.
 #include "src/init/bootstrapper.h"
@@ -1713,6 +1714,11 @@ class DiscardBaselineCodeVisitor : public ThreadVisitor {
       // but we need to update remaining baseline stack frames as well.
       if (code->kind() == CodeKind::BASELINE) {
         UnoptimizedJSFrame* frame = UnoptimizedJSFrame::cast(it.frame());
+        if (v8_flags.trace_baseline) {
+          PrintF("[Sparkplug] discarding on-stack ");
+          ShortPrint(*code);
+          PrintF("\n");
+        }
         int bytecode_offset = code->GetBytecodeOffsetForBaselinePC(
             frame->pc(), frame->GetBytecodeArray());
         Address* pc_addr = frame->pc_address();
@@ -1746,6 +1752,11 @@ class DiscardBaselineCodeVisitor : public ThreadVisitor {
 void Debug::DiscardBaselineCode(Tagged<SharedFunctionInfo> shared) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
   DCHECK(shared->HasBaselineCode());
+  if (v8_flags.trace_baseline) {
+    PrintF("[Sparkplug] discarding baseline code for ");
+    ShortPrint(*shared);
+    PrintF("\n");
+  }
   DiscardBaselineCodeVisitor visitor(shared);
   visitor.VisitThread(isolate_, isolate_->thread_local_top());
   isolate_->thread_manager()->IterateArchivedThreads(&visitor);
@@ -1766,6 +1777,9 @@ void Debug::DiscardBaselineCode(Tagged<SharedFunctionInfo> shared) {
 
 void Debug::DiscardAllBaselineCode() {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
+  if (v8_flags.trace_baseline) {
+    PrintF("[Sparkplug] discarding all baseline code\n");
+  }
   DiscardBaselineCodeVisitor visitor;
   visitor.VisitThread(isolate_, isolate_->thread_local_top());
   HeapObjectIterator iterator(isolate_->heap());
@@ -1902,7 +1916,7 @@ void Debug::InstallDebugBreakTrampoline() {
       } else if (IsJSObject(obj)) {
         Tagged<JSObject> object = Cast<JSObject>(obj);
         Tagged<DescriptorArray> descriptors =
-            object->map()->instance_descriptors(kRelaxedLoad);
+            object->map()->instance_descriptors(kAcquireLoad);
 
         for (InternalIndex i : object->map()->IterateOwnDescriptors()) {
           if (descriptors->GetDetails(i).kind() == PropertyKind::kAccessor) {

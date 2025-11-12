@@ -237,7 +237,7 @@ void LocalHeap::ParkSlowPath() {
 
       if (current_state.IsCollectionRequested()) {
         if (!heap()->ignore_local_gc_requests()) {
-          heap_->CollectGarbageForBackground(this);
+          heap_->PerformRequestedGC(this);
           continue;
         }
 
@@ -292,7 +292,7 @@ void LocalHeap::UnparkSlowPath() {
           continue;
 
         if (!heap()->ignore_local_gc_requests()) {
-          heap_->CollectGarbageForBackground(this);
+          heap_->PerformRequestedGC(this);
         }
 
         return;
@@ -339,7 +339,7 @@ void LocalHeap::SafepointSlowPath() {
     }
 
     if (current_state.IsCollectionRequested()) {
-      heap_->CollectGarbageForBackground(this);
+      heap_->PerformRequestedGC(this);
     }
   } else {
     DCHECK(current_state.IsSafepointRequested());

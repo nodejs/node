@@ -88,10 +88,7 @@ cc_library(
     hdrs = ["nullability.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
-    deps = [
-        ":config",
-        ":core_headers",
-    ],
+    deps = [":config"],
 )
 
 cc_library(
@@ -241,7 +238,6 @@ cc_library(
     name = "base_internal",
     hdrs = [
         "internal/hide_ptr.h",
-        "internal/identity.h",
         "internal/scheduling_mode.h",
     ],
     copts = ABSL_DEFAULT_COPTS,
@@ -604,6 +600,22 @@ cc_test(
 )
 
 cc_test(
+    name = "casts_test",
+    size = "small",
+    srcs = [
+        "casts_test.cc",
+    ],
+    copts = ABSL_TEST_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    deps = [
+        ":base",
+        ":core_headers",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_test(
     name = "no_destructor_test",
     srcs = ["no_destructor_test.cc"],
     copts = ABSL_TEST_COPTS,
@@ -636,7 +648,6 @@ cc_test(
     name = "nullability_test",
     srcs = ["nullability_test.cc"],
     deps = [
-        ":core_headers",
         ":nullability",
         "@googletest//:gtest",
         "@googletest//:gtest_main",

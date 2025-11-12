@@ -176,6 +176,68 @@ void JSObject::EnsureCanContainHeapObjectElements(
 }
 
 template <typename TSlot>
+ElementsKind JSObject::GetTransitionedElementsKind(Isolate* isolate,
+                                                   ElementsKind current_kind,
+                                                   TSlot elements,
+                                                   uint32_t count,
+                                                   EnsureElementsMode mode) {
+  static_assert(std::is_same_v<TSlot, FullObjectSlot> ||
+                    std::is_same_v<TSlot, ObjectSlot>,
+                "Only ObjectSlot and FullObjectSlot are expected here");
+  DisallowGarbageCollection no_gc;
+  if (current_kind == HOLEY_ELEMENTS) return current_kind;
+  ElementsKind target_kind = current_kind;
+
+  DCHECK(mode != ALLOW_COPIED_DOUBLE_ELEMENTS);
+  bool is_holey = IsHoleyElementsKind(current_kind);
+  Tagged<Object> the_hole = GetReadOnlyRoots().the_hole_value();
+  TSlot end = elements + count;
+  for (; elements < end; ++elements) {
+    Tagged<Object> current = *elements;
+    if (current == the_hole) {
+      is_holey = true;
+      target_kind = GetHoleyElementsKind(target_kind);
+#ifdef V8_ENABLE_UNDEFINED_DOUBLE
+    } else if (IsUndefined(current)) {
+      if (mode == ALLOW_CONVERTED_DOUBLE_ELEMENTS) {
+        if (IsSmiElementsKind(target_kind)) {
+          target_kind = HOLEY_DOUBLE_ELEMENTS;
+        } else if (target_kind == PACKED_DOUBLE_ELEMENTS) {
+          target_kind = HOLEY_DOUBLE_ELEMENTS;
+        } else {
+          DCHECK(target_kind == PACKED_ELEMENTS ||
+                 target_kind == HOLEY_ELEMENTS ||
+                 target_kind == HOLEY_DOUBLE_ELEMENTS);
+        }
+      } else if (is_holey) {
+        if (IsSmiElementsKind(target_kind)) {
+          return HOLEY_ELEMENTS;
+        }
+      } else {
+        target_kind = PACKED_ELEMENTS;
+      }
+#endif  // V8_ENABLE_UNDEFINED_DOUBLE
+    } else if (!IsSmi(current)) {
+      if (mode == ALLOW_CONVERTED_DOUBLE_ELEMENTS && IsNumber(current)) {
+        if (IsSmiElementsKind(target_kind)) {
+          if (is_holey) {
+            target_kind = HOLEY_DOUBLE_ELEMENTS;
+          } else {
+            target_kind = PACKED_DOUBLE_ELEMENTS;
+          }
+        }
+      } else if (is_holey) {
+        return HOLEY_ELEMENTS;
+      } else {
+        target_kind = PACKED_ELEMENTS;
+      }
+    }
+  }
+
+  return target_kind;
+}
+
+template <typename TSlot>
 void JSObject::EnsureCanContainElements(Isolate* isolate,
                                         DirectHandle<JSObject> object,
                                         TSlot objects, uint32_t count,
@@ -184,57 +246,8 @@ void JSObject::EnsureCanContainElements(Isolate* isolate,
                     std::is_same_v<TSlot, ObjectSlot>,
                 "Only ObjectSlot and FullObjectSlot are expected here");
   ElementsKind current_kind = object->GetElementsKind();
-  ElementsKind target_kind = current_kind;
-  {
-    DisallowGarbageCollection no_gc;
-    DCHECK(mode != ALLOW_COPIED_DOUBLE_ELEMENTS);
-    bool is_holey = IsHoleyElementsKind(current_kind);
-    if (current_kind == HOLEY_ELEMENTS) return;
-    Tagged<Object> the_hole = GetReadOnlyRoots().the_hole_value();
-    for (uint32_t i = 0; i < count; ++i, ++objects) {
-      Tagged<Object> current = *objects;
-      if (current == the_hole) {
-        is_holey = true;
-        target_kind = GetHoleyElementsKind(target_kind);
-#ifdef V8_ENABLE_UNDEFINED_DOUBLE
-      } else if (IsUndefined(current)) {
-        if (mode == ALLOW_CONVERTED_DOUBLE_ELEMENTS) {
-          if (IsSmiElementsKind(target_kind)) {
-            target_kind = HOLEY_DOUBLE_ELEMENTS;
-          } else if (target_kind == PACKED_DOUBLE_ELEMENTS) {
-            target_kind = HOLEY_DOUBLE_ELEMENTS;
-          } else {
-            DCHECK(target_kind == PACKED_ELEMENTS ||
-                   target_kind == HOLEY_ELEMENTS ||
-                   target_kind == HOLEY_DOUBLE_ELEMENTS);
-          }
-        } else if (is_holey) {
-          if (IsSmiElementsKind(target_kind)) {
-            target_kind = HOLEY_ELEMENTS;
-            break;
-          }
-        } else {
-          target_kind = PACKED_ELEMENTS;
-        }
-#endif  // V8_ENABLE_UNDEFINED_DOUBLE
-      } else if (!IsSmi(current)) {
-        if (mode == ALLOW_CONVERTED_DOUBLE_ELEMENTS && IsNumber(current)) {
-          if (IsSmiElementsKind(target_kind)) {
-            if (is_holey) {
-              target_kind = HOLEY_DOUBLE_ELEMENTS;
-            } else {
-              target_kind = PACKED_DOUBLE_ELEMENTS;
-            }
-          }
-        } else if (is_holey) {
-          target_kind = HOLEY_ELEMENTS;
-          break;
-        } else {
-          target_kind = PACKED_ELEMENTS;
-        }
-      }
-    }
-  }
+  ElementsKind target_kind =
+      GetTransitionedElementsKind(isolate, current_kind, objects, count, mode);
   if (target_kind != current_kind) {
     TransitionElementsKind(isolate, object, target_kind);
   }
@@ -339,16 +352,22 @@ bool JSObject::MayHaveEmbedderFields() const {
 
 // static
 int JSObject::GetEmbedderFieldCount(Tagged<Map> map) {
-  int instance_size = map->instance_size();
+  // We inline some code from Map::instance_size and Map::GetInObjectProperties
+  // here, to avoid reading the map's instance size field twice.
+  // See https://crbug.com/355120682.
+  int instance_size_in_words = map->instance_size_in_words();
+  int instance_size = instance_size_in_words << kTaggedSizeLog2;
   if (instance_size == kVariableSizeSentinel) return 0;
   // Embedder fields are located after the object header, whereas in-object
   // properties are located at the end of the object. We don't have to round up
   // the header size here because division by kEmbedderDataSlotSizeInTaggedSlots
   // will swallow potential padding in case of (kTaggedSize !=
   // kSystemPointerSize) anyway.
+  int in_object_properties =
+      instance_size_in_words - map->GetInObjectPropertiesStartInWords();
   return (((instance_size - GetEmbedderFieldsStartOffset(map)) >>
            kTaggedSizeLog2) -
-          map->GetInObjectProperties()) /
+          in_object_properties) /
          kEmbedderDataSlotSizeInTaggedSlots;
 }
 
@@ -670,8 +689,29 @@ JSObject::DefineOwnPropertyIgnoreAttributes(LookupIterator* it,
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSExternalObject)
 
-EXTERNAL_POINTER_ACCESSORS(JSExternalObject, value, void*, kValueOffset,
-                           kExternalObjectValueTag)
+void* JSExternalObject::value(ExternalPointerTagRange tag_range) const {
+  i::IsolateForSandbox isolate = GetCurrentIsolateForSandbox();
+  return value(isolate, tag_range);
+}
+
+void* JSExternalObject::value(i::IsolateForSandbox isolate,
+                              ExternalPointerTagRange tag_range) const {
+  Address result =
+      HeapObject::ReadExternalPointerField(kValueOffset, isolate, tag_range);
+  return reinterpret_cast<void*>(result);
+}
+
+void JSExternalObject::init_value(i::IsolateForSandbox isolate,
+                                  ExternalPointerTag tag, void* initial_value) {
+  Address the_value = reinterpret_cast<Address>(initial_value);
+  HeapObject::InitExternalPointerField(kValueOffset, isolate, tag, the_value);
+}
+
+void JSExternalObject::set_value(i::IsolateForSandbox isolate,
+                                 ExternalPointerTag tag, void* value) {
+  Address the_value = reinterpret_cast<Address>(value);
+  HeapObject::WriteExternalPointerField(kValueOffset, isolate, tag, the_value);
+}
 
 bool JSMessageObject::DidEnsureSourcePositionsAvailable() const {
   return shared_info() == Smi::zero();
