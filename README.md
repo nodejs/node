@@ -1,4 +1,4 @@
-# Node.js
+# Node.js.
 
 Node.js is an open-source, cross-platform JavaScript runtime environment.
 
@@ -34,12 +34,12 @@ that discourage, exhaust, or otherwise negatively affect other participants.
   * [Release keys](#release-keys)
 * [License](#license)
 
-## Support
+## Support.
 
 Looking for help? Check out the
 [instructions for getting support](.github/SUPPORT.md).
 
-## Release types
+## Release types.
 
 * **Current**: Under active development. Code for the Current release is in the
   branch for its major version number (for example,
@@ -142,9 +142,9 @@ For information about the governance of the Node.js project, see
      list. If the format changes, those utilities need to be tested and
      updated. -->
 
-### TSC (Technical Steering Committee)
+### TSC (Technical Steering Committee).
 
-#### TSC voting members
+#### TSC voting members.
 
 <!--lint disable prohibited-strings-->
 
