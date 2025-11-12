@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.21.0](https://github.com/nodejs/gyp-next/compare/v0.20.5...v0.21.0) (2025-11-04)
+
+
+### Features
+
+* add support for Visual Studio 2026 ([#319](https://github.com/nodejs/gyp-next/issues/319)) ([cb13bbc](https://github.com/nodejs/gyp-next/commit/cb13bbc4ab7a7d86b51221b39ebee4281e1d3e19))
+
 ## [0.20.5](https://github.com/nodejs/gyp-next/compare/v0.20.4...v0.20.5) (2025-10-13)
 
 
