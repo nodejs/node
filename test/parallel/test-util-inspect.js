@@ -2527,14 +2527,10 @@ assert.strictEqual(
     set foo(val) { foo = val; },
     get inc() { return ++foo; }
   };
-  const thrower = { get foo() { throw new Error('Oops'); } };
   assert.strictEqual(
     inspect(get, { getters: true, colors: true }),
     '{ foo: \u001b[36m[Getter:\u001b[39m ' +
       '\u001b[33m1\u001b[39m\u001b[36m]\u001b[39m }');
-  assert.strictEqual(
-    inspect(thrower, { getters: true }),
-    '{ foo: [Getter: <Inspection threw (Oops)>] }');
   assert.strictEqual(
     inspect(getset, { getters: true }),
     '{ foo: [Getter/Setter: 1], inc: [Getter: 2] }');
@@ -2551,50 +2547,14 @@ assert.strictEqual(
       "'foobar', { x: 1 } },\n  inc: [Getter: NaN]\n}");
 }
 
-// Property getter throwing throwing uncommon values.
+// Property getter throwing an error.
 {
-  assert.strictEqual(
-    inspect({
-      // eslint-disable-next-line no-throw-literal
-      get foo() { throw null; }
-    }, { getters: true }),
-    '{ foo: [Getter: <Inspection threw>] }'
-  );
-  assert.strictEqual(
-    inspect({
-      // eslint-disable-next-line no-throw-literal
-      get foo() { throw undefined; }
-    }, { getters: true }),
-    '{ foo: [Getter: <Inspection threw>] }'
-  );
-  assert.strictEqual(
-    inspect({
-      // eslint-disable-next-line no-throw-literal
-      get foo() { throw true; }
-    }, { getters: true }),
-    '{ foo: [Getter: <Inspection threw>] }'
-  );
-  assert.strictEqual(
-    inspect({
-      // eslint-disable-next-line no-throw-literal
-      get foo() { throw {}; }
-    }, { getters: true }),
-    '{ foo: [Getter: <Inspection threw>] }'
-  );
-  assert.strictEqual(
-    inspect({
-      get foo() { throw Error; }
-    }, { getters: true }),
-    '{ foo: [Getter: <Inspection threw>] }'
-  );
-}
-
-// Property getter throwing an error with message getter that throws.
-{
-  const error = {
-    // The message itself is a getter that throws
-    get message() { throw new Error('Oops'); }
-  };
+  const error = new Error('Oops');
+  error.stack = [
+    'Error: Oops',
+    '    at get foo (/foo/node_modules/foo.js:2:7)',
+    '    at get bar (/foo/node_modules/bar.js:827:30)',
+  ].join('\n');
 
   const thrower = {
     get foo() { throw error; }
@@ -2602,29 +2562,101 @@ assert.strictEqual(
 
   assert.strictEqual(
     inspect(thrower, { getters: true }),
-    '{ foo: [Getter: <Inspection threw>] }'
+    '{\n' +
+    '  foo: [Getter: <Inspection threw (Error: Oops\n' +
+    '    at get foo (/foo/node_modules/foo.js:2:7)\n' +
+    '    at get bar (/foo/node_modules/bar.js:827:30))>]\n' +
+    '}',
+  );
+};
+
+// Property getter throwing an error with getters that throws.
+// https://github.com/nodejs/node/issues/60683
+{
+  const error = new Error();
+
+  const throwingGetter = {
+    __proto__: null,
+    get() {
+      throw error;
+    },
+    configurable: true,
+    enumerable: true,
+  };
+
+  Object.defineProperties(error, {
+    name: throwingGetter,
+    stack: throwingGetter,
+    cause: throwingGetter,
+  });
+
+  const thrower = {
+    get foo() { throw error; }
+  };
+
+  assert.strictEqual(
+    inspect(thrower, { getters: true }),
+    '{\n' +
+    '  foo: [Getter: <Inspection threw ([object Error] {\n' +
+    '  stack: [Getter/Setter],\n' +
+    '  name: [Getter],\n' +
+    '  cause: [Getter]\n' +
+    '})>]\n' +
+    '}',
   );
 }
 
-// Property getter throwing an error with a bad message.
+// Property getter throwing throwing uncommon values.
 {
   assert.strictEqual(
     inspect({
-      get foo() { throw new Error(undefined); }
+      // eslint-disable-next-line no-throw-literal
+      get foo() { throw undefined; }
     }, { getters: true }),
-    '{ foo: [Getter: <Inspection threw ()>] }'
+    '{ foo: [Getter: <Inspection threw (undefined)>] }'
   );
   assert.strictEqual(
     inspect({
-      get foo() { throw new Error(''); }
-    }, { getters: true }),
-    '{ foo: [Getter: <Inspection threw ()>] }'
-  );
-  assert.strictEqual(
-    inspect({
-      get foo() { throw new Error(null); }
+      // eslint-disable-next-line no-throw-literal
+      get foo() { throw null; }
     }, { getters: true }),
     '{ foo: [Getter: <Inspection threw (null)>] }'
+  );
+  assert.strictEqual(
+    inspect({
+      // eslint-disable-next-line no-throw-literal
+      get foo() { throw 'string'; }
+    }, { getters: true }),
+    "{ foo: [Getter: <Inspection threw ('string')>] }"
+  );
+  assert.strictEqual(
+    inspect({
+      // eslint-disable-next-line no-throw-literal
+      get foo() { throw true; }
+    }, { getters: true }),
+    '{ foo: [Getter: <Inspection threw (true)>] }'
+  );
+  assert.strictEqual(
+    inspect({
+      // eslint-disable-next-line no-throw-literal
+      get foo() { throw {}; }
+    }, { getters: true }),
+    '{ foo: [Getter: <Inspection threw ({})>] }'
+  );
+  assert.strictEqual(
+    inspect({
+      // eslint-disable-next-line no-throw-literal
+      get foo() { throw { get message() { return 'Oops'; } }; }
+    }, { getters: true }),
+    '{ foo: [Getter: <Inspection threw ({ message: [Getter] })>] }'
+  );
+  assert.strictEqual(
+    inspect({
+      get foo() { throw Error; }
+    }, { getters: true }),
+    '{\n' +
+    '  foo: [Getter: <Inspection threw ([Function: Error] { stackTraceLimit: 0 })>]\n' +
+    '}'
   );
 }
 
@@ -3315,8 +3347,19 @@ assert.strictEqual(
     '      [length]: 0,\n' +
     "      [name]: 'Bar',\n" +
     '      [prototype]: [Circular *1],\n' +
-    '      [Symbol(Symbol.species)]: [Getter: <Inspection threw ' +
-      "(Symbol.prototype.toString requires that 'this' be a Symbol)>]\n" +
+    // Heh? I don't know how to override the error stakc to make it predictable
+    '      [Symbol(Symbol.species)]: ' +
+    "[Getter: <Inspection threw (TypeError: Symbol.prototype.toString requires that 'this' be a Symbol\n" +
+    '    at Bar.toString (<anonymous>)\n' +
+    '    at formatPrimitive (node:internal/util/inspect:2246:13)\n' +
+    '    at formatProperty (node:internal/util/inspect:2556:29)\n' +
+    '    at addPrototypeProperties (node:internal/util/inspect:1010:21)\n' +
+    '    at getConstructorName (node:internal/util/inspect:918:11)\n' +
+    '    at formatRaw (node:internal/util/inspect:1194:23)\n' +
+    '    at formatValue (node:internal/util/inspect:1184:10)\n' +
+    '    at formatProperty (node:internal/util/inspect:2536:11)\n' +
+    '    at formatRaw (node:internal/util/inspect:1429:9)\n' +
+    '    at formatValue (node:internal/util/inspect:1184:10))>]\n' +
     '    },\n' +
     "    [xyz]: [Getter: 'YES!'],\n" +
     '    [Symbol(nodejs.util.inspect.custom)]: ' +
