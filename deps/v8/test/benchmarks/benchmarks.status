@@ -1,0 +1,173 @@
+# Copyright 2013 the V8 project authors. All rights reserved.
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#     * Redistributions of source code must retain the above copyright
+#       notice, this list of conditions and the following disclaimer.
+#     * Redistributions in binary form must reproduce the above
+#       copyright notice, this list of conditions and the following
+#       disclaimer in the documentation and/or other materials provided
+#       with the distribution.
+#     * Neither the name of Google Inc. nor the names of its
+#       contributors may be used to endorse or promote products derived
+#       from this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+[
+[ALWAYS, {
+  # Too slow in Debug mode.
+  'octane/mandreel': [PASS, SLOW, ['mode == debug', SKIP]],
+  # TODO(turbofan): Too slow in debug mode for now.
+  'octane/pdfjs': [PASS, ['mode == debug', SKIP]],
+
+  # Slow tests.
+  'kraken/imaging-gaussian-blur': [PASS, SLOW],
+  'octane/box2d': [PASS, SLOW],
+  'octane/regexp': [PASS, SLOW],
+  'octane/splay': [PASS, SLOW],
+  'octane/typescript': [PASS, SLOW],
+  'octane/zlib': [PASS, SLOW],
+
+  # https://crbug.com/v8/11905
+  'kraken/stanford-crypto-pbkdf2': [PASS, SLOW],
+
+  # https://crbug.com/v8/11222
+  'octane/raytrace': [PASS, SLOW],
+}],  # ALWAYS
+
+# Slow variants.
+['variant in [jitless, nooptimization, stress]', {
+  # Slow tests.
+  'kraken/ai-astar': [PASS, SLOW],
+  'kraken/audio-beat-detection': [SLOW],
+  'kraken/audio-dft': [PASS, SLOW],
+  'kraken/audio-fft': [PASS, SLOW],
+  'kraken/audio-oscillator': [PASS, SLOW],
+  'kraken/imaging-darkroom': [PASS, SLOW],
+  'kraken/imaging-desaturate': [PASS, SLOW],
+  'octane/code-load': [PASS, SLOW],
+  'octane/crypto': [PASS, SLOW],
+  'octane/earley-boyer': [PASS, SLOW],
+  'octane/gbemu-part1': [PASS, SLOW],
+  'octane/navier-stokes': [PASS, SLOW],
+  'octane/pdfjs': [PASS, SLOW],
+  'octane/zlib': [PASS, SLOW, ['mode == debug', SKIP]],
+}],
+
+['variant == stress', {
+  # Too slow for stress mode.
+  'kraken/imaging-desaturate' : [PASS, ['mode == debug', SKIP]],
+  'kraken/imaging-gaussian-blur' : [PASS, ['mode == debug', SKIP]],
+  'octane/mandreel': [SKIP],
+  'octane/typescript': [SKIP],
+  'octane/raytrace': [PASS, SLOW, ['tsan', SKIP]],
+
+  # Too memory hungry on Odroid devices: https://crbug.com/v8/8963
+  'kraken/stanford-crypto-ccm': [PASS, ['arch == arm and not simulator_run', SKIP]],
+}],
+
+['variant == jitless', {
+  # Too slow for jitless mode.
+  'kraken/audio-fft': [PASS, ['mode == debug', SKIP]],
+  'kraken/imaging-desaturate' : [PASS, ['mode == debug', SKIP]],
+  'kraken/imaging-gaussian-blur' : [PASS, ['mode == debug', SKIP]],
+  'octane/zlib': [SKIP],
+}],
+
+['variant in [jitless, stress] and tsan', {
+  # Very slow tests.
+  'kraken/imaging-gaussian-blur': [SKIP],
+  'octane/mandreel': [SKIP],
+}],  # 'variant in [jitless, stress] and tsan'
+
+['variant == nooptimization and mode == debug', {
+  # Too slow for nooptimization mode and debug.
+  'kraken/imaging-desaturate': [SKIP],
+  'kraken/imaging-gaussian-blur': [SKIP],
+}],
+
+['variant == stress_incremental_marking', {
+  # Too slow for stress_incremental_marking.
+  'octane/box2d': [SKIP],
+  'octane/typescript': [SKIP],
+  'octane/earley-boyer' : [PASS, SLOW, ['mode == debug', FAIL]],
+}],
+
+['gc_fuzzer', {
+  # Too slow for gc fuzzing.
+  'octane/earley-boyer' : [PASS, SLOW, ['mode == debug', SKIP]],
+  'octane/splay': [SKIP],
+  'octane/typescript': [SKIP],
+}],  # 'gc_fuzzer'
+
+##############################################################################
+['gc_fuzzer or deopt_fuzzer', {
+  # BUG(v8:12901) Skipped until bug is fixed.
+  'octane/gbemu-part1': [SKIP],
+}], # gc_fuzzer or deopt_fuzzer
+
+['verify_predictable', {
+  # https://crbug.com/v8/8537
+  'octane/typescript': [SKIP],
+
+  # https://crbug.com/42203172
+  'kraken/ai-astar': [SKIP],
+  'kraken/stanford-crypto-aes': [SKIP],
+  'kraken/stanford-crypto-ccm': [SKIP],
+  'kraken/stanford-crypto-pbkdf2': [SKIP],
+  'octane/box2d': [SKIP],
+  'octane/crypto': [SKIP],
+  'octane/earley-boyer': [SKIP],
+  'octane/gbemu-part1': [SKIP],
+  'octane/mandreel': [SKIP],
+  'octane/pdfjs': [SKIP],
+  'octane/regexp': [SKIP],
+
+  # https://crbug.com/v8/14512
+  'octane/raytrace': [SKIP],
+}],  # 'verify_predictable'
+
+['variant == stress_snapshot', {
+  '*': [SKIP],  # only relevant for mjsunit tests.
+}],
+
+['tsan', {
+  # Slow tests.
+  'kraken/audio-beat-detection': [SLOW],
+  'kraken/audio-dft': [SLOW],
+  'kraken/audio-fft': [SLOW],
+  'kraken/audio-oscillator': [SLOW],
+  'octane/pdfjs': [SLOW],
+}],  # 'tsan'
+
+##############################################################################
+['gc_fuzzer or deopt_fuzzer or interrupt_fuzzer', {
+  # BUG(v8:13808) Skipped until bug is fixed.
+  'octane/pdfjs': [SKIP],
+}], # gc_fuzzer or deopt_fuzzer or interrupt_fuzzer
+
+##############################################################################
+['variant == jitless and mode == debug and tsan', {
+  # Too slow for jitless mode in tsan debug.
+  'kraken/ai-astar': [SKIP],
+  'kraken/audio-beat-detection': [SKIP],
+  'kraken/audio-dft': [SKIP],
+  'kraken/audio-oscillator': [SKIP],
+  'kraken/imaging-darkroom': [SKIP],
+  'octane/box2d': [SKIP],
+  'octane/crypto': [SKIP],
+}], # 'variant == jitless and mode == debug and tsan'
+
+]

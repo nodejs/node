@@ -1,0 +1,19 @@
+Tests call stack in wasm scripts
+Running testFunction with generated wasm bytes...
+Paused on 'debugger;'
+Number of frames: 5
+  - [0] {"functionName":"call_debugger","function_lineNumber":1,"function_columnNumber":24,"lineNumber":2,"columnNumber":4}
+  - [1] {"functionName":"$call_func","function_lineNumber":0,"function_columnNumber":54,"lineNumber":0,"columnNumber":55}
+  - [2] {"functionName":"$main","function_lineNumber":0,"function_columnNumber":59,"lineNumber":0,"columnNumber":62}
+  - [3] {"functionName":"testFunction","function_lineNumber":0,"function_columnNumber":21,"lineNumber":14,"columnNumber":19}
+  - [4] {"functionName":"","function_lineNumber":0,"function_columnNumber":0,"lineNumber":0,"columnNumber":0}
+Getting v8-generated stack trace...
+Result of evaluate (string):
+Error: this is your stack trace:
+    -- skipped --
+    at call_debugger (<anonymous>:3:5)
+    at call_func (wasm://wasm/42056f7a:wasm-function[1]:0x37)
+    at main (wasm://wasm/42056f7a:wasm-function[2]:0x3e)
+    at testFunction (<anonymous>:15:20)
+    at <anonymous>:1:1
+Finished!

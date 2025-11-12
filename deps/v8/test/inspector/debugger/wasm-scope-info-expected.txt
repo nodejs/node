@@ -1,0 +1,420 @@
+Test retrieving scope information from compiled Liftoff frames
+
+Running test: test
+Calling instantiate function.
+Waiting for wasm script to be parsed.
+Got wasm script!
+Setting breakpoint on line 2 (first instruction) of third function
+{
+    columnNumber : 169
+    lineNumber : 0
+    scriptId : <scriptId>
+}
+Paused:
+Script wasm://wasm/8daa7452 byte offset 169: Wasm opcode 0x20 (kExprLocalGet)
+Scope:
+at $C (interpreted) (0:169):
+ - scope (wasm-expression-stack):
+   stack:
+ - scope (local):
+   $i32_arg: 42 (i32)
+   $i32_local: 0 (i32)
+   $var2: 0 (f32)
+ - scope (module):
+   instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
+   functions: "$A (liftoff)": (Function), "$B (liftoff)": (Function), "$C (interpreted)": (Function)
+   globals: "$exported_global": 0 (i32)
+   memories: "$exported_memory": (Memory)
+   tables:
+      $exported_table: 0: function js_func() { [native code] } (funcref), 1: function () { [native code] } (funcref), 2: null (funcref), 3: function $A (liftoff)() { [native code] } (funcref)
+at $B (liftoff) (0:158):
+ - scope (wasm-expression-stack):
+   stack: "0": 42 (i32), "1": 3 (i32)
+ - scope (local):
+   $i32_arg: 42 (i32)
+   $i32_local: 0 (i32)
+   $f32_local: 7.199999809265137 (f32)
+   $0: 0 (f32)
+   $var5: 0 (f32)
+   $v128_local: i32x4 0x00000017 0x00000017 0x00000017 0x00000017 (v128)
+ - scope (module):
+   instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
+   functions: "$A (liftoff)": (Function), "$B (liftoff)": (Function), "$C (interpreted)": (Function)
+   globals: "$exported_global": 0 (i32)
+   memories: "$exported_memory": (Memory)
+   tables:
+      $exported_table: 0: function js_func() { [native code] } (funcref), 1: function () { [native code] } (funcref), 2: null (funcref), 3: function $A (liftoff)() { [native code] } (funcref)
+at $A (liftoff) (0:128):
+ - scope (wasm-expression-stack):
+   stack:
+ - scope (local):
+   $var0: 42 (i32)
+ - scope (module):
+   instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
+   functions: "$A (liftoff)": (Function), "$B (liftoff)": (Function), "$C (interpreted)": (Function)
+   globals: "$exported_global": 0 (i32)
+   memories: "$exported_memory": (Memory)
+   tables:
+      $exported_table: 0: function js_func() { [native code] } (funcref), 1: function () { [native code] } (funcref), 2: null (funcref), 3: function $A (liftoff)() { [native code] } (funcref)
+at (anonymous) (0:17):
+ - scope (global):
+   -- skipped globals
+
+Paused:
+Script wasm://wasm/8daa7452 byte offset 171: Wasm opcode 0x24 (kExprGlobalSet)
+Scope:
+at $C (interpreted) (0:171):
+ - scope (wasm-expression-stack):
+   stack: "0": 42 (i32)
+ - scope (local):
+   $i32_arg: 42 (i32)
+   $i32_local: 0 (i32)
+   $var2: 0 (f32)
+ - scope (module):
+   instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
+   functions: "$A (liftoff)": (Function), "$B (liftoff)": (Function), "$C (interpreted)": (Function)
+   globals: "$exported_global": 0 (i32)
+   memories: "$exported_memory": (Memory)
+   tables:
+      $exported_table: 0: function js_func() { [native code] } (funcref), 1: function () { [native code] } (funcref), 2: null (funcref), 3: function $A (liftoff)() { [native code] } (funcref)
+at $B (liftoff) (0:158):
+ - scope (wasm-expression-stack):
+   stack: "0": 42 (i32), "1": 3 (i32)
+ - scope (local):
+   $i32_arg: 42 (i32)
+   $i32_local: 0 (i32)
+   $f32_local: 7.199999809265137 (f32)
+   $0: 0 (f32)
+   $var5: 0 (f32)
+   $v128_local: i32x4 0x00000017 0x00000017 0x00000017 0x00000017 (v128)
+ - scope (module):
+   instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
+   functions: "$A (liftoff)": (Function), "$B (liftoff)": (Function), "$C (interpreted)": (Function)
+   globals: "$exported_global": 0 (i32)
+   memories: "$exported_memory": (Memory)
+   tables:
+      $exported_table: 0: function js_func() { [native code] } (funcref), 1: function () { [native code] } (funcref), 2: null (funcref), 3: function $A (liftoff)() { [native code] } (funcref)
+at $A (liftoff) (0:128):
+ - scope (wasm-expression-stack):
+   stack:
+ - scope (local):
+   $var0: 42 (i32)
+ - scope (module):
+   instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
+   functions: "$A (liftoff)": (Function), "$B (liftoff)": (Function), "$C (interpreted)": (Function)
+   globals: "$exported_global": 0 (i32)
+   memories: "$exported_memory": (Memory)
+   tables:
+      $exported_table: 0: function js_func() { [native code] } (funcref), 1: function () { [native code] } (funcref), 2: null (funcref), 3: function $A (liftoff)() { [native code] } (funcref)
+at (anonymous) (0:17):
+ - scope (global):
+   -- skipped globals
+
+Paused:
+Script wasm://wasm/8daa7452 byte offset 173: Wasm opcode 0x41 (kExprI32Const)
+Scope:
+at $C (interpreted) (0:173):
+ - scope (wasm-expression-stack):
+   stack:
+ - scope (local):
+   $i32_arg: 42 (i32)
+   $i32_local: 0 (i32)
+   $var2: 0 (f32)
+ - scope (module):
+   instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
+   functions: "$A (liftoff)": (Function), "$B (liftoff)": (Function), "$C (interpreted)": (Function)
+   globals: "$exported_global": 42 (i32)
+   memories: "$exported_memory": (Memory)
+   tables:
+      $exported_table: 0: function js_func() { [native code] } (funcref), 1: function () { [native code] } (funcref), 2: null (funcref), 3: function $A (liftoff)() { [native code] } (funcref)
+at $B (liftoff) (0:158):
+ - scope (wasm-expression-stack):
+   stack: "0": 42 (i32), "1": 3 (i32)
+ - scope (local):
+   $i32_arg: 42 (i32)
+   $i32_local: 0 (i32)
+   $f32_local: 7.199999809265137 (f32)
+   $0: 0 (f32)
+   $var5: 0 (f32)
+   $v128_local: i32x4 0x00000017 0x00000017 0x00000017 0x00000017 (v128)
+ - scope (module):
+   instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
+   functions: "$A (liftoff)": (Function), "$B (liftoff)": (Function), "$C (interpreted)": (Function)
+   globals: "$exported_global": 42 (i32)
+   memories: "$exported_memory": (Memory)
+   tables:
+      $exported_table: 0: function js_func() { [native code] } (funcref), 1: function () { [native code] } (funcref), 2: null (funcref), 3: function $A (liftoff)() { [native code] } (funcref)
+at $A (liftoff) (0:128):
+ - scope (wasm-expression-stack):
+   stack:
+ - scope (local):
+   $var0: 42 (i32)
+ - scope (module):
+   instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
+   functions: "$A (liftoff)": (Function), "$B (liftoff)": (Function), "$C (interpreted)": (Function)
+   globals: "$exported_global": 42 (i32)
+   memories: "$exported_memory": (Memory)
+   tables:
+      $exported_table: 0: function js_func() { [native code] } (funcref), 1: function () { [native code] } (funcref), 2: null (funcref), 3: function $A (liftoff)() { [native code] } (funcref)
+at (anonymous) (0:17):
+ - scope (global):
+   -- skipped globals
+
+Paused:
+Script wasm://wasm/8daa7452 byte offset 175: Wasm opcode 0x21 (kExprLocalSet)
+Scope:
+at $C (interpreted) (0:175):
+ - scope (wasm-expression-stack):
+   stack: "0": 47 (i32)
+ - scope (local):
+   $i32_arg: 42 (i32)
+   $i32_local: 0 (i32)
+   $var2: 0 (f32)
+ - scope (module):
+   instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
+   functions: "$A (liftoff)": (Function), "$B (liftoff)": (Function), "$C (interpreted)": (Function)
+   globals: "$exported_global": 42 (i32)
+   memories: "$exported_memory": (Memory)
+   tables:
+      $exported_table: 0: function js_func() { [native code] } (funcref), 1: function () { [native code] } (funcref), 2: null (funcref), 3: function $A (liftoff)() { [native code] } (funcref)
+at $B (liftoff) (0:158):
+ - scope (wasm-expression-stack):
+   stack: "0": 42 (i32), "1": 3 (i32)
+ - scope (local):
+   $i32_arg: 42 (i32)
+   $i32_local: 0 (i32)
+   $f32_local: 7.199999809265137 (f32)
+   $0: 0 (f32)
+   $var5: 0 (f32)
+   $v128_local: i32x4 0x00000017 0x00000017 0x00000017 0x00000017 (v128)
+ - scope (module):
+   instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
+   functions: "$A (liftoff)": (Function), "$B (liftoff)": (Function), "$C (interpreted)": (Function)
+   globals: "$exported_global": 42 (i32)
+   memories: "$exported_memory": (Memory)
+   tables:
+      $exported_table: 0: function js_func() { [native code] } (funcref), 1: function () { [native code] } (funcref), 2: null (funcref), 3: function $A (liftoff)() { [native code] } (funcref)
+at $A (liftoff) (0:128):
+ - scope (wasm-expression-stack):
+   stack:
+ - scope (local):
+   $var0: 42 (i32)
+ - scope (module):
+   instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
+   functions: "$A (liftoff)": (Function), "$B (liftoff)": (Function), "$C (interpreted)": (Function)
+   globals: "$exported_global": 42 (i32)
+   memories: "$exported_memory": (Memory)
+   tables:
+      $exported_table: 0: function js_func() { [native code] } (funcref), 1: function () { [native code] } (funcref), 2: null (funcref), 3: function $A (liftoff)() { [native code] } (funcref)
+at (anonymous) (0:17):
+ - scope (global):
+   -- skipped globals
+
+Paused:
+Script wasm://wasm/8daa7452 byte offset 177: Wasm opcode 0x0b (kExprEnd)
+Scope:
+at $C (interpreted) (0:177):
+ - scope (wasm-expression-stack):
+   stack:
+ - scope (local):
+   $i32_arg: 42 (i32)
+   $i32_local: 47 (i32)
+   $var2: 0 (f32)
+ - scope (module):
+   instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
+   functions: "$A (liftoff)": (Function), "$B (liftoff)": (Function), "$C (interpreted)": (Function)
+   globals: "$exported_global": 42 (i32)
+   memories: "$exported_memory": (Memory)
+   tables:
+      $exported_table: 0: function js_func() { [native code] } (funcref), 1: function () { [native code] } (funcref), 2: null (funcref), 3: function $A (liftoff)() { [native code] } (funcref)
+at $B (liftoff) (0:158):
+ - scope (wasm-expression-stack):
+   stack: "0": 42 (i32), "1": 3 (i32)
+ - scope (local):
+   $i32_arg: 42 (i32)
+   $i32_local: 0 (i32)
+   $f32_local: 7.199999809265137 (f32)
+   $0: 0 (f32)
+   $var5: 0 (f32)
+   $v128_local: i32x4 0x00000017 0x00000017 0x00000017 0x00000017 (v128)
+ - scope (module):
+   instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
+   functions: "$A (liftoff)": (Function), "$B (liftoff)": (Function), "$C (interpreted)": (Function)
+   globals: "$exported_global": 42 (i32)
+   memories: "$exported_memory": (Memory)
+   tables:
+      $exported_table: 0: function js_func() { [native code] } (funcref), 1: function () { [native code] } (funcref), 2: null (funcref), 3: function $A (liftoff)() { [native code] } (funcref)
+at $A (liftoff) (0:128):
+ - scope (wasm-expression-stack):
+   stack:
+ - scope (local):
+   $var0: 42 (i32)
+ - scope (module):
+   instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
+   functions: "$A (liftoff)": (Function), "$B (liftoff)": (Function), "$C (interpreted)": (Function)
+   globals: "$exported_global": 42 (i32)
+   memories: "$exported_memory": (Memory)
+   tables:
+      $exported_table: 0: function js_func() { [native code] } (funcref), 1: function () { [native code] } (funcref), 2: null (funcref), 3: function $A (liftoff)() { [native code] } (funcref)
+at (anonymous) (0:17):
+ - scope (global):
+   -- skipped globals
+
+Paused:
+Script wasm://wasm/8daa7452 byte offset 160: Wasm opcode 0x1a (kExprDrop)
+Scope:
+at $B (liftoff) (0:160):
+ - scope (wasm-expression-stack):
+   stack: "0": 42 (i32), "1": 3 (i32)
+ - scope (local):
+   $i32_arg: 42 (i32)
+   $i32_local: 0 (i32)
+   $f32_local: 7.199999809265137 (f32)
+   $0: 0 (f32)
+   $var5: 0 (f32)
+   $v128_local: i32x4 0x00000017 0x00000017 0x00000017 0x00000017 (v128)
+ - scope (module):
+   instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
+   functions: "$A (liftoff)": (Function), "$B (liftoff)": (Function), "$C (interpreted)": (Function)
+   globals: "$exported_global": 42 (i32)
+   memories: "$exported_memory": (Memory)
+   tables:
+      $exported_table: 0: function js_func() { [native code] } (funcref), 1: function () { [native code] } (funcref), 2: null (funcref), 3: function $A (liftoff)() { [native code] } (funcref)
+at $A (liftoff) (0:128):
+ - scope (wasm-expression-stack):
+   stack:
+ - scope (local):
+   $var0: 42 (i32)
+ - scope (module):
+   instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
+   functions: "$A (liftoff)": (Function), "$B (liftoff)": (Function), "$C (interpreted)": (Function)
+   globals: "$exported_global": 42 (i32)
+   memories: "$exported_memory": (Memory)
+   tables:
+      $exported_table: 0: function js_func() { [native code] } (funcref), 1: function () { [native code] } (funcref), 2: null (funcref), 3: function $A (liftoff)() { [native code] } (funcref)
+at (anonymous) (0:17):
+ - scope (global):
+   -- skipped globals
+
+Paused:
+Script wasm://wasm/8daa7452 byte offset 161: Wasm opcode 0x1a (kExprDrop)
+Scope:
+at $B (liftoff) (0:161):
+ - scope (wasm-expression-stack):
+   stack: "0": 42 (i32)
+ - scope (local):
+   $i32_arg: 42 (i32)
+   $i32_local: 0 (i32)
+   $f32_local: 7.199999809265137 (f32)
+   $0: 0 (f32)
+   $var5: 0 (f32)
+   $v128_local: i32x4 0x00000017 0x00000017 0x00000017 0x00000017 (v128)
+ - scope (module):
+   instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
+   functions: "$A (liftoff)": (Function), "$B (liftoff)": (Function), "$C (interpreted)": (Function)
+   globals: "$exported_global": 42 (i32)
+   memories: "$exported_memory": (Memory)
+   tables:
+      $exported_table: 0: function js_func() { [native code] } (funcref), 1: function () { [native code] } (funcref), 2: null (funcref), 3: function $A (liftoff)() { [native code] } (funcref)
+at $A (liftoff) (0:128):
+ - scope (wasm-expression-stack):
+   stack:
+ - scope (local):
+   $var0: 42 (i32)
+ - scope (module):
+   instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
+   functions: "$A (liftoff)": (Function), "$B (liftoff)": (Function), "$C (interpreted)": (Function)
+   globals: "$exported_global": 42 (i32)
+   memories: "$exported_memory": (Memory)
+   tables:
+      $exported_table: 0: function js_func() { [native code] } (funcref), 1: function () { [native code] } (funcref), 2: null (funcref), 3: function $A (liftoff)() { [native code] } (funcref)
+at (anonymous) (0:17):
+ - scope (global):
+   -- skipped globals
+
+Paused:
+Script wasm://wasm/8daa7452 byte offset 162: Wasm opcode 0x0b (kExprEnd)
+Scope:
+at $B (liftoff) (0:162):
+ - scope (wasm-expression-stack):
+   stack:
+ - scope (local):
+   $i32_arg: 42 (i32)
+   $i32_local: 0 (i32)
+   $f32_local: 7.199999809265137 (f32)
+   $0: 0 (f32)
+   $var5: 0 (f32)
+   $v128_local: i32x4 0x00000017 0x00000017 0x00000017 0x00000017 (v128)
+ - scope (module):
+   instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
+   functions: "$A (liftoff)": (Function), "$B (liftoff)": (Function), "$C (interpreted)": (Function)
+   globals: "$exported_global": 42 (i32)
+   memories: "$exported_memory": (Memory)
+   tables:
+      $exported_table: 0: function js_func() { [native code] } (funcref), 1: function () { [native code] } (funcref), 2: null (funcref), 3: function $A (liftoff)() { [native code] } (funcref)
+at $A (liftoff) (0:128):
+ - scope (wasm-expression-stack):
+   stack:
+ - scope (local):
+   $var0: 42 (i32)
+ - scope (module):
+   instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
+   functions: "$A (liftoff)": (Function), "$B (liftoff)": (Function), "$C (interpreted)": (Function)
+   globals: "$exported_global": 42 (i32)
+   memories: "$exported_memory": (Memory)
+   tables:
+      $exported_table: 0: function js_func() { [native code] } (funcref), 1: function () { [native code] } (funcref), 2: null (funcref), 3: function $A (liftoff)() { [native code] } (funcref)
+at (anonymous) (0:17):
+ - scope (global):
+   -- skipped globals
+
+Paused:
+Script wasm://wasm/8daa7452 byte offset 130: Wasm opcode 0x0b (kExprEnd)
+Scope:
+at $A (liftoff) (0:130):
+ - scope (wasm-expression-stack):
+   stack:
+ - scope (local):
+   $var0: 42 (i32)
+ - scope (module):
+   instance: exports: "exported_global" (Global), "exported_memory" (Memory), "exported_table" (Table), "main" (Function)
+   module: Module
+   functions: "$A (liftoff)": (Function), "$B (liftoff)": (Function), "$C (interpreted)": (Function)
+   globals: "$exported_global": 42 (i32)
+   memories: "$exported_memory": (Memory)
+   tables:
+      $exported_table: 0: function js_func() { [native code] } (funcref), 1: function () { [native code] } (funcref), 2: null (funcref), 3: function $A (liftoff)() { [native code] } (funcref)
+at (anonymous) (0:17):
+ - scope (global):
+   -- skipped globals
+
+Paused:
+instance.exports.main(42)#
+
+Scope:
+at (anonymous) (0:25):
+ - scope (global):
+   -- skipped globals
+
+exports.main returned. Test finished.

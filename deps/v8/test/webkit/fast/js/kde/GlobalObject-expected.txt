@@ -1,0 +1,91 @@
+# Copyright 2013 the V8 project authors. All rights reserved.
+# Copyright (C) 2005, 2006, 2007, 2008, 2009 Apple Inc. All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1.  Redistributions of source code must retain the above copyright
+#     notice, this list of conditions and the following disclaimer.
+# 2.  Redistributions in binary form must reproduce the above copyright
+#     notice, this list of conditions and the following disclaimer in the
+#     documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY APPLE INC. AND ITS CONTRIBUTORS ``AS IS'' AND ANY
+# EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL APPLE INC. OR ITS CONTRIBUTORS BE LIABLE FOR ANY
+# DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+# ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+KDE JS Test
+
+On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE".
+
+
+PASS h.charCodeAt(1) is 239
+PASS u.charCodeAt(1) is 4660
+PASS escape(h) is 'a%EFc'
+PASS escape(u) is 'a%u1234c'
+PASS escape(z) is '%00'
+PASS unescape(escape(h)) is h
+PASS unescape(escape(u)) is u
+PASS unescape(escape(z)) is z
+PASS isNaN(NaN) is true
+PASS isNaN('NaN') is true
+PASS isNaN('1') is false
+PASS isFinite(1) is true
+PASS isFinite('1') is true
+PASS isFinite('a') is false
+PASS isNaN(parseInt("Hello", 8)) is true
+PASS isNaN(parseInt("FFF", 10)) is true
+PASS isNaN(parseInt(".5", 10)) is true
+PASS isFinite(Infinity) is false
+PASS isFinite('Infinity') is false
+PASS isNaN(parseInt()) is true
+PASS isNaN(parseInt('')) is true
+PASS isNaN(parseInt(' ')) is true
+PASS isNaN(parseInt('a')) is true
+PASS parseInt(1) is 1
+PASS parseInt(1234567890123456) is 1234567890123456
+PASS parseInt(1.2) is 1
+PASS parseInt(' 2.3') is 2
+PASS parseInt('0x10') is 16
+PASS parseInt('11', 0) is 11
+PASS parseInt('F', 16) is 15
+PASS isNaN(parseInt('10', 40)) is true
+PASS parseInt('3x') is 3
+PASS parseInt('3 x') is 3
+PASS isNaN(parseInt('Infinity')) is true
+PASS parseInt("15") is 15
+PASS parseInt("015") is 15
+PASS parseInt("0xf") is 15
+PASS parseInt("15", 0) is 15
+PASS parseInt("15", 10) is 15
+PASS parseInt("F", 16) is 15
+PASS parseInt("17", 8) is 15
+PASS parseInt("15.99", 10) is 15
+PASS parseInt("FXX123", 16) is 15
+PASS parseInt("1111", 2) is 15
+PASS parseInt("15*3", 10) is 15
+PASS parseInt("0x7", 10) is 0
+PASS parseInt("1x7", 10) is 1
+PASS isNaN(parseFloat()) is true
+PASS isNaN(parseFloat('')) is true
+PASS isNaN(parseFloat(' ')) is true
+PASS isNaN(parseFloat('a')) is true
+PASS parseFloat(1) is 1
+PASS parseFloat(' 2.3') is 2.3
+PASS parseFloat('3.1 x', 3) is 3.1
+PASS parseFloat('3.1x', 3) is 3.1
+PASS isFinite(parseFloat('Infinity')) is false
+PASS delete NaN is false
+PASS delete Infinity is false
+PASS delete undefined is false
+PASS successfullyParsed is true
+
+TEST COMPLETE
+

@@ -1,0 +1,63 @@
+.TH "NPM-PREFIX" "1" "October 2025" "NPM@11.6.2" ""
+.SH "NAME"
+\fBnpm-prefix\fR - Display prefix
+.SS "Synopsis"
+.P
+.RS 2
+.nf
+npm prefix
+.fi
+.RE
+.P
+Note: This command is unaware of workspaces.
+.SS "Description"
+.P
+Print the local prefix to standard output. This is the closest parent directory to contain a \fBpackage.json\fR file or \fBnode_modules\fR directory, unless \fB-g\fR is also specified.
+.P
+If \fB-g\fR is specified, this will be the value of the global prefix. See npm help config for more detail.
+.SS "Example"
+.P
+.RS 2
+.nf
+npm prefix
+/usr/local/projects/foo
+.fi
+.RE
+.P
+.RS 2
+.nf
+npm prefix -g
+/usr/local
+.fi
+.RE
+.SS "Configuration"
+.SS "\fBglobal\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Operates in "global" mode, so that packages are installed into the \fBprefix\fR folder instead of the current working directory. See npm help folders for more on the differences in behavior.
+.RS 0
+.IP \(bu 4
+packages are installed into the \fB{prefix}/lib/node_modules\fR folder, instead of the current working directory.
+.IP \(bu 4
+bin files are linked to \fB{prefix}/bin\fR
+.IP \(bu 4
+man pages are linked to \fB{prefix}/share/man\fR
+.RE 0
+
+.SS "See Also"
+.RS 0
+.IP \(bu 4
+npm help root
+.IP \(bu 4
+npm help folders
+.IP \(bu 4
+npm help config
+.IP \(bu 4
+npm help npmrc
+.RE 0

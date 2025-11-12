@@ -1,0 +1,80 @@
+<!-- Copyright 2020 the V8 project authors. All rights reserved.
+Use of this source code is governed by a BSD-style license that can be
+found in the LICENSE file. -->
+
+<head>
+  <link href="./index.css" rel="stylesheet">
+</head>
+<style>
+  .count {
+    text-align: right;
+    width: 5em;
+  }
+
+  .percentage {
+    text-align: right;
+    width: 4em;
+  }
+
+  .key {
+    padding-left: 1em;
+  }
+
+  .drilldown-group-title {
+    font-weight: bold;
+    padding: 0.5em 0 0.2em 0;
+  }
+
+  .toggle {
+    width: 1em;
+    text-align: left;
+    cursor: -webkit-zoom-in;
+    color: rgba(var(--border-color), 1);
+    user-select: none;
+  }
+
+  .toggle::before {
+    content: "▶";
+  }
+
+  .open .toggle::before {
+    content: "▼";
+  }
+
+  .panel {
+    position: relative;
+  }
+
+  .panelBody {
+    height: 400px;
+  }
+
+  .scroller {
+    max-height: 800px;
+    overflow-y: scroll;
+  }
+
+  .legend {
+    top: 40px;
+  }
+</style>
+
+<div class="panel">
+  <input type="checkbox" id="closer" class="panelCloserInput" checked>
+  <label class="panelCloserLabel" for="closer">▼</label>
+  <h2 id="title"></h2>
+  <div class="selection">
+    <input type="radio" id="show-all" name="selectionType" value="all">
+    <label for="show-all">All</label>
+    <input type="radio" id="show-timerange" name="selectionType" value="timerange">
+    <label for="show-timerange">Time Range</label>
+    <input type="radio" id="show-selection" name="selectionType" value="selection">
+    <label for="show-selection">Last Selection</label>
+  </div>
+  <select id="group-key"></select>
+  <div id="content" class="panelBody">
+    <slot></slot>
+    <table id="table" width="100%">
+    </table>
+  </div>
+</div>

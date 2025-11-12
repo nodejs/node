@@ -1,0 +1,6 @@
+undefined:1: SyntaxError: Arg string terminates parameters early
+(function anonymous()
+                    ^
+SyntaxError: Arg string terminates parameters early
+    at new Function (<anonymous>)
+    at *%(basename)s:29:31

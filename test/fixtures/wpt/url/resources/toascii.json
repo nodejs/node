@@ -1,0 +1,378 @@
+[
+  "This contains assorted IDNA tests that IdnaTestV2 might not cover.",
+  "Feel free to deduplicate with a clear commit message.",
+  "",
+  "If the test only applies to the URL Standard's 'domain to ASCII', ",
+  "and not to TR46's ToASCII, then tag it with `urlStandardOnly`",
+  {
+    "comment": "Label with hyphens in 3rd and 4th position",
+    "input": "aa--",
+    "output": "aa--"
+  },
+  {
+    "input": "a†--",
+    "output": "xn--a---kp0a"
+  },
+  {
+    "input": "ab--c",
+    "output": "ab--c"
+  },
+  {
+    "comment": "Label with leading hyphen",
+    "input": "-x",
+    "output": "-x"
+  },
+  {
+    "input": "-†",
+    "output": "xn----xhn"
+  },
+  {
+    "input": "-x.xn--zca",
+    "output": "-x.xn--zca"
+  },
+  {
+    "input": "-x.ß",
+    "output": "-x.xn--zca"
+  },
+  {
+    "comment": "Label with trailing hyphen",
+    "input": "x-.xn--zca",
+    "output": "x-.xn--zca"
+  },
+  {
+    "input": "x-.ß",
+    "output": "x-.xn--zca"
+  },
+  {
+    "comment": "Empty labels",
+    "input": "x..xn--zca",
+    "output": "x..xn--zca"
+  },
+  {
+    "input": "x..ß",
+    "output": "x..xn--zca"
+  },
+  {
+    "comment": "Invalid Punycode",
+    "input": "xn--a",
+    "output": null
+  },
+  {
+    "input": "xn--a.xn--zca",
+    "output": null
+  },
+  {
+    "input": "xn--a.ß",
+    "output": null
+  },
+  {
+    "input": "xn--ls8h=",
+    "output": null
+  },
+  {
+    "comment": "Invalid Punycode (contains non-ASCII character)",
+    "input": "xn--tešla",
+    "output": null
+  },
+  {
+    "comment": "Valid Punycode",
+    "input": "xn--zca.xn--zca",
+    "output": "xn--zca.xn--zca"
+  },
+  {
+    "comment": "Mixed",
+    "input": "xn--zca.ß",
+    "output": "xn--zca.xn--zca"
+  },
+  {
+    "input": "ab--c.xn--zca",
+    "output": "ab--c.xn--zca"
+  },
+  {
+    "input": "ab--c.ß",
+    "output": "ab--c.xn--zca"
+  },
+  {
+    "comment": "CheckJoiners is true",
+    "input": "\u200D.example",
+    "output": null
+  },
+  {
+    "input": "xn--1ug.example",
+    "output": null
+  },
+  {
+    "comment": "CheckBidi is true",
+    "input": "يa",
+    "output": null
+  },
+  {
+    "input": "xn--a-yoc",
+    "output": null
+  },
+  {
+    "comment": "processing_option is Nontransitional_Processing",
+    "input": "ශ්‍රී",
+    "output": "xn--10cl1a0b660p"
+  },
+  {
+    "input": "نامه‌ای",
+    "output": "xn--mgba3gch31f060k"
+  },
+  {
+    "comment": "U+FFFD",
+    "input": "\uFFFD.com",
+    "output": null
+  },
+  {
+    "comment": "U+FFFD character encoded in Punycode",
+    "input": "xn--zn7c.com",
+    "output": null
+  },
+  {
+    "comment": "Label longer than 63 code points",
+    "input": "x01234567890123456789012345678901234567890123456789012345678901x",
+    "output": "x01234567890123456789012345678901234567890123456789012345678901x"
+  },
+  {
+    "input": "x01234567890123456789012345678901234567890123456789012345678901†",
+    "output": "xn--x01234567890123456789012345678901234567890123456789012345678901-6963b"
+  },
+  {
+    "input": "x01234567890123456789012345678901234567890123456789012345678901x.xn--zca",
+    "output": "x01234567890123456789012345678901234567890123456789012345678901x.xn--zca"
+  },
+  {
+    "input": "x01234567890123456789012345678901234567890123456789012345678901x.ß",
+    "output": "x01234567890123456789012345678901234567890123456789012345678901x.xn--zca"
+  },
+  {
+    "comment": "Domain excluding TLD longer than 253 code points",
+    "input": "01234567890123456789012345678901234567890123456789.01234567890123456789012345678901234567890123456789.01234567890123456789012345678901234567890123456789.01234567890123456789012345678901234567890123456789.0123456789012345678901234567890123456789012345678.x",
+    "output": "01234567890123456789012345678901234567890123456789.01234567890123456789012345678901234567890123456789.01234567890123456789012345678901234567890123456789.01234567890123456789012345678901234567890123456789.0123456789012345678901234567890123456789012345678.x"
+  },
+  {
+    "input": "01234567890123456789012345678901234567890123456789.01234567890123456789012345678901234567890123456789.01234567890123456789012345678901234567890123456789.01234567890123456789012345678901234567890123456789.0123456789012345678901234567890123456789012345678.xn--zca",
+    "output": "01234567890123456789012345678901234567890123456789.01234567890123456789012345678901234567890123456789.01234567890123456789012345678901234567890123456789.01234567890123456789012345678901234567890123456789.0123456789012345678901234567890123456789012345678.xn--zca"
+  },
+  {
+    "input": "01234567890123456789012345678901234567890123456789.01234567890123456789012345678901234567890123456789.01234567890123456789012345678901234567890123456789.01234567890123456789012345678901234567890123456789.0123456789012345678901234567890123456789012345678.ß",
+    "output": "01234567890123456789012345678901234567890123456789.01234567890123456789012345678901234567890123456789.01234567890123456789012345678901234567890123456789.01234567890123456789012345678901234567890123456789.0123456789012345678901234567890123456789012345678.xn--zca"
+  },
+  {
+    "comment": "IDNA ignored code points",
+    "input": "a\u00ADb",
+    "output": "ab"
+  },
+  {
+    "comment": "Interesting UseSTD3ASCIIRules=false cases",
+    "input": "≠",
+    "output": "xn--1ch"
+  },
+  {
+    "input": "≮",
+    "output": "xn--gdh"
+  },
+  {
+    "input": "≯",
+    "output": "xn--hdh"
+  },
+  {
+    "comment": "NFC normalization (forbidden < and > characters are normalized to valid ones)",
+    "input": "=\u0338",
+    "output": "xn--1ch"
+  },
+  {
+    "input": "<\u0338",
+    "output": "xn--gdh"
+  },
+  {
+    "input": ">\u0338",
+    "output": "xn--hdh"
+  },
+  {
+    "comment": "Same with inserted IDNA ignored code point",
+    "input": "=\u00AD\u0338",
+    "output": "xn--1ch"
+  },
+  {
+    "input": "<\u00AD\u0338",
+    "output": "xn--gdh"
+  },
+  {
+    "input": ">\u00AD\u0338",
+    "output": "xn--hdh"
+  },
+  "Tests below are from WebKit (fast/url/idna2003.html & fast/url/idna2008.html; contributed by Chris Weber back in 2011).",
+  {
+    "input": "fa\u00DF.de",
+    "output": "xn--fa-hia.de"
+  },
+  {
+    "input": "\u03B2\u03CC\u03BB\u03BF\u03C2.com",
+    "output": "xn--nxasmm1c.com"
+  },
+  {
+    "input": "\u0DC1\u0DCA\u200D\u0DBB\u0DD3.com",
+    "output": "xn--10cl1a0b660p.com"
+  },
+  {
+    "input": "\u0646\u0627\u0645\u0647\u200C\u0627\u06CC.com",
+    "output": "xn--mgba3gch31f060k.com"
+  },
+  {
+    "input": "www.loo\u0138out.net",
+    "output": "www.xn--looout-5bb.net"
+  },
+  {
+    "input": "\u15EF\u15EF\u15EF.lookout.net",
+    "output": "xn--1qeaa.lookout.net"
+  },
+  {
+    "input": "www.lookout.\u0441\u043E\u043C",
+    "output": "www.lookout.xn--l1adi"
+  },
+  {
+    "input": "www\u2025lookout.net",
+    "output": null
+  },
+  {
+    "input": "www.lookout\u2027net",
+    "output": "www.xn--lookoutnet-406e"
+  },
+  {
+    "input": "www.lookout.net\u2A7480",
+    "output": null,
+    "urlStandardOnly": true
+  },
+  {
+    "input": "www\u00A0.lookout.net",
+    "output": null,
+    "urlStandardOnly": true
+  },
+  {
+    "input": "\u1680lookout.net",
+    "output": null
+  },
+  {
+    "input": "\u001flookout.net",
+    "output": null,
+    "urlStandardOnly": true
+  },
+  {
+    "input": "look\u06DDout.net",
+    "output": null
+  },
+  {
+    "input": "look\u180Eout.net",
+    "output": "lookout.net"
+  },
+  {
+    "input": "look\u2060out.net",
+    "output": "lookout.net"
+  },
+  {
+    "input": "look\uFEFFout.net",
+    "output": "lookout.net"
+  },
+  {
+    "input": "look\uD83F\uDFFEout.net",
+    "output": null
+  },
+  {
+    "input": "look\uFFFAout.net",
+    "output": null
+  },
+  {
+    "input": "look\u2FF0out.net",
+    "output": null
+  },
+  {
+    "input": "look\u0341out.net",
+    "output": "xn--looout-kp7b.net"
+  },
+  {
+    "input": "look\u202Eout.net",
+    "output": null
+  },
+  {
+    "input": "look\u206Bout.net",
+    "output": "lookout.net"
+  },
+  {
+    "input": "look\uDB40\uDC01out.net",
+    "output": null
+  },
+  {
+    "input": "look\uDB40\uDC20out.net",
+    "output": null
+  },
+  {
+    "input": "look\u05BEout.net",
+    "output": null
+  },
+  {
+    "input": "B\u00FCcher.de",
+    "output": "xn--bcher-kva.de"
+  },
+  {
+    "input": "\u2665.net",
+    "output": "xn--g6h.net"
+  },
+  {
+    "input": "\u0378.net",
+    "output": null
+  },
+  {
+    "input": "\u04C0.com",
+    "output": "xn--s5a.com"
+  },
+  {
+    "input": "\uD87E\uDC68.com",
+    "output": "xn--snl.com"
+  },
+  {
+    "input": "\u2183.com",
+    "output": "xn--r5g.com"
+  },
+  {
+    "input": "look\u034Fout.net",
+    "output": "lookout.net"
+  },
+  {
+    "input": "gOoGle.com",
+    "output": "google.com"
+  },
+  {
+    "input": "\u09dc.com",
+    "output": "xn--15b8c.com"
+  },
+  {
+    "input": "\u1E9E.com",
+    "output": "xn--zca.com"
+  },
+  {
+    "input": "\u1E9E.foo.com",
+    "output": "xn--zca.foo.com"
+  },
+  {
+    "input": "-foo.bar.com",
+    "output": "-foo.bar.com"
+  },
+  {
+    "input": "foo-.bar.com",
+    "output": "foo-.bar.com"
+  },
+  {
+    "input": "ab--cd.com",
+    "output": "ab--cd.com"
+  },
+  {
+    "input": "xn--0.com",
+    "output": null
+  },
+  {
+    "input": "foo\u0300.bar.com",
+    "output": "xn--fo-3ja.bar.com"
+  }
+]

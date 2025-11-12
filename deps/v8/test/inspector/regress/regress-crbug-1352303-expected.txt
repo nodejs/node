@@ -1,0 +1,8 @@
+Don't crash when creating a new var in a module via Debugger.evaluateOnCallFrame
+{
+    className : EvalError
+    description : EvalError: Identifier 'test' cannot be declared with 'var' in current evaluation scope, consider trying 'let' instead     at eval (eval at foo (module1:2:48), <anonymous>:1:1)     at foo (module1:2:48)     at module1:2:60
+    objectId : <objectId>
+    subtype : error
+    type : object
+}

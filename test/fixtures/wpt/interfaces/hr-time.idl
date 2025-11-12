@@ -1,0 +1,19 @@
+// GENERATED CONTENT - DO NOT EDIT
+// Content was automatically extracted by Reffy into webref
+// (https://github.com/w3c/webref)
+// Source: High Resolution Time (https://w3c.github.io/hr-time/)
+
+typedef double DOMHighResTimeStamp;
+
+typedef unsigned long long EpochTimeStamp;
+
+[Exposed=(Window,Worker)]
+interface Performance : EventTarget {
+    DOMHighResTimeStamp now();
+    readonly attribute DOMHighResTimeStamp timeOrigin;
+    [Default] object toJSON();
+};
+
+partial interface mixin WindowOrWorkerGlobalScope {
+  [Replaceable] readonly attribute Performance performance;
+};

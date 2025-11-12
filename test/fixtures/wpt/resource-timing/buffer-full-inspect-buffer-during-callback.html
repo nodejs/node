@@ -1,0 +1,30 @@
+<!DOCTYPE HTML>
+<html>
+<head onload>
+<meta charset="utf-8" />
+<title>This test validates the buffer doesn't contain more entries than it should inside onresourcetimingbufferfull callback.</title>
+<link rel="author" title="Google" href="http://www.google.com/" />
+<link rel="help" href="https://www.w3.org/TR/resource-timing-2/#dom-performance-setresourcetimingbuffersize"/>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/resource-loaders.js"></script>
+<script src="resources/buffer-full-utilities.js"></script>
+</head>
+<body>
+<script>
+promise_test(async t => {
+    performance.addEventListener('resourcetimingbufferfull', t.step_func(() => {
+        assert_equals(performance.getEntriesByType("resource").length, 1,
+            "resource timing buffer in resourcetimingbufferfull is the size of the limit");
+        load.xhr_sync(scriptResources[2]);
+        performance.setResourceTimingBufferSize(3);
+        assert_equals(performance.getEntriesByType("resource").length, 1,
+            "A sync request must not be added to the primary buffer just yet, because it is full");
+    }));
+    await forceBufferFullEvent();
+    await waitForNextTask();
+    checkEntries(3);
+}, "Test that entries in the secondary buffer are not exposed during the callback and before they are copied to the primary buffer");
+</script>
+</body>
+</html>

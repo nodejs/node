@@ -1,0 +1,21 @@
+Regression test for crbug.com/1140845. Check that a "then" getter on the object prototype does not crash V8
+Evaluating a simple string 'foo' without side-effects should give us the string.
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : string
+            value : foo
+        }
+    }
+}
+Evaluating a simple string 'foo' with side-effets should give us the string.
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : string
+            value : foo
+        }
+    }
+}

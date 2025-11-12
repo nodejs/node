@@ -1,0 +1,9 @@
+Regression test for crbug/1199919
+
+Running test: testDefaultParameter
+defaultParameter (v8://test.js:2:2)
+(anonymous) (:0:0)
+
+Running test: testDestructuringParameter
+destructuringParameter (v8://test.js:6:2)
+(anonymous) (:0:0)

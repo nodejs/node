@@ -1,0 +1,149 @@
+Checks that debugger agent uses source content to restore breakpoints.
+
+Running test: testSameSource
+function foo() {
+#boo();
+}
+function foo() {
+#boo();
+}
+
+Running test: testSameSourceDuplicateLines
+function foo() {
+boo();
+// something
+#boo();
+}
+function foo() {
+boo();
+// something
+#boo();
+}
+
+Running test: testSameSourceDuplicateLinesLongLineBetween
+function foo() {
+boo();
+/////////////////////////////////////////////////////////////////////////////...
+#boo();
+}
+function foo() {
+boo();
+/////////////////////////////////////////////////////////////////////////////...
+#boo();
+}
+
+Running test: testSameSourceLongCommentBefore
+/////////////////////////////////////////////////////////////////////////////...
+function foo() {
+bad();
+#boo();
+}
+/////////////////////////////////////////////////////////////////////////////...
+function foo() {
+bad();
+#boo();
+}
+
+Running test: testInsertNewLineWithLongCommentBefore
+/////////////////////////////////////////////////////////////////////////////...
+function foo() {
+boo();
+#boo();
+}
+/////////////////////////////////////////////////////////////////////////////...
+function foo() {
+boo();
+
+#boo();
+}
+
+Running test: testSameSourceBreakAfterReturnWithWhitespace
+function baz() {
+}
+
+function foo() {
+return 1;#                              }
+function baz() {
+}
+
+function foo() {
+return 1;#                              }
+
+Running test: testSameSourceDuplicateLinesDifferentPrefix
+function foo() {
+boo();
+// something
+#boo();
+}
+function foo() {
+#boo();
+// somethinX
+boo();
+}
+
+Running test: testOneLineOffset
+function foo() {
+#boo();
+}
+function foo() {
+#boo();
+boo();
+}
+
+Running test: testTwoSimilarLinesCloseToOriginalLocation1
+function foo() {
+
+
+#boo();
+}
+function foo() {
+#boo();
+
+newCode();
+boo();
+
+
+
+boo();
+}
+
+Running test: testTwoSimilarLinesCloseToOriginalLocation2
+function foo() {
+
+
+#boo();
+}
+function foo() {
+boo();
+newLongCode();
+newCode();
+#boo();
+
+
+
+boo();
+}
+
+Running test: testHintIgnoreWhiteSpaces
+function foo() {
+
+
+
+#boo();
+}
+function foo() {
+foo();
+
+
+#boo();
+}
+
+Running test: testCheckOnlyLimitedOffsets
+function foo() {
+#boo();
+}
+function foo() {
+#newCode();
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;...
+boo();
+}

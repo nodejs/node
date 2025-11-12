@@ -1,0 +1,4 @@
+*%(basename)s:7: SyntaxError: Rest parameter must be last formal parameter
+function foo(...b, a) { return a }
+                 ^
+SyntaxError: Rest parameter must be last formal parameter

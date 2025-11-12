@@ -1,0 +1,169 @@
+Tests for stepInto out different places.
+
+Running test: testStepInOutBranch
+
+      function a() { #b(false); c(); };
+      function b(x) { if (x) { c(); }};
+
+      function a() { b(false); c(); };
+      function b(x) { #if (x) { c(); }};
+      function c() {};
+
+      function a() { b(false); c(); };
+      function b(x) { if (x) { c(); }#};
+      function c() {};
+
+
+      function a() { b(false); #c(); };
+      function b(x) { if (x) { c(); }};
+
+      function b(x) { if (x) { c(); }};
+      function c() {#};
+      a(); b(); c();
+
+
+      function a() { b(false); c(); #};
+      function b(x) { if (x) { c(); }};
+
+
+Running test: testStepInOutTree
+use stepInto..
+
+      function a() { #b(c(d()), d()); c(d()); d(); };
+      function b(x,y) { c(); };
+
+      function c(x) {};
+      function d() {#};
+      a(); b(); c(); d();
+
+
+      function a() { b(#c(d()), d()); c(d()); d(); };
+      function b(x,y) { c(); };
+
+      function b(x,y) { c(); };
+      function c(x) {#};
+      function d() {};
+
+
+      function a() { b(c(d()), #d()); c(d()); d(); };
+      function b(x,y) { c(); };
+
+      function c(x) {};
+      function d() {#};
+      a(); b(); c(); d();
+
+
+      function a() { #b(c(d()), d()); c(d()); d(); };
+      function b(x,y) { c(); };
+
+      function a() { b(c(d()), d()); c(d()); d(); };
+      function b(x,y) { #c(); };
+      function c(x) {};
+
+      function b(x,y) { c(); };
+      function c(x) {#};
+      function d() {};
+
+      function a() { b(c(d()), d()); c(d()); d(); };
+      function b(x,y) { c(); #};
+      function c(x) {};
+
+
+      function a() { b(c(d()), d()); #c(d()); d(); };
+      function b(x,y) { c(); };
+
+      function c(x) {};
+      function d() {#};
+      a(); b(); c(); d();
+
+
+      function a() { b(c(d()), d()); #c(d()); d(); };
+      function b(x,y) { c(); };
+
+      function b(x,y) { c(); };
+      function c(x) {#};
+      function d() {};
+
+
+      function a() { b(c(d()), d()); c(d()); #d(); };
+      function b(x,y) { c(); };
+
+      function c(x) {};
+      function d() {#};
+      a(); b(); c(); d();
+
+
+      function a() { b(c(d()), d()); c(d()); d(); #};
+      function b(x,y) { c(); };
+
+use stepOver..
+
+      function a() { #b(c(d()), d()); c(d()); d(); };
+      function b(x,y) { c(); };
+
+
+      function a() { b(c(d()), d()); #c(d()); d(); };
+      function b(x,y) { c(); };
+
+
+      function a() { b(c(d()), d()); c(d()); #d(); };
+      function b(x,y) { c(); };
+
+
+      function a() { b(c(d()), d()); c(d()); d(); #};
+      function b(x,y) { c(); };
+
+use stepOut..
+
+      function a() { #b(c(d()), d()); c(d()); d(); };
+      function b(x,y) { c(); };
+
+
+Running test: testStepInOutSimple
+use stepInto..
+
+      function a() { #b(); c(); }
+      function b() { c(); }
+
+      function a() { b(); c(); }
+      function b() { #c(); }
+      function c() {}
+
+      function b() { c(); }
+      function c() {#}
+      a(); b(); c();
+
+      function a() { b(); c(); }
+      function b() { c(); #}
+      function c() {}
+
+
+      function a() { b(); #c(); }
+      function b() { c(); }
+
+      function b() { c(); }
+      function c() {#}
+      a(); b(); c();
+
+
+      function a() { b(); c(); #}
+      function b() { c(); }
+
+use stepOver..
+
+      function a() { #b(); c(); }
+      function b() { c(); }
+
+
+      function a() { b(); #c(); }
+      function b() { c(); }
+
+
+      function a() { b(); c(); #}
+      function b() { c(); }
+
+use stepOut..
+
+      function a() { #b(); c(); }
+      function b() { c(); }
+

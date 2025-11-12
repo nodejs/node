@@ -1,0 +1,4 @@
+{
+  "crash_type": "DCHECK failure",
+  "crash_state": "!has_optimized_code() || optimized_code().marked_for_deoptimization() || (CodeKi"
+}

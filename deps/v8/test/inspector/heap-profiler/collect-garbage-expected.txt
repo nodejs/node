@@ -1,0 +1,4 @@
+Tests collectGarbage.
+
+Running test: testCollectGarbage
+WeakRef state: WeakRef is cleared after GC.

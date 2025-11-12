@@ -1,0 +1,8 @@
+{
+  "type":"ArrowFunctionExpression",
+  "source":"async (...VAR_68) => { const VAR_69 = 0; }",
+  "isStatement":true,
+  "originalPath":"foo",
+  "dependencies":["VAR_68","VAR_69"],
+  "needsSuper":false
+}
