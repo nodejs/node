@@ -2563,6 +2563,13 @@ assert.strictEqual(
   assert.strictEqual(
     inspect({
       // eslint-disable-next-line no-throw-literal
+      get foo() { throw undefined; }
+    }, { getters: true }),
+    '{ foo: [Getter: <Inspection threw>] }'
+  );
+  assert.strictEqual(
+    inspect({
+      // eslint-disable-next-line no-throw-literal
       get foo() { throw true; }
     }, { getters: true }),
     '{ foo: [Getter: <Inspection threw>] }'
