@@ -689,6 +689,7 @@ test('spies on a function', () => {
 });
 ```
 
+
 The same mocking functionality is also exposed on the [`TestContext`][] object
 of each test. The following example creates a spy on an object method using the
 API exposed on the `TestContext`. The benefit of mocking via the test context is
@@ -715,6 +716,26 @@ test('spies on an object method', (t) => {
   assert.strictEqual(call.result, 8);
   assert.strictEqual(call.target, undefined);
   assert.strictEqual(call.this, number);
+});
+```
+
+### Mocking Errors and Testing for Thrown Errors
+
+To test error scenarios, you can mock functions or methods to throw errors and then assert that the errors are thrown.
+
+```js
+import assert from 'node:assert';
+import test from 'node:test';
+
+test('mocked function throws error', (t) => {
+  const errorFn = t.mock.fn(() => { throw new Error('fail!'); });
+  assert.throws(errorFn, /fail!/);
+});
+
+test('mocked object method throws error', (t) => {
+  const obj = { method: () => 'ok' };
+  t.mock.method(obj, 'method', () => { throw new Error('oops'); });
+  assert.throws(() => obj.method(), /oops/);
 });
 ```
 
