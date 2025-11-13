@@ -17,31 +17,34 @@ function skip(...files) {
 }
 
 if (!hasOpenSSL(3, 0)) {
-  skip('encrypt_decrypt/aes_ocb.tentative.https.any.js');
-  skip('generateKey/failures_AES-OCB.tentative.https.any.js');
-  skip('generateKey/failures_kmac.tentative.https.any.js');
-  skip('generateKey/successes_AES-OCB.tentative.https.any.js');
-  skip('generateKey/successes_kmac.tentative.https.any.js');
-  skip('import_export/AES-OCB_importKey.tentative.https.any.js');
-  skip('import_export/KMAC_importKey.tentative.https.any.js');
-  skip('sign_verify/kmac.tentative.https.any.js');
+  skip(
+    'encrypt_decrypt/aes_ocb.tentative.https.any.js',
+    'generateKey/failures_AES-OCB.tentative.https.any.js',
+    'generateKey/failures_kmac.tentative.https.any.js',
+    'generateKey/successes_AES-OCB.tentative.https.any.js',
+    'generateKey/successes_kmac.tentative.https.any.js',
+    'import_export/AES-OCB_importKey.tentative.https.any.js',
+    'import_export/KMAC_importKey.tentative.https.any.js',
+    'sign_verify/kmac.tentative.https.any.js');
 }
 
 if (!hasOpenSSL(3, 2)) {
-  skip('derive_bits_keys/argon2.tentative.https.any.js');
-  skip('import_export/Argon2_importKey.tentative.https.any.js');
+  skip(
+    'derive_bits_keys/argon2.tentative.https.any.js',
+    'import_export/Argon2_importKey.tentative.https.any.js');
 }
 
 if (!hasOpenSSL(3, 5)) {
-  skip('encap_decap/encap_decap_bits.tentative.https.any.js');
-  skip('encap_decap/encap_decap_keys.tentative.https.any.js');
-  skip('generateKey/failures_ML-DSA.tentative.https.any.js');
-  skip('generateKey/failures_ML-KEM.tentative.https.any.js');
-  skip('generateKey/successes_ML-DSA.tentative.https.any.js');
-  skip('generateKey/successes_ML-KEM.tentative.https.any.js');
-  skip('import_export/ML-DSA_importKey.tentative.https.any.js');
-  skip('import_export/ML-KEM_importKey.tentative.https.any.js');
-  skip('sign_verify/mldsa.tentative.https.any.js');
+  skip(
+    'encap_decap/encap_decap_bits.tentative.https.any.js',
+    'encap_decap/encap_decap_keys.tentative.https.any.js',
+    'generateKey/failures_ML-DSA.tentative.https.any.js',
+    'generateKey/failures_ML-KEM.tentative.https.any.js',
+    'generateKey/successes_ML-DSA.tentative.https.any.js',
+    'generateKey/successes_ML-KEM.tentative.https.any.js',
+    'import_export/ML-DSA_importKey.tentative.https.any.js',
+    'import_export/ML-KEM_importKey.tentative.https.any.js',
+    'sign_verify/mldsa.tentative.https.any.js');
 }
 
 module.exports = {
