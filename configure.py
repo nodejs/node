@@ -1478,8 +1478,8 @@ def host_arch_win():
   return matchup.get(arch, 'x64')
 
 def set_configuration_variable(configs, name, release=None, debug=None):
-  configs['Release'][name] = release
-  configs['Debug'][name] = debug
+  configs['Release']['variables'][name] = release
+  configs['Debug']['variables'][name] = debug
 
 def configure_arm(o):
   if options.arm_float_abi:
@@ -1560,6 +1560,7 @@ def configure_node(o):
   o['variables']['control_flow_guard'] = b(options.enable_cfg)
   o['variables']['node_use_amaro'] = b(not options.without_amaro)
   o['variables']['debug_node'] = b(options.debug_node)
+  o['variables']['build_type%'] = 'Debug' if options.debug else 'Release'
   o['default_configuration'] = 'Debug' if options.debug else 'Release'
   if options.error_on_warn and options.suppress_all_error_on_warn:
     raise Exception('--error_on_warn is incompatible with --suppress_all_error_on_warn.')
@@ -1808,6 +1809,11 @@ def configure_library(lib, output, pkgname=None):
       output['libraries'] += default_libs
     elif pkg_libs:
       output['libraries'] += pkg_libs.split()
+
+
+def configure_rust(o, configs):
+  set_configuration_variable(configs, 'cargo_build_mode', release='release', debug='debug')
+  set_configuration_variable(configs, 'cargo_build_flags', release=['--release'], debug=[])
 
 
 def configure_v8(o, configs):
@@ -2364,6 +2370,7 @@ output = {
   'libraries': [],
   'defines': [],
   'cflags': [],
+  'conditions': [],
 }
 configurations = {
   'Release': { 'variables': {} },
@@ -2405,6 +2412,7 @@ configure_intl(output)
 configure_static(output)
 configure_inspector(output)
 configure_section_file(output)
+configure_rust(output, configurations)
 
 # remove builtins that have been disabled
 if options.without_amaro:
@@ -2426,6 +2434,17 @@ output['variables']['ossfuzz'] = b(options.ossfuzz)
 # move everything else to target_defaults
 variables = output['variables']
 del output['variables']
+
+# move configurations[*]['variables'] to conditions variables
+config_release_vars = configurations['Release']['variables']
+del configurations['Release']['variables']
+config_debug_vars = configurations['Debug']['variables']
+del configurations['Debug']['variables']
+output['conditions'].append(['build_type=="Release"', {
+  'variables': config_release_vars,
+}, {
+  'variables': config_debug_vars,
+}])
 
 # make_global_settings should be a root level element too
 if 'make_global_settings' in output:
