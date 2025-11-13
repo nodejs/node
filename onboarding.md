@@ -8,8 +8,8 @@ onboarding session.
 * If the new Collaborator is not yet a member of the nodejs GitHub organization,
   confirm that they are using [two-factor authentication][]. It will not be
   possible to add them to the organization if they are not using two-factor
-  authentication. If they cannot receive SMS messages from GitHub, try
-  [using a TOTP mobile app][].
+  authentication. Ask them to use secure two-factor methods: authenticator apps,
+  passkeys, security keys, and/or the GitHub mobile app.
 * Suggest the new Collaborator install [`@node-core/utils`][] and
   [set up the credentials][] for it.
 
