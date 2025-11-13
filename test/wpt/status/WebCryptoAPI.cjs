@@ -12,7 +12,7 @@ function skip(...files) {
   for (const file of files) {
     conditionalSkips[file] = {
       'skip': `Unsupported in OpenSSL ${process.versions.openssl}`,
-    }
+    };
   }
 }
 
