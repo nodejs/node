@@ -303,5 +303,4 @@ needs to be pointed out separately during the onboarding.
 [set up the credentials]: https://github.com/nodejs/node-core-utils#setting-up-github-credentials
 [static-analysis]: doc/contributing/static-analysis.md
 [two-factor authentication]: https://help.github.com/articles/securing-your-account-with-two-factor-authentication-2fa/
-[using a TOTP mobile app]: https://help.github.com/articles/configuring-two-factor-authentication-via-a-totp-mobile-app/
 [who-to-cc]: doc/contributing/collaborator-guide.md#who-to-cc-in-the-issue-tracker
