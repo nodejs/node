@@ -36,6 +36,17 @@ const bits = ['arm64', 'loong64', 'mips', 'mipsel', 'ppc64', 'riscv64', 's390x',
   .includes(process.arch) ? 64 : 32;
 const hasIntl = !!process.config.variables.v8_enable_i18n_support;
 
+// small-icu doesn't support non-English locales
+const hasFullICU = (() => {
+  try {
+    const january = new Date(9e8);
+    const spanish = new Intl.DateTimeFormat('es', { month: 'long' });
+    return spanish.format(january) === 'enero';
+  } catch {
+    return false;
+  }
+})();
+
 const {
   atob,
   btoa,
@@ -936,6 +947,7 @@ const common = {
   getBufferSources,
   getTTYfd,
   hasIntl,
+  hasFullICU,
   hasCrypto,
   hasQuic,
   hasInspector,
