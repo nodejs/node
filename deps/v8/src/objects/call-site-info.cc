@@ -424,6 +424,9 @@ Tagged<PrimitiveHeapObject> InferMethodName(Isolate* isolate,
   for (PrototypeIterator it(isolate, receiver, kStartAtReceiver); !it.IsAtEnd();
        it.Advance()) {
     auto current = it.GetCurrent();
+#if V8_ENABLE_WEBASSEMBLY
+    if (IsWasmObject(current)) continue;
+#endif  // V8_ENABLE_WEBASSEMBLY
     if (!IsJSObject(current)) break;
     auto object = Cast<JSObject>(current);
     if (IsAccessCheckNeeded(object)) break;

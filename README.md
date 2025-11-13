@@ -345,6 +345,8 @@ For information about the governance of the Node.js project, see
   **Harshitha K P** <<harshitha014@gmail.com>> (she/her)
 * [himself65](https://github.com/himself65) -
   **Zeyu "Alex" Yang** <<himself65@outlook.com>> (he/him)
+* [hybrist](https://github.com/hybrist) -
+  **Jan Martin** <<jan.krems@gmail.com>> (he/him)
 * [IlyasShabi](https://github.com/IlyasShabi) -
   **Ilyas Shabi** <<ilyasshabi94@gmail.com>> (he/him)
 * [islandryu](https://github.com/islandryu) -
@@ -357,8 +359,6 @@ For information about the governance of the Node.js project, see
   **James M Snell** <<jasnell@gmail.com>> (he/him)
 * [jazelly](https://github.com/jazelly) -
   **Jason Zhang** <<xzha4350@gmail.com>> (he/him)
-* [jkrems](https://github.com/jkrems) -
-  **Jan Martin** <<jan.krems@gmail.com>> (he/him)
 * [JonasBa](https://github.com/JonasBa) -
   **Jonas Badalic** <<jonas.badalic@gmail.com>> (he/him)
 * [joyeecheung](https://github.com/joyeecheung) -
@@ -755,6 +755,8 @@ maintaining the Node.js project.
   **Gireesh Punathil** <<gpunathi@in.ibm.com>> (he/him)
 * [gurgunday](https://github.com/gurgunday) -
   **Gürgün Dayıoğlu** <<hey@gurgun.day>>
+* [haramj](https://github.com/haramj) -
+  **Haram Jeong** <<haramj.dev@gmail.com>>
 * [HBSPS](https://github.com/HBSPS) -
   **Wiyeong Seo** <<hbsps.dev@gmail.com>>
 * [iam-frankqiu](https://github.com/iam-frankqiu) -

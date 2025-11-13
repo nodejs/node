@@ -1,7 +1,9 @@
 #include "async_context_frame.h"
 #include "async_wrap-inl.h"
 #include "env-inl.h"
+#ifndef NAPI_EXPERIMENTAL
 #define NAPI_EXPERIMENTAL
+#endif
 #include "js_native_api_v8.h"
 #include "memory_tracker-inl.h"
 #include "node_api.h"

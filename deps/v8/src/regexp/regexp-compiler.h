@@ -276,9 +276,19 @@ class Trace {
     // ignored and need not be written.
     kFlushSuccess
   };
-  void Flush(RegExpCompiler* compiler, RegExpNode* successor,
-             FlushMode mode = kFlushFull);
+  EmitResult Flush(RegExpCompiler* compiler, RegExpNode* successor,
+                   FlushMode mode = kFlushFull);
+
+  // Some callers add/subtract 1 from cp_offset, assuming that the result is
+  // still valid. That's obviously not the case when our `cp_offset` is only
+  // checked against kMinCPOffset/kMaxCPOffset, so we need to apply the some
+  // slack.
+  // TODO(jgruber): It would be better if all callers checked against limits
+  // themselves when doing so; but unfortunately not all callers have
+  // abort-compilation mechanisms.
+  static constexpr int kCPOffsetSlack = 1;
   int cp_offset() const { return cp_offset_; }
+
   // Does any trace in the chain have an action?
   bool has_any_actions() const { return has_any_actions_; }
   // Does this particular trace object have an action?
@@ -335,7 +345,7 @@ class Trace {
     quick_check_performed_ = *d;
   }
   void InvalidateCurrentCharacter();
-  void AdvanceCurrentPositionInTrace(int by, RegExpCompiler* compiler);
+  EmitResult AdvanceCurrentPositionInTrace(int by, RegExpCompiler* compiler);
   const Trace* next() const { return next_; }
 
   class ConstIterator final {
@@ -551,6 +561,7 @@ class RegExpCompiler {
   inline void set_flags(RegExpFlags flags) { flags_ = flags; }
 
   void SetRegExpTooBig() { reg_exp_too_big_ = true; }
+  bool IsRegExpTooBig() const { return reg_exp_too_big_; }
 
   inline bool one_byte() { return one_byte_; }
   inline bool optimize() { return optimize_; }

@@ -133,7 +133,7 @@ static bool supportsSTFLE() {
         bytes_read = read(fd, buffer, sizeof(buffer));
         // Locate and read the platform field of AUXV if it is in the chunk
         for (auxv_element = buffer;
-             auxv_element + sizeof(auxv_element) <= buffer + bytes_read &&
+             auxv_element < buffer + (bytes_read / sizeof(Elf64_auxv_t)) &&
              auxv_element->a_type != AT_NULL;
              auxv_element++) {
           // We are looking for HWCAP entry in AUXV to search for STFLE support

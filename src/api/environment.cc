@@ -6,6 +6,7 @@
 #include "node.h"
 #include "node_builtins.h"
 #include "node_context_data.h"
+#include "node_debug.h"
 #include "node_errors.h"
 #include "node_exit_code.h"
 #include "node_internals.h"
@@ -112,10 +113,13 @@ MaybeLocal<Value> PrepareStackTraceCallback(Local<Context> context,
 
 void* NodeArrayBufferAllocator::Allocate(size_t size) {
   void* ret;
-  if (zero_fill_field_ || per_process::cli_options->zero_fill_all_buffers)
+  if (zero_fill_field_ || per_process::cli_options->zero_fill_all_buffers) {
+    COUNT_GENERIC_USAGE("NodeArrayBufferAllocator.Allocate.ZeroFilled");
     ret = allocator_->Allocate(size);
-  else
+  } else {
+    COUNT_GENERIC_USAGE("NodeArrayBufferAllocator.Allocate.Uninitialized");
     ret = allocator_->AllocateUninitialized(size);
+  }
   if (ret != nullptr) [[likely]] {
     total_mem_usage_.fetch_add(size, std::memory_order_relaxed);
   }
@@ -123,6 +127,7 @@ void* NodeArrayBufferAllocator::Allocate(size_t size) {
 }
 
 void* NodeArrayBufferAllocator::AllocateUninitialized(size_t size) {
+  COUNT_GENERIC_USAGE("NodeArrayBufferAllocator.Allocate.Uninitialized");
   void* ret = allocator_->AllocateUninitialized(size);
   if (ret != nullptr) [[likely]] {
     total_mem_usage_.fetch_add(size, std::memory_order_relaxed);
@@ -218,8 +223,6 @@ void SetIsolateCreateParamsForNode(Isolate::CreateParams* params) {
     // heap based on the actual physical memory.
     params->constraints.ConfigureDefaults(total_memory, 0);
   }
-  params->embedder_wrapper_object_index = BaseObject::InternalFields::kSlot;
-  params->embedder_wrapper_type_index = std::numeric_limits<int>::max();
 
 #ifdef NODE_ENABLE_VTUNE_PROFILING
   params->code_event_handler = vTune::GetVtuneCodeEventHandler();
@@ -909,7 +912,7 @@ Maybe<void> InitializePrimordials(Local<Context> context,
         exports, primordials, private_symbols, per_isolate_symbols};
 
     if (builtin_loader
-            .CompileAndCall(
+            .CompileAndCallWith(
                 context, *module, arraysize(arguments), arguments, nullptr)
             .IsEmpty()) {
       // Execution failed during context creation.

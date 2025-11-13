@@ -10,28 +10,44 @@ const bench = common.createBenchmark(main, {
     'dirname-and-filename',
     'dirname',
     'filename',
+    'url',
   ],
 });
 
-const fixtureDir = path.resolve(__filename, '../../fixtures');
-const fixtureDirURL = pathToFileURL(fixtureDir);
-async function load(array, n, valuesToRead) {
+async function load(n, fixtureFileURL) {
+  const array = [];
   for (let i = 0; i < n; i++) {
-    array[i] = await import(`${fixtureDirURL}/import-meta-${valuesToRead}.mjs?i=${i}`);
+    array[i] = await import(`${fixtureFileURL}?i=${i}`);
   }
   return array;
 }
 
 function main({ n, valuesToRead }) {
-  const array = [];
-  for (let i = 0; i < n; ++i) {
-    array.push({ dirname: '', filename: '', i: 0 });
-  }
+  const fixtureDir = path.resolve(__filename, '../../fixtures');
+  const fixtureFile = path.join(fixtureDir, `import-meta-${valuesToRead}.mjs`);
+  const fixtureFileURL = pathToFileURL(fixtureFile);
 
-  bench.start();
-  load(array, n, valuesToRead).then((arr) => {
+  load(n, fixtureFileURL).then((array) => {
+    const results = new Array(n);
+    bench.start();
+    for (let i = 0; i < n; i++) {
+      results[i] = array[i].default();
+    }
     bench.end(n);
-    if (valuesToRead.includes('dirname')) assert.strictEqual(arr[n - 1].dirname, fixtureDir);
-    if (valuesToRead.includes('filename')) assert.strictEqual(arr[n - 1].filename, path.join(fixtureDir, `import-meta-${valuesToRead}.mjs`));
+
+    switch (valuesToRead) {
+      case 'dirname-and-filename':
+        assert.deepStrictEqual(results[n - 1], [fixtureDir, fixtureFile]);
+        break;
+      case 'dirname':
+        assert.strictEqual(results[n - 1], fixtureDir);
+        break;
+      case 'filename':
+        assert.strictEqual(results[n - 1], fixtureFile);
+        break;
+      case 'url':
+        assert.strictEqual(results[n - 1], `${fixtureFileURL}?i=${n - 1}`);
+        break;
+    }
   });
 }

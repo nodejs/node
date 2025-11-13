@@ -27,6 +27,7 @@
 #include <type_traits>  // std::remove_reference
 #include "base_object_types.h"
 #include "memory_tracker.h"
+#include "node_v8_embedder.h"
 #include "util.h"
 #include "v8.h"
 

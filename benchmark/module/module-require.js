@@ -8,12 +8,15 @@ const benchmarkDirectory = tmpdir.resolve('nodejs-benchmark-module');
 const bench = common.createBenchmark(main, {
   type: ['.js', '.json', 'dir'],
   n: [1e4],
+}, {
+  setup(configs) {
+    tmpdir.refresh();
+    const maxN = configs.reduce((max, c) => Math.max(max, c.n), 0);
+    createEntryPoint(maxN);
+  },
 });
 
 function main({ type, n }) {
-  tmpdir.refresh();
-  createEntryPoint(n);
-
   switch (type) {
     case '.js':
       measureJSFile(n);
@@ -24,8 +27,6 @@ function main({ type, n }) {
     case 'dir':
       measureDir(n);
   }
-
-  tmpdir.refresh();
 }
 
 function measureJSFile(n) {

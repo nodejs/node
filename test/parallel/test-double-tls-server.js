@@ -67,7 +67,7 @@ const serverReplaySize = 2 * 1024 * 1024;
 
     const recv = [];
     let revcLen = 0;
-    clientTlsSock.on('data', (chunk) => {
+    clientTlsSock.on('data', common.mustCallAtLeast((chunk) => {
       revcLen += chunk.length;
       recv.push(chunk);
       if (revcLen > serverReplaySize) {
@@ -76,7 +76,7 @@ const serverReplaySize = 2 * 1024 * 1024;
         assert.strictEqual(serverHelloFstByte.toString('hex'), '16');
         process.exit(0);
       }
-    });
+    }));
 
     // In reality, one may want to send a HTTP CONNECT before starting this double TLS
     clientTlsSock.write(tlsClientHello);

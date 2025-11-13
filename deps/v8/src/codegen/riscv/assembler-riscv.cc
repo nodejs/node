@@ -86,6 +86,7 @@ static unsigned SimulatorFeatures() {
   answer |= 1u << ZBB;
   answer |= 1u << ZBS;
   answer |= 1u << ZICOND;
+  answer |= 1u << ZICFISS;
   answer |= 1u << FPU;
   return answer;
 }
@@ -142,52 +143,6 @@ void CpuFeatures::PrintFeatures() {
   printf("RISC-V Extension zba=%d,zbb=%d,zbs=%d,ZICOND=%d\n",
          CpuFeatures::IsSupported(ZBA), CpuFeatures::IsSupported(ZBB),
          CpuFeatures::IsSupported(ZBS), CpuFeatures::IsSupported(ZICOND));
-}
-int ToNumber(Register reg) {
-  DCHECK(reg.is_valid());
-  const int kNumbers[] = {
-      0,   // zero_reg
-      1,   // ra
-      2,   // sp
-      3,   // gp
-      4,   // tp
-      5,   // t0
-      6,   // t1
-      7,   // t2
-      8,   // s0/fp
-      9,   // s1
-      10,  // a0
-      11,  // a1
-      12,  // a2
-      13,  // a3
-      14,  // a4
-      15,  // a5
-      16,  // a6
-      17,  // a7
-      18,  // s2
-      19,  // s3
-      20,  // s4
-      21,  // s5
-      22,  // s6
-      23,  // s7
-      24,  // s8
-      25,  // s9
-      26,  // s10
-      27,  // s11
-      28,  // t3
-      29,  // t4
-      30,  // t5
-      31,  // t6
-  };
-  return kNumbers[reg.code()];
-}
-
-Register ToRegister(int num) {
-  DCHECK(num >= 0 && num < kNumRegisters);
-  const Register kRegisters[] = {
-      zero_reg, ra, sp, gp, tp, t0, t1, t2, fp, s1, a0,  a1,  a2, a3, a4, a5,
-      a6,       a7, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, t3, t4, t5, t6};
-  return kRegisters[num];
 }
 
 // -----------------------------------------------------------------------------
@@ -273,10 +228,38 @@ Assembler::Assembler(const AssemblerOptions& options,
       constpool_(this) {
   reloc_info_writer.Reposition(buffer_start_ + buffer_->size(), pc_);
 
-  next_buffer_check_ = v8_flags.force_long_branches
-                           ? kMaxInt
-                           : kMaxBranchOffset - BlockTrampolinePoolScope::kGap;
-  trampoline_emitted_ = v8_flags.force_long_branches;
+  trampoline_check_ = v8_flags.force_long_branches
+                          ? kMaxInt
+                          : kMaxBranchOffset - BlockPoolsScope::kGap;
+  CHECK(!v8_flags.force_long_branches || is_trampoline_emitted());
+}
+
+void Assembler::StartBlockPools(ConstantPoolEmission cpe, int margin) {
+  int current = pools_blocked_nesting_;
+  if (current == 0) {
+    if (cpe == ConstantPoolEmission::kCheck) {
+      CheckConstantPoolQuick(margin);
+    }
+    CheckTrampolinePoolQuick(margin);
+    constpool_.DisableNextCheckIn();
+    // TODO(kasperl): Once we can compute the next trampoline check
+    // reliably, we can also disable the trampoline checks here.
+  }
+  pools_blocked_nesting_ = current + 1;
+  DEBUG_PRINTF("\tStartBlockPools @ %d (nesting=%d)\n", pc_offset(),
+               pools_blocked_nesting_);
+}
+
+void Assembler::EndBlockPools() {
+  pools_blocked_nesting_--;
+  DEBUG_PRINTF("\tEndBlockPools @ %d (nesting=%d)\n", pc_offset(),
+               pools_blocked_nesting_);
+  DCHECK_GE(pools_blocked_nesting_, 0);
+  if (pools_blocked_nesting_ > 0) return;  // Still blocked.
+  DCHECK(constpool_.IsInRangeIfEmittedAt(Jump::kRequired, pc_offset()));
+  constpool_.EnableNextCheckIn();
+  CheckConstantPoolQuick(0);
+  CheckTrampolinePoolQuick(0);
 }
 
 void Assembler::AbortedCodeGeneration() { constpool_.Clear(); }
@@ -288,6 +271,13 @@ void Assembler::GetCode(Isolate* isolate, CodeDesc* desc) {
 void Assembler::GetCode(LocalIsolate* isolate, CodeDesc* desc,
                         SafepointTableBuilderBase* safepoint_table_builder,
                         int handler_table_offset) {
+  // In most cases, the constant pool will already have been emitted when
+  // we get here - sometimes through a call to {FinishCode}. For now, it
+  // is safe to call this again, but it might be worth changing its name
+  // to make that clearer.
+  FinishCode();
+  DCHECK(constpool_.IsEmpty());
+
   // As a crutch to avoid having to add manual Align calls wherever we use a
   // raw workflow to create InstructionStream objects (mostly in tests), add
   // another Align call here. It does no harm - the end of the InstructionStream
@@ -297,11 +287,8 @@ void Assembler::GetCode(LocalIsolate* isolate, CodeDesc* desc,
   // comments).
   DataAlign(InstructionStream::kMetadataAlignment);
 
-  ForceConstantPoolEmissionWithoutJump();
-
   int code_comments_size = WriteCodeComments();
-
-  DCHECK(pc_ <= reloc_info_writer.pos());  // No overlap.
+  DCHECK_GE(buffer_space(), 0);  // No buffer overflow.
 
   AllocateAndInstallRequestedHeapNumbers(isolate);
 
@@ -358,8 +345,8 @@ void Assembler::CodeTargetAlign() {
 // The link chain is terminated by a value in the instruction of 0,
 // which is an otherwise illegal value (branch 0 is inf loop). When this case
 // is detected, return an position of -1, an otherwise illegal position.
-const int kEndOfChain = -1;
-const int kEndOfJumpChain = 0;
+static constexpr int kEndOfChain = -1;
+static constexpr int kEndOfJumpChain = 0;
 
 int Assembler::target_at(int pos, bool is_internal) {
   if (is_internal) {
@@ -528,8 +515,8 @@ bool Assembler::MustUseReg(RelocInfo::Mode rmode) {
   return !RelocInfo::IsNoInfo(rmode);
 }
 
-void Assembler::DisassembleInstruction(uint8_t* pc) {
-  if (!v8_flags.riscv_debug) return;
+void Assembler::DisassembleInstructionHelper(uint8_t* pc) {
+  CHECK(v8_flags.riscv_debug);
   disasm::NameConverter converter;
   disasm::Disassembler disasm(converter);
   base::EmbeddedVector<char, 128> disasm_buffer;
@@ -646,19 +633,16 @@ void Assembler::print(const Label* L) {
 void Assembler::bind_to(Label* L, int pos) {
   DCHECK(0 <= pos && pos <= pc_offset());  // Must have valid binding position.
   DEBUG_PRINTF("\tbinding %d to label %p\n", pos, L);
-  int trampoline_pos = kInvalidSlotPos;
-  bool is_internal = false;
-  if (L->is_linked() && !trampoline_emitted_) {
+  if (L->is_linked() && !is_trampoline_emitted()) {
     unbound_labels_count_--;
-    if (!is_internal_reference(L)) {
-      next_buffer_check_ += kTrampolineSlotsSize;
-    }
+    trampoline_check_ += kTrampolineSlotsSize;
   }
 
+  int trampoline_pos = kInvalidSlotPos;
   while (L->is_linked()) {
     int fixup_pos = L->pos();
     int dist = pos - fixup_pos;
-    is_internal = is_internal_reference(L);
+    bool is_internal = is_internal_reference(L);
     next(L, is_internal);  // Call next before overwriting link with target
                            // at fixup_pos.
     Instr instr = instr_at(fixup_pos);
@@ -669,7 +653,7 @@ void Assembler::bind_to(Label* L, int pos) {
       if (IsBranch(instr)) {
         if (dist > kMaxBranchOffset) {
           if (trampoline_pos == kInvalidSlotPos) {
-            trampoline_pos = get_trampoline_entry(fixup_pos);
+            trampoline_pos = GetTrampolineEntry(fixup_pos);
           }
           DEBUG_PRINTF("\t\ttrampolining: %d\n", trampoline_pos);
           CHECK((trampoline_pos - fixup_pos) <= kMaxBranchOffset);
@@ -680,7 +664,7 @@ void Assembler::bind_to(Label* L, int pos) {
       } else if (IsJal(instr)) {
         if (dist > kMaxJumpOffset) {
           if (trampoline_pos == kInvalidSlotPos) {
-            trampoline_pos = get_trampoline_entry(fixup_pos);
+            trampoline_pos = GetTrampolineEntry(fixup_pos);
           }
           CHECK((trampoline_pos - fixup_pos) <= kMaxJumpOffset);
           DEBUG_PRINTF("\t\ttrampolining: %d\n", trampoline_pos);
@@ -699,6 +683,7 @@ void Assembler::bind_to(Label* L, int pos) {
 void Assembler::bind(Label* L) {
   DCHECK(!L->is_bound());  // Label can only be bound once.
   bind_to(L, pc_offset());
+  VU.clear();
 }
 
 void Assembler::next(Label* L, bool is_internal) {
@@ -767,42 +752,12 @@ int Assembler::PatchBranchLongOffset(Address pc, Instr instr_auipc,
 }
 
 // Returns the next free trampoline entry.
-int32_t Assembler::get_trampoline_entry(int32_t pos) {
-  DEBUG_PRINTF("\ttrampoline start: %d,pos: %d\n", trampoline_.start(), pos);
+int32_t Assembler::GetTrampolineEntry(int32_t pos) {
+  DEBUG_PRINTF("\ttrampoline start: %d, pos: %d\n", trampoline_.start(), pos);
   CHECK(trampoline_.start() > pos);
   int32_t entry = trampoline_.take_slot();
   CHECK_NE(entry, kInvalidSlotPos);
   return entry;
-}
-
-uintptr_t Assembler::jump_address(Label* L) {
-  intptr_t target_pos;
-  DEBUG_PRINTF("\tjump_address: %p to %p (%d)\n", L,
-               reinterpret_cast<Instr*>(buffer_start_ + pc_offset()),
-               pc_offset());
-  if (L->is_bound()) {
-    target_pos = L->pos();
-  } else {
-    if (L->is_linked()) {
-      target_pos = L->pos();  // L's link.
-      L->link_to(pc_offset());
-    } else {
-      L->link_to(pc_offset());
-      if (!trampoline_emitted_) {
-        unbound_labels_count_++;
-        next_buffer_check_ -= kTrampolineSlotsSize;
-      }
-      DEBUG_PRINTF("\tstarted link\n");
-      return kEndOfJumpChain;
-    }
-  }
-  uintptr_t imm = reinterpret_cast<uintptr_t>(buffer_start_) + target_pos;
-  if (v8_flags.riscv_c_extension) {
-    DCHECK_EQ(imm & 1, 0);
-  } else {
-    DCHECK_EQ(imm & 3, 0);
-  }
-  return imm;
 }
 
 int32_t Assembler::branch_long_offset(Label* L) {
@@ -813,15 +768,17 @@ int32_t Assembler::branch_long_offset(Label* L) {
                pc_offset());
   if (L->is_bound()) {
     target_pos = L->pos();
+    DEBUG_PRINTF("\tbound: %" PRIdPTR "\n", target_pos);
   } else {
     if (L->is_linked()) {
       target_pos = L->pos();  // L's link.
       L->link_to(pc_offset());
+      DEBUG_PRINTF("\tadded to link: %" PRIdPTR "\n", target_pos);
     } else {
       L->link_to(pc_offset());
-      if (!trampoline_emitted_) {
+      if (!is_trampoline_emitted()) {
         unbound_labels_count_++;
-        next_buffer_check_ -= kTrampolineSlotsSize;
+        trampoline_check_ -= kTrampolineSlotsSize;
       }
       DEBUG_PRINTF("\tstarted link\n");
       return kEndOfJumpChain;
@@ -834,40 +791,13 @@ int32_t Assembler::branch_long_offset(Label* L) {
     DCHECK_EQ(offset & 3, 0);
   }
   DCHECK(is_int32(offset));
-  VU.clear();
   return static_cast<int32_t>(offset);
 }
 
 int32_t Assembler::branch_offset_helper(Label* L, OffsetSize bits) {
-  int32_t target_pos;
-
-  DEBUG_PRINTF("\tbranch_offset_helper: %p to %p (%d)\n", L,
-               reinterpret_cast<Instr*>(buffer_start_ + pc_offset()),
-               pc_offset());
-  if (L->is_bound()) {
-    target_pos = L->pos();
-    DEBUG_PRINTF("\tbound: %d", target_pos);
-  } else {
-    if (L->is_linked()) {
-      target_pos = L->pos();
-      L->link_to(pc_offset());
-      DEBUG_PRINTF("\tadded to link: %d\n", target_pos);
-    } else {
-      L->link_to(pc_offset());
-      if (!trampoline_emitted_) {
-        unbound_labels_count_++;
-        next_buffer_check_ -= kTrampolineSlotsSize;
-      }
-      DEBUG_PRINTF("\tstarted link\n");
-      return kEndOfJumpChain;
-    }
-  }
-
-  int32_t offset = target_pos - pc_offset();
+  int32_t offset = branch_long_offset(L);
   DCHECK(is_intn(offset, bits));
-  DCHECK_EQ(offset & 1, 0);
   DEBUG_PRINTF("\toffset = %d\n", offset);
-  VU.clear();
   return offset;
 }
 
@@ -895,7 +825,7 @@ void Assembler::EBREAK() {
 
 // Assembler Pseudo Instructions (Tables 25.2 and 25.3, RISC-V Unprivileged ISA)
 
-void Assembler::nop() { addi(ToRegister(0), ToRegister(0), 0); }
+void Assembler::nop() { addi(zero_reg, zero_reg, 0); }
 
 inline int64_t SignExtend(uint64_t V, int N) {
   return static_cast<int64_t>(V << (64 - N)) >> (64 - N);
@@ -976,7 +906,7 @@ void Assembler::GeneralLi(Register rd, int64_t imm) {
           }
         } else {
           sim_low = low_12;
-          ori(rd, zero_reg, low_12);
+          addi(rd, zero_reg, low_12);
         }
       }
       if (sim_low & 0x100000000) {
@@ -1008,7 +938,7 @@ void Assembler::GeneralLi(Register rd, int64_t imm) {
           addi(temp_reg, temp_reg, low_12);
         }
       } else {
-        ori(temp_reg, zero_reg, low_12);
+        addi(temp_reg, zero_reg, low_12);
       }
       // Put it at the bgining of register
       slli(temp_reg, temp_reg, 32);
@@ -1031,7 +961,7 @@ void Assembler::GeneralLi(Register rd, int64_t imm) {
         addi(rd, rd, low_12);
       }
     } else {
-      ori(rd, zero_reg, low_12);
+      addi(rd, zero_reg, low_12);
     }
     // upper part already in rd. Each part to be added to rd, has maximum of 11
     // bits, and always starts with a 1. rd is shifted by the size of the part
@@ -1104,8 +1034,8 @@ void Assembler::li_ptr(Register rd, int64_t imm) {
 }
 
 void Assembler::li_constant(Register rd, int64_t imm) {
-  DEBUG_PRINTF("\tli_constant(%d, %" PRIx64 " <%" PRId64 ">)\n", ToNumber(rd),
-               imm, imm);
+  DEBUG_PRINTF("\tli_constant(%d, %" PRIx64 " <%" PRId64 ">)\n", rd.code(), imm,
+               imm);
   lui(rd, (imm + (1LL << 47) + (1LL << 35) + (1LL << 23) + (1LL << 11)) >>
               48);  // Bits 63:48
   addiw(rd, rd,
@@ -1121,7 +1051,7 @@ void Assembler::li_constant(Register rd, int64_t imm) {
 
 void Assembler::li_constant32(Register rd, int32_t imm) {
   ASM_CODE_COMMENT(this);
-  DEBUG_PRINTF("\tli_constant(%d, %x <%d>)\n", ToNumber(rd), imm, imm);
+  DEBUG_PRINTF("\tli_constant(%d, %x <%d>)\n", rd.code(), imm, imm);
   int32_t high_20 = ((imm + 0x800) >> 12);  // bits31:12
   int32_t low_12 = imm & 0xfff;             // bits11:0
   lui(rd, high_20);
@@ -1172,7 +1102,7 @@ void Assembler::li_ptr(Register rd, int32_t imm) {
 
 void Assembler::li_constant(Register rd, int32_t imm) {
   ASM_CODE_COMMENT(this);
-  DEBUG_PRINTF("\tli_constant(%d, %x <%d>)\n", ToNumber(rd), imm, imm);
+  DEBUG_PRINTF("\tli_constant(%d, %x <%d>)\n", rd.code(), imm, imm);
   int32_t high_20 = ((imm + 0x800) >> 12);  // bits31:12
   int32_t low_12 = imm & 0xfff;             // bits11:0
   lui(rd, high_20);
@@ -1206,10 +1136,6 @@ void Assembler::stop(uint32_t code) {
   break_(code, true);
 #endif
 }
-
-// Original MIPS Instructions
-
-// ------------Memory-instructions-------------
 
 bool Assembler::NeedAdjustBaseAndOffset(const MemOperand& src,
                                         OffsetAccessType access_type,
@@ -1364,20 +1290,17 @@ void Assembler::GrowBuffer() {
 
 void Assembler::db(uint8_t data) {
   DEBUG_PRINTF("%p(%d): constant 0x%x\n", pc_, pc_offset(), data);
-  CheckBuffer();
-  EmitHelper(data);
+  EmitHelper(data, false);
 }
 
 void Assembler::dd(uint32_t data) {
   DEBUG_PRINTF("%p(%d): constant 0x%x\n", pc_, pc_offset(), data);
-  CheckBuffer();
-  EmitHelper(data);
+  EmitHelper(data, false);
 }
 
 void Assembler::dq(uint64_t data) {
   DEBUG_PRINTF("%p(%d): constant 0x%" PRIx64 "\n", pc_, pc_offset(), data);
-  CheckBuffer();
-  EmitHelper(data);
+  EmitHelper(data, false);
 }
 
 #if defined(V8_TARGET_ARCH_RISCV64)
@@ -1385,17 +1308,17 @@ void Assembler::dq(Label* label) {
 #elif defined(V8_TARGET_ARCH_RISCV32)
 void Assembler::dd(Label* label) {
 #endif
-  uintptr_t data;
-  CheckBuffer();
-  if (label->is_bound()) {
-    internal_reference_positions_.insert(pc_offset());
-    data = reinterpret_cast<uintptr_t>(buffer_start_ + label->pos());
-  } else {
-    data = jump_address(label);
+  int32_t offset = branch_long_offset(label);
+  uintptr_t data = (offset != kEndOfJumpChain)
+                       ? reinterpret_cast<uintptr_t>(pc_ + offset)
+                       : kEndOfJumpChain;
+  if (label->is_linked()) {
+    // We only need to query the kind of use for unbound labels, so
+    // we only insert those in the set.
     internal_reference_positions_.insert(label->pos());
   }
   RecordRelocInfo(RelocInfo::INTERNAL_REFERENCE);
-  EmitHelper(data);
+  EmitHelper(data, false);
 }
 
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
@@ -1407,14 +1330,16 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
 }
 
 void Assembler::CheckTrampolinePool() {
-  if (trampoline_emitted_) return;
+  // Once we've emitted the trampoline pool, we bump the next check position,
+  // so we shouldn't get here again.
+  CHECK(!is_trampoline_emitted());
+
   // Some small sequences of instructions must not be broken up by the
   // insertion of a trampoline pool; such sequences are protected by increasing
-  // trampoline_pool_blocked_nesting_. This is also used to block recursive
-  // calls to CheckTrampolinePool.
-  DEBUG_PRINTF("\ttrampoline_pool_blocked_nesting:%d\n",
-               trampoline_pool_blocked_nesting_);
-  if (is_trampoline_pool_blocked()) {
+  // pools_blocked_nesting_. This is also used to block recursive calls to
+  // CheckTrampolinePool.
+  DEBUG_PRINTF("\tpools_blocked_nesting: %d\n", pools_blocked_nesting_);
+  if (pools_blocked()) {
     // Emission is currently blocked; we will check again when we leave the
     // blocking scope. We shouldn't move the next check position here, because
     // it would interfere with the adjustments we make when we produce new
@@ -1422,20 +1347,22 @@ void Assembler::CheckTrampolinePool() {
     return;
   }
 
-  DCHECK_GE(unbound_labels_count_, 0);
-  if (unbound_labels_count_ > 0) {
+  DCHECK_GE(UnboundLabelsCount(), 0);
+  if (UnboundLabelsCount() > 0) {
     // First we emit jump, then we emit trampoline pool.
     int size =
-        kTrampolinePoolOverhead + unbound_labels_count_ * kTrampolineSlotsSize;
+        kTrampolinePoolOverhead + UnboundLabelsCount() * kTrampolineSlotsSize;
     DEBUG_PRINTF("inserting trampoline pool at %p (%d) with size %d\n",
                  reinterpret_cast<Instr*>(buffer_start_ + pc_offset()),
                  pc_offset(), size);
     int pc_offset_for_safepoint_before = pc_offset_for_safepoint();
     USE(pc_offset_for_safepoint_before);  // Only used in DCHECK below.
 
-    // Mark the trampoline pool as emitted eagerly to avoid recursive
-    // emissions occurring from the blocking scope.
-    trampoline_emitted_ = true;
+    // As we are only going to emit the trampoline pool once, we do not have
+    // to check ever again. To avoid recursive emissions occurring when the
+    // pools are blocked below, we *eagerly* set the next check position to
+    // something we will never reach.
+    trampoline_check_ = kMaxInt;
 
     // By construction, we know that any branch or jump up until this point
     // can reach the last entry in the trampoline pool. Therefore, we can
@@ -1444,36 +1371,30 @@ void Assembler::CheckTrampolinePool() {
     static_assert(kMaxBranchOffset <= kMaxJumpOffset - kTrampolineSlotsSize);
     int preamble_start = pc_offset();
     USE(preamble_start);  // Only used in DCHECK.
-    BlockPoolsScope block_pools(this, PoolEmissionCheck::kSkip, size);
+    BlockPoolsScope block_pools(this, ConstantPoolEmission::kSkip, size);
     j(size);
 
     int pool_start = pc_offset();
     DCHECK_EQ(pool_start - preamble_start, kTrampolinePoolOverhead);
-    for (int i = 0; i < unbound_labels_count_; i++) {
+    for (int i = 0; i < UnboundLabelsCount(); i++) {
       // Emit a dummy far branch. It will be patched later when one of the
       // unbound labels are bound.
       auipc(t6, 0);  // Read pc into t6.
       jr(t6, 0);     // Jump to t6 - the auipc instruction.
     }
 
-    trampoline_ = Trampoline(pool_start, unbound_labels_count_);
+    trampoline_ = Trampoline(pool_start, UnboundLabelsCount());
     int pool_size = pc_offset() - pool_start;
     USE(pool_size);  // Only used in DCHECK.
-    DCHECK_EQ(pool_size, unbound_labels_count_ * kTrampolineSlotsSize);
+    DCHECK_EQ(pool_size, UnboundLabelsCount() * kTrampolineSlotsSize);
 
     // Make sure we didn't mess with the recorded pc for the next safepoint
     // as part of emitting the branch trampolines.
     DCHECK_EQ(pc_offset_for_safepoint(), pc_offset_for_safepoint_before);
-
-    // As we are only going to emit the trampoline pool once, we do not have
-    // to check ever again. We set the next check position to something we
-    // will never reach.
-    next_buffer_check_ = kMaxInt;
   } else {
     // Number of branches to unbound label at this point is zero, so we can
-    // move next buffer check to maximum.
-    next_buffer_check_ =
-        pc_offset() + kMaxBranchOffset - BlockTrampolinePoolScope::kGap;
+    // move next trampoline check to maximum.
+    trampoline_check_ = pc_offset() + kMaxBranchOffset - BlockPoolsScope::kGap;
   }
 }
 
@@ -1737,33 +1658,22 @@ void Assembler::EmitPoolGuard() {
 // -----------------------------------------------------------------------------
 // Assembler.
 template <typename T>
-void Assembler::EmitHelper(T x) {
-  *reinterpret_cast<T*>(pc_) = x;
-  pc_ += sizeof(x);
+void Assembler::EmitHelper(T x, bool disassemble) {
+  uint8_t* pc = pc_;
+  *reinterpret_cast<T*>(pc) = x;
+  if (disassemble) {
+    DEBUG_PRINTF("%p(%d): ", pc, static_cast<int>(pc - buffer_start()));
+    DisassembleInstruction(pc);
+  }
+  pc_ = pc + sizeof(x);
+  CheckBuffer();
+  CheckConstantPoolQuick(0);
+  CheckTrampolinePoolQuick(0);
 }
 
-void Assembler::emit(Instr x) {
-  DEBUG_PRINTF("%p(%d): ", pc_, pc_offset());
-  CheckBuffer();
-  EmitHelper(x);
-  DisassembleInstruction(pc_ - sizeof(x));
-  CheckTrampolinePoolQuick();
-}
+void Assembler::emit(Instr x) { EmitHelper(x, true); }
 
-void Assembler::emit(ShortInstr x) {
-  DEBUG_PRINTF("%p(%d): ", pc_, pc_offset());
-  CheckBuffer();
-  EmitHelper(x);
-  DisassembleInstruction(pc_ - sizeof(x));
-  CheckTrampolinePoolQuick();
-}
-
-void Assembler::emit(uint64_t data) {
-  DEBUG_PRINTF("%p(%d): ", pc_, pc_offset());
-  CheckBuffer();
-  EmitHelper(data);
-  CheckTrampolinePoolQuick();
-}
+void Assembler::emit(ShortInstr x) { EmitHelper(x, true); }
 
 void Assembler::instr_at_put(int pos, Instr instr,
                              WritableJitAllocation* jit_allocation) {

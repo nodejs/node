@@ -181,7 +181,7 @@ LiftoffAssembler::CacheState LiftoffAssembler::MergeIntoNewState(
 
   uint32_t target_height = num_locals + stack_depth + arity;
 
-  target.stack_state.resize(target_height);
+  target.stack_state.resize_no_init(target_height);
 
   const VarState* source_begin = cache_state_.stack_state.data();
   VarState* target_begin = target.stack_state.data();

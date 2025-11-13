@@ -1034,7 +1034,15 @@ class MarkCompactCollector::CustomRootBodyMarkingVisitor final
     jdt->VerifyEntry(handle, space, ro_space);
 #endif  // DEBUG
     jdt->Mark(handle);
-    MarkObject(jdt->GetCode(handle));
+    if (handle != kNullJSDispatchHandle) {
+      MarkObject(jdt->GetCode(handle));
+    } else {
+      // The only case we are allowed to see a zero handle installed here is if
+      // the code is already marked deoptimized for cleared weak references.
+      DCHECK(CheckedCast<InstructionStream>(host)
+                 ->code(kAcquireLoad)
+                 ->marked_for_deoptimization());
+    }
   }
 
  private:
@@ -1144,9 +1152,9 @@ class InternalizedStringTableCleaner final : public RootVisitor {
     UNREACHABLE();
   }
 
-  void VisitRootPointers(Root root, const char* description,
-                         OffHeapObjectSlot start,
-                         OffHeapObjectSlot end) override {
+  void VisitCompressedRootPointers(Root root, const char* description,
+                                   OffHeapObjectSlot start,
+                                   OffHeapObjectSlot end) override {
     DCHECK_EQ(root, Root::kStringTable);
     // Visit all HeapObject pointers in [start, end).
     Isolate* const isolate = heap_->isolate();
@@ -1241,12 +1249,16 @@ class MarkExternalPointerFromExternalStringTable : public RootVisitor {
 
 // Implementation of WeakObjectRetainer for mark compact GCs. All marked objects
 // are retained.
-class MarkCompactWeakObjectRetainer : public WeakObjectRetainer {
+class MarkCompactWeakObjectRetainer final : public WeakObjectRetainer {
  public:
-  MarkCompactWeakObjectRetainer(Heap* heap, MarkingState* marking_state)
-      : heap_(heap), marking_state_(marking_state) {}
+  MarkCompactWeakObjectRetainer(
+      MarkCompactCollector* const mark_compact_collector,
+      MarkingState* marking_state)
+      : mark_compact_collector_(mark_compact_collector),
+        heap_(mark_compact_collector_->heap()),
+        marking_state_(marking_state) {}
 
-  Tagged<Object> RetainAs(Tagged<Object> object) override {
+  Tagged<Object> RetainAs(Tagged<Object> object) final {
     Tagged<HeapObject> heap_object = Cast<HeapObject>(object);
     if (MarkingHelper::IsMarkedOrAlwaysLive(heap_, marking_state_,
                                             heap_object)) {
@@ -1272,8 +1284,24 @@ class MarkCompactWeakObjectRetainer : public WeakObjectRetainer {
     }
   }
 
+  bool ShouldRecordSlots() const final { return true; }
+
+  void RecordSlot(Tagged<HeapObject> host, ObjectSlot slot,
+                  Tagged<HeapObject> object) final {
+    // `VisitWeakList` doesn't call write barriers. If `host` is old and
+    // `object` is young, which may be possible for JSFinalizationRegistries,
+    // record the slot for old-to-new.
+    DCHECK_IMPLIES(HeapLayout::InYoungGeneration(host),
+                   IsJSFinalizationRegistry(host));
+    DCHECK_IMPLIES(HeapLayout::InYoungGeneration(object),
+                   IsJSFinalizationRegistry(object));
+    MarkCompactCollector::RecordSlot<ObjectSlot, RecordYoungSlot::kYes>(
+        host, slot, object);
+  }
+
  private:
-  Heap* const heap_;
+  const MarkCompactCollector* const mark_compact_collector_;
+  const Heap* const heap_;
   MarkingState* const marking_state_;
 };
 
@@ -2889,9 +2917,9 @@ class SharedStructTypeRegistryCleaner final : public RootVisitor {
     UNREACHABLE();
   }
 
-  void VisitRootPointers(Root root, const char* description,
-                         OffHeapObjectSlot start,
-                         OffHeapObjectSlot end) override {
+  void VisitCompressedRootPointers(Root root, const char* description,
+                                   OffHeapObjectSlot start,
+                                   OffHeapObjectSlot end) override {
     DCHECK_EQ(root, Root::kSharedStructTypeRegistry);
     // The SharedStructTypeRegistry holds the canonical SharedStructType
     // instance maps weakly. Visit all Map pointers in [start, end), deleting
@@ -3150,7 +3178,7 @@ void MarkCompactCollector::ClearNonLiveReferences() {
   {
     TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_CLEAR_WEAK_LISTS);
     // Process the weak references.
-    MarkCompactWeakObjectRetainer mark_compact_object_retainer(heap_,
+    MarkCompactWeakObjectRetainer mark_compact_object_retainer(this,
                                                                marking_state_);
     heap_->ProcessAllWeakReferences(&mark_compact_object_retainer);
   }
@@ -4013,10 +4041,10 @@ void MarkCompactCollector::ProcessJSWeakRefs() {
   Tagged<WeakCell> weak_cell;
   while (local_weak_objects()->weak_cells_local.Pop(&weak_cell)) {
     auto gc_notify_updated_slot = [](Tagged<HeapObject> object, ObjectSlot slot,
-                                     Tagged<Object> target) {
-      if (IsHeapObject(target)) {
-        RecordSlot(object, slot, Cast<HeapObject>(target));
-      }
+                                     Tagged<HeapObject> target) {
+      // Callers of `gc_notify_updated_slot` skip write barriers so this method
+      // needs to cover old-to-new as well.
+      RecordSlot<ObjectSlot, RecordYoungSlot::kYes>(object, slot, target);
     };
     Tagged<HeapObject> target = Cast<HeapObject>(weak_cell->target());
     if (MarkingHelper::IsUnmarkedAndNotAlwaysLive(
@@ -4027,12 +4055,13 @@ void MarkCompactCollector::ProcessJSWeakRefs() {
           Cast<JSFinalizationRegistry>(weak_cell->finalization_registry());
       if (!finalization_registry->scheduled_for_cleanup()) {
         heap_->EnqueueDirtyJSFinalizationRegistry(finalization_registry,
-                                                  gc_notify_updated_slot);
+                                                  gc_notify_updated_slot,
+                                                  SKIP_WRITE_BARRIER_FOR_GC);
       }
       // We're modifying the pointers in WeakCell and JSFinalizationRegistry
       // during GC; thus we need to record the slots it writes. The normal write
       // barrier is not enough, since it's disabled before GC.
-      weak_cell->GCSafeNullify(isolate, gc_notify_updated_slot);
+      weak_cell->Nullify(isolate, gc_notify_updated_slot);
       DCHECK(finalization_registry->NeedsCleanup());
       DCHECK(finalization_registry->scheduled_for_cleanup());
     } else {
@@ -4055,7 +4084,7 @@ void MarkCompactCollector::ProcessJSWeakRefs() {
       finalization_registry->RemoveUnregisterToken(
           unregister_token, isolate,
           JSFinalizationRegistry::kKeepMatchedCellsInRegistry,
-          gc_notify_updated_slot);
+          gc_notify_updated_slot, SKIP_WRITE_BARRIER_FOR_GC);
     } else {
       // The unregister_token is alive.
       ObjectSlot slot(&weak_cell->unregister_token_);
@@ -4140,111 +4169,26 @@ void MarkCompactCollector::RecordRelocSlot(Tagged<InstructionStream> host,
 
 namespace {
 
-// Missing specialization MakeSlotValue<FullObjectSlot, WEAK>() will turn
-// attempt to store a weak reference to strong-only slot to a compilation error.
+// MakeSlotValue for slots that cannot be weak.
+// Only STRONG reference type is accepted. Attempts to use WEAK reference type
+// will fail to compile due to missing template instantiation.
 template <typename TSlot, HeapObjectReferenceType reference_type>
-typename TSlot::TObject MakeSlotValue(Tagged<HeapObject> heap_object);
-
-template <>
-Tagged<Object> MakeSlotValue<ObjectSlot, HeapObjectReferenceType::STRONG>(
-    Tagged<HeapObject> heap_object) {
+  requires(!TSlot::kCanBeWeak &&
+           reference_type == HeapObjectReferenceType::STRONG)
+TSlot::TObject MakeSlotValue(Tagged<HeapObject> heap_object) {
   return heap_object;
 }
 
-template <>
-Tagged<MaybeObject>
-MakeSlotValue<MaybeObjectSlot, HeapObjectReferenceType::STRONG>(
-    Tagged<HeapObject> heap_object) {
-  return heap_object;
+// MakeSlotValue for slots that can be weak.
+template <typename TSlot, HeapObjectReferenceType reference_type>
+  requires(TSlot::kCanBeWeak)
+TSlot::TObject MakeSlotValue(Tagged<HeapObject> heap_object) {
+  if constexpr (reference_type == HeapObjectReferenceType::WEAK) {
+    return MakeWeak(heap_object);
+  } else {
+    return heap_object;
+  }
 }
-
-template <>
-Tagged<MaybeObject>
-MakeSlotValue<MaybeObjectSlot, HeapObjectReferenceType::WEAK>(
-    Tagged<HeapObject> heap_object) {
-  return MakeWeak(heap_object);
-}
-
-template <>
-Tagged<Object>
-MakeSlotValue<WriteProtectedSlot<ObjectSlot>, HeapObjectReferenceType::STRONG>(
-    Tagged<HeapObject> heap_object) {
-  return heap_object;
-}
-
-#ifdef V8_ENABLE_SANDBOX
-template <>
-Tagged<Object> MakeSlotValue<WriteProtectedSlot<ProtectedPointerSlot>,
-                             HeapObjectReferenceType::STRONG>(
-    Tagged<HeapObject> heap_object) {
-  return heap_object;
-}
-
-template <>
-Tagged<MaybeObject>
-MakeSlotValue<ProtectedMaybeObjectSlot, HeapObjectReferenceType::STRONG>(
-    Tagged<HeapObject> heap_object) {
-  return heap_object;
-}
-
-template <>
-Tagged<MaybeObject>
-MakeSlotValue<ProtectedMaybeObjectSlot, HeapObjectReferenceType::WEAK>(
-    Tagged<HeapObject> heap_object) {
-  return MakeWeak(heap_object);
-}
-#endif
-
-template <>
-Tagged<Object>
-MakeSlotValue<OffHeapObjectSlot, HeapObjectReferenceType::STRONG>(
-    Tagged<HeapObject> heap_object) {
-  return heap_object;
-}
-
-#ifdef V8_COMPRESS_POINTERS
-template <>
-Tagged<Object> MakeSlotValue<FullObjectSlot, HeapObjectReferenceType::STRONG>(
-    Tagged<HeapObject> heap_object) {
-  return heap_object;
-}
-
-template <>
-Tagged<MaybeObject>
-MakeSlotValue<FullMaybeObjectSlot, HeapObjectReferenceType::STRONG>(
-    Tagged<HeapObject> heap_object) {
-  return heap_object;
-}
-
-template <>
-Tagged<MaybeObject>
-MakeSlotValue<FullMaybeObjectSlot, HeapObjectReferenceType::WEAK>(
-    Tagged<HeapObject> heap_object) {
-  return MakeWeak(heap_object);
-}
-
-#ifdef V8_EXTERNAL_CODE_SPACE
-template <>
-Tagged<Object>
-MakeSlotValue<InstructionStreamSlot, HeapObjectReferenceType::STRONG>(
-    Tagged<HeapObject> heap_object) {
-  return heap_object;
-}
-#endif  // V8_EXTERNAL_CODE_SPACE
-
-#ifdef V8_ENABLE_SANDBOX
-template <>
-Tagged<Object>
-MakeSlotValue<ProtectedPointerSlot, HeapObjectReferenceType::STRONG>(
-    Tagged<HeapObject> heap_object) {
-  return heap_object;
-}
-#endif  // V8_ENABLE_SANDBOX
-
-// The following specialization
-//   MakeSlotValue<FullMaybeObjectSlot, HeapObjectReferenceType::WEAK>()
-// is not used.
-#endif  // V8_COMPRESS_POINTERS
 
 template <HeapObjectReferenceType reference_type, typename TSlot>
 static inline void UpdateSlot(PtrComprCageBase cage_base, TSlot slot,
@@ -4417,9 +4361,9 @@ class PointersUpdatingVisitor final : public ObjectVisitorWithCageBases,
     }
   }
 
-  void VisitRootPointers(Root root, const char* description,
-                         OffHeapObjectSlot start,
-                         OffHeapObjectSlot end) override {
+  void VisitCompressedRootPointers(Root root, const char* description,
+                                   OffHeapObjectSlot start,
+                                   OffHeapObjectSlot end) override {
     for (OffHeapObjectSlot p = start; p < end; ++p) {
       UpdateRootSlotInternal(cage_base(), p);
     }
@@ -4438,13 +4382,9 @@ class PointersUpdatingVisitor final : public ObjectVisitorWithCageBases,
   }
 
  private:
-  static inline void UpdateRootSlotInternal(PtrComprCageBase cage_base,
-                                            FullObjectSlot slot) {
-    UpdateStrongSlot(cage_base, slot);
-  }
-
-  static inline void UpdateRootSlotInternal(PtrComprCageBase cage_base,
-                                            OffHeapObjectSlot slot) {
+  template <typename TSlot>
+    requires(!TSlot::kCanBeWeak)
+  void UpdateRootSlotInternal(PtrComprCageBase cage_base, TSlot slot) {
     UpdateStrongSlot(cage_base, slot);
   }
 
@@ -5053,15 +4993,10 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
     ReportAbortedEvacuationCandidateDueToFlags(page);
   }
 
-  if (heap_->IsGCWithStack()) {
-    if (!v8_flags.compact_with_stack) {
-      for (PageMetadata* page : old_space_evacuation_pages_) {
-        ReportAbortedEvacuationCandidateDueToFlags(page);
-      }
+  if (heap_->IsGCWithStack() && !v8_flags.compact_with_stack) {
+    for (PageMetadata* page : old_space_evacuation_pages_) {
+      ReportAbortedEvacuationCandidateDueToFlags(page);
     }
-  } else {
-    // There should always be a stack when we are in a fast c call.
-    DCHECK(!heap_->isolate()->InFastCCall());
   }
 
   if (v8_flags.stress_compaction || v8_flags.stress_compaction_random) {
@@ -5133,6 +5068,16 @@ class EvacuationWeakObjectRetainer : public WeakObjectRetainer {
       }
     }
     return object;
+  }
+
+  bool ShouldRecordSlots() const final {
+    // We are already in evacuation. All slots should already be recorded.
+    return false;
+  }
+
+  void RecordSlot(Tagged<HeapObject> host, ObjectSlot slot,
+                  Tagged<HeapObject> object) final {
+    UNREACHABLE();
   }
 };
 

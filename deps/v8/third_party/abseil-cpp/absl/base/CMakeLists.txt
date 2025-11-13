@@ -74,7 +74,6 @@ absl_cc_library(
     "nullability.h"
   DEPS
     absl::config
-    absl::core_headers
   COPTS
     ${ABSL_DEFAULT_COPTS}
 )
@@ -87,7 +86,6 @@ absl_cc_test(
   COPTS
     ${ABSL_TEST_COPTS}
   DEPS
-    absl::core_headers
     absl::nullability
     GTest::gtest_main
 )
@@ -238,7 +236,6 @@ absl_cc_library(
     base_internal
   HDRS
     "internal/hide_ptr.h"
-    "internal/identity.h"
     "internal/scheduling_mode.h"
   COPTS
     ${ABSL_DEFAULT_COPTS}
@@ -410,6 +407,19 @@ absl_cc_test(
     bit_cast_test
   SRCS
     "bit_cast_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEPS
+    absl::base
+    absl::core_headers
+    GTest::gtest_main
+)
+
+absl_cc_test(
+  NAME
+    casts_test
+  SRCS
+    "casts_test.cc"
   COPTS
     ${ABSL_TEST_COPTS}
   DEPS

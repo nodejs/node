@@ -50,15 +50,17 @@ snippet: "
 "
 frame size: 0
 parameter count: 1
-bytecode array length: 7
+bytecode array length: 9
 bytecodes: [
                 B(LdaImmutableCurrentContextSlot), U8(2),
-  /*  109 E> */ B(SetPrototypeProperties), U8(0), U8(0),
+  /*  109 E> */ B(ThrowReferenceErrorIfHole), U8(1),
+                B(SetPrototypeProperties), U8(0), U8(0),
                 B(LdaUndefined),
   /*  245 S> */ B(Return),
 ]
 constant pool: [
   OBJECT_BOILERPLATE_DESCRIPTION_TYPE,
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["MyClass"],
 ]
 handlers: [
 ]

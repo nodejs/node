@@ -21,47 +21,66 @@ class Heap;
 // This class stops and resumes all background threads waiting for GC.
 class CollectionBarrier {
  public:
+  class V8_EXPORT_PRIVATE CollectionRequest {
+   public:
+    // Sets `kind` flag and returns true if a flag of equal or higher priority
+    // was previously set.
+    bool Set(RequestedGCKind kind);
+    // Clears `kind` and any lower priority flag and returns true if `kind` was
+    // previously set.
+    bool Clear(RequestedGCKind kind);
+    // Clear all flags.
+    void ClearAll();
+    // Returns whether `kind` flag was set.
+    bool Has(RequestedGCKind kind) const;
+    // Returns the highest priority flag if any, or std::nullopt.
+    std::optional<RequestedGCKind> Get() const;
+    // Returns true if any flag is set.
+    bool HasAny() const;
+
+   private:
+    std::atomic<uint8_t> state_{0};
+  };
+
   CollectionBarrier(
       Heap* heap, std::shared_ptr<v8::TaskRunner> foreground_task_runner);
 
-  // Returns true when collection was requested.
-  bool WasGCRequested();
+  // Returns the requested collection kind if any.
+  std::optional<RequestedGCKind> RequestedGC();
 
   // Requests a GC from the main thread. Returns whether GC was successfully
   // requested. Requesting a GC can fail when isolate shutdown was already
   // initiated.
-  bool TryRequestGC();
+  bool TryRequestGC(RequestedGCKind kind);
 
   // Resumes all threads waiting for GC when tear down starts.
   void NotifyShutdownRequested();
 
   // Stops the TimeToCollection timer when starting the GC.
-  void StopTimeToCollectionTimer();
+  void StopTimeToCollectionTimer(RequestedGCKind kind);
 
-  // Resumes threads waiting for collection.
-  void ResumeThreadsAwaitingCollection();
+  // Resumes threads waiting for collection of `kind`.
+  void ResumeThreadsAwaitingCollection(RequestedGCKind kind);
 
   // Cancels collection if one was requested and resumes threads waiting for GC.
   void CancelCollectionAndResumeThreads();
 
-  // This is the method use by background threads to request and wait for GC.
-  // Returns whether a GC was performed.
-  bool AwaitCollectionBackground(LocalHeap* local_heap);
+  // This is the method use by background threads to request and wait for GC of
+  // `kind`. Returns whether a GC was performed.
+  bool AwaitCollectionBackground(LocalHeap* local_heap, RequestedGCKind kind);
 
  private:
   Heap* heap_;
   base::Mutex mutex_;
   base::ConditionVariable cv_wakeup_;
-  base::ElapsedTimer timer_;
+  base::ElapsedTimer major_timer_;
+  base::ElapsedTimer last_resort_timer_;
+
+  base::ElapsedTimer& GetTimerForCollectionRequest(RequestedGCKind kind);
 
   // Flag that main thread checks whether a GC was requested from the background
   // thread.
-  std::atomic<bool> collection_requested_{false};
-
-  // This flag is used to detect whether to block for the GC. Only set if the
-  // main thread was actually running and is unset when GC resumes background
-  // threads.
-  bool block_for_collection_ = false;
+  CollectionRequest collection_request_;
 
   // Set to true when a GC was performed, false in case it was canceled because
   // the main thread parked itself without running the GC.

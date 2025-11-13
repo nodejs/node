@@ -119,7 +119,7 @@ describe('Loader hooks', { concurrency: !process.env.TEST_PARALLEL }, () => {
       assert.strictEqual(signal, null);
     });
 
-    it('import.meta.resolve of a never-settling resolve', async () => {
+    it('import.meta.resolve of a never-settling resolve should throw', async () => {
       const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
         '--no-warnings',
         '--experimental-loader',
@@ -129,7 +129,7 @@ describe('Loader hooks', { concurrency: !process.env.TEST_PARALLEL }, () => {
 
       assert.strictEqual(stderr, '');
       assert.match(stdout, /^should be output\r?\n$/);
-      assert.strictEqual(code, 13);
+      assert.strictEqual(code, 0);
       assert.strictEqual(signal, null);
     });
   });
@@ -668,13 +668,17 @@ describe('Loader hooks', { concurrency: !process.env.TEST_PARALLEL }, () => {
         '--eval',
         `
         import {register} from 'node:module';
-        register('data:text/javascript,export function initialize(){return new Promise(()=>{})}');
+        try {
+          register('data:text/javascript,export function initialize(){return new Promise(()=>{})}');
+        } catch (e) {
+          console.log('caught', e.code);
+        }
         `,
       ]);
 
       assert.strictEqual(stderr, '');
-      assert.strictEqual(stdout, '');
-      assert.strictEqual(code, 13);
+      assert.strictEqual(stdout.trim(), 'caught ERR_ASYNC_LOADER_REQUEST_NEVER_SETTLED');
+      assert.strictEqual(code, 0);
       assert.strictEqual(signal, null);
     });
 
@@ -772,7 +776,7 @@ describe('Loader hooks', { concurrency: !process.env.TEST_PARALLEL }, () => {
     assert.strictEqual(signal, null);
   });
 
-  describe('should use hooks', async () => {
+  it('should use hooks', async () => {
     const { code, signal, stdout, stderr } = await spawnPromisified(process.execPath, [
       '--no-experimental-require-module',
       '--import',

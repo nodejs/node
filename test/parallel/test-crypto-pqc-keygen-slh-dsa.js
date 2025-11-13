@@ -29,6 +29,7 @@ if (!hasOpenSSL(3, 5)) {
     'slh-dsa-shake-192f', 'slh-dsa-shake-192s', 'slh-dsa-shake-256f', 'slh-dsa-shake-256s',
   ]) {
     for (const [publicKeyEncoding, validate] of [
+      /* eslint-disable node-core/must-call-assert */
       [undefined, (publicKey) => {
         assert.strictEqual(publicKey.type, 'public');
         assert.strictEqual(publicKey.asymmetricKeyType, asymmetricKeyType);
@@ -47,6 +48,7 @@ if (!hasOpenSSL(3, 5)) {
       }],
       [{ format: 'pem', type: 'pkcs8' }, (_, privateKey) => assert.strictEqual(typeof privateKey, 'string')],
       [{ format: 'der', type: 'pkcs8' }, (_, privateKey) => assert.strictEqual(Buffer.isBuffer(privateKey), true)],
+      /* eslint-enable node-core/must-call-assert */
     ]) {
       generateKeyPair(asymmetricKeyType, { privateKeyEncoding }, common.mustSucceed(validate));
     }

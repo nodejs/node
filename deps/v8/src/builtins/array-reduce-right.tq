@@ -55,7 +55,7 @@ transitioning javascript builtin ArrayReduceRightLoopLazyDeoptContinuation(
   const numberK = Cast<Number>(initialK) otherwise unreachable;
   const numberLength = Cast<Number>(length) otherwise unreachable;
 
-  // The accumulator is the result from the callback call which just occured.
+  // The accumulator is the result from the callback call which just occurred.
   const r = ArrayReduceRightLoopContinuation(
       jsreceiver, callbackfn, result, jsreceiver, numberK, numberLength);
   return r;

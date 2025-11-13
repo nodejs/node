@@ -32,8 +32,8 @@ const hooks = async_hooks.createHook({
   })
 });
 
-setImmediate(() => {
+setImmediate(common.mustCall(() => {
   assert.deepStrictEqual(seenEvents, ['before', 'then', 'after']);
-});
+}));
 
 hooks.enable(); // After `setImmediate` in order to not catch its init event.

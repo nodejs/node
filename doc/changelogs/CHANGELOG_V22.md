@@ -9,6 +9,7 @@
 </tr>
 <tr>
 <td>
+<a href="#22.21.1">22.21.1</a><br/>
 <a href="#22.21.0">22.21.0</a><br/>
 <a href="#22.20.0">22.20.0</a><br/>
 <a href="#22.19.0">22.19.0</a><br/>
@@ -68,6 +69,48 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="22.21.1"></a>
+
+## 2025-10-28, Version 22.21.1 'Jod' (LTS), @aduh95
+
+### Commits
+
+* \[[`af33e8e668`](https://github.com/nodejs/node/commit/af33e8e668)] - **benchmark**: remove unused variable from util/priority-queue (Bruno Rodrigues) [#59872](https://github.com/nodejs/node/pull/59872)
+* \[[`6764ce8756`](https://github.com/nodejs/node/commit/6764ce8756)] - **benchmark**: update count to n in permission startup (Bruno Rodrigues) [#59872](https://github.com/nodejs/node/pull/59872)
+* \[[`4e8d99f0dc`](https://github.com/nodejs/node/commit/4e8d99f0dc)] - **benchmark**: update num to n in dgram offset-length (Bruno Rodrigues) [#59872](https://github.com/nodejs/node/pull/59872)
+* \[[`af0a8ba7f8`](https://github.com/nodejs/node/commit/af0a8ba7f8)] - **benchmark**: adjust dgram offset-length len values (Bruno Rodrigues) [#59708](https://github.com/nodejs/node/pull/59708)
+* \[[`78efd1be4a`](https://github.com/nodejs/node/commit/78efd1be4a)] - **benchmark**: update num to n in dgram offset-length (Bruno Rodrigues) [#59708](https://github.com/nodejs/node/pull/59708)
+* \[[`df72dc96e9`](https://github.com/nodejs/node/commit/df72dc96e9)] - **console,util**: improve array inspection performance (Ruben Bridgewater) [#60037](https://github.com/nodejs/node/pull/60037)
+* \[[`ef67d09f50`](https://github.com/nodejs/node/commit/ef67d09f50)] - **http**: improve writeEarlyHints by avoiding for-of loop (Haram Jeong) [#59958](https://github.com/nodejs/node/pull/59958)
+* \[[`23468fd76b`](https://github.com/nodejs/node/commit/23468fd76b)] - **http2**: fix allowHttp1+Upgrade, broken by shouldUpgradeCallback (Tim Perry) [#59924](https://github.com/nodejs/node/pull/59924)
+* \[[`56abc4ac76`](https://github.com/nodejs/node/commit/56abc4ac76)] - **lib**: optimize priority queue (Gürgün Dayıoğlu) [#60039](https://github.com/nodejs/node/pull/60039)
+* \[[`ea5cfd98c5`](https://github.com/nodejs/node/commit/ea5cfd98c5)] - **lib**: implement passive listener behavior per spec (BCD1me) [#59995](https://github.com/nodejs/node/pull/59995)
+* \[[`c2dd6eed2f`](https://github.com/nodejs/node/commit/c2dd6eed2f)] - **process**: fix wrong asyncContext under unhandled-rejections=strict (Shima Ryuhei) [#60103](https://github.com/nodejs/node/pull/60103)
+* \[[`81a3055710`](https://github.com/nodejs/node/commit/81a3055710)] - **process**: fix default `env` for `process.execve` (Richard Lau) [#60029](https://github.com/nodejs/node/pull/60029)
+* \[[`fe492c7ace`](https://github.com/nodejs/node/commit/fe492c7ace)] - **process**: fix hrtime fast call signatures (Renegade334) [#59600](https://github.com/nodejs/node/pull/59600)
+* \[[`76b4cab8fc`](https://github.com/nodejs/node/commit/76b4cab8fc)] - **src**: bring permissions macros in line with general C/C++ standards (Anna Henningsen) [#60053](https://github.com/nodejs/node/pull/60053)
+* \[[`21970970c7`](https://github.com/nodejs/node/commit/21970970c7)] - **src**: remove `AnalyzeTemporaryDtors` option from .clang-tidy (iknoom) [#60008](https://github.com/nodejs/node/pull/60008)
+* \[[`609c063e81`](https://github.com/nodejs/node/commit/609c063e81)] - **src**: remove unused variables from report (Moonki Choi) [#60047](https://github.com/nodejs/node/pull/60047)
+* \[[`987841a773`](https://github.com/nodejs/node/commit/987841a773)] - **src**: avoid unnecessary string allocations in SPrintF impl (Anna Henningsen) [#60052](https://github.com/nodejs/node/pull/60052)
+* \[[`6e386c0632`](https://github.com/nodejs/node/commit/6e386c0632)] - **src**: make ToLower/ToUpper input args more flexible (Anna Henningsen) [#60052](https://github.com/nodejs/node/pull/60052)
+* \[[`c3be1226c7`](https://github.com/nodejs/node/commit/c3be1226c7)] - **src**: allow `std::string_view` arguments to `SPrintF()` and friends (Anna Henningsen) [#60058](https://github.com/nodejs/node/pull/60058)
+* \[[`764d35647d`](https://github.com/nodejs/node/commit/764d35647d)] - **src**: remove unnecessary `std::string` error messages (Anna Henningsen) [#60057](https://github.com/nodejs/node/pull/60057)
+* \[[`1289ef89ec`](https://github.com/nodejs/node/commit/1289ef89ec)] - **src**: remove unnecessary shadowed functions on Utf8Value & BufferValue (Anna Henningsen) [#60056](https://github.com/nodejs/node/pull/60056)
+* \[[`d1fb8a538d`](https://github.com/nodejs/node/commit/d1fb8a538d)] - **src**: avoid unnecessary string -> `char*` -> string round trips (Anna Henningsen) [#60055](https://github.com/nodejs/node/pull/60055)
+* \[[`54b439fb5a`](https://github.com/nodejs/node/commit/54b439fb5a)] - **src**: fill `options_args`, `options_env` after vectors are finalized (iknoom) [#59945](https://github.com/nodejs/node/pull/59945)
+* \[[`c7c597e2ca`](https://github.com/nodejs/node/commit/c7c597e2ca)] - **src**: use RAII for uv\_process\_options\_t (iknoom) [#59945](https://github.com/nodejs/node/pull/59945)
+* \[[`b928ea9716`](https://github.com/nodejs/node/commit/b928ea9716)] - **test**: ensure that the message event is fired (Luigi Pinca) [#59952](https://github.com/nodejs/node/pull/59952)
+* \[[`e4b95a5158`](https://github.com/nodejs/node/commit/e4b95a5158)] - **test**: replace diagnostics\_channel stackframe in output snapshots (Chengzhong Wu) [#60024](https://github.com/nodejs/node/pull/60024)
+* \[[`4206406694`](https://github.com/nodejs/node/commit/4206406694)] - **test**: mark test-web-locks skip on IBM i (SRAVANI GUNDEPALLI) [#59996](https://github.com/nodejs/node/pull/59996)
+* \[[`26394cd5bf`](https://github.com/nodejs/node/commit/26394cd5bf)] - **test**: expand tls-check-server-identity coverage (Diango Gavidia) [#60002](https://github.com/nodejs/node/pull/60002)
+* \[[`b58df47995`](https://github.com/nodejs/node/commit/b58df47995)] - **test**: fix typo of test-benchmark-readline.js (Deokjin Kim) [#59993](https://github.com/nodejs/node/pull/59993)
+* \[[`af3a59dba8`](https://github.com/nodejs/node/commit/af3a59dba8)] - **test**: verify tracing channel doesn't swallow unhandledRejection (Gerhard Stöbich) [#59974](https://github.com/nodejs/node/pull/59974)
+* \[[`cee362242b`](https://github.com/nodejs/node/commit/cee362242b)] - **timers**: fix binding fast call signatures (Renegade334) [#59600](https://github.com/nodejs/node/pull/59600)
+* \[[`40fea57fdd`](https://github.com/nodejs/node/commit/40fea57fdd)] - **tools**: add message on auto-fixing js lint issues in gh workflow (Dario Piotrowicz) [#59128](https://github.com/nodejs/node/pull/59128)
+* \[[`aac90d351b`](https://github.com/nodejs/node/commit/aac90d351b)] - **tools**: verify signatures when updating nghttp\* (Antoine du Hamel) [#60113](https://github.com/nodejs/node/pull/60113)
+* \[[`9fae03c7d9`](https://github.com/nodejs/node/commit/9fae03c7d9)] - **tools**: use dependabot cooldown and move tools/doc (Rafael Gonzaga) [#59978](https://github.com/nodejs/node/pull/59978)
+* \[[`81548abdf6`](https://github.com/nodejs/node/commit/81548abdf6)] - **wasi**: fix WasiFunction fast call signature (Renegade334) [#59600](https://github.com/nodejs/node/pull/59600)
 
 <a id="22.21.0"></a>
 

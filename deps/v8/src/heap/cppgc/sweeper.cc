@@ -1272,7 +1272,7 @@ class Sweeper::SweeperImpl final {
         !empty_large_pages_.swept_unfinalized_pages.IsEmpty()) {
       return;
     }
-    // All pages have also been finalized. Finalizing pages likely occured on
+    // All pages have also been finalized. Finalizing pages likely occurred on
     // allocation, in which sweeping is not finalized even though all work is
     // done.
     {

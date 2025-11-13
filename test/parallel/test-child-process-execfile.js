@@ -65,14 +65,14 @@ common.expectWarning(
   const ac = new AbortController();
   const { signal } = ac;
 
-  const test = () => {
+  const test = common.mustCall(() => {
     const check = common.mustCall((err) => {
       assert.strictEqual(err.code, 'ABORT_ERR');
       assert.strictEqual(err.name, 'AbortError');
       assert.strictEqual(err.signal, undefined);
     });
     execFile(process.execPath, [echoFixture, 0], { signal }, check);
-  };
+  });
 
   // Verify that it still works the same way now that the signal is aborted.
   test();

@@ -8,7 +8,7 @@ const events = [];
 let lastEvent;
 
 function track(name) {
-  return (event) => {
+  return common.mustCall((event) => {
     // Verify every event after the first is the same object
     if (events.length) {
       assert.strictEqual(event, lastEvent);
@@ -16,15 +16,15 @@ function track(name) {
     lastEvent = event;
 
     events.push({ name, ...event });
-  };
+  });
 }
 
 trace.subscribe({
-  start: common.mustCall(track('start')),
-  end: common.mustCall(track('end')),
-  asyncStart: common.mustNotCall(track('asyncStart')),
-  asyncEnd: common.mustNotCall(track('asyncEnd')),
-  error: common.mustNotCall(track('error')),
+  start: track('start'),
+  end: track('end'),
+  asyncStart: common.mustNotCall('asyncStart'),
+  asyncEnd: common.mustNotCall('asyncEnd'),
+  error: common.mustNotCall('error'),
 });
 
 const result = require('http');

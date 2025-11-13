@@ -9,4 +9,4 @@ const { testResolveAsync } = require(`./build/${common.buildType}/binding`);
 let called = false;
 testResolveAsync().then(() => { called = true; });
 
-process.on('beforeExit', () => { assert(called); });
+process.on('beforeExit', common.mustCall(() => { assert(called); }));

@@ -2,6 +2,7 @@
 
 require('../common');
 const assert = require('assert');
+// eslint-disable-next-line node-core/must-call-assert
 const { Assert } = require('assert');
 const { inspect } = require('util');
 const { test } = require('node:test');

@@ -55,6 +55,7 @@ class JSArrayBuffer;
 class SeqOneByteString;
 class StructBodyDescriptor;
 class WasmCapiFunction;
+class WasmDispatchTableForImports;
 class WasmExceptionTag;
 class WasmExportedFunction;
 class WasmExternalFunction;
@@ -405,7 +406,7 @@ class WasmMemoryObject
   // Makes a new SharedArrayBuffer backed by the same backing store.
   static DirectHandle<JSArrayBuffer> RefreshSharedBuffer(
       Isolate* isolate, DirectHandle<WasmMemoryObject> memory,
-      ResizableFlag resizable_by_js);
+      DirectHandle<JSArrayBuffer> old_buffer, ResizableFlag resizable_by_js);
 
   V8_EXPORT_PRIVATE static int32_t Grow(Isolate*,
                                         DirectHandle<WasmMemoryObject>,
@@ -414,12 +415,14 @@ class WasmMemoryObject
   // Makes the ArrayBuffer fixed-length. Assumes the current ArrayBuffer is
   // resizable. Detaches the existing buffer if it is not shared.
   static DirectHandle<JSArrayBuffer> ToFixedLengthBuffer(
-      Isolate* isolate, DirectHandle<WasmMemoryObject> memory);
+      Isolate* isolate, DirectHandle<WasmMemoryObject> memory,
+      DirectHandle<JSArrayBuffer> old_buffer);
 
   // Makes the ArrayBuffer resizable by JS. Assumes the current ArrayBuffer is
   // fixed-length. Detaches the existing buffer if it is not shared.
   static DirectHandle<JSArrayBuffer> ToResizableBuffer(
-      Isolate* isolate, DirectHandle<WasmMemoryObject> memory);
+      Isolate* isolate, DirectHandle<WasmMemoryObject> memory,
+      DirectHandle<JSArrayBuffer> old_buffer);
 
   static constexpr int kNoMaximum = -1;
 
@@ -471,6 +474,12 @@ class WasmGlobalObject
   TQ_OBJECT_CONSTRUCTORS(WasmGlobalObject)
 };
 
+class FeedbackConstants {
+ public:
+  static constexpr int kHeaderSlots = 1;
+  static constexpr int kSlotsPerInstruction = 2;
+};
+
 // The trusted part of a WebAssembly instance.
 // This object lives in trusted space and is never modified from user space.
 class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
@@ -487,7 +496,7 @@ class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
   // tables: FixedArray of WasmTableObject.
   DECL_OPTIONAL_ACCESSORS(tables, Tagged<FixedArray>)
   DECL_PROTECTED_POINTER_ACCESSORS(dispatch_table_for_imports,
-                                   WasmDispatchTable)
+                                   WasmDispatchTableForImports)
   DECL_ACCESSORS(imported_mutable_globals, Tagged<FixedAddressArray>)
 #if V8_ENABLE_DRUMBRAKE
   // Points to an array that contains the function index for each imported Wasm
@@ -781,12 +790,12 @@ class WasmDispatchTableData {
   WasmCodePointer WrapperCodePointerForDebugging(int index);
 #endif
 
- private:
-  friend class WasmDispatchTable;
-
   void Add(int index,
            std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle);
   void Remove(int index);
+
+ private:
+  friend class WasmDispatchTable;
 
   std::unordered_map<int, std::shared_ptr<wasm::WasmImportWrapperHandle>>
       wrappers_;
@@ -839,6 +848,7 @@ class WasmDispatchTable : public ExposedTrustedObject {
   static constexpr size_t kEntrySize = kImplicitArgBias + kTaggedSize;
 
   // Tagged fields must be tagged-size-aligned.
+  static_assert(IsAligned(kProtectedOffheapDataOffset, kTaggedSize));
   static_assert(IsAligned(kEntriesOffset, kTaggedSize));
   static_assert(IsAligned(kEntrySize, kTaggedSize));
   static_assert(IsAligned(kImplicitArgBias, kTaggedSize));
@@ -873,7 +883,6 @@ class WasmDispatchTable : public ExposedTrustedObject {
   // Stores the canonical type of the table.
   DECL_PRIMITIVE_ACCESSORS(table_type, wasm::CanonicalValueType)
 
-  // Accessors.
   // {implicit_arg} will be a WasmImportData, a WasmTrustedInstanceData, or
   // Smi::zero() (if the entry was cleared).
   inline Tagged<Object> implicit_arg(int index) const;
@@ -908,9 +917,8 @@ class WasmDispatchTable : public ExposedTrustedObject {
 
   void Clear(int index, NewOrExistingEntry new_or_existing);
 
-  V8_EXPORT_PRIVATE
   std::optional<std::shared_ptr<wasm::WasmImportWrapperHandle>>
-  MaybeGetWrapperHandle(int index) const;
+  MaybeGetWrapperHandle(int index);
 
   static void V8_EXPORT_PRIVATE
   AddUse(Isolate* isolate, DirectHandle<WasmDispatchTable> dispatch_table,
@@ -923,15 +931,108 @@ class WasmDispatchTable : public ExposedTrustedObject {
   static Tagged<ProtectedWeakFixedArray> MaybeGrowUsesList(
       Isolate* isolate, DirectHandle<WasmDispatchTable> dispatch_table);
 
-  static V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT DirectHandle<WasmDispatchTable>
-  New(Isolate* isolate, int length, wasm::CanonicalValueType table_type,
-      bool shared);
   static V8_WARN_UNUSED_RESULT DirectHandle<WasmDispatchTable> Grow(
       Isolate*, DirectHandle<WasmDispatchTable>, uint32_t new_length);
 
   DECL_PRINTER(WasmDispatchTable)
   DECL_VERIFIER(WasmDispatchTable)
   OBJECT_CONSTRUCTORS(WasmDispatchTable, ExposedTrustedObject);
+};
+
+class WasmDispatchTableForImports : public TrustedObject {
+ public:
+  class BodyDescriptor;
+
+  static constexpr size_t kLengthOffset = kHeaderSize;
+  static constexpr size_t kPaddingSize = TAGGED_SIZE_8_BYTES ? kUInt32Size : 0;
+  static constexpr size_t kProtectedOffheapDataOffset =
+      kLengthOffset + kUInt32Size + kPaddingSize;
+  static constexpr size_t kEntriesOffset =
+      kProtectedOffheapDataOffset + kTaggedSize;
+
+  // Entries consist of
+  // - target (WasmCodePointer == entry in WasmCodePointerTable),
+#if V8_ENABLE_DRUMBRAKE
+  // - function_index (uint32_t) (located in place of target pointer),
+#endif  // V8_ENABLE_DRUMBRAKE
+  // - implicit_arg (protected pointer, tagged sized).
+  static constexpr size_t kTargetBias = 0;
+#if V8_ENABLE_DRUMBRAKE
+  // In jitless mode, reuse the 'target' field storage to hold the (uint32_t)
+  // function index.
+  static constexpr size_t kFunctionIndexBias = kTargetBias;
+#else
+  static constexpr size_t kEntryPaddingSize =
+      TAGGED_SIZE_8_BYTES ? kUInt32Size : 0;
+#endif  // V8_ENABLE_DRUMBRAKE
+  static_assert(sizeof(WasmCodePointer) == kUInt32Size);
+  static constexpr size_t kImplicitArgBias =
+      kTargetBias + kEntryPaddingSize + kUInt32Size;
+  static constexpr size_t kEntrySize = kImplicitArgBias + kTaggedSize;
+
+  // Tagged fields must be tagged-size-aligned.
+  static_assert(IsAligned(kProtectedOffheapDataOffset, kTaggedSize));
+  static_assert(IsAligned(kEntriesOffset, kTaggedSize));
+  static_assert(IsAligned(kEntrySize, kTaggedSize));
+  static_assert(IsAligned(kImplicitArgBias, kTaggedSize));
+
+  // The total byte size must still fit in an integer.
+  static constexpr int kMaxLength = (kMaxInt - kEntriesOffset) / kEntrySize;
+
+  static constexpr int SizeFor(int length) {
+    DCHECK_LE(length, kMaxLength);
+    return kEntriesOffset + length * kEntrySize;
+  }
+
+  static constexpr int OffsetOf(int index) {
+    DCHECK_LT(index, kMaxLength);
+    return SizeFor(index);
+  }
+
+  // The current length of this dispatch table. This is always <= the capacity.
+  inline int length() const;
+  inline int length(AcquireLoadTag) const;
+
+  DECL_PROTECTED_POINTER_ACCESSORS(protected_offheap_data,
+                                   TrustedManaged<WasmDispatchTableData>)
+  inline WasmDispatchTableData* offheap_data() const;
+
+  // {implicit_arg} will be a WasmImportData, a WasmTrustedInstanceData, or
+  // Smi::zero() (if the entry was cleared).
+  inline Tagged<Object> implicit_arg(int index) const;
+  inline WasmCodePointer target(int index) const;
+
+  // Set an entry for indirect calls that don't go to a WasmToJS wrapper.
+  // Wrappers are special since we own the CPT entries for the wrappers.
+  // {implicit_arg} has to be a WasmTrustedInstanceData, or Smi::zero() for
+  // clearing the slot.
+  void V8_EXPORT_PRIVATE SetForNonWrapper(
+      int index, Tagged<Union<Smi, WasmTrustedInstanceData>> implicit_arg,
+      WasmCodePointer call_target, wasm::CanonicalTypeIndex sig_id,
+#if V8_ENABLE_DRUMBRAKE
+      uint32_t function_index,
+#endif  // V8_ENABLE_DRUMBRAKE
+      WasmDispatchTable::NewOrExistingEntry new_or_existing);
+
+  // Set an entry for indirect calls to a WasmToJS wrapper.
+  void SetForWrapper(
+      int index, Tagged<WasmImportData> implicit_arg,
+      std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle,
+      wasm::CanonicalTypeIndex sig_id,
+#if V8_ENABLE_DRUMBRAKE
+      uint32_t function_index,
+#endif  // V8_ENABLE_DRUMBRAKE
+      WasmDispatchTable::NewOrExistingEntry new_or_existing);
+
+  void Clear(int index, WasmDispatchTable::NewOrExistingEntry new_or_existing);
+
+  V8_EXPORT_PRIVATE
+  std::optional<std::shared_ptr<wasm::WasmImportWrapperHandle>>
+  MaybeGetWrapperHandle(int index);
+
+  DECL_PRINTER(WasmDispatchTableForImports)
+  DECL_VERIFIER(WasmDispatchTableForImports)
+  OBJECT_CONSTRUCTORS(WasmDispatchTableForImports, TrustedObject);
 };
 
 // A Wasm exception that has been thrown out of Wasm code.
@@ -1004,8 +1105,8 @@ class WasmExportedFunction : public JSFunction {
       Isolate* isolate, DirectHandle<WasmTrustedInstanceData> instance_data,
       DirectHandle<WasmFuncRef> func_ref,
       DirectHandle<WasmInternalFunction> internal_function, int arity,
-      DirectHandle<Code> export_wrapper, const wasm::WasmModule* module,
-      int func_index, const wasm::CanonicalSig* sig, wasm::Promise promise);
+      DirectHandle<Code> export_wrapper, wasm::ModuleOrigin origin,
+      int func_index, wasm::Promise promise);
 
   static void MarkAsReceiverIsFirstParam(
       Isolate* isolate, DirectHandle<WasmExportedFunction> exported_function);
@@ -1015,7 +1116,7 @@ class WasmExportedFunction : public JSFunction {
   static DirectHandle<Code> GetWrapper(Isolate* isolate,
                                        const wasm::CanonicalSig* sig,
                                        bool receiver_is_first_param,
-                                       const wasm::WasmModule* module);
+                                       wasm::ModuleOrigin origin);
 
   // Return a null-terminated string with the debug name in the form
   // 'js-to-wasm:<sig>'.
@@ -1048,6 +1149,7 @@ class WasmCapiFunction : public JSFunction {
                                             DirectHandle<Foreign> embedder_data,
                                             const wasm::CanonicalSig* sig);
 
+  // TODO(clemensb): Remove this accessor.
   const wasm::CanonicalSig* sig() const;
 
   // Checks whether the given {sig} has the same parameter types as the
@@ -1134,7 +1236,8 @@ class WasmImportData
 
   void SetIndexInTableAsCallOrigin(Tagged<WasmDispatchTable> table,
                                    int entry_index);
-
+  void SetIndexInTableAsCallOrigin(Tagged<WasmDispatchTableForImports> table,
+                                   int entry_index);
   void SetFuncRefAsCallOrigin(Tagged<WasmInternalFunction> func);
 
   using BodyDescriptor =
@@ -1226,10 +1329,6 @@ class WasmJSFunctionData
 
   Tagged<JSReceiver> GetCallable() const;
   wasm::Suspend GetSuspend() const;
-  const wasm::CanonicalSig* GetSignature() const;
-  // Prefer to use this convenience wrapper of the Torque-generated
-  // {canonical_sig_index()}.
-  inline wasm::CanonicalTypeIndex sig_index() const;
   bool MatchesSignature(
       wasm::CanonicalTypeIndex other_canonical_sig_index) const;
 
@@ -1464,6 +1563,7 @@ class WasmArray : public TorqueGeneratedWasmArray<WasmArray, WasmObject> {
   V8_EXPORT_PRIVATE wasm::WasmValue GetElement(uint32_t index);
 
   static inline int SizeFor(Tagged<Map> map, int length);
+  static constexpr int SizeFor(int element_size, int length);
 
   // Returns boxed value of the array's element.
   static inline DirectHandle<Object> GetElement(Isolate* isolate,
@@ -1481,7 +1581,9 @@ class WasmArray : public TorqueGeneratedWasmArray<WasmArray, WasmObject> {
     // The total object size must fit into a Smi, for filler objects. To make
     // the behavior of Wasm programs independent from the Smi configuration,
     // we hard-code the smaller of the two supported ranges.
-    return (SmiTagging<4>::kSmiMaxValue - kHeaderSize) / element_size_bytes;
+    return RoundDown(
+        (int{SmiTagging<4>::kSmiMaxValue} - kHeaderSize) / element_size_bytes,
+        kTaggedSize);
   }
 
   static int MaxLength(const wasm::ArrayType* type) {

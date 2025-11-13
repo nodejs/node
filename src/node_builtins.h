@@ -11,6 +11,7 @@
 #include <string>
 #include <unordered_set>
 #include <vector>
+#include "builtin_info.h"
 #include "node_external_reference.h"
 #include "node_mutex.h"
 #include "node_threadsafe_cow.h"
@@ -68,7 +69,13 @@ struct CodeCacheInfo {
   BuiltinCodeCacheData data;
 };
 
-using BuiltinSourceMap = std::map<std::string, UnionBytes>;
+struct BuiltinSource {
+  std::string id;
+  UnionBytes source;
+  BuiltinSourceType type;
+};
+
+using BuiltinSourceMap = std::map<std::string, BuiltinSource>;
 using BuiltinCodeCacheMap =
     std::unordered_map<std::string, BuiltinCodeCacheData>;
 
@@ -94,21 +101,14 @@ class NODE_EXTERN_PRIVATE BuiltinLoader {
 
   // The parameters used to compile the scripts are detected based on
   // the pattern of the id.
-  v8::MaybeLocal<v8::Function> LookupAndCompile(v8::Local<v8::Context> context,
-                                                const char* id,
-                                                Realm* optional_realm);
+  v8::MaybeLocal<v8::Function> LookupAndCompileFunction(
+      v8::Local<v8::Context> context, const char* id, Realm* optional_realm);
 
-  v8::MaybeLocal<v8::Function> LookupAndCompile(
-      v8::Local<v8::Context> context,
-      const char* id,
-      v8::LocalVector<v8::String>* parameters,
-      Realm* optional_realm);
-
-  v8::MaybeLocal<v8::Value> CompileAndCall(v8::Local<v8::Context> context,
-                                           const char* id,
-                                           int argc,
-                                           v8::Local<v8::Value> argv[],
-                                           Realm* optional_realm);
+  v8::MaybeLocal<v8::Value> CompileAndCallWith(v8::Local<v8::Context> context,
+                                               const char* id,
+                                               int argc,
+                                               v8::Local<v8::Value> argv[],
+                                               Realm* optional_realm);
 
   v8::MaybeLocal<v8::Value> CompileAndCall(v8::Local<v8::Context> context,
                                            const char* id,
@@ -117,7 +117,9 @@ class NODE_EXTERN_PRIVATE BuiltinLoader {
   // Returns config.gypi as a JSON string
   v8::Local<v8::String> GetConfigString(v8::Isolate* isolate);
   bool Exists(const char* id);
-  bool Add(const char* id, const UnionBytes& source);
+  const BuiltinSource* AddFromDisk(const char* id,
+                                   const std::string& filename,
+                                   const UnionBytes& source);
 
   bool CompileAllBuiltinsAndCopyCodeCache(
       v8::Local<v8::Context> context,
@@ -152,18 +154,18 @@ class NODE_EXTERN_PRIVATE BuiltinLoader {
 
   const v8::ScriptCompiler::CachedData* GetCodeCache(const char* id) const;
   enum class Result { kWithCache, kWithoutCache };
-  v8::MaybeLocal<v8::String> LoadBuiltinSource(v8::Isolate* isolate,
-                                               const char* id) const;
+  const BuiltinSource* LoadBuiltinSource(v8::Isolate* isolate, const char* id);
   // If an exception is encountered (e.g. source code contains
   // syntax error), the returned value is empty.
-  v8::MaybeLocal<v8::Function> LookupAndCompileInternal(
-      v8::Local<v8::Context> context,
-      const char* id,
-      v8::LocalVector<v8::String>* parameters,
-      Realm* optional_realm);
-  void SaveCodeCache(const char* id, v8::Local<v8::Function> fn);
+  v8::MaybeLocal<v8::Data> LookupAndCompile(v8::Local<v8::Context> context,
+                                            const char* id,
+                                            Realm* optional_realm);
+  v8::MaybeLocal<v8::Data> LookupAndCompile(v8::Local<v8::Context> context,
+                                            const BuiltinSource* builtin_source,
+                                            Realm* optional_realm);
+  void SaveCodeCache(const std::string& id, v8::Local<v8::Data> data);
 
-  static void RecordResult(const char* id,
+  static void RecordResult(const std::string& id,
                            BuiltinLoader::Result result,
                            Realm* realm);
   static void GetBuiltinCategories(
@@ -180,13 +182,26 @@ class NODE_EXTERN_PRIVATE BuiltinLoader {
       const v8::PropertyCallbackInfo<v8::Value>& info);
   // Compile a specific built-in as a function
   static void CompileFunction(const v8::FunctionCallbackInfo<v8::Value>& args);
+  v8::MaybeLocal<v8::Module> LoadBuiltinSourceTextModule(Realm* realm,
+                                                         const char* id);
+  v8::MaybeLocal<v8::Value> ImportBuiltinSourceTextModule(Realm* realm,
+                                                          const char* id);
+  static void ImportBuiltinSourceTextModule(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  static v8::MaybeLocal<v8::Module> ResolveModuleCallback(
+      v8::Local<v8::Context> context,
+      v8::Local<v8::String> specifier,
+      v8::Local<v8::FixedArray> import_attributes,
+      v8::Local<v8::Module> referrer);
   static void HasCachedBuiltins(
       const v8::FunctionCallbackInfo<v8::Value>& args);
   // For legacy process.binding('natives')
   static void GetNatives(v8::Local<v8::Name> property,
                          const v8::PropertyCallbackInfo<v8::Value>& info);
 
-  void AddExternalizedBuiltin(const char* id, const char* filename);
+  const BuiltinSource* AddExternalizedBuiltin(const char* id,
+                                              const char* filename);
 
   ThreadsafeCopyOnWrite<BuiltinSourceMap> source_;
 
@@ -211,6 +226,7 @@ class NODE_EXTERN_PRIVATE BuiltinLoader {
   };
   std::shared_ptr<BuiltinCodeCache> code_cache_;
 
+  std::unordered_map<std::string, v8::Global<v8::Module>> module_cache_;
   friend class ::PerProcessTest;
 };
 

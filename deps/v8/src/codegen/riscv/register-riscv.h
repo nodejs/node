@@ -176,10 +176,6 @@ GENERAL_REGISTERS(DECLARE_REGISTER)
 
 constexpr Register no_reg = Register::no_reg();
 
-int ToNumber(Register reg);
-
-Register ToRegister(int num);
-
 constexpr bool kPadArguments = false;
 constexpr AliasingKind kFPAliasing = AliasingKind::kIndependent;
 constexpr bool kSimdMaskRegisters = false;

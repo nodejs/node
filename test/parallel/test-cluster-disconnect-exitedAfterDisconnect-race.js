@@ -8,9 +8,9 @@ const assert = require('assert');
 const cluster = require('cluster');
 
 if (cluster.isPrimary) {
-  cluster.on('exit', (worker, code) => {
+  cluster.on('exit', common.mustCall((worker, code) => {
     assert.strictEqual(code, 0, `worker exited with code: ${code}, expected 0`);
-  });
+  }));
 
   return cluster.fork();
 }

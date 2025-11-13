@@ -177,9 +177,6 @@
         "experimental-sqlite": {
           "type": "boolean"
         },
-        "experimental-strip-types": {
-          "type": "boolean"
-        },
         "experimental-transform-types": {
           "type": "boolean"
         },
@@ -360,6 +357,9 @@
         },
         "stack-trace-limit": {
           "type": "number"
+        },
+        "strip-types": {
+          "type": "boolean"
         },
         "test-coverage-branches": {
           "type": "number"

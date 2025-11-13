@@ -1134,24 +1134,10 @@ void StringBuiltinsAssembler::MaybeCallFunctionAtSymbol(
     const TNode<Object> maybe_string, Handle<Symbol> symbol,
     DescriptorIndexNameValue additional_property_to_check,
     const NodeFunction0& regexp_call, const NodeFunction1& generic_call) {
-  Label out(this), no_protector(this), object_is_heapobject(this);
-  Label get_property_lookup(this);
+  Label out(this);
 
-  // The protector guarantees that that the Number and String wrapper
-  // prototypes do not contain Symbol.{matchAll|replace|split} (aka.
-  // @@matchAll, @@replace @@split).
-  GotoIf(IsNumberStringNotRegexpLikeProtectorCellInvalid(), &no_protector);
-  // Smi is safe thanks to the protector.
   GotoIf(TaggedIsSmi(object), &out);
-  // String is safe thanks to the protector.
-  GotoIf(IsString(CAST(object)), &out);
-  // HeapNumber is safe thanks to the protector.
-  Branch(IsHeapNumber(CAST(object)), &out, &object_is_heapobject);
-
-  BIND(&no_protector);
-  // Smis have to go through the GetProperty lookup in case Number.prototype or
-  // Object.prototype was modified.
-  Branch(TaggedIsSmi(object), &get_property_lookup, &object_is_heapobject);
+  GotoIfNot(IsJSReceiver(CAST(object)), &out);
 
   // Take the fast path for RegExps.
   // There's two conditions: {object} needs to be a fast regexp, and
@@ -1160,7 +1146,6 @@ void StringBuiltinsAssembler::MaybeCallFunctionAtSymbol(
   {
     Label stub_call(this), slow_lookup(this);
 
-    BIND(&object_is_heapobject);
     TNode<HeapObject> heap_object = CAST(object);
 
     GotoIf(TaggedIsSmi(maybe_string), &slow_lookup);
@@ -1183,8 +1168,6 @@ void StringBuiltinsAssembler::MaybeCallFunctionAtSymbol(
     regexp_call();
 
     BIND(&slow_lookup);
-    // Special case null and undefined to skip the property lookup.
-    Branch(IsNullOrUndefined(heap_object), &out, &get_property_lookup);
   }
 
   // Fall back to a slow lookup of {heap_object[symbol]}.
@@ -1194,8 +1177,6 @@ void StringBuiltinsAssembler::MaybeCallFunctionAtSymbol(
   // * an exception is thrown if the value is not undefined, null, or callable.
   // We handle the former by jumping to {out} for null values as well, while
   // the latter is already handled by the Call({maybe_func}) operation.
-
-  BIND(&get_property_lookup);
   const TNode<Object> maybe_func = GetProperty(context, object, symbol);
   GotoIf(IsUndefined(maybe_func), &out);
   GotoIf(IsNull(maybe_func), &out);
@@ -1268,22 +1249,24 @@ TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
 
   RequireObjectCoercible(context, receiver, "String.prototype.replace");
 
-  // Redirect to replacer method if {search[@@replace]} is not undefined.
+  // Redirect to replacer method if {search} is an Object and
+  // {search[@@replace]} is not undefined.
   {
     Label next(this);
 
+    auto if_regexp_call = [=, this] {
+      Return(CallBuiltin(Builtin::kRegExpReplace, context, search, receiver,
+                         replace));
+    };
+    auto if_generic_call = [=, this](TNode<Object> fn) {
+      Return(Call(context, fn, search, receiver, replace));
+    };
     MaybeCallFunctionAtSymbol(
         context, search, receiver, isolate()->factory()->replace_symbol(),
         DescriptorIndexNameValue{
             JSRegExp::kSymbolReplaceFunctionDescriptorIndex,
             RootIndex::kreplace_symbol, Context::REGEXP_REPLACE_FUNCTION_INDEX},
-        [=, this]() {
-          Return(CallBuiltin(Builtin::kRegExpReplace, context, search, receiver,
-                             replace));
-        },
-        [=, this](TNode<Object> fn) {
-          Return(Call(context, fn, search, receiver, replace));
-        });
+        if_regexp_call, if_generic_call);
     Goto(&next);
 
     BIND(&next);
@@ -1434,9 +1417,10 @@ TF_BUILTIN(StringPrototypeMatchAll, StringBuiltinsAssembler) {
   {
     Label fast(this), slow(this, Label::kDeferred),
         throw_exception(this, Label::kDeferred),
-        throw_flags_exception(this, Label::kDeferred), next(this);
+        throw_flags_exception(this, Label::kDeferred), maybe_call_matcher(this),
+        next(this);
 
-    // 2. If regexp is neither undefined nor null, then
+    // 2. If regexp is an Object, then
     //   a. Let isRegExp be ? IsRegExp(regexp).
     //   b. If isRegExp is true, then
     //     i. Let flags be ? Get(regexp, "flags").
@@ -1444,6 +1428,7 @@ TF_BUILTIN(StringPrototypeMatchAll, StringBuiltinsAssembler) {
     //   iii. If ? ToString(flags) does not contain "g", throw a
     //        TypeError exception.
     GotoIf(TaggedIsSmi(maybe_regexp), &next);
+    GotoIfNot(IsJSReceiver(CAST(maybe_regexp)), &next);
     TNode<JSAnyNotSmi> heap_maybe_regexp = CAST(maybe_regexp);
     regexp_asm.BranchIfFastRegExpForMatch(context, heap_maybe_regexp, &fast,
                                           &slow);
@@ -1452,12 +1437,13 @@ TF_BUILTIN(StringPrototypeMatchAll, StringBuiltinsAssembler) {
     {
       TNode<BoolT> is_global =
           regexp_asm.FastFlagGetter(CAST(heap_maybe_regexp), JSRegExp::kGlobal);
-      Branch(is_global, &next, &throw_exception);
+      Branch(is_global, &maybe_call_matcher, &throw_exception);
     }
 
     BIND(&slow);
     {
-      GotoIfNot(regexp_asm.IsRegExp(native_context, heap_maybe_regexp), &next);
+      GotoIfNot(regexp_asm.IsRegExp(native_context, heap_maybe_regexp),
+                &maybe_call_matcher);
 
       TNode<Object> flags = GetProperty(context, heap_maybe_regexp,
                                         isolate()->factory()->flags_string());
@@ -1470,7 +1456,8 @@ TF_BUILTIN(StringPrototypeMatchAll, StringBuiltinsAssembler) {
       TNode<Smi> global_ix =
           CAST(CallBuiltin(Builtin::kStringIndexOf, context, flags_string,
                            global_char_string, SmiConstant(0)));
-      Branch(SmiEqual(global_ix, SmiConstant(-1)), &throw_exception, &next);
+      Branch(SmiEqual(global_ix, SmiConstant(-1)), &throw_exception,
+             &maybe_call_matcher);
     }
 
     BIND(&throw_exception);
@@ -1481,28 +1468,35 @@ TF_BUILTIN(StringPrototypeMatchAll, StringBuiltinsAssembler) {
     ThrowTypeError(context,
                    MessageTemplate::kStringMatchAllNullOrUndefinedFlags);
 
+    //   a. Let matcher be ? GetMethod(regexp, %Symbol.matchAll%).
+    //   b. If matcher is not undefined, then
+    //     i. Return ? Call(matcher, regexp, « O »).
+    BIND(&maybe_call_matcher);
+    {
+      auto if_regexp_call = [&] {
+        // MaybeCallFunctionAtSymbol guarantees fast path is chosen only if
+        // maybe_regexp is a fast regexp and receiver is a string.
+        TNode<String> s = CAST(receiver);
+
+        Return(RegExpPrototypeMatchAllImpl(context, native_context,
+                                           maybe_regexp, s));
+      };
+      auto if_generic_call = [=, this](TNode<Object> fn) {
+        Return(Call(context, fn, maybe_regexp, receiver));
+      };
+      MaybeCallFunctionAtSymbol(
+          context, maybe_regexp, receiver,
+          isolate()->factory()->match_all_symbol(),
+          DescriptorIndexNameValue{
+              JSRegExp::kSymbolMatchAllFunctionDescriptorIndex,
+              RootIndex::kmatch_all_symbol,
+              Context::REGEXP_MATCH_ALL_FUNCTION_INDEX},
+          if_regexp_call, if_generic_call);
+      Goto(&next);
+    }
+
     BIND(&next);
   }
-  //   a. Let matcher be ? GetMethod(regexp, @@matchAll).
-  //   b. If matcher is not undefined, then
-  //     i. Return ? Call(matcher, regexp, « O »).
-  auto if_regexp_call = [&] {
-    // MaybeCallFunctionAtSymbol guarantees fast path is chosen only if
-    // maybe_regexp is a fast regexp and receiver is a string.
-    TNode<String> s = CAST(receiver);
-
-    Return(
-        RegExpPrototypeMatchAllImpl(context, native_context, maybe_regexp, s));
-  };
-  auto if_generic_call = [=, this](TNode<Object> fn) {
-    Return(Call(context, fn, maybe_regexp, receiver));
-  };
-  MaybeCallFunctionAtSymbol(
-      context, maybe_regexp, receiver, isolate()->factory()->match_all_symbol(),
-      DescriptorIndexNameValue{JSRegExp::kSymbolMatchAllFunctionDescriptorIndex,
-                               RootIndex::kmatch_all_symbol,
-                               Context::REGEXP_MATCH_ALL_FUNCTION_INDEX},
-      if_regexp_call, if_generic_call);
 
   // 3. Let S be ? ToString(O).
   TNode<String> s = ToString_Inline(context, receiver);
@@ -1511,7 +1505,7 @@ TF_BUILTIN(StringPrototypeMatchAll, StringBuiltinsAssembler) {
   TNode<JSAny> rx = regexp_asm.RegExpCreate(context, native_context,
                                             maybe_regexp, StringConstant("g"));
 
-  // 5. Return ? Invoke(rx, @@matchAll, « S »).
+  // 5. Return ? Invoke(rx, %Symbol.matchAll%, « S »).
   TNode<Object> match_all_func =
       GetProperty(context, rx, isolate()->factory()->match_all_symbol());
   Return(Call(context, match_all_func, rx, s));
@@ -1611,20 +1605,28 @@ TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
 
   RequireObjectCoercible(context, receiver, "String.prototype.split");
 
-  // Redirect to splitter method if {separator[@@split]} is not undefined.
+  // Redirect to splitter method if {separator} is an Object and
+  // {separator[@@split]} is not undefined.
+  {
+    Label next(this);
 
-  MaybeCallFunctionAtSymbol(
-      context, separator, receiver, isolate()->factory()->split_symbol(),
-      DescriptorIndexNameValue{JSRegExp::kSymbolSplitFunctionDescriptorIndex,
-                               RootIndex::ksplit_symbol,
-                               Context::REGEXP_SPLIT_FUNCTION_INDEX},
-      [&]() {
-        args.PopAndReturn(CallBuiltin<JSAny>(Builtin::kRegExpSplit, context,
-                                             separator, receiver, limit));
-      },
-      [&](TNode<Object> fn) {
-        args.PopAndReturn(Call(context, fn, separator, receiver, limit));
-      });
+    auto if_regexp_call = [&] {
+      args.PopAndReturn(CallBuiltin<JSAny>(Builtin::kRegExpSplit, context,
+                                           separator, receiver, limit));
+    };
+    auto if_generic_call = [&](TNode<Object> fn) {
+      args.PopAndReturn(Call(context, fn, separator, receiver, limit));
+    };
+    MaybeCallFunctionAtSymbol(
+        context, separator, receiver, isolate()->factory()->split_symbol(),
+        DescriptorIndexNameValue{JSRegExp::kSymbolSplitFunctionDescriptorIndex,
+                                 RootIndex::ksplit_symbol,
+                                 Context::REGEXP_SPLIT_FUNCTION_INDEX},
+        if_regexp_call, if_generic_call);
+    Goto(&next);
+
+    BIND(&next);
+  }
 
   // String and integer conversions.
 

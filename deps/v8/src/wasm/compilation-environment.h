@@ -185,8 +185,7 @@ class V8_EXPORT_PRIVATE CompilationState {
   // such that it can keep it alive (by regaining a {std::shared_ptr}) in
   // certain scopes.
   static std::unique_ptr<CompilationState> New(
-      const std::shared_ptr<NativeModule>&, std::shared_ptr<Counters>,
-      WasmDetectedFeatures detected_features);
+      const std::shared_ptr<NativeModule>&, WasmDetectedFeatures);
 };
 
 }  // namespace wasm

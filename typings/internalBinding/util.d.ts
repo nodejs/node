@@ -46,6 +46,7 @@ export interface UtilBinding {
   parseEnv(content: string): Record<string, string>;
   styleText(format: Array<string> | string, text: string): string;
   isInsideNodeModules(frameLimit: number, defaultValue: unknown): boolean;
+  constructSharedArrayBuffer(length?: number): SharedArrayBuffer;
 
   constants: {
     kPending: 0;

@@ -651,7 +651,7 @@ struct LoopEffects {
 #endif
   ZoneSet<KnownNodeAspects::LoadedContextSlotsKey> context_slot_written;
   ZoneSet<ValueNode*> objects_written;
-  ZoneSet<KnownNodeAspects::LoadedPropertyMapKey> keys_cleared;
+  ZoneSet<PropertyKey> keys_cleared;
   ZoneSet<InlinedAllocation*> allocations;
   bool unstable_aspects_cleared = false;
   bool may_have_aliasing_contexts = false;

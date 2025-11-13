@@ -14,6 +14,26 @@
 
 namespace v8::internal::compiler {
 
+SubtypeCheckExactness GetExactness(const wasm::WasmModule* module,
+                                   wasm::HeapType target) {
+  // For exact target types, an exact match is needed for correctness;
+  // for final target types, it's a performance optimization.
+  // For types with custom descriptors, we need to look at their immediate
+  // supertype instead of the object's map.
+  // See Liftoff's {SubtypeCheck()} for detailed explanation.
+  if (!target.is_index()) {
+    DCHECK(!target.is_exact());  // The spec only allows exact index types.
+    return SubtypeCheckExactness::kMayBeSubtype;
+  }
+  const wasm::TypeDefinition& type = module->type(target.ref_index());
+  if (type.is_final || target.is_exact()) {
+    return type.has_descriptor()
+               ? SubtypeCheckExactness::kExactMatchLastSupertype
+               : SubtypeCheckExactness::kExactMatchOnly;
+  }
+  return SubtypeCheckExactness::kMayBeSubtype;
+}
+
 base::Vector<const char> GetDebugName(Zone* zone,
                                       const wasm::WasmModule* module,
                                       const wasm::WireBytesStorage* wire_bytes,

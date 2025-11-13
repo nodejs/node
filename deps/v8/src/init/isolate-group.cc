@@ -640,6 +640,9 @@ class PABackedSandboxedArrayBufferAllocator::Impl final {
   partition_alloc::PartitionAllocator partition_;
 };
 
+PABackedSandboxedArrayBufferAllocator::PABackedSandboxedArrayBufferAllocator() =
+    default;
+
 PABackedSandboxedArrayBufferAllocator::
     ~PABackedSandboxedArrayBufferAllocator() = default;
 

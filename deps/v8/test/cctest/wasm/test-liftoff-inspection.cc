@@ -42,20 +42,21 @@ class LiftoffCompileEnvironment {
     auto test_func = AddFunction(return_types, param_types, raw_function_bytes);
 
     // Now compile the function with Liftoff two times.
-    CompilationEnv env = CompilationEnv::ForModule(
-        wasm_runner_.builder().trusted_instance_data()->native_module());
+    NativeModule* native_module =
+        wasm_runner_.builder().trusted_instance_data()->native_module();
+    CompilationEnv env = CompilationEnv::ForModule(native_module);
     WasmDetectedFeatures detected1;
     WasmDetectedFeatures detected2;
-    WasmCompilationResult result1 =
-        ExecuteLiftoffCompilation(&env, test_func.body,
-                                  LiftoffOptions{}
-                                      .set_func_index(test_func.code->index())
-                                      .set_detected_features(&detected1));
-    WasmCompilationResult result2 =
-        ExecuteLiftoffCompilation(&env, test_func.body,
-                                  LiftoffOptions{}
-                                      .set_func_index(test_func.code->index())
-                                      .set_detected_features(&detected2));
+    WasmCompilationResult result1 = ExecuteLiftoffCompilation(
+        &env, test_func.body,
+        LiftoffOptions{.func_index = test_func.code->index(),
+                       .counter_updates = native_module->counter_updates(),
+                       .detected_features = &detected1});
+    WasmCompilationResult result2 = ExecuteLiftoffCompilation(
+        &env, test_func.body,
+        LiftoffOptions{.func_index = test_func.code->index(),
+                       .counter_updates = native_module->counter_updates(),
+                       .detected_features = &detected2});
 
     CHECK(result1.succeeded());
     CHECK(result2.succeeded());
@@ -76,16 +77,17 @@ class LiftoffCompileEnvironment {
       std::vector<int> breakpoints = {}) {
     auto test_func = AddFunction(return_types, param_types, raw_function_bytes);
 
-    CompilationEnv env = CompilationEnv::ForModule(
-        wasm_runner_.builder().trusted_instance_data()->native_module());
+    NativeModule* native_module =
+        wasm_runner_.builder().trusted_instance_data()->native_module();
+    CompilationEnv env = CompilationEnv::ForModule(native_module);
     std::unique_ptr<DebugSideTable> debug_side_table_via_compilation;
     auto result = ExecuteLiftoffCompilation(
         &env, test_func.body,
-        LiftoffOptions{}
-            .set_func_index(0)
-            .set_for_debugging(kForDebugging)
-            .set_breakpoints(base::VectorOf(breakpoints))
-            .set_debug_sidetable(&debug_side_table_via_compilation));
+        LiftoffOptions{.func_index = 0,
+                       .for_debugging = kForDebugging,
+                       .counter_updates = native_module->counter_updates(),
+                       .breakpoints = base::VectorOf(breakpoints),
+                       .debug_sidetable = &debug_side_table_via_compilation});
     CHECK(result.succeeded());
 
     // If there are no breakpoint, then {ExecuteLiftoffCompilation} should
@@ -374,6 +376,8 @@ TEST(Liftoff_debug_side_table_indirect_call) {
           // OOL trap (invalid index), local still spilled, stack has {kConst,
           // kStack}.
           {3, {Constant(1, kWasmI32, kConst), Stack(2, kWasmI32)}},
+          // OOL trap (null func), stack unmodified.
+          {3, {}},
           // OOL trap (sig mismatch), stack unmodified.
           {3, {}},
       },

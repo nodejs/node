@@ -9,13 +9,13 @@ const server = http.createServer((req, res) => {
   res.end('ok');
 });
 
-server.listen(0, () => {
-  asyncLocalStorage.run(new Map(), () => {
+server.listen(0, mustCall(() => {
+  asyncLocalStorage.run(new Map(), mustCall(() => {
     const store = asyncLocalStorage.getStore();
     store.set('hello', 'world');
     http.get({ host: 'localhost', port: server.address().port }, mustCall(() => {
       assert.strictEqual(asyncLocalStorage.getStore().get('hello'), 'world');
       server.close();
     }));
-  });
-});
+  }));
+}));

@@ -22,7 +22,7 @@ const handleRequest = (req, res) => {
       res.end('hello world\n');
       break;
     default:
-      assert(false, `Unexpected path: ${path}`);
+      assert.fail(`Unexpected path: ${path}`);
   }
 };
 

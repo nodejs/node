@@ -9,6 +9,7 @@ on:
       - '*.nix'
       - AUTHORS
       - doc/**
+      - test/internet/**
       - .github/**
       - '!.github/workflows/test-macos.yml'
   push:
@@ -23,6 +24,7 @@ on:
       - '*.nix'
       - AUTHORS
       - doc/**
+      - test/internet/**
       - .github/**
       - '!.github/workflows/test-macos.yml'
 

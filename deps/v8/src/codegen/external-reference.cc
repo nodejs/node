@@ -557,7 +557,7 @@ ExternalPointerHandle AllocateAndInitializeYoungExternalPointerTableEntry(
 #ifdef V8_ENABLE_SANDBOX
   return isolate->external_pointer_table().AllocateAndInitializeEntry(
       isolate->heap()->young_external_pointer_space(), pointer,
-      kExternalObjectValueTag);
+      kFastApiExternalTypeTag);
 #else
   return 0;
 #endif  // V8_ENABLE_SANDBOX
@@ -613,6 +613,7 @@ FUNCTION_REFERENCE(wasm_suspender_has_js_frames, wasm::suspender_has_js_frames)
 FUNCTION_REFERENCE(wasm_suspend_stack, wasm::suspend_stack)
 FUNCTION_REFERENCE(wasm_resume_jspi_stack, wasm::resume_jspi_stack)
 FUNCTION_REFERENCE(wasm_resume_wasmfx_stack, wasm::resume_wasmfx_stack)
+FUNCTION_REFERENCE(wasm_suspend_wasmfx_stack, wasm::suspend_wasmfx_stack)
 FUNCTION_REFERENCE(wasm_return_stack, wasm::return_stack)
 FUNCTION_REFERENCE(wasm_switch_to_the_central_stack,
                    wasm::switch_to_the_central_stack)
@@ -1252,14 +1253,16 @@ FUNCTION_REFERENCE(libc_memset_function, libc_memset)
 
 void relaxed_memcpy(volatile base::Atomic8* dest,
                     volatile const base::Atomic8* src, size_t n) {
-  base::Relaxed_Memcpy(dest, src, n);
+  base::Relaxed_Memcpy(const_cast<base::Atomic8*>(dest),
+                       const_cast<const base::Atomic8*>(src), n);
 }
 
 FUNCTION_REFERENCE(relaxed_memcpy_function, relaxed_memcpy)
 
 void relaxed_memmove(volatile base::Atomic8* dest,
                      volatile const base::Atomic8* src, size_t n) {
-  base::Relaxed_Memmove(dest, src, n);
+  base::Relaxed_Memmove(const_cast<base::Atomic8*>(dest),
+                        const_cast<const base::Atomic8*>(src), n);
 }
 
 FUNCTION_REFERENCE(relaxed_memmove_function, relaxed_memmove)

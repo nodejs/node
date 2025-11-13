@@ -977,6 +977,12 @@ StringTransitionStrategy Factory::ComputeInternalizationStrategyForString(
   if (v8_flags.shared_string_table && !HeapLayout::InAnySharedSpace(*string)) {
     return StringTransitionStrategy::kCopy;
   }
+  // If the string table is not shared and the string is in shared space, we
+  // need to copy the string to the local heap.
+  if (!v8_flags.shared_string_table && HeapLayout::InAnySharedSpace(*string)) {
+    DCHECK(v8_flags.shared_strings);
+    return StringTransitionStrategy::kCopy;
+  }
   DCHECK_NOT_NULL(internalized_map);
   DisallowGarbageCollection no_gc;
   // This method may be called concurrently, so snapshot the map from the input
@@ -1017,7 +1023,7 @@ template DirectHandle<ExternalTwoByteString> Factory::InternalizeExternalString<
 
 StringTransitionStrategy Factory::ComputeSharingStrategyForString(
     DirectHandle<String> string, MaybeDirectHandle<Map>* shared_map) {
-  DCHECK(v8_flags.shared_string_table);
+  DCHECK(v8_flags.shared_strings);
   // TODO(pthier): Avoid copying LO-space strings. Update page flags instead.
   if (!HeapLayout::InAnySharedSpace(*string)) {
     return StringTransitionStrategy::kCopy;
@@ -1730,6 +1736,37 @@ DirectHandle<WasmDispatchTable> Factory::NewWasmDispatchTable(
   return direct_handle(result, isolate());
 }
 
+DirectHandle<WasmDispatchTableForImports>
+Factory::NewWasmDispatchTableForImports(int length, bool shared) {
+  CHECK_LE(length, WasmDispatchTableForImports::kMaxLength);
+
+  // Very rough estimate: half the imports need wrappers, each wrapper needs
+  // an entry in a std::unordered_map<int, std::shared_ptr<...>>, the map
+  // is probably about half full.
+  constexpr size_t kPerEntrySize =
+      sizeof(int) + sizeof(std::shared_ptr<wasm::WasmImportWrapperHandle>) +
+      2 * sizeof(void*);
+  size_t estimated_offheap_size = length * kPerEntrySize;
+  DirectHandle<TrustedManaged<WasmDispatchTableData>> offheap_data =
+      TrustedManaged<WasmDispatchTableData>::From(
+          isolate(), estimated_offheap_size,
+          std::make_shared<WasmDispatchTableData>(), shared);
+
+  int bytes = WasmDispatchTableForImports::SizeFor(length);
+  Tagged<WasmDispatchTableForImports> result =
+      UncheckedCast<WasmDispatchTableForImports>(AllocateRawWithImmortalMap(
+          bytes,
+          shared ? AllocationType::kSharedTrusted : AllocationType::kTrusted,
+          read_only_roots().wasm_dispatch_table_for_imports_map()));
+  DisallowGarbageCollection no_gc;
+  result->WriteField<int>(WasmDispatchTableForImports::kLengthOffset, length);
+  result->set_protected_offheap_data(*offheap_data);
+  for (int i = 0; i < length; ++i) {
+    result->Clear(i, WasmDispatchTable::kNewEntry);
+  }
+  return direct_handle(result, isolate());
+}
+
 DirectHandle<WasmTypeInfo> Factory::NewWasmTypeInfo(
     wasm::CanonicalValueType type, wasm::CanonicalValueType element_type,
     DirectHandle<Map> opt_parent, int num_supertypes, bool shared) {
@@ -1744,10 +1781,7 @@ DirectHandle<WasmTypeInfo> Factory::NewWasmTypeInfo(
   // kMinimumSupertypeArraySize, so that generated code can skip the bounds
   // check when the index is statically known to be sufficiently small.
   // {num_supertypes-1} supertypes will be copied from {opt_parent}'s
-  // supertypes list; any remaining slots will be filled with {opt_parent}.
-  // Padding any over-allocated slots with copies of {opt_parent} is
-  // load-bearing for casts to exact types: for those, we look at the last
-  // slot's value, ignoring the target type's inheritance depth.
+  // supertypes list, then {opt_parent} is appended.
   int min_supertypes = wasm::kMinimumSupertypeArraySize;
   int actual_supertypes = std::max(min_supertypes, num_supertypes);
 
@@ -1757,19 +1791,16 @@ DirectHandle<WasmTypeInfo> Factory::NewWasmTypeInfo(
       shared ? AllocationType::kSharedOld : AllocationType::kOld, map));
   DisallowGarbageCollection no_gc;
   result->set_supertypes_length(actual_supertypes);
-  if (opt_parent.is_null()) {
-    for (int i = 0; i < actual_supertypes; i++) {
-      result->set_supertypes(i, *undefined_value());
-    }
-  } else {
+  int i = 0;
+  if (!opt_parent.is_null()) {
     Tagged<WasmTypeInfo> parent_type_info = opt_parent->wasm_type_info();
-    int i = 0;
     for (; i < num_supertypes - 1; i++) {
       result->set_supertypes(i, parent_type_info->supertypes(i));
     }
-    for (; i < actual_supertypes; i++) {
-      result->set_supertypes(i, *opt_parent);
-    }
+    result->set_supertypes(i++, *opt_parent);
+  }
+  for (; i < actual_supertypes; i++) {
+    result->set_supertypes(i, *undefined_value());
   }
   result->set_canonical_type(type.raw_bit_field());
   result->set_canonical_element_type(element_type.raw_bit_field());
@@ -1825,23 +1856,22 @@ DirectHandle<WasmFastApiCallData> Factory::NewWasmFastApiCallData(
 
 DirectHandle<WasmInternalFunction> Factory::NewWasmInternalFunction(
     DirectHandle<TrustedObject> implicit_arg, int function_index, bool shared,
-    WasmCodePointer call_target) {
+    WasmCodePointer call_target, const wasm::CanonicalSig* sig) {
   Tagged<WasmInternalFunction> internal =
       TrustedCast<WasmInternalFunction>(AllocateRawWithImmortalMap(
           WasmInternalFunction::kSize,
           shared ? AllocationType::kSharedTrusted : AllocationType::kTrusted,
           *wasm_internal_function_map()));
+
+  DisallowGarbageCollection no_gc;
   internal->init_self_indirect_pointer(isolate());
-  {
-    DisallowGarbageCollection no_gc;
-    internal->set_call_target(call_target);
-    DCHECK(IsWasmTrustedInstanceData(*implicit_arg) ||
-           IsWasmImportData(*implicit_arg));
-    internal->set_implicit_arg(*implicit_arg);
-    // Default values, will be overwritten by the caller.
-    internal->set_function_index(function_index);
-    internal->set_external(*undefined_value());
-  }
+  internal->set_call_target(call_target);
+  DCHECK(IsWasmTrustedInstanceData(*implicit_arg) ||
+         IsWasmImportData(*implicit_arg));
+  internal->set_implicit_arg(*implicit_arg);
+  internal->set_function_index(function_index);
+  internal->set_external(*undefined_value());
+  internal->set_sig(sig);
 
   return direct_handle(internal, isolate());
 }
@@ -1871,7 +1901,7 @@ DirectHandle<WasmJSFunctionData> Factory::NewWasmJSFunctionData(
       callable, suspend, DirectHandle<WasmTrustedInstanceData>(), sig, kShared);
 
   DirectHandle<WasmInternalFunction> internal = NewWasmInternalFunction(
-      import_data, -1, kShared, wrapper_handle->code_pointer());
+      import_data, -1, kShared, wrapper_handle->code_pointer(), sig);
   DirectHandle<WasmFuncRef> func_ref = NewWasmFuncRef(internal, rtt, kShared);
   import_data->SetFuncRefAsCallOrigin(*internal);
 
@@ -1894,7 +1924,6 @@ DirectHandle<WasmJSFunctionData> Factory::NewWasmJSFunctionData(
   result->set_func_ref(*func_ref);
   result->set_internal(*internal);
   result->set_wrapper_code(*wrapper_code);
-  result->set_canonical_sig_index(sig->index().index);
   result->set_js_promise_flags(WasmFunctionData::SuspendField::encode(suspend) |
                                WasmFunctionData::PromiseField::encode(promise));
   result->set_protected_offheap_data(*offheap_data);
@@ -1955,23 +1984,14 @@ DirectHandle<WasmSuspenderObject> Factory::NewWasmSuspenderObjectInitialized() {
   return suspender;
 }
 
-DirectHandle<WasmContinuationObject> Factory::NewWasmContinuationObject() {
+DirectHandle<WasmContinuationObject> Factory::NewWasmContinuationObject(
+    wasm::StackMemory* stack) {
   Tagged<Map> map = *wasm_continuation_object_map();
   Tagged<WasmContinuationObject> obj =
       Cast<WasmContinuationObject>(AllocateRawWithImmortalMap(
           map->instance_size(), AllocationType::kYoung, map));
   DirectHandle<WasmContinuationObject> cont(obj, isolate());
-  cont->init_stack(IsolateForSandbox(isolate()), nullptr);
-  std::unique_ptr<wasm::StackMemory> stack = wasm::StackMemory::New();
-  stack->jmpbuf()->fp = kNullAddress;
-  stack->jmpbuf()->sp = stack->base();
-  stack->jmpbuf()->state = wasm::JumpBuffer::Suspended;
-  stack->jmpbuf()->stack_limit = stack->jslimit();
-  stack->jmpbuf()->is_on_central_stack = false;
-  stack->jmpbuf()->parent = nullptr;
-  stack->set_index(isolate()->wasm_stacks().size());
-  cont->set_stack(isolate(), stack.get());
-  isolate()->wasm_stacks().emplace_back(std::move(stack));
+  cont->init_stack(IsolateForSandbox(isolate()), stack);
   return cont;
 }
 
@@ -1979,8 +1999,8 @@ DirectHandle<WasmExportedFunctionData> Factory::NewWasmExportedFunctionData(
     DirectHandle<Code> export_wrapper,
     DirectHandle<WasmTrustedInstanceData> instance_data,
     DirectHandle<WasmFuncRef> func_ref,
-    DirectHandle<WasmInternalFunction> internal_function,
-    const wasm::CanonicalSig* sig, int wrapper_budget, wasm::Promise promise) {
+    DirectHandle<WasmInternalFunction> internal_function, int wrapper_budget,
+    wasm::Promise promise) {
   int func_index = internal_function->function_index();
   DirectHandle<Cell> wrapper_budget_cell =
       NewCell(Smi::FromInt(wrapper_budget));
@@ -1995,7 +2015,6 @@ DirectHandle<WasmExportedFunctionData> Factory::NewWasmExportedFunctionData(
   result->set_wrapper_code(*export_wrapper);
   result->set_instance_data(*instance_data);
   result->set_function_index(func_index);
-  result->set_sig(sig);
   result->set_receiver_is_first_param(0);
   result->set_wrapper_budget(*wrapper_budget_cell);
   // We can't skip the write barrier because Code objects are not immovable.
@@ -2019,7 +2038,8 @@ DirectHandle<WasmCapiFunctionData> Factory::NewWasmCapiFunctionData(
   DirectHandle<WasmInternalFunction> internal = NewWasmInternalFunction(
       import_data, -1, kShared,
       wasm::GetProcessWideWasmCodePointerTable()
-          ->GetOrCreateHandleForNativeFunction(call_target));
+          ->GetOrCreateHandleForNativeFunction(call_target),
+      sig);
   DirectHandle<WasmFuncRef> func_ref = NewWasmFuncRef(internal, rtt, kShared);
   // We have no generic wrappers for C-API functions, so we don't need to
   // set any call origin on {import_data}.
@@ -2033,7 +2053,6 @@ DirectHandle<WasmCapiFunctionData> Factory::NewWasmCapiFunctionData(
   result->set_internal(*internal);
   result->set_wrapper_code(*wrapper_code);
   result->set_embedder_data(*embedder_data);
-  result->set_sig(sig);
   result->set_js_promise_flags(
       WasmFunctionData::SuspendField::encode(wasm::kNoSuspend) |
       WasmFunctionData::PromiseField::encode(wasm::kNoPromise));
@@ -2951,11 +2970,11 @@ DirectHandle<JSObject> Factory::NewFunctionPrototype(
   return prototype;
 }
 
-Handle<JSObject> Factory::NewExternal(void* value,
+Handle<JSObject> Factory::NewExternal(void* value, ExternalPointerTag tag,
                                       AllocationType allocation_type) {
   auto external = Cast<JSExternalObject>(
       NewJSObjectFromMap(external_map(), allocation_type));
-  external->init_value(isolate(), value);
+  external->init_value(isolate(), tag, value);
   return external;
 }
 

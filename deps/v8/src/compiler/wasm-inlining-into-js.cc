@@ -187,8 +187,8 @@ class WasmIntoJSInlinerImpl : private wasm::Decoder {
 
  private:
   Value ParseAnyConvertExtern(Value input) {
-    DCHECK(input.type.is_reference_to(wasm::HeapType::kExtern) ||
-           input.type.is_reference_to(wasm::HeapType::kNoExtern));
+    DCHECK(input.type.is_reference_to(wasm::GenericKind::kExtern) ||
+           input.type.is_reference_to(wasm::GenericKind::kNoExtern));
     wasm::ValueType result_type = wasm::ValueType::Generic(
         wasm::GenericKind::kAny, input.type.nullability(), kNotShared);
     Node* internalized = gasm_.WasmAnyConvertExtern(input.node);
@@ -196,7 +196,7 @@ class WasmIntoJSInlinerImpl : private wasm::Decoder {
   }
 
   Value ParseExternConvertAny(Value input) {
-    DCHECK(input.type.is_reference());
+    DCHECK(input.type.is_ref());
     wasm::ValueType result_type = wasm::ValueType::Generic(
         wasm::GenericKind::kExtern, input.type.nullability(), kNotShared);
     Node* internalized = gasm_.WasmExternConvertAny(input.node);
@@ -215,6 +215,10 @@ class WasmIntoJSInlinerImpl : private wasm::Decoder {
     const wasm::StructType* struct_type = module_->struct_type(struct_index);
     uint32_t field_index = consume_u32v();
     DCHECK_GT(struct_type->field_count(), field_index);
+    if (!Is64() && struct_type->field(field_index) == wasm::kWasmI64) {
+      is_inlineable_ = false;
+      return {};
+    }
     const bool is_signed = opcode == wasm::kExprStructGetS;
     const CheckForNull null_check =
         struct_val.type.is_nullable() ? kWithNullCheck : kWithoutNullCheck;
@@ -230,6 +234,10 @@ class WasmIntoJSInlinerImpl : private wasm::Decoder {
     const wasm::StructType* struct_type = module_->struct_type(struct_index);
     uint32_t field_index = consume_u32v();
     DCHECK_GT(struct_type->field_count(), field_index);
+    if (!Is64() && struct_type->field(field_index) == wasm::kWasmI64) {
+      is_inlineable_ = false;
+      return;
+    }
     const CheckForNull null_check =
         wasm_struct.type.is_nullable() ? kWithNullCheck : kWithoutNullCheck;
     gasm_.StructSet(wasm_struct.node, value.node, struct_type, field_index,
@@ -309,6 +317,10 @@ class WasmIntoJSInlinerImpl : private wasm::Decoder {
     wasm::ModuleTypeIndex array_index{consume_u32v()};
     DCHECK(module_->has_array(array_index));
     const wasm::ArrayType* array_type = module_->array_type(array_index);
+    if (!Is64() && array_type->element_type() == wasm::kWasmI64) {
+      is_inlineable_ = false;
+      return {};
+    }
     const bool is_signed = opcode == WasmOpcode::kExprArrayGetS;
     const CheckForNull null_check =
         array.type.is_nullable() ? kWithNullCheck : kWithoutNullCheck;
@@ -328,6 +340,10 @@ class WasmIntoJSInlinerImpl : private wasm::Decoder {
     wasm::ModuleTypeIndex array_index{consume_u32v()};
     DCHECK(module_->has_array(array_index));
     const wasm::ArrayType* array_type = module_->array_type(array_index);
+    if (!Is64() && array_type->element_type() == wasm::kWasmI64) {
+      is_inlineable_ = false;
+      return;
+    }
     const CheckForNull null_check =
         array.type.is_nullable() ? kWithNullCheck : kWithoutNullCheck;
     // Perform bounds check.

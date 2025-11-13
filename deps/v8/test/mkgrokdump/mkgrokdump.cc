@@ -126,8 +126,10 @@ static int DumpHeapConstants(FILE* out, const char* argv0) {
   Isolate* isolate = Isolate::New(create_params);
   {
     Isolate::Scope scope(isolate);
-    i::Heap* heap = reinterpret_cast<i::Isolate*>(isolate)->heap();
-    i::IsolateSafepointScope safepoint_scope(heap);
+    i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+    i::Heap* heap = i_isolate->heap();
+    i::SafepointScope safepoint_scope(i_isolate,
+                                      i::kGlobalSafepointForSharedSpaceIsolate);
     i::ReadOnlyHeap* read_only_heap =
         reinterpret_cast<i::Isolate*>(isolate)->read_only_heap();
     i::PrintF(out, "%s", kHeader);
@@ -206,7 +208,9 @@ static int DumpHeapConstants(FILE* out, const char* argv0) {
         if (s->identity() == i::TRUSTED_SPACE) {
           continue;
         }
-        DumpSpaceFirstPageAddress(out, s);
+        if (s->first_page()) {
+          DumpSpaceFirstPageAddress(out, s);
+        }
       }
       DumpSpaceFirstPageAddress(out, read_only_heap->read_only_space());
       i::PrintF(out, "}\n");

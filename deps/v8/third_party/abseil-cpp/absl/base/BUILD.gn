@@ -40,7 +40,6 @@ absl_source_set("nullability") {
   public = [ "nullability.h" ]
   deps = [
     ":config",
-    ":core_headers",
   ]
 }
 
@@ -152,7 +151,6 @@ absl_source_set("malloc_internal") {
 absl_source_set("base_internal") {
   public = [
     "internal/hide_ptr.h",
-    "internal/identity.h",
     "internal/scheduling_mode.h",
   ]
   deps = [
@@ -380,6 +378,14 @@ absl_test("config_test") {
   ]
 }
 
+absl_test("casts_test") {
+  sources = [ "casts_test.cc" ]
+  deps = [
+    ":base",
+    ":core_headers",
+  ]
+}
+
 absl_test("no_destructor_test") {
   sources = [ "no_destructor_test.cc" ]
   deps = [
@@ -392,7 +398,6 @@ absl_test("no_destructor_test") {
 absl_test("nullability_test") {
   sources = [ "nullability_test.cc" ]
   deps = [
-    ":core_headers",
     ":nullability",
   ]
 }

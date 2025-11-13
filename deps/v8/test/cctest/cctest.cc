@@ -83,10 +83,11 @@ v8::Platform* CcTest::default_platform_ = nullptr;
 bool CcTest::should_call_dispose_ = false;
 
 CcTest::CcTest(TestFunction* callback, const char* file, const char* name,
-               bool enabled, bool initialize,
+               bool enabled, bool initialize, const char* custom_v8_flags,
                TestPlatformFactory* test_platform_factory)
     : callback_(callback),
       initialize_(initialize),
+      custom_v8_flags_(custom_v8_flags ? custom_v8_flags : ""),
       test_platform_factory_(test_platform_factory) {
   // Find the base name of this test (const_cast required on Windows).
   char *basename = strrchr(const_cast<char *>(file), '/');
@@ -130,6 +131,10 @@ void CcTest::Run(const char* snapshot_directory) {
   cppgc::InitializeProcess(platform->GetPageAllocator());
 
   // Allow changing flags in cctests.
+  if (!custom_v8_flags_.empty()) {
+    v8::V8::SetFlagsFromString(custom_v8_flags_.c_str(),
+                               custom_v8_flags_.length());
+  }
   // TODO(12887): Fix tests to avoid changing flag values after initialization.
   i::v8_flags.freeze_flags_after_init = false;
 

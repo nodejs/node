@@ -28,7 +28,7 @@ const subScript = fixtures.path('child-process-persistent.js');
   const spawnOptions = { stdio: ['pipe', 'pipe', 'pipe', 'ipc'] };
   const s = spawn(process.execPath, [subScript], spawnOptions);
 
-  const server = net.createServer(common.mustNotCall()).listen(0, () => {
+  const server = net.createServer(common.mustNotCall()).listen(0, common.mustCall(() => {
     const handle = server._handle;
 
     // Sending a handle and not giving the tickQueue time to acknowledge should
@@ -42,8 +42,7 @@ const subScript = fixtures.path('child-process-persistent.js');
     // The backlog should now be indicate to backoff.
     const rv3 = s.send('three', assert.ifError);
     assert.strictEqual(rv3, false);
-    const rv4 = s.send('four', (err) => {
-      assert.ifError(err);
+    const rv4 = s.send('four', common.mustSucceed(() => {
       // `send` queue should have been drained.
       const rv5 = s.send('5', handle, assert.ifError);
       assert.strictEqual(rv5, true);
@@ -52,7 +51,7 @@ const subScript = fixtures.path('child-process-persistent.js');
       s.kill();
       handle.close();
       server.close();
-    });
+    }));
     assert.strictEqual(rv4, false);
-  });
+  }));
 }

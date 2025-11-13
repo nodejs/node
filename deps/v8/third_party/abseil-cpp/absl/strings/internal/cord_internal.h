@@ -381,6 +381,8 @@ struct CordRepExternalImpl
     this->releaser_invoker = &Release;
   }
 
+  const Releaser* releaser() const { return &this->template get<0>(); }
+
   ~CordRepExternalImpl() {
     InvokeReleaser(Rank1{}, std::move(this->template get<0>()),
                    absl::string_view(base, length));

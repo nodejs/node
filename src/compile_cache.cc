@@ -232,10 +232,8 @@ static std::string GetRelativePath(std::string_view path,
 // the paths to wide strings before using std::filesystem::path.
 // On other platforms, std::filesystem::path can handle UTF-8 directly.
 #ifdef _WIN32
-  std::filesystem::path module_path(
-      ConvertToWideString(std::string(path), CP_UTF8));
-  std::filesystem::path base_path(
-      ConvertToWideString(std::string(base), CP_UTF8));
+  std::filesystem::path module_path(ConvertUTF8ToWideString(std::string(path)));
+  std::filesystem::path base_path(ConvertUTF8ToWideString(std::string(base)));
 #else
   std::filesystem::path module_path(path);
   std::filesystem::path base_path(base);

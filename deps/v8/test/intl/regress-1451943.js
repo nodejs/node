@@ -11,9 +11,9 @@ assertEquals(
     beforeOct1582GregorianTransition.toLocaleDateString('en-US', { timeZone: 'UTC', calendar: 'gregory' }));
 // ISO 8601 calendar output before Oct 1582 Gregorian transition
 assertEquals(
-    "1/1/1582",
+    "1582-01-01",
     beforeOct1582GregorianTransition.toLocaleDateString('en-US', { timeZone: 'UTC', calendar: 'iso8601' }));
 // ISO 8601 calendar output after the Gregorian transition
 assertEquals(
-    "1/1/1583",
+    "1583-01-01",
     afterOct1582GregorianTransition.toLocaleDateString('en-US', { timeZone: 'UTC', calendar: 'iso8601' }));

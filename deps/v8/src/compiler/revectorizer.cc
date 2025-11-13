@@ -484,9 +484,7 @@ void SLPTree::PushStack(const ZoneVector<Node*>& node_group) {
   TRACE("Stack Push (%d %s, %d %s)\n", node_group[0]->id(),
         node_group[0]->op()->mnemonic(), node_group[1]->id(),
         node_group[1]->op()->mnemonic());
-  for (auto node : node_group) {
-    on_stack_.insert(node);
-  }
+  on_stack_.insert(node_group.begin(), node_group.end());
   stack_.push({node_group});
 }
 

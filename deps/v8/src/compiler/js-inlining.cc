@@ -689,6 +689,18 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
 #endif  // V8_ENABLE_WEBASSEMBLY
   JSCallAccessor call(node);
 
+  constexpr int kMaxArgumentsSafetyBuffer = 10;
+  if (node->InputCount() > Code::kMaxArguments - kMaxArgumentsSafetyBuffer) {
+    // We don't attempt to inline calls with too many inputs (note that we
+    // subtract this {kMaxArgumentsSafetyBuffer} so that we still have some
+    // place left to add FrameState, receiver and whatever other input is
+    // necessary), since a lot of things can go wrong when doing this, including
+    // CreateArtificialFrameState having too many inputs, Turboshaft needing to
+    // bail out because the max input count for a node in Turboshaft is lower as
+    // in Turbofan, and other assumptions about max input count being broken.
+    return NoChange();
+  }
+
   // Determine the call target.
   OptionalSharedFunctionInfoRef shared_info(DetermineCallTarget(node));
   if (!shared_info.has_value()) return NoChange();

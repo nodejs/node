@@ -7,27 +7,39 @@
 
 #include "src/compiler/globals.h"
 #include "src/compiler/operator.h"
+#include "src/compiler/turboshaft/call-descriptors-util.h"
 #include "src/compiler/turboshaft/operations.h"
 #include "src/runtime/runtime.h"
 
+// Use this macro to define Arguments in runtime function's Descriptor's
+// Arguments. For functions without arguments, use `runtime::NoArguments`.
+#define ARG(type, name) DEFINE_TURBOSHAFT_CALL_DESCRIPTOR_ARG(type, name)
+
 namespace v8::internal::compiler::turboshaft {
 
-struct RuntimeCallDescriptor {
- private:
+struct runtime : CallDescriptorBuilder {
+  // TODO(nicohartmann@): Unfortunately, we cannot define runtime functions with
+  // void/never return types properly, but they typically have
+  // a JSAny dummy return type. Use Void/Never sentinels to express that in
+  // Turboshaft's descriptors. We should find a better way to model this.
+  using Void = V<Any>;
+  using Never = V<Any>;
+
   template <typename Derived>
   struct Descriptor {
-    static const TSCallDescriptor* Create(
-        Zone* zone, LazyDeoptOnThrow lazy_deopt_on_throw) {
+    static const TSCallDescriptor* Create(Zone* zone,
+                                          LazyDeoptOnThrow lazy_deopt_on_throw,
+                                          bool caller_can_deopt = true) {
       DCHECK_IMPLIES(lazy_deopt_on_throw == LazyDeoptOnThrow::kYes,
-                     Derived::kNeedsFrameState);
+                     Derived::kCanTriggerLazyDeopt);
       auto descriptor = Linkage::GetRuntimeCallDescriptor(
           zone, Derived::kFunction,
-          std::tuple_size_v<typename Derived::arguments_t>,
-          Derived::kProperties,
-          Derived::kNeedsFrameState ? CallDescriptor::kNeedsFrameState
-                                    : CallDescriptor::kNoFlags);
+          GetArgumentCount<typename Derived::Arguments>(), Derived::kProperties,
+          (Derived::kCanTriggerLazyDeopt && caller_can_deopt)
+              ? CallDescriptor::kNeedsFrameState
+              : CallDescriptor::kNoFlags);
 #ifdef DEBUG
-      Derived::Verify(descriptor);
+      Derived::Verify(descriptor, caller_can_deopt);
 #endif  // DEBUG
       CanThrow can_throw = (Derived::kProperties & Operator::kNoThrow)
                                ? CanThrow::kNo
@@ -37,108 +49,85 @@ struct RuntimeCallDescriptor {
     }
 
 #ifdef DEBUG
-    static void Verify(const CallDescriptor* desc) {
-      using result_t = typename Derived::result_t;
-      using arguments_t = typename Derived::arguments_t;
-      if constexpr (std::is_same_v<result_t, void>) {
-        DCHECK_EQ(desc->ReturnCount(), 0);
-      } else {
-        DCHECK_EQ(desc->ReturnCount(), 1);
-        DCHECK(result_t::allows_representation(
-            RegisterRepresentation::FromMachineRepresentation(
-                desc->GetReturnType(0).representation())));
-      }
-      DCHECK_EQ(desc->NeedsFrameState(), Derived::kNeedsFrameState);
-      DCHECK_EQ(desc->properties(), Derived::kProperties);
+    static void Verify(const CallDescriptor* desc, bool caller_can_deopt) {
+      // Verify return types.
+      using returns_t = typename Derived::returns_t;
+      DCHECK_EQ(desc->ReturnCount(), 1);
+      VerifyReturn<returns_t, 0>{}(desc);
+
+      // Verify argument types.
+      using arguments_t = decltype(Derived::Arguments::make_args_type_list_n(
+          detail::IndexTag<kMaxArgumentCount>{}));
+      const size_t arguments_count =
+          runtime::GetArgumentCount<typename Derived::Arguments>();
+      DCHECK_EQ(base::tmp::length_v<arguments_t>, arguments_count);
       constexpr int additional_stub_arguments =
           3;  // function id, argument count, context (or NoContextConstant)
       DCHECK_EQ(desc->ParameterCount(),
-                std::tuple_size_v<arguments_t> + additional_stub_arguments);
-      DCHECK(VerifyArguments<arguments_t>(desc));
-    }
+                arguments_count + additional_stub_arguments);
+      base::tmp::call_foreach<arguments_t, VerifyArgument>(desc);
 
-    template <typename Arguments>
-    static bool VerifyArguments(const CallDescriptor* desc) {
-      return VerifyArgumentsImpl<Arguments>(
-          desc, std::make_index_sequence<std::tuple_size_v<Arguments>>());
-    }
-
-   private:
-    template <typename Arguments, size_t... Indices>
-    static bool VerifyArgumentsImpl(const CallDescriptor* desc,
-                                    std::index_sequence<Indices...>) {
-      return (std::tuple_element_t<Indices, Arguments>::allows_representation(
-                  RegisterRepresentation::FromMachineRepresentation(
-                      desc->GetParameterType(Indices).representation())) &&
-              ...);
+      // Verify properties.
+      DCHECK_EQ(desc->NeedsFrameState(),
+                (Derived::kCanTriggerLazyDeopt && caller_can_deopt));
+      DCHECK_EQ(desc->properties(), Derived::kProperties);
     }
 #endif  // DEBUG
   };
 
-  // TODO(nicohartmann@): Unfortunately, we cannot define builtins with
-  // void/never return types properly (e.g. in Torque), but they typically have
-  // a JSAny dummy return type. Use Void/Never sentinels to express that in
-  // Turboshaft's descriptors. We should find a better way to model this.
-  using Void = V<Any>;
-  using Never = V<Any>;
-
- public:
   struct Abort : public Descriptor<Abort> {
     static constexpr auto kFunction = Runtime::kAbort;
-    using arguments_t = std::tuple<V<Smi>>;
-    using result_t = V<Object>;
+    struct Arguments : ArgumentsBase {
+      ARG(V<Smi>, messageOrMessageId)
+    };
+    using returns_t = V<Object>;
 
-    static constexpr bool kNeedsFrameState = false;
+    static constexpr bool kCanTriggerLazyDeopt = false;
     static constexpr Operator::Properties kProperties =
         Operator::kNoDeopt | Operator::kNoThrow;
   };
 
   struct BigIntUnaryOp : public Descriptor<BigIntUnaryOp> {
     static constexpr auto kFunction = Runtime::kBigIntUnaryOp;
-    using arguments_t = std::tuple<V<BigInt>, V<Smi>>;
-    using result_t = V<BigInt>;
+    struct Arguments : ArgumentsBase {
+      ARG(V<BigInt>, x)
+      ARG(V<Smi>, opcode)
+    };
+    using returns_t = V<BigInt>;
 
-    static constexpr bool kNeedsFrameState = false;
+    static constexpr bool kCanTriggerLazyDeopt = false;
     static constexpr Operator::Properties kProperties =
         Operator::kNoDeopt | Operator::kNoThrow;
   };
 
   struct DateCurrentTime : public Descriptor<DateCurrentTime> {
     static constexpr auto kFunction = Runtime::kDateCurrentTime;
-    using arguments_t = std::tuple<>;
-    using result_t = V<Number>;
+    using Arguments = NoArguments;
+    using returns_t = V<Number>;
 
-    static constexpr bool kNeedsFrameState = false;
-    static constexpr Operator::Properties kProperties =
-        Operator::kNoDeopt | Operator::kNoThrow;
-  };
-
-  struct DebugPrint : public Descriptor<DebugPrint> {
-    static constexpr auto kFunction = Runtime::kDebugPrint;
-    using arguments_t = std::tuple<V<Object>>;
-    using result_t = Void;  // No actual result
-
-    static constexpr bool kNeedsFrameState = false;
+    static constexpr bool kCanTriggerLazyDeopt = false;
     static constexpr Operator::Properties kProperties =
         Operator::kNoDeopt | Operator::kNoThrow;
   };
 
   struct StackGuard : public Descriptor<StackGuard> {
     static constexpr auto kFunction = Runtime::kStackGuard;
-    using arguments_t = std::tuple<>;
-    using result_t = V<Object>;
+    using Arguments = NoArguments;
+    using returns_t = V<Object>;
 
-    static constexpr bool kNeedsFrameState = false;
+    static constexpr bool kCanTriggerLazyDeopt = false;
     // TODO(nicohartmann@): Verify this.
     static constexpr Operator::Properties kProperties = Operator::kNoProperties;
   };
 
   struct StackGuardWithGap : public Descriptor<StackGuardWithGap> {
     static constexpr auto kFunction = Runtime::kStackGuardWithGap;
-    using arguments_t = std::tuple<V<Smi>>;
-    using result_t = V<Object>;
+    struct Arguments : ArgumentsBase {
+      ARG(V<Smi>, gap)
+    };
+    using returns_t = V<Object>;
 
-    static constexpr bool kNeedsFrameState = true;
+    static constexpr bool kCanTriggerLazyDeopt = true;
     // TODO(nicohartmann@): Verify this.
     static constexpr Operator::Properties kProperties = Operator::kNoProperties;
   };
@@ -146,37 +135,42 @@ struct RuntimeCallDescriptor {
   struct HandleNoHeapWritesInterrupts
       : public Descriptor<HandleNoHeapWritesInterrupts> {
     static constexpr auto kFunction = Runtime::kHandleNoHeapWritesInterrupts;
-    using arguments_t = std::tuple<>;
-    using result_t = V<Object>;
+    using Arguments = NoArguments;
+    using returns_t = V<Object>;
 
-    static constexpr bool kNeedsFrameState = true;
+    static constexpr bool kCanTriggerLazyDeopt = true;
     static constexpr Operator::Properties kProperties = Operator::kNoWrite;
   };
 
   struct PropagateException : public Descriptor<PropagateException> {
     static constexpr auto kFunction = Runtime::kPropagateException;
-    using arguments_t = std::tuple<>;
-    using result_t = V<Object>;
+    using Arguments = NoArguments;
+    using returns_t = V<Object>;
 
-    static constexpr bool kNeedsFrameState = true;
+    static constexpr bool kCanTriggerLazyDeopt = true;
     static constexpr Operator::Properties kProperties = Operator::kNoProperties;
   };
 
   struct ReThrow : public Descriptor<ReThrow> {
     static constexpr auto kFunction = Runtime::kReThrow;
-    using arguments_t = std::tuple<V<Object>>;
-    using result_t = Never;
+    struct Arguments : ArgumentsBase {
+      ARG(V<Object>, exception)
+    };
+    using returns_t = Never;
 
-    static constexpr bool kNeedsFrameState = false;
+    static constexpr bool kCanTriggerLazyDeopt = false;
     static constexpr Operator::Properties kProperties = Operator::kNoThrow;
   };
 
   struct StringCharCodeAt : public Descriptor<StringCharCodeAt> {
     static constexpr auto kFunction = Runtime::kStringCharCodeAt;
-    using arguments_t = std::tuple<V<String>, V<Number>>;
-    using result_t = V<Smi>;
+    struct Arguments : ArgumentsBase {
+      ARG(V<String>, string)
+      ARG(V<Number>, index)
+    };
+    using returns_t = V<Smi>;
 
-    static constexpr bool kNeedsFrameState = false;
+    static constexpr bool kCanTriggerLazyDeopt = false;
     static constexpr Operator::Properties kProperties =
         Operator::kNoDeopt | Operator::kNoThrow;
   };
@@ -184,10 +178,12 @@ struct RuntimeCallDescriptor {
 #ifdef V8_INTL_SUPPORT
   struct StringToUpperCaseIntl : public Descriptor<StringToUpperCaseIntl> {
     static constexpr auto kFunction = Runtime::kStringToUpperCaseIntl;
-    using arguments_t = std::tuple<V<String>>;
-    using result_t = V<String>;
+    struct Arguments : ArgumentsBase {
+      ARG(V<String>, string)
+    };
+    using returns_t = V<String>;
 
-    static constexpr bool kNeedsFrameState = false;
+    static constexpr bool kCanTriggerLazyDeopt = false;
     static constexpr Operator::Properties kProperties =
         Operator::kNoDeopt | Operator::kNoThrow;
   };
@@ -195,38 +191,45 @@ struct RuntimeCallDescriptor {
 
   struct SymbolDescriptiveString : public Descriptor<SymbolDescriptiveString> {
     static constexpr auto kFunction = Runtime::kSymbolDescriptiveString;
-    using arguments_t = std::tuple<V<Symbol>>;
-    using result_t = V<String>;
+    struct Arguments : ArgumentsBase {
+      ARG(V<Symbol>, symbol)
+    };
+    using returns_t = V<String>;
 
-    static constexpr bool kNeedsFrameState = true;
+    static constexpr bool kCanTriggerLazyDeopt = true;
     static constexpr Operator::Properties kProperties = Operator::kNoDeopt;
   };
 
   struct TerminateExecution : public Descriptor<TerminateExecution> {
     static constexpr auto kFunction = Runtime::kTerminateExecution;
-    using arguments_t = std::tuple<>;
-    using result_t = V<Object>;
+    using Arguments = NoArguments;
+    using returns_t = V<Object>;
 
-    static constexpr bool kNeedsFrameState = true;
+    static constexpr bool kCanTriggerLazyDeopt = true;
     static constexpr Operator::Properties kProperties = Operator::kNoDeopt;
   };
 
   struct TransitionElementsKind : public Descriptor<TransitionElementsKind> {
     static constexpr auto kFunction = Runtime::kTransitionElementsKind;
-    using arguments_t = std::tuple<V<HeapObject>, V<Map>>;
-    using result_t = V<Object>;
+    struct Arguments : ArgumentsBase {
+      ARG(V<HeapObject>, object)
+      ARG(V<Map>, target_map)
+    };
+    using returns_t = V<Object>;
 
-    static constexpr bool kNeedsFrameState = false;
+    static constexpr bool kCanTriggerLazyDeopt = false;
     static constexpr Operator::Properties kProperties =
         Operator::kNoDeopt | Operator::kNoThrow;
   };
 
   struct TryMigrateInstance : public Descriptor<TryMigrateInstance> {
     static constexpr auto kFunction = Runtime::kTryMigrateInstance;
-    using arguments_t = std::tuple<V<HeapObject>>;
-    using result_t = V<Object>;
+    struct Arguments : ArgumentsBase {
+      ARG(V<HeapObject>, heap_object)
+    };
+    using returns_t = V<Object>;
 
-    static constexpr bool kNeedsFrameState = false;
+    static constexpr bool kCanTriggerLazyDeopt = false;
     static constexpr Operator::Properties kProperties =
         Operator::kNoDeopt | Operator::kNoThrow;
   };
@@ -235,10 +238,12 @@ struct RuntimeCallDescriptor {
       : public Descriptor<TryMigrateInstanceAndMarkMapAsMigrationTarget> {
     static constexpr auto kFunction =
         Runtime::kTryMigrateInstanceAndMarkMapAsMigrationTarget;
-    using arguments_t = std::tuple<V<HeapObject>>;
-    using result_t = V<Object>;
+    struct Arguments : ArgumentsBase {
+      ARG(V<HeapObject>, heap_object)
+    };
+    using returns_t = V<Object>;
 
-    static constexpr bool kNeedsFrameState = false;
+    static constexpr bool kCanTriggerLazyDeopt = false;
     static constexpr Operator::Properties kProperties =
         Operator::kNoDeopt | Operator::kNoThrow;
   };
@@ -247,12 +252,14 @@ struct RuntimeCallDescriptor {
       : public Descriptor<ThrowAccessedUninitializedVariable> {
     static constexpr auto kFunction =
         Runtime::kThrowAccessedUninitializedVariable;
-    using arguments_t = std::tuple<V<Object>>;
+    struct Arguments : ArgumentsBase {
+      ARG(V<Object>, object)
+    };
     // Doesn't actually return something, but the actual runtime call descriptor
     // (returned by Linkage::GetRuntimeCallDescriptor) returns 1 instead of 0.
-    using result_t = Never;
+    using returns_t = Never;
 
-    static constexpr bool kNeedsFrameState = true;
+    static constexpr bool kCanTriggerLazyDeopt = true;
     static constexpr Operator::Properties kProperties = Operator::kNoProperties;
   };
 
@@ -260,110 +267,129 @@ struct RuntimeCallDescriptor {
       : public Descriptor<ThrowConstructorReturnedNonObject> {
     static constexpr auto kFunction =
         Runtime::kThrowConstructorReturnedNonObject;
-    using arguments_t = std::tuple<>;
+    using Arguments = NoArguments;
     // Doesn't actually return something, but the actual runtime call descriptor
     // (returned by Linkage::GetRuntimeCallDescriptor) returns 1 instead of 0.
-    using result_t = Never;
+    using returns_t = Never;
 
-    static constexpr bool kNeedsFrameState = true;
+    static constexpr bool kCanTriggerLazyDeopt = true;
     static constexpr Operator::Properties kProperties = Operator::kNoProperties;
   };
 
   struct ThrowNotSuperConstructor
       : public Descriptor<ThrowNotSuperConstructor> {
     static constexpr auto kFunction = Runtime::kThrowNotSuperConstructor;
-    using arguments_t = std::tuple<V<Object>, V<Object>>;
+    struct Arguments : ArgumentsBase {
+      ARG(V<Object>, constructor)
+      ARG(V<Object>, function)
+    };
     // Doesn't actually return something, but the actual runtime call descriptor
     // (returned by Linkage::GetRuntimeCallDescriptor) returns 1 instead of 0.
-    using result_t = Never;
+    using returns_t = Never;
 
-    static constexpr bool kNeedsFrameState = true;
+    static constexpr bool kCanTriggerLazyDeopt = true;
     static constexpr Operator::Properties kProperties = Operator::kNoProperties;
   };
 
   struct ThrowSuperAlreadyCalledError
       : public Descriptor<ThrowSuperAlreadyCalledError> {
     static constexpr auto kFunction = Runtime::kThrowSuperAlreadyCalledError;
-    using arguments_t = std::tuple<>;
+    using Arguments = NoArguments;
     // Doesn't actually return something, but the actual runtime call descriptor
     // (returned by Linkage::GetRuntimeCallDescriptor) returns 1 instead of 0.
-    using result_t = Never;
+    using returns_t = Never;
 
-    static constexpr bool kNeedsFrameState = true;
+    static constexpr bool kCanTriggerLazyDeopt = true;
     static constexpr Operator::Properties kProperties = Operator::kNoProperties;
   };
 
   struct ThrowSuperNotCalled : public Descriptor<ThrowSuperNotCalled> {
     static constexpr auto kFunction = Runtime::kThrowSuperNotCalled;
-    using arguments_t = std::tuple<>;
+    using Arguments = NoArguments;
     // Doesn't actually return something, but the actual runtime call descriptor
     // (returned by Linkage::GetRuntimeCallDescriptor) returns 1 instead of 0.
-    using result_t = Never;
+    using returns_t = Never;
 
-    static constexpr bool kNeedsFrameState = true;
+    static constexpr bool kCanTriggerLazyDeopt = true;
     static constexpr Operator::Properties kProperties = Operator::kNoProperties;
   };
 
   struct ThrowCalledNonCallable : public Descriptor<ThrowCalledNonCallable> {
     static constexpr auto kFunction = Runtime::kThrowCalledNonCallable;
     using arguments_t = std::tuple<V<Object>>;
+    struct Arguments : ArgumentsBase {
+      ARG(V<Object>, value)
+    };
     // Doesn't actually return something, but the actual runtime call descriptor
     // (returned by Linkage::GetRuntimeCallDescriptor) returns 1 instead of 0.
-    using result_t = Never;
+    using returns_t = Never;
 
-    static constexpr bool kNeedsFrameState = true;
+    static constexpr bool kCanTriggerLazyDeopt = true;
     static constexpr Operator::Properties kProperties = Operator::kNoProperties;
   };
 
   struct ThrowInvalidStringLength
       : public Descriptor<ThrowInvalidStringLength> {
     static constexpr auto kFunction = Runtime::kThrowInvalidStringLength;
-    using arguments_t = std::tuple<>;
+    using Arguments = NoArguments;
     // Doesn't actually return something, but the actual runtime call descriptor
     // (returned by Linkage::GetRuntimeCallDescriptor) returns 1 instead of 0.
-    using result_t = Never;
+    using returns_t = Never;
 
-    static constexpr bool kNeedsFrameState = true;
+    static constexpr bool kCanTriggerLazyDeopt = true;
     static constexpr Operator::Properties kProperties = Operator::kNoProperties;
   };
 
   struct ThrowRangeError : public Descriptor<ThrowRangeError> {
     static constexpr auto kFunction = Runtime::kThrowRangeError;
-    using arguments_t = std::tuple<V<Smi>>;
-    using result_t = Never;
+    struct Arguments : ArgumentsBase {
+      ARG(V<Smi>, template_index)
+    };
+    using returns_t = Never;
 
-    static constexpr bool kNeedsFrameState = false;
+    static constexpr bool kCanTriggerLazyDeopt = false;
     static constexpr Operator::Properties kProperties = Operator::kNoProperties;
   };
 
   struct NewClosure : public Descriptor<NewClosure> {
     static constexpr auto kFunction = Runtime::kNewClosure;
-    using arguments_t = std::tuple<V<SharedFunctionInfo>, V<FeedbackCell>>;
-    using result_t = V<JSFunction>;
+    struct Arguments : ArgumentsBase {
+      ARG(V<SharedFunctionInfo>, shared_function_info)
+      ARG(V<FeedbackCell>, feedback_cell)
+    };
+    using returns_t = V<JSFunction>;
 
-    static constexpr bool kNeedsFrameState = false;
+    static constexpr bool kCanTriggerLazyDeopt = false;
     static constexpr Operator::Properties kProperties = Operator::kNoThrow;
   };
 
   struct NewClosure_Tenured : public Descriptor<NewClosure_Tenured> {
     static constexpr auto kFunction = Runtime::kNewClosure_Tenured;
-    using arguments_t = std::tuple<V<SharedFunctionInfo>, V<FeedbackCell>>;
-    using result_t = V<JSFunction>;
+    struct Arguments : ArgumentsBase {
+      ARG(V<SharedFunctionInfo>, shared_function_info)
+      ARG(V<FeedbackCell>, feedback_cell)
+    };
+    using returns_t = V<JSFunction>;
 
-    static constexpr bool kNeedsFrameState = false;
+    static constexpr bool kCanTriggerLazyDeopt = false;
     static constexpr Operator::Properties kProperties = Operator::kNoThrow;
   };
 
   struct HasInPrototypeChain : public Descriptor<HasInPrototypeChain> {
     static constexpr auto kFunction = Runtime::kHasInPrototypeChain;
-    using arguments_t = std::tuple<V<Object>, V<HeapObject>>;
-    using result_t = V<Boolean>;
+    struct Arguments : ArgumentsBase {
+      ARG(V<Object>, object)
+      ARG(V<HeapObject>, prototype)
+    };
+    using returns_t = V<Boolean>;
 
-    static constexpr bool kNeedsFrameState = true;
+    static constexpr bool kCanTriggerLazyDeopt = true;
     static constexpr Operator::Properties kProperties = Operator::kNoProperties;
   };
 };
 
 }  // namespace v8::internal::compiler::turboshaft
+
+#undef ARG
 
 #endif  // V8_COMPILER_TURBOSHAFT_RUNTIME_CALL_DESCRIPTORS_H_

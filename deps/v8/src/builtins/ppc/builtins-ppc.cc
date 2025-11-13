@@ -3082,6 +3082,13 @@ void Builtins::Generate_WasmLiftoffFrameSetup(MacroAssembler* masm) {
                      scratch);
   __ JumpIfSmi(vector, &allocate_vector);
   __ bind(&done);
+  // Increment the total invocation count of the function.
+  __ LoadTaggedField(
+      scratch, FieldMemOperand(vector, OFFSET_OF_DATA_START(FixedArray)), r0);
+  __ Move(r0, Smi::FromInt(1));
+  __ AddS64(scratch, scratch, r0);
+  __ StoreTaggedField(
+      scratch, FieldMemOperand(vector, OFFSET_OF_DATA_START(FixedArray)));
   __ push(kWasmImplicitArgRegister);
   __ push(vector);
   __ Ret();
@@ -3612,6 +3619,43 @@ void Builtins::Generate_WasmFXResume(MacroAssembler* masm) {
   __ bind(&suspend);
   __ LeaveFrame(StackFrame::WASM_STACK_EXIT);
   __ blr();
+}
+
+void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
+  __ EnterFrame(StackFrame::WASM_STACK_EXIT);
+  Register tag = WasmFXSuspendDescriptor::GetRegisterParameter(0);
+  Register cont = WasmFXSuspendDescriptor::GetRegisterParameter(1);
+  Label resume;
+  __ Push(cont, kContextRegister);
+  {
+    FrameScope scope(masm, StackFrame::MANUAL);
+    __ PrepareCallCFunction(6, r0);
+    __ Move(kCArgRegs[4], tag);
+    __ Move(kCArgRegs[5], cont);
+    __ Move(kCArgRegs[0], ExternalReference::isolate_address());
+    __ Move(kCArgRegs[1], sp);
+    __ Move(kCArgRegs[2], fp);
+    __ GetLabelAddress(kCArgRegs[3], &resume);
+    __ CallCFunction(ExternalReference::wasm_suspend_wasmfx_stack(), 6);
+  }
+  Register target_stack = r4;
+  __ Move(target_stack, kReturnRegister0);
+  cont = kReturnRegister0;
+  __ Pop(cont, kContextRegister);
+
+  Label ok;
+  __ CmpU64(target_stack, Operand(0), r0);
+  __ bne(&ok);
+  // No handler found.
+  __ CallRuntime(Runtime::kThrowWasmSuspendError);
+
+  __ bind(&ok);
+  DCHECK_EQ(cont, kReturnRegister0);
+  LoadJumpBuffer(masm, target_stack, true, r6);
+  __ Trap();
+  __ bind(&resume);
+  __ LeaveFrame(StackFrame::WASM_STACK_EXIT);
+  __ Ret();
 }
 
 void Builtins::Generate_WasmFXReturn(MacroAssembler* masm) {

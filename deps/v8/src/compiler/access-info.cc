@@ -9,6 +9,7 @@
 #include <ostream>
 
 #include "src/builtins/accessors.h"
+#include "src/common/globals.h"
 #include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/heap-refs.h"
 #include "src/compiler/js-heap-broker-inl.h"
@@ -563,7 +564,7 @@ std::optional<ElementAccessInfo> AccessInfoFactory::ComputeElementAccessInfo(
         // Supporting receiver-is-first-param mode would require passing
         // the Proxy's handler to the eventual building of the Call node.
         if (wasm_data->receiver_is_first_param()) return {};
-        const wasm::CanonicalSig* wasm_signature = wasm_data->sig();
+        const wasm::CanonicalSig* wasm_signature = wasm_data->internal()->sig();
         if (wasm_signature->parameter_count() < 2) return {};
         wasm::CanonicalValueType key_type = wasm_signature->GetParam(1);
 
@@ -861,7 +862,7 @@ PropertyAccessInfo AccessInfoFactory::ComputeAccessorDescriptorAccessInfo(
     AccessMode access_mode) const {
   DCHECK(descriptor.is_found());
   Handle<DescriptorArray> descriptors = broker()->CanonicalPersistentHandle(
-      holder_map.object()->instance_descriptors(kRelaxedLoad));
+      holder_map.object()->instance_descriptors(kAcquireLoad));
   SLOW_DCHECK(descriptor ==
               descriptors->Search(*name.object(), *holder_map.object(), true));
 
@@ -1360,7 +1361,7 @@ PropertyAccessInfo AccessInfoFactory::LookupSpecialFieldAccessorInHolder(
                    isolate()->factory()->length_string()) &&
       details.location() == PropertyLocation::kDescriptor) {
     Tagged<DescriptorArray> descriptors =
-        holder.map(broker_).object()->instance_descriptors(kRelaxedLoad);
+        holder.map(broker_).object()->instance_descriptors(kAcquireLoad);
     SLOW_DCHECK(index == descriptors->Search(*name.object(),
                                              *holder.map(broker_).object(),
                                              true));

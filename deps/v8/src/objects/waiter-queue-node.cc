@@ -18,14 +18,14 @@ WaiterQueueNode::~WaiterQueueNode() {
   // Since waiter queue nodes are allocated on the stack, they must be removed
   // from the intrusive linked list once they go out of scope, otherwise there
   // will be dangling pointers.
-  VerifyNotInList();
+  SbxCheckNotInList();
 }
 
 // static
 void WaiterQueueNode::Enqueue(WaiterQueueNode** head,
                               WaiterQueueNode* new_tail) {
   DCHECK_NOT_NULL(head);
-  new_tail->VerifyNotInList();
+  new_tail->SbxCheckNotInList();
   WaiterQueueNode* current_head = *head;
   if (current_head == nullptr) {
     new_tail->next_ = new_tail;
@@ -43,6 +43,7 @@ void WaiterQueueNode::Enqueue(WaiterQueueNode** head,
 void WaiterQueueNode::DequeueUnchecked(WaiterQueueNode** head) {
   if (next_ == this) {
     // The queue contains exactly 1 node.
+    DCHECK_EQ(this, *head);
     *head = nullptr;
   } else {
     // The queue contains >1 nodes.
@@ -156,15 +157,13 @@ uint32_t WaiterQueueNode::NotifyAllInList() {
   return count;
 }
 
-void WaiterQueueNode::VerifyNotInList() {
-  DCHECK_NULL(next_);
-  DCHECK_NULL(prev_);
+void WaiterQueueNode::SbxCheckNotInList() const {
+  SBXCHECK_EQ(nullptr, next_);
+  SBXCHECK_EQ(nullptr, prev_);
 }
 
 void WaiterQueueNode::SetNotInListForVerification() {
-#ifdef DEBUG
   next_ = prev_ = nullptr;
-#endif
 }
 
 }  // namespace detail

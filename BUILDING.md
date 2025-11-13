@@ -175,6 +175,11 @@ Binaries at <https://nodejs.org/download/release/> are produced on:
 | win-arm64               | Windows Server 2022 (x64) with Visual Studio 2022             |
 | win-x64                 | Windows Server 2022 (x64) with Visual Studio 2022             |
 
+Starting with Node.js 25, official Linux binaries are linked with `libatomic` and these systems
+must have the `libatomic` runtime installed and available at execution time to run the binaries.
+The package name for the `libatomic` runtime is typically `libatomic` or `libatomic1` depending
+on your Linux distibution.
+
 <!--lint disable final-definition-->
 
 [^5]: Binaries produced on these systems require libstdc++12, available
@@ -270,6 +275,12 @@ direnv allow .
 make build-ci -j12
 ```
 
+Most dependencies will likely be available in the official nixpkgs cache,
+although for some dependencies we have to deviate for the upstream repository,
+in which case those will be built locally, or you can use the Cachix repository
+for the project: `cachix use nodejs`. See <https://docs.cachix.org/> for more
+information.
+
 The use of `make build-ci` is to ensure you are using the `CONFIG_FLAGS`
 environment variable. You can also specify it manually:
 
@@ -288,7 +299,7 @@ that flag to use all the shared dependencies, or specify only some dependencies:
 ```bash
 cat -> .envrc <<'EOF'
 use nix --arg sharedLibDeps '{
-  inherit (import <nixpkgs> {})
+  inherit (import ./tools/nix/sharedLibDeps.nix {})
     openssl
     zlib
   ;

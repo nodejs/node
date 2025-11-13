@@ -15,7 +15,7 @@ if (cluster.isPrimary) {
   const worker1 = cluster.fork();
   worker1.on('listening', common.mustCall(function(address) {
     worker2 = cluster.fork();
-    worker2.on('online', function() {
+    worker2.on('online', common.mustCall(() => {
       conn = net.connect(address.port, common.mustCall(function() {
         worker1.disconnect();
         worker2.disconnect();
@@ -25,16 +25,16 @@ if (cluster.isPrimary) {
         if (e.code !== 'ECONNRESET')
           throw e;
       });
-    });
+    }));
   }));
 
-  cluster.on('exit', function(worker, exitCode, signalCode) {
+  cluster.on('exit', common.mustCall((worker, exitCode, signalCode) => {
     assert(worker === worker1 || worker === worker2);
     assert.strictEqual(exitCode, 0);
     assert.strictEqual(signalCode, null);
     if (Object.keys(cluster.workers).length === 0)
       conn.destroy();
-  });
+  }, 2));
 
   return;
 }

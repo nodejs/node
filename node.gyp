@@ -73,6 +73,7 @@
       'src/async_context_frame.cc',
       'src/async_wrap.cc',
       'src/base_object.cc',
+      'src/builtin_info.cc',
       'src/cares_wrap.cc',
       'src/cleanup_queue.cc',
       'src/compile_cache.cc',
@@ -214,6 +215,7 @@
       'src/base_object_types.h',
       'src/blob_serializer_deserializer.h',
       'src/blob_serializer_deserializer-inl.h',
+      "src/builtin_info.h",
       'src/callback_queue.h',
       'src/callback_queue-inl.h',
       'src/cleanup_queue.h',
@@ -890,6 +892,9 @@
         'NODE_ARCH="<(target_arch)"',
         'NODE_PLATFORM="<(OS)"',
         'NODE_WANT_INTERNALS=1',
+        # Define NAPI_EXPERIMENTAL to enable Node-API experimental function symbols being exposed.
+        'NAPI_EXPERIMENTAL=1',
+        'NODE_API_EXPERIMENTAL_NO_WARNING=1',
         # Warn when using deprecated V8 APIs.
         'V8_DEPRECATION_WARNINGS=1',
         'NODE_OPENSSL_SYSTEM_CERT_PATH="<(openssl_system_ca_path)"',
@@ -1378,6 +1383,8 @@
         'tools/executable_wrapper.h',
         'src/embedded_data.h',
         'src/embedded_data.cc',
+        'src/builtin_info.h',
+        'src/builtin_info.cc',
       ],
       'conditions': [
         [ 'node_shared_simdutf=="false"', {

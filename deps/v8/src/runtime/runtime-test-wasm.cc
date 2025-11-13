@@ -157,6 +157,8 @@ int WasmStackSize(Isolate* isolate) {
 
 }  // namespace
 
+// TODO(jkummerow): I think this should just iterate the WasmCodePointerTable
+// directly, not individual dispatch tables.
 RUNTIME_FUNCTION(Runtime_CountUnoptimizedWasmToJSWrapper) {
   SealHandleScope shs(isolate);
   if (args.length() != 1 || !IsWasmInstanceObject(args[0])) {
@@ -170,7 +172,7 @@ RUNTIME_FUNCTION(Runtime_CountUnoptimizedWasmToJSWrapper) {
       Builtins::EmbeddedEntryOf(Builtin::kWasmToJsWrapperAsm);
 
   int result = 0;
-  Tagged<WasmDispatchTable> dispatch_table =
+  Tagged<WasmDispatchTableForImports> dispatch_table =
       trusted_data->dispatch_table_for_imports();
   int import_count = dispatch_table->length();
   wasm::WasmCodePointerTable* cpt = wasm::GetProcessWideWasmCodePointerTable();

@@ -4666,9 +4666,10 @@ std::pair<std::string, std::string> X509Name::Iterator::operator*() const {
   unsigned char* value_str;
   int value_str_size = ASN1_STRING_to_UTF8(&value_str, value);
 
-  return {
-      std::move(name_str),
-      std::string(reinterpret_cast<const char*>(value_str), value_str_size)};
+  std::string out(reinterpret_cast<const char*>(value_str), value_str_size);
+  OPENSSL_free(value_str);  // free after copy
+
+  return {std::move(name_str), std::move(out)};
 }
 
 // ============================================================================

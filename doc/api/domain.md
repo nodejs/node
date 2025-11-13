@@ -289,24 +289,26 @@ To handle the errors that it catches, listen to its `'error'` event.
 
 * Type: {Array}
 
-An array of timers and event emitters that have been explicitly added
-to the domain.
+An array of event emitters that have been explicitly added to the domain.
 
 ### `domain.add(emitter)`
 
-* `emitter` {EventEmitter|Timer} emitter or timer to be added to the domain
+<!-- YAML
+changes:
+  - version: v9.3.0
+    pr-url: https://github.com/nodejs/node/pull/16222
+    description: No longer accepts timer objects.
+-->
+
+* `emitter` {EventEmitter} emitter to be added to the domain
 
 Explicitly adds an emitter to the domain. If any event handlers called by
 the emitter throw an error, or if the emitter emits an `'error'` event, it
 will be routed to the domain's `'error'` event, just like with implicit
 binding.
 
-This also works with timers that are returned from [`setInterval()`][] and
-[`setTimeout()`][]. If their callback function throws, it will be caught by
-the domain `'error'` handler.
-
-If the Timer or `EventEmitter` was already bound to a domain, it is removed
-from that one, and bound to this one instead.
+If the `EventEmitter` was already bound to a domain, it is removed from that
+one, and bound to this one instead.
 
 ### `domain.bind(callback)`
 
@@ -398,7 +400,7 @@ d.on('error', (er) => {
 
 ### `domain.remove(emitter)`
 
-* `emitter` {EventEmitter|Timer} emitter or timer to be removed from the domain
+* `emitter` {EventEmitter} emitter to be removed from the domain
 
 The opposite of [`domain.add(emitter)`][]. Removes domain handling from the
 specified emitter.
@@ -484,6 +486,4 @@ promises. In other words, no `'error'` event will be emitted for unhandled
 [`domain.add(emitter)`]: #domainaddemitter
 [`domain.bind(callback)`]: #domainbindcallback
 [`domain.exit()`]: #domainexit
-[`setInterval()`]: timers.md#setintervalcallback-delay-args
-[`setTimeout()`]: timers.md#settimeoutcallback-delay-args
 [`throw`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/throw

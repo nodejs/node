@@ -24,7 +24,7 @@ const server = http.createServer(common.mustCall((_, res) => {
   res.end('done');
 }));
 
-server.listen(async () => {
+server.listen(common.mustCall(async () => {
   const { port } = server.address();
   const req = http.request({
     port,
@@ -36,4 +36,4 @@ server.listen(async () => {
   }));
   req.setHeader('baz', 'bar');
   req.end();
-});
+}));

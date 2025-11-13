@@ -38,13 +38,13 @@ class JSGenericLoweringReducer : public Next {
     // latest experiment was ended with this commit:
     // https://crrev.com/c/4110858.
     switch (kind) {
-#define CASE(Name)                                            \
+#define BINOP_CASE(Name)                                      \
   case GenericBinopOp::Kind::k##Name:                         \
     return __ template CallBuiltin<builtin::Name>(            \
         frame_state, context, {.left = left, .right = right}, \
         lazy_deopt_on_throw);
-      GENERIC_BINOP_LIST(CASE)
-#undef CASE
+      GENERIC_BINOP_LIST(BINOP_CASE)
+#undef BINOP_CASE
     }
   }
 
@@ -52,12 +52,12 @@ class JSGenericLoweringReducer : public Next {
                                 V<Context> context, GenericUnopOp::Kind kind,
                                 LazyDeoptOnThrow lazy_deopt_on_throw) {
     switch (kind) {
-#define CASE(Name)                                 \
+#define UNOP_CASE(Name)                            \
   case GenericUnopOp::Kind::k##Name:               \
     return __ template CallBuiltin<builtin::Name>( \
         frame_state, context, {.input = input}, lazy_deopt_on_throw);
-      GENERIC_UNOP_LIST(CASE)
-#undef CASE
+      GENERIC_UNOP_LIST(UNOP_CASE)
+#undef UNOP_CASE
     }
   }
 

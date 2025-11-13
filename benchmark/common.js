@@ -28,6 +28,7 @@ class Benchmark {
     const argv = process.argv.slice(2);
     const parsed_args = this._parseArgs(argv, configs, options);
 
+    this.originalOptions = options;
     this.options = parsed_args.cli;
     this.extra_options = parsed_args.extra;
     this.combinationFilter = typeof options.combinationFilter === 'function' ? options.combinationFilter : allow;
@@ -205,6 +206,12 @@ class Benchmark {
         name: this.name,
         queueLength: this.queue.length,
       });
+    }
+
+    if (this.originalOptions.setup) {
+      // Only do this from the root process. _run() is only ever called from the root,
+      // in child processes main is run directly.
+      this.originalOptions.setup(this.queue);
     }
 
     const recursive = (queueIndex) => {

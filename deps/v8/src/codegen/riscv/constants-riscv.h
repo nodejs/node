@@ -27,6 +27,9 @@ constexpr int64_t kDQuietNanBit = 51;
 constexpr int64_t kDQuietNanMask = 0x1LL << kDQuietNanBit;
 constexpr int64_t kSQuietNanBit = 22;
 constexpr int64_t kSQuietNanMask = 0x1LL << kSQuietNanBit;
+#ifdef USE_SIMULATOR
+const int kInitialShadowStackSize = 1024;
+#endif  // USE_SIMULATOR
 }  // namespace internal
 }  // namespace v8
 #endif  // V8_CODEGEN_RISCV_CONSTANTS_RISCV_H_

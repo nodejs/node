@@ -28,7 +28,7 @@ const server = net
       s.destroy();
     }, 100);
   })
-  .listen(0, function() {
+  .listen(0, common.mustCall(() => {
     const worker = cluster.fork();
 
     worker.on('error', function(err) {
@@ -70,9 +70,8 @@ const server = net
       })
     );
 
-    worker.on('online', function() {
-      send(function(err) {
-        assert.ifError(err);
+    worker.on('online', common.mustCall(() => {
+      send(common.mustSucceed(() => {
         send(function(err) {
           // Ignore errors when sending the second handle because the worker
           // may already have exited.
@@ -83,6 +82,6 @@ const server = net
             throw err;
           }
         });
-      });
-    });
-  });
+      }));
+    }));
+  }));

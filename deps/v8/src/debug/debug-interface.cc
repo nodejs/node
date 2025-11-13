@@ -1421,7 +1421,8 @@ Local<EphemeronTable> EphemeronTable::Set(v8::Isolate* isolate,
   DCHECK(IsJSReceiver(*internal_key));
 
   i::DirectHandle<i::EphemeronHashTable> result(
-      i::EphemeronHashTable::Put(self, internal_key, internal_value));
+      i::EphemeronHashTable::Put(reinterpret_cast<i::Isolate*>(isolate), self,
+                                 internal_key, internal_value));
 
   return ToApiHandle<EphemeronTable>(result);
 }

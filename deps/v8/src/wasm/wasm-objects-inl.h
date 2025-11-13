@@ -238,7 +238,7 @@ PROTECTED_POINTER_ACCESSORS(WasmTrustedInstanceData, dispatch_table0,
 PROTECTED_POINTER_ACCESSORS(WasmTrustedInstanceData, dispatch_tables,
                             ProtectedFixedArray, kProtectedDispatchTablesOffset)
 PROTECTED_POINTER_ACCESSORS(WasmTrustedInstanceData, dispatch_table_for_imports,
-                            WasmDispatchTable,
+                            WasmDispatchTableForImports,
                             kProtectedDispatchTableForImportsOffset)
 OPTIONAL_ACCESSORS(WasmTrustedInstanceData, tags_table, Tagged<FixedArray>,
                    kTagsTableOffset)
@@ -321,11 +321,19 @@ ImportedFunctionEntry::ImportedFunctionEntry(
 
 // WasmDispatchTable
 OBJECT_CONSTRUCTORS_IMPL(WasmDispatchTable, ExposedTrustedObject)
+OBJECT_CONSTRUCTORS_IMPL(WasmDispatchTableForImports, TrustedObject)
 
 PROTECTED_POINTER_ACCESSORS(WasmDispatchTable, protected_offheap_data,
                             TrustedManaged<WasmDispatchTableData>,
                             kProtectedOffheapDataOffset)
+PROTECTED_POINTER_ACCESSORS(WasmDispatchTableForImports, protected_offheap_data,
+                            TrustedManaged<WasmDispatchTableData>,
+                            kProtectedOffheapDataOffset)
+
 WasmDispatchTableData* WasmDispatchTable::offheap_data() const {
+  return protected_offheap_data()->get().get();
+}
+WasmDispatchTableData* WasmDispatchTableForImports::offheap_data() const {
   return protected_offheap_data()->get().get();
 }
 
@@ -344,8 +352,14 @@ void WasmDispatchTable::set_table_type(wasm::CanonicalValueType type) {
 int WasmDispatchTable::length(AcquireLoadTag) const {
   return ACQUIRE_READ_INT32_FIELD(*this, kLengthOffset);
 }
+int WasmDispatchTableForImports::length(AcquireLoadTag) const {
+  return ACQUIRE_READ_INT32_FIELD(*this, kLengthOffset);
+}
 
 int WasmDispatchTable::length() const { return ReadField<int>(kLengthOffset); }
+int WasmDispatchTableForImports::length() const {
+  return ReadField<int>(kLengthOffset);
+}
 
 int WasmDispatchTable::capacity() const {
   return ReadField<int>(kCapacityOffset);
@@ -359,8 +373,23 @@ inline Tagged<Object> WasmDispatchTable::implicit_arg(int index) const {
          IsWasmImportData(implicit_arg) || implicit_arg == Smi::zero());
   return implicit_arg;
 }
+inline Tagged<Object> WasmDispatchTableForImports::implicit_arg(
+    int index) const {
+  DCHECK_LT(index, length());
+  Tagged<Object> implicit_arg =
+      ReadProtectedPointerField(OffsetOf(index) + kImplicitArgBias);
+  DCHECK(IsWasmTrustedInstanceData(implicit_arg) ||
+         IsWasmImportData(implicit_arg) || implicit_arg == Smi::zero());
+  return implicit_arg;
+}
 
 inline WasmCodePointer WasmDispatchTable::target(int index) const {
+  DCHECK_LT(index, length());
+  if (v8_flags.wasm_jitless) return wasm::kInvalidWasmCodePointer;
+  static_assert(sizeof(WasmCodePointer) == sizeof(uint32_t));
+  return WasmCodePointer{ReadField<uint32_t>(OffsetOf(index) + kTargetBias)};
+}
+inline WasmCodePointer WasmDispatchTableForImports::target(int index) const {
   DCHECK_LT(index, length());
   if (v8_flags.wasm_jitless) return wasm::kInvalidWasmCodePointer;
   static_assert(sizeof(WasmCodePointer) == sizeof(uint32_t));
@@ -462,9 +491,6 @@ void WasmInternalFunction::set_call_target(WasmCodePointer code_pointer) {
 }
 
 // WasmJSFunctionData
-wasm::CanonicalTypeIndex WasmJSFunctionData::sig_index() const {
-  return wasm::CanonicalTypeIndex{static_cast<uint32_t>(canonical_sig_index())};
-}
 PROTECTED_POINTER_ACCESSORS(WasmJSFunctionData, protected_offheap_data,
                             TrustedManaged<WasmJSFunctionData::OffheapData>,
                             kProtectedOffheapDataOffset)
@@ -751,8 +777,20 @@ const wasm::CanonicalValueType WasmArray::GcSafeElementType(Tagged<Map> map) {
 
 int WasmArray::SizeFor(Tagged<Map> map, int length) {
   int element_size = DecodeElementSizeFromMap(map);
+  return SizeFor(element_size, length);
+}
+
+constexpr int WasmArray::SizeFor(int element_size, int length) {
   return kHeaderSize + RoundUp(element_size * length, kTaggedSize);
 }
+
+// Allocating arrays currently requires passing the requested byte size to the
+// runtime function as a Smi.
+static_assert(Smi::IsValid(WasmArray::SizeFor(1, WasmArray::MaxLength(1))));
+static_assert(Smi::IsValid(WasmArray::SizeFor(2, WasmArray::MaxLength(2))));
+static_assert(Smi::IsValid(WasmArray::SizeFor(4, WasmArray::MaxLength(4))));
+static_assert(Smi::IsValid(WasmArray::SizeFor(8, WasmArray::MaxLength(8))));
+static_assert(Smi::IsValid(WasmArray::SizeFor(16, WasmArray::MaxLength(16))));
 
 uint32_t WasmArray::element_offset(uint32_t index) {
   DCHECK_LE(index, length());

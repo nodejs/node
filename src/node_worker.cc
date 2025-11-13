@@ -1263,6 +1263,7 @@ void Worker::GetHeapStatistics(const FunctionCallbackInfo<Value>& args) {
                 "total_global_handles_size",
                 "used_global_handles_size",
                 "external_memory",
+                "total_allocated_bytes",
             };
             tmpl = DictionaryTemplate::New(isolate, heap_stats_names);
             env->set_heap_statistics_template(tmpl);
@@ -1283,7 +1284,8 @@ void Worker::GetHeapStatistics(const FunctionCallbackInfo<Value>& args) {
               Number::New(isolate, heap_stats->number_of_detached_contexts()),
               Number::New(isolate, heap_stats->total_global_handles_size()),
               Number::New(isolate, heap_stats->used_global_handles_size()),
-              Number::New(isolate, heap_stats->external_memory())};
+              Number::New(isolate, heap_stats->external_memory()),
+              Number::New(isolate, heap_stats->total_allocated_bytes())};
 
           Local<Object> obj;
           if (!NewDictionaryInstanceNullProto(

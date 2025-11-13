@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const Countdown = require('../common/countdown');
 const assert = require('assert');
 const { Worker } = require('worker_threads');
@@ -30,10 +30,10 @@ describe('Allocating uninitialized ArrayBuffers ...', () => {
 
     w.on('online', fn);
 
-    const countdown = new Countdown(100, () => {
+    const countdown = new Countdown(100, common.mustCallAtLeast(() => {
       w.terminate();
       assert(fn.mock.calls.length > 0);
-    });
+    }));
 
     w.on('message', (sum) => {
       assert.strictEqual(sum, 0);

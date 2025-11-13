@@ -20,8 +20,8 @@ inline Realm* Realm::GetCurrent(v8::Local<v8::Context> context) {
   if (!ContextEmbedderTag::IsNodeContext(context)) [[unlikely]] {
     return nullptr;
   }
-  return static_cast<Realm*>(
-      context->GetAlignedPointerFromEmbedderData(ContextEmbedderIndex::kRealm));
+  return static_cast<Realm*>(context->GetAlignedPointerFromEmbedderData(
+      ContextEmbedderIndex::kRealm, EmbedderDataTag::kPerContextData));
 }
 
 inline Realm* Realm::GetCurrent(

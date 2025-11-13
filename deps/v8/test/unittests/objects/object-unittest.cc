@@ -173,6 +173,26 @@ TEST_F(TestWithNativeContext, EmptyFunctionScopeInfo) {
             empty_function_scope_info->ContextLocalCount());
 }
 
+TEST_F(TestWithNativeContext, CanOnlyAccessFixedFormalParameters) {
+  auto run = [this](const char* f, bool allocates, bool only_fixed) {
+    DirectHandle<JSFunction> function = RunJS<JSFunction>(f);
+    DirectHandle<ScopeInfo> scope_info(function->shared()->scope_info(),
+                                       i_isolate());
+    auto flags = scope_info->Flags();
+    EXPECT_EQ(allocates, ScopeInfo::AllocatesArgumentsBit::decode(flags));
+    EXPECT_EQ(only_fixed, scope_info->CanOnlyAccessFixedFormalParameters());
+  };
+  run("(function(){})", false, false);
+  run("(() => {})", false, true);
+  run("((...a) => {})", false, false);
+  run("'use strict'; (function(){})", false, true);
+  run("'use strict'; (function(...a) {})", false, false);
+  run("'use strict'; (function() { return arguments; })", true, false);
+  run("'use strict'; (function() { return eval(''); })", true, false);
+  run("'use strict'; (function() { () => { return arguments; }})", true, false);
+  run("'use strict'; (function() { () => { return eval(''); }})", true, false);
+}
+
 using ObjectTest = TestWithContext;
 
 static void CheckObject(Isolate* isolate, DirectHandle<Object> obj,

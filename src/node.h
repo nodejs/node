@@ -76,8 +76,7 @@
 #include "v8-platform.h"  // NOLINT(build/include_order)
 #include "node_version.h"  // NODE_MODULE_VERSION
 
-#define NAPI_EXPERIMENTAL
-#include "node_api.h"
+#include "node_api_types.h"  //  napi_addon_register_func
 
 #include <functional>
 #include <memory>
@@ -125,6 +124,7 @@
 
 // Forward-declare libuv loop
 struct uv_loop_s;
+struct napi_module;
 
 // Forward-declare these functions now to stop MSVS from becoming
 // terminally confused when it's done in node_internals.h

@@ -497,6 +497,7 @@ std::unique_ptr<BackingStore> BackingStore::CopyWasmMemory(
 }
 
 // Try to grow the size of a wasm memory in place, without realloc + copy.
+// Returns the previous number of pages on success.
 std::optional<size_t> BackingStore::GrowWasmMemoryInPlace(Isolate* isolate,
                                                           size_t delta_pages,
                                                           size_t max_pages) {
@@ -537,8 +538,9 @@ std::optional<size_t> BackingStore::GrowWasmMemoryInPlace(Isolate* isolate,
   // compare/swap the old length with the new length.
   size_t old_length = byte_length_.load(std::memory_order_relaxed);
 
-  if (delta_pages == 0)
+  if (delta_pages == 0) {
     return {old_length / wasm::kWasmPageSize};  // degenerate grow.
+  }
   if (delta_pages > max_pages) return {};       // would never work.
 
   size_t new_length = 0;
@@ -891,7 +893,9 @@ void GlobalBackingStoreRegistry::BroadcastSharedWasmMemoryGrow(
 
 void GlobalBackingStoreRegistry::UpdateSharedWasmMemoryObjects(
     Isolate* isolate) {
-
+  // We call here from the stack guard at loop back edges, where we don't want
+  // GC to get in the way of loop-related compiler optimizations.
+  DisallowHeapAllocation no_gc;
   HandleScope scope(isolate);
   DirectHandle<WeakArrayList> shared_wasm_memories =
       isolate->factory()->shared_wasm_memories();
@@ -900,16 +904,15 @@ void GlobalBackingStoreRegistry::UpdateSharedWasmMemoryObjects(
     Tagged<HeapObject> obj;
     if (!shared_wasm_memories->Get(i).GetHeapObject(&obj)) continue;
 
-    DirectHandle<WasmMemoryObject> memory_object(Cast<WasmMemoryObject>(obj),
-                                                 isolate);
-    if (memory_object->array_buffer()->is_resizable_by_js()) {
-      // If the SharedArrayBuffer is exposed as growable already, there's no
-      // need to refresh it, but instances still need to be updated with the new
-      // length.
-      memory_object->UpdateInstances(isolate);
-    } else {
-      WasmMemoryObject::RefreshSharedBuffer(isolate, memory_object,
-                                            ResizableFlag::kNotResizable);
+    Tagged<WasmMemoryObject> memory_object = Cast<WasmMemoryObject>(obj);
+    memory_object->UpdateInstances(isolate);
+    if (!memory_object->array_buffer()->is_resizable_by_js()) {
+      // We need a new JSSharedArrayBuffer, but we can't allocate right now,
+      // so just make a note that the getter for it will have to allocate it
+      // on demand next time it's called.
+      // TODO(jkummerow): Wouldn't it be nice to only refresh those array
+      // buffers whose associated Wasm memory actually grew?
+      memory_object->set_needs_new_buffer(true);
     }
   }
 }

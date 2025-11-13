@@ -19,6 +19,7 @@
 
 #include <atomic>
 #include <string>
+#include <utility>
 
 #include "absl/base/config.h"
 #include "absl/base/no_destructor.h"
@@ -320,9 +321,9 @@ class FlagSaverImpl {
   }
 
   // Restores the saved flag states into the flag registry.
-  void RestoreToRegistry() {
+  void RestoreToRegistry() && {
     for (const auto& flag_state : backup_registry_) {
-      flag_state->Restore();
+      std::move(*flag_state).Restore();
     }
   }
 
@@ -340,7 +341,7 @@ FlagSaver::FlagSaver() : impl_(new flags_internal::FlagSaverImpl) {
 FlagSaver::~FlagSaver() {
   if (!impl_) return;
 
-  impl_->RestoreToRegistry();
+  std::move(*impl_).RestoreToRegistry();
   delete impl_;
 }
 

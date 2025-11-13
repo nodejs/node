@@ -797,6 +797,8 @@ bool Heap::CreateLateReadOnlyNonJSReceiverMaps() {
             WasmTrustedInstanceData::kSize, wasm_trusted_instance_data);
     IF_WASM(ALLOCATE_VARSIZE_MAP, WASM_DISPATCH_TABLE_TYPE,
             wasm_dispatch_table);
+    IF_WASM(ALLOCATE_VARSIZE_MAP, WASM_DISPATCH_TABLE_FOR_IMPORTS_TYPE,
+            wasm_dispatch_table_for_imports);
 
     ALLOCATE_MAP(WEAK_CELL_TYPE, sizeof(WeakCell), weak_cell)
     ALLOCATE_MAP(INTERPRETER_DATA_TYPE, sizeof(InterpreterData),

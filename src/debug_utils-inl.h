@@ -23,12 +23,25 @@ concept StringConvertible = requires(T a) {
                                 a.ToString()
                                 } -> std::convertible_to<std::string>;
                             };
+// For std::filesystem::path and similar types
+template <typename T>
+concept StringConvertibleFSPathLike = requires(T a) {
+                                        {
+                                          a.string()
+                                          } -> std::convertible_to<std::string>;
+                                      };
 
 struct ToStringHelper {
   template <typename T>
     requires(StringConvertible<T>) && (!StringViewConvertible<T>)
   static std::string Convert(const T& value) {
     return value.ToString();
+  }
+  template <typename T>
+    requires(StringConvertibleFSPathLike<T>) && (!StringViewConvertible<T>) &&
+            (!StringConvertible<T>)
+  static std::string Convert(const T& value) {
+    return value.string();
   }
   template <typename T>
     requires StringViewConvertible<T>
@@ -38,9 +51,11 @@ struct ToStringHelper {
 
   template <typename T,
             typename test_for_number = typename std::
-                enable_if<std::is_arithmetic<T>::value, bool>::type,
+                enable_if_t<std::is_arithmetic_v<T> || std::is_enum_v<T>, bool>,
             typename dummy = bool>
-  static std::string Convert(const T& value) { return std::to_string(value); }
+  static std::string Convert(const T& value) {
+    return std::to_string(value);
+  }
   static std::string_view Convert(const char* value) {
     return value != nullptr ? value : "(null)";
   }
@@ -58,8 +73,7 @@ struct ToStringHelper {
     const char* digits = "0123456789abcdef";
     do {
       unsigned digit = v & ((1 << BASE_BITS) - 1);
-      *--ptr =
-          (BASE_BITS < 4 ? static_cast<char>('0' + digit) : digits[digit]);
+      *--ptr = (BASE_BITS < 4 ? static_cast<char>('0' + digit) : digits[digit]);
     } while ((v >>= BASE_BITS) != 0);
     return ptr;
   }
@@ -139,12 +153,10 @@ std::string COLD_NOINLINE SPrintFImpl(  // NOLINT(runtime/string)
       ret += node::ToUpper(ToBaseString<4>(arg));
       break;
     case 'p': {
-      CHECK(std::is_pointer<typename std::remove_reference<Arg>::type>::value);
+      CHECK(std::is_pointer_v<typename std::remove_reference_t<Arg>>);
       char out[20];
-      int n = snprintf(out,
-                       sizeof(out),
-                       "%p",
-                       *reinterpret_cast<const void* const*>(&arg));
+      int n = snprintf(
+          out, sizeof(out), "%p", *reinterpret_cast<const void* const*>(&arg));
       CHECK_GE(n, 0);
       ret += out;
       break;

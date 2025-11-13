@@ -5,6 +5,102 @@
 #ifndef V8_TRACING_TRACE_EVENT_NO_PERFETTO_H_
 #define V8_TRACING_TRACE_EVENT_NO_PERFETTO_H_
 
+#include <cstdint>
+#include <string>
+
+namespace trace_event_internal {
+
+template <typename... Args>
+void Ignore(Args&&... args) {}
+
+}  // namespace trace_event_internal
+
+#define INTERNAL_TRACE_IGNORE(...) \
+  (false ? trace_event_internal::Ignore(__VA_ARGS__) : (void)0)
+
+// Typed macros. For these, we have to erase the extra args entirely, as they
+// may include a lambda that refers to protozero message types (which aren't
+// available in the stub). This may trigger "unused variable" errors at the
+// callsite, which have to be addressed at the callsite (e.g. via
+// [[maybe_unused]]).
+#define TRACE_EVENT_BEGIN(category, name, ...) \
+  INTERNAL_TRACE_IGNORE(category, name)
+#define TRACE_EVENT_END(category, ...) INTERNAL_TRACE_IGNORE(category)
+#define TRACE_EVENT(category, name, ...) INTERNAL_TRACE_IGNORE(category, name)
+#define TRACE_EVENT_INSTANT(category, name, ...) \
+  INTERNAL_TRACE_IGNORE(category, name)
+#define TRACE_EVENT_CATEGORY_ENABLED(category) \
+  INTERNAL_TRACE_IGNORE(category, name)
+#define TRACE_COUNTER(category, name, ...) INTERNAL_TRACE_IGNORE(category, name)
+
+// Stub implementation for
+// perfetto::StaticString/DynamicString/Track/Flow.
+namespace perfetto {
+
+class EventContext;
+
+class StaticString {
+ public:
+  template <typename T>
+  StaticString(T) {}
+};
+
+class DynamicString {
+ public:
+  template <typename T>
+  explicit DynamicString(T) {}
+};
+
+struct Track {
+  Track() = default;
+  explicit Track(uint64_t id) {}
+};
+
+struct ThreadTrack : public Track {
+  static ThreadTrack Current() { return ThreadTrack(); }
+};
+
+struct NamedTrack : public Track {
+  NamedTrack() = default;
+
+  template <class T>
+  explicit NamedTrack(T name, uint64_t id = 0, Track parent = Track{0}) {}
+
+  template <class T>
+  static NamedTrack FromPointer(T name, const void* ptr,
+                                Track parent = Track{0}) {
+    return NamedTrack();
+  }
+
+  template <class T>
+  static NamedTrack ThreadScoped(T name, uint64_t id = 0,
+                                 Track parent = Track{0}) {
+    return NamedTrack();
+  }
+
+  template <class T>
+  static NamedTrack Global(T name, uint64_t id = 0) {
+    return NamedTrack();
+  }
+
+  NamedTrack disable_sibling_merge() { return *this; }
+};
+
+struct CounterTrack : public Track {
+  template <class T>
+  explicit CounterTrack(T name, Track parent = Track{0}) {}
+  template <class T>
+  explicit CounterTrack(T name, uint64_t id = 0, Track parent = Track{0}) {}
+};
+
+struct Flow {
+  static inline Flow ProcessScoped(uint64_t flow_id) { return Flow(); }
+  static inline Flow FromPointer(void* ptr) { return Flow(); }
+  static inline Flow Global(uint64_t flow_id) { return Flow(); }
+};
+
+}  // namespace perfetto
+
 // This is the legacy implementation of tracing macros. There have been two
 // concurrent implementations within chromium after perfetto was introduced.
 // As of 2024-05, V8 is the only remaining customer of the legacy implementation

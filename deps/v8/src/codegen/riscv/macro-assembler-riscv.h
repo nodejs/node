@@ -369,7 +369,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void CallForDeoptimization(Builtin target, int deopt_id, Label* exit,
                              DeoptimizeKind kind, Label* ret,
                              Label* jump_deoptimization_entry_label);
-
   void Ret(COND_ARGS);
 
   // Emit code to discard a non-negative number of pointer-sized elements

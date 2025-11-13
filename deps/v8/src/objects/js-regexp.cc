@@ -103,7 +103,8 @@ DirectHandle<JSRegExpResultIndices> JSRegExpResultIndices::BuildIndices(
     } else {
       group_names_dict =
           PropertyDictionary::Add(isolate, group_names_dict, name,
-                                  capture_indices, PropertyDetails::Empty());
+                                  capture_indices, PropertyDetails::Empty())
+              .ToHandleChecked();
     }
   }
 

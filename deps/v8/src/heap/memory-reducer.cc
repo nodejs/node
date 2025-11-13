@@ -34,6 +34,12 @@ MemoryReducer::TimerTask::TimerTask(MemoryReducer* memory_reducer)
     : CancelableTask(memory_reducer->heap()->isolate()),
       memory_reducer_(memory_reducer) {}
 
+namespace {
+size_t GetCommitedSize(Heap* heap) {
+  return heap->CommittedOldGenerationMemory() + heap->EmbedderSizeOfObjects() +
+         heap->external_memory();
+}
+}  // namespace
 
 void MemoryReducer::TimerTask::RunInternal() {
   Heap* heap = memory_reducer_->heap();
@@ -61,7 +67,7 @@ void MemoryReducer::TimerTask::RunInternal() {
   const Event event{
       kTimer,
       time_ms,
-      heap->CommittedOldGenerationMemory(),
+      GetCommitedSize(heap),
       false,
       low_allocation_rate || optimize_for_memory,
       heap->incremental_marking()->IsStopped() &&
@@ -102,7 +108,7 @@ void MemoryReducer::NotifyTimer(const Event& event) {
 
 void MemoryReducer::NotifyMarkCompact(size_t committed_memory_before) {
   if (!v8_flags.incremental_marking) return;
-  const size_t committed_memory = heap()->CommittedOldGenerationMemory();
+  const size_t committed_memory = GetCommitedSize(heap());
 
   // Trigger one more GC if
   // - this GC decreased committed memory,

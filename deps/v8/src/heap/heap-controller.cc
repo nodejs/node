@@ -52,22 +52,22 @@ double MemoryController<Trait>::MaxGrowingFactor(uint64_t physical_memory,
 
   // If we are on a device with lots of memory, we allow a high heap
   // growing factor.
-  if (max_heap_size >= Heap::DefaulMaxHeapSize(physical_memory)) {
+  if (max_heap_size >= Heap::DefaultMaxHeapSize(physical_memory)) {
     return kHighFactor;
   }
 
   size_t max_size =
-      std::max({max_heap_size, Heap::DefaulMinHeapSize(physical_memory)});
+      std::max({max_heap_size, Heap::DefaultMinHeapSize(physical_memory)});
 
-  DCHECK_GE(max_size, Heap::DefaulMinHeapSize(physical_memory));
-  DCHECK_LT(max_size, Heap::DefaulMaxHeapSize(physical_memory));
+  DCHECK_GE(max_size, Heap::DefaultMinHeapSize(physical_memory));
+  DCHECK_LT(max_size, Heap::DefaultMaxHeapSize(physical_memory));
 
   // On smaller devices we linearly scale the factor: C+(D-C)*(X-A)/(B-A)
   double factor = kMinSmallFactor +
                   (kMaxSmallFactor - kMinSmallFactor) *
-                      (max_size - Heap::DefaulMinHeapSize(physical_memory)) /
-                      (Heap::DefaulMaxHeapSize(physical_memory) -
-                       Heap::DefaulMinHeapSize(physical_memory));
+                      (max_size - Heap::DefaultMinHeapSize(physical_memory)) /
+                      (Heap::DefaultMaxHeapSize(physical_memory) -
+                       Heap::DefaultMinHeapSize(physical_memory));
   return factor;
 }
 

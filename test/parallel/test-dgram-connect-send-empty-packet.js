@@ -11,9 +11,9 @@ client.bind(0, common.mustCall(function() {
     client.on('message', common.mustCall(callback));
     const buf = Buffer.alloc(1);
 
-    const interval = setInterval(function() {
+    const interval = setInterval(common.mustCallAtLeast(() => {
       client.send(buf, 0, 0, common.mustCall(callback));
-    }, 10);
+    }), 10);
 
     function callback(firstArg) {
       // If client.send() callback, firstArg should be null.

@@ -14,48 +14,54 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-void InstructionScheduler::SchedulingQueueBase::AddNode(
-    ScheduleGraphNode* node) {
-  // We keep the ready list sorted by total latency so that we can quickly find
-  // the next best candidate to schedule.
-  auto it = nodes_.begin();
-  while ((it != nodes_.end()) &&
-         ((*it)->total_latency() >= node->total_latency())) {
-    ++it;
-  }
-  nodes_.insert(it, node);
+InstructionScheduler::SchedulingQueue::SchedulingQueue(Zone* zone)
+    : ready_(zone),
+      waiting_(zone),
+      random_number_generator_(
+          base::RandomNumberGenerator(v8_flags.random_seed)) {}
+
+void InstructionScheduler::SchedulingQueue::AddNode(ScheduleGraphNode* node) {
+  waiting_.push_back(node);
+}
+
+void InstructionScheduler::SchedulingQueue::AddReady(ScheduleGraphNode* node) {
+  ready_.push_back(node);
+}
+
+void InstructionScheduler::SchedulingQueue::Advance(int cycle) {
+  auto IsReady = [cycle](ScheduleGraphNode* n) {
+    return cycle >= n->start_cycle();
+  };
+  auto it = std::partition(waiting_.begin(), waiting_.end(), IsReady);
+  ready_.insert(ready_.end(), waiting_.begin(), it);
+  waiting_.erase(waiting_.begin(), it);
 }
 
 InstructionScheduler::ScheduleGraphNode*
-InstructionScheduler::CriticalPathFirstQueue::PopBestCandidate(int cycle) {
+InstructionScheduler::SchedulingQueue::PopBestCandidate(int cycle) {
   DCHECK(!IsEmpty());
-  auto candidate = nodes_.end();
-  for (auto iterator = nodes_.begin(); iterator != nodes_.end(); ++iterator) {
-    // We only consider instructions that have all their operands ready.
-    if (cycle >= (*iterator)->start_cycle()) {
-      candidate = iterator;
-      break;
-    }
-  }
 
-  if (candidate != nodes_.end()) {
+  if (ready_.empty()) return nullptr;
+
+  if (V8_UNLIKELY(v8_flags.turbo_stress_instruction_scheduling)) {
+    // Pop a random node from the queue to perform stress tests on the
+    // scheduler.
+    auto candidate = ready_.begin();
+    std::advance(candidate, random_number_generator_->NextInt(
+                                static_cast<int>(ready_.size())));
     ScheduleGraphNode* result = *candidate;
-    nodes_.erase(candidate);
+    ready_.erase(candidate);
     return result;
   }
 
-  return nullptr;
-}
+  // Prioritize the instruction with the highest latency on the path to reach
+  // the end of the graph.
+  auto best_candidate = std::max_element(
+      ready_.begin(), ready_.end(),
+      [](auto l, auto r) { return l->total_latency() < r->total_latency(); });
 
-InstructionScheduler::ScheduleGraphNode*
-InstructionScheduler::StressSchedulerQueue::PopBestCandidate(int cycle) {
-  DCHECK(!IsEmpty());
-  // Choose a random element from the ready list.
-  auto candidate = nodes_.begin();
-  std::advance(candidate, random_number_generator()->NextInt(
-                              static_cast<int>(nodes_.size())));
-  ScheduleGraphNode* result = *candidate;
-  nodes_.erase(candidate);
+  ScheduleGraphNode* result = *best_candidate;
+  ready_.erase(best_candidate);
   return result;
 }
 
@@ -78,17 +84,13 @@ InstructionScheduler::InstructionScheduler(Zone* zone,
                                            InstructionSequence* sequence)
     : zone_(zone),
       sequence_(sequence),
-      graph_(zone),
+      graph_(sequence->instructions().size(), zone),
+      ready_list_(zone),
       last_side_effect_instr_(nullptr),
       pending_loads_(zone),
       last_live_in_reg_marker_(nullptr),
       last_deopt_or_trap_(nullptr),
-      operands_map_(zone) {
-  if (v8_flags.turbo_stress_instruction_scheduling) {
-    random_number_generator_ =
-        std::optional<base::RandomNumberGenerator>(v8_flags.random_seed);
-  }
-}
+      operands_map_(zone) {}
 
 void InstructionScheduler::StartBlock(RpoNumber rpo) {
   DCHECK(graph_.empty());
@@ -100,32 +102,15 @@ void InstructionScheduler::StartBlock(RpoNumber rpo) {
   sequence()->StartBlock(rpo);
 }
 
-void InstructionScheduler::EndBlock(RpoNumber rpo) {
-  if (v8_flags.turbo_stress_instruction_scheduling) {
-    Schedule<StressSchedulerQueue>();
-  } else {
-    Schedule<CriticalPathFirstQueue>();
-  }
-  sequence()->EndBlock(rpo);
-}
-
-void InstructionScheduler::AddTerminator(Instruction* instr) {
-  ScheduleGraphNode* new_node = zone()->New<ScheduleGraphNode>(zone(), instr);
-  // Make sure that basic block terminators are not moved by adding them
-  // as successor of every instruction.
-  for (ScheduleGraphNode* node : graph_) {
-    node->AddSuccessor(new_node);
-  }
-  graph_.push_back(new_node);
+void InstructionScheduler::EndBlock(RpoNumber rpo, Instruction* terminator) {
+  Schedule();
+  sequence()->EndBlock(rpo, terminator);
 }
 
 void InstructionScheduler::AddInstruction(Instruction* instr) {
-  if (IsBarrier(instr)) {
-    if (v8_flags.turbo_stress_instruction_scheduling) {
-      Schedule<StressSchedulerQueue>();
-    } else {
-      Schedule<CriticalPathFirstQueue>();
-    }
+  int flags = GetInstructionFlags(instr);
+  if (IsBarrier(flags)) {
+    Schedule();
     sequence()->AddInstruction(instr);
     return;
   }
@@ -135,25 +120,23 @@ void InstructionScheduler::AddInstruction(Instruction* instr) {
   // We should not have branches in the middle of a block.
   DCHECK_NE(instr->flags_mode(), kFlags_branch);
 
+  if (last_live_in_reg_marker_ != nullptr) {
+    last_live_in_reg_marker_->AddSuccessor(new_node);
+  }
+
   if (IsFixedRegisterParameter(instr)) {
-    if (last_live_in_reg_marker_ != nullptr) {
-      last_live_in_reg_marker_->AddSuccessor(new_node);
-    }
     last_live_in_reg_marker_ = new_node;
   } else {
-    if (last_live_in_reg_marker_ != nullptr) {
-      last_live_in_reg_marker_->AddSuccessor(new_node);
-    }
-
     // Make sure that instructions are not scheduled before the last
     // deoptimization or trap point when they depend on it.
-    if ((last_deopt_or_trap_ != nullptr) && DependsOnDeoptOrTrap(instr)) {
+    if ((last_deopt_or_trap_ != nullptr) &&
+        DependsOnDeoptOrTrap(instr, flags)) {
       last_deopt_or_trap_->AddSuccessor(new_node);
     }
 
     // Instructions with side effects and memory operations can't be
     // reordered with respect to each other.
-    if (HasSideEffect(instr)) {
+    if (HasSideEffect(flags)) {
       if (last_side_effect_instr_ != nullptr) {
         last_side_effect_instr_->AddSuccessor(new_node);
       }
@@ -162,7 +145,7 @@ void InstructionScheduler::AddInstruction(Instruction* instr) {
       }
       pending_loads_.clear();
       last_side_effect_instr_ = new_node;
-    } else if (IsLoadOperation(instr)) {
+    } else if (IsLoadOperation(flags)) {
       // Load operations can't be reordered with side effects instructions but
       // independent loads can be reordered with respect to each other.
       if (last_side_effect_instr_ != nullptr) {
@@ -210,9 +193,7 @@ void InstructionScheduler::AddInstruction(Instruction* instr) {
   graph_.push_back(new_node);
 }
 
-template <typename QueueType>
 void InstructionScheduler::Schedule() {
-  QueueType ready_list(this);
 
   // Compute total latencies so that we can schedule the critical path first.
   ComputeTotalLatencies();
@@ -220,16 +201,14 @@ void InstructionScheduler::Schedule() {
   // Add nodes which don't have dependencies to the ready list.
   for (ScheduleGraphNode* node : graph_) {
     if (!node->HasUnscheduledPredecessor()) {
-      ready_list.AddNode(node);
+      ready_list_.AddReady(node);
     }
   }
 
   // Go through the ready list and schedule the instructions.
   int cycle = 0;
-  while (!ready_list.IsEmpty()) {
-    ScheduleGraphNode* candidate = ready_list.PopBestCandidate(cycle);
-
-    if (candidate != nullptr) {
+  while (!ready_list_.IsEmpty()) {
+    if (ScheduleGraphNode* candidate = ready_list_.PopBestCandidate(cycle)) {
       sequence()->AddInstruction(candidate->instruction());
 
       for (ScheduleGraphNode* successor : candidate->successors()) {
@@ -238,12 +217,12 @@ void InstructionScheduler::Schedule() {
             std::max(successor->start_cycle(), cycle + candidate->latency()));
 
         if (!successor->HasUnscheduledPredecessor()) {
-          ready_list.AddNode(successor);
+          ready_list_.AddNode(successor);
         }
       }
     }
-
     cycle++;
+    ready_list_.Advance(cycle);
   }
 
   // Reset own state.

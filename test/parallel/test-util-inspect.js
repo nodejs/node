@@ -2391,6 +2391,20 @@ assert.strictEqual(
   inspect.styles.string = stringStyle;
 }
 
+// Special (extra) properties follow normal coloring:
+// only the name is colored, ":" and space are unstyled.
+{
+  const [open, close] = inspect.colors[inspect.styles.string];
+  const keyPattern = (k) => new RegExp(
+    `\\u001b\\[${open}m\\[${k}\\]\\u001b\\[${close}m: `
+  );
+  const colored = util.inspect(new Uint8Array(0), { showHidden: true, colors: true });
+  assert.match(colored, keyPattern('BYTES_PER_ELEMENT'));
+  assert.match(colored, keyPattern('length'));
+  assert.match(colored, keyPattern('byteLength'));
+  assert.match(colored, keyPattern('byteOffset'));
+}
+
 assert.strictEqual(
   inspect([1, 3, 2], { sorted: true }),
   inspect([1, 3, 2])

@@ -1182,7 +1182,6 @@ class OffHeapCompressedMaybeObjectSlot;
 class FullObjectSlot;
 class FullMaybeObjectSlot;
 class FullHeapObjectSlot;
-class OffHeapFullObjectSlot;
 class OldSpace;
 class ReadOnlySpace;
 class RelocInfo;
@@ -1257,8 +1256,8 @@ struct SlotTraits {
   using TObjectSlot = FullObjectSlot;
   using TMaybeObjectSlot = FullMaybeObjectSlot;
   using THeapObjectSlot = FullHeapObjectSlot;
-  using TOffHeapObjectSlot = OffHeapFullObjectSlot;
-  using TInstructionStreamSlot = OffHeapFullObjectSlot;
+  using TOffHeapObjectSlot = FullObjectSlot;
+  using TInstructionStreamSlot = FullObjectSlot;
 #endif  // V8_COMPRESS_POINTERS
 #ifdef V8_ENABLE_SANDBOX
   using TProtectedPointerSlot =
@@ -1357,7 +1356,7 @@ enum AllocationSpace {
   FIRST_MUTABLE_SPACE = NEW_SPACE,
   LAST_MUTABLE_SPACE = TRUSTED_LO_SPACE,
   FIRST_GROWABLE_PAGED_SPACE = OLD_SPACE,
-  LAST_GROWABLE_PAGED_SPACE = TRUSTED_SPACE,
+  LAST_GROWABLE_PAGED_SPACE = SHARED_TRUSTED_SPACE,
   FIRST_SWEEPABLE_SPACE = NEW_SPACE,
   LAST_SWEEPABLE_SPACE = SHARED_TRUSTED_SPACE
 };
@@ -1459,6 +1458,8 @@ inline std::ostream& operator<<(std::ostream& os, AllocationType type) {
 
 enum class PerformHeapLimitCheck { kYes, kNo };
 enum class PerformIneffectiveMarkCompactCheck { kYes, kNo };
+
+enum class RequestedGCKind : uint8_t { kMajor = 1, kLastResort = 1 << 1 };
 
 class AllocationHint final {
  public:
@@ -2728,6 +2729,7 @@ enum IsolateAddressId {
   V(TrapDivUnrepresentable)        \
   V(TrapRemByZero)                 \
   V(TrapFloatUnrepresentable)      \
+  V(TrapNullFunc)                  \
   V(TrapFuncSigMismatch)           \
   V(TrapDataSegmentOutOfBounds)    \
   V(TrapElementSegmentOutOfBounds) \
@@ -2737,6 +2739,7 @@ enum IsolateAddressId {
   V(TrapIllegalCast)               \
   V(TrapArrayOutOfBounds)          \
   V(TrapArrayTooLarge)             \
+  V(TrapResume)                    \
   V(TrapStringOffsetOutOfBounds)
 
 enum class KeyedAccessLoadMode : uint8_t {

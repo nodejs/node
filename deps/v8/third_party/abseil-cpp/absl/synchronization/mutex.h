@@ -65,12 +65,12 @@
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
 #include "absl/base/const_init.h"
-#include "absl/base/internal/identity.h"
 #include "absl/base/internal/thread_identity.h"
 #include "absl/base/internal/tsan_mutex_interface.h"
 #include "absl/base/macros.h"
 #include "absl/base/nullability.h"
 #include "absl/base/thread_annotations.h"
+#include "absl/meta/type_traits.h"
 #include "absl/synchronization/internal/kernel_timeout.h"
 #include "absl/synchronization/internal/per_thread_sem.h"
 #include "absl/time/time.h"
@@ -794,7 +794,7 @@ class Condition {
   template <typename T, typename = void>
   Condition(
       bool (*absl_nonnull func)(T* absl_nullability_unknown),
-      typename absl::internal::type_identity<T>::type* absl_nullability_unknown
+      typename absl::type_identity<T>::type* absl_nullability_unknown
           arg);
 
   // Templated version for invoking a method that returns a `bool`.
@@ -802,19 +802,19 @@ class Condition {
   // `Condition(object, &Class::Method)` constructs a `Condition` that evaluates
   // `object->Method()`.
   //
-  // Implementation Note: `absl::internal::type_identity` is used to allow
+  // Implementation Note: `absl::type_identity` is used to allow
   // methods to come from base classes. A simpler signature like
   // `Condition(T*, bool (T::*)())` does not suffice.
   template <typename T>
   Condition(
       T* absl_nonnull object,
-      bool (absl::internal::type_identity<T>::type::* absl_nonnull method)());
+      bool (absl::type_identity<T>::type::* absl_nonnull method)());
 
   // Same as above, for const members
   template <typename T>
   Condition(
       const T* absl_nonnull object,
-      bool (absl::internal::type_identity<T>::type::* absl_nonnull method)()
+      bool (absl::type_identity<T>::type::* absl_nonnull method)()
           const);
 
   // A Condition that returns the value of `*cond`
@@ -1183,7 +1183,7 @@ inline Condition::Condition(
 template <typename T, typename>
 inline Condition::Condition(
     bool (*absl_nonnull func)(T* absl_nullability_unknown),
-    typename absl::internal::type_identity<T>::type* absl_nullability_unknown
+    typename absl::type_identity<T>::type* absl_nullability_unknown
         arg)
     // Just delegate to the overload above.
     : Condition(func, arg) {}
@@ -1191,7 +1191,7 @@ inline Condition::Condition(
 template <typename T>
 inline Condition::Condition(
     T* absl_nonnull object,
-    bool (absl::internal::type_identity<T>::type::* absl_nonnull method)())
+    bool (absl::type_identity<T>::type::* absl_nonnull method)())
     : eval_(&CastAndCallMethod<T, decltype(method)>), arg_(object) {
   static_assert(sizeof(&method) <= sizeof(callback_),
                 "An overlarge method pointer was passed to Condition.");
@@ -1201,7 +1201,7 @@ inline Condition::Condition(
 template <typename T>
 inline Condition::Condition(
     const T* absl_nonnull object,
-    bool (absl::internal::type_identity<T>::type::* absl_nonnull method)()
+    bool (absl::type_identity<T>::type::* absl_nonnull method)()
         const)
     : eval_(&CastAndCallMethod<const T, decltype(method)>),
       arg_(reinterpret_cast<void*>(const_cast<T*>(object))) {

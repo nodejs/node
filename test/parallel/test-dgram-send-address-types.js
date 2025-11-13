@@ -11,7 +11,7 @@ const onMessage = common.mustSucceed((bytes) => {
   assert.strictEqual(bytes, buf.length);
 }, defaultCases.length + 1);
 
-const client = dgram.createSocket('udp4').bind(0, () => {
+const client = dgram.createSocket('udp4').bind(0, common.mustCall(() => {
   const port = client.address().port;
 
   // Check valid addresses
@@ -42,6 +42,6 @@ const client = dgram.createSocket('udp4').bind(0, () => {
     };
     assert.throws(() => client.send(buf, port, invalidInput), expectedError);
   });
-});
+}));
 
 client.unref();

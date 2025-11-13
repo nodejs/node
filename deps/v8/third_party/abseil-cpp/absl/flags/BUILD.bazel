@@ -168,6 +168,7 @@ cc_library(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
         "//absl/flags:__pkg__",
+        "//absl/flags/rust:__pkg__",
     ],
     deps = [
         ":commandlineflag",

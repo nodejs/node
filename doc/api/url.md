@@ -1794,6 +1794,12 @@ The formatting process operates as follows:
   string, an [`Error`][] is thrown.
 * `result` is returned.
 
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/node-url-to-whatwg-url)).
+
+```bash
+npx codemod@latest @nodejs/node-url-to-whatwg-url
+```
+
 ### `url.parse(urlString[, parseQueryString[, slashesDenoteHost]])`
 
 <!-- YAML
@@ -1865,6 +1871,12 @@ use the example below:
 function getURL(req) {
   return new URL(`https://example.com${req.url || '/'}`);
 }
+```
+
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/node-url-to-whatwg-url)).
+
+```bash
+npx codemod@latest @nodejs/node-url-to-whatwg-url
 ```
 
 ### `url.resolve(from, to)`

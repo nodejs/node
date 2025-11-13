@@ -39,6 +39,17 @@ describe('.env supports edge cases', () => {
     })));
   });
 
+  it('should not support comma-separated env files', async () => {
+    const code = 'assert.strictEqual(1, 1)';
+    const child = await common.spawnPromisified(
+      process.execPath,
+      [`--env-file=${validEnvFilePath},${nodeOptionsEnvFilePath}`, '--eval', code],
+      { cwd: __dirname },
+    );
+    assert.notStrictEqual(child.stderr, '');
+    assert.strictEqual(child.code, 9);
+  });
+
   it('supports absolute paths', async () => {
     const code = `
       assert.strictEqual(process.env.BASIC, 'basic');

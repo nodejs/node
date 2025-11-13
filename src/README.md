@@ -126,10 +126,10 @@ Typical ways of working with internal fields are:
 * `obj->GetInternalField(i)` to get a JavaScript value from an internal field.
 * `obj->SetInternalField(i, v)` to store a JavaScript value in an
   internal field.
-* `obj->GetAlignedPointerFromInternalField(i)` to get a `void*` pointer from an
-  internal field.
-* `obj->SetAlignedPointerInInternalField(i, p)` to store a `void*` pointer in an
-  internal field.
+* `obj->GetAlignedPointerFromInternalField(i, EmbedderDataTag::kDefault)` to get
+  a `void*` pointer from an internal field.
+* `obj->SetAlignedPointerInInternalField(i, p, EmbedderDataTag::kDefault)` to store
+  a `void*` pointer in an internal field.
 
 [`Context`][]s provide the same feature under the name “embedder data”.
 

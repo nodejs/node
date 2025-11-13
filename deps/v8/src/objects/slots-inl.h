@@ -481,14 +481,6 @@ void WriteProtectedSlot<SlotT>::Relaxed_Store(TObject value) const {
   jit_allocation_.WriteHeaderSlot(this->address(), value, kRelaxedStore);
 }
 
-// Copies tagged words from |src| to |dst|. The data spans must not overlap.
-// |src| and |dst| must be kTaggedSize-aligned.
-inline void CopyTagged(Address dst, const Address src, size_t num_tagged) {
-  static const size_t kBlockCopyLimit = 16;
-  CopyImpl<kBlockCopyLimit>(reinterpret_cast<Tagged_t*>(dst),
-                            reinterpret_cast<const Tagged_t*>(src), num_tagged);
-}
-
 inline void MemsetTagged(Tagged_t* start, Tagged<MaybeObject> value,
                          size_t count) {
 #ifdef V8_COMPRESS_POINTERS

@@ -210,7 +210,7 @@ class V8_EXPORT_PRIVATE JSDispatchTable
   JSDispatchTable& operator=(const JSDispatchTable&) = delete;
 
   // The Spaces used by a JSDispatchTable.
-  using Space = Base::SpaceWithBlackAllocationSupport;
+  using Space = Base::Space;
 
   // Retrieves the entrypoint of the entry referenced by the given handle.
   inline Address GetEntrypoint(JSDispatchHandle handle);
@@ -321,6 +321,11 @@ class V8_EXPORT_PRIVATE JSDispatchTable
                                   std::ostream& os);
 
   static constexpr bool kWriteBarrierSetsEntryMarkBit = true;
+
+  static bool MaybeValidJSDispatchHandle(uint32_t handle) {
+    return ((handle >> kJSDispatchHandleShift) << kJSDispatchHandleShift) ==
+           handle;
+  }
 
  private:
   static inline bool IsCompatibleCode(Tagged<Code> code,

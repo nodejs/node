@@ -97,7 +97,7 @@ class SandboxedArrayBufferAllocator final
 class PABackedSandboxedArrayBufferAllocator
     : public SandboxedArrayBufferAllocatorBase {
  public:
-  PABackedSandboxedArrayBufferAllocator() = default;
+  PABackedSandboxedArrayBufferAllocator();
   ~PABackedSandboxedArrayBufferAllocator();
 
   PABackedSandboxedArrayBufferAllocator(

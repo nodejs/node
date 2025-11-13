@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// Flags: --allow-natives-syntax
 
 (function TestBigInt() {
   const tooBigForNumber = BigInt(Number.MAX_SAFE_INTEGER) + 2n;
@@ -16,9 +17,12 @@
   assertEquals('{"tooBigForNumber":9007199254740993}', embedded);
 })();
 
+let calls = 0;
+
 function GenerateParseReviverFunction(texts) {
   let i = 0;
-  return function (key, value, context) {
+  return function(key, value, context) {
+    calls++;
     assertTrue(typeof context === 'object');
     assertEquals(Object.prototype, Object.getPrototypeOf(context));
     // The json value is a primitive value, it's context only has a source property.
@@ -45,44 +49,96 @@ function GenerateParseReviverFunction(texts) {
 }
 
 (function TestNumber() {
+  calls = 0;
   assertEquals(1, JSON.parse('1', GenerateParseReviverFunction(['1'])));
+  assertEquals(1, calls);
   assertEquals(1.1, JSON.parse('1.1', GenerateParseReviverFunction(['1.1'])));
+  assertEquals(2, calls);
   assertEquals(-1, JSON.parse('-1', GenerateParseReviverFunction(['-1'])));
+  assertEquals(3, calls);
   assertEquals(
     -1.1,
     JSON.parse('-1.1', GenerateParseReviverFunction(['-1.1']))
   );
+  assertEquals(4, calls);
   assertEquals(
     11,
     JSON.parse('1.1e1', GenerateParseReviverFunction(['1.1e1']))
   );
+  assertEquals(5, calls);
   assertEquals(
     11,
     JSON.parse('1.1e+1', GenerateParseReviverFunction(['1.1e+1']))
   );
+  assertEquals(6, calls);
   assertEquals(
     0.11,
     JSON.parse('1.1e-1', GenerateParseReviverFunction(['1.1e-1']))
   );
+  assertEquals(7, calls);
   assertEquals(
     11,
     JSON.parse('1.1E1', GenerateParseReviverFunction(['1.1E1']))
   );
+  assertEquals(8, calls);
   assertEquals(
     11,
     JSON.parse('1.1E+1', GenerateParseReviverFunction(['1.1E+1']))
   );
+  assertEquals(9, calls);
   assertEquals(
     0.11,
     JSON.parse('1.1E-1', GenerateParseReviverFunction(['1.1E-1']))
   );
+  assertEquals(10, calls);
+  // Test the arrow functions still work as expected.
+  var fn = GenerateParseReviverFunction(['1']);
+  assertEquals(
+      1, JSON.parse('1', (key, value, context) => fn(key, value, context)));
+  assertEquals(11, calls);
 
+  calls = 0;
   assertEquals('1', JSON.stringify(JSON.rawJSON(1)));
   assertEquals('1.1', JSON.stringify(JSON.rawJSON(1.1)));
   assertEquals('-1', JSON.stringify(JSON.rawJSON(-1)));
   assertEquals('-1.1', JSON.stringify(JSON.rawJSON(-1.1)));
   assertEquals('11', JSON.stringify(JSON.rawJSON(1.1e1)));
   assertEquals('0.11', JSON.stringify(JSON.rawJSON(1.1e-1)));
+  assertEquals(0, calls);
+})();
+
+function lengthReviver(key, value, context) {
+  if (key == '') return value;
+  if (context === undefined) return 'undefined';
+  return context.source.length;
+}
+
+(function TestContext() {
+  const stringify = JSON.stringify;
+  const parse = JSON.parse;
+  // Pass function.
+  assertEquals('{"a":3}', stringify(parse('{"a":103}', lengthReviver)));
+  assertEquals('{"a":9}', stringify(parse('{"a":123456789}', lengthReviver)));
+  // Pass arrow function that calls function.
+  assertEquals(
+      '{"a":3}',
+      stringify(parse('{"a":103}', (k, v, c) => lengthReviver(k, v, c))));
+  assertEquals(
+      '{"a":9}',
+      stringify(parse('{"a":123456789}', (k, v, c) => lengthReviver(k, v, c))));
+  // Pass arrow function that only takes two args, triggering optimization by
+  // not creating third argument.  The optimization is only triggered when an
+  // optimizing compiler has populated the SharedFunctionInfo with enough
+  // information for us to identify that it is an arrow function that takes only
+  // two arguments.
+  let arrow = (k, v) => lengthReviver(k, v);
+  for (var i = 0; i < 3; i++) {
+    assertEquals('{"a":"undefined"}', stringify(parse('{"a":103}', arrow)));
+    assertEquals(
+        '{"a":"undefined"}', stringify(parse('{"a":123456789}', arrow)));
+    %PrepareFunctionForOptimization(arrow);
+    %OptimizeFunctionOnNextCall(arrow);
+  }
 })();
 
 (function TestBasic() {

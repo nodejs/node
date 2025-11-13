@@ -159,10 +159,10 @@ int VLogLevel(absl::string_view file, const std::vector<VModuleInfo>* infos,
       // If there are any slashes in the pattern, try to match the full
       // name.
       if (FNMatch(info.module_pattern, stem)) {
-        return info.vlog_level == kUseFlag ? current_global_v : info.vlog_level;
+        return info.vlog_level;
       }
     } else if (FNMatch(info.module_pattern, stem_basename)) {
-      return info.vlog_level == kUseFlag ? current_global_v : info.vlog_level;
+      return info.vlog_level;
     }
   }
 

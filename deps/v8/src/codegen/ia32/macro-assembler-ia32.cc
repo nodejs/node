@@ -2505,9 +2505,10 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
 
   if (argc_operand == nullptr) {
     DCHECK_NE(slots_to_drop_on_return, 0);
-    __ ret(slots_to_drop_on_return * kSystemPointerSize);
+    __ Ret(slots_to_drop_on_return * kSystemPointerSize, scratch);
+
   } else {
-    __ pop(scratch);
+    __ PopReturnAddressTo(scratch);
     // {argc_operand} was loaded into {argc_reg} above.
     __ lea(esp, Operand(esp, argc_reg, times_system_pointer_size,
                         slots_to_drop_on_return * kSystemPointerSize));

@@ -1084,10 +1084,9 @@ class V8_EXPORT_PRIVATE Instruction final {
     // Keep in sync with instruction-selector.cc where the inputs are assembled.
     switch (arch_opcode()) {
       case kArchCallWasmFunctionIndirect:
-        return InputCount() -
-               (HasCallDescriptorFlag(CallDescriptor::kHasExceptionHandler)
-                    ? 2
-                    : 1);
+        return InputCount() - 1 -
+               HasCallDescriptorFlag(CallDescriptor::kHasExceptionHandler) -
+               2 * HasCallDescriptorFlag(CallDescriptor::kHasEffectHandler);
       case kArchTailCallWasmIndirect:
         return InputCount() - 3;
       default:
@@ -1101,10 +1100,9 @@ class V8_EXPORT_PRIVATE Instruction final {
     // Keep in sync with instruction-selector.cc where the inputs are assembled.
     switch (arch_opcode()) {
       case kArchCallCodeObject:
-        return InputCount() -
-               (HasCallDescriptorFlag(CallDescriptor::kHasExceptionHandler)
-                    ? 2
-                    : 1);
+        return InputCount() - 1 -
+               HasCallDescriptorFlag(CallDescriptor::kHasExceptionHandler) -
+               2 * HasCallDescriptorFlag(CallDescriptor::kHasEffectHandler);
       case kArchTailCallCodeObject:
         return InputCount() - 3;
       default:
@@ -1115,11 +1113,9 @@ class V8_EXPORT_PRIVATE Instruction final {
   // For JS call instructions, computes the index of the argument count input.
   size_t JSCallArgumentCountInputIndex() const {
     // Keep in sync with instruction-selector.cc where the inputs are assembled.
-    if (HasCallDescriptorFlag(CallDescriptor::kHasExceptionHandler)) {
-      return InputCount() - 2;
-    } else {
-      return InputCount() - 1;
-    }
+    return InputCount() - 1 -
+           HasCallDescriptorFlag(CallDescriptor::kHasExceptionHandler) -
+           2 * HasCallDescriptorFlag(CallDescriptor::kHasEffectHandler);
   }
 
   enum GapPosition {
@@ -1947,6 +1943,7 @@ class V8_EXPORT_PRIVATE InstructionSequence final
   int AddInstruction(Instruction* instr);
   void StartBlock(RpoNumber rpo);
   void EndBlock(RpoNumber rpo);
+  void EndBlock(RpoNumber rpo, Instruction* terminator);
 
   void AddConstant(int virtual_register, Constant constant) {
     // TODO(titzer): allow RPO numbers as constants?
@@ -1973,7 +1970,7 @@ class V8_EXPORT_PRIVATE InstructionSequence final
       if (constant.type() == Constant::kRpoNumber) {
         // Ideally we would inline RPO numbers into the operand, however jump-
         // threading modifies RPO values and so we indirect through a vector
-        // of rpo_immediates to enable rewriting. We keep this seperate from the
+        // of rpo_immediates to enable rewriting. We keep this separate from the
         // immediates vector so that we don't repeatedly push the same rpo
         // number.
         RpoNumber rpo_number = constant.ToRpoNumber();

@@ -36,31 +36,31 @@ function createChild(options, callback) {
 }
 
 test('normal execution of a child process is handled', (_, done) => {
-  createChild({}, (err, stdout, stderr) => {
+  createChild({}, common.mustCall((err, stdout, stderr) => {
     assert.strictEqual(err, null);
     assert.strictEqual(stdout, '');
     assert.strictEqual(stderr, '');
     done();
-  });
+  }));
 });
 
 test('execution with an error event is handled', (_, done) => {
   const error = new Error('foo');
-  const child = createChild({}, (err, stdout, stderr) => {
+  const child = createChild({}, common.mustCall((err, stdout, stderr) => {
     assert.strictEqual(err, error);
     assert.strictEqual(stdout, '');
     assert.strictEqual(stderr, '');
     done();
-  });
+  }));
 
   child.emit('error', error);
 });
 
 test('execution with a killed process is handled', (_, done) => {
-  createChild({ timeout: 1 }, (err, stdout, stderr) => {
+  createChild({ timeout: 1 }, common.mustCall((err, stdout, stderr) => {
     assert.strictEqual(err.killed, true);
     assert.strictEqual(stdout, '');
     assert.strictEqual(stderr, '');
     done();
-  });
+  }));
 });

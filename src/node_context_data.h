@@ -3,6 +3,7 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include "node_v8_embedder.h"
 #include "util.h"
 #include "v8.h"
 
@@ -135,7 +136,8 @@ class ContextEmbedderTag {
     // context.
     context->SetAlignedPointerInEmbedderData(
         ContextEmbedderIndex::kContextTag,
-        ContextEmbedderTag::kNodeContextTagPtr);
+        ContextEmbedderTag::kNodeContextTagPtr,
+        EmbedderDataTag::kPerContextData);
   }
 
   static inline bool IsNodeContext(v8::Local<v8::Context> context) {
@@ -147,7 +149,8 @@ class ContextEmbedderTag {
       return false;
     }
     if (context->GetAlignedPointerFromEmbedderData(
-            ContextEmbedderIndex::kContextTag) !=
+            ContextEmbedderIndex::kContextTag,
+            EmbedderDataTag::kPerContextData) !=
         ContextEmbedderTag::kNodeContextTagPtr) [[unlikely]] {
       return false;
     }

@@ -2,7 +2,7 @@
 require('../common');
 
 const { describe, it } = require('node:test');
-const { deepStrictEqual, throws } = require('node:assert');
+const assert = require('node:assert');
 
 const { diff } = require('util');
 
@@ -11,7 +11,7 @@ describe('diff', () => {
     const actual = {};
     const expected = 'foo';
 
-    throws(() => diff(actual, expected), {
+    assert.throws(() => diff(actual, expected), {
       message: 'The "actual" argument must be of type string. Received an instance of Object'
     });
   });
@@ -20,7 +20,7 @@ describe('diff', () => {
     const actual = 'foo';
     const expected = {};
 
-    throws(() => diff(actual, expected), {
+    assert.throws(() => diff(actual, expected), {
       message: 'The "expected" argument must be of type string. Received an instance of Object'
     });
   });
@@ -30,7 +30,7 @@ describe('diff', () => {
     const actual = ['1', { b: 2 }];
     const expected = ['1', '2'];
 
-    throws(() => diff(actual, expected), {
+    assert.throws(() => diff(actual, expected), {
       message: 'The "actual[1]" argument must be of type string. Received an instance of Object'
     });
   });
@@ -40,7 +40,7 @@ describe('diff', () => {
     const expected = 'foo';
 
     const result = diff(actual, expected);
-    deepStrictEqual(result, []);
+    assert.deepStrictEqual(result, []);
   });
 
   it('returns the diff for strings', () => {
@@ -48,7 +48,7 @@ describe('diff', () => {
     const expected = '12!!5!7!';
     const result = diff(actual, expected);
 
-    deepStrictEqual(result, [
+    assert.deepStrictEqual(result, [
       [0, '1'],
       [0, '2'],
       [1, '3'],
@@ -69,7 +69,7 @@ describe('diff', () => {
     const expected = ['1', '3', '4'];
     const result = diff(actual, expected);
 
-    deepStrictEqual(result, [
+    assert.deepStrictEqual(result, [
       [0, '1'],
       [1, '2'],
       [0, '3'],

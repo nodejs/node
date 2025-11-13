@@ -3319,6 +3319,12 @@ IGNITION_HANDLER(ForOfNext, InterpreterAssembler) {
 
   auto [value, done_value] = ForOfNextHelper(context, object, next);
   StoreRegisterPairAtOperandIndex(value, done_value, 2);
+  // To avoid special logic in the deoptimizer to re-materialize the value in
+  // the accumulator, we clobber the accumulator after the iterator.next call.
+  // It doesn't really matter what we write to the accumulator here, since we
+  // restore to the correct value on the outside. Storing the result means we
+  // don't need to keep unnecessary state alive across the callstub.
+  ClobberAccumulator(value);
   Dispatch();
 }
 

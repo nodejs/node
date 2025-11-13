@@ -57,8 +57,7 @@ absl::Duration ApproxYears(int64_t n) { return absl::Hours(n) * 365 * 24; }
 // timespec ts1, ts2;
 // EXPECT_THAT(ts1, TimespecMatcher(ts2));
 MATCHER_P(TimespecMatcher, ts, "") {
-  if (ts.tv_sec == arg.tv_sec && ts.tv_nsec == arg.tv_nsec)
-    return true;
+  if (ts.tv_sec == arg.tv_sec && ts.tv_nsec == arg.tv_nsec) return true;
   *result_listener << "expected: {" << ts.tv_sec << ", " << ts.tv_nsec << "} ";
   *result_listener << "actual: {" << arg.tv_sec << ", " << arg.tv_nsec << "}";
   return false;
@@ -68,8 +67,7 @@ MATCHER_P(TimespecMatcher, ts, "") {
 // timeval tv1, tv2;
 // EXPECT_THAT(tv1, TimevalMatcher(tv2));
 MATCHER_P(TimevalMatcher, tv, "") {
-  if (tv.tv_sec == arg.tv_sec && tv.tv_usec == arg.tv_usec)
-    return true;
+  if (tv.tv_sec == arg.tv_sec && tv.tv_usec == arg.tv_usec) return true;
   *result_listener << "expected: {" << tv.tv_sec << ", " << tv.tv_usec << "} ";
   *result_listener << "actual: {" << arg.tv_sec << ", " << arg.tv_usec << "}";
   return false;
@@ -223,12 +221,12 @@ TEST(Duration, ToConversionDeprecated) {
 
 template <int64_t N>
 void TestFromChronoBasicEquality() {
-  using std::chrono::nanoseconds;
+  using std::chrono::hours;
   using std::chrono::microseconds;
   using std::chrono::milliseconds;
-  using std::chrono::seconds;
   using std::chrono::minutes;
-  using std::chrono::hours;
+  using std::chrono::nanoseconds;
+  using std::chrono::seconds;
 
   static_assert(absl::Nanoseconds(N) == absl::FromChrono(nanoseconds(N)), "");
   static_assert(absl::Microseconds(N) == absl::FromChrono(microseconds(N)), "");
@@ -288,12 +286,12 @@ TEST(Duration, FromChrono) {
 
 template <int64_t N>
 void TestToChrono() {
-  using std::chrono::nanoseconds;
+  using std::chrono::hours;
   using std::chrono::microseconds;
   using std::chrono::milliseconds;
-  using std::chrono::seconds;
   using std::chrono::minutes;
-  using std::chrono::hours;
+  using std::chrono::nanoseconds;
+  using std::chrono::seconds;
 
   EXPECT_EQ(nanoseconds(N), absl::ToChronoNanoseconds(absl::Nanoseconds(N)));
   EXPECT_EQ(microseconds(N), absl::ToChronoMicroseconds(absl::Microseconds(N)));
@@ -320,12 +318,12 @@ void TestToChrono() {
 }
 
 TEST(Duration, ToChrono) {
-  using std::chrono::nanoseconds;
+  using std::chrono::hours;
   using std::chrono::microseconds;
   using std::chrono::milliseconds;
-  using std::chrono::seconds;
   using std::chrono::minutes;
-  using std::chrono::hours;
+  using std::chrono::nanoseconds;
+  using std::chrono::seconds;
 
   TestToChrono<kint64min>();
   TestToChrono<-1>();
@@ -546,18 +544,18 @@ TEST(Duration, InfinityMultiplication) {
   const absl::Duration sec_min = absl::Seconds(kint64min);
   const absl::Duration inf = absl::InfiniteDuration();
 
-#define TEST_INF_MUL_WITH_TYPE(T)                                     \
-  EXPECT_EQ(inf, inf * static_cast<T>(2));                            \
-  EXPECT_EQ(-inf, inf * static_cast<T>(-2));                          \
-  EXPECT_EQ(-inf, -inf * static_cast<T>(2));                          \
-  EXPECT_EQ(inf, -inf * static_cast<T>(-2));                          \
-  EXPECT_EQ(inf, inf * static_cast<T>(0));                            \
-  EXPECT_EQ(-inf, -inf * static_cast<T>(0));                          \
-  EXPECT_EQ(inf, sec_max * static_cast<T>(2));                        \
-  EXPECT_EQ(inf, sec_min * static_cast<T>(-2));                       \
-  EXPECT_EQ(inf, (sec_max / static_cast<T>(2)) * static_cast<T>(3));  \
-  EXPECT_EQ(-inf, sec_max * static_cast<T>(-2));                      \
-  EXPECT_EQ(-inf, sec_min * static_cast<T>(2));                       \
+#define TEST_INF_MUL_WITH_TYPE(T)                                    \
+  EXPECT_EQ(inf, inf* static_cast<T>(2));                            \
+  EXPECT_EQ(-inf, inf* static_cast<T>(-2));                          \
+  EXPECT_EQ(-inf, -inf* static_cast<T>(2));                          \
+  EXPECT_EQ(inf, -inf* static_cast<T>(-2));                          \
+  EXPECT_EQ(inf, inf* static_cast<T>(0));                            \
+  EXPECT_EQ(-inf, -inf* static_cast<T>(0));                          \
+  EXPECT_EQ(inf, sec_max* static_cast<T>(2));                        \
+  EXPECT_EQ(inf, sec_min* static_cast<T>(-2));                       \
+  EXPECT_EQ(inf, (sec_max / static_cast<T>(2)) * static_cast<T>(3)); \
+  EXPECT_EQ(-inf, sec_max* static_cast<T>(-2));                      \
+  EXPECT_EQ(-inf, sec_min* static_cast<T>(2));                       \
   EXPECT_EQ(-inf, (sec_min / static_cast<T>(2)) * static_cast<T>(3));
 
   TEST_INF_MUL_WITH_TYPE(int64_t);  // NOLINT(readability/function)
@@ -932,9 +930,9 @@ TEST(Duration, RelationalOperators) {
 #ifdef ABSL_INTERNAL_TIME_HAS_THREE_WAY_COMPARISON
 
 TEST(Duration, SpaceshipOperators) {
-#define TEST_REL_OPS(UNIT)               \
+#define TEST_REL_OPS(UNIT)                                               \
   static_assert(UNIT(2) <=> UNIT(2) == std::strong_ordering::equal, ""); \
-  static_assert(UNIT(1) <=> UNIT(2) == std::strong_ordering::less, ""); \
+  static_assert(UNIT(1) <=> UNIT(2) == std::strong_ordering::less, "");  \
   static_assert(UNIT(3) <=> UNIT(2) == std::strong_ordering::greater, "");
 
   TEST_REL_OPS(absl::Nanoseconds);
@@ -1159,8 +1157,7 @@ TEST(Duration, Multiplication) {
   EXPECT_EQ(0, absl::Nanoseconds(-1) / absl::Seconds(1));  // Actual -1e-9
 
   // Tests identity a = (a/b)*b + a%b
-#define TEST_MOD_IDENTITY(a, b) \
-  EXPECT_EQ((a), ((a) / (b))*(b) + ((a)%(b)))
+#define TEST_MOD_IDENTITY(a, b) EXPECT_EQ((a), ((a) / (b)) * (b) + ((a) % (b)))
 
   TEST_MOD_IDENTITY(absl::Seconds(0), absl::Seconds(2));
   TEST_MOD_IDENTITY(absl::Seconds(1), absl::Seconds(1));

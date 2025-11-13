@@ -1,7 +1,7 @@
 // Flags: --experimental-loader ./test/fixtures/es-module-loaders/assertionless-json-import.mjs
 'use strict';
 const common = require('../common');
-const { strictEqual } = require('assert');
+const assert = require('assert');
 
 async function test() {
   {
@@ -13,10 +13,10 @@ async function test() {
       ),
     ]);
 
-    strictEqual(secret0.default.ofLife, 42);
-    strictEqual(secret1.default.ofLife, 42);
-    strictEqual(secret0.default, secret1.default);
-    strictEqual(secret0, secret1);
+    assert.strictEqual(secret0.default.ofLife, 42);
+    assert.strictEqual(secret1.default.ofLife, 42);
+    assert.strictEqual(secret0.default, secret1.default);
+    assert.strictEqual(secret0, secret1);
   }
 
   {
@@ -28,10 +28,10 @@ async function test() {
       ),
     ]);
 
-    strictEqual(secret0.default.ofLife, 42);
-    strictEqual(secret1.default.ofLife, 42);
-    strictEqual(secret0.default, secret1.default);
-    strictEqual(secret0, secret1);
+    assert.strictEqual(secret0.default.ofLife, 42);
+    assert.strictEqual(secret1.default.ofLife, 42);
+    assert.strictEqual(secret0.default, secret1.default);
+    assert.strictEqual(secret0, secret1);
   }
 
   {
@@ -43,10 +43,10 @@ async function test() {
       ),
     ]);
 
-    strictEqual(secret0.default.ofLife, 42);
-    strictEqual(secret1.default.ofLife, 42);
-    strictEqual(secret0.default, secret1.default);
-    strictEqual(secret0, secret1);
+    assert.strictEqual(secret0.default.ofLife, 42);
+    assert.strictEqual(secret1.default.ofLife, 42);
+    assert.strictEqual(secret0.default, secret1.default);
+    assert.strictEqual(secret0, secret1);
   }
 
   {
@@ -58,10 +58,10 @@ async function test() {
       ),
     ]);
 
-    strictEqual(secret0.default.ofLife, 42);
-    strictEqual(secret1.default.ofLife, 42);
-    strictEqual(secret0.default, secret1.default);
-    strictEqual(secret0, secret1);
+    assert.strictEqual(secret0.default.ofLife, 42);
+    assert.strictEqual(secret1.default.ofLife, 42);
+    assert.strictEqual(secret0.default, secret1.default);
+    assert.strictEqual(secret0, secret1);
   }
 
   {
@@ -73,8 +73,8 @@ async function test() {
       ),
     ]);
 
-    strictEqual(secret0.default.ofLife, 42);
-    strictEqual(secret1.default.ofLife, 42);
+    assert.strictEqual(secret0.default.ofLife, 42);
+    assert.strictEqual(secret1.default.ofLife, 42);
   }
 }
 

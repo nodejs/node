@@ -30,13 +30,13 @@ if (process.argv[2] === 'child') {
 
   // Check that the 'disconnect' event is deferred to the next event loop tick.
   const disconnect = process.disconnect;
-  process.disconnect = function() {
+  process.disconnect = common.mustCall(function() {
     disconnect.apply(this, arguments);
     // If the event is emitted synchronously, we're too late by now.
     process.once('disconnect', common.mustCall(disconnectIsNotAsync));
     // The funky function name makes it show up legible in mustCall errors.
     function disconnectIsNotAsync() {}
-  };
+  });
 
   const server = net.createServer();
 
@@ -81,13 +81,13 @@ if (process.argv[2] === 'child') {
   child.on('exit', common.mustCall());
 
   // When child is listening
-  child.on('message', function(obj) {
+  child.on('message', common.mustCallAtLeast((obj) => {
     if (obj && obj.msg === 'ready') {
 
       // Connect to child using TCP to know if disconnect was emitted
       const socket = net.connect(obj.port);
 
-      socket.on('data', function(data) {
+      socket.on('data', common.mustCallAtLeast((data) => {
         data = data.toString();
 
         // Ready to be disconnected
@@ -103,10 +103,10 @@ if (process.argv[2] === 'child') {
 
         // 'disconnect' is emitted
         childFlag = (data === 'true');
-      });
+      }));
 
     }
-  });
+  }));
 
   process.on('exit', function() {
     assert.strictEqual(childFlag, false);

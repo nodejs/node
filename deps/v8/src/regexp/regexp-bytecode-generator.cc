@@ -204,8 +204,7 @@ void RegExpBytecodeGenerator::LoadCurrentCharacterImpl(int cp_offset,
     check_bounds = false;  // Load below doesn't need to check.
   }
 
-  DCHECK_LE(kMinCPOffset, cp_offset);
-  DCHECK_GE(kMaxCPOffset, cp_offset);
+  CHECK(base::IsInRange(cp_offset, kMinCPOffset, kMaxCPOffset));
   int bytecode;
   if (check_bounds) {
     if (characters == 4) {

@@ -196,11 +196,6 @@ void MainAllocator::InvokeAllocationObservers(Address soon_object,
 AllocationResult MainAllocator::AllocateRawSlow(int size_in_bytes,
                                                 AllocationAlignment alignment,
                                                 AllocationOrigin origin) {
-  // We are not supposed to allocate in fast c calls.
-  CHECK_IMPLIES(is_main_thread(),
-                v8_flags.allow_allocation_in_fast_api_call ||
-                    !isolate_heap()->isolate()->InFastCCall());
-
   AllocationResult result =
       alignment != kTaggedAligned
           ? AllocateRawSlowAligned(size_in_bytes, alignment, origin)
@@ -297,6 +292,12 @@ void MainAllocator::ResetLab(Address start, Address end, Address extended_end) {
     MemoryChunkMetadata::UpdateHighWaterMark(top());
   }
 
+  // This is going to overestimate a bit of the total allocated bytes, since the
+  // LAB was not used yet. However the leftover compared to the LAB itself is
+  // quite small, so it seems tolerable.
+  if (local_heap_) {
+    local_heap_->heap()->AddTotalAllocatedBytes(end - start);
+  }
   allocation_info().Reset(start, end);
   extended_limit_ = extended_end;
 

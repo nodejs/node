@@ -175,7 +175,8 @@ class NumberBuiltinsAssemblerTS
   void ThrowRangeError(V<Context> context, MessageTemplate message) {
     V<Smi> template_index =
         SmiConstant(Smi::FromInt(static_cast<int>(message)));
-    CallRuntime_ThrowRangeError(isolate(), context, template_index);
+    CallRuntime<runtime::ThrowRangeError>(context,
+                                          {.template_index = template_index});
   }
 
   V<Object> AddWithFeedback(V<Context> context, V<Object> lhs, V<Object> rhs,

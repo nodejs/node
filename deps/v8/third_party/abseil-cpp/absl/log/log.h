@@ -247,11 +247,11 @@
 // However, simply testing whether verbose logging is enabled can be expensive.
 // If you don't intend to enable verbose logging in non-debug builds, consider
 // using `DVLOG` instead.
-#define VLOG(severity) ABSL_LOG_INTERNAL_VLOG_IMPL(severity)
+#define VLOG(verbose_level) ABSL_LOG_INTERNAL_VLOG_IMPL(verbose_level)
 
 // `DVLOG` behaves like `VLOG` in debug mode (i.e. `#ifndef NDEBUG`).
 // Otherwise, it compiles away and does nothing.
-#define DVLOG(severity) ABSL_LOG_INTERNAL_DVLOG_IMPL(severity)
+#define DVLOG(verbose_level) ABSL_LOG_INTERNAL_DVLOG_IMPL(verbose_level)
 
 // `LOG_IF` and friends add a second argument which specifies a condition.  If
 // the condition is false, nothing is logged.

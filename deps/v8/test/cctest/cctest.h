@@ -71,7 +71,7 @@ class JSHeapBroker;
 #define TEST(Name)                                                     \
   static void Test##Name();                                            \
   CcTest register_test_##Name(Test##Name, __FILE__, #Name, true, true, \
-                              nullptr);                                \
+                              nullptr, nullptr);                       \
   static void Test##Name()
 #endif
 
@@ -79,7 +79,15 @@ class JSHeapBroker;
 #define UNINITIALIZED_TEST(Name)                                        \
   static void Test##Name();                                             \
   CcTest register_test_##Name(Test##Name, __FILE__, #Name, true, false, \
-                              nullptr);                                 \
+                              nullptr, nullptr);                        \
+  static void Test##Name()
+#endif
+
+#ifndef TEST_WITH_FLAGS
+#define TEST_WITH_FLAGS(Name, CustomCommandLineFlags)                  \
+  static void Test##Name();                                            \
+  CcTest register_test_##Name(Test##Name, __FILE__, #Name, true, true, \
+                              CustomCommandLineFlags);                 \
   static void Test##Name()
 #endif
 
@@ -90,7 +98,7 @@ class JSHeapBroker;
     Test##Name(*static_cast<PlatformClass*>(i::V8::GetCurrentPlatform())); \
   }                                                                        \
   CcTest register_test_##Name(TestWithoutPlatform##Name, __FILE__, #Name,  \
-                              true, true,                                  \
+                              true, true, nullptr,                         \
                               []() -> std::unique_ptr<TestPlatform> {      \
                                 return std::make_unique<PlatformClass>();  \
                               });                                          \
@@ -98,10 +106,9 @@ class JSHeapBroker;
 #endif
 
 #ifndef DISABLED_TEST
-#define DISABLED_TEST(Name)                                             \
-  static void Test##Name();                                             \
-  CcTest register_test_##Name(Test##Name, __FILE__, #Name, false, true, \
-                              nullptr);                                 \
+#define DISABLED_TEST(Name)                                              \
+  static void Test##Name();                                              \
+  CcTest register_test_##Name(Test##Name, __FILE__, #Name, false, true); \
   static void Test##Name()
 #endif
 
@@ -113,9 +120,9 @@ class JSHeapBroker;
 //      to correctly associate the tests with the test suite using them.
 //   2. To actually execute the tests, create an instance of the class
 //      containing the MEMBER_TESTs.
-#define MEMBER_TEST(Name)                                            \
-  CcTest register_test_##Name =                                      \
-      CcTest(Test##Name, kTestFileName, #Name, true, true, nullptr); \
+#define MEMBER_TEST(Name)                                   \
+  CcTest register_test_##Name =                             \
+      CcTest(Test##Name, kTestFileName, #Name, true, true); \
   static void Test##Name()
 
 #define EXTENSION_LIST(V)                                                      \
@@ -144,8 +151,9 @@ class CcTest {
  public:
   using TestFunction = void();
   using TestPlatformFactory = std::unique_ptr<TestPlatform>();
+  using InitFlagsCallback = void();
   CcTest(TestFunction* callback, const char* file, const char* name,
-         bool enabled, bool initialize,
+         bool enabled, bool initialize, const char* custom_v8_flags = nullptr,
          TestPlatformFactory* platform_factory = nullptr);
   void Run(const char* argv0);
 
@@ -218,6 +226,7 @@ class CcTest {
 
   TestFunction* callback_;
   bool initialize_;
+  std::string custom_v8_flags_;
   TestPlatformFactory* test_platform_factory_;
 
   static bool should_call_dispose_;

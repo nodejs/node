@@ -86,8 +86,22 @@ function expectSyncExit(caller, spawnArgs, {
     console.error(`${tag} status = ${child.status}, signal = ${child.signal}`);
 
     const error = new Error(`${failures.join('\n')}`);
-    if (spawnArgs[2]) {
-      error.options = spawnArgs[2];
+    if (typeof spawnArgs[2] === 'object' && spawnArgs[2] !== null) {
+      const envInOptions = spawnArgs[2].env;
+      // If the env is overridden in the spawn options, include it in the error
+      // object for easier debugging.
+      if (typeof envInOptions === 'object' && envInOptions !== null && envInOptions !== process.env) {
+        // Only include the environment variables that are different from
+        // the current process.env to avoid cluttering the output.
+        error.options = { ...spawnArgs[2], env: {} };
+        for (const key of Object.keys(envInOptions)) {
+          if (envInOptions[key] !== process.env[key]) {
+            error.options.env[key] = spawnArgs[2].env[key];
+          }
+        }
+      } else {
+        error.options = spawnArgs[2];
+      }
     }
     let command = spawnArgs[0];
     if (Array.isArray(spawnArgs[1])) {

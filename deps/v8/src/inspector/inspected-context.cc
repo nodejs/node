@@ -18,8 +18,8 @@ namespace v8_inspector {
 // ContextCollected callbacks may invoke JS which cannot run from inside the GC.
 class InspectedContext::ContextCollectedCallbacks final : public v8::Task {
  public:
-  explicit ContextCollectedCallbacks(InspectedContext::WeakCallbackData* data)
-      : data_(data) {}
+  explicit ContextCollectedCallbacks(InspectedContext::WeakCallbackData* data);
+  ~ContextCollectedCallbacks();
 
   void Run() override;
 
@@ -54,6 +54,13 @@ class InspectedContext::WeakCallbackData {
 
   friend class InspectedContext::ContextCollectedCallbacks;
 };
+
+InspectedContext::ContextCollectedCallbacks::ContextCollectedCallbacks(
+    InspectedContext::WeakCallbackData* data)
+    : data_(data) {}
+
+InspectedContext::ContextCollectedCallbacks::~ContextCollectedCallbacks() =
+    default;
 
 void InspectedContext::ContextCollectedCallbacks::Run() {
   data_->m_inspector->contextCollected(data_->m_groupId, data_->m_contextId);

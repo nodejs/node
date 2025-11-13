@@ -94,6 +94,9 @@
   'shared-memory/async-synchronization-workers-terminated': [SKIP],
   'shared-memory/condition-async-wait-realm-disposed': [SKIP],
 
+  # Ensures that %VerifyGetJSBuiltinState() machinery works as expected.
+  'regress/regress-435630464-verification-failure': [['mode == release', SKIP], ['mode != release', FAIL]],
+
   ##############################################################################
   # Tests where variants make no sense.
   'd8/enable-tracing': [PASS, NO_VARIANTS],
@@ -175,6 +178,7 @@
   'regress/regress-crbug-918301': [PASS, SLOW, NO_VARIANTS, ['mode != release or dcheck_always_on', SKIP], ['(arch == arm or arch == arm64) and simulator_run', SKIP]],
   'regress/regress-crbug-1276923': [PASS, SLOW],
   'regress/regress-390568195': [PASS, SLOW, NO_VARIANTS, ['mode != release or dcheck_always_on', SKIP], ['arch != x64', SKIP]],
+  'regress/regress-447613219': [PASS, SLOW],
   'regress/wasm/regress-810973': [PASS, SLOW],
   'sealed-array-reduce': [PASS, SLOW],
   'string-replace-gc': [PASS, SLOW],
@@ -269,6 +273,9 @@
 
   # BUG(https://crbug.com/420932895): Very slow in many configurations.
   'random-bit-correlations': [PASS, ['mode == debug or simulator_run', SKIP]],
+
+  # TODO(457866804): Re-enable once this bug is fixed.
+  'compiler/array-constructor2': [SKIP],
 }],  # ALWAYS
 
 ################################################################################
@@ -794,6 +801,8 @@
 
   # --experimental-wasm-custom-descriptors
   'regress/wasm/regress-433984397': [SKIP],
+  'regress/wasm/regress-447613211': [SKIP],
+  'regress/wasm/regress-448404198': [SKIP],
   'wasm/custom-descriptors*': [SKIP],
   'wasm/exact-types': [SKIP],
 
@@ -960,7 +969,7 @@
   'regress/regress-1078913': [SKIP],
 
   # Flag --no-jitless incompatible with jitless
-  'ignition/opt-proto-seq/*': [SKIP],
+  'opt-proto-seq/*': [SKIP],
 
   # Baseline incompatible with jitless
   'baseline/*': [SKIP],
@@ -982,6 +991,7 @@
   'regress/regress-1262423': [PASS,FAIL],
   'regress/regress-793588': [PASS,FAIL],
   'regress/regress-crbug-1437346': [PASS,FAIL],
+  'regress/regress-449341185': [PASS,FAIL],
 
   # RegExp unicode tests relies on ICU for property classes and
   # case-insensitive unicode patterns.
@@ -1614,6 +1624,10 @@
   'wasm/wasm-dynamic-tiering': [SKIP],
   'wasm/wasm-to-js-tierup': [SKIP],
   'wasm/deopt/deopt-debugging': [SKIP],
+
+  # This test runs a GC to guarantee that the module is deserialized instead of
+  # using the cached module; this does not work in multi-isolate mode.
+  'wasm/compiled-module-serialization': [SKIP],
 
   # The test enables the global profiler, and there can only exist one profiler
   # at a time.
@@ -2434,6 +2448,7 @@
   'regress/wasm/regress-384549252': [SKIP],
   'regress/wasm/regress-395214627': [SKIP],
   'regress/wasm/regress-398439335': [SKIP],
+  'regress/wasm/regress-450694568': [SKIP],
   'regress/wasm/regress-crbug-1338980': [SKIP],
   'regress/wasm/regress-crbug-1355070': [SKIP],
   'regress/wasm/regress-crbug-1356718': [SKIP],
@@ -2539,8 +2554,7 @@
   # These tests need to disable conservative stack scanning and are thus not
   # compatible with direct handles.
   'wasm/compiled-module-management': [SKIP],
-  'weakrefs/minor-gc-two-weakrefs': [SKIP],
-  'weakrefs/minor-gc-weakref-deref-keeps-alive': [SKIP],
+  'weakrefs/minor-gc-*': [SKIP],
 }], # direct_handle
 
 ##############################################################################
@@ -2665,6 +2679,7 @@
   'icu-date-to-string': [FAIL],
   'regress/regress-5036': [FAIL],
   'regress/regress-793588': [FAIL],
+  'regress/regress-449341185': [FAIL],
   'tzoffset-transition-apia': [FAIL],
   'tzoffset-transition-lord-howe': [FAIL],
   'tzoffset-transition-moscow': [FAIL],
@@ -2923,9 +2938,12 @@
   'ignition/regress-672027': [PASS, SLOW],
 
   # Test checks that object is reclaimed but cannot use async GCs.
-  'weakrefs/minor-gc-two-weakrefs': [SKIP],
-  'weakrefs/minor-gc-weakref-deref-keeps-alive': [SKIP],
+  'weakrefs/minor-gc-*': [SKIP],
 }],  # variant == conservative_stack_scanning
+
+['variant == precise_pinning', {
+  'weakrefs/minor-gc-*': [SKIP],
+}],  # variant == precise_pinning
 
 ##############################################################################
 ['variant == code_serializer', {
@@ -2948,10 +2966,19 @@
   # Requires lazy.
   'regress/regress-crbug-1407080': [SKIP],
 
+  # This test is not compatible with --fuzzing.
+  'regress/regress-435630464-verification-failure': [SKIP],
+
   # Negative tests are not supported, because we pass --no-fail.
   'bugs/*': [SKIP],
   'es6/unicode-regexp-ignore-case-noi18n': [SKIP],
 }],  # variant in [jit_fuzzing, jit_fuzzing_maglev]
+
+##############################################################################
+['variant in [no_lfa, always_sparkplug_and_stress_regexp_jit, stress_concurrent_inlining]', {
+  # https://crbug.com/453967876
+  'osr-elements-kind': [FAIL],
+}],
 
 ##############################################################################
 ['not disassembler', {
@@ -2997,5 +3024,9 @@
 ['variant == minor_ms', {
   'weakrefs/minor-gc-*': [SKIP],
 }],  # variant == minor_ms
+
+['variant == scavenger_chaos_mode', {
+  'weakrefs/minor-gc-*': [SKIP],
+}],  # variant == scavenger_chaos_mode
 
 ]

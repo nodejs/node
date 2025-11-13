@@ -172,6 +172,10 @@ void V8::Initialize() {
     abort_mode = base::AbortMode::kExitWithSuccessAndIgnoreDcheckFailures;
   } else if (v8_flags.hard_abort) {
     abort_mode = base::AbortMode::kImmediateCrash;
+  } else if (v8_flags.fuzzing) {
+    // For fuzzing, we want to ignore certain types of crashes that are known
+    // to be safe (no security impact), such as OOMs and similar issues.
+    abort_mode = base::AbortMode::kExitIfNoSecurityImpact;
   }
 
   base::OS::Initialize(abort_mode, v8_flags.gc_fake_mmap);

@@ -40,7 +40,7 @@ server.listen(0, common.mustCall(() => {
   const port = server.address().port;
   const client = http2.connect(`http://localhost:${port}`);
 
-  const countdown = new Countdown(serverHttp2StreamCreationCount, () => {
+  const countdown = new Countdown(serverHttp2StreamCreationCount, common.mustCall(() => {
     client.close();
     server.close();
 
@@ -50,7 +50,7 @@ server.listen(0, common.mustCall(() => {
     for (const { createdTime, startTime } of timings) {
       assert.ok(createdTime < startTime);
     }
-  });
+  }));
 
   const stream = client.request({});
   stream.on('response', common.mustCall(() => {

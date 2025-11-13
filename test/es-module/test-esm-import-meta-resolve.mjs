@@ -26,7 +26,7 @@ assert.strictEqual(
 assert.strictEqual(
   import.meta.resolve('../fixtures/', new URL(import.meta.url)),
   fixtures);
-[[], {}, Symbol(), 0, 1, 1n, 1.1, () => {}, true, false].map((arg) =>
+[[], {}, Symbol(), 0, 1, 1n, 1.1, () => {}, true, false].forEach((arg) =>
   assert.throws(() => import.meta.resolve('../fixtures/', arg), {
     code: 'ERR_INVALID_ARG_TYPE',
   })

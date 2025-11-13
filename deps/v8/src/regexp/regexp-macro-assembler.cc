@@ -261,7 +261,7 @@ void NativeRegExpMacroAssembler::LoadCurrentCharacterImpl(
   // path requires a large number of characters, but not the reverse.
   DCHECK_GE(eats_at_least, characters);
 
-  DCHECK(base::IsInRange(cp_offset, kMinCPOffset, kMaxCPOffset));
+  CHECK(base::IsInRange(cp_offset, kMinCPOffset, kMaxCPOffset));
   if (check_bounds) {
     if (cp_offset >= 0) {
       CheckPosition(cp_offset + eats_at_least - 1, on_end_of_input);

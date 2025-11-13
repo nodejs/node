@@ -35,10 +35,10 @@ const server = http.createServer(common.mustCall((req, res) => {
     childProcess.spawn(process.execPath, ['inspect', `localhost:${port}`]);
 
   let stdout = '';
-  proc.stdout.on('data', (data) => {
+  proc.stdout.on('data', common.mustCallAtLeast((data) => {
     stdout += data.toString();
     assert.doesNotMatch(stdout, /\bok\b/);
-  });
+  }));
 
   let stderr = '';
   proc.stderr.on('data', (data) => {

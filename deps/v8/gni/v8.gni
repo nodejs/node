@@ -46,7 +46,8 @@ declare_args() {
   v8_enable_builtins_optimization = ""
 
   # Turns on all V8 debug features. Enables running V8 in a pseudo debug mode
-  # within a release Chrome.
+  # within a release Chrome. This implies verification features to detect more
+  # bugs and additionally includes features that aid developers when debugging.
   v8_enable_debugging_features = is_debug
 
   # Enable ECMAScript Internationalization API. Enabling this feature will
@@ -160,6 +161,9 @@ declare_args() {
   # Add fuzzilli fuzzer support.
   v8_fuzzilli = false
 
+  # Force optimizing with -O3 for increased inlining.
+  v8_force_optimize_speed = false
+
   # Enable FuzzTest
   v8_enable_fuzztest = !build_with_v8_embedder &&
                        !(defined(build_with_node) && build_with_node) &&
@@ -247,6 +251,14 @@ declare_args() {
   v8_wasm_random_fuzzers = ""
 }
 
+declare_args() {
+  # Enable more (costly) verification features that help to detect bugs.
+  v8_enable_verification_features = v8_enable_debugging_features
+}
+
+assert(!v8_enable_debugging_features || v8_enable_verification_features,
+       "Debugging features require verification features.")
+
 if (v8_use_external_startup_data == "") {
   # If not specified as a gn arg, use external startup data by default if
   # we're not on ios.
@@ -332,7 +344,7 @@ v8_inspector_js_protocol = v8_path_prefix + "/include/js_protocol.pdl"
 #
 
 # Common configs to remove or add in all v8 targets.
-v8_remove_configs = []
+v8_remove_configs = [ "//build/config/compiler:default_optimization" ]
 v8_add_configs = [
   v8_path_prefix + ":features",
   v8_path_prefix + ":toolchain",
@@ -340,19 +352,18 @@ v8_add_configs = [
   v8_path_prefix + ":sanitizer_defines",
 ]
 
-if (is_debug && !v8_optimized_debug) {
-  v8_remove_configs += [ "//build/config/compiler:default_optimization" ]
+if (v8_force_optimize_speed) {
+  # Switch to force -O3 optimization regardless of platform or sanitizer
+  # usage.
+  v8_add_configs += [ "//build/config/compiler:optimize_speed" ]
+} else if (is_debug && !v8_optimized_debug) {
   v8_add_configs += [ "//build/config/compiler:no_optimize" ]
-} else {
-  v8_remove_configs += [ "//build/config/compiler:default_optimization" ]
-
+} else if (((is_posix && !is_android) || is_win) && !using_sanitizer) {
   # TODO(crbug.com/621335) Rework this so that we don't have the confusion
   # between "optimize_speed" and "optimize_max".
-  if (((is_posix && !is_android) || is_win) && !using_sanitizer) {
-    v8_add_configs += [ "//build/config/compiler:optimize_speed" ]
-  } else {
-    v8_add_configs += [ "//build/config/compiler:optimize_max" ]
-  }
+  v8_add_configs += [ "//build/config/compiler:optimize_speed" ]
+} else {
+  v8_add_configs += [ "//build/config/compiler:optimize_max" ]
 }
 
 if (!is_debug) {
