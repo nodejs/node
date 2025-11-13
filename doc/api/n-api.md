@@ -2806,6 +2806,10 @@ exceeds the size of the `ArrayBuffer`, a `RangeError` exception is raised.
 <!-- YAML
 added: v8.3.0
 napiVersion: 1
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/60473
+    description: Added support for `SharedArrayBuffer`.
 -->
 
 ```c
@@ -2818,16 +2822,18 @@ napi_status napi_create_dataview(napi_env env,
 
 * `[in] env`: The environment that the API is invoked under.
 * `[in] length`: Number of elements in the `DataView`.
-* `[in] arraybuffer`: `ArrayBuffer` underlying the `DataView`.
+* `[in] arraybuffer`: `ArrayBuffer` or `SharedArrayBuffer` underlying the
+  `DataView`.
 * `[in] byte_offset`: The byte offset within the `ArrayBuffer` from which to
   start projecting the `DataView`.
 * `[out] result`: A `napi_value` representing a JavaScript `DataView`.
 
 Returns `napi_ok` if the API succeeded.
 
-This API creates a JavaScript `DataView` object over an existing `ArrayBuffer`.
-`DataView` objects provide an array-like view over an underlying data buffer,
-but one which allows items of different size and type in the `ArrayBuffer`.
+This API creates a JavaScript `DataView` object over an existing `ArrayBuffer`
+or `SharedArrayBuffer`. `DataView` objects provide an array-like view over an
+underlying data buffer, but one which allows items of different size and type in
+the `ArrayBuffer` or `SharedArrayBuffer`.
 
 It is required that `byte_length + byte_offset` is less than or equal to the
 size in bytes of the array passed in. If not, a `RangeError` exception is
