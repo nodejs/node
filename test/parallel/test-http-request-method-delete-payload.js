@@ -1,14 +1,14 @@
 'use strict';
 const common = require('../common');
 
-const assert = require('assert');
-const http = require('http');
+const assert = require('node:assert');
+const http = require('node:http');
 
 const data = 'PUT / HTTP/1.1\r\n\r\n';
 
 const server = http.createServer(common.mustCall(function(req, res) {
   req.on('data', function(chunk) {
-    assert.strictEqual(chunk, Buffer.from(data));
+    assert.deepStrictEqual(chunk, Buffer.from(data));
   });
   res.setHeader('Content-Type', 'text/plain');
   for (let i = 0; i < req.rawHeaders.length; i += 2) {
