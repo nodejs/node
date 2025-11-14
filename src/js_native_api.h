@@ -197,6 +197,9 @@ NAPI_EXTERN napi_status NAPI_CDECL napi_coerce_to_string(napi_env env,
                                                          napi_value* result);
 
 // Methods to work with Objects
+NAPI_EXTERN napi_status NAPI_CDECL napi_set_prototype(napi_env env,
+                                                      napi_value object,
+                                                      napi_value value);
 NAPI_EXTERN napi_status NAPI_CDECL napi_get_prototype(napi_env env,
                                                       napi_value object,
                                                       napi_value* result);
