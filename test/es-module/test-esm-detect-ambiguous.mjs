@@ -443,8 +443,8 @@ describe('cjs & esm ambiguous syntax case', () => {
       /ReferenceError: Cannot determine intended module format because both 'require' and top-level await are present\. If the code is intended to be CommonJS, wrap await in an async function\. If the code is intended to be an ES module, replace require\(\) with import\./
     );
 
-    strictEqual(code, 1);
-    strictEqual(signal, null);
+    assert.strictEqual(code, 1);
+    assert.strictEqual(signal, null);
   });
 
   it('should throw an ambiguous syntax error when using top-level await with exports', async () => {
@@ -456,7 +456,7 @@ describe('cjs & esm ambiguous syntax case', () => {
       ]
     );
 
-    match(
+    assert.match(
       stderr,
       /ReferenceError: Cannot determine intended module format because both 'exports' and top-level await are present\. If the code is intended to be CommonJS, wrap await in an async function\. If the code is intended to be an ES module, use export instead of module\.exports\/exports\./
     );
@@ -474,13 +474,13 @@ describe('cjs & esm ambiguous syntax case', () => {
       ]
     );
 
-    match(
+    assert.match(
       stderr,
       /ReferenceError: Cannot determine intended module format because both '__filename' and top-level await are present\. If the code is intended to be CommonJS, wrap await in an async function\. If the code is intended to be an ES module, use import\.meta\.filename instead\./
     );
 
-    strictEqual(code, 1);
-    strictEqual(signal, null);
+    assert.strictEqual(code, 1);
+    assert.strictEqual(signal, null);
   });
 
   it('should throw an ambiguous syntax error when using top-level await with __dirname', async () => {
@@ -492,12 +492,12 @@ describe('cjs & esm ambiguous syntax case', () => {
       ]
     );
 
-    match(
+    assert.match(
       stderr,
       /ReferenceError: Cannot determine intended module format because both '__dirname' and top-level await are present\. If the code is intended to be CommonJS, wrap await in an async function\. If the code is intended to be an ES module, use import\.meta\.dirname instead\./
     );
 
-    strictEqual(code, 1);
-    strictEqual(signal, null);
+    assert.strictEqual(code, 1);
+    assert.strictEqual(signal, null);
   });
 });
