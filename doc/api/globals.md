@@ -645,7 +645,7 @@ A browser-compatible implementation of {Headers}.
 <!-- YAML
 added: v22.4.0
 changes:
-  - version: v25.2.0
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/60351
     description: Accessing the `localStorage` global without providing
                  `--localstorage-file` now throws a `DOMException`, for
