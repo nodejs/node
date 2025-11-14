@@ -1958,7 +1958,8 @@ added: v22.6.0
 changes:
   - version: v25.2.0
     pr-url: https://github.com/nodejs/node/pull/60600
-    description: Type stripping is now stable.
+    description: Type stripping is now stable, the flag was renamed from
+                 `--no-experimental-strip-types` to `--no-strip-types`.
   - version:
       - v23.6.0
       - v22.18.0
