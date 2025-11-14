@@ -1404,6 +1404,10 @@ files must meet \fBboth\fR criteria to be included in the coverage report.
 Require a minimum percent of covered lines. If code coverage does not reach
 the threshold specified, the process will exit with code \fB1\fR.
 .
+.It Fl -test-files-glob
+A glob pattern that configures the test runner to only run tests whose filename
+matches the provided glob.
+.
 .It Fl -test-force-exit
 Configures the test runner to exit the process once all known tests have
 finished executing even if the event loop would otherwise remain active.
