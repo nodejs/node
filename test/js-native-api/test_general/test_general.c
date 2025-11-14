@@ -23,6 +23,16 @@ static napi_value testStrictEquals(napi_env env, napi_callback_info info) {
   return result;
 }
 
+static napi_value testSetPrototype(napi_env env, napi_callback_info info) {
+  size_t argc = 2;
+  napi_value args[2];
+  NODE_API_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
+
+  NODE_API_CALL(env, napi_set_prototype(env, args[0], args[1]));
+
+  return NULL;
+}
+
 static napi_value testGetPrototype(napi_env env, napi_callback_info info) {
   size_t argc = 1;
   napi_value args[1];
@@ -287,6 +297,7 @@ EXTERN_C_START
 napi_value Init(napi_env env, napi_value exports) {
   napi_property_descriptor descriptors[] = {
     DECLARE_NODE_API_PROPERTY("testStrictEquals", testStrictEquals),
+    DECLARE_NODE_API_PROPERTY("testSetPrototype", testSetPrototype),
     DECLARE_NODE_API_PROPERTY("testGetPrototype", testGetPrototype),
     DECLARE_NODE_API_PROPERTY("testGetVersion", testGetVersion),
     DECLARE_NODE_API_PROPERTY("testNapiRun", testNapiRun),
