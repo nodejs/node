@@ -415,6 +415,8 @@ For information about the governance of the Node.js project, see
   **Rafael Gonzaga** <<rafael.nunu@hotmail.com>> (he/him) - [Support me](https://github.com/sponsors/RafaelGSS)
 * [RaisinTen](https://github.com/RaisinTen) -
   **Darshan Sen** <<raisinten@gmail.com>> (he/him) - [Support me](https://github.com/sponsors/RaisinTen)
+* [Renegade334](https://github.com/Renegade334) -
+  **René** <<contact.9a5d6388@renegade334.me.uk>>
 * [richardlau](https://github.com/richardlau) -
   **Richard Lau** <<richard.lau@ibm.com>>
 * [rluvaton](https://github.com/rluvaton) -
