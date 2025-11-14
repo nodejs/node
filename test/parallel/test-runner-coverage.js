@@ -551,66 +551,113 @@ test('correctly prints the coverage report of files contained in parent director
   assert.strictEqual(result.status, 0);
 });
 
-test('overrides default excludes when --test-files-glob is used', skipIfNoInspector, () => {
-  const report = [
-    '# start of coverage report',
-    '# ------------------------------------------------------------------',
-    '# file              | line % | branch % | funcs % | uncovered lines',
-    '# ------------------------------------------------------------------',
-    '# test              |        |          |         | ',
-    '#  fixtures         |        |          |         | ',
-    '#   test-runner     |        |          |         | ',
-    '#    invalid-tap.js | 100.00 |   100.00 |  100.00 | ',
-    '#   v8-coverage     |        |          |         | ',
-    '#    throw.js       |  71.43 |    50.00 |  100.00 | 5-6',
-    '# ------------------------------------------------------------------',
-    '# all files         |  75.00 |    66.67 |  100.00 | ',
-    '# ------------------------------------------------------------------',
-    '# end of coverage report',
-  ].join('\n');
+test('correctly prints coverage report with --test-files-glob pattern supplied', skipIfNoInspector, async (t) => {
+  await t.test('overrides default excludes when --test-files-glob is used', () => {
+    const report = [
+      '# start of coverage report',
+      '# ------------------------------------------------------------------',
+      '# file              | line % | branch % | funcs % | uncovered lines',
+      '# ------------------------------------------------------------------',
+      '# test              |        |          |         | ',
+      '#  fixtures         |        |          |         | ',
+      '#   test-runner     |        |          |         | ',
+      '#    invalid-tap.js | 100.00 |   100.00 |  100.00 | ',
+      '#   v8-coverage     |        |          |         | ',
+      '#    throw.js       |  71.43 |    50.00 |  100.00 | 5-6',
+      '# ------------------------------------------------------------------',
+      '# all files         |  75.00 |    66.67 |  100.00 | ',
+      '# ------------------------------------------------------------------',
+      '# end of coverage report',
+    ].join('\n');
 
-  const args = [
-    '--test',
-    '--experimental-test-coverage',
-    '--test-files-glob=**/test-runner/coverage.js',
-    '--test-reporter=tap',
-  ];
-  const result = spawnSync(process.execPath, args);
+    if (common.isWindows) {
+      report = report.replaceAll('/', '\\');
+    }
 
-  assert.strictEqual(result.stderr.toString(), '');
-  assert(result.stdout.toString().includes(report));
-  assert.strictEqual(result.status, 0);
-});
+    const args = [
+      '--test',
+      '--experimental-test-coverage',
+      '--test-files-glob=**/test-runner/coverage.js',
+      '--test-reporter=tap',
+    ];
+    const result = spawnSync(process.execPath, args);
 
-test('does not override explicit excludes when --test-files-glob is used', skipIfNoInspector, () => {
-  const report = [
-    '# start of coverage report',
-    '# --------------------------------------------------------------------------------------------',
-    '# file              | line % | branch % | funcs % | uncovered lines',
-    '# --------------------------------------------------------------------------------------------',
-    '# test              |        |          |         | ',
-    '#  fixtures         |        |          |         | ',
-    '#   test-runner     |        |          |         | ',
-    '#    coverage.js    |  78.65 |    38.46 |   60.00 | 12-13 16-22 27 39 43-44 61-62 66-67 71-72',
-    '#    invalid-tap.js | 100.00 |   100.00 |  100.00 | ',
-    '#   v8-coverage     |        |          |         | ',
-    '#    throw.js       |  71.43 |    50.00 |  100.00 | 5-6',
-    '# --------------------------------------------------------------------------------------------',
-    '# all files         |  78.35 |    43.75 |   60.00 | ',
-    '# --------------------------------------------------------------------------------------------',
-    '# end of coverage report',
-  ].join('\n');
+    assert.strictEqual(result.stderr.toString(), '');
+    assert(result.stdout.toString().includes(report));
+    assert.strictEqual(result.status, 0);
+  });
 
-  const args = [
-    '--test',
-    '--experimental-test-coverage',
-    '--test-files-glob=**/test-runner/coverage.js',
-    '--test-coverage-exclude=!test/**',
-    '--test-reporter=tap',
-  ];
-  const result = spawnSync(process.execPath, args);
+  await t.test('does not override excludes when --test-files-glob is used and --test-coverage-exclude is empty', () => {
+    const report = [
+      '# start of coverage report',
+      '# --------------------------------------------------------------------------------------------',
+      '# file              | line % | branch % | funcs % | uncovered lines',
+      '# --------------------------------------------------------------------------------------------',
+      '# test              |        |          |         | ',
+      '#  fixtures         |        |          |         | ',
+      '#   test-runner     |        |          |         | ',
+      '#    coverage.js    |  78.65 |    38.46 |   60.00 | 12-13 16-22 27 39 43-44 61-62 66-67 71-72',
+      '#    invalid-tap.js | 100.00 |   100.00 |  100.00 | ',
+      '#   v8-coverage     |        |          |         | ',
+      '#    throw.js       |  71.43 |    50.00 |  100.00 | 5-6',
+      '# --------------------------------------------------------------------------------------------',
+      '# all files         |  78.35 |    43.75 |   60.00 | ',
+      '# --------------------------------------------------------------------------------------------',
+      '# end of coverage report',
+    ].join('\n');
 
-  assert.strictEqual(result.stderr.toString(), '');
-  assert(result.stdout.toString().includes(report));
-  assert.strictEqual(result.status, 0);
+    if (common.isWindows) {
+      report = report.replaceAll('/', '\\');
+    }
+
+    const args = [
+      '--test',
+      '--experimental-test-coverage',
+      '--test-files-glob=**/test-runner/coverage.js',
+      '--test-coverage-exclude=""',
+      '--test-reporter=tap',
+    ];
+    const result = spawnSync(process.execPath, args);
+
+    assert.strictEqual(result.stderr.toString(), '');
+    assert(result.stdout.toString().includes(report));
+    assert.strictEqual(result.status, 0);
+  });
+
+  await t.test('does not override excludes when --test-files-glob and --test-coverage-exclude are used', () => {
+    const report = [
+      '# start of coverage report',
+      '# --------------------------------------------------------------------------------------------',
+      '# file              | line % | branch % | funcs % | uncovered lines',
+      '# --------------------------------------------------------------------------------------------',
+      '# test              |        |          |         | ',
+      '#  fixtures         |        |          |         | ',
+      '#   test-runner     |        |          |         | ',
+      '#    coverage.js    |  78.65 |    38.46 |   60.00 | 12-13 16-22 27 39 43-44 61-62 66-67 71-72',
+      '#    invalid-tap.js | 100.00 |   100.00 |  100.00 | ',
+      '#   v8-coverage     |        |          |         | ',
+      '#    throw.js       |  71.43 |    50.00 |  100.00 | 5-6',
+      '# --------------------------------------------------------------------------------------------',
+      '# all files         |  78.35 |    43.75 |   60.00 | ',
+      '# --------------------------------------------------------------------------------------------',
+      '# end of coverage report',
+    ].join('\n');
+
+    if (common.isWindows) {
+      report = report.replaceAll('/', '\\');
+    }
+
+    const args = [
+      '--test',
+      '--experimental-test-coverage',
+      '--test-files-glob=**/test-runner/coverage.js',
+      '--test-coverage-exclude=!test/**',
+      '--test-reporter=tap',
+    ];
+    const result = spawnSync(process.execPath, args);
+
+    assert.strictEqual(result.stderr.toString(), '');
+    assert(result.stdout.toString().includes(report));
+    assert.strictEqual(result.status, 0);
+  });
 });

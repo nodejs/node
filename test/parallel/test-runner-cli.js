@@ -91,7 +91,6 @@ for (const isolation of ['none', 'process']) {
     assert.strictEqual(child.signal, null);
     assert.strictEqual(child.stderr.toString(), '');
     const stdout = child.stdout.toString();
-    process.stderr.write(stdout);
 
     assert.match(stdout, /ok 1 - index-test\.spec\.cjs this should pass/);
     assert.match(stdout, /ok 2 - index-test\.spec\.js this should pass/);
@@ -100,7 +99,7 @@ for (const isolation of ['none', 'process']) {
   }
 
   {
-    // Should ignore glob override when targeted file passed in
+    // Should ignore test-files-glob when positionals passed in
     const args = [
       '--test',
       '--test-reporter=tap',
@@ -114,10 +113,30 @@ for (const isolation of ['none', 'process']) {
     assert.strictEqual(child.signal, null);
     assert.strictEqual(child.stderr.toString(), '');
     const stdout = child.stdout.toString();
-    process.stderr.write(stdout);
 
     assert.match(stdout, /ok 1 - index-test\.js should not run/);
     assert.doesNotMatch(stdout, /ok 2 - /);
+  }
+
+  {
+    // Should fail when test-files-glob is empty
+    const args = [
+      '--test',
+      '--test-reporter=tap',
+      '--test-files-glob',
+      `--test-isolation=${isolation}`,
+    ];
+    const child = spawnSync(process.execPath, args, { cwd: join(testFixtures, 'custom-files-glob') });
+
+    process.stdout.write('stdout' + '\n');
+    process.stdout.write(child.stdout.toString() + '\n');
+    process.stdout.write('stderr' + '\n');
+    process.stdout.write(child.stderr.toString() + '\n');
+
+    assert.strictEqual(child.status, 9);
+    assert.strictEqual(child.signal, null);
+    assert.strictEqual(child.stdout.toString(), '');
+    assert.match(child.stderr.toString(), /--test-files-glob requires an argument/);
   }
 
   for (const type of ['strip', 'transform']) {
@@ -170,6 +189,29 @@ for (const isolation of ['none', 'process']) {
         assert.match(stdout, /ok 2 - typescript-test\.spec\.mts this should pass/);
         assert.match(stdout, /ok 3 - typescript-test\.spec\.ts this should pass/);
         assert.doesNotMatch(stdout, /ok 4 - /);
+      }
+    }
+
+    {
+      // Should fail if --test-files-glob empty
+      const args = [
+        '--test',
+        '--test-reporter=tap',
+        '--no-warnings',
+        '--test-files-glob=',
+        `--experimental-${type}-types`,
+        `--test-isolation=${isolation}`,
+      ];
+      const child = spawnSync(process.execPath, args, { cwd: join(testFixtures, 'custom-files-glob') });
+
+      if (!process.config.variables.node_use_amaro) {
+        // e.g. Compiled with `--without-amaro`.
+        assert.strictEqual(child.status, 1);
+      } else {
+        assert.strictEqual(child.status, 9);
+        assert.strictEqual(child.signal, null);
+        assert.strictEqual(child.stdout.toString(), '');
+        assert.match(child.stderr.toString(), /--test-files-glob= requires an argument/);
       }
     }
   }
