@@ -647,9 +647,14 @@ added: v22.4.0
 changes:
   - version: v25.2.0
     pr-url: https://github.com/nodejs/node/pull/60351
-    description: As specified by the Web Storage specification, accessing this
-                 global without providing `--localstorage-file` throws a
-                 `DOMException`.
+    description: Accessing the `localStorage` global without providing
+                 `--localstorage-file` now throws a `DOMException`, for
+                 compliance with the Web Storage specification.
+  - version: v25.0.0
+    pr-url: https://github.com/nodejs/node/pull/57666
+    description: When webstorage is enabled and `--localstorage-file` is not
+                 provided, accessing the `localStorage` global now returns an
+                 empty object.
   - version: v25.0.0
     pr-url: https://github.com/nodejs/node/pull/57666
     description: This API is no longer behind `--experimental-webstorage` runtime flag.
