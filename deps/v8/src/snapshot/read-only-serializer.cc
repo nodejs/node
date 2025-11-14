@@ -421,7 +421,7 @@ std::vector<ReadOnlyHeapImageSerializer::MemoryRegion> GetUnmappedRegions(
   Tagged<HeapObject> wasm_null_padding = ro_roots.wasm_null_padding();
   CHECK(IsFreeSpace(wasm_null_padding));
   Address wasm_null_padding_start =
-      wasm_null_padding.address() + FreeSpace::kHeaderSize;
+      wasm_null_padding.address() + sizeof(FreeSpace);
   std::vector<ReadOnlyHeapImageSerializer::MemoryRegion> unmapped;
   if (wasm_null.address() > wasm_null_padding_start) {
     unmapped.push_back({wasm_null_padding_start,

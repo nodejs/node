@@ -5,15 +5,16 @@
 #ifndef V8_OBJECTS_FREE_SPACE_H_
 #define V8_OBJECTS_FREE_SPACE_H_
 
+#include "src/common/globals.h"
 #include "src/objects/heap-object.h"
+#include "src/objects/smi.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
+#include "src/objects/tagged-field.h"
 
 namespace v8 {
 namespace internal {
-
-#include "torque-generated/src/objects/free-space-tq.inc"
 
 // FreeSpace are fixed-size free memory blocks used by the heap and GC.
 // They look like heap objects (are heap object tagged and have a map) so that
@@ -30,10 +31,14 @@ namespace internal {
 //    31 bits),
 // b) it's independent of the pointer compression base and pointer compression
 //    scheme.
-class FreeSpace : public TorqueGeneratedFreeSpace<FreeSpace, HeapObject> {
+class FreeSpace : public HeapObjectLayout {
  public:
+  static constexpr uint32_t kMaxSizeInBytes =
+      uint32_t{Smi::kMaxValue} * kTaggedSize;
+
   // [size]: size of the free space including the header.
-  DECL_RELAXED_INT_ACCESSORS(size)
+  inline int size(RelaxedLoadTag) const;
+
   static inline void SetSize(const WritableFreeSpace& writable_free_space,
                              int size, RelaxedStoreTag);
   inline int Size();
@@ -45,13 +50,21 @@ class FreeSpace : public TorqueGeneratedFreeSpace<FreeSpace, HeapObject> {
 
   // Dispatched behavior.
   DECL_PRINTER(FreeSpace)
+  DECL_VERIFIER(FreeSpace)
 
   class BodyDescriptor;
 
  private:
+  friend class Heap;
+
   inline bool IsValid() const;
 
-  TQ_OBJECT_CONSTRUCTORS(FreeSpace)
+  TaggedMember<Smi> size_in_tagged_;
+#ifdef V8_EXTERNAL_CODE_SPACE
+  TaggedMember<Smi> next_;
+#else
+  TaggedMember<FreeSpace> next_;
+#endif  // V8_EXTERNAL_CODE_SPACE
 };
 
 }  // namespace internal
