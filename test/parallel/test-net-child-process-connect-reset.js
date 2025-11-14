@@ -4,6 +4,7 @@ const common = require('../common');
 const assert = require('assert');
 const { spawn } = require('child_process');
 const net = require('net');
+const { convertProcessSignalToExitCode } = require('util');
 
 if (process.argv[2] === 'child') {
   const server = net.createServer(common.mustCall());
@@ -18,7 +19,7 @@ if (process.argv[2] === 'child') {
                    });
 
   cp.on('exit', common.mustCall((code, signal) => {
-    assert.strictEqual(code, null);
+    assert.strictEqual(code, convertProcessSignalToExitCode('SIGKILL'));
     assert.strictEqual(signal, 'SIGKILL');
   }));
 

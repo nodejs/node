@@ -1446,10 +1446,15 @@ instances of `ChildProcess`.
 
 <!-- YAML
 added: v0.7.7
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/60720
+    description: When the process is terminated by a signal, code is set to
+                 the POSIX exit code instead of null.
 -->
 
-* `code` {number} The exit code if the child process exited on its own, or
-  `null` if the child process terminated due to a signal.
+* `code` {number} The exit code if the child process exited on its own.
+  When the process is terminated by a signal, this is set to the POSIX exit code.
 * `signal` {string} The signal by which the child process was terminated, or
   `null` if the child process did not terminated due to a signal.
 
@@ -1459,10 +1464,10 @@ streams of a child process have been closed. This is distinct from the
 streams. The `'close'` event will always emit after [`'exit'`][] was
 already emitted, or [`'error'`][] if the child process failed to spawn.
 
-If the process exited, `code` is the final exit code of the process, otherwise
-`null`. If the process terminated due to receipt of a signal, `signal` is the
-string name of the signal, otherwise `null`. One of the two will always be
-non-`null`.
+If the process exited, `code` is the final exit code of the process. If the
+process terminated due to receipt of a signal, `signal` is the string name of
+the signal, and `code` will be set to the POSIX exit code. One of the two
+will always be non-`null`.
 
 ```cjs
 const { spawn } = require('node:child_process');
@@ -1535,17 +1540,23 @@ See also [`subprocess.kill()`][] and [`subprocess.send()`][].
 
 <!-- YAML
 added: v0.1.90
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/60720
+    description: When the process is terminated by a signal, code is set to
+                 the POSIX exit code instead of null.
 -->
 
-* `code` {number} The exit code if the child process exited on its own, or
-  `null` if the child process terminated due to a signal.
+* `code` {number} The exit code if the child process exited on its own.
+  When the process is terminated by a signal, this is set to the POSIX exit code.
 * `signal` {string} The signal by which the child process was terminated, or
   `null` if the child process did not terminated due to a signal.
 
 The `'exit'` event is emitted after the child process ends. If the process
-exited, `code` is the final exit code of the process, otherwise `null`. If the
-process terminated due to receipt of a signal, `signal` is the string name of
-the signal, otherwise `null`. One of the two will always be non-`null`.
+exited, `code` is the final exit code of the process. If the process terminated
+due to receipt of a signal, `signal` is the string name of the signal, and
+`code` will be set to the POSIX exit code. One of the two will always be
+non-`null`.
 
 When the `'exit'` event is triggered, child process stdio streams might still be
 open.
@@ -1666,10 +1677,22 @@ within the child process to close the IPC channel as well.
 
 ### `subprocess.exitCode`
 
+<!-- YAML
+added: v0.1.90
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/60720
+    description: When the process is terminated by a signal, exitCode is set
+                 to the POSIX exit code instead of null.
+-->
+
 * Type: {integer}
 
 The `subprocess.exitCode` property indicates the exit code of the child process.
 If the child process is still running, the field will be `null`.
+
+When the process is terminated by a signal, `exitCode` is set to the POSIX
+exit code.
 
 ### `subprocess.kill([signal])`
 

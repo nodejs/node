@@ -1,6 +1,7 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
+const { convertProcessSignalToExitCode } = require('util');
 
 // This test makes sure that an aborted node process
 // exits with code 3 on Windows, and SIGABRT on POSIX.
@@ -13,11 +14,10 @@ if (process.argv[2] === 'child') {
 } else {
   const child = spawn(process.execPath, [__filename, 'child']);
   child.on('exit', common.mustCall((code, signal) => {
+    assert.strictEqual(code, convertProcessSignalToExitCode('SIGABRT'));
     if (common.isWindows) {
-      assert.strictEqual(code, 134);
       assert.strictEqual(signal, null);
     } else {
-      assert.strictEqual(code, null);
       assert.strictEqual(signal, 'SIGABRT');
     }
   }));

@@ -3,6 +3,7 @@
 const { mustCall } = require('../common');
 const childProcess = require('child_process');
 const assert = require('assert');
+const { convertProcessSignalToExitCode } = require('util');
 
 if (process.env.CHILD === 'true') {
   main();
@@ -18,7 +19,7 @@ if (process.env.CHILD === 'true') {
     });
   cp.on('exit', mustCall((code, signal) => {
     assert.strictEqual(signal, 'SIGINT');
-    assert.strictEqual(code, null);
+    assert.strictEqual(code, convertProcessSignalToExitCode('SIGINT'));
   }));
 }
 

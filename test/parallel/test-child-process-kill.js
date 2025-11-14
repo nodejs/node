@@ -22,6 +22,7 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
+const { convertProcessSignalToExitCode } = require('util');
 const spawn = require('child_process').spawn;
 const cat = spawn(common.isWindows ? 'cmd' : 'cat');
 
@@ -30,9 +31,11 @@ cat.stderr.on('data', common.mustNotCall());
 cat.stderr.on('end', common.mustCall());
 
 cat.on('exit', common.mustCall((code, signal) => {
-  assert.strictEqual(code, null);
+  const expectedExitCode = convertProcessSignalToExitCode('SIGTERM');
+  assert.strictEqual(code, expectedExitCode);
   assert.strictEqual(signal, 'SIGTERM');
   assert.strictEqual(cat.signalCode, 'SIGTERM');
+  assert.strictEqual(cat.exitCode, expectedExitCode);
 }));
 
 assert.strictEqual(cat.signalCode, null);
@@ -45,16 +48,21 @@ if (common.isWindows) {
   for (const sendSignal of ['SIGTERM', 'SIGKILL', 'SIGQUIT', 'SIGINT']) {
     const process = spawn('cmd');
     process.on('exit', (code, signal) => {
-      assert.strictEqual(code, null);
+      const expectedExitCode = convertProcessSignalToExitCode(sendSignal);
+      assert.strictEqual(code, expectedExitCode);
       assert.strictEqual(signal, sendSignal);
+      assert.strictEqual(process.exitCode, expectedExitCode);
     });
     process.kill(sendSignal);
   }
 
   const process = spawn('cmd');
   process.on('exit', (code, signal) => {
-    assert.strictEqual(code, null);
+    const expectedExitCode = convertProcessSignalToExitCode('SIGKILL');
+    assert.strictEqual(code, expectedExitCode);
     assert.strictEqual(signal, 'SIGKILL');
+    assert.strictEqual(process.exitCode, expectedExitCode);
+    assert.strictEqual(process.signalCode, 'SIGKILL');
   });
   process.kill('SIGHUP');
 }
@@ -70,6 +78,8 @@ const checkProcess = spawn(process.execPath, ['-e', code]);
 checkProcess.on('exit', common.mustCall((code, signal) => {
   assert.strictEqual(code, 0);
   assert.strictEqual(signal, null);
+  assert.strictEqual(checkProcess.exitCode, 0);
+  assert.strictEqual(checkProcess.signalCode, null);
 }));
 
 checkProcess.stdout.on('data', common.mustCall((chunk) => {

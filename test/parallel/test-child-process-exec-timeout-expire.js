@@ -5,6 +5,7 @@
 const common = require('../common');
 const assert = require('assert');
 const cp = require('child_process');
+const { convertProcessSignalToExitCode } = require('util');
 
 const {
   cleanupStaleProcess,
@@ -34,7 +35,7 @@ cp.exec(cmd, {
     assert.strictEqual(err.code, 143);
     sigterm = null;
   } else {
-    assert.strictEqual(err.code, null);
+    assert.strictEqual(err.code, convertProcessSignalToExitCode(sigterm));
   }
   // At least starting with Darwin Kernel Version 16.4.0, sending a SIGTERM to a
   // process that is still starting up kills it with SIGKILL instead of SIGTERM.
