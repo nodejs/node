@@ -130,10 +130,10 @@ const { hasOpenSSL3 } = require('../common/crypto');
       tls.connect(port, {
         ca: pem,
         servername: 'example.com',
-        checkServerIdentity: (hostname, peerCert) => {
+        checkServerIdentity: common.mustCall((hostname, peerCert) => {
           assert.strictEqual(hostname, 'example.com');
           assert.strictEqual(peerCert.subjectaltname, expectedSANs[i]);
-        },
+        }),
       }, common.mustCall());
     }));
   }
@@ -237,7 +237,7 @@ const { hasOpenSSL3 } = require('../common/crypto');
       tls.connect(port, {
         ca: pem,
         servername: 'example.com',
-        checkServerIdentity: (hostname, peerCert) => {
+        checkServerIdentity: common.mustCall((hostname, peerCert) => {
           assert.strictEqual(hostname, 'example.com');
           assert.deepStrictEqual(peerCert.infoAccess,
                                  Object.assign({ __proto__: null },
@@ -251,7 +251,7 @@ const { hasOpenSSL3 } = require('../common/crypto');
           assert.strictEqual(obj.issuerCertificate, undefined);
           obj.issuerCertificate = obj;
           assert.deepStrictEqual(peerCert, obj);
-        },
+        }),
       }, common.mustCall());
     }));
   }
@@ -351,7 +351,7 @@ const { hasOpenSSL3 } = require('../common/crypto');
       tls.connect(port, {
         ca: pem,
         servername: 'example.com',
-        checkServerIdentity: (hostname, peerCert) => {
+        checkServerIdentity: common.mustCall((hostname, peerCert) => {
           assert.strictEqual(hostname, 'example.com');
           const expectedObject = Object.assign({ __proto__: null },
                                                expected.legacy);
@@ -369,7 +369,7 @@ const { hasOpenSSL3 } = require('../common/crypto');
           assert.strictEqual(obj.issuerCertificate, undefined);
           obj.issuerCertificate = obj;
           assert.deepStrictEqual(peerCert, obj);
-        },
+        }),
       }, common.mustCall());
     }));
   }

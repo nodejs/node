@@ -2,7 +2,7 @@
 
 const common = require('../common');
 
-const { strictEqual, throws, equal } = require('assert');
+const assert = require('assert');
 
 // Manually converted from https://github.com/web-platform-tests/wpt/blob/master/dom/events/CustomEvent.html
 // in order to define the `document` ourselves
@@ -12,22 +12,22 @@ const { strictEqual, throws, equal } = require('assert');
   const target = new EventTarget();
 
   target.addEventListener(type, common.mustCall((evt) => {
-    strictEqual(evt.type, type);
+    assert.strictEqual(evt.type, type);
   }));
 
   target.dispatchEvent(new Event(type));
 }
 
 {
-  throws(() => {
+  assert.throws(() => {
     new Event();
   }, TypeError);
 }
 
 {
   const event = new Event('foo');
-  equal(event.type, 'foo');
-  equal(event.bubbles, false);
-  equal(event.cancelable, false);
-  equal(event.detail, null);
+  assert.strictEqual(event.type, 'foo');
+  assert.strictEqual(event.bubbles, false);
+  assert.strictEqual(event.cancelable, false);
+  assert.strictEqual(event.detail, undefined);
 }

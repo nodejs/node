@@ -9,7 +9,7 @@ const {
   workerData,
   Worker,
 } = require('node:worker_threads');
-const { strictEqual, deepStrictEqual } = require('node:assert');
+const assert = require('node:assert');
 const { once } = require('node:events');
 
 // Spawn threads on three levels: 1 main thread, two children, four grand childrens. 7 threads total, max id = 6
@@ -45,7 +45,7 @@ async function ping() {
   await postMessageToThread(target, { level, port: port2 }, [port2]);
 
   port1.on('message', common.mustCall(function(message) {
-    deepStrictEqual(message, { message: 'pong', source: target, destination: threadId });
+    assert.deepStrictEqual(message, { message: 'pong', source: target, destination: threadId });
     port1.close();
 
     if (level === 0) {
@@ -59,23 +59,23 @@ async function ping() {
 }
 
 // Do not use mustCall here as the thread might not receive any connection request
-process.on('workerMessage', ({ port, level }, source) => {
+process.on('workerMessage', common.mustCallAtLeast(({ port, level }, source) => {
   // Let's verify the source hierarchy
   // Given we do depth first, the level is 1 for thread 1 and 4, 2 for other threads
   if (source !== mainThread) {
     const currentThread = source - mainThread;
-    strictEqual(level, (currentThread === 1 || currentThread === 4) ? 1 : 2);
+    assert.strictEqual(level, (currentThread === 1 || currentThread === 4) ? 1 : 2);
   } else {
-    strictEqual(level, 0);
+    assert.strictEqual(level, 0);
   }
 
   // Verify communication
   port.on('message', common.mustCall(function(message) {
-    deepStrictEqual(message, { message: 'ping', source, destination: threadId });
+    assert.deepStrictEqual(message, { message: 'ping', source, destination: threadId });
     port.postMessage({ message: 'pong', source: threadId, destination: source });
     port.close();
   }));
-});
+}, 0));
 
 async function test() {
   if (level < MAX_LEVEL) {
@@ -101,7 +101,7 @@ async function test() {
 
   if (level > 0) {
     const currentThread = threadId - mainThread;
-    strictEqual(level, (currentThread === 1 || currentThread === 4) ? 1 : 2);
+    assert.strictEqual(level, (currentThread === 1 || currentThread === 4) ? 1 : 2);
     parentPort.postMessage({ type: 'ready', threadId });
   } else {
     channel.postMessage('start');

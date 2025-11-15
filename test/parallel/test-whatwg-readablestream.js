@@ -270,10 +270,10 @@ const {
     }
   });
 
-  setImmediate(() => {
+  setImmediate(common.mustCall(() => {
     assert.strictEqual(r[kState].state, 'errored');
     assert.match(r[kState].storedError?.message, /boom/);
-  });
+  }));
 }
 
 {
@@ -774,9 +774,9 @@ assert.throws(() => {
   const error2 = new Error('boom2');
 
   const stream = new ReadableStream({
-    cancel(reason) {
+    cancel: common.mustCall((reason) => {
       assert.deepStrictEqual(reason, [error1, error2]);
-    }
+    }),
   });
 
   const { 0: s1, 1: s2 } = stream.tee();
@@ -789,9 +789,9 @@ assert.throws(() => {
   const error2 = new Error('boom2');
 
   const stream = new ReadableStream({
-    cancel(reason) {
+    cancel: common.mustCall((reason) => {
       assert.deepStrictEqual(reason, [error1, error2]);
-    }
+    }),
   });
 
   const { 0: s1, 1: s2 } = stream.tee();
@@ -1106,17 +1106,20 @@ assert.throws(() => {
     cancelCalled = false;
 
     start(controller) {
+      // eslint-disable-next-line node-core/must-call-assert
       assert.strictEqual(this, source);
       this.startCalled = true;
       controller.enqueue('a');
     }
 
     pull() {
+      // eslint-disable-next-line node-core/must-call-assert
       assert.strictEqual(this, source);
       this.pullCalled = true;
     }
 
     cancel() {
+      // eslint-disable-next-line node-core/must-call-assert
       assert.strictEqual(this, source);
       this.cancelCalled = true;
     }
@@ -1138,33 +1141,27 @@ assert.throws(() => {
 }
 
 {
-  let startCalled = false;
   new ReadableStream({
-    start(controller) {
+    start: common.mustCall((controller) => {
       assert.strictEqual(controller.desiredSize, 10);
       controller.close();
       assert.strictEqual(controller.desiredSize, 0);
-      startCalled = true;
-    }
+    }),
   }, {
-    highWaterMark: 10
+    highWaterMark: 10,
   });
-  assert(startCalled);
 }
 
 {
-  let startCalled = false;
   new ReadableStream({
-    start(controller) {
+    start: common.mustCall((controller) => {
       assert.strictEqual(controller.desiredSize, 10);
       controller.error();
       assert.strictEqual(controller.desiredSize, null);
-      startCalled = true;
-    }
+    }),
   }, {
-    highWaterMark: 10
+    highWaterMark: 10,
   });
-  assert(startCalled);
 }
 
 {
@@ -1176,7 +1173,7 @@ assert.throws(() => {
 {
   let startCalled = false;
   new ReadableStream({
-    start(controller) {
+    start: common.mustCall((controller) => {
       assert.strictEqual(controller.desiredSize, 1);
       controller.enqueue('a');
       assert.strictEqual(controller.desiredSize, 0);
@@ -1187,7 +1184,7 @@ assert.throws(() => {
       controller.enqueue('a');
       assert.strictEqual(controller.desiredSize, -3);
       startCalled = true;
-    }
+    }),
   });
   assert(startCalled);
 }

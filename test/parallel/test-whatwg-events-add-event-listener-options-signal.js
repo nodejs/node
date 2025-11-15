@@ -1,11 +1,8 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
 
-const {
-  strictEqual,
-  throws,
-} = require('assert');
+const assert = require('node:assert');
 
 // Manually ported from: wpt@dom/events/AddEventListenerOptions-signal.any.js
 
@@ -13,134 +10,98 @@ const {
   // Passing an AbortSignal to addEventListener does not prevent
   // removeEventListener
   let count = 0;
-  function handler() {
+  const handler = common.mustCall(() => {
     count++;
-  }
+  }, 2);
   const et = new EventTarget();
   const controller = new AbortController();
   et.addEventListener('test', handler, { signal: controller.signal });
   et.dispatchEvent(new Event('test'));
-  strictEqual(count, 1, 'Adding a signal still adds a listener');
+  assert.strictEqual(count, 1);
   et.dispatchEvent(new Event('test'));
-  strictEqual(count, 2, 'The listener was not added with the once flag');
   controller.abort();
   et.dispatchEvent(new Event('test'));
-  strictEqual(count, 2, 'Aborting on the controller removes the listener');
   // See: https://github.com/nodejs/node/pull/37696 , adding an event listener
   // should always return undefined.
-  strictEqual(
+  assert.strictEqual(
     et.addEventListener('test', handler, { signal: controller.signal }),
     undefined);
   et.dispatchEvent(new Event('test'));
-  strictEqual(count, 2, 'Passing an aborted signal never adds the handler');
 }
 
 {
   // Passing an AbortSignal to addEventListener works with the once flag
-  let count = 0;
-  function handler() {
-    count++;
-  }
+  const handler = common.mustNotCall();
   const et = new EventTarget();
   const controller = new AbortController();
   et.addEventListener('test', handler, { signal: controller.signal });
   et.removeEventListener('test', handler);
   et.dispatchEvent(new Event('test'));
-  strictEqual(count, 0, 'The listener was still removed');
 }
 
 {
   // Removing a once listener works with a passed signal
-  let count = 0;
-  function handler() {
-    count++;
-  }
   const et = new EventTarget();
   const controller = new AbortController();
   const options = { signal: controller.signal, once: true };
-  et.addEventListener('test', handler, options);
+  et.addEventListener('test', common.mustNotCall(), options);
   controller.abort();
   et.dispatchEvent(new Event('test'));
-  strictEqual(count, 0, 'The listener was still removed');
 }
 
 {
-  let count = 0;
-  function handler() {
-    count++;
-  }
+  const handler = common.mustNotCall();
   const et = new EventTarget();
   const controller = new AbortController();
   const options = { signal: controller.signal, once: true };
   et.addEventListener('test', handler, options);
   et.removeEventListener('test', handler);
   et.dispatchEvent(new Event('test'));
-  strictEqual(count, 0, 'The listener was still removed');
 }
 
 {
   // Passing an AbortSignal to multiple listeners
-  let count = 0;
-  function handler() {
-    count++;
-  }
   const et = new EventTarget();
   const controller = new AbortController();
   const options = { signal: controller.signal, once: true };
-  et.addEventListener('first', handler, options);
-  et.addEventListener('second', handler, options);
+  et.addEventListener('first', common.mustNotCall(), options);
+  et.addEventListener('second', common.mustNotCall(), options);
   controller.abort();
   et.dispatchEvent(new Event('first'));
   et.dispatchEvent(new Event('second'));
-  strictEqual(count, 0, 'The listener was still removed');
 }
 
 {
   // Passing an AbortSignal to addEventListener works with the capture flag
-  let count = 0;
-  function handler() {
-    count++;
-  }
   const et = new EventTarget();
   const controller = new AbortController();
   const options = { signal: controller.signal, capture: true };
-  et.addEventListener('test', handler, options);
+  et.addEventListener('test', common.mustNotCall(), options);
   controller.abort();
   et.dispatchEvent(new Event('test'));
-  strictEqual(count, 0, 'The listener was still removed');
 }
 
 {
   // Aborting from a listener does not call future listeners
-  let count = 0;
-  function handler() {
-    count++;
-  }
   const et = new EventTarget();
   const controller = new AbortController();
   const options = { signal: controller.signal };
   et.addEventListener('test', () => {
     controller.abort();
   }, options);
-  et.addEventListener('test', handler, options);
+  et.addEventListener('test', common.mustNotCall(), options);
   et.dispatchEvent(new Event('test'));
-  strictEqual(count, 0, 'The listener was still removed');
 }
 
 {
   // Adding then aborting a listener in another listener does not call it
-  let count = 0;
-  function handler() {
-    count++;
-  }
   const et = new EventTarget();
   const controller = new AbortController();
-  et.addEventListener('test', () => {
-    et.addEventListener('test', handler, { signal: controller.signal });
+  et.addEventListener('test', common.mustCall(() => {
+    et.addEventListener('test', common.mustNotCall(), { signal: controller.signal });
     controller.abort();
-  }, { signal: controller.signal });
+  }), { signal: controller.signal });
   et.dispatchEvent(new Event('test'));
-  strictEqual(count, 0, 'The listener was still removed');
 }
 
 {
@@ -161,7 +122,7 @@ const {
 {
   const et = new EventTarget();
   [1, 1n, {}, [], null, true, 'hi', Symbol(), () => {}].forEach((signal) => {
-    throws(() => et.addEventListener('foo', () => {}, { signal }), {
+    assert.throws(() => et.addEventListener('foo', () => {}, { signal }), {
       name: 'TypeError',
     });
   });

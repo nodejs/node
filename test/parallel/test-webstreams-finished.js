@@ -180,9 +180,9 @@ const { finished: finishedPromise } = require('stream/promises');
   }));
 
   const writer = ws.getWriter();
-  writer.write('asd').catch((err) => {
-    assert.strictEqual(err?.message, 'asd');
-  });
+  assert.rejects(writer.write('asd'), {
+    message: 'asd',
+  }).then(common.mustCall());
 }
 
 {
@@ -221,14 +221,14 @@ const { finished: finishedPromise } = require('stream/promises');
     }
   });
 
-  finishedPromise(ws).then(common.mustNotCall()).catch(common.mustCall((err) => {
-    assert.strictEqual(err?.message, 'asd');
-  }));
+  assert.rejects(finishedPromise(ws), {
+    message: 'asd',
+  }).then(common.mustCall());
 
   const writer = ws.getWriter();
-  writer.write('asd').catch((err) => {
-    assert.strictEqual(err?.message, 'asd');
-  });
+  assert.rejects(writer.write('asd'), {
+    message: 'asd',
+  }).then(common.mustCall());
 }
 
 {

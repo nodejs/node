@@ -25,7 +25,7 @@ if (!process.env.HAS_STARTED_WORKER) {
 }
 
 function parent() {
-  const test = (arg, name = 'worker', exit, error = null) => {
+  const test = common.mustCall((arg, name = 'worker', exit, error = null) => {
     const w = new Worker(__filename);
     w.on('exit', common.mustCall((code) => {
       assert.strictEqual(
@@ -40,7 +40,7 @@ function parent() {
       }));
     }
     w.postMessage(arg);
-  };
+  }, testCases.length);
 
   testCases.forEach((tc, i) => test(i, tc.func.name, tc.result, tc.error));
 }

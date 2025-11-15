@@ -1,5 +1,5 @@
 import '../common/index.mjs';
-import { strictEqual } from 'node:assert';
+import assert from 'node:assert';
 import { readSync } from '../common/fixtures.mjs';
 
 // Test Wasm JSPI
@@ -40,5 +40,5 @@ import { readSync } from '../common/fixtures.mjs';
   });
 
   const promisingExport = WebAssembly.promising(instance.exports.test);
-  strictEqual(await promisingExport(10), 52);
+  assert.strictEqual(await promisingExport(10), 52);
 }
