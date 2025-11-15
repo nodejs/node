@@ -20,9 +20,9 @@ server.on('stream', common.mustCall((stream) => {
   assert.strictEqual(stream.sentHeaders[':status'], 200);
   assert.notStrictEqual(stream.sentHeaders.date, undefined);
   stream.end();
-  stream.on('close', () => {
+  stream.on('close', common.mustCall(() => {
     assert.strictEqual(stream.sentTrailers.xyz, 'abc');
-  });
+  }));
 }));
 
 server.listen(0, common.mustCall(() => {

@@ -24,7 +24,7 @@ server.on('stream', common.mustCall((stream) => {
   });
 }, 3));
 server.on('session', common.mustCall((session) => {
-  session.on('priority', (id, parent, weight, exclusive) => {
+  session.on('priority', common.mustCallAtLeast((id, parent, weight, exclusive) => {
     assert.strictEqual(weight, 16);
     assert.strictEqual(exclusive, false);
     switch (id) {
@@ -40,7 +40,7 @@ server.on('session', common.mustCall((session) => {
       default:
         assert.fail('should not happen');
     }
-  });
+  }, 0));
 }));
 
 server.listen(0, common.mustCall(() => {

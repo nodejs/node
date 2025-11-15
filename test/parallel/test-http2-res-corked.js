@@ -4,41 +4,41 @@ if (!common.hasCrypto) { common.skip('missing crypto'); }
 
 // Test for Http2ServerResponse#[writableCorked,cork,uncork]
 
-const { strictEqual } = require('assert');
+const assert = require('assert');
 const http2 = require('http2');
 
 {
   let corksLeft = 0;
   const server = http2.createServer(common.mustCall((req, res) => {
-    strictEqual(res.writableCorked, corksLeft);
+    assert.strictEqual(res.writableCorked, corksLeft);
     res.write(Buffer.from('1'.repeat(1024)));
     res.cork();
     corksLeft++;
-    strictEqual(res.writableCorked, corksLeft);
+    assert.strictEqual(res.writableCorked, corksLeft);
     res.write(Buffer.from('1'.repeat(1024)));
     res.cork();
     corksLeft++;
-    strictEqual(res.writableCorked, corksLeft);
+    assert.strictEqual(res.writableCorked, corksLeft);
     res.write(Buffer.from('1'.repeat(1024)));
     res.cork();
     corksLeft++;
-    strictEqual(res.writableCorked, corksLeft);
+    assert.strictEqual(res.writableCorked, corksLeft);
     res.write(Buffer.from('1'.repeat(1024)));
     res.cork();
     corksLeft++;
-    strictEqual(res.writableCorked, corksLeft);
+    assert.strictEqual(res.writableCorked, corksLeft);
     res.uncork();
     corksLeft--;
-    strictEqual(res.writableCorked, corksLeft);
+    assert.strictEqual(res.writableCorked, corksLeft);
     res.uncork();
     corksLeft--;
-    strictEqual(res.writableCorked, corksLeft);
+    assert.strictEqual(res.writableCorked, corksLeft);
     res.uncork();
     corksLeft--;
-    strictEqual(res.writableCorked, corksLeft);
+    assert.strictEqual(res.writableCorked, corksLeft);
     res.uncork();
     corksLeft--;
-    strictEqual(res.writableCorked, corksLeft);
+    assert.strictEqual(res.writableCorked, corksLeft);
     res.end();
   }));
   server.listen(0, common.mustCall(() => {

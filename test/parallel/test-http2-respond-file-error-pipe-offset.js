@@ -39,7 +39,7 @@ server.on('stream', (stream) => {
     statCheck: common.mustNotCall()
   });
 });
-server.listen(0, () => {
+server.listen(0, common.mustCall(() => {
 
   const client = http2.connect(`http://localhost:${server.address().port}`);
   const req = client.request();
@@ -53,7 +53,7 @@ server.listen(0, () => {
     server.close();
   }));
   req.end();
-});
+}));
 
 fs.writeFile(pipeName, 'Hello, world!\n', common.mustCall((err) => {
   // It's possible for the reading end of the pipe to get the expected error

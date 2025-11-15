@@ -56,7 +56,7 @@ const id1 = new h2test.HeadersFrame(1, h2test.kFakeRequestHeaders, 0, true);
 const id3 = new h2test.HeadersFrame(3, h2test.kFakeRequestHeaders, 0, true);
 const id5 = new h2test.HeadersFrame(5, h2test.kFakeRequestHeaders, 0, true);
 
-server.listen(0, () => {
+server.listen(0, common.mustCall(() => {
   client = net.connect(server.address().port, () => {
     client.write(h2test.kClientMagic, () => {
       client.write(settings.data, () => {
@@ -75,4 +75,4 @@ server.listen(0, () => {
   client.on('error', () => {});
   client.on('close', common.mustCall(() => server.close()));
   client.resume();
-});
+}));

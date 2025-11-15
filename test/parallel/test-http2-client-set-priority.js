@@ -11,7 +11,7 @@ common.expectWarning(
   'Priority signaling has been deprecated as of RFC 9113.',
   'DEP0194');
 
-const checkWeight = (actual, expect) => {
+function checkWeight(actual, expect) {
   const server = http2.createServer();
   server.on('stream', common.mustCall((stream, headers, flags) => {
     assert.strictEqual(stream.state.sumDependencyWeight, 0);
@@ -31,7 +31,7 @@ const checkWeight = (actual, expect) => {
       client.close();
     }));
   }));
-};
+}
 
 // When client weight is lower than 1, weight is 1
 checkWeight(-1, 1);
