@@ -2,7 +2,7 @@
 
 const WASM_BUILDER_CONTAINER = 'ghcr.io/nodejs/wasm-builder@sha256:975f391d907e42a75b8c72eb77c782181e941608687d4d8694c3e9df415a0970' // v0.0.9
 
-const WASM_OPT = './wasm-opt'
+const WASM_OPT = process.env.WASM_OPT || './wasm-opt'
 
 const { execSync } = require('node:child_process')
 const { writeFileSync, readFileSync, existsSync, mkdirSync } = require('node:fs')

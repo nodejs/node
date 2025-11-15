@@ -137,8 +137,10 @@ function parseSource (cjsSource) {
               pos += 4;
             if (source.charCodeAt(pos) === 40/*(*/) {
               openTokenPosStack[openTokenDepth++] = lastTokenPos;
-              if (source.charCodeAt(++pos) === 114/*r*/)
+              if (source.charCodeAt(pos + 1) === 114/*r*/) {
+                pos++;
                 tryParseRequire(ExportStar);
+              }
             }
           }
           lastTokenPos = pos;
@@ -288,7 +290,7 @@ function tryBacktrackAddStarExportBinding (bPos) {
 
 // `Object.` `prototype.`? hasOwnProperty.call(`  IDENTIFIER `, ` IDENTIFIER$2 `)`
 function tryParseObjectHasOwnProperty (it_id) {
-  ch = commentWhitespace();
+  let ch = commentWhitespace();
   if (ch !== 79/*O*/ || !source.startsWith('bject', pos + 1)) return false;
   pos += 6;
   ch = commentWhitespace();
