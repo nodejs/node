@@ -11,7 +11,7 @@ if (!common.hasCrypto)
 const { updateOptionsBuffer } = require('internal/http2/util');
 const { internalBinding } = require('internal/test/binding');
 const { optionsBuffer } = internalBinding('http2');
-const { ok, strictEqual } = require('assert');
+const assert = require('assert');
 
 const IDX_OPTIONS_MAX_DEFLATE_DYNAMIC_TABLE_SIZE = 0;
 const IDX_OPTIONS_MAX_RESERVED_REMOTE_STREAMS = 1;
@@ -45,34 +45,34 @@ const IDX_OPTIONS_FLAGS = 13;
     strictFieldWhitespaceValidation: false
   });
 
-  strictEqual(optionsBuffer[IDX_OPTIONS_MAX_DEFLATE_DYNAMIC_TABLE_SIZE], 1);
-  strictEqual(optionsBuffer[IDX_OPTIONS_MAX_RESERVED_REMOTE_STREAMS], 2);
-  strictEqual(optionsBuffer[IDX_OPTIONS_MAX_SEND_HEADER_BLOCK_LENGTH], 3);
-  strictEqual(optionsBuffer[IDX_OPTIONS_PEER_MAX_CONCURRENT_STREAMS], 4);
-  strictEqual(optionsBuffer[IDX_OPTIONS_PADDING_STRATEGY], 5);
-  strictEqual(optionsBuffer[IDX_OPTIONS_MAX_HEADER_LIST_PAIRS], 6);
-  strictEqual(optionsBuffer[IDX_OPTIONS_MAX_OUTSTANDING_PINGS], 7);
-  strictEqual(optionsBuffer[IDX_OPTIONS_MAX_OUTSTANDING_SETTINGS], 8);
-  strictEqual(optionsBuffer[IDX_OPTIONS_MAX_SESSION_MEMORY], 9);
-  strictEqual(optionsBuffer[IDX_OPTIONS_MAX_SETTINGS], 10);
-  strictEqual(optionsBuffer[IDX_OPTIONS_STREAM_RESET_RATE], 11);
-  strictEqual(optionsBuffer[IDX_OPTIONS_STREAM_RESET_BURST], 12);
-  strictEqual(optionsBuffer[IDX_OPTIONS_STRICT_HTTP_FIELD_WHITESPACE_VALIDATION], 1);
+  assert.strictEqual(optionsBuffer[IDX_OPTIONS_MAX_DEFLATE_DYNAMIC_TABLE_SIZE], 1);
+  assert.strictEqual(optionsBuffer[IDX_OPTIONS_MAX_RESERVED_REMOTE_STREAMS], 2);
+  assert.strictEqual(optionsBuffer[IDX_OPTIONS_MAX_SEND_HEADER_BLOCK_LENGTH], 3);
+  assert.strictEqual(optionsBuffer[IDX_OPTIONS_PEER_MAX_CONCURRENT_STREAMS], 4);
+  assert.strictEqual(optionsBuffer[IDX_OPTIONS_PADDING_STRATEGY], 5);
+  assert.strictEqual(optionsBuffer[IDX_OPTIONS_MAX_HEADER_LIST_PAIRS], 6);
+  assert.strictEqual(optionsBuffer[IDX_OPTIONS_MAX_OUTSTANDING_PINGS], 7);
+  assert.strictEqual(optionsBuffer[IDX_OPTIONS_MAX_OUTSTANDING_SETTINGS], 8);
+  assert.strictEqual(optionsBuffer[IDX_OPTIONS_MAX_SESSION_MEMORY], 9);
+  assert.strictEqual(optionsBuffer[IDX_OPTIONS_MAX_SETTINGS], 10);
+  assert.strictEqual(optionsBuffer[IDX_OPTIONS_STREAM_RESET_RATE], 11);
+  assert.strictEqual(optionsBuffer[IDX_OPTIONS_STREAM_RESET_BURST], 12);
+  assert.strictEqual(optionsBuffer[IDX_OPTIONS_STRICT_HTTP_FIELD_WHITESPACE_VALIDATION], 1);
 
   const flags = optionsBuffer[IDX_OPTIONS_FLAGS];
 
-  ok(flags & (1 << IDX_OPTIONS_MAX_DEFLATE_DYNAMIC_TABLE_SIZE));
-  ok(flags & (1 << IDX_OPTIONS_MAX_RESERVED_REMOTE_STREAMS));
-  ok(flags & (1 << IDX_OPTIONS_MAX_SEND_HEADER_BLOCK_LENGTH));
-  ok(flags & (1 << IDX_OPTIONS_PEER_MAX_CONCURRENT_STREAMS));
-  ok(flags & (1 << IDX_OPTIONS_PADDING_STRATEGY));
-  ok(flags & (1 << IDX_OPTIONS_MAX_HEADER_LIST_PAIRS));
-  ok(flags & (1 << IDX_OPTIONS_MAX_OUTSTANDING_PINGS));
-  ok(flags & (1 << IDX_OPTIONS_MAX_OUTSTANDING_SETTINGS));
-  ok(flags & (1 << IDX_OPTIONS_MAX_SETTINGS));
-  ok(flags & (1 << IDX_OPTIONS_STREAM_RESET_RATE));
-  ok(flags & (1 << IDX_OPTIONS_STREAM_RESET_BURST));
-  ok(flags & (1 << IDX_OPTIONS_STRICT_HTTP_FIELD_WHITESPACE_VALIDATION));
+  assert.ok(flags & (1 << IDX_OPTIONS_MAX_DEFLATE_DYNAMIC_TABLE_SIZE));
+  assert.ok(flags & (1 << IDX_OPTIONS_MAX_RESERVED_REMOTE_STREAMS));
+  assert.ok(flags & (1 << IDX_OPTIONS_MAX_SEND_HEADER_BLOCK_LENGTH));
+  assert.ok(flags & (1 << IDX_OPTIONS_PEER_MAX_CONCURRENT_STREAMS));
+  assert.ok(flags & (1 << IDX_OPTIONS_PADDING_STRATEGY));
+  assert.ok(flags & (1 << IDX_OPTIONS_MAX_HEADER_LIST_PAIRS));
+  assert.ok(flags & (1 << IDX_OPTIONS_MAX_OUTSTANDING_PINGS));
+  assert.ok(flags & (1 << IDX_OPTIONS_MAX_OUTSTANDING_SETTINGS));
+  assert.ok(flags & (1 << IDX_OPTIONS_MAX_SETTINGS));
+  assert.ok(flags & (1 << IDX_OPTIONS_STREAM_RESET_RATE));
+  assert.ok(flags & (1 << IDX_OPTIONS_STREAM_RESET_BURST));
+  assert.ok(flags & (1 << IDX_OPTIONS_STRICT_HTTP_FIELD_WHITESPACE_VALIDATION));
 }
 
 {
@@ -87,22 +87,22 @@ const IDX_OPTIONS_FLAGS = 13;
     maxHeaderListPairs: 6
   });
 
-  strictEqual(optionsBuffer[IDX_OPTIONS_MAX_DEFLATE_DYNAMIC_TABLE_SIZE], 1);
-  strictEqual(optionsBuffer[IDX_OPTIONS_MAX_RESERVED_REMOTE_STREAMS], 2);
-  strictEqual(optionsBuffer[IDX_OPTIONS_PEER_MAX_CONCURRENT_STREAMS], 4);
-  strictEqual(optionsBuffer[IDX_OPTIONS_PADDING_STRATEGY], 5);
-  strictEqual(optionsBuffer[IDX_OPTIONS_MAX_HEADER_LIST_PAIRS], 6);
-  strictEqual(optionsBuffer[IDX_OPTIONS_MAX_SEND_HEADER_BLOCK_LENGTH], 0);
-  strictEqual(optionsBuffer[IDX_OPTIONS_MAX_OUTSTANDING_PINGS], 0);
+  assert.strictEqual(optionsBuffer[IDX_OPTIONS_MAX_DEFLATE_DYNAMIC_TABLE_SIZE], 1);
+  assert.strictEqual(optionsBuffer[IDX_OPTIONS_MAX_RESERVED_REMOTE_STREAMS], 2);
+  assert.strictEqual(optionsBuffer[IDX_OPTIONS_PEER_MAX_CONCURRENT_STREAMS], 4);
+  assert.strictEqual(optionsBuffer[IDX_OPTIONS_PADDING_STRATEGY], 5);
+  assert.strictEqual(optionsBuffer[IDX_OPTIONS_MAX_HEADER_LIST_PAIRS], 6);
+  assert.strictEqual(optionsBuffer[IDX_OPTIONS_MAX_SEND_HEADER_BLOCK_LENGTH], 0);
+  assert.strictEqual(optionsBuffer[IDX_OPTIONS_MAX_OUTSTANDING_PINGS], 0);
 
   const flags = optionsBuffer[IDX_OPTIONS_FLAGS];
 
-  ok(flags & (1 << IDX_OPTIONS_MAX_DEFLATE_DYNAMIC_TABLE_SIZE));
-  ok(flags & (1 << IDX_OPTIONS_MAX_RESERVED_REMOTE_STREAMS));
-  ok(flags & (1 << IDX_OPTIONS_PEER_MAX_CONCURRENT_STREAMS));
-  ok(flags & (1 << IDX_OPTIONS_PADDING_STRATEGY));
-  ok(flags & (1 << IDX_OPTIONS_MAX_HEADER_LIST_PAIRS));
+  assert.ok(flags & (1 << IDX_OPTIONS_MAX_DEFLATE_DYNAMIC_TABLE_SIZE));
+  assert.ok(flags & (1 << IDX_OPTIONS_MAX_RESERVED_REMOTE_STREAMS));
+  assert.ok(flags & (1 << IDX_OPTIONS_PEER_MAX_CONCURRENT_STREAMS));
+  assert.ok(flags & (1 << IDX_OPTIONS_PADDING_STRATEGY));
+  assert.ok(flags & (1 << IDX_OPTIONS_MAX_HEADER_LIST_PAIRS));
 
-  ok(!(flags & (1 << IDX_OPTIONS_MAX_SEND_HEADER_BLOCK_LENGTH)));
-  ok(!(flags & (1 << IDX_OPTIONS_MAX_OUTSTANDING_PINGS)));
+  assert.ok(!(flags & (1 << IDX_OPTIONS_MAX_SEND_HEADER_BLOCK_LENGTH)));
+  assert.ok(!(flags & (1 << IDX_OPTIONS_MAX_OUTSTANDING_PINGS)));
 }

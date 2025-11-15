@@ -7,7 +7,7 @@ const assert = require('assert');
 const http2 = require('http2');
 
 const server = http2.createServer();
-server.on('stream', (stream, headers) => {
+server.on('stream', common.mustCall((stream, headers) => {
   assert.deepStrictEqual(headers, {
     ':scheme': 'http',
     ':authority': `localhost:${server.address().port}`,
@@ -19,7 +19,7 @@ server.on('stream', (stream, headers) => {
   });
   stream.session.destroy();
   server.close();
-});
+}));
 server.listen(0, common.mustCall(() => {
   const client = http2.connect(`http://localhost:${server.address().port}/`);
   client.request({ ':path': '/', '': 'foo', 'bar': '' }).end();

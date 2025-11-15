@@ -86,7 +86,7 @@ const { getEventListeners } = require('events');
 
     // Wait for setImmediate call from destroy() to complete
     // so that state.destroyed is set to true
-    setImmediate(() => {
+    setImmediate(common.mustCall(() => {
       assert.throws(() => client.setNextStreamID(), sessionError);
       assert.throws(() => client.setLocalWindowSize(), sessionError);
       assert.throws(() => client.ping(), sessionError);
@@ -94,7 +94,7 @@ const { getEventListeners } = require('events');
       assert.throws(() => client.goaway(), sessionError);
       assert.throws(() => client.request(), sessionError);
       client.close();  // Should be a non-op at this point
-    });
+    }));
 
     req.resume();
     req.on('end', common.mustNotCall());

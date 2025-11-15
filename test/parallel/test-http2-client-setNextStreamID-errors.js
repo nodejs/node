@@ -26,7 +26,7 @@ const types = {
 server.listen(0, common.mustCall(() => {
   const client = http2.connect(`http://localhost:${server.address().port}`);
 
-  client.on('connect', () => {
+  client.on('connect', common.mustCall(() => {
     const outOfRangeNum = 2 ** 32;
     assert.throws(
       () => client.setNextStreamID(outOfRangeNum),
@@ -57,5 +57,5 @@ server.listen(0, common.mustCall(() => {
 
     server.close();
     client.close();
-  });
+  }));
 }));

@@ -21,16 +21,16 @@ if (mkfifo.error && mkfifo.error.code === 'ENOENT') {
 }
 
 const server = http2.createServer();
-server.on('stream', (stream) => {
+server.on('stream', common.mustCall((stream) => {
   stream.respondWithFile(pipeName, {
     'content-type': 'text/plain'
   }, {
     onError: common.mustNotCall(),
     statCheck: common.mustCall()
   });
-});
+}));
 
-server.listen(0, () => {
+server.listen(0, common.mustCall(() => {
   const client = http2.connect(`http://localhost:${server.address().port}`);
   const req = client.request();
 
@@ -46,7 +46,7 @@ server.listen(0, () => {
     server.close();
   }));
   req.end();
-});
+}));
 
 fs.open(pipeName, 'w', common.mustSucceed((fd) => {
   fs.writeSync(fd, 'Hello, world!\n');

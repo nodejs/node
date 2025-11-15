@@ -8,7 +8,7 @@ const http2 = require('http2');
 const body =
   '<html><head></head><body><h1>this is some data</h2></body></html>';
 
-const server = http2.createServer((req, res) => {
+const server = http2.createServer(common.mustCallAtLeast((req, res) => {
   assert.strictEqual(req.headers['x-powered-by'], undefined);
   assert.strictEqual(req.headers.foobar, undefined);
   assert.strictEqual(req.headers['x-h2-header'], undefined);
@@ -17,9 +17,9 @@ const server = http2.createServer((req, res) => {
   assert.strictEqual(req.headers['x-h2-header-4'], undefined);
   res.writeHead(200);
   res.end(body);
-});
+}));
 
-const server2 = http2.createServer({ strictFieldWhitespaceValidation: false }, (req, res) => {
+const server2 = http2.createServer({ strictFieldWhitespaceValidation: false }, common.mustCallAtLeast((req, res) => {
   assert.strictEqual(req.headers.foobar, 'baz ');
   assert.strictEqual(req.headers['x-powered-by'], 'node-test\t');
   assert.strictEqual(req.headers['x-h2-header'], '\tconnection-test');
@@ -28,7 +28,7 @@ const server2 = http2.createServer({ strictFieldWhitespaceValidation: false }, (
   assert.strictEqual(req.headers['x-h2-header-4'], 'connection-test\t');
   res.writeHead(200);
   res.end(body);
-});
+}));
 
 server.listen(0, common.mustCall(() => {
   server2.listen(0, common.mustCall(() => {
@@ -52,7 +52,7 @@ server.listen(0, common.mustCall(() => {
 
     let data = '';
     req.on('data', (d) => data += d);
-    req.on('end', () => {
+    req.on('end', common.mustCall(() => {
       assert.strictEqual(body, data);
       client.close();
       client.on('close', common.mustCall(() => {
@@ -66,15 +66,15 @@ server.listen(0, common.mustCall(() => {
         assert.strictEqual(headers[':status'], 200);
       }));
       req2.on('data', (d) => data2 += d);
-      req2.on('end', () => {
+      req2.on('end', common.mustCall(() => {
         assert.strictEqual(body, data2);
         client2.close();
         client2.on('close', common.mustCall(() => {
           server2.close();
         }));
-      });
+      }));
       req2.end();
-    });
+    }));
 
     req.end();
   }));

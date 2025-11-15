@@ -6,7 +6,7 @@ const fixtures = require('../common/fixtures');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-const { strictEqual, ok } = require('assert');
+const assert = require('assert');
 const { createSecureContext } = require('tls');
 const { createSecureServer, connect } = require('http2');
 const { get } = require('https');
@@ -42,16 +42,16 @@ function onSession(session, next) {
 
   const request = session.request(headers);
   request.on('response', common.mustCall((headers) => {
-    strictEqual(headers[':status'], 200);
-    strictEqual(headers['content-type'], 'application/json');
+    assert.strictEqual(headers[':status'], 200);
+    assert.strictEqual(headers['content-type'], 'application/json');
   }));
   request.setEncoding('utf8');
   let raw = '';
   request.on('data', (chunk) => { raw += chunk; });
   request.on('end', common.mustCall(() => {
     const { alpnProtocol, httpVersion } = JSON.parse(raw);
-    strictEqual(alpnProtocol, 'h2');
-    strictEqual(httpVersion, '2.0');
+    assert.strictEqual(alpnProtocol, 'h2');
+    assert.strictEqual(httpVersion, '2.0');
 
     session.close();
     this.cleanup();
@@ -89,17 +89,17 @@ function onSession(session, next) {
     get(
       Object.assign(parse(origin), clientOptions),
       common.mustCall((response) => {
-        strictEqual(response.statusCode, 200);
-        strictEqual(response.statusMessage, 'OK');
-        strictEqual(response.headers['content-type'], 'application/json');
+        assert.strictEqual(response.statusCode, 200);
+        assert.strictEqual(response.statusMessage, 'OK');
+        assert.strictEqual(response.headers['content-type'], 'application/json');
 
         response.setEncoding('utf8');
         let raw = '';
         response.on('data', (chunk) => { raw += chunk; });
         response.on('end', common.mustCall(() => {
           const { alpnProtocol, httpVersion } = JSON.parse(raw);
-          strictEqual(alpnProtocol, false);
-          strictEqual(httpVersion, '1.1');
+          assert.strictEqual(alpnProtocol, false);
+          assert.strictEqual(httpVersion, '1.1');
 
           cleanup();
         }));
@@ -116,7 +116,7 @@ function onSession(session, next) {
   );
 
   server.once('unknownProtocol', common.mustCall((socket) => {
-    strictEqual(socket instanceof Duplex, true);
+    assert.strictEqual(socket instanceof Duplex, true);
     socket.destroy();
   }));
 
@@ -152,7 +152,7 @@ function onSession(session, next) {
       tls(Object.assign({ port, ALPNProtocols: ['fake'] }, clientOptions))
         .on('error', common.mustCall((err) => {
           const allowedErrors = ['ECONNRESET', 'ERR_SSL_TLSV1_ALERT_NO_APPLICATION_PROTOCOL'];
-          ok(allowedErrors.includes(err.code), `'${err.code}' was not one of ${allowedErrors}.`);
+          assert.ok(allowedErrors.includes(err.code), `'${err.code}' was not one of ${allowedErrors}.`);
           cleanup();
           testNoALPN();
         }));
@@ -165,7 +165,7 @@ function onSession(session, next) {
         .setEncoding('utf8')
         .on('data', (chunk) => text += chunk)
         .on('end', common.mustCall(() => {
-          ok(/Missing ALPN Protocol, expected `h2` to be available/.test(text));
+          assert.ok(/Missing ALPN Protocol, expected `h2` to be available/.test(text));
           cleanup();
         }));
     }

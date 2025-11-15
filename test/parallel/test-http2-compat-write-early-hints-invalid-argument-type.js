@@ -32,11 +32,11 @@ const testResBody = 'response content';
 
     req.on('headers', common.mustNotCall());
 
-    process.on('uncaughtException', (err) => {
+    process.on('uncaughtException', common.mustCall((err) => {
       debug(`Caught an exception: ${JSON.stringify(err)}`);
       if (err.name === 'AssertionError') throw err;
       assert.strictEqual(err.code, 'ERR_INVALID_ARG_TYPE');
       process.exit(0);
-    });
+    }));
   }));
 }

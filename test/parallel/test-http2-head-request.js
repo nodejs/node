@@ -20,7 +20,7 @@ const {
 } = http2.constants;
 
 const server = http2.createServer();
-server.on('stream', (stream, headers) => {
+server.on('stream', common.mustCall((stream, headers) => {
 
   assert.strictEqual(headers[HTTP2_HEADER_METHOD], HTTP2_METHOD_HEAD);
 
@@ -29,10 +29,10 @@ server.on('stream', (stream, headers) => {
   // Because this is a head request, the outbound stream is closed automatically
   stream.on('error', errCheck);
   stream.write('data');
-});
+}));
 
 
-server.listen(0, () => {
+server.listen(0, common.mustCall(() => {
 
   const client = http2.connect(`http://localhost:${server.address().port}`);
 
@@ -50,4 +50,4 @@ server.listen(0, () => {
     server.close();
     client.close();
   }));
-});
+}));
