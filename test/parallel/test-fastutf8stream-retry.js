@@ -2,10 +2,7 @@
 
 const common = require('../common');
 const tmpdir = require('../common/tmpdir');
-const {
-  ok,
-  strictEqual,
-} = require('node:assert');
+const assert = require('node:assert');
 const {
   openSync,
   writeSync,
@@ -67,12 +64,12 @@ function runTests(sync) {
     });
 
     stream.on('ready', common.mustCall(() => {
-      ok(stream.write('hello world\n'));
-      ok(stream.write('something else\n'));
+      assert.ok(stream.write('hello world\n'));
+      assert.ok(stream.write('something else\n'));
       stream.end();
       stream.on('finish', common.mustCall(() => {
         readFile(dest, 'utf8', common.mustSucceed((data) => {
-          strictEqual(data, 'hello world\nsomething else\n');
+          assert.strictEqual(data, 'hello world\nsomething else\n');
         }));
       }));
     }));
@@ -91,12 +88,12 @@ function runTests(sync) {
     fd,
     sync: false,
     minLength: 12,
-    retryEAGAIN: (err, writeBufferLen, remainingBufferLen) => {
-      strictEqual(err.code, 'EAGAIN');
-      strictEqual(writeBufferLen, 12);
-      strictEqual(remainingBufferLen, 0);
+    retryEAGAIN: common.mustCall((err, writeBufferLen, remainingBufferLen) => {
+      assert.strictEqual(err.code, 'EAGAIN');
+      assert.strictEqual(writeBufferLen, 12);
+      assert.strictEqual(remainingBufferLen, 0);
       return false; // Don't retry
-    },
+    }),
     fs: {
       write: common.mustCall((...args) => {
         if (errorOnNext) {
@@ -112,16 +109,16 @@ function runTests(sync) {
 
   stream.on('ready', common.mustCall(() => {
     stream.once('error', common.mustCall((err) => {
-      strictEqual(err.code, 'EAGAIN');
-      ok(stream.write('something else\n'));
+      assert.strictEqual(err.code, 'EAGAIN');
+      assert.ok(stream.write('something else\n'));
     }));
 
-    ok(stream.write('hello world\n'));
+    assert.ok(stream.write('hello world\n'));
     stream.end();
 
     stream.on('finish', common.mustCall(() => {
       readFile(dest, 'utf8', common.mustSucceed((data) => {
-        strictEqual(data, 'hello world\nsomething else\n');
+        assert.strictEqual(data, 'hello world\nsomething else\n');
       }));
     }));
   }));
@@ -153,14 +150,14 @@ function runTests(sync) {
   });
 
   stream.on('ready', common.mustCall(() => {
-    ok(stream.write('hello world\n'));
-    ok(stream.write('something else\n'));
+    assert.ok(stream.write('hello world\n'));
+    assert.ok(stream.write('something else\n'));
 
     stream.end();
 
     stream.on('finish', common.mustCall(() => {
       readFile(dest, 'utf8', common.mustSucceed((data) => {
-        strictEqual(data, 'hello world\nsomething else\n');
+        assert.strictEqual(data, 'hello world\nsomething else\n');
       }));
     }));
   }));
@@ -178,12 +175,12 @@ function runTests(sync) {
     fd,
     sync: false,
     minLength: 12,
-    retryEAGAIN: (err, writeBufferLen, remainingBufferLen) => {
-      strictEqual(err.code, 'EBUSY');
-      strictEqual(writeBufferLen, 12);
-      strictEqual(remainingBufferLen, 0);
+    retryEAGAIN: common.mustCall((err, writeBufferLen, remainingBufferLen) => {
+      assert.strictEqual(err.code, 'EBUSY');
+      assert.strictEqual(writeBufferLen, 12);
+      assert.strictEqual(remainingBufferLen, 0);
       return false; // Don't retry
-    },
+    }),
     fs: {
       write: common.mustCall((...args) => {
         if (errorOnNext) {
@@ -199,17 +196,17 @@ function runTests(sync) {
 
   stream.on('ready', common.mustCall(() => {
     stream.once('error', common.mustCall((err) => {
-      strictEqual(err.code, 'EBUSY');
-      ok(stream.write('something else\n'));
+      assert.strictEqual(err.code, 'EBUSY');
+      assert.ok(stream.write('something else\n'));
     }));
 
-    ok(stream.write('hello world\n'));
+    assert.ok(stream.write('hello world\n'));
 
     stream.end();
 
     stream.on('finish', common.mustCall(() => {
       readFile(dest, 'utf8', common.mustSucceed((data) => {
-        strictEqual(data, 'hello world\nsomething else\n');
+        assert.strictEqual(data, 'hello world\nsomething else\n');
       }));
     }));
   }));

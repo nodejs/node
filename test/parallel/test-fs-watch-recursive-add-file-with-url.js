@@ -34,13 +34,13 @@ tmpdir.refresh();
 
   const watcher = fs.watch(url, { recursive: true });
   let watcherClosed = false;
-  watcher.on('change', function(event, filename) {
+  watcher.on('change', common.mustCallAtLeast((event, filename) => {
     if (filename === path.basename(filePath)) {
       assert.strictEqual(event, 'rename');
       watcher.close();
       watcherClosed = true;
     }
-  });
+  }));
 
   await setTimeout(common.platformTimeout(100));
   fs.writeFileSync(filePath, 'world');
