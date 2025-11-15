@@ -22,9 +22,9 @@ const assert = require('node:assert');
     });
   });
 
-  child.once('exit', (_, signal) => {
+  child.once('exit', common.mustCall((_, signal) => {
     assert.strictEqual(signal, 'SIGTERM');
-  });
+  }));
 
   const socket = new WebSocket(url);
 
