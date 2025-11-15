@@ -19,6 +19,14 @@ inline v8::Maybe<bool> ProcessEmitWarning(Environment* env,
   return ProcessEmitWarningGeneric(env, warning.c_str());
 }
 
+template <typename... Args>
+inline v8::Maybe<void> ProcessEmitWarningSync(Environment* env,
+                                              const char* fmt,
+                                              Args&&... args) {
+  std::string warning = SPrintF(fmt, std::forward<Args>(args)...);
+  return ProcessEmitWarningSync(env, warning);
+}
+
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
