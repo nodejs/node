@@ -2,10 +2,7 @@
 
 const common = require('../common');
 const tmpdir = require('../common/tmpdir');
-const {
-  ok,
-  strictEqual,
-} = require('node:assert');
+const assert = require('node:assert');
 const {
   openSync,
   readFile,
@@ -37,14 +34,14 @@ function runTests(sync) {
     const fd = openSync(dest, 'w');
     const stream = new Utf8Stream({ fd, sync });
     stream.on('ready', common.mustCall(() => {
-      ok(stream.write('hello world\n'));
-      ok(stream.write('something else\n'));
+      assert.ok(stream.write('hello world\n'));
+      assert.ok(stream.write('something else\n'));
 
       stream.end();
 
       stream.on('finish', common.mustCall(() => {
         readFile(dest, 'utf8', common.mustSucceed((data) => {
-          strictEqual(data, 'hello world\nsomething else\n');
+          assert.strictEqual(data, 'hello world\nsomething else\n');
         }));
       }));
     }));
@@ -57,19 +54,19 @@ function runTests(sync) {
 
     stream.once('drain', common.mustCall(() => {
       readFile(dest, 'utf8', common.mustSucceed((data) => {
-        strictEqual(data, 'hello world\n');
-        ok(stream.write('something else\n'));
+        assert.strictEqual(data, 'hello world\n');
+        assert.ok(stream.write('something else\n'));
 
         stream.once('drain', common.mustCall(() => {
           readFile(dest, 'utf8', common.mustSucceed((data) => {
-            strictEqual(data, 'hello world\nsomething else\n');
+            assert.strictEqual(data, 'hello world\nsomething else\n');
             stream.end();
           }));
         }));
       }));
     }));
 
-    ok(stream.write('hello world\n'));
+    assert.ok(stream.write('hello world\n'));
   };
 
   {
@@ -83,7 +80,7 @@ function runTests(sync) {
     stream.on('finish', common.mustCall(() => {
       readFile(__filename, 'utf8', common.mustSucceed((expected) => {
         readFile(dest, 'utf8', common.mustSucceed((data) => {
-          strictEqual(data, expected);
+          assert.strictEqual(data, expected);
         }));
       }));
     }));
@@ -94,14 +91,14 @@ function runTests(sync) {
     const stream = new Utf8Stream({ dest, sync });
 
     stream.on('ready', common.mustCall(() => {
-      ok(stream.write('hello world\n'));
-      ok(stream.write('something else\n'));
+      assert.ok(stream.write('hello world\n'));
+      assert.ok(stream.write('something else\n'));
 
       stream.end();
 
       stream.on('finish', common.mustCall(() => {
         readFile(dest, 'utf8', common.mustSucceed((data) => {
-          strictEqual(data, 'hello world\nsomething else\n');
+          assert.strictEqual(data, 'hello world\nsomething else\n');
         }));
       }));
     }));
@@ -112,20 +109,20 @@ function runTests(sync) {
     const stream = new Utf8Stream({ dest, minLength: 4096, sync });
 
     stream.on('ready', common.mustCall(() => {
-      ok(stream.write('hello world\n'));
-      ok(stream.write('something else\n'));
+      assert.ok(stream.write('hello world\n'));
+      assert.ok(stream.write('something else\n'));
 
       stream.on('drain', common.mustNotCall());
 
       setTimeout(common.mustCall(() => {
         readFile(dest, 'utf8', common.mustSucceed((data) => {
-          strictEqual(data, ''); // Should be empty due to minLength
+          assert.strictEqual(data, ''); // Should be empty due to minLength
 
           stream.end();
 
           stream.on('finish', common.mustCall(() => {
             readFile(dest, 'utf8', common.mustSucceed((data) => {
-              strictEqual(data, 'hello world\nsomething else\n');
+              assert.strictEqual(data, 'hello world\nsomething else\n');
             }));
           }));
         }));
@@ -167,15 +164,15 @@ function runTests(sync) {
 
     stream.on('ready', common.mustCall(() => {
       stream.on('error', common.mustCall());
-      ok(stream.write('hello world\n'));
+      assert.ok(stream.write('hello world\n'));
 
       setTimeout(common.mustCall(() => {
         throwOnNext = false;
-        ok(stream.write('something else\n'));
+        assert.ok(stream.write('something else\n'));
         stream.end();
         stream.on('finish', common.mustCall(() => {
           readFile(dest, 'utf8', common.mustSucceed((data) => {
-            strictEqual(data, 'hello world\nsomething else\n');
+            assert.strictEqual(data, 'hello world\nsomething else\n');
           }));
         }));
       }), 10);
@@ -192,15 +189,15 @@ function runTests(sync) {
         length += bytes;
       });
 
-      ok(stream.write('hello world\n'));
-      ok(stream.write('something else\n'));
+      assert.ok(stream.write('hello world\n'));
+      assert.ok(stream.write('something else\n'));
 
       stream.end();
 
       stream.on('finish', common.mustCall(() => {
         readFile(dest, 'utf8', common.mustSucceed((data) => {
-          strictEqual(data, 'hello world\nsomething else\n');
-          strictEqual(length, 27);
+          assert.strictEqual(data, 'hello world\nsomething else\n');
+          assert.strictEqual(length, 27);
         }));
       }));
     }));
@@ -229,14 +226,14 @@ function runTests(sync) {
     }
   });
   stream.on('ready', common.mustCall(() => {
-    ok(stream.write('hello world\n'));
-    ok(stream.write('something else\n'));
+    assert.ok(stream.write('hello world\n'));
+    assert.ok(stream.write('something else\n'));
 
     stream.end();
 
     stream.on('finish', common.mustCall(() => {
       readFile(dest, 'utf8', common.mustSucceed((data) => {
-        strictEqual(data, 'hello world\nsomething else\n');
+        assert.strictEqual(data, 'hello world\nsomething else\n');
       }));
     }));
   }));
@@ -260,7 +257,7 @@ function runTests(sync) {
 
   stream.on('finish', common.mustCall(() => {
     stat(dest, common.mustSucceed((stat) => {
-      strictEqual(stat.size, length);
+      assert.strictEqual(stat.size, length);
     }));
   }));
 }
@@ -268,6 +265,6 @@ function runTests(sync) {
 {
   const dest = getTempFile();
   const stream = new Utf8Stream({ dest, maxLength: 65536 });
-  strictEqual(stream.maxLength, 65536);
+  assert.strictEqual(stream.maxLength, 65536);
   stream.end();
 }

@@ -34,13 +34,13 @@ const childrenRelativePath = path.join(path.basename(filePath), childrenFile);
 let watcherClosed = false;
 
 const watcher = fs.watch(testDirectory, { recursive: true });
-watcher.on('change', function(event, filename) {
+watcher.on('change', common.mustCallAtLeast((event, filename) => {
   if (filename === childrenRelativePath) {
     assert.strictEqual(event, 'rename');
     watcher.close();
     watcherClosed = true;
   }
-});
+}));
 
 // Do the write with a delay to ensure that the OS is ready to notify us.
 setTimeout(() => {

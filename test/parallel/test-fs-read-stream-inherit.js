@@ -52,7 +52,7 @@ const rangeFile = fixtures.path('x.txt');
 {
   const file = fs.createReadStream(fn, { __proto__: { encoding: 'utf8' } });
   file.length = 0;
-  file.on('data', function(data) {
+  file.on('data', common.mustCallAtLeast((data) => {
     assert.strictEqual(typeof data, 'string');
     file.length += data.length;
 
@@ -60,7 +60,7 @@ const rangeFile = fixtures.path('x.txt');
       // http://www.fileformat.info/info/unicode/char/2026/index.htm
       assert.strictEqual(data[i], '\u2026');
     }
-  });
+  }));
 
   file.on('close', common.mustCall(function() {
     assert.strictEqual(file.length, 10000);

@@ -90,19 +90,17 @@ fs.promises.access(readOnlyFile, fs.constants.R_OK)
   .catch(throwNextTick);
 
 {
-  const expectedError = (err) => {
+  const expectedError = common.mustCall((err) => {
     assert.notStrictEqual(err, null);
     assert.strictEqual(err.code, 'ENOENT');
     assert.strictEqual(err.path, doesNotExist);
-  };
-  const expectedErrorPromise = (err) => {
+  }, 2);
+  fs.access(doesNotExist, expectedError);
+  assert.rejects(fs.promises.access(doesNotExist), (err) => {
     expectedError(err);
     assert.match(err.stack, /at async Object\.access/);
-  };
-  fs.access(doesNotExist, common.mustCall(expectedError));
-  fs.promises.access(doesNotExist)
-    .then(common.mustNotCall(), common.mustCall(expectedErrorPromise))
-    .catch(throwNextTick);
+    return true;
+  }).then(common.mustCall());
 }
 
 {
@@ -122,19 +120,18 @@ fs.promises.access(readOnlyFile, fs.constants.R_OK)
 }
 
 {
-  const expectedError = (err) => {
+  const expectedError = common.mustCall((err) => {
     assert.strictEqual(err.code, 'ERR_INVALID_ARG_TYPE');
     assert.ok(err instanceof TypeError);
     return true;
-  };
+  }, 2);
   assert.throws(
     () => { fs.access(100, fs.constants.F_OK, common.mustNotCall()); },
     expectedError
   );
 
-  fs.promises.access(100, fs.constants.F_OK)
-    .then(common.mustNotCall(), common.mustCall(expectedError))
-    .catch(throwNextTick);
+  assert.rejects(fs.promises.access(100, fs.constants.F_OK), expectedError)
+    .then(common.mustCall());
 }
 
 assert.throws(
