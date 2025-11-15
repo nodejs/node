@@ -1,4 +1,5 @@
 // Flags: --expose-internals --no-warnings
+import {} from '../common/index.mjs';
 import {
   rejects,
 } from 'node:assert';
