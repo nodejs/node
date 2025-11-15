@@ -1423,14 +1423,17 @@ bool DataQueueFeeder::HasInstance(Environment* env, Local<Value> object) {
   return GetConstructorTemplate(env)->HasInstance(object);
 }
 
-Local<FunctionTemplate> DataQueueFeeder::GetConstructorTemplate(Environment* env) {
+Local<FunctionTemplate> DataQueueFeeder::GetConstructorTemplate(
+  Environment* env
+) {
   Local<FunctionTemplate> tmpl = env->data_queue_feeder_constructor_template();
   if (tmpl.IsEmpty()) {
     Isolate* isolate = env->isolate();
-    tmpl = NewFunctionTemplate(isolate, DataQueueFeeder::New); // second argument was nullptr
+    tmpl = NewFunctionTemplate(isolate, DataQueueFeeder::New);
     tmpl->InstanceTemplate()->SetInternalFieldCount(
         BaseObject::kInternalFieldCount);
-    tmpl->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "DataQueueFeeder"));
+    tmpl->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(),
+      "DataQueueFeeder"));
     tmpl->Inherit(AsyncWrap::GetConstructorTemplate(env));
     env->set_data_queue_feeder_constructor_template(tmpl);
     SetProtoMethod(isolate, tmpl, "error", Error);
@@ -1468,7 +1471,11 @@ void DataQueueFeeder::RegisterExternalReferences(
 
 }  // namespace node
 
-NODE_BINDING_CONTEXT_AWARE_INTERNAL(dataqueuefeeder,
-                                    node::DataQueueFeeder::CreatePerContextProperties)
-NODE_BINDING_PER_ISOLATE_INIT(dataqueuefeeder, node::DataQueueFeeder::CreatePerIsolateProperties)
-NODE_BINDING_EXTERNAL_REFERENCE(dataqueuefeeder, node::DataQueueFeeder::RegisterExternalReferences)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(
+  dataqueuefeeder,
+  node::DataQueueFeeder::CreatePerContextProperties
+)
+NODE_BINDING_PER_ISOLATE_INIT(dataqueuefeeder,
+  node::DataQueueFeeder::CreatePerIsolateProperties)
+NODE_BINDING_EXTERNAL_REFERENCE(dataqueuefeeder,
+  node::DataQueueFeeder::RegisterExternalReferences)
