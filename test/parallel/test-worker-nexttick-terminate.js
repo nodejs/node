@@ -13,5 +13,5 @@ process.nextTick(() => {
 `, { eval: true });
 
 w.on('message', common.mustCall(() => {
-  setTimeout(() => w.terminate().then(common.mustCall()), 1);
+  setTimeout(common.mustCall(() => w.terminate().then(common.mustCall())), 1);
 }));

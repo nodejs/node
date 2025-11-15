@@ -197,7 +197,7 @@ export default [
         Array.from({ length: 4 }, (_, i) => String.fromCharCode(0x61 + i, 42)).join(',')
       },${
         // 0x61 is code for 'a', this generates a string enumerating latin letters: 'z*,y*,…'
-        Array.from({ length: 2 }, (_, i) => String.fromCharCode(0x61 + 25 - i, 42)).join(',')
+        Array.from({ length: 5 }, (_, i) => String.fromCharCode(0x61 + 25 - i, 42)).join(',')
       }}.{js,mjs,cjs}`,
     ],
     rules: {

@@ -1,6 +1,6 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
 const { describe, it } = require('node:test');
 const assert = require('node:assert');
 const { Worker } = require('worker_threads');
@@ -26,7 +26,7 @@ describe('Web Locks - query missing WPT tests', () => {
       worker.once('message', resolve);
     });
 
-    await navigator.locks.request('different-contexts-resource', { mode: 'shared' }, async (lock) => {
+    await navigator.locks.request('different-contexts-resource', { mode: 'shared' }, common.mustCall(async (lock) => {
       const state = await navigator.locks.query();
       const heldLocks = state.held.filter((l) => l.name === 'different-contexts-resource');
 
@@ -35,7 +35,7 @@ describe('Web Locks - query missing WPT tests', () => {
       assert.notStrictEqual(mainClientId, workerResult.clientId);
 
       worker.postMessage('release');
-    });
+    }));
 
     await worker.terminate();
   });
@@ -67,7 +67,7 @@ describe('Web Locks - query missing WPT tests', () => {
     });
     assert.strictEqual(step1.acquired, 'resource1');
 
-    await navigator.locks.request('deadlock-resource-2', async (lock2) => {
+    await navigator.locks.request('deadlock-resource-2', common.mustCall(async (lock2) => {
       worker.postMessage('try-resource2');
 
       const step2 = await new Promise((resolve) => {
@@ -85,7 +85,7 @@ describe('Web Locks - query missing WPT tests', () => {
       assert(resource2Lock);
 
       worker.postMessage('release');
-    });
+    }));
 
     await worker.terminate();
   });
