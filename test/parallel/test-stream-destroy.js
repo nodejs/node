@@ -50,7 +50,7 @@ const http = require('http');
 }
 
 {
-  const server = http.createServer((req, res) => {
+  const server = http.createServer(common.mustCallAtLeast((req, res) => {
     destroy(req);
     req.on('error', common.mustCall((err) => {
       assert.strictEqual(err.name, 'AbortError');
@@ -58,16 +58,16 @@ const http = require('http');
     req.on('close', common.mustCall(() => {
       res.end('hello');
     }));
-  });
+  }));
 
-  server.listen(0, () => {
+  server.listen(0, common.mustCall(() => {
     const req = http.request({
       method: 'POST',
       port: server.address().port,
       agent: new http.Agent()
     });
 
-    req.on('response', (res) => {
+    req.on('response', common.mustCall((res) => {
       const buf = [];
       res.on('data', (data) => buf.push(data));
       res.on('end', common.mustCall(() => {
@@ -77,14 +77,14 @@ const http = require('http');
         );
         server.close();
       }));
-    });
+    }));
 
     req.end('asd');
-  });
+  }));
 }
 
 {
-  const server = http.createServer((req, res) => {
+  const server = http.createServer(common.mustCallAtLeast((req, res) => {
     req
       .resume()
       .on('end', () => {
@@ -95,15 +95,15 @@ const http = require('http');
     req.on('close', common.mustCall(() => {
       res.end('hello');
     }));
-  });
+  }));
 
-  server.listen(0, () => {
+  server.listen(0, common.mustCall(() => {
     const req = http.request({
       method: 'POST',
       port: server.address().port,
       agent: new http.Agent()
     });
-    req.on('response', (res) => {
+    req.on('response', common.mustCall((res) => {
       const buf = [];
       res.on('data', (data) => buf.push(data));
       res.on('end', common.mustCall(() => {
@@ -113,8 +113,8 @@ const http = require('http');
         );
         server.close();
       }));
-    });
+    }));
 
     req.end('asd');
-  });
+  }));
 }
