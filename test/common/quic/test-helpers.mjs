@@ -1,9 +1,9 @@
-import assert from "node:assert";
+import assert from 'node:assert';
 // start demo data
 // taken from @fails-components/webtransport tests
 // by the original author
 function createBytesChunk(length) {
-  assert(length % 4 === 0);
+  assert.strictEqual(length % 4, 0);
   const workArray = new Array(length / 2);
   for (let i = 0; i < length / 4; i++) {
     workArray[2 * i + 1] = length % 0xffff;
@@ -48,8 +48,18 @@ export function uint8concat(arrays) {
 }
 
 export function equalUint8Arrays(arr1, arr2) {
-  assert.ok(arr1.byteLength === arr2.byteLength, "Array content differs in length " + arr1.byteLength + " vs. " + arr2.byteLength);
+  assert.ok(arr1.byteLength === arr2.byteLength,
+            'Array content differs in length ' +
+            arr1.byteLength +
+            ' vs. ' +
+            arr2.byteLength);
   for (let i = 0; i < arr1.byteLength; i++) {
-    assert.ok(arr1[i] === arr2[i], "Array content differs at " + i + " arr1: " + arr1[i] + " arr2: " + arr2[i]);
+    assert.ok(arr1[i] === arr2[i],
+              'Array content differs at ' +
+              i +
+              ' arr1: ' +
+              arr1[i] +
+              ' arr2: ' +
+              arr2[i]);
   }
 }
