@@ -323,8 +323,7 @@ class DataQueueFeeder final : public AsyncWrap {
 
   DataQueueFeeder(Environment* env, v8::Local<v8::Object> object);
 
-  static void RegisterExternalReferences(
-    ExternalReferenceRegistry* registry);
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 
   static BaseObjectPtr<DataQueueFeeder> Create();
 
