@@ -1,6 +1,5 @@
 'use strict';
 const common = require('../common');
-const assert = require('assert');
 const net = require('net');
 const http = require('http');
 
@@ -8,8 +7,6 @@ const http = require('http');
 // When send large response enough to exceed highWaterMark, it expect the socket
 // to be paused and res.write would be failed.
 // And it should be resumed when outgoingData falls below highWaterMark.
-
-let requestReceived = 0;
 
 const server = http.createServer(common.mustNotCall()).on('listening', () => {
   const c = net.createConnection(server.address().port, () => {
