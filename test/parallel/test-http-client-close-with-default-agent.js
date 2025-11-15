@@ -10,11 +10,11 @@ const server = http.createServer(function(req, res) {
 });
 
 server.listen(0, common.mustCall(() => {
-  const req = http.get({ port: server.address().port }, (res) => {
+  const req = http.get({ port: server.address().port }, common.mustCall((res) => {
     assert.strictEqual(res.statusCode, 200);
     res.resume();
     server.close();
-  });
+  }));
 
   req.end();
 }));

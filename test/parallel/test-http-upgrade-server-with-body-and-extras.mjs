@@ -9,7 +9,7 @@ const upgradeReceivedResolvers = Promise.withResolvers();
 
 const server = http.createServer();
 server.on('request', common.mustNotCall());
-server.on('upgrade', function(req, socket, upgradeHead) {
+server.on('upgrade', common.mustCall(function(req, socket, upgradeHead) {
   upgradeReceivedResolvers.resolve();
 
   // Confirm the upgrade:
@@ -41,7 +41,7 @@ server.on('upgrade', function(req, socket, upgradeHead) {
       }));
     }), 10);
   }));
-});
+}));
 
 await new Promise((resolve) => server.listen(0, () => resolve()));
 
