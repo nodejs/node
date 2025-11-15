@@ -1,8 +1,6 @@
 // Flags: --expose-internals --no-warnings
 import {} from '../common/index.mjs';
-import {
-  rejects,
-} from 'node:assert';
+import assert from 'node:assert';
 
 const { internalBinding } = (await import('internal/test/binding')).default;
 
@@ -26,10 +24,10 @@ await lastprom;
 lastprom = feeder.submit(new Uint8Array([1, 2, 3]).buffer, false);
 feeder.addFakePull();
 await lastprom;
-await rejects(async () => feeder.submit({}, false), {
+await assert.rejects(async () => feeder.submit({}, false), {
   code: 'ERR_INVALID_ARG_TYPE',
 });
-await rejects(async () => feeder.submit([], false), {
+await assert.rejects(async () => feeder.submit([], false), {
   code: 'ERR_INVALID_ARG_TYPE',
 });
 await feeder.submit(undefined, true);

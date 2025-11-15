@@ -1424,7 +1424,7 @@ bool DataQueueFeeder::HasInstance(Environment* env, Local<Value> object) {
 }
 
 Local<FunctionTemplate> DataQueueFeeder::GetConstructorTemplate(
-  Environment* env) {
+    Environment* env) {
   Local<FunctionTemplate> tmpl = env->data_queue_feeder_constructor_template();
   if (tmpl.IsEmpty()) {
     Isolate* isolate = env->isolate();
@@ -1432,7 +1432,7 @@ Local<FunctionTemplate> DataQueueFeeder::GetConstructorTemplate(
     tmpl->InstanceTemplate()->SetInternalFieldCount(
         BaseObject::kInternalFieldCount);
     tmpl->SetClassName(
-      FIXED_ONE_BYTE_STRING(env->isolate(), "DataQueueFeeder"));
+        FIXED_ONE_BYTE_STRING(env->isolate(), "DataQueueFeeder"));
     tmpl->Inherit(AsyncWrap::GetConstructorTemplate(env));
     env->set_data_queue_feeder_constructor_template(tmpl);
     SetProtoMethod(isolate, tmpl, "error", Error);
@@ -1444,13 +1444,12 @@ Local<FunctionTemplate> DataQueueFeeder::GetConstructorTemplate(
 }
 
 void DataQueueFeeder::CreatePerIsolateProperties(IsolateData* isolate_data,
-                                         v8::Local<v8::ObjectTemplate> target) {
-}
+                                         v8::Local<v8::ObjectTemplate> target) {}
 
 void DataQueueFeeder::CreatePerContextProperties(v8::Local<v8::Object> target,
-                                         v8::Local<v8::Value> unused,
-                                         v8::Local<v8::Context> context,
-                                         void* priv) {
+                                                 v8::Local<v8::Value> unused,
+                                                 v8::Local<v8::Context> context,
+                                                 void* priv) {
   Environment* env = Environment::GetCurrent(context);
   SetConstructorFunction(context,
                          target,
@@ -1474,7 +1473,7 @@ NODE_BINDING_CONTEXT_AWARE_INTERNAL(
   dataqueuefeeder,
   node::DataQueueFeeder::CreatePerContextProperties
 )
-NODE_BINDING_PER_ISOLATE_INIT(dataqueuefeeder,
-  node::DataQueueFeeder::CreatePerIsolateProperties)
+NODE_BINDING_PER_ISOLATE_INIT(
+    dataqueuefeeder, node::DataQueueFeeder::CreatePerIsolateProperties)
 NODE_BINDING_EXTERNAL_REFERENCE(dataqueuefeeder,
-  node::DataQueueFeeder::RegisterExternalReferences)
+    node::DataQueueFeeder::RegisterExternalReferences)
