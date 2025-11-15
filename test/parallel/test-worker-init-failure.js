@@ -29,9 +29,9 @@ if (process.argv[2] === 'child') {
     const worker = new Worker(
       'require(\'worker_threads\').parentPort.postMessage(2 + 2)',
       { eval: true });
-    worker.on('message', (result) => {
+    worker.on('message', common.mustCallAtLeast((result) => {
       assert.strictEqual(result, 4);
-    });
+    }, 0));
 
     // We want to test that if there is an error in a constrained running
     // environment, it will be one of `ENFILE`, `EMFILE`, 'ENOENT', or
@@ -40,9 +40,9 @@ if (process.argv[2] === 'child') {
 
     // `common.mustCall*` cannot be used here as in some environments
     // (i.e. single cpu) `ulimit` may not lead to such an error.
-    worker.on('error', (e) => {
+    worker.on('error', common.mustCallAtLeast((e) => {
       assert.ok(expected.includes(e.code), `${e.code} not expected`);
-    });
+    }, 0));
   }
 
 } else {

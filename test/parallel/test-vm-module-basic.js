@@ -166,13 +166,13 @@ const util = require('util');
   const module = new SyntheticModule([], () => {});
   module.link(() => {});
   const f = compileFunction('return import("x")', [], {
-    importModuleDynamically(specifier, referrer) {
+    importModuleDynamically: common.mustCall((specifier, referrer) => {
       assert.strictEqual(specifier, 'x');
       assert.strictEqual(referrer, f);
       return module;
-    },
+    }),
   });
   f().then((ns) => {
     assert.strictEqual(ns, module.namespace);
-  });
+  }).then(common.mustCall());
 }

@@ -144,7 +144,7 @@ async function asserts() {
   const m = new SourceTextModule(`
   import "foo" with { n1: 'v1', n2: 'v2' };
   `, { identifier: 'm' });
-  await m.link((s, r, p) => {
+  await m.link(common.mustCall((s, r, p) => {
     assert.strictEqual(s, 'foo');
     assert.strictEqual(r.identifier, 'm');
     assert.strictEqual(p.attributes.n1, 'v1');
@@ -152,7 +152,7 @@ async function asserts() {
     assert.strictEqual(p.attributes.n2, 'v2');
     assert.strictEqual(p.assert.n2, 'v2');
     return new SourceTextModule('');
-  });
+  }));
 }
 
 const finished = common.mustCall();
