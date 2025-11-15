@@ -15,7 +15,7 @@ const {
 const fname = fixtures.path('elipses.txt');
 
 const server = http2.createServer();
-server.on('stream', (stream) => {
+server.on('stream', common.mustCall((stream) => {
   assert.throws(() => {
     stream.respondWithFile(fname, {
       [HTTP2_HEADER_STATUS]: 204,
@@ -28,8 +28,8 @@ server.on('stream', (stream) => {
   });
   stream.respond({});
   stream.end();
-});
-server.listen(0, () => {
+}));
+server.listen(0, common.mustCall(() => {
   const client = http2.connect(`http://localhost:${server.address().port}`);
   const req = client.request();
   req.on('response', common.mustCall());
@@ -39,4 +39,4 @@ server.listen(0, () => {
     server.close();
   }));
   req.end();
-});
+}));

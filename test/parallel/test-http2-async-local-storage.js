@@ -25,7 +25,7 @@ server.on('stream', (stream) => {
   stream.end('data');
 });
 
-server.listen(0, async () => {
+server.listen(0, common.mustCall(async () => {
   const client = storage.run({ id: 0 }, () => http2.connect(`http://localhost:${server.address().port}`));
 
   async function doReq(id) {
@@ -52,4 +52,4 @@ server.listen(0, async () => {
 
   doReqWith(1);
   doReqWith(2);
-});
+}));
