@@ -2,10 +2,7 @@
 
 const common = require('../common');
 const tmpdir = require('../common/tmpdir');
-const {
-  ok,
-  strictEqual,
-} = require('node:assert');
+const assert = require('node:assert');
 const {
   openSync,
   fsyncSync,
@@ -57,7 +54,7 @@ function runTests(sync) {
     });
 
     stream.on('ready', common.mustCall(() => {
-      ok(stream.write('hello world\n'));
+      assert.ok(stream.write('hello world\n'));
 
       stream.flush(common.mustSucceed(() => stream.end()));
     }));
@@ -94,10 +91,10 @@ function runTests(sync) {
     });
 
     stream.on('ready', common.mustCall(() => {
-      ok(stream.write('hello world\n'));
+      assert.ok(stream.write('hello world\n'));
       stream.flush(common.mustCall((err) => {
-        ok(err, 'flush should return an error');
-        strictEqual(err.code, 'ETEST');
+        assert.ok(err, 'flush should return an error');
+        assert.strictEqual(err.code, 'ETEST');
         stream.end();
       }));
     }));

@@ -10,10 +10,9 @@ const assert = require('assert');
 const fs = require('fs');
 
 if (process.argv[2] === 'child') {
-  fs.readFile('/dev/stdin', function(er, data) {
-    assert.ifError(er);
+  fs.readFile('/dev/stdin', common.mustSucceed((data) => {
     process.stdout.write(data);
-  });
+  }));
   return;
 }
 

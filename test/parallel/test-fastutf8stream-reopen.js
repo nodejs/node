@@ -2,11 +2,7 @@
 
 const common = require('../common');
 const tmpdir = require('../common/tmpdir');
-const {
-  ok,
-  strictEqual,
-  throws,
-} = require('node:assert');
+const assert = require('node:assert');
 const {
   open,
   openSync,
@@ -37,8 +33,8 @@ function runTests(sync) {
     const dest = getTempFile();
     const stream = new Utf8Stream({ dest, sync });
 
-    ok(stream.write('hello world\n'));
-    ok(stream.write('something else\n'));
+    assert.ok(stream.write('hello world\n'));
+    assert.ok(stream.write('something else\n'));
 
     const after = dest + '-moved';
 
@@ -47,13 +43,13 @@ function runTests(sync) {
       stream.reopen();
 
       stream.once('ready', common.mustCall(() => {
-        ok(stream.write('after reopen\n'));
+        assert.ok(stream.write('after reopen\n'));
 
         stream.once('drain', common.mustCall(() => {
           readFile(after, 'utf8', common.mustSucceed((data) => {
-            strictEqual(data, 'hello world\nsomething else\n');
+            assert.strictEqual(data, 'hello world\nsomething else\n');
             readFile(dest, 'utf8', common.mustSucceed((data) => {
-              strictEqual(data, 'after reopen\n');
+              assert.strictEqual(data, 'after reopen\n');
               stream.end();
             }));
           }));
@@ -66,8 +62,8 @@ function runTests(sync) {
     const dest = getTempFile();
     const stream = new Utf8Stream({ dest, sync });
 
-    ok(stream.write('hello world\n'));
-    ok(stream.write('something else\n'));
+    assert.ok(stream.write('hello world\n'));
+    assert.ok(stream.write('something else\n'));
 
     stream.reopen();
     stream.end();
@@ -79,23 +75,23 @@ function runTests(sync) {
     const dest = getTempFile();
     const stream = new Utf8Stream({ dest, minLength: 0, sync });
 
-    ok(stream.write('hello world\n'));
-    ok(stream.write('something else\n'));
+    assert.ok(stream.write('hello world\n'));
+    assert.ok(stream.write('something else\n'));
 
     const after = dest + '-new';
 
     stream.once('drain', common.mustCall(() => {
       stream.reopen(after);
-      strictEqual(stream.file, after);
+      assert.strictEqual(stream.file, after);
 
       stream.once('ready', common.mustCall(() => {
-        ok(stream.write('after reopen\n'));
+        assert.ok(stream.write('after reopen\n'));
 
         stream.once('drain', common.mustCall(() => {
           readFile(dest, 'utf8', common.mustSucceed((data) => {
-            strictEqual(data, 'hello world\nsomething else\n');
+            assert.strictEqual(data, 'hello world\nsomething else\n');
             readFile(after, 'utf8', common.mustSucceed((data) => {
-              strictEqual(data, 'after reopen\n');
+              assert.strictEqual(data, 'after reopen\n');
               stream.end();
             }));
           }));
@@ -134,8 +130,8 @@ function runTests(sync) {
       fs: fsOverride,
     });
 
-    ok(stream.write('hello world\n'));
-    ok(stream.write('something else\n'));
+    assert.ok(stream.write('hello world\n'));
+    assert.ok(stream.write('something else\n'));
 
     const after = dest + '-moved';
     stream.on('error', common.mustCall());
@@ -144,18 +140,18 @@ function runTests(sync) {
       renameSync(dest, after);
       throwOnNextOpen = true;
       if (sync) {
-        throws(() => stream.reopen(), err);
+        assert.throws(() => stream.reopen(), err);
       } else {
         stream.reopen();
       }
 
       setTimeout(common.mustCall(() => {
-        ok(stream.write('after reopen\n'));
+        assert.ok(stream.write('after reopen\n'));
 
         stream.end();
         stream.on('finish', common.mustCall(() => {
           readFile(after, 'utf8', common.mustSucceed((data) => {
-            strictEqual(data, 'hello world\nsomething else\nafter reopen\n');
+            assert.strictEqual(data, 'hello world\nsomething else\nafter reopen\n');
           }));
         }));
       }), 10);
@@ -166,8 +162,8 @@ function runTests(sync) {
     const dest = getTempFile();
     const stream = new Utf8Stream({ dest, sync });
 
-    ok(stream.write('hello world\n'));
-    ok(stream.write('something else\n'));
+    assert.ok(stream.write('hello world\n'));
+    assert.ok(stream.write('something else\n'));
 
     const after = dest + '-moved';
     stream.once('drain', common.mustCall(() => {
@@ -175,13 +171,13 @@ function runTests(sync) {
       stream.reopen();
 
       stream.once('drain', common.mustCall(() => {
-        ok(stream.write('after reopen\n'));
+        assert.ok(stream.write('after reopen\n'));
 
         stream.once('drain', common.mustCall(() => {
           readFile(after, 'utf8', common.mustSucceed((data) => {
-            strictEqual(data, 'hello world\nsomething else\n');
+            assert.strictEqual(data, 'hello world\nsomething else\n');
             readFile(dest, 'utf8', common.mustSucceed((data) => {
-              strictEqual(data, 'after reopen\n');
+              assert.strictEqual(data, 'after reopen\n');
               stream.end();
             }));
           }));

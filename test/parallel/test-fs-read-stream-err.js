@@ -42,7 +42,7 @@ fs.close = common.mustCall((fd_, cb) => {
 });
 
 const read = fs.read;
-fs.read = function() {
+fs.read = common.mustCall(function() {
   // First time is ok.
   read.apply(fs, arguments);
   // Then it breaks.
@@ -56,7 +56,7 @@ fs.read = function() {
       throw new Error('BOOM!');
     };
   });
-};
+});
 
 stream.on('data', (buf) => {
   stream.on('data', common.mustNotCall("no more 'data' events should follow"));

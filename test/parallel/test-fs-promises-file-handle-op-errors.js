@@ -31,13 +31,13 @@ async function checkOperationError(op) {
   try {
     const filePath = await createFile();
     Object.defineProperty(FileHandle.prototype, 'fd', {
-      get: function() {
+      get: common.mustCall(function() {
         // Verify that close is called when an error is thrown
         this.close = common.mustCall(this.close);
         const opError = new Error('INTERNAL_ERROR');
         opError.code = 123;
         throw opError;
-      }
+      }),
     });
 
     await assert.rejects(op(filePath), {

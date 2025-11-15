@@ -44,7 +44,7 @@ async function invalidArgType() {
 
   const ee = new EventEmitter();
 
-  [1, 'hi', null, false, () => {}, Symbol(), 1n].map((options) => {
+  [1, 'hi', null, false, () => {}, Symbol(), 1n].forEach((options) => {
     return assert.throws(() => on(ee, 'foo', options), common.expectsError({
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',

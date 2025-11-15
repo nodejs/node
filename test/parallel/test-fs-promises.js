@@ -123,14 +123,14 @@ async function executeOnHandle(dest, func) {
 
     // handle is object
     {
-      await executeOnHandle(dest, async (handle) => {
+      await executeOnHandle(dest, common.mustCall(async (handle) => {
         assert.strictEqual(typeof handle, 'object');
-      });
+      }));
     }
 
     // file stats
     {
-      await executeOnHandle(dest, async (handle) => {
+      await executeOnHandle(dest, common.mustCall(async (handle) => {
         let stats = await handle.stat();
         verifyStatObject(stats);
         assert.strictEqual(stats.size, 35);
@@ -149,7 +149,7 @@ async function executeOnHandle(dest, func) {
 
         await handle.datasync();
         await handle.sync();
-      });
+      }));
     }
 
     // File system stats
@@ -167,7 +167,7 @@ async function executeOnHandle(dest, func) {
     // Test fs.read promises when length to read is zero bytes
     {
       const dest = path.resolve(tmpDir, 'test1.js');
-      await executeOnHandle(dest, async (handle) => {
+      await executeOnHandle(dest, common.mustCall(async (handle) => {
         const buf = Buffer.from('DAWGS WIN');
         const bufLen = buf.length;
         await handle.write(buf);
@@ -175,42 +175,42 @@ async function executeOnHandle(dest, func) {
         assert.strictEqual(ret.bytesRead, 0);
 
         await unlink(dest);
-      });
+      }));
     }
 
     // Use fallback buffer allocation when first argument is null
     {
-      await executeOnHandle(dest, async (handle) => {
+      await executeOnHandle(dest, common.mustCall(async (handle) => {
         const ret = await handle.read(null, 0, 0, 0);
         assert.strictEqual(ret.buffer.length, 16384);
-      });
+      }));
     }
 
     // TypeError if buffer is not ArrayBufferView or nullable object
     {
-      await executeOnHandle(dest, async (handle) => {
+      await executeOnHandle(dest, common.mustCall(async (handle) => {
         await assert.rejects(
           async () => handle.read(0, 0, 0, 0),
           { code: 'ERR_INVALID_ARG_TYPE' }
         );
-      });
+      }));
     }
 
     // Bytes written to file match buffer
     {
-      await executeOnHandle(dest, async (handle) => {
+      await executeOnHandle(dest, common.mustCall(async (handle) => {
         const buf = Buffer.from('hello fsPromises');
         const bufLen = buf.length;
         await handle.write(buf);
         const ret = await handle.read(Buffer.alloc(bufLen), 0, bufLen, 0);
         assert.strictEqual(ret.bytesRead, bufLen);
         assert.deepStrictEqual(ret.buffer, buf);
-      });
+      }));
     }
 
     // Truncate file to specified length
     {
-      await executeOnHandle(dest, async (handle) => {
+      await executeOnHandle(dest, common.mustCall(async (handle) => {
         const buf = Buffer.from('hello FileHandle');
         const bufLen = buf.length;
         await handle.write(buf, 0, bufLen, 0);
@@ -219,12 +219,12 @@ async function executeOnHandle(dest, func) {
         assert.deepStrictEqual(ret.buffer, buf);
         await truncate(dest, 5);
         assert.strictEqual((await readFile(dest)).toString(), 'hello');
-      });
+      }));
     }
 
     // Invalid change of ownership
     {
-      await executeOnHandle(dest, async (handle) => {
+      await executeOnHandle(dest, common.mustCall(async (handle) => {
         await chmod(dest, 0o666);
         await handle.chmod(0o666);
 
@@ -257,7 +257,7 @@ async function executeOnHandle(dest, func) {
             message: 'The value of "gid" is out of range. ' +
                       'It must be >= -1 && <= 4294967295. Received -2'
           });
-      });
+      }));
     }
 
     // Set modification times
@@ -483,7 +483,7 @@ async function executeOnHandle(dest, func) {
 
     // Regression test for https://github.com/nodejs/node/issues/38168
     {
-      await executeOnHandle(dest, async (handle) => {
+      await executeOnHandle(dest, common.mustCall(async (handle) => {
         await assert.rejects(
           async () => handle.write('abc', 0, 'hex'),
           {
@@ -494,17 +494,17 @@ async function executeOnHandle(dest, func) {
 
         const ret = await handle.write('abcd', 0, 'hex');
         assert.strictEqual(ret.bytesWritten, 2);
-      });
+      }));
     }
 
     // Test prototype methods calling with contexts other than FileHandle
     {
-      await executeOnHandle(dest, async (handle) => {
+      await executeOnHandle(dest, common.mustCall(async (handle) => {
         await assert.rejects(() => handle.stat.call({}), {
           code: 'ERR_INTERNAL_ASSERTION',
           message: /handle must be an instance of FileHandle/
         });
-      });
+      }));
     }
   }
 

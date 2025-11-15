@@ -21,7 +21,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
 const { internalBinding } = require('internal/test/binding');
@@ -30,10 +30,9 @@ const { internalBinding } = require('internal/test/binding');
 fs.openSync = function() {
   return 42;
 };
-fs.closeSync = function(fd) {
+fs.closeSync = common.mustCall((fd) => {
   assert.strictEqual(fd, 42);
-  close_called++;
-};
+}, 2);
 fs.readSync = function() {
   throw new Error('BAM');
 };
@@ -42,45 +41,28 @@ fs.writeSync = function() {
 };
 
 // Internal fast paths are pure C++, can't error inside write
-internalBinding('fs').writeFileUtf8 = function() {
+internalBinding('fs').writeFileUtf8 = common.mustCall(function() {
   // Fake close
-  close_called++;
   throw new Error('BAM');
-};
+}, 2);
 
 internalBinding('fs').fstat = function() {
   throw new Error('EBADF: bad file descriptor, fstat');
 };
 
-let close_called = 0;
-ensureThrows(function() {
+assert.throws(function() {
   // Fast path: writeFileSync utf8
   fs.writeFileSync('dummy', 'xxx');
-}, 'BAM');
-ensureThrows(function() {
+}, { message: 'BAM' });
+assert.throws(function() {
   // Non-fast path
   fs.writeFileSync('dummy', 'xxx', { encoding: 'base64' });
-}, 'BAM');
-ensureThrows(function() {
+}, { message: 'BAM' });
+assert.throws(function() {
   // Fast path: writeFileSync utf8
   fs.appendFileSync('dummy', 'xxx');
-}, 'BAM');
-ensureThrows(function() {
+}, { message: 'BAM' });
+assert.throws(function() {
   // Non-fast path
   fs.appendFileSync('dummy', 'xxx', { encoding: 'base64' });
-}, 'BAM');
-
-function ensureThrows(cb, message) {
-  let got_exception = false;
-
-  close_called = 0;
-  try {
-    cb();
-  } catch (e) {
-    assert.strictEqual(e.message, message);
-    got_exception = true;
-  }
-
-  assert.strictEqual(close_called, 1);
-  assert.strictEqual(got_exception, true);
-}
+}, { message: 'BAM' });

@@ -46,6 +46,7 @@ if (common.isWindows) {
   // Something like "C:\\"
   root = process.cwd().slice(0, 3);
   assertEqualPath = function(path_left, path_right, message) {
+    // eslint-disable-next-line node-core/must-call-assert
     assert
       .strictEqual(path_left.toLowerCase(), path_right.toLowerCase(), message);
   };
@@ -429,15 +430,13 @@ function test_up_multiple(realpath, realpathSync, cb) {
   assertEqualPath(realpathSync(abedabeda), abedabeda_real);
   assertEqualPath(realpathSync(abedabed), abedabed_real);
 
-  realpath(abedabeda, function(er, real) {
-    assert.ifError(er);
+  realpath(abedabeda, common.mustSucceed((real) => {
     assertEqualPath(abedabeda_real, real);
-    realpath(abedabed, function(er, real) {
-      assert.ifError(er);
+    realpath(abedabed, common.mustSucceed((real) => {
       assertEqualPath(abedabed_real, real);
       cb();
-    });
-  });
+    }));
+  }));
 }
 
 
@@ -472,15 +471,13 @@ function test_up_multiple_with_null_options(realpath, realpathSync, cb) {
   assertEqualPath(realpathSync(abedabeda), abedabeda_real);
   assertEqualPath(realpathSync(abedabed), abedabed_real);
 
-  realpath(abedabeda, null, function(er, real) {
-    assert.ifError(er);
+  realpath(abedabeda, null, common.mustSucceed((real) => {
     assertEqualPath(abedabeda_real, real);
-    realpath(abedabed, null, function(er, real) {
-      assert.ifError(er);
+    realpath(abedabed, null, common.mustSucceed((real) => {
       assertEqualPath(abedabed_real, real);
       cb();
-    });
-  });
+    }));
+  }));
 }
 
 // Absolute symlinks with children.
@@ -548,19 +545,17 @@ function test_abs_with_kids(realpath, realpathSync, cb) {
 
 function test_root(realpath, realpathSync, cb) {
   assertEqualPath(root, realpathSync('/'));
-  realpath('/', function(err, result) {
-    assert.ifError(err);
+  realpath('/', common.mustSucceed((result) => {
     assertEqualPath(root, result);
     cb();
-  });
+  }));
 }
 
 function test_root_with_null_options(realpath, realpathSync, cb) {
-  realpath('/', null, function(err, result) {
-    assert.ifError(err);
+  realpath('/', null, common.mustSucceed((result) => {
     assertEqualPath(root, result);
     cb();
-  });
+  }));
 }
 
 // ----------------------------------------------------------------------------

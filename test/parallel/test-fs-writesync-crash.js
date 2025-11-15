@@ -9,9 +9,7 @@ const {
   openSync,
 } = require('node:fs');
 
-const {
-  throws,
-} = require('node:assert');
+const assert = require('node:assert');
 
 // If a file's mode change after it is opened but before it is written to,
 // and the Object.prototype is manipulated to throw an error when the errno
@@ -39,4 +37,4 @@ Object.defineProperty(Object.prototype, 'errno', {
 const fd = openSync(path);
 chmodSync(path, 0o600);
 
-throws(() => writeSync(fd, 'test'), error);
+assert.throws(() => writeSync(fd, 'test'), error);

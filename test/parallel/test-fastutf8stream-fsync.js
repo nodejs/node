@@ -2,10 +2,7 @@
 
 const common = require('../common');
 const tmpdir = require('../common/tmpdir');
-const {
-  ok,
-  strictEqual,
-} = require('node:assert');
+const assert = require('node:assert');
 const {
   fsyncSync,
   openSync,
@@ -40,12 +37,12 @@ function getTempFile() {
     },
   });
 
-  ok(stream.write('hello world\n'));
-  ok(stream.write('something else\n'));
+  assert.ok(stream.write('hello world\n'));
+  assert.ok(stream.write('something else\n'));
   stream.end();
 
   const data = readFileSync(dest, 'utf8');
-  strictEqual(data, 'hello world\nsomething else\n');
+  assert.strictEqual(data, 'hello world\nsomething else\n');
 }
 
 {
@@ -60,13 +57,13 @@ function getTempFile() {
     }
   });
 
-  ok(stream.write('hello world\n'));
-  ok(stream.write('something else\n'));
+  assert.ok(stream.write('hello world\n'));
+  assert.ok(stream.write('something else\n'));
   stream.end();
 
   stream.on('finish', common.mustCall(() => {
     readFile(dest, 'utf8', common.mustSucceed((data) => {
-      strictEqual(data, 'hello world\nsomething else\n');
+      assert.strictEqual(data, 'hello world\nsomething else\n');
     }));
   }));
 

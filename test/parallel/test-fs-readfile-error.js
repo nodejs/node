@@ -36,12 +36,12 @@ const fixtures = require('../common/fixtures');
 
 function test(env, cb) {
   const filename = fixtures.path('test-fs-readfile-error.js');
-  exec(...common.escapePOSIXShell`"${process.execPath}" "${filename}"`, (err, stdout, stderr) => {
+  exec(...common.escapePOSIXShell`"${process.execPath}" "${filename}"`, common.mustCall((err, stdout, stderr) => {
     assert(err);
     assert.strictEqual(stdout, '');
     assert.notStrictEqual(stderr, '');
     cb(String(stderr));
-  });
+  }));
 }
 
 test({ NODE_DEBUG: '' }, common.mustCall((data) => {

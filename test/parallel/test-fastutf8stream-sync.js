@@ -2,11 +2,7 @@
 
 const common = require('../common');
 const tmpdir = require('../common/tmpdir');
-const {
-  ok,
-  strictEqual,
-  throws,
-} = require('node:assert');
+const assert = require('node:assert');
 const {
   openSync,
   closeSync,
@@ -48,14 +44,14 @@ function getTempFile() {
   });
 
   stream.on('ready', common.mustCall(() => {
-    ok(stream.write('hello world\n'));
-    ok(stream.write('something else\n'));
+    assert.ok(stream.write('hello world\n'));
+    assert.ok(stream.write('something else\n'));
 
     stream.end();
 
     stream.on('finish', common.mustCall(() => {
       readFile(dest, 'utf8', common.mustSucceed((data) => {
-        strictEqual(data, 'hello world\nsomething else\n');
+        assert.strictEqual(data, 'hello world\nsomething else\n');
       }));
     }));
   }));
@@ -79,14 +75,14 @@ function getTempFile() {
   });
 
   stream.on('ready', common.mustCall(() => {
-    ok(stream.write('hello world\n'));
-    ok(stream.write('something else\n'));
+    assert.ok(stream.write('hello world\n'));
+    assert.ok(stream.write('something else\n'));
     stream.flushSync();
     stream.on('write', common.mustNotCall());
     stream.end();
     stream.on('finish', common.mustCall(() => {
       readFile(dest, 'utf8', common.mustSucceed((data) => {
-        strictEqual(data, 'hello world\nsomething else\n');
+        assert.strictEqual(data, 'hello world\nsomething else\n');
       }));
     }));
   }));
@@ -105,12 +101,12 @@ function getTempFile() {
     }
   });
 
-  ok(stream.write('hello world\n'));
-  ok(stream.write('something else\n'));
+  assert.ok(stream.write('hello world\n'));
+  assert.ok(stream.write('something else\n'));
 
   stream.on('drain', common.mustCall(() => {
     const data = readFileSync(dest, 'utf8');
-    strictEqual(data, 'hello world\nsomething else\n');
+    assert.strictEqual(data, 'hello world\nsomething else\n');
   }));
 
 }
@@ -133,7 +129,7 @@ function getTempFile() {
 
   stream.on('finish', common.mustCall(() => {
     stat(dest, common.mustSucceed((stat) => {
-      strictEqual(stat.size, length);
+      assert.strictEqual(stat.size, length);
     }));
   }));
 }
@@ -152,12 +148,12 @@ function getTempFile() {
 
   stream.on('finish', common.mustCall(() => {
     stat(dest, common.mustSucceed((stat) => {
-      strictEqual(stat.size, length);
+      assert.strictEqual(stat.size, length);
       const char = Buffer.alloc(4);
       const readFd = openSync(dest, 'r');
       readSync(readFd, char, 0, 4, length - 4);
       closeSync(readFd);
-      strictEqual(char.toString(), '🌲');
+      assert.strictEqual(char.toString(), '🌲');
     }));
   }));
 }
@@ -166,13 +162,13 @@ function getTempFile() {
   const dest = getTempFile();
 
   const stream = new Utf8Stream({ dest, sync: true });
-  ok(stream.write('hello world\n'));
-  ok(stream.write('something else\n'));
+  assert.ok(stream.write('hello world\n'));
+  assert.ok(stream.write('something else\n'));
   stream.flushSync();
   // If we get here without error, the test passes
   stream.end();
 }
-throws(() => {
+assert.throws(() => {
   new Utf8Stream({ dest: '/path/to/nowhere', sync: true });
 }, /ENOENT|EACCES/);
 
@@ -182,12 +178,12 @@ throws(() => {
   const fd = openSync(dest, 'w');
   const stream = new Utf8Stream({ fd, sync: true });
 
-  ok(stream.write('hello world 👀\n'));
-  ok(stream.write('another line 👀\n'));
+  assert.ok(stream.write('hello world 👀\n'));
+  assert.ok(stream.write('another line 👀\n'));
 
   // Check internal buffer length (may not be available in Utf8Stream)
   // This is implementation-specific, so we just verify writes succeeded
-  ok(true, 'writes completed successfully');
+  assert.ok(true, 'writes completed successfully');
 
   stream.end();
 }
@@ -199,13 +195,13 @@ throws(() => {
 
   let str = '';
   for (let i = 0; i < 20; i++) {
-    ok(stream.write('👀'));
+    assert.ok(stream.write('👀'));
     str += '👀';
   }
 
   // Check internal buffer length (implementation-specific)
-  ok(true, 'writes completed successfully');
+  assert.ok(true, 'writes completed successfully');
   readFile(dest, 'utf8', common.mustSucceed((data) => {
-    strictEqual(data, str);
+    assert.strictEqual(data, str);
   }));
 }

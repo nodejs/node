@@ -1,7 +1,7 @@
 // Flags: --expose-internals
 'use strict';
 
-require('../common');
+const common = require('../common');
 const { hideStackFrames, codes } = require('internal/errors');
 const { validateInteger } = require('internal/validators');
 const assert = require('assert');
@@ -209,19 +209,15 @@ const assert = require('assert');
 
 {
   // Binding passes the value of this to the wrapped function.
-  let called = false;
   function a() {
     b.bind({ key: 'value' })();
   }
 
-  const b = hideStackFrames(function b() {
+  const b = hideStackFrames(common.mustCall(function b() {
     assert.strictEqual(this.key, 'value');
-    called = true;
-  });
+  }));
 
   a();
-
-  assert.strictEqual(called, true);
 }
 
 {
@@ -231,10 +227,10 @@ const assert = require('assert');
     b.withoutStackTrace.bind({ key: 'value' })();
   }
 
-  const b = hideStackFrames(function b() {
+  const b = hideStackFrames(common.mustCall(function b() {
     assert.strictEqual(this.key, 'value');
     called = true;
-  });
+  }));
 
   a();
 

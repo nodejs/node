@@ -30,13 +30,13 @@ const testFile = path.join(testDirectory, 'file-1.txt');
 
 const watcher = fs.watch(testDirectory, { recursive: true });
 let watcherClosed = false;
-watcher.on('change', function(event, filename) {
+watcher.on('change', common.mustCallAtLeast((event, filename) => {
   if (filename === path.basename(testFile)) {
     assert.strictEqual(event, 'rename');
     watcher.close();
     watcherClosed = true;
   }
-});
+}));
 
 // Do the write with a delay to ensure that the OS is ready to notify us.
 setTimeout(() => {
