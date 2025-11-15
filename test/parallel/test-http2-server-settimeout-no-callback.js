@@ -8,7 +8,7 @@ const assert = require('assert');
 const http2 = require('http2');
 
 // Verify that setTimeout callback verifications work correctly
-const verifyCallbacks = (server) => {
+const verifyCallbacks = common.mustCall((server) => {
   const testTimeout = 10;
 
   [true, 1, {}, [], null, 'test'].forEach((notFunction) => {
@@ -24,7 +24,7 @@ const verifyCallbacks = (server) => {
   // No callback
   const returnedVal = server.setTimeout(testTimeout);
   assert.strictEqual(returnedVal.timeout, testTimeout);
-};
+}, 2);
 
 // Test with server
 {
