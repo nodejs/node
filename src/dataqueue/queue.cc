@@ -1424,16 +1424,15 @@ bool DataQueueFeeder::HasInstance(Environment* env, Local<Value> object) {
 }
 
 Local<FunctionTemplate> DataQueueFeeder::GetConstructorTemplate(
-  Environment* env
-) {
+  Environment* env) {
   Local<FunctionTemplate> tmpl = env->data_queue_feeder_constructor_template();
   if (tmpl.IsEmpty()) {
     Isolate* isolate = env->isolate();
     tmpl = NewFunctionTemplate(isolate, DataQueueFeeder::New);
     tmpl->InstanceTemplate()->SetInternalFieldCount(
         BaseObject::kInternalFieldCount);
-    tmpl->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(),
-      "DataQueueFeeder"));
+    tmpl->SetClassName(
+      FIXED_ONE_BYTE_STRING(env->isolate(), "DataQueueFeeder"));
     tmpl->Inherit(AsyncWrap::GetConstructorTemplate(env));
     env->set_data_queue_feeder_constructor_template(tmpl);
     SetProtoMethod(isolate, tmpl, "error", Error);
