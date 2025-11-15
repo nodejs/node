@@ -10,37 +10,34 @@ const fn = fixtures.path('empty.txt');
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
-tempFd(function(fd, close) {
-  fs.readFile(fd, function(err, data) {
+tempFd(common.mustCall((fd, close) => {
+  fs.readFile(fd, common.mustSucceed((data) => {
     assert.ok(data);
     close();
-  });
-});
+  }));
+}));
 
-tempFd(function(fd, close) {
-  fs.readFile(fd, 'utf8', function(err, data) {
+tempFd(common.mustCall((fd, close) => {
+  fs.readFile(fd, 'utf8', common.mustSucceed((data) => {
     assert.strictEqual(data, '');
     close();
-  });
-});
+  }));
+}));
 
-tempFdSync(function(fd) {
+tempFdSync(common.mustCall((fd) => {
   assert.ok(fs.readFileSync(fd));
-});
+}));
 
-tempFdSync(function(fd) {
+tempFdSync(common.mustCall((fd) => {
   assert.strictEqual(fs.readFileSync(fd, 'utf8'), '');
-});
+}));
 
 function tempFd(callback) {
-  fs.open(fn, 'r', function(err, fd) {
-    assert.ifError(err);
-    callback(fd, function() {
-      fs.close(fd, function(err) {
-        assert.ifError(err);
-      });
-    });
-  });
+  fs.open(fn, 'r', common.mustSucceed((fd) => {
+    callback(fd, common.mustCall(() => {
+      fs.close(fd, common.mustSucceed());
+    }));
+  }));
 }
 
 function tempFdSync(callback) {

@@ -7,12 +7,7 @@ const {
   kWeakHandler,
 } = require('internal/event_target');
 
-const {
-  ok,
-  deepStrictEqual,
-  strictEqual,
-  throws,
-} = require('assert');
+const assert = require('assert');
 
 const { once } = require('events');
 
@@ -20,8 +15,8 @@ const { inspect } = require('util');
 const { setTimeout: delay } = require('timers/promises');
 
 // The globals are defined.
-ok(Event);
-ok(EventTarget);
+assert.ok(Event);
+assert.ok(EventTarget);
 
 // The warning event has special behavior regarding attaching listeners
 let lastWarning;
@@ -37,23 +32,23 @@ let asyncTest = Promise.resolve();
 // First, test Event
 {
   const ev = new Event('foo');
-  strictEqual(ev.type, 'foo');
-  strictEqual(ev.cancelable, false);
-  strictEqual(ev.defaultPrevented, false);
-  strictEqual(typeof ev.timeStamp, 'number');
+  assert.strictEqual(ev.type, 'foo');
+  assert.strictEqual(ev.cancelable, false);
+  assert.strictEqual(ev.defaultPrevented, false);
+  assert.strictEqual(typeof ev.timeStamp, 'number');
 
   // Compatibility properties with the DOM
-  deepStrictEqual(ev.composedPath(), []);
-  strictEqual(ev.returnValue, true);
-  strictEqual(ev.bubbles, false);
-  strictEqual(ev.composed, false);
-  strictEqual(ev.isTrusted, false);
-  strictEqual(ev.eventPhase, 0);
-  strictEqual(ev.cancelBubble, false);
+  assert.deepStrictEqual(ev.composedPath(), []);
+  assert.strictEqual(ev.returnValue, true);
+  assert.strictEqual(ev.bubbles, false);
+  assert.strictEqual(ev.composed, false);
+  assert.strictEqual(ev.isTrusted, false);
+  assert.strictEqual(ev.eventPhase, 0);
+  assert.strictEqual(ev.cancelBubble, false);
 
   // Not cancelable
   ev.preventDefault();
-  strictEqual(ev.defaultPrevented, false);
+  assert.strictEqual(ev.defaultPrevented, false);
 }
 {
   [
@@ -61,7 +56,7 @@ let asyncTest = Promise.resolve();
     1,
     false,
   ].forEach((i) => (
-    throws(() => new Event('foo', i), {
+    assert.throws(() => new Event('foo', i), {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
       message: 'The "options" argument must be of type object.' +
@@ -71,82 +66,82 @@ let asyncTest = Promise.resolve();
 }
 {
   const ev = new Event('foo');
-  strictEqual(ev.cancelBubble, false);
+  assert.strictEqual(ev.cancelBubble, false);
   ev.cancelBubble = true;
-  strictEqual(ev.cancelBubble, true);
+  assert.strictEqual(ev.cancelBubble, true);
 }
 {
   const ev = new Event('foo');
-  strictEqual(ev.cancelBubble, false);
+  assert.strictEqual(ev.cancelBubble, false);
   ev.stopPropagation();
-  strictEqual(ev.cancelBubble, true);
+  assert.strictEqual(ev.cancelBubble, true);
 }
 {
   const ev = new Event('foo');
-  strictEqual(ev.cancelBubble, false);
+  assert.strictEqual(ev.cancelBubble, false);
   ev.cancelBubble = 'some-truthy-value';
-  strictEqual(ev.cancelBubble, true);
+  assert.strictEqual(ev.cancelBubble, true);
 }
 {
   // No argument behavior - throw TypeError
-  throws(() => {
+  assert.throws(() => {
     new Event();
   }, TypeError);
   // Too many arguments passed behavior - ignore additional arguments
   const ev = new Event('foo', {}, {});
-  strictEqual(ev.type, 'foo');
+  assert.strictEqual(ev.type, 'foo');
 }
 {
   const ev = new Event('foo');
-  strictEqual(ev.cancelBubble, false);
+  assert.strictEqual(ev.cancelBubble, false);
   ev.cancelBubble = true;
-  strictEqual(ev.cancelBubble, true);
+  assert.strictEqual(ev.cancelBubble, true);
 }
 {
   const ev = new Event('foo');
-  strictEqual(ev.cancelBubble, false);
+  assert.strictEqual(ev.cancelBubble, false);
   ev.stopPropagation();
-  strictEqual(ev.cancelBubble, true);
+  assert.strictEqual(ev.cancelBubble, true);
 }
 {
   const ev = new Event('foo');
-  strictEqual(ev.cancelBubble, false);
+  assert.strictEqual(ev.cancelBubble, false);
   ev.cancelBubble = 'some-truthy-value';
-  strictEqual(ev.cancelBubble, true);
+  assert.strictEqual(ev.cancelBubble, true);
 }
 {
   const ev = new Event('foo', { cancelable: true });
-  strictEqual(ev.type, 'foo');
-  strictEqual(ev.cancelable, true);
-  strictEqual(ev.defaultPrevented, false);
+  assert.strictEqual(ev.type, 'foo');
+  assert.strictEqual(ev.cancelable, true);
+  assert.strictEqual(ev.defaultPrevented, false);
 
   ev.preventDefault();
-  strictEqual(ev.defaultPrevented, true);
-  throws(() => new Event(Symbol()), TypeError);
+  assert.strictEqual(ev.defaultPrevented, true);
+  assert.throws(() => new Event(Symbol()), TypeError);
 }
 {
   const ev = new Event('foo');
-  strictEqual(ev.isTrusted, false);
+  assert.strictEqual(ev.isTrusted, false);
 }
 {
   const eventTarget = new EventTarget();
 
   const ev1 = common.mustCall(function(event) {
-    strictEqual(event.type, 'foo');
-    strictEqual(this, eventTarget);
-    strictEqual(event.eventPhase, 2);
+    assert.strictEqual(event.type, 'foo');
+    assert.strictEqual(this, eventTarget);
+    assert.strictEqual(event.eventPhase, 2);
   }, 2);
 
   const ev2 = {
     handleEvent: common.mustCall(function(event) {
-      strictEqual(event.type, 'foo');
-      strictEqual(this, ev2);
+      assert.strictEqual(event.type, 'foo');
+      assert.strictEqual(this, ev2);
     }),
   };
 
   eventTarget.addEventListener('foo', ev1);
   eventTarget.addEventListener('foo', ev2, { once: true });
-  ok(eventTarget.dispatchEvent(new Event('foo')));
+  assert.ok(eventTarget.dispatchEvent(new Event('foo')));
   eventTarget.dispatchEvent(new Event('foo'));
 
   eventTarget.removeEventListener('foo', ev1);
@@ -157,7 +152,7 @@ let asyncTest = Promise.resolve();
   const SubEvent = class extends Event {};
   const ev = new SubEvent('foo');
   const eventTarget = new EventTarget();
-  const fn = common.mustCall((event) => strictEqual(event, ev));
+  const fn = common.mustCall((event) => assert.strictEqual(event, ev));
   eventTarget.addEventListener('foo', fn, { once: true });
   eventTarget.dispatchEvent(ev);
 }
@@ -169,27 +164,27 @@ let asyncTest = Promise.resolve();
   const eventTarget2 = new EventTarget();
 
   eventTarget1.addEventListener('foo', common.mustCall((event) => {
-    strictEqual(event.eventPhase, Event.AT_TARGET);
-    strictEqual(event.target, eventTarget1);
-    deepStrictEqual(event.composedPath(), [eventTarget1]);
+    assert.strictEqual(event.eventPhase, Event.AT_TARGET);
+    assert.strictEqual(event.target, eventTarget1);
+    assert.deepStrictEqual(event.composedPath(), [eventTarget1]);
   }));
 
   eventTarget2.addEventListener('foo', common.mustCall((event) => {
-    strictEqual(event.eventPhase, Event.AT_TARGET);
-    strictEqual(event.target, eventTarget2);
-    deepStrictEqual(event.composedPath(), [eventTarget2]);
+    assert.strictEqual(event.eventPhase, Event.AT_TARGET);
+    assert.strictEqual(event.target, eventTarget2);
+    assert.deepStrictEqual(event.composedPath(), [eventTarget2]);
   }));
 
   eventTarget1.dispatchEvent(event);
-  strictEqual(event.eventPhase, Event.NONE);
-  strictEqual(event.target, eventTarget1);
-  deepStrictEqual(event.composedPath(), []);
+  assert.strictEqual(event.eventPhase, Event.NONE);
+  assert.strictEqual(event.target, eventTarget1);
+  assert.deepStrictEqual(event.composedPath(), []);
 
 
   eventTarget2.dispatchEvent(event);
-  strictEqual(event.eventPhase, Event.NONE);
-  strictEqual(event.target, eventTarget2);
-  deepStrictEqual(event.composedPath(), []);
+  assert.strictEqual(event.eventPhase, Event.NONE);
+  assert.strictEqual(event.target, eventTarget2);
+  assert.deepStrictEqual(event.composedPath(), []);
 }
 {
   // Same event dispatched multiple times, without listeners added.
@@ -198,27 +193,27 @@ let asyncTest = Promise.resolve();
   const eventTarget2 = new EventTarget();
 
   eventTarget1.dispatchEvent(event);
-  strictEqual(event.eventPhase, Event.NONE);
-  strictEqual(event.target, eventTarget1);
-  deepStrictEqual(event.composedPath(), []);
+  assert.strictEqual(event.eventPhase, Event.NONE);
+  assert.strictEqual(event.target, eventTarget1);
+  assert.deepStrictEqual(event.composedPath(), []);
 
   eventTarget2.dispatchEvent(event);
-  strictEqual(event.eventPhase, Event.NONE);
-  strictEqual(event.target, eventTarget2);
-  deepStrictEqual(event.composedPath(), []);
+  assert.strictEqual(event.eventPhase, Event.NONE);
+  assert.strictEqual(event.target, eventTarget2);
+  assert.deepStrictEqual(event.composedPath(), []);
 }
 
 {
   const eventTarget = new EventTarget();
   const event = new Event('foo', { cancelable: true });
   eventTarget.addEventListener('foo', (event) => event.preventDefault());
-  ok(!eventTarget.dispatchEvent(event));
+  assert.ok(!eventTarget.dispatchEvent(event));
 }
 {
   // Adding event listeners with a boolean useCapture
   const eventTarget = new EventTarget();
   const event = new Event('foo');
-  const fn = common.mustCall((event) => strictEqual(event.type, 'foo'));
+  const fn = common.mustCall((event) => assert.strictEqual(event.type, 'foo'));
   eventTarget.addEventListener('foo', fn, false);
   eventTarget.dispatchEvent(event);
 }
@@ -227,7 +222,7 @@ let asyncTest = Promise.resolve();
   // The `options` argument can be `null`.
   const eventTarget = new EventTarget();
   const event = new Event('foo');
-  const fn = common.mustCall((event) => strictEqual(event.type, 'foo'));
+  const fn = common.mustCall((event) => assert.strictEqual(event.type, 'foo'));
   eventTarget.addEventListener('foo', fn, null);
   eventTarget.dispatchEvent(event);
 }
@@ -239,8 +234,8 @@ let asyncTest = Promise.resolve();
   // defined on an EventListener.
   target.addEventListener('foo', listener);
   listener.handleEvent = common.mustCall(function(event) {
-    strictEqual(event.type, 'foo');
-    strictEqual(this, listener);
+    assert.strictEqual(event.type, 'foo');
+    assert.strictEqual(this, listener);
   });
   target.dispatchEvent(new Event('foo'));
 }
@@ -258,8 +253,8 @@ let asyncTest = Promise.resolve();
 
 {
   const uncaughtException = common.mustCall((err, origin) => {
-    strictEqual(err.message, 'boom');
-    strictEqual(origin, 'uncaughtException');
+    assert.strictEqual(err.message, 'boom');
+    assert.strictEqual(origin, 'uncaughtException');
   }, 4);
 
   // Make sure that we no longer call 'error' on error.
@@ -301,9 +296,9 @@ let asyncTest = Promise.resolve();
 
 {
   // Coercion to string works
-  strictEqual((new Event(1)).type, '1');
-  strictEqual((new Event(false)).type, 'false');
-  strictEqual((new Event({})).type, String({}));
+  assert.strictEqual((new Event(1)).type, '1');
+  assert.strictEqual((new Event(false)).type, 'false');
+  assert.strictEqual((new Event({})).type, String({}));
 
   const target = new EventTarget();
 
@@ -314,7 +309,7 @@ let asyncTest = Promise.resolve();
     1,
     false,
   ].forEach((i) => {
-    throws(() => target.dispatchEvent(i), {
+    assert.throws(() => target.dispatchEvent(i), {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError',
       message: 'The "event" argument must be an instance of Event.' +
@@ -333,7 +328,7 @@ let asyncTest = Promise.resolve();
     'foo',
     1,
     false,
-  ].forEach((i) => throws(() => target.addEventListener('foo', i), err(i)));
+  ].forEach((i) => assert.throws(() => target.addEventListener('foo', i), err(i)));
 }
 
 {
@@ -345,9 +340,9 @@ let asyncTest = Promise.resolve();
 {
   const target = new EventTarget();
   const event = new Event('foo');
-  strictEqual(event.cancelBubble, false);
+  assert.strictEqual(event.cancelBubble, false);
   event.stopImmediatePropagation();
-  strictEqual(event.cancelBubble, true);
+  assert.strictEqual(event.cancelBubble, true);
   target.addEventListener('foo', common.mustNotCall());
   target.dispatchEvent(event);
 }
@@ -375,11 +370,11 @@ let asyncTest = Promise.resolve();
 {
   const target = new EventTarget();
   const event = new Event('foo');
-  strictEqual(event.target, null);
+  assert.strictEqual(event.target, null);
   target.addEventListener('foo', common.mustCall((event) => {
-    strictEqual(event.target, target);
-    strictEqual(event.currentTarget, target);
-    strictEqual(event.srcElement, target);
+    assert.strictEqual(event.target, target);
+    assert.strictEqual(event.currentTarget, target);
+    assert.strictEqual(event.srcElement, target);
   }));
   target.dispatchEvent(event);
 }
@@ -389,7 +384,7 @@ let asyncTest = Promise.resolve();
   const target2 = new EventTarget();
   const event = new Event('foo');
   target1.addEventListener('foo', common.mustCall((event) => {
-    throws(() => target2.dispatchEvent(event), {
+    assert.throws(() => target2.dispatchEvent(event), {
       code: 'ERR_EVENT_RECURSION',
     });
   }));
@@ -423,9 +418,9 @@ let asyncTest = Promise.resolve();
 }
 {
   const target = new EventTarget();
-  strictEqual(target.toString(), '[object EventTarget]');
+  assert.strictEqual(target.toString(), '[object EventTarget]');
   const event = new Event('');
-  strictEqual(event.toString(), '[object Event]');
+  assert.strictEqual(event.toString(), '[object Event]');
 }
 {
   const target = new EventTarget();
@@ -437,7 +432,7 @@ let asyncTest = Promise.resolve();
 {
   const target = new EventTarget();
   defineEventHandler(target, 'foo');
-  strictEqual(target.onfoo, null);
+  assert.strictEqual(target.onfoo, null);
 }
 
 {
@@ -447,7 +442,7 @@ let asyncTest = Promise.resolve();
   target.onfoo = () => count++;
   target.onfoo = common.mustCall(() => count++);
   target.dispatchEvent(new Event('foo'));
-  strictEqual(count, 1);
+  assert.strictEqual(count, 1);
 }
 {
   const target = new EventTarget();
@@ -456,14 +451,14 @@ let asyncTest = Promise.resolve();
   target.addEventListener('foo', () => count++);
   target.onfoo = common.mustCall(() => count++);
   target.dispatchEvent(new Event('foo'));
-  strictEqual(count, 2);
+  assert.strictEqual(count, 2);
 }
 {
   const target = new EventTarget();
   defineEventHandler(target, 'foo');
   const fn = common.mustNotCall();
   target.onfoo = fn;
-  strictEqual(target.onfoo, fn);
+  assert.strictEqual(target.onfoo, fn);
   target.onfoo = null;
   target.dispatchEvent(new Event('foo'));
 }
@@ -474,7 +469,7 @@ let asyncTest = Promise.resolve();
   const target2 = new EventTarget();
   const event = new Event('foo');
 
-  ok(target.dispatchEvent.call(target2, event));
+  assert.ok(target.dispatchEvent.call(target2, event));
 
   [
     'foo',
@@ -487,7 +482,7 @@ let asyncTest = Promise.resolve();
     Symbol(),
     /a/,
   ].forEach((i) => {
-    throws(() => target.dispatchEvent.call(i, event), {
+    assert.throws(() => target.dispatchEvent.call(i, event), {
       code: 'ERR_INVALID_THIS',
     });
   });
@@ -495,31 +490,31 @@ let asyncTest = Promise.resolve();
 
 {
   // Event Statics
-  strictEqual(Event.NONE, 0);
-  strictEqual(Event.CAPTURING_PHASE, 1);
-  strictEqual(Event.AT_TARGET, 2);
-  strictEqual(Event.BUBBLING_PHASE, 3);
-  strictEqual(new Event('foo').eventPhase, Event.NONE);
+  assert.strictEqual(Event.NONE, 0);
+  assert.strictEqual(Event.CAPTURING_PHASE, 1);
+  assert.strictEqual(Event.AT_TARGET, 2);
+  assert.strictEqual(Event.BUBBLING_PHASE, 3);
+  assert.strictEqual(new Event('foo').eventPhase, Event.NONE);
   const target = new EventTarget();
   target.addEventListener('foo', common.mustCall((e) => {
-    strictEqual(e.eventPhase, Event.AT_TARGET);
+    assert.strictEqual(e.eventPhase, Event.AT_TARGET);
   }), { once: true });
   target.dispatchEvent(new Event('foo'));
   // Event is a function
-  strictEqual(Event.length, 1);
+  assert.strictEqual(Event.length, 1);
 }
 
 {
   const target = new EventTarget();
   const ev = new Event('toString');
-  const fn = common.mustCall((event) => strictEqual(event.type, 'toString'));
+  const fn = common.mustCall((event) => assert.strictEqual(event.type, 'toString'));
   target.addEventListener('toString', fn);
   target.dispatchEvent(ev);
 }
 {
   const target = new EventTarget();
   const ev = new Event('__proto__');
-  const fn = common.mustCall((event) => strictEqual(event.type, '__proto__'));
+  const fn = common.mustCall((event) => assert.strictEqual(event.type, '__proto__'));
   target.addEventListener('__proto__', fn);
   target.dispatchEvent(ev);
 }
@@ -527,20 +522,20 @@ let asyncTest = Promise.resolve();
 {
   const eventTarget = new EventTarget();
   // Single argument throws
-  throws(() => eventTarget.addEventListener('foo'), TypeError);
+  assert.throws(() => eventTarget.addEventListener('foo'), TypeError);
   // Null events - does not throw
   eventTarget.addEventListener('foo', null);
   eventTarget.removeEventListener('foo', null);
   eventTarget.addEventListener('foo', undefined);
   eventTarget.removeEventListener('foo', undefined);
   // Strings, booleans
-  throws(() => eventTarget.addEventListener('foo', 'hello'), TypeError);
-  throws(() => eventTarget.addEventListener('foo', false), TypeError);
-  throws(() => eventTarget.addEventListener('foo', Symbol()), TypeError);
+  assert.throws(() => eventTarget.addEventListener('foo', 'hello'), TypeError);
+  assert.throws(() => eventTarget.addEventListener('foo', false), TypeError);
+  assert.throws(() => eventTarget.addEventListener('foo', Symbol()), TypeError);
   asyncTest = asyncTest.then(async () => {
     const eventTarget = new EventTarget();
     // Single argument throws
-    throws(() => eventTarget.addEventListener('foo'), TypeError);
+    assert.throws(() => eventTarget.addEventListener('foo'), TypeError);
     // Null events - does not throw
 
     eventTarget.addEventListener('foo', null);
@@ -548,34 +543,34 @@ let asyncTest = Promise.resolve();
 
     // Warnings always happen after nextTick, so wait for a timer of 0
     await delay(0);
-    strictEqual(lastWarning.name, 'AddEventListenerArgumentTypeWarning');
-    strictEqual(lastWarning.target, eventTarget);
+    assert.strictEqual(lastWarning.name, 'AddEventListenerArgumentTypeWarning');
+    assert.strictEqual(lastWarning.target, eventTarget);
     lastWarning = null;
     eventTarget.addEventListener('foo', undefined);
     await delay(0);
-    strictEqual(lastWarning.name, 'AddEventListenerArgumentTypeWarning');
-    strictEqual(lastWarning.target, eventTarget);
+    assert.strictEqual(lastWarning.name, 'AddEventListenerArgumentTypeWarning');
+    assert.strictEqual(lastWarning.target, eventTarget);
     eventTarget.removeEventListener('foo', undefined);
     // Strings, booleans
-    throws(() => eventTarget.addEventListener('foo', 'hello'), TypeError);
-    throws(() => eventTarget.addEventListener('foo', false), TypeError);
-    throws(() => eventTarget.addEventListener('foo', Symbol()), TypeError);
+    assert.throws(() => eventTarget.addEventListener('foo', 'hello'), TypeError);
+    assert.throws(() => eventTarget.addEventListener('foo', false), TypeError);
+    assert.throws(() => eventTarget.addEventListener('foo', Symbol()), TypeError);
   });
 }
 {
   const eventTarget = new EventTarget();
   const event = new Event('foo');
   eventTarget.dispatchEvent(event);
-  strictEqual(event.target, eventTarget);
+  assert.strictEqual(event.target, eventTarget);
 }
 {
   // Event target exported keys
   const eventTarget = new EventTarget();
-  deepStrictEqual(Object.keys(eventTarget), []);
-  deepStrictEqual(Object.getOwnPropertyNames(eventTarget), []);
+  assert.deepStrictEqual(Object.keys(eventTarget), []);
+  assert.deepStrictEqual(Object.getOwnPropertyNames(eventTarget), []);
   const parentKeys = Object.keys(Object.getPrototypeOf(eventTarget)).sort();
   const keys = ['addEventListener', 'dispatchEvent', 'removeEventListener'];
-  deepStrictEqual(parentKeys, keys);
+  assert.deepStrictEqual(parentKeys, keys);
 }
 {
   // Subclassing
@@ -589,11 +584,11 @@ let asyncTest = Promise.resolve();
   const target = new EventTarget();
   let state = 0;
   target.addEventListener('foo', common.mustCall(() => {
-    strictEqual(state, 0);
+    assert.strictEqual(state, 0);
     state++;
   }));
   target.addEventListener('foo', common.mustCall(() => {
-    strictEqual(state, 1);
+    assert.strictEqual(state, 1);
   }));
   target.dispatchEvent(new Event('foo'));
 }
@@ -601,8 +596,8 @@ let asyncTest = Promise.resolve();
   const target = new EventTarget();
   defineEventHandler(target, 'foo');
   const descriptor = Object.getOwnPropertyDescriptor(target, 'onfoo');
-  strictEqual(descriptor.configurable, true);
-  strictEqual(descriptor.enumerable, true);
+  assert.strictEqual(descriptor.configurable, true);
+  assert.strictEqual(descriptor.enumerable, true);
 }
 {
   const target = new EventTarget();
@@ -614,7 +609,7 @@ let asyncTest = Promise.resolve();
   target.onfoo = () => output.push(2);
   target.addEventListener('foo', () => output.push(4));
   target.dispatchEvent(new Event('foo'));
-  deepStrictEqual(output, [1, 2, 3, 4]);
+  assert.deepStrictEqual(output, [1, 2, 3, 4]);
 }
 {
   const target = new EventTarget();
@@ -623,7 +618,7 @@ let asyncTest = Promise.resolve();
   target.addEventListener('bar', () => output.push(1));
   target.onfoo = () => output.push(2);
   target.dispatchEvent(new Event('bar'));
-  deepStrictEqual(output, [1, 2]);
+  assert.deepStrictEqual(output, [1, 2]);
 }
 {
   const et = new EventTarget();
@@ -640,12 +635,12 @@ let asyncTest = Promise.resolve();
   const evConstructorName = inspect(ev, {
     depth: -1,
   });
-  strictEqual(evConstructorName, 'Event');
+  assert.strictEqual(evConstructorName, 'Event');
 
   const inspectResult = inspect(ev, {
     depth: 1,
   });
-  ok(inspectResult.includes('Event'));
+  assert.ok(inspectResult.includes('Event'));
 }
 
 {
@@ -653,15 +648,15 @@ let asyncTest = Promise.resolve();
   const inspectResult = inspect(et, {
     depth: 1,
   });
-  ok(inspectResult.includes('EventTarget'));
+  assert.ok(inspectResult.includes('EventTarget'));
 }
 
 {
   const ev = new Event('test');
-  strictEqual(ev.constructor.name, 'Event');
+  assert.strictEqual(ev.constructor.name, 'Event');
 
   const et = new EventTarget();
-  strictEqual(et.constructor.name, 'EventTarget');
+  assert.strictEqual(et.constructor.name, 'EventTarget');
 }
 {
   // Weak event listeners work
@@ -691,27 +686,27 @@ let asyncTest = Promise.resolve();
 {
   const et = new EventTarget();
 
-  throws(() => et.addEventListener(), {
+  assert.throws(() => et.addEventListener(), {
     code: 'ERR_MISSING_ARGS',
     name: 'TypeError',
   });
 
-  throws(() => et.addEventListener('foo'), {
+  assert.throws(() => et.addEventListener('foo'), {
     code: 'ERR_MISSING_ARGS',
     name: 'TypeError',
   });
 
-  throws(() => et.removeEventListener(), {
+  assert.throws(() => et.removeEventListener(), {
     code: 'ERR_MISSING_ARGS',
     name: 'TypeError',
   });
 
-  throws(() => et.removeEventListener('foo'), {
+  assert.throws(() => et.removeEventListener('foo'), {
     code: 'ERR_MISSING_ARGS',
     name: 'TypeError',
   });
 
-  throws(() => et.dispatchEvent(), {
+  assert.throws(() => et.dispatchEvent(), {
     code: 'ERR_MISSING_ARGS',
     name: 'TypeError',
   });
@@ -720,11 +715,11 @@ let asyncTest = Promise.resolve();
 {
   const et = new EventTarget();
 
-  throws(() => {
+  assert.throws(() => {
     et.addEventListener(Symbol('symbol'), () => {});
   }, TypeError);
 
-  throws(() => {
+  assert.throws(() => {
     et.removeEventListener(Symbol('symbol'), () => {});
   }, TypeError);
 }
@@ -743,9 +738,9 @@ let asyncTest = Promise.resolve();
 
 {
   const event = new Event('foo');
-  strictEqual(event.cancelBubble, false);
+  assert.strictEqual(event.cancelBubble, false);
   event.cancelBubble = true;
-  strictEqual(event.cancelBubble, true);
+  assert.strictEqual(event.cancelBubble, true);
 }
 
 {

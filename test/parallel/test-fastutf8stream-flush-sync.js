@@ -2,11 +2,7 @@
 
 const common = require('../common');
 const tmpdir = require('../common/tmpdir');
-const {
-  ok,
-  strictEqual,
-  throws,
-} = require('node:assert');
+const assert = require('node:assert');
 const {
   openSync,
   readFile,
@@ -37,15 +33,15 @@ function runTests(sync) {
   const fd = openSync(dest, 'w');
   const stream = new Utf8Stream({ fd, minLength: 4096, sync });
 
-  ok(stream.write('hello world\n'));
-  ok(stream.write('something else\n'));
+  assert.ok(stream.write('hello world\n'));
+  assert.ok(stream.write('something else\n'));
 
   stream.flushSync();
 
   setImmediate(common.mustCall(() => {
     stream.end();
     const data = readFileSync(dest, 'utf8');
-    strictEqual(data, 'hello world\nsomething else\n');
+    assert.strictEqual(data, 'hello world\nsomething else\n');
     stream.on('close', common.mustCall());
   }));
 }
@@ -76,14 +72,14 @@ function runTests(sync) {
   });
 
   stream.on('ready', common.mustCall(() => {
-    ok(stream.write('hello world\n'));
-    ok(stream.write('something else\n'));
+    assert.ok(stream.write('hello world\n'));
+    assert.ok(stream.write('something else\n'));
     stream.flushSync();
     stream.end();
 
     stream.on('finish', common.mustCall(() => {
       readFile(dest, 'utf8', common.mustSucceed((data) => {
-        strictEqual(data, 'hello world\nsomething else\n');
+        assert.strictEqual(data, 'hello world\nsomething else\n');
       }));
     }));
   }));
@@ -112,27 +108,27 @@ function runTests(sync) {
     fd,
     sync: false,
     minLength: 1000,
-    retryEAGAIN: (err, writeBufferLen, remainingBufferLen) => {
+    retryEAGAIN: common.mustCall((err, writeBufferLen, remainingBufferLen) => {
       retryCallCount++;
-      strictEqual(err.code, 'EAGAIN');
-      strictEqual(writeBufferLen, 12);
-      strictEqual(remainingBufferLen, 0);
+      assert.strictEqual(err.code, 'EAGAIN');
+      assert.strictEqual(writeBufferLen, 12);
+      assert.strictEqual(remainingBufferLen, 0);
       return false; // Don't retry
-    },
+    }),
     fs: fsOverride,
   });
 
   stream.on('ready', common.mustCall(() => {
-    ok(stream.write('hello world\n'));
-    throws(() => stream.flushSync(), err);
-    ok(stream.write('something else\n'));
+    assert.ok(stream.write('hello world\n'));
+    assert.throws(() => stream.flushSync(), err);
+    assert.ok(stream.write('something else\n'));
     stream.flushSync();
     stream.end();
 
     stream.on('finish', common.mustCall(() => {
       readFile(dest, 'utf8', common.mustSucceed((data) => {
-        strictEqual(data, 'hello world\nsomething else\n');
-        strictEqual(retryCallCount, 1);
+        assert.strictEqual(data, 'hello world\nsomething else\n');
+        assert.strictEqual(retryCallCount, 1);
       }));
     }));
   }));
