@@ -1,18 +1,13 @@
-// Flags: --expose-internals --experimental-quic --no-warnings
-import { hasQuic, skip } from '../common/index.mjs';
+// Flags: --expose-internals --no-warnings
 import {
   rejects,
 } from 'node:assert';
-
-if (!hasQuic) {
-  skip('QUIC is not enabled');
-}
 
 const { internalBinding } = (await import('internal/test/binding')).default;
 
 const {
   DataQueueFeeder,
-} = internalBinding('quic');
+} = internalBinding('dataqueuefeeder');
 
 
 const feeder = new DataQueueFeeder();

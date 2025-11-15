@@ -12,7 +12,7 @@
 #include "endpoint.h"
 #include "node_external_reference.h"
 
-namespace node {
+namespace node::quic {
 
 using v8::Context;
 using v8::Local;
@@ -20,14 +20,11 @@ using v8::Object;
 using v8::ObjectTemplate;
 using v8::Value;
 
-namespace quic {
-
 void CreatePerIsolateProperties(IsolateData* isolate_data,
                                 Local<ObjectTemplate> target) {
   Endpoint::InitPerIsolate(isolate_data, target);
   Session::InitPerIsolate(isolate_data, target);
   Stream::InitPerIsolate(isolate_data, target);
-  DataQueueFeeder::InitPerIsolate(isolate_data, target);
 }
 
 void CreatePerContextProperties(Local<Object> target,
@@ -39,7 +36,6 @@ void CreatePerContextProperties(Local<Object> target,
   Endpoint::InitPerContext(realm, target);
   Session::InitPerContext(realm, target);
   Stream::InitPerContext(realm, target);
-  DataQueueFeeder::InitPerContext(realm, target);
 }
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
@@ -47,11 +43,9 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   Endpoint::RegisterExternalReferences(registry);
   Session::RegisterExternalReferences(registry);
   Stream::RegisterExternalReferences(registry);
-  DataQueueFeeder::RegisterExternalReferences(registry);
 }
 
-}  // namespace quic
-}  // namespace node
+}  // namespace node::quic
 
 NODE_BINDING_CONTEXT_AWARE_INTERNAL(quic,
                                     node::quic::CreatePerContextProperties)

@@ -47,6 +47,7 @@
   V(constants)                                                                 \
   V(contextify)                                                                \
   V(credentials)                                                               \
+  V(dataqueuefeeder)                                                            \
   V(encoding_binding)                                                          \
   V(errors)                                                                    \
   V(fs)                                                                        \
