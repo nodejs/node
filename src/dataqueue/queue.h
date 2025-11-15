@@ -17,8 +17,6 @@
 #include <optional>
 #include <vector>
 
-#include "../quic/defs.h"
-
 namespace node {
 using v8::Local;
 using v8::Value;
@@ -325,8 +323,8 @@ class DataQueueFeeder final : public AsyncWrap {
 
   DataQueueFeeder(Environment* env, v8::Local<v8::Object> object);
 
-  JS_CONSTRUCTOR(DataQueueFeeder);
-  JS_BINDING_INIT_BOILERPLATE();
+  static void RegisterExternalReferences(
+    ExternalReferenceRegistry* registry);
 
   static BaseObjectPtr<DataQueueFeeder> Create();
 
@@ -352,11 +350,25 @@ class DataQueueFeeder final : public AsyncWrap {
   SET_MEMORY_INFO_NAME(DataQueueFeeder)
   SET_SELF_SIZE(DataQueueFeeder)
 
-  JS_METHOD(New);
-  JS_METHOD(Submit);
-  JS_METHOD(Error);
-  JS_METHOD(Ready);
-  JS_METHOD(AddFakePull);
+  static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Submit(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Error(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Ready(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void AddFakePull(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
+      Environment* env);
+
+  static void CreatePerIsolateProperties(IsolateData* isolate_data,
+                                         v8::Local<v8::ObjectTemplate> target);
+  static void CreatePerContextProperties(v8::Local<v8::Object> target,
+                                         v8::Local<v8::Value> unused,
+                                         v8::Local<v8::Context> context,
+                                         void* priv);
+
+  static BaseObjectPtr<DataQueueFeeder> Create(Environment* env);
+
+  static bool HasInstance(Environment* env, v8::Local<v8::Value> object);
 
  private:
   std::shared_ptr<DataQueue> dataQueue_;

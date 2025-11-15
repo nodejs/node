@@ -18,14 +18,14 @@
 #include <memory>
 #include <vector>
 
-#include "../quic/streams.h"
-
 namespace node {
 
-using quic::BindingData;
 using v8::ArrayBuffer;
 using v8::ArrayBufferView;
 using v8::BackingStore;
+using v8::FunctionCallbackInfo;
+using v8::FunctionTemplate;
+using v8::Isolate;
 using v8::Local;
 using v8::Object;
 using v8::ObjectTemplate;
@@ -1303,13 +1303,13 @@ void DataQueueFeeder::DrainAndClose() {
   }
 }
 
-JS_METHOD_IMPL(DataQueueFeeder::New) {
+void DataQueueFeeder::New(const FunctionCallbackInfo<Value>& args) {
   DCHECK(args.IsConstructCall());
   auto env = Environment::GetCurrent(args);
   new DataQueueFeeder(env, args.This());
 }
 
-JS_METHOD_IMPL(DataQueueFeeder::Ready) {
+void DataQueueFeeder::Ready(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   DataQueueFeeder* feeder;
   ASSIGN_OR_RETURN_UNWRAP(&feeder, args.This());
@@ -1325,7 +1325,7 @@ JS_METHOD_IMPL(DataQueueFeeder::Ready) {
   }
 }
 
-JS_METHOD_IMPL(DataQueueFeeder::Submit) {
+void DataQueueFeeder::Submit(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   DataQueueFeeder* feeder;
   ASSIGN_OR_RETURN_UNWRAP(&feeder, args.This());
@@ -1356,7 +1356,15 @@ JS_METHOD_IMPL(DataQueueFeeder::Submit) {
     // there may be also troubles, if multiple Uint8Array
     // are derived in a parser from a single ArrayBuffer
     size_t nread = typedArray->ByteLength();
-    JS_TRY_ALLOCATE_BACKING(env, backingUniq, nread);
+    auto backingUniq = v8::ArrayBuffer::NewBackingStore(
+        env->isolate(),
+        nread,
+        v8::BackingStoreInitializationMode::kUninitialized,
+        v8::BackingStoreOnFailureMode::kReturnNull);
+    if (!backingUniq) {
+      THROW_ERR_MEMORY_ALLOCATION_FAILED(env);
+      return;
+    }
     std::shared_ptr<BackingStore> backing = std::move(backingUniq);
 
     auto originalStore = typedArray->Buffer()->GetBackingStore();
@@ -1392,7 +1400,7 @@ JS_METHOD_IMPL(DataQueueFeeder::Submit) {
   }
 }
 
-JS_METHOD_IMPL(DataQueueFeeder::Error) {
+void DataQueueFeeder::Error(const FunctionCallbackInfo<Value>& args) {
   DataQueueFeeder* feeder;
   ASSIGN_OR_RETURN_UNWRAP(&feeder, args.This());
   // FIXME, how should I pass on the error
@@ -1400,7 +1408,7 @@ JS_METHOD_IMPL(DataQueueFeeder::Error) {
   feeder->DrainAndClose();
 }
 
-JS_METHOD_IMPL(DataQueueFeeder::AddFakePull) {
+void DataQueueFeeder::AddFakePull(const FunctionCallbackInfo<Value>& args) {
   DataQueueFeeder* feeder;
   ASSIGN_OR_RETURN_UNWRAP(&feeder, args.This());
   // this adds a fake pull for testing code, not to be used anywhere else
@@ -1411,36 +1419,56 @@ JS_METHOD_IMPL(DataQueueFeeder::AddFakePull) {
   feeder->tryWakePulls();
 }
 
-JS_CONSTRUCTOR_IMPL(DataQueueFeeder, dataqueuefeeder_constructor_template, {
-  auto isolate = env->isolate();
-  JS_NEW_CONSTRUCTOR();
-  JS_INHERIT(AsyncWrap);
-  JS_CLASS(dataqueuefeeder);
-  SetProtoMethod(isolate, tmpl, "error", Error);
-  SetProtoMethod(isolate, tmpl, "submit", Submit);
-  SetProtoMethod(isolate, tmpl, "ready", Ready);
-  SetProtoMethod(isolate, tmpl, "addFakePull", AddFakePull);
-})
-
-void DataQueueFeeder::InitPerIsolate(IsolateData* data,
-                                     Local<ObjectTemplate> target) {
-  // TODO(@jasnell): Implement the per-isolate state
+bool DataQueueFeeder::HasInstance(Environment* env, Local<Value> object) {
+  return GetConstructorTemplate(env)->HasInstance(object);
 }
 
-void DataQueueFeeder::InitPerContext(Realm* realm, Local<Object> target) {
-  SetConstructorFunction(realm->context(),
+Local<FunctionTemplate> DataQueueFeeder::GetConstructorTemplate(Environment* env) {
+  Local<FunctionTemplate> tmpl = env->data_queue_feeder_constructor_template();
+  if (tmpl.IsEmpty()) {
+    Isolate* isolate = env->isolate();
+    tmpl = NewFunctionTemplate(isolate, DataQueueFeeder::New); // second argument was nullptr
+    tmpl->InstanceTemplate()->SetInternalFieldCount(
+        BaseObject::kInternalFieldCount);
+    tmpl->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "DataQueueFeeder"));
+    tmpl->Inherit(AsyncWrap::GetConstructorTemplate(env));
+    env->set_data_queue_feeder_constructor_template(tmpl);
+    SetProtoMethod(isolate, tmpl, "error", Error);
+    SetProtoMethod(isolate, tmpl, "submit", Submit);
+    SetProtoMethod(isolate, tmpl, "ready", Ready);
+    SetProtoMethod(isolate, tmpl, "addFakePull", AddFakePull);
+  }
+  return tmpl;
+}
+
+void DataQueueFeeder::CreatePerIsolateProperties(IsolateData* isolate_data,
+                                         v8::Local<v8::ObjectTemplate> target) {
+}
+
+void DataQueueFeeder::CreatePerContextProperties(v8::Local<v8::Object> target,
+                                         v8::Local<v8::Value> unused,
+                                         v8::Local<v8::Context> context,
+                                         void* priv) {
+  Environment* env = Environment::GetCurrent(context);
+  SetConstructorFunction(context,
                          target,
                          "DataQueueFeeder",
-                         GetConstructorTemplate(realm->env()));
+                         GetConstructorTemplate(env),
+                         SetConstructorFunctionFlag::NONE);
 }
 
 void DataQueueFeeder::RegisterExternalReferences(
     ExternalReferenceRegistry* registry) {
-  registry->Register(New);
-  registry->Register(Submit);
-  registry->Register(Error);
-  registry->Register(Ready);
-  registry->Register(AddFakePull);
+  registry->Register(DataQueueFeeder::New);
+  registry->Register(DataQueueFeeder::Submit);
+  registry->Register(DataQueueFeeder::Error);
+  registry->Register(DataQueueFeeder::Ready);
+  registry->Register(DataQueueFeeder::AddFakePull);
 }
 
 }  // namespace node
+
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(dataqueuefeeder,
+                                    node::DataQueueFeeder::CreatePerContextProperties)
+NODE_BINDING_PER_ISOLATE_INIT(dataqueuefeeder, node::DataQueueFeeder::CreatePerIsolateProperties)
+NODE_BINDING_EXTERNAL_REFERENCE(dataqueuefeeder, node::DataQueueFeeder::RegisterExternalReferences)
