@@ -31,7 +31,7 @@ process.once('uncaughtException', common.mustCall((err, errorOrigin) => {
 
 const d1 = domain.create();
 d1.once('error', common.expectsError(errObj));
-d1.once('error', () => assert.strictEqual(stage, 0));
+d1.once('error', common.mustCall(() => assert.strictEqual(stage, 0)));
 
 const run = common.mustCall((callStage) => {
   assert(callStage >= stage);

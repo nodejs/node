@@ -92,11 +92,11 @@ const server = net.createServer(common.mustCall((s) => {
     tlsSocket.end();
     server.close();
   }));
-})).listen(0, () => {
+})).listen(0, common.mustCall(() => {
   const opts = {
     port: server.address().port,
     rejectUnauthorized: false
   };
 
   tls.connect(opts, common.mustCall(function() { this.end(); }));
-});
+}));

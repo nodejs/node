@@ -38,7 +38,7 @@ if (!process.features.openssl_is_boringssl) {
 }
 
 const server = tls.createServer(serverConfig, common.mustCall(clientConfigs.length))
-.listen(0, common.localhostIPv4, function() {
+.listen(0, common.localhostIPv4, common.mustCall(function() {
   let connected = 0;
   for (const v of clientConfigs) {
     tls.connect({
@@ -57,4 +57,4 @@ const server = tls.createServer(serverConfig, common.mustCall(clientConfigs.leng
         server.close();
     }));
   }
-});
+}));

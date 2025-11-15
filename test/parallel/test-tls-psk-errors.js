@@ -15,11 +15,11 @@ const tls = require('tls');
     pskCallback: () => {},
     pskIdentityHint: 'a'.repeat(512), // Too long identity hint.
   });
-  server.on('tlsClientError', (err) => {
+  server.on('tlsClientError', common.mustCall((err) => {
     assert.ok(err instanceof Error);
     assert.strictEqual(err.code, 'ERR_TLS_PSK_SET_IDENTITY_HINT_FAILED');
     server.close();
-  });
+  }));
   server.listen(0, () => {
     const client = tls.connect({
       port: server.address().port,
