@@ -1,9 +1,9 @@
 // Flags: --experimental-quic --no-warnings
 
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
-import { ok, strictEqual, deepStrictEqual } from 'node:assert';
+import { ok, strictEqual } from 'node:assert';
 import { readKey } from '../common/fixtures.mjs';
-import { KNOWN_BYTES_LONG, uint8concat } from '../common/quic/test-helpers.mjs';
+import { KNOWN_BYTES_LONG, uint8concat, equalUint8Arrays } from '../common/quic/test-helpers.mjs';
 import { TransformStream } from 'node:stream/web';
 
 if (!hasQuic) {
@@ -39,7 +39,7 @@ const serverEndpoint = await listen(async (serverSession) => {
       // ignore
     });
     // Now compare what we got
-    deepStrictEqual(uint8concat(KNOWN_BYTES_LONG), uint8concat(readChunks));
+    equalUint8Arrays(uint8concat(KNOWN_BYTES_LONG), uint8concat(readChunks));
     serverFinished.resolve();
   }, 1);
 
