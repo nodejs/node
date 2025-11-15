@@ -69,10 +69,10 @@ const kData = (new TextEncoder()).encode('hello');
 
     // Compare that the legacy crypto API and SubtleCrypto API
     // produce the same results
-    (await values).forEach((v) => {
+    for (const v of await values) {
       assert(v instanceof ArrayBuffer);
       assert.strictEqual(checkValue, Buffer.from(v).toString('hex'));
-    });
+    }
   }));
 })().then(common.mustCall());
 

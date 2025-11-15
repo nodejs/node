@@ -19,7 +19,7 @@ common.expectWarning(
   'It returns a Promise instead.', 'DEP0132');
 
 w.on('message', common.mustCall(() => {
-  setTimeout(() => {
+  setTimeout(common.mustCall(() => {
     w.terminate(common.mustCall()).then(common.mustCall());
-  }, 1);
+  }), 1);
 }));
