@@ -10,9 +10,8 @@
 #ifndef BROTLI_ENC_QUALITY_H_
 #define BROTLI_ENC_QUALITY_H_
 
-#include <brotli/encode.h>
-
 #include "../common/platform.h"
+#include <brotli/encode.h>
 #include "params.h"
 
 #define FAST_ONE_PASS_COMPRESSION_QUALITY 0
@@ -128,16 +127,16 @@ static BROTLI_INLINE size_t LiteralSpreeLengthForSparseSearch(
    - q04: h04 (longest_match_quickly), b17, l5
    - q04: h54 (longest_match_quickly), b20, l7 | for large files
 
-   - q05: h05 (longest_match        ), b14, l4
-   - q05: h06 (longest_match64      ), b15, l5 | for large files
+   - q05: h58 (longest_match_simd   ), b14, l4
+   - q05: h68 (longest_match64_simd ), b15, l5 | for large files
    - q05: h40 (forgetful_chain      ), b15, l4 | for small window
 
-   - q06: h05 (longest_match        ), b14, l4
-   - q06: h06 (longest_match64      ), b15, l5 | for large files
+   - q06: h58 (longest_match_simd   ), b14, l4
+   - q06: h68 (longest_match64_simd ), b15, l5 | for large files
    - q06: h40 (forgetful_chain      ), b15, l4 | for small window
 
-   - q07: h05 (longest_match        ), b15, l4
-   - q07: h06 (longest_match64      ), b15, l5 | for large files
+   - q07: h58 (longest_match_simd   ), b15, l4
+   - q07: h68 (longest_match64_simd ), b15, l5 | for large files
    - q07: h41 (forgetful_chain      ), b15, l4 | for small window
 
    - q08: h05 (longest_match        ), b15, l4
@@ -165,7 +164,11 @@ static BROTLI_INLINE void ChooseHasher(const BrotliEncoderParams* params,
   } else if (params->lgwin <= 16) {
     hparams->type = params->quality < 7 ? 40 : params->quality < 9 ? 41 : 42;
   } else if (params->size_hint >= (1 << 20) && params->lgwin >= 19) {
+#if defined(BROTLI_MAX_SIMD_QUALITY)
+    hparams->type = params->quality <= BROTLI_MAX_SIMD_QUALITY ? 68 : 6;
+#else
     hparams->type = 6;
+#endif
     hparams->block_bits = params->quality - 1;
     hparams->bucket_bits = 15;
     hparams->num_last_distances_to_check =
@@ -173,7 +176,11 @@ static BROTLI_INLINE void ChooseHasher(const BrotliEncoderParams* params,
   } else {
     /* TODO(eustas): often previous setting (H6) is faster and denser; consider
                      adding an option to use it. */
+#if defined(BROTLI_MAX_SIMD_QUALITY)
+    hparams->type = params->quality <= BROTLI_MAX_SIMD_QUALITY ? 58 : 5;
+#else
     hparams->type = 5;
+#endif
     hparams->block_bits = params->quality - 1;
     hparams->bucket_bits = params->quality < 7 ? 14 : 15;
     hparams->num_last_distances_to_check =
@@ -186,14 +193,14 @@ static BROTLI_INLINE void ChooseHasher(const BrotliEncoderParams* params,
        hasher already works well with large window. So the changes are:
        H3 --> H35: for quality 3.
        H54 --> H55: for quality 4 with size hint > 1MB
-       H6 --> H65: for qualities 5, 6, 7, 8, 9. */
+       H6/H68 --> H65: for qualities 5, 6, 7, 8, 9. */
     if (hparams->type == 3) {
       hparams->type = 35;
     }
     if (hparams->type == 54) {
       hparams->type = 55;
     }
-    if (hparams->type == 6) {
+    if (hparams->type == 6 || hparams->type == 68) {
       hparams->type = 65;
     }
   }
