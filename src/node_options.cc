@@ -567,12 +567,12 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             NoOp{},
 #endif
             kAllowedInEnvvar);
-  AddOption("--webstorage",
-            "Web Storage API",
+  AddOption("--experimental-webstorage",
+            "experimental Web Storage API",
             &EnvironmentOptions::webstorage,
             kAllowedInEnvvar,
             true);
-  AddAlias("--experimental-webstorage", "--webstorage");
+  AddAlias("--webstorage", "--experimental-webstorage");
   AddOption("--localstorage-file",
             "file used to persist localStorage data",
             &EnvironmentOptions::localstorage_file,

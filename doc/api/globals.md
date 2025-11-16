@@ -644,13 +644,28 @@ A browser-compatible implementation of {Headers}.
 
 <!-- YAML
 added: v22.4.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/60351
+    description: Accessing the `localStorage` global without providing
+                 `--localstorage-file` now throws a `DOMException`, for
+                 compliance with the Web Storage specification.
+  - version: v25.0.0
+    pr-url: https://github.com/nodejs/node/pull/57666
+    description: When webstorage is enabled and `--localstorage-file` is not
+                 provided, accessing the `localStorage` global now returns an
+                 empty object.
+  - version: v25.0.0
+    pr-url: https://github.com/nodejs/node/pull/57666
+    description: This API is no longer behind `--experimental-webstorage` runtime flag.
 -->
+
+> Stability: 1.2 - Release candidate. Disable this API with [`--no-experimental-webstorage`][].
 
 A browser-compatible implementation of [`localStorage`][]. Data is stored
 unencrypted in the file specified by the [`--localstorage-file`][] CLI flag.
 The maximum amount of data that can be stored is 10 MB.
 Any modification of this data outside of the Web Storage API is not supported.
-Disable this API with the [`--no-webstorage`][] (or its alias `--no-experimental-webstorage`) CLI flag.
 `localStorage` data is not stored per user or per request when used in the context
 of a server, it is shared across all users and requests.
 
@@ -1073,9 +1088,13 @@ A browser-compatible implementation of {Request}.
 
 <!-- YAML
 added: v22.4.0
+changes:
+  - version: v25.0.0
+    pr-url: https://github.com/nodejs/node/pull/57666
+    description: This API is no longer behind `--experimental-webstorage` runtime flag.
 -->
 
-> Stability: 1.0 - Early development.
+> Stability: 1.2 - Release candidate. Disable this API with [`--no-experimental-webstorage`][].
 
 A browser-compatible implementation of [`sessionStorage`][]. Data is stored in
 memory, with a storage quota of 10 MB. `sessionStorage` data persists only within
@@ -1111,10 +1130,9 @@ added: v0.0.1
 added: v22.4.0
 -->
 
-> Stability: 1.0 - Early development.
+> Stability: 1.2 - Release candidate. Disable this API with [`--no-experimental-webstorage`][].
 
-A browser-compatible implementation of {Storage}. Disable this API with the
-[`--no-webstorage`][] (or its alias `--no-experimental-webstorage`) CLI flag.
+A browser-compatible implementation of {Storage}.
 
 ## `structuredClone(value[, options])`
 
@@ -1328,7 +1346,7 @@ A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 [`--localstorage-file`]: cli.md#--localstorage-filefile
 [`--no-experimental-global-navigator`]: cli.md#--no-experimental-global-navigator
 [`--no-experimental-websocket`]: cli.md#--no-experimental-websocket
-[`--no-webstorage`]: cli.md#--no-webstorage
+[`--no-experimental-webstorage`]: cli.md#--no-experimental-webstorage
 [`ByteLengthQueuingStrategy`]: webstreams.md#class-bytelengthqueuingstrategy
 [`CompressionStream`]: webstreams.md#class-compressionstream
 [`CountQueuingStrategy`]: webstreams.md#class-countqueuingstrategy
