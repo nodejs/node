@@ -176,13 +176,17 @@ bool FSPermission::is_granted(Environment* env,
     case PermissionScope::kFileSystem:
       return allow_all_in_ && allow_all_out_;
     case PermissionScope::kFileSystemRead:
+      if (param.empty()) {
+        return allow_all_in_;
+      }
       return !deny_all_in_ &&
-             ((param.empty() && allow_all_in_) || allow_all_in_ ||
-              is_tree_granted(env, &granted_in_fs_, param));
+             (allow_all_in_ || is_tree_granted(env, &granted_in_fs_, param));
     case PermissionScope::kFileSystemWrite:
+      if (param.empty()) {
+        return allow_all_out_;
+      }
       return !deny_all_out_ &&
-             ((param.empty() && allow_all_out_) || allow_all_out_ ||
-              is_tree_granted(env, &granted_out_fs_, param));
+             (allow_all_out_ || is_tree_granted(env, &granted_out_fs_, param));
     default:
       return false;
   }
