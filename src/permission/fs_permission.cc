@@ -69,7 +69,14 @@ bool is_tree_granted(
     resolved_param.erase(0, 2);
   }
 #endif
-  return granted_tree->Lookup(resolved_param, true);
+  auto _is_granted = granted_tree->Lookup(resolved_param, true);
+  node::Debug(env,
+              node::DebugCategory::PERMISSION_MODEL,
+              "Access %d to %s\n",
+              _is_granted,
+              param);
+
+  return _is_granted;
 }
 
 static const char* kBoxDrawingsLightUpAndRight = "└─ ";
