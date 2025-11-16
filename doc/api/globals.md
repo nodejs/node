@@ -579,6 +579,103 @@ The following globals are available to use with `fetch`:
 * [`Request`](https://nodejs.org/api/globals.html#request)
 * [`Response`](https://nodejs.org/api/globals.html#response).
 
+### Differences from the WHATWG Fetch Standard
+
+Node.js implements the [WHATWG Fetch Standard][] with intentional differences to better support server-side JavaScript environments.
+
+#### Request Body Extensions
+
+##### Async iterable request bodies
+
+Node.js supports async iterables as request bodies—a behavior not included in the Fetch Standard.
+```js
+const data = {
+  async *[Symbol.asyncIterator]() {
+    yield 'hello';
+    yield 'world';
+  }
+};
+
+await fetch('https://example.com', {
+  method: 'POST',
+  body: data,
+  duplex: 'half'
+});
+```
+
+When using an async iterable or a `ReadableStream` as the request body, the `duplex` option must be set to `'half'`.
+
+##### FormData with stream-backed Blob objects
+
+`FormData` entries may include stream-backed `Blob` objects created from the filesystem, enabling efficient uploads of large files without buffering them in memory.
+```js
+import { openAsBlob } from 'node:fs';
+
+const file = await openAsBlob('./large-file.csv');
+const form = new FormData();
+form.set('file', file, 'large-file.csv');
+
+await fetch('https://example.com', { method: 'POST', body: form });
+```
+
+#### Response Body Extensions
+
+##### Async iterable response bodies
+
+The `Response` constructor accepts async iterables, allowing flexible construction of streaming responses in server environments.
+```js
+const res = new Response(asyncIterable);
+```
+
+#### CORS Behavior
+
+Node.js does not implement CORS enforcement. No preflight requests are issued, and CORS response headers are not validated. All cross-origin requests are permitted.
+
+Applications requiring origin-based access control must implement these checks manually.
+
+#### Header Restrictions
+
+The Fetch Standard restricts certain headers for browser security reasons. Node.js removes these restrictions, allowing all headers—including `Host`, `Connection`, and `Content-Length`—to be set programmatically.
+
+#### Redirect Handling
+
+When using `redirect: 'manual'`, Node.js returns the actual redirect response rather than an opaque filtered response. This matches other server-side runtimes and allows inspection of redirect details.
+
+#### Resource Management and Garbage Collection
+
+In Node.js, unconsumed response bodies may delay the release of underlying network resources. This can reduce connection reuse or cause stalls under load.
+
+Always consume or cancel the response body:
+```js
+const res = await fetch(url);
+for await (const chunk of res.body) {
+  // process chunk
+}
+```
+
+For header-only requests, prefer `HEAD` to avoid creating a body:
+```js
+const headers = (await fetch(url, { method: 'HEAD' })).headers;
+```
+
+#### Unsupported Features
+
+##### `Expect: 100-continue`
+
+The `Expect` request header is not supported. Request bodies are sent immediately, and `100 Continue` responses are ignored.
+
+#### Implementation Notes
+
+Node.js uses the [undici][] HTTP client internally to implement `fetch()`. The bundled version can be inspected with:
+```js
+console.log(process.versions.undici);
+```
+
+For additional features—such as advanced agents, interceptors, or custom connection pooling—install `undici` as a separate dependency.
+
+[WHATWG Fetch Standard]: https://fetch.spec.whatwg.org/
+[undici]: https://undici.nodejs.org/
+
 ## Class: `File`
 
 <!-- YAML
