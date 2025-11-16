@@ -8,6 +8,7 @@
 </tr>
 <tr>
 <td>
+<a href="#25.2.1">25.2.1</a><br/>
 <a href="#25.2.0">25.2.0</a><br/>
 <a href="#25.1.0">25.1.0</a><br/>
 <a href="#25.0.0">25.0.0</a><br/>
@@ -41,6 +42,19 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="25.2.1"></a>
+
+## 2025-11-17, Version 25.2.1 (Current), @aduh95
+
+### Notable Changes
+
+### Commits
+
+* \[[`ff89b7b6c7`](https://github.com/nodejs/node/commit/ff89b7b6c7)] - **crypto**: ensure documented RSA-PSS saltLength default is used (Filip Skokan) [#60662](https://github.com/nodejs/node/pull/60662)
+* \[[`5316b580eb`](https://github.com/nodejs/node/commit/5316b580eb)] - **deps**: V8: backport 2e4c5cf9b112 (Michaël Zasso) [#60654](https://github.com/nodejs/node/pull/60654)
+* \[[`ca878bc90e`](https://github.com/nodejs/node/commit/ca878bc90e)] - **doc,src,lib**: clarify experimental status of Web Storage support (Antoine du Hamel) [#60708](https://github.com/nodejs/node/pull/60708)
+* \[[`a4dee613fd`](https://github.com/nodejs/node/commit/a4dee613fd)] - _**Revert**_ "**lib**: throw from localStorage getter on missing storage path" (Antoine du Hamel) [#60750](https://github.com/nodejs/node/pull/60750)
 
 <a id="25.2.0"></a>
 
