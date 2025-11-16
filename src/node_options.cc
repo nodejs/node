@@ -603,35 +603,49 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddOption("--allow-fs-read",
             "allow permissions to read the filesystem",
             &EnvironmentOptions::allow_fs_read,
-            kAllowedInEnvvar);
+            kAllowedInEnvvar,
+            OptionNamespaces::kPermissionNamespace);
   AddOption("--allow-fs-write",
             "allow permissions to write in the filesystem",
             &EnvironmentOptions::allow_fs_write,
-            kAllowedInEnvvar);
+            kAllowedInEnvvar,
+            OptionNamespaces::kPermissionNamespace);
   AddOption("--allow-addons",
             "allow use of addons when any permissions are set",
             &EnvironmentOptions::allow_addons,
-            kAllowedInEnvvar);
+            kAllowedInEnvvar,
+            false,
+            OptionNamespaces::kPermissionNamespace);
   AddOption("--allow-child-process",
             "allow use of child process when any permissions are set",
             &EnvironmentOptions::allow_child_process,
-            kAllowedInEnvvar);
+            kAllowedInEnvvar,
+            false,
+            OptionNamespaces::kPermissionNamespace);
   AddOption("--allow-inspector",
             "allow use of inspector when any permissions are set",
             &EnvironmentOptions::allow_inspector,
-            kAllowedInEnvvar);
+            kAllowedInEnvvar,
+            false,
+            OptionNamespaces::kPermissionNamespace);
   AddOption("--allow-net",
             "allow use of network when any permissions are set",
             &EnvironmentOptions::allow_net,
-            kAllowedInEnvvar);
+            kAllowedInEnvvar,
+            false,
+            OptionNamespaces::kPermissionNamespace);
   AddOption("--allow-wasi",
             "allow wasi when any permissions are set",
             &EnvironmentOptions::allow_wasi,
-            kAllowedInEnvvar);
+            kAllowedInEnvvar,
+            false,
+            OptionNamespaces::kPermissionNamespace);
   AddOption("--allow-worker",
             "allow worker threads when any permissions are set",
             &EnvironmentOptions::allow_worker_threads,
-            kAllowedInEnvvar);
+            kAllowedInEnvvar,
+            false,
+            OptionNamespaces::kPermissionNamespace);
   AddOption("--experimental-repl-await",
             "experimental await keyword support in REPL",
             &EnvironmentOptions::experimental_repl_await,

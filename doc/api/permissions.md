@@ -153,6 +153,34 @@ does not exist, the wildcard will not be added, and access will be limited to
 yet, make sure to explicitly include the wildcard:
 `/my-path/folder-do-not-exist/*`.
 
+#### Configuration file support
+
+In addition to passing permission flags on the command line, they can also be
+declared in a Node.js configuration file when using the experimental
+\[`--experimental-config-file`]\[] flag. Permission options must be placed inside
+the `permission` top-level object.
+
+Example `node.config.json`:
+
+```json
+{
+  "permission": {
+    "allow-fs-read": ["./foo"],
+    "allow-fs-write": ["./bar"],
+    "allow-child-process": true,
+    "allow-worker": true,
+    "allow-net": true,
+    "allow-addons": false
+  }
+}
+```
+
+Run with the configuration file:
+
+```console
+$ node --permission --experimental-default-config-file app.js
+```
+
 #### Using the Permission Model with `npx`
 
 If you're using [`npx`][] to execute a Node.js script, you can enable the
