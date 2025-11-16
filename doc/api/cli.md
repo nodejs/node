@@ -1254,7 +1254,9 @@ Enable experimental WebAssembly System Interface (WASI) support.
 added: v22.4.0
 -->
 
-Enable experimental [`Web Storage`][] support.
+> Stability: 1.2 - Release candidate.
+
+Enable [`Web Storage`][] support.
 
 ### `--experimental-worker-inspection`
 
@@ -1683,10 +1685,11 @@ surface on other platforms, but the performance impact may be severe.
 added: v22.4.0
 -->
 
+> Stability: 1.2 - Release candidate. Enable this API with [`--experimental-webstorage`][].
+
 The file used to store `localStorage` data. If the file does not exist, it is
 created the first time `localStorage` is accessed. The same file may be shared
-between multiple Node.js processes concurrently. This flag is a no-op unless
-Node.js is started with the `--experimental-webstorage` flag.
+between multiple Node.js processes concurrently.
 
 ### `--max-http-header-size=size`
 
@@ -3997,6 +4000,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`--experimental-addon-modules`]: #--experimental-addon-modules
 [`--experimental-default-type=module`]: #--experimental-default-typetype
 [`--experimental-sea-config`]: single-executable-applications.md#generating-single-executable-preparation-blobs
+[`--experimental-webstorage`]: #--experimental-webstorage
 [`--heap-prof-dir`]: #--heap-prof-dir
 [`--import`]: #--importmodule
 [`--no-experimental-strip-types`]: #--no-experimental-strip-types
