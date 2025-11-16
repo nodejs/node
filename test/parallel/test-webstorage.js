@@ -41,13 +41,13 @@ test('sessionStorage is not persisted', async () => {
   assert.strictEqual((await readdir(tmpdir.path)).length, 0);
 });
 
-test('localStorage throws without --localstorage-file', async () => {
+test('localStorage emits a warning when used without --localstorage-file ', async () => {
   const cp = await spawnPromisified(process.execPath, [
-    '-e', 'localStorage',
+    '-pe', 'localStorage.length',
   ]);
-  assert.strictEqual(cp.code, 1);
+  assert.strictEqual(cp.code, 0);
   assert.strictEqual(cp.signal, null);
-  assert.match(cp.stderr, /SecurityError:/);
+  assert.match(cp.stderr, /Warning: `--localstorage-file` was provided without a valid path/);
 });
 
 test('localStorage is not persisted if it is unused', async () => {
