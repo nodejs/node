@@ -31,10 +31,7 @@ function execute(options) {
     // Note: transfer-encoding or content-length may also be present
     // depending on the request, which is acceptable.
     // Ref: https://github.com/nodejs/node/issues/27880
-    for (const [key, value] of Object.entries(expectHeaders)) {
-      assert.strictEqual(req.headers[key], value,
-                         `Expected header ${key} to be ${value}`);
-    }
+    assert.partialDeepStrictEqual(req.headers, expectHeaders);
 
     res.writeHead(200, { 'Connection': 'close' });
     res.end();
