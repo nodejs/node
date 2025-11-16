@@ -38,6 +38,7 @@
 #include "src/objects/elements-kind.h"
 #include "src/objects/feedback-vector.h"
 #include "src/objects/heap-number.h"
+#include "src/objects/property-details.h"
 #include "src/objects/string.h"
 
 namespace v8 {
@@ -4235,25 +4236,59 @@ Node* JSNativeContextSpecialization::BuildExtendPropertiesBackingStore(
   // for intermediate states of chains of property additions. That makes
   // it unclear what the best approach is here.
   DCHECK_EQ(map.UnusedPropertyFields(), 0);
-  int length = map.NextFreePropertyIndex() - map.GetInObjectProperties();
+  int in_object_length = map.GetInObjectProperties();
+  int length = map.NextFreePropertyIndex() - in_object_length;
   // Under normal circumstances, NextFreePropertyIndex() will always be larger
   // than GetInObjectProperties(). However, an attacker able to corrupt heap
   // memory can break this invariant, in which case we'll get confused here,
   // potentially causing a sandbox violation. This CHECK defends against that.
   SBXCHECK_GE(length, 0);
   int new_length = length + JSObject::kFieldsAdded;
+
+  // Find the descriptor index corresponding to the first out-of-object
+  // property.
+  DescriptorArrayRef descs = map.instance_descriptors(broker());
+  InternalIndex first_out_of_object_descriptor(in_object_length);
+  InternalIndex number_of_descriptors(descs.object()->number_of_descriptors());
+  for (InternalIndex i(in_object_length); i < number_of_descriptors; ++i) {
+    PropertyDetails details = descs.GetPropertyDetails(i);
+    // Skip over non-field properties.
+    if (details.location() != PropertyLocation::kField) {
+      continue;
+    }
+    // Skip over in-object fields.
+    // TODO(leszeks): We could make this smarter, like a binary search.
+    if (details.field_index() < in_object_length) {
+      continue;
+    }
+    first_out_of_object_descriptor = i;
+    break;
+  }
+
   // Collect the field values from the {properties}.
-  ZoneVector<Node*> values(zone());
+  ZoneVector<std::pair<Node*, Representation>> values(zone());
   values.reserve(new_length);
-  for (int i = 0; i < length; ++i) {
+
+  // Walk the property descriptors alongside the property values, to make
+  // sure to get and store them with the right machine type.
+  InternalIndex descriptor = first_out_of_object_descriptor;
+  for (int i = 0; i < length; ++i, ++descriptor) {
+    PropertyDetails details = descs.GetPropertyDetails(descriptor);
+    while (details.location() != PropertyLocation::kField) {
+      ++descriptor;
+      details = descs.GetPropertyDetails(descriptor);
+    }
+    DCHECK_EQ(i, details.field_index() - in_object_length);
     Node* value = effect = graph()->NewNode(
-        simplified()->LoadField(AccessBuilder::ForFixedArraySlot(i)),
+        simplified()->LoadField(
+            AccessBuilder::ForPropertyArraySlot(i, details.representation())),
         properties, effect, control);
-    values.push_back(value);
+    values.push_back({value, details.representation()});
   }
   // Initialize the new fields to undefined.
   for (int i = 0; i < JSObject::kFieldsAdded; ++i) {
-    values.push_back(jsgraph()->UndefinedConstant());
+    values.push_back(
+        {jsgraph()->UndefinedConstant(), Representation::Tagged()});
   }
 
   // Compute new length and hash.
@@ -4291,7 +4326,8 @@ Node* JSNativeContextSpecialization::BuildExtendPropertiesBackingStore(
   a.Store(AccessBuilder::ForMap(), jsgraph()->PropertyArrayMapConstant());
   a.Store(AccessBuilder::ForPropertyArrayLengthAndHash(), new_length_and_hash);
   for (int i = 0; i < new_length; ++i) {
-    a.Store(AccessBuilder::ForFixedArraySlot(i), values[i]);
+    a.Store(AccessBuilder::ForPropertyArraySlot(i, values[i].second),
+            values[i].first);
   }
   return a.Finish();
 }

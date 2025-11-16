@@ -9441,8 +9441,10 @@ class ExtendPropertiesBackingStore
   using Base = FixedInputValueNodeT<2, ExtendPropertiesBackingStore>;
 
  public:
-  explicit ExtendPropertiesBackingStore(uint64_t bitfield, int old_length)
-      : Base(bitfield), old_length_(old_length) {}
+  explicit ExtendPropertiesBackingStore(uint64_t bitfield,
+                                        const compiler::MapRef& old_map,
+                                        int old_length)
+      : Base(bitfield), old_map_(old_map), old_length_(old_length) {}
 
   static constexpr OpProperties kProperties =
       OpProperties::CanAllocate() | OpProperties::CanRead() |
@@ -9462,9 +9464,11 @@ class ExtendPropertiesBackingStore
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&) const;
 
+  const compiler::MapRef& old_map() const { return old_map_; }
   int old_length() const { return old_length_; }
 
  private:
+  const compiler::MapRef old_map_;
   const int old_length_;
 };
 
