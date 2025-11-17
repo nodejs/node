@@ -34,7 +34,7 @@ const goodSecureContext = {
   ca: [ loadPEM('ca1-cert') ]
 };
 
-const server = tls.createServer(serverOptions, (c) => {
+const server = tls.createServer(serverOptions, common.mustCallAtLeast((c) => {
   // The 'a' and 'b' subdomains are used to distinguish between client
   // connections.
   // Connection to subdomain 'a' is made when the 'bad' secure context is
@@ -47,13 +47,13 @@ const server = tls.createServer(serverOptions, (c) => {
   if ('b.example.com' === c.servername) {
     assert.strictEqual(c.authorized, true);
   }
-});
+}));
 
 // 1. Add the 'bad' secure context. A connection using this context will not be
 // authorized.
 server.addContext('*.example.com', badSecureContext);
 
-server.listen(0, () => {
+server.listen(0, common.mustCall(() => {
   const options = {
     port: server.address().port,
     key: loadPEM('agent1-key'),
@@ -96,4 +96,4 @@ server.listen(0, () => {
       }));
     }));
   }));
-});
+}));

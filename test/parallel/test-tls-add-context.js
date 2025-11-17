@@ -22,7 +22,7 @@ const serverOptions = {
 
 let connections = 0;
 
-const server = tls.createServer(serverOptions, (c) => {
+const server = tls.createServer(serverOptions, common.mustCall((c) => {
   if (++connections === 3) {
     server.close();
   }
@@ -31,7 +31,7 @@ const server = tls.createServer(serverOptions, (c) => {
     return;
   }
   assert.strictEqual(c.authorized, true);
-});
+}, 3));
 
 const secureContext = {
   key: loadPEM('agent1-key'),

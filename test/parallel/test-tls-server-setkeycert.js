@@ -35,7 +35,7 @@ const altKeyCertVals = [
     }),
   };
 
-  tls.createServer(options, (s) => s.end()).listen(0, function() {
+  tls.createServer(options, (s) => s.end()).listen(0, common.mustCall(function() {
     this.on('connection', common.mustCall((socket) => this.close()));
 
     tls.connect({
@@ -52,5 +52,5 @@ const altKeyCertVals = [
       this.end();
       next();
     }));
-  });
+  }));
 })();

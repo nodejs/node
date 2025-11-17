@@ -9,11 +9,11 @@ process.once('uncaughtException', common.mustCall((err) => {
 }));
 
 let called = false;
-const t = setTimeout(() => {
+const t = setTimeout(common.mustCall(() => {
   assert(!called);
   called = true;
   t.ref();
   throw new Error('Timeout Error');
-}, 1).unref();
+}), 1).unref();
 
 setTimeout(common.mustCall(), 1);
