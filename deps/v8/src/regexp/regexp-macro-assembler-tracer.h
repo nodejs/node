@@ -32,7 +32,7 @@ class RegExpMacroAssemblerTracer: public RegExpMacroAssembler {
                               Label* on_equal) override;
   void CheckCharacterGT(base::uc16 limit, Label* on_greater) override;
   void CheckCharacterLT(base::uc16 limit, Label* on_less) override;
-  void CheckGreedyLoop(Label* on_tos_equals_current_position) override;
+  void CheckFixedLengthLoop(Label* on_tos_equals_current_position) override;
   void CheckAtStart(int cp_offset, Label* on_at_start) override;
   void CheckNotAtStart(int cp_offset, Label* on_not_at_start) override;
   void CheckNotBackReference(int start_reg, bool read_backward,
