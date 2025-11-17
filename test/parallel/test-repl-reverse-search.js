@@ -301,7 +301,7 @@ function runTest() {
   REPL.createInternalRepl(opts.env, {
     input: new ActionStream(),
     output: new stream.Writable({
-      write(chunk, _, next) {
+      write: common.mustCallAtLeast((chunk, _, next) => {
         const output = chunk.toString();
 
         if (!opts.showEscapeCodes &&
@@ -325,19 +325,19 @@ function runTest() {
         }
 
         next();
-      }
+      }),
     }),
     completer: opts.completer,
     prompt,
     useColors: opts.useColors || false,
     terminal: true
-  }, function(err, repl) {
+  }, common.mustCall((err, repl) => {
     if (err) {
       console.error(`Failed test # ${numtests - tests.length}`);
       throw err;
     }
 
-    repl.once('close', () => {
+    repl.once('close', common.mustCall(() => {
       if (opts.clean)
         cleanupTmpFile();
 
@@ -349,7 +349,7 @@ function runTest() {
       }
 
       setImmediate(runTestWrap, true);
-    });
+    }));
 
     if (opts.columns) {
       Object.defineProperty(repl, 'columns', {
@@ -358,7 +358,7 @@ function runTest() {
       });
     }
     repl.inputStream.run(opts.test);
-  });
+  }));
 }
 
 // run the tests

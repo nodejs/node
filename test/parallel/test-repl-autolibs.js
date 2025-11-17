@@ -33,7 +33,7 @@ test1();
 
 function test1() {
   let gotWrite = false;
-  putIn.write = function(data) {
+  putIn.write = common.mustCall(function(data) {
     gotWrite = true;
     if (data.length) {
 
@@ -44,7 +44,7 @@ function test1() {
       assert.strictEqual(globalThis.fs, require('fs'));
       test2();
     }
-  };
+  });
   assert(!gotWrite);
   putIn.run(['fs']);
   assert(gotWrite);
@@ -52,7 +52,7 @@ function test1() {
 
 function test2() {
   let gotWrite = false;
-  putIn.write = function(data) {
+  putIn.write = common.mustCallAtLeast(function(data) {
     gotWrite = true;
     if (data.length) {
       // REPL response error message
@@ -60,7 +60,7 @@ function test2() {
       // Original value wasn't overwritten
       assert.strictEqual(val, globalThis.url);
     }
-  };
+  });
   const val = {};
   globalThis.url = val;
   common.allowGlobals(val);
