@@ -7,7 +7,7 @@ const upgradeReceivedResolvers = Promise.withResolvers();
 
 const server = http.createServer();
 server.on('request', common.mustNotCall());
-server.on('upgrade', function(req, socket, upgradeHead) {
+server.on('upgrade', common.mustCall((req, socket, upgradeHead) => {
   upgradeReceivedResolvers.resolve();
 
   // Confirm the upgrade:
@@ -24,7 +24,7 @@ server.on('upgrade', function(req, socket, upgradeHead) {
 
   // Defer upgrade stream read, to make sure socket is correctly paused
   // until we read it
-  setTimeout(() => {
+  setTimeout(common.mustCall(() => {
     let socketData = Buffer.alloc(0);
 
     // Collect the raw upgrade stream and check we do eventually get the
@@ -37,8 +37,8 @@ server.on('upgrade', function(req, socket, upgradeHead) {
       assert.strictEqual(socketData.toString(), 'upgrade head\npost-upgrade message');
       socket.end();
     }));
-  }, 10);
-});
+  }), 10);
+}));
 
 await new Promise((resolve) => server.listen(0, () => resolve()));
 

@@ -40,7 +40,7 @@ function commonHttpGet(fn) {
 
 const server = http.createServer(common.mustCall(function(req, res) {
   res.end();
-}, 4)).listen(0, '127.0.0.1', async () => {
+}, 4)).listen(0, '127.0.0.1', common.mustCall(async () => {
   await commonHttpGet(createConnection);
   await commonHttpGet(createConnectionAsync);
   await commonHttpGet(createConnectionBoth1);
@@ -55,7 +55,7 @@ const server = http.createServer(common.mustCall(function(req, res) {
   });
 
   server.close();
-});
+}));
 
 function createConnection() {
   return net.createConnection(server.address().port, '127.0.0.1');

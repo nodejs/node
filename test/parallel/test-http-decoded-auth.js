@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const http = require('http');
 
@@ -32,13 +32,13 @@ const testCases = [
 ];
 
 for (const testCase of testCases) {
-  const server = http.createServer(function(request, response) {
+  const server = http.createServer(common.mustCallAtLeast((request, response) => {
     // The correct authorization header is be passed
     assert.strictEqual(request.headers.authorization, `Basic ${testCase.expected}`);
     response.writeHead(200, {});
     response.end('ok');
     server.close();
-  });
+  }));
 
   server.listen(0, function() {
     // make the request

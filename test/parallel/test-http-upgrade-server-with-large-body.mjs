@@ -10,7 +10,7 @@ const EXPECTED_BODY_LENGTH = 100_003;
 
 const server = http.createServer();
 server.on('request', common.mustNotCall());
-server.on('upgrade', function(req, socket, upgradeHead) {
+server.on('upgrade', common.mustCall(function(req, socket, upgradeHead) {
   upgradeReceivedResolvers.resolve();
 
   // Confirm the upgrade:
@@ -44,7 +44,7 @@ server.on('upgrade', function(req, socket, upgradeHead) {
     assert.strictEqual(socketData.toString(), 'upgrade head\npost-upgrade message');
     socket.end();
   }));
-});
+}));
 
 await new Promise((resolve) => server.listen(0, () => resolve()));
 

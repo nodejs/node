@@ -41,7 +41,7 @@ const fullResponse =
     '\r\n' +
     body;
 
-const server = net.createServer(function(socket) {
+const server = net.createServer(common.mustCallAtLeast(function(socket) {
   let postBody = '';
 
   socket.setEncoding('utf8');
@@ -55,10 +55,10 @@ const server = net.createServer(function(socket) {
     }
   });
 
-  socket.on('error', function(err) {
+  socket.on('error', common.mustCallAtLeast((err) => {
     assert.strictEqual(err.code, 'ECONNRESET');
-  });
-});
+  }, 0));
+}));
 
 
 server.listen(0, common.mustCall(function() {

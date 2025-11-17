@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const http = require('http');
 const Countdown = require('../common/countdown');
@@ -32,12 +32,12 @@ const tests = [200, 202, 300, 404, 451, 500];
 let test;
 const countdown = new Countdown(tests.length, () => s.close());
 
-const s = http.createServer(function(req, res) {
+const s = http.createServer(common.mustCallAtLeast((req, res) => {
   res.writeHead(test, { 'Content-Type': 'text/plain' });
   console.log(`--\nserver: statusCode after writeHead: ${res.statusCode}`);
   assert.strictEqual(res.statusCode, test);
   res.end('hello world\n');
-});
+}));
 
 s.listen(0, nextTest);
 
@@ -45,7 +45,7 @@ s.listen(0, nextTest);
 function nextTest() {
   test = tests.shift();
 
-  http.get({ port: s.address().port }, function(response) {
+  http.get({ port: s.address().port }, common.mustCall((response) => {
     console.log(`client: expected status: ${test}`);
     console.log(`client: statusCode: ${response.statusCode}`);
     assert.strictEqual(response.statusCode, test);
@@ -54,5 +54,5 @@ function nextTest() {
         nextTest();
     });
     response.resume();
-  });
+  }));
 }

@@ -13,7 +13,7 @@ const server = net.createServer((socket) => {
   socket.write(reqstr);
 });
 
-server.listen(0, () => {
+server.listen(0, common.mustCall(() => {
   // The callback should not be called because the server is sending a
   // header field that ends only in \r with no following \n
   const req = http.get({ port: server.address().port }, common.mustNotCall());
@@ -22,4 +22,4 @@ server.listen(0, () => {
     assert.strictEqual(err.code, 'HPE_LF_EXPECTED');
     server.close();
   }));
-});
+}));

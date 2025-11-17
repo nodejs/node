@@ -195,7 +195,7 @@ export default [
       `test/parallel/test-{${
         // 0x61 is code for 'a', this generates a string enumerating latin letters: 'a*,b*,…'
         Array.from({ length: 4 }, (_, i) => String.fromCharCode(0x61 + i, 42)).join(',')
-      },${
+      },http-*,${
         // 0x61 is code for 'a', this generates a string enumerating latin letters: 'z*,y*,…'
         Array.from({ length: 7 }, (_, i) => String.fromCharCode(0x61 + 25 - i, 42)).join(',')
       }}.{js,mjs,cjs}`,
