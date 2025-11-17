@@ -66,9 +66,6 @@ class Worker : public AsyncWrap {
   std::string_view name() const { return name_; }
 
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void CloneParentEnvVars(
-      const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void SetEnvVars(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void StartThread(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void StopThread(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void HasRef(const v8::FunctionCallbackInfo<v8::Value>& args);
