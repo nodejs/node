@@ -903,11 +903,14 @@ releases on a rotation basis as outlined in the
 
 ## License
 
-Node.js is available under the
-[MIT License](https://opensource.org/licenses/MIT). Node.js also includes
-external libraries that are available under a variety of licenses.  See
-[LICENSE](https://github.com/nodejs/node/blob/HEAD/LICENSE) for the full
-license text.
+Node.js is licensed under the [MIT License](https://opensource.org/licenses/MIT).
+
+This project also depends on external libraries that may use different open-source
+licenses. For a complete list of included licenses, please see the
+[LICENSE](https://github.com/nodejs/node/blob/main/LICENSE) file.
+
+If you are contributing documentation or source changes, please ensure your
+additions comply with the project’s license guidelines.
 
 [Code of Conduct]: https://github.com/nodejs/admin/blob/HEAD/CODE_OF_CONDUCT.md
 [Contributing to the project]: CONTRIBUTING.md
