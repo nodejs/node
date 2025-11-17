@@ -54,19 +54,19 @@ function defaultTest() {
       maxSockets: 5
     });
 
-    bulkRequest(url, agent, (ports) => {
-      makeRequest(url, agent, (port) => {
+    bulkRequest(url, agent, common.mustCall((ports) => {
+      makeRequest(url, agent, common.mustCall((port) => {
         assert.strictEqual(ports[ports.length - 1], port);
-        makeRequest(url, agent, (port) => {
+        makeRequest(url, agent, common.mustCall((port) => {
           assert.strictEqual(ports[ports.length - 1], port);
-          makeRequest(url, agent, (port) => {
+          makeRequest(url, agent, common.mustCall((port) => {
             assert.strictEqual(ports[ports.length - 1], port);
             server.close();
             agent.destroy();
-          });
-        });
-      });
-    });
+          }));
+        }));
+      }));
+    }));
   }
 }
 
@@ -82,19 +82,19 @@ function fifoTest() {
       scheduling: 'fifo'
     });
 
-    bulkRequest(url, agent, (ports) => {
-      makeRequest(url, agent, (port) => {
+    bulkRequest(url, agent, common.mustCall((ports) => {
+      makeRequest(url, agent, common.mustCall((port) => {
         assert.strictEqual(ports[0], port);
-        makeRequest(url, agent, (port) => {
+        makeRequest(url, agent, common.mustCall((port) => {
           assert.strictEqual(ports[1], port);
-          makeRequest(url, agent, (port) => {
+          makeRequest(url, agent, common.mustCall((port) => {
             assert.strictEqual(ports[2], port);
             server.close();
             agent.destroy();
-          });
-        });
-      });
-    });
+          }));
+        }));
+      }));
+    }));
   }
 }
 
@@ -110,19 +110,19 @@ function lifoTest() {
       scheduling: 'lifo'
     });
 
-    bulkRequest(url, agent, (ports) => {
-      makeRequest(url, agent, (port) => {
+    bulkRequest(url, agent, common.mustCall((ports) => {
+      makeRequest(url, agent, common.mustCall((port) => {
         assert.strictEqual(ports[ports.length - 1], port);
-        makeRequest(url, agent, (port) => {
+        makeRequest(url, agent, common.mustCall((port) => {
           assert.strictEqual(ports[ports.length - 1], port);
-          makeRequest(url, agent, (port) => {
+          makeRequest(url, agent, common.mustCall((port) => {
             assert.strictEqual(ports[ports.length - 1], port);
             server.close();
             agent.destroy();
-          });
-        });
-      });
-    });
+          }));
+        }));
+      }));
+    }));
   }
 }
 

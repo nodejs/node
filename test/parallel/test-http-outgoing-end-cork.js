@@ -15,15 +15,15 @@ const handledSockets = new Set();
 
 let metReusedSocket = false; // Flag for request loop termination.
 
-const doubleEndResponse = (res) => {
+const doubleEndResponse = common.mustCall((res) => {
   // First end the request while sending some normal data
   res.end('regular end of request', 'utf8', common.mustCall());
   // Make sure the response socket is uncorked after first call of end
   assert.strictEqual(res.writableCorked, 0);
   res.end(); // Double end the response to prep for next socket re-use.
-};
+});
 
-const sendDrainNeedingData = (res) => {
+const sendDrainNeedingData = common.mustCall((res) => {
   // Send data to socket more than the high watermark so that
   // it definitely needs drain
   const highWaterMark = res.socket.writableHighWaterMark;
@@ -32,7 +32,7 @@ const sendDrainNeedingData = (res) => {
   // Make sure that we had back pressure on response stream.
   assert.strictEqual(ret, false);
   res.once('drain', () => res.end()); // End on drain.
-};
+});
 
 const server = http.createServer((req, res) => {
   const { socket: responseSocket } = res;
@@ -49,10 +49,8 @@ const server = http.createServer((req, res) => {
 
 server.listen(0); // Start the server on a random port.
 
-const sendRequest = (agent) => new Promise((resolve, reject) => {
-  const timeout = setTimeout(common.mustNotCall(() => {
-    reject(new Error('Request timed out'));
-  }), REQ_TIMEOUT);
+const sendRequest = common.mustCallAtLeast((agent) => new Promise((resolve) => {
+  const timeout = setTimeout(common.mustNotCall('Request timed out'), REQ_TIMEOUT);
   http.get({
     port: server.address().port,
     path: '/',
@@ -66,13 +64,13 @@ const sendRequest = (agent) => new Promise((resolve, reject) => {
       resolve(totalData); // fulfill promise
     }));
   }));
-});
+}));
 
 server.once('listening', async () => {
-  const testTimeout = setTimeout(common.mustNotCall(() => {
-    console.error('Test running for a while but could not met re-used socket');
-    process.exit(1);
-  }), TOTAL_TEST_TIMEOUT);
+  const testTimeout = setTimeout(
+    common.mustNotCall('Test running for a while but could not met re-used socket'),
+    TOTAL_TEST_TIMEOUT,
+  );
   // Explicitly start agent to force socket reuse.
   const agent = new http.Agent({ keepAlive: true });
   // Start the request loop

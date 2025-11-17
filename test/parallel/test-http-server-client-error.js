@@ -21,7 +21,7 @@ server.on('clientError', common.mustCall(function(err, socket) {
   server.close();
 }));
 
-server.listen(0, function() {
+server.listen(0, common.mustCall(function() {
   function next() {
     // Invalid request
     const client = net.connect(server.address().port);
@@ -31,15 +31,15 @@ server.listen(0, function() {
     client.on('data', function(chunk) {
       chunks += chunk;
     });
-    client.once('end', function() {
+    client.once('end', common.mustCall(() => {
       assert.strictEqual(chunks, 'HTTP/1.1 400 Bad Request\r\n\r\n');
-    });
+    }));
   }
 
   // Normal request
-  http.get({ port: this.address().port, path: '/' }, function(res) {
+  http.get({ port: this.address().port, path: '/' }, common.mustCall((res) => {
     assert.strictEqual(res.statusCode, 200);
     res.resume();
     res.once('end', next);
-  });
-});
+  }));
+}));

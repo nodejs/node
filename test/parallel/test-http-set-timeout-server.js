@@ -119,7 +119,7 @@ test(function serverResponseTimeoutWithPipeline(cb) {
   process.on('exit', () => {
     assert.strictEqual(caughtTimeout, '/2');
   });
-  const server = http.createServer((req, res) => {
+  const server = http.createServer(common.mustCallAtLeast((req, res) => {
     if (req.url === '/2')
       secReceived = true;
     if (req.url === '/1') {
@@ -130,7 +130,7 @@ test(function serverResponseTimeoutWithPipeline(cb) {
       caughtTimeout += req.url;
     });
     assert.ok(s instanceof http.OutgoingMessage);
-  });
+  }));
   server.on('timeout', common.mustCall((socket) => {
     if (secReceived) {
       socket.destroy();

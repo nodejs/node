@@ -22,13 +22,13 @@ for (const method of ['abort', 'destroy']) {
       }))
       .on('response', common.mustCall((res) => {
         assert.strictEqual(req.destroyed, false);
-        res.on('end', () => {
+        res.on('end', common.mustCall(() => {
           assert.strictEqual(req.destroyed, true);
           req[method]();
           assert.strictEqual(req.socket.destroyed, false);
           agent.destroy();
           server.close();
-        }).resume();
+        })).resume();
       }))
       .end();
     assert.strictEqual(req.destroyed, false);
