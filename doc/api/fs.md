@@ -53,7 +53,7 @@ try {
 ```cjs
 const { unlink } = require('node:fs/promises');
 
-(async function(path) {
+(async function (path) {
   try {
     await unlink(path);
     console.log(`successfully deleted ${path}`);
@@ -196,11 +196,11 @@ changes:
                  strings anymore.
 -->
 
-* `data` {string|Buffer|TypedArray|DataView|AsyncIterable|Iterable|Stream}
-* `options` {Object|string}
-  * `encoding` {string|null} **Default:** `'utf8'`
-  * `signal` {AbortSignal|undefined} allows aborting an in-progress writeFile. **Default:** `undefined`
-* Returns: {Promise} Fulfills with `undefined` upon success.
+- `data` {string|Buffer|TypedArray|DataView|AsyncIterable|Iterable|Stream}
+- `options` {Object|string}
+  - `encoding` {string|null} **Default:** `'utf8'`
+  - `signal` {AbortSignal|undefined} allows aborting an in-progress writeFile. **Default:** `undefined`
+- Returns: {Promise} Fulfills with `undefined` upon success.
 
 Alias of [`filehandle.writeFile()`][].
 
@@ -214,8 +214,8 @@ to with [`fsPromises.open()`][]. Therefore, this is equivalent to
 added: v10.0.0
 -->
 
-* `mode` {integer} the file mode bit mask.
-* Returns: {Promise} Fulfills with `undefined` upon success.
+- `mode` {integer} the file mode bit mask.
+- Returns: {Promise} Fulfills with `undefined` upon success.
 
 Modifies the permissions on the file. See chmod(2).
 
@@ -225,9 +225,9 @@ Modifies the permissions on the file. See chmod(2).
 added: v10.0.0
 -->
 
-* `uid` {integer} The file's new owner's user id.
-* `gid` {integer} The file's new group's group id.
-* Returns: {Promise} Fulfills with `undefined` upon success.
+- `uid` {integer} The file's new owner's user id.
+- `gid` {integer} The file's new group's group id.
+- Returns: {Promise} Fulfills with `undefined` upon success.
 
 Changes the ownership of the file. A wrapper for chown(2).
 
@@ -237,7 +237,7 @@ Changes the ownership of the file. A wrapper for chown(2).
 added: v10.0.0
 -->
 
-* Returns: {Promise} Fulfills with `undefined` upon success.
+- Returns: {Promise} Fulfills with `undefined` upon success.
 
 Closes the file handle after waiting for any pending operation on the handle to
 complete.
@@ -259,15 +259,15 @@ try {
 added: v16.11.0
 -->
 
-* `options` {Object}
-  * `encoding` {string} **Default:** `null`
-  * `autoClose` {boolean} **Default:** `true`
-  * `emitClose` {boolean} **Default:** `true`
-  * `start` {integer}
-  * `end` {integer} **Default:** `Infinity`
-  * `highWaterMark` {integer} **Default:** `64 * 1024`
-  * `signal` {AbortSignal|undefined} **Default:** `undefined`
-* Returns: {fs.ReadStream}
+- `options` {Object}
+  - `encoding` {string} **Default:** `null`
+  - `autoClose` {boolean} **Default:** `true`
+  - `emitClose` {boolean} **Default:** `true`
+  - `start` {integer}
+  - `end` {integer} **Default:** `Infinity`
+  - `highWaterMark` {integer} **Default:** `64 * 1024`
+  - `signal` {AbortSignal|undefined} **Default:** `undefined`
+- Returns: {fs.ReadStream}
 
 `options` can include `start` and `end` values to read a range of bytes from
 the file instead of the entire file. Both `start` and `end` are inclusive and
@@ -283,7 +283,7 @@ is available. This can prevent the process from exiting and the stream from
 closing naturally.
 
 By default, the stream will emit a `'close'` event after it has been
-destroyed.  Set the `emitClose` option to `false` to change this behavior.
+destroyed. Set the `emitClose` option to `false` to change this behavior.
 
 ```mjs
 import { open } from 'node:fs/promises';
@@ -330,15 +330,15 @@ changes:
     description: The `flush` option is now supported.
 -->
 
-* `options` {Object}
-  * `encoding` {string} **Default:** `'utf8'`
-  * `autoClose` {boolean} **Default:** `true`
-  * `emitClose` {boolean} **Default:** `true`
-  * `start` {integer}
-  * `highWaterMark` {number} **Default:** `16384`
-  * `flush` {boolean} If `true`, the underlying file descriptor is flushed
+- `options` {Object}
+  - `encoding` {string} **Default:** `'utf8'`
+  - `autoClose` {boolean} **Default:** `true`
+  - `emitClose` {boolean} **Default:** `true`
+  - `start` {integer}
+  - `highWaterMark` {number} **Default:** `16384`
+  - `flush` {boolean} If `true`, the underlying file descriptor is flushed
     prior to closing it. **Default:** `false`.
-* Returns: {fs.WriteStream}
+- Returns: {fs.WriteStream}
 
 `options` may also include a `start` option to allow writing data at some
 position past the beginning of the file, allowed values are in the
@@ -353,7 +353,7 @@ It is the application's responsibility to close it and make sure there's no
 file descriptor leak.
 
 By default, the stream will emit a `'close'` event after it has been
-destroyed.  Set the `emitClose` option to `false` to change this behavior.
+destroyed. Set the `emitClose` option to `false` to change this behavior.
 
 #### `filehandle.datasync()`
 
@@ -361,7 +361,7 @@ destroyed.  Set the `emitClose` option to `false` to change this behavior.
 added: v10.0.0
 -->
 
-* Returns: {Promise} Fulfills with `undefined` upon success.
+- Returns: {Promise} Fulfills with `undefined` upon success.
 
 Forces all currently queued I/O operations associated with the file to the
 operating system's synchronized I/O completion state. Refer to the POSIX
@@ -375,7 +375,7 @@ Unlike `filehandle.sync` this method does not flush modified metadata.
 added: v10.0.0
 -->
 
-* Type: {number} The numeric file descriptor managed by the {FileHandle} object.
+- Type: {number} The numeric file descriptor managed by the {FileHandle} object.
 
 #### `filehandle.read(buffer, offset, length, position)`
 
@@ -387,20 +387,20 @@ changes:
     description: Accepts bigint values as `position`.
 -->
 
-* `buffer` {Buffer|TypedArray|DataView} A buffer that will be filled with the
+- `buffer` {Buffer|TypedArray|DataView} A buffer that will be filled with the
   file data read.
-* `offset` {integer} The location in the buffer at which to start filling.
+- `offset` {integer} The location in the buffer at which to start filling.
   **Default:** `0`
-* `length` {integer} The number of bytes to read. **Default:**
+- `length` {integer} The number of bytes to read. **Default:**
   `buffer.byteLength - offset`
-* `position` {integer|bigint|null} The location where to begin reading data
+- `position` {integer|bigint|null} The location where to begin reading data
   from the file. If `null` or `-1`, data will be read from the current file
   position, and the position will be updated. If `position` is a non-negative
   integer, the current file position will remain unchanged.
   **Default:** `null`
-* Returns: {Promise} Fulfills upon success with an object with two properties:
-  * `bytesRead` {integer} The number of bytes read
-  * `buffer` {Buffer|TypedArray|DataView} A reference to the passed in `buffer`
+- Returns: {Promise} Fulfills upon success with an object with two properties:
+  - `bytesRead` {integer} The number of bytes read
+  - `buffer` {Buffer|TypedArray|DataView} A reference to the passed in `buffer`
     argument.
 
 Reads data from the file and stores that in the given buffer.
@@ -420,21 +420,21 @@ changes:
     description: Accepts bigint values as `position`.
 -->
 
-* `options` {Object}
-  * `buffer` {Buffer|TypedArray|DataView} A buffer that will be filled with the
+- `options` {Object}
+  - `buffer` {Buffer|TypedArray|DataView} A buffer that will be filled with the
     file data read. **Default:** `Buffer.alloc(16384)`
-  * `offset` {integer} The location in the buffer at which to start filling.
+  - `offset` {integer} The location in the buffer at which to start filling.
     **Default:** `0`
-  * `length` {integer} The number of bytes to read. **Default:**
+  - `length` {integer} The number of bytes to read. **Default:**
     `buffer.byteLength - offset`
-  * `position` {integer|bigint|null} The location where to begin reading data
+  - `position` {integer|bigint|null} The location where to begin reading data
     from the file. If `null` or `-1`, data will be read from the current file
     position, and the position will be updated. If `position` is a non-negative
     integer, the current file position will remain unchanged.
     **Default:**: `null`
-* Returns: {Promise} Fulfills upon success with an object with two properties:
-  * `bytesRead` {integer} The number of bytes read
-  * `buffer` {Buffer|TypedArray|DataView} A reference to the passed in `buffer`
+- Returns: {Promise} Fulfills upon success with an object with two properties:
+  - `bytesRead` {integer} The number of bytes read
+  - `buffer` {Buffer|TypedArray|DataView} A reference to the passed in `buffer`
     argument.
 
 Reads data from the file and stores that in the given buffer.
@@ -454,21 +454,21 @@ changes:
     description: Accepts bigint values as `position`.
 -->
 
-* `buffer` {Buffer|TypedArray|DataView} A buffer that will be filled with the
+- `buffer` {Buffer|TypedArray|DataView} A buffer that will be filled with the
   file data read.
-* `options` {Object}
-  * `offset` {integer} The location in the buffer at which to start filling.
+- `options` {Object}
+  - `offset` {integer} The location in the buffer at which to start filling.
     **Default:** `0`
-  * `length` {integer} The number of bytes to read. **Default:**
+  - `length` {integer} The number of bytes to read. **Default:**
     `buffer.byteLength - offset`
-  * `position` {integer|bigint|null} The location where to begin reading data
+  - `position` {integer|bigint|null} The location where to begin reading data
     from the file. If `null` or `-1`, data will be read from the current file
     position, and the position will be updated. If `position` is a non-negative
     integer, the current file position will remain unchanged.
     **Default:**: `null`
-* Returns: {Promise} Fulfills upon success with an object with two properties:
-  * `bytesRead` {integer} The number of bytes read
-  * `buffer` {Buffer|TypedArray|DataView} A reference to the passed in `buffer`
+- Returns: {Promise} Fulfills upon success with an object with two properties:
+  - `bytesRead` {integer} The number of bytes read
+  - `buffer` {Buffer|TypedArray|DataView} A reference to the passed in `buffer`
     argument.
 
 Reads data from the file and stores that in the given buffer.
@@ -499,10 +499,10 @@ changes:
     description: Added option to create a 'bytes' stream.
 -->
 
-* `options` {Object}
-  * `autoClose` {boolean} When true, causes the {FileHandle} to be closed when the
+- `options` {Object}
+  - `autoClose` {boolean} When true, causes the {FileHandle} to be closed when the
     stream is closed. **Default:** `false`
-* Returns: {ReadableStream}
+- Returns: {ReadableStream}
 
 Returns a byte-oriented `ReadableStream` that may be used to read the file's
 contents.
@@ -511,28 +511,22 @@ An error will be thrown if this method is called more than once or is called
 after the `FileHandle` is closed or closing.
 
 ```mjs
-import {
-  open,
-} from 'node:fs/promises';
+import { open } from 'node:fs/promises';
 
 const file = await open('./some/file/to/read');
 
-for await (const chunk of file.readableWebStream())
-  console.log(chunk);
+for await (const chunk of file.readableWebStream()) console.log(chunk);
 
 await file.close();
 ```
 
 ```cjs
-const {
-  open,
-} = require('node:fs/promises');
+const { open } = require('node:fs/promises');
 
 (async () => {
   const file = await open('./some/file/to/read');
 
-  for await (const chunk of file.readableWebStream())
-    console.log(chunk);
+  for await (const chunk of file.readableWebStream()) console.log(chunk);
 
   await file.close();
 })();
@@ -548,10 +542,10 @@ close the `FileHandle` automatically. User code must still call the
 added: v10.0.0
 -->
 
-* `options` {Object|string}
-  * `encoding` {string|null} **Default:** `null`
-  * `signal` {AbortSignal} allows aborting an in-progress readFile
-* Returns: {Promise} Fulfills upon a successful read with the contents of the
+- `options` {Object|string}
+  - `encoding` {string|null} **Default:** `null`
+  - `signal` {AbortSignal} allows aborting an in-progress readFile
+- Returns: {Promise} Fulfills upon a successful read with the contents of the
   file. If no encoding is specified (using `options.encoding`), the data is
   returned as a {Buffer} object. Otherwise, the data will be a string.
 
@@ -572,14 +566,14 @@ of the file.
 added: v18.11.0
 -->
 
-* `options` {Object}
-  * `encoding` {string} **Default:** `null`
-  * `autoClose` {boolean} **Default:** `true`
-  * `emitClose` {boolean} **Default:** `true`
-  * `start` {integer}
-  * `end` {integer} **Default:** `Infinity`
-  * `highWaterMark` {integer} **Default:** `64 * 1024`
-* Returns: {readline.InterfaceConstructor}
+- `options` {Object}
+  - `encoding` {string} **Default:** `null`
+  - `autoClose` {boolean} **Default:** `true`
+  - `emitClose` {boolean} **Default:** `true`
+  - `start` {integer}
+  - `end` {integer} **Default:** `Infinity`
+  - `highWaterMark` {integer} **Default:** `64 * 1024`
+- Returns: {readline.InterfaceConstructor}
 
 Convenience method to create a `readline` interface and stream over the file.
 See [`filehandle.createReadStream()`][] for the options.
@@ -614,13 +608,13 @@ added:
  - v12.17.0
 -->
 
-* `buffers` {Buffer\[]|TypedArray\[]|DataView\[]}
-* `position` {integer|null} The offset from the beginning of the file where
+- `buffers` {Buffer\[]|TypedArray\[]|DataView\[]}
+- `position` {integer|null} The offset from the beginning of the file where
   the data should be read from. If `position` is not a `number`, the data will
   be read from the current position. **Default:** `null`
-* Returns: {Promise} Fulfills upon success an object containing two properties:
-  * `bytesRead` {integer} the number of bytes read
-  * `buffers` {Buffer\[]|TypedArray\[]|DataView\[]} property containing
+- Returns: {Promise} Fulfills upon success an object containing two properties:
+  - `bytesRead` {integer} the number of bytes read
+  - `buffers` {Buffer\[]|TypedArray\[]|DataView\[]} property containing
     a reference to the `buffers` input.
 
 Read from a file and write to an array of {ArrayBufferView}s
@@ -636,10 +630,10 @@ changes:
                  the numeric values returned should be bigint.
 -->
 
-* `options` {Object}
-  * `bigint` {boolean} Whether the numeric values in the returned
+- `options` {Object}
+  - `bigint` {boolean} Whether the numeric values in the returned
     {fs.Stats} object should be `bigint`. **Default:** `false`.
-* Returns: {Promise} Fulfills with an {fs.Stats} for the file.
+- Returns: {Promise} Fulfills with an {fs.Stats} for the file.
 
 #### `filehandle.sync()`
 
@@ -647,7 +641,7 @@ changes:
 added: v10.0.0
 -->
 
-* Returns: {Promise} Fulfills with `undefined` upon success.
+- Returns: {Promise} Fulfills with `undefined` upon success.
 
 Request that all data for the open file descriptor is flushed to the storage
 device. The specific implementation is operating system and device specific.
@@ -659,8 +653,8 @@ Refer to the POSIX fsync(2) documentation for more detail.
 added: v10.0.0
 -->
 
-* `len` {integer} **Default:** `0`
-* Returns: {Promise} Fulfills with `undefined` upon success.
+- `len` {integer} **Default:** `0`
+- Returns: {Promise} Fulfills with `undefined` upon success.
 
 Truncates the file.
 
@@ -692,9 +686,9 @@ If `len` is negative then `0` will be used.
 added: v10.0.0
 -->
 
-* `atime` {number|string|Date}
-* `mtime` {number|string|Date}
-* Returns: {Promise}
+- `atime` {number|string|Date}
+- `mtime` {number|string|Date}
+- Returns: {Promise}
 
 Change the file system timestamps of the object referenced by the {FileHandle}
 then fulfills the promise with no arguments upon success.
@@ -710,23 +704,23 @@ changes:
                  buffers anymore.
 -->
 
-* `buffer` {Buffer|TypedArray|DataView}
-* `offset` {integer} The start position from within `buffer` where the data
+- `buffer` {Buffer|TypedArray|DataView}
+- `offset` {integer} The start position from within `buffer` where the data
   to write begins.
-* `length` {integer} The number of bytes from `buffer` to write. **Default:**
+- `length` {integer} The number of bytes from `buffer` to write. **Default:**
   `buffer.byteLength - offset`
-* `position` {integer|null} The offset from the beginning of the file where the
+- `position` {integer|null} The offset from the beginning of the file where the
   data from `buffer` should be written. If `position` is not a `number`,
   the data will be written at the current position. See the POSIX pwrite(2)
   documentation for more detail. **Default:** `null`
-* Returns: {Promise}
+- Returns: {Promise}
 
 Write `buffer` to the file.
 
 The promise is fulfilled with an object containing two properties:
 
-* `bytesWritten` {integer} the number of bytes written
-* `buffer` {Buffer|TypedArray|DataView} a reference to the
+- `bytesWritten` {integer} the number of bytes written
+- `buffer` {Buffer|TypedArray|DataView} a reference to the
   `buffer` written.
 
 It is unsafe to use `filehandle.write()` multiple times on the same file
@@ -745,12 +739,12 @@ added:
   - v16.17.0
 -->
 
-* `buffer` {Buffer|TypedArray|DataView}
-* `options` {Object}
-  * `offset` {integer} **Default:** `0`
-  * `length` {integer} **Default:** `buffer.byteLength - offset`
-  * `position` {integer|null} **Default:** `null`
-* Returns: {Promise}
+- `buffer` {Buffer|TypedArray|DataView}
+- `options` {Object}
+  - `offset` {integer} **Default:** `0`
+  - `length` {integer} **Default:** `buffer.byteLength - offset`
+  - `position` {integer|null} **Default:** `null`
+- Returns: {Promise}
 
 Write `buffer` to the file.
 
@@ -769,21 +763,21 @@ changes:
                  strings anymore.
 -->
 
-* `string` {string}
-* `position` {integer|null} The offset from the beginning of the file where the
+- `string` {string}
+- `position` {integer|null} The offset from the beginning of the file where the
   data from `string` should be written. If `position` is not a `number` the
   data will be written at the current position. See the POSIX pwrite(2)
   documentation for more detail. **Default:** `null`
-* `encoding` {string} The expected string encoding. **Default:** `'utf8'`
-* Returns: {Promise}
+- `encoding` {string} The expected string encoding. **Default:** `'utf8'`
+- Returns: {Promise}
 
 Write `string` to the file. If `string` is not a string, the promise is
 rejected with an error.
 
 The promise is fulfilled with an object containing two properties:
 
-* `bytesWritten` {integer} the number of bytes written
-* `buffer` {string} a reference to the `string` written.
+- `bytesWritten` {integer} the number of bytes written
+- `buffer` {string} a reference to the `string` written.
 
 It is unsafe to use `filehandle.write()` multiple times on the same file
 without waiting for the promise to be fulfilled (or rejected). For this
@@ -809,12 +803,12 @@ changes:
                  strings anymore.
 -->
 
-* `data` {string|Buffer|TypedArray|DataView|AsyncIterable|Iterable|Stream}
-* `options` {Object|string}
-  * `encoding` {string|null} The expected character encoding when `data` is a
+- `data` {string|Buffer|TypedArray|DataView|AsyncIterable|Iterable|Stream}
+- `options` {Object|string}
+  - `encoding` {string|null} The expected character encoding when `data` is a
     string. **Default:** `'utf8'`
-  * `signal` {AbortSignal|undefined} allows aborting an in-progress writeFile. **Default:** `undefined`
-* Returns: {Promise}
+  - `signal` {AbortSignal|undefined} allows aborting an in-progress writeFile. **Default:** `undefined`
+- Returns: {Promise}
 
 Asynchronously writes data to a file, replacing the file if it already exists.
 `data` can be a string, a buffer, an {AsyncIterable}, or an {Iterable} object.
@@ -838,18 +832,18 @@ beginning of the file.
 added: v12.9.0
 -->
 
-* `buffers` {Buffer\[]|TypedArray\[]|DataView\[]}
-* `position` {integer|null} The offset from the beginning of the file where the
+- `buffers` {Buffer\[]|TypedArray\[]|DataView\[]}
+- `position` {integer|null} The offset from the beginning of the file where the
   data from `buffers` should be written. If `position` is not a `number`,
   the data will be written at the current position. **Default:** `null`
-* Returns: {Promise}
+- Returns: {Promise}
 
 Write an array of {ArrayBufferView}s to the file.
 
 The promise is fulfilled with an object containing a two properties:
 
-* `bytesWritten` {integer} the number of bytes written
-* `buffers` {Buffer\[]|TypedArray\[]|DataView\[]} a reference to the `buffers`
+- `bytesWritten` {integer} the number of bytes written
+- `buffers` {Buffer\[]|TypedArray\[]|DataView\[]} a reference to the `buffers`
   input.
 
 It is unsafe to call `writev()` multiple times on the same file without waiting
@@ -880,9 +874,9 @@ filehandle is closed.
 added: v10.0.0
 -->
 
-* `path` {string|Buffer|URL}
-* `mode` {integer} **Default:** `fs.constants.F_OK`
-* Returns: {Promise} Fulfills with `undefined` upon success.
+- `path` {string|Buffer|URL}
+- `mode` {integer} **Default:** `fs.constants.F_OK`
+- Returns: {Promise} Fulfills with `undefined` upon success.
 
 Tests a user's permissions for the file or directory specified by `path`.
 The `mode` argument is an optional integer that specifies the accessibility
@@ -926,15 +920,15 @@ changes:
     description: The `flush` option is now supported.
 -->
 
-* `path` {string|Buffer|URL|FileHandle} filename or {FileHandle}
-* `data` {string|Buffer}
-* `options` {Object|string}
-  * `encoding` {string|null} **Default:** `'utf8'`
-  * `mode` {integer} **Default:** `0o666`
-  * `flag` {string} See [support of file system `flags`][]. **Default:** `'a'`.
-  * `flush` {boolean} If `true`, the underlying file descriptor is flushed
+- `path` {string|Buffer|URL|FileHandle} filename or {FileHandle}
+- `data` {string|Buffer}
+- `options` {Object|string}
+  - `encoding` {string|null} **Default:** `'utf8'`
+  - `mode` {integer} **Default:** `0o666`
+  - `flag` {string} See [support of file system `flags`][]. **Default:** `'a'`.
+  - `flush` {boolean} If `true`, the underlying file descriptor is flushed
     prior to closing it. **Default:** `false`.
-* Returns: {Promise} Fulfills with `undefined` upon success.
+- Returns: {Promise} Fulfills with `undefined` upon success.
 
 Asynchronously append data to a file, creating the file if it does not yet
 exist. `data` can be a string or a {Buffer}.
@@ -953,9 +947,9 @@ for appending (using `fsPromises.open()`).
 added: v10.0.0
 -->
 
-* `path` {string|Buffer|URL}
-* `mode` {string|integer}
-* Returns: {Promise} Fulfills with `undefined` upon success.
+- `path` {string|Buffer|URL}
+- `mode` {string|integer}
+- Returns: {Promise} Fulfills with `undefined` upon success.
 
 Changes the permissions of a file.
 
@@ -965,10 +959,10 @@ Changes the permissions of a file.
 added: v10.0.0
 -->
 
-* `path` {string|Buffer|URL}
-* `uid` {integer}
-* `gid` {integer}
-* Returns: {Promise} Fulfills with `undefined` upon success.
+- `path` {string|Buffer|URL}
+- `uid` {integer}
+- `gid` {integer}
+- Returns: {Promise} Fulfills with `undefined` upon success.
 
 Changes the ownership of a file.
 
@@ -983,22 +977,22 @@ changes:
                  stricter type validation.
 -->
 
-* `src` {string|Buffer|URL} source filename to copy
-* `dest` {string|Buffer|URL} destination filename of the copy operation
-* `mode` {integer} Optional modifiers that specify the behavior of the copy
+- `src` {string|Buffer|URL} source filename to copy
+- `dest` {string|Buffer|URL} destination filename of the copy operation
+- `mode` {integer} Optional modifiers that specify the behavior of the copy
   operation. It is possible to create a mask consisting of the bitwise OR of
   two or more values (e.g.
   `fs.constants.COPYFILE_EXCL | fs.constants.COPYFILE_FICLONE`)
   **Default:** `0`.
-  * `fs.constants.COPYFILE_EXCL`: The copy operation will fail if `dest`
+  - `fs.constants.COPYFILE_EXCL`: The copy operation will fail if `dest`
     already exists.
-  * `fs.constants.COPYFILE_FICLONE`: The copy operation will attempt to create
+  - `fs.constants.COPYFILE_FICLONE`: The copy operation will attempt to create
     a copy-on-write reflink. If the platform does not support copy-on-write,
     then a fallback copy mechanism is used.
-  * `fs.constants.COPYFILE_FICLONE_FORCE`: The copy operation will attempt to
+  - `fs.constants.COPYFILE_FICLONE_FORCE`: The copy operation will attempt to
     create a copy-on-write reflink. If the platform does not support
     copy-on-write, then the operation will fail.
-* Returns: {Promise} Fulfills with `undefined` upon success.
+- Returns: {Promise} Fulfills with `undefined` upon success.
 
 Asynchronously copies `src` to `dest`. By default, `dest` is overwritten if it
 already exists.
@@ -1048,32 +1042,32 @@ changes:
                  whether to perform path resolution for symlinks.
 -->
 
-* `src` {string|URL} source path to copy.
-* `dest` {string|URL} destination path to copy to.
-* `options` {Object}
-  * `dereference` {boolean} dereference symlinks. **Default:** `false`.
-  * `errorOnExist` {boolean} when `force` is `false`, and the destination
+- `src` {string|URL} source path to copy.
+- `dest` {string|URL} destination path to copy to.
+- `options` {Object}
+  - `dereference` {boolean} dereference symlinks. **Default:** `false`.
+  - `errorOnExist` {boolean} when `force` is `false`, and the destination
     exists, throw an error. **Default:** `false`.
-  * `filter` {Function} Function to filter copied files/directories. Return
+  - `filter` {Function} Function to filter copied files/directories. Return
     `true` to copy the item, `false` to ignore it. When ignoring a directory,
     all of its contents will be skipped as well. Can also return a `Promise`
     that resolves to `true` or `false` **Default:** `undefined`.
-    * `src` {string} source path to copy.
-    * `dest` {string} destination path to copy to.
-    * Returns: {boolean|Promise} A value that is coercible to `boolean` or
+    - `src` {string} source path to copy.
+    - `dest` {string} destination path to copy to.
+    - Returns: {boolean|Promise} A value that is coercible to `boolean` or
       a `Promise` that fulfils with such value.
-  * `force` {boolean} overwrite existing file or directory. The copy
+  - `force` {boolean} overwrite existing file or directory. The copy
     operation will ignore errors if you set this to false and the destination
     exists. Use the `errorOnExist` option to change this behavior.
     **Default:** `true`.
-  * `mode` {integer} modifiers for copy operation. **Default:** `0`.
+  - `mode` {integer} modifiers for copy operation. **Default:** `0`.
     See `mode` flag of [`fsPromises.copyFile()`][].
-  * `preserveTimestamps` {boolean} When `true` timestamps from `src` will
+  - `preserveTimestamps` {boolean} When `true` timestamps from `src` will
     be preserved. **Default:** `false`.
-  * `recursive` {boolean} copy directories recursively **Default:** `false`
-  * `verbatimSymlinks` {boolean} When `true`, path resolution for symlinks will
+  - `recursive` {boolean} copy directories recursively **Default:** `false`
+  - `verbatimSymlinks` {boolean} When `true`, path resolution for symlinks will
     be skipped. **Default:** `false`
-* Returns: {Promise} Fulfills with `undefined` upon success.
+- Returns: {Promise} Fulfills with `undefined` upon success.
 
 Asynchronously copies the entire directory structure from `src` to `dest`,
 including subdirectories and files.
@@ -1106,33 +1100,31 @@ changes:
     description: Add support for `withFileTypes` as an option.
 -->
 
-* `pattern` {string|string\[]}
-* `options` {Object}
-  * `cwd` {string|URL} current working directory. **Default:** `process.cwd()`
-  * `exclude` {Function|string\[]} Function to filter out files/directories or a
+- `pattern` {string|string\[]}
+- `options` {Object}
+  - `cwd` {string|URL} current working directory. **Default:** `process.cwd()`
+  - `exclude` {Function|string\[]} Function to filter out files/directories or a
     list of glob patterns to be excluded. If a function is provided, return
     `true` to exclude the item, `false` to include it. **Default:** `undefined`.
     If a string array is provided, each string should be a glob pattern that
     specifies paths to exclude. Note: Negation patterns (e.g., '!foo.js') are
     not supported.
-  * `withFileTypes` {boolean} `true` if the glob should return paths as Dirents,
+  - `withFileTypes` {boolean} `true` if the glob should return paths as Dirents,
     `false` otherwise. **Default:** `false`.
-* Returns: {AsyncIterator} An AsyncIterator that yields the paths of files
+- Returns: {AsyncIterator} An AsyncIterator that yields the paths of files
   that match the pattern.
 
 ```mjs
 import { glob } from 'node:fs/promises';
 
-for await (const entry of glob('**/*.js'))
-  console.log(entry);
+for await (const entry of glob('**/*.js')) console.log(entry);
 ```
 
 ```cjs
 const { glob } = require('node:fs/promises');
 
 (async () => {
-  for await (const entry of glob('**/*.js'))
-    console.log(entry);
+  for await (const entry of glob('**/*.js')) console.log(entry);
 })();
 ```
 
@@ -1144,9 +1136,9 @@ deprecated: v10.0.0
 
 > Stability: 0 - Deprecated
 
-* `path` {string|Buffer|URL}
-* `mode` {integer}
-* Returns: {Promise} Fulfills with `undefined` upon success.
+- `path` {string|Buffer|URL}
+- `mode` {integer}
+- Returns: {Promise} Fulfills with `undefined` upon success.
 
 Changes the permissions on a symbolic link.
 
@@ -1162,10 +1154,10 @@ changes:
     description: This API is no longer deprecated.
 -->
 
-* `path` {string|Buffer|URL}
-* `uid` {integer}
-* `gid` {integer}
-* Returns: {Promise}  Fulfills with `undefined` upon success.
+- `path` {string|Buffer|URL}
+- `uid` {integer}
+- `gid` {integer}
+- Returns: {Promise} Fulfills with `undefined` upon success.
 
 Changes the ownership on a symbolic link.
 
@@ -1177,10 +1169,10 @@ added:
   - v12.19.0
 -->
 
-* `path` {string|Buffer|URL}
-* `atime` {number|string|Date}
-* `mtime` {number|string|Date}
-* Returns: {Promise}  Fulfills with `undefined` upon success.
+- `path` {string|Buffer|URL}
+- `atime` {number|string|Date}
+- `mtime` {number|string|Date}
+- Returns: {Promise} Fulfills with `undefined` upon success.
 
 Changes the access and modification times of a file in the same way as
 [`fsPromises.utimes()`][], with the difference that if the path refers to a
@@ -1193,9 +1185,9 @@ the symbolic link itself are changed.
 added: v10.0.0
 -->
 
-* `existingPath` {string|Buffer|URL}
-* `newPath` {string|Buffer|URL}
-* Returns: {Promise}  Fulfills with `undefined` upon success.
+- `existingPath` {string|Buffer|URL}
+- `newPath` {string|Buffer|URL}
+- Returns: {Promise} Fulfills with `undefined` upon success.
 
 Creates a new link from the `existingPath` to the `newPath`. See the POSIX
 link(2) documentation for more detail.
@@ -1211,11 +1203,11 @@ changes:
                  the numeric values returned should be bigint.
 -->
 
-* `path` {string|Buffer|URL}
-* `options` {Object}
-  * `bigint` {boolean} Whether the numeric values in the returned
+- `path` {string|Buffer|URL}
+- `options` {Object}
+  - `bigint` {boolean} Whether the numeric values in the returned
     {fs.Stats} object should be `bigint`. **Default:** `false`.
-* Returns: {Promise}  Fulfills with the {fs.Stats} object for the given
+- Returns: {Promise} Fulfills with the {fs.Stats} object for the given
   symbolic link `path`.
 
 Equivalent to [`fsPromises.stat()`][] unless `path` refers to a symbolic link,
@@ -1228,11 +1220,11 @@ Refer to the POSIX lstat(2) document for more detail.
 added: v10.0.0
 -->
 
-* `path` {string|Buffer|URL}
-* `options` {Object|integer}
-  * `recursive` {boolean} **Default:** `false`
-  * `mode` {string|integer} Not supported on Windows. **Default:** `0o777`.
-* Returns: {Promise} Upon success, fulfills with `undefined` if `recursive`
+- `path` {string|Buffer|URL}
+- `options` {Object|integer}
+  - `recursive` {boolean} **Default:** `false`
+  - `mode` {string|integer} Not supported on Windows. **Default:** `0o777`.
+- Returns: {Promise} Upon success, fulfills with `undefined` if `recursive`
   is `false`, or the first directory path created if `recursive` is `true`.
 
 Asynchronously creates a directory.
@@ -1288,10 +1280,10 @@ changes:
     description: The `prefix` parameter now accepts an empty string.
 -->
 
-* `prefix` {string|Buffer|URL}
-* `options` {string|Object}
-  * `encoding` {string} **Default:** `'utf8'`
-* Returns: {Promise}  Fulfills with a string containing the file system path
+- `prefix` {string|Buffer|URL}
+- `options` {string|Object}
+  - `encoding` {string} **Default:** `'utf8'`
+- Returns: {Promise} Fulfills with a string containing the file system path
   of the newly created temporary directory.
 
 Creates a unique temporary directory. A unique directory name is generated by
@@ -1327,13 +1319,13 @@ characters directly to the `prefix` string. For instance, given a directory
 added: v24.4.0
 -->
 
-* `prefix` {string|Buffer|URL}
-* `options` {string|Object}
-  * `encoding` {string} **Default:** `'utf8'`
-* Returns: {Promise} Fulfills with a Promise for an async-disposable Object:
-  * `path` {string} The path of the created directory.
-  * `remove` {AsyncFunction} A function which removes the created directory.
-  * `[Symbol.asyncDispose]` {AsyncFunction} The same as `remove`.
+- `prefix` {string|Buffer|URL}
+- `options` {string|Object}
+  - `encoding` {string} **Default:** `'utf8'`
+- Returns: {Promise} Fulfills with a Promise for an async-disposable Object:
+  - `path` {string} The path of the created directory.
+  - `remove` {AsyncFunction} A function which removes the created directory.
+  - `[Symbol.asyncDispose]` {AsyncFunction} The same as `remove`.
 
 The resulting Promise holds an async-disposable object whose `path` property
 holds the created directory path. When the object is disposed, the directory
@@ -1362,12 +1354,12 @@ changes:
     description: The `flags` argument is now optional and defaults to `'r'`.
 -->
 
-* `path` {string|Buffer|URL}
-* `flags` {string|number} See [support of file system `flags`][].
+- `path` {string|Buffer|URL}
+- `flags` {string|number} See [support of file system `flags`][].
   **Default:** `'r'`.
-* `mode` {string|integer} Sets the file mode (permission and sticky bits)
+- `mode` {string|integer} Sets the file mode (permission and sticky bits)
   if the file is created. **Default:** `0o666` (readable and writable)
-* Returns: {Promise} Fulfills with a {FileHandle} object.
+- Returns: {Promise} Fulfills with a {FileHandle} object.
 
 Opens a {FileHandle}.
 
@@ -1395,15 +1387,15 @@ changes:
     description: The `bufferSize` option was introduced.
 -->
 
-* `path` {string|Buffer|URL}
-* `options` {Object}
-  * `encoding` {string|null} **Default:** `'utf8'`
-  * `bufferSize` {number} Number of directory entries that are buffered
+- `path` {string|Buffer|URL}
+- `options` {Object}
+  - `encoding` {string|null} **Default:** `'utf8'`
+  - `bufferSize` {number} Number of directory entries that are buffered
     internally when reading from the directory. Higher values lead to better
     performance but higher memory usage. **Default:** `32`
-  * `recursive` {boolean} Resolved `Dir` will be an {AsyncIterable}
+  - `recursive` {boolean} Resolved `Dir` will be an {AsyncIterable}
     containing all sub files and directories. **Default:** `false`
-* Returns: {Promise}  Fulfills with an {fs.Dir}.
+- Returns: {Promise} Fulfills with an {fs.Dir}.
 
 Asynchronously open a directory for iterative scanning. See the POSIX
 opendir(3) documentation for more detail.
@@ -1421,8 +1413,7 @@ import { opendir } from 'node:fs/promises';
 
 try {
   const dir = await opendir('./');
-  for await (const dirent of dir)
-    console.log(dirent.name);
+  for await (const dirent of dir) console.log(dirent.name);
 } catch (err) {
   console.error(err);
 }
@@ -1446,14 +1437,14 @@ changes:
     description: New option `withFileTypes` was added.
 -->
 
-* `path` {string|Buffer|URL}
-* `options` {string|Object}
-  * `encoding` {string} **Default:** `'utf8'`
-  * `withFileTypes` {boolean} **Default:** `false`
-  * `recursive` {boolean} If `true`, reads the contents of a directory
+- `path` {string|Buffer|URL}
+- `options` {string|Object}
+  - `encoding` {string} **Default:** `'utf8'`
+  - `withFileTypes` {boolean} **Default:** `false`
+  - `recursive` {boolean} If `true`, reads the contents of a directory
     recursively. In recursive mode, it will list all files, sub files, and
     directories. **Default:** `false`.
-* Returns: {Promise}  Fulfills with an array of the names of the files in
+- Returns: {Promise} Fulfills with an array of the names of the files in
   the directory excluding `'.'` and `'..'`.
 
 Reads the contents of a directory.
@@ -1471,8 +1462,7 @@ import { readdir } from 'node:fs/promises';
 
 try {
   const files = await readdir(path);
-  for (const file of files)
-    console.log(file);
+  for (const file of files) console.log(file);
 } catch (err) {
   console.error(err);
 }
@@ -1491,12 +1481,12 @@ changes:
                  ongoing readFile request.
 -->
 
-* `path` {string|Buffer|URL|FileHandle} filename or `FileHandle`
-* `options` {Object|string}
-  * `encoding` {string|null} **Default:** `null`
-  * `flag` {string} See [support of file system `flags`][]. **Default:** `'r'`.
-  * `signal` {AbortSignal} allows aborting an in-progress readFile
-* Returns: {Promise}  Fulfills with the contents of the file.
+- `path` {string|Buffer|URL|FileHandle} filename or `FileHandle`
+- `options` {Object|string}
+  - `encoding` {string|null} **Default:** `null`
+  - `flag` {string} See [support of file system `flags`][]. **Default:** `'r'`.
+  - `signal` {AbortSignal} allows aborting an in-progress readFile
+- Returns: {Promise} Fulfills with the contents of the file.
 
 Asynchronously reads the entire contents of a file.
 
@@ -1571,10 +1561,10 @@ Any specified {FileHandle} has to support reading.
 added: v10.0.0
 -->
 
-* `path` {string|Buffer|URL}
-* `options` {string|Object}
-  * `encoding` {string} **Default:** `'utf8'`
-* Returns: {Promise} Fulfills with the `linkString` upon success.
+- `path` {string|Buffer|URL}
+- `options` {string|Object}
+  - `encoding` {string} **Default:** `'utf8'`
+- Returns: {Promise} Fulfills with the `linkString` upon success.
 
 Reads the contents of the symbolic link referred to by `path`. See the POSIX
 readlink(2) documentation for more detail. The promise is fulfilled with the
@@ -1591,10 +1581,10 @@ returned will be passed as a {Buffer} object.
 added: v10.0.0
 -->
 
-* `path` {string|Buffer|URL}
-* `options` {string|Object}
-  * `encoding` {string} **Default:** `'utf8'`
-* Returns: {Promise}  Fulfills with the resolved path upon success.
+- `path` {string|Buffer|URL}
+- `options` {string|Object}
+  - `encoding` {string} **Default:** `'utf8'`
+- Returns: {Promise} Fulfills with the resolved path upon success.
 
 Determines the actual location of `path` using the same semantics as the
 `fs.realpath.native()` function.
@@ -1616,9 +1606,9 @@ this restriction.
 added: v10.0.0
 -->
 
-* `oldPath` {string|Buffer|URL}
-* `newPath` {string|Buffer|URL}
-* Returns: {Promise} Fulfills with `undefined` upon success.
+- `oldPath` {string|Buffer|URL}
+- `newPath` {string|Buffer|URL}
+- Returns: {Promise} Fulfills with `undefined` upon success.
 
 Renames `oldPath` to `newPath`.
 
@@ -1662,12 +1652,12 @@ changes:
                   now supported.
 -->
 
-* `path` {string|Buffer|URL}
-* `options` {Object} There are currently no options exposed. There used to
+- `path` {string|Buffer|URL}
+- `options` {Object} There are currently no options exposed. There used to
   be options for `recursive`, `maxBusyTries`, and `emfileWait` but they were
   deprecated and removed. The `options` argument is still accepted for
   backwards compatibility but it is not used.
-* Returns: {Promise} Fulfills with `undefined` upon success.
+- Returns: {Promise} Fulfills with `undefined` upon success.
 
 Removes the directory identified by `path`.
 
@@ -1684,21 +1674,21 @@ To get a behavior similar to the `rm -rf` Unix command, use
 added: v14.14.0
 -->
 
-* `path` {string|Buffer|URL}
-* `options` {Object}
-  * `force` {boolean} When `true`, exceptions will be ignored if `path` does
+- `path` {string|Buffer|URL}
+- `options` {Object}
+  - `force` {boolean} When `true`, exceptions will be ignored if `path` does
     not exist. **Default:** `false`.
-  * `maxRetries` {integer} If an `EBUSY`, `EMFILE`, `ENFILE`, `ENOTEMPTY`, or
+  - `maxRetries` {integer} If an `EBUSY`, `EMFILE`, `ENFILE`, `ENOTEMPTY`, or
     `EPERM` error is encountered, Node.js will retry the operation with a linear
     backoff wait of `retryDelay` milliseconds longer on each try. This option
     represents the number of retries. This option is ignored if the `recursive`
     option is not `true`. **Default:** `0`.
-  * `recursive` {boolean} If `true`, perform a recursive directory removal. In
+  - `recursive` {boolean} If `true`, perform a recursive directory removal. In
     recursive mode operations are retried on failure. **Default:** `false`.
-  * `retryDelay` {integer} The amount of time in milliseconds to wait between
+  - `retryDelay` {integer} The amount of time in milliseconds to wait between
     retries. This option is ignored if the `recursive` option is not `true`.
     **Default:** `100`.
-* Returns: {Promise} Fulfills with `undefined` upon success.
+- Returns: {Promise} Fulfills with `undefined` upon success.
 
 Removes files and directories (modeled on the standard POSIX `rm` utility).
 
@@ -1713,11 +1703,11 @@ changes:
                  the numeric values returned should be bigint.
 -->
 
-* `path` {string|Buffer|URL}
-* `options` {Object}
-  * `bigint` {boolean} Whether the numeric values in the returned
+- `path` {string|Buffer|URL}
+- `options` {Object}
+  - `bigint` {boolean} Whether the numeric values in the returned
     {fs.Stats} object should be `bigint`. **Default:** `false`.
-* Returns: {Promise}  Fulfills with the {fs.Stats} object for the
+- Returns: {Promise} Fulfills with the {fs.Stats} object for the
   given `path`.
 
 ### `fsPromises.statfs(path[, options])`
@@ -1728,11 +1718,11 @@ added:
   - v18.15.0
 -->
 
-* `path` {string|Buffer|URL}
-* `options` {Object}
-  * `bigint` {boolean} Whether the numeric values in the returned
+- `path` {string|Buffer|URL}
+- `options` {Object}
+  - `bigint` {boolean} Whether the numeric values in the returned
     {fs.StatFs} object should be `bigint`. **Default:** `false`.
-* Returns: {Promise} Fulfills with the {fs.StatFs} object for the
+- Returns: {Promise} Fulfills with the {fs.StatFs} object for the
   given `path`.
 
 ### `fsPromises.symlink(target, path[, type])`
@@ -1748,10 +1738,10 @@ changes:
 
 -->
 
-* `target` {string|Buffer|URL}
-* `path` {string|Buffer|URL}
-* `type` {string|null} **Default:** `null`
-* Returns: {Promise} Fulfills with `undefined` upon success.
+- `target` {string|Buffer|URL}
+- `path` {string|Buffer|URL}
+- `type` {string|null} **Default:** `null`
+- Returns: {Promise} Fulfills with `undefined` upon success.
 
 Creates a symbolic link.
 
@@ -1769,9 +1759,9 @@ can only point to directories.
 added: v10.0.0
 -->
 
-* `path` {string|Buffer|URL}
-* `len` {integer} **Default:** `0`
-* Returns: {Promise} Fulfills with `undefined` upon success.
+- `path` {string|Buffer|URL}
+- `len` {integer} **Default:** `0`
+- Returns: {Promise} Fulfills with `undefined` upon success.
 
 Truncates (shortens or extends the length) of the content at `path` to `len`
 bytes.
@@ -1782,8 +1772,8 @@ bytes.
 added: v10.0.0
 -->
 
-* `path` {string|Buffer|URL}
-* Returns: {Promise} Fulfills with `undefined` upon success.
+- `path` {string|Buffer|URL}
+- Returns: {Promise} Fulfills with `undefined` upon success.
 
 If `path` refers to a symbolic link, then the link is removed without affecting
 the file or directory to which that link refers. If the `path` refers to a file
@@ -1796,18 +1786,18 @@ documentation for more detail.
 added: v10.0.0
 -->
 
-* `path` {string|Buffer|URL}
-* `atime` {number|string|Date}
-* `mtime` {number|string|Date}
-* Returns: {Promise} Fulfills with `undefined` upon success.
+- `path` {string|Buffer|URL}
+- `atime` {number|string|Date}
+- `mtime` {number|string|Date}
+- Returns: {Promise} Fulfills with `undefined` upon success.
 
 Change the file system timestamps of the object referenced by `path`.
 
 The `atime` and `mtime` arguments follow these rules:
 
-* Values can be either numbers representing Unix epoch time, `Date`s, or a
+- Values can be either numbers representing Unix epoch time, `Date`s, or a
   numeric string like `'123456789.0'`.
-* If the value can not be converted to a number, or is `NaN`, `Infinity`, or
+- If the value can not be converted to a number, or is `NaN`, `Infinity`, or
   `-Infinity`, an `Error` will be thrown.
 
 ### `fsPromises.watch(filename[, options])`
@@ -1818,26 +1808,26 @@ added:
   - v14.18.0
 -->
 
-* `filename` {string|Buffer|URL}
-* `options` {string|Object}
-  * `persistent` {boolean} Indicates whether the process should continue to run
+- `filename` {string|Buffer|URL}
+- `options` {string|Object}
+  - `persistent` {boolean} Indicates whether the process should continue to run
     as long as files are being watched. **Default:** `true`.
-  * `recursive` {boolean} Indicates whether all subdirectories should be
+  - `recursive` {boolean} Indicates whether all subdirectories should be
     watched, or only the current directory. This applies when a directory is
     specified, and only on supported platforms (See [caveats][]). **Default:**
     `false`.
-  * `encoding` {string} Specifies the character encoding to be used for the
+  - `encoding` {string} Specifies the character encoding to be used for the
     filename passed to the listener. **Default:** `'utf8'`.
-  * `signal` {AbortSignal} An {AbortSignal} used to signal when the watcher
+  - `signal` {AbortSignal} An {AbortSignal} used to signal when the watcher
     should stop.
-  * `maxQueue` {number} Specifies the number of events to queue between iterations
+  - `maxQueue` {number} Specifies the number of events to queue between iterations
     of the {AsyncIterator} returned. **Default:** `2048`.
-  * `overflow` {string} Either `'ignore'` or `'throw'` when there are more events to be
+  - `overflow` {string} Either `'ignore'` or `'throw'` when there are more events to be
     queued than `maxQueue` allows. `'ignore'` means overflow events are dropped and a
     warning is emitted, while `'throw'` means to throw an exception. **Default:** `'ignore'`.
-* Returns: {AsyncIterator} of objects with the properties:
-  * `eventType` {string} The type of change
-  * `filename` {string|Buffer|null} The name of the file changed.
+- Returns: {AsyncIterator} of objects with the properties:
+  - `eventType` {string} The type of change
+  - `filename` {string|Buffer|null} The name of the file changed.
 
 Returns an async iterator that watches for changes on `filename`, where `filename`
 is either a file or a directory.
@@ -1852,11 +1842,9 @@ setTimeout(() => ac.abort(), 10000);
 (async () => {
   try {
     const watcher = watch(__filename, { signal });
-    for await (const event of watcher)
-      console.log(event);
+    for await (const event of watcher) console.log(event);
   } catch (err) {
-    if (err.name === 'AbortError')
-      return;
+    if (err.name === 'AbortError') return;
     throw err;
   }
 })();
@@ -1894,17 +1882,17 @@ changes:
                  strings anymore.
 -->
 
-* `file` {string|Buffer|URL|FileHandle} filename or `FileHandle`
-* `data` {string|Buffer|TypedArray|DataView|AsyncIterable|Iterable|Stream}
-* `options` {Object|string}
-  * `encoding` {string|null} **Default:** `'utf8'`
-  * `mode` {integer} **Default:** `0o666`
-  * `flag` {string} See [support of file system `flags`][]. **Default:** `'w'`.
-  * `flush` {boolean} If all data is successfully written to the file, and
+- `file` {string|Buffer|URL|FileHandle} filename or `FileHandle`
+- `data` {string|Buffer|TypedArray|DataView|AsyncIterable|Iterable|Stream}
+- `options` {Object|string}
+  - `encoding` {string|null} **Default:** `'utf8'`
+  - `mode` {integer} **Default:** `0o666`
+  - `flag` {string} See [support of file system `flags`][]. **Default:** `'w'`.
+  - `flush` {boolean} If all data is successfully written to the file, and
     `flush` is `true`, `filehandle.sync()` is used to flush the data.
     **Default:** `false`.
-  * `signal` {AbortSignal} allows aborting an in-progress writeFile
-* Returns: {Promise} Fulfills with `undefined` upon success.
+  - `signal` {AbortSignal} allows aborting an in-progress writeFile
+- Returns: {Promise} Fulfills with `undefined` upon success.
 
 Asynchronously writes data to a file, replacing the file if it already exists.
 `data` can be a string, a buffer, an {AsyncIterable}, or an {Iterable} object.
@@ -1961,7 +1949,7 @@ added:
   - v16.17.0
 -->
 
-* Type: {Object}
+- Type: {Object}
 
 Returns an object containing commonly used constants for file system
 operations. The object is the same as `fs.constants`. See [FS constants][]
@@ -2009,10 +1997,10 @@ changes:
                  versions.
 -->
 
-* `path` {string|Buffer|URL}
-* `mode` {integer} **Default:** `fs.constants.F_OK`
-* `callback` {Function}
-  * `err` {Error}
+- `path` {string|Buffer|URL}
+- `mode` {integer} **Default:** `fs.constants.F_OK`
+- `callback` {Function}
+  - `err` {Error}
 
 Tests a user's permissions for the file or directory specified by `path`.
 The `mode` argument is an optional integer that specifies the accessibility
@@ -2206,16 +2194,16 @@ changes:
     description: The `file` parameter can be a file descriptor now.
 -->
 
-* `path` {string|Buffer|URL|number} filename or file descriptor
-* `data` {string|Buffer}
-* `options` {Object|string}
-  * `encoding` {string|null} **Default:** `'utf8'`
-  * `mode` {integer} **Default:** `0o666`
-  * `flag` {string} See [support of file system `flags`][]. **Default:** `'a'`.
-  * `flush` {boolean} If `true`, the underlying file descriptor is flushed
+- `path` {string|Buffer|URL|number} filename or file descriptor
+- `data` {string|Buffer}
+- `options` {Object|string}
+  - `encoding` {string|null} **Default:** `'utf8'`
+  - `mode` {integer} **Default:** `0o666`
+  - `flag` {string} See [support of file system `flags`][]. **Default:** `'a'`.
+  - `flush` {boolean} If `true`, the underlying file descriptor is flushed
     prior to closing it. **Default:** `false`.
-* `callback` {Function}
-  * `err` {Error}
+- `callback` {Function}
+  - `err` {Error}
 
 Asynchronously append data to a file, creating the file if it does not yet
 exist. `data` can be a string or a {Buffer}.
@@ -2292,10 +2280,10 @@ changes:
                  it will emit a deprecation warning with id DEP0013.
 -->
 
-* `path` {string|Buffer|URL}
-* `mode` {string|integer}
-* `callback` {Function}
-  * `err` {Error}
+- `path` {string|Buffer|URL}
+- `mode` {string|integer}
+- `callback` {Function}
+  - `err` {Error}
 
 Asynchronously changes the permissions of a file. No arguments other than a
 possible exception are given to the completion callback.
@@ -2348,9 +2336,9 @@ specifies the permissions for others.
 
 For example, the octal value `0o765` means:
 
-* The owner may read, write, and execute the file.
-* The group may read and write the file.
-* Others may read and execute the file.
+- The owner may read, write, and execute the file.
+- The group may read and write the file.
+- Others may read and execute the file.
 
 When using raw numbers where file modes are expected, any value larger than
 `0o777` may result in platform-specific behaviors that are not supported to work
@@ -2385,11 +2373,11 @@ changes:
                  it will emit a deprecation warning with id DEP0013.
 -->
 
-* `path` {string|Buffer|URL}
-* `uid` {integer}
-* `gid` {integer}
-* `callback` {Function}
-  * `err` {Error}
+- `path` {string|Buffer|URL}
+- `uid` {integer}
+- `gid` {integer}
+- `callback` {Function}
+  - `err` {Error}
 
 Asynchronously changes owner and group of a file. No arguments other than a
 possible exception are given to the completion callback.
@@ -2421,9 +2409,9 @@ changes:
                  it will emit a deprecation warning with id DEP0013.
 -->
 
-* `fd` {integer}
-* `callback` {Function}
-  * `err` {Error}
+- `fd` {integer}
+- `callback` {Function}
+  - `err` {Error}
 
 Closes the file descriptor. No arguments other than a possible exception are
 given to the completion callback.
@@ -2449,11 +2437,11 @@ changes:
                  stricter type validation.
 -->
 
-* `src` {string|Buffer|URL} source filename to copy
-* `dest` {string|Buffer|URL} destination filename of the copy operation
-* `mode` {integer} modifiers for copy operation. **Default:** `0`.
-* `callback` {Function}
-  * `err` {Error}
+- `src` {string|Buffer|URL} source filename to copy
+- `dest` {string|Buffer|URL} destination filename of the copy operation
+- `mode` {integer} modifiers for copy operation. **Default:** `0`.
+- `callback` {Function}
+  - `err` {Error}
 
 Asynchronously copies `src` to `dest`. By default, `dest` is overwritten if it
 already exists. No arguments other than a possible exception are given to the
@@ -2466,12 +2454,12 @@ of the copy operation. It is possible to create a mask consisting of the bitwise
 OR of two or more values (e.g.
 `fs.constants.COPYFILE_EXCL | fs.constants.COPYFILE_FICLONE`).
 
-* `fs.constants.COPYFILE_EXCL`: The copy operation will fail if `dest` already
+- `fs.constants.COPYFILE_EXCL`: The copy operation will fail if `dest` already
   exists.
-* `fs.constants.COPYFILE_FICLONE`: The copy operation will attempt to create a
+- `fs.constants.COPYFILE_FICLONE`: The copy operation will attempt to create a
   copy-on-write reflink. If the platform does not support copy-on-write, then a
   fallback copy mechanism is used.
-* `fs.constants.COPYFILE_FICLONE_FORCE`: The copy operation will attempt to
+- `fs.constants.COPYFILE_FICLONE_FORCE`: The copy operation will attempt to
   create a copy-on-write reflink. If the platform does not support
   copy-on-write, then the operation will fail.
 
@@ -2517,33 +2505,33 @@ changes:
                  whether to perform path resolution for symlinks.
 -->
 
-* `src` {string|URL} source path to copy.
-* `dest` {string|URL} destination path to copy to.
-* `options` {Object}
-  * `dereference` {boolean} dereference symlinks. **Default:** `false`.
-  * `errorOnExist` {boolean} when `force` is `false`, and the destination
+- `src` {string|URL} source path to copy.
+- `dest` {string|URL} destination path to copy to.
+- `options` {Object}
+  - `dereference` {boolean} dereference symlinks. **Default:** `false`.
+  - `errorOnExist` {boolean} when `force` is `false`, and the destination
     exists, throw an error. **Default:** `false`.
-  * `filter` {Function} Function to filter copied files/directories. Return
+  - `filter` {Function} Function to filter copied files/directories. Return
     `true` to copy the item, `false` to ignore it. When ignoring a directory,
     all of its contents will be skipped as well. Can also return a `Promise`
     that resolves to `true` or `false` **Default:** `undefined`.
-    * `src` {string} source path to copy.
-    * `dest` {string} destination path to copy to.
-    * Returns: {boolean|Promise} A value that is coercible to `boolean` or
+    - `src` {string} source path to copy.
+    - `dest` {string} destination path to copy to.
+    - Returns: {boolean|Promise} A value that is coercible to `boolean` or
       a `Promise` that fulfils with such value.
-  * `force` {boolean} overwrite existing file or directory. The copy
+  - `force` {boolean} overwrite existing file or directory. The copy
     operation will ignore errors if you set this to false and the destination
     exists. Use the `errorOnExist` option to change this behavior.
     **Default:** `true`.
-  * `mode` {integer} modifiers for copy operation. **Default:** `0`.
+  - `mode` {integer} modifiers for copy operation. **Default:** `0`.
     See `mode` flag of [`fs.copyFile()`][].
-  * `preserveTimestamps` {boolean} When `true` timestamps from `src` will
+  - `preserveTimestamps` {boolean} When `true` timestamps from `src` will
     be preserved. **Default:** `false`.
-  * `recursive` {boolean} copy directories recursively **Default:** `false`
-  * `verbatimSymlinks` {boolean} When `true`, path resolution for symlinks will
+  - `recursive` {boolean} copy directories recursively **Default:** `false`
+  - `verbatimSymlinks` {boolean} When `true`, path resolution for symlinks will
     be skipped. **Default:** `false`
-* `callback` {Function}
-  * `err` {Error}
+- `callback` {Function}
+  - `err` {Error}
 
 Asynchronously copies the entire directory structure from `src` to `dest`,
 including subdirectories and files.
@@ -2598,21 +2586,21 @@ changes:
     description: The passed `options` object can be a string now.
 -->
 
-* `path` {string|Buffer|URL}
-* `options` {string|Object}
-  * `flags` {string} See [support of file system `flags`][]. **Default:**
+- `path` {string|Buffer|URL}
+- `options` {string|Object}
+  - `flags` {string} See [support of file system `flags`][]. **Default:**
     `'r'`.
-  * `encoding` {string} **Default:** `null`
-  * `fd` {integer|FileHandle} **Default:** `null`
-  * `mode` {integer} **Default:** `0o666`
-  * `autoClose` {boolean} **Default:** `true`
-  * `emitClose` {boolean} **Default:** `true`
-  * `start` {integer}
-  * `end` {integer} **Default:** `Infinity`
-  * `highWaterMark` {integer} **Default:** `64 * 1024`
-  * `fs` {Object|null} **Default:** `null`
-  * `signal` {AbortSignal|null} **Default:** `null`
-* Returns: {fs.ReadStream}
+  - `encoding` {string} **Default:** `null`
+  - `fd` {integer|FileHandle} **Default:** `null`
+  - `mode` {integer} **Default:** `0o666`
+  - `autoClose` {boolean} **Default:** `true`
+  - `emitClose` {boolean} **Default:** `true`
+  - `start` {integer}
+  - `end` {integer} **Default:** `Infinity`
+  - `highWaterMark` {integer} **Default:** `64 * 1024`
+  - `fs` {Object|null} **Default:** `null`
+  - `signal` {AbortSignal|null} **Default:** `null`
+- Returns: {fs.ReadStream}
 
 `options` can include `start` and `end` values to read a range of bytes from
 the file instead of the entire file. Both `start` and `end` are inclusive and
@@ -2633,7 +2621,7 @@ available. This can prevent the process from exiting and the stream from
 closing naturally.
 
 By default, the stream will emit a `'close'` event after it has been
-destroyed.  Set the `emitClose` option to `false` to change this behavior.
+destroyed. Set the `emitClose` option to `false` to change this behavior.
 
 By providing the `fs` option, it is possible to override the corresponding `fs`
 implementations for `open`, `read`, and `close`. When providing the `fs` option,
@@ -2727,22 +2715,22 @@ changes:
     description: The passed `options` object can be a string now.
 -->
 
-* `path` {string|Buffer|URL}
-* `options` {string|Object}
-  * `flags` {string} See [support of file system `flags`][]. **Default:**
+- `path` {string|Buffer|URL}
+- `options` {string|Object}
+  - `flags` {string} See [support of file system `flags`][]. **Default:**
     `'w'`.
-  * `encoding` {string} **Default:** `'utf8'`
-  * `fd` {integer|FileHandle} **Default:** `null`
-  * `mode` {integer} **Default:** `0o666`
-  * `autoClose` {boolean} **Default:** `true`
-  * `emitClose` {boolean} **Default:** `true`
-  * `start` {integer}
-  * `fs` {Object|null} **Default:** `null`
-  * `signal` {AbortSignal|null} **Default:** `null`
-  * `highWaterMark` {number} **Default:** `16384`
-  * `flush` {boolean} If `true`, the underlying file descriptor is flushed
+  - `encoding` {string} **Default:** `'utf8'`
+  - `fd` {integer|FileHandle} **Default:** `null`
+  - `mode` {integer} **Default:** `0o666`
+  - `autoClose` {boolean} **Default:** `true`
+  - `emitClose` {boolean} **Default:** `true`
+  - `start` {integer}
+  - `fs` {Object|null} **Default:** `null`
+  - `signal` {AbortSignal|null} **Default:** `null`
+  - `highWaterMark` {number} **Default:** `16384`
+  - `flush` {boolean} If `true`, the underlying file descriptor is flushed
     prior to closing it. **Default:** `false`.
-* Returns: {fs.WriteStream}
+- Returns: {fs.WriteStream}
 
 `options` may also include a `start` option to allow writing data at some
 position past the beginning of the file, allowed values are in the
@@ -2757,7 +2745,7 @@ It is the application's responsibility to close it and make sure there's no
 file descriptor leak.
 
 By default, the stream will emit a `'close'` event after it has been
-destroyed.  Set the `emitClose` option to `false` to change this behavior.
+destroyed. Set the `emitClose` option to `false` to change this behavior.
 
 By providing the `fs` option it is possible to override the corresponding `fs`
 implementations for `open`, `write`, `writev`, and `close`. Overriding `write()`
@@ -2793,9 +2781,9 @@ changes:
 
 > Stability: 0 - Deprecated: Use [`fs.stat()`][] or [`fs.access()`][] instead.
 
-* `path` {string|Buffer|URL}
-* `callback` {Function}
-  * `exists` {boolean}
+- `path` {string|Buffer|URL}
+- `callback` {Function}
+  - `exists` {boolean}
 
 Test whether or not the element at the given `path` exists by checking with the file system.
 Then call the `callback` argument with either true or false:
@@ -2948,10 +2936,10 @@ changes:
                  it will emit a deprecation warning with id DEP0013.
 -->
 
-* `fd` {integer}
-* `mode` {string|integer}
-* `callback` {Function}
-  * `err` {Error}
+- `fd` {integer}
+- `mode` {string|integer}
+- `callback` {Function}
+  - `err` {Error}
 
 Sets the permissions on the file. No arguments other than a possible exception
 are given to the completion callback.
@@ -2978,11 +2966,11 @@ changes:
                  it will emit a deprecation warning with id DEP0013.
 -->
 
-* `fd` {integer}
-* `uid` {integer}
-* `gid` {integer}
-* `callback` {Function}
-  * `err` {Error}
+- `fd` {integer}
+- `uid` {integer}
+- `gid` {integer}
+- `callback` {Function}
+  - `err` {Error}
 
 Sets the owner of the file. No arguments other than a possible exception are
 given to the completion callback.
@@ -3009,9 +2997,9 @@ changes:
                  it will emit a deprecation warning with id DEP0013.
 -->
 
-* `fd` {integer}
-* `callback` {Function}
-  * `err` {Error}
+- `fd` {integer}
+- `callback` {Function}
+  - `err` {Error}
 
 Forces all currently queued I/O operations associated with the file to the
 operating system's synchronized I/O completion state. Refer to the POSIX
@@ -3042,13 +3030,13 @@ changes:
                  it will emit a deprecation warning with id DEP0013.
 -->
 
-* `fd` {integer}
-* `options` {Object}
-  * `bigint` {boolean} Whether the numeric values in the returned
+- `fd` {integer}
+- `options` {Object}
+  - `bigint` {boolean} Whether the numeric values in the returned
     {fs.Stats} object should be `bigint`. **Default:** `false`.
-* `callback` {Function}
-  * `err` {Error}
-  * `stats` {fs.Stats}
+- `callback` {Function}
+  - `err` {Error}
+  - `stats` {fs.Stats}
 
 Invokes the callback with the {fs.Stats} for the file descriptor.
 
@@ -3074,9 +3062,9 @@ changes:
                  it will emit a deprecation warning with id DEP0013.
 -->
 
-* `fd` {integer}
-* `callback` {Function}
-  * `err` {Error}
+- `fd` {integer}
+- `callback` {Function}
+  - `err` {Error}
 
 Request that all data for the open file descriptor is flushed to the storage
 device. The specific implementation is operating system and device specific.
@@ -3103,10 +3091,10 @@ changes:
                  it will emit a deprecation warning with id DEP0013.
 -->
 
-* `fd` {integer}
-* `len` {integer} **Default:** `0`
-* `callback` {Function}
-  * `err` {Error}
+- `fd` {integer}
+- `len` {integer} **Default:** `0`
+- `callback` {Function}
+  - `err` {Error}
 
 Truncates the file descriptor. No arguments other than a possible exception are
 given to the completion callback.
@@ -3172,11 +3160,11 @@ changes:
                  time specifiers.
 -->
 
-* `fd` {integer}
-* `atime` {number|string|Date}
-* `mtime` {number|string|Date}
-* `callback` {Function}
-  * `err` {Error}
+- `fd` {integer}
+- `atime` {number|string|Date}
+- `mtime` {number|string|Date}
+- `callback` {Function}
+  - `err` {Error}
 
 Change the file system timestamps of the object referenced by the supplied file
 descriptor. See [`fs.utimes()`][].
@@ -3206,20 +3194,22 @@ changes:
     description: Add support for `withFileTypes` as an option.
 -->
 
-* `pattern` {string|string\[]}
+- `pattern` {string|string\[]}
 
-* `options` {Object}
-  * `cwd` {string|URL} current working directory. **Default:** `process.cwd()`
-  * `exclude` {Function|string\[]} Function to filter out files/directories or a
+- `options` {Object}
+
+  - `cwd` {string|URL} current working directory. **Default:** `process.cwd()`
+  - `exclude` {Function|string\[]} Function to filter out files/directories or a
     list of glob patterns to be excluded. If a function is provided, return
     `true` to exclude the item, `false` to include it. **Default:** `undefined`.
-  * `withFileTypes` {boolean} `true` if the glob should return paths as Dirents,
+  - `withFileTypes` {boolean} `true` if the glob should return paths as Dirents,
     `false` otherwise. **Default:** `false`.
 
-* `callback` {Function}
-  * `err` {Error}
+- `callback` {Function}
 
-* Retrieves the files matching the specified pattern.
+  - `err` {Error}
+
+- Retrieves the files matching the specified pattern.
 
 ```mjs
 import { glob } from 'node:fs';
@@ -3265,10 +3255,10 @@ changes:
 
 > Stability: 0 - Deprecated
 
-* `path` {string|Buffer|URL}
-* `mode` {integer}
-* `callback` {Function}
-  * `err` {Error|AggregateError}
+- `path` {string|Buffer|URL}
+- `mode` {integer}
+- `callback` {Function}
+  - `err` {Error|AggregateError}
 
 Changes the permissions on a symbolic link. No arguments other than a possible
 exception are given to the completion callback.
@@ -3301,11 +3291,11 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-* `path` {string|Buffer|URL}
-* `uid` {integer}
-* `gid` {integer}
-* `callback` {Function}
-  * `err` {Error}
+- `path` {string|Buffer|URL}
+- `uid` {integer}
+- `gid` {integer}
+- `callback` {Function}
+  - `err` {Error}
 
 Set the owner of the symbolic link. No arguments other than a possible
 exception are given to the completion callback.
@@ -3326,11 +3316,11 @@ changes:
                  `ERR_INVALID_CALLBACK`.
 -->
 
-* `path` {string|Buffer|URL}
-* `atime` {number|string|Date}
-* `mtime` {number|string|Date}
-* `callback` {Function}
-  * `err` {Error}
+- `path` {string|Buffer|URL}
+- `atime` {number|string|Date}
+- `mtime` {number|string|Date}
+- `callback` {Function}
+  - `err` {Error}
 
 Changes the access and modification times of a file in the same way as
 [`fs.utimes()`][], with the difference that if the path refers to a symbolic
@@ -3365,10 +3355,10 @@ changes:
                  it will emit a deprecation warning with id DEP0013.
 -->
 
-* `existingPath` {string|Buffer|URL}
-* `newPath` {string|Buffer|URL}
-* `callback` {Function}
-  * `err` {Error}
+- `existingPath` {string|Buffer|URL}
+- `newPath` {string|Buffer|URL}
+- `callback` {Function}
+  - `err` {Error}
 
 Creates a new link from the `existingPath` to the `newPath`. See the POSIX
 link(2) documentation for more detail. No arguments other than a possible
@@ -3402,13 +3392,13 @@ changes:
                  it will emit a deprecation warning with id DEP0013.
 -->
 
-* `path` {string|Buffer|URL}
-* `options` {Object}
-  * `bigint` {boolean} Whether the numeric values in the returned
+- `path` {string|Buffer|URL}
+- `options` {Object}
+  - `bigint` {boolean} Whether the numeric values in the returned
     {fs.Stats} object should be `bigint`. **Default:** `false`.
-* `callback` {Function}
-  * `err` {Error}
-  * `stats` {fs.Stats}
+- `callback` {Function}
+  - `err` {Error}
+  - `stats` {fs.Stats}
 
 Retrieves the {fs.Stats} for the symbolic link referred to by the path.
 The callback gets two arguments `(err, stats)` where `stats` is a {fs.Stats}
@@ -3451,13 +3441,13 @@ changes:
                  it will emit a deprecation warning with id DEP0013.
 -->
 
-* `path` {string|Buffer|URL}
-* `options` {Object|integer}
-  * `recursive` {boolean} **Default:** `false`
-  * `mode` {string|integer} Not supported on Windows. **Default:** `0o777`.
-* `callback` {Function}
-  * `err` {Error}
-  * `path` {string|undefined} Present only if a directory is created with
+- `path` {string|Buffer|URL}
+- `options` {Object|integer}
+  - `recursive` {boolean} **Default:** `false`
+  - `mode` {string|integer} Not supported on Windows. **Default:** `0o777`.
+- `callback` {Function}
+  - `err` {Error}
+  - `path` {string|undefined} Present only if a directory is created with
     `recursive` set to `true`.
 
 Asynchronously creates a directory.
@@ -3529,12 +3519,12 @@ changes:
     description: The `callback` parameter is optional now.
 -->
 
-* `prefix` {string|Buffer|URL}
-* `options` {string|Object}
-  * `encoding` {string} **Default:** `'utf8'`
-* `callback` {Function}
-  * `err` {Error}
-  * `directory` {string}
+- `prefix` {string|Buffer|URL}
+- `options` {string|Object}
+  - `encoding` {string} **Default:** `'utf8'`
+- `callback` {Function}
+  - `err` {Error}
+  - `directory` {string}
 
 Creates a unique temporary directory.
 
@@ -3617,13 +3607,13 @@ changes:
                  protocol.
 -->
 
-* `path` {string|Buffer|URL}
-* `flags` {string|number} See [support of file system `flags`][].
+- `path` {string|Buffer|URL}
+- `flags` {string|number} See [support of file system `flags`][].
   **Default:** `'r'`.
-* `mode` {string|integer} **Default:** `0o666` (readable and writable)
-* `callback` {Function}
-  * `err` {Error}
-  * `fd` {integer}
+- `mode` {string|integer} **Default:** `0o666` (readable and writable)
+- `callback` {Function}
+  - `err` {Error}
+  - `fd` {integer}
 
 Asynchronous file open. See the POSIX open(2) documentation for more details.
 
@@ -3653,10 +3643,10 @@ changes:
     description: Marking the API stable.
 -->
 
-* `path` {string|Buffer|URL}
-* `options` {Object}
-  * `type` {string} An optional mime type for the blob.
-* Returns: {Promise} Fulfills with a {Blob} upon success.
+- `path` {string|Buffer|URL}
+- `options` {Object}
+  - `type` {string} An optional mime type for the blob.
+- Returns: {Promise} Fulfills with a {Blob} upon success.
 
 Returns a {Blob} whose data is backed by the given file.
 
@@ -3705,16 +3695,16 @@ changes:
     description: The `bufferSize` option was introduced.
 -->
 
-* `path` {string|Buffer|URL}
-* `options` {Object}
-  * `encoding` {string|null} **Default:** `'utf8'`
-  * `bufferSize` {number} Number of directory entries that are buffered
+- `path` {string|Buffer|URL}
+- `options` {Object}
+  - `encoding` {string|null} **Default:** `'utf8'`
+  - `bufferSize` {number} Number of directory entries that are buffered
     internally when reading from the directory. Higher values lead to better
     performance but higher memory usage. **Default:** `32`
-  * `recursive` {boolean} **Default:** `false`
-* `callback` {Function}
-  * `err` {Error}
-  * `dir` {fs.Dir}
+  - `recursive` {boolean} **Default:** `false`
+- `callback` {Function}
+  - `err` {Error}
+  - `dir` {fs.Dir}
 
 Asynchronously open a directory. See the POSIX opendir(3) documentation for
 more details.
@@ -3747,19 +3737,19 @@ changes:
     description: The `length` parameter can now be `0`.
 -->
 
-* `fd` {integer}
-* `buffer` {Buffer|TypedArray|DataView} The buffer that the data will be
+- `fd` {integer}
+- `buffer` {Buffer|TypedArray|DataView} The buffer that the data will be
   written to.
-* `offset` {integer} The position in `buffer` to write the data to.
-* `length` {integer} The number of bytes to read.
-* `position` {integer|bigint|null} Specifies where to begin reading from in the
+- `offset` {integer} The position in `buffer` to write the data to.
+- `length` {integer} The number of bytes to read.
+- `position` {integer|bigint|null} Specifies where to begin reading from in the
   file. If `position` is `null` or `-1 `, data will be read from the current
   file position, and the file position will be updated. If `position` is
   a non-negative integer, the file position will be unchanged.
-* `callback` {Function}
-  * `err` {Error}
-  * `bytesRead` {integer}
-  * `buffer` {Buffer}
+- `callback` {Function}
+  - `err` {Error}
+  - `bytesRead` {integer}
+  - `buffer` {Buffer}
 
 Read data from the file specified by `fd`.
 
@@ -3781,13 +3771,13 @@ than the specified `length` for various reasons.
 
 For example:
 
-* If the file is shorter than the specified `length`, `bytesRead`
+- If the file is shorter than the specified `length`, `bytesRead`
   will be set to the actual number of bytes read.
-* If the file encounters EOF (End of File) before the buffer could
+- If the file encounters EOF (End of File) before the buffer could
   be filled, Node.js will read all available bytes until EOF is encountered,
   and the `bytesRead` parameter in the callback will indicate
   the actual number of bytes read, which may be less than the specified `length`.
-* If the file is on a slow network `filesystem`
+- If the file is on a slow network `filesystem`
   or encounters any other issue during reading,
   `bytesRead` can be lower than the specified `length`.
 
@@ -3817,16 +3807,16 @@ changes:
                  to make buffer, offset, length, and position optional.
 -->
 
-* `fd` {integer}
-* `options` {Object}
-  * `buffer` {Buffer|TypedArray|DataView} **Default:** `Buffer.alloc(16384)`
-  * `offset` {integer} **Default:** `0`
-  * `length` {integer} **Default:** `buffer.byteLength - offset`
-  * `position` {integer|bigint|null} **Default:** `null`
-* `callback` {Function}
-  * `err` {Error}
-  * `bytesRead` {integer}
-  * `buffer` {Buffer}
+- `fd` {integer}
+- `options` {Object}
+  - `buffer` {Buffer|TypedArray|DataView} **Default:** `Buffer.alloc(16384)`
+  - `offset` {integer} **Default:** `0`
+  - `length` {integer} **Default:** `buffer.byteLength - offset`
+  - `position` {integer|bigint|null} **Default:** `null`
+- `callback` {Function}
+  - `err` {Error}
+  - `bytesRead` {integer}
+  - `buffer` {Buffer}
 
 Similar to the [`fs.read()`][] function, this version takes an optional
 `options` object. If no `options` object is specified, it will default with the
@@ -3840,17 +3830,17 @@ added:
   - v16.17.0
 -->
 
-* `fd` {integer}
-* `buffer` {Buffer|TypedArray|DataView} The buffer that the data will be
+- `fd` {integer}
+- `buffer` {Buffer|TypedArray|DataView} The buffer that the data will be
   written to.
-* `options` {Object}
-  * `offset` {integer} **Default:** `0`
-  * `length` {integer} **Default:** `buffer.byteLength - offset`
-  * `position` {integer|bigint} **Default:** `null`
-* `callback` {Function}
-  * `err` {Error}
-  * `bytesRead` {integer}
-  * `buffer` {Buffer}
+- `options` {Object}
+  - `offset` {integer} **Default:** `0`
+  - `length` {integer} **Default:** `buffer.byteLength - offset`
+  - `position` {integer|bigint} **Default:** `null`
+- `callback` {Function}
+  - `err` {Error}
+  - `bytesRead` {integer}
+  - `buffer` {Buffer}
 
 Similar to the [`fs.read()`][] function, this version takes an optional
 `options` object. If no `options` object is specified, it will default with the
@@ -3891,16 +3881,16 @@ changes:
     description: The `options` parameter was added.
 -->
 
-* `path` {string|Buffer|URL}
-* `options` {string|Object}
-  * `encoding` {string} **Default:** `'utf8'`
-  * `withFileTypes` {boolean} **Default:** `false`
-  * `recursive` {boolean} If `true`, reads the contents of a directory
+- `path` {string|Buffer|URL}
+- `options` {string|Object}
+  - `encoding` {string} **Default:** `'utf8'`
+  - `withFileTypes` {boolean} **Default:** `false`
+  - `recursive` {boolean} If `true`, reads the contents of a directory
     recursively. In recursive mode, it will list all files, sub files and
     directories. **Default:** `false`.
-* `callback` {Function}
-  * `err` {Error}
-  * `files` {string\[]|Buffer\[]|fs.Dirent\[]}
+- `callback` {Function}
+  - `err` {Error}
+  - `files` {string\[]|Buffer\[]|fs.Dirent\[]}
 
 Reads the contents of a directory. The callback gets two arguments `(err, files)`
 where `files` is an array of the names of the files in the directory excluding
@@ -3957,14 +3947,14 @@ changes:
     description: The `path` parameter can be a file descriptor now.
 -->
 
-* `path` {string|Buffer|URL|integer} filename or file descriptor
-* `options` {Object|string}
-  * `encoding` {string|null} **Default:** `null`
-  * `flag` {string} See [support of file system `flags`][]. **Default:** `'r'`.
-  * `signal` {AbortSignal} allows aborting an in-progress readFile
-* `callback` {Function}
-  * `err` {Error|AggregateError}
-  * `data` {string|Buffer}
+- `path` {string|Buffer|URL|integer} filename or file descriptor
+- `options` {Object|string}
+  - `encoding` {string|null} **Default:** `null`
+  - `flag` {string} See [support of file system `flags`][]. **Default:** `'r'`.
+  - `signal` {AbortSignal} allows aborting an in-progress readFile
+- `callback` {Function}
+  - `err` {Error|AggregateError}
+  - `data` {string|Buffer}
 
 Asynchronously reads the entire contents of a file.
 
@@ -4086,12 +4076,12 @@ changes:
                  it will emit a deprecation warning with id DEP0013.
 -->
 
-* `path` {string|Buffer|URL}
-* `options` {string|Object}
-  * `encoding` {string} **Default:** `'utf8'`
-* `callback` {Function}
-  * `err` {Error}
-  * `linkString` {string|Buffer}
+- `path` {string|Buffer|URL}
+- `options` {string|Object}
+  - `encoding` {string} **Default:** `'utf8'`
+- `callback` {Function}
+  - `err` {Error}
+  - `linkString` {string|Buffer}
 
 Reads the contents of the symbolic link referred to by `path`. The callback gets
 two arguments `(err, linkString)`.
@@ -4117,13 +4107,13 @@ changes:
                  `ERR_INVALID_CALLBACK`.
 -->
 
-* `fd` {integer}
-* `buffers` {ArrayBufferView\[]}
-* `position` {integer|null} **Default:** `null`
-* `callback` {Function}
-  * `err` {Error}
-  * `bytesRead` {integer}
-  * `buffers` {ArrayBufferView\[]}
+- `fd` {integer}
+- `buffers` {ArrayBufferView\[]}
+- `position` {integer|null} **Default:** `null`
+- `callback` {Function}
+  - `err` {Error}
+  - `bytesRead` {integer}
+  - `buffers` {ArrayBufferView\[]}
 
 Read from a file specified by `fd` and write to an array of `ArrayBufferView`s
 using `readv()`.
@@ -4172,12 +4162,12 @@ changes:
     description: The `cache` parameter was removed.
 -->
 
-* `path` {string|Buffer|URL}
-* `options` {string|Object}
-  * `encoding` {string} **Default:** `'utf8'`
-* `callback` {Function}
-  * `err` {Error}
-  * `resolvedPath` {string|Buffer}
+- `path` {string|Buffer|URL}
+- `options` {string|Object}
+  - `encoding` {string} **Default:** `'utf8'`
+- `callback` {Function}
+  - `err` {Error}
+  - `resolvedPath` {string|Buffer}
 
 Asynchronously computes the canonical pathname by resolving `.`, `..`, and
 symbolic links.
@@ -4220,12 +4210,12 @@ changes:
                  `ERR_INVALID_CALLBACK`.
 -->
 
-* `path` {string|Buffer|URL}
-* `options` {string|Object}
-  * `encoding` {string} **Default:** `'utf8'`
-* `callback` {Function}
-  * `err` {Error}
-  * `resolvedPath` {string|Buffer}
+- `path` {string|Buffer|URL}
+- `options` {string|Object}
+  - `encoding` {string} **Default:** `'utf8'`
+- `callback` {Function}
+  - `err` {Error}
+  - `resolvedPath` {string|Buffer}
 
 Asynchronous realpath(3).
 
@@ -4267,10 +4257,10 @@ changes:
                  it will emit a deprecation warning with id DEP0013.
 -->
 
-* `oldPath` {string|Buffer|URL}
-* `newPath` {string|Buffer|URL}
-* `callback` {Function}
-  * `err` {Error}
+- `oldPath` {string|Buffer|URL}
+- `newPath` {string|Buffer|URL}
+- `callback` {Function}
+  - `err` {Error}
 
 Asynchronously rename file at `oldPath` to the pathname provided
 as `newPath`. In the case that `newPath` already exists, it will
@@ -4346,13 +4336,13 @@ changes:
                  it will emit a deprecation warning with id DEP0013.
 -->
 
-* `path` {string|Buffer|URL}
-* `options` {Object} There are currently no options exposed. There used to
+- `path` {string|Buffer|URL}
+- `options` {Object} There are currently no options exposed. There used to
   be options for `recursive`, `maxBusyTries`, and `emfileWait` but they were
   deprecated and removed. The `options` argument is still accepted for
   backwards compatibility but it is not used.
-* `callback` {Function}
-  * `err` {Error}
+- `callback` {Function}
+  - `err` {Error}
 
 Asynchronous rmdir(2). No arguments other than a possible exception are given
 to the completion callback.
@@ -4376,22 +4366,22 @@ changes:
                  protocol.
 -->
 
-* `path` {string|Buffer|URL}
-* `options` {Object}
-  * `force` {boolean} When `true`, exceptions will be ignored if `path` does
+- `path` {string|Buffer|URL}
+- `options` {Object}
+  - `force` {boolean} When `true`, exceptions will be ignored if `path` does
     not exist. **Default:** `false`.
-  * `maxRetries` {integer} If an `EBUSY`, `EMFILE`, `ENFILE`, `ENOTEMPTY`, or
+  - `maxRetries` {integer} If an `EBUSY`, `EMFILE`, `ENFILE`, `ENOTEMPTY`, or
     `EPERM` error is encountered, Node.js will retry the operation with a linear
     backoff wait of `retryDelay` milliseconds longer on each try. This option
     represents the number of retries. This option is ignored if the `recursive`
     option is not `true`. **Default:** `0`.
-  * `recursive` {boolean} If `true`, perform a recursive removal. In
+  - `recursive` {boolean} If `true`, perform a recursive removal. In
     recursive mode operations are retried on failure. **Default:** `false`.
-  * `retryDelay` {integer} The amount of time in milliseconds to wait between
+  - `retryDelay` {integer} The amount of time in milliseconds to wait between
     retries. This option is ignored if the `recursive` option is not `true`.
     **Default:** `100`.
-* `callback` {Function}
-  * `err` {Error}
+- `callback` {Function}
+  - `err` {Error}
 
 Asynchronously removes files and directories (modeled on the standard POSIX `rm`
 utility). No arguments other than a possible exception are given to the
@@ -4425,13 +4415,13 @@ changes:
                  it will emit a deprecation warning with id DEP0013.
 -->
 
-* `path` {string|Buffer|URL}
-* `options` {Object}
-  * `bigint` {boolean} Whether the numeric values in the returned
+- `path` {string|Buffer|URL}
+- `options` {Object}
+  - `bigint` {boolean} Whether the numeric values in the returned
     {fs.Stats} object should be `bigint`. **Default:** `false`.
-* `callback` {Function}
-  * `err` {Error}
-  * `stats` {fs.Stats}
+- `callback` {Function}
+  - `err` {Error}
+  - `stats` {fs.Stats}
 
 Asynchronous stat(2). The callback gets two arguments `(err, stats)` where
 `stats` is an {fs.Stats} object.
@@ -4527,13 +4517,13 @@ added:
   - v18.15.0
 -->
 
-* `path` {string|Buffer|URL}
-* `options` {Object}
-  * `bigint` {boolean} Whether the numeric values in the returned
+- `path` {string|Buffer|URL}
+- `options` {Object}
+  - `bigint` {boolean} Whether the numeric values in the returned
     {fs.StatFs} object should be `bigint`. **Default:** `false`.
-* `callback` {Function}
-  * `err` {Error}
-  * `stats` {fs.StatFs}
+- `callback` {Function}
+  - `err` {Error}
+  - `stats` {fs.StatFs}
 
 Asynchronous statfs(2). Returns information about the mounted file system which
 contains `path`. The callback gets two arguments `(err, stats)` where `stats`
@@ -4562,11 +4552,11 @@ changes:
                  *experimental*.
 -->
 
-* `target` {string|Buffer|URL}
-* `path` {string|Buffer|URL}
-* `type` {string|null} **Default:** `null`
-* `callback` {Function}
-  * `err` {Error}
+- `target` {string|Buffer|URL}
+- `path` {string|Buffer|URL}
+- `type` {string|null} **Default:** `null`
+- `callback` {Function}
+  - `err` {Error}
 
 Creates the link called `path` pointing to `target`. No arguments other than a
 possible exception are given to the completion callback.
@@ -4623,10 +4613,10 @@ changes:
                  it will emit a deprecation warning with id DEP0013.
 -->
 
-* `path` {string|Buffer|URL}
-* `len` {integer} **Default:** `0`
-* `callback` {Function}
-  * `err` {Error|AggregateError}
+- `path` {string|Buffer|URL}
+- `len` {integer} **Default:** `0`
+- `callback` {Function}
+  - `err` {Error|AggregateError}
 
 Truncates the file. No arguments other than a possible exception are
 given to the completion callback. A file descriptor can also be passed as the
@@ -4679,9 +4669,9 @@ changes:
                  it will emit a deprecation warning with id DEP0013.
 -->
 
-* `path` {string|Buffer|URL}
-* `callback` {Function}
-  * `err` {Error}
+- `path` {string|Buffer|URL}
+- `callback` {Function}
+  - `err` {Error}
 
 Asynchronously removes a file or symbolic link. No arguments other than a
 possible exception are given to the completion callback.
@@ -4706,8 +4696,8 @@ See the POSIX unlink(2) documentation for more details.
 added: v0.1.31
 -->
 
-* `filename` {string|Buffer|URL}
-* `listener` {Function} Optional, a listener previously attached using
+- `filename` {string|Buffer|URL}
+- `listener` {Function} Optional, a listener previously attached using
   `fs.watchFile()`
 
 Stop watching for changes on `filename`. If `listener` is specified, only that
@@ -4753,19 +4743,19 @@ changes:
                  time specifiers.
 -->
 
-* `path` {string|Buffer|URL}
-* `atime` {number|string|Date}
-* `mtime` {number|string|Date}
-* `callback` {Function}
-  * `err` {Error}
+- `path` {string|Buffer|URL}
+- `atime` {number|string|Date}
+- `mtime` {number|string|Date}
+- `callback` {Function}
+  - `err` {Error}
 
 Change the file system timestamps of the object referenced by `path`.
 
 The `atime` and `mtime` arguments follow these rules:
 
-* Values can be either numbers representing Unix epoch time in seconds,
+- Values can be either numbers representing Unix epoch time in seconds,
   `Date`s, or a numeric string like `'123456789.0'`.
-* If the value can not be converted to a number, or is `NaN`, `Infinity`, or
+- If the value can not be converted to a number, or is `NaN`, `Infinity`, or
   `-Infinity`, an `Error` will be thrown.
 
 ### `fs.watch(filename[, options][, listener])`
@@ -4790,21 +4780,21 @@ changes:
     description: The passed `options` object will never be modified.
 -->
 
-* `filename` {string|Buffer|URL}
-* `options` {string|Object}
-  * `persistent` {boolean} Indicates whether the process should continue to run
+- `filename` {string|Buffer|URL}
+- `options` {string|Object}
+  - `persistent` {boolean} Indicates whether the process should continue to run
     as long as files are being watched. **Default:** `true`.
-  * `recursive` {boolean} Indicates whether all subdirectories should be
+  - `recursive` {boolean} Indicates whether all subdirectories should be
     watched, or only the current directory. This applies when a directory is
     specified, and only on supported platforms (See [caveats][]). **Default:**
     `false`.
-  * `encoding` {string} Specifies the character encoding to be used for the
+  - `encoding` {string} Specifies the character encoding to be used for the
     filename passed to the listener. **Default:** `'utf8'`.
-  * `signal` {AbortSignal} allows closing the watcher with an AbortSignal.
-* `listener` {Function|undefined} **Default:** `undefined`
-  * `eventType` {string}
-  * `filename` {string|Buffer|null}
-* Returns: {fs.FSWatcher}
+  - `signal` {AbortSignal} allows closing the watcher with an AbortSignal.
+- `listener` {Function|undefined} **Default:** `undefined`
+  - `eventType` {string}
+  - `filename` {string|Buffer|null}
+- Returns: {fs.FSWatcher}
 
 Watch for changes on `filename`, where `filename` is either a file or a
 directory.
@@ -4849,14 +4839,14 @@ with the same filename.
 This feature depends on the underlying operating system providing a way
 to be notified of file system changes.
 
-* On Linux systems, this uses [`inotify(7)`][].
-* On BSD systems, this uses [`kqueue(2)`][].
-* On macOS, this uses [`kqueue(2)`][] for files and [`FSEvents`][] for
+- On Linux systems, this uses [`inotify(7)`][].
+- On BSD systems, this uses [`kqueue(2)`][].
+- On macOS, this uses [`kqueue(2)`][] for files and [`FSEvents`][] for
   directories.
-* On SunOS systems (including Solaris and SmartOS), this uses [`event ports`][].
-* On Windows systems, this feature depends on [`ReadDirectoryChangesW`][].
-* On AIX systems, this feature depends on [`AHAFS`][], which must be enabled.
-* On IBM i systems, this feature is not supported.
+- On SunOS systems (including Solaris and SmartOS), this uses [`event ports`][].
+- On Windows systems, this feature depends on [`ReadDirectoryChangesW`][].
+- On AIX systems, this feature depends on [`AHAFS`][], which must be enabled.
+- On IBM i systems, this feature is not supported.
 
 If the underlying functionality is not available for some reason, then
 `fs.watch()` will not be able to function and may throw an exception.
@@ -4916,15 +4906,15 @@ changes:
                  `file:` protocol.
 -->
 
-* `filename` {string|Buffer|URL}
-* `options` {Object}
-  * `bigint` {boolean} **Default:** `false`
-  * `persistent` {boolean} **Default:** `true`
-  * `interval` {integer} **Default:** `5007`
-* `listener` {Function}
-  * `current` {fs.Stats}
-  * `previous` {fs.Stats}
-* Returns: {fs.StatWatcher}
+- `filename` {string|Buffer|URL}
+- `options` {Object}
+  - `bigint` {boolean} **Default:** `false`
+  - `persistent` {boolean} **Default:** `true`
+  - `interval` {integer} **Default:** `5007`
+- `listener` {Function}
+  - `current` {fs.Stats}
+  - `previous` {fs.Stats}
+- Returns: {fs.StatWatcher}
 
 Watch for changes on `filename`. The callback `listener` will be called each
 time the file is accessed.
@@ -4970,8 +4960,8 @@ callback event (its disappearance).
 
 This happens when:
 
-* the file is deleted, followed by a restore
-* the file is renamed and then renamed a second time back to its original name
+- the file is deleted, followed by a restore
+- the file is renamed and then renamed a second time back to its original name
 
 ### `fs.write(fd, buffer, offset[, length[, position]], callback)`
 
@@ -5007,15 +4997,15 @@ changes:
                  it will emit a deprecation warning with id DEP0013.
 -->
 
-* `fd` {integer}
-* `buffer` {Buffer|TypedArray|DataView}
-* `offset` {integer} **Default:** `0`
-* `length` {integer} **Default:** `buffer.byteLength - offset`
-* `position` {integer|null} **Default:** `null`
-* `callback` {Function}
-  * `err` {Error}
-  * `bytesWritten` {integer}
-  * `buffer` {Buffer|TypedArray|DataView}
+- `fd` {integer}
+- `buffer` {Buffer|TypedArray|DataView}
+- `offset` {integer} **Default:** `0`
+- `length` {integer} **Default:** `buffer.byteLength - offset`
+- `position` {integer|null} **Default:** `null`
+- `callback` {Function}
+  - `err` {Error}
+  - `bytesWritten` {integer}
+  - `buffer` {Buffer|TypedArray|DataView}
 
 Write `buffer` to the file specified by `fd`.
 
@@ -5048,16 +5038,16 @@ added:
   - v16.17.0
 -->
 
-* `fd` {integer}
-* `buffer` {Buffer|TypedArray|DataView}
-* `options` {Object}
-  * `offset` {integer} **Default:** `0`
-  * `length` {integer} **Default:** `buffer.byteLength - offset`
-  * `position` {integer|null} **Default:** `null`
-* `callback` {Function}
-  * `err` {Error}
-  * `bytesWritten` {integer}
-  * `buffer` {Buffer|TypedArray|DataView}
+- `fd` {integer}
+- `buffer` {Buffer|TypedArray|DataView}
+- `options` {Object}
+  - `offset` {integer} **Default:** `0`
+  - `length` {integer} **Default:** `buffer.byteLength - offset`
+  - `position` {integer|null} **Default:** `null`
+- `callback` {Function}
+  - `err` {Error}
+  - `bytesWritten` {integer}
+  - `buffer` {Buffer|TypedArray|DataView}
 
 Write `buffer` to the file specified by `fd`.
 
@@ -5099,14 +5089,14 @@ changes:
                  it will emit a deprecation warning with id DEP0013.
 -->
 
-* `fd` {integer}
-* `string` {string}
-* `position` {integer|null} **Default:** `null`
-* `encoding` {string} **Default:** `'utf8'`
-* `callback` {Function}
-  * `err` {Error}
-  * `written` {integer}
-  * `string` {string}
+- `fd` {integer}
+- `string` {string}
+- `position` {integer|null} **Default:** `null`
+- `encoding` {string} **Default:** `'utf8'`
+- `callback` {Function}
+  - `err` {Error}
+  - `written` {integer}
+  - `string` {string}
 
 Write `string` to the file specified by `fd`. If `string` is not a string,
 an exception is thrown.
@@ -5198,18 +5188,18 @@ changes:
     description: The `file` parameter can be a file descriptor now.
 -->
 
-* `file` {string|Buffer|URL|integer} filename or file descriptor
-* `data` {string|Buffer|TypedArray|DataView}
-* `options` {Object|string}
-  * `encoding` {string|null} **Default:** `'utf8'`
-  * `mode` {integer} **Default:** `0o666`
-  * `flag` {string} See [support of file system `flags`][]. **Default:** `'w'`.
-  * `flush` {boolean} If all data is successfully written to the file, and
+- `file` {string|Buffer|URL|integer} filename or file descriptor
+- `data` {string|Buffer|TypedArray|DataView}
+- `options` {Object|string}
+  - `encoding` {string|null} **Default:** `'utf8'`
+  - `mode` {integer} **Default:** `0o666`
+  - `flag` {string} See [support of file system `flags`][]. **Default:** `'w'`.
+  - `flush` {boolean} If all data is successfully written to the file, and
     `flush` is `true`, `fs.fsync()` is used to flush the data.
     **Default:** `false`.
-  * `signal` {AbortSignal} allows aborting an in-progress writeFile
-* `callback` {Function}
-  * `err` {Error|AggregateError}
+  - `signal` {AbortSignal} allows aborting an in-progress writeFile
+- `callback` {Function}
+  - `err` {Error|AggregateError}
 
 When `file` is a filename, asynchronously writes data to the file, replacing the
 file if it already exists. `data` can be a string or a buffer.
@@ -5312,13 +5302,13 @@ changes:
                  `ERR_INVALID_CALLBACK`.
 -->
 
-* `fd` {integer}
-* `buffers` {ArrayBufferView\[]}
-* `position` {integer|null} **Default:** `null`
-* `callback` {Function}
-  * `err` {Error}
-  * `bytesWritten` {integer}
-  * `buffers` {ArrayBufferView\[]}
+- `fd` {integer}
+- `buffers` {ArrayBufferView\[]}
+- `position` {integer|null} **Default:** `null`
+- `callback` {Function}
+  - `err` {Error}
+  - `bytesWritten` {integer}
+  - `buffers` {ArrayBufferView\[]}
 
 Write an array of `ArrayBufferView`s to the file specified by `fd` using
 `writev()`.
@@ -5356,8 +5346,8 @@ changes:
                  protocol.
 -->
 
-* `path` {string|Buffer|URL}
-* `mode` {integer} **Default:** `fs.constants.F_OK`
+- `path` {string|Buffer|URL}
+- `mode` {integer} **Default:** `fs.constants.F_OK`
 
 Synchronously tests a user's permissions for the file or directory specified
 by `path`. The `mode` argument is an optional integer that specifies the
@@ -5399,13 +5389,13 @@ changes:
     description: The `file` parameter can be a file descriptor now.
 -->
 
-* `path` {string|Buffer|URL|number} filename or file descriptor
-* `data` {string|Buffer}
-* `options` {Object|string}
-  * `encoding` {string|null} **Default:** `'utf8'`
-  * `mode` {integer} **Default:** `0o666`
-  * `flag` {string} See [support of file system `flags`][]. **Default:** `'a'`.
-  * `flush` {boolean} If `true`, the underlying file descriptor is flushed
+- `path` {string|Buffer|URL|number} filename or file descriptor
+- `data` {string|Buffer}
+- `options` {Object|string}
+  - `encoding` {string|null} **Default:** `'utf8'`
+  - `mode` {integer} **Default:** `0o666`
+  - `flag` {string} See [support of file system `flags`][]. **Default:** `'a'`.
+  - `flush` {boolean} If `true`, the underlying file descriptor is flushed
     prior to closing it. **Default:** `false`.
 
 Synchronously append data to a file, creating the file if it does not yet
@@ -5448,8 +5438,7 @@ try {
 } catch (err) {
   /* Handle the error */
 } finally {
-  if (fd !== undefined)
-    closeSync(fd);
+  if (fd !== undefined) closeSync(fd);
 }
 ```
 
@@ -5464,8 +5453,8 @@ changes:
                  protocol.
 -->
 
-* `path` {string|Buffer|URL}
-* `mode` {string|integer}
+- `path` {string|Buffer|URL}
+- `mode` {string|integer}
 
 For detailed information, see the documentation of the asynchronous version of
 this API: [`fs.chmod()`][].
@@ -5483,9 +5472,9 @@ changes:
                  protocol.
 -->
 
-* `path` {string|Buffer|URL}
-* `uid` {integer}
-* `gid` {integer}
+- `path` {string|Buffer|URL}
+- `uid` {integer}
+- `gid` {integer}
 
 Synchronously changes owner and group of a file. Returns `undefined`.
 This is the synchronous version of [`fs.chown()`][].
@@ -5498,7 +5487,7 @@ See the POSIX chown(2) documentation for more detail.
 added: v0.1.21
 -->
 
-* `fd` {integer}
+- `fd` {integer}
 
 Closes the file descriptor. Returns `undefined`.
 
@@ -5518,9 +5507,9 @@ changes:
                  stricter type validation.
 -->
 
-* `src` {string|Buffer|URL} source filename to copy
-* `dest` {string|Buffer|URL} destination filename of the copy operation
-* `mode` {integer} modifiers for copy operation. **Default:** `0`.
+- `src` {string|Buffer|URL} source filename to copy
+- `dest` {string|Buffer|URL} destination filename of the copy operation
+- `mode` {integer} modifiers for copy operation. **Default:** `0`.
 
 Synchronously copies `src` to `dest`. By default, `dest` is overwritten if it
 already exists. Returns `undefined`. Node.js makes no guarantees about the
@@ -5532,12 +5521,12 @@ of the copy operation. It is possible to create a mask consisting of the bitwise
 OR of two or more values (e.g.
 `fs.constants.COPYFILE_EXCL | fs.constants.COPYFILE_FICLONE`).
 
-* `fs.constants.COPYFILE_EXCL`: The copy operation will fail if `dest` already
+- `fs.constants.COPYFILE_EXCL`: The copy operation will fail if `dest` already
   exists.
-* `fs.constants.COPYFILE_FICLONE`: The copy operation will attempt to create a
+- `fs.constants.COPYFILE_FICLONE`: The copy operation will attempt to create a
   copy-on-write reflink. If the platform does not support copy-on-write, then a
   fallback copy mechanism is used.
-* `fs.constants.COPYFILE_FICLONE_FORCE`: The copy operation will attempt to
+- `fs.constants.COPYFILE_FICLONE_FORCE`: The copy operation will attempt to
   create a copy-on-write reflink. If the platform does not support
   copy-on-write, then the operation will fail.
 
@@ -5574,29 +5563,29 @@ changes:
                  whether to perform path resolution for symlinks.
 -->
 
-* `src` {string|URL} source path to copy.
-* `dest` {string|URL} destination path to copy to.
-* `options` {Object}
-  * `dereference` {boolean} dereference symlinks. **Default:** `false`.
-  * `errorOnExist` {boolean} when `force` is `false`, and the destination
+- `src` {string|URL} source path to copy.
+- `dest` {string|URL} destination path to copy to.
+- `options` {Object}
+  - `dereference` {boolean} dereference symlinks. **Default:** `false`.
+  - `errorOnExist` {boolean} when `force` is `false`, and the destination
     exists, throw an error. **Default:** `false`.
-  * `filter` {Function} Function to filter copied files/directories. Return
+  - `filter` {Function} Function to filter copied files/directories. Return
     `true` to copy the item, `false` to ignore it. When ignoring a directory,
     all of its contents will be skipped as well. **Default:** `undefined`
-    * `src` {string} source path to copy.
-    * `dest` {string} destination path to copy to.
-    * Returns: {boolean} Any non-`Promise` value that is coercible
+    - `src` {string} source path to copy.
+    - `dest` {string} destination path to copy to.
+    - Returns: {boolean} Any non-`Promise` value that is coercible
       to `boolean`.
-  * `force` {boolean} overwrite existing file or directory. The copy
+  - `force` {boolean} overwrite existing file or directory. The copy
     operation will ignore errors if you set this to false and the destination
     exists. Use the `errorOnExist` option to change this behavior.
     **Default:** `true`.
-  * `mode` {integer} modifiers for copy operation. **Default:** `0`.
+  - `mode` {integer} modifiers for copy operation. **Default:** `0`.
     See `mode` flag of [`fs.copyFileSync()`][].
-  * `preserveTimestamps` {boolean} When `true` timestamps from `src` will
+  - `preserveTimestamps` {boolean} When `true` timestamps from `src` will
     be preserved. **Default:** `false`.
-  * `recursive` {boolean} copy directories recursively **Default:** `false`
-  * `verbatimSymlinks` {boolean} When `true`, path resolution for symlinks will
+  - `recursive` {boolean} copy directories recursively **Default:** `false`
+  - `verbatimSymlinks` {boolean} When `true`, path resolution for symlinks will
     be skipped. **Default:** `false`
 
 Synchronously copies the entire directory structure from `src` to `dest`,
@@ -5616,8 +5605,8 @@ changes:
                  `file:` protocol.
 -->
 
-* `path` {string|Buffer|URL}
-* Returns: {boolean}
+- `path` {string|Buffer|URL}
+- Returns: {boolean}
 
 Returns `true` if the path exists, `false` otherwise.
 
@@ -5631,8 +5620,7 @@ Node.js callbacks. `fs.existsSync()` does not use a callback.
 ```mjs
 import { existsSync } from 'node:fs';
 
-if (existsSync('/etc/passwd'))
-  console.log('The path exists.');
+if (existsSync('/etc/passwd')) console.log('The path exists.');
 ```
 
 ### `fs.fchmodSync(fd, mode)`
@@ -5641,8 +5629,8 @@ if (existsSync('/etc/passwd'))
 added: v0.4.7
 -->
 
-* `fd` {integer}
-* `mode` {string|integer}
+- `fd` {integer}
+- `mode` {string|integer}
 
 Sets the permissions on the file. Returns `undefined`.
 
@@ -5654,9 +5642,9 @@ See the POSIX fchmod(2) documentation for more detail.
 added: v0.4.7
 -->
 
-* `fd` {integer}
-* `uid` {integer} The file's new owner's user id.
-* `gid` {integer} The file's new group's group id.
+- `fd` {integer}
+- `uid` {integer} The file's new owner's user id.
+- `gid` {integer} The file's new group's group id.
 
 Sets the owner of the file. Returns `undefined`.
 
@@ -5668,7 +5656,7 @@ See the POSIX fchown(2) documentation for more detail.
 added: v0.1.96
 -->
 
-* `fd` {integer}
+- `fd` {integer}
 
 Forces all currently queued I/O operations associated with the file to the
 operating system's synchronized I/O completion state. Refer to the POSIX
@@ -5685,11 +5673,11 @@ changes:
                  the numeric values returned should be bigint.
 -->
 
-* `fd` {integer}
-* `options` {Object}
-  * `bigint` {boolean} Whether the numeric values in the returned
+- `fd` {integer}
+- `options` {Object}
+  - `bigint` {boolean} Whether the numeric values in the returned
     {fs.Stats} object should be `bigint`. **Default:** `false`.
-* Returns: {fs.Stats}
+- Returns: {fs.Stats}
 
 Retrieves the {fs.Stats} for the file descriptor.
 
@@ -5701,7 +5689,7 @@ See the POSIX fstat(2) documentation for more detail.
 added: v0.1.96
 -->
 
-* `fd` {integer}
+- `fd` {integer}
 
 Request that all data for the open file descriptor is flushed to the storage
 device. The specific implementation is operating system and device specific.
@@ -5713,8 +5701,8 @@ Refer to the POSIX fsync(2) documentation for more detail. Returns `undefined`.
 added: v0.8.6
 -->
 
-* `fd` {integer}
-* `len` {integer} **Default:** `0`
+- `fd` {integer}
+- `len` {integer} **Default:** `0`
 
 Truncates the file descriptor. Returns `undefined`.
 
@@ -5732,9 +5720,9 @@ changes:
                  time specifiers.
 -->
 
-* `fd` {integer}
-* `atime` {number|string|Date}
-* `mtime` {number|string|Date}
+- `fd` {integer}
+- `atime` {number|string|Date}
+- `mtime` {number|string|Date}
 
 Synchronous version of [`fs.futimes()`][]. Returns `undefined`.
 
@@ -5763,15 +5751,15 @@ changes:
     description: Add support for `withFileTypes` as an option.
 -->
 
-* `pattern` {string|string\[]}
-* `options` {Object}
-  * `cwd` {string|URL} current working directory. **Default:** `process.cwd()`
-  * `exclude` {Function|string\[]} Function to filter out files/directories or a
+- `pattern` {string|string\[]}
+- `options` {Object}
+  - `cwd` {string|URL} current working directory. **Default:** `process.cwd()`
+  - `exclude` {Function|string\[]} Function to filter out files/directories or a
     list of glob patterns to be excluded. If a function is provided, return
     `true` to exclude the item, `false` to include it. **Default:** `undefined`.
-  * `withFileTypes` {boolean} `true` if the glob should return paths as Dirents,
+  - `withFileTypes` {boolean} `true` if the glob should return paths as Dirents,
     `false` otherwise. **Default:** `false`.
-* Returns: {string\[]} paths of files that match the pattern.
+- Returns: {string\[]} paths of files that match the pattern.
 
 ```mjs
 import { globSync } from 'node:fs';
@@ -5793,8 +5781,8 @@ deprecated: v0.4.7
 
 > Stability: 0 - Deprecated
 
-* `path` {string|Buffer|URL}
-* `mode` {integer}
+- `path` {string|Buffer|URL}
+- `mode` {integer}
 
 Changes the permissions on a symbolic link. Returns `undefined`.
 
@@ -5813,9 +5801,9 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-* `path` {string|Buffer|URL}
-* `uid` {integer} The file's new owner's user id.
-* `gid` {integer} The file's new group's group id.
+- `path` {string|Buffer|URL}
+- `uid` {integer} The file's new owner's user id.
+- `gid` {integer} The file's new group's group id.
 
 Set the owner for the path. Returns `undefined`.
 
@@ -5829,9 +5817,9 @@ added:
   - v12.19.0
 -->
 
-* `path` {string|Buffer|URL}
-* `atime` {number|string|Date}
-* `mtime` {number|string|Date}
+- `path` {string|Buffer|URL}
+- `atime` {number|string|Date}
+- `mtime` {number|string|Date}
 
 Change the file system timestamps of the symbolic link referenced by `path`.
 Returns `undefined`, or throws an exception when parameters are incorrect or
@@ -5849,8 +5837,8 @@ changes:
                  still *experimental*.
 -->
 
-* `existingPath` {string|Buffer|URL}
-* `newPath` {string|Buffer|URL}
+- `existingPath` {string|Buffer|URL}
+- `newPath` {string|Buffer|URL}
 
 Creates a new link from the `existingPath` to the `newPath`. See the POSIX
 link(2) documentation for more detail. Returns `undefined`.
@@ -5876,14 +5864,14 @@ changes:
                  protocol.
 -->
 
-* `path` {string|Buffer|URL}
-* `options` {Object}
-  * `bigint` {boolean} Whether the numeric values in the returned
+- `path` {string|Buffer|URL}
+- `options` {Object}
+  - `bigint` {boolean} Whether the numeric values in the returned
     {fs.Stats} object should be `bigint`. **Default:** `false`.
-  * `throwIfNoEntry` {boolean} Whether an exception will be thrown
+  - `throwIfNoEntry` {boolean} Whether an exception will be thrown
     if no file system entry exists, rather than returning `undefined`.
     **Default:** `true`.
-* Returns: {fs.Stats}
+- Returns: {fs.Stats}
 
 Retrieves the {fs.Stats} for the symbolic link referred to by `path`.
 
@@ -5909,11 +5897,11 @@ changes:
                  protocol.
 -->
 
-* `path` {string|Buffer|URL}
-* `options` {Object|integer}
-  * `recursive` {boolean} **Default:** `false`
-  * `mode` {string|integer} Not supported on Windows. **Default:** `0o777`.
-* Returns: {string|undefined}
+- `path` {string|Buffer|URL}
+- `options` {Object|integer}
+  - `recursive` {boolean} **Default:** `false`
+  - `mode` {string|integer} Not supported on Windows. **Default:** `0o777`.
+- Returns: {string|undefined}
 
 Synchronously creates a directory. Returns `undefined`, or if `recursive` is
 `true`, the first directory path created.
@@ -5938,10 +5926,10 @@ changes:
     description: The `prefix` parameter now accepts an empty string.
 -->
 
-* `prefix` {string|Buffer|URL}
-* `options` {string|Object}
-  * `encoding` {string} **Default:** `'utf8'`
-* Returns: {string}
+- `prefix` {string|Buffer|URL}
+- `options` {string|Object}
+  - `encoding` {string} **Default:** `'utf8'`
+- Returns: {string}
 
 Returns the created directory path.
 
@@ -5957,13 +5945,13 @@ object with an `encoding` property specifying the character encoding to use.
 added: v24.4.0
 -->
 
-* `prefix` {string|Buffer|URL}
-* `options` {string|Object}
-  * `encoding` {string} **Default:** `'utf8'`
-* Returns: {Object} A disposable object:
-  * `path` {string} The path of the created directory.
-  * `remove` {Function} A function which removes the created directory.
-  * `[Symbol.dispose]` {Function} The same as `remove`.
+- `prefix` {string|Buffer|URL}
+- `options` {string|Object}
+  - `encoding` {string} **Default:** `'utf8'`
+- Returns: {Object} A disposable object:
+  - `path` {string} The path of the created directory.
+  - `remove` {Function} A function which removes the created directory.
+  - `[Symbol.dispose]` {Function} The same as `remove`.
 
 Returns a disposable object whose `path` property holds the created directory
 path. When the object is disposed, the directory and its contents will be
@@ -5998,14 +5986,14 @@ changes:
     description: The `bufferSize` option was introduced.
 -->
 
-* `path` {string|Buffer|URL}
-* `options` {Object}
-  * `encoding` {string|null} **Default:** `'utf8'`
-  * `bufferSize` {number} Number of directory entries that are buffered
+- `path` {string|Buffer|URL}
+- `options` {Object}
+  - `encoding` {string|null} **Default:** `'utf8'`
+  - `bufferSize` {number} Number of directory entries that are buffered
     internally when reading from the directory. Higher values lead to better
     performance but higher memory usage. **Default:** `32`
-  * `recursive` {boolean} **Default:** `false`
-* Returns: {fs.Dir}
+  - `recursive` {boolean} **Default:** `false`
+- Returns: {fs.Dir}
 
 Synchronously open a directory. See opendir(3).
 
@@ -6032,11 +6020,11 @@ changes:
                  protocol.
 -->
 
-* `path` {string|Buffer|URL}
-* `flags` {string|number} **Default:** `'r'`.
+- `path` {string|Buffer|URL}
+- `flags` {string|number} **Default:** `'r'`.
   See [support of file system `flags`][].
-* `mode` {string|integer} **Default:** `0o666`
-* Returns: {number}
+- `mode` {string|integer} **Default:** `0o666`
+- Returns: {number}
 
 Returns an integer representing the file descriptor.
 
@@ -6062,14 +6050,14 @@ changes:
                  protocol.
 -->
 
-* `path` {string|Buffer|URL}
-* `options` {string|Object}
-  * `encoding` {string} **Default:** `'utf8'`
-  * `withFileTypes` {boolean} **Default:** `false`
-  * `recursive` {boolean} If `true`, reads the contents of a directory
+- `path` {string|Buffer|URL}
+- `options` {string|Object}
+  - `encoding` {string} **Default:** `'utf8'`
+  - `withFileTypes` {boolean} **Default:** `false`
+  - `recursive` {boolean} If `true`, reads the contents of a directory
     recursively. In recursive mode, it will list all files, sub files, and
     directories. **Default:** `false`.
-* Returns: {string\[]|Buffer\[]|fs.Dirent\[]}
+- Returns: {string\[]|Buffer\[]|fs.Dirent\[]}
 
 Reads the contents of the directory.
 
@@ -6097,11 +6085,11 @@ changes:
     description: The `path` parameter can be a file descriptor now.
 -->
 
-* `path` {string|Buffer|URL|integer} filename or file descriptor
-* `options` {Object|string}
-  * `encoding` {string|null} **Default:** `null`
-  * `flag` {string} See [support of file system `flags`][]. **Default:** `'r'`.
-* Returns: {string|Buffer}
+- `path` {string|Buffer|URL|integer} filename or file descriptor
+- `options` {Object|string}
+  - `encoding` {string|null} **Default:** `null`
+  - `flag` {string} See [support of file system `flags`][]. **Default:** `'r'`.
+- Returns: {string|Buffer}
 
 Returns the contents of the `path`.
 
@@ -6136,10 +6124,10 @@ changes:
                  protocol.
 -->
 
-* `path` {string|Buffer|URL}
-* `options` {string|Object}
-  * `encoding` {string} **Default:** `'utf8'`
-* Returns: {string|Buffer}
+- `path` {string|Buffer|URL}
+- `options` {string|Object}
+  - `encoding` {string} **Default:** `'utf8'`
+- Returns: {string|Buffer}
 
 Returns the symbolic link's string value.
 
@@ -6164,12 +6152,12 @@ changes:
     description: The `length` parameter can now be `0`.
 -->
 
-* `fd` {integer}
-* `buffer` {Buffer|TypedArray|DataView}
-* `offset` {integer}
-* `length` {integer}
-* `position` {integer|bigint|null} **Default:** `null`
-* Returns: {number}
+- `fd` {integer}
+- `buffer` {Buffer|TypedArray|DataView}
+- `offset` {integer}
+- `length` {integer}
+- `position` {integer|bigint|null} **Default:** `null`
+- Returns: {number}
 
 Returns the number of `bytesRead`.
 
@@ -6191,13 +6179,13 @@ changes:
                  to make offset, length, and position optional.
 -->
 
-* `fd` {integer}
-* `buffer` {Buffer|TypedArray|DataView}
-* `options` {Object}
-  * `offset` {integer} **Default:** `0`
-  * `length` {integer} **Default:** `buffer.byteLength - offset`
-  * `position` {integer|bigint|null} **Default:** `null`
-* Returns: {number}
+- `fd` {integer}
+- `buffer` {Buffer|TypedArray|DataView}
+- `options` {Object}
+  - `offset` {integer} **Default:** `0`
+  - `length` {integer} **Default:** `buffer.byteLength - offset`
+  - `position` {integer|bigint|null} **Default:** `null`
+- Returns: {number}
 
 Returns the number of `bytesRead`.
 
@@ -6215,10 +6203,10 @@ added:
  - v12.17.0
 -->
 
-* `fd` {integer}
-* `buffers` {ArrayBufferView\[]}
-* `position` {integer|null} **Default:** `null`
-* Returns: {number} The number of bytes read.
+- `fd` {integer}
+- `buffers` {ArrayBufferView\[]}
+- `position` {integer|null} **Default:** `null`
+- Returns: {number} The number of bytes read.
 
 For detailed information, see the documentation of the asynchronous version of
 this API: [`fs.readv()`][].
@@ -6244,10 +6232,10 @@ changes:
     description: The `cache` parameter was removed.
 -->
 
-* `path` {string|Buffer|URL}
-* `options` {string|Object}
-  * `encoding` {string} **Default:** `'utf8'`
-* Returns: {string|Buffer}
+- `path` {string|Buffer|URL}
+- `options` {string|Object}
+  - `encoding` {string} **Default:** `'utf8'`
+- Returns: {string|Buffer}
 
 Returns the resolved pathname.
 
@@ -6260,10 +6248,10 @@ this API: [`fs.realpath()`][].
 added: v9.2.0
 -->
 
-* `path` {string|Buffer|URL}
-* `options` {string|Object}
-  * `encoding` {string} **Default:** `'utf8'`
-* Returns: {string|Buffer}
+- `path` {string|Buffer|URL}
+- `options` {string|Object}
+  - `encoding` {string} **Default:** `'utf8'`
+- Returns: {string|Buffer}
 
 Synchronous realpath(3).
 
@@ -6290,8 +6278,8 @@ changes:
                  *experimental*.
 -->
 
-* `oldPath` {string|Buffer|URL}
-* `newPath` {string|Buffer|URL}
+- `oldPath` {string|Buffer|URL}
+- `newPath` {string|Buffer|URL}
 
 Renames the file from `oldPath` to `newPath`. Returns `undefined`.
 
@@ -6341,8 +6329,8 @@ changes:
                  `file:` protocol.
 -->
 
-* `path` {string|Buffer|URL}
-* `options` {Object} There are currently no options exposed. There used to
+- `path` {string|Buffer|URL}
+- `options` {Object} There are currently no options exposed. There used to
   be options for `recursive`, `maxBusyTries`, and `emfileWait` but they were
   deprecated and removed. The `options` argument is still accepted for
   backwards compatibility but it is not used.
@@ -6354,6 +6342,17 @@ on Windows and an `ENOTDIR` error on POSIX.
 
 To get a behavior similar to the `rm -rf` Unix command, use [`fs.rmSync()`][]
 with options `{ recursive: true, force: true }`.
+
+### Example: Removing a directory recursively
+
+````js
+const fs = require('fs');
+
+fs.rm('./temp-folder', { recursive: true, force: true }, (err) => {
+  if (err) throw err;
+  console.log('Folder deleted successfully!');
+});
+
 
 ### `fs.rmSync(path[, options])`
 
@@ -6685,7 +6684,7 @@ try {
 } catch (err) {
   console.error(err);
 }
-```
+````
 
 When using the async iterator, the {fs.Dir} object will be automatically
 closed after the iterator exits.
@@ -6696,7 +6695,7 @@ closed after the iterator exits.
 added: v12.12.0
 -->
 
-* Returns: {Promise}
+- Returns: {Promise}
 
 Asynchronously close the directory's underlying resource handle.
 Subsequent reads will result in errors.
@@ -6716,8 +6715,8 @@ changes:
                  `ERR_INVALID_CALLBACK`.
 -->
 
-* `callback` {Function}
-  * `err` {Error}
+- `callback` {Function}
+  - `err` {Error}
 
 Asynchronously close the directory's underlying resource handle.
 Subsequent reads will result in errors.
@@ -6739,7 +6738,7 @@ Subsequent reads will result in errors.
 added: v12.12.0
 -->
 
-* Type: {string}
+- Type: {string}
 
 The read-only path of this directory as was provided to [`fs.opendir()`][],
 [`fs.opendirSync()`][], or [`fsPromises.opendir()`][].
@@ -6750,7 +6749,7 @@ The read-only path of this directory as was provided to [`fs.opendir()`][],
 added: v12.12.0
 -->
 
-* Returns: {Promise} Fulfills with a {fs.Dirent|null}
+- Returns: {Promise} Fulfills with a {fs.Dirent|null}
 
 Asynchronously read the next directory entry via readdir(3) as an
 {fs.Dirent}.
@@ -6769,9 +6768,9 @@ included in the iteration results.
 added: v12.12.0
 -->
 
-* `callback` {Function}
-  * `err` {Error}
-  * `dirent` {fs.Dirent|null}
+- `callback` {Function}
+  - `err` {Error}
+  - `dirent` {fs.Dirent|null}
 
 Asynchronously read the next directory entry via readdir(3) as an
 {fs.Dirent}.
@@ -6790,7 +6789,7 @@ included in the iteration results.
 added: v12.12.0
 -->
 
-* Returns: {fs.Dirent|null}
+- Returns: {fs.Dirent|null}
 
 Synchronously read the next directory entry as an {fs.Dirent}. See the
 POSIX readdir(3) documentation for more detail.
@@ -6808,7 +6807,7 @@ included in the iteration results.
 added: v12.12.0
 -->
 
-* Returns: {AsyncIterator} An AsyncIterator of {fs.Dirent}
+- Returns: {AsyncIterator} An AsyncIterator of {fs.Dirent}
 
 Asynchronously iterates over the directory until all entries have
 been read. Refer to the POSIX readdir(3) documentation for more detail.
@@ -6873,7 +6872,7 @@ the `withFileTypes` option set to `true`, the resulting array is filled with
 added: v10.10.0
 -->
 
-* Returns: {boolean}
+- Returns: {boolean}
 
 Returns `true` if the {fs.Dirent} object describes a block device.
 
@@ -6883,7 +6882,7 @@ Returns `true` if the {fs.Dirent} object describes a block device.
 added: v10.10.0
 -->
 
-* Returns: {boolean}
+- Returns: {boolean}
 
 Returns `true` if the {fs.Dirent} object describes a character device.
 
@@ -6893,7 +6892,7 @@ Returns `true` if the {fs.Dirent} object describes a character device.
 added: v10.10.0
 -->
 
-* Returns: {boolean}
+- Returns: {boolean}
 
 Returns `true` if the {fs.Dirent} object describes a file system
 directory.
@@ -6904,7 +6903,7 @@ directory.
 added: v10.10.0
 -->
 
-* Returns: {boolean}
+- Returns: {boolean}
 
 Returns `true` if the {fs.Dirent} object describes a first-in-first-out
 (FIFO) pipe.
@@ -6915,7 +6914,7 @@ Returns `true` if the {fs.Dirent} object describes a first-in-first-out
 added: v10.10.0
 -->
 
-* Returns: {boolean}
+- Returns: {boolean}
 
 Returns `true` if the {fs.Dirent} object describes a regular file.
 
@@ -6925,7 +6924,7 @@ Returns `true` if the {fs.Dirent} object describes a regular file.
 added: v10.10.0
 -->
 
-* Returns: {boolean}
+- Returns: {boolean}
 
 Returns `true` if the {fs.Dirent} object describes a socket.
 
@@ -6935,7 +6934,7 @@ Returns `true` if the {fs.Dirent} object describes a socket.
 added: v10.10.0
 -->
 
-* Returns: {boolean}
+- Returns: {boolean}
 
 Returns `true` if the {fs.Dirent} object describes a symbolic link.
 
@@ -6945,7 +6944,7 @@ Returns `true` if the {fs.Dirent} object describes a symbolic link.
 added: v10.10.0
 -->
 
-* Type: {string|Buffer}
+- Type: {string|Buffer}
 
 The file name that this {fs.Dirent} object refers to. The type of this
 value is determined by the `options.encoding` passed to [`fs.readdir()`][] or
@@ -6966,7 +6965,7 @@ changes:
     description: Marking the API stable.
 -->
 
-* Type: {string}
+- Type: {string}
 
 The path to the parent directory of the file this {fs.Dirent} object refers to.
 
@@ -6976,7 +6975,7 @@ The path to the parent directory of the file this {fs.Dirent} object refers to.
 added: v0.5.8
 -->
 
-* Extends {EventEmitter}
+- Extends {EventEmitter}
 
 A successful call to [`fs.watch()`][] method will return a new {fs.FSWatcher}
 object.
@@ -6990,8 +6989,8 @@ file is modified.
 added: v0.5.8
 -->
 
-* `eventType` {string} The type of change event that has occurred
-* `filename` {string|Buffer} The filename that changed (if relevant/available)
+- `eventType` {string} The type of change event that has occurred
+- `filename` {string|Buffer} The filename that changed (if relevant/available)
 
 Emitted when something changes in a watched directory or file.
 See more details in [`fs.watch()`][].
@@ -7027,7 +7026,7 @@ Emitted when the watcher stops watching for changes. The closed
 added: v0.5.8
 -->
 
-* `error` {Error}
+- `error` {Error}
 
 Emitted when an error occurs while watching the file. The errored
 {fs.FSWatcher} object is no longer usable in the event handler.
@@ -7049,7 +7048,7 @@ added:
   - v12.20.0
 -->
 
-* Returns: {fs.FSWatcher}
+- Returns: {fs.FSWatcher}
 
 When called, requests that the Node.js event loop _not_ exit so long as the
 {fs.FSWatcher} is active. Calling `watcher.ref()` multiple times will have
@@ -7067,7 +7066,7 @@ added:
   - v12.20.0
 -->
 
-* Returns: {fs.FSWatcher}
+- Returns: {fs.FSWatcher}
 
 When called, the active {fs.FSWatcher} object will not require the Node.js
 event loop to remain active. If there is no other activity keeping the
@@ -7083,7 +7082,7 @@ added:
   - v12.20.0
 -->
 
-* Extends {EventEmitter}
+- Extends {EventEmitter}
 
 A successful call to `fs.watchFile()` method will return a new {fs.StatWatcher}
 object.
@@ -7096,7 +7095,7 @@ added:
   - v12.20.0
 -->
 
-* Returns: {fs.StatWatcher}
+- Returns: {fs.StatWatcher}
 
 When called, requests that the Node.js event loop _not_ exit so long as the
 {fs.StatWatcher} is active. Calling `watcher.ref()` multiple times will have
@@ -7114,7 +7113,7 @@ added:
   - v12.20.0
 -->
 
-* Returns: {fs.StatWatcher}
+- Returns: {fs.StatWatcher}
 
 When called, the active {fs.StatWatcher} object will not require the Node.js
 event loop to remain active. If there is no other activity keeping the
@@ -7128,7 +7127,7 @@ no effect.
 added: v0.1.93
 -->
 
-* Extends: {stream.Readable}
+- Extends: {stream.Readable}
 
 Instances of {fs.ReadStream} are created and returned using the
 [`fs.createReadStream()`][] function.
@@ -7147,7 +7146,7 @@ Emitted when the {fs.ReadStream}'s underlying file descriptor has been closed.
 added: v0.1.93
 -->
 
-* `fd` {integer} Integer file descriptor used by the {fs.ReadStream}.
+- `fd` {integer} Integer file descriptor used by the {fs.ReadStream}.
 
 Emitted when the {fs.ReadStream}'s file descriptor has been opened.
 
@@ -7167,7 +7166,7 @@ Fires immediately after `'open'`.
 added: v6.4.0
 -->
 
-* Type: {number}
+- Type: {number}
 
 The number of bytes that have been read so far.
 
@@ -7177,7 +7176,7 @@ The number of bytes that have been read so far.
 added: v0.1.93
 -->
 
-* Type: {string|Buffer}
+- Type: {string|Buffer}
 
 The path to the file the stream is reading from as specified in the first
 argument to `fs.createReadStream()`. If `path` is passed as a string, then
@@ -7193,7 +7192,7 @@ added:
  - v10.16.0
 -->
 
-* Type: {boolean}
+- Type: {boolean}
 
 This property is `true` if the underlying file has not been opened yet,
 i.e. before the `'ready'` event is emitted.
@@ -7278,7 +7277,7 @@ BigIntStats {
 added: v0.1.10
 -->
 
-* Returns: {boolean}
+- Returns: {boolean}
 
 Returns `true` if the {fs.Stats} object describes a block device.
 
@@ -7288,7 +7287,7 @@ Returns `true` if the {fs.Stats} object describes a block device.
 added: v0.1.10
 -->
 
-* Returns: {boolean}
+- Returns: {boolean}
 
 Returns `true` if the {fs.Stats} object describes a character device.
 
@@ -7298,7 +7297,7 @@ Returns `true` if the {fs.Stats} object describes a character device.
 added: v0.1.10
 -->
 
-* Returns: {boolean}
+- Returns: {boolean}
 
 Returns `true` if the {fs.Stats} object describes a file system directory.
 
@@ -7313,7 +7312,7 @@ about a symbolic link itself and not the path it resolves to.
 added: v0.1.10
 -->
 
-* Returns: {boolean}
+- Returns: {boolean}
 
 Returns `true` if the {fs.Stats} object describes a first-in-first-out (FIFO)
 pipe.
@@ -7324,7 +7323,7 @@ pipe.
 added: v0.1.10
 -->
 
-* Returns: {boolean}
+- Returns: {boolean}
 
 Returns `true` if the {fs.Stats} object describes a regular file.
 
@@ -7334,7 +7333,7 @@ Returns `true` if the {fs.Stats} object describes a regular file.
 added: v0.1.10
 -->
 
-* Returns: {boolean}
+- Returns: {boolean}
 
 Returns `true` if the {fs.Stats} object describes a socket.
 
@@ -7344,7 +7343,7 @@ Returns `true` if the {fs.Stats} object describes a socket.
 added: v0.1.10
 -->
 
-* Returns: {boolean}
+- Returns: {boolean}
 
 Returns `true` if the {fs.Stats} object describes a symbolic link.
 
@@ -7352,49 +7351,49 @@ This method is only valid when using [`fs.lstat()`][].
 
 #### `stats.dev`
 
-* Type: {number|bigint}
+- Type: {number|bigint}
 
 The numeric identifier of the device containing the file.
 
 #### `stats.ino`
 
-* Type: {number|bigint}
+- Type: {number|bigint}
 
 The file system specific "Inode" number for the file.
 
 #### `stats.mode`
 
-* Type: {number|bigint}
+- Type: {number|bigint}
 
 A bit-field describing the file type and mode.
 
 #### `stats.nlink`
 
-* Type: {number|bigint}
+- Type: {number|bigint}
 
 The number of hard-links that exist for the file.
 
 #### `stats.uid`
 
-* Type: {number|bigint}
+- Type: {number|bigint}
 
 The numeric user identifier of the user that owns the file (POSIX).
 
 #### `stats.gid`
 
-* Type: {number|bigint}
+- Type: {number|bigint}
 
 The numeric group identifier of the group that owns the file (POSIX).
 
 #### `stats.rdev`
 
-* Type: {number|bigint}
+- Type: {number|bigint}
 
 A numeric device identifier if the file represents a device.
 
 #### `stats.size`
 
-* Type: {number|bigint}
+- Type: {number|bigint}
 
 The size of the file in bytes.
 
@@ -7403,13 +7402,13 @@ this will be `0`.
 
 #### `stats.blksize`
 
-* Type: {number|bigint}
+- Type: {number|bigint}
 
 The file system block size for i/o operations.
 
 #### `stats.blocks`
 
-* Type: {number|bigint}
+- Type: {number|bigint}
 
 The number of blocks allocated for this file.
 
@@ -7419,7 +7418,7 @@ The number of blocks allocated for this file.
 added: v8.1.0
 -->
 
-* Type: {number|bigint}
+- Type: {number|bigint}
 
 The timestamp indicating the last time this file was accessed expressed in
 milliseconds since the POSIX Epoch.
@@ -7430,7 +7429,7 @@ milliseconds since the POSIX Epoch.
 added: v8.1.0
 -->
 
-* Type: {number|bigint}
+- Type: {number|bigint}
 
 The timestamp indicating the last time this file was modified expressed in
 milliseconds since the POSIX Epoch.
@@ -7441,7 +7440,7 @@ milliseconds since the POSIX Epoch.
 added: v8.1.0
 -->
 
-* Type: {number|bigint}
+- Type: {number|bigint}
 
 The timestamp indicating the last time the file status was changed expressed
 in milliseconds since the POSIX Epoch.
@@ -7452,7 +7451,7 @@ in milliseconds since the POSIX Epoch.
 added: v8.1.0
 -->
 
-* Type: {number|bigint}
+- Type: {number|bigint}
 
 The timestamp indicating the creation time of this file expressed in
 milliseconds since the POSIX Epoch.
@@ -7463,7 +7462,7 @@ milliseconds since the POSIX Epoch.
 added: v12.10.0
 -->
 
-* Type: {bigint}
+- Type: {bigint}
 
 Only present when `bigint: true` is passed into the method that generates
 the object.
@@ -7476,7 +7475,7 @@ nanoseconds since the POSIX Epoch.
 added: v12.10.0
 -->
 
-* Type: {bigint}
+- Type: {bigint}
 
 Only present when `bigint: true` is passed into the method that generates
 the object.
@@ -7489,7 +7488,7 @@ nanoseconds since the POSIX Epoch.
 added: v12.10.0
 -->
 
-* Type: {bigint}
+- Type: {bigint}
 
 Only present when `bigint: true` is passed into the method that generates
 the object.
@@ -7502,7 +7501,7 @@ in nanoseconds since the POSIX Epoch.
 added: v12.10.0
 -->
 
-* Type: {bigint}
+- Type: {bigint}
 
 Only present when `bigint: true` is passed into the method that generates
 the object.
@@ -7515,7 +7514,7 @@ nanoseconds since the POSIX Epoch.
 added: v0.11.13
 -->
 
-* Type: {Date}
+- Type: {Date}
 
 The timestamp indicating the last time this file was accessed.
 
@@ -7525,7 +7524,7 @@ The timestamp indicating the last time this file was accessed.
 added: v0.11.13
 -->
 
-* Type: {Date}
+- Type: {Date}
 
 The timestamp indicating the last time this file was modified.
 
@@ -7535,7 +7534,7 @@ The timestamp indicating the last time this file was modified.
 added: v0.11.13
 -->
 
-* Type: {Date}
+- Type: {Date}
 
 The timestamp indicating the last time the file status was changed.
 
@@ -7545,7 +7544,7 @@ The timestamp indicating the last time the file status was changed.
 added: v0.11.13
 -->
 
-* Type: {Date}
+- Type: {Date}
 
 The timestamp indicating the creation time of this file.
 
@@ -7570,15 +7569,15 @@ representation.
 
 The times in the stat object have the following semantics:
 
-* `atime` "Access Time": Time when file data last accessed. Changed
+- `atime` "Access Time": Time when file data last accessed. Changed
   by the mknod(2), utimes(2), and read(2) system calls.
-* `mtime` "Modified Time": Time when file data last modified.
+- `mtime` "Modified Time": Time when file data last modified.
   Changed by the mknod(2), utimes(2), and write(2) system calls.
-* `ctime` "Change Time": Time when file status was last changed
+- `ctime` "Change Time": Time when file status was last changed
   (inode data modification). Changed by the chmod(2), chown(2),
   link(2), mknod(2), rename(2), unlink(2), utimes(2),
   read(2), and write(2) system calls.
-* `birthtime` "Birth Time": Time of file creation. Set once when the
+- `birthtime` "Birth Time": Time of file creation. Set once when the
   file is created. On file systems where birthtime is not available,
   this field may instead hold either the `ctime` or
   `1970-01-01T00:00Z` (ie, Unix epoch timestamp `0`). This value may be greater
@@ -7637,7 +7636,7 @@ added:
   - v18.15.0
 -->
 
-* Type: {number|bigint}
+- Type: {number|bigint}
 
 Free blocks available to unprivileged users.
 
@@ -7649,7 +7648,7 @@ added:
   - v18.15.0
 -->
 
-* Type: {number|bigint}
+- Type: {number|bigint}
 
 Free blocks in file system.
 
@@ -7661,7 +7660,7 @@ added:
   - v18.15.0
 -->
 
-* Type: {number|bigint}
+- Type: {number|bigint}
 
 Total data blocks in file system.
 
@@ -7673,7 +7672,7 @@ added:
   - v18.15.0
 -->
 
-* Type: {number|bigint}
+- Type: {number|bigint}
 
 Optimal transfer block size.
 
@@ -7685,7 +7684,7 @@ added:
   - v18.15.0
 -->
 
-* Type: {number|bigint}
+- Type: {number|bigint}
 
 Free file nodes in file system.
 
@@ -7697,7 +7696,7 @@ added:
   - v18.15.0
 -->
 
-* Type: {number|bigint}
+- Type: {number|bigint}
 
 Total file nodes in file system.
 
@@ -7709,7 +7708,7 @@ added:
   - v18.15.0
 -->
 
-* Type: {number|bigint}
+- Type: {number|bigint}
 
 Type of file system.
 
@@ -7760,50 +7759,50 @@ of bytes written is passed as the first argument to the event handler.
 
 #### `new fs.Utf8Stream([options])`
 
-* `options` {Object}
-  * `append`: {boolean} Appends writes to dest file instead of truncating it.
+- `options` {Object}
+  - `append`: {boolean} Appends writes to dest file instead of truncating it.
     **Default**: `true`.
-  * `contentMode`: {string} Which type of data you can send to the write
+  - `contentMode`: {string} Which type of data you can send to the write
     function, supported values are `'utf8'` or `'buffer'`. **Default**:
     `'utf8'`.
-  * `dest`: {string} A path to a file to be written to (mode controlled by the
+  - `dest`: {string} A path to a file to be written to (mode controlled by the
     append option).
-  * `fd`: {number} A file descriptor, something that is returned by `fs.open()`
+  - `fd`: {number} A file descriptor, something that is returned by `fs.open()`
     or `fs.openSync()`.
-  * `fs`: {Object} An object that has the same API as the `fs` module, useful
+  - `fs`: {Object} An object that has the same API as the `fs` module, useful
     for mocking, testing, or customizing the behavior of the stream.
-  * `fsync`: {boolean} Perform a `fs.fsyncSync()` every time a write is
+  - `fsync`: {boolean} Perform a `fs.fsyncSync()` every time a write is
     completed.
-  * `maxLength`: {number} The maximum length of the internal buffer. If a write
+  - `maxLength`: {number} The maximum length of the internal buffer. If a write
     operation would cause the buffer to exceed `maxLength`, the data written is
     dropped and a drop event is emitted with the dropped data
-  * `maxWrite`: {number} The maximum number of bytes that can be written;
+  - `maxWrite`: {number} The maximum number of bytes that can be written;
     **Default**: `16384`
-  * `minLength`: {number} The minimum length of the internal buffer that is
+  - `minLength`: {number} The minimum length of the internal buffer that is
     required to be full before flushing.
-  * `mkdir`: {boolean} Ensure directory for `dest` file exists when true.
+  - `mkdir`: {boolean} Ensure directory for `dest` file exists when true.
     **Default**: `false`.
-  * `mode`: {number|string} Specify the creating file mode (see `fs.open()`).
-  * `periodicFlush`: {number} Calls flush every `periodicFlush` milliseconds.
-  * `retryEAGAIN` {Function} A function that will be called when `write()`,
+  - `mode`: {number|string} Specify the creating file mode (see `fs.open()`).
+  - `periodicFlush`: {number} Calls flush every `periodicFlush` milliseconds.
+  - `retryEAGAIN` {Function} A function that will be called when `write()`,
     `writeSync()`, or `flushSync()` encounters an `EAGAIN` or `EBUSY` error.
     If the return value is `true` the operation will be retried, otherwise it
     will bubble the error. The `err` is the error that caused this function to
     be called, `writeBufferLen` is the length of the buffer that was written,
     and `remainingBufferLen` is the length of the remaining buffer that the
     stream did not try to write.
-    * `err` {any} An error or `null`.
-    * `writeBufferLen` {number}
-    * `remainingBufferLen`: {number}
-  * `sync`: {boolean} Perform writes synchronously.
+    - `err` {any} An error or `null`.
+    - `writeBufferLen` {number}
+    - `remainingBufferLen`: {number}
+  - `sync`: {boolean} Perform writes synchronously.
 
 #### `utf8Stream.append`
 
-* {boolean} Whether the stream is appending to the file or truncating it.
+- {boolean} Whether the stream is appending to the file or truncating it.
 
 #### `utf8Stream.contentMode`
 
-* {string} The type of data that can be written to the stream. Supported
+- {string} The type of data that can be written to the stream. Supported
   values are `'utf8'` or `'buffer'`. **Default**: `'utf8'`.
 
 #### `utf8Stream.destroy()`
@@ -7816,16 +7815,16 @@ Close the stream gracefully, flushing the internal buffer before closing.
 
 #### `utf8Stream.fd`
 
-* {number} The file descriptor that is being written to.
+- {number} The file descriptor that is being written to.
 
 #### `utf8Stream.file`
 
-* {string} The file that is being written to.
+- {string} The file that is being written to.
 
 #### `utf8Stream.flush(callback)`
 
-* `callback` {Function}
-  * `err` {Error|null} An error if the flush failed, otherwise `null`.
+- `callback` {Function}
+  - `err` {Error|null} An error if the flush failed, otherwise `null`.
 
 Writes the current buffer to the file if a write was not in progress. Do
 nothing if `minLength` is zero or if it is already writing.
@@ -7836,50 +7835,50 @@ Flushes the buffered data synchronously. This is a costly operation.
 
 #### `utf8Stream.fsync`
 
-* {boolean} Whether the stream is performing a `fs.fsyncSync()` after every
+- {boolean} Whether the stream is performing a `fs.fsyncSync()` after every
   write operation.
 
 #### `utf8Stream.maxLength`
 
-* {number} The maximum length of the internal buffer. If a write
+- {number} The maximum length of the internal buffer. If a write
   operation would cause the buffer to exceed `maxLength`, the data written is
   dropped and a drop event is emitted with the dropped data.
 
 #### `utf8Stream.minLength`
 
-* {number} The minimum length of the internal buffer that is required to be
+- {number} The minimum length of the internal buffer that is required to be
   full before flushing.
 
 #### `utf8Stream.mkdir`
 
-* {boolean} Whether the stream should ensure that the directory for the
+- {boolean} Whether the stream should ensure that the directory for the
   `dest` file exists. If `true`, it will create the directory if it does not
   exist. **Default**: `false`.
 
 #### `utf8Stream.mode`
 
-* {number|string} The mode of the file that is being written to.
+- {number|string} The mode of the file that is being written to.
 
 #### `utf8Stream.periodicFlush`
 
-* {number} The number of milliseconds between flushes. If set to `0`, no
+- {number} The number of milliseconds between flushes. If set to `0`, no
   periodic flushes will be performed.
 
 #### `utf8Stream.reopen(file)`
 
-* `file`: {string|Buffer|URL} A path to a file to be written to (mode
+- `file`: {string|Buffer|URL} A path to a file to be written to (mode
   controlled by the append option).
 
 Reopen the file in place, useful for log rotation.
 
 #### `utf8Stream.sync`
 
-* {boolean} Whether the stream is writing synchronously or asynchronously.
+- {boolean} Whether the stream is writing synchronously or asynchronously.
 
 #### `utf8Stream.write(data)`
 
-* `data` {string|Buffer} The data to write.
-* Returns {boolean}
+- `data` {string|Buffer} The data to write.
+- Returns {boolean}
 
 When the `options.contentMode` is set to `'utf8'` when the stream is created,
 the `data` argument must be a string. If the `contentMode` is set to `'buffer'`,
@@ -7887,7 +7886,7 @@ the `data` argument must be a {Buffer}.
 
 #### `utf8Stream.writing`
 
-* {boolean} Whether the stream is currently writing data to the file.
+- {boolean} Whether the stream is currently writing data to the file.
 
 #### `utf8Stream[Symbol.dispose]()`
 
@@ -7899,7 +7898,7 @@ Calls `utf8Stream.destroy()`.
 added: v0.1.93
 -->
 
-* Extends {stream.Writable}
+- Extends {stream.Writable}
 
 Instances of {fs.WriteStream} are created and returned using the
 [`fs.createWriteStream()`][] function.
@@ -7918,7 +7917,7 @@ Emitted when the {fs.WriteStream}'s underlying file descriptor has been closed.
 added: v0.1.93
 -->
 
-* `fd` {integer} Integer file descriptor used by the {fs.WriteStream}.
+- `fd` {integer} Integer file descriptor used by the {fs.WriteStream}.
 
 Emitted when the {fs.WriteStream}'s file is opened.
 
@@ -7947,8 +7946,8 @@ for writing.
 added: v0.9.4
 -->
 
-* `callback` {Function}
-  * `err` {Error}
+- `callback` {Function}
+  - `err` {Error}
 
 Closes `writeStream`. Optionally accepts a
 callback that will be executed once the `writeStream`
@@ -7971,14 +7970,14 @@ argument to [`fs.createWriteStream()`][]. If `path` is passed as a string, then
 added: v11.2.0
 -->
 
-* Type: {boolean}
+- Type: {boolean}
 
 This property is `true` if the underlying file has not been opened yet,
 i.e. before the `'ready'` event is emitted.
 
 ### `fs.constants`
 
-* Type: {Object}
+- Type: {Object}
 
 Returns an object containing commonly used constants for file system
 operations.
@@ -8000,11 +7999,7 @@ Example:
 ```mjs
 import { open, constants } from 'node:fs';
 
-const {
-  O_RDWR,
-  O_CREAT,
-  O_EXCL,
-} = constants;
+const { O_RDWR, O_CREAT, O_EXCL } = constants;
 
 open('/path/to/my/file', O_RDWR | O_CREAT | O_EXCL, (err, fd) => {
   // ...
@@ -8327,7 +8322,7 @@ try {
 ```cjs
 const { rename, stat } = require('node:fs/promises');
 
-(async function(oldPath, newPath) {
+(async function (oldPath, newPath) {
   try {
     await rename(oldPath, newPath);
     const stats = await stat(newPath);
@@ -8606,32 +8601,32 @@ performance implications for some applications. See the
 The following flags are available wherever the `flag` option takes a
 string.
 
-* `'a'`: Open file for appending.
+- `'a'`: Open file for appending.
   The file is created if it does not exist.
 
-* `'ax'`: Like `'a'` but fails if the path exists.
+- `'ax'`: Like `'a'` but fails if the path exists.
 
-* `'a+'`: Open file for reading and appending.
+- `'a+'`: Open file for reading and appending.
   The file is created if it does not exist.
 
-* `'ax+'`: Like `'a+'` but fails if the path exists.
+- `'ax+'`: Like `'a+'` but fails if the path exists.
 
-* `'as'`: Open file for appending in synchronous mode.
+- `'as'`: Open file for appending in synchronous mode.
   The file is created if it does not exist.
 
-* `'as+'`: Open file for reading and appending in synchronous mode.
+- `'as+'`: Open file for reading and appending in synchronous mode.
   The file is created if it does not exist.
 
-* `'r'`: Open file for reading.
+- `'r'`: Open file for reading.
   An exception occurs if the file does not exist.
 
-* `'rs'`: Open file for reading in synchronous mode.
+- `'rs'`: Open file for reading in synchronous mode.
   An exception occurs if the file does not exist.
 
-* `'r+'`: Open file for reading and writing.
+- `'r+'`: Open file for reading and writing.
   An exception occurs if the file does not exist.
 
-* `'rs+'`: Open file for reading and writing in synchronous mode. Instructs
+- `'rs+'`: Open file for reading and writing in synchronous mode. Instructs
   the operating system to bypass the local file system cache.
 
   This is primarily useful for opening files on NFS mounts as it allows
@@ -8642,15 +8637,15 @@ string.
   blocking call. If synchronous operation is desired, something like
   `fs.openSync()` should be used.
 
-* `'w'`: Open file for writing.
+- `'w'`: Open file for writing.
   The file is created (if it does not exist) or truncated (if it exists).
 
-* `'wx'`: Like `'w'` but fails if the path exists.
+- `'wx'`: Like `'w'` but fails if the path exists.
 
-* `'w+'`: Open file for reading and writing.
+- `'w+'`: Open file for reading and writing.
   The file is created (if it does not exist) or truncated (if it exists).
 
-* `'wx+'`: Like `'w+'` but fails if the path exists.
+- `'wx+'`: Like `'w+'` but fails if the path exists.
 
 `flag` can also be a number as documented by open(2); commonly used constants
 are available from `fs.constants`. On Windows, flags are translated to
