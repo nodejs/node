@@ -27,7 +27,11 @@ function execute(options) {
 
     this.close();
 
-    assert.deepStrictEqual(req.headers, expectHeaders);
+    // Check that expected headers are present (subset match).
+    // Note: transfer-encoding or content-length may also be present
+    // depending on the request, which is acceptable.
+    // Ref: https://github.com/nodejs/node/issues/27880
+    assert.partialDeepStrictEqual(req.headers, expectHeaders);
 
     res.writeHead(200, { 'Connection': 'close' });
     res.end();
