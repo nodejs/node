@@ -1,6 +1,5 @@
 'use strict';
 const common = require('../common');
-const assert = require('assert');
 const repl = require('repl');
 const zlib = require('zlib');
 
@@ -13,6 +12,4 @@ const testMe = repl.start('', putIn, function(cmd, context, filename,
 
 testMe._domain.on('error', common.mustNotCall());
 
-testMe.complete('', function(err, results) {
-  assert.strictEqual(err, null);
-});
+testMe.complete('', common.mustSucceed());
