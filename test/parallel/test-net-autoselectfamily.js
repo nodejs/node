@@ -189,7 +189,7 @@ if (common.hasIPv6) {
       socket.write('response-ipv4');
       socket.end();
     }));
-  }));
+  }, 0));
 
   ipv4Server.listen(0, '127.0.0.1', common.mustCall(() => {
     const port = ipv4Server.address().port;

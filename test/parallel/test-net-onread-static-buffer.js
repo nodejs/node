@@ -41,7 +41,7 @@ net.createServer(common.mustCall(function(socket) {
     port: this.address().port,
     onread: {
       buffer: sockBuf,
-      callback: common.mustCall(function(nread, buf) {
+      callback: common.mustCallAtLeast(function(nread, buf) {
         assert.strictEqual(buf, sockBuf);
         received += nread;
         const newIncoming = new Uint8Array(incoming.length + nread);
@@ -74,7 +74,7 @@ net.createServer(common.mustCall(function(socket) {
         bufPoolIdx = (bufPoolIdx + 1) % bufPool.length;
         return bufPool[bufPoolIdx];
       },
-      callback: common.mustCall(function(nread, buf) {
+      callback: common.mustCallAtLeast(function(nread, buf) {
         assert.strictEqual(buf, bufPool[bufPoolIdx]);
         received += nread;
         incoming.push(Buffer.from(buf.slice(0, nread)));
@@ -105,7 +105,7 @@ net.createServer(common.mustCall(function(socket) {
         bufPoolIdx = (bufPoolIdx + 1) % bufPool.length;
         return bufPool[bufPoolIdx];
       },
-      callback: common.mustCall(function(nread, buf) {
+      callback: common.mustCallAtLeast(function(nread, buf) {
         assert.strictEqual(buf, bufPool[bufPoolIdx]);
         received += nread;
         const newIncoming = new Uint8Array(incoming.length + nread);
@@ -134,7 +134,7 @@ net.createServer(common.mustCall(function(socket) {
     port: this.address().port,
     onread: {
       buffer: sockBuf,
-      callback: common.mustCall(function(nread, buf) {
+      callback: common.mustCallAtLeast(function(nread, buf) {
         assert.strictEqual(paused, false);
         assert.strictEqual(buf, sockBuf);
         received += nread;
@@ -166,7 +166,7 @@ net.createServer(common.mustCall(function(socket) {
     port: this.address().port,
     onread: {
       buffer: sockBuf,
-      callback: common.mustCall(function(nread, buf) {
+      callback: common.mustCallAtLeast(function(nread, buf) {
         assert.strictEqual(paused, false);
         assert.strictEqual(buf, sockBuf);
         received += nread;

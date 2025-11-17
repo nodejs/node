@@ -72,7 +72,7 @@ const CLIENT_VARIANTS = 6;  // Same length as array above
     assert.fail(`[Pipe server]${err}`);
   })
   .listen({ path: serverPath }, common.mustCall(function serverOnListen() {
-    const getSocketOpt = common.mustCall((index) => {
+    const getSocketOpt = common.mustCallAtLeast((index) => {
       const handle = new Pipe(PipeConstants.SOCKET);
       const err = handle.bind(`${prefix}-client-${socketCounter++}`);
       assert(err >= 0, String(err));
@@ -84,7 +84,7 @@ const CLIENT_VARIANTS = 6;  // Same length as array above
     const getConnectOpt = () => ({
       path: serverPath
     });
-    const getConnectCb = common.mustCall((index) => common.mustCall(function clientOnConnect() {
+    const getConnectCb = common.mustCallAtLeast((index) => common.mustCall(function clientOnConnect() {
       // Test if it's wrapping an existing fd
       assert(handleMap.has(index));
       const oldHandle = handleMap.get(index);

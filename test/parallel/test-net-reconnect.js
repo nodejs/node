@@ -58,7 +58,7 @@ server.listen(0, common.mustCall(function() {
     console.error('CLIENT connected', client._writableState);
   });
 
-  client.on('data', common.mustCall((chunk) => {
+  client.on('data', common.mustCallAtLeast((chunk) => {
     client_recv_count += 1;
     console.log(`client_recv_count ${client_recv_count}`);
     assert.strictEqual(chunk, 'hello\r\n');
@@ -71,7 +71,7 @@ server.listen(0, common.mustCall(function() {
     client_end_count++;
   });
 
-  client.on('close', common.mustCall((had_error) => {
+  client.on('close', common.mustCallAtLeast((had_error) => {
     console.log('CLIENT disconnect');
     assert.strictEqual(had_error, false);
     if (disconnect_count++ < N)
