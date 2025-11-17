@@ -43,14 +43,14 @@ const server = net.createServer(common.mustCall(function(socket) {
   socket.on('end', function() {
     if (++conns_closed === 2) server.close();
   });
-  socket.on('close', function() {
+  socket.on('close', common.mustCall(() => {
     assert.ok(remoteAddrCandidates.includes(socket.remoteAddress));
     assert.ok(remoteFamilyCandidates.includes(socket.remoteFamily));
-  });
+  }));
   socket.resume();
 }, 2));
 
-server.listen(0, function() {
+server.listen(0, common.mustCall(function() {
   const client = net.createConnection(this.address().port, '127.0.0.1');
   const client2 = net.createConnection(this.address().port);
 
@@ -61,24 +61,24 @@ server.listen(0, function() {
   assert.strictEqual(client2.remoteFamily, undefined);
   assert.strictEqual(client2.remotePort, undefined);
 
-  client.on('connect', function() {
+  client.on('connect', common.mustCall(() => {
     assert.ok(remoteAddrCandidates.includes(client.remoteAddress));
     assert.ok(remoteFamilyCandidates.includes(client.remoteFamily));
     assert.strictEqual(client.remotePort, server.address().port);
     client.end();
-  });
-  client.on('close', function() {
+  }));
+  client.on('close', common.mustCall(() => {
     assert.ok(remoteAddrCandidates.includes(client.remoteAddress));
     assert.ok(remoteFamilyCandidates.includes(client.remoteFamily));
-  });
-  client2.on('connect', function() {
+  }));
+  client2.on('connect', common.mustCall(() => {
     assert.ok(remoteAddrCandidates.includes(client2.remoteAddress));
     assert.ok(remoteFamilyCandidates.includes(client2.remoteFamily));
     assert.strictEqual(client2.remotePort, server.address().port);
     client2.end();
-  });
-  client2.on('close', function() {
+  }));
+  client2.on('close', common.mustCall(() => {
     assert.ok(remoteAddrCandidates.includes(client2.remoteAddress));
     assert.ok(remoteFamilyCandidates.includes(client2.remoteFamily));
-  });
-});
+  }));
+}));

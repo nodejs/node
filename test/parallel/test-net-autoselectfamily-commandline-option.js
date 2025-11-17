@@ -10,12 +10,12 @@ const { createConnection, createServer } = require('net');
 
 // Test that IPV4 is NOT reached if IPV6 is not reachable and the option has been disabled via command line
 {
-  const ipv4Server = createServer((socket) => {
+  const ipv4Server = createServer(common.mustCallAtLeast((socket) => {
     socket.on('data', common.mustCall(() => {
       socket.write('response-ipv4');
       socket.end();
     }));
-  });
+  }, 0));
 
   ipv4Server.listen(0, '127.0.0.1', common.mustCall(() => {
     const port = ipv4Server.address().port;

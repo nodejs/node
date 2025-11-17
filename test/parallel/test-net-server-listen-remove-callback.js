@@ -20,18 +20,18 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const net = require('net');
 
 // Server should only fire listen callback once
 const server = net.createServer();
 
-server.on('close', function() {
+server.on('close', common.mustCall(() => {
   const listeners = server.listeners('listening');
   console.log('Closed, listeners:', listeners.length);
   assert.strictEqual(listeners.length, 0);
-});
+}, 2));
 
 server.listen(0, function() {
   server.close();

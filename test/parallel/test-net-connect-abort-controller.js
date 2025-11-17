@@ -18,14 +18,14 @@ server.listen(0, common.mustCall(async () => {
     });
   });
 
-  const assertAbort = async (socket, testName) => {
+  const assertAbort = common.mustCallAtLeast(async (socket, testName) => {
     try {
       await once(socket, 'close');
       assert.fail(`close ${testName} should have thrown`);
     } catch (err) {
       assert.strictEqual(err.name, 'AbortError');
     }
-  };
+  });
 
   async function postAbort() {
     const ac = new AbortController();

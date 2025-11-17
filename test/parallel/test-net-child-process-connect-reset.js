@@ -35,10 +35,10 @@ if (process.argv[2] === 'child') {
       }
     });
 
-    conn.on('error', (err) => {
+    conn.on('error', common.mustCallAtLeast((err) => {
       // Error emitted on Windows.
       assert.strictEqual(err.code, 'ECONNRESET');
-    });
+    }, 0));
 
     conn.on('connect', common.mustCall(() => {
       cp.kill('SIGKILL');
