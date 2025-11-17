@@ -96,10 +96,10 @@ if (process.env.TERM === 'dumb') {
 
   rli.on('line', common.mustNotCall());
   fi.emit('data', '\t');
-  queueMicrotask(() => {
+  queueMicrotask(common.mustCall(() => {
     assert.match(output, /^Tab completion error: Error: message/);
     output = '';
-  });
+  }));
   rli.close();
 }
 
@@ -129,12 +129,12 @@ if (process.env.TERM === 'dumb') {
 
   rli.on('line', common.mustNotCall());
   fi.emit('data', 'input');
-  queueMicrotask(() => {
+  queueMicrotask(common.mustCall(() => {
     fi.emit('data', '\t');
-    queueMicrotask(() => {
+    queueMicrotask(common.mustCall(() => {
       assert.match(output, /> Input/);
       output = '';
       rli.close();
-    });
-  });
+    }));
+  }));
 }

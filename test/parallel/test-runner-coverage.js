@@ -230,7 +230,7 @@ test('coverage is combined for multiple processes', skipIfNoInspector, () => {
   assert.strictEqual(result.status, 0);
 });
 
-test.skip('coverage works with isolation=none', skipIfNoInspector, () => {
+test.skip('coverage works with isolation=none', skipIfNoInspector, common.mustCallAtLeast(() => {
   // There is a bug in coverage calculation. The branch % in the common.js
   // fixture is different depending on the test isolation mode. The 'none' mode
   // is closer to what c8 reports here, so the bug is likely in the code that
@@ -270,7 +270,7 @@ test.skip('coverage works with isolation=none', skipIfNoInspector, () => {
   assert.strictEqual(result.stderr.toString(), '');
   assert(result.stdout.toString().includes(report));
   assert.strictEqual(result.status, 0);
-});
+}, 0));
 
 test('coverage reports on lines, functions, and branches', skipIfNoInspector, async (t) => {
   const fixture = fixtures.path('test-runner', 'coverage.js');
@@ -290,9 +290,9 @@ test('coverage reports on lines, functions, and branches', skipIfNoInspector, as
   await t.test('does not include node_modules', () => {
     assert.strictEqual(coverage.summary.files.length, 3);
     const files = ['coverage.js', 'invalid-tap.js', 'throw.js'];
-    coverage.summary.files.forEach((file, index) => {
+    coverage.summary.files.forEach(common.mustCallAtLeast((file, index) => {
       assert.ok(file.path.endsWith(files[index]));
-    });
+    }));
   });
 
   const file = coverage.summary.files[0];
