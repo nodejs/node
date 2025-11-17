@@ -49,12 +49,12 @@ const server = https.createServer(options, common.mustCall((req, res) => {
   res.end('hello world\n');
 }));
 
-const proxy = net.createServer((clientSocket) => {
+const proxy = net.createServer(common.mustCall((clientSocket) => {
   console.log('PROXY: got a client connection');
 
   let serverSocket = null;
 
-  clientSocket.on('data', (chunk) => {
+  clientSocket.on('data', common.mustCallAtLeast((chunk) => {
     if (!serverSocket) {
       // Verify the CONNECT request
       assert.strictEqual(chunk.toString(),
@@ -87,12 +87,12 @@ const proxy = net.createServer((clientSocket) => {
     } else {
       serverSocket.write(chunk);
     }
-  });
+  }));
 
   clientSocket.on('end', () => {
     serverSocket.destroy();
   });
-});
+}));
 
 server.listen(0);
 
@@ -148,7 +148,7 @@ proxy.listen(0, common.mustCall(() => {
       socket: socket,  // reuse the socket
       agent: false,
       rejectUnauthorized: false
-    }, (res) => {
+    }, common.mustCall((res) => {
       assert.strictEqual(res.statusCode, 200);
 
       res.on('data', common.mustCall((chunk) => {
@@ -161,7 +161,7 @@ proxy.listen(0, common.mustCall(() => {
         proxy.close();
         server.close();
       }));
-    }).on('error', (er) => {
+    })).on('error', (er) => {
       // We're ok with getting ECONNRESET in this test, but it's
       // timing-dependent, and thus unreliable. Any other errors
       // are just failures, though.

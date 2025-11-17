@@ -196,7 +196,7 @@ const { setInterval } = timerPromises;
     const { signal } = controller;
     const delay = 10;
     let totalIterations = 0;
-    const timeoutLoop = runInterval(async (iterationNumber) => {
+    const timeoutLoop = runInterval(common.mustCallAtLeast(async (iterationNumber) => {
       await setPromiseTimeout(delay * 4);
       if (iterationNumber <= 2) {
         assert.strictEqual(signal.aborted, false);
@@ -210,7 +210,7 @@ const { setInterval } = timerPromises;
       if (iterationNumber > totalIterations) {
         totalIterations = iterationNumber;
       }
-    }, delay, signal);
+    }, 0), delay, signal);
 
     timeoutLoop.catch(common.mustCall(() => {
       assert.ok(totalIterations >= 3, `iterations was ${totalIterations} < 3`);

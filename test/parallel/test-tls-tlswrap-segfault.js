@@ -30,7 +30,7 @@ const server = tls.createServer(options, function(s) {
 });
 
 function putImmediate(client) {
-  setImmediate(function() {
+  setImmediate(common.mustCall(() => {
     if (client.ssl) {
       const fd = client.ssl.fd;
       assert(!!fd);
@@ -38,5 +38,5 @@ function putImmediate(client) {
     } else {
       server.close();
     }
-  });
+  }));
 }

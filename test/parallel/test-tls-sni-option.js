@@ -136,12 +136,12 @@ test({
      'Invalid SNI context');
 
 function test(options, clientResult, serverResult, clientError, serverError) {
-  const server = tls.createServer(serverOptions, (c) => {
+  const server = tls.createServer(serverOptions, common.mustCallAtLeast((c) => {
     assert.deepStrictEqual(
       serverResult,
       { sni: c.servername, authorized: c.authorized }
     );
-  });
+  }, 0));
 
   if (serverResult) {
     assert(!serverError);
@@ -153,14 +153,14 @@ function test(options, clientResult, serverResult, clientError, serverError) {
     }));
   }
 
-  server.listen(0, () => {
+  server.listen(0, common.mustCall(() => {
     options.port = server.address().port;
-    const client = tls.connect(options, () => {
+    const client = tls.connect(options, common.mustCallAtLeast(() => {
       const result = client.authorizationError &&
         (client.authorizationError === 'ERR_TLS_CERT_ALTNAME_INVALID');
       assert.strictEqual(result, clientResult);
       client.end();
-    });
+    }, 0));
 
     client.on('close', common.mustCall(() => server.close()));
 
@@ -170,5 +170,5 @@ function test(options, clientResult, serverResult, clientError, serverError) {
       }));
     else
       client.on('error', common.mustNotCall());
-  });
+  }));
 }

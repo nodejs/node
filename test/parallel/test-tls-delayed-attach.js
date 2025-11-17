@@ -44,7 +44,7 @@ const options = {
 };
 
 const server = net.createServer(common.mustCall((c) => {
-  setTimeout(function() {
+  setTimeout(common.mustCall(() => {
     const s = new tls.TLSSocket(c, {
       isServer: true,
       secureContext: tls.createSecureContext(options)
@@ -58,7 +58,7 @@ const server = net.createServer(common.mustCall((c) => {
       server.close();
       s.destroy();
     }));
-  }, 200);
+  }), 200);
 })).listen(0, common.mustCall(() => {
   const c = tls.connect(server.address().port, {
     rejectUnauthorized: false

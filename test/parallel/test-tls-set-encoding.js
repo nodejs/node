@@ -45,7 +45,7 @@ const server = tls.Server(options, common.mustCall(function(socket) {
 }));
 
 
-server.listen(0, function() {
+server.listen(0, common.mustCall(function() {
   const client = tls.connect({
     port: this.address().port,
     rejectUnauthorized: false
@@ -55,11 +55,11 @@ server.listen(0, function() {
 
   client.setEncoding('ascii');
 
-  client.on('data', function(d) {
+  client.on('data', common.mustCall((d) => {
     console.log('client: on data', d);
     assert.ok(typeof d === 'string');
     buffer += d;
-  });
+  }));
 
   client.on('secureConnect', common.mustCall(() => {
     console.log('client: on secureConnect');
@@ -83,4 +83,4 @@ server.listen(0, function() {
 
     server.close();
   }));
-});
+}));
