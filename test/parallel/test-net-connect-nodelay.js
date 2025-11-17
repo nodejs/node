@@ -6,9 +6,6 @@ const net = require('net');
 
 const truthyValues = [true, 1, 'true', {}, []];
 const falseyValues = [false, 0, ''];
-const genSetNoDelay = (desiredArg) => (enable) => {
-  assert.strictEqual(enable, desiredArg);
-};
 
 for (const value of truthyValues) {
   const server = net.createServer();
@@ -21,7 +18,9 @@ for (const value of truthyValues) {
       common.mustCall(() => client.end())
     );
 
-    client._handle.setNoDelay = common.mustCall(genSetNoDelay(true));
+    client._handle.setNoDelay = common.mustCall((enable) => {
+      assert.strictEqual(enable, true);
+    });
 
     client.on('end', common.mustCall(function() {
       server.close();
