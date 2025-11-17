@@ -163,7 +163,7 @@ var javascripts = fileList.filter(minimatch.filter('*.js', { matchBase: true }))
 ### minimatch.escape(pattern, options = {})
 
 Escape all magic characters in a glob pattern, so that it will
-only ever match literal strings
+only ever match literal strings.
 
 If the `windowsPathsNoEscape` option is used, then characters are
 escaped by wrapping in `[]`, because a magic character wrapped in
@@ -238,7 +238,7 @@ Perform a case-insensitive match.
 
 When used with `{nocase: true}`, create regular expressions that
 are case-insensitive, but leave string match portions untouched.
-Has no effect when used without `{nocase: true}`
+Has no effect when used without `{nocase: true}`.
 
 Useful when some other form of case-insensitive matching is used,
 or if the original string representation is useful in some other
@@ -354,7 +354,6 @@ is equivalent in all cases).
   pattern are preserved.
 - `2` (or higher) - Much more aggressive optimizations, suitable
   for use with file-walking cases:
-
   - Remove cases where a double-dot `..` follows a pattern
     portion that is not `**`, `.`, or empty `''`. Remove empty
     and `.` portions of the pattern, where safe to do so (ie,
