@@ -26,11 +26,11 @@ function test() {
 const server = tls.createServer({
   key: fixtures.readKey('agent1-key.pem'),
   cert: fixtures.readKey('agent1-cert.pem')
-}, (c) => {
+}, common.mustCall((c) => {
   c.on('close', common.mustCall(() => server.close()));
   sconn = c;
   test();
-}).listen(0, common.mustCall(function() {
+})).listen(0, common.mustCall(function() {
   tls.connect(this.address().port, {
     rejectUnauthorized: false
   }, common.mustCall(function() {

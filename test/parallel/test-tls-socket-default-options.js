@@ -41,7 +41,7 @@ function test(client, callback) {
       key: keys.agent1.key,
       cert: keys.agent1.cert,
     },
-  }, function(err, pair, cleanup) {
+  }, common.mustCall(function(err, pair, cleanup) {
     assert.strictEqual(err.code, 'UNABLE_TO_VERIFY_LEAF_SIGNATURE');
     let recv = '';
     pair.server.server.once('secureConnection', common.mustCall((conn) => {
@@ -64,5 +64,5 @@ function test(client, callback) {
       .on('secure', common.mustCall(function() {
         callback(this.ssl.verifyError());
       }));
-  });
+  }));
 }
