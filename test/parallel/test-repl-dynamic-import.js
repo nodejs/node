@@ -14,7 +14,7 @@ setTimeout(() => {
   child.stdin.write('\nimport("fs");\n');
   child.stdin.write('\nprocess.exit(0);\n');
 }, common.platformTimeout(50));
-child.on('exit', (code, signal) => {
+child.on('exit', common.mustCall((code, signal) => {
   assert.strictEqual(code, 0);
   assert.strictEqual(signal, null);
-});
+}));

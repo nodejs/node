@@ -1,6 +1,6 @@
 // Flags: --expose-internals --no-warnings
 
-import '../common/index.mjs';
+import * as common from '../common/index.mjs';
 import { describe, it, beforeEach } from 'node:test';
 import assert from 'node:assert';
 import { finished } from 'node:stream/promises';
@@ -21,10 +21,10 @@ const defaultSerializer = new DefaultSerializer();
 defaultSerializer.writeHeader();
 const headerLength = defaultSerializer.releaseBuffer().length;
 
-describe('v8 deserializer', () => {
+describe('v8 deserializer', common.mustCall(() => {
   let fileTest;
   let reported;
-  beforeEach(() => {
+  beforeEach(common.mustCallAtLeast(() => {
     reported = [];
     fileTest = new runner.FileTest({
       name: 'filetest',
@@ -32,7 +32,7 @@ describe('v8 deserializer', () => {
     });
     fileTest.reporter.on('data', (data) => reported.push(data));
     assert(fileTest.isClearToSend());
-  });
+  }));
 
   async function collectReported(chunks) {
     chunks.forEach((chunk) => fileTest.parseMessage(chunk));
@@ -103,4 +103,4 @@ describe('v8 deserializer', () => {
     );
   }
 
-});
+}));

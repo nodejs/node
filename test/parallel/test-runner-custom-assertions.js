@@ -1,11 +1,11 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('node:assert');
 const { test, assert: testAssertions } = require('node:test');
 
-testAssertions.register('isOdd', (n) => {
+testAssertions.register('isOdd', common.mustCallAtLeast((n) => {
   assert.strictEqual(n % 2, 1);
-});
+}));
 
 testAssertions.register('ok', () => {
   return 'ok';

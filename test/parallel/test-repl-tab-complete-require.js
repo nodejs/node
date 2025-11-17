@@ -62,20 +62,18 @@ const { startNewREPLServer } = require('../common/repl');
       // require(...) completions include `node:`-prefixed modules:
       let lastIndex = -1;
 
-      publicModules
-        .filter((lib) => !lib.startsWith('node:'))
-        .forEach((lib, index) => {
-          lastIndex = data[0].indexOf(`node:${lib}`);
-          assert.notStrictEqual(lastIndex, -1);
-        });
+      for (const lib of publicModules.filter((lib) => !lib.startsWith('node:'))) {
+        lastIndex = data[0].indexOf(`node:${lib}`);
+        assert.notStrictEqual(lastIndex, -1);
+      }
       assert.strictEqual(data[0][lastIndex + 1], '');
       // There is only one Node.js module that starts with n:
       assert.strictEqual(data[0][lastIndex + 2], 'net');
       assert.strictEqual(data[0][lastIndex + 3], '');
       // It's possible to pick up non-core modules too
-      data[0].slice(lastIndex + 4).forEach((completion) => {
+      for (const completion of data[0].slice(lastIndex + 4)) {
         assert.match(completion, /^n/);
-      });
+      }
     })
   );
 }
