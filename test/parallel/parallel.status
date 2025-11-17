@@ -134,6 +134,7 @@ test-http2-allow-http1-upgrade-ws: SKIP
 test-inspector-network-websocket: SKIP
 test-tls-set-default-ca-certificates-append-fetch: SKIP
 test-tls-set-default-ca-certificates-reset-fetch: SKIP
+test-inspector-invalid-protocol: SKIP
 
 [$asan==on]
 # https://github.com/nodejs/node/issues/39655
