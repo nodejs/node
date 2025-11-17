@@ -37,7 +37,7 @@ let gotChunk = false;
 let gotDrain = false;
 
 function onconnection(conn) {
-  conn.on('data', function(c) {
+  conn.on('data', common.mustCall(function(c) {
     if (!gotChunk) {
       gotChunk = true;
       console.log('ok - got chunk');
@@ -49,7 +49,7 @@ function onconnection(conn) {
 
     if (gotDrain)
       process.exit(0);
-  });
+  }));
 }
 
 server.listen(0, function() {

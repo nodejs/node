@@ -18,11 +18,11 @@ const TEST_DATA = 'x';
 
 const serverOptions = {
   ciphers: CIPHERS,
-  pskCallback(socket, id) {
+  pskCallback: common.mustCallAtLeast((socket, id) => {
     assert.ok(socket instanceof tls.TLSSocket);
     assert.ok(typeof id === 'string');
     return USERS[id];
-  },
+  }),
 };
 
 function test(secret, opts, error) {

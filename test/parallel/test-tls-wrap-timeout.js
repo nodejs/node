@@ -31,11 +31,9 @@ const server = tls.createServer(options, common.mustCall((c) => {
 let socket;
 let lastIdleStart;
 
-server.listen(0, () => {
-  socket = net.connect(server.address().port, function() {
-    const s = socket.setTimeout(TIMEOUT_MAX, function() {
-      throw new Error('timeout');
-    });
+server.listen(0, common.mustCall(() => {
+  socket = net.connect(server.address().port, common.mustCall(() => {
+    const s = socket.setTimeout(TIMEOUT_MAX, common.mustNotCall('timeout'));
     assert.ok(s instanceof net.Socket);
 
     assert.notStrictEqual(socket[kTimeout]._idleTimeout, -1);
@@ -46,8 +44,8 @@ server.listen(0, () => {
       rejectUnauthorized: false
     });
     tsocket.resume();
-  });
-});
+  }));
+}));
 
 process.on('exit', () => {
   assert.strictEqual(socket[kTimeout]._idleTimeout, -1);

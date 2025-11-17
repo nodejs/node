@@ -1,11 +1,11 @@
 'use strict';
-require('../common');
+const common = require('../common');
 
 // Verify connection with explicitly created client SecureContext.
 
 const fixtures = require('../common/fixtures');
 const {
-  assert, connect, keys, tls
+  connect, keys, tls
 } = require(fixtures.path('tls-connect'));
 
 connect({
@@ -19,10 +19,9 @@ connect({
     cert: keys.agent1.cert,
     key: keys.agent1.key,
   },
-}, function(err, pair, cleanup) {
-  assert.ifError(err);
+}, common.mustSucceed((pair, cleanup) => {
   return cleanup();
-});
+}));
 
 connect({
   client: {
@@ -47,7 +46,6 @@ connect({
     cert: keys.agent1.cert,
     key: keys.agent1.key,
   },
-}, function(err, pair, cleanup) {
-  assert.ifError(err);
+}, common.mustSucceed((pair, cleanup) => {
   return cleanup();
-});
+}));

@@ -36,12 +36,12 @@ function test(size, err, next) {
     conn.end();
   });
 
-  server.on('close', function(isException) {
+  server.on('close', common.mustCall(function(isException) {
     assert(!isException);
     if (next) next();
-  });
+  }));
 
-  server.listen(0, function() {
+  server.listen(0, common.mustCall(function() {
     // Client set minimum DH parameter size to 2048 or 3072 bits
     // so that it fails when it makes a connection to the tls
     // server where is too small. This depends on the openssl
@@ -57,13 +57,13 @@ function test(size, err, next) {
       server.close();
     });
     if (err) {
-      client.on('error', function(e) {
+      client.on('error', common.mustCall((e) => {
         nerror++;
         assert.strictEqual(e.code, 'ERR_TLS_DH_PARAM_SIZE');
         server.close();
-      });
+      }));
     }
-  });
+  }));
 }
 
 // A client connection fails with an error when a client has an

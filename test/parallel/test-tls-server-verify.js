@@ -221,7 +221,7 @@ function runClient(prefix, port, options, cb) {
     }
   });
 
-  client.on('exit', function(code) {
+  client.on('exit', common.mustCall((code) => {
     if (options.shouldReject) {
       assert.strictEqual(
         rejected, true,
@@ -237,7 +237,7 @@ function runClient(prefix, port, options, cb) {
     }
 
     cb();
-  });
+  }));
 }
 
 
@@ -273,7 +273,7 @@ function runTest(port, testIndex) {
   }
 
   let renegotiated = false;
-  const server = tls.Server(serverOptions, function handleConnection(c) {
+  const server = tls.Server(serverOptions, common.mustCallAtLeast(function handleConnection(c) {
     c.on('error', function(e) {
       // child.kill() leads ECONNRESET error in the TLS connection of
       // openssl s_client via spawn(). A test result is already
@@ -282,18 +282,17 @@ function runTest(port, testIndex) {
     });
     if (tcase.renegotiate && !renegotiated) {
       renegotiated = true;
-      setTimeout(function() {
+      setTimeout(common.mustCall(() => {
         console.error(`${prefix}- connected, renegotiating`);
         c.write('\n_renegotiating\n');
         return c.renegotiate({
           requestCert: true,
           rejectUnauthorized: false
-        }, function(err) {
-          assert.ifError(err);
+        }, common.mustSucceed(() => {
           c.write('\n_renegotiated\n');
           handleConnection(c);
-        });
-      }, 200);
+        }));
+      }), 200);
       return;
     }
 
@@ -305,7 +304,7 @@ function runTest(port, testIndex) {
       console.error(`${prefix}- unauthed connection: %s`, c.authorizationError);
       c.write('\n_unauthed\n');
     }
-  });
+  }));
 
   function runNextClient(clientIndex) {
     const options = tcase.clients[clientIndex];
