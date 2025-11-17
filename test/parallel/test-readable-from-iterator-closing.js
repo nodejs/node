@@ -2,7 +2,7 @@
 
 const { mustCall, mustNotCall } = require('../common');
 const { Readable } = require('stream');
-const { strictEqual } = require('assert');
+const assert = require('assert');
 
 async function asyncSupport() {
   const finallyMustCall = mustCall();
@@ -20,7 +20,7 @@ async function asyncSupport() {
 
   for await (const chunk of stream) {
     bodyMustCall();
-    strictEqual(chunk, 'a');
+    assert.strictEqual(chunk, 'a');
     break;
   }
 }
@@ -41,7 +41,7 @@ async function syncSupport() {
 
   for await (const chunk of stream) {
     bodyMustCall();
-    strictEqual(chunk, 'a');
+    assert.strictEqual(chunk, 'a');
     break;
   }
 }
@@ -66,7 +66,7 @@ async function syncPromiseSupport() {
 
   for await (const chunk of stream) {
     bodyMustCall();
-    strictEqual(chunk, 'a');
+    assert.strictEqual(chunk, 'a');
     break;
   }
 }
@@ -130,7 +130,6 @@ async function noReturnAfterThrow() {
 
 async function closeStreamWhileNextIsPending() {
   const finallyMustCall = mustCall();
-  const dataMustCall = mustCall();
 
   let resolveDestroy;
   const destroyed =
@@ -153,10 +152,9 @@ async function closeStreamWhileNextIsPending() {
 
   const stream = Readable.from(infiniteGenerate());
 
-  stream.on('data', (data) => {
-    dataMustCall();
-    strictEqual(data, 'a');
-  });
+  stream.on('data', mustCall((data) => {
+    assert.strictEqual(data, 'a');
+  }));
 
   yielded.then(() => {
     stream.destroy();
@@ -166,7 +164,6 @@ async function closeStreamWhileNextIsPending() {
 
 async function closeAfterNullYielded() {
   const finallyMustCall = mustCall();
-  const dataMustCall = mustCall(3);
 
   function* generate() {
     try {
@@ -180,10 +177,9 @@ async function closeAfterNullYielded() {
 
   const stream = Readable.from(generate());
 
-  stream.on('data', (chunk) => {
-    dataMustCall();
-    strictEqual(chunk, 'a');
-  });
+  stream.on('data', mustCall((chunk) => {
+    assert.strictEqual(chunk, 'a');
+  }, 3));
 }
 
 Promise.all([

@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const readline = require('readline');
 const Stream = require('stream');
@@ -31,10 +31,10 @@ let rawModeCalled = false;
 let resumeCalled = false;
 let pauseCalled = false;
 
-stream.setRawMode = function(mode) {
+stream.setRawMode = common.mustCallAtLeast(function(mode) {
   rawModeCalled = true;
   assert.strictEqual(mode, expectedRawMode);
-};
+});
 stream.resume = function() {
   resumeCalled = true;
 };
