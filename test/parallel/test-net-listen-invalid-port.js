@@ -10,13 +10,13 @@ const net = require('net');
 
 const invalidPort = -1 >>> 0;
 
-net.Server().listen(0, function() {
+net.Server().listen(0, common.mustCall(function() {
   const address = this.address();
   const key = `${address.family.slice(-1)}:${address.address}:0`;
 
   assert.strictEqual(this._connectionKey, key);
   this.close();
-});
+}));
 
 // The first argument is a configuration object
 assert.throws(() => {

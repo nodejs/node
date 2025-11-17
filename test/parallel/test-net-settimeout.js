@@ -33,7 +33,7 @@ const server = net.createServer(common.mustCall((c) => {
   c.write('hello');
 }));
 
-server.listen(0, function() {
+server.listen(0, common.mustCall(function() {
   const socket = net.createConnection(this.address().port, 'localhost');
 
   const s = socket.setTimeout(T, common.mustNotCall());
@@ -47,4 +47,4 @@ server.listen(0, function() {
   }));
 
   socket.setTimeout(0);
-});
+}));

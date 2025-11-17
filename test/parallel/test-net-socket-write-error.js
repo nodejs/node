@@ -7,7 +7,7 @@ const assert = require('assert');
 const server = net.createServer().listen(0, connectToServer);
 
 function connectToServer() {
-  const client = net.createConnection(this.address().port, () => {
+  const client = net.createConnection(this.address().port, common.mustCall(() => {
     client.on('error', common.mustNotCall());
     assert.throws(() => {
       client.write(1337);
@@ -17,6 +17,6 @@ function connectToServer() {
     });
 
     client.destroy();
-  })
+  }))
   .on('close', () => server.close());
 }

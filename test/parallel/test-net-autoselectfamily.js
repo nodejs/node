@@ -16,12 +16,12 @@ const autoSelectFamilyAttemptTimeout = common.defaultAutoSelectFamilyAttemptTime
 
 // Test that IPV4 is reached if IPV6 is not reachable
 {
-  const ipv4Server = createServer((socket) => {
+  const ipv4Server = createServer(common.mustCall((socket) => {
     socket.on('data', common.mustCall(() => {
       socket.write('response-ipv4');
       socket.end();
     }));
-  });
+  }));
 
   ipv4Server.listen(0, '127.0.0.1', common.mustCall(() => {
     const port = ipv4Server.address().port;
@@ -56,12 +56,12 @@ const autoSelectFamilyAttemptTimeout = common.defaultAutoSelectFamilyAttemptTime
 
 // Test that only the last successful connection is established.
 {
-  const ipv4Server = createServer((socket) => {
+  const ipv4Server = createServer(common.mustCall((socket) => {
     socket.on('data', common.mustCall(() => {
       socket.write('response-ipv4');
       socket.end();
     }));
-  });
+  }));
 
   ipv4Server.listen(0, '127.0.0.1', common.mustCall(() => {
     const port = ipv4Server.address().port;
@@ -116,12 +116,12 @@ if (common.hasIPv6) {
     }));
   });
 
-  const ipv6Server = createServer((socket) => {
+  const ipv6Server = createServer(common.mustCall((socket) => {
     socket.on('data', common.mustCall(() => {
       socket.write('response-ipv6');
       socket.end();
     }));
-  });
+  }));
 
   ipv4Server.listen(0, '127.0.0.1', common.mustCall(() => {
     const port = ipv4Server.address().port;
@@ -184,12 +184,12 @@ if (common.hasIPv6) {
 
 // Test that the option can be disabled
 {
-  const ipv4Server = createServer((socket) => {
+  const ipv4Server = createServer(common.mustCallAtLeast((socket) => {
     socket.on('data', common.mustCall(() => {
       socket.write('response-ipv4');
       socket.end();
     }));
-  });
+  }, 0));
 
   ipv4Server.listen(0, '127.0.0.1', common.mustCall(() => {
     const port = ipv4Server.address().port;

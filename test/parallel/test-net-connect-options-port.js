@@ -171,7 +171,7 @@ function syncFailToConnect(port, assertErr, optOnly) {
 }
 
 function canConnect(port) {
-  const noop = () => common.mustCall();
+  const noop = common.mustCallAtLeast(() => common.mustCall());
   const family = 4;
 
   // connect(port, cb) and connect(port)
@@ -202,10 +202,10 @@ function canConnect(port) {
 }
 
 function asyncFailToConnect(port) {
-  const onError = () => common.mustCall((err) => {
+  const onError = common.mustCallAtLeast(() => common.mustCall((err) => {
     const regexp = /^Error: connect E\w+.+$/;
     assert.match(String(err), regexp);
-  });
+  }));
 
   const dont = () => common.mustNotCall();
   const family = 4;
