@@ -48,7 +48,7 @@ const server = https.createServer(httpsOptions, function(request, response) {
   server.close();
 });
 
-server.listen(0, function() {
+server.listen(0, common.mustCall(function() {
   const testURL = url.parse(`https://localhost:${this.address().port}`);
   testURL.rejectUnauthorized = false;
 
@@ -58,4 +58,4 @@ server.listen(0, function() {
   // make sure that the request uses the https.Agent
   assert.ok(clientRequest.agent instanceof https.Agent);
   clientRequest.end();
-});
+}));

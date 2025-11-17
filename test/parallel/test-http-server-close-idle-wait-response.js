@@ -13,7 +13,7 @@ const server = createServer(common.mustCall(function(req, res) {
   }), common.platformTimeout(1000));
 }));
 
-server.listen(0, function() {
+server.listen(0, common.mustCall(() => {
   const port = server.address().port;
 
   get(`http://localhost:${port}`, common.mustCall((res) => {
@@ -23,4 +23,4 @@ server.listen(0, function() {
       server.closeIdleConnections();
     }), common.platformTimeout(500));
   }));
-});
+}));

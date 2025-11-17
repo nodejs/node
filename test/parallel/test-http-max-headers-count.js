@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const http = require('http');
 
@@ -43,7 +43,7 @@ const maxAndExpected = [ // for server
 let max = maxAndExpected[requests][0];
 let expected = maxAndExpected[requests][1];
 
-const server = http.createServer(function(req, res) {
+const server = http.createServer(common.mustCallAtLeast((req, res) => {
   assert.strictEqual(Object.keys(req.headers).length, expected);
   if (++requests < maxAndExpected.length) {
     max = maxAndExpected[requests][0];
@@ -52,10 +52,10 @@ const server = http.createServer(function(req, res) {
   }
   res.writeHead(200, { ...headers, 'Connection': 'close' });
   res.end();
-});
+}));
 server.maxHeadersCount = max;
 
-server.listen(0, function() {
+server.listen(0, common.mustCall(() => {
   const maxAndExpected = [ // for client
     [20, 20],
     [1200, 104],
@@ -69,7 +69,7 @@ server.listen(0, function() {
     const req = http.request({
       port: server.address().port,
       headers: headers
-    }, function(res) {
+    }, common.mustCall((res) => {
       assert.strictEqual(Object.keys(res.headers).length, expected);
       res.on('end', function() {
         if (++responses < maxAndExpected.length) {
@@ -79,11 +79,11 @@ server.listen(0, function() {
         }
       });
       res.resume();
-    });
+    }));
     req.maxHeadersCount = max;
     req.end();
   }
-});
+}));
 
 process.on('exit', function() {
   assert.strictEqual(requests, maxAndExpected.length);

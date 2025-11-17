@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const net = require('net');
 const http = require('http');
@@ -42,7 +42,7 @@ let requests_sent = 0;
 let server_response = '';
 let client_got_eof = false;
 
-const server = http.createServer(function(req, res) {
+const server = http.createServer(common.mustCallAtLeast(function(req, res) {
   res.id = request_number;
   req.id = request_number++;
 
@@ -75,12 +75,12 @@ const server = http.createServer(function(req, res) {
     res.end();
   }, 1);
 
-});
+}));
 server.listen(0);
 
 server.httpAllowHalfOpen = true;
 
-server.on('listening', function() {
+server.on('listening', common.mustCall(function() {
   const c = net.createConnection(this.address().port);
 
   c.setEncoding('utf8');
@@ -92,7 +92,7 @@ server.on('listening', function() {
     requests_sent += 1;
   });
 
-  c.on('data', function(chunk) {
+  c.on('data', common.mustCallAtLeast((chunk) => {
     server_response += chunk;
 
     if (requests_sent === 1) {
@@ -117,16 +117,16 @@ server.on('listening', function() {
       requests_sent += 2;
     }
 
-  });
+  }));
 
   c.on('end', function() {
     client_got_eof = true;
   });
 
-  c.on('close', function() {
+  c.on('close', common.mustCall(() => {
     assert.strictEqual(c.readyState, 'closed');
-  });
-});
+  }));
+}));
 
 process.on('exit', function() {
   assert.strictEqual(request_number, 4);

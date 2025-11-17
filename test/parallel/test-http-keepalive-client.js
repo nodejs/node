@@ -20,14 +20,14 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 
 const http = require('http');
 
 
 let serverSocket = null;
-const server = http.createServer(function(req, res) {
+const server = http.createServer(common.mustCallAtLeast((req, res) => {
   // They should all come in on the same server socket.
   if (serverSocket) {
     assert.strictEqual(req.socket, serverSocket);
@@ -36,7 +36,7 @@ const server = http.createServer(function(req, res) {
   }
 
   res.end(req.url);
-});
+}));
 server.listen(0, function() {
   makeRequest(expectRequests);
 });
@@ -64,28 +64,28 @@ function makeRequest(n) {
 
   req.end();
 
-  req.on('socket', function(sock) {
+  req.on('socket', common.mustCall((sock) => {
     if (clientSocket) {
       assert.strictEqual(sock, clientSocket);
     } else {
       clientSocket = sock;
     }
-  });
+  }));
 
-  req.on('response', function(res) {
+  req.on('response', common.mustCall((res) => {
     let data = '';
     res.setEncoding('utf8');
     res.on('data', function(c) {
       data += c;
     });
-    res.on('end', function() {
+    res.on('end', common.mustCall(() => {
       assert.strictEqual(data, `/${n}`);
       setTimeout(function() {
         actualRequests++;
         makeRequest(n - 1);
       }, 1);
-    });
-  });
+    }));
+  }));
 }
 
 process.on('exit', function() {

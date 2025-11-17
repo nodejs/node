@@ -15,9 +15,9 @@ server.on('listening', common.mustCall(() => {
   // Save the last timer
   timer = server[kConnectionsCheckingInterval];
   if (++i === 2) {
-    server.close(() => {
+    server.close(common.mustCall(() => {
       assert.ok(timer._destroyed);
-    });
+    }));
   }
 }, 2));
 server.emit('listening');
