@@ -15,7 +15,7 @@ const server = tls.createServer({
   // version, so force a specific one:
   minVersion: 'TLSv1.3',
   maxVersion: 'TLSv1.3',
-}).listen(() => {
+}).listen(common.mustCall(() => {
   const client = tls.connect({
     port: server.address().port,
     rejectUnauthorized: false,
@@ -33,4 +33,4 @@ const server = tls.createServer({
     server.close();
     client.end();
   });
-});
+}));

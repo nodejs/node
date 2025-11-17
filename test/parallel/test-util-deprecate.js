@@ -1,7 +1,7 @@
 // Flags: --expose-internals
 'use strict';
 
-require('../common');
+const common = require('../common');
 
 // Tests basic functionality of util.deprecate().
 
@@ -83,7 +83,7 @@ for (const fn of [
   assert.strictEqual(typeof deprecatedWithProto.prototype.testMethod, 'function');
 }
 
-process.on('warning', (warning) => {
+process.on('warning', common.mustCallAtLeast((warning) => {
   assert.strictEqual(warning.name, 'DeprecationWarning');
   assert.ok(expectedWarnings.has(warning.message));
   const expected = expectedWarnings.get(warning.message);
@@ -91,7 +91,7 @@ process.on('warning', (warning) => {
   expected.count = expected.count - 1;
   if (expected.count === 0)
     expectedWarnings.delete(warning.message);
-});
+}));
 
 process.on('exit', () => {
   assert.deepStrictEqual(expectedWarnings, new Map());

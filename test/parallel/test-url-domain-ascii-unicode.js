@@ -2,7 +2,7 @@
 
 const { hasIntl } = require('../common');
 
-const { strictEqual } = require('node:assert');
+const assert = require('node:assert');
 const { domainToASCII, domainToUnicode } = require('node:url');
 const { test } = require('node:test');
 
@@ -20,8 +20,8 @@ const domainWithASCII = [
 test('domainToASCII and domainToUnicode', { skip: !hasIntl }, () => {
   for (const [domain, ascii] of domainWithASCII) {
     const domainConvertedToASCII = domainToASCII(domain);
-    strictEqual(domainConvertedToASCII, ascii);
+    assert.strictEqual(domainConvertedToASCII, ascii);
     const asciiConvertedToUnicode = domainToUnicode(ascii);
-    strictEqual(asciiConvertedToUnicode, domain);
+    assert.strictEqual(asciiConvertedToUnicode, domain);
   }
 });
