@@ -1,5 +1,5 @@
 import { AST } from './ast.js';
-type Platform = 'aix' | 'android' | 'darwin' | 'freebsd' | 'haiku' | 'linux' | 'openbsd' | 'sunos' | 'win32' | 'cygwin' | 'netbsd';
+export type Platform = 'aix' | 'android' | 'darwin' | 'freebsd' | 'haiku' | 'linux' | 'openbsd' | 'sunos' | 'win32' | 'cygwin' | 'netbsd';
 export interface MinimatchOptions {
     nobrace?: boolean;
     nocomment?: boolean;
@@ -33,10 +33,10 @@ export declare const minimatch: {
     match: (list: string[], pattern: string, options?: MinimatchOptions) => string[];
     AST: typeof AST;
     Minimatch: typeof Minimatch;
-    escape: (s: string, { windowsPathsNoEscape, }?: Pick<MinimatchOptions, "windowsPathsNoEscape">) => string;
-    unescape: (s: string, { windowsPathsNoEscape, }?: Pick<MinimatchOptions, "windowsPathsNoEscape">) => string;
+    escape: (s: string, { windowsPathsNoEscape, magicalBraces, }?: Pick<MinimatchOptions, "windowsPathsNoEscape" | "magicalBraces">) => string;
+    unescape: (s: string, { windowsPathsNoEscape, magicalBraces, }?: Pick<MinimatchOptions, "windowsPathsNoEscape" | "magicalBraces">) => string;
 };
-type Sep = '\\' | '/';
+export type Sep = '\\' | '/';
 export declare const sep: Sep;
 export declare const GLOBSTAR: unique symbol;
 export declare const filter: (pattern: string, options?: MinimatchOptions) => (p: string) => boolean;
