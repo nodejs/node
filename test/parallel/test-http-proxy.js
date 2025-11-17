@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const http = require('http');
 const url = require('url');
@@ -41,12 +41,12 @@ const backend = http.createServer(function(req, res) {
   res.end();
 });
 
-const proxy = http.createServer(function(req, res) {
+const proxy = http.createServer(common.mustCall(function(req, res) {
   console.error(`proxy req headers: ${JSON.stringify(req.headers)}`);
   http.get({
     port: backend.address().port,
     path: url.parse(req.url).pathname
-  }, function(proxy_res) {
+  }, common.mustCall((proxy_res) => {
 
     console.error(`proxy res headers: ${JSON.stringify(proxy_res.headers)}`);
 
@@ -64,8 +64,8 @@ const proxy = http.createServer(function(req, res) {
       res.end();
       console.error('proxy res');
     });
-  });
-});
+  }));
+}));
 
 let body = '';
 
@@ -77,7 +77,7 @@ function startReq() {
   http.get({
     port: proxy.address().port,
     path: '/test'
-  }, function(res) {
+  }, common.mustCall((res) => {
     console.error('got res');
     assert.strictEqual(res.statusCode, 200);
 
@@ -92,7 +92,7 @@ function startReq() {
       backend.close();
       console.error('closed both');
     });
-  });
+  }));
   console.error('client req');
 }
 

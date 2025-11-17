@@ -60,10 +60,10 @@ server.listen(0, common.mustCall(function() {
     socket.on('data', function(buf) {
       data += buf.toString();
     });
-    socket.on('end', function() {
+    socket.on('end', common.mustCall(() => {
       assert.strictEqual(data, 'HeadRequestEnd');
       server.close();
-    });
+    }));
     socket.end('End');
   }));
 

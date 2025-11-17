@@ -34,7 +34,7 @@ function test(handler, request_generator, response_validator) {
   let server_response = '';
 
   server.listen(0);
-  server.on('listening', function() {
+  server.on('listening', common.mustCall(function() {
     const c = net.createConnection(this.address().port);
 
     c.setEncoding('utf8');
@@ -53,7 +53,7 @@ function test(handler, request_generator, response_validator) {
       server.close();
       response_validator(server_response, client_got_eof, false);
     }));
-  });
+  }));
 }
 
 {

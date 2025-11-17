@@ -21,7 +21,7 @@ const server = net.createServer((socket) => {
       });
     }, 500);
   }, 500);
-}).listen(0, () => {
+}).listen(0, common.mustCall(() => {
   const socket = net.connect(server.address().port);
   const parser = new HTTPParser(HTTPParser.RESPONSE, false);
   parser.initialize(
@@ -44,4 +44,4 @@ const server = net.createServer((socket) => {
   parser[HTTPParser.kOnMessageComplete] = common.mustNotCall();
 
   parser.consume(socket._handle);
-});
+}));

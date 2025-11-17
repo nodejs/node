@@ -13,13 +13,13 @@ const obs = new PerformanceObserver(common.mustCallAtLeast((items) => {
 obs.observe({ type: 'http' });
 
 const expected = 'Post Body For Test';
-const makeRequest = (options) => {
+const makeRequest = common.mustCall((options) => {
   return new Promise((resolve, reject) => {
     http.request(options, common.mustCall((res) => {
       resolve();
     })).on('error', reject).end(options.data);
   });
-};
+}, 2);
 
 const server = http.Server(common.mustCall((req, res) => {
   let result = '';

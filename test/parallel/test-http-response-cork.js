@@ -3,7 +3,7 @@ const common = require('../common');
 const http = require('http');
 const assert = require('assert');
 
-const server = http.createServer((req, res) => {
+const server = http.createServer(common.mustCallAtLeast((req, res) => {
   let corked = false;
   const originalWrite = res.socket.write;
   res.socket.write = common.mustCall((...args) => {
@@ -21,13 +21,13 @@ const server = http.createServer((req, res) => {
   corked = false;
   res.end('asd');
   assert.strictEqual(res.writableCorked, res.socket.writableCorked);
-});
+}));
 
-server.listen(0, () => {
-  http.get({ port: server.address().port }, (res) => {
+server.listen(0, common.mustCall(() => {
+  http.get({ port: server.address().port }, common.mustCall((res) => {
     res.on('data', common.mustCall());
     res.on('end', common.mustCall(() => {
       server.close();
     }));
-  });
-});
+  }));
+}));

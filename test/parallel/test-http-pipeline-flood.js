@@ -48,7 +48,7 @@ function parent() {
 
   server.on('connection', common.mustCall());
 
-  server.listen(0, function() {
+  server.listen(0, common.mustCall(function() {
     const spawn = require('child_process').spawn;
     const args = [__filename, 'child', this.address().port];
     const child = spawn(process.execPath, args, { stdio: 'inherit' });
@@ -59,7 +59,7 @@ function parent() {
     server.setTimeout(200, common.mustCallAtLeast(function() {
       child.kill();
     }, 1));
-  });
+  }));
 }
 
 function child() {

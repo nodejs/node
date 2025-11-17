@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const http = require('http');
 const fork = require('child_process').fork;
 const assert = require('assert');
@@ -35,16 +35,16 @@ if (process.env.NODE_TEST_FORK_PORT) {
   req.write('BAM');
   req.end();
 } else {
-  const server = http.createServer((req, res) => {
+  const server = http.createServer(common.mustCallAtLeast((req, res) => {
     res.writeHead(200, { 'Content-Length': '42' });
     req.pipe(res);
     assert.strictEqual(req.destroyed, false);
-    req.on('close', () => {
+    req.on('close', common.mustCall(() => {
       assert.strictEqual(req.destroyed, true);
       server.close();
       res.end();
-    });
-  });
+    }));
+  }));
   server.listen(0, function() {
     fork(__filename, {
       env: { ...process.env, NODE_TEST_FORK_PORT: this.address().port }

@@ -9,7 +9,7 @@ let reqs = 0;
 let optimizedReqs = 0;
 const server = http.createServer({
   optimizeEmptyRequests: true
-}, (req, res) => {
+}, common.mustCallAtLeast((req, res) => {
   reqs++;
   if (req._dumped) {
     optimizedReqs++;
@@ -22,7 +22,7 @@ const server = http.createServer({
   }
   res.writeHead(200);
   res.end('ok');
-});
+}));
 
 server.listen(0, common.mustCall(async () => {
   // GET request without Content-Length (should be optimized)

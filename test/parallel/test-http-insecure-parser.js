@@ -6,10 +6,10 @@ const assert = require('assert');
 const http = require('http');
 const net = require('net');
 
-const server = http.createServer(function(req, res) {
+const server = http.createServer(common.mustCallAtLeast((req, res) => {
   assert.strictEqual(req.headers['content-type'], 'text/te\bt');
   req.pipe(res);
-});
+}));
 
 server.listen(0, common.mustCall(function() {
   const bufs = [];

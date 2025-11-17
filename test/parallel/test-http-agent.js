@@ -49,10 +49,10 @@ function makeRequests(outCount, inCount, shouldFail) {
     }, outCount * inCount);
   });
 
-  server.listen(0, () => {
+  server.listen(0, common.mustCall(() => {
     const port = server.address().port;
     for (let i = 0; i < outCount; i++) {
-      setTimeout(() => {
+      setTimeout(common.mustCall(() => {
         for (let j = 0; j < inCount; j++) {
           const req = http.get({ port: port, path: '/' }, onRequest);
           if (shouldFail)
@@ -60,9 +60,9 @@ function makeRequests(outCount, inCount, shouldFail) {
           else
             req.on('error', (e) => assert.fail(e));
         }
-      }, i);
+      }), i);
     }
-  });
+  }));
   return p;
 }
 

@@ -66,7 +66,7 @@ function runTest(testCaseIndex) {
   http.get({
     port: server.address().port,
     path: testCase.path
-  }, function(response) {
+  }, common.mustCall((response) => {
     console.log(`client: expected status message: ${testCase.statusMessage}`);
     console.log(`client: actual status message: ${response.statusMessage}`);
     assert.strictEqual(testCase.statusMessage, response.statusMessage);
@@ -80,7 +80,7 @@ function runTest(testCaseIndex) {
     });
 
     response.resume();
-  });
+  }));
 }
 
 server.listen(0, function() { runTest(0); });

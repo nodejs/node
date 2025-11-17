@@ -47,8 +47,8 @@ const server = http.createServer(common.mustCall(function(request, response) {
   response.end('beep boop\n');
 }));
 
-server.listen(0, function() {
-  http.get({ port: this.address().port }, function(res) {
+server.listen(0, common.mustCall(function() {
+  http.get({ port: this.address().port }, common.mustCall((res) => {
     assert.strictEqual(res.statusCode, 200);
     assert.deepStrictEqual(res.headers, { date: 'coffee o clock' });
 
@@ -58,9 +58,9 @@ server.listen(0, function() {
       response += chunk;
     });
 
-    res.on('end', function() {
+    res.on('end', common.mustCall(() => {
       assert.strictEqual(response, 'beep boop\n');
       server.close();
-    });
-  });
-});
+    }));
+  }));
+}));

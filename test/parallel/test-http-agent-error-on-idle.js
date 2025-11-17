@@ -9,7 +9,7 @@ const server = http.createServer(common.mustCall((req, res) => {
   res.end('hello world');
 }, 2));
 
-server.listen(0, () => {
+server.listen(0, common.mustCall(() => {
   const agent = new Agent({ keepAlive: true });
 
   const requestParams = {
@@ -46,4 +46,4 @@ server.listen(0, () => {
     agent.destroy();
     server.close();
   }
-});
+}));

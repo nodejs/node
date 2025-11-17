@@ -28,14 +28,14 @@ function sendFstReq(serverPort) {
     agent,
     host: '127.0.0.1',
     port: serverPort,
-  }, (res) => {
+  }, common.mustCall((res) => {
     res.on('data', noop);
     res.on('end', common.mustCall(() => {
       // Agent's socket reusing code is registered to process.nextTick(),
       // and will be run after this function, make sure it take effect.
       setImmediate(sendSecReq, serverPort, req.socket.localPort);
     }));
-  });
+  }));
 
   // Make the `req.socket` non drained, i.e. has some data queued to write to
   // and accept by the kernel. In Linux and Mac, we only need to call `req.end(aLargeBuffer)`.
@@ -60,8 +60,8 @@ function sendFstReq(serverPort) {
    * back the socket within SO_SNDBUF quota or only one outstanding send condition.
    */
 
-  req.on('socket', () => {
-    req.socket.on('connect', () => {
+  req.on('socket', common.mustCall(() => {
+    req.socket.on('connect', common.mustCall(() => {
       // Print tcp send buffer information
       console.log(process.report.getReport().libuv.filter((handle) => handle.type === 'tcp'));
 
@@ -81,8 +81,8 @@ function sendFstReq(serverPort) {
 
       req.end(dataLargerThanTCPSendBuf);
       assert.ok(req.socket.writableLength > 0);
-    });
-  });
+    }));
+  }));
 }
 
 function sendSecReq(serverPort, fstReqCliPort) {
@@ -92,12 +92,12 @@ function sendSecReq(serverPort, fstReqCliPort) {
     agent,
     host: '127.0.0.1',
     port: serverPort,
-  }, (res) => {
+  }, common.mustCall((res) => {
     res.on('data', noop);
     res.on('end', common.mustCall(() => {
       setImmediate(sendThrReq, serverPort, req.socket.localPort);
     }));
-  });
+  }));
 
   req.on('socket', common.mustCall((sock) => {
     assert.notStrictEqual(sock.localPort, fstReqCliPort);

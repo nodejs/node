@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-const { mustCall, mustNotCall } = require('../common');
+const { mustCall, mustNotCall, mustCallAtLeast } = require('../common');
 const assert = require('assert');
 
 const { methods, HTTPParser } = require('_http_common');
@@ -75,13 +75,13 @@ function expectBody(expected) {
 {
   const request = Buffer.from('GET /hello HTTP/1.1\r\n\r\n');
 
-  const onHeadersComplete = (versionMajor, versionMinor, headers,
-                             method, url) => {
+  const onHeadersComplete = mustCall((versionMajor, versionMinor, headers,
+                                      method, url) => {
     assert.strictEqual(versionMajor, 1);
     assert.strictEqual(versionMinor, 1);
     assert.strictEqual(method, methods.indexOf('GET'));
     assert.strictEqual(url || parser.url, '/hello');
-  };
+  });
 
   const parser = newParser(REQUEST);
   parser[kOnHeadersComplete] = mustCall(onHeadersComplete);
@@ -117,19 +117,19 @@ function expectBody(expected) {
     'pong'
   );
 
-  const onHeadersComplete = (versionMajor, versionMinor, headers,
-                             method, url, statusCode, statusMessage) => {
+  const onHeadersComplete = mustCall((versionMajor, versionMinor, headers,
+                                      method, url, statusCode, statusMessage) => {
     assert.strictEqual(method, undefined);
     assert.strictEqual(versionMajor, 1);
     assert.strictEqual(versionMinor, 1);
     assert.strictEqual(statusCode, 200);
     assert.strictEqual(statusMessage, 'OK');
-  };
+  });
 
-  const onBody = (buf) => {
+  const onBody = mustCall((buf) => {
     const body = String(buf);
     assert.strictEqual(body, 'pong');
-  };
+  });
 
   const parser = newParser(RESPONSE);
   parser[kOnHeadersComplete] = mustCall(onHeadersComplete);
@@ -145,15 +145,15 @@ function expectBody(expected) {
   const request = Buffer.from(
     'HTTP/1.0 200 Connection established\r\n\r\n');
 
-  const onHeadersComplete = (versionMajor, versionMinor, headers,
-                             method, url, statusCode, statusMessage) => {
+  const onHeadersComplete = mustCall((versionMajor, versionMinor, headers,
+                                      method, url, statusCode, statusMessage) => {
     assert.strictEqual(versionMajor, 1);
     assert.strictEqual(versionMinor, 0);
     assert.strictEqual(method, undefined);
     assert.strictEqual(statusCode, 200);
     assert.strictEqual(statusMessage, 'Connection established');
     assert.deepStrictEqual(headers || parser.headers, []);
-  };
+  });
 
   const parser = newParser(RESPONSE);
   parser[kOnHeadersComplete] = mustCall(onHeadersComplete);
@@ -179,27 +179,27 @@ function expectBody(expected) {
 
   let seen_body = false;
 
-  const onHeaders = (headers) => {
+  const onHeaders = mustCall((headers) => {
     assert.ok(seen_body); // Trailers should come after the body
     assert.deepStrictEqual(headers,
                            ['Vary', '*', 'Content-Type', 'text/plain']);
-  };
+  });
 
-  const onHeadersComplete = (versionMajor, versionMinor, headers,
-                             method, url) => {
+  const onHeadersComplete = mustCall((versionMajor, versionMinor, headers,
+                                      method, url) => {
     assert.strictEqual(method, methods.indexOf('POST'));
     assert.strictEqual(url || parser.url, '/it');
     assert.strictEqual(versionMajor, 1);
     assert.strictEqual(versionMinor, 1);
     // Expect to see trailing headers now
     parser[kOnHeaders] = mustCall(onHeaders);
-  };
+  });
 
-  const onBody = (buf) => {
+  const onBody = mustCall((buf) => {
     const body = String(buf);
     assert.strictEqual(body, 'ping');
     seen_body = true;
-  };
+  });
 
   const parser = newParser(REQUEST);
   parser[kOnHeadersComplete] = mustCall(onHeadersComplete);
@@ -220,15 +220,15 @@ function expectBody(expected) {
     '\r\n'
   );
 
-  const onHeadersComplete = (versionMajor, versionMinor, headers,
-                             method) => {
+  const onHeadersComplete = mustCall((versionMajor, versionMinor, headers,
+                                      method) => {
     assert.strictEqual(method, methods.indexOf('GET'));
     assert.strictEqual(versionMajor, 1);
     assert.strictEqual(versionMinor, 0);
     assert.deepStrictEqual(
       headers || parser.headers,
       ['X-Filler', '1337', 'X-Filler', '42', 'X-Filler2', '42']);
-  };
+  });
 
   const parser = newParser(REQUEST);
   parser[kOnHeadersComplete] = mustCall(onHeadersComplete);
@@ -249,8 +249,8 @@ function expectBody(expected) {
     '\r\n'
   );
 
-  const onHeadersComplete = (versionMajor, versionMinor, headers,
-                             method, url) => {
+  const onHeadersComplete = mustCall((versionMajor, versionMinor, headers,
+                                      method, url) => {
     assert.strictEqual(method, methods.indexOf('GET'));
     assert.strictEqual(url || parser.url, '/foo/bar/baz?quux=42#1337');
     assert.strictEqual(versionMajor, 1);
@@ -263,7 +263,7 @@ function expectBody(expected) {
       assert.strictEqual(headers[i], 'X-Filler');
       assert.strictEqual(headers[i + 1], '42');
     }
-  };
+  });
 
   const parser = newParser(REQUEST);
   parser[kOnHeadersComplete] = mustCall(onHeadersComplete);
@@ -283,18 +283,18 @@ function expectBody(expected) {
     'foo=42&bar=1337'
   );
 
-  const onHeadersComplete = (versionMajor, versionMinor, headers,
-                             method, url) => {
+  const onHeadersComplete = mustCall((versionMajor, versionMinor, headers,
+                                      method, url) => {
     assert.strictEqual(method, methods.indexOf('POST'));
     assert.strictEqual(url || parser.url, '/it');
     assert.strictEqual(versionMajor, 1);
     assert.strictEqual(versionMinor, 1);
-  };
+  });
 
-  const onBody = (buf) => {
+  const onBody = mustCall((buf) => {
     const body = String(buf);
     assert.strictEqual(body, 'foo=42&bar=1337');
-  };
+  });
 
   const parser = newParser(REQUEST);
   parser[kOnHeadersComplete] = mustCall(onHeadersComplete);
@@ -321,21 +321,21 @@ function expectBody(expected) {
     '0\r\n'
   );
 
-  const onHeadersComplete = (versionMajor, versionMinor, headers,
-                             method, url) => {
+  const onHeadersComplete = mustCall((versionMajor, versionMinor, headers,
+                                      method, url) => {
     assert.strictEqual(method, methods.indexOf('POST'));
     assert.strictEqual(url || parser.url, '/it');
     assert.strictEqual(versionMajor, 1);
     assert.strictEqual(versionMinor, 1);
-  };
+  });
 
   let body_part = 0;
   const body_parts = ['123', '123456', '1234567890'];
 
-  const onBody = (buf) => {
+  const onBody = mustCallAtLeast((buf) => {
     const body = String(buf);
     assert.strictEqual(body, body_parts[body_part++]);
-  };
+  });
 
   const parser = newParser(REQUEST);
   parser[kOnHeadersComplete] = mustCall(onHeadersComplete);
@@ -359,22 +359,22 @@ function expectBody(expected) {
     '123456\r\n'
   );
 
-  const onHeadersComplete = (versionMajor, versionMinor, headers,
-                             method, url) => {
+  const onHeadersComplete = mustCall((versionMajor, versionMinor, headers,
+                                      method, url) => {
     assert.strictEqual(method, methods.indexOf('POST'));
     assert.strictEqual(url || parser.url, '/it');
     assert.strictEqual(versionMajor, 1);
     assert.strictEqual(versionMinor, 1);
-  };
+  });
 
   let body_part = 0;
   const body_parts =
           ['123', '123456', '123456789', '123456789ABC', '123456789ABCDEF'];
 
-  const onBody = (buf) => {
+  const onBody = mustCallAtLeast((buf) => {
     const body = String(buf);
     assert.strictEqual(body, body_parts[body_part++]);
-  };
+  });
 
   const parser = newParser(REQUEST);
   parser[kOnHeadersComplete] = mustCall(onHeadersComplete);
@@ -418,21 +418,21 @@ function expectBody(expected) {
   );
 
   function test(a, b) {
-    const onHeadersComplete = (versionMajor, versionMinor, headers,
-                               method, url) => {
+    const onHeadersComplete = mustCall((versionMajor, versionMinor, headers,
+                                        method, url) => {
       assert.strictEqual(method, methods.indexOf('POST'));
       assert.strictEqual(url || parser.url, '/helpme');
       assert.strictEqual(versionMajor, 1);
       assert.strictEqual(versionMinor, 1);
-    };
+    });
 
     let expected_body = '123123456123456789123456789ABC123456789ABCDEF';
 
-    const onBody = (buf) => {
+    const onBody = mustCallAtLeast((buf) => {
       const chunk = String(buf);
       assert.strictEqual(expected_body.indexOf(chunk), 0);
       expected_body = expected_body.slice(chunk.length);
-    };
+    });
 
     const parser = newParser(REQUEST);
     parser[kOnHeadersComplete] = mustCall(onHeadersComplete);
@@ -473,8 +473,8 @@ function expectBody(expected) {
     '0\r\n'
   );
 
-  const onHeadersComplete = (versionMajor, versionMinor, headers,
-                             method, url) => {
+  const onHeadersComplete = mustCall((versionMajor, versionMinor, headers,
+                                      method, url) => {
     assert.strictEqual(method, methods.indexOf('POST'));
     assert.strictEqual(url || parser.url, '/it');
     assert.strictEqual(versionMajor, 1);
@@ -482,15 +482,15 @@ function expectBody(expected) {
     assert.deepStrictEqual(
       headers || parser.headers,
       ['Content-Type', 'text/plain', 'Transfer-Encoding', 'chunked']);
-  };
+  });
 
   let expected_body = '123123456123456789123456789ABC123456789ABCDEF';
 
-  const onBody = (buf) => {
+  const onBody = mustCallAtLeast((buf) => {
     const chunk = String(buf);
     assert.strictEqual(expected_body.indexOf(chunk), 0);
     expected_body = expected_body.slice(chunk.length);
-  };
+  });
 
   const parser = newParser(REQUEST);
   parser[kOnHeadersComplete] = mustCall(onHeadersComplete);
@@ -526,8 +526,8 @@ function expectBody(expected) {
     'pong'
   );
 
-  const onHeadersComplete1 = (versionMajor, versionMinor, headers,
-                              method, url) => {
+  const onHeadersComplete1 = mustCall((versionMajor, versionMinor, headers,
+                                       method, url) => {
     assert.strictEqual(method, methods.indexOf('PUT'));
     assert.strictEqual(url, '/this');
     assert.strictEqual(versionMajor, 1);
@@ -535,10 +535,10 @@ function expectBody(expected) {
     assert.deepStrictEqual(
       headers,
       ['Content-Type', 'text/plain', 'Transfer-Encoding', 'chunked']);
-  };
+  });
 
-  const onHeadersComplete2 = (versionMajor, versionMinor, headers,
-                              method, url) => {
+  const onHeadersComplete2 = mustCall((versionMajor, versionMinor, headers,
+                                       method, url) => {
     assert.strictEqual(method, methods.indexOf('POST'));
     assert.strictEqual(url, '/that');
     assert.strictEqual(versionMajor, 1);
@@ -547,7 +547,7 @@ function expectBody(expected) {
       headers,
       ['Content-Type', 'text/plain', 'Content-Length', '4']
     );
-  };
+  });
 
   const parser = newParser(REQUEST);
   parser[kOnHeadersComplete] = onHeadersComplete1;
