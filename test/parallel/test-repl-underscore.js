@@ -1,6 +1,6 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const repl = require('repl');
 const { startNewREPLServer } = require('../common/repl');
@@ -190,7 +190,7 @@ function testError() {
                                                   // throws error, async
            `);
 
-  setImmediate(() => {
+  setImmediate(common.mustCall(() => {
     const lines = output.accumulator.trim().split('\n').filter(
       (line) => !line.includes(testingReplPrompt) || line.includes('Uncaught Error')
     );
@@ -243,7 +243,7 @@ function testError() {
       'Uncaught Error: quux',
       '0',
     ]);
-  });
+  }));
 }
 
 function assertOutput(output, expected) {

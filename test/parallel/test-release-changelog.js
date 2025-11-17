@@ -7,12 +7,12 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 
-const getDefine = (text, name) => {
+const getDefine = common.mustCallAtLeast((text, name) => {
   const regexp = new RegExp(`#define\\s+${RegExp.escape(name)}\\s+(.*)`);
   const match = regexp.exec(text);
   assert.notStrictEqual(match, null);
   return match[1];
-};
+});
 
 const srcRoot = path.join(__dirname, '..', '..');
 const mainChangelogFile = path.join(srcRoot, 'CHANGELOG.md');

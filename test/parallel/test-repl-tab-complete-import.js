@@ -56,9 +56,9 @@ replServer.complete("import\t( 'n", common.mustSucceed((data) => {
   assert.strictEqual(completions[lastIndex + 2], 'net');
   assert.strictEqual(completions[lastIndex + 3], '');
   // It's possible to pick up non-core modules too
-  completions.slice(lastIndex + 4).forEach((completion) => {
+  for (const completion of completions.slice(lastIndex + 4)) {
     assert.match(completion, /^n/);
-  });
+  }
 }));
 
 {

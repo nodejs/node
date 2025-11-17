@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 
 switch (process.argv[2]) {
@@ -47,15 +47,15 @@ function parent() {
   child.stdout.on('data', function(c) {
     out += c;
   });
-  child.stdout.on('end', function() {
+  child.stdout.on('end', common.mustCall(() => {
     assert.strictEqual(out, '10\n');
     console.log('ok - got expected output');
-  });
+  }));
 
-  child.on('exit', function(c) {
+  child.on('exit', common.mustCall((c) => {
     assert(!c);
     console.log('ok - exit success');
-  });
+  }));
 }
 
 function child() {
