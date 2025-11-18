@@ -133,6 +133,8 @@ typedef enum {
   napi_float64_array,
   napi_bigint64_array,
   napi_biguint64_array,
+#define NODE_API_HAS_FLOAT16_ARRAY
+  napi_float16_array,
 } napi_typedarray_type;
 
 typedef enum {
