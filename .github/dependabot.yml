@@ -6,10 +6,6 @@ updates:
     directory: /
     schedule:
       interval: monthly
-    cooldown:
-      semver-major-days: 5
-      semver-minor-days: 5
-      semver-patch-days: 5
     commit-message:
       prefix: meta
     open-pull-requests-limit: 10
