@@ -6,7 +6,7 @@ on:
     paths-ignore:
       - .mailmap
       - '**.md'
-      - '*.nix'
+      - '**.nix'
       - AUTHORS
       - doc/**
       - test/internet/**
@@ -21,7 +21,7 @@ on:
     paths-ignore:
       - .mailmap
       - '**.md'
-      - '*.nix'
+      - '**.nix'
       - AUTHORS
       - doc/**
       - test/internet/**
