@@ -1061,6 +1061,10 @@ class CanonicalValueType : public ValueTypeBase {
     return bit_field_ == other.bit_field_;
   }
 
+  constexpr bool is_equal_except_index(CanonicalValueType other) const {
+    return (bit_field_ & ~kIndexBits) == (other.bit_field_ & ~kIndexBits);
+  }
+
   constexpr bool IsFunctionType() const {
     return ref_type_kind() == RefTypeKind::kFunction;
   }
