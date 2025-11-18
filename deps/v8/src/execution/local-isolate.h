@@ -138,11 +138,9 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
     return bigint_processor_;
   }
 
-#ifdef V8_ENABLE_LEAPTIERING
   JSDispatchTable::Space* GetJSDispatchTableSpaceFor(Address owning_slot) {
     return isolate_->GetJSDispatchTableSpaceFor(owning_slot);
   }
-#endif  // V8_ENABLE_LEAPTIERING
 
   // AsIsolate is only allowed on the main-thread.
   Isolate* AsIsolate() {

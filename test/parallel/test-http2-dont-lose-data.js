@@ -8,7 +8,7 @@ const http2 = require('http2');
 
 const server = http2.createServer();
 
-server.on('stream', (s) => {
+server.on('stream', common.mustCall((s) => {
   assert(s.pushAllowed);
 
   s.pushStream({ ':path': '/file' }, common.mustSucceed((pushStream) => {
@@ -18,9 +18,9 @@ server.on('stream', (s) => {
 
   s.respond();
   s.end('hello world');
-});
+}));
 
-server.listen(0, () => {
+server.listen(0, common.mustCall(() => {
   server.unref();
 
   const url = `http://localhost:${server.address().port}`;
@@ -43,7 +43,7 @@ server.listen(0, () => {
       assert.strictEqual(pushData, 'a push stream');
 
       // Removing the setImmediate causes the test to pass
-      setImmediate(function() {
+      setImmediate(common.mustCall(() => {
         let data = '';
         req.setEncoding('utf8');
         req.on('data', (d) => data += d);
@@ -51,7 +51,7 @@ server.listen(0, () => {
           assert.strictEqual(data, 'hello world');
           client.close();
         }));
-      });
+      }));
     }));
   }));
-});
+}));

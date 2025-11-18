@@ -64,7 +64,6 @@ class GrowableStacksReducer : public Next {
           __ RelocatableWasmBuiltinCallTarget(Builtin::kWasmGrowableStackGuard);
       auto param_slots_size = __ IntPtrConstant(
           call_descriptor_->ParameterSlotCount() * kSystemPointerSize);
-      // TODO(jkummerow): Distinguish loop stack checks here.
       __ Call(
           builtin, {param_slots_size}, ts_stub_call_descriptor,
           OpEffects().CanReadMemory().RequiredWhenUnused().CanThrowOrTrap());

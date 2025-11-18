@@ -6,9 +6,9 @@ Documentation can be found at https://v8.dev/docs.
 
 ## Key Commands
 
--   **Build (Debug):** `tools/dev/gm.py quiet x64.debug`
--   **Build (Optimized Debug):** `tools/dev/gm.py quiet x64.optdebug`
--   **Build (Release):** `tools/dev/gm.py quiet x64.release`
+-   **Build (Debug):** `tools/dev/gm.py quiet x64.debug tests`
+-   **Build (Optimized Debug):** `tools/dev/gm.py quiet x64.optdebug tests`
+-   **Build (Release):** `tools/dev/gm.py quiet x64.release tests`
 -   **Run All Tests:** `tools/run-tests.py --progress dots --exit-after-n-failures=5 --outdir=out/x64.optdebug`
 -   **Run C++ Tests:** `tools/run-tests.py --progress dots --exit-after-n-failures=5 --outdir=out/x64.optdebug cctest unittests`
 -   **Run JavaScript Tests:** `tools/run-tests.py --progress dots --exit-after-n-failures=5 --outdir=out/x64.optdebug mjsunit`
@@ -139,7 +139,7 @@ If there are any failing tests, they will be reported along their stderr and a c
 #
 ...stack trace...
 Received signal 6
-Command: out/x64.optdebug/d8 --test test/mjsunit/mjsunit.js test/mjsunit/maglev/regress-429656023.js --random-seed=-190258694 --nohard-abort --verify-heap --testing-d8-test-runner --allow-natives-syntax
+Command: out/x64.optdebug/d8 --test test/mjsunit/mjsunit.js test/mjsunit/maglev/regress-429656023.js --random-seed=-190258694 --nohard-abort --verify-heap --allow-natives-syntax
 ```
 
 You can retry the test either by running the test name with `tools/run-tests.py`, e.g. `tools/run-tests.py --progress dots --outdir=out/x64.optdebug mjsunit/maglev/regress-429656023`, or by running the command directly. When running the command directly, you can add additional flags to help debug the issue, and you can try running a different build (e.g. running a debug build if a release build fails).

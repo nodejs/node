@@ -860,4 +860,28 @@ process.on('message', (message) => {
       `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
     ]);
   });
+
+  it('should support multiple --env-file flags', async () => {
+    const envKey = `TEST_ENV_A_${Date.now()}`;
+    const envKey2 = `TEST_ENV_B_${Date.now()}`;
+    const jsFile = createTmpFile(`console.log('ENV_A: ' + process.env.${envKey} + '\\n' + 'ENV_B: ' + process.env.${envKey2});`);
+    const envFileA = createTmpFile(`${envKey}=123`, '.env');
+    const envFileB = createTmpFile(`${envKey2}=456`, '.env');
+    const { done, restart } = runInBackground({
+      args: ['--watch', `--env-file=${envFileA}`, `--env-file=${envFileB}`, jsFile]
+    });
+
+    try {
+      const { stderr, stdout } = await restart();
+
+      assert.strictEqual(stderr, '');
+      assert.deepStrictEqual(stdout, [
+        'ENV_A: 123',
+        'ENV_B: 456',
+        `Completed running ${inspect(jsFile)}. Waiting for file changes before restarting...`,
+      ]);
+    } finally {
+      await done();
+    }
+  });
 });

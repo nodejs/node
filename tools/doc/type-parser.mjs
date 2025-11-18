@@ -3,13 +3,14 @@ const jsDocPrefix = `${mdnPrefix}/JavaScript/`;
 
 const jsDataStructuresUrl = `${jsDocPrefix}Data_structures`;
 const jsPrimitives = {
-  boolean: 'Boolean',
-  integer: 'Number', // Not a primitive, used for clarification.
-  null: 'Null',
-  number: 'Number',
-  string: 'String',
-  symbol: 'Symbol',
-  undefined: 'Undefined',
+  boolean: 'boolean',
+  integer: 'number', // Not a primitive, used for clarification.
+  null: 'null',
+  number: 'number',
+  string: 'string',
+  symbol: 'symbol',
+  undefined: 'undefined',
+  bigint: 'bigint',
 };
 
 const jsGlobalObjectsUrl = `${jsDocPrefix}Reference/Global_Objects/`;
@@ -43,7 +44,6 @@ const customTypesMap = {
 
   'AsyncGeneratorFunction': 'https://tc39.es/proposal-async-iteration/#sec-asyncgeneratorfunction-constructor',
 
-  'bigint': `${jsDocPrefix}Reference/Global_Objects/BigInt`,
   'WebAssembly.Instance':
     `${jsDocPrefix}Reference/Global_Objects/WebAssembly/Instance`,
   'WebAssembly.Memory':
@@ -96,8 +96,6 @@ const customTypesMap = {
   'EncapsulatedBits': 'webcrypto.html#class-encapsulatedbits',
   'EncapsulatedKey': 'webcrypto.html#class-encapsulatedkey',
   'SubtleCrypto': 'webcrypto.html#class-subtlecrypto',
-  'Template Literal':
-    `${jsDocPrefix}Reference/Template_literals`,
   'RsaOaepParams': 'webcrypto.html#class-rsaoaepparams',
   'AesCtrParams': 'webcrypto.html#class-aesctrparams',
   'AesCbcParams': 'webcrypto.html#class-aescbcparams',

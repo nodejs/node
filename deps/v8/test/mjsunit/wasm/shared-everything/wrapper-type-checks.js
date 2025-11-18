@@ -30,12 +30,13 @@ let vSharedWasmArray = (instance) => instance.exports.createSharedArray();
 let vUnsharedWasmStruct = (instance) => instance.exports.createUnsharedStruct();
 let vUnsharedWasmArray = (instance) => instance.exports.createUnsharedArray();
 let vSymbol = () => Symbol("symbol");
+let vBigInt = () => 123_456_789_012_345_678_901_234_567_890n;
 
 // List all values here, so they can't be forgotten in individual tests below.
 let valuesToTest = [vNull, vUndefined, vTrue, vFalse, vSmi, vHeapNumber,
   vHeapNumberSmi, vStringLiteral, vStringDynamic, vSharedString, vObject,
   vSharedWasmStruct, vSharedWasmArray, vUnsharedWasmStruct, vUnsharedWasmArray,
-  vSymbol];
+  vSymbol, vBigInt];
 
 let tests = [
   {
@@ -44,7 +45,8 @@ let tests = [
     valid: [vNull, vUndefined, vTrue, vFalse, vSmi, vStringLiteral,
       vSharedString, vSharedJSStruct, vSharedWasmStruct,
       vSharedWasmArray, vHeapNumber, vHeapNumberSmi, vStringDynamic],
-    invalid: [vUnsharedWasmStruct, vUnsharedWasmArray, vObject, vSymbol]
+    invalid: [vUnsharedWasmStruct, vUnsharedWasmArray, vObject, vSymbol,
+      vBigInt]
   },
   {
     name: "shared anyref",
@@ -52,7 +54,8 @@ let tests = [
     valid: [vNull, vUndefined, vTrue, vFalse, vSmi, vStringLiteral,
       vSharedString, vSharedJSStruct, vSharedWasmStruct,
       vSharedWasmArray, vHeapNumber, vHeapNumberSmi, vStringDynamic],
-    invalid: [vUnsharedWasmStruct, vUnsharedWasmArray, vObject, vSymbol]
+    invalid: [vUnsharedWasmStruct, vUnsharedWasmArray, vObject, vSymbol,
+      vBigInt]
   },
   {
     name: "externref",
@@ -60,7 +63,7 @@ let tests = [
     valid: [vNull, vUndefined, vTrue, vFalse, vSmi, vHeapNumber, vStringLiteral,
       vStringDynamic, vObject, vUnsharedWasmStruct, vUnsharedWasmArray,
       vSharedString, vSharedJSStruct, vSharedWasmStruct, vSharedWasmArray,
-      vHeapNumberSmi, vSymbol],
+      vHeapNumberSmi, vSymbol, vBigInt],
     invalid: []
   },
   {
@@ -69,7 +72,7 @@ let tests = [
     valid: [vNull, vUndefined, vTrue, vFalse, vSmi, vHeapNumber, vStringLiteral,
       vStringDynamic, vObject, vUnsharedWasmStruct, vUnsharedWasmArray,
       vSharedString, vSharedJSStruct, vSharedWasmStruct, vSharedWasmArray,
-      vHeapNumberSmi, vSymbol],
+      vHeapNumberSmi, vSymbol, vBigInt],
     invalid: []
   },
   {
@@ -78,7 +81,7 @@ let tests = [
     valid: [vNull, vSmi, vHeapNumberSmi, vSharedWasmStruct, vSharedWasmArray],
     invalid: [vUndefined, vTrue, vFalse, vHeapNumber, vStringLiteral,
       vStringDynamic, vSharedString, vSharedJSStruct, vObject,
-      vUnsharedWasmStruct, vUnsharedWasmArray, vSymbol]
+      vUnsharedWasmStruct, vUnsharedWasmArray, vSymbol, vBigInt]
   },
   {
     name: "eqref",
@@ -87,7 +90,7 @@ let tests = [
       vUnsharedWasmArray],
     invalid: [vUndefined, vTrue, vFalse, vHeapNumber, vStringLiteral,
       vStringDynamic, vSharedString, vSharedJSStruct, vObject,
-      vSharedWasmStruct, vSharedWasmArray, vSymbol]
+      vSharedWasmStruct, vSharedWasmArray, vSymbol, vBigInt]
   },
   {
     name: "shared i31ref",
@@ -96,7 +99,7 @@ let tests = [
     invalid: [vUndefined, vTrue, vFalse, vHeapNumber, vStringLiteral,
       vStringDynamic, vSharedString, vSharedJSStruct, vObject,
       vSharedWasmStruct, vSharedWasmArray, vUnsharedWasmStruct,
-      vUnsharedWasmArray, vSymbol]
+      vUnsharedWasmArray, vSymbol, vBigInt]
   },
   {
     name: "i31ref",
@@ -105,7 +108,7 @@ let tests = [
     invalid: [vUndefined, vTrue, vFalse, vHeapNumber, vStringLiteral,
       vStringDynamic, vSharedString, vSharedJSStruct, vObject,
       vSharedWasmStruct, vSharedWasmArray, vUnsharedWasmStruct,
-      vUnsharedWasmArray, vSymbol]
+      vUnsharedWasmArray, vSymbol, vBigInt]
   },
   {
     name: "shared arrayref",
@@ -114,7 +117,7 @@ let tests = [
     invalid: [vUndefined, vTrue, vFalse, vSmi, vHeapNumberSmi, vHeapNumber,
       vStringLiteral, vStringDynamic, vSharedString, vSharedJSStruct,
       vObject, vSharedWasmStruct, vUnsharedWasmStruct,
-      vUnsharedWasmArray, vSymbol]
+      vUnsharedWasmArray, vSymbol, vBigInt]
   },
   {
     name: "arrayref",
@@ -123,7 +126,7 @@ let tests = [
     invalid: [vUndefined, vTrue, vFalse, vSmi, vHeapNumberSmi, vHeapNumber,
       vStringLiteral, vStringDynamic, vSharedString, vSharedJSStruct,
       vObject, vSharedWasmStruct, vUnsharedWasmStruct,
-      vSharedWasmArray, vSymbol]
+      vSharedWasmArray, vSymbol, vBigInt]
   },
   {
     name: "shared structref",
@@ -132,7 +135,7 @@ let tests = [
     invalid: [vUndefined, vTrue, vFalse, vSmi, vHeapNumberSmi, vHeapNumber,
       vStringLiteral, vStringDynamic, vSharedString, vSharedJSStruct,
       vObject, vSharedWasmArray, vUnsharedWasmStruct,
-      vUnsharedWasmArray, vSymbol]
+      vUnsharedWasmArray, vSymbol, vBigInt]
   },
   {
     name: "structref",
@@ -141,7 +144,7 @@ let tests = [
     invalid: [vUndefined, vTrue, vFalse, vSmi, vHeapNumberSmi, vHeapNumber,
       vStringLiteral, vStringDynamic, vSharedString, vSharedJSStruct,
       vObject, vSharedWasmStruct, vSharedWasmArray,
-      vUnsharedWasmArray, vSymbol]
+      vUnsharedWasmArray, vSymbol, vBigInt]
   },
   {
     name: "shared none",
@@ -150,7 +153,7 @@ let tests = [
     invalid: [vUndefined, vTrue, vFalse, vSmi, vHeapNumberSmi, vHeapNumber,
       vStringLiteral, vStringDynamic, vSharedString, vSharedJSStruct,
       vObject, vSharedWasmStruct, vSharedWasmArray, vUnsharedWasmStruct,
-      vUnsharedWasmArray, vSymbol]
+      vUnsharedWasmArray, vSymbol, vBigInt]
   },
   {
     name: "none",
@@ -159,7 +162,7 @@ let tests = [
     invalid: [vUndefined, vTrue, vFalse, vSmi, vHeapNumberSmi, vHeapNumber,
       vStringLiteral, vStringDynamic, vSharedString, vSharedJSStruct,
       vObject, vSharedWasmStruct, vSharedWasmArray, vUnsharedWasmStruct,
-      vUnsharedWasmArray, vSymbol]
+      vUnsharedWasmArray, vSymbol, vBigInt]
   },
 ];
 

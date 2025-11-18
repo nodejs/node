@@ -199,9 +199,8 @@ Reduction WasmTyper::Reduce(Node* node) {
           wasm::IsSubtypeOf(computed_type.type, current_type.type,
                             computed_type.module, current_type.module) ||
           // Imported strings can have more precise types.
-          (current_type.type.heap_representation() == wasm::HeapType::kExtern &&
-           computed_type.type.heap_representation() ==
-               wasm::HeapType::kString))) {
+          (current_type.type.AsNullable() == wasm::kWasmExternRef &&
+           computed_type.type.AsNullable() == wasm::kWasmStringRef))) {
       FATAL(
           "Error - Incompatible types. function: %d, node: %d:%s, input0:%d, "
           "current %s, computed %s\n",

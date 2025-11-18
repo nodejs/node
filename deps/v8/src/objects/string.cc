@@ -40,7 +40,7 @@ template <template <typename> typename HandleType>
   requires(std::is_convertible_v<HandleType<String>, DirectHandle<String>>)
 HandleType<String> String::SlowShare(Isolate* isolate,
                                      HandleType<String> source) {
-  DCHECK(v8_flags.shared_string_table);
+  DCHECK(v8_flags.shared_strings);
   HandleType<String> flat =
       Flatten(isolate, source, AllocationType::kSharedOld);
 
@@ -556,6 +556,13 @@ bool String::SupportsExternalization(v8::String::Encoding encoding) {
 
   // Only strings in old space can be externalized.
   if (HeapLayout::InYoungGeneration(Tagged(this))) {
+    return false;
+  }
+
+  // Externalization of shared strings is only supported with shared string
+  // table.
+  if (HeapLayout::InAnySharedSpace(Tagged(this)) &&
+      !v8_flags.shared_string_table) {
     return false;
   }
 
@@ -1262,6 +1269,25 @@ bool String::SlowEquals(
 #endif
     if (this_hash != other_hash) return false;
   }
+
+  return SlowEqualsNonThinSameLength(len, other, access_guard);
+}
+
+bool String::SlowEqualsNonThinSameLength(uint32_t len,
+                                         Tagged<String> other) const {
+  DCHECK(!SharedStringAccessGuardIfNeeded::IsNeeded(this));
+  DCHECK(!SharedStringAccessGuardIfNeeded::IsNeeded(other));
+  return SlowEqualsNonThinSameLength(
+      len, other, SharedStringAccessGuardIfNeeded::NotNeeded());
+}
+
+bool String::SlowEqualsNonThinSameLength(
+    uint32_t len, Tagged<String> other,
+    const SharedStringAccessGuardIfNeeded& access_guard) const {
+  DisallowGarbageCollection no_gc;
+  DCHECK_NE(0, len);
+  DCHECK_EQ(len, length());
+  DCHECK_EQ(len, other->length());
 
   // We know the strings are both non-empty. Compare the first chars
   // before we try to flatten the strings.

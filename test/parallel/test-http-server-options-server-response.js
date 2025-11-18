@@ -24,12 +24,12 @@ const server = http.Server({
 }));
 server.listen();
 
-server.on('listening', function makeRequest() {
-  http.get({ port: this.address().port }, (res) => {
+server.on('listening', common.mustCall(function makeRequest() {
+  http.get({ port: this.address().port }, common.mustCall((res) => {
     assert.strictEqual(res.statusCode, 200);
     res.on('end', () => {
       server.close();
     });
     res.resume();
-  });
-});
+  }));
+}));

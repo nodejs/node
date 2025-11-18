@@ -635,6 +635,9 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
     AllocateControlNode(block->control_node(), block);
     ApplyPatches(block);
   }
+
+  // Clean up remaining register allocations at the end
+  ClearRegisters();
 }
 
 void StraightForwardRegisterAllocator::FreeRegistersUsedBy(ValueNode* node) {
@@ -698,6 +701,7 @@ void StraightForwardRegisterAllocator::AllocateEagerDeopt(
     UpdateUse(node, input);
     input++;
   });
+  CHECK_EQ(input, deopt_info.input_locations_end());
 }
 
 void StraightForwardRegisterAllocator::AllocateLazyDeopt(
@@ -712,6 +716,7 @@ void StraightForwardRegisterAllocator::AllocateLazyDeopt(
     UpdateUse(node, input);
     input++;
   });
+  CHECK_EQ(input, deopt_info.input_locations_end());
 }
 
 #ifdef DEBUG
@@ -1622,8 +1627,8 @@ void StraightForwardRegisterAllocator::SpillRegisters() {
   double_registers_.ForEachUsedRegister(spill);
 }
 
-template <typename RegisterT>
-void StraightForwardRegisterAllocator::SpillAndClearRegisters(
+template <typename RegisterT, bool spill>
+void StraightForwardRegisterAllocator::ClearRegisters(
     RegisterFrameState<RegisterT>& registers) {
   while (registers.used() != registers.empty()) {
     RegisterT reg = registers.used().first();
@@ -1632,7 +1637,9 @@ void StraightForwardRegisterAllocator::SpillAndClearRegisters(
       printing_visitor_->os()
           << "  clearing registers with " << PrintNodeLabel(node) << "\n";
     }
-    Spill(node);
+    if (spill) {
+      Spill(node);
+    }
     registers.FreeRegistersUsedBy(node);
     DCHECK(!registers.used().has(reg));
   }
@@ -1641,6 +1648,11 @@ void StraightForwardRegisterAllocator::SpillAndClearRegisters(
 void StraightForwardRegisterAllocator::SpillAndClearRegisters() {
   SpillAndClearRegisters(general_registers_);
   SpillAndClearRegisters(double_registers_);
+}
+
+void StraightForwardRegisterAllocator::ClearRegisters() {
+  ClearRegisters(general_registers_);
+  ClearRegisters(double_registers_);
 }
 
 void StraightForwardRegisterAllocator::SaveRegisterSnapshot(NodeBase* node) {
@@ -1684,6 +1696,7 @@ void StraightForwardRegisterAllocator::SaveRegisterSnapshot(NodeBase* node) {
       }
       input++;
     });
+    CHECK_EQ(input, node->eager_deopt_info()->input_locations_end());
   }
   node->set_register_snapshot(snapshot);
 }

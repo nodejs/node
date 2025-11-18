@@ -414,7 +414,7 @@ void AsmJsParser::ValidateModuleParameters() {
 
 // 6.1 ValidateModule - variables
 void AsmJsParser::ValidateModuleVars() {
-  while (Peek(TOK(var)) || Peek(TOK(const))) {
+  while (!failed_ && (Peek(TOK(var)) || Peek(TOK(const)))) {
     bool mutable_variable = true;
     if (Check(TOK(var))) {
       // Had a var.

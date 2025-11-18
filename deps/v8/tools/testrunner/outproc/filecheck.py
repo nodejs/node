@@ -11,12 +11,13 @@ import subprocess
 class FileCheckOutProc(base.OutProc):
   """Processor for FileCheck-based expectations."""
 
-  def __init__(self, expected_outcomes, js_file):
+  def __init__(self, expected_outcomes, js_file, expect_d8_fails):
     super(FileCheckOutProc, self).__init__(expected_outcomes)
     self._js_file = js_file
+    self.expect_d8_fails = expect_d8_fails
 
   def _is_failure_output(self, output):
-    if output.exit_code != 0:
+    if bool(output.exit_code) != self.expect_d8_fails:
       return True
 
     cmd = ["vpython3", "-m", "filecheck", str(self._js_file)]
@@ -26,7 +27,7 @@ class FileCheckOutProc(base.OutProc):
     # something goes wrong in terms of new lines)...
     res = subprocess.run(
         cmd,
-        input=output.stdout.encode("utf-8"),
+        input=output.stdout.encode("utf-8") + output.stderr.encode("utf-8"),
         capture_output=True,
         shell=platform.system() == 'Windows')
     if res.returncode != 0 and "FileCheck failed" not in output.stderr:

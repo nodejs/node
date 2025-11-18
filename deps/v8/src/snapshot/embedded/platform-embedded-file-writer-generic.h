@@ -17,7 +17,8 @@ class PlatformEmbeddedFileWriterGeneric
   PlatformEmbeddedFileWriterGeneric(EmbeddedTargetArch target_arch,
                                     EmbeddedTargetOs target_os)
       : target_arch_(target_arch), target_os_(target_os) {
-    DCHECK(target_os_ == EmbeddedTargetOs::kChromeOS ||
+    DCHECK(target_os_ == EmbeddedTargetOs::kAndroid ||
+           target_os_ == EmbeddedTargetOs::kChromeOS ||
            target_os_ == EmbeddedTargetOs::kFuchsia ||
            target_os_ == EmbeddedTargetOs::kGeneric);
   }

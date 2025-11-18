@@ -23,10 +23,7 @@ const {
   writeFileSync,
 } = require('node:fs');
 
-const {
-  ok,
-  throws,
-} = require('node:assert');
+const assert = require('node:assert');
 
 const {
   sep,
@@ -46,7 +43,7 @@ const kShiftJisBuffer = Buffer.from([0x82, 0xA0, 0x82, 0xA2, 0x82, 0xA4]);
 const tmpdirUrl = pathToFileURL(tmpdir.path + sep);
 const testPath = new URL(kShiftJisName, tmpdirUrl);
 
-ok(testPath.pathname.endsWith(`/${kShiftJisName}`));
+assert.ok(testPath.pathname.endsWith(`/${kShiftJisName}`));
 
 const tmpdirBuffer = Buffer.from(tmpdir.path + sep, 'utf8');
 const testPathBuffer = Buffer.concat([tmpdirBuffer, kShiftJisBuffer]);
@@ -54,19 +51,19 @@ const testPathBuffer = Buffer.concat([tmpdirBuffer, kShiftJisBuffer]);
 // We can use the Buffer version of the path to create a file and check
 // its existence. But we cannot use the URL version because it contains
 // non-Unicode percent-encoded characters.
-throws(() => writeFileSync(testPath, 'test'), {
+assert.throws(() => writeFileSync(testPath, 'test'), {
   name: 'URIError',
 });
 
 writeFileSync(testPathBuffer, 'test');
-ok(existsSync(testPathBuffer));
+assert.ok(existsSync(testPathBuffer));
 
 // Using fileURLToPath fails because the URL contains non-Unicode
 // percent-encoded characters.
-throws(() => existsSync(fileURLToPath(testPath)), {
+assert.throws(() => existsSync(fileURLToPath(testPath)), {
   name: 'URIError',
 });
 
 // This variation succeeds because the URL is converted to a buffer
 // without trying to interpret the percent-encoded characters.
-ok(existsSync(fileURLToPathBuffer(testPath)));
+assert.ok(existsSync(fileURLToPathBuffer(testPath)));

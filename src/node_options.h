@@ -185,8 +185,8 @@ class EnvironmentOptions : public Options {
 #endif  // HAVE_INSPECTOR
   std::string redirect_warnings;
   std::string diagnostic_dir;
-  std::string env_file;
-  std::string optional_env_file;
+  std::vector<std::string> env_file;
+  std::vector<std::string> optional_env_file;
   bool has_env_file_string = false;
   bool test_runner = false;
   uint64_t test_runner_concurrency = 0;
@@ -259,7 +259,7 @@ class EnvironmentOptions : public Options {
 
   std::vector<std::string> preload_esm_modules;
 
-  bool experimental_strip_types = true;
+  bool strip_types = true;
   bool experimental_transform_types = false;
 
   std::vector<std::string> user_argv;

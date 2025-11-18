@@ -24,6 +24,9 @@
 
 #define DISABLE_MSAN __attribute__((no_sanitize("memory")))
 
+#define MSAN_CHECK_MEM_IS_INITIALIZED(start, byte_size) \
+  __msan_check_mem_is_initialized(start, byte_size)
+
 #else  // !V8_USE_MEMORY_SANITIZER
 
 #define MSAN_ALLOCATED_UNINITIALIZED_MEMORY(start, size)              \
@@ -38,6 +41,12 @@
   MSAN_ALLOCATED_UNINITIALIZED_MEMORY(start, size)
 
 #define DISABLE_MSAN
+
+#define MSAN_CHECK_MEM_IS_INITIALIZED(start, byte_size)                       \
+  static_assert(std::is_pointer_v<decltype(start)>, "static type violation"); \
+  static_assert(std::is_convertible_v<decltype(byte_size), size_t>,           \
+                "static type violation");                                     \
+  USE(start, byte_size)
 
 #endif  // V8_USE_MEMORY_SANITIZER
 

@@ -613,7 +613,7 @@ static DirectHandle<Object> InstantiateIfSharedFunctionInfo(
 }
 
 static MaybeDirectHandle<Object> SetPrototypePropertiesSlow(
-    Isolate* isolate, DirectHandle<Context> context, DirectHandle<JSObject> obj,
+    Isolate* isolate, DirectHandle<Context> context, DirectHandle<JSAny> obj,
     Handle<ObjectBoilerplateDescription> object_boilerplate_description,
     DirectHandle<ClosureFeedbackCellArray> feedback_cell_array,
     int& current_slot, int start_index = 0) {
@@ -684,7 +684,7 @@ RUNTIME_FUNCTION(Runtime_SetPrototypeProperties) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
   DirectHandle<Context> context(isolate->context(), isolate);
-  DirectHandle<JSObject> obj = args.at<JSObject>(0);  // acc JS Object
+  DirectHandle<JSAny> obj = args.at<JSAny>(0);  // acc JS Object
   Handle<ObjectBoilerplateDescription> object_boilerplate_description =
       args.at<ObjectBoilerplateDescription>(1);
   DirectHandle<ClosureFeedbackCellArray> feedback_cell_array =

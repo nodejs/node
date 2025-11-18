@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const http = require('http');
 const Countdown = require('../common/countdown');
@@ -40,11 +40,11 @@ const server = http.createServer(function(req, res) {
 });
 server.listen(0);
 
-server.on('listening', function() {
+server.on('listening', common.mustCall(function() {
   //
   // one set-cookie header
   //
-  http.get({ port: this.address().port, path: '/one' }, function(res) {
+  http.get({ port: this.address().port, path: '/one' }, common.mustCall((res) => {
     // set-cookie headers are always return in an array.
     // even if there is only one.
     assert.deepStrictEqual(res.headers['set-cookie'], ['A']);
@@ -57,11 +57,11 @@ server.on('listening', function() {
     res.on('end', function() {
       countdown.dec();
     });
-  });
+  }));
 
   // Two set-cookie headers
 
-  http.get({ port: this.address().port, path: '/two' }, function(res) {
+  http.get({ port: this.address().port, path: '/two' }, common.mustCall((res) => {
     assert.deepStrictEqual(res.headers['set-cookie'], ['A', 'B']);
     assert.strictEqual(res.headers['content-type'], 'text/plain');
 
@@ -72,6 +72,6 @@ server.on('listening', function() {
     res.on('end', function() {
       countdown.dec();
     });
-  });
+  }));
 
-});
+}));

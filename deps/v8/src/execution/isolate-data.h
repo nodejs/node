@@ -49,8 +49,6 @@ static constexpr int kFastCCallAlignmentPaddingCount = 1;
     fast_c_call_alignment_padding)
 #endif  // V8_HOST_ARCH_64_BIT
 
-#ifdef V8_ENABLE_LEAPTIERING
-
 #define BUILTINS_WITH_DISPATCH_ADAPTER(V, CamelName, underscore_name, ...) \
   V(CamelName, CamelName##SharedFun)
 
@@ -102,8 +100,6 @@ struct JSBuiltinDispatchHandleRoot {
   }
 };
 
-#endif  // V8_ENABLE_LEAPTIERING
-
 // IsolateData fields, defined as: V(CamelName, Size, hacker_name)
 #define ISOLATE_DATA_FIELDS(V)                                                 \
   /* Misc. fields. */                                                          \
@@ -144,11 +140,6 @@ struct JSBuiltinDispatchHandleRoot {
   V(ApiCallbackThunkArgument, kSystemPointerSize, api_callback_thunk_argument) \
   /* Because some architectures have a rather small offset in reg+offset  */   \
   /* addressing this field should be near the start.                      */   \
-  /* Soon leaptiering will be standard, but in the mean time we already   */   \
-  /* include this field so that the isolate layout is not dependent on    */   \
-  /* an internal ifdef.                                                   */   \
-  /* This would otherwise break node, which has a list of external ifdefs */   \
-  /* in its common.gypi file that does not include V8_ENABLE_LEAPTIERING. */   \
   V(JSDispatchTable, kSystemPointerSize, js_dispatch_table_base)               \
   V(RegexpExecVectorArgument, kSystemPointerSize, regexp_exec_vector_argument) \
   V(ContinuationPreservedEmbedderData, kSystemPointerSize,                     \
@@ -168,7 +159,7 @@ struct JSBuiltinDispatchHandleRoot {
   PADDING_FIELD(kDoubleSize, V, RawArgumentsPadding, raw_arguments_padding)    \
   V(RawArguments, 2 * kDoubleSize, raw_arguments)                              \
   V(StressDeoptCount, kUInt64Size, stress_deopt_count)                         \
-  ISOLATE_DATA_FIELDS_LEAPTIERING(V)
+  ISOLATE_DATA_FIELDS_TIERING(V)
 
 #ifdef V8_COMPRESS_POINTERS
 #define ISOLATE_DATA_FIELDS_POINTER_COMPRESSION(V)      \
@@ -195,18 +186,14 @@ struct JSBuiltinDispatchHandleRoot {
 #define ISOLATE_DATA_FIELDS_SANDBOX(V)
 #endif  // V8_ENABLE_SANDBOX
 
-#if V8_ENABLE_LEAPTIERING_BOOL && !V8_STATIC_DISPATCH_HANDLES_BOOL
-
-#define ISOLATE_DATA_FIELDS_LEAPTIERING(V)                                \
+#if V8_STATIC_DISPATCH_HANDLES_BOOL
+#define ISOLATE_DATA_FIELDS_TIERING(V)
+#else
+#define ISOLATE_DATA_FIELDS_TIERING(V)                                    \
   V(BuiltinDispatchTable,                                                 \
     (JSBuiltinDispatchHandleRoot::kTableSize) * sizeof(JSDispatchHandle), \
     builtin_dispatch_table)
-
-#else
-
-#define ISOLATE_DATA_FIELDS_LEAPTIERING(V)
-
-#endif  // V8_ENABLE_LEAPTIERING_BOOL && !V8_STATIC_DISPATCH_HANDLES_BOOL
+#endif  //  !V8_STATIC_DISPATCH_HANDLES_BOOL
 
 // Isolate fields referenceable as ExternalReference.
 // V(CamelName, hacker_name)
@@ -251,11 +238,8 @@ class IsolateData final {
         code_pointer_table_base_address_(
             group->code_pointer_table()->base_address())
 #endif
-#if V8_ENABLE_LEAPTIERING_BOOL
         ,
-        js_dispatch_table_base_(group->js_dispatch_table()->base_address())
-#endif
-  {
+        js_dispatch_table_base_(group->js_dispatch_table()->base_address()) {
   }
 
   IsolateData(const IsolateData&) = delete;
@@ -311,6 +295,11 @@ class IsolateData final {
 
   static constexpr int real_jslimit_offset() {
     return stack_guard_offset() + StackGuard::real_jslimit_offset();
+  }
+
+  static constexpr int no_heap_write_interrupt_request_offset() {
+    return stack_guard_offset() +
+           StackGuard::no_heap_write_interrupt_request_offset();
   }
 
 #define V(CamelName, Size, name) \
@@ -369,12 +358,12 @@ class IsolateData final {
     active_suspender_ = v;
   }
 #endif
-#if V8_ENABLE_LEAPTIERING_BOOL && !V8_STATIC_DISPATCH_HANDLES_BOOL
+#if !V8_STATIC_DISPATCH_HANDLES_BOOL
   JSDispatchHandle builtin_dispatch_handle(Builtin builtin) {
     return builtin_dispatch_table_[JSBuiltinDispatchHandleRoot::to_idx(
         builtin)];
   }
-#endif  // V8_ENABLE_LEAPTIERING_BOOL && !V8_STATIC_DISPATCH_HANDLES_BOOL
+#endif  // !V8_STATIC_DISPATCH_HANDLES_BOOL
 
   // Accessors for storage of raw arguments for runtime functions.
   template <typename T>
@@ -614,12 +603,12 @@ class IsolateData final {
   // Counts deopt points if deopt_every_n_times is enabled.
   uint64_t stress_deopt_count_ = 0;
 
-#if V8_ENABLE_LEAPTIERING_BOOL && !V8_STATIC_DISPATCH_HANDLES_BOOL
+#if !V8_STATIC_DISPATCH_HANDLES_BOOL
   // The entries in this array are dispatch handles for builtins with SFI's.
   JSDispatchHandle* builtin_dispatch_table() { return builtin_dispatch_table_; }
   JSDispatchHandle
       builtin_dispatch_table_[JSBuiltinDispatchHandleRoot::kTableSize] = {};
-#endif  // V8_ENABLE_LEAPTIERING_BOOL && !V8_STATIC_DISPATCH_HANDLES_BOOL
+#endif  // !V8_STATIC_DISPATCH_HANDLES_BOOL
 
   // Ensure the size is 8-byte aligned in order to make alignment of the field
   // following the IsolateData field predictable. This solves the issue with

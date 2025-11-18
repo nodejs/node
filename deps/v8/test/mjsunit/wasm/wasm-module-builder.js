@@ -1055,15 +1055,16 @@ let kTrapDivUnrepresentable = 3;
 let kTrapRemByZero = 4;
 let kTrapFloatUnrepresentable = 5;
 let kTrapTableOutOfBounds = 6;
-let kTrapFuncSigMismatch = 7;
-let kTrapUnalignedAccess = 8;
-let kTrapDataSegmentOutOfBounds = 9;
-let kTrapElementSegmentOutOfBounds = 10;
-let kTrapRethrowNull = 11;
-let kTrapArrayTooLarge = 12;
-let kTrapArrayOutOfBounds = 13;
-let kTrapNullDereference = 14;
-let kTrapIllegalCast = 15;
+let kTrapNullFunc = 7;
+let kTrapFuncSigMismatch = 8;
+let kTrapUnalignedAccess = 9;
+let kTrapDataSegmentOutOfBounds = 10;
+let kTrapElementSegmentOutOfBounds = 11;
+let kTrapRethrowNull = 12;
+let kTrapArrayTooLarge = 13;
+let kTrapArrayOutOfBounds = 14;
+let kTrapNullDereference = 15;
+let kTrapIllegalCast = 16;
 
 let kAtomicWaitOk = 0;
 let kAtomicWaitNotEqual = 1;
@@ -1087,7 +1088,8 @@ let kTrapMsgs = [
   'remainder by zero',                              // --
   'float unrepresentable in integer range',         // --
   'table index is out of bounds',                   // --
-  'null function or function signature mismatch',   // --
+  'null function',   // --
+  'function signature mismatch',   // --
   'operation does not support unaligned accesses',  // --
   'data segment out of bounds',                     // --
   'element segment out of bounds',                  // --

@@ -165,7 +165,7 @@ PropertyDetails TransitionsAccessor::GetTargetDetails(Tagged<Name> name,
   DCHECK(!IsSpecialTransition(GetReadOnlyRoots(), name));
   InternalIndex descriptor = target->LastAdded();
   Tagged<DescriptorArray> descriptors =
-      target->instance_descriptors(kRelaxedLoad);
+      target->instance_descriptors(kAcquireLoad);
   // Transitions are allowed only for the last added property.
   DCHECK(descriptors->GetKey(descriptor)->Equals(name));
   return descriptors->GetDetails(descriptor);

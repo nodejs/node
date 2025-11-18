@@ -125,7 +125,7 @@ class PendingDependencies final {
   explicit PendingDependencies(Zone* zone)
       : deps_(8, {}, ZoneAllocationPolicy(zone)) {}
 
-  void Register(Handle<HeapObject> object,
+  void Register(Handle<DependableObject> object,
                 DependentCode::DependencyGroup group) {
     // InstructionStream, which are per-local Isolate, cannot depend on objects
     // in the shared or RO heaps. Shared and RO heap dependencies are designed
@@ -133,8 +133,9 @@ class PendingDependencies final {
     // have transitions or change the shape of their fields. See
     // DependentCode::DeoptimizeDependencyGroups for corresponding DCHECK.
     if (HeapLayout::InWritableSharedSpace(*object) ||
-        HeapLayout::InReadOnlySpace(*object))
+        HeapLayout::InReadOnlySpace(*object)) {
       return;
+    }
     deps_.LookupOrInsert(object, HandleValueHash(object))->value |= group;
   }
 
@@ -180,19 +181,20 @@ class PendingDependencies final {
   }
 
  private:
-  uint32_t HandleValueHash(DirectHandle<HeapObject> handle) {
+  uint32_t HandleValueHash(DirectHandle<DependableObject> handle) {
     return static_cast<uint32_t>(base::hash_value(handle->ptr()));
   }
   struct HandleValueEqual {
     bool operator()(uint32_t hash1, uint32_t hash2,
-                    DirectHandle<HeapObject> lhs,
-                    Handle<HeapObject> rhs) const {
+                    DirectHandle<DependableObject> lhs,
+                    Handle<DependableObject> rhs) const {
       return hash1 == hash2 && lhs.is_identical_to(rhs);
     }
   };
 
-  base::TemplateHashMapImpl<Handle<HeapObject>, DependentCode::DependencyGroups,
-                            HandleValueEqual, ZoneAllocationPolicy>
+  base::TemplateHashMapImpl<Handle<DependableObject>,
+                            DependentCode::DependencyGroups, HandleValueEqual,
+                            ZoneAllocationPolicy>
       deps_;
 };
 
@@ -402,6 +404,8 @@ class ConstantInDictionaryPrototypeChainDependency final
                                           : ValidationResult::kFoundIncorrect;
     };
 
+    // TODO(jkummerow): Consider supporting Wasm structs in this loop (by
+    // skipping over them) if that becomes a relevant use case.
     while (IsJSObject(prototype)) {
       // We only care about JSObjects because that's the only type of holder
       // (and types of prototypes on the chain to the holder) that

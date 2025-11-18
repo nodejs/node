@@ -533,17 +533,20 @@ void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
   unsigned shift_amount = !needs_shift ? 0 : COMPRESS_POINTERS_BOOL ? 2 : 3;
   MemOperand src_op = liftoff::GetMemOp(this, src_addr, offset_reg, offset_imm,
                                         false, shift_amount);
-  LoadTaggedField(dst, src_op);
+  {
+    BlockTrampolinePoolScope block_trampoline_pool(this);
+    LoadTaggedField(dst, src_op);
 
-  // Since LoadTaggedField might start with an instruction loading an immediate
-  // argument to a register, we have to compute the {protected_load_pc} after
-  // calling it.
-  // In case of compressed pointers, there is an additional instruction
-  // (pointer decompression) after the load.
-  uint8_t protected_instruction_offset_bias =
-      COMPRESS_POINTERS_BOOL ? 2 * kInstrSize : kInstrSize;
-  if (protected_load_pc) {
-    *protected_load_pc = pc_offset() - protected_instruction_offset_bias;
+    // Since LoadTaggedField might start with an instruction loading an
+    // immediate argument to a register, we have to compute the
+    // {protected_load_pc} after calling it. In case of compressed pointers,
+    // there is an additional instruction (pointer decompression) after the
+    // load.
+    uint8_t protected_instruction_offset_bias =
+        COMPRESS_POINTERS_BOOL ? 2 * kInstrSize : kInstrSize;
+    if (protected_load_pc) {
+      *protected_load_pc = pc_offset() - protected_instruction_offset_bias;
+    }
   }
 }
 
@@ -589,17 +592,20 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
     offset_op = Operand(effective_offset);
   }
 
-  if (offset_op.is_reg()) {
-    StoreTaggedField(src, MemOperand(dst_addr, offset_op.rm()));
-  } else {
-    StoreTaggedField(src, MemOperand(dst_addr, offset_imm));
-  }
+  {
+    BlockTrampolinePoolScope block_trampoline_pool(this);
+    if (offset_op.is_reg()) {
+      StoreTaggedField(src, MemOperand(dst_addr, offset_op.rm()));
+    } else {
+      StoreTaggedField(src, MemOperand(dst_addr, offset_imm));
+    }
 
-  // Since StoreTaggedField might start with an instruction loading an immediate
-  // argument to a register, we have to compute the {protected_load_pc} after
-  // calling it.
-  if (protected_store_pc) {
-    *protected_store_pc = pc_offset() - kInstrSize;
+    // Since StoreTaggedField might start with an instruction loading an
+    // immediate argument to a register, we have to compute the
+    // {protected_load_pc} after calling it.
+    if (protected_store_pc) {
+      *protected_store_pc = pc_offset() - kInstrSize;
+    }
   }
 
   if (v8_flags.disable_write_barriers) return;
@@ -3807,35 +3813,6 @@ void LiftoffAssembler::DeallocateStackSlot(uint32_t size) {
 }
 
 void LiftoffAssembler::MaybeOSR() {}
-
-void LiftoffAssembler::emit_store_nonzero_if_nan(Register dst, FPURegister src,
-                                                 ValueKind kind) {
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
-  Label not_nan;
-  if (kind == kF32) {
-    CompareIsNanF32(src, src);
-  } else {
-    DCHECK_EQ(kind, kF64);
-    CompareIsNanF64(src, src);
-  }
-  BranchFalseShortF(&not_nan);
-  li(scratch, 1);
-  St_w(scratch, MemOperand(dst, 0));
-  bind(&not_nan);
-}
-
-void LiftoffAssembler::emit_s128_store_nonzero_if_nan(Register dst,
-                                                      LiftoffRegister src,
-                                                      Register tmp_gp,
-                                                      LiftoffRegister tmp_s128,
-                                                      ValueKind lane_kind) {
-  UNIMPLEMENTED();
-}
-
-void LiftoffAssembler::emit_store_nonzero(Register dst) {
-  St_d(dst, MemOperand(dst, 0));
-}
 
 void LiftoffStackSlots::Construct(int param_slots) {
   DCHECK_LT(0, slots_.size());

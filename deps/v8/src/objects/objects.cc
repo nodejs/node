@@ -2067,6 +2067,10 @@ int HeapObject::SizeFromMap(Tagged<Map> map) const {
     return WasmDispatchTable::SizeFor(
         UncheckedCast<WasmDispatchTable>(*this)->capacity());
   }
+  if (instance_type == WASM_DISPATCH_TABLE_FOR_IMPORTS_TYPE) {
+    return WasmDispatchTableForImports::SizeFor(
+        UncheckedCast<WasmDispatchTableForImports>(*this)->length());
+  }
 #endif  // V8_ENABLE_WEBASSEMBLY
   if (instance_type == DOUBLE_STRING_CACHE_TYPE) {
     return DoubleStringCache::SizeFor(
@@ -2765,7 +2769,11 @@ Maybe<bool> Object::TransitionAndWriteDataProperty(
   it->PrepareTransitionToDataProperty(receiver, value, attributes,
                                       store_origin);
   DCHECK_EQ(LookupIterator::TRANSITION, it->state());
-  it->ApplyTransitionToDataProperty(receiver);
+
+  // Apply the transitions -- this can fail if there are too many properties.
+  Maybe<bool> transitioned =
+      it->ApplyTransitionToDataProperty(receiver, should_throw);
+  if (!transitioned.FromMaybe(false)) return transitioned;
 
   // Write the property value.
   it->WriteDataValue(value, true);
@@ -3494,8 +3502,10 @@ Maybe<bool> JSProxy::SetPrivateSymbol(Isolate* isolate,
     if (!dict.is_identical_to(result)) proxy->SetProperties(*result);
   } else {
     DirectHandle<NameDictionary> dict(proxy->property_dictionary(), isolate);
-    DirectHandle<NameDictionary> result =
-        NameDictionary::Add(isolate, dict, private_name, value, details);
+    DirectHandle<NameDictionary> result;
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, result,
+        NameDictionary::Add(isolate, dict, private_name, value, details));
     if (!dict.is_identical_to(result)) proxy->SetProperties(*result);
   }
   return Just(true);
@@ -4856,14 +4866,29 @@ MaybeHandle<Derived> HashTable<Derived, Shape>::TryNew(
     IsolateT* isolate, uint32_t at_least_space_for, AllocationType allocation,
     MinimumCapacity capacity_option) {
   DCHECK_LE(0, at_least_space_for);
-  DCHECK_IMPLIES(capacity_option == USE_CUSTOM_MINIMUM_CAPACITY,
-                 base::bits::IsPowerOfTwo(at_least_space_for));
 
-  uint32_t capacity = (capacity_option == USE_CUSTOM_MINIMUM_CAPACITY)
-                          ? at_least_space_for
-                          : ComputeCapacity(at_least_space_for);
-  if (capacity > HashTable::kMaxCapacity) {
-    return kNullMaybeHandle;
+  uint32_t capacity;
+  if (capacity_option == USE_CUSTOM_MINIMUM_CAPACITY) {
+    DCHECK(base::bits::IsPowerOfTwo(at_least_space_for));
+    capacity = at_least_space_for;
+    if (capacity > HashTable::kMaxCapacity) {
+      return kNullMaybeHandle;
+    }
+  } else {
+    // Max |at_least_space_for| value that's about to make the table capacity
+    // exceed the HashTable::kMaxCapacity.
+    const uint32_t kMaxAtLeastSpaceFor = HashTable::kMaxCapacity * 2 / 3;
+    static_assert(ComputeCapacity(kMaxAtLeastSpaceFor) <=
+                  HashTable::kMaxCapacity);
+    static_assert(ComputeCapacity(kMaxAtLeastSpaceFor + 1) >=
+                  HashTable::kMaxCapacity);
+    static_assert(ComputeCapacity(kMaxAtLeastSpaceFor + 4) >
+                  HashTable::kMaxCapacity);
+    if (at_least_space_for > kMaxAtLeastSpaceFor) {
+      return kNullMaybeHandle;
+    }
+    capacity = ComputeCapacity(at_least_space_for);
+    DCHECK_LE(capacity, HashTable::kMaxCapacity);
   }
   return NewInternal(isolate, capacity, allocation);
 }
@@ -5238,9 +5263,13 @@ HandleType<Derived> Dictionary<Derived, Shape>::DeleteEntry(
 template <typename Derived, typename Shape>
 template <template <typename> typename HandleType>
   requires(std::is_convertible_v<HandleType<Derived>, DirectHandle<Derived>>)
-HandleType<Derived> Dictionary<Derived, Shape>::AtPut(
-    Isolate* isolate, HandleType<Derived> dictionary, Key key,
-    DirectHandle<Object> value, PropertyDetails details) {
+auto Dictionary<Derived, Shape>::AtPut(Isolate* isolate,
+                                       HandleType<Derived> dictionary, Key key,
+                                       DirectHandle<Object> value,
+                                       PropertyDetails details) {
+  using AtPutReturnType =
+      decltype(Derived::Add(isolate, dictionary, key, value, details));
+
   InternalIndex entry = dictionary->FindEntry(isolate, key);
 
   // If the entry is present set the value;
@@ -5251,7 +5280,7 @@ HandleType<Derived> Dictionary<Derived, Shape>::AtPut(
   // We don't need to copy over the enumeration index.
   dictionary->ValueAtPut(entry, *value);
   if (TodoShape::kEntrySize == 3) dictionary->DetailsAtPut(entry, details);
-  return dictionary;
+  return AtPutReturnType(dictionary);
 }
 
 template <typename Derived, typename Shape>
@@ -5286,7 +5315,7 @@ BaseNameDictionary<Derived, Shape>::AddNoUpdateNextEnumerationIndex(
 template <typename Derived, typename Shape>
 template <template <typename> typename HandleType>
   requires(std::is_convertible_v<HandleType<Derived>, DirectHandle<Derived>>)
-HandleType<Derived> BaseNameDictionary<Derived, Shape>::Add(
+HandleType<Derived>::MaybeType BaseNameDictionary<Derived, Shape>::Add(
     Isolate* isolate, HandleType<Derived> dictionary, Key key,
     DirectHandle<Object> value, PropertyDetails details,
     InternalIndex* entry_out) {
@@ -5295,6 +5324,10 @@ HandleType<Derived> BaseNameDictionary<Derived, Shape>::Add(
   // Assign an enumeration index to the property and update
   // SetNextEnumerationIndex.
   int index = Derived::NextEnumerationIndex(isolate, dictionary);
+  if (!PropertyDetails::CanSetIndex(index)) {
+    THROW_NEW_ERROR(isolate,
+                    NewRangeError(MessageTemplate::kTooManyProperties));
+  }
   details = details.set_index(index);
   dictionary = AddNoUpdateNextEnumerationIndex(isolate, dictionary, key, value,
                                                details, entry_out);
@@ -5594,9 +5627,8 @@ int NameToIndexHashTable::IndexAt(InternalIndex entry) {
 
 template <typename Derived, typename Shape>
 Handle<Derived> ObjectHashTableBase<Derived, Shape>::Put(
-    Handle<Derived> table, DirectHandle<Object> key,
+    Isolate* isolate, Handle<Derived> table, DirectHandle<Object> key,
     DirectHandle<Object> value) {
-  Isolate* isolate = Heap::FromWritableHeapObject(*table)->isolate();
   DCHECK(table->IsKey(ReadOnlyRoots(isolate), *key));
   DCHECK(!IsTheHole(*value, ReadOnlyRoots(isolate)));
 
@@ -6324,11 +6356,11 @@ bool MapWord::IsMapOrForwarded(Tagged<Map> map) {
   BaseNameDictionary<DERIVED, SHAPE>::New(LocalIsolate*, int, AllocationType,  \
                                           MinimumCapacity);                    \
                                                                                \
-  template V8_EXPORT_PRIVATE DirectHandle<DERIVED>                             \
+  template V8_EXPORT_PRIVATE MaybeDirectHandle<DERIVED>                        \
   BaseNameDictionary<DERIVED, SHAPE>::Add(                                     \
       Isolate* isolate, DirectHandle<DERIVED>, Key, DirectHandle<Object>,      \
       PropertyDetails, InternalIndex*);                                        \
-  template V8_EXPORT_PRIVATE IndirectHandle<DERIVED>                           \
+  template V8_EXPORT_PRIVATE MaybeIndirectHandle<DERIVED>                      \
   BaseNameDictionary<DERIVED, SHAPE>::Add(                                     \
       Isolate* isolate, IndirectHandle<DERIVED>, Key, DirectHandle<Object>,    \
       PropertyDetails, InternalIndex*);                                        \

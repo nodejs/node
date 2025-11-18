@@ -107,7 +107,7 @@ class WasmStreamingDecoderTest : public ::testing::Test {
           std::make_unique<MockStreamingProcessor>(&result));
       stream->OnBytesReceived(data.SubVector(0, split));
       stream->OnBytesReceived(data.SubVector(split, data.length()));
-      stream->Finish();
+      stream->Finish({});
       EXPECT_TRUE(result.ok());
       EXPECT_EQ(expected_sections, result.num_sections);
       EXPECT_EQ(expected_functions, result.num_functions);
@@ -122,7 +122,7 @@ class WasmStreamingDecoderTest : public ::testing::Test {
           std::make_unique<MockStreamingProcessor>(&result));
       stream->OnBytesReceived(data.SubVector(0, split));
       stream->OnBytesReceived(data.SubVector(split, data.length()));
-      stream->Finish();
+      stream->Finish({});
       EXPECT_FALSE(result.ok());
       EXPECT_TRUE(result.error);
     }
@@ -133,7 +133,7 @@ TEST_F(WasmStreamingDecoderTest, EmptyStream) {
   MockStreamingResult result;
   auto stream = StreamingDecoder::CreateAsyncStreamingDecoder(
       std::make_unique<MockStreamingProcessor>(&result));
-  stream->Finish();
+  stream->Finish({});
   EXPECT_FALSE(result.ok());
 }
 
@@ -144,7 +144,7 @@ TEST_F(WasmStreamingDecoderTest, IncompleteModuleHeader) {
     auto stream = StreamingDecoder::CreateAsyncStreamingDecoder(
         std::make_unique<MockStreamingProcessor>(&result));
     stream->OnBytesReceived(base::VectorOf(data, 1));
-    stream->Finish();
+    stream->Finish({});
     EXPECT_FALSE(result.ok());
   }
   for (uint32_t length = 1; length < sizeof(data); ++length) {

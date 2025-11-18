@@ -42,15 +42,15 @@ class RegExpCodeGenerator final {
   V8_NODISCARD Result Assemble(DirectHandle<String> source, RegExpFlags flags);
 
  private:
-  // Returns the value for |operand_id| of bytecode at |pc| in the format
+  // Returns the value for |operand_id| of the current bytecode in the format
   // expected by the macro assembler.
   // E.g. converts an uint32_t bytecode offset to a Label*.
   template <typename Operands, typename Operands::Operand operand_id>
-  auto GetArgumentValue(const uint8_t* pc) const;
+  auto GetArgumentValue();
 
-  // Returns all the argument values of the bytecode at |pc| as a tuple.
+  // Returns all the argument values of the current bytecode as a tuple.
   template <typename Operands>
-  auto GetArgumentValuesAsTuple(const uint8_t* pc) const;
+  auto GetArgumentValuesAsTuple();
 
   // Visit all bytecodes before any code is emmited.
   // Allocates labels for all jump targets to support forward jumps.

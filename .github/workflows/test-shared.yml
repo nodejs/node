@@ -108,7 +108,7 @@ jobs:
             system: x86_64-linux
           - runner: ubuntu-24.04-arm
             system: aarch64-linux
-          - runner: macos-13
+          - runner: macos-15-intel
             system: x86_64-darwin
           - runner: macos-latest
             system: aarch64-darwin

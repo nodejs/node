@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --use-osr
+// Flags: --allow-natives-syntax
 
 function f() {
   var sum = 0;
@@ -12,12 +12,13 @@ function f() {
       var y = x + 5;
       var z = y + 3;
       sum += z;
-      if (i == 21) %OptimizeOsr();
+      if (j == 998) %OptimizeOsr();
     }
   }
   return sum;
 }
 
+%PrepareFunctionForOptimization(f);
 
 assertEquals(15000, f());
 assertEquals(15000, f());

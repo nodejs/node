@@ -48,7 +48,6 @@ class VLogSite;
 
 int RegisterAndInitialize(VLogSite* absl_nonnull v);
 void UpdateVLogSites();
-constexpr int kUseFlag = (std::numeric_limits<int16_t>::min)();
 
 // Represents a unique callsite for a `VLOG()` or `VLOG_IS_ON()` call.
 //

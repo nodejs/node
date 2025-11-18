@@ -72,7 +72,7 @@ class DebugFile : public std::ofstream {
 };
 
 #define DEBUG_PRINTF(...) /*                                  force 80 cols */ \
-  if (v8_flags.riscv_debug) [[unlikely]] {                                     \
+  if (V8_UNLIKELY(v8_flags.riscv_debug)) {                                     \
     if (v8_flags.riscv_debug_file_path) {                                      \
       base::EmbeddedVector<char, 1024> chars;                                  \
       SNPrintF(chars, __VA_ARGS__);                                            \
@@ -103,9 +103,8 @@ class AssemblerRiscvBase {
 
   virtual void emit(Instr x) = 0;
   virtual void emit(ShortInstr x) = 0;
-  virtual void emit(uint64_t x) = 0;
 
-  virtual void ClearVectorunit() = 0;
+  virtual void ClearVectorUnit() = 0;
 
   // Record the last known safepoint location to the current pc.
   virtual void RecordPcForSafepoint() = 0;

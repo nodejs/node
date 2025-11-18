@@ -57,6 +57,7 @@
   V(onpskexchange_symbol, "onpskexchange")                                     \
   V(resource_symbol, "resource_symbol")                                        \
   V(trigger_async_id_symbol, "trigger_async_id_symbol")                        \
+  V(builtin_source_text_module_hdo, "builtin_source_text_module_hdo")          \
   V(source_text_module_default_hdo, "source_text_module_default_hdo")          \
   V(vm_context_no_contextify, "vm_context_no_contextify")                      \
   V(vm_dynamic_import_default_internal, "vm_dynamic_import_default_internal")  \
@@ -470,6 +471,7 @@
   V(enhance_fatal_stack_before_inspector, v8::Function)                        \
   V(get_source_map_error_source, v8::Function)                                 \
   V(host_import_module_dynamically_callback, v8::Function)                     \
+  V(host_import_meta_resolve_initializer, v8::Function)                        \
   V(host_initialize_import_meta_object_callback, v8::Function)                 \
   V(http2session_on_altsvc_function, v8::Function)                             \
   V(http2session_on_error_function, v8::Function)                              \

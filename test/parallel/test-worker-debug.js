@@ -105,6 +105,7 @@ class WorkerSession extends EventEmitter {
     this.post(command);
     const notification = await notificationPromise;
     const callFrame = notification.params.callFrames[0];
+    // eslint-disable-next-line node-core/must-call-assert
     assert.strictEqual(callFrame.location.lineNumber, line);
   }
 

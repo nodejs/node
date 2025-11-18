@@ -389,7 +389,7 @@ class V8_TRIVIAL_ABI Local : public LocalBase<T>,
    * objects to which they refer are physically equal.
    *
    * If both handles refer to JS objects, this is the same as strict
-   * non-equality. For primitives, such as numbers or strings, a `true` return
+   * non-equality. For primitives, such as numbers or strings, a `false` return
    * value does not indicate that the values aren't equal in the JavaScript
    * sense. Use `Value::StrictEquals()` to check primitives for equality.
    */

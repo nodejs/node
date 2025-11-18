@@ -45,6 +45,7 @@ class SourceTextModuleDescriptor : public ZoneObject {
   // import * as x from "foo.js";
   void AddStarImport(const AstRawString* local_name,
                      const AstRawString* specifier,
+                     const ModuleImportPhase import_phase,
                      const ImportAttributes* import_attributes,
                      const Scanner::Location loc,
                      const Scanner::Location specifier_loc, Zone* zone);

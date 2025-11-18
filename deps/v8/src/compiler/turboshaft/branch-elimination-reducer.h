@@ -226,13 +226,59 @@ class BranchEliminationReducer : public Next {
       const Operation& op =
           new_block->LastPredecessor()->LastOperation(__ output_graph());
       if (const BranchOp* branch = op.TryCast<BranchOp>()) {
-        DCHECK_EQ(new_block, any_of(branch->if_true, branch->if_false));
-        bool condition_value = branch->if_true == new_block;
-        if (!known_conditions_.Contains(branch->condition())) {
-          known_conditions_.InsertNewKey(branch->condition(), condition_value);
+        if (known_conditions_.Contains(branch->condition())) {
+          // We won't learn anything new about the condition here.
+          return;
         }
+        DCHECK_EQ(new_block, any_of(branch->if_true, branch->if_false));
+        KnownCondition condition_value = branch->if_true == new_block
+                                             ? KnownCondition::NonZero()
+                                             : KnownCondition::Zero();
+        known_conditions_.InsertNewKey(branch->condition(), condition_value);
+      } else if (const SwitchOp* switch_op = op.TryCast<SwitchOp>()) {
+        if (known_conditions_.Contains(switch_op->input())) {
+          // TODO(dmercadier): The LayeredHashMap doesn't support updating
+          // existing entries. If it did, then we could here only skip Exact and
+          // still update the entry in the AnyNonZero case. Switching to a
+          // SnapshotTable would fix this issue.
+          return;
+        }
+        for (SwitchOp::Case& cas : switch_op->cases) {
+          if (cas.destination == new_block) {
+            known_conditions_.InsertNewKey(switch_op->input(),
+                                           KnownCondition::Exact(cas.value));
+            return;
+          }
+        }
+        // We are in the default case, which means that we are not learning
+        // anything about `switch_op->input()`.
       }
     }
+  }
+
+  V<None> REDUCE(Switch)(V<Word32> input, base::Vector<SwitchOp::Case> cases,
+                         Block* default_case, BranchHint default_hint) {
+    LABEL_BLOCK(no_change) {
+      return Next::ReduceSwitch(input, cases, default_case, default_hint);
+    }
+    if (ShouldSkipOptimizationStep()) goto no_change;
+
+    if (std::optional<int> cond_value = GetExact(input)) {
+      // We already know the value of {cond}. We thus remove this switch and
+      // just Goto to the right destination.
+      for (SwitchOp::Case& cas : cases) {
+        if (cas.value == *cond_value) {
+          __ Goto(cas.destination);
+          return V<None>::Invalid();
+        }
+      }
+      // No case matched the current value of the input, which means that we'll
+      // end up in the default case.
+      __ Goto(default_case);
+      return V<None>::Invalid();
+    }
+    // We can't optimize this branch.
+    goto no_change;
   }
 
   V<None> REDUCE(Branch)(V<Word32> cond, Block* if_true, Block* if_false,
@@ -264,11 +310,12 @@ class BranchEliminationReducer : public Next {
       }
     }
 
-    if (auto cond_value = known_conditions_.Get(cond)) {
+    if (std::optional<KnownCondition> cond_value =
+            known_conditions_.Get(cond)) {
       // We already know the value of {cond}. We thus remove the branch (this is
       // the "first" optimization in the documentation at the top of this
       // module).
-      __ Goto(*cond_value ? if_true : if_false);
+      __ Goto(cond_value->IsZero() ? if_false : if_true);
       return V<None>::Invalid();
     }
     // We can't optimize this branch.
@@ -283,11 +330,12 @@ class BranchEliminationReducer : public Next {
     }
     if (ShouldSkipOptimizationStep()) goto no_change;
 
-    if (auto cond_value = known_conditions_.Get(cond)) {
-      if (*cond_value) {
-        return vtrue;
-      } else {
+    if (std::optional<KnownCondition> cond_value =
+            known_conditions_.Get(cond)) {
+      if (cond_value->IsZero()) {
         return vfalse;
+      } else {
+        return vtrue;
       }
     }
     goto no_change;
@@ -327,8 +375,7 @@ class BranchEliminationReducer : public Next {
       V<Word32> condition =
           __ template MapToNewGraph<true>(branch->condition());
       if (condition.valid()) {
-        std::optional<bool> condition_value = known_conditions_.Get(condition);
-        if (!condition_value.has_value()) {
+        if (!known_conditions_.Contains(condition)) {
           // We've already visited the subsequent block's Branch condition, but
           // we don't know its value right now.
           goto no_change;
@@ -405,13 +452,17 @@ class BranchEliminationReducer : public Next {
     }
     if (ShouldSkipOptimizationStep()) goto no_change;
 
-    std::optional<bool> condition_value = known_conditions_.Get(condition);
+    std::optional<KnownCondition> condition_value =
+        known_conditions_.Get(condition);
     if (!condition_value.has_value()) {
-      known_conditions_.InsertNewKey(condition, negated);
+      known_conditions_.InsertNewKey(condition, negated
+                                                    ? KnownCondition::NonZero()
+                                                    : KnownCondition::Zero());
       goto no_change;
     }
 
-    if ((*condition_value && !negated) || (!*condition_value && negated)) {
+    if ((condition_value->IsNonZero() && !negated) ||
+        (condition_value->IsZero() && negated)) {
       // The condition is true, so we always deoptimize.
       return Next::ReduceDeoptimize(frame_state, parameters);
     } else {
@@ -428,9 +479,12 @@ class BranchEliminationReducer : public Next {
     }
     if (ShouldSkipOptimizationStep()) goto no_change;
 
-    std::optional<bool> condition_value = known_conditions_.Get(condition);
+    std::optional<KnownCondition> condition_value =
+        known_conditions_.Get(condition);
     if (!condition_value.has_value()) {
-      known_conditions_.InsertNewKey(condition, negated);
+      known_conditions_.InsertNewKey(condition, negated
+                                                    ? KnownCondition::NonZero()
+                                                    : KnownCondition::Zero());
       goto no_change;
     }
 
@@ -438,7 +492,8 @@ class BranchEliminationReducer : public Next {
       goto no_change;
     }
 
-    V<Word32> static_condition = __ Word32Constant(*condition_value);
+    V<Word32> static_condition =
+        __ Word32Constant(condition_value->IsZero() ? 0 : 1);
     if (negated) {
       __ TrapIfNot(static_condition, frame_state, trap_id);
     } else {
@@ -539,13 +594,39 @@ class BranchEliminationReducer : public Next {
         const Operation& op =
             block->LastPredecessor()->LastOperation(__ output_graph());
         if (const BranchOp* branch = op.TryCast<BranchOp>()) {
+          if (known_conditions_.Contains(branch->condition())) {
+            // We won't learn anything new about the condition here.
+            continue;
+          }
           DCHECK(branch->if_true->index() == block->index() ||
                  branch->if_false->index() == block->index());
-          bool condition_value =
-              branch->if_true->index().valid()
-                  ? branch->if_true->index() == block->index()
-                  : branch->if_false->index() != block->index();
+          KnownCondition condition_value;
+          if (branch->if_true->index().valid()) {
+            condition_value = branch->if_true->index() == block->index()
+                                  ? KnownCondition::NonZero()
+                                  : KnownCondition::Zero();
+          } else {
+            DCHECK(branch->if_false->index().valid());
+            condition_value = branch->if_false->index() == block->index()
+                                  ? KnownCondition::Zero()
+                                  : KnownCondition::NonZero();
+          }
           known_conditions_.InsertNewKey(branch->condition(), condition_value);
+        } else if (const SwitchOp* switch_op = op.TryCast<SwitchOp>()) {
+          if (known_conditions_.Contains(switch_op->input())) {
+            // TODO(dmercadier): The LayeredHashMap doesn't support updating
+            // existing entries. If it did, then we could here only skip Exact
+            // and still update the entry in the AnyNonZero case. Switching to a
+            // SnapshotTable would fix this issue.
+            continue;
+          }
+          for (SwitchOp::Case& cas : switch_op->cases) {
+            if (cas.destination->index() == block->index()) {
+              known_conditions_.InsertNewKey(switch_op->input(),
+                                             KnownCondition::Exact(cas.value));
+              break;
+            }
+          }
         }
       }
     }
@@ -598,11 +679,64 @@ class BranchEliminationReducer : public Next {
     return has_phi;
   }
 
+  std::optional<int> GetExact(OpIndex index) {
+    if (std::optional<KnownCondition> cond_value = known_conditions_.Get(index);
+        cond_value.has_value() && cond_value->IsExact()) {
+      return cond_value->value();
+    }
+    return std::nullopt;
+  }
+
+  enum class KnownConditionType : uint8_t { kInvalid, kAnyNonZero, kExact };
+  struct KnownCondition {
+   public:
+    // TODO(dmercadier): remove this constructor once we've moved to using a
+    // SnapshotTable instead of a LayeredHashMap.
+    KnownCondition() : type_(KnownConditionType::kInvalid) {}
+
+    static KnownCondition NonZero() {
+      return KnownCondition(KnownConditionType::kAnyNonZero);
+    }
+    static KnownCondition Zero() { return Exact(0); }
+    static KnownCondition Exact(int value) {
+      return KnownCondition(KnownConditionType::kExact, value);
+    }
+
+    bool IsExact() const { return type_ == KnownConditionType::kExact; }
+    bool IsZero() const {
+      switch (type_) {
+        case KnownConditionType::kExact:
+          return value() == 0;
+        case KnownConditionType::kAnyNonZero:
+          return false;
+        case KnownConditionType::kInvalid:
+          UNREACHABLE();
+      }
+      UNREACHABLE();
+    }
+    bool IsNonZero() const { return !IsZero(); }
+    int value() const {
+      DCHECK_EQ(type_, KnownConditionType::kExact);
+      return value_;
+    }
+
+   private:
+    KnownCondition(KnownConditionType type, int value)
+        : type_(type), value_(value) {
+      DCHECK_EQ(type, KnownConditionType::kExact);
+    }
+    explicit KnownCondition(KnownConditionType type) : type_(type) {
+      DCHECK_EQ(type, KnownConditionType::kAnyNonZero);
+    }
+    KnownConditionType type_;
+    int value_;  // Only set if {type} is kExact.
+  };
+
   // TODO(dmercadier): use the SnapshotTable to replace {dominator_path_} and
   // {known_conditions_}, and to reuse the existing merging/replay logic of the
   // SnapshotTable.
   ZoneVector<Block*> dominator_path_{__ phase_zone()};
-  LayeredHashMap<V<Word32>, bool> known_conditions_{
+  LayeredHashMap<V<Word32>, KnownCondition> known_conditions_{
       __ phase_zone(), __ input_graph().DominatorTreeDepth() * 2};
 };
 

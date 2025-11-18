@@ -2,11 +2,7 @@
 
 const common = require('../common');
 const tmpdir = require('../common/tmpdir');
-const {
-  ok,
-  strictEqual,
-  throws,
-} = require('node:assert');
+const assert = require('node:assert');
 const {
   openSync,
   readFile,
@@ -33,13 +29,13 @@ function getTempFile() {
   const stream = new Utf8Stream({ fd, sync: false });
 
   // Test successful write
-  ok(stream.write('hello world\n'));
+  assert.ok(stream.write('hello world\n'));
   stream.destroy();
 
-  throws(() => stream.write('hello world\n'), Error);
+  assert.throws(() => stream.write('hello world\n'), Error);
 
   readFile(dest, 'utf8', common.mustSucceed((data) => {
-    strictEqual(data, 'hello world\n');
+    assert.strictEqual(data, 'hello world\n');
   }));
 
   stream.on('finish', common.mustNotCall());
@@ -51,12 +47,12 @@ function getTempFile() {
   const fd = openSync(dest, 'w');
   const stream = new Utf8Stream({ fd, sync: true });
 
-  ok(stream.write('hello world\n'));
+  assert.ok(stream.write('hello world\n'));
   stream.destroy();
-  throws(() => stream.write('hello world\n'), Error);
+  assert.throws(() => stream.write('hello world\n'), Error);
 
   const data = readFileSync(dest, 'utf8');
-  strictEqual(data, 'hello world\n');
+  assert.strictEqual(data, 'hello world\n');
 };
 
 {

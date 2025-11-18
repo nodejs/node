@@ -43,6 +43,7 @@
 #include "src/heap/allocation-observer.h"
 #include "src/heap/array-buffer-sweeper.h"
 #include "src/heap/base/stack.h"
+#include "src/heap/base/unsafe-json-emitter.h"
 #include "src/heap/base/worklist.h"
 #include "src/heap/code-range.h"
 #include "src/heap/code-stats.h"
@@ -142,6 +143,105 @@
 namespace v8 {
 namespace internal {
 
+class Heap::AllocationTrackerForDebugging final
+    : public HeapObjectAllocationTracker {
+ public:
+  static bool IsNeeded() {
+    return v8_flags.verify_predictable || v8_flags.fuzzer_gc_analysis ||
+           (v8_flags.trace_allocation_stack_interval > 0);
+  }
+
+  explicit AllocationTrackerForDebugging(Heap* heap) : heap_(heap) {
+    CHECK(IsNeeded());
+    heap_->AddHeapObjectAllocationTracker(this);
+  }
+
+  ~AllocationTrackerForDebugging() final {
+    heap_->RemoveHeapObjectAllocationTracker(this);
+    if (v8_flags.verify_predictable || v8_flags.fuzzer_gc_analysis) {
+      PrintAllocationsHash();
+    }
+  }
+
+  void AllocationEvent(Address addr, int size) final {
+    if (v8_flags.verify_predictable) {
+      allocations_count_.fetch_add(1, std::memory_order_relaxed);
+      // Advance synthetic time by making a time request.
+      heap_->MonotonicallyIncreasingTimeInMs();
+
+      UpdateAllocationsHash(HeapObject::FromAddress(addr));
+      UpdateAllocationsHash(size);
+
+      if (allocations_count_ % v8_flags.dump_allocations_digest_at_alloc == 0) {
+        PrintAllocationsHash();
+      }
+    } else if (v8_flags.fuzzer_gc_analysis) {
+      allocations_count_.fetch_add(1, std::memory_order_relaxed);
+    } else if (v8_flags.trace_allocation_stack_interval > 0) {
+      allocations_count_.fetch_add(1, std::memory_order_relaxed);
+      if (allocations_count_ % v8_flags.trace_allocation_stack_interval == 0) {
+        heap_->isolate()->PrintStack(stdout, Isolate::kPrintStackConcise);
+      }
+    }
+  }
+
+  void MoveEvent(Address source, Address target, int size) final {
+    if (v8_flags.verify_predictable) {
+      allocations_count_.fetch_add(1, std::memory_order_relaxed);
+      // Advance synthetic time by making a time request.
+      heap_->MonotonicallyIncreasingTimeInMs();
+
+      UpdateAllocationsHash(HeapObject::FromAddress(source));
+      UpdateAllocationsHash(HeapObject::FromAddress(target));
+      UpdateAllocationsHash(size);
+
+      if (allocations_count_ % v8_flags.dump_allocations_digest_at_alloc == 0) {
+        PrintAllocationsHash();
+      }
+    } else if (v8_flags.fuzzer_gc_analysis) {
+      allocations_count_.fetch_add(1, std::memory_order_relaxed);
+    }
+  }
+
+  void UpdateObjectSizeEvent(Address, int) final {}
+
+ private:
+  void UpdateAllocationsHash(Tagged<HeapObject> object) {
+    Address object_address = object.address();
+    MemoryChunk* memory_chunk = MemoryChunk::FromAddress(object_address);
+    AllocationSpace allocation_space =
+        MutablePageMetadata::cast(memory_chunk->Metadata())->owner_identity();
+
+    static_assert(kSpaceTagSize + kPageSizeBits <= 32);
+    uint32_t value =
+        static_cast<uint32_t>(memory_chunk->Offset(object_address)) |
+        (static_cast<uint32_t>(allocation_space) << kPageSizeBits);
+
+    UpdateAllocationsHash(value);
+  }
+
+  void UpdateAllocationsHash(uint32_t value) {
+    const uint16_t c1 = static_cast<uint16_t>(value);
+    const uint16_t c2 = static_cast<uint16_t>(value >> 16);
+    raw_allocations_hash_.AddCharacter(c1);
+    raw_allocations_hash_.AddCharacter(c2);
+  }
+
+  void PrintAllocationsHash() {
+    uint32_t hash = raw_allocations_hash_.Finalize();
+    PrintF("\n### Allocations = %zu, hash = 0x%08x\n",
+           allocations_count_.load(std::memory_order_relaxed), hash);
+  }
+
+  Heap* const heap_;
+  // Count of all allocations performed through C++ bottlenecks. This needs to
+  // be atomic as objects are moved in parallel in the GC which counts as
+  // allocations.
+  std::atomic<size_t> allocations_count_{0};
+  // Running hash over allocations performed.
+  RunningStringHasher raw_allocations_hash_{0};
+};
+
 void Heap::SetConstructStubCreateDeoptPCOffset(int pc_offset) {
   DCHECK_EQ(Smi::zero(), construct_stub_create_deopt_pc_offset());
   set_construct_stub_create_deopt_pc_offset(Smi::FromInt(pc_offset));
@@ -187,14 +287,11 @@ Heap::Heap()
                                        : AllocationType::kOld),
       marking_state_(isolate_),
       non_atomic_marking_state_(isolate_),
-      pretenuring_handler_(this)
-#if defined(V8_USE_PERFETTO)
-      ,
+      pretenuring_handler_(this),
       tracing_track_(perfetto::NamedTrack::FromPointer(
                          "v8::Heap", this, perfetto::ThreadTrack::Current())
-                         .disable_sibling_merge())
-#endif
-{
+                         .disable_sibling_merge()),
+      loading_track_("Loading", 0, tracing_track_) {
   // Ensure old_generation_size_ is a multiple of kPageSize.
   DCHECK_EQ(0, max_old_generation_size() & (PageMetadata::kPageSize - 1));
 
@@ -247,7 +344,7 @@ size_t Heap::YoungGenerationSizeFromOldGenerationSize(uint64_t physical_memory,
   return YoungGenerationSizeFromSemiSpaceSize(semi_space);
 }
 
-size_t Heap::HeapSizeFromPhysicalMemory(uint64_t physical_memory) {
+size_t Heap::OldGenerationSizeFromPhysicalMemory(uint64_t physical_memory) {
   // Compute the old generation size and cap it.
   uint64_t old_generation = physical_memory /
                             kPhysicalMemoryToOldGenerationRatio *
@@ -258,12 +355,10 @@ size_t Heap::HeapSizeFromPhysicalMemory(uint64_t physical_memory) {
                    MaxOldGenerationSizeFromPhysicalMemory(physical_memory)));
   old_generation =
       std::max({old_generation,
-                static_cast<uint64_t>(DefaulMinHeapSize(physical_memory))});
+                static_cast<uint64_t>(DefaultMinHeapSize(physical_memory))});
   old_generation = RoundUp(old_generation, PageMetadata::kPageSize);
 
-  size_t young_generation = YoungGenerationSizeFromOldGenerationSize(
-      physical_memory, static_cast<size_t>(old_generation));
-  return static_cast<size_t>(old_generation) + young_generation;
+  return static_cast<size_t>(old_generation);
 }
 
 // static
@@ -305,11 +400,10 @@ size_t Heap::MinOldGenerationSize() {
 // static
 size_t Heap::AllocatorLimitOnMaxOldGenerationSize(uint64_t physical_memory) {
 #ifdef V8_COMPRESS_POINTERS
-  // Isolate and the young generation are also allocated on the heap.
+  // The young generation is also allocated on the heap.
   return kPtrComprCageReservationSize -
          YoungGenerationSizeFromSemiSpaceSize(
-             DefaultMaxSemiSpaceSize(physical_memory)) -
-         RoundUp(sizeof(Isolate), size_t{1} << kPageSizeBits);
+             DefaultMaxSemiSpaceSize(physical_memory));
 #else
   return std::numeric_limits<size_t>::max();
 #endif
@@ -317,7 +411,7 @@ size_t Heap::AllocatorLimitOnMaxOldGenerationSize(uint64_t physical_memory) {
 
 // static
 size_t Heap::MaxOldGenerationSizeFromPhysicalMemory(uint64_t physical_memory) {
-  size_t max_size = DefaulMaxHeapSize(physical_memory);
+  size_t max_size = DefaultMaxHeapSize(physical_memory);
   // Increase the heap size from 2GB to 4GB for 64-bit systems with physical
   // memory at least 16GB. The threshold is set to 15GB to accommodate for some
   // memory being reserved by the hardware.
@@ -850,105 +944,6 @@ void Heap::ReportStatisticsAfterGC() {
   isolate()->CountUsage(base::VectorOf(to_report));
 }
 
-class Heap::AllocationTrackerForDebugging final
-    : public HeapObjectAllocationTracker {
- public:
-  static bool IsNeeded() {
-    return v8_flags.verify_predictable || v8_flags.fuzzer_gc_analysis ||
-           (v8_flags.trace_allocation_stack_interval > 0);
-  }
-
-  explicit AllocationTrackerForDebugging(Heap* heap) : heap_(heap) {
-    CHECK(IsNeeded());
-    heap_->AddHeapObjectAllocationTracker(this);
-  }
-
-  ~AllocationTrackerForDebugging() final {
-    heap_->RemoveHeapObjectAllocationTracker(this);
-    if (v8_flags.verify_predictable || v8_flags.fuzzer_gc_analysis) {
-      PrintAllocationsHash();
-    }
-  }
-
-  void AllocationEvent(Address addr, int size) final {
-    if (v8_flags.verify_predictable) {
-      allocations_count_.fetch_add(1, std::memory_order_relaxed);
-      // Advance synthetic time by making a time request.
-      heap_->MonotonicallyIncreasingTimeInMs();
-
-      UpdateAllocationsHash(HeapObject::FromAddress(addr));
-      UpdateAllocationsHash(size);
-
-      if (allocations_count_ % v8_flags.dump_allocations_digest_at_alloc == 0) {
-        PrintAllocationsHash();
-      }
-    } else if (v8_flags.fuzzer_gc_analysis) {
-      allocations_count_.fetch_add(1, std::memory_order_relaxed);
-    } else if (v8_flags.trace_allocation_stack_interval > 0) {
-      allocations_count_.fetch_add(1, std::memory_order_relaxed);
-      if (allocations_count_ % v8_flags.trace_allocation_stack_interval == 0) {
-        heap_->isolate()->PrintStack(stdout, Isolate::kPrintStackConcise);
-      }
-    }
-  }
-
-  void MoveEvent(Address source, Address target, int size) final {
-    if (v8_flags.verify_predictable) {
-      allocations_count_.fetch_add(1, std::memory_order_relaxed);
-      // Advance synthetic time by making a time request.
-      heap_->MonotonicallyIncreasingTimeInMs();
-
-      UpdateAllocationsHash(HeapObject::FromAddress(source));
-      UpdateAllocationsHash(HeapObject::FromAddress(target));
-      UpdateAllocationsHash(size);
-
-      if (allocations_count_ % v8_flags.dump_allocations_digest_at_alloc == 0) {
-        PrintAllocationsHash();
-      }
-    } else if (v8_flags.fuzzer_gc_analysis) {
-      allocations_count_.fetch_add(1, std::memory_order_relaxed);
-    }
-  }
-
-  void UpdateObjectSizeEvent(Address, int) final {}
-
- private:
-  void UpdateAllocationsHash(Tagged<HeapObject> object) {
-    Address object_address = object.address();
-    MemoryChunk* memory_chunk = MemoryChunk::FromAddress(object_address);
-    AllocationSpace allocation_space =
-        MutablePageMetadata::cast(memory_chunk->Metadata())->owner_identity();
-
-    static_assert(kSpaceTagSize + kPageSizeBits <= 32);
-    uint32_t value =
-        static_cast<uint32_t>(memory_chunk->Offset(object_address)) |
-        (static_cast<uint32_t>(allocation_space) << kPageSizeBits);
-
-    UpdateAllocationsHash(value);
-  }
-
-  void UpdateAllocationsHash(uint32_t value) {
-    const uint16_t c1 = static_cast<uint16_t>(value);
-    const uint16_t c2 = static_cast<uint16_t>(value >> 16);
-    raw_allocations_hash_.AddCharacter(c1);
-    raw_allocations_hash_.AddCharacter(c2);
-  }
-
-  void PrintAllocationsHash() {
-    uint32_t hash = raw_allocations_hash_.Finalize();
-    PrintF("\n### Allocations = %zu, hash = 0x%08x\n",
-           allocations_count_.load(std::memory_order_relaxed), hash);
-  }
-
-  Heap* const heap_;
-  // Count of all allocations performed through C++ bottlenecks. This needs to
-  // be atomic as objects are moved in parallel in the GC which counts as
-  // allocations.
-  std::atomic<size_t> allocations_count_{0};
-  // Running hash over allocations performed.
-  RunningStringHasher raw_allocations_hash_{0};
-};
-
 void Heap::AddHeapObjectAllocationTracker(
     HeapObjectAllocationTracker* tracker) {
   if (allocation_trackers_.empty() && v8_flags.inline_new) {
@@ -1191,7 +1186,7 @@ void Heap::GarbageCollectionEpilogueInSafepoint(GarbageCollector collector) {
   CHECK(old_state.IsRunning());
 
   // Resume all threads waiting for the GC.
-  collection_barrier_->ResumeThreadsAwaitingCollection();
+  collection_barrier_->ResumeThreadsAwaitingCollection(RequestedGCKind::kMajor);
 }
 
 void Heap::GarbageCollectionEpilogue(GarbageCollector collector) {
@@ -1243,7 +1238,7 @@ void Heap::HandleGCRequest() {
   } else if (HighMemoryPressure()) {
     CheckMemoryPressure();
   } else if (CollectionRequested()) {
-    CheckCollectionRequested();
+    PerformRequestedGC(main_thread_local_heap_);
   } else if (incremental_marking()->MajorCollectionRequested()) {
     CollectAllGarbage(current_gc_flags_,
                       GarbageCollectionReason::kFinalizeMarkingViaStackGuard,
@@ -1300,9 +1295,11 @@ void Heap::StartMinorMSConcurrentMarkingIfNeeded() {
 
 void Heap::CollectAllGarbage(GCFlags gc_flags,
                              GarbageCollectionReason gc_reason,
-                             const v8::GCCallbackFlags gc_callback_flags) {
+                             const v8::GCCallbackFlags gc_callback_flags,
+                             PerformHeapLimitCheck check_heap_limit_reached) {
   current_gc_flags_ = gc_flags;
-  CollectGarbage(OLD_SPACE, gc_reason, gc_callback_flags);
+  CollectGarbage(OLD_SPACE, gc_reason, gc_callback_flags,
+                 check_heap_limit_reached);
   DCHECK_EQ(GCFlags(GCFlag::kNoFlags), current_gc_flags_);
 }
 
@@ -1331,6 +1328,13 @@ void Heap::CollectAllAvailableGarbage(GarbageCollectionReason gc_reason) {
   // GCs until the root set is stable.
   static constexpr int kMaxNumberOfAttempts = 7;
   static constexpr int kMinNumberOfAttempts = 2;
+
+  // Stop background threads from running/allocating until all individual GCs
+  // triggered by this function are done.
+  SafepointScope safepoint_scope(isolate(),
+                                 kGlobalSafepointForSharedSpaceIsolate);
+
+  collection_barrier_->StopTimeToCollectionTimer(RequestedGCKind::kLastResort);
 
   // Returns the number of roots. We assume stack layout is stable but global
   // roots could change between GCs due to finalizers and weak callbacks.
@@ -1408,6 +1412,9 @@ void Heap::CollectAllAvailableGarbage(GarbageCollectionReason gc_reason) {
       v8_flags.heap_snapshot_on_oom) {
     heap_profiler()->WriteSnapshotToDiskAfterGC();
   }
+
+  collection_barrier_->ResumeThreadsAwaitingCollection(
+      RequestedGCKind::kLastResort);
 }
 
 void Heap::PreciseCollectAllGarbage(GCFlags gc_flags,
@@ -1539,7 +1546,6 @@ void Heap::SetOldGenerationAndGlobalAllocationLimit(
     size_t new_old_generation_allocation_limit,
     size_t new_global_allocation_limit, const char* reason) {
   CHECK_GE(new_global_allocation_limit, new_old_generation_allocation_limit);
-#if defined(V8_USE_PERFETTO)
   TRACE_COUNTER(
       "v8.memory",
       perfetto::CounterTrack("OldGenerationAllocationLimit", tracing_track_),
@@ -1547,7 +1553,7 @@ void Heap::SetOldGenerationAndGlobalAllocationLimit(
   TRACE_COUNTER("v8.memory",
                 perfetto::CounterTrack("GlobalAllocationLimit", tracing_track_),
                 new_global_allocation_limit);
-#endif
+
   old_generation_allocation_limit_.store(new_old_generation_allocation_limit,
                                          std::memory_order_relaxed);
   global_allocation_limit_.store(new_global_allocation_limit,
@@ -1614,9 +1620,6 @@ void Heap::CollectGarbage(
   DisableTrustedPointerPublishingScope no_trusted_pointer_tracking(isolate());
 
   DCHECK(AllowGarbageCollection::IsAllowed());
-  // TODO(chromium:1523607): Ensure this for standalone cppgc as well.
-  CHECK_IMPLIES(!v8_flags.allow_allocation_in_fast_api_call,
-                !isolate()->InFastCCall());
 
   const char* collector_reason = nullptr;
   const GarbageCollector collector =
@@ -1924,10 +1927,9 @@ int Heap::NotifyContextDisposed(bool has_dependent_context) {
 void Heap::StartIncrementalMarking(GCFlags gc_flags,
                                    GarbageCollectionReason gc_reason,
                                    GCCallbackFlags gc_callback_flags,
-                                   GarbageCollector collector) {
+                                   GarbageCollector collector,
+                                   const char* reason) {
   DCHECK(incremental_marking()->IsStopped());
-  CHECK_IMPLIES(!v8_flags.allow_allocation_in_fast_api_call,
-                !isolate()->InFastCCall());
   DCHECK_EQ(isolate(), Isolate::TryGetCurrent());
 
   if (gc_callbacks_depth_ > 0) {
@@ -1968,7 +1970,7 @@ void Heap::StartIncrementalMarking(GCFlags gc_flags,
   current_gc_flags_ = gc_flags;
   current_gc_callback_flags_ = gc_callback_flags;
 
-  incremental_marking()->Start(collector, gc_reason);
+  incremental_marking()->Start(collector, gc_reason, reason);
 
   if (collector == GarbageCollector::MARK_COMPACTOR) {
     DCHECK(incremental_marking()->IsMajorMarking());
@@ -2041,7 +2043,7 @@ void Heap::StartIncrementalMarkingIfAllocationLimitIsReached(
               OldGenerationSpaceAvailable() <= NewSpaceTargetCapacity()
                   ? GarbageCollectionReason::kAllocationLimit
                   : GarbageCollectionReason::kGlobalAllocationLimit,
-              gc_callback_flags);
+              gc_callback_flags, GarbageCollector::MARK_COMPACTOR, reason);
         } else {
           ExecutionAccess access(isolate());
           isolate()->stack_guard()->RequestStartIncrementalMarking();
@@ -2186,60 +2188,30 @@ template V8_EXPORT_PRIVATE void Heap::CopyRange<MaybeObjectSlot>(
     MaybeObjectSlot src_slot, int len, WriteBarrierMode mode);
 
 bool Heap::CollectionRequested() {
-  return collection_barrier_->WasGCRequested();
+  return collection_barrier_->RequestedGC().has_value();
 }
 
 void Heap::CollectGarbageWithRetry(AllocationSpace space, GCFlags gc_flags,
                                    GarbageCollectionReason gc_reason,
                                    const GCCallbackFlags gc_callback_flags) {
-  const auto perform_heap_limit_check = v8_flags.late_heap_limit_check
-                                            ? PerformHeapLimitCheck::kNo
-                                            : PerformHeapLimitCheck::kYes;
-
-  if (space == NEW_SPACE) {
-    DCHECK_EQ(GCFlags(), gc_flags);
-
-    for (int i = 0; i < 2; i++) {
-      CollectGarbage(NEW_SPACE, gc_reason, gc_callback_flags,
-                     perform_heap_limit_check);
-
-      if (!ReachedHeapLimit()) {
-        return;
-      }
-    }
-  }
-
-  for (int i = 0; i < 2; i++) {
-    if (v8_flags.ineffective_gcs_forces_last_resort &&
-        HasConsecutiveIneffectiveMarkCompact()) {
-      break;
-    }
-    current_gc_flags_ = gc_flags;
-    CollectGarbage(OLD_SPACE, gc_reason, gc_callback_flags,
-                   perform_heap_limit_check);
-    DCHECK_EQ(GCFlags(), current_gc_flags_);
-
-    if (!ReachedHeapLimit()) {
-      return;
-    }
-  }
-
-  CollectAllAvailableGarbage(GarbageCollectionReason::kLastResort);
+  std::ignore = allocator()->RetryCustomAllocate(
+      [&]() { return !ReachedHeapLimit(); },
+      space == NEW_SPACE ? AllocationType::kYoung : AllocationType::kOld);
 }
 
-void Heap::CollectGarbageForBackground(LocalHeap* local_heap) {
+void Heap::PerformRequestedGC(LocalHeap* local_heap) {
   CHECK(local_heap->is_main_thread());
-  CollectGarbageWithRetry(OLD_SPACE, current_gc_flags_,
-                          GarbageCollectionReason::kBackgroundAllocationFailure,
-                          current_gc_callback_flags_);
-}
-
-void Heap::CheckCollectionRequested() {
-  if (!CollectionRequested()) return;
-
-  CollectAllGarbage(current_gc_flags_,
-                    GarbageCollectionReason::kBackgroundAllocationFailure,
-                    current_gc_callback_flags_);
+  auto requested_gc = collection_barrier_->RequestedGC();
+  if (!requested_gc) {
+    return;
+  }
+  if (*requested_gc == RequestedGCKind::kMajor) {
+    CollectAllGarbage(current_gc_flags_,
+                      GarbageCollectionReason::kBackgroundAllocationFailure,
+                      kNoGCCallbackFlags, PerformHeapLimitCheck::kYes);
+  } else {
+    CollectAllAvailableGarbage(GarbageCollectionReason::kLastResort);
+  }
 }
 
 void Heap::UpdateSurvivalStatistics(int start_new_space_size) {
@@ -2343,7 +2315,7 @@ void Heap::PerformGarbageCollection(GarbageCollector collector,
   DCHECK(tracer()->IsConsistentWithCollector(collector));
   TRACE_GC_EPOCH(tracer(), CollectorScopeId(collector), ThreadKind::kMain);
 
-  collection_barrier_->StopTimeToCollectionTimer();
+  collection_barrier_->StopTimeToCollectionTimer(RequestedGCKind::kMajor);
 
   std::vector<Isolate*> paused_clients =
       PauseConcurrentThreadsInClients(collector);
@@ -2489,32 +2461,37 @@ bool Heap::CollectGarbageShared(LocalHeap* local_heap,
   }
 
   Isolate* shared_space_isolate = isolate()->shared_space_isolate();
-  return shared_space_isolate->heap()->CollectGarbageFromAnyThread(local_heap,
-                                                                   gc_reason);
+  if (shared_space_isolate == isolate() && local_heap->is_main_thread()) {
+    shared_space_isolate->heap()->CollectAllGarbage(
+        current_gc_flags_, gc_reason, current_gc_callback_flags_);
+    return true;
+  } else
+    return shared_space_isolate->heap()
+        ->TriggerAndWaitForGCFromBackgroundThread(local_heap,
+                                                  RequestedGCKind::kMajor);
 }
 
-bool Heap::CollectGarbageFromAnyThread(LocalHeap* local_heap,
-                                       GarbageCollectionReason gc_reason) {
+bool Heap::TriggerAndWaitForGCFromBackgroundThread(LocalHeap* local_heap,
+                                                   RequestedGCKind kind) {
   DCHECK(local_heap->IsRunning());
 
-  if (isolate() == local_heap->heap()->isolate() &&
-      local_heap->is_main_thread()) {
-    CollectAllGarbage(current_gc_flags_, gc_reason, current_gc_callback_flags_);
-    return true;
+  if (V8_UNLIKELY(!deserialization_complete_)) {
+    CHECK(always_allocate());
+    FatalProcessOutOfMemory("GC during deserialization");
+  }
+
+  if (!collection_barrier_->TryRequestGC(kind)) return false;
+
+  const LocalHeap::ThreadState old_state =
+      main_thread_local_heap()->state_.SetCollectionRequested();
+
+  if (old_state.IsRunning()) {
+    const bool performed_gc =
+        collection_barrier_->AwaitCollectionBackground(local_heap, kind);
+    return performed_gc;
   } else {
-    if (!collection_barrier_->TryRequestGC()) return false;
-
-    const LocalHeap::ThreadState old_state =
-        main_thread_local_heap()->state_.SetCollectionRequested();
-
-    if (old_state.IsRunning()) {
-      const bool performed_gc =
-          collection_barrier_->AwaitCollectionBackground(local_heap);
-      return performed_gc;
-    } else {
-      DCHECK(old_state.IsParked());
-      return false;
-    }
+    DCHECK(old_state.IsParked());
+    return false;
   }
 }
 
@@ -2559,21 +2536,22 @@ void Heap::EnsureSweepingCompletedForObject(Tagged<HeapObject> object) {
   sweeper()->EnsurePageIsSwept(page);
 }
 
-Heap::LimitsComputationResult Heap::ComputeNewAllocationLimits() {
+Heap::LimitsComputationResult Heap::UpdateAllocationLimits(
+    LimitsComputationBoundaries boundaries, const char* caller) {
   DCHECK(!using_initial_limit());
   tracer()->RecordGCSizeCounters();
   const HeapGrowingMode mode = CurrentHeapGrowingMode();
-  std::optional<double> v8_gc_speed =
+  const std::optional<double> v8_gc_speed =
       tracer()->OldGenerationSpeedInBytesPerMillisecond();
-  double v8_mutator_speed =
+  const double v8_mutator_speed =
       tracer()->OldGenerationAllocationThroughputInBytesPerMillisecond();
-  double v8_growing_factor = MemoryController<V8HeapTrait>::GrowingFactor(
+  const double v8_growing_factor = MemoryController<V8HeapTrait>::GrowingFactor(
       this, max_old_generation_size(), v8_gc_speed, v8_mutator_speed, mode);
-  std::optional<double> embedder_gc_speed =
+  const std::optional<double> embedder_gc_speed =
       tracer()->EmbedderSpeedInBytesPerMillisecond();
-  double embedder_speed =
+  const double embedder_speed =
       tracer()->EmbedderAllocationThroughputInBytesPerMillisecond();
-  double embedder_growing_factor =
+  const double embedder_growing_factor =
       (embedder_gc_speed.has_value() && embedder_speed > 0)
           ? MemoryController<GlobalMemoryTrait>::GrowingFactor(
                 this, max_global_memory_size_, embedder_gc_speed,
@@ -2582,7 +2560,6 @@ Heap::LimitsComputationResult Heap::ComputeNewAllocationLimits() {
 
   const size_t new_space_capacity = NewSpaceTargetCapacity();
 
-#if defined(V8_USE_PERFETTO)
   TRACE_COUNTER(
       TRACE_DISABLED_BY_DEFAULT("v8.gc"),
       perfetto::CounterTrack("NewSpaceTargetCapacity", tracing_track()),
@@ -2593,26 +2570,28 @@ Heap::LimitsComputationResult Heap::ComputeNewAllocationLimits() {
   TRACE_COUNTER(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
                 perfetto::CounterTrack("EmbedderSpeed", tracing_track()),
                 embedder_gc_speed.value_or(0.0));
-#endif
 
-  size_t new_old_generation_allocation_limit =
+  const size_t old_gen_consumed_bytes_at_last_gc =
+      OldGenerationConsumedBytesAtLastGC();
+  const size_t preliminary_old_generation_allocation_limit =
       MemoryController<V8HeapTrait>::BoundAllocationLimit(
-          this, OldGenerationConsumedBytesAtLastGC(),
-          OldGenerationConsumedBytesAtLastGC() * v8_growing_factor,
+          this, old_gen_consumed_bytes_at_last_gc,
+          old_gen_consumed_bytes_at_last_gc * v8_growing_factor,
           min_old_generation_size_, max_old_generation_size(),
           new_space_capacity, mode);
 
-  double global_growing_factor =
+  const double global_growing_factor =
       std::max(v8_growing_factor, embedder_growing_factor);
-  double external_growing_factor =
+  const double external_growing_factor =
       std::min(global_growing_factor,
                v8_flags.external_memory_max_growing_factor.value());
   DCHECK_GT(global_growing_factor, 0);
   DCHECK_GT(external_growing_factor, 0);
-  size_t new_global_allocation_limit =
+  const size_t global_consumed_bytes_at_last_gc = GlobalConsumedBytesAtLastGC();
+  const size_t preliminary_global_allocation_limit =
       MemoryController<GlobalMemoryTrait>::BoundAllocationLimit(
-          this, GlobalConsumedBytesAtLastGC(),
-          (OldGenerationConsumedBytesAtLastGC() + embedder_size_at_last_gc_) *
+          this, global_consumed_bytes_at_last_gc,
+          (old_gen_consumed_bytes_at_last_gc + embedder_size_at_last_gc_) *
                   global_growing_factor +
               (v8_flags.external_memory_accounted_in_global_limit
                    ? external_memory_.low_since_mark_compact() *
@@ -2621,7 +2600,55 @@ Heap::LimitsComputationResult Heap::ComputeNewAllocationLimits() {
           min_global_memory_size_, max_global_memory_size_, new_space_capacity,
           mode);
 
-  return {new_old_generation_allocation_limit, new_global_allocation_limit};
+  // Now enforce provided boundaries on computed/preliminary limits.
+  const size_t next_old_generation_allocation_limit =
+      boundaries.bounded_old_generation_allocation_limit(
+          preliminary_old_generation_allocation_limit);
+  const size_t next_global_allocation_limit =
+      boundaries.bounded_global_allocation_limit(
+          preliminary_global_allocation_limit);
+
+  CHECK_GE(next_global_allocation_limit, next_old_generation_allocation_limit);
+
+  if (V8_UNLIKELY(v8_flags.trace_gc_verbose)) {
+    ::heap::base::UnsafeJsonEmitter json;
+
+    json.object_start()
+        .p("caller", caller)
+        .p("v8_gc_speed", v8_gc_speed.value_or(0))
+        .p("v8_mutator_speed", v8_mutator_speed)
+        .p("v8_growing_factor", v8_growing_factor)
+        .p("old_gen_allocation_limit", old_generation_allocation_limit())
+        .p("next_old_gen_allocation_limit",
+           next_old_generation_allocation_limit)
+        .p("preliminary_old_gen_allocation_limit",
+           preliminary_old_generation_allocation_limit)
+        .p("old_gen_consumed_bytes_at_last_gc",
+           old_gen_consumed_bytes_at_last_gc)
+        .p("global_gc_speed", embedder_gc_speed.value_or(0))
+        .p("global_mutator_speed", embedder_speed)
+        .p("global_growing_factor", embedder_growing_factor)
+        .p("global_allocation_limit", global_allocation_limit())
+        .p("new_global_allocation_limit", next_global_allocation_limit)
+        .p("preliminary_global_allocation_limit",
+           preliminary_global_allocation_limit)
+        .p("global_consumed_bytes_at_last_gc", global_consumed_bytes_at_last_gc)
+        .object_end();
+
+    std::string json_str = json.ToString();
+
+    isolate()->PrintWithTimestamp("UpdateAllocationLimits: %s\n",
+                                  json_str.c_str());
+
+    TRACE_EVENT_INSTANT1("v8", "V8.GCUpdateAllocationLimits",
+                         TRACE_EVENT_SCOPE_THREAD, "value",
+                         TRACE_STR_COPY(json_str.c_str()));
+  }
+
+  SetOldGenerationAndGlobalAllocationLimit(next_old_generation_allocation_limit,
+                                           next_global_allocation_limit);
+
+  return {next_old_generation_allocation_limit, next_global_allocation_limit};
 }
 
 void Heap::RecomputeLimits(GarbageCollector collector, base::TimeTicks time) {
@@ -2634,30 +2661,19 @@ void Heap::RecomputeLimits(GarbageCollector collector, base::TimeTicks time) {
     return;
   }
 
-  auto new_limits = ComputeNewAllocationLimits();
-  size_t new_old_generation_allocation_limit =
-      new_limits.old_generation_allocation_limit;
-  size_t new_global_allocation_limit = new_limits.global_allocation_limit;
-
   if (collector == GarbageCollector::MARK_COMPACTOR) {
+    const LimitsComputationResult new_limits = UpdateAllocationLimits({});
+
     if (v8_flags.memory_balancer) {
       // Now recompute the new allocation limit.
       mb_->RecomputeLimits(new_limits.global_allocation_limit -
                                new_limits.old_generation_allocation_limit,
                            time);
-    } else {
-      SetOldGenerationAndGlobalAllocationLimit(
-          new_limits.old_generation_allocation_limit,
-          new_limits.global_allocation_limit);
     }
   } else {
     DCHECK(HasLowYoungGenerationAllocationRate());
-    new_old_generation_allocation_limit = std::min(
-        new_old_generation_allocation_limit, old_generation_allocation_limit());
-    new_global_allocation_limit =
-        std::min(new_global_allocation_limit, global_allocation_limit());
-    SetOldGenerationAndGlobalAllocationLimit(
-        new_old_generation_allocation_limit, new_global_allocation_limit);
+    UpdateAllocationLimits(
+        LimitsComputationBoundaries::AtMostCurrentLimits(this));
   }
 
   CHECK_GE(global_allocation_limit(), old_generation_allocation_limit_);
@@ -2694,19 +2710,8 @@ void Heap::RecomputeLimitsAfterLoadingIfNeeded() {
   embedder_size_at_last_gc_ = EmbedderSizeOfObjects();
   set_using_initial_limit(false);
 
-  auto new_limits = ComputeNewAllocationLimits();
-  size_t new_old_generation_allocation_limit =
-      new_limits.old_generation_allocation_limit;
-  size_t new_global_allocation_limit = new_limits.global_allocation_limit;
-
-  new_old_generation_allocation_limit = std::max(
-      new_old_generation_allocation_limit, old_generation_allocation_limit());
-  new_global_allocation_limit =
-      std::max(new_global_allocation_limit, global_allocation_limit());
-  SetOldGenerationAndGlobalAllocationLimit(new_old_generation_allocation_limit,
-                                           new_global_allocation_limit);
-
-  CHECK_GE(global_allocation_limit(), old_generation_allocation_limit_);
+  UpdateAllocationLimits(
+      LimitsComputationBoundaries::AtLeastCurrentLimits(this));
 }
 
 void Heap::CallGCPrologueCallbacks(GCType gc_type, GCCallbackFlags flags,
@@ -3061,6 +3066,26 @@ void Heap::ProcessWeakListRoots(WeakObjectRetainer* retainer) {
       retainer->RetainAs(dirty_js_finalization_registries_list_tail()));
 }
 
+void Heap::AddToWeakNativeContextList(Tagged<Context> context) {
+  DCHECK(IsNativeContext(context));
+  DCHECK(LocalHeap::Current()->is_main_thread());
+
+#ifdef DEBUG
+  {
+    DCHECK(IsUndefined(context->next_context_link(), isolate()));
+    // Check that context is not in the list yet.
+    for (Tagged<Object> current = native_contexts_list();
+         !IsUndefined(current, isolate());
+         current = Cast<Context>(current)->next_context_link()) {
+      DCHECK(current != context);
+    }
+  }
+#endif
+  context->SetNoCell(Context::NEXT_CONTEXT_LINK, native_contexts_list(),
+                     UPDATE_WRITE_BARRIER);
+  set_native_contexts_list(context);
+}
+
 void Heap::ForeachAllocationSite(
     Tagged<Object> list,
     const std::function<void(Tagged<AllocationSite>)>& visitor) {
@@ -3213,22 +3238,12 @@ void* Heap::AllocateExternalBackingStore(
     }
   }
   void* result = allocate(byte_length);
-  if (result) return result;
-  if (!always_allocate()) {
-    for (int i = 0; i < 2; i++) {
-      if (v8_flags.ineffective_gcs_forces_last_resort &&
-          HasConsecutiveIneffectiveMarkCompact()) {
-        break;
-      }
-      CollectGarbage(OLD_SPACE,
-                     GarbageCollectionReason::kExternalMemoryPressure);
-      result = allocate(byte_length);
-      if (result) return result;
-    }
-    CollectAllAvailableGarbage(
-        GarbageCollectionReason::kExternalMemoryPressure);
+  if (result || always_allocate()) {
+    return result;
   }
-  return allocate(byte_length);
+  std::ignore = allocator()->RetryCustomAllocate(
+      [&]() { return result = allocate(byte_length); }, AllocationType::kOld);
+  return result;
 }
 
 // When old generation allocation limit is not configured (before the first full
@@ -3467,9 +3482,9 @@ class LeftTrimmerVerifierRootVisitor : public RootVisitor {
     }
   }
 
-  void VisitRootPointers(Root root, const char* description,
-                         OffHeapObjectSlot start,
-                         OffHeapObjectSlot end) override {
+  void VisitCompressedRootPointers(Root root, const char* description,
+                                   OffHeapObjectSlot start,
+                                   OffHeapObjectSlot end) override {
     DCHECK(root == Root::kStringTable ||
            root == Root::kSharedStructTypeRegistry);
     // We can skip iterating the string table and shared struct type registry,
@@ -3582,21 +3597,26 @@ Tagged<FixedArrayBase> Heap::LeftTrimFixedArray(Tagged<FixedArrayBase> object,
   if (v8_flags.enable_slow_asserts) {
     // Make sure the stack or other roots (e.g., Handles) don't contain pointers
     // to the original FixedArray (which is now the filler object).
-    std::optional<IsolateSafepointScope> safepoint_scope;
 
-    {
-      AllowGarbageCollection allow_gc;
-      safepoint_scope.emplace(this);
+    // Iterating roots forces us to safepoint here. The safepoint allows a
+    // shared GC here though, while the JSArray holding the pointer to that
+    // FixedArray is still pointing to the old object start. To fix this we only
+    // safepoint here when we can grab the lock without blocking. This means we
+    // can also only conditionally verify roots.
+    std::optional<IsolateSafepointScope> safepoint_scope =
+        safepoint()->ReachSafepointWithoutTriggeringGC();
+    CHECK_IMPLIES(!isolate()->has_shared_space(), safepoint_scope.has_value());
+
+    if (safepoint_scope.has_value()) {
+      LeftTrimmerVerifierRootVisitor root_visitor(object);
+      ReadOnlyRoots(this).Iterate(&root_visitor);
+
+      // Stale references are allowed in some locations. IterateRoots() uses
+      // ClearStaleLeftTrimmedPointerVisitor internally to clear such references
+      // beforehand.
+      IterateRoots(&root_visitor,
+                   base::EnumSet<SkipRoot>{SkipRoot::kConservativeStack});
     }
-
-    LeftTrimmerVerifierRootVisitor root_visitor(object);
-    ReadOnlyRoots(this).Iterate(&root_visitor);
-
-    // Stale references are allowed in some locations. IterateRoots() uses
-    // ClearStaleLeftTrimmedPointerVisitor internally to clear such references
-    // beforehand.
-    IterateRoots(&root_visitor,
-                 base::EnumSet<SkipRoot>{SkipRoot::kConservativeStack});
   }
 #endif  // ENABLE_SLOW_DCHECKS
 
@@ -3867,7 +3887,7 @@ bool Heap::IsIneffectiveMarkCompact(size_t old_generation_size,
   bool high_heap_ratio =
       (old_generation_size >=
        v8_flags.ineffective_gc_size_threshold * max_old_generation_size());
-  if (v8_flags.external_memory_accounted_in_global_limit) {
+  if (v8_flags.ineffective_gc_includes_global) {
     high_heap_ratio |= (global_size >= v8_flags.ineffective_gc_size_threshold *
                                            max_global_memory_size_);
   }
@@ -5150,12 +5170,12 @@ size_t Heap::DefaultMaxSemiSpaceSize(uint64_t physical_memory) {
 }
 
 // static
-size_t Heap::DefaulMinHeapSize(uint64_t physical_memory) {
+size_t Heap::DefaultMinHeapSize(uint64_t physical_memory) {
   return 128u * HeapLimitMultiplier(physical_memory) * MB;
 }
 
 // static
-size_t Heap::DefaulMaxHeapSize(uint64_t physical_memory) {
+size_t Heap::DefaultMaxHeapSize(uint64_t physical_memory) {
   return 1024u * HeapLimitMultiplier(physical_memory) * MB;
 }
 
@@ -5166,7 +5186,7 @@ size_t Heap::OldGenerationToSemiSpaceRatio(uint64_t physical_memory) {
   // supported value, young gen max capacity would also be set to the max.
   const size_t max_semi_space_size = DefaultMaxSemiSpaceSize(physical_memory);
   DCHECK_GT(max_semi_space_size, 0);
-  return DefaulMaxHeapSize(physical_memory) / max_semi_space_size;
+  return DefaultMaxHeapSize(physical_memory) / max_semi_space_size;
 }
 
 // static
@@ -6055,7 +6075,8 @@ class StressConcurrentAllocationTask : public CancelableTask {
             WritableFreeSpace::ForNonExecutableMemory(result.ToAddress(),
                                                       kSmallObjectSize));
       } else {
-        heap->CollectGarbageFromAnyThread(&local_heap);
+        heap->TriggerAndWaitForGCFromBackgroundThread(&local_heap,
+                                                      RequestedGCKind::kMajor);
       }
 
       result = local_heap.AllocateRaw(kMediumObjectSize, AllocationType::kOld,
@@ -6066,7 +6087,8 @@ class StressConcurrentAllocationTask : public CancelableTask {
             WritableFreeSpace::ForNonExecutableMemory(result.ToAddress(),
                                                       kMediumObjectSize));
       } else {
-        heap->CollectGarbageFromAnyThread(&local_heap);
+        heap->TriggerAndWaitForGCFromBackgroundThread(&local_heap,
+                                                      RequestedGCKind::kMajor);
       }
 
       result = local_heap.AllocateRaw(kLargeObjectSize, AllocationType::kOld,
@@ -6077,7 +6099,8 @@ class StressConcurrentAllocationTask : public CancelableTask {
             WritableFreeSpace::ForNonExecutableMemory(result.ToAddress(),
                                                       kLargeObjectSize));
       } else {
-        heap->CollectGarbageFromAnyThread(&local_heap);
+        heap->TriggerAndWaitForGCFromBackgroundThread(&local_heap,
+                                                      RequestedGCKind::kMajor);
       }
       local_heap.Safepoint();
     }
@@ -6967,9 +6990,9 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
                            FullObjectSlot start, FullObjectSlot end) override {
       MarkPointersImpl(start, end);
     }
-    void VisitRootPointers(Root root, const char* description,
-                           OffHeapObjectSlot start,
-                           OffHeapObjectSlot end) override {
+    void VisitCompressedRootPointers(Root root, const char* description,
+                                     OffHeapObjectSlot start,
+                                     OffHeapObjectSlot end) override {
       MarkPointersImpl(start, end);
     }
 
@@ -7254,12 +7277,12 @@ void Heap::PostFinalizationRegistryCleanupTaskIfNeeded() {
 void Heap::EnqueueDirtyJSFinalizationRegistry(
     Tagged<JSFinalizationRegistry> finalization_registry,
     std::function<void(Tagged<HeapObject> object, ObjectSlot slot,
-                       Tagged<Object> target)>
-        gc_notify_updated_slot) {
+                       Tagged<HeapObject> target)>
+        gc_notify_updated_slot,
+    WriteBarrierMode write_barrier_mode) {
   // Add a FinalizationRegistry to the tail of the dirty list.
-  DCHECK_IMPLIES(HasDirtyJSFinalizationRegistries(),
-                 GCAwareObjectTypeCheck<JSFinalizationRegistry>(
-                     dirty_js_finalization_registries_list(), this));
+  DCHECK(!HasDirtyJSFinalizationRegistries() ||
+         IsJSFinalizationRegistry(dirty_js_finalization_registries_list()));
   DCHECK(IsUndefined(finalization_registry->next_dirty(), isolate()));
   DCHECK(!finalization_registry->scheduled_for_cleanup());
   finalization_registry->set_scheduled_for_cleanup(true);
@@ -7269,9 +7292,9 @@ void Heap::EnqueueDirtyJSFinalizationRegistry(
     // dirty_js_finalization_registries_list_ is rescanned by
     // ProcessWeakListRoots.
   } else {
-    Tagged<JSFinalizationRegistry> tail = GCSafeCast<JSFinalizationRegistry>(
-        dirty_js_finalization_registries_list_tail(), this);
-    tail->set_next_dirty_unchecked(finalization_registry);
+    Tagged<JSFinalizationRegistry> tail = Cast<JSFinalizationRegistry>(
+        dirty_js_finalization_registries_list_tail());
+    tail->set_next_dirty(finalization_registry, write_barrier_mode);
     gc_notify_updated_slot(
         tail, tail->RawField(JSFinalizationRegistry::kNextDirtyOffset),
         finalization_registry);
@@ -7743,10 +7766,7 @@ void Heap::EnsureSweepingCompleted(SweepingForcedFinalizationMode mode) {
 
   if (v8_flags.external_memory_accounted_in_global_limit) {
     if (!using_initial_limit()) {
-      auto new_limits = ComputeNewAllocationLimits();
-      SetOldGenerationAndGlobalAllocationLimit(
-          new_limits.old_generation_allocation_limit,
-          new_limits.global_allocation_limit);
+      UpdateAllocationLimits({});
     }
   }
 }
@@ -7779,6 +7799,11 @@ void Heap::EnsureYoungSweepingCompleted() {
 }
 
 void Heap::NotifyLoadingStarted() {
+  if (IsLoading()) {
+    TRACE_EVENT_END(TRACE_DISABLED_BY_DEFAULT("v8.gc"), loading_track_);
+  }
+  TRACE_EVENT_BEGIN(TRACE_DISABLED_BY_DEFAULT("v8.gc"), "IsLoading",
+                    loading_track_);
   update_allocation_limits_after_loading_ = true;
   double now_ms = MonotonicallyIncreasingTimeInMs();
   DCHECK_NE(now_ms, kLoadTimeNotLoading);
@@ -7793,6 +7818,7 @@ void Heap::NotifyLoadingEnded() {
     // and advance marking if incremental marking is active.
     job->ScheduleTask(TaskPriority::kUserVisible);
   }
+  TRACE_EVENT_END(TRACE_DISABLED_BY_DEFAULT("v8.gc"), loading_track_);
 }
 
 int Heap::NextScriptId() {

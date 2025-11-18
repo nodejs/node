@@ -151,6 +151,7 @@ namespace internal {
   V(Void)                                            \
   IF_WASM(V, WasmAllocateShared)                     \
   IF_WASM(V, WasmFXResume)                           \
+  IF_WASM(V, WasmFXSuspend)                          \
   V(WasmDummy)                                       \
   V(WasmFloat32ToNumber)                             \
   V(WasmFloat64ToTagged)                             \
@@ -916,6 +917,19 @@ class WasmFXResumeDescriptor final
   DECLARE_DESCRIPTOR(WasmFXResumeDescriptor)
 
   static constexpr int kMaxRegisterParams = 1;
+  static constexpr inline auto registers();
+};
+
+class WasmFXSuspendDescriptor final
+    : public StaticCallInterfaceDescriptor<WasmFXSuspendDescriptor> {
+  INTERNAL_DESCRIPTOR()
+  SANDBOXING_MODE(kSandboxed)
+  DEFINE_RESULT_AND_PARAMETERS(0, kTag, kContinuation)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::TaggedPointer(),
+                                    MachineType::TaggedPointer())
+  DECLARE_DESCRIPTOR(WasmFXSuspendDescriptor)
+
+  static constexpr int kMaxRegisterParams = 2;
   static constexpr inline auto registers();
 };
 #endif

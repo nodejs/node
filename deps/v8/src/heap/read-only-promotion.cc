@@ -576,8 +576,19 @@ class ReadOnlyPromotionImpl final : public AllStatic {
       // read_only_external_pointer_space) now.
       RecordProcessedSlotIfDebug(slot.address());
       Address slot_value = slot.load(isolate_);
-      DCHECK(slot.ExactTagIsKnown());
-      slot.init(isolate_, host, slot_value, slot.exact_tag());
+      ExternalPointerTag tag;
+      // `slot` can have a tag range, but for slot.init below we need an exact
+      // tag. Therefore we load the actual tag of the slot. However, we do that
+      // only if there is actually a value stored in the slot. If not, then the
+      // slot is uninitialized, and so far code with tag ranges only handles
+      // initialized slots. Therefore we can use the exact tag of the slot.
+      if (slot_value) {
+        tag = slot.load_tag(isolate_);
+      } else {
+        DCHECK(slot.ExactTagIsKnown());
+        tag = slot.exact_tag();
+      }
+      slot.init(isolate_, host, slot_value, tag);
 
       if (V8_UNLIKELY(v8_flags.trace_read_only_promotion_verbose)) {
         LogUpdatedExternalPointerTableEntry(host, slot, slot_value);
@@ -600,9 +611,9 @@ class ReadOnlyPromotionImpl final : public AllStatic {
       }
 #endif  // V8_ENABLE_SANDBOX
     }
-    void VisitRootPointers(Root root, const char* description,
-                           OffHeapObjectSlot start,
-                           OffHeapObjectSlot end) override {
+    void VisitCompressedRootPointers(Root root, const char* description,
+                                     OffHeapObjectSlot start,
+                                     OffHeapObjectSlot end) override {
       // We shouldn't have moved any string table contents or SharedStructType
       // registry contents (which is what OffHeapObjectSlot currently refers
       // to).

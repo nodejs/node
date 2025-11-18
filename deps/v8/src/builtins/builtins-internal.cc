@@ -12,7 +12,8 @@ namespace v8 {
 namespace internal {
 
 BUILTIN(Illegal) {
-  UNREACHABLE();
+  // Make it distinguishable from other UNREACHABLE() calls for convenience.
+  FATAL("Called Illegal builtin");
 }
 
 BUILTIN(IllegalInvocationThrower) {

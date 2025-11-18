@@ -222,17 +222,7 @@ class V8_EXPORT_PRIVATE CppHeapPointerTable
   CppHeapPointerTable(const CppHeapPointerTable&) = delete;
   CppHeapPointerTable& operator=(const CppHeapPointerTable&) = delete;
 
-  // The Spaces used by an CppHeapPointerTable.
-  class Space : public Base::Space {
-   public:
-    bool allocate_black() { return allocate_black_; }
-    void set_allocate_black(bool allocate_black) {
-      allocate_black_ = allocate_black;
-    }
-
-   private:
-    bool allocate_black_ = false;
-  };
+  using Space = Base::Space;
 
   // Retrieves the entry referenced by the given handle.
   //

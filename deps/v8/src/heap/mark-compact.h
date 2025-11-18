@@ -188,6 +188,7 @@ class MarkCompactCollector final {
   void MaybeEnableBackgroundThreadsInCycle(CallOrigin origin);
 
   Heap* heap() { return heap_; }
+  const Heap* heap() const { return heap_; }
 
   explicit MarkCompactCollector(Heap* heap);
   ~MarkCompactCollector();

@@ -271,16 +271,13 @@ TEST(SpinLockWithThreads, DoesNotDeadlock) {
     }
   };
 
+  int num_threads = base_internal::NumCPUs() * 2;
   SpinLock stack_cooperative_spinlock;
   SpinLock stack_noncooperative_spinlock(base_internal::SCHEDULE_KERNEL_ONLY);
-  Helper::DeadlockTest(&stack_cooperative_spinlock,
-                       base_internal::NumCPUs() * 2);
-  Helper::DeadlockTest(&stack_noncooperative_spinlock,
-                       base_internal::NumCPUs() * 2);
-  Helper::DeadlockTest(&static_cooperative_spinlock,
-                       base_internal::NumCPUs() * 2);
-  Helper::DeadlockTest(&static_noncooperative_spinlock,
-                       base_internal::NumCPUs() * 2);
+  Helper::DeadlockTest(&stack_cooperative_spinlock, num_threads);
+  Helper::DeadlockTest(&stack_noncooperative_spinlock, num_threads);
+  Helper::DeadlockTest(&static_cooperative_spinlock, num_threads);
+  Helper::DeadlockTest(&static_noncooperative_spinlock, num_threads);
 }
 
 TEST(SpinLockTest, IsCooperative) {

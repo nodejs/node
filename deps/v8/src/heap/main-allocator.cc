@@ -196,11 +196,6 @@ void MainAllocator::InvokeAllocationObservers(Address soon_object,
 AllocationResult MainAllocator::AllocateRawSlow(int size_in_bytes,
                                                 AllocationAlignment alignment,
                                                 AllocationOrigin origin) {
-  // We are not supposed to allocate in fast c calls.
-  CHECK_IMPLIES(is_main_thread(),
-                v8_flags.allow_allocation_in_fast_api_call ||
-                    !isolate_heap()->isolate()->InFastCCall());
-
   AllocationResult result =
       alignment != kTaggedAligned
           ? AllocateRawSlowAligned(size_in_bytes, alignment, origin)

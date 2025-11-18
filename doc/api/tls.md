@@ -1705,11 +1705,9 @@ changes:
     verification fails; `err.code` contains the OpenSSL error code. **Default:**
     `true`.
   * `pskCallback` {Function} For TLS-PSK negotiation, see [Pre-shared keys][].
-  * `ALPNProtocols` {string\[]|Buffer\[]|TypedArray\[]|DataView\[]|Buffer|
-    TypedArray|DataView}
-    An array of strings, `Buffer`s, `TypedArray`s, or `DataView`s, or a
-    single `Buffer`, `TypedArray`, or `DataView` containing the supported ALPN
-    protocols. `Buffer`s should have the format `[len][name][len][name]...`
+  * `ALPNProtocols` {string\[]|Buffer|TypedArray|DataView} An array of strings,
+    or a single `Buffer`, `TypedArray`, or `DataView` containing the supported
+    ALPN protocols. Buffers should have the format `[len][name][len][name]...`
     e.g. `'\x08http/1.1\x08http/1.0'`, where the `len` byte is the length of the
     next protocol name. Passing an array is usually much simpler, e.g.
     `['http/1.1', 'http/1.0']`. Protocols earlier in the list have higher
@@ -2120,11 +2118,9 @@ changes:
 -->
 
 * `options` {Object}
-  * `ALPNProtocols` {string\[]|Buffer\[]|TypedArray\[]|DataView\[]|Buffer|
-    TypedArray|DataView}
-    An array of strings, `Buffer`s, `TypedArray`s, or `DataView`s, or a single
-    `Buffer`, `TypedArray`, or `DataView` containing the supported ALPN
-    protocols. `Buffer`s should have the format `[len][name][len][name]...`
+  * `ALPNProtocols` {string\[]|Buffer|TypedArray|DataView} An array of strings,
+    or a single `Buffer`, `TypedArray`, or `DataView` containing the supported
+    ALPN protocols. Buffers should have the format `[len][name][len][name]...`
     e.g. `0x05hello0x05world`, where the first byte is the length of the next
     protocol name. Passing an array is usually much simpler, e.g.
     `['hello', 'world']`. (Protocols should be ordered by their priority.)

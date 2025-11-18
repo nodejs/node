@@ -395,6 +395,7 @@ class LiveRangeAndNextUseProcessor {
       MarkUse(node, use_id, input, loop_used_nodes);
       input++;
     });
+    CHECK_EQ(input, deopt_info->input_locations_end());
   }
 
   Zone* zone() { return compilation_info_->zone(); }

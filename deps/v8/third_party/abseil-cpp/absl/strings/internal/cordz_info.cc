@@ -17,7 +17,8 @@
 #include <cstdint>
 
 #include "absl/base/config.h"
-#include "absl/base/internal/spinlock.h"
+#include "absl/base/const_init.h"
+#include "absl/base/no_destructor.h"
 #include "absl/container/inlined_vector.h"
 #include "absl/debugging/stacktrace.h"
 #include "absl/strings/internal/cord_internal.h"
@@ -33,8 +34,6 @@
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace cord_internal {
-
-ABSL_CONST_INIT CordzInfo::List CordzInfo::global_list_{absl::kConstInit};
 
 namespace {
 
@@ -221,24 +220,32 @@ class CordRepAnalyzer {
 
 }  // namespace
 
+CordzInfo::List* CordzInfo::GlobalList() {
+  static absl::NoDestructor<CordzInfo::List> list;
+  return list.get();
+}
+
 CordzInfo* CordzInfo::Head(const CordzSnapshot& snapshot) {
   ABSL_ASSERT(snapshot.is_snapshot());
 
-  // We can do an 'unsafe' load of 'head', as we are guaranteed that the
-  // instance it points to is kept alive by the provided CordzSnapshot, so we
-  // can simply return the current value using an acquire load.
+  // We obtain the lock here as we must synchronize the first call into the list
+  // with any concurrent 'Untrack()` operation to avoid any read in the list to
+  // reorder before the observation of the thread 'untracking a cord' of the
+  // delete queue being empty or not. After this all next observations are safe
+  // as we have established all subsequent untracks will be queued for delete.
   // We do enforce in DEBUG builds that the 'head' value is present in the
-  // delete queue: ODR violations may lead to 'snapshot' and 'global_list_'
+  // delete queue: ODR violations may lead to 'snapshot' and 'global_list'
   // being in different libraries / modules.
-  CordzInfo* head = global_list_.head.load(std::memory_order_acquire);
-  ABSL_ASSERT(snapshot.DiagnosticsHandleIsSafeToInspect(head));
-  return head;
+  auto global_list = GlobalList();
+  absl::MutexLock l(global_list->mutex);
+  ABSL_ASSERT(snapshot.DiagnosticsHandleIsSafeToInspect(global_list->head));
+  return global_list->head;
 }
 
 CordzInfo* CordzInfo::Next(const CordzSnapshot& snapshot) const {
   ABSL_ASSERT(snapshot.is_snapshot());
 
-  // Similar to the 'Head()' function, we do not need a mutex here.
+  // We do not need a lock here. See also comments in Head().
   CordzInfo* next = ci_next_.load(std::memory_order_acquire);
   ABSL_ASSERT(snapshot.DiagnosticsHandleIsSafeToInspect(this));
   ABSL_ASSERT(snapshot.DiagnosticsHandleIsSafeToInspect(next));
@@ -327,22 +334,21 @@ CordzInfo::~CordzInfo() {
 }
 
 void CordzInfo::Track() {
-  SpinLockHolder l(list_->mutex);
-
-  CordzInfo* const head = list_->head.load(std::memory_order_acquire);
+  absl::MutexLock l(list_->mutex);
+  CordzInfo* const head = list_->head;
   if (head != nullptr) {
     head->ci_prev_.store(this, std::memory_order_release);
   }
   ci_next_.store(head, std::memory_order_release);
-  list_->head.store(this, std::memory_order_release);
+  list_->head = this;
 }
 
 void CordzInfo::Untrack() {
   ODRCheck();
   {
-    SpinLockHolder l(list_->mutex);
+    absl::MutexLock l(list_->mutex);
 
-    CordzInfo* const head = list_->head.load(std::memory_order_acquire);
+    CordzInfo* const head = list_->head;
     CordzInfo* const next = ci_next_.load(std::memory_order_acquire);
     CordzInfo* const prev = ci_prev_.load(std::memory_order_acquire);
 
@@ -356,7 +362,7 @@ void CordzInfo::Untrack() {
       prev->ci_next_.store(next, std::memory_order_release);
     } else {
       ABSL_ASSERT(head == this);
-      list_->head.store(next, std::memory_order_release);
+      list_->head = next;
     }
   }
 

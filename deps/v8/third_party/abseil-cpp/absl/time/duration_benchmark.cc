@@ -359,6 +359,150 @@ void BM_Duration_ToInt64Hours(benchmark::State& state) {
 BENCHMARK(BM_Duration_ToInt64Hours);
 
 //
+// ToDoubleXYZ
+//
+void BM_Duration_ToDoubleNanoseconds(benchmark::State& state) {
+  absl::Duration d = absl::Seconds(100000);
+  while (state.KeepRunning()) {
+    benchmark::DoNotOptimize(d);
+    double result = absl::ToDoubleNanoseconds(d);
+    benchmark::DoNotOptimize(result);
+  }
+}
+BENCHMARK(BM_Duration_ToDoubleNanoseconds);
+
+void BM_Duration_ToDoubleMicroseconds(benchmark::State& state) {
+  absl::Duration d = absl::Seconds(100000);
+  while (state.KeepRunning()) {
+    benchmark::DoNotOptimize(d);
+    double result = absl::ToDoubleMicroseconds(d);
+    benchmark::DoNotOptimize(result);
+  }
+}
+BENCHMARK(BM_Duration_ToDoubleMicroseconds);
+
+void BM_Duration_ToDoubleMilliseconds(benchmark::State& state) {
+  absl::Duration d = absl::Seconds(100000);
+  while (state.KeepRunning()) {
+    benchmark::DoNotOptimize(d);
+    double result = absl::ToDoubleMilliseconds(d);
+    benchmark::DoNotOptimize(result);
+  }
+}
+BENCHMARK(BM_Duration_ToDoubleMilliseconds);
+
+void BM_Duration_ToDoubleSeconds(benchmark::State& state) {
+  absl::Duration d = absl::Seconds(100000);
+  while (state.KeepRunning()) {
+    benchmark::DoNotOptimize(d);
+    double result = absl::ToDoubleSeconds(d);
+    benchmark::DoNotOptimize(result);
+  }
+}
+BENCHMARK(BM_Duration_ToDoubleSeconds);
+
+void BM_Duration_ToDoubleMinutes(benchmark::State& state) {
+  absl::Duration d = absl::Seconds(100000);
+  while (state.KeepRunning()) {
+    benchmark::DoNotOptimize(d);
+    double result = absl::ToDoubleMinutes(d);
+    benchmark::DoNotOptimize(result);
+  }
+}
+BENCHMARK(BM_Duration_ToDoubleMinutes);
+
+void BM_Duration_ToDoubleHours(benchmark::State& state) {
+  absl::Duration d = absl::Seconds(100000);
+  while (state.KeepRunning()) {
+    benchmark::DoNotOptimize(d);
+    double result = absl::ToDoubleHours(d);
+    benchmark::DoNotOptimize(result);
+  }
+}
+BENCHMARK(BM_Duration_ToDoubleHours);
+
+//
+// ToDoubleXYZ Latency
+//
+void BM_Duration_ToDoubleNanoseconds_Latency(benchmark::State& state) {
+  absl::Duration d1 = absl::Seconds(100000);
+  absl::Duration d2 = absl::Seconds(100000);
+  double result = 1;
+  while (state.KeepRunning()) {
+    benchmark::DoNotOptimize(d1);
+    benchmark::DoNotOptimize(d2);
+    benchmark::DoNotOptimize(result);
+    result = absl::ToDoubleNanoseconds(result < 0 ? d1 : d2);
+  }
+}
+BENCHMARK(BM_Duration_ToDoubleNanoseconds_Latency);
+
+void BM_Duration_ToDoubleMicroseconds_Latency(benchmark::State& state) {
+  absl::Duration d1 = absl::Seconds(100000);
+  absl::Duration d2 = absl::Seconds(100000);
+  double result = 1;
+  while (state.KeepRunning()) {
+    benchmark::DoNotOptimize(d1);
+    benchmark::DoNotOptimize(d2);
+    benchmark::DoNotOptimize(result);
+    result = absl::ToDoubleMicroseconds(result < 0 ? d1 : d2);
+  }
+}
+BENCHMARK(BM_Duration_ToDoubleMicroseconds_Latency);
+
+void BM_Duration_ToDoubleMilliseconds_Latency(benchmark::State& state) {
+  absl::Duration d1 = absl::Seconds(100000);
+  absl::Duration d2 = absl::Seconds(100000);
+  double result = 1;
+  while (state.KeepRunning()) {
+    benchmark::DoNotOptimize(d1);
+    benchmark::DoNotOptimize(d2);
+    benchmark::DoNotOptimize(result);
+    result = absl::ToDoubleMilliseconds(result < 0 ? d1 : d2);
+  }
+}
+BENCHMARK(BM_Duration_ToDoubleMilliseconds_Latency);
+
+void BM_Duration_ToDoubleSeconds_Latency(benchmark::State& state) {
+  absl::Duration d1 = absl::Seconds(100000);
+  absl::Duration d2 = absl::Seconds(100000);
+  double result = 1;
+  while (state.KeepRunning()) {
+    benchmark::DoNotOptimize(d1);
+    benchmark::DoNotOptimize(d2);
+    benchmark::DoNotOptimize(result);
+    result = absl::ToDoubleSeconds(result < 0 ? d1 : d2);
+  }
+}
+BENCHMARK(BM_Duration_ToDoubleSeconds_Latency);
+
+void BM_Duration_ToDoubleMinutes_Latency(benchmark::State& state) {
+  absl::Duration d1 = absl::Seconds(100000);
+  absl::Duration d2 = absl::Seconds(100000);
+  double result = 1;
+  while (state.KeepRunning()) {
+    benchmark::DoNotOptimize(d1);
+    benchmark::DoNotOptimize(d2);
+    benchmark::DoNotOptimize(result);
+    result = absl::ToDoubleMinutes(result < 0 ? d1 : d2);
+  }
+}
+BENCHMARK(BM_Duration_ToDoubleMinutes_Latency);
+
+void BM_Duration_ToDoubleHours_Latency(benchmark::State& state) {
+  absl::Duration d1 = absl::Seconds(100000);
+  absl::Duration d2 = absl::Seconds(100000);
+  double result = 1;
+  while (state.KeepRunning()) {
+    benchmark::DoNotOptimize(d1);
+    benchmark::DoNotOptimize(d2);
+    benchmark::DoNotOptimize(result);
+    result = absl::ToDoubleHours(result < 0 ? d1 : d2);
+  }
+}
+BENCHMARK(BM_Duration_ToDoubleHours_Latency);
+
+//
 // To/FromTimespec
 //
 

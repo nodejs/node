@@ -9,6 +9,7 @@
 #include "src/common/globals.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/isolate-inl.h"
+#include "src/execution/isolate.h"
 #include "src/execution/protectors-inl.h"
 #include "src/init/bootstrapper.h"
 #include "src/logging/counters.h"
@@ -673,8 +674,8 @@ void LookupIterator::PrepareTransitionToDataProperty(
   }
 }
 
-void LookupIterator::ApplyTransitionToDataProperty(
-    DirectHandle<JSReceiver> receiver) {
+Maybe<bool> LookupIterator::ApplyTransitionToDataProperty(
+    DirectHandle<JSReceiver> receiver, Maybe<ShouldThrow> should_throw) {
   DCHECK_EQ(TRANSITION, state_);
 
   DCHECK_IMPLIES(!receiver.is_identical_to(GetStoreTarget<JSReceiver>()),
@@ -689,16 +690,18 @@ void LookupIterator::ApplyTransitionToDataProperty(
     DirectHandle<GlobalDictionary> dictionary(
         global->global_dictionary(isolate_, kAcquireLoad), isolate_);
 
-    dictionary =
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate_, dictionary,
         GlobalDictionary::Add(isolate_, dictionary, name(), transition_cell(),
-                              property_details_, &number_);
+                              property_details_, &number_),
+        Nothing<bool>());
     global->set_global_dictionary(*dictionary, kReleaseStore);
 
     // Reload details containing proper enumeration index value.
     property_details_ = transition_cell()->property_details();
     has_property_ = true;
     state_ = DATA;
-    return;
+    return Just(true);
   }
   DirectHandle<Map> transition = transition_map();
   bool simple_transition =
@@ -743,10 +746,12 @@ void LookupIterator::ApplyTransitionToDataProperty(
       DirectHandle<NameDictionary> dictionary(
           receiver->property_dictionary(isolate_), isolate_);
 
-      dictionary =
+      ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+          isolate_, dictionary,
           NameDictionary::Add(isolate(), dictionary, name(),
                               isolate_->factory()->uninitialized_value(),
-                              property_details_, &number_);
+                              property_details_, &number_),
+          Nothing<bool>());
       receiver->SetProperties(*dictionary);
       // TODO(pthier): Add flags to swiss dictionaries.
       if (name()->IsInteresting(isolate())) {
@@ -761,6 +766,7 @@ void LookupIterator::ApplyTransitionToDataProperty(
   } else {
     ReloadPropertyInformation<false>();
   }
+  return Just(true);
 }
 
 void LookupIterator::Delete() {

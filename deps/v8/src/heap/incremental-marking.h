@@ -81,7 +81,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   // should be started.
   bool CanAndShouldBeStarted() const;
   void Start(GarbageCollector garbage_collector,
-             GarbageCollectionReason gc_reason);
+             GarbageCollectionReason gc_reason, const char* reason);
   // Returns true if incremental marking was running and false otherwise.
   bool Stop();
 

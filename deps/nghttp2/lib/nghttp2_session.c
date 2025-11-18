@@ -438,6 +438,7 @@ static int session_new(nghttp2_session **session_ptr,
   size_t max_deflate_dynamic_table_size =
     NGHTTP2_HD_DEFAULT_MAX_DEFLATE_BUFFER_SIZE;
   size_t i;
+  uint32_t map_seed;
 
   if (mem == NULL) {
     mem = nghttp2_mem_default();
@@ -473,6 +474,10 @@ static int session_new(nghttp2_session **session_ptr,
   nghttp2_ratelim_init(&(*session_ptr)->stream_reset_ratelim,
                        NGHTTP2_DEFAULT_STREAM_RESET_BURST,
                        NGHTTP2_DEFAULT_STREAM_RESET_RATE);
+
+  nghttp2_ratelim_init(&(*session_ptr)->glitch_ratelim,
+                       NGHTTP2_DEFAULT_GLITCH_BURST,
+                       NGHTTP2_DEFAULT_GLITCH_RATE);
 
   if (server) {
     (*session_ptr)->server = 1;
@@ -566,6 +571,11 @@ static int session_new(nghttp2_session **session_ptr,
     if (option->opt_set_mask & NGHTTP2_OPT_MAX_CONTINUATIONS) {
       (*session_ptr)->max_continuations = option->max_continuations;
     }
+
+    if (option->opt_set_mask & NGHTTP2_OPT_GLITCH_RATE_LIMIT) {
+      nghttp2_ratelim_init(&(*session_ptr)->glitch_ratelim,
+                           option->glitch_burst, option->glitch_rate);
+    }
   }
 
   rv = nghttp2_hd_deflate_init2(&(*session_ptr)->hd_deflater,
@@ -594,7 +604,13 @@ static int session_new(nghttp2_session **session_ptr,
     goto fail_aob_framebuf;
   }
 
-  nghttp2_map_init(&(*session_ptr)->streams, mem);
+  if (callbacks->rand_callback) {
+    callbacks->rand_callback((uint8_t *)&map_seed, sizeof(map_seed));
+  } else {
+    map_seed = 0;
+  }
+
+  nghttp2_map_init(&(*session_ptr)->streams, map_seed, mem);
 
   active_outbound_item_reset(&(*session_ptr)->aob, mem);
 
@@ -3367,11 +3383,26 @@ static int session_call_on_invalid_frame_recv_callback(nghttp2_session *session,
   return 0;
 }
 
+static int session_update_glitch_ratelim(nghttp2_session *session) {
+  if (session->goaway_flags & NGHTTP2_GOAWAY_TERM_ON_SEND) {
+    return 0;
+  }
+
+  nghttp2_ratelim_update(&session->glitch_ratelim, nghttp2_time_now_sec());
+
+  if (nghttp2_ratelim_drain(&session->glitch_ratelim, 1) == 0) {
+    return 0;
+  }
+
+  return nghttp2_session_terminate_session(session, NGHTTP2_ENHANCE_YOUR_CALM);
+}
+
 static int session_handle_invalid_stream2(nghttp2_session *session,
                                           int32_t stream_id,
                                           nghttp2_frame *frame,
                                           int lib_error_code) {
   int rv;
+
   rv = nghttp2_session_add_rst_stream(
     session, stream_id, get_error_code_from_lib_error_code(lib_error_code));
   if (rv != 0) {
@@ -5444,6 +5475,16 @@ nghttp2_ssize nghttp2_session_mem_recv2(nghttp2_session *session,
         if (rv == NGHTTP2_ERR_IGN_PAYLOAD) {
           DEBUGF("recv: DATA not allowed stream_id=%d\n",
                  iframe->frame.hd.stream_id);
+
+          rv = session_update_glitch_ratelim(session);
+          if (rv != 0) {
+            return rv;
+          }
+
+          if (iframe->state == NGHTTP2_IB_IGN_ALL) {
+            return (nghttp2_ssize)inlen;
+          }
+
           iframe->state = NGHTTP2_IB_IGN_DATA;
           break;
         }
@@ -5467,6 +5508,20 @@ nghttp2_ssize nghttp2_session_mem_recv2(nghttp2_session *session,
         if (rv == 1) {
           iframe->state = NGHTTP2_IB_READ_PAD_DATA;
           break;
+        }
+
+        /* Empty DATA frame without END_STREAM flag set is
+           suspicious. */
+        if (iframe->payloadleft == 0 &&
+            (iframe->frame.hd.flags & NGHTTP2_FLAG_END_STREAM) == 0) {
+          rv = session_update_glitch_ratelim(session);
+          if (rv != 0) {
+            return rv;
+          }
+
+          if (iframe->state == NGHTTP2_IB_IGN_ALL) {
+            return (nghttp2_ssize)inlen;
+          }
         }
 
         iframe->state = NGHTTP2_IB_READ_DATA;
@@ -5545,6 +5600,15 @@ nghttp2_ssize nghttp2_session_mem_recv2(nghttp2_session *session,
         }
 
         if (rv == NGHTTP2_ERR_IGN_HEADER_BLOCK) {
+          rv = session_update_glitch_ratelim(session);
+          if (rv != 0) {
+            return rv;
+          }
+
+          if (iframe->state == NGHTTP2_IB_IGN_ALL) {
+            return (nghttp2_ssize)inlen;
+          }
+
           iframe->state = NGHTTP2_IB_IGN_HEADER_BLOCK;
           break;
         }
@@ -5563,6 +5627,18 @@ nghttp2_ssize nghttp2_session_mem_recv2(nghttp2_session *session,
           iframe->state = NGHTTP2_IB_FRAME_SIZE_ERROR;
 
           break;
+        }
+
+        /* This is deprecated RFC 7540 priorities mechanism which is
+           very unpopular.  We do not expect it is received so
+           frequently. */
+        rv = session_update_glitch_ratelim(session);
+        if (rv != 0) {
+          return rv;
+        }
+
+        if (iframe->state == NGHTTP2_IB_IGN_ALL) {
+          return (nghttp2_ssize)inlen;
         }
 
         iframe->state = NGHTTP2_IB_READ_NBYTE;
@@ -5737,8 +5813,17 @@ nghttp2_ssize nghttp2_session_mem_recv2(nghttp2_session *session,
         if (check_ext_type_set(session->user_recv_ext_types,
                                iframe->frame.hd.type)) {
           if (!session->callbacks.unpack_extension_callback) {
-            /* Silently ignore unknown frame type. */
+            /* Receiving too frequent unknown frames is suspicious. */
+            rv = session_update_glitch_ratelim(session);
+            if (rv != 0) {
+              return rv;
+            }
 
+            if (iframe->state == NGHTTP2_IB_IGN_ALL) {
+              return (nghttp2_ssize)inlen;
+            }
+
+            /* Silently ignore unknown frame type. */
             busy = 1;
 
             iframe->state = NGHTTP2_IB_IGN_PAYLOAD;
@@ -5850,6 +5935,17 @@ nghttp2_ssize nghttp2_session_mem_recv2(nghttp2_session *session,
               break;
             }
 
+            /* Receiving too frequent PRIORITY_UPDATE is
+               suspicious. */
+            rv = session_update_glitch_ratelim(session);
+            if (rv != 0) {
+              return rv;
+            }
+
+            if (iframe->state == NGHTTP2_IB_IGN_ALL) {
+              return (nghttp2_ssize)inlen;
+            }
+
             if (iframe->payloadleft > sizeof(iframe->raw_sbuf)) {
               busy = 1;
               iframe->state = NGHTTP2_IB_IGN_PAYLOAD;
@@ -5863,6 +5959,16 @@ nghttp2_ssize nghttp2_session_mem_recv2(nghttp2_session *session,
 
             break;
           default:
+            /* Receiving too frequent unknown frames is suspicious. */
+            rv = session_update_glitch_ratelim(session);
+            if (rv != 0) {
+              return rv;
+            }
+
+            if (iframe->state == NGHTTP2_IB_IGN_ALL) {
+              return (nghttp2_ssize)inlen;
+            }
+
             busy = 1;
 
             iframe->state = NGHTTP2_IB_IGN_PAYLOAD;
@@ -5959,6 +6065,15 @@ nghttp2_ssize nghttp2_session_mem_recv2(nghttp2_session *session,
         }
 
         if (rv == NGHTTP2_ERR_IGN_HEADER_BLOCK) {
+          rv = session_update_glitch_ratelim(session);
+          if (rv != 0) {
+            return rv;
+          }
+
+          if (iframe->state == NGHTTP2_IB_IGN_ALL) {
+            return (nghttp2_ssize)inlen;
+          }
+
           iframe->state = NGHTTP2_IB_IGN_HEADER_BLOCK;
           break;
         }
@@ -6496,6 +6611,20 @@ nghttp2_ssize nghttp2_session_mem_recv2(nghttp2_session *session,
       }
 
       iframe->frame.data.padlen = (size_t)padlen;
+
+      /* Empty DATA frame without END_STREAM flag set is
+         suspicious. */
+      if (iframe->payloadleft == 0 &&
+          (iframe->frame.hd.flags & NGHTTP2_FLAG_END_STREAM) == 0) {
+        rv = session_update_glitch_ratelim(session);
+        if (rv != 0) {
+          return rv;
+        }
+
+        if (iframe->state == NGHTTP2_IB_IGN_ALL) {
+          return (nghttp2_ssize)inlen;
+        }
+      }
 
       iframe->state = NGHTTP2_IB_READ_DATA;
 

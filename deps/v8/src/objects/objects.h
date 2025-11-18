@@ -54,6 +54,9 @@ enum WriteBarrierMode {
   // object resides in the young generation. This allows to remove barriers in
   // scenarios where static write barrier removal wouldn't be allowed.
   SKIP_WRITE_BARRIER_SCOPE,
+  // Skips the write barrier during GC atomic pause. The GC uses explicit
+  // barriers where needed.
+  SKIP_WRITE_BARRIER_FOR_GC,
   // Skips the write barrier in CSA/Turbofan. Used to skip Turbofan's
   // verification in the MemoryOptimizer.
   UNSAFE_SKIP_WRITE_BARRIER,
@@ -829,7 +832,7 @@ class MapWord {
 
   // View this map word as a forwarding address.
   inline Tagged<HeapObject> ToForwardingAddress(
-      Tagged<HeapObject> map_word_host);
+      Tagged<HeapObject> map_word_host) const;
 
   constexpr inline Address ptr() const { return value_; }
 

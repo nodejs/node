@@ -40,6 +40,10 @@ V8_INLINE void InitExternalPointerField(Address host_address,
                                         Address field_address,
                                         IsolateForSandbox isolate,
                                         Address value);
+V8_INLINE void InitExternalPointerField(Address host_address,
+                                        Address field_address,
+                                        IsolateForSandbox isolate,
+                                        ExternalPointerTag tag, Address value);
 
 // If the sandbox is enabled: reads the ExternalPointerHandle from the field and
 // loads the corresponding external pointer from the external pointer table. If
@@ -65,6 +69,9 @@ template <ExternalPointerTag tag>
 V8_INLINE void WriteExternalPointerField(Address field_address,
                                          IsolateForSandbox isolate,
                                          Address value);
+V8_INLINE void WriteExternalPointerField(Address field_address,
+                                         IsolateForSandbox isolate,
+                                         ExternalPointerTag tag, Address value);
 
 }  // namespace internal
 }  // namespace v8

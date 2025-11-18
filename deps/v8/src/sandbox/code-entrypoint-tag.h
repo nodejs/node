@@ -53,7 +53,10 @@ enum CodeEntrypointTag : uint64_t {
   // TODO(saelo): create more of these tags.
 
   // Tag to use for Code objects with stub linkage created by unittests.
-  kCodeEntrypointTagForTesting = uint64_t{0xfd} << kCodeEntrypointTagShift,
+  kCodeEntrypointTagForTesting = uint64_t{0xfc} << kCodeEntrypointTagShift,
+
+  // Tag to use for Code objects corresponding to currently disabled builtins.
+  kDisabledBuiltinEntrypointTag = uint64_t{0xfd} << kCodeEntrypointTagShift,
 
   // Tag to use for uninitialized code pointer table entries. This ensures
   // that the uninitialized value is unusable until the actual one is stored

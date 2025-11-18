@@ -97,7 +97,7 @@ CompilationResult CompileStreaming(v8_fuzzer::FuzzerSupport* support,
       stream->OnBytesReceived(data.SubVector(0, split));
       stream->OnBytesReceived(data.SubVectorFrom(split));
     }
-    stream->Finish();
+    stream->Finish({});
 
     // Wait for the promise to resolve or reject.
     while (!resolver->done()) {

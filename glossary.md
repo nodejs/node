@@ -8,6 +8,10 @@ This file documents various terms and definitions used throughout the Node.js co
 * **API**: [Application Programming Interface][] - A set of rules and protocols that allows different software
   applications to communicate with each other. APIs are used to enable integration between different systems.
 * **ASAP**: As Soon As Possible.
+* **ASLR**: Address Space Layout Randomization. A security technique that randomizes memory addresses
+  to prevent certain attacks.
+* **Backport**: The process of applying a fix or feature from a newer branch to an older supported
+  branch (e.g., applying a security fix to an LTS release).
 * **BE**: Big [Endian][] - A Byte Order where the largest bit comes first. The opposite of **LE**.
 * **Bootstrap**: Early phase in the Node.js process startup - sets up the execution environment and loads internal
   modules.
@@ -73,9 +77,9 @@ This file documents various terms and definitions used throughout the Node.js co
   contain data and code to manipulate that data. OOP languages include features such as encapsulation, inheritance,
   and polymorphism.
 * **PPC**: [PowerPC][] - A type of microprocessor architecture.
-* **PTAL**: Please Take A Look.
 * **Primordials**: Pristine built-ins in JavaScript that are not affected by prototype pollution.
 * **Prototype Pollution**: Process in which a user mutating object prototypes affects other code.
+* **PTAL**: Please Take A Look.
 * **RAII**: [Resource Acquisition Is Initialization][] - Programming idiom used to manage resources in C++.
 * **REPL**: [Read Evaluate Print Loop][] - Environment for interactive programming.
 * **RFC**: [Request For Comments][] - A Document used in standardization processes.

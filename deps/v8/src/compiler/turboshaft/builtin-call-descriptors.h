@@ -11,6 +11,7 @@
 #include "src/compiler/frame.h"
 #include "src/compiler/globals.h"
 #include "src/compiler/turbofan-types.h"
+#include "src/compiler/turboshaft/call-descriptors-util.h"
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/representations.h"
 #include "src/compiler/write-barrier-kind.h"
@@ -19,74 +20,21 @@
 #include "src/objects/turbofan-types.h"
 
 // Use this macro to define Arguments in builtins' Descriptor's Arguments.
-#define ARG(type, name)                                                        \
-  type name;                                                                   \
-  static constexpr const size_t name##_index =                                 \
-      decltype(index_counter(detail::IndexTag<kMaxArgumentCount>{}))::value;   \
-  static constexpr detail::IndexTag<name##_index + 1> index_counter(           \
-      detail::IndexTag<name##_index + 1>);                                     \
-  static_assert(name##_index < kMaxArgumentCount);                             \
-  static constexpr base::tmp::append_t<                                        \
-      decltype(make_args_type_list_n(detail::IndexTag<name##_index>{})), type> \
-      make_args_type_list_n(detail::IndexTag<name##_index + 1>);               \
-  template <size_t I>                                                          \
-    requires(I == name##_index + 1)                                            \
-  void CollectArguments(arguments_vector_t& args, detail::IndexTag<I>) const { \
-  }                                                                            \
-  void CollectArguments(arguments_vector_t& args,                              \
-                        detail::IndexTag<name##_index>) const {                \
-    args.push_back(name);                                                      \
-    CollectArguments(args, detail::IndexTag<name##_index + 1>{});              \
-  }
+// For builtins without arguments, use `builtin::NoArguments`.
+#define ARG(type, name) DEFINE_TURBOSHAFT_CALL_DESCRIPTOR_ARG(type, name)
 
 namespace v8::internal::compiler::turboshaft {
-
-namespace detail {
-template <size_t I>
-struct IndexTag : public IndexTag<I - 1> {
-  static constexpr size_t value = I;
-};
-template <>
-struct IndexTag<0> {
-  static constexpr size_t value = 0;
-};
-}  // namespace detail
 
 // TODO(nicohartmann): Consider a different name, but currently everything that
 // is not lengthy is already used in so many other places that constant name
 // collisions are unavoidable.
-struct builtin {
+struct builtin : CallDescriptorBuilder {
   // TODO(nicohartmann@): Unfortunately, we cannot define builtins with
   // void/never return types properly (e.g. in Torque), but they typically have
   // a JSAny dummy return type. Use Void/Never sentinels to express that in
   // Turboshaft's descriptors. We should find a better way to model this.
   using Void = std::tuple<OpIndex>;
   using Never = std::tuple<OpIndex>;
-  // The maximum number of arguments is chosen arbitrarily and can be increased
-  // if necessary.
-  static constexpr std::size_t kMaxArgumentCount = 8;
-  using arguments_vector_t = base::SmallVector<OpIndex, kMaxArgumentCount>;
-  // TODO(abmusse): use ArgumentsBase (until we can use GCC 13 or better)
-  struct ArgumentsBase {
-    static constexpr inline detail::IndexTag<0> index_counter(
-        detail::IndexTag<0>);
-    static constexpr base::tmp::list<> make_args_type_list_n(
-        detail::IndexTag<0>);
-  };
-
-  static constexpr OpEffects base_effects = OpEffects().CanDependOnChecks();
-  template <typename A>
-  static arguments_vector_t ArgumentsToVector(const A& args) {
-    arguments_vector_t result;
-    args.CollectArguments(result, detail::IndexTag<0>{});
-    return result;
-  }
-
-  template <typename A>
-  static constexpr size_t GetArgumentCount() {
-    return decltype(A::index_counter(
-        detail::IndexTag<kMaxArgumentCount>{}))::value;
-  }
 
   template <typename Derived>
   struct Descriptor {
@@ -138,34 +86,6 @@ struct builtin {
       // the builtin effect analysis.
       // DCHECK_IMPLIES(Derived::kEffects.can_allocate,
       // Derived::kCanTriggerLazyDeopt);
-    }
-
-   private:
-    template <typename T, size_t I>
-    struct VerifyArgument {
-      void operator()(const CallDescriptor* desc) const {
-        DCHECK(AllowsRepresentation<T>(
-            RegisterRepresentation::FromMachineRepresentation(
-                desc->GetParameterType(I).representation())));
-      }
-    };
-    template <typename T, size_t I>
-    struct VerifyReturn {
-      void operator()(const CallDescriptor* desc) const {
-        DCHECK(AllowsRepresentation<T>(
-            RegisterRepresentation::FromMachineRepresentation(
-                desc->GetReturnType(I).representation())));
-      }
-    };
-
-    template <typename T>
-    static bool AllowsRepresentation(RegisterRepresentation rep) {
-      if constexpr (std::is_same_v<T, OpIndex>) {
-        return true;
-      } else {
-        // T is V<...>
-        return T::allows_representation(rep);
-      }
     }
 #endif  // DEBUG
   };
@@ -768,6 +688,20 @@ struct builtin {
     static constexpr Operator::Properties kProperties =
         Operator::kNoDeopt | Operator::kNoThrow;
   };
+
+#if V8_ENABLE_WEBASSEMBLY
+  struct WasmTypeAssertionFailed : public Descriptor<WasmTypeAssertionFailed> {
+    static constexpr auto kFunction = Builtin::kWasmTypeAssertionFailed;
+    using Arguments = NoArguments;
+    using returns_t = Never;
+
+    static constexpr bool kCanTriggerLazyDeopt = false;
+    static constexpr bool kNeedsContext = false;
+    static constexpr Operator::Properties kProperties =
+        Operator::kNoDeopt | Operator::kNoThrow;
+    static constexpr OpEffects kEffects = base_effects.RequiredWhenUnused();
+  };
+#endif  // V8_ENABLE_WEBASSEMBLY
 };
 
 // TODO(nicohartmann): These call descriptors are deprecated and shall be
@@ -1741,6 +1675,18 @@ struct BuiltinCallDescriptor {
 
     static constexpr bool kNeedsFrameState = false;
     static constexpr bool kNeedsContext = false;
+    static constexpr Operator::Properties kProperties = Operator::kNoProperties;
+    static constexpr OpEffects kEffects = base_effects.CanCallAnything();
+  };
+
+  struct WasmFXSuspend : public Descriptor<WasmFXSuspend> {
+    static constexpr auto kFunction = Builtin::kWasmFXSuspend;
+    using arguments_t =
+        std::tuple<V<WasmExceptionTag>, V<WasmContinuationObject>>;
+    using results_t = std::tuple<>;
+
+    static constexpr bool kNeedsFrameState = false;
+    static constexpr bool kNeedsContext = true;
     static constexpr Operator::Properties kProperties = Operator::kNoProperties;
     static constexpr OpEffects kEffects = base_effects.CanCallAnything();
   };

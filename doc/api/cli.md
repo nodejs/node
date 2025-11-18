@@ -977,7 +977,7 @@ only recognizes double `"` for quoting. In Powershell or Git bash, both `'`
 and `"` are usable.
 
 It is possible to run code containing inline types unless the
-[`--no-experimental-strip-types`][] flag is provided.
+[`--no-strip-types`][] flag is provided.
 
 ### `--experimental-addon-modules`
 
@@ -1586,7 +1586,7 @@ changes:
 
 This configures Node.js to interpret `--eval` or `STDIN` input as CommonJS or
 as an ES module. Valid values are `"commonjs"`, `"module"`, `"module-typescript"` and `"commonjs-typescript"`.
-The `"-typescript"` values are not available with the flag `--no-experimental-strip-types`.
+The `"-typescript"` values are not available with the flag `--no-strip-types`.
 The default is no value, or `"commonjs"` if `--no-experimental-detect-module` is passed.
 
 If `--input-type` is not provided,
@@ -1745,10 +1745,11 @@ surface on other platforms, but the performance impact may be severe.
 added: v22.4.0
 -->
 
+> Stability: 1.2 - Release candidate.
+
 The file used to store `localStorage` data. If the file does not exist, it is
 created the first time `localStorage` is accessed. The same file may be shared
-between multiple Node.js processes concurrently. This flag is a no-op if
-Node.js is started with the `--no-webstorage` (or `--no-experimental-webstorage`) flag.
+between multiple Node.js processes concurrently.
 
 ### `--max-http-header-size=size`
 
@@ -1902,23 +1903,6 @@ changes:
 
 Disable the experimental [`node:sqlite`][] module.
 
-### `--no-experimental-strip-types`
-
-<!-- YAML
-added: v22.6.0
-changes:
-  - version:
-      - v23.6.0
-      - v22.18.0
-    pr-url: https://github.com/nodejs/node/pull/56350
-    description: Type stripping is enabled by default.
--->
-
-> Stability: 1.2 - Release candidate
-
-Disable experimental type-stripping for TypeScript files.
-For more information, see the [TypeScript type-stripping][] documentation.
-
 ### `--no-experimental-websocket`
 
 <!-- YAML
@@ -1926,6 +1910,20 @@ added: v22.0.0
 -->
 
 Disable exposition of {WebSocket} on the global scope.
+
+### `--no-experimental-webstorage`
+
+<!-- YAML
+added: v22.4.0
+changes:
+  - version: v25.0.0
+    pr-url: https://github.com/nodejs/node/pull/57666
+    description: The feature is now enabled by default.
+-->
+
+> Stability: 1.2 - Release candidate.
+
+Disable [`Web Storage`][] support.
 
 ### `--no-extra-info-on-fatal-exception`
 
@@ -1968,6 +1966,25 @@ changes:
 Disables the family autoselection algorithm unless connection options explicitly
 enables it.
 
+### `--no-strip-types`
+
+<!-- YAML
+added: v22.6.0
+changes:
+  - version: v25.2.0
+    pr-url: https://github.com/nodejs/node/pull/60600
+    description: Type stripping is now stable, the flag was renamed from
+                 `--no-experimental-strip-types` to `--no-strip-types`.
+  - version:
+      - v23.6.0
+      - v22.18.0
+    pr-url: https://github.com/nodejs/node/pull/56350
+    description: Type stripping is enabled by default.
+-->
+
+Disable type-stripping for TypeScript files.
+For more information, see the [TypeScript type-stripping][] documentation.
+
 ### `--no-warnings`
 
 <!-- YAML
@@ -1975,14 +1992,6 @@ added: v6.0.0
 -->
 
 Silence all process warnings (including deprecations).
-
-### `--no-webstorage`
-
-<!-- YAML
-added: v25.0.0
--->
-
-Disable [`Web Storage`][] support.
 
 ### `--node-memory-debug`
 
@@ -3548,6 +3557,7 @@ one is included in the list below.
 * `--no-force-async-hooks-checks`
 * `--no-global-search-paths`
 * `--no-network-family-autoselection`
+* `--no-strip-types`
 * `--no-warnings`
 * `--no-webstorage`
 * `--node-memory-debug`
@@ -4111,7 +4121,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`--experimental-sea-config`]: single-executable-applications.md#generating-single-executable-preparation-blobs
 [`--heap-prof-dir`]: #--heap-prof-dir
 [`--import`]: #--importmodule
-[`--no-experimental-strip-types`]: #--no-experimental-strip-types
+[`--no-strip-types`]: #--no-strip-types
 [`--openssl-config`]: #--openssl-configfile
 [`--preserve-symlinks`]: #--preserve-symlinks
 [`--print`]: #-p---print-script
@@ -4148,7 +4158,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [debugging security implications]: https://nodejs.org/en/docs/guides/debugging-getting-started/#security-implications
 [deprecation warnings]: deprecations.md#list-of-deprecated-apis
 [emit_warning]: process.md#processemitwarningwarning-options
-[environment_variables]: #environment-variables
+[environment_variables]: #environment-variables_1
 [filtering tests by name]: test.md#filtering-tests-by-name
 [global setup and teardown]: test.md#global-setup-and-teardown
 [jitless]: https://v8.dev/blog/jitless

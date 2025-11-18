@@ -137,6 +137,17 @@ TEST(TypeTraitsTest, TestRemoveCVRef) {
                             int[2]>::value));
 }
 
+TEST(TypeTraitsTest, TestTypeIdentity) {
+  EXPECT_TRUE((std::is_same_v<typename absl::type_identity<int>::type, int>));
+  EXPECT_TRUE((std::is_same_v<absl::type_identity_t<int>, int>));
+  EXPECT_TRUE((std::is_same_v<typename absl::type_identity<int&>::type, int&>));
+  EXPECT_TRUE((std::is_same_v<absl::type_identity_t<int&>, int&>));
+
+  EXPECT_FALSE(
+      (std::is_same_v<typename absl::type_identity<int64_t>::type, int32_t>));
+  EXPECT_FALSE((std::is_same_v<absl::type_identity_t<int64_t>, int32_t>));
+}
+
 struct TypeA {};
 struct TypeB {};
 struct TypeC {};

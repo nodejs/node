@@ -19,47 +19,45 @@ void AssemblerRISCVI::auipc(Register rd, int32_t imm20) {
 void AssemblerRISCVI::jal(Register rd, int32_t imm21) {
   GenInstrJ(JAL, rd, imm21);
   // If we're linking, this could potentially be the location of a safepoint.
-  if (rd != zero_reg) RecordPcForSafepoint();
-  ClearVectorunit();
+  if (rd != zero_reg) {
+    RecordPcForSafepoint();
+    ClearVectorUnit();
+  }
 }
 
 void AssemblerRISCVI::jalr(Register rd, Register rs1, int16_t imm12) {
   GenInstrI(0b000, JALR, rd, rs1, imm12);
   // If we're linking, this could potentially be the location of a safepoint.
-  if (rd != zero_reg) RecordPcForSafepoint();
-  ClearVectorunit();
+  if (rd != zero_reg) {
+    RecordPcForSafepoint();
+    ClearVectorUnit();
+  }
 }
 
 // Branches
 
 void AssemblerRISCVI::beq(Register rs1, Register rs2, int16_t imm13) {
   GenInstrBranchCC_rri(0b000, rs1, rs2, imm13);
-  ClearVectorunit();
 }
 
 void AssemblerRISCVI::bne(Register rs1, Register rs2, int16_t imm13) {
   GenInstrBranchCC_rri(0b001, rs1, rs2, imm13);
-  ClearVectorunit();
 }
 
 void AssemblerRISCVI::blt(Register rs1, Register rs2, int16_t imm13) {
   GenInstrBranchCC_rri(0b100, rs1, rs2, imm13);
-  ClearVectorunit();
 }
 
 void AssemblerRISCVI::bge(Register rs1, Register rs2, int16_t imm13) {
   GenInstrBranchCC_rri(0b101, rs1, rs2, imm13);
-  ClearVectorunit();
 }
 
 void AssemblerRISCVI::bltu(Register rs1, Register rs2, int16_t imm13) {
   GenInstrBranchCC_rri(0b110, rs1, rs2, imm13);
-  ClearVectorunit();
 }
 
 void AssemblerRISCVI::bgeu(Register rs1, Register rs2, int16_t imm13) {
   GenInstrBranchCC_rri(0b111, rs1, rs2, imm13);
-  ClearVectorunit();
 }
 
 // Loads
@@ -183,29 +181,29 @@ void AssemblerRISCVI::and_(Register rd, Register rs1, Register rs2) {
 void AssemblerRISCVI::fence(uint8_t pred, uint8_t succ) {
   DCHECK(is_uint4(pred) && is_uint4(succ));
   uint16_t imm12 = succ | (pred << 4) | (0b0000 << 8);
-  GenInstrI(0b000, MISC_MEM, ToRegister(0), ToRegister(0), imm12);
+  GenInstrI(0b000, MISC_MEM, zero_reg, zero_reg, imm12);
 }
 
 void AssemblerRISCVI::fence_tso() {
   uint16_t imm12 = (0b0011) | (0b0011 << 4) | (0b1000 << 8);
-  GenInstrI(0b000, MISC_MEM, ToRegister(0), ToRegister(0), imm12);
+  GenInstrI(0b000, MISC_MEM, zero_reg, zero_reg, imm12);
 }
 
 // Environment call / break
 
 void AssemblerRISCVI::ecall() {
-  GenInstrI(0b000, SYSTEM, ToRegister(0), ToRegister(0), 0);
+  GenInstrI(0b000, SYSTEM, zero_reg, zero_reg, 0);
 }
 
 void AssemblerRISCVI::ebreak() {
-  GenInstrI(0b000, SYSTEM, ToRegister(0), ToRegister(0), 1);
+  GenInstrI(0b000, SYSTEM, zero_reg, zero_reg, 1);
 }
 
 // This is a de facto standard (as set by GNU binutils) 32-bit unimplemented
 // instruction (i.e., it should always trap, if your implementation has invalid
 // instruction traps).
 void AssemblerRISCVI::unimp() {
-  GenInstrI(0b001, SYSTEM, ToRegister(0), ToRegister(0), 0b110000000000);
+  GenInstrI(0b001, SYSTEM, zero_reg, zero_reg, 0b110000000000);
 }
 
 bool AssemblerRISCVI::IsBranch(Instr instr) {

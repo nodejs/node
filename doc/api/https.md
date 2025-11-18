@@ -61,6 +61,12 @@ changes:
 An [`Agent`][] object for HTTPS similar to [`http.Agent`][]. See
 [`https.request()`][] for more information.
 
+Like `http.Agent`, the `createConnection(options[, callback])` method can be overridden
+to customize how TLS connections are established.
+
+> See [`agent.createConnection()`][] for details on overriding this method,
+> including asynchronous socket creation with a callback.
+
 ### `new Agent([options])`
 
 <!-- YAML
@@ -738,6 +744,7 @@ statusCode: 200
 [`Agent`]: #class-httpsagent
 [`Session Resumption`]: tls.md#session-resumption
 [`URL`]: url.md#the-whatwg-url-api
+[`agent.createConnection()`]: http.md#agentcreateconnectionoptions-callback
 [`http.Agent(options)`]: http.md#new-agentoptions
 [`http.Agent`]: http.md#class-httpagent
 [`http.ClientRequest`]: http.md#class-httpclientrequest

@@ -169,6 +169,28 @@ template <typename T>
 using remove_cvref_t = typename remove_cvref<T>::type;
 #endif
 
+#if defined(__cpp_lib_type_identity) && __cpp_lib_type_identity >= 201806L
+template <typename T>
+using type_identity = std::type_identity<T>;
+
+template <typename T>
+using type_identity_t = std::type_identity_t<T>;
+#else
+// type_identity
+//
+// Back-fill of C++20's `std::type_identity`.
+template <typename T>
+struct type_identity {
+  typedef T type;
+};
+
+// type_identity_t
+//
+// Back-fill of C++20's `std::type_identity_t`.
+template <typename T>
+using type_identity_t = typename type_identity<T>::type;
+#endif
+
 namespace type_traits_internal {
 
 #if (defined(__cpp_lib_is_invocable) && __cpp_lib_is_invocable >= 201703L) || \

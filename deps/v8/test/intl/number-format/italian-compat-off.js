@@ -5,7 +5,7 @@
 // Flags: --no-icu-default-italian-number-grouping-always
 
 // Default
-assertEquals("4.321", (4321).toLocaleString("it"));
+assertEquals("4321", (4321).toLocaleString("it"));
 assertEquals("54.321", (54321).toLocaleString("it"));
 
 // Explicit useGrouping

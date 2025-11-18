@@ -12,6 +12,7 @@
 #include "src/common/globals.h"
 #include "src/objects/cpp-heap-object-wrapper.h"
 #include "src/objects/heap-object.h"
+#include "src/objects/objects.h"
 
 namespace v8::internal {
 
@@ -38,10 +39,22 @@ class V8_EXPORT_PRIVATE V8_NODISCARD WriteBarrierModeScope final {
 
   ~WriteBarrierModeScope();
 
-  WriteBarrierMode operator*() { return mode_; }
+  WriteBarrierModeScope(const WriteBarrierModeScope&) = delete;
+  WriteBarrierModeScope& operator=(const WriteBarrierModeScope&) = delete;
+
+  WriteBarrierModeScope(WriteBarrierModeScope&& other) V8_NOEXCEPT
+      : object_(other.object_),
+        mode_(other.mode_) {
+    other.mode_ = std::nullopt;
+    other.object_ = Tagged<HeapObject>();
+  }
+  WriteBarrierModeScope& operator=(WriteBarrierModeScope&&) = delete;
+
+  WriteBarrierMode operator*() { return *mode_; }
 
  private:
-  const WriteBarrierMode mode_;
+  Tagged<HeapObject> object_;
+  std::optional<WriteBarrierMode> mode_;
 };
 
 // Write barrier interface. It's preferred to use the macros defined in
@@ -138,8 +151,10 @@ class V8_EXPORT_PRIVATE WriteBarrier final {
 
  private:
   static inline bool IsSkipWriteBarrierMode(WriteBarrierMode mode) {
-    static_assert(SKIP_WRITE_BARRIER == 0 && SKIP_WRITE_BARRIER_SCOPE == 1);
-    return mode <= SKIP_WRITE_BARRIER_SCOPE;
+    static_assert(SKIP_WRITE_BARRIER == 0 && SKIP_WRITE_BARRIER_SCOPE == 1 &&
+                  SKIP_WRITE_BARRIER_FOR_GC == 2 &&
+                  UNSAFE_SKIP_WRITE_BARRIER == 3);
+    return mode <= UNSAFE_SKIP_WRITE_BARRIER;
   }
 
   static inline WriteBarrierMode ComputeWriteBarrierModeForObject(

@@ -15,6 +15,7 @@ ADDITIONAL_VARIANTS = set([
     "stress_maglev",
     "conservative_stack_scanning",
     "precise_pinning",
+    "scavenger_chaos_mode",
 ])
 SHELL = "v8_unittests"
 

@@ -471,6 +471,9 @@ bool TypeCanonicalizer::IsArray(CanonicalTypeIndex index) const {
 bool TypeCanonicalizer::IsShared(CanonicalTypeIndex index) const {
   return canonical_types_[index]->is_shared;
 }
+bool TypeCanonicalizer::has_descriptor(CanonicalTypeIndex index) const {
+  return canonical_types_[index]->descriptor.valid();
+}
 
 #ifdef DEBUG
 bool TypeCanonicalizer::Contains(const CanonicalSig* sig) const {

@@ -27,11 +27,11 @@ const handlers = {
 
 channel.subscribe(handlers);
 try {
-  channel.traceSync(function(err) {
+  channel.traceSync(common.mustCall(function(err) {
     assert.deepStrictEqual(this, thisArg);
     assert.strictEqual(err, expectedError);
     throw err;
-  }, input, thisArg, expectedError);
+  }), input, thisArg, expectedError);
 
   throw new Error('It should not reach this error');
 } catch (error) {

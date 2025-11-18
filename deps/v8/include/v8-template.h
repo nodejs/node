@@ -183,12 +183,8 @@ enum class Intercepted : uint8_t { kNo = 0, kYes = 1 };
  */
 using NamedPropertyGetterCallback = Intercepted (*)(
     Local<Name> property, const PropertyCallbackInfo<Value>& info);
-// This variant will be deprecated soon.
-//
-// Use `info.GetReturnValue().Set()` to set the return value of the
-// intercepted get request. If the property does not exist the callback should
-// not set the result and must not produce side effects.
-using GenericNamedPropertyGetterCallback V8_DEPRECATE_SOON(
+// This variant will be deleted soon.
+using GenericNamedPropertyGetterCallback V8_DEPRECATED(
     "Use NamedPropertyGetterCallback instead") =
     void (*)(Local<Name> property, const PropertyCallbackInfo<Value>& info);
 
@@ -214,15 +210,8 @@ using GenericNamedPropertyGetterCallback V8_DEPRECATE_SOON(
 using NamedPropertySetterCallback =
     Intercepted (*)(Local<Name> property, Local<Value> value,
                     const PropertyCallbackInfo<void>& info);
-// This variant will be deprecated soon.
-//
-// Use `info.GetReturnValue()` to indicate whether the request was intercepted
-// or not. If the setter successfully intercepts the request, i.e., if the
-// request should not be further executed, call
-// `info.GetReturnValue().Set(value)`. If the setter did not intercept the
-// request, i.e., if the request should be handled as if no interceptor is
-// present, do not not call `Set()` and do not produce side effects.
-using GenericNamedPropertySetterCallback V8_DEPRECATE_SOON(
+// This variant will be deleted soon.
+using GenericNamedPropertySetterCallback V8_DEPRECATED(
     "Use NamedPropertySetterCallback instead") =
     void (*)(Local<Name> property, Local<Value> value,
              const PropertyCallbackInfo<Value>& info);
@@ -255,13 +244,8 @@ using GenericNamedPropertySetterCallback V8_DEPRECATE_SOON(
  */
 using NamedPropertyQueryCallback = Intercepted (*)(
     Local<Name> property, const PropertyCallbackInfo<Integer>& info);
-// This variant will be deprecated soon.
-//
-// Use `info.GetReturnValue().Set(value)` to set the property attributes. The
-// value is an integer encoding a `v8::PropertyAttribute`. If the property does
-// not exist the callback should not set the result and must not produce side
-// effects.
-using GenericNamedPropertyQueryCallback V8_DEPRECATE_SOON(
+// This variant will be deleted soon.
+using GenericNamedPropertyQueryCallback V8_DEPRECATED(
     "Use NamedPropertyQueryCallback instead") =
     void (*)(Local<Name> property, const PropertyCallbackInfo<Integer>& info);
 
@@ -291,15 +275,8 @@ using GenericNamedPropertyQueryCallback V8_DEPRECATE_SOON(
  */
 using NamedPropertyDeleterCallback = Intercepted (*)(
     Local<Name> property, const PropertyCallbackInfo<Boolean>& info);
-// This variant will be deprecated soon.
-//
-// Use `info.GetReturnValue()` to indicate whether the request was intercepted
-// or not. If the deleter successfully intercepts the request, i.e., if the
-// request should not be further executed, call
-// `info.GetReturnValue().Set(value)` with a boolean `value`. The `value` is
-// used as the return value of `delete`. If the deleter does not intercept the
-// request then it should not set the result and must not produce side effects.
-using GenericNamedPropertyDeleterCallback V8_DEPRECATE_SOON(
+// This variant will be deleted soon.
+using GenericNamedPropertyDeleterCallback V8_DEPRECATED(
     "Use NamedPropertyDeleterCallback instead") =
     void (*)(Local<Name> property, const PropertyCallbackInfo<Boolean>& info);
 
@@ -311,9 +288,9 @@ using GenericNamedPropertyDeleterCallback V8_DEPRECATE_SOON(
  */
 using NamedPropertyEnumeratorCallback =
     void (*)(const PropertyCallbackInfo<Array>& info);
-// This variant will be deprecated soon.
+// This variant will be deleted soon.
 // This is just a renaming of the typedef.
-using GenericNamedPropertyEnumeratorCallback V8_DEPRECATE_SOON(
+using GenericNamedPropertyEnumeratorCallback V8_DEPRECATED(
     "Use NamedPropertyEnumeratorCallback instead") =
     NamedPropertyEnumeratorCallback;
 
@@ -339,15 +316,8 @@ using GenericNamedPropertyEnumeratorCallback V8_DEPRECATE_SOON(
 using NamedPropertyDefinerCallback =
     Intercepted (*)(Local<Name> property, const PropertyDescriptor& desc,
                     const PropertyCallbackInfo<void>& info);
-// This variant will be deprecated soon.
-//
-// Use `info.GetReturnValue()` to indicate whether the request was intercepted
-// or not. If the definer successfully intercepts the request, i.e., if the
-// request should not be further executed, call
-// `info.GetReturnValue().Set(value)`. If the definer did not intercept the
-// request, i.e., if the request should be handled as if no interceptor is
-// present, do not not call `Set()` and do not produce side effects.
-using GenericNamedPropertyDefinerCallback V8_DEPRECATE_SOON(
+// This variant will be deleted soon.
+using GenericNamedPropertyDefinerCallback V8_DEPRECATED(
     "Use NamedPropertyDefinerCallback instead") =
     void (*)(Local<Name> property, const PropertyDescriptor& desc,
              const PropertyCallbackInfo<Value>& info);
@@ -378,13 +348,8 @@ using GenericNamedPropertyDefinerCallback V8_DEPRECATE_SOON(
  */
 using NamedPropertyDescriptorCallback = Intercepted (*)(
     Local<Name> property, const PropertyCallbackInfo<Value>& info);
-// This variant will be deprecated soon.
-//
-// Use `info.GetReturnValue().Set()` to set the return value of the
-// intercepted request. The return value must be an object that
-// can be converted to a PropertyDescriptor, e.g., a `v8::Value` returned from
-// `v8::Object::getOwnPropertyDescriptor`.
-using GenericNamedPropertyDescriptorCallback V8_DEPRECATE_SOON(
+// This variant will be deleted soon.
+using GenericNamedPropertyDescriptorCallback V8_DEPRECATED(
     "Use NamedPropertyDescriptorCallback instead") =
     void (*)(Local<Name> property, const PropertyCallbackInfo<Value>& info);
 
@@ -397,8 +362,8 @@ using GenericNamedPropertyDescriptorCallback V8_DEPRECATE_SOON(
  */
 using IndexedPropertyGetterCallbackV2 =
     Intercepted (*)(uint32_t index, const PropertyCallbackInfo<Value>& info);
-// This variant will be deprecated soon.
-using IndexedPropertyGetterCallback V8_DEPRECATE_SOON(
+// This variant will be deleted soon.
+using IndexedPropertyGetterCallback V8_DEPRECATED(
     "Use IndexedPropertyGetterCallbackV2 instead") =
     void (*)(uint32_t index, const PropertyCallbackInfo<Value>& info);
 
@@ -407,8 +372,8 @@ using IndexedPropertyGetterCallback V8_DEPRECATE_SOON(
  */
 using IndexedPropertySetterCallbackV2 = Intercepted (*)(
     uint32_t index, Local<Value> value, const PropertyCallbackInfo<void>& info);
-// This variant will be deprecated soon.
-using IndexedPropertySetterCallback V8_DEPRECATE_SOON(
+// This variant will be deleted soon.
+using IndexedPropertySetterCallback V8_DEPRECATED(
     "Use IndexedPropertySetterCallbackV2 instead") =
     void (*)(uint32_t index, Local<Value> value,
              const PropertyCallbackInfo<Value>& info);
@@ -418,8 +383,8 @@ using IndexedPropertySetterCallback V8_DEPRECATE_SOON(
  */
 using IndexedPropertyQueryCallbackV2 =
     Intercepted (*)(uint32_t index, const PropertyCallbackInfo<Integer>& info);
-// This variant will be deprecated soon.
-using IndexedPropertyQueryCallback V8_DEPRECATE_SOON(
+// This variant will be deleted soon.
+using IndexedPropertyQueryCallback V8_DEPRECATED(
     "Use IndexedPropertyQueryCallbackV2 instead") =
     void (*)(uint32_t index, const PropertyCallbackInfo<Integer>& info);
 
@@ -428,8 +393,8 @@ using IndexedPropertyQueryCallback V8_DEPRECATE_SOON(
  */
 using IndexedPropertyDeleterCallbackV2 =
     Intercepted (*)(uint32_t index, const PropertyCallbackInfo<Boolean>& info);
-// This variant will be deprecated soon.
-using IndexedPropertyDeleterCallback V8_DEPRECATE_SOON(
+// This variant will be deleted soon.
+using IndexedPropertyDeleterCallback V8_DEPRECATED(
     "Use IndexedPropertyDeleterCallbackV2 instead") =
     void (*)(uint32_t index, const PropertyCallbackInfo<Boolean>& info);
 
@@ -448,8 +413,8 @@ using IndexedPropertyEnumeratorCallback =
 using IndexedPropertyDefinerCallbackV2 =
     Intercepted (*)(uint32_t index, const PropertyDescriptor& desc,
                     const PropertyCallbackInfo<void>& info);
-// This variant will be deprecated soon.
-using IndexedPropertyDefinerCallback V8_DEPRECATE_SOON(
+// This variant will be deleted soon.
+using IndexedPropertyDefinerCallback V8_DEPRECATED(
     "Use IndexedPropertyDefinerCallbackV2 instead") =
     void (*)(uint32_t index, const PropertyDescriptor& desc,
              const PropertyCallbackInfo<Value>& info);
@@ -459,8 +424,8 @@ using IndexedPropertyDefinerCallback V8_DEPRECATE_SOON(
  */
 using IndexedPropertyDescriptorCallbackV2 =
     Intercepted (*)(uint32_t index, const PropertyCallbackInfo<Value>& info);
-// This variant will be deprecated soon.
-using IndexedPropertyDescriptorCallback V8_DEPRECATE_SOON(
+// This variant will be deleted soon.
+using IndexedPropertyDescriptorCallback V8_DEPRECATED(
     "Use IndexedPropertyDescriptorCallbackV2 instead") =
     void (*)(uint32_t index, const PropertyCallbackInfo<Value>& info);
 

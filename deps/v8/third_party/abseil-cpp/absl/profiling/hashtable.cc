@@ -42,6 +42,8 @@ StatusOr<std::string> MarshalHashtableProfile() {
 
 namespace debugging_internal {
 
+static void DroppedHashtableSample() {}
+
 StatusOr<std::string> MarshalHashtableProfile(
     container_internal::HashtablezSampler& sampler, Time now) {
   static constexpr absl::string_view kDropFrames =
@@ -111,10 +113,18 @@ StatusOr<std::string> MarshalHashtableProfile(
                           MakeSpan(info.stack, info.depth), labels);
       });
 
-  // TODO(b/262310142): Make this more structured data.
-  StringId comment_id =
-      builder.InternString(StrCat("dropped_samples: ", dropped));
-  builder.set_comment_id(comment_id);
+  if (dropped > 0) {
+    // If we dropped samples, we don't have information for them, including
+    // their sizes.  The non-zero weight allows it to be noticed in the profile
+    // and examined more closely.
+    //
+    // We compensate for the fixup done by AddSample by adjusting the address
+    // here.
+    const void* kFakeStack[] = {
+      absl::bit_cast<void*>(
+          reinterpret_cast<uintptr_t>(&DroppedHashtableSample)+1)};
+    builder.AddSample(static_cast<int64_t>(dropped), kFakeStack, {});
+  }
   builder.AddCurrentMappings();
   return std::move(builder).Emit();
 }

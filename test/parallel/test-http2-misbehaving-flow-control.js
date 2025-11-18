@@ -65,7 +65,7 @@ const data = Buffer.from([
 
 let client;
 const server = h2.createServer({ settings: { initialWindowSize: 18 } });
-server.on('stream', (stream) => {
+server.on('stream', common.mustCall((stream) => {
   stream.on('error', common.expectsError({
     code: 'ERR_HTTP2_STREAM_ERROR',
     name: 'Error',
@@ -78,7 +78,7 @@ server.on('stream', (stream) => {
   stream.resume();
   stream.respond();
   stream.end('ok');
-});
+}));
 
 server.on('close', common.mustCall());
 

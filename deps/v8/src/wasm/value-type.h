@@ -174,19 +174,22 @@ using HasIndexOrSentinelField = IsRefField::Next<bool, 1>;
   V(NoFunc, NoFunc, REF | FUNC, "nofunc")                                      \
   V(None, None, REF, "none")
 
-#define FOREACH_ABSTRACT_TYPE(V) /*                           force 80 cols */ \
-  FOREACH_NONE_TYPE(V)                                                         \
-  /* Established (non-proposal) types. */                                      \
+#define FOREACH_TOP_TYPE(V) /*                                force 80 cols */ \
   V(Func, FuncRef, REF | FUNC, "func")                                         \
   V(Any, AnyRef, REF, "any")                                                   \
+  V(Extern, ExternRef, REF, "extern")                                          \
+  V(Exn, ExnRef, REF, "exn")                                                   \
+  /* WasmFX aka Core Stack Switching. */                                       \
+  V(Cont, ContRef, REF | CONT, "cont")
+
+#define FOREACH_ABSTRACT_TYPE(V) /*                           force 80 cols */ \
+  FOREACH_NONE_TYPE(V)                                                         \
+  FOREACH_TOP_TYPE(V)                                                          \
+  /* Established (non-proposal) types. */                                      \
   V(Eq, EqRef, REF, "eq")                                                      \
   V(I31, I31Ref, REF, "i31")                                                   \
   V(Struct, StructRef, REF | STRUCT, "struct")                                 \
   V(Array, ArrayRef, REF | ARRAY, "array")                                     \
-  V(Extern, ExternRef, REF, "extern")                                          \
-  V(Exn, ExnRef, REF, "exn")                                                   \
-  /* WasmFX aka Core Stack Switching. */                                       \
-  V(Cont, ContRef, REF | CONT, "cont")                                         \
   /* Stringref proposal. */                                                    \
   V(String, StringRef, REF, "string")                                          \
   V(StringViewWtf8, StringViewWtf8, REF, "stringview_wtf8")                    \
@@ -471,6 +474,12 @@ class ValueTypeBase {
     return true;
   }
 
+  constexpr bool is_none_type() const {
+    DCHECK(!is_numeric());
+    if (!is_abstract_ref()) return false;
+    return IsNullKind(generic_kind());
+  }
+
   constexpr int value_kind_size_log2() const {
     DCHECK(!is_sentinel());  // Caller's responsibility.
     if (is_ref()) return kTaggedSizeLog2;
@@ -666,8 +675,6 @@ class ValueTypeBase {
     return is_nullable() ? kRefNull : kRef;
   }
 
-  constexpr uint32_t raw_heap_representation(bool distinguish_shared) const;
-
  protected:
   friend class CanonicalValueType;
   friend class HeapType;
@@ -791,63 +798,6 @@ class HeapType : public ValueTypeBase {
 
   /************************* Incremental transition ***************************/
   // The following methods are deprecated. Their usage should be replaced.
-  enum Representation : uint32_t {
-    kFunc = kV8MaxWasmTypes,  // shorthand: c
-    kEq,                      // shorthand: q
-    kI31,                     // shorthand: j
-    kStruct,                  // shorthand: o
-    kArray,                   // shorthand: g
-    kAny,                     //
-    kExtern,                  // shorthand: a.
-    kExternString,            // Internal type for optimization purposes.
-                              // Subtype of extern.
-                              // Used by the js-builtin-strings proposal.
-    kExn,                     //
-    kString,                  // shorthand: w.
-    kStringViewWtf8,          // shorthand: x.
-    kStringViewWtf16,         // shorthand: y.
-    kStringViewIter,          // shorthand: z.
-    kNone,                    //
-    kNoFunc,                  //
-    kNoExtern,                //
-    kNoExn,                   //
-    kCont,                    // shorthand: k.
-    kContShared,
-    kNoCont,  // bottom continuation type
-    kFuncShared,
-    kEqShared,
-    kI31Shared,
-    kStructShared,
-    kArrayShared,
-    kAnyShared,
-    kExternShared,
-    kExternStringShared,
-    kExnShared,
-    kStringShared,
-    kStringViewWtf8Shared,
-    kStringViewWtf16Shared,
-    kStringViewIterShared,
-    kNoneShared,
-    kNoFuncShared,
-    kNoExternShared,
-    kNoExnShared,
-    kNoContShared,
-    // This value is an internal type (not part of the Wasm spec) that
-    // is the common supertype across all type hierarchies.  It should never
-    // appear in validated Wasm programs, but is used to signify that we don't
-    // have any information about a particular value and to prevent bugs in our
-    // typed optimizations, see crbug.com/361652141. Note: kTop is the neutral
-    // element wrt. to intersection (whereas kBottom is for union), and kBottom
-    // is indicating unreachable code, which might be used for subsequent
-    // optimizations, e.g., DCE.
-    kTop,
-    // This value is used to represent failures in the parsing of heap types and
-    // does not correspond to a Wasm heap type. It has to be last in this list.
-    kBottom
-  };
-  constexpr Representation representation() const {
-    return static_cast<Representation>(raw_heap_representation(true));
-  }
   constexpr bool is_index() const { return has_index(); }
 
  private:
@@ -856,36 +806,6 @@ class HeapType : public ValueTypeBase {
   constexpr bool is_non_nullable() const;
   constexpr Nullability nullability() const;
 };
-
-// Deprecated.
-constexpr uint32_t ValueTypeBase::raw_heap_representation(
-    bool distinguish_shared) const {
-  DCHECK(!is_numeric());
-  if (has_index()) return raw_index().index;
-  switch (generic_kind()) {
-    case GenericKind::kTop:
-      return HeapType::kTop;
-    case GenericKind::kBottom:
-      return HeapType::kBottom;
-
-#define CASE(name, ...)                                                  \
-  case GenericKind::k##name:                                             \
-    return distinguish_shared && is_shared() ? HeapType::k##name##Shared \
-                                             : HeapType::k##name;
-      FOREACH_ABSTRACT_TYPE(CASE)
-#undef CASE
-
-    case GenericKind::kExternString:
-      return distinguish_shared && is_shared() ? HeapType::kExternStringShared
-                                               : HeapType::kExternString;
-    case GenericKind::kVoid:
-      UNREACHABLE();
-  }
-  // The input value of the switch is untrusted, so even if it's exhaustive,
-  // it can skip all cases and end up here, triggering UB since there's no
-  // return.
-  SBXCHECK(false);
-}
 
 class CanonicalValueType;
 
@@ -977,20 +897,6 @@ class ValueType : public ValueTypeBase {
   // For incremental transition:
   static constexpr ValueType Primitive(ValueKind kind) {
     return ValueType{ValueTypeBase::Primitive(kind)};
-  }
-
-  // For incremental transition:
-  constexpr HeapType::Representation heap_representation() const {
-    return static_cast<HeapType::Representation>(raw_heap_representation(true));
-  }
-
-  // For incremental transition:
-  constexpr bool is_reference_to(HeapType::Representation repr) const {
-    return is_ref() && heap_representation() == repr;
-  }
-  // Un-hide the superclass method (which is here to stay):
-  constexpr bool is_reference_to(GenericKind kind) const {
-    return ValueTypeBase::is_reference_to(kind);
   }
 
   static ValueType For(MachineType type) {
@@ -1094,22 +1000,6 @@ class CanonicalValueType : public ValueTypeBase {
 
   constexpr bool IsFunctionType() const {
     return ref_type_kind() == RefTypeKind::kFunction;
-  }
-
-  // For incremental transition.
-  constexpr HeapType::Representation heap_representation() const {
-    return static_cast<HeapType::Representation>(raw_heap_representation(true));
-  }
-
-  // For incremental transition.
-  constexpr HeapType::Representation heap_representation_non_shared() const {
-    return static_cast<HeapType::Representation>(
-        raw_heap_representation(false));
-  }
-
-  // For incremental transition:
-  constexpr bool is_reference_to(HeapType::Representation repr) const {
-    return is_ref() && heap_representation() == repr;
   }
 };
 ASSERT_TRIVIALLY_COPYABLE(CanonicalValueType);
@@ -1275,7 +1165,11 @@ constexpr IndependentHeapType kWasmSharedAnyRef{GenericKind::kAny, kNullable,
 constexpr IndependentHeapType kWasmExternRef{GenericKind::kExtern};
 constexpr IndependentHeapType kWasmRefExtern{GenericKind::kExtern,
                                              kNonNullable};
+constexpr IndependentHeapType kWasmSharedExternRef{GenericKind::kExtern,
+                                                   kNullable, true};
 constexpr IndependentHeapType kWasmExnRef{GenericKind::kExn};
+constexpr IndependentHeapType kWasmSharedExnRef{GenericKind::kExn, kNullable,
+                                                true};
 constexpr IndependentHeapType kWasmEqRef{GenericKind::kEq};
 constexpr IndependentHeapType kWasmI31Ref{GenericKind::kI31};
 constexpr IndependentHeapType kWasmRefI31{GenericKind::kI31, kNonNullable};

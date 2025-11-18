@@ -44,7 +44,7 @@ const { code, signal, stderr, stdout } = await runProxiedRequest({
 });
 
 // The proxy client should get an error from failure in establishing the tunnel.
-assert.match(stderr, /ERR_PROXY_TUNNEL.*Failed to establish tunnel to .* HTTP\/1\.1 500 Connection Error/);
+assert.strictEqual(stderr.match(/ERR_PROXY_TUNNEL.*Failed to establish tunnel to .* HTTP\/1\.1 500 Connection Error/g).length, 1);
 assert.strictEqual(stdout.trim(), '');
 assert.strictEqual(code, 0);
 assert.strictEqual(signal, null);

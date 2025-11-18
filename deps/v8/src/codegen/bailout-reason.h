@@ -122,7 +122,8 @@ namespace internal {
   V(kFastCallFallbackInvalid, "Fast call fallback returned incorrect type")    \
   V(k32BitValueInRegisterIsNotSignExtended,                                    \
     "32 bit value in register is not sign-extended")                           \
-  V(kUnexpectedSandboxMode, "The sandboxing mode is not as expected")
+  V(kUnexpectedSandboxMode, "The sandboxing mode is not as expected")          \
+  V(kLastReason, "")
 
 #define TERMINAL_BAILOUT_MESSAGES_LIST(V)                                  \
   V(kFunctionTooBig, "Function is too big to be optimized")                \

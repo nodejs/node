@@ -175,6 +175,10 @@ JSDispatchHandle JSDispatchTable::AllocateAndInitializeEntry(
 std::optional<JSDispatchHandle> JSDispatchTable::TryAllocateAndInitializeEntry(
     Space* space, uint16_t parameter_count, Tagged<Code> new_code) {
   DCHECK(space->BelongsTo(this));
+  // Disabled builtins should be replaced with the kIllegal by the caller.
+  // This DCHECK is just for convenience, next SBXCHECK(IsCompatibleCode())
+  // will catch disabled builtins anyway.
+  DCHECK(!new_code->is_disabled_builtin());
   SBXCHECK(IsCompatibleCode(new_code, parameter_count));
 
   uint32_t index;

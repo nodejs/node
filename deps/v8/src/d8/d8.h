@@ -890,6 +890,20 @@ class Shell : public i::AllStatic {
   static std::map<std::string, std::unique_ptr<ScriptCompiler::CachedData>>
       cached_code_map_;
   static std::atomic<int> unhandled_promise_rejections_;
+
+#if V8_ENABLE_WEBASSEMBLY
+  // The `d8.wasm.serializeModule` and `d8.wasm.deserializeModule` APIs are
+  // constrained to only allow deserializing bytes that were previously produced
+  // via serialization. This is how embedders will use the API as well, and
+  // deserialization can not safely handle manipulated bytes.
+  // This check prevents fuzzers from creating all kinds of crashes by
+  // manipulating serialized bytes.
+  // Note that this is prone to hash collisions; if we get occasional (maybe
+  // external) reports here, this is fine. It's not a vulnerability.
+  static base::LazyMutex wasm_serialized_bytes_mutex_;
+  // Stores a hash of concatenated wire bytes plus serialized bytes.
+  static std::unordered_set<size_t> wasm_serialized_bytes_hashes_;
+#endif  // V8_ENABLE_WEBASSEMBLY
 };
 
 class FuzzerMonitor : public i::AllStatic {

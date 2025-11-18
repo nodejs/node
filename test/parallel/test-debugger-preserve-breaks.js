@@ -13,7 +13,7 @@ const scriptFullPath = fixtures.path('debugger', 'three-lines.js');
 const script = path.relative(process.cwd(), scriptFullPath);
 
 // Run after quit.
-const runTest = async () => {
+(async () => {
   const cli = startCLI([script]);
   try {
     await cli.waitForInitialBreak();
@@ -42,6 +42,4 @@ const runTest = async () => {
   } finally {
     await cli.quit();
   }
-};
-
-runTest();
+})().then(common.mustCall());

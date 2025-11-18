@@ -224,8 +224,8 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // Compiles the function with the given index at a specific compilation tier.
   // Errors are stored internally in the CompilationState.
   // This is mostly used for testing to force a function into a specific tier.
-  void CompileFunction(Counters* counters, NativeModule* native_module,
-                       uint32_t function_index, ExecutionTier tier);
+  void CompileFunction(NativeModule* native_module, uint32_t function_index,
+                       ExecutionTier tier);
 
   void EnterDebuggingForIsolate(Isolate* isolate);
 
@@ -298,17 +298,29 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // outstanding code objects (added via {LogCode}).
   void LogOutstandingCodesForIsolate(Isolate*);
 
-  // Create a new NativeModule. The caller is responsible for its
-  // lifetime. The native module will be given some memory for code,
-  // which will be page size aligned. The size of the initial memory
-  // is determined by {code_size_estimate}. The native module may later request
-  // more memory.
-  // TODO(wasm): isolate is only required here for CompilationState.
+  // Create a new NativeModule and register it for usage in `isolate`.
+  // The caller is responsible for its lifetime. The native module will be given
+  // some memory for code, which will be page size aligned. The size of the
+  // initial memory is determined by {code_size_estimate}. The native module may
+  // later request more memory.
   std::shared_ptr<NativeModule> NewNativeModule(
       Isolate* isolate, WasmEnabledFeatures enabled_features,
       WasmDetectedFeatures detected_features,
       CompileTimeImports compile_imports,
       std::shared_ptr<const WasmModule> module, size_t code_size_estimate);
+
+  // Create a new unowned NativeModule (not belonging to any isolate yet).
+  // Add it to an isolate later via `UseNativeModuleInIsolate`.
+  std::shared_ptr<NativeModule> NewUnownedNativeModule(
+      WasmEnabledFeatures enabled_features,
+      WasmDetectedFeatures detected_features,
+      CompileTimeImports compile_imports,
+      std::shared_ptr<const WasmModule> module, size_t code_size_estimate);
+
+  // Register a `NativeModule` with an isolate. This makes sure that the
+  // module's code is logged in the isolate, and the isolate's stack is scanned
+  // for code GC in that module.
+  void UseNativeModuleInIsolate(NativeModule*, Isolate*);
 
   // Try getting a cached {NativeModule}, or get ownership for its creation.
   // Return {nullptr} if no {NativeModule} exists for these bytes. In this case,
@@ -323,7 +335,7 @@ class V8_EXPORT_PRIVATE WasmEngine {
   // NativeModule later.
   std::shared_ptr<NativeModule> MaybeGetNativeModule(
       ModuleOrigin origin, base::Vector<const uint8_t> wire_bytes,
-      const CompileTimeImports& compile_imports, Isolate* isolate);
+      const CompileTimeImports& compile_imports);
 
   // Replace the temporary {nullopt} with the new native module, or
   // erase it if any error occurred. Wake up blocked threads waiting for this
@@ -418,26 +430,20 @@ class V8_EXPORT_PRIVATE WasmEngine {
 
   size_t NativeModuleCount() const;
 
-  // Get the address of the static {had_nondeterminism_} flag, for embedding in
-  // generated code.
-  static Address GetNondeterminismAddr() {
-    return reinterpret_cast<Address>(&had_nondeterminism_);
-  }
-
   // Return {true} if nondeterminism was detected during previous execution.
   static bool had_nondeterminism() {
-    return had_nondeterminism_.load(std::memory_order_relaxed) != 0;
+    return had_nondeterminism_.load(std::memory_order_relaxed);
   }
 
   // Set the {had_nondeterminism_} flag.
   static void set_had_nondeterminism() {
-    had_nondeterminism_.store(1, std::memory_order_relaxed);
+    had_nondeterminism_.store(true, std::memory_order_relaxed);
   }
 
   // Clear the {had_nondeterminism_} flag and return whether nondeterminism was
   // detected before clearing.
   static bool clear_nondeterminism() {
-    return had_nondeterminism_.exchange(0, std::memory_order_relaxed) != 0;
+    return had_nondeterminism_.exchange(false, std::memory_order_relaxed);
   }
 
  private:
@@ -471,14 +477,9 @@ class V8_EXPORT_PRIVATE WasmEngine {
 
   // Remember in a global flag whether we saw nondeterminism during execution.
   // This is used in differential fuzzing.
-  // The address of this global is embedded in generated Liftoff code, and also
-  // some runtime functions update it (notably for growing memory, which can
-  // fail nondeterministically). In non-Liftoff executions, we still get the
-  // latter.
-  // This is typed as {int32_t} to have a deterministic bit pattern (in contrast
-  // to {bool}). A value of `0` means no nondeterminism, everything else
-  // indicates nondeterminism.
-  static std::atomic<int32_t> had_nondeterminism_;
+  // Some runtime functions will update this flag, e.g. when growing memory
+  // fails because of memory constraints.
+  static std::atomic<bool> had_nondeterminism_;
 
   AccountingAllocator allocator_;
 

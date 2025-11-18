@@ -87,6 +87,7 @@ absl_source_set("synchronization") {
     "//third_party/abseil-cpp/absl/base:tracing_internal",
     "//third_party/abseil-cpp/absl/debugging:stacktrace",
     "//third_party/abseil-cpp/absl/debugging:symbolize",
+    "//third_party/abseil-cpp/absl/meta:type_traits",
     "//third_party/abseil-cpp/absl/time",
   ]
 }

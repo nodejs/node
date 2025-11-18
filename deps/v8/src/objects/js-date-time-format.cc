@@ -1681,10 +1681,16 @@ std::optional<icu::UnicodeString> CallICUFormat(
     JSDateTimeFormat::DateTimeStyle time_style,
     bool has_to_locale_string_time_zone, double time_in_milliseconds,
     icu::FieldPositionIterator* fp_iter, UErrorCode& status) {
+  if (U_FAILURE(status)) {
+    return std::nullopt;
+  }
   icu::UnicodeString result;
   // Use the date_format directly for Date value.
   if (kind == PatternKind::kDate) {
     date_format.format(time_in_milliseconds, result, fp_iter, status);
+    if (U_FAILURE(status)) {
+      return std::nullopt;
+    }
     result = Replace202F(result);
     return result;
   }
@@ -1696,6 +1702,9 @@ std::optional<icu::UnicodeString> CallICUFormat(
     return std::nullopt;
   }
   pattern->format(time_in_milliseconds, result, fp_iter, status);
+  if (U_FAILURE(status)) {
+    return std::nullopt;
+  }
   result = Replace202F(result);
   return result;
 }
@@ -1754,8 +1763,7 @@ MaybeDirectHandle<String> FormatMillisecondsByKindToString(
       date_time_format->explicit_components_in_options(), kind,
       date_time_format->date_style(), date_time_format->time_style(),
       date_time_format->has_to_locale_string_time_zone(), x, nullptr, status);
-  DCHECK(U_SUCCESS(status));
-  if (!result.has_value()) {
+  if (U_FAILURE(status) || !result.has_value()) {
     THROW_NEW_ERROR(
         isolate,
         NewTypeError(MessageTemplate::kInvalidArgumentForTemporal, value));

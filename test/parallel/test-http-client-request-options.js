@@ -15,7 +15,7 @@ const server = http.createServer(common.mustCall((req, res) => {
   });
 }));
 
-server.listen(0, common.localhostIPv4, () => {
+server.listen(0, common.localhostIPv4, common.mustCall(() => {
   const { address, port } = server.address();
   const url = new URL(`http://${address}:${port}/ping?q=term`);
   url.headers = headers;
@@ -24,4 +24,4 @@ server.listen(0, common.localhostIPv4, () => {
     server.close();
   }));
   clientReq.end();
-});
+}));

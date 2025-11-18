@@ -348,14 +348,6 @@ class V8_EXPORT_PRIVATE ExternalPointerTable
 
     // Not atomic.  Mutators and concurrent marking must be paused.
     void AssertEmpty() { CHECK(segments_.empty()); }
-
-    bool allocate_black() { return allocate_black_; }
-    void set_allocate_black(bool allocate_black) {
-      allocate_black_ = allocate_black;
-    }
-
-   private:
-    bool allocate_black_ = false;
   };
 
   // Initializes all slots in the RO space from pre-existing artifacts.

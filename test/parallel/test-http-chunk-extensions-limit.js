@@ -21,7 +21,7 @@ const assert = require('assert');
     req.resume();
   });
 
-  server.listen(0, () => {
+  server.listen(0, common.mustCall(() => {
     const port = server.address().port;
     const sock = net.connect(port);
     let data = '';
@@ -42,7 +42,7 @@ const assert = require('assert');
       '0\r\n' + // Last chunk
       '\r\n' // End of http message
     );
-  });
+  }));
 }
 
 // Verify that chunk extensions are limited in size when sent in parts
@@ -56,7 +56,7 @@ const assert = require('assert');
     req.resume();
   });
 
-  server.listen(0, () => {
+  server.listen(0, common.mustCall(() => {
     const port = server.address().port;
     const sock = net.connect(port);
     let data = '';
@@ -84,7 +84,7 @@ const assert = require('assert');
       '\r\n' // End of http message
       );
     });
-  });
+  }));
 }
 
 // Verify the chunk extensions is correctly reset after a chunk
@@ -98,7 +98,7 @@ const assert = require('assert');
     req.resume();
   });
 
-  server.listen(0, () => {
+  server.listen(0, common.mustCall(() => {
     const port = server.address().port;
     const sock = net.connect(port);
     let data = '';
@@ -132,5 +132,5 @@ const assert = require('assert');
       '2;' + 'A'.repeat(10000) + '=bar\r\nAA\r\n' +
       '0\r\n\r\n'
     );
-  });
+  }));
 }

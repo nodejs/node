@@ -297,19 +297,6 @@ class UnalignedSlot : public SlotBase<UnalignedSlot<T>, T, 1> {
   }
 };
 
-// An off-heap uncompressed object slot can be the same as an on-heap one, with
-// a few methods deleted.
-class OffHeapFullObjectSlot : public FullObjectSlot {
- public:
-  OffHeapFullObjectSlot() : FullObjectSlot() {}
-  explicit OffHeapFullObjectSlot(Address ptr) : FullObjectSlot(ptr) {}
-  explicit OffHeapFullObjectSlot(const Address* ptr) : FullObjectSlot(ptr) {}
-
-  inline Tagged<Object> operator*() const = delete;
-
-  using FullObjectSlot::Relaxed_Load;
-};
-
 // An ExternalPointerSlot instance describes a kExternalPointerSlotSize-sized
 // field ("slot") holding a pointer to objects located outside the V8 heap and
 // V8 sandbox (think: ExternalPointer_t).

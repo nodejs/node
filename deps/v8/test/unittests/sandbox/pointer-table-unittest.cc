@@ -42,8 +42,8 @@ TEST_F(PointerTableTest, ExternalPointerTableCompaction) {
     {
       v8::HandleScope inner_scope(reinterpret_cast<v8::Isolate*>(iso));
       for (uint32_t i = 0; i < num_entries; i++) {
-        DirectHandle<JSObject> obj =
-            iso->factory()->NewExternal(external_1, AllocationType::kOld);
+        DirectHandle<JSObject> obj = iso->factory()->NewExternal(
+            external_1, kLastExternalTypeTag, AllocationType::kOld);
         array->set(i, *obj);
       }
       CHECK_EQ(0, space->freelist_length());
@@ -56,8 +56,9 @@ TEST_F(PointerTableTest, ExternalPointerTableCompaction) {
       // Allocate one additional external poiner table entry, which should now
       // end up on a new segment.
       CHECK_EQ(1, space->NumSegmentsForTesting());
-      DirectHandle<JSExternalObject> obj = Cast<JSExternalObject>(
-          iso->factory()->NewExternal(external_2, AllocationType::kOld));
+      DirectHandle<JSExternalObject> obj =
+          Cast<JSExternalObject>(iso->factory()->NewExternal(
+              external_2, kLastExternalTypeTag, AllocationType::kOld));
       CHECK_EQ(2, space->NumSegmentsForTesting());
 
       // TODO(saelo): maybe it'd be nice to also automatically generate
@@ -75,7 +76,7 @@ TEST_F(PointerTableTest, ExternalPointerTableCompaction) {
       ExternalPointerHandle current_handle =
           obj->ReadField<ExternalPointerHandle>(JSExternalObject::kValueOffset);
       CHECK_EQ(original_handle, current_handle);
-      CHECK_EQ(obj->value(), external_2);
+      CHECK_EQ(obj->value(kLastExternalTypeTag), external_2);
 
       // Now at least one entry in the first segment must be free, so compaction
       // should be possible. This should leave the 2nd segment empty, causing it
@@ -85,7 +86,7 @@ TEST_F(PointerTableTest, ExternalPointerTableCompaction) {
       current_handle =
           obj->ReadField<ExternalPointerHandle>(JSExternalObject::kValueOffset);
       CHECK_NE(original_handle, current_handle);
-      CHECK_EQ(obj->value(), external_2);
+      CHECK_EQ(obj->value(kLastExternalTypeTag), external_2);
     }
   }
 

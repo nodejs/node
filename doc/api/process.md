@@ -2001,6 +2001,10 @@ This value is therefore identical to that of `process.features.tls`.
 added:
  - v23.0.0
  - v22.10.0
+changes:
+  - version: v25.2.0
+    pr-url: https://github.com/nodejs/node/pull/60600
+    description: Type stripping is now stable.
 -->
 
 > Stability: 1.2 - Release candidate
@@ -2009,7 +2013,7 @@ added:
 
 A value that is `"strip"` by default,
 `"transform"` if Node.js is run with `--experimental-transform-types`, and `false` if
-Node.js is run with `--no-experimental-strip-types`.
+Node.js is run with `--no-strip-types`.
 
 ## `process.features.uv`
 
@@ -4333,7 +4337,7 @@ added:
 
 > Stability: 1 - Experimental
 
-* `maybeUnfefable` {any} An object that may be "unref'd".
+* `maybeRefable` {any} An object that may be "unref'd".
 
 An object is "unrefable" if it implements the Node.js "Refable protocol".
 Specifically, this means that the object implements the `Symbol.for('nodejs.ref')`

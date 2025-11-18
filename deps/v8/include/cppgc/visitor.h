@@ -167,6 +167,7 @@ class V8_EXPORT Visitor {
    */
   template <typename T>
   void Trace(const T& object) {
+    static_assert(!IsGarbageCollectedOrMixinTypeV<T>);
 #if V8_ENABLE_CHECKS
     // This object is embedded in potentially multiple nested objects. The
     // outermost object must not be in construction as such objects are (a) not

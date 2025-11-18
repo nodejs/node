@@ -9,17 +9,17 @@ const {
   Worker,
   workerData,
 } = require('node:worker_threads');
-const { rejects } = require('node:assert');
+const assert = require('node:assert');
 
 async function test() {
-  await rejects(common.mustCall(function() {
+  await assert.rejects(common.mustCall(function() {
     return postMessageToThread(threadId);
   }), {
     name: 'Error',
     code: 'ERR_WORKER_MESSAGING_SAME_THREAD',
   });
 
-  await rejects(common.mustCall(function() {
+  await assert.rejects(common.mustCall(function() {
     return postMessageToThread(Date.now());
   }), {
     name: 'Error',
@@ -30,7 +30,7 @@ async function test() {
   const worker = new Worker(__filename, { workerData: { children: true } });
   await once(worker, 'message');
 
-  await rejects(common.mustCall(function() {
+  await assert.rejects(common.mustCall(function() {
     return postMessageToThread(worker.threadId);
   }), {
     name: 'Error',

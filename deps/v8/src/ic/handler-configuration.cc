@@ -486,7 +486,7 @@ void PrintSmiLoadHandler(int raw_handler, std::ostream& os) {
            << LoadHandler::AllowOutOfBoundsBits::decode(raw_handler)
            << ", is JSArray = "
            << LoadHandler::IsJsArrayBits::decode(raw_handler)
-           << ", alow reading holes = "
+           << ", allow reading holes = "
            << LoadHandler::AllowHandlingHole::decode(raw_handler)
            << ", elements kind = "
            << ElementsKindToString(
@@ -498,7 +498,7 @@ void PrintSmiLoadHandler(int raw_handler, std::ostream& os) {
       os << "allow out of bounds = "
          << LoadHandler::AllowOutOfBoundsBits::decode(raw_handler)
          << ", is JSArray = " << LoadHandler::IsJsArrayBits::decode(raw_handler)
-         << ", alow reading holes = "
+         << ", allow reading holes = "
          << LoadHandler::AllowHandlingHole::decode(raw_handler)
          << ", elements kind = "
          << ElementsKindToString(

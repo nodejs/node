@@ -49,8 +49,8 @@ void WrapperHelper::ResetWrappableConnection(v8::Isolate* isolate,
   i::DirectHandle<i::JSReceiver> js_obj =
       v8::Utils::OpenDirectHandle(*api_object);
   CppHeapObjectWrapper(Cast<JSObject>(*js_obj))
-      .SetCppHeapWrappable<CppHeapPointerTag::kDefaultTag>(
-          reinterpret_cast<i::Isolate*>(isolate), nullptr);
+      .SetCppHeapWrappable(reinterpret_cast<i::Isolate*>(isolate), nullptr,
+                           CppHeapPointerTag::kDefaultTag);
 }
 
 // static
@@ -60,8 +60,8 @@ void WrapperHelper::SetWrappableConnection(v8::Isolate* isolate,
   i::DirectHandle<i::JSReceiver> js_obj =
       v8::Utils::OpenDirectHandle(*api_object);
   CppHeapObjectWrapper(Cast<JSObject>(*js_obj))
-      .SetCppHeapWrappable<CppHeapPointerTag::kDefaultTag>(
-          reinterpret_cast<i::Isolate*>(isolate), instance);
+      .SetCppHeapWrappable(reinterpret_cast<i::Isolate*>(isolate), instance,
+                           CppHeapPointerTag::kDefaultTag);
 }
 
 // static

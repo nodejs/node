@@ -13,6 +13,7 @@
 #include "src/debug/debug-interface.h"
 #include "src/debug/debug-wasm-objects-inl.h"
 #include "src/execution/frames-inl.h"
+#include "src/execution/isolate.h"
 #include "src/objects/allocation-site.h"
 #include "src/objects/property-descriptor.h"
 #include "src/wasm/canonical-types.h"
@@ -238,7 +239,8 @@ struct NamedDebugProxy : IndexedDebugProxy<T, id, Provider> {
       if (table->FindEntry(isolate, key).is_found()) continue;
       DirectHandle<Smi> value(Smi::FromInt(index), isolate);
       table = NameDictionary::Add(isolate, table, key, value,
-                                  PropertyDetails::Empty());
+                                  PropertyDetails::Empty())
+                  .ToHandleChecked();
     }
     Object::SetProperty(isolate, holder, symbol, table).Check();
     return table;
@@ -1031,7 +1033,7 @@ DirectHandle<WasmValueObject> WasmValueObject::New(
     case wasm::kRefNull:
     case wasm::kRef: {
       DirectHandle<Object> ref = value.to_ref();
-      if (value.type().is_reference_to(wasm::HeapType::kExn)) {
+      if (value.type().is_reference_to(wasm::GenericKind::kExn)) {
         t = isolate->factory()->InternalizeString(
             base::StaticCharVector("exnref"));
         v = ref;
@@ -1055,8 +1057,8 @@ DirectHandle<WasmValueObject> WasmValueObject::New(
         t = GetRefTypeName(isolate, value.type());
       } else if (IsJSFunction(*ref) || IsSmi(*ref) || IsNull(*ref) ||
                  IsString(*ref) ||
-                 value.type().is_reference_to(wasm::HeapType::kExtern) ||
-                 value.type().is_reference_to(wasm::HeapType::kAny)) {
+                 value.type().is_reference_to(wasm::GenericKind::kExtern) ||
+                 value.type().is_reference_to(wasm::GenericKind::kAny)) {
         t = GetRefTypeName(isolate, value.type());
         v = ref;
       } else {

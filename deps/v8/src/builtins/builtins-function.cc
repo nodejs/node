@@ -280,8 +280,7 @@ namespace {
 bool IsSloppyNormalJSFunction(Tagged<Object> receiver) {
   if (!IsJSFunction(receiver)) return false;
   Tagged<JSFunction> function = Cast<JSFunction>(receiver);
-  return function->shared()->kind() == FunctionKind::kNormalFunction &&
-         is_sloppy(function->shared()->language_mode());
+  return function->shared()->IsSloppyNormalJSFunction();
 }
 
 }  // namespace

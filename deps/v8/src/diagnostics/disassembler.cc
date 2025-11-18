@@ -378,13 +378,17 @@ static int DecodeIt(Isolate* isolate, ExternalReferenceEncoder* ref_encoder,
       if (pc_address <= current_pc - range_limit) continue;
     }
 
-    // Collect RelocInfo for this instruction (prev_pc .. pc-1)
+    // Collect RelocInfo for this instruction (prev_pc .. pc)
     std::vector<const char*> comments;
     std::vector<Address> pcs;
     std::vector<RelocInfo::Mode> rmodes;
     std::vector<intptr_t> datas;
-    while (!rit.done() && rit.rinfo()->pc() < reinterpret_cast<Address>(pc)) {
-      // Collect all data.
+    while (!rit.done() &&
+           (rit.rinfo()->pc() < reinterpret_cast<Address>(pc) ||
+            (rit.rinfo()->pc() == reinterpret_cast<Address>(pc) &&
+             RelocInfo::IsDeoptMode(rit.rinfo()->rmode())))) {
+      // Collect all data. Deopt-related data is associated with the exact pc,
+      // not before the pc.
       pcs.push_back(rit.rinfo()->pc());
       rmodes.push_back(rit.rinfo()->rmode());
       datas.push_back(rit.rinfo()->data());

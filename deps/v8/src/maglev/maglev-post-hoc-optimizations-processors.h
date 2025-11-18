@@ -86,6 +86,10 @@ class RecomputePhiUseHintsProcessor {
     return ProcessResult::kContinue;
   }
 
+  ProcessResult Process(CheckSmi* node, const ProcessingState& state) {
+    return ProcessResult::kContinue;
+  }
+
   ProcessResult Process(NodeBase* node, const ProcessingState& state) {
     DCHECK(!node->Is<Phi>());
     for (Input input : node->inputs()) {
@@ -204,7 +208,7 @@ class LoopOptimizationProcessor {
     return input->owner() != current_block;
   }
 
-  ProcessResult Process(LoadTaggedFieldForContextSlotNoCells* ltf,
+  ProcessResult Process(LoadContextSlotNoCells* ltf,
                         const ProcessingState& state) {
     DCHECK(loop_effects);
     ValueNode* object = ltf->object_input().node();
@@ -220,26 +224,27 @@ class LoopOptimizationProcessor {
     return ProcessResult::kContinue;
   }
 
-  ProcessResult Process(LoadTaggedFieldForProperty* ltf,
-                        const ProcessingState& state) {
-    return ProcessNamedLoad(ltf, ltf->object_input().node(), ltf->name());
+  ProcessResult Process(LoadTaggedField* ltf, const ProcessingState& state) {
+    if (ltf->property_key().type() != PropertyKey::kName) {
+      return ProcessResult::kContinue;
+    }
+    return ProcessNamedLoad(ltf, ltf->object_input().node(),
+                            ltf->property_key());
   }
 
   ProcessResult Process(StringLength* len, const ProcessingState& state) {
-    return ProcessNamedLoad(
-        len, len->object_input().node(),
-        KnownNodeAspects::LoadedPropertyMapKey::StringLength());
+    return ProcessNamedLoad(len, len->object_input().node(),
+                            PropertyKey::StringLength());
   }
 
   ProcessResult Process(LoadTypedArrayLength* len,
                         const ProcessingState& state) {
-    return ProcessNamedLoad(
-        len, len->receiver_input().node(),
-        KnownNodeAspects::LoadedPropertyMapKey::TypedArrayLength());
+    return ProcessNamedLoad(len, len->receiver_input().node(),
+                            PropertyKey::TypedArrayLength());
   }
 
   ProcessResult ProcessNamedLoad(Node* load, ValueNode* object,
-                                 KnownNodeAspects::LoadedPropertyMapKey name) {
+                                 PropertyKey name) {
     DCHECK(!load->properties().can_deopt());
     if (!loop_effects) return ProcessResult::kContinue;
     if (IsLoopPhi(object)) {

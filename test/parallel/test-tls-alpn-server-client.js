@@ -235,7 +235,7 @@ function TestALPNCallback() {
     ALPNProtocols: ['a'],
   }];
 
-  runTest(clientsOptions, serverOptions, function(results) {
+  runTest(clientsOptions, serverOptions, common.mustCall((results) => {
     // Callback picks 2nd preference => picks 'b'
     checkResults(results[0],
                  { server: { ALPN: 'b' },
@@ -247,7 +247,7 @@ function TestALPNCallback() {
     assert.ok(allowedErrors.includes(results[1].client.error.code), `'${results[1].client.error.code}' was not one of ${allowedErrors}.`);
 
     TestBadALPNCallback();
-  });
+  }));
 }
 
 function TestBadALPNCallback() {
@@ -264,14 +264,14 @@ function TestBadALPNCallback() {
     assert.strictEqual(error.code, 'ERR_TLS_ALPN_CALLBACK_INVALID_RESULT');
   }));
 
-  runTest(clientsOptions, serverOptions, function(results) {
+  runTest(clientsOptions, serverOptions, common.mustCall((results) => {
     // Callback returns 'http/5' => doesn't match client ALPN => error & reset
     assert.strictEqual(results[0].server, undefined);
     const allowedErrors = ['ECONNRESET', 'ERR_SSL_TLSV1_ALERT_NO_APPLICATION_PROTOCOL'];
     assert.ok(allowedErrors.includes(results[0].client.error.code), `'${results[0].client.error.code}' was not one of ${allowedErrors}.`);
 
     TestALPNOptionsCallback();
-  });
+  }));
 }
 
 function TestALPNOptionsCallback() {

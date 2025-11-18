@@ -75,8 +75,16 @@ class SimplifiedOptimizationReducer : public Next {
 
     Handle<HeapObject> cst;
     if (kind == TruncateJSPrimitiveToUntaggedOp::UntaggedKind::kInt32 &&
-        matcher_.MatchHeapConstant(input, &cst) && IsHeapNumber(*cst)) {
-      return __ Word32Constant(DoubleToInt32(Cast<HeapNumber>(cst)->value()));
+        matcher_.MatchHeapConstant(input, &cst)) {
+      if (Tagged<TheHole> hole; TryCast(*cst, &hole)) {
+        // Holes are allowed for InputAssumptions::kNumberOrOddballOrHole.
+        // Hole->Undefined->NaN->0.
+        return __ Word32Constant(0);
+      } else if (Tagged<HeapNumber> heap_number; TryCast(*cst, &heap_number)) {
+        return __ Word32Constant(DoubleToInt32(heap_number->value()));
+      } else if (Tagged<Oddball> oddball; TryCast(*cst, &oddball)) {
+        return __ Word32Constant(DoubleToInt32(oddball->to_number_raw()));
+      }
     }
 
     goto no_change;
@@ -224,7 +232,14 @@ class SimplifiedOptimizationReducer : public Next {
 
  private:
   enum class Decision : uint8_t { kUnknown, kTrue, kFalse };
-  Decision DecideObjectIsSmi(V<Object> idx) {
+  Decision CombineDecisions(Decision left, Decision right) {
+    if (left == right) return left;
+    return Decision::kUnknown;
+  }
+  Decision DecideObjectIsSmi(V<Object> idx, int depth = 0) {
+    constexpr int kMaxDepth = 3;
+    DCHECK_LE(depth, kMaxDepth);
+
     const Operation& op = __ Get(idx);
     switch (op.opcode) {
       case Opcode::kConstant: {
@@ -256,6 +271,25 @@ class SimplifiedOptimizationReducer : public Next {
         }
         UNREACHABLE();
       }
+      case Opcode::kLoad: {
+        switch (op.Cast<LoadOp>().loaded_rep) {
+          case MemoryRepresentation::TaggedPointer():
+            return Decision::kFalse;
+          case MemoryRepresentation::TaggedSigned():
+            return Decision::kTrue;
+          default:
+            return Decision::kUnknown;
+        }
+      }
+      case Opcode::kPhi:
+        if (depth == kMaxDepth) return Decision::kUnknown;
+        return std::accumulate(op.inputs().begin() + 1, op.inputs().end(),
+                               DecideObjectIsSmi(op.input(0), depth + 1),
+                               [&](Decision acc, OpIndex input_idx) {
+                                 return CombineDecisions(
+                                     acc,
+                                     DecideObjectIsSmi(input_idx, depth + 1));
+                               });
       default:
         break;
     }

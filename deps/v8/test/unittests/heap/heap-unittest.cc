@@ -5,6 +5,7 @@
 #include "src/heap/heap.h"
 
 #include <cmath>
+#include <cstdint>
 #include <iostream>
 #include <limits>
 #include <utility>
@@ -44,7 +45,7 @@ using HeapTest = TestWithHeapInternalsAndContext;
 TEST(Heap, YoungGenerationSizeFromOldGenerationSize) {
   const uint64_t physical_memory = 0;
   const size_t hlm = i::Heap::HeapLimitMultiplier(physical_memory);
-  const size_t max_heap_size = i::Heap::DefaulMaxHeapSize(physical_memory);
+  const size_t max_heap_size = i::Heap::DefaultMaxHeapSize(physical_memory);
 
   // Low memory
   ASSERT_EQ((v8_flags.minor_ms ? 4 : 3) * 512u * KB,
@@ -68,7 +69,7 @@ TEST(Heap, YoungGenerationSizeFromOldGenerationSize) {
 TEST(Heap, GenerationSizesFromHeapSize) {
   const uint64_t physical_memory = 0;
   const size_t hlm = i::Heap::HeapLimitMultiplier(physical_memory);
-  const size_t max_heap_size = i::Heap::DefaulMaxHeapSize(physical_memory);
+  const size_t max_heap_size = i::Heap::DefaultMaxHeapSize(physical_memory);
 
   size_t old, young;
 
@@ -125,37 +126,86 @@ TEST(Heap, GenerationSizesFromHeapSize) {
             young);
 }
 
-TEST(Heap, HeapSizeFromPhysicalMemory) {
-  const uint64_t physical_memory = 0;
-  const size_t hlm = i::Heap::HeapLimitMultiplier(physical_memory);
-  const size_t max_heap_size = i::Heap::DefaulMaxHeapSize(physical_memory);
+void AssertLowMemoryOldGenerationSizeFromPhysicalMemory(
+    uint64_t physical_memory) {
+  ASSERT_EQ(128 * i::Heap::HeapLimitMultiplier(physical_memory) * MB,
+            i::Heap::OldGenerationSizeFromPhysicalMemory(physical_memory));
+}
 
+void AssertHighMemoryOldGenerationSizeFromPhysicalMemory(
+    uint64_t physical_memory, size_t adjust) {
   // The expected value is old_generation_size + semi_space_multiplier *
   // semi_space_size.
 
-  // Low memory
-  ASSERT_EQ(128 * hlm * MB + (v8_flags.minor_ms ? 4 : 3) * 512 * KB,
-            i::Heap::HeapSizeFromPhysicalMemory(0u));
-  ASSERT_EQ(128 * hlm * MB + (v8_flags.minor_ms ? 4 : 3) * 512 * KB,
-            i::Heap::HeapSizeFromPhysicalMemory(512u * MB));
-  // High memory
-  ASSERT_EQ(max_heap_size / 4 +
-                (i::Heap::DefaultMaxSemiSpaceSize(physical_memory) / 4) *
-                    (v8_flags.minor_ms ? (2 * 4) : 3),
-            i::Heap::HeapSizeFromPhysicalMemory(1u * GB));
-  ASSERT_EQ(max_heap_size / 2 +
-                (i::Heap::DefaultMaxSemiSpaceSize(physical_memory) / 2) *
-                    (v8_flags.minor_ms ? (2 * 2) : 3),
-            i::Heap::HeapSizeFromPhysicalMemory(2u * GB));
-  ASSERT_EQ(
-      max_heap_size + i::Heap::DefaultMaxSemiSpaceSize(physical_memory) *
-                          (v8_flags.minor_ms ? 2 : 3),
-      i::Heap::HeapSizeFromPhysicalMemory(static_cast<uint64_t>(4u) * GB));
-  ASSERT_EQ(
-      max_heap_size + i::Heap::DefaultMaxSemiSpaceSize(physical_memory) *
-                          (v8_flags.minor_ms ? 2 : 3),
-      i::Heap::HeapSizeFromPhysicalMemory(static_cast<uint64_t>(8u) * GB));
+  ASSERT_EQ(i::Heap::DefaultMaxHeapSize(physical_memory) / adjust,
+            i::Heap::OldGenerationSizeFromPhysicalMemory(physical_memory));
 }
+
+TEST(Heap, OldGenerationSizeFromPhysicalMemory) {
+  // Low memory
+  AssertLowMemoryOldGenerationSizeFromPhysicalMemory(0);
+  AssertLowMemoryOldGenerationSizeFromPhysicalMemory(512u * MB);
+
+  // High memory
+  AssertHighMemoryOldGenerationSizeFromPhysicalMemory(
+      static_cast<uint64_t>(1) * GB, 4);
+  AssertHighMemoryOldGenerationSizeFromPhysicalMemory(
+      static_cast<uint64_t>(2) * GB, 2);
+  AssertHighMemoryOldGenerationSizeFromPhysicalMemory(
+      static_cast<uint64_t>(4) * GB, 1);
+  AssertHighMemoryOldGenerationSizeFromPhysicalMemory(
+      static_cast<uint64_t>(8) * GB, 1);
+}
+
+#if V8_COMPRESS_POINTERS
+namespace {
+size_t MaxOldGenerationSizeForIsolate(uint64_t physical_memory) {
+  std::unique_ptr<v8::ArrayBuffer::Allocator> array_buffer_allocator(
+      v8::ArrayBuffer::Allocator::NewDefaultAllocator());
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = array_buffer_allocator.get();
+  create_params.constraints.ConfigureDefaults(physical_memory, 0);
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+  size_t max_old_generation_size = i_isolate->heap()->MaxOldGenerationSize();
+  isolate->Dispose();
+  return max_old_generation_size;
+}
+}  // anonymous namespace
+
+TEST_F(HeapTest, ExpectedMaxOldGenerationSize) {
+#if V8_OS_ANDROID
+  static constexpr bool is_android = true;
+  v8_flags.high_end_android_physical_memory_threshold = 8;
+#else
+  static constexpr bool is_android = false;
+#endif  // V8_OS_ANDROID
+
+  ASSERT_EQ(is_android ? static_cast<uint64_t>(256) * MB
+                       : static_cast<uint64_t>(512) * MB,
+            MaxOldGenerationSizeForIsolate(static_cast<uint64_t>(1) * GB));
+  ASSERT_EQ(is_android ? static_cast<uint64_t>(512) * MB
+                       : static_cast<uint64_t>(1) * GB,
+            MaxOldGenerationSizeForIsolate(static_cast<uint64_t>(2) * GB));
+
+  ASSERT_EQ(is_android ? static_cast<uint64_t>(1) * GB
+                       : static_cast<uint64_t>(2) * GB,
+            MaxOldGenerationSizeForIsolate(static_cast<uint64_t>(4) * GB));
+  ASSERT_EQ(is_android ? static_cast<uint64_t>(1) * GB
+                       : static_cast<uint64_t>(2) * GB,
+            MaxOldGenerationSizeForIsolate(static_cast<uint64_t>(8) * GB - 1));
+  ASSERT_EQ(static_cast<uint64_t>(2) * GB,
+            MaxOldGenerationSizeForIsolate(static_cast<uint64_t>(8) * GB));
+  ASSERT_EQ(static_cast<uint64_t>(2) * GB,
+            MaxOldGenerationSizeForIsolate(static_cast<uint64_t>(15) * GB - 1));
+
+  size_t young_gen = v8_flags.minor_ms ? (2 * 72 * MB) : (3 * 32 * MB);
+  ASSERT_EQ(static_cast<uint64_t>(4) * GB - young_gen,
+            MaxOldGenerationSizeForIsolate(static_cast<uint64_t>(15) * GB));
+  ASSERT_EQ(static_cast<uint64_t>(4) * GB - young_gen,
+            MaxOldGenerationSizeForIsolate(static_cast<uint64_t>(16) * GB));
+}
+#endif  // V8_COMPRESS_POINTERS
 
 TEST_F(HeapTest, ASLR) {
 #if V8_TARGET_ARCH_X64
@@ -228,7 +278,7 @@ TEST_F(HeapTest, HeapLayout) {
   base::AddressRegion heap_reservation(cage_base, size_t{4} * GB);
   base::AddressRegion code_reservation(code_cage_base, size_t{4} * GB);
 
-  IsolateSafepointScope scope(i_isolate()->heap());
+  SafepointScope scope(i_isolate(), kGlobalSafepointForSharedSpaceIsolate);
   OldGenerationMemoryChunkIterator iter(i_isolate()->heap());
   while (MutablePageMetadata* chunk = iter.next()) {
     Address address = chunk->ChunkAddress();
@@ -448,7 +498,9 @@ static size_t GetRememberedSetSize(Isolate* isolate, Tagged<HeapObject> obj) {
 }  // namespace
 
 TEST_F(HeapTest, RememberedSet_InsertOnPromotingObjectToOld) {
-  if (v8_flags.single_generation || v8_flags.stress_incremental_marking) return;
+  if (v8_flags.single_generation || v8_flags.stress_incremental_marking ||
+      v8_flags.scavenger_chaos_mode)
+    return;
   v8_flags.stress_concurrent_allocation = false;  // For SealCurrentObjects.
   v8_flags.scavenger_precise_object_pinning = false;
   ManualGCScope manual_gc_scope(isolate());
@@ -465,7 +517,7 @@ TEST_F(HeapTest, RememberedSet_InsertOnPromotingObjectToOld) {
     CHECK_NE(new_space->TotalCapacity(), new_space->MaximumCapacity());
     // Fill current pages to force MinorMS to promote them.
     SimulateFullSpace(new_space, &handles);
-    IsolateSafepointScope scope(heap);
+    SafepointScope scope(isolate(), kGlobalSafepointForSharedSpaceIsolate);
     // New empty pages should remain in new space.
     GrowNewSpaceToMaximumCapacity();
   }
@@ -523,12 +575,12 @@ TEST_F(HeapTest, Regress978156) {
   // 5. Start incremental marking.
   i::IncrementalMarking* marking = heap->incremental_marking();
   if (marking->IsStopped()) {
-    IsolateSafepointScope scope(heap);
+    SafepointScope scope(isolate(), kGlobalSafepointForSharedSpaceIsolate);
     heap->tracer()->StartCycle(
         GarbageCollector::MARK_COMPACTOR, GarbageCollectionReason::kTesting,
         "collector cctest", GCTracer::MarkingType::kIncremental);
     marking->Start(GarbageCollector::MARK_COMPACTOR,
-                   i::GarbageCollectionReason::kTesting);
+                   i::GarbageCollectionReason::kTesting, "testing");
   }
   // 6. Mark the filler black to access its two markbits. This triggers
   // an out-of-bounds access of the marking bitmap in a bad case.
@@ -559,12 +611,12 @@ TEST_F(HeapTest, SemiSpaceNewSpaceGrowsDuringFullGCIncrementalMarking) {
   i::IncrementalMarking* marking = heap->incremental_marking();
   CHECK(marking->IsStopped());
   {
-    IsolateSafepointScope scope(heap);
+    SafepointScope scope(isolate(), kGlobalSafepointForSharedSpaceIsolate);
     heap->tracer()->StartCycle(GarbageCollector::MARK_COMPACTOR,
                                GarbageCollectionReason::kTesting, "tesing",
                                GCTracer::MarkingType::kIncremental);
     marking->Start(GarbageCollector::MARK_COMPACTOR,
-                   i::GarbageCollectionReason::kTesting);
+                   i::GarbageCollectionReason::kTesting, "testing");
   }
   // 4. Allocate in new space.
   AllocationResult allocation = heap->allocator()->AllocateRaw(
@@ -731,6 +783,7 @@ TEST_F(
     ConservativePinningScavengerDoesntMoveObjectReachableFromStackNoPromotion) {
   if (v8_flags.single_generation) return;
   if (v8_flags.minor_ms) return;
+  if (v8_flags.scavenger_chaos_mode) return;
   v8_flags.scavenger_conservative_object_pinning = true;
   v8_flags.scavenger_precise_object_pinning = false;
   v8_flags.scavenger_promote_quarantined_pages = false;

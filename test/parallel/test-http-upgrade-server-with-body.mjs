@@ -7,7 +7,7 @@ const EXPECTED_BODY_LENGTH = 12;
 
 const server = http.createServer();
 server.on('request', common.mustNotCall());
-server.on('upgrade', function(req, socket, upgradeHead) {
+server.on('upgrade', common.mustCall((req, socket, upgradeHead) => {
   // Confirm the upgrade:
   socket.write('HTTP/1.1 101 Switching Protocols\r\n' +
               'Upgrade: custom-protocol\r\n' +
@@ -35,7 +35,7 @@ server.on('upgrade', function(req, socket, upgradeHead) {
       }));
     }), 10);
   }));
-});
+}));
 
 await new Promise((resolve) => server.listen(0, () => resolve()));
 

@@ -10191,6 +10191,20 @@ TEST_F(ParsingTest, DestructuringAssignmentNegativeTests) {
     RunParserSyncTest(context_data, statement_data, kError);
   }
 
+  {
+    i::FlagScope<bool> f(&v8_flags.js_defer_import_eval, true);
+    // clang-format off
+    const char* statement_data[] = {
+      "{ import.defer }",
+      "{ x: import.defer }",
+      "{ x: import.defer = 1 }",
+      "[import.defer]",
+      "[import.defer = 1]",
+      nullptr};
+    // clang-format on
+    RunParserSyncTest(context_data, statement_data, kError);
+  }
+
   const char* empty_context_data[][2] = {
       {"'use strict';", ""}, {"", ""}, {nullptr, nullptr}};
 
@@ -10757,6 +10771,213 @@ TEST_F(ParsingTest, ImportCallSourceAttributesNotAllowed) {
 
   RunParserSyncTest(context_data, data, kError);
   RunModuleParserSyncTest(context_data, data, kError);
+}
+
+TEST_F(ParsingTest, ImportDeferSuccess) {
+  i::FlagScope<bool> f(&v8_flags.js_defer_import_eval, true);
+  // clang-format off
+  const char* context_data[][2] = {
+    {"", ""},
+    {"'use strict';", ""},
+    {nullptr}
+  };
+
+  const char* data[] = {
+    // Basic import declarations, not a deferred import
+    "import defer from ''",
+    "import from from ''",
+    "import { defer } from ''",
+    "import { a as defer } from ''",
+    "import { defer as a } from ''",
+    "import 'defer'",
+    "import defer, * as ns from ''",
+    // Deferred imports
+    "import defer * as ns from ''",
+    "import defer * as defer from ''",
+    "import defer * as from from ''",
+    nullptr
+  };
+  // clang-format on
+
+  RunParserSyncTest(context_data, data, kError);
+  // Skip preparser
+  RunModuleParserSyncTest(context_data, data, kSuccess, nullptr, 0, nullptr, 0,
+                          nullptr, 0, false);
+}
+
+TEST_F(ParsingTest, ImportDeferSuccessWithAttributes) {
+  i::FlagScope<bool> f_js_defer_import_eval(&v8_flags.js_defer_import_eval,
+                                            true);
+  i::FlagScope<bool> f_harmony_import_attributes(
+      &v8_flags.harmony_import_attributes, true);
+  // clang-format off
+  const char* context_data[][2] = {
+    {"", ""},
+    {"'use strict';", ""},
+    {nullptr}
+  };
+
+  const char* data[] = {
+    // Basic import declarations, not a deferred import
+    "import defer from '' with {}",
+    "import from from '' with {}",
+    "import { defer } from '' with {}",
+    "import { a as defer } from '' with {}",
+    "import { defer as a } from '' with {}",
+    "import 'defer' with {}",
+    "import defer, * as ns from '' with {}",
+    // Deferred imports
+    "import defer * as ns from '' with { }",
+    "import defer * as ns from '' with { a: 'b' };",
+    nullptr
+  };
+  // clang-format on
+
+  RunParserSyncTest(context_data, data, kError);
+  // Skip preparser
+  RunModuleParserSyncTest(context_data, data, kSuccess, nullptr, 0, nullptr, 0,
+                          nullptr, 0, false);
+}
+
+TEST_F(ParsingTest, ImportDeferErrorNamedImport) {
+  i::FlagScope<bool> f(&v8_flags.js_defer_import_eval, true);
+  // clang-format off
+  const char* context_data[][2] = {
+    {"", ""},
+    {"'use strict';", ""},
+    {nullptr}
+  };
+
+  const char* data[] = {
+    // Invalid deferred imports
+    "import defer a from ''",
+    "import defer { } from ''",
+    "import defer { a } from ''",
+    "import defer { a as b } from ''",
+    "import defer { c, d } from ''",
+    "import defer { e as f, g as h } from ''",
+    "import defer a, * as ns from ''",
+    "import a, defer * as ns from ''",
+    nullptr
+  };
+  // clang-format on
+
+  RunParserSyncTest(context_data, data, kError);
+  // Skip preparser
+  RunModuleParserSyncTest(context_data, data, kError, nullptr, 0, nullptr, 0,
+                          nullptr, 0, false);
+}
+
+TEST_F(ParsingTest, ImportCallDeferSuccess) {
+  i::FlagScope<bool> f(&v8_flags.js_defer_import_eval, true);
+  // clang-format off
+  const char* context_data[][2] = {
+    {"", ""},
+    {"'use strict';", ""},
+    {"function f() {", "}"},
+    {"'use strict'; function f() {", "}"},
+    {"var f = function() {", "}"},
+    {"'use strict'; var f = function() {", "}"},
+    {"({m: function() {", "}})"},
+    {"'use strict'; ({m: function() {", "}})"},
+    {"({m() {", "}})"},
+    {"'use strict'; ({m() {", "}})"},
+    {"({get x() {", "}})"},
+    {"'use strict'; ({get x() {", "}})"},
+    {"({set x(_) {", "}})"},
+    {"'use strict'; ({set x(_) {", "}})"},
+    {"class C {m() {", "}}"},
+    {"class C {get x() {", "}}"},
+    {"class C {set x(_) {", "}}"},
+    {nullptr}
+  };
+
+  const char* data[] = {
+    "import.defer('')",
+    nullptr
+  };
+  // clang-format on
+
+  RunParserSyncTest(context_data, data, kSuccess);
+  RunModuleParserSyncTest(context_data, data, kSuccess);
+}
+
+TEST_F(ParsingTest, ImportCallDeferFailure) {
+  i::FlagScope<bool> f(&v8_flags.js_defer_import_eval, true);
+  // clang-format off
+  const char* context_data[][2] = {
+    {"", ""},
+    {"var ", ""},
+    {"let ", ""},
+    {"const ", ""},
+    {"var [", "] = [1]"},
+    {"([", "] = [1])"},
+    {"({", "} = {1})"},
+    {"var {", " = 1} = 1"},
+    {"for (var ", " of [1]) {}"},
+    {"(", ") => {}"},
+    {"let f = ", " => {}"},
+    {nullptr}
+  };
+
+  const char* data[] = {
+    "import.defer",
+    "import.defer.url",
+    "import.defer[0]",
+    "import.defer.couldBeMutable = true",
+    "import.defer()",
+    "new import.defer.MagicClass",
+    "new import.defer",
+    "t = [...import.defer]",
+    "f = {...import.defer}",
+    "delete import.defer",
+    nullptr
+  };
+  // clang-format on
+
+  RunParserSyncTest(context_data, data, kError);
+  RunModuleParserSyncTest(context_data, data, kError);
+}
+
+TEST_F(ParsingTest, ImportCallDeferWithAttributesSuccess) {
+  i::FlagScope<bool> f_js_defer_import_eval(&v8_flags.js_defer_import_eval,
+                                            true);
+  i::FlagScope<bool> f_harmony_import_attributes(
+      &v8_flags.harmony_import_attributes, true);
+
+  // clang-format off
+  const char* context_data[][2] = {
+    {"", ""},
+    {"'use strict';", ""},
+    {"function f() {", "}"},
+    {"'use strict'; function f() {", "}"},
+    {"var f = function() {", "}"},
+    {"'use strict'; var f = function() {", "}"},
+    {"({m: function() {", "}})"},
+    {"'use strict'; ({m: function() {", "}})"},
+    {"({m() {", "}})"},
+    {"'use strict'; ({m() {", "}})"},
+    {"({get x() {", "}})"},
+    {"'use strict'; ({get x() {", "}})"},
+    {"({set x(_) {", "}})"},
+    {"'use strict'; ({set x(_) {", "}})"},
+    {"class C {m() {", "}}"},
+    {"class C {get x() {", "}}"},
+    {"class C {set x(_) {", "}}"},
+    {nullptr}
+  };
+
+  const char* data[] = {
+    "import.defer('', )",
+    "import.defer('', { })",
+    "import.defer('', { a: b })",
+    "import.defer('', { 'a': b })",
+    nullptr
+  };
+  // clang-format on
+
+  RunParserSyncTest(context_data, data, kSuccess);
+  RunModuleParserSyncTest(context_data, data, kSuccess);
 }
 
 TEST_F(ParsingTest, ConstSloppy) {

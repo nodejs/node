@@ -21,6 +21,7 @@ class WatchTestCase {
 
   async run() {
     await Promise.all([this.watchFiles(), this.writeFiles()]);
+    // eslint-disable-next-line node-core/must-call-assert
     assert(!this.files.length);
   }
   async watchFiles() {

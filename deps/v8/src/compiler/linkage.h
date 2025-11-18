@@ -71,6 +71,9 @@ class V8_EXPORT_PRIVATE CallDescriptor final
     kInitializeRootRegister = 1u << 3,
     // Does not ever try to allocate space on our heap.
     kNoAllocate = 1u << 4,
+    // Repurpose this bit during instruction selection. Signal the presence of
+    // an effect handler to code generation.
+    kHasEffectHandler = kNoAllocate,
     // Use the kJavaScriptCallCodeStartRegister (fixed) register for the
     // indirect target address when calling.
     kFixedTargetRegister = 1u << 5,

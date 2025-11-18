@@ -2517,7 +2517,9 @@ IGNITION_HANDLER(SwitchOnSmiNoFeedback, InterpreterAssembler) {
   GotoIf(IntPtrGreaterThanOrEqual(case_value, table_length), &fall_through);
 
   TNode<WordT> entry = IntPtrAdd(table_start, case_value);
-  TNode<IntPtrT> relative_jump = LoadAndUntagConstantPoolEntry(entry);
+  TNode<Object> constant_entry = LoadConstantPoolEntry(entry);
+  CSA_SBXCHECK(this, TaggedIsSmi(constant_entry));
+  TNode<IntPtrT> relative_jump = SmiUntag(CAST(constant_entry));
   Jump(relative_jump);
 
   BIND(&fall_through);
@@ -3319,6 +3321,12 @@ IGNITION_HANDLER(ForOfNext, InterpreterAssembler) {
 
   auto [value, done_value] = ForOfNextHelper(context, object, next);
   StoreRegisterPairAtOperandIndex(value, done_value, 2);
+  // To avoid special logic in the deoptimizer to re-materialize the value in
+  // the accumulator, we clobber the accumulator after the iterator.next call.
+  // It doesn't really matter what we write to the accumulator here, since we
+  // restore to the correct value on the outside. Storing the result means we
+  // don't need to keep unnecessary state alive across the callstub.
+  ClobberAccumulator(value);
   Dispatch();
 }
 
@@ -3431,7 +3439,9 @@ IGNITION_HANDLER(SwitchOnGeneratorState, InterpreterAssembler) {
   USE(table_length);  // SBXCHECK is a DCHECK when the sandbox is disabled.
 
   TNode<WordT> entry = IntPtrAdd(table_start, case_value);
-  TNode<IntPtrT> relative_jump = LoadAndUntagConstantPoolEntry(entry);
+  TNode<Object> constant_entry = LoadConstantPoolEntry(entry);
+  CSA_SBXCHECK(this, TaggedIsSmi(constant_entry));
+  TNode<IntPtrT> relative_jump = SmiUntag(CAST(constant_entry));
   Jump(relative_jump);
 
   BIND(&fallthrough);

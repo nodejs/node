@@ -9,6 +9,7 @@
 #include "src/execution/arguments-inl.h"
 #include "src/execution/frames.h"
 #include "src/execution/isolate-inl.h"
+#include "src/execution/isolate.h"
 #include "src/execution/messages.h"
 #include "src/handles/maybe-handles.h"
 #include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
@@ -292,8 +293,10 @@ RUNTIME_FUNCTION(Runtime_AddDictionaryProperty) {
   } else {
     DirectHandle<NameDictionary> dictionary(receiver->property_dictionary(),
                                             isolate);
-    dictionary =
-        NameDictionary::Add(isolate, dictionary, name, value, property_details);
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, dictionary,
+        NameDictionary::Add(isolate, dictionary, name, value,
+                            property_details));
     if (name->IsInteresting(isolate)) {
       dictionary->set_may_have_interesting_properties(true);
     }

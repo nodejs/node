@@ -7,7 +7,7 @@ const Countdown = require('../common/countdown');
 const test_res_body = 'other stuff!\n';
 const countdown = new Countdown(2, () => server.close());
 
-const server = http.createServer((req, res) => {
+const server = http.createServer(common.mustCallAtLeast((req, res) => {
   console.error('Server sending informational message #1...');
   // These function calls may rewritten as necessary
   // to call res.writeHead instead
@@ -20,9 +20,9 @@ const server = http.createServer((req, res) => {
     'ABCD': '1'
   });
   res.end(test_res_body);
-});
+}));
 
-server.listen(0, function() {
+server.listen(0, common.mustCall(function() {
   const req = http.request({
     port: this.address().port,
     path: '/world'
@@ -32,7 +32,7 @@ server.listen(0, function() {
 
   let body = '';
 
-  req.on('information', function(res) {
+  req.on('information', common.mustCall((res) => {
     assert.strictEqual(res.httpVersion, '1.1');
     assert.strictEqual(res.httpVersionMajor, 1);
     assert.strictEqual(res.httpVersionMinor, 1);
@@ -45,20 +45,20 @@ server.listen(0, function() {
     assert.strictEqual(res.rawHeaders[1], 'Bar');
     console.error('Client got 102 Processing...');
     countdown.dec();
-  });
+  }));
 
-  req.on('response', function(res) {
+  req.on('response', common.mustCall((res) => {
     // Check that all 102 Processing received before full response received.
     assert.strictEqual(countdown.remaining, 1);
     assert.strictEqual(res.statusCode, 200,
                        `Final status code was ${res.statusCode}, not 200.`);
     res.setEncoding('utf8');
     res.on('data', function(chunk) { body += chunk; });
-    res.on('end', function() {
+    res.on('end', common.mustCall(() => {
       console.error('Got full response.');
       assert.strictEqual(body, test_res_body);
       assert.ok('abcd' in res.headers);
       countdown.dec();
-    });
-  });
-});
+    }));
+  }));
+}));
