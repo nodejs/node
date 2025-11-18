@@ -28,7 +28,7 @@ static napi_value testSetPrototype(napi_env env, napi_callback_info info) {
   napi_value args[2];
   NODE_API_CALL(env, napi_get_cb_info(env, info, &argc, args, NULL, NULL));
 
-  NODE_API_CALL(env, napi_set_prototype(env, args[0], args[1]));
+  NODE_API_CALL(env, node_api_set_prototype(env, args[0], args[1]));
 
   return NULL;
 }
