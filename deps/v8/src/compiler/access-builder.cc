@@ -4,6 +4,8 @@
 
 #include "src/compiler/access-builder.h"
 
+#include "src/codegen/machine-type.h"
+#include "src/compiler/property-access-builder.h"
 #include "src/compiler/type-cache.h"
 #include "src/handles/handles-inl.h"
 #include "src/objects/arguments.h"
@@ -1097,12 +1099,16 @@ FieldAccess AccessBuilder::ForFeedbackVectorSlot(int index) {
 }
 
 // static
-FieldAccess AccessBuilder::ForPropertyArraySlot(int index) {
+FieldAccess AccessBuilder::ForPropertyArraySlot(int index,
+                                                Representation representation) {
   int offset = PropertyArray::OffsetOfElementAt(index);
-  FieldAccess access = {kTaggedBase,       offset,
-                        Handle<Name>(),    OptionalMapRef(),
-                        Type::Any(),       MachineType::AnyTagged(),
-                        kFullWriteBarrier, "PropertyArraySlot"};
+  MachineType machine_type =
+      representation.IsHeapObject() || representation.IsDouble()
+          ? MachineType::TaggedPointer()
+          : MachineType::AnyTagged();
+  FieldAccess access = {
+      kTaggedBase, offset,       Handle<Name>(),    OptionalMapRef(),
+      Type::Any(), machine_type, kFullWriteBarrier, "PropertyArraySlot"};
   return access;
 }
 

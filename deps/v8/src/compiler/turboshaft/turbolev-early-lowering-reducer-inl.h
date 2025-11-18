@@ -14,6 +14,7 @@
 #include "src/compiler/turboshaft/representations.h"
 #include "src/deoptimizer/deoptimize-reason.h"
 #include "src/objects/contexts.h"
+#include "src/objects/descriptor-array-inl.h"
 #include "src/objects/instance-type-inl.h"
 
 namespace v8::internal::compiler::turboshaft {
@@ -325,8 +326,32 @@ class TurbolevEarlyLoweringReducer : public Next {
   }
 
   V<PropertyArray> ExtendPropertiesBackingStore(
-      V<PropertyArray> old_property_array, V<JSObject> object, int old_length,
+      V<PropertyArray> old_property_array, V<JSObject> object,
+      const compiler::MapRef& old_map, int old_length,
       V<FrameState> frame_state, const FeedbackSource& feedback) {
+    int in_object_length = old_map.GetInObjectProperties();
+
+    // Find the descriptor index corresponding to the first out-of-object
+    // property.
+    DescriptorArrayRef descs = old_map.instance_descriptors(broker_);
+    InternalIndex first_out_of_object_descriptor(in_object_length);
+    InternalIndex number_of_descriptors(
+        descs.object()->number_of_descriptors());
+    for (InternalIndex i(in_object_length); i < number_of_descriptors; ++i) {
+      PropertyDetails details = descs.GetPropertyDetails(i);
+      // Skip over non-field properties.
+      if (details.location() != PropertyLocation::kField) {
+        continue;
+      }
+      // Skip over in-object fields.
+      // TODO(leszeks): We could make this smarter, like a binary search.
+      if (details.field_index() < in_object_length) {
+        continue;
+      }
+      first_out_of_object_descriptor = i;
+      break;
+    }
+
     // Allocate new PropertyArray.
     int new_length = old_length + JSObject::kFieldsAdded;
     Uninitialized<PropertyArray> new_property_array =
@@ -337,18 +362,28 @@ class TurbolevEarlyLoweringReducer : public Next {
                        __ HeapConstant(factory_->property_array_map()));
 
     // Copy existing properties over.
-    for (int i = 0; i < old_length; i++) {
+    InternalIndex descriptor = first_out_of_object_descriptor;
+    for (int i = 0; i < old_length; ++i, ++descriptor) {
+      PropertyDetails details = descs.GetPropertyDetails(descriptor);
+      while (details.location() != PropertyLocation::kField) {
+        ++descriptor;
+        details = descs.GetPropertyDetails(descriptor);
+      }
+      DCHECK_EQ(i, details.field_index() - in_object_length);
+      Representation r = details.representation();
+
       V<Object> old_value = __ template LoadField<Object>(
-          old_property_array, AccessBuilder::ForPropertyArraySlot(i));
+          old_property_array, AccessBuilder::ForPropertyArraySlot(i, r));
       __ InitializeField(new_property_array,
-                         AccessBuilder::ForPropertyArraySlot(i), old_value);
+                         AccessBuilder::ForPropertyArraySlot(i, r), old_value);
     }
 
     // Initialize new properties to undefined.
     V<Undefined> undefined = __ HeapConstant(factory_->undefined_value());
     for (int i = 0; i < JSObject::kFieldsAdded; ++i) {
       __ InitializeField(new_property_array,
-                         AccessBuilder::ForPropertyArraySlot(old_length + i),
+                         AccessBuilder::ForPropertyArraySlot(
+                             old_length + i, Representation::Tagged()),
                          undefined);
     }
 

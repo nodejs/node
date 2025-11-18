@@ -11,6 +11,7 @@
 #include "src/compiler/write-barrier-kind.h"
 #include "src/objects/elements-kind.h"
 #include "src/objects/js-objects.h"
+#include "src/objects/property-details.h"
 
 namespace v8 {
 namespace internal {
@@ -323,7 +324,8 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   static FieldAccess ForFeedbackVectorSlot(int index);
 
   // Provides access to PropertyArray slots.
-  static FieldAccess ForPropertyArraySlot(int index);
+  static FieldAccess ForPropertyArraySlot(int index,
+                                          Representation representation);
 
   // Provides access to ScopeInfo flags.
   static FieldAccess ForScopeInfoFlags();
