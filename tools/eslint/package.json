@@ -7,7 +7,6 @@
     "@babel/eslint-parser": "^7.28.5",
     "@babel/plugin-syntax-import-attributes": "^7.27.1",
     "@babel/plugin-syntax-import-source": "^7.27.1",
-    "@babel/plugin-proposal-explicit-resource-management": "^7.27.4",
     "@stylistic/eslint-plugin": "^5.6.0",
     "eslint": "^9.39.1",
     "eslint-formatter-tap": "^9.0.1",
