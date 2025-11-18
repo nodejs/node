@@ -134,7 +134,7 @@ const tests = [
     before: common.mustCall(function before() {
       if (common.isWindows) {
         const execSync = require('child_process').execSync;
-        execSync(`ATTRIB +H "${emptyHiddenHistoryPath}"`, common.mustSucceed());
+        execSync(`ATTRIB +H "${emptyHiddenHistoryPath}"`);
       }
     }),
     env: { NODE_REPL_HISTORY: emptyHiddenHistoryPath },
