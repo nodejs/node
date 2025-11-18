@@ -5307,8 +5307,6 @@ void GenerateClassFieldVerifier(const std::string& class_name,
   // Protected pointer fields cannot be read or verified from torque yet.
   if (field_type->IsSubtypeOf(TypeOracle::GetProtectedPointerType())) return;
   if (field_type == TypeOracle::GetFloat64OrUndefinedOrHoleType()) return;
-  // Do not verify if the field may be uninitialized.
-  if (TypeOracle::GetUninitializedType()->IsSubtypeOf(field_type)) return;
 
   std::string field_start_offset;
   if (f.index) {

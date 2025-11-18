@@ -48,6 +48,8 @@ V8_OBJECT class HeapObjectLayout {
   inline void set_map_safe_transition(IsolateT* isolate, Tagged<Map> value,
                                       ReleaseStoreTag);
 
+  inline ObjectSlot map_slot() const;
+
   inline void set_map_safe_transition_no_write_barrier(
       Isolate* isolate, Tagged<Map> value, RelaxedStoreTag = kRelaxedStore);
 

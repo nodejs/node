@@ -58,9 +58,6 @@ type Zero extends PositiveSmi;
 // A tagged value represented by an all-zero bitpattern.
 type TaggedZeroPattern extends TaggedIndex;
 
-// A value with the size of Tagged which may contain arbitrary data.
-type Uninitialized extends Tagged;
-
 type BuiltinsName extends int31 constexpr 'Builtin';
 
 type UseCounterFeature extends int31

@@ -1496,6 +1496,10 @@ DEF_ACQUIRE_GETTER(HeapObject, map, Tagged<Map>) {
   return map_word(cage_base, kAcquireLoad).ToMap();
 }
 
+ObjectSlot HeapObjectLayout::map_slot() const {
+  return Tagged<HeapObject>(this)->map_slot();
+}
+
 ObjectSlot HeapObject::map_slot() const {
   return ObjectSlot(MapField::address(*this));
 }

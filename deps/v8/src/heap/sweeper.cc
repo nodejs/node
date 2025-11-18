@@ -947,11 +947,11 @@ std::optional<base::AddressRegion> Sweeper::ComputeDiscardMemoryArea(
 
 void Sweeper::ZeroOrDiscardUnusedMemory(PageMetadata* page, Address addr,
                                         size_t size) {
-  if (size < FreeSpace::kSize) {
+  if (size < sizeof(FreeSpace)) {
     return;
   }
 
-  const Address unused_start = addr + FreeSpace::kSize;
+  const Address unused_start = addr + sizeof(FreeSpace);
   DCHECK(page->ContainsLimit(unused_start));
   const Address unused_end = addr + size;
   DCHECK(page->ContainsLimit(unused_end));
