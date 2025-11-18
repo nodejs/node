@@ -1828,6 +1828,33 @@ This method returns a `Promise` that will resolve to an object identical to [`v8
 or reject with an [`ERR_WORKER_NOT_RUNNING`][] error if the worker is no longer running.
 This methods allows the statistics to be observed from outside the actual thread.
 
+### `worker.getMemoryUsage()`
+
+<!-- YAML
+added:
+changes:
+  - version: v25.2.0
+    pr-url: https://github.com/nodejs/node/pull/REPLACEME
+    description: Added `worker.getMemoryUsage()`.
+-->
+
+* Returns: {Promise}
+
+Returns an object mirroring [`process.memoryUsage()`][] but scoped to the
+worker's isolate:
+
+* `rss` {integer} Resident Set Size. This value represents the RSS reported by
+  the worker thread and may still include memory shared across threads.
+* `heapTotal` {integer} Total size of the V8 heap for the worker.
+* `heapUsed` {integer} Heap space used by the worker.
+* `external` {integer} Memory used by C++ objects bound to JavaScript objects in
+  the worker.
+* `arrayBuffers` {integer} Memory allocated for `ArrayBuffer` and
+  `SharedArrayBuffer` instances within the worker.
+
+The returned `Promise` rejects with [`ERR_WORKER_NOT_RUNNING`][] if called after
+the worker has stopped.
+
 ### `worker.performance`
 
 <!-- YAML
