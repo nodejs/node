@@ -19,7 +19,7 @@ const { globalIgnores } = await importEslintTool('eslint/config');
 const { default: js } = await importEslintTool('@eslint/js');
 const { default: babelEslintParser } = await importEslintTool('@babel/eslint-parser');
 const babelPluginProposalExplicitResourceManagement =
-  resolveEslintTool('@babel/plugin-proposal-explicit-resource-management');
+    resolveEslintTool('@babel/plugin-proposal-explicit-resource-management');
 const babelPluginSyntaxImportAttributes = resolveEslintTool('@babel/plugin-syntax-import-attributes');
 const babelPluginSyntaxImportSource = resolveEslintTool('@babel/plugin-syntax-import-source');
 const { default: jsdoc } = await importEslintTool('eslint-plugin-jsdoc');
@@ -298,6 +298,7 @@ export default [
         MemberExpression: 'off',
         ObjectExpression: 'first',
         SwitchCase: 1,
+        assignmentOperator: 'off',
       }],
       '@stylistic/js/key-spacing': 'error',
       '@stylistic/js/keyword-spacing': 'error',
