@@ -6,7 +6,7 @@ on:
       - .mailmap
       - README.md
       - test/internet/**
-      - '*.nix'
+      - '**.nix'
       - .github/**
       - '!.github/workflows/test-linux.yml'
     types: [opened, synchronize, reopened, ready_for_review]
@@ -20,7 +20,7 @@ on:
       - .mailmap
       - README.md
       - test/internet/**
-      - '*.nix'
+      - '**.nix'
       - .github/**
       - '!.github/workflows/test-linux.yml'
 
