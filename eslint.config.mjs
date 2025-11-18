@@ -277,6 +277,8 @@ export default [
         wrapIndent: '  ',
       }],
       'jsdoc/check-alignment': 'error',
+      'jsdoc/reject-any-type': 'off',
+      'jsdoc/reject-function-type': 'off',
 
       // Stylistic rules.
       '@stylistic/js/arrow-parens': 'error',
