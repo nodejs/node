@@ -1424,12 +1424,11 @@ class GTEST_API_ Mutex {
 // "MutexLock l(&mu)".  Hence the typedef trick below.
 class GTestMutexLock {
  public:
-  explicit GTestMutexLock(Mutex* mutex) : mutex_(mutex) { mutex_->lock(); }
-
-  ~GTestMutexLock() { mutex_->unlock(); }
+  explicit GTestMutexLock(Mutex& mutex) : mutex_(mutex) { mutex_.lock(); }
+  ~GTestMutexLock() { mutex_.unlock(); }
 
  private:
-  Mutex* const mutex_;
+  Mutex& mutex_;
 
   GTestMutexLock(const GTestMutexLock&) = delete;
   GTestMutexLock& operator=(const GTestMutexLock&) = delete;
@@ -1716,12 +1715,11 @@ class Mutex : public MutexBase {
 // "MutexLock l(&mu)".  Hence the typedef trick below.
 class GTestMutexLock {
  public:
-  explicit GTestMutexLock(MutexBase* mutex) : mutex_(mutex) { mutex_->lock(); }
-
-  ~GTestMutexLock() { mutex_->unlock(); }
+  explicit GTestMutexLock(MutexBase& mutex) : mutex_(mutex) { mutex_.lock(); }
+  ~GTestMutexLock() { mutex_.unlock(); }
 
  private:
-  MutexBase* const mutex_;
+  MutexBase& mutex_;
 
   GTestMutexLock(const GTestMutexLock&) = delete;
   GTestMutexLock& operator=(const GTestMutexLock&) = delete;
@@ -1881,7 +1879,7 @@ class Mutex {
 // "MutexLock l(&mu)".  Hence the typedef trick below.
 class GTestMutexLock {
  public:
-  explicit GTestMutexLock(Mutex*) {}  // NOLINT
+  explicit GTestMutexLock(Mutex&) {}  // NOLINT
 };
 
 typedef GTestMutexLock MutexLock;
