@@ -317,9 +317,6 @@ An alias of [`assert.ok()`][].
 <!-- YAML
 added: v0.1.21
 changes:
-  - version: v25.1.0
-    pr-url: https://github.com/nodejs/node/pull/58849
-    description: Message may now be a `printf`-like format string or function.
   - version: v25.0.0
     pr-url: https://github.com/nodejs/node/pull/59448
     description: Promises are not considered equal anymore if they are not of
@@ -520,9 +517,6 @@ parameter is an instance of {Error} then it will be thrown instead of the
 <!-- YAML
 added: v1.2.0
 changes:
-  - version: v25.1.0
-    pr-url: https://github.com/nodejs/node/pull/58849
-    description: Message may now be a `printf`-like format string or function.
   - version: v25.0.0
     pr-url: https://github.com/nodejs/node/pull/59448
     description: Promises are not considered equal anymore if they are not of
