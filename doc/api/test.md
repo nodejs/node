@@ -125,6 +125,95 @@ Any subtests that are still outstanding when their parent finishes
 are cancelled and treated as failures. Any subtest failures cause the parent
 test to fail.
 
+## Suites
+
+Suites provide a way to group related tests under a common name. A suite
+is created with the `suite()` function (or its alias `describe()`). The
+callback passed to `suite()` is executed synchronously and is used only
+to register nested tests or nested suites.
+
+A suite reports a result, but its status is fully determined by the
+tests and suites inside it --- suites cannot fail independently.
+
+A suite always waits for all of its nested tests and nested suites to
+finish before completing.
+
+*Example*
+
+``` js
+import { suite, test } from 'node:test';
+import assert from 'node:assert';
+
+suite('math operations', () => {
+  test('addition', () => {
+    assert.strictEqual(1 + 1, 2);
+  });
+
+  test('multiplication', () => {
+    assert.strictEqual(2 * 2, 4);
+  });
+});
+```
+
+*Nested suites*
+
+``` js
+suite('user features', () => {
+  suite('profile', () => {
+    test('updates display name', () => {
+      assert.ok(true);
+    });
+  });
+
+  suite('settings', () => {
+    test('enables notifications', () => {
+      assert.ok(true);
+    });
+  });
+});
+```
+
+**Suites vs. Subtests**
+
+Both suites and subtests structure test hierarchies, but they behave
+differently in important ways.
+
+*Execution behavior*
+| Feature                                    | Suite (`suite()`)   | Subtest (`t.test()`) |
+|--------------------------------------------|----------------------|------------------------|
+| Parent waits for children                  | Always               | Only if awaited        |
+| Pending children canceled if parent ends   | Never                | Yes                    |
+| Callback may be async                      | No (ignored)         | Yes                    |
+| Callback controls execution order          | No                   | Yes (via `await`)      |
+
+*Suite example*
+
+``` js
+suite('group', () => {
+  test('test 1', () => assert.ok(true));
+  test('test 2', () => assert.ok(true));
+});
+```
+
+The suite finishes only after both tests complete.
+
+*Subtest example*
+
+``` js
+test('parent test', async (t) => {
+  await t.test('subtest 1', () => assert.ok(true));
+  await t.test('subtest 2', () => assert.ok(true));
+});
+```
+
+If the `await` keywords were omitted, the parent test would complete
+early and the test runner would cancel the unfinished subtests.
+
+**`describe()` Alias**
+
+`describe()` is a direct alias of `suite()` and behaves identically. See
+the "describe() and it() aliases" section for more details.
+
 ## Skipping tests
 
 Individual tests can be skipped by passing the `skip` option to the test, or by
