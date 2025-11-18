@@ -690,7 +690,7 @@ assert.strictEqual(util.inspect(-5e-324), '-5e-324');
 
 {
   const tmp = Error.stackTraceLimit;
-  Error.stackTraceLimit = 0;
+  Object.defineProperty(Error, 'stackTraceLimit', { value: 0, enumerable: false });
   const err = new Error('foo');
   const err2 = new Error('foo\nbar');
   assert.strictEqual(util.inspect(err, { compact: true }), '[Error: foo]');
@@ -2586,6 +2586,7 @@ assert.strictEqual(
 
   Object.defineProperties(error, {
     name: throwingGetter,
+    message: throwingGetter,
     stack: throwingGetter,
     cause: throwingGetter,
   });
@@ -2600,6 +2601,7 @@ assert.strictEqual(
     '  foo: [Getter: <Inspection threw ([object Error] {\n' +
     '  stack: [Getter/Setter],\n' +
     '  name: [Getter],\n' +
+    '  message: [Getter],\n' +
     '  cause: [Getter]\n' +
     '})>]\n' +
     '}',
@@ -2654,9 +2656,7 @@ assert.strictEqual(
     inspect({
       get foo() { throw Error; }
     }, { getters: true }),
-    '{\n' +
-    '  foo: [Getter: <Inspection threw ([Function: Error] { stackTraceLimit: 0 })>]\n' +
-    '}'
+    '{ foo: [Getter: <Inspection threw ([Function: Error])>] }'
   );
 }
 
@@ -3340,36 +3340,26 @@ assert.strictEqual(
       '\x1B[2mdef: \x1B[33m5\x1B[39m\x1B[22m }'
   );
 
-  assert.strictEqual(
+  assert.match(
     inspect(Object.getPrototypeOf(bar), { showHidden: true, getters: true }),
-    '<ref *1> Foo [Map] {\n' +
-    '    [constructor]: [class Bar extends Foo] {\n' +
-    '      [length]: 0,\n' +
-    "      [name]: 'Bar',\n" +
-    '      [prototype]: [Circular *1],\n' +
-    '      [Symbol(Symbol.species)]: [Getter: <Inspection threw ' +
-      // Heh? I don't know how to override the error stack to make it predictable
-      "(TypeError: Symbol.prototype.toString requires that 'this' be a Symbol\n" +
-    '    at Bar.toString (<anonymous>)\n' +
-    '    at formatPrimitive (node:internal/util/inspect:2246:13)\n' +
-    '    at formatProperty (node:internal/util/inspect:2556:29)\n' +
-    '    at addPrototypeProperties (node:internal/util/inspect:1010:21)\n' +
-    '    at getConstructorName (node:internal/util/inspect:918:11)\n' +
-    '    at formatRaw (node:internal/util/inspect:1194:23)\n' +
-    '    at formatValue (node:internal/util/inspect:1184:10)\n' +
-    '    at formatProperty (node:internal/util/inspect:2536:11)\n' +
-    '    at formatRaw (node:internal/util/inspect:1429:9)\n' +
-    '    at formatValue (node:internal/util/inspect:1184:10))>]\n' +
-    '    },\n' +
-    "    [xyz]: [Getter: 'YES!'],\n" +
-    '    [Symbol(nodejs.util.inspect.custom)]: ' +
-      '[Function: [nodejs.util.inspect.custom]] {\n' +
-    '      [length]: 0,\n' +
-    "      [name]: '[nodejs.util.inspect.custom]'\n" +
-    '    },\n' +
-    '    [abc]: [Getter: true],\n' +
-    '    [def]: [Getter/Setter: false]\n' +
-    '  }'
+    new RegExp('^' + RegExp.escape(
+      '<ref *1> Foo [Map] {\n' +
+      '    [constructor]: [class Bar extends Foo] {\n' +
+      '      [length]: 0,\n' +
+      "      [name]: 'Bar',\n" +
+      '      [prototype]: [Circular *1],\n' +
+      '      [Symbol(Symbol.species)]: [Getter: <Inspection threw ' +
+      "(TypeError: Symbol.prototype.toString requires that 'this' be a Symbol") + '.*' + RegExp.escape(')>]\n' +
+      '    },\n' +
+      "    [xyz]: [Getter: 'YES!'],\n" +
+      '    [Symbol(nodejs.util.inspect.custom)]: [Function: [nodejs.util.inspect.custom]] {\n' +
+      '      [length]: 0,\n' +
+      "      [name]: '[nodejs.util.inspect.custom]'\n" +
+      '    },\n' +
+      '    [abc]: [Getter: true],\n' +
+      '    [def]: [Getter/Setter: false]\n' +
+      '  }'
+    ) + '$', 's')
   );
 
   assert.strictEqual(
