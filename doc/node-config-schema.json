@@ -603,6 +603,58 @@
       },
       "type": "object"
     },
+    "permission": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "allow-addons": {
+          "type": "boolean"
+        },
+        "allow-child-process": {
+          "type": "boolean"
+        },
+        "allow-fs-read": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string",
+                "minItems": 1
+              },
+              "type": "array"
+            }
+          ]
+        },
+        "allow-fs-write": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string",
+                "minItems": 1
+              },
+              "type": "array"
+            }
+          ]
+        },
+        "allow-inspector": {
+          "type": "boolean"
+        },
+        "allow-net": {
+          "type": "boolean"
+        },
+        "allow-wasi": {
+          "type": "boolean"
+        },
+        "allow-worker": {
+          "type": "boolean"
+        }
+      }
+    },
     "testRunner": {
       "type": "object",
       "additionalProperties": false,
