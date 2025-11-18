@@ -326,7 +326,7 @@ export default [
         'error',
         { blankLine: 'always', prev: 'function', next: 'function' },
       ],
-      '@stylistic/js/quotes': ['error', 'single', { avoidEscape: true, allowTemplateLiterals: true }],
+      '@stylistic/js/quotes': ['error', 'single', { avoidEscape: true, allowTemplateLiterals: 'always' }],
       '@stylistic/js/quote-props': ['error', 'consistent'],
       '@stylistic/js/rest-spread-spacing': 'error',
       '@stylistic/js/semi': 'error',
