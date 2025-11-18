@@ -588,19 +588,13 @@ Node.js implements the [WHATWG Fetch Standard][] with intentional differences to
 ##### Async iterable request bodies
 
 Node.js supports async iterables as request bodies—a behavior not included in the Fetch Standard.
-```js
+```mjs
 const data = {
   async *[Symbol.asyncIterator]() {
     yield 'hello';
     yield 'world';
-  }
+  },
 };
-
-await fetch('https://example.com', {
-  method: 'POST',
-  body: data,
-  duplex: 'half'
-});
 ```
 
 When using an async iterable or a `ReadableStream` as the request body, the `duplex` option must be set to `'half'`.
@@ -608,7 +602,7 @@ When using an async iterable or a `ReadableStream` as the request body, the `dup
 ##### FormData with stream-backed Blob objects
 
 `FormData` entries may include stream-backed `Blob` objects created from the filesystem, enabling efficient uploads of large files without buffering them in memory.
-```js
+```mjs
 import { openAsBlob } from 'node:fs';
 
 const file = await openAsBlob('./large-file.csv');
@@ -623,7 +617,7 @@ await fetch('https://example.com', { method: 'POST', body: form });
 ##### Async iterable response bodies
 
 The `Response` constructor accepts async iterables, allowing flexible construction of streaming responses in server environments.
-```js
+```mjs
 const res = new Response(asyncIterable);
 ```
 
@@ -646,7 +640,7 @@ When using `redirect: 'manual'`, Node.js returns the actual redirect response ra
 In Node.js, unconsumed response bodies may delay the release of underlying network resources. This can reduce connection reuse or cause stalls under load.
 
 Always consume or cancel the response body:
-```js
+```mjs
 const res = await fetch(url);
 for await (const chunk of res.body) {
   // process chunk
@@ -654,7 +648,7 @@ for await (const chunk of res.body) {
 ```
 
 For header-only requests, prefer `HEAD` to avoid creating a body:
-```js
+```mjs
 const headers = (await fetch(url, { method: 'HEAD' })).headers;
 ```
 
@@ -667,7 +661,9 @@ The `Expect` request header is not supported. Request bodies are sent immediatel
 #### Implementation Notes
 
 Node.js uses the [undici][] HTTP client internally to implement `fetch()`. The bundled version can be inspected with:
-```js
+```mjs
+import process from 'node:process';
+
 console.log(process.versions.undici);
 ```
 
