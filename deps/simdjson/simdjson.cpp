@@ -1,4 +1,4 @@
-/* auto-generated on 2025-11-03 11:03:21 -0500. version 4.2.1 Do not edit! */
+/* auto-generated on 2025-11-11 14:17:08 -0500. version 4.2.2 Do not edit! */
 /* including simdjson.cpp:  */
 /* begin file simdjson.cpp */
 #define SIMDJSON_SRC_SIMDJSON_CPP
@@ -2752,6 +2752,8 @@ struct simdjson_result_base : protected std::pair<T, error_code> {
    */
   simdjson_inline T&& value_unsafe() && noexcept;
 
+  using value_type = T;
+  using error_type = error_code;
 }; // struct simdjson_result_base
 
 } // namespace internal
@@ -2863,6 +2865,8 @@ struct simdjson_result : public internal::simdjson_result_base<T> {
    */
   simdjson_inline T&& value_unsafe() && noexcept;
 
+  using value_type = T;
+  using error_type = error_code;
 }; // struct simdjson_result
 
 #if SIMDJSON_EXCEPTIONS
@@ -10105,6 +10109,9 @@ struct implementation_simdjson_result_base {
    */
   simdjson_inline T&& value_unsafe() && noexcept;
 
+  using value_type = T;
+  using error_type = error_code;
+
 protected:
   /** users should never directly access first and second. **/
   T first{}; /** Users should never directly access 'first'. **/
@@ -16600,6 +16607,9 @@ struct implementation_simdjson_result_base {
    */
   simdjson_inline T&& value_unsafe() && noexcept;
 
+  using value_type = T;
+  using error_type = error_code;
+
 protected:
   /** users should never directly access first and second. **/
   T first{}; /** Users should never directly access 'first'. **/
@@ -22949,6 +22959,9 @@ struct implementation_simdjson_result_base {
    * the error() method returns a value that evaluates to false.
    */
   simdjson_inline T&& value_unsafe() && noexcept;
+
+  using value_type = T;
+  using error_type = error_code;
 
 protected:
   /** users should never directly access first and second. **/
@@ -29456,6 +29469,9 @@ struct implementation_simdjson_result_base {
    * the error() method returns a value that evaluates to false.
    */
   simdjson_inline T&& value_unsafe() && noexcept;
+
+  using value_type = T;
+  using error_type = error_code;
 
 protected:
   /** users should never directly access first and second. **/
@@ -36323,6 +36339,9 @@ struct implementation_simdjson_result_base {
    */
   simdjson_inline T&& value_unsafe() && noexcept;
 
+  using value_type = T;
+  using error_type = error_code;
+
 protected:
   /** users should never directly access first and second. **/
   T first{}; /** Users should never directly access 'first'. **/
@@ -43011,6 +43030,9 @@ struct implementation_simdjson_result_base {
    */
   simdjson_inline T&& value_unsafe() && noexcept;
 
+  using value_type = T;
+  using error_type = error_code;
+
 protected:
   /** users should never directly access first and second. **/
   T first{}; /** Users should never directly access 'first'. **/
@@ -49145,6 +49167,9 @@ struct implementation_simdjson_result_base {
    */
   simdjson_inline T&& value_unsafe() && noexcept;
 
+  using value_type = T;
+  using error_type = error_code;
+
 protected:
   /** users should never directly access first and second. **/
   T first{}; /** Users should never directly access 'first'. **/
@@ -54870,6 +54895,9 @@ struct implementation_simdjson_result_base {
    * the error() method returns a value that evaluates to false.
    */
   simdjson_inline T&& value_unsafe() && noexcept;
+
+  using value_type = T;
+  using error_type = error_code;
 
 protected:
   /** users should never directly access first and second. **/
