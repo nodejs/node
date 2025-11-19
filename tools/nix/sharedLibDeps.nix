@@ -1,5 +1,6 @@
 {
   pkgs ? import ./pkgs.nix { },
+  withTemporal ? false,
 }:
 {
   inherit (pkgs)
@@ -45,3 +46,6 @@
     ];
   });
 }
+// (pkgs.lib.optionalAttrs withTemporal {
+  inherit (pkgs) temporal_capi;
+})
