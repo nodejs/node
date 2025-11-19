@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -634,10 +634,8 @@ static int evp_rand_nonce_locked(EVP_RAND_CTX *ctx, unsigned char *out,
 {
     unsigned int str = evp_rand_strength_locked(ctx);
 
-    if (ctx->meth->nonce == NULL)
-        return 0;
-    if (ctx->meth->nonce(ctx->algctx, out, str, outlen, outlen))
-        return 1;
+    if (ctx->meth->nonce != NULL)
+        return ctx->meth->nonce(ctx->algctx, out, str, outlen, outlen) > 0;
     return evp_rand_generate_locked(ctx, out, outlen, str, 0, NULL, 0);
 }
 

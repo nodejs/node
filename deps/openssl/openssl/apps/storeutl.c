@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -198,9 +198,7 @@ int storeutl_main(int argc, char *argv[])
             }
             break;
         case OPT_CRITERION_FINGERPRINT:
-            if (criterion != 0
-                || (criterion == OSSL_STORE_SEARCH_BY_KEY_FINGERPRINT
-                    && fingerprint != NULL)) {
+            if (criterion != 0) {
                 BIO_printf(bio_err, "%s: criterion already given.\n",
                            prog);
                 goto end;

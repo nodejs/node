@@ -1,7 +1,7 @@
 #!{- $config{HASHBANGPERL} -}
 {- use OpenSSL::Util; -}
 # {- join("\n# ", @autowarntext) -}
-# Copyright 1999-2022 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 1999-2025 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -63,10 +63,10 @@ if (defined(&Cwd::getcwd)) {
 my $path_delim = ($pwd =~ /^[a-z]\:/i) ? ';' : ':';
 $ENV{PATH} = "$prefix/bin" . ($ENV{PATH} ? $path_delim . $ENV{PATH} : "");
 
-if (! -x $openssl) {
+if (!(-f $openssl && -x $openssl)) {
     my $found = 0;
     foreach (split /$path_delim/, $ENV{PATH}) {
-        if (-x "$_/$openssl") {
+        if (-f "$_/$openssl" && -x "$_/$openssl") {
             $found = 1;
             $openssl = "$_/$openssl";
             last;
@@ -88,7 +88,7 @@ if (@ARGV) {
 
 if (-d $dirlist[0]) {
     chdir $dirlist[0];
-    $openssl="$pwd/$openssl" if (!-x $openssl);
+    $openssl="$pwd/$openssl" if (!(-f $openssl && -x $openssl));
     chdir $pwd;
 }
 

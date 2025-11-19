@@ -527,6 +527,9 @@ static void mac_gen_cleanup(void *genctx)
 {
     struct mac_gen_ctx *gctx = genctx;
 
+    if (gctx == NULL)
+        return;
+
     OPENSSL_secure_clear_free(gctx->priv_key, gctx->priv_key_len);
     ossl_prov_cipher_reset(&gctx->cipher);
     OPENSSL_free(gctx);
