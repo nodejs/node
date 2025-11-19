@@ -71,7 +71,16 @@
       '<(protocol_tool_path)/templates/Imported_h.template',
       '<(protocol_tool_path)/templates/TypeBuilder_cpp.template',
       '<(protocol_tool_path)/templates/TypeBuilder_h.template',
-    ]
+    ],
+    'node_pdl_files': [
+      'node_protocol.pdl',
+      'domain_io.pdl',
+      'domain_network.pdl',
+      'domain_node_runtime.pdl',
+      'domain_node_tracing.pdl',
+      'domain_node_worker.pdl',
+      'domain_target.pdl',
+    ],
   },
   'defines': [
     'HAVE_INSPECTOR=1',
@@ -92,7 +101,7 @@
     {
       'action_name': 'convert_node_protocol_to_json',
       'inputs': [
-        'node_protocol.pdl',
+        '<@(node_pdl_files)',
       ],
       'outputs': [
         '<(SHARED_INTERMEDIATE_DIR)/src/node_protocol.json',
@@ -100,7 +109,7 @@
       'action': [
         '<(python)',
         '<(protocol_tool_path)/convert_protocol_to_json.py',
-        '<@(_inputs)',
+        'src/inspector/node_protocol.pdl',
         '<@(_outputs)',
       ],
     },
@@ -108,7 +117,7 @@
       'action_name': 'node_protocol_generated_sources',
       'inputs': [
         'node_protocol_config.json',
-        'node_protocol.pdl',
+        '<@(node_pdl_files)',
         '<(SHARED_INTERMEDIATE_DIR)/src/node_protocol.json',
         '<@(node_protocol_files)',
         '<(protocol_tool_path)/code_generator.py',
