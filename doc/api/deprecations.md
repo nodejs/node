@@ -3601,7 +3601,7 @@ will throw an error in a future version.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v20.19.6
     pr-url: https://github.com/nodejs/node/pull/57643
     description: Documentation-only deprecation.
 -->
@@ -3615,7 +3615,7 @@ an internal nodejs implementation rather than a public facing API, use `node:tls
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v20.19.6
     pr-url: https://github.com/nodejs/node/pull/58337
     description: Documentation-only deprecation.
 -->
@@ -3630,7 +3630,7 @@ an internal nodejs implementation rather than a public facing API, use `node:str
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v20.19.6
     pr-url: https://github.com/nodejs/node/pull/58313
     description: Documentation-only deprecation.
 -->
