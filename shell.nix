@@ -1,9 +1,10 @@
 {
   pkgs ? import ./tools/nix/pkgs.nix { },
   loadJSBuiltinsDynamically ? true, # Load `lib/**.js` from disk instead of embedding
+  withTemporal ? false,
   ncu-path ? null, # Provide this if you want to use a local version of NCU
   icu ? pkgs.icu,
-  sharedLibDeps ? import ./tools/nix/sharedLibDeps.nix { inherit pkgs; },
+  sharedLibDeps ? import ./tools/nix/sharedLibDeps.nix { inherit pkgs withTemporal; },
   ccache ? pkgs.ccache,
   ninja ? pkgs.ninja,
   devTools ? import ./tools/nix/devTools.nix { inherit pkgs ncu-path; },
@@ -11,6 +12,9 @@
   extraConfigFlags ? [
     "--without-npm"
     "--debug-node"
+  ]
+  ++ pkgs.lib.optionals withTemporal [
+    "--v8-enable-temporal-support"
   ],
 }:
 
@@ -22,7 +26,7 @@ in
 pkgs.mkShell {
   inherit (pkgs.nodejs_latest) nativeBuildInputs;
 
-  buildInputs = builtins.attrValues sharedLibDeps ++ pkgs.lib.optionals useSharedICU [ icu ];
+  buildInputs = builtins.attrValues sharedLibDeps ++ pkgs.lib.optional useSharedICU icu;
 
   packages = [
     ccache

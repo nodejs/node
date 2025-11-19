@@ -573,6 +573,28 @@ shared_optgroup.add_argument('--shared-sqlite-libpath',
     dest='shared_sqlite_libpath',
     help='a directory to search for the shared sqlite DLL')
 
+shared_optgroup.add_argument('--shared-temporal_capi',
+    action='store_true',
+    dest='shared_temporal_capi',
+    default=None,
+    help='link to a shared temporal_capi DLL instead of static linking')
+
+shared_optgroup.add_argument('--shared-temporal_capi-includes',
+    action='store',
+    dest='shared_temporal_capi_includes',
+    help='directory containing temporal_capi header files')
+
+shared_optgroup.add_argument('--shared-temporal_capi-libname',
+    action='store',
+    dest='shared_temporal_capi_libname',
+    default='temporal_capi',
+    help='alternative lib name to link to [default: %(default)s]')
+
+shared_optgroup.add_argument('--shared-temporal_capi-libpath',
+    action='store',
+    dest='shared_temporal_capi_libpath',
+    help='a directory to search for the shared temporal_capi DLL')
+
 shared_optgroup.add_argument('--shared-zstd',
     action='store_true',
     dest='shared_zstd',
@@ -1008,6 +1030,13 @@ parser.add_argument('--v8-enable-snapshot-compression',
     dest='v8_enable_snapshot_compression',
     default=None,
     help='Enable the built-in snapshot compression in V8.')
+
+
+parser.add_argument('--v8-enable-temporal-support',
+    action='store_true',
+    dest='v8_enable_temporal_support',
+    default=None,
+    help='Enable Temporal support in V8.')
 
 parser.add_argument('--node-builtin-modules-path',
     action='store',
@@ -1802,6 +1831,7 @@ def configure_v8(o, configs):
   o['variables']['v8_enable_external_code_space'] = 1 if options.enable_pointer_compression else 0
   o['variables']['v8_enable_31bit_smis_on_64bit_arch'] = 1 if options.enable_pointer_compression else 0
   o['variables']['v8_enable_extensible_ro_snapshot'] = 0
+  o['variables']['v8_enable_temporal_support'] = 1 if options.v8_enable_temporal_support else 0
   o['variables']['v8_trace_maps'] = 1 if options.trace_maps else 0
   o['variables']['node_use_v8_platform'] = b(not options.without_v8_platform)
   o['variables']['node_use_bundled_v8'] = b(not options.without_bundled_v8)
@@ -2357,6 +2387,7 @@ configure_library('nghttp2', output, pkgname='libnghttp2')
 configure_library('nghttp3', output, pkgname='libnghttp3')
 configure_library('ngtcp2', output, pkgname='libngtcp2')
 configure_sqlite(output);
+configure_library('temporal_capi', output)
 configure_library('uvwasi', output)
 configure_library('zstd', output, pkgname='libzstd')
 configure_v8(output, configurations)
