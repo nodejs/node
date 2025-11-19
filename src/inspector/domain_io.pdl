@@ -1,0 +1,24 @@
+# Partial support for IO domain of ChromeDevTools Protocol.
+# https://github.com/ChromeDevTools/devtools-protocol/blob/master/pdl/domains/IO.pdl
+
+domain IO
+  type StreamHandle extends string
+  # Read a chunk of the stream
+  command read
+    parameters
+      # Handle of the stream to read.
+      StreamHandle handle
+      # Seek to the specified offset before reading (if not specified, proceed with offset
+      # following the last read). Some types of streams may only support sequential reads.
+      optional integer offset
+      # Maximum number of bytes to read (left upon the agent discretion if not specified).
+      optional integer size
+    returns
+      # Data that were read.
+      string data
+      # Set if the end-of-file condition occurred while reading.
+      boolean eof
+  command close
+    parameters
+      # Handle of the stream to close.
+      StreamHandle handle
