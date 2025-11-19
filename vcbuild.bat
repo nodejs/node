@@ -87,6 +87,7 @@ if /i "%1"=="x86"           set target_arch=x86&goto arg-ok
 if /i "%1"=="x64"           set target_arch=x64&goto arg-ok
 if /i "%1"=="arm64"         set target_arch=arm64&goto arg-ok
 if /i "%1"=="vs2022"        set target_env=vs2022&goto arg-ok
+if /i "%1"=="vs2026"        set target_env=vs2026&goto arg-ok
 if /i "%1"=="noprojgen"     set noprojgen=1&goto arg-ok
 if /i "%1"=="projgen"       set projgen=1&goto arg-ok
 if /i "%1"=="clang-cl"      set clang_cl=1&goto arg-ok
@@ -186,6 +187,7 @@ set "node_exe=%config%\node.exe"
 set "node_gyp_exe="%node_exe%" deps\npm\node_modules\node-gyp\bin\node-gyp"
 set "npm_exe="%node_exe%" deps\npm\bin\npm-cli.js"
 if "%target_env%"=="vs2022" set "node_gyp_exe=%node_gyp_exe% --msvs_version=2022"
+if "%target_env%"=="vs2026" set "node_gyp_exe=%node_gyp_exe% --msvs_version=2026"
 
 :: skip building if the only argument received was lint
 if "%*"=="lint" if exist "%node_exe%" goto lint-cpp
@@ -268,6 +270,33 @@ set vcvarsall_arg=%msvs_host_arch%_%target_arch%
 @rem unless both the host and the target are the same
 if %target_arch%==x64 if %msvs_host_arch%==amd64 set vcvarsall_arg=amd64
 if %target_arch%==%msvs_host_arch% set vcvarsall_arg=%target_arch%
+
+@rem Look for Visual Studio 2026
+:vs-set-2026
+if defined target_env if "%target_env%" NEQ "vs2026" goto msbuild-not-found
+echo Looking for Visual Studio 2026
+@rem VCINSTALLDIR may be set if run from a VS Command Prompt and needs to be
+@rem cleared first as vswhere_usability_wrapper.cmd doesn't when it fails to
+@rem detect the version searched for
+if not defined target_env set "VCINSTALLDIR="
+call tools\msvs\vswhere_usability_wrapper.cmd "[18.0,19.0)" %target_arch% "prerelease" %clang_cl%
+if "_%VCINSTALLDIR%_" == "__" goto vs-set-2022
+@rem check if VS2026 is already setup, and for the requested arch
+if "_%VisualStudioVersion%_" == "_18.0_" if "_%VSCMD_ARG_TGT_ARCH%_"=="_%target_arch%_" goto found_vs2026
+@rem need to clear VSINSTALLDIR for vcvarsall to work as expected
+set "VSINSTALLDIR="
+@rem prevent VsDevCmd.bat from changing the current working directory
+set "VSCMD_START_DIR=%CD%"
+set vcvars_call="%VCINSTALLDIR%\Auxiliary\Build\vcvarsall.bat" %vcvarsall_arg%
+echo calling: %vcvars_call%
+call %vcvars_call%
+if errorlevel 1 goto vs-set-2022
+if defined DEBUG_HELPER @ECHO ON
+:found_vs2026
+echo Found MSVS version %VisualStudioVersion%
+set GYP_MSVS_VERSION=2026
+set PLATFORM_TOOLSET=v145
+goto msbuild-found
 
 @rem Look for Visual Studio 2022
 :vs-set-2022
@@ -819,7 +848,7 @@ set exit_code=1
 goto exit
 
 :help
-echo vcbuild.bat [debug/release] [msi] [doc] [test/test-all/test-addons/test-doc/test-js-native-api/test-node-api/test-internet/test-tick-processor/test-known-issues/test-node-inspect/test-check-deopts/test-npm/test-v8/test-v8-intl/test-v8-benchmarks/test-v8-all] [ignore-flaky] [static/dll] [noprojgen] [projgen] [clang-cl] [ccache path-to-ccache] [small-icu/full-icu/without-intl] [nobuild] [nosnapshot] [nonpm] [nocorepack] [ltcg] [licensetf] [sign] [x64/arm64] [vs2022] [download-all] [enable-vtune] [lint/lint-ci/lint-js/lint-md] [lint-md-build] [format-md] [package] [build-release] [upload] [no-NODE-OPTIONS] [link-module path-to-module] [debug-http2] [debug-nghttp2] [clean] [cctest] [no-cctest] [openssl-no-asm]
+echo vcbuild.bat [debug/release] [msi] [doc] [test/test-all/test-addons/test-doc/test-js-native-api/test-node-api/test-internet/test-tick-processor/test-known-issues/test-node-inspect/test-check-deopts/test-npm/test-v8/test-v8-intl/test-v8-benchmarks/test-v8-all] [ignore-flaky] [static/dll] [noprojgen] [projgen] [clang-cl] [ccache path-to-ccache] [small-icu/full-icu/without-intl] [nobuild] [nosnapshot] [nonpm] [nocorepack] [ltcg] [licensetf] [sign] [x64/arm64] [vs2022/vs2026] [download-all] [enable-vtune] [lint/lint-ci/lint-js/lint-md] [lint-md-build] [format-md] [package] [build-release] [upload] [no-NODE-OPTIONS] [link-module path-to-module] [debug-http2] [debug-nghttp2] [clean] [cctest] [no-cctest] [openssl-no-asm]
 echo Examples:
 echo   vcbuild.bat                          : builds release build
 echo   vcbuild.bat debug                    : builds debug build
