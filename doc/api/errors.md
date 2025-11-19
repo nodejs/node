@@ -774,6 +774,23 @@ A child process was closed before the parent received a reply.
 
 Used when a child process is being forked without specifying an IPC channel.
 
+<a id="ERR_CHILD_PROCESS_MEMORY_USAGE_FAILED"></a>
+
+### `ERR_CHILD_PROCESS_MEMORY_USAGE_FAILED`
+
+Thrown from `ChildProcess.prototype.getMemoryUsage()` when a memory usage
+request fails inside the child. The error's `cause` contains the serialized
+error information reported by the child process, when available.
+
+<a id="ERR_CHILD_PROCESS_NOT_RUNNING"></a>
+
+### `ERR_CHILD_PROCESS_NOT_RUNNING`
+
+Raised when an operation expects an active child process but the process has
+already exited or has not been started yet. For example,
+`ChildProcess.prototype.getMemoryUsage()` rejects with this error after the
+child terminates.
+
 <a id="ERR_CHILD_PROCESS_STDIO_MAXBUFFER"></a>
 
 ### `ERR_CHILD_PROCESS_STDIO_MAXBUFFER`

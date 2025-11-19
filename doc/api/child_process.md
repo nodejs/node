@@ -1624,6 +1624,32 @@ running if `.unref()` has been called before.
 
 #### `subprocess.channel.unref()`
 
+#### `subprocess.getMemoryUsage()`
+
+<!-- YAML
+added: v25.2.1
+-->
+
+* Returns: {Promise} fulfilled with an object containing:
+  * `rss`
+  * `heapTotal`
+  * `heapUsed`
+  * `external`
+  * `arrayBuffers`
+
+Retrieves memory statistics for the child via an IPC round-trip. The promise rejects with
+`ERR_CHILD_PROCESS_NOT_RUNNING` if the child has already exited or with `ERR_IPC_CHANNEL_CLOSED` when no IPC
+channel is available. The child must have been spawned with an IPC channel (e.g., `'ipc'` in `stdio` or
+`child_process.fork()`).
+
+```mjs
+import { fork } from 'node:child_process';
+
+const child = fork('./worker.js');
+const usage = await child.getMemoryUsage();
+console.log(usage.heapUsed);
+```
+
 <!-- YAML
 added: v7.1.0
 -->
