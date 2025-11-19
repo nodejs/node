@@ -285,7 +285,6 @@
         'v8_base_without_compiler',
         'v8_initializers',
         'v8_maybe_icu',
-        'fp16',
         'abseil.gyp:abseil',
       ],
       'sources': [
@@ -300,9 +299,10 @@
       'type': 'static_library',
       'toolsets': ['host', 'target'],
       'dependencies': [
-        'generate_bytecode_builtins_list',
-        'run_torque',
-        'fp16',
+        'torque_generated_initializers',
+        'v8_base_without_compiler',
+        'v8_shared_internal_headers',
+        'v8_pch',
         'abseil.gyp:abseil',
       ],
       'cflags!': ['-O3'],
@@ -336,7 +336,6 @@
         'v8_base_without_compiler',
         'v8_shared_internal_headers',
         'v8_pch',
-        'fp16',
         'abseil.gyp:abseil',
       ],
       'include_dirs': [
@@ -535,7 +534,6 @@
             'v8_initializers',
             'v8_libplatform',
             'abseil.gyp:abseil',
-            'fp16',
           ]
         }, {
           'dependencies': [
@@ -549,7 +547,6 @@
             'v8_initializers',
             'v8_libplatform',
             'abseil.gyp:abseil',
-            'fp16',
           ]
         }],
         ['OS=="win" and clang==1', {
@@ -664,6 +661,7 @@
         'run_torque',
         'v8_libbase',
         'fp16',
+        'highway',
         'abseil.gyp:abseil',
       ],
       'direct_dependent_settings': {
@@ -997,7 +995,6 @@
         'v8_libbase',
         'v8_shared_internal_headers',
         'v8_pch',
-        'fp16',
         'abseil.gyp:abseil',
       ],
       'conditions': [
@@ -1113,8 +1110,6 @@
         'v8_maybe_icu',
         'v8_zlib',
         'v8_pch',
-        'fp16',
-        'highway',
         'simdutf',
         'abseil.gyp:abseil',
       ],
@@ -1812,7 +1807,6 @@
         'v8_libplatform',
         'v8_maybe_icu',
         'v8_pch',
-        'fp16',
         'abseil.gyp:abseil',
         # "build/win:default_exe_manifest",
       ],
@@ -2346,7 +2340,7 @@
       'variables': {
         'FP16_ROOT': '../../deps/v8/third_party/fp16',
       },
-      'direct_dependent_settings': {
+      'all_dependent_settings': {
         'include_dirs': [
           '<(FP16_ROOT)/src/include',
         ],
@@ -2359,7 +2353,7 @@
       'variables': {
         'HIGHWAY_ROOT': '../../deps/v8/third_party/highway',
       },
-      'direct_dependent_settings': {
+      'all_dependent_settings': {
         'include_dirs': [
           '<(HIGHWAY_ROOT)/src',
         ],

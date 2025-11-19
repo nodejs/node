@@ -141,6 +141,8 @@
         '<(ABSEIL_ROOT)/absl/debugging/failure_signal_handler.cc',
         '<(ABSEIL_ROOT)/absl/debugging/internal/address_is_readable.h',
         '<(ABSEIL_ROOT)/absl/debugging/internal/address_is_readable.cc',
+        '<(ABSEIL_ROOT)/absl/debugging/internal/borrowed_fixup_buffer.h',
+        '<(ABSEIL_ROOT)/absl/debugging/internal/borrowed_fixup_buffer.cc',
         '<(ABSEIL_ROOT)/absl/debugging/internal/bounded_utf8_length_sequence.h',
         '<(ABSEIL_ROOT)/absl/debugging/internal/decode_rust_punycode.h',
         '<(ABSEIL_ROOT)/absl/debugging/internal/decode_rust_punycode.cc',
@@ -367,7 +369,15 @@
         '<(ABSEIL_ROOT)/absl/types/span.h',
         '<(ABSEIL_ROOT)/absl/types/variant.h',
         '<(ABSEIL_ROOT)/absl/utility/utility.h',
-      ]
+      ],
+      'conditions': [
+        ['OS=="win"', {
+          'sources': [
+            '<(ABSEIL_ROOT)/absl/time/internal/cctz/src/time_zone_name_win.h',
+            '<(ABSEIL_ROOT)/absl/time/internal/cctz/src/time_zone_name_win.cc',
+          ],
+        }],
+      ],
     },  # abseil
   ]
 }
