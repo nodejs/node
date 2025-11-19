@@ -4177,6 +4177,7 @@ changes:
   - version:
       - v24.2.0
       - v22.17.0
+      - v20.19.6
     pr-url: https://github.com/nodejs/node/pull/57643
     description: Runtime deprecation.
 -->
@@ -4193,6 +4194,7 @@ changes:
   - version:
       - v24.2.0
       - v22.17.0
+      - v20.19.6
     pr-url: https://github.com/nodejs/node/pull/58337
     description: Runtime deprecation.
 -->
@@ -4213,6 +4215,7 @@ changes:
   - version:
       - v24.2.0
       - v22.17.0
+      - v20.19.6
     pr-url: https://github.com/nodejs/node/pull/58313
     description: Documentation-only deprecation.
 -->
