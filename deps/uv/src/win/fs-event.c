@@ -114,7 +114,7 @@ static int uv__split_path(const WCHAR* filename, WCHAR** dir,
       }
     }
 
-    *file = wcsdup(filename);
+    *file = _wcsdup(filename);
   } else {
     if (dir) {
       *dir = (WCHAR*)uv__malloc((i + 2) * sizeof(WCHAR));
@@ -157,7 +157,8 @@ int uv_fs_event_start(uv_fs_event_t* handle,
                       uv_fs_event_cb cb,
                       const char* path,
                       unsigned int flags) {
-  int name_size, is_path_dir, size;
+  int is_path_dir;
+  size_t size;
   DWORD attr, last_error;
   WCHAR* dir = NULL, *dir_to_watch, *pathw = NULL;
   DWORD short_path_buffer_len;
@@ -176,23 +177,9 @@ int uv_fs_event_start(uv_fs_event_t* handle,
 
   uv__handle_start(handle);
 
-  /* Convert name to UTF16. */
-
-  name_size = MultiByteToWideChar(CP_UTF8, 0, path, -1, NULL, 0) *
-              sizeof(WCHAR);
-  pathw = (WCHAR*)uv__malloc(name_size);
-  if (!pathw) {
-    uv_fatal_error(ERROR_OUTOFMEMORY, "uv__malloc");
-  }
-
-  if (!MultiByteToWideChar(CP_UTF8,
-                           0,
-                           path,
-                           -1,
-                           pathw,
-                           name_size / sizeof(WCHAR))) {
-    return uv_translate_sys_error(GetLastError());
-  }
+  last_error = uv__convert_utf8_to_utf16(path, &pathw);
+  if (last_error)
+    goto error_uv;
 
   /* Determine whether path is a file or a directory. */
   attr = GetFileAttributesW(pathw);
@@ -266,6 +253,8 @@ short_path_done:
     }
 
     dir_to_watch = dir;
+    uv__free(short_path);
+    short_path = NULL;
     uv__free(pathw);
     pathw = NULL;
   }
@@ -333,6 +322,9 @@ short_path_done:
   return 0;
 
 error:
+  last_error = uv_translate_sys_error(last_error);
+
+error_uv:
   if (handle->path) {
     uv__free(handle->path);
     handle->path = NULL;
@@ -365,7 +357,7 @@ error:
 
   uv__free(short_path);
 
-  return uv_translate_sys_error(last_error);
+  return last_error;
 }
 
 
@@ -571,7 +563,27 @@ void uv__process_fs_event_req(uv_loop_t* loop, uv_req_t* req,
     }
   } else {
     err = GET_REQ_ERROR(req);
-    handle->cb(handle, NULL, 0, uv_translate_sys_error(err));
+    /*
+     * Check whether the ERROR_ACCESS_DENIED is caused by the watched directory
+     * being actually deleted (not an actual error) or a legit error. Retrieve
+     * FileStandardInfo to check whether the directory is pending deletion.
+     */
+    FILE_STANDARD_INFO info;
+    if (err == ERROR_ACCESS_DENIED &&
+        handle->dirw != NULL &&
+        GetFileInformationByHandleEx(handle->dir_handle,
+                                     FileStandardInfo,
+                                     &info,
+                                     sizeof(info)) &&
+        info.Directory &&
+        info.DeletePending) {
+      uv__convert_utf16_to_utf8(handle->dirw, -1, &filename);
+      handle->cb(handle, filename, UV_RENAME, 0);
+      uv__free(filename);
+      filename = NULL;
+    } else {
+      handle->cb(handle, NULL, 0, uv_translate_sys_error(err));
+    }
   }
 
   if (handle->flags & UV_HANDLE_CLOSING) {

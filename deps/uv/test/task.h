@@ -53,6 +53,10 @@
 # define TEST_PIPENAME "\\\\.\\pipe\\uv-test"
 # define TEST_PIPENAME_2 "\\\\.\\pipe\\uv-test2"
 # define TEST_PIPENAME_3 "\\\\.\\pipe\\uv-test3"
+#elif __ANDROID__
+# define TEST_PIPENAME "/data/local/tmp/uv-test-sock"
+# define TEST_PIPENAME_2 "/data/local/tmp/uv-test-sock2"
+# define TEST_PIPENAME_3 "/data/local/tmp/uv-test-sock3"
 #else
 # define TEST_PIPENAME "/tmp/uv-test-sock"
 # define TEST_PIPENAME_2 "/tmp/uv-test-sock2"
@@ -244,13 +248,16 @@ typedef enum {
 #define ASSERT_PTR_NE(a, b) \
   ASSERT_BASE(a, !=, b, void*, "p")
 
+#define ASSERT_PTR_LT(a, b) \
+  ASSERT_BASE(a, <, b, void*, "p")
+
 /* This macro cleans up the event loop. This is used to avoid valgrind
  * warnings about memory being "leaked" by the event loop.
  */
 #define MAKE_VALGRIND_HAPPY(loop)                   \
   do {                                              \
     close_loop(loop);                               \
-    ASSERT(0 == uv_loop_close(loop));               \
+    ASSERT_EQ(0, uv_loop_close(loop));              \
     uv_library_shutdown();                          \
   } while (0)
 
