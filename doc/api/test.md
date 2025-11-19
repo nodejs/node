@@ -135,27 +135,22 @@ to register nested tests or nested suites.
 A suite reports a result, but its status is fully determined by the
 tests and suites inside it --- suites cannot fail independently.
 
-A suite always waits for all of its nested tests and nested suites to
-finish before completing.
-
-*Example*
+A suite always waits for all of its nested tests and nested suites to 
+finish before completing. The following example demonstrates a 
+suite with nested tests and other suites.
 
 ``` js
 import { suite, test } from 'node:test';
 import assert from 'node:assert';
-
 suite('math operations', () => {
   test('addition', () => {
     assert.strictEqual(1 + 1, 2);
   });
-
   test('multiplication', () => {
     assert.strictEqual(2 * 2, 4);
   });
 });
 ```
-
-*Nested suites*
 
 ``` js
 suite('user features', () => {
@@ -164,7 +159,6 @@ suite('user features', () => {
       assert.ok(true);
     });
   });
-
   suite('settings', () => {
     test('enables notifications', () => {
       assert.ok(true);
@@ -179,12 +173,13 @@ Both suites and subtests structure test hierarchies, but they behave
 differently in important ways.
 
 *Execution behavior*
-| Feature                                    | Suite (`suite()`)   | Subtest (`t.test()`) |
-|--------------------------------------------|----------------------|------------------------|
-| Parent waits for children                  | Always               | Only if awaited        |
-| Pending children canceled if parent ends   | Never                | Yes                    |
-| Callback may be async                      | No (ignored)         | Yes                    |
-| Callback controls execution order          | No                   | Yes (via `await`)      |
+| Feature                                   | Suite (`suite()`)                                                                           | Subtest (`t.test()`)                         |
+|-------------------------------------------|---------------------------------------------------------------------------------------------|----------------------------------------------|
+| Parent waits for children                 | Always                                                                                      | Only if awaited                              |
+| Pending children canceled if parent ends  | No, unless the suite is canceled via `AbortSignal`                                          | Yes                                          |
+| Callback may be async                     | Suite callbacks run synchronously; returning a Promise does not affect execution            | Yes (async functions are allowed)            |
+| Callback controls execution order         | No — tests execute strictly in declaration order; the suite callback cannot pause execution | Yes — execution order controlled via `await` |
+
 
 *Suite example*
 
@@ -208,11 +203,6 @@ test('parent test', async (t) => {
 
 If the `await` keywords were omitted, the parent test would complete
 early and the test runner would cancel the unfinished subtests.
-
-**`describe()` Alias**
-
-`describe()` is a direct alias of `suite()` and behaves identically. See
-the "describe() and it() aliases" section for more details.
 
 ## Skipping tests
 
