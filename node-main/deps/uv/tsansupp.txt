@@ -1,0 +1,2 @@
+# glibc reads `count` field unsynchronized, not a libuv bug
+race:pthread_barrier_destroy

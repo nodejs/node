@@ -1,0 +1,7 @@
+spec: https://streams.spec.whatwg.org/
+suggested_reviewers:
+  - domenic
+  - yutakahirano
+  - youennf
+  - wanderview
+  - ricea
