@@ -157,6 +157,7 @@ const customTypesMap = {
   'WebSocket': `${mdnPrefix}/API/WebSocket`,
 
   'FileHandle': 'fs.html#class-filehandle',
+  'fs.BigIntStats': 'fs.html#class-fsbigintstats',
   'fs.Dir': 'fs.html#class-fsdir',
   'fs.Dirent': 'fs.html#class-fsdirent',
   'fs.FSWatcher': 'fs.html#class-fsfswatcher',
