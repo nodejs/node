@@ -1246,7 +1246,8 @@ def get_openssl_version(o):
   """Parse OpenSSL version from opensslv.h header file.
 
   Returns the version as a number matching OPENSSL_VERSION_NUMBER format:
-  0xMNN00PPSL where M=major, NN=minor, PP=patch, S=status(0xf=release,0x0=pre), L=0
+  0xMNN00PPSL where M=major, NN=minor, PP=patch, S=status(0xf=release,0x0=pre),
+  L denotes as a long type literal
   """
 
   try:
@@ -1288,6 +1289,14 @@ def get_openssl_version(o):
     major = int(macros.get('OPENSSL_VERSION_MAJOR', '0'))
     minor = int(macros.get('OPENSSL_VERSION_MINOR', '0'))
     patch = int(macros.get('OPENSSL_VERSION_PATCH', '0'))
+
+    # If major, minor and patch are all 0, this is probably OpenSSL < 3.
+    if (major, minor, patch) == (0, 0, 0):
+      version_number = macros.get('OPENSSL_VERSION_NUMBER')
+      # Prior to OpenSSL 3 the value should be in the format 0xMNN00PPSL.
+      # If it is, we need to strip the `L` suffix prior to parsing.
+      if version_number[:2] == "0x" and version_number[-1] == "L":
+        return int(version_number[:-1], 16)
 
     # Check if it's a pre-release (has non-empty PRE_RELEASE string)
     pre_release = macros.get('OPENSSL_VERSION_PRE_RELEASE', '""').strip('"')
