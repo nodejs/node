@@ -1284,7 +1284,7 @@ void Worker::GetHeapStatistics(const FunctionCallbackInfo<Value>& args) {
               Number::New(isolate, heap_stats->total_global_handles_size()),
               Number::New(isolate, heap_stats->used_global_handles_size()),
               Number::New(isolate, heap_stats->external_memory()),
-              Number::New(isolate, heap_stats->total_allocated_bytes())};
+              Number::New(isolate, isolate->GetTotalAllocatedBytes())};
 
           Local<Object> obj;
           if (!NewDictionaryInstanceNullProto(
