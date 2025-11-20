@@ -850,7 +850,7 @@ static void LoadCACertificates(void* data) {
 
   {
     Mutex::ScopedLock cli_lock(node::per_process::cli_options_mutex);
-    if (!per_process::cli_options->use_system_ca) {
+    if (!per_process::cli_options->per_isolate->per_env->use_system_ca) {
       return;
     }
   }
@@ -959,7 +959,7 @@ X509_STORE* NewRootCertStore() {
     for (X509* cert : GetBundledRootCertificates()) {
       CHECK_EQ(1, X509_STORE_add_cert(store, cert));
     }
-    if (per_process::cli_options->use_system_ca) {
+    if (per_process::cli_options->per_isolate->per_env->use_system_ca) {
       for (X509* cert : GetSystemStoreCACertificates()) {
         CHECK_EQ(1, X509_STORE_add_cert(store, cert));
       }
