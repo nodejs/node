@@ -480,6 +480,10 @@ A glob pattern that only includes matching files in the coverage report
 .It Fl -test-coverage-lines Ns = Ns Ar threshold
 Require a minimum threshold for line coverage (0 - 100).
 .
+.It Fl -test-files-glob
+A glob pattern that configures the test runner to only run tests whose filename
+matches the provided glob.
+.
 .It Fl -test-force-exit
 Configures the test runner to exit the process once all known tests have
 finished executing even if the event loop would otherwise remain active.
