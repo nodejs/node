@@ -7,6 +7,7 @@
 /* Command line interface for Brotli library. */
 
 /* Mute strerror/strcpy warnings. */
+#include <brotli/shared_dictionary.h>
 #if !defined(_CRT_SECURE_NO_WARNINGS)
 #define _CRT_SECURE_NO_WARNINGS
 #endif
@@ -20,12 +21,11 @@
 #include <sys/types.h>
 #include <time.h>
 
-#include <brotli/decode.h>
-#include <brotli/encode.h>
 #include <brotli/types.h>
-
 #include "../common/constants.h"
 #include "../common/version.h"
+#include <brotli/decode.h>
+#include <brotli/encode.h>
 
 #if defined(_WIN32)
 #include <io.h>
@@ -103,9 +103,17 @@ typedef enum {
   COMMAND_VERSION
 } Command;
 
+typedef enum {
+  COMMENT_INIT,
+  COMMENT_READ,
+  COMMENT_OK,
+  COMMENT_BAD,
+} CommentState;
+
 #define DEFAULT_LGWIN 24
 #define DEFAULT_SUFFIX ".br"
-#define MAX_OPTIONS 20
+#define MAX_OPTIONS 24
+#define MAX_COMMENT_LEN 80
 
 typedef struct {
   /* Parameters */
@@ -120,9 +128,14 @@ typedef struct {
   BROTLI_BOOL test_integrity;
   BROTLI_BOOL decompress;
   BROTLI_BOOL large_window;
+  BROTLI_BOOL allow_concatenated;
   const char* output_path;
   const char* dictionary_path;
   const char* suffix;
+  uint8_t comment[MAX_COMMENT_LEN];
+  size_t comment_len;
+  size_t comment_pos;
+  CommentState comment_state;
   int not_input_indices[MAX_OPTIONS];
   size_t longest_path_len;
   size_t input_count;
@@ -133,6 +146,7 @@ typedef struct {
   uint8_t* dictionary;
   size_t dictionary_size;
   BrotliEncoderPreparedDictionary* prepared_dictionary;
+  BrotliDecoderState* decoder;
   char* modified_path;  /* Storage for path with appended / cut suffix */
   int iterator;
   int ignore;
@@ -160,6 +174,55 @@ typedef struct {
   clock_t start_time;
   clock_t end_time;
 } Context;
+
+/* Parse base 64 encoded string to buffer. Not performance-centric.
+   |out_len| as input is buffer size; |out_len| as output is decoded length.
+   Returns BROTLI_FALSE if either input is not (relaxed) base 64 conformant,
+   or output does not fit buffer. */
+static BROTLI_BOOL ParseBase64(const char* str, uint8_t* out, size_t* out_len) {
+  size_t in_len = strlen(str);
+  size_t max_out_len = *out_len;
+  size_t i;
+  size_t bit_count = 0;
+  uint32_t bits = 0;
+  size_t padding_count = 0;
+  size_t octet_count = 0;
+  for (i = 0; i < in_len; ++i) {
+    char c = str[i];
+    int sextet = 0;
+    if (c == 9 || c == 10 || c == 13 || c == ' ') {
+      continue;
+    }
+    if (c == '=') {
+      padding_count++;
+      continue;
+    }
+    if (padding_count) return BROTLI_FALSE;
+    if (c == '+' || c == '-') {
+      sextet = 62;
+    } else if (c == '/' || c == '_') {
+      sextet = 63;
+    } else if (c >= 'A' && c <= 'Z') {
+      sextet = c - 'A';
+    } else if (c >= 'a' && c <= 'z') {
+      sextet = c - 'a' + 26;
+    } else if (c >= '0' && c <= '9') {
+      sextet = c - '0' + 52;
+    } else {
+      return BROTLI_FALSE;
+    }
+    bits = (bits << 6) | (uint32_t)sextet;
+    bit_count += 6;
+    if (bit_count >= 8) {
+      if (octet_count == max_out_len) return BROTLI_FALSE;
+      bit_count -= 8;
+      out[octet_count++] = (bits >> bit_count) & 0xFF;
+    }
+  }
+  if (padding_count > 2) return BROTLI_FALSE;
+  *out_len = octet_count;
+  return BROTLI_TRUE;
+}
 
 /* Parse up to 5 decimal digits. */
 static BROTLI_BOOL ParseInt(const char* s, int low, int high, int* result) {
@@ -189,17 +252,16 @@ static const char* FileName(const char* path) {
 }
 
 /* Detect if the program name is a special alias that infers a command type. */
-static Command ParseAlias(const char* name) {
+static BROTLI_BOOL CheckAlias(const char* name, const char* alias) {
   /* TODO: cast name to lower case? */
-  const char* unbrotli = "unbrotli";
-  size_t unbrotli_len = strlen(unbrotli);
+  size_t alias_len = strlen(alias);
   name = FileName(name);
   /* Partial comparison. On Windows there could be ".exe" suffix. */
-  if (strncmp(name, unbrotli, unbrotli_len) == 0) {
-    char terminator = name[unbrotli_len];
-    if (terminator == 0 || terminator == '.') return COMMAND_DECOMPRESS;
+  if (strncmp(name, alias, alias_len) == 0) {
+    char terminator = name[alias_len];
+    if (terminator == 0 || terminator == '.') return BROTLI_TRUE;
   }
-  return COMMAND_COMPRESS;
+  return BROTLI_FALSE;
 }
 
 static Command ParseParams(Context* params) {
@@ -217,7 +279,21 @@ static Command ParseParams(Context* params) {
   BROTLI_BOOL lgwin_set = BROTLI_FALSE;
   BROTLI_BOOL suffix_set = BROTLI_FALSE;
   BROTLI_BOOL after_dash_dash = BROTLI_FALSE;
-  Command command = ParseAlias(argv[0]);
+  BROTLI_BOOL comment_set = BROTLI_FALSE;
+  BROTLI_BOOL concatenated_set = BROTLI_FALSE;
+  Command command = COMMAND_COMPRESS;
+
+  if (CheckAlias(argv[0], "brcat")) {
+    command_set = BROTLI_TRUE;
+    command = COMMAND_DECOMPRESS;
+    concatenated_set = BROTLI_TRUE;
+    params->allow_concatenated = BROTLI_TRUE;
+    output_set = BROTLI_TRUE;
+    params->write_to_stdout = BROTLI_TRUE;
+  } else if (CheckAlias(argv[0], "unbrotli")) {
+    command_set = BROTLI_TRUE;
+    command = COMMAND_DECOMPRESS;
+  }
 
   for (i = 1; i < argc; ++i) {
     const char* arg = argv[i];
@@ -231,7 +307,7 @@ static Command ParseParams(Context* params) {
     }
 
     /* Too many options. The expected longest option list is:
-       "-q 0 -w 10 -o f -D d -S b -d -f -k -n -v --", i.e. 16 items in total.
+       "-q 0 -w 10 -o f -D d -S b -d -f -k -n -v -K --", i.e. 17 items in total.
        This check is an additional guard that is never triggered, but provides
        a guard for future changes. */
     if (next_option_index > (MAX_OPTIONS - 2)) {
@@ -332,6 +408,14 @@ static Command ParseParams(Context* params) {
           }
           params->verbosity = 1;
           continue;
+        } else if (c == 'K') {
+          if (concatenated_set) {
+            fprintf(stderr, "argument -K / --concatenated already set\n");
+            return COMMAND_INVALID;
+          }
+          concatenated_set = BROTLI_TRUE;
+          params->allow_concatenated = BROTLI_TRUE;
+          continue;
         } else if (c == 'V') {
           /* Don't parse further. */
           return COMMAND_VERSION;
@@ -344,8 +428,9 @@ static Command ParseParams(Context* params) {
           params->quality = 11;
           continue;
         }
-        /* o/q/w/D/S with parameter is expected */
-        if (c != 'o' && c != 'q' && c != 'w' && c != 'D' && c != 'S') {
+        /* o/q/w/C/D/S with parameter is expected */
+        if (c != 'o' && c != 'q' && c != 'w' && c != 'C' && c != 'D' &&
+            c != 'S') {
           fprintf(stderr, "invalid argument -%c\n", c);
           return COMMAND_INVALID;
         }
@@ -393,6 +478,17 @@ static Command ParseParams(Context* params) {
                     params->lgwin, BROTLI_MIN_WINDOW_BITS);
             return COMMAND_INVALID;
           }
+        } else if (c == 'C') {
+          if (comment_set) {
+            fprintf(stderr, "comment already set\n");
+            return COMMAND_INVALID;
+          }
+          params->comment_len = MAX_COMMENT_LEN;
+          if (!ParseBase64(argv[i], params->comment, &params->comment_len)) {
+            fprintf(stderr, "invalid base64-encoded comment\n");
+            return COMMAND_INVALID;
+          }
+          comment_set = BROTLI_TRUE;
         } else if (c == 'D') {
           if (params->dictionary_path) {
             fprintf(stderr, "dictionary path already set\n");
@@ -417,6 +513,14 @@ static Command ParseParams(Context* params) {
         }
         quality_set = BROTLI_TRUE;
         params->quality = 11;
+      } else if (strcmp("concatenated", arg) == 0) {
+        if (concatenated_set) {
+          fprintf(stderr, "argument -K / --concatenated already set\n");
+          return COMMAND_INVALID;
+        }
+        concatenated_set = BROTLI_TRUE;
+        params->allow_concatenated = BROTLI_TRUE;
+        continue;
       } else if (strcmp("decompress", arg) == 0) {
         if (command_set) {
           fprintf(stderr, "command already set when parsing --decompress\n");
@@ -486,7 +590,7 @@ static Command ParseParams(Context* params) {
         return COMMAND_VERSION;
       } else {
         /* key=value */
-        const char* value = strrchr(arg, '=');
+        const char* value = strchr(arg, '=');
         size_t key_len;
         if (!value || value[1] == 0) {
           fprintf(stderr, "must pass the parameter as --%s=value\n", arg);
@@ -494,7 +598,18 @@ static Command ParseParams(Context* params) {
         }
         key_len = (size_t)(value - arg);
         value++;
-        if (strncmp("dictionary", arg, key_len) == 0) {
+        if (strncmp("comment", arg, key_len) == 0) {
+          if (comment_set) {
+            fprintf(stderr, "comment already set\n");
+            return COMMAND_INVALID;
+          }
+          params->comment_len = MAX_COMMENT_LEN;
+          if (!ParseBase64(value, params->comment, &params->comment_len)) {
+            fprintf(stderr, "invalid base64-encoded comment\n");
+            return COMMAND_INVALID;
+          }
+          comment_set = BROTLI_TRUE;
+        } else if (strncmp("dictionary", arg, key_len) == 0) {
           if (params->dictionary_path) {
             fprintf(stderr, "dictionary path already set\n");
             return COMMAND_INVALID;
@@ -584,6 +699,12 @@ static Command ParseParams(Context* params) {
   if (strchr(params->suffix, '/') || strchr(params->suffix, '\\')) {
     return COMMAND_INVALID;
   }
+  if (!params->decompress && params->allow_concatenated) {
+    return COMMAND_INVALID;
+  }
+  if (params->allow_concatenated && params->comment_len) {
+    return COMMAND_INVALID;
+  }
 
   return command;
 }
@@ -633,7 +754,14 @@ static void PrintHelp(const char* name, BROTLI_BOOL error) {
 "                              decodable with regular brotli decoders\n",
           BROTLI_MIN_WINDOW_BITS, BROTLI_LARGE_MAX_WINDOW_BITS);
   fprintf(media,
-"  -D FILE, --dictionary=FILE  use FILE as raw (LZ77) dictionary\n");
+"  -C B64, --comment=B64       set comment; argument is base64-decoded first;\n"
+"                              (maximal decoded length: %d)\n"
+"                              when decoding: check stream comment;\n"
+"                              when encoding: embed comment (fingerprint)\n",
+          MAX_COMMENT_LEN);
+  fprintf(media,
+"  -D FILE, --dictionary=FILE  use FILE as raw (LZ77) dictionary\n"
+"  -K, --concatenated          allows concatenated brotli streams as input\n");
   fprintf(media,
 "  -S SUF, --suffix=SUF        output file suffix (default:'%s')\n",
           DEFAULT_SUFFIX);
@@ -995,6 +1123,7 @@ static BROTLI_BOOL ProvideOutput(Context* context) {
 static BROTLI_BOOL FlushOutput(Context* context) {
   if (!WriteOutput(context)) return BROTLI_FALSE;
   context->available_out = 0;
+  context->next_out = context->output;
   return BROTLI_TRUE;
 }
 
@@ -1034,10 +1163,79 @@ static const char* PrettyDecoderErrorString(BrotliDecoderErrorCode code) {
   return error_str;
 }
 
-static BROTLI_BOOL DecompressFile(Context* context, BrotliDecoderState* s) {
+static void OnMetadataStart(void* opaque, size_t size) {
+  Context* context = (Context*) opaque;
+  if (context->comment_state == COMMENT_INIT) {
+    if (context->comment_len != size) {
+      context->comment_state = COMMENT_BAD;
+      return;
+    }
+    context->comment_pos = 0;
+    context->comment_state = COMMENT_READ;
+  }
+}
+
+static void OnMetadataChunk(void* opaque, const uint8_t* data, size_t size) {
+  Context* context = (Context*) opaque;
+  if (context->comment_state == COMMENT_READ) {
+    size_t i;
+    for (i = 0; i < size; ++i) {
+      if (context->comment_pos >= context->comment_len) {
+        context->comment_state = COMMENT_BAD;
+        return;
+      }
+      if (context->comment[context->comment_pos++] != data[i]) {
+        context->comment_state = COMMENT_BAD;
+        return;
+      }
+    }
+    if (context->comment_pos == context->comment_len) {
+      context->comment_state = COMMENT_OK;
+    }
+  }
+}
+
+static BROTLI_BOOL InitDecoder(Context* context) {
+  context->decoder = BrotliDecoderCreateInstance(NULL, NULL, NULL);
+  if (!context->decoder) {
+    fprintf(stderr, "out of memory\n");
+    return BROTLI_FALSE;
+  }
+  /* This allows decoding "large-window" streams. Though it creates
+      fragmentation (new builds decode streams that old builds don't),
+      it is better from used experience perspective. */
+  BrotliDecoderSetParameter(
+      context->decoder, BROTLI_DECODER_PARAM_LARGE_WINDOW, 1u);
+  if (context->dictionary) {
+    BrotliDecoderAttachDictionary(context->decoder,
+        BROTLI_SHARED_DICTIONARY_RAW, context->dictionary_size,
+        context->dictionary);
+  }
+  return BROTLI_TRUE;
+}
+
+static BROTLI_BOOL DecompressFile(Context* context) {
+  BrotliDecoderState* s = context->decoder;
   BrotliDecoderResult result = BROTLI_DECODER_RESULT_NEEDS_MORE_INPUT;
+  if (context->comment_len) {
+    context->comment_state = COMMENT_INIT;
+    BrotliDecoderSetMetadataCallbacks(s, &OnMetadataStart, &OnMetadataChunk,
+        (void*)context);
+  } else {
+    context->comment_state = COMMENT_OK;
+  }
+
   InitializeBuffers(context);
   for (;;) {
+    /* Early check */
+    if (context->comment_state == COMMENT_BAD) {
+      fprintf(stderr, "corrupt input [%s]\n",
+              PrintablePath(context->current_input_path));
+      if (context->verbosity > 0) {
+        fprintf(stderr, "reason: comment mismatch\n");
+      }
+      return BROTLI_FALSE;
+    }
     if (result == BROTLI_DECODER_RESULT_NEEDS_MORE_INPUT) {
       if (!HasMoreInput(context)) {
         fprintf(stderr, "corrupt input [%s]\n",
@@ -1052,23 +1250,52 @@ static BROTLI_BOOL DecompressFile(Context* context, BrotliDecoderState* s) {
       if (!ProvideOutput(context)) return BROTLI_FALSE;
     } else if (result == BROTLI_DECODER_RESULT_SUCCESS) {
       if (!FlushOutput(context)) return BROTLI_FALSE;
-      int has_more_input =
-          (context->available_in != 0) || (fgetc(context->fin) != EOF);
-      if (has_more_input) {
-        fprintf(stderr, "corrupt input [%s]\n",
-                PrintablePath(context->current_input_path));
-        if (context->verbosity > 0) {
-          fprintf(stderr, "reason: extra input\n");
+      BROTLI_BOOL has_more_input = (context->available_in != 0);
+      int extra_char = EOF;
+      if (!has_more_input) {
+        extra_char = fgetc(context->fin);
+        if (extra_char != EOF) {
+          has_more_input = BROTLI_TRUE;
+          context->input[0] = (uint8_t)extra_char;
+          context->next_in = context->input;
+          context->available_in = 1;
         }
-        return BROTLI_FALSE;
       }
-      if (context->verbosity > 0) {
-        context->end_time = clock();
-        fprintf(stderr, "Decompressed ");
-        PrintFileProcessingProgress(context);
-        fprintf(stderr, "\n");
+      if (has_more_input) {
+        if (context->allow_concatenated) {
+          if (context->verbosity > 0) {
+            fprintf(stderr, "extra input\n");
+          }
+          if (!ProvideOutput(context)) return BROTLI_FALSE;
+          BrotliDecoderDestroyInstance(context->decoder);
+          context->decoder = NULL;
+          if (!InitDecoder(context)) return BROTLI_FALSE;
+          s = context->decoder;
+        } else {
+          fprintf(stderr, "corrupt input [%s]\n",
+                  PrintablePath(context->current_input_path));
+          if (context->verbosity > 0) {
+            fprintf(stderr, "reason: extra input\n");
+          }
+          return BROTLI_FALSE;
+        }
+      } else {
+        if (context->verbosity > 0) {
+          context->end_time = clock();
+          fprintf(stderr, "Decompressed ");
+          PrintFileProcessingProgress(context);
+          fprintf(stderr, "\n");
+        }
+        /* Final check */
+        if (context->comment_state != COMMENT_OK) {
+          fprintf(stderr, "corrupt input [%s]\n",
+                  PrintablePath(context->current_input_path));
+          if (context->verbosity > 0) {
+            fprintf(stderr, "reason: comment mismatch\n");
+          }
+        }
+        return BROTLI_TRUE;
       }
-      return BROTLI_TRUE;
     } else {  /* result == BROTLI_DECODER_RESULT_ERROR */
       fprintf(stderr, "corrupt input [%s]\n",
               PrintablePath(context->current_input_path));
@@ -1090,27 +1317,16 @@ static BROTLI_BOOL DecompressFiles(Context* context) {
     BROTLI_BOOL is_ok = BROTLI_TRUE;
     BROTLI_BOOL rm_input = BROTLI_FALSE;
     BROTLI_BOOL rm_output = BROTLI_TRUE;
-    BrotliDecoderState* s = BrotliDecoderCreateInstance(NULL, NULL, NULL);
-    if (!s) {
-      fprintf(stderr, "out of memory\n");
-      return BROTLI_FALSE;
-    }
-    /* This allows decoding "large-window" streams. Though it creates
-       fragmentation (new builds decode streams that old builds don't),
-       it is better from used experience perspective. */
-    BrotliDecoderSetParameter(s, BROTLI_DECODER_PARAM_LARGE_WINDOW, 1u);
-    if (context->dictionary) {
-      BrotliDecoderAttachDictionary(s, BROTLI_SHARED_DICTIONARY_RAW,
-          context->dictionary_size, context->dictionary);
-    }
+    if (!InitDecoder(context)) return BROTLI_FALSE;
     is_ok = OpenFiles(context);
     if (is_ok && !context->current_input_path &&
         !context->force_overwrite && isatty(STDIN_FILENO)) {
       fprintf(stderr, "Use -h help. Use -f to force input from a terminal.\n");
       is_ok = BROTLI_FALSE;
     }
-    if (is_ok) is_ok = DecompressFile(context, s);
-    BrotliDecoderDestroyInstance(s);
+    if (is_ok) is_ok = DecompressFile(context);
+    if (context->decoder) BrotliDecoderDestroyInstance(context->decoder);
+    context->decoder = NULL;
     rm_output = !is_ok;
     rm_input = !rm_output && context->junk_source;
     if (!CloseFiles(context, rm_input, rm_output)) is_ok = BROTLI_FALSE;
@@ -1121,6 +1337,7 @@ static BROTLI_BOOL DecompressFiles(Context* context) {
 
 static BROTLI_BOOL CompressFile(Context* context, BrotliEncoderState* s) {
   BROTLI_BOOL is_eof = BROTLI_FALSE;
+  BROTLI_BOOL prologue = !!context->comment_len;
   InitializeBuffers(context);
   for (;;) {
     if (context->available_in == 0 && !is_eof) {
@@ -1128,14 +1345,34 @@ static BROTLI_BOOL CompressFile(Context* context, BrotliEncoderState* s) {
       is_eof = !HasMoreInput(context);
     }
 
-    if (!BrotliEncoderCompressStream(s,
-        is_eof ? BROTLI_OPERATION_FINISH : BROTLI_OPERATION_PROCESS,
-        &context->available_in, &context->next_in,
-        &context->available_out, &context->next_out, NULL)) {
-      /* Should detect OOM? */
-      fprintf(stderr, "failed to compress data [%s]\n",
-              PrintablePath(context->current_input_path));
-      return BROTLI_FALSE;
+    if (prologue) {
+      prologue = BROTLI_FALSE;
+      const uint8_t* next_meta = context->comment;
+      size_t available_meta = context->comment_len;
+      if (!BrotliEncoderCompressStream(s,
+          BROTLI_OPERATION_EMIT_METADATA,
+          &available_meta, &next_meta,
+          &context->available_out, &context->next_out, NULL)) {
+        /* Should detect OOM? */
+        fprintf(stderr, "failed to emit metadata [%s]\n",
+                PrintablePath(context->current_input_path));
+        return BROTLI_FALSE;
+      }
+      if (available_meta != 0) {
+        fprintf(stderr, "failed to emit metadata [%s]\n",
+                PrintablePath(context->current_input_path));
+        return BROTLI_FALSE;
+      }
+    } else {
+      if (!BrotliEncoderCompressStream(s,
+          is_eof ? BROTLI_OPERATION_FINISH : BROTLI_OPERATION_PROCESS,
+          &context->available_in, &context->next_in,
+          &context->available_out, &context->next_out, NULL)) {
+        /* Should detect OOM? */
+        fprintf(stderr, "failed to compress data [%s]\n",
+                PrintablePath(context->current_input_path));
+        return BROTLI_FALSE;
+      }
     }
 
     if (context->available_out == 0) {
@@ -1230,6 +1467,7 @@ int main(int argc, char** argv) {
   context.quality = 11;
   context.lgwin = -1;
   context.verbosity = 0;
+  context.comment_len = 0;
   context.force_overwrite = BROTLI_FALSE;
   context.junk_source = BROTLI_FALSE;
   context.reject_uncompressible = BROTLI_FALSE;
@@ -1238,6 +1476,7 @@ int main(int argc, char** argv) {
   context.write_to_stdout = BROTLI_FALSE;
   context.decompress = BROTLI_FALSE;
   context.large_window = BROTLI_FALSE;
+  context.allow_concatenated = BROTLI_FALSE;
   context.output_path = NULL;
   context.dictionary_path = NULL;
   context.suffix = DEFAULT_SUFFIX;
@@ -1249,6 +1488,7 @@ int main(int argc, char** argv) {
   context.argv = argv;
   context.dictionary = NULL;
   context.dictionary_size = 0;
+  context.decoder = NULL;
   context.prepared_dictionary = NULL;
   context.modified_path = NULL;
   context.iterator = 0;
