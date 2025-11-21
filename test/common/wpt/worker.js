@@ -1,6 +1,10 @@
 'use strict';
 
-const { runInNewContext, runInThisContext } = require('vm');
+const {
+  runInNewContext,
+  runInThisContext,
+  constants: { USE_MAIN_CONTEXT_DEFAULT_LOADER },
+} = require('vm');
 const { setFlagsFromString } = require('v8');
 const { parentPort, workerData } = require('worker_threads');
 
@@ -28,11 +32,14 @@ globalThis.fetch = function fetch(file) {
 };
 
 if (workerData.initScript) {
-  runInThisContext(workerData.initScript);
+  runInThisContext(workerData.initScript, {
+    importModuleDynamically: USE_MAIN_CONTEXT_DEFAULT_LOADER,
+  });
 }
 
 runInThisContext(workerData.harness.code, {
   filename: workerData.harness.filename,
+  importModuleDynamically: USE_MAIN_CONTEXT_DEFAULT_LOADER,
 });
 
 // eslint-disable-next-line no-undef
@@ -66,5 +73,8 @@ add_completion_callback((_, status) => {
 });
 
 for (const scriptToRun of workerData.scriptsToRun) {
-  runInThisContext(scriptToRun.code, { filename: scriptToRun.filename });
+  runInThisContext(scriptToRun.code, {
+    filename: scriptToRun.filename,
+    importModuleDynamically: USE_MAIN_CONTEXT_DEFAULT_LOADER,
+  });
 }
