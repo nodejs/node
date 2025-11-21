@@ -9,8 +9,8 @@
 #ifndef BROTLI_ENC_STATE_H_
 #define BROTLI_ENC_STATE_H_
 
-#include <brotli/types.h>
-
+#include "../common/constants.h"
+#include "../common/platform.h"
 #include "command.h"
 #include "compress_fragment.h"
 #include "compress_fragment_two_pass.h"
