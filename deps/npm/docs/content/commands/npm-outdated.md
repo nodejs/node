@@ -73,9 +73,9 @@ A few things to note:
 * Default: false
 * Type: Boolean
 
-When running `npm outdated` and `npm ls`, setting `--all` will show
-all outdated or installed packages, rather than only those directly
-depended upon by the current project.
+When running `npm outdated` and `npm ls`, setting `--all` will show all
+outdated or installed packages, rather than only those directly depended
+upon by the current project.
 
 
 
@@ -86,8 +86,8 @@ depended upon by the current project.
 
 Whether or not to output JSON data, rather than the normal output.
 
-* In `npm pkg set` it enables parsing set values with JSON.parse()
-  before saving them to your `package.json`.
+* In `npm pkg set` it enables parsing set values with JSON.parse() before
+  saving them to your `package.json`.
 
 Not supported by all npm commands.
 
@@ -107,8 +107,8 @@ Show extended information in `ls`, `search`, and `help-search`.
 * Default: false
 * Type: Boolean
 
-Output parseable results from commands that write to standard output.
-For `npm search`, this will be tab-separated table format.
+Output parseable results from commands that write to standard output. For
+`npm search`, this will be tab-separated table format.
 
 
 
@@ -117,13 +117,12 @@ For `npm search`, this will be tab-separated table format.
 * Default: false
 * Type: Boolean
 
-Operates in "global" mode, so that packages are installed into the
-`prefix` folder instead of the current working directory. See
-[folders](/configuring-npm/folders) for more on the differences in
-behavior.
+Operates in "global" mode, so that packages are installed into the `prefix`
+folder instead of the current working directory. See
+[folders](/configuring-npm/folders) for more on the differences in behavior.
 
-* packages are installed into the `{prefix}/lib/node_modules` folder,
-  instead of the current working directory.
+* packages are installed into the `{prefix}/lib/node_modules` folder, instead
+  of the current working directory.
 * bin files are linked to `{prefix}/bin`
 * man pages are linked to `{prefix}/share/man`
 
@@ -134,9 +133,9 @@ behavior.
 * Default:
 * Type: String (can be set multiple times)
 
-Enable running a command in the context of the configured workspaces
-of the current project while filtering by running only the workspaces
-defined by this configuration option.
+Enable running a command in the context of the configured workspaces of the
+current project while filtering by running only the workspaces defined by
+this configuration option.
 
 Valid values for the `workspace` config are either:
 
@@ -145,9 +144,9 @@ Valid values for the `workspace` config are either:
 * Path to a parent workspace directory (will result in selecting all
   workspaces within that folder)
 
-When set for the `npm init` command, this may be set to the folder of
-a workspace which does not yet exist, to create the folder and set it
-up as a brand new workspace within the project.
+When set for the `npm init` command, this may be set to the folder of a
+workspace which does not yet exist, to create the folder and set it up as a
+brand new workspace within the project.
 
 This value is not exported to the environment for child processes.
 
@@ -157,14 +156,14 @@ This value is not exported to the environment for child processes.
 * Type: null or Date
 
 If passed to `npm install`, will rebuild the npm tree such that only
-versions that were available **on or before** the given date are
-installed. If there are no versions available for the current set of
-dependencies, the command will error.
+versions that were available **on or before** the given date are installed.
+If there are no versions available for the current set of dependencies, the
+command will error.
 
-If the requested version is a `dist-tag` and the given tag does not
-pass the `--before` filter, the most recent version less than or
-equal to that tag will be used. For example, `foo@latest` might
-install `foo@1.2` even though `latest` is `2.0`.
+If the requested version is a `dist-tag` and the given tag does not pass the
+`--before` filter, the most recent version less than or equal to that tag
+will be used. For example, `foo@latest` might install `foo@1.2` even though
+`latest` is `2.0`.
 
 
 

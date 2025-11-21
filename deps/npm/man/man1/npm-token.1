@@ -1,4 +1,4 @@
-.TH "NPM-TOKEN" "1" "October 2025" "NPM@11.6.2" ""
+.TH "NPM-TOKEN" "1" "November 2025" "NPM@11.6.3" ""
 .SH "NAME"
 \fBnpm-token\fR - Manage your authentication tokens
 .SS "Synopsis"
@@ -7,7 +7,7 @@
 .nf
 npm token list
 npm token revoke <id|token>
-npm token create \[lB]--read-only\[rB] \[lB]--cidr=list\[rB]
+npm token create --name=<name> \[lB]--token-description=<desc>\[rB] \[lB]--packages=<pkg1,pkg2>\[rB] \[lB]--packages-all\[rB] \[lB]--scopes=<scope1,scope2>\[rB] \[lB]--orgs=<org1,org2>\[rB] \[lB]--packages-and-scopes-permission=<read-only|read-write|no-access>\[rB] \[lB]--orgs-permission=<read-only|read-write|no-access>\[rB] \[lB]--expires=<days>\[rB] \[lB]--cidr=<ip-range>\[rB] \[lB]--bypass-2fa\[rB] \[lB]--password=<pass>\[rB]
 .fi
 .RE
 .P
@@ -51,7 +51,47 @@ Created publish token a73c9572-f1b9-8983-983d-ba3ac3cc913d
 .RE 0
 
 .SS "Configuration"
-.SS "\fBread-only\fR"
+.SS "\fBname\fR"
+.RS 0
+.IP \(bu 4
+Default: null
+.IP \(bu 4
+Type: null or String
+.RE 0
+
+.P
+When creating a Granular Access Token with \fBnpm token create\fR, this sets the name/description for the token.
+.SS "\fBtoken-description\fR"
+.RS 0
+.IP \(bu 4
+Default: null
+.IP \(bu 4
+Type: null or String
+.RE 0
+
+.P
+Description text for the token when using \fBnpm token create\fR.
+.SS "\fBexpires\fR"
+.RS 0
+.IP \(bu 4
+Default: null
+.IP \(bu 4
+Type: null or Number
+.RE 0
+
+.P
+When creating a Granular Access Token with \fBnpm token create\fR, this sets the expiration in days. If not specified, the server will determine the default expiration.
+.SS "\fBpackages\fR"
+.RS 0
+.IP \(bu 4
+Default:
+.IP \(bu 4
+Type: null or String (can be set multiple times)
+.RE 0
+
+.P
+When creating a Granular Access Token with \fBnpm token create\fR, this limits the token access to specific packages. Provide a comma-separated list of package names.
+.SS "\fBpackages-all\fR"
 .RS 0
 .IP \(bu 4
 Default: false
@@ -60,7 +100,47 @@ Type: Boolean
 .RE 0
 
 .P
-This is used to mark a token as unable to publish when configuring limited access tokens with the \fBnpm token create\fR command.
+When creating a Granular Access Token with \fBnpm token create\fR, grants the token access to all packages instead of limiting to specific packages.
+.SS "\fBscopes\fR"
+.RS 0
+.IP \(bu 4
+Default: null
+.IP \(bu 4
+Type: null or String (can be set multiple times)
+.RE 0
+
+.P
+When creating a Granular Access Token with \fBnpm token create\fR, this limits the token access to specific scopes. Provide a comma-separated list of scope names (with or without @ prefix).
+.SS "\fBorgs\fR"
+.RS 0
+.IP \(bu 4
+Default: null
+.IP \(bu 4
+Type: null or String (can be set multiple times)
+.RE 0
+
+.P
+When creating a Granular Access Token with \fBnpm token create\fR, this limits the token access to specific organizations. Provide a comma-separated list of organization names.
+.SS "\fBpackages-and-scopes-permission\fR"
+.RS 0
+.IP \(bu 4
+Default: null
+.IP \(bu 4
+Type: null, "read-only", "read-write", or "no-access"
+.RE 0
+
+.P
+When creating a Granular Access Token with \fBnpm token create\fR, sets the permission level for packages and scopes. Options are "read-only", "read-write", or "no-access".
+.SS "\fBorgs-permission\fR"
+.RS 0
+.IP \(bu 4
+Default: null
+.IP \(bu 4
+Type: null, "read-only", "read-write", or "no-access"
+.RE 0
+
+.P
+When creating a Granular Access Token with \fBnpm token create\fR, sets the permission level for organizations. Options are "read-only", "read-write", or "no-access".
 .SS "\fBcidr\fR"
 .RS 0
 .IP \(bu 4
@@ -71,6 +151,26 @@ Type: null or String (can be set multiple times)
 
 .P
 This is a list of CIDR address to be used when configuring limited access tokens with the \fBnpm token create\fR command.
+.SS "\fBbypass-2fa\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+When creating a Granular Access Token with \fBnpm token create\fR, setting this to true will allow the token to bypass two-factor authentication. This is useful for automation and CI/CD workflows.
+.SS "\fBpassword\fR"
+.RS 0
+.IP \(bu 4
+Default: null
+.IP \(bu 4
+Type: null or String
+.RE 0
+
+.P
+Password for authentication. Can be provided via command line when creating tokens, though it's generally safer to be prompted for it.
 .SS "\fBregistry\fR"
 .RS 0
 .IP \(bu 4
@@ -90,10 +190,19 @@ Type: null or String
 .RE 0
 
 .P
-This is a one-time password from a two-factor authenticator. It's needed when publishing or changing package permissions with \fBnpm
-access\fR.
+This is a one-time password from a two-factor authenticator. It's needed when publishing or changing package permissions with \fBnpm access\fR.
 .P
 If not set, and a registry response fails with a challenge for a one-time password, npm will prompt on the command line for one.
+.SS "\fBread-only\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+This is used to mark a token as unable to publish when configuring limited access tokens with the \fBnpm token create\fR command.
 .SS "See Also"
 .RS 0
 .IP \(bu 4

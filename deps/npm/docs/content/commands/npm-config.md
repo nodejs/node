@@ -106,8 +106,8 @@ Usually this means attaching authentication config (i.e.
 
 Whether or not to output JSON data, rather than the normal output.
 
-* In `npm pkg set` it enables parsing set values with JSON.parse()
-  before saving them to your `package.json`.
+* In `npm pkg set` it enables parsing set values with JSON.parse() before
+  saving them to your `package.json`.
 
 Not supported by all npm commands.
 
@@ -118,13 +118,12 @@ Not supported by all npm commands.
 * Default: false
 * Type: Boolean
 
-Operates in "global" mode, so that packages are installed into the
-`prefix` folder instead of the current working directory. See
-[folders](/configuring-npm/folders) for more on the differences in
-behavior.
+Operates in "global" mode, so that packages are installed into the `prefix`
+folder instead of the current working directory. See
+[folders](/configuring-npm/folders) for more on the differences in behavior.
 
-* packages are installed into the `{prefix}/lib/node_modules` folder,
-  instead of the current working directory.
+* packages are installed into the `{prefix}/lib/node_modules` folder, instead
+  of the current working directory.
 * bin files are linked to `{prefix}/bin`
 * man pages are linked to `{prefix}/share/man`
 
@@ -142,19 +141,18 @@ The command to run for `npm edit` and `npm config edit`.
 
 #### `location`
 
-* Default: "user" unless `--global` is passed, which will also set this
-  value to "global"
+* Default: "user" unless `--global` is passed, which will also set this value
+  to "global"
 * Type: "global", "user", or "project"
 
 When passed to `npm config` this refers to which config file to use.
 
-When set to "global" mode, packages are installed into the `prefix`
-folder instead of the current working directory. See
-[folders](/configuring-npm/folders) for more on the differences in
-behavior.
+When set to "global" mode, packages are installed into the `prefix` folder
+instead of the current working directory. See
+[folders](/configuring-npm/folders) for more on the differences in behavior.
 
-* packages are installed into the `{prefix}/lib/node_modules` folder,
-  instead of the current working directory.
+* packages are installed into the `{prefix}/lib/node_modules` folder, instead
+  of the current working directory.
 * bin files are linked to `{prefix}/bin`
 * man pages are linked to `{prefix}/share/man`
 

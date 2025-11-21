@@ -68,6 +68,34 @@ class Arborist extends Base {
   constructor (options = {}) {
     const timeEnd = time.start('arborist:ctor')
     super(options)
+
+    // normalize trailing slash
+    const registry = options.registry || 'https://registry.npmjs.org'
+    options.registry = this.registry = registry.replace(/(?<!\/)\/+$/, '') + '/'
+
+    // TODO as we consolidate constructors it's more apparent that we are not parsing options and using this.options consistently
+    const {
+      actualTree,
+      global,
+      idealTree = null,
+      installLinks = false,
+      legacyPeerDeps = false,
+      virtualTree,
+      workspaces,
+    } = options
+
+    if (workspaces?.length && global) {
+      throw new Error('Cannot operate on workspaces in global mode')
+    }
+
+    // the tree of nodes on disk
+    this.actualTree = actualTree
+    this.idealTree = idealTree
+    this.installLinks = installLinks
+    this.legacyPeerDeps = legacyPeerDeps
+    // the virtual tree we load from a shrinkwrap
+    this.virtualTree = virtualTree
+
     this.options = {
       nodeVersion: process.version,
       ...options,
@@ -88,6 +116,7 @@ class Arborist extends Base {
       replaceRegistryHost: options.replaceRegistryHost,
       savePrefix: 'savePrefix' in options ? options.savePrefix : '^',
       scriptShell: options.scriptShell,
+      usePackageLock: 'packageLock' in options ? options.packageLock : true,
       workspaces: options.workspaces || [],
       workspacesEnabled: options.workspacesEnabled !== false,
     }
@@ -104,6 +133,7 @@ class Arborist extends Base {
     this.cache = resolve(this.options.cache)
     this.diff = null
     this.path = resolve(this.options.path)
+    this.scriptsRun = new Set()
     timeEnd()
   }
 

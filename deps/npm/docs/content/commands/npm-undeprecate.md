@@ -34,12 +34,11 @@ The base URL of the npm registry.
 * Default: null
 * Type: null or String
 
-This is a one-time password from a two-factor authenticator. It's
-needed when publishing or changing package permissions with `npm
-access`.
+This is a one-time password from a two-factor authenticator. It's needed
+when publishing or changing package permissions with `npm access`.
 
-If not set, and a registry response fails with a challenge for a
-one-time password, npm will prompt on the command line for one.
+If not set, and a registry response fails with a challenge for a one-time
+password, npm will prompt on the command line for one.
 
 
 
@@ -48,14 +47,13 @@ one-time password, npm will prompt on the command line for one.
 * Default: false
 * Type: Boolean
 
-Indicates that you don't want npm to make any changes and that it
-should only report what it would have done. This can be passed into
-any of the commands that modify your local installation, eg,
-`install`, `update`, `dedupe`, `uninstall`, as well as `pack` and
-`publish`.
+Indicates that you don't want npm to make any changes and that it should
+only report what it would have done. This can be passed into any of the
+commands that modify your local installation, eg, `install`, `update`,
+`dedupe`, `uninstall`, as well as `pack` and `publish`.
 
-Note: This is NOT honored by other network related commands, eg
-`dist-tags`, `owner`, etc.
+Note: This is NOT honored by other network related commands, eg `dist-tags`,
+`owner`, etc.
 
 
 ### See Also

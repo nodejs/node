@@ -1,11 +1,8 @@
 const t = require('tap')
 const { load: loadMockNpm } = require('../../fixtures/mock-npm.js')
 const MockRegistry = require('@npmcli/mock-registry')
-const mockGlobals = require('@npmcli/mock-globals')
-const stream = require('node:stream')
 
 const authToken = 'abcd1234'
-const password = 'this is not really a password'
 
 const auth = {
   '//registry.npmjs.org/:_authToken': authToken,
@@ -113,7 +110,7 @@ t.test('token list parseable output', async t => {
   ])
 })
 
-t.test('token revoke', async t => {
+t.test('token revoke single', async t => {
   const { npm, joinedOutput } = await loadMockNpm(t, {
     config: { ...auth },
   })
@@ -124,13 +121,13 @@ t.test('token revoke', async t => {
   })
 
   registry.getTokens(tokens)
-  registry.nock.delete(`/-/npm/v1/tokens/token/${tokens[0].key}`).reply(200)
+  registry.revokeToken(tokens[0].key)
   await npm.exec('token', ['rm', tokens[0].key.slice(0, 8)])
 
   t.equal(joinedOutput(), 'Removed 1 token')
 })
 
-t.test('token revoke multiple tokens', async t => {
+t.test('token revoke multiple', async t => {
   const { npm, joinedOutput } = await loadMockNpm(t, {
     config: { ...auth },
   })
@@ -141,8 +138,8 @@ t.test('token revoke multiple tokens', async t => {
   })
 
   registry.getTokens(tokens)
-  registry.nock.delete(`/-/npm/v1/tokens/token/${tokens[0].key}`).reply(200)
-  registry.nock.delete(`/-/npm/v1/tokens/token/${tokens[1].key}`).reply(200)
+  registry.revokeToken(tokens[0].key)
+  registry.revokeToken(tokens[1].key)
   await npm.exec('token', ['rm', tokens[0].key.slice(0, 8), tokens[1].key.slice(0, 8)])
 
   t.equal(joinedOutput(), 'Removed 2 tokens')
@@ -162,7 +159,7 @@ t.test('token revoke json output', async t => {
   })
 
   registry.getTokens(tokens)
-  registry.nock.delete(`/-/npm/v1/tokens/token/${tokens[0].key}`).reply(200)
+  registry.revokeToken(tokens[0].key)
   await npm.exec('token', ['rm', tokens[0].key.slice(0, 8)])
 
   const parsed = JSON.parse(joinedOutput())
@@ -183,7 +180,7 @@ t.test('token revoke parseable output', async t => {
   })
 
   registry.getTokens(tokens)
-  registry.nock.delete(`/-/npm/v1/tokens/token/${tokens[0].key}`).reply(200)
+  registry.revokeToken(tokens[0].key)
   await npm.exec('token', ['rm', tokens[0].key.slice(0, 8)])
   t.equal(joinedOutput(), tokens[0].key, 'logs the token as a string')
 })
@@ -198,7 +195,7 @@ t.test('token revoke by token', async t => {
     authorization: authToken,
   })
   registry.getTokens(tokens)
-  registry.nock.delete(`/-/npm/v1/tokens/token/${tokens[0].token}`).reply(200)
+  registry.revokeToken(tokens[0].token)
   await npm.exec('token', ['rm', tokens[0].token])
   t.equal(joinedOutput(), 'Removed 1 token')
 })
@@ -243,12 +240,48 @@ t.test('token revoke unknown token', async t => {
   )
 })
 
-t.test('token create', async t => {
-  const cidr = ['10.0.0.0/8', '192.168.1.0/24']
+t.test('token create defaults', async t => {
   const { npm, outputs } = await loadMockNpm(t, {
     config: {
       ...auth,
-      cidr,
+      name: 'test-token',
+      password: 'test-password',
+    },
+  })
+
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
+    authorization: authToken,
+  })
+
+  registry.createToken({
+    name: 'test-token',
+    password: 'test-password',
+  }, {
+    access: 'publish',
+  })
+
+  await npm.exec('token', ['create'])
+  t.match(outputs, ['Created publish token n3wt0k3n'])
+})
+
+t.test('token create extra token attributes', async t => {
+  const { npm, outputs } = await loadMockNpm(t, {
+    config: {
+      ...auth,
+      'bypass-2fa': true,
+      cidr: ['10.0.0.0/8', '192.168.1.0/24'],
+      expires: 1000,
+      name: 'extras-token',
+      orgs: ['@npmcli'],
+      'orgs-permission': 'read-write',
+      packages: ['@npmcli/test-package'],
+      'packages-and-scopes-permission': 'read-only',
+      'packages-all': true,
+      password: 'test-password',
+      scopes: ['@npmcli'],
+      'token-description': 'test token',
     },
   })
   const registry = new MockRegistry({
@@ -256,103 +289,159 @@ t.test('token create', async t => {
     registry: npm.config.get('registry'),
     authorization: authToken,
   })
-  const stdin = new stream.PassThrough()
-  stdin.write(`${password}\n`)
-  mockGlobals(t, {
-    'process.stdin': stdin,
-    'process.stdout': new stream.PassThrough(), // to quiet readline
-  }, { replace: true })
-  registry.createToken({ password, cidr })
+
+  const expires = new Date()
+  registry.createToken({
+    bypass_2fa: true,
+    cidr_whitelist: ['10.0.0.0/8', '192.168.1.0/24'],
+    description: 'test token',
+    expires: 1000,
+    name: 'extras-token',
+    orgs_permission: 'read-write',
+    orgs: ['@npmcli'],
+    packages_all: true,
+    packages_and_scopes_permission: 'read-only',
+    packages: ['@npmcli/test-package'],
+    password: 'test-password',
+    scopes: ['@npmcli'],
+  }, {
+    cidr_whitelist: ['10.0.0.0/8', '192.168.1.0/24'],
+    expires,
+  })
+
   await npm.exec('token', ['create'])
-  t.strictSame(outputs, [
-    '',
-    'Created publish token n3wt0k3n',
+  t.match(outputs, [
+    'Created read only token n3wt0k3n',
     'with IP whitelist: 10.0.0.0/8,192.168.1.0/24',
+    `expires: ${expires.toISOString()}`,
   ])
 })
 
-t.test('token create read only', async t => {
+t.test('token create access.read-only', async t => {
   const { npm, outputs } = await loadMockNpm(t, {
     config: {
       ...auth,
-      'read-only': true,
+      name: 'test-token',
+      password: 'test-password',
     },
   })
+
   const registry = new MockRegistry({
     tap: t,
     registry: npm.config.get('registry'),
     authorization: authToken,
   })
-  const stdin = new stream.PassThrough()
-  stdin.write(`${password}\n`)
-  mockGlobals(t, {
-    'process.stdin': stdin,
-    'process.stdout': new stream.PassThrough(), // to quiet readline
-  }, { replace: true })
-  registry.createToken({ readonly: true, password })
+
+  registry.createToken({
+    name: 'test-token',
+    password: 'test-password',
+  }, {
+    access: 'read-only',
+  })
+
   await npm.exec('token', ['create'])
-  t.strictSame(outputs, [
-    '',
-    'Created read only token n3wt0k3n',
-  ])
+  t.match(outputs, ['Created read only token n3wt0k3n'])
+})
+
+t.test('token create readonly', async t => {
+  const { npm, outputs } = await loadMockNpm(t, {
+    config: {
+      ...auth,
+      name: 'test-token',
+      password: 'test-password',
+    },
+  }, {
+    readonly: true,
+  })
+
+  const registry = new MockRegistry({
+    tap: t,
+    registry: npm.config.get('registry'),
+    authorization: authToken,
+  })
+
+  registry.createToken({
+    name: 'test-token',
+    password: 'test-password',
+  }, {
+    access: 'read-only',
+  })
+
+  await npm.exec('token', ['create'])
+  t.match(outputs, ['Created read only token n3wt0k3n'])
 })
 
 t.test('token create json output', async t => {
-  const cidr = ['10.0.0.0/8', '192.168.1.0/24']
   const { npm, joinedOutput } = await loadMockNpm(t, {
     config: {
       ...auth,
       json: true,
-      cidr,
+      name: 'test-token',
+      password: 'test-password',
     },
   })
+
   const registry = new MockRegistry({
     tap: t,
     registry: npm.config.get('registry'),
     authorization: authToken,
   })
-  const stdin = new stream.PassThrough()
-  stdin.write(`${password}\n`)
-  mockGlobals(t, {
-    'process.stdin': stdin,
-    'process.stdout': new stream.PassThrough(), // to quiet readline
-  }, { replace: true })
-  registry.createToken({ password, cidr })
+
+  const created = new Date()
+  registry.createToken({
+    name: 'test-token',
+    password: 'test-password',
+  }, {
+    created,
+    other: 'attr',
+  })
+
   await npm.exec('token', ['create'])
-  const parsed = JSON.parse(joinedOutput())
-  t.match(
-    parsed,
-    { token: 'n3wt0k3n', readonly: false, cidr_whitelist: cidr }
-  )
-  t.ok(parsed.created, 'also returns created')
+  t.match(JSON.parse(joinedOutput()), {
+    access: 'read-only',
+    created: created.toISOString(),
+    id: '0xdeadbeef',
+    name: 'test-token',
+    other: 'attr',
+    password: 'test-password',
+    token: 'n3wt0k3n',
+  })
 })
 
 t.test('token create parseable output', async t => {
-  const cidr = ['10.0.0.0/8', '192.168.1.0/24']
   const { npm, outputs } = await loadMockNpm(t, {
     config: {
       ...auth,
       parseable: true,
-      cidr,
+      name: 'test-token',
+      password: 'test-password',
     },
   })
+
   const registry = new MockRegistry({
     tap: t,
     registry: npm.config.get('registry'),
     authorization: authToken,
   })
-  const stdin = new stream.PassThrough()
-  stdin.write(`${password}\n`)
-  mockGlobals(t, {
-    'process.stdin': stdin,
-    'process.stdout': new stream.PassThrough(), // to quiet readline
-  }, { replace: true })
-  registry.createToken({ password, cidr })
+
+  const created = new Date()
+  registry.createToken({
+    name: 'test-token',
+    password: 'test-password',
+  }, {
+    access: 'publish',
+    created,
+  })
+
   await npm.exec('token', ['create'])
-  t.equal(outputs[1], 'token\tn3wt0k3n')
-  t.ok(outputs[2].startsWith('created\t'))
-  t.equal(outputs[3], 'readonly\tfalse')
-  t.equal(outputs[4], 'cidr_whitelist\t10.0.0.0/8,192.168.1.0/24')
+  t.match(outputs, [
+    'id\t0xdeadbeef',
+    'token\tn3wt0k3n',
+    `created\t${created.toISOString()}`,
+    'access\tpublish',
+    'name\ttest-token',
+    'password\ttest-password',
+  ])
 })
 
 t.test('token create ipv6 cidr', async t => {
@@ -360,12 +449,14 @@ t.test('token create ipv6 cidr', async t => {
     config: {
       ...auth,
       cidr: '::1/128',
+      name: 'ipv6-test',
+      access: 'read-only',
     },
   })
-  await t.rejects(npm.exec('token', ['create'], {
+  await t.rejects(npm.exec('token', ['create']), {
     code: 'EINVALIDCIDR',
     message: /CIDR whitelist can only contain IPv4 addresses, ::1\/128 is IPv6/,
-  }))
+  })
 })
 
 t.test('token create invalid cidr', async t => {
@@ -373,10 +464,12 @@ t.test('token create invalid cidr', async t => {
     config: {
       ...auth,
       cidr: 'apple/cider',
+      name: 'invalid-cidr-test',
+      access: 'read-only',
     },
   })
-  await t.rejects(npm.exec('token', ['create'], {
+  await t.rejects(npm.exec('token', ['create']), {
     code: 'EINVALIDCIDR',
     message: 'CIDR whitelist contains invalid CIDR entry: apple/cider',
-  }))
+  })
 })

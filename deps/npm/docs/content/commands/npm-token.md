@@ -9,7 +9,7 @@ description: Manage your authentication tokens
 ```bash
 npm token list
 npm token revoke <id|token>
-npm token create [--read-only] [--cidr=list]
+npm token create --name=<name> [--token-description=<desc>] [--packages=<pkg1,pkg2>] [--packages-all] [--scopes=<scope1,scope2>] [--orgs=<org1,org2>] [--packages-and-scopes-permission=<read-only|read-write|no-access>] [--orgs-permission=<read-only|read-write|no-access>] [--expires=<days>] [--cidr=<ip-range>] [--bypass-2fa] [--password=<pass>]
 ```
 
 Note: This command is unaware of workspaces.
@@ -52,13 +52,98 @@ Created publish token a73c9572-f1b9-8983-983d-ba3ac3cc913d
 
 ### Configuration
 
-#### `read-only`
+#### `name`
+
+* Default: null
+* Type: null or String
+
+When creating a Granular Access Token with `npm token create`, this sets the
+name/description for the token.
+
+
+
+#### `token-description`
+
+* Default: null
+* Type: null or String
+
+Description text for the token when using `npm token create`.
+
+
+
+#### `expires`
+
+* Default: null
+* Type: null or Number
+
+When creating a Granular Access Token with `npm token create`, this sets the
+expiration in days. If not specified, the server will determine the default
+expiration.
+
+
+
+#### `packages`
+
+* Default:
+* Type: null or String (can be set multiple times)
+
+When creating a Granular Access Token with `npm token create`, this limits
+the token access to specific packages. Provide a comma-separated list of
+package names.
+
+
+
+#### `packages-all`
 
 * Default: false
 * Type: Boolean
 
-This is used to mark a token as unable to publish when configuring
-limited access tokens with the `npm token create` command.
+When creating a Granular Access Token with `npm token create`, grants the
+token access to all packages instead of limiting to specific packages.
+
+
+
+#### `scopes`
+
+* Default: null
+* Type: null or String (can be set multiple times)
+
+When creating a Granular Access Token with `npm token create`, this limits
+the token access to specific scopes. Provide a comma-separated list of scope
+names (with or without @ prefix).
+
+
+
+#### `orgs`
+
+* Default: null
+* Type: null or String (can be set multiple times)
+
+When creating a Granular Access Token with `npm token create`, this limits
+the token access to specific organizations. Provide a comma-separated list
+of organization names.
+
+
+
+#### `packages-and-scopes-permission`
+
+* Default: null
+* Type: null, "read-only", "read-write", or "no-access"
+
+When creating a Granular Access Token with `npm token create`, sets the
+permission level for packages and scopes. Options are "read-only",
+"read-write", or "no-access".
+
+
+
+#### `orgs-permission`
+
+* Default: null
+* Type: null, "read-only", "read-write", or "no-access"
+
+When creating a Granular Access Token with `npm token create`, sets the
+permission level for organizations. Options are "read-only", "read-write",
+or "no-access".
 
 
 
@@ -67,8 +152,29 @@ limited access tokens with the `npm token create` command.
 * Default: null
 * Type: null or String (can be set multiple times)
 
-This is a list of CIDR address to be used when configuring limited
-access tokens with the `npm token create` command.
+This is a list of CIDR address to be used when configuring limited access
+tokens with the `npm token create` command.
+
+
+
+#### `bypass-2fa`
+
+* Default: false
+* Type: Boolean
+
+When creating a Granular Access Token with `npm token create`, setting this
+to true will allow the token to bypass two-factor authentication. This is
+useful for automation and CI/CD workflows.
+
+
+
+#### `password`
+
+* Default: null
+* Type: null or String
+
+Password for authentication. Can be provided via command line when creating
+tokens, though it's generally safer to be prompted for it.
 
 
 
@@ -86,12 +192,21 @@ The base URL of the npm registry.
 * Default: null
 * Type: null or String
 
-This is a one-time password from a two-factor authenticator. It's
-needed when publishing or changing package permissions with `npm
-access`.
+This is a one-time password from a two-factor authenticator. It's needed
+when publishing or changing package permissions with `npm access`.
 
-If not set, and a registry response fails with a challenge for a
-one-time password, npm will prompt on the command line for one.
+If not set, and a registry response fails with a challenge for a one-time
+password, npm will prompt on the command line for one.
+
+
+
+#### `read-only`
+
+* Default: false
+* Type: Boolean
+
+This is used to mark a token as unable to publish when configuring limited
+access tokens with the `npm token create` command.
 
 
 

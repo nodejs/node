@@ -30,8 +30,8 @@ Note that the package is *not* automatically rebuilt afterwards, so be sure to u
 
 #### `shell`
 
-* Default: SHELL environment variable, or "bash" on Posix, or "cmd.exe"
-  on Windows
+* Default: SHELL environment variable, or "bash" on Posix, or "cmd.exe" on
+  Windows
 * Type: String
 
 The shell to run for the `npm explore` command.

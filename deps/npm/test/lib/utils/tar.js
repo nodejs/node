@@ -1,3 +1,4 @@
+const path = require('node:path')
 const t = require('tap')
 const tar = require('tar')
 const pack = require('libnpmpack')
@@ -163,13 +164,14 @@ t.test('should getContents of a tarball with a node_modules directory included',
     },
   })
 
+  const fileName = path.join(testDir, 'npm-example-v1.tgz')
   await tar.c({
     gzip: true,
-    file: 'npm-example-v1.tgz',
+    file: fileName,
     C: testDir,
   }, ['package'])
 
-  const tarball = await readFile(`npm-example-v1.tgz`)
+  const tarball = await readFile(fileName)
 
   const tarballContents = await getContents({
     name: 'my-cool-pkg',

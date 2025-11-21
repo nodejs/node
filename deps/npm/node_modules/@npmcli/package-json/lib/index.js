@@ -225,7 +225,7 @@ class PackageJson {
       this.#manifest = step({ content, originalContent: this.content })
     }
 
-    // unknown properties will just be overwitten
+    // unknown properties will just be overwritten
     for (const [key, value] of Object.entries(content)) {
       if (!knownKeys.has(key)) {
         this.content[key] = value

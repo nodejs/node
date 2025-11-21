@@ -41,19 +41,6 @@ module.exports = cls => class ActualLoader extends cls {
   #topNodes = new Set()
   #transplantFilter
 
-  constructor (options) {
-    super(options)
-
-    // the tree of nodes on disk
-    this.actualTree = options.actualTree
-
-    // caches for cached realpath calls
-    const cwd = process.cwd()
-    // assume that the cwd is real enough for our purposes
-    this[_rpcache] = new Map([[cwd, cwd]])
-    this[_stcache] = new Map()
-  }
-
   // public method
   // TODO remove options param in next semver major
   async loadActual (options = {}) {

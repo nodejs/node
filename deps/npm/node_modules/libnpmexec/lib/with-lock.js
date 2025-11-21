@@ -18,9 +18,10 @@ const { onExit } = require('signal-exit')
 // - more ergonomic compromised lock handling (i.e. withLock will reject, and callbacks have access to an AbortSignal)
 // - uses a more recent version of signal-exit
 
+// mtime precision is platform dependent, so deal in seconds
 const touchInterval = 1_000
-// mtime precision is platform dependent, so use a reasonably large threshold
-const staleThreshold = 5_000
+// use a reasonably large threshold, in case stat calls take a while
+const staleThreshold = 60_000
 
 // track current locks and their cleanup functions
 const currentLocks = new Map()
@@ -144,6 +145,7 @@ async function maintainLock (lockPath) {
   let mtime = Math.round(stats.mtimeMs / 1000)
   const signal = controller.signal
 
+  let timeout
   async function touchLock () {
     try {
       const currentStats = (await fs.stat(lockPath))
@@ -156,16 +158,16 @@ async function maintainLock (lockPath) {
       if (currentLocks.has(lockPath)) {
         await fs.utimes(lockPath, mtime, mtime)
       }
+      timeout = setTimeout(touchLock, touchInterval).unref()
     } catch (err) {
       // stats mismatch or other fs error means the lock was compromised
       controller.abort()
     }
   }
 
-  const timeout = setInterval(touchLock, touchInterval)
-  timeout.unref()
+  timeout = setTimeout(touchLock, touchInterval).unref()
   function cleanup () {
-    clearInterval(timeout)
+    clearTimeout(timeout)
     deleteLock(lockPath)
   }
   currentLocks.set(lockPath, cleanup)

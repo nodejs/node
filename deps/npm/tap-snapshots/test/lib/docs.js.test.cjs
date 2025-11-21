@@ -302,6 +302,17 @@ Set to \`true\` to use default system URL opener.
 
 
 
+#### \`bypass-2fa\`
+
+* Default: false
+* Type: Boolean
+
+When creating a Granular Access Token with \`npm token create\`, setting this
+to true will allow the token to bypass two-factor authentication. This is
+useful for automation and CI/CD workflows.
+
+
+
 #### \`ca\`
 
 * Default: null
@@ -555,6 +566,17 @@ Tells npm whether or not to expect results from the command. Can be either
 true (expect some results) or false (expect no results).
 
 This config cannot be used with: \`expect-result-count\`
+
+#### \`expires\`
+
+* Default: null
+* Type: null or Number
+
+When creating a Granular Access Token with \`npm token create\`, this sets the
+expiration in days. If not specified, the server will determine the default
+expiration.
+
+
 
 #### \`fetch-retries\`
 
@@ -1081,6 +1103,16 @@ Any "%s" in the message will be replaced with the version number.
 
 
 
+#### \`name\`
+
+* Default: null
+* Type: null or String
+
+When creating a Granular Access Token with \`npm token create\`, this sets the
+name/description for the token.
+
+
+
 #### \`node-gyp\`
 
 * Default: The path to the node-gyp bin that ships with npm
@@ -1158,6 +1190,28 @@ time.
 
 
 
+#### \`orgs\`
+
+* Default: null
+* Type: null or String (can be set multiple times)
+
+When creating a Granular Access Token with \`npm token create\`, this limits
+the token access to specific organizations. Provide a comma-separated list
+of organization names.
+
+
+
+#### \`orgs-permission\`
+
+* Default: null
+* Type: null, "read-only", "read-write", or "no-access"
+
+When creating a Granular Access Token with \`npm token create\`, sets the
+permission level for organizations. Options are "read-only", "read-write",
+or "no-access".
+
+
+
 #### \`os\`
 
 * Default: null
@@ -1225,6 +1279,38 @@ For \`list\` this means the output will be based on the tree described by the
 
 
 
+#### \`packages\`
+
+* Default:
+* Type: null or String (can be set multiple times)
+
+When creating a Granular Access Token with \`npm token create\`, this limits
+the token access to specific packages. Provide a comma-separated list of
+package names.
+
+
+
+#### \`packages-all\`
+
+* Default: false
+* Type: Boolean
+
+When creating a Granular Access Token with \`npm token create\`, grants the
+token access to all packages instead of limiting to specific packages.
+
+
+
+#### \`packages-and-scopes-permission\`
+
+* Default: null
+* Type: null, "read-only", "read-write", or "no-access"
+
+When creating a Granular Access Token with \`npm token create\`, sets the
+permission level for packages and scopes. Options are "read-only",
+"read-write", or "no-access".
+
+
+
 #### \`parseable\`
 
 * Default: false
@@ -1232,6 +1318,16 @@ For \`list\` this means the output will be based on the tree described by the
 
 Output parseable results from commands that write to standard output. For
 \`npm search\`, this will be tab-separated table format.
+
+
+
+#### \`password\`
+
+* Default: null
+* Type: null or String
+
+Password for authentication. Can be provided via command line when creating
+tokens, though it's generally safer to be prompted for it.
 
 
 
@@ -1520,6 +1616,17 @@ npm init --scope=@foo --yes
 
 
 
+#### \`scopes\`
+
+* Default: null
+* Type: null or String (can be set multiple times)
+
+When creating a Granular Access Token with \`npm token create\`, this limits
+the token access to specific scopes. Provide a comma-separated list of scope
+names (with or without @ prefix).
+
+
+
 #### \`script-shell\`
 
 * Default: '/bin/sh' on POSIX systems, 'cmd.exe' on Windows
@@ -1684,6 +1791,15 @@ You can quickly view it with this [json](https://npm.im/json) command line:
 
 Timing information will also be reported in the terminal. To suppress this
 while still writing the timing file, use \`--silent\`.
+
+
+
+#### \`token-description\`
+
+* Default: null
+* Type: null or String
+
+Description text for the token when using \`npm token create\`.
 
 
 
@@ -2103,6 +2219,7 @@ Array [
   "before",
   "bin-links",
   "browser",
+  "bypass-2fa",
   "ca",
   "cache",
   "cache-max",
@@ -2130,6 +2247,7 @@ Array [
   "engine-strict",
   "expect-result-count",
   "expect-results",
+  "expires",
   "fetch-retries",
   "fetch-retry-factor",
   "fetch-retry-maxtimeout",
@@ -2180,6 +2298,7 @@ Array [
   "logs-dir",
   "logs-max",
   "long",
+  "name",
   "maxsockets",
   "message",
   "node-gyp",
@@ -2189,6 +2308,7 @@ Array [
   "omit",
   "omit-lockfile-registry-resolved",
   "only",
+  "orgs",
   "optional",
   "os",
   "otp",
@@ -2196,6 +2316,7 @@ Array [
   "package-lock",
   "package-lock-only",
   "pack-destination",
+  "packages",
   "parseable",
   "prefer-dedupe",
   "prefer-offline",
@@ -2222,6 +2343,12 @@ Array [
   "sbom-format",
   "sbom-type",
   "scope",
+  "scopes",
+  "packages-all",
+  "packages-and-scopes-permission",
+  "orgs-permission",
+  "password",
+  "token-description",
   "script-shell",
   "searchexclude",
   "searchlimit",
@@ -2266,6 +2393,7 @@ Array [
   "before",
   "bin-links",
   "browser",
+  "bypass-2fa",
   "ca",
   "cache",
   "cache-max",
@@ -2291,6 +2419,7 @@ Array [
   "dry-run",
   "editor",
   "engine-strict",
+  "expires",
   "fetch-retries",
   "fetch-retry-factor",
   "fetch-retry-maxtimeout",
@@ -2324,6 +2453,7 @@ Array [
   "location",
   "lockfile-version",
   "loglevel",
+  "name",
   "maxsockets",
   "message",
   "node-gyp",
@@ -2332,6 +2462,7 @@ Array [
   "omit",
   "omit-lockfile-registry-resolved",
   "only",
+  "orgs",
   "optional",
   "os",
   "otp",
@@ -2339,6 +2470,7 @@ Array [
   "package-lock",
   "package-lock-only",
   "pack-destination",
+  "packages",
   "parseable",
   "prefer-dedupe",
   "prefer-offline",
@@ -2364,6 +2496,12 @@ Array [
   "sbom-format",
   "sbom-type",
   "scope",
+  "scopes",
+  "packages-all",
+  "packages-and-scopes-permission",
+  "orgs-permission",
+  "password",
+  "token-description",
   "script-shell",
   "searchexclude",
   "searchlimit",
@@ -2433,6 +2571,7 @@ Object {
   "before": null,
   "binLinks": true,
   "browser": null,
+  "bypass-2fa": false,
   "ca": null,
   "cache": "{CWD}/cache/_cacache",
   "call": "",
@@ -2454,6 +2593,7 @@ Object {
   "dryRun": false,
   "editor": "{EDITOR}",
   "engineStrict": false,
+  "expires": null,
   "force": false,
   "foregroundScripts": false,
   "formatPackageLock": true,
@@ -2481,6 +2621,7 @@ Object {
   "logColor": false,
   "maxSockets": 15,
   "message": "%s",
+  "name": null,
   "nodeBin": "{NODE}",
   "nodeGyp": "{CWD}/node_modules/node-gyp/bin/node-gyp.js",
   "nodeVersion": "2.2.2",
@@ -2492,13 +2633,19 @@ Object {
   "offline": false,
   "omit": Array [],
   "omitLockfileRegistryResolved": false,
+  "orgs": null,
+  "orgsPermission": null,
   "os": null,
   "otp": null,
   "package": Array [],
   "packageLock": true,
   "packageLockOnly": false,
+  "packages": Array [],
+  "packagesAll": false,
+  "packagesAndScopesPermission": null,
   "packDestination": ".",
   "parseable": false,
+  "password": null,
   "preferDedupe": false,
   "preferOffline": false,
   "preferOnline": false,
@@ -2524,6 +2671,7 @@ Object {
   "sbomFormat": null,
   "sbomType": "library",
   "scope": "",
+  "scopes": null,
   "scriptShell": undefined,
   "search": Object {
     "description": true,
@@ -2540,6 +2688,7 @@ Object {
   "strictSSL": true,
   "tagVersionPrefix": "v",
   "timeout": 300000,
+  "tokenDescription": null,
   "tufCache": "{CWD}/cache/_tuf",
   "umask": 0,
   "unicode": false,
@@ -4308,26 +4457,43 @@ Manage your authentication tokens
 Usage:
 npm token list
 npm token revoke <id|token>
-npm token create [--read-only] [--cidr=list]
+npm token create --name=<name> [--token-description=<desc>] [--packages=<pkg1,pkg2>] [--packages-all] [--scopes=<scope1,scope2>] [--orgs=<org1,org2>] [--packages-and-scopes-permission=<read-only|read-write|no-access>] [--orgs-permission=<read-only|read-write|no-access>] [--expires=<days>] [--cidr=<ip-range>] [--bypass-2fa] [--password=<pass>]
 
 Options:
-[--read-only] [--cidr <cidr> [--cidr <cidr> ...]] [--registry <registry>]
-[--otp <otp>]
+[--name <name>] [--token-description <token-description>] [--expires <expires>]
+[--packages <pkg1,pkg2> [--packages <pkg1,pkg2> ...]] [--packages-all]
+[--scopes <@scope1,@scope2> [--scopes <@scope1,@scope2> ...]]
+[--orgs <org1,org2> [--orgs <org1,org2> ...]]
+[--packages-and-scopes-permission <read-only|read-write|no-access>]
+[--orgs-permission <read-only|read-write|no-access>]
+[--cidr <cidr> [--cidr <cidr> ...]] [--bypass-2fa] [--password <password>]
+[--registry <registry>] [--otp <otp>] [--read-only]
 
 Run "npm help token" for more info
 
 \`\`\`bash
 npm token list
 npm token revoke <id|token>
-npm token create [--read-only] [--cidr=list]
+npm token create --name=<name> [--token-description=<desc>] [--packages=<pkg1,pkg2>] [--packages-all] [--scopes=<scope1,scope2>] [--orgs=<org1,org2>] [--packages-and-scopes-permission=<read-only|read-write|no-access>] [--orgs-permission=<read-only|read-write|no-access>] [--expires=<days>] [--cidr=<ip-range>] [--bypass-2fa] [--password=<pass>]
 \`\`\`
 
 Note: This command is unaware of workspaces.
 
-#### \`read-only\`
+#### \`name\`
+#### \`token-description\`
+#### \`expires\`
+#### \`packages\`
+#### \`packages-all\`
+#### \`scopes\`
+#### \`orgs\`
+#### \`packages-and-scopes-permission\`
+#### \`orgs-permission\`
 #### \`cidr\`
+#### \`bypass-2fa\`
+#### \`password\`
 #### \`registry\`
 #### \`otp\`
+#### \`read-only\`
 `
 
 exports[`test/lib/docs.js TAP usage undeprecate > must match snapshot 1`] = `
@@ -4486,8 +4652,10 @@ npm version [<newversion> | major | minor | patch | premajor | preminor | prepat
 Options:
 [--allow-same-version] [--no-commit-hooks] [--no-git-tag-version] [--json]
 [--preid prerelease-id] [--sign-git-tag]
+[-S|--save|--no-save|--save-prod|--save-dev|--save-optional|--save-peer|--save-bundle]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
 [--workspaces] [--no-workspaces-update] [--include-workspace-root]
+[--ignore-scripts]
 
 alias: verison
 
@@ -4505,10 +4673,12 @@ alias: verison
 #### \`json\`
 #### \`preid\`
 #### \`sign-git-tag\`
+#### \`save\`
 #### \`workspace\`
 #### \`workspaces\`
 #### \`workspaces-update\`
 #### \`include-workspace-root\`
+#### \`ignore-scripts\`
 `
 
 exports[`test/lib/docs.js TAP usage view > must match snapshot 1`] = `

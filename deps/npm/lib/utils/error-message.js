@@ -301,7 +301,7 @@ const errorMessage = (er, npm) => {
         'Not compatible with your version of node/npm: ' + er.pkgid,
         'Required: ' + JSON.stringify(er.required),
         'Actual:   ' +
-        JSON.stringify({ npm: npm.version, node: process.version }),
+        JSON.stringify({ node: process.version, npm: npm.version }),
       ].join('\n')])
       break
 

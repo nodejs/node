@@ -222,7 +222,7 @@ Object {
       String(
         Not compatible with your version of node/npm: some@package
         Required: undefined
-        Actual:   {"npm":"123.456.789-npm","node":"123.456.789-node"}
+        Actual:   {"node":"123.456.789-node","npm":"123.456.789-npm"}
       ),
     ],
   ],
@@ -1202,7 +1202,7 @@ Object {
       String(
         Not compatible with your version of node/npm: some@package
         Required: undefined
-        Actual:   {"npm":"123.456.789-npm","node":"123.456.789-node"}
+        Actual:   {"node":"123.456.789-node","npm":"123.456.789-npm"}
       ),
     ],
   ],

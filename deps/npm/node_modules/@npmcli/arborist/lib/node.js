@@ -1613,6 +1613,22 @@ class Node {
   [util.inspect.custom] () {
     return this.toJSON()
   }
+
+  resetDepFlags () {
+    this.extraneous = true
+    this.dev = true
+    this.optional = true
+    this.devOptional = true
+    this.peer = true
+  }
+
+  unsetDepFlags () {
+    this.extraneous = false
+    this.dev = false
+    this.optional = false
+    this.devOptional = false
+    this.peer = false
+  }
 }
 
 module.exports = Node
