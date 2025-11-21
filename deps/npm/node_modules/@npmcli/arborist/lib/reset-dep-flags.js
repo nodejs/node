@@ -6,10 +6,6 @@
 // we can find the set that is actually extraneous.
 module.exports = tree => {
   for (const node of tree.inventory.values()) {
-    node.extraneous = true
-    node.dev = true
-    node.devOptional = true
-    node.peer = true
-    node.optional = true
+    node.resetDepFlags()
   }
 }

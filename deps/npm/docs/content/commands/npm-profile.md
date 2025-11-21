@@ -74,8 +74,8 @@ The base URL of the npm registry.
 
 Whether or not to output JSON data, rather than the normal output.
 
-* In `npm pkg set` it enables parsing set values with JSON.parse()
-  before saving them to your `package.json`.
+* In `npm pkg set` it enables parsing set values with JSON.parse() before
+  saving them to your `package.json`.
 
 Not supported by all npm commands.
 
@@ -86,8 +86,8 @@ Not supported by all npm commands.
 * Default: false
 * Type: Boolean
 
-Output parseable results from commands that write to standard output.
-For `npm search`, this will be tab-separated table format.
+Output parseable results from commands that write to standard output. For
+`npm search`, this will be tab-separated table format.
 
 
 
@@ -96,12 +96,11 @@ For `npm search`, this will be tab-separated table format.
 * Default: null
 * Type: null or String
 
-This is a one-time password from a two-factor authenticator. It's
-needed when publishing or changing package permissions with `npm
-access`.
+This is a one-time password from a two-factor authenticator. It's needed
+when publishing or changing package permissions with `npm access`.
 
-If not set, and a registry response fails with a challenge for a
-one-time password, npm will prompt on the command line for one.
+If not set, and a registry response fails with a challenge for a one-time
+password, npm will prompt on the command line for one.
 
 
 

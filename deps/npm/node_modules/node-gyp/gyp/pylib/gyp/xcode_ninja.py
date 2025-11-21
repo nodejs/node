@@ -22,7 +22,7 @@ import gyp.generator.ninja
 
 def _WriteWorkspace(main_gyp, sources_gyp, params):
     """Create a workspace to wrap main and sources gyp paths."""
-    (build_file_root, build_file_ext) = os.path.splitext(main_gyp)
+    (build_file_root, _build_file_ext) = os.path.splitext(main_gyp)
     workspace_path = build_file_root + ".xcworkspace"
     options = params["options"]
     if options.generator_output:

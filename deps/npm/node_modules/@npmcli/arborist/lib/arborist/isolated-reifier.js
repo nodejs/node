@@ -1,6 +1,5 @@
 const _makeIdealGraph = Symbol('makeIdealGraph')
 const _createIsolatedTree = Symbol.for('createIsolatedTree')
-const _createBundledTree = Symbol('createBundledTree')
 const { mkdirSync } = require('node:fs')
 const pacote = require('pacote')
 const { join } = require('node:path')
@@ -162,7 +161,7 @@ module.exports = cls => class IsolatedReifier extends cls {
     result.hasInstallScript = node.hasInstallScript
   }
 
-  async [_createBundledTree] () {
+  async #createBundledTree () {
     // TODO: make sure that idealTree object exists
     const idealTree = this.idealTree
     // TODO: test workspaces having bundled deps
@@ -217,7 +216,7 @@ module.exports = cls => class IsolatedReifier extends cls {
 
     const proxiedIdealTree = this.idealGraph
 
-    const bundledTree = await this[_createBundledTree]()
+    const bundledTree = await this.#createBundledTree()
 
     const treeHash = (startNode) => {
       // generate short hash based on the dependency tree

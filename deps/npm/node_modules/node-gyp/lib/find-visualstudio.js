@@ -119,7 +119,7 @@ class VisualStudioFinder {
   }
 
   async findVisualStudio2019OrNewerFromSpecifiedLocation () {
-    return this.findVSFromSpecifiedLocation([2019, 2022])
+    return this.findVSFromSpecifiedLocation([2019, 2022, 2026])
   }
 
   async findVisualStudio2017FromSpecifiedLocation () {
@@ -162,7 +162,7 @@ class VisualStudioFinder {
   }
 
   async findVisualStudio2019OrNewerUsingSetupModule () {
-    return this.findNewVSUsingSetupModule([2019, 2022])
+    return this.findNewVSUsingSetupModule([2019, 2022, 2026])
   }
 
   async findVisualStudio2017UsingSetupModule () {
@@ -223,7 +223,7 @@ class VisualStudioFinder {
   // Invoke the PowerShell script to get information about Visual Studio 2019
   // or newer installations
   async findVisualStudio2019OrNewer () {
-    return this.findNewVS([2019, 2022])
+    return this.findNewVS([2019, 2022, 2026])
   }
 
   // Invoke the PowerShell script to get information about Visual Studio 2017
@@ -389,6 +389,10 @@ class VisualStudioFinder {
       ret.versionYear = 2022
       return ret
     }
+    if (ret.versionMajor === 18) {
+      ret.versionYear = 2026
+      return ret
+    }
     this.log.silly('- unsupported version:', ret.versionMajor)
     return {}
   }
@@ -456,6 +460,8 @@ class VisualStudioFinder {
       return 'v142'
     } else if (versionYear === 2022) {
       return 'v143'
+    } else if (versionYear === 2026) {
+      return 'v145'
     }
     this.log.silly('- invalid versionYear:', versionYear)
     return null
