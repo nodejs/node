@@ -3667,7 +3667,9 @@ the path of the root test file.
 ### `context.fullName`
 
 <!-- YAML
-added: v20.16.0
+added:
+  - v22.3.0
+  - v20.16.0
 -->
 
 The name of the test and each of its ancestors, separated by `>`.
@@ -3973,7 +3975,9 @@ return the path of the root test file.
 ### `context.fullName`
 
 <!-- YAML
-added: v20.16.0
+added:
+  - v22.3.0
+  - v20.16.0
 -->
 
 The name of the suite and each of its ancestors, separated by `>`.
