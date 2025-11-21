@@ -1016,7 +1016,7 @@ in the `$schema` must be replaced with the version of Node.js you are using.
     "watch-path": "src",
     "watch-preserve-output": true
   },
-  "testRunner": {
+  "test": {
     "test-isolation": "process"
   },
   "watch": {
@@ -1029,7 +1029,7 @@ The configuration file supports namespace-specific options:
 
 * The `nodeOptions` field contains CLI flags that are allowed in [`NODE_OPTIONS`][].
 
-* Namespace fields like `testRunner` contain configuration specific to that subsystem.
+* Namespace fields like `test` contain configuration specific to that subsystem.
 
 No-op flags are not supported.
 Not all V8 flags are currently supported.
