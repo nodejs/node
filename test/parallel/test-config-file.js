@@ -421,7 +421,7 @@ describe('namespace-scoped options', () => {
       fixtures.path('rc/unknown-flag-namespace.json'),
       '-p', '"Hello, World!"',
     ]);
-    assert.match(result.stderr, /Unknown or not allowed option unknown-flag for namespace testRunner/);
+    assert.match(result.stderr, /Unknown or not allowed option unknown-flag for namespace test/);
     assert.strictEqual(result.stdout, '');
     assert.strictEqual(result.code, 9);
   });
@@ -541,5 +541,17 @@ describe('namespace-scoped options', () => {
     assert.strictEqual(result.stderr, '');
     assert.strictEqual(result.stdout, '2\n');
     assert.strictEqual(result.code, 0);
+  });
+
+  it('should throw an error for removed "testRunner" namespace', async () => {
+    const result = await spawnPromisified(process.execPath, [
+      '--no-warnings',
+      '--experimental-config-file',
+      fixtures.path('rc/deprecated-testrunner-namespace.json'),
+      '-p', '"Hello, World!"',
+    ]);
+    assert.match(result.stderr, /the "testRunner" namespace has been removed\. Use "test" instead\./);
+    assert.strictEqual(result.stdout, '');
+    assert.strictEqual(result.code, 9);
   });
 });
