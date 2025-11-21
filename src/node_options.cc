@@ -599,7 +599,8 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "enable the permission system",
             &EnvironmentOptions::permission,
             kAllowedInEnvvar,
-            false);
+            false,
+            OptionNamespaces::kPermissionNamespace);
   AddOption("--allow-fs-read",
             "allow permissions to read the filesystem",
             &EnvironmentOptions::allow_fs_read,
