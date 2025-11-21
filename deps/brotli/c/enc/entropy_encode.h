@@ -9,8 +9,6 @@
 #ifndef BROTLI_ENC_ENTROPY_ENCODE_H_
 #define BROTLI_ENC_ENTROPY_ENCODE_H_
 
-#include <brotli/types.h>
-
 #include "../common/platform.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
@@ -67,7 +65,7 @@ BROTLI_INTERNAL void BrotliOptimizeHuffmanCountsForRle(
    of a Huffman tree. The generated Huffman tree is to be compressed once
    more using a Huffman tree */
 BROTLI_INTERNAL void BrotliWriteHuffmanTree(const uint8_t* depth,
-                                            size_t num,
+                                            size_t length,
                                             size_t* tree_size,
                                             uint8_t* tree,
                                             uint8_t* extra_bits_data);
@@ -77,7 +75,7 @@ BROTLI_INTERNAL void BrotliConvertBitDepthsToSymbols(const uint8_t* depth,
                                                      size_t len,
                                                      uint16_t* bits);
 
-BROTLI_INTERNAL extern const size_t kBrotliShellGaps[6];
+BROTLI_INTERNAL extern BROTLI_MODEL("small") const size_t kBrotliShellGaps[6];
 /* Input size optimized Shell sort. */
 typedef BROTLI_BOOL (*HuffmanTreeComparator)(
     const HuffmanTree*, const HuffmanTree*);

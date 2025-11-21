@@ -12,10 +12,6 @@
 
 #include "compress_fragment_two_pass.h"
 
-#include <string.h>  /* memcmp, memcpy, memset */
-
-#include <brotli/types.h>
-
 #include "../common/constants.h"
 #include "../common/platform.h"
 #include "bit_cost.h"
@@ -23,6 +19,7 @@
 #include "entropy_encode.h"
 #include "fast_log.h"
 #include "find_match_length.h"
+#include "hash_base.h"
 #include "write_bits.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
@@ -30,14 +27,6 @@ extern "C" {
 #endif
 
 #define MAX_DISTANCE (long)BROTLI_MAX_BACKWARD_LIMIT(18)
-
-/* kHashMul32 multiplier has these properties:
-   * The multiplier must be odd. Otherwise we may lose the highest bit.
-   * No long streaks of ones or zeros.
-   * There is no effort to ensure that it is a prime, the oddity is enough
-     for this use.
-   * The number has been tuned heuristically against compression benchmarks. */
-static const uint32_t kHashMul32 = 0x1E35A7BD;
 
 static BROTLI_INLINE uint32_t Hash(const uint8_t* p,
     size_t shift, size_t length) {
@@ -470,7 +459,7 @@ static void StoreCommands(BrotliTwoPassArena* s,
                           const uint8_t* literals, const size_t num_literals,
                           const uint32_t* commands, const size_t num_commands,
                           size_t* storage_ix, uint8_t* storage) {
-  static const uint32_t kNumExtraBits[128] = {
+  static const BROTLI_MODEL("small") uint32_t kNumExtraBits[128] = {
       0,  0,  0,  0,  0,  0,  1,  1,  2,  2,  3,  3,  4,  4,  5,  5,
       6,  7,  8,  9,  10, 12, 14, 24, 0,  0,  0,  0,  0,  0,  0,  0,
       1,  1,  2,  2,  3,  3,  4,  4,  0,  0,  0,  0,  0,  0,  0,  0,
@@ -480,7 +469,7 @@ static void StoreCommands(BrotliTwoPassArena* s,
       9,  9,  10, 10, 11, 11, 12, 12, 13, 13, 14, 14, 15, 15, 16, 16,
       17, 17, 18, 18, 19, 19, 20, 20, 21, 21, 22, 22, 23, 23, 24, 24,
   };
-  static const uint32_t kInsertOffset[24] = {
+  static const BROTLI_MODEL("small") uint32_t kInsertOffset[24] = {
       0,  1,  2,  3,  4,   5,   6,   8,   10,   14,   18,   26,
       34, 50, 66, 98, 130, 194, 322, 578, 1090, 2114, 6210, 22594,
   };
@@ -546,7 +535,8 @@ static BROTLI_BOOL ShouldCompress(BrotliTwoPassArena* s,
     for (i = 0; i < input_size; i += SAMPLE_RATE) {
       ++s->lit_histo[input[i]];
     }
-    return TO_BROTLI_BOOL(BitsEntropy(s->lit_histo, 256) < max_total_bit_cost);
+    return TO_BROTLI_BOOL(
+        BrotliBitsEntropy(s->lit_histo, 256) < max_total_bit_cost);
   }
 }
 
