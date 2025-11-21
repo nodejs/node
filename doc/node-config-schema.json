@@ -833,6 +833,9 @@
           "type": "boolean",
           "description": "launch test runner on startup"
         },
+        "test": {
+          "type": "boolean"
+        },
         "test-concurrency": {
           "type": "number",
           "description": "specify test runner concurrency"
