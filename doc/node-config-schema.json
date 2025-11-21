@@ -652,6 +652,9 @@
         },
         "allow-worker": {
           "type": "boolean"
+        },
+        "permission": {
+          "type": "boolean"
         }
       }
     },
