@@ -1,6 +1,5 @@
 'use strict'
 
-// eslint-disable-next-line max-len
 // this code adapted from: https://blogs.msdn.microsoft.com/twistylittlepassagesallalike/2011/04/23/everyone-quotes-command-line-arguments-the-wrong-way/
 const cmd = (input, doubleEscape) => {
   if (!input.length) {

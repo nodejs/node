@@ -24,13 +24,12 @@ const _trashList = Symbol.for('trashList')
 module.exports = cls => class Builder extends cls {
   #doHandleOptionalFailure
   #oldMeta = null
-  #queues
-
-  constructor (options) {
-    super(options)
-
-    this.scriptsRun = new Set()
-    this.#resetQueues()
+  #queues = {
+    preinstall: [],
+    install: [],
+    postinstall: [],
+    prepare: [],
+    bin: [],
   }
 
   async rebuild ({ nodes, handleOptionalFailure = false } = {}) {
@@ -62,7 +61,13 @@ module.exports = cls => class Builder extends cls {
 
     // build link deps
     if (linkNodes.size) {
-      this.#resetQueues()
+      this.#queues = {
+        preinstall: [],
+        install: [],
+        postinstall: [],
+        prepare: [],
+        bin: [],
+      }
       await this.#build(linkNodes, { type: 'links' })
     }
 
@@ -129,16 +134,6 @@ module.exports = cls => class Builder extends cls {
     return {
       depNodes,
       linkNodes,
-    }
-  }
-
-  #resetQueues () {
-    this.#queues = {
-      preinstall: [],
-      install: [],
-      postinstall: [],
-      prepare: [],
-      bin: [],
     }
   }
 

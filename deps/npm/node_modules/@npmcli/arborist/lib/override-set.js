@@ -201,8 +201,82 @@ class OverrideSet {
 
   static doOverrideSetsConflict (first, second) {
     // If override sets contain one another then we can try to use the more specific one.
-    // If neither one is more specific, then we consider them to be in conflict.
-    return (this.findSpecificOverrideSet(first, second) === undefined)
+    // If neither one is more specific, check for semantic conflicts.
+    const specificSet = this.findSpecificOverrideSet(first, second)
+    if (specificSet !== undefined) {
+      // One contains the other, so no conflict
+      return false
+    }
+
+    // The override sets are structurally incomparable, but this doesn't necessarily
+    // mean they conflict. We need to check if they have conflicting version requirements
+    // for any package that appears in both rulesets.
+    return this.haveConflictingRules(first, second)
+  }
+
+  static haveConflictingRules (first, second) {
+    // Get all rules from both override sets
+    const firstRules = first.ruleset
+    const secondRules = second.ruleset
+
+    // Check each package that appears in both rulesets
+    for (const [key, firstRule] of firstRules) {
+      const secondRule = secondRules.get(key)
+      if (!secondRule) {
+        // Package only appears in one ruleset, no conflict
+        continue
+      }
+
+      // Same rule object means no conflict
+      if (firstRule === secondRule || firstRule.isEqual(secondRule)) {
+        continue
+      }
+
+      // Both rulesets have rules for this package with different values.
+      // Check if the version requirements are actually incompatible.
+      const firstValue = firstRule.value
+      const secondValue = secondRule.value
+
+      // If either value is a reference (starts with $), we can't determine
+      // compatibility here - the reference might resolve to compatible versions.
+      // We defer to runtime resolution rather than failing early.
+      if (firstValue.startsWith('$') || secondValue.startsWith('$')) {
+        continue
+      }
+
+      // Check if the version ranges are compatible using semver
+      // If both specify version ranges, they conflict only if they have no overlap
+      try {
+        const firstSpec = npa(`${firstRule.name}@${firstValue}`)
+        const secondSpec = npa(`${secondRule.name}@${secondValue}`)
+
+        // For range/version types, check if they intersect
+        if ((firstSpec.type === 'range' || firstSpec.type === 'version') &&
+            (secondSpec.type === 'range' || secondSpec.type === 'version')) {
+          // Check if the ranges intersect
+          const firstRange = firstSpec.fetchSpec
+          const secondRange = secondSpec.fetchSpec
+
+          // If the ranges don't intersect, we have a real conflict
+          if (!semver.intersects(firstRange, secondRange)) {
+            log.silly('Found conflicting override rules', {
+              package: firstRule.name,
+              first: firstValue,
+              second: secondValue,
+            })
+            return true
+          }
+        }
+        // For other types (git, file, directory, tag), we can't easily determine
+        // compatibility, so we conservatively assume no conflict
+      } catch {
+        // If we can't parse the specs, conservatively assume no conflict
+        // Real conflicts will be caught during dependency resolution
+      }
+    }
+
+    // No conflicting rules found
+    return false
   }
 }
 

@@ -141,8 +141,7 @@ This will make sure to generate your react app as expected, one important consid
 * Default: ""
 * Type: String
 
-The value `npm init` should use by default for the package author's
-name.
+The value `npm init` should use by default for the package author's name.
 
 
 
@@ -172,8 +171,8 @@ The value `npm init` should use by default for the package license.
 
 A module that will be loaded by the `npm init` command. See the
 documentation for the
-[init-package-json](https://github.com/npm/init-package-json) module
-for more information, or [npm init](/commands/npm-init).
+[init-package-json](https://github.com/npm/init-package-json) module for
+more information, or [npm init](/commands/npm-init).
 
 
 
@@ -182,8 +181,8 @@ for more information, or [npm init](/commands/npm-init).
 * Default: "commonjs"
 * Type: String
 
-The value that `npm init` should use by default for the package.json
-type field.
+The value that `npm init` should use by default for the package.json type
+field.
 
 
 
@@ -192,8 +191,8 @@ type field.
 * Default: "1.0.0"
 * Type: SemVer string
 
-The value that `npm init` should use by default for the package
-version number, if not already set in package.json.
+The value that `npm init` should use by default for the package version
+number, if not already set in package.json.
 
 
 
@@ -202,8 +201,7 @@ version number, if not already set in package.json.
 * Default: false
 * Type: Boolean
 
-The value `npm init` should use by default for the package's private
-flag.
+The value `npm init` should use by default for the package's private flag.
 
 
 
@@ -228,16 +226,14 @@ mistakes, unnecessary performance degradation, and malicious input.
 * Allow clobbering non-npm files in global installs.
 * Allow the `npm version` command to work on an unclean git repository.
 * Allow deleting the cache folder with `npm cache clean`.
-* Allow installing packages that have an `engines` declaration
-  requiring a different version of npm.
-* Allow installing packages that have an `engines` declaration
-  requiring a different version of `node`, even if `--engine-strict` is
-  enabled.
-* Allow `npm audit fix` to install modules outside your stated
-  dependency range (including SemVer-major changes).
+* Allow installing packages that have an `engines` declaration requiring a
+  different version of npm.
+* Allow installing packages that have an `engines` declaration requiring a
+  different version of `node`, even if `--engine-strict` is enabled.
+* Allow `npm audit fix` to install modules outside your stated dependency
+  range (including SemVer-major changes).
 * Allow unpublishing all versions of a published package.
-* Allow conflicting peerDependencies to be installed in the root
-  project.
+* Allow conflicting peerDependencies to be installed in the root project.
 * Implicitly set `--yes` during `npm init`.
 * Allow clobbering existing values in `npm pkg`
 * Allow unpublishing of entire packages (not just a single version).
@@ -283,9 +279,9 @@ npm init --scope=@foo --yes
 * Default:
 * Type: String (can be set multiple times)
 
-Enable running a command in the context of the configured workspaces
-of the current project while filtering by running only the workspaces
-defined by this configuration option.
+Enable running a command in the context of the configured workspaces of the
+current project while filtering by running only the workspaces defined by
+this configuration option.
 
 Valid values for the `workspace` config are either:
 
@@ -294,9 +290,9 @@ Valid values for the `workspace` config are either:
 * Path to a parent workspace directory (will result in selecting all
   workspaces within that folder)
 
-When set for the `npm init` command, this may be set to the folder of
-a workspace which does not yet exist, to create the folder and set it
-up as a brand new workspace within the project.
+When set for the `npm init` command, this may be set to the folder of a
+workspace which does not yet exist, to create the folder and set it up as a
+brand new workspace within the project.
 
 This value is not exported to the environment for child processes.
 
@@ -308,14 +304,13 @@ This value is not exported to the environment for child processes.
 Set to true to run the command in the context of **all** configured
 workspaces.
 
-Explicitly setting this to false will cause commands like `install`
-to ignore workspaces altogether. When not set explicitly:
+Explicitly setting this to false will cause commands like `install` to
+ignore workspaces altogether. When not set explicitly:
 
-- Commands that operate on the `node_modules` tree (install, update,
-etc.) will link workspaces into the `node_modules` folder. - Commands
-that do other things (test, exec, publish, etc.) will operate on the
-root project, _unless_ one or more workspaces are specified in the
-`workspace` config.
+- Commands that operate on the `node_modules` tree (install, update, etc.)
+will link workspaces into the `node_modules` folder. - Commands that do
+other things (test, exec, publish, etc.) will operate on the root project,
+_unless_ one or more workspaces are specified in the `workspace` config.
 
 This value is not exported to the environment for child processes.
 
@@ -324,9 +319,8 @@ This value is not exported to the environment for child processes.
 * Default: true
 * Type: Boolean
 
-If set to true, the npm cli will run an update after operations that
-may possibly change the workspaces installed to the `node_modules`
-folder.
+If set to true, the npm cli will run an update after operations that may
+possibly change the workspaces installed to the `node_modules` folder.
 
 
 
@@ -337,10 +331,9 @@ folder.
 
 Include the workspace root when workspaces are enabled for a command.
 
-When false, specifying individual workspaces via the `workspace`
-config, or all workspaces via the `workspaces` flag, will cause npm
-to operate only on the specified workspaces, and not on the root
-project.
+When false, specifying individual workspaces via the `workspace` config, or
+all workspaces via the `workspaces` flag, will cause npm to operate only on
+the specified workspaces, and not on the root project.
 
 This value is not exported to the environment for child processes.
 
