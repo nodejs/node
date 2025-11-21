@@ -816,7 +816,7 @@
         }
       }
     },
-    "testRunner": {
+    "test": {
       "type": "object",
       "additionalProperties": false,
       "required": [],
