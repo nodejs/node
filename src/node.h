@@ -1462,7 +1462,6 @@ class NODE_EXTERN CallbackScope {
   CallbackScope(CallbackScope&&) = delete;
 
  private:
-  void* resource_storage_global_;
   union {
     v8::Local<v8::Object> local;
     v8::Global<v8::Object>* global_ptr;
