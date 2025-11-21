@@ -1,5 +1,5 @@
 {
-    "testRunner": {
+    "test": {
         "test-name-pattern": "first-pattern",
         "test-name-pattern": "second-pattern"
     }
