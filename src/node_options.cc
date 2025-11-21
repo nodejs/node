@@ -655,7 +655,8 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "enable the permission system",
             &EnvironmentOptions::permission,
             kAllowedInEnvvar,
-            false);
+            false,
+            OptionNamespaces::kPermissionNamespace);
   AddOption("--permission-audit",
             "enable audit only for the permission system",
             &EnvironmentOptions::permission_audit,
