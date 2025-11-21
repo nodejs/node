@@ -1025,7 +1025,40 @@ The configuration file supports namespace-specific options:
 
 * The `nodeOptions` field contains CLI flags that are allowed in [`NODE_OPTIONS`][].
 
-* Namespace fields like `test` contain configuration specific to that subsystem.
+* Namespace fields like `test`, `watch`, and `permission` contain configuration specific to that subsystem.
+
+When a namespace is present in the
+configuration file, Node.js automatically enables the corresponding flag
+(e.g., `--test`, `--watch`, `--permission`). This allows you to configure
+subsystem-specific options without explicitly passing the flag on the command line.
+
+For example:
+
+```json
+{
+  "test": {
+    "test-isolation": "process"
+  }
+}
+```
+
+is equivalent to:
+
+```bash
+node --test --test-isolation=process
+```
+
+To disable the automatic flag while still using namespace options, you can
+explicitly set the flag to `false` within the namespace:
+
+```json
+{
+  "test": {
+    "test": false,
+    "test-isolation": "process"
+  }
+}
+```
 
 No-op flags are not supported.
 Not all V8 flags are currently supported.

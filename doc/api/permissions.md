@@ -175,10 +175,11 @@ Example `node.config.json`:
 }
 ```
 
-Run with the configuration file:
+When the `permission` namespace is present in the configuration file, Node.js
+automatically enables the `--permission` flag. Run with:
 
 ```console
-$ node --permission --experimental-default-config-file app.js
+$ node --experimental-default-config-file app.js
 ```
 
 #### Using the Permission Model with `npx`
