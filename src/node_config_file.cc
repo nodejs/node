@@ -262,8 +262,20 @@ ParseResult ConfigReader::ParseConfig(const std::string_view& config_path) {
       return ParseResult::InvalidContent;
     }
 
-    // Check if this field is a valid namespace
     std::string namespace_name(field_name);
+
+    // TODO(@marco-ippolito): Remove warning for testRunner namespace
+    if (namespace_name == "testRunner") {
+      FPrintF(stderr,
+              "the \"testRunner\" namespace has been removed. "
+              "Use \"test\" instead.\n");
+      // Better to throw an error than to ignore it
+      // Otherwise users might think their test suite is green
+      // when it's not running
+      return ParseResult::InvalidContent;
+    }
+
+    // Check if this field is a valid namespace
     if (!valid_namespaces.contains(namespace_name)) {
       // If not, skip it
       continue;

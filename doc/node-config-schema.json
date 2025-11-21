@@ -655,7 +655,7 @@
         }
       }
     },
-    "testRunner": {
+    "test": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
