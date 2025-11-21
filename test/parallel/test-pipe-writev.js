@@ -10,7 +10,7 @@ const net = require('net');
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
-const server = net.createServer((connection) => {
+const server = net.createServer(common.mustCallAtLeast((connection) => {
   connection.on('error', (err) => {
     throw err;
   });
@@ -22,13 +22,13 @@ const server = net.createServer((connection) => {
   connection.write('pi');
   connection.write('ng');
   connection.end();
-});
+}));
 
 server.on('error', (err) => {
   throw err;
 });
 
-server.listen(common.PIPE, () => {
+server.listen(common.PIPE, common.mustCall(() => {
   const client = net.connect(common.PIPE);
 
   client.on('error', (err) => {
@@ -42,4 +42,4 @@ server.listen(common.PIPE, () => {
   client.on('end', () => {
     server.close();
   });
-});
+}));

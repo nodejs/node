@@ -16,9 +16,8 @@ process.env.TESTVAR = 'foobar';
 session.post('Runtime.evaluate', {
   expression: 'process.env.TESTVAR',
   throwOnSideEffect: true
-}, (error, res) => {
-  assert.ifError(error);
+}, common.mustSucceed((res) => {
   assert.deepStrictEqual(res, {
     result: { type: 'string', value: 'foobar' }
   });
-});
+}));
