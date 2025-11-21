@@ -3,7 +3,7 @@
     "experimental-transform-types": true,
     "max-http-header-size": 8192
   },
-  "testRunner": {
+  "test": {
     "test-isolation": "none"
   }
 }
