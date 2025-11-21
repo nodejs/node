@@ -2375,7 +2375,10 @@ Statement* Parser::DesugarLexicalBindingsInForStatement(
     //    make statement: let/const x = temp_x.
     for (int i = 0; i < for_info.bound_names.length(); i++) {
       VariableProxy* proxy = DeclareBoundVariable(
-          for_info.bound_names[i], for_info.parsing_result.descriptor.mode,
+          for_info.bound_names[i],
+          for_info.parsing_result.descriptor.mode == VariableMode::kAwaitUsing
+              ? VariableMode::kConst
+              : for_info.parsing_result.descriptor.mode,
           kNoSourcePosition);
       inner_vars.Add(proxy->var());
       VariableProxy* temp_proxy = factory()->NewVariableProxy(temps.at(i));
