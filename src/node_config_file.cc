@@ -255,6 +255,9 @@ ParseResult ConfigReader::ParseConfig(const std::string_view& config_path) {
                                                    available_namespaces.end());
   // Create a set to track unique options
   std::unordered_set<std::string> unique_options;
+  // Namespaces in OPTION_NAMESPACE_LIST
+  std::unordered_set<std::string> namespaces_with_implicit_flags;
+
   // Iterate through the main object to find all namespaces
   for (auto field : main_object) {
     std::string_view field_name;
@@ -281,6 +284,15 @@ ParseResult ConfigReader::ParseConfig(const std::string_view& config_path) {
       continue;
     }
 
+    // List of implicit namespace flags
+    for (auto ns_enum : options_parser::AllNamespaces()) {
+      std::string ns_str = options_parser::NamespaceEnumToString(ns_enum);
+      if (!ns_str.empty() && namespace_name == ns_str) {
+        namespaces_with_implicit_flags.insert(namespace_name);
+        break;
+      }
+    }
+
     // Get the namespace object
     simdjson::ondemand::object namespace_object;
     auto field_error = field.value().get_object().get(namespace_object);
@@ -299,6 +311,17 @@ ParseResult ConfigReader::ParseConfig(const std::string_view& config_path) {
         ParseOptions(&namespace_object, &unique_options, namespace_name);
     if (result != ParseResult::Valid) {
       return result;
+    }
+  }
+
+  // Add implicit flags for namespaces (--test, --permission, --watch)
+  // These flags are automatically enabled when their namespace is present
+  for (const auto& ns : namespaces_with_implicit_flags) {
+    std::string flag = "--" + ns;
+    std::string no_flag = "--no-" + ns;
+    // We skip if the user has already set the flag or its negation
+    if (!unique_options.contains(flag) && !unique_options.contains(no_flag)) {
+      namespace_options_.push_back(flag);
     }
   }
 
