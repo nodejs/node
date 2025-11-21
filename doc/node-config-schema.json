@@ -186,6 +186,9 @@
         "experimental-websocket": {
           "type": "boolean"
         },
+        "experimental-webstorage": {
+          "type": "boolean"
+        },
         "extra-info-on-fatal-exception": {
           "type": "boolean"
         },
@@ -592,9 +595,6 @@
           ]
         },
         "watch-preserve-output": {
-          "type": "boolean"
-        },
-        "webstorage": {
           "type": "boolean"
         },
         "zero-fill-buffers": {
