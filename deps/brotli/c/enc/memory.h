@@ -9,10 +9,6 @@
 #ifndef BROTLI_ENC_MEMORY_H_
 #define BROTLI_ENC_MEMORY_H_
 
-#include <string.h>  /* memcpy */
-
-#include <brotli/types.h>
-
 #include "../common/platform.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)

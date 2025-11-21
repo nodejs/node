@@ -8,10 +8,6 @@
 
 #include "entropy_encode.h"
 
-#include <string.h>  /* memset */
-
-#include <brotli/types.h>
-
 #include "../common/constants.h"
 #include "../common/platform.h"
 
@@ -19,7 +15,7 @@
 extern "C" {
 #endif
 
-const size_t kBrotliShellGaps[] = {132, 57, 23, 10, 4, 1};
+const BROTLI_MODEL("small") size_t kBrotliShellGaps[] = {132, 57, 23, 10, 4, 1};
 
 BROTLI_BOOL BrotliSetDepth(
     int p0, HuffmanTree* pool, uint8_t* depth, int max_depth) {
@@ -456,7 +452,8 @@ void BrotliWriteHuffmanTree(const uint8_t* depth,
 }
 
 static uint16_t BrotliReverseBits(size_t num_bits, uint16_t bits) {
-  static const size_t kLut[16] = {  /* Pre-reversed 4-bit values. */
+  static const size_t BROTLI_MODEL("small") kLut[16] =
+  {  /* Pre-reversed 4-bit values. */
     0x00, 0x08, 0x04, 0x0C, 0x02, 0x0A, 0x06, 0x0E,
     0x01, 0x09, 0x05, 0x0D, 0x03, 0x0B, 0x07, 0x0F
   };
