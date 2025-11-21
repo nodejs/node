@@ -119,9 +119,9 @@ This last command will run `test` in both `./packages/a` and `./packages/b` pack
 * Default:
 * Type: String (can be set multiple times)
 
-Enable running a command in the context of the configured workspaces
-of the current project while filtering by running only the workspaces
-defined by this configuration option.
+Enable running a command in the context of the configured workspaces of the
+current project while filtering by running only the workspaces defined by
+this configuration option.
 
 Valid values for the `workspace` config are either:
 
@@ -130,9 +130,9 @@ Valid values for the `workspace` config are either:
 * Path to a parent workspace directory (will result in selecting all
   workspaces within that folder)
 
-When set for the `npm init` command, this may be set to the folder of
-a workspace which does not yet exist, to create the folder and set it
-up as a brand new workspace within the project.
+When set for the `npm init` command, this may be set to the folder of a
+workspace which does not yet exist, to create the folder and set it up as a
+brand new workspace within the project.
 
 This value is not exported to the environment for child processes.
 
@@ -144,14 +144,13 @@ This value is not exported to the environment for child processes.
 Set to true to run the command in the context of **all** configured
 workspaces.
 
-Explicitly setting this to false will cause commands like `install`
-to ignore workspaces altogether. When not set explicitly:
+Explicitly setting this to false will cause commands like `install` to
+ignore workspaces altogether. When not set explicitly:
 
-- Commands that operate on the `node_modules` tree (install, update,
-etc.) will link workspaces into the `node_modules` folder. - Commands
-that do other things (test, exec, publish, etc.) will operate on the
-root project, _unless_ one or more workspaces are specified in the
-`workspace` config.
+- Commands that operate on the `node_modules` tree (install, update, etc.)
+will link workspaces into the `node_modules` folder. - Commands that do
+other things (test, exec, publish, etc.) will operate on the root project,
+_unless_ one or more workspaces are specified in the `workspace` config.
 
 This value is not exported to the environment for child processes.
 
@@ -162,10 +161,9 @@ This value is not exported to the environment for child processes.
 
 Include the workspace root when workspaces are enabled for a command.
 
-When false, specifying individual workspaces via the `workspace`
-config, or all workspaces via the `workspaces` flag, will cause npm
-to operate only on the specified workspaces, and not on the root
-project.
+When false, specifying individual workspaces via the `workspace` config, or
+all workspaces via the `workspaces` flag, will cause npm to operate only on
+the specified workspaces, and not on the root project.
 
 This value is not exported to the environment for child processes.
 
@@ -174,12 +172,12 @@ This value is not exported to the environment for child processes.
 * Default: false
 * Type: Boolean
 
-If true, npm will not exit with an error code when `run` is invoked
-for a script that isn't defined in the `scripts` section of
-`package.json`. This option can be used when it's desirable to
-optionally run a script when it's present and fail if the script
-fails. This is useful, for example, when running scripts that may
-only apply for some builds in an otherwise generic CI setup.
+If true, npm will not exit with an error code when `run` is invoked for a
+script that isn't defined in the `scripts` section of `package.json`. This
+option can be used when it's desirable to optionally run a script when it's
+present and fail if the script fails. This is useful, for example, when
+running scripts that may only apply for some builds in an otherwise generic
+CI setup.
 
 This value is not exported to the environment for child processes.
 
@@ -190,26 +188,25 @@ This value is not exported to the environment for child processes.
 
 If true, npm does not run scripts specified in package.json files.
 
-Note that commands explicitly intended to run a particular script,
-such as `npm start`, `npm stop`, `npm restart`, `npm test`, and `npm
-run` will still run their intended script if `ignore-scripts` is set,
-but they will *not* run any pre- or post-scripts.
+Note that commands explicitly intended to run a particular script, such as
+`npm start`, `npm stop`, `npm restart`, `npm test`, and `npm run` will still
+run their intended script if `ignore-scripts` is set, but they will *not*
+run any pre- or post-scripts.
 
 
 
 #### `foreground-scripts`
 
-* Default: `false` unless when using `npm pack` or `npm publish` where
-  it defaults to `true`
+* Default: `false` unless when using `npm pack` or `npm publish` where it
+  defaults to `true`
 * Type: Boolean
 
-Run all build scripts (ie, `preinstall`, `install`, and
-`postinstall`) scripts for installed packages in the foreground
-process, sharing standard input, output, and error with the main npm
-process.
+Run all build scripts (ie, `preinstall`, `install`, and `postinstall`)
+scripts for installed packages in the foreground process, sharing standard
+input, output, and error with the main npm process.
 
-Note that this will generally make installs run slower, and be much
-noisier, but can be useful for debugging.
+Note that this will generally make installs run slower, and be much noisier,
+but can be useful for debugging.
 
 
 
@@ -218,8 +215,8 @@ noisier, but can be useful for debugging.
 * Default: '/bin/sh' on POSIX systems, 'cmd.exe' on Windows
 * Type: null or String
 
-The shell to use for scripts run with the `npm exec`, `npm run` and
-`npm init <package-spec>` commands.
+The shell to use for scripts run with the `npm exec`, `npm run` and `npm
+init <package-spec>` commands.
 
 
 
