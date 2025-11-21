@@ -665,6 +665,9 @@
         "experimental-test-module-mocks": {
           "type": "boolean"
         },
+        "test": {
+          "type": "boolean"
+        },
         "test-concurrency": {
           "type": "number"
         },
