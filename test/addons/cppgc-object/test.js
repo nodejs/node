@@ -12,6 +12,11 @@ const {
   CppGCed, states, kDestructCount, kTraceCount,
 } = require(`./build/${common.buildType}/binding`);
 
+const GC_OPTIONS = {
+  type: 'major',
+  execution: 'sync',
+};
+
 assert.strictEqual(states[kDestructCount], 0);
 assert.strictEqual(states[kTraceCount], 0);
 
@@ -38,6 +43,8 @@ setTimeout(common.mustCall(() => (async function() {
   await gcUntil(
     'All old CppGCed are destroyed',
     () => states[kDestructCount] === count,
+    undefined,
+    GC_OPTIONS,
   );
   // Release all the CppGCed objects, after GC we should have destructed
   // all of them.
@@ -47,5 +54,7 @@ setTimeout(common.mustCall(() => (async function() {
   await gcUntil(
     'All old CppGCed are destroyed',
     () => states[kDestructCount] === count * 2,
+    undefined,
+    GC_OPTIONS,
   );
 })().then(common.mustCall())), 1);
