@@ -2,6 +2,7 @@
 const common = require('../common');
 const cluster = require('cluster');
 const assert = require('assert');
+const { convertProcessSignalToExitCode } = require('util');
 
 if (cluster.isPrimary) {
   const worker = cluster.fork();
@@ -13,7 +14,7 @@ if (cluster.isPrimary) {
   }));
 
   worker.on('exit', common.mustCall((code, signal) => {
-    assert.strictEqual(code, null);
+    assert.strictEqual(code, convertProcessSignalToExitCode('SIGTERM'));
     assert.strictEqual(signal, 'SIGTERM');
   }));
 } else {

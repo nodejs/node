@@ -7,6 +7,7 @@
 const common = require('../common');
 const assert = require('assert');
 const cluster = require('cluster');
+const { convertProcessSignalToExitCode } = require('util');
 
 if (cluster.isWorker) {
   // Make the worker run something
@@ -38,7 +39,7 @@ if (cluster.isWorker) {
     const isWorkerProcessStillAlive = common.isAlive(worker.process.pid);
     const numOfRunningWorkers = Object.keys(cluster.workers).length;
 
-    assert.strictEqual(exitCode, null);
+    assert.strictEqual(exitCode, convertProcessSignalToExitCode(KILL_SIGNAL));
     assert.strictEqual(signalCode, KILL_SIGNAL);
     assert.strictEqual(isWorkerProcessStillAlive, false);
     assert.strictEqual(numOfRunningWorkers, 0);

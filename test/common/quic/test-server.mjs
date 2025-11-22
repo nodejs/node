@@ -1,5 +1,6 @@
 import { resolve } from 'node:path';
 import { spawn } from 'node:child_process';
+import { convertProcessSignalToExitCode } from 'node:util';
 
 export default class QuicTestServer {
   #pathToServer;
@@ -46,7 +47,7 @@ export default class QuicTestServer {
       if (code === 0) {
         resolve();
       } else {
-        if (code === null && signal === 'SIGTERM') {
+        if (code === convertProcessSignalToExitCode('SIGTERM') && signal === 'SIGTERM') {
           // Normal termination due to stop() being called.
           resolve();
           return;

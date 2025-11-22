@@ -5,6 +5,7 @@
 const common = require('../common');
 const assert = require('assert');
 const cp = require('child_process');
+const { convertProcessSignalToExitCode } = require('util');
 
 const {
   cleanupStaleProcess,
@@ -30,7 +31,7 @@ cp.exec(cmd, {
   console.log('[stderr]', stderr.trim());
 
   assert.strictEqual(err.killed, true);
-  assert.strictEqual(err.code, null);
+  assert.strictEqual(err.code, convertProcessSignalToExitCode('SIGKILL'));
   assert.strictEqual(err.signal, 'SIGKILL');
   assert.strictEqual(err.cmd, cmd);
   assert.strictEqual(stdout.trim(), '');

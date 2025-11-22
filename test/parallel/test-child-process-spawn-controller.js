@@ -4,6 +4,7 @@ const common = require('../common');
 const assert = require('assert');
 const { spawn } = require('child_process');
 const fixtures = require('../common/fixtures');
+const { convertProcessSignalToExitCode } = require('util');
 
 const aliveScript = fixtures.path('child-process-stay-alive-forever.js');
 {
@@ -16,7 +17,7 @@ const aliveScript = fixtures.path('child-process-stay-alive-forever.js');
   });
 
   cp.on('exit', common.mustCall((code, killSignal) => {
-    assert.strictEqual(code, null);
+    assert.strictEqual(code, convertProcessSignalToExitCode('SIGTERM'));
     assert.strictEqual(killSignal, 'SIGTERM');
   }));
 
@@ -36,7 +37,7 @@ const aliveScript = fixtures.path('child-process-stay-alive-forever.js');
   });
 
   cp.on('exit', common.mustCall((code, killSignal) => {
-    assert.strictEqual(code, null);
+    assert.strictEqual(code, convertProcessSignalToExitCode('SIGTERM'));
     assert.strictEqual(killSignal, 'SIGTERM');
   }));
 
@@ -57,7 +58,7 @@ const aliveScript = fixtures.path('child-process-stay-alive-forever.js');
   });
 
   cp.on('exit', common.mustCall((code, killSignal) => {
-    assert.strictEqual(code, null);
+    assert.strictEqual(code, convertProcessSignalToExitCode('SIGTERM'));
     assert.strictEqual(killSignal, 'SIGTERM');
   }));
 
@@ -77,7 +78,7 @@ const aliveScript = fixtures.path('child-process-stay-alive-forever.js');
     signal,
   });
   cp.on('exit', common.mustCall((code, killSignal) => {
-    assert.strictEqual(code, null);
+    assert.strictEqual(code, convertProcessSignalToExitCode('SIGTERM'));
     assert.strictEqual(killSignal, 'SIGTERM');
   }));
 
@@ -94,7 +95,7 @@ const aliveScript = fixtures.path('child-process-stay-alive-forever.js');
     signal,
   });
   cp.on('exit', common.mustCall((code, killSignal) => {
-    assert.strictEqual(code, null);
+    assert.strictEqual(code, convertProcessSignalToExitCode('SIGTERM'));
     assert.strictEqual(killSignal, 'SIGTERM');
   }));
 
@@ -111,7 +112,7 @@ const aliveScript = fixtures.path('child-process-stay-alive-forever.js');
     signal,
   });
   cp.on('exit', common.mustCall((code, killSignal) => {
-    assert.strictEqual(code, null);
+    assert.strictEqual(code, convertProcessSignalToExitCode('SIGTERM'));
     assert.strictEqual(killSignal, 'SIGTERM');
   }));
 
@@ -131,7 +132,7 @@ const aliveScript = fixtures.path('child-process-stay-alive-forever.js');
   });
 
   cp.on('exit', common.mustCall((code, killSignal) => {
-    assert.strictEqual(code, null);
+    assert.strictEqual(code, convertProcessSignalToExitCode('SIGTERM'));
     assert.strictEqual(killSignal, 'SIGTERM');
   }));
 
@@ -153,7 +154,7 @@ const aliveScript = fixtures.path('child-process-stay-alive-forever.js');
   });
 
   cp.on('exit', common.mustCall((code, killSignal) => {
-    assert.strictEqual(code, null);
+    assert.strictEqual(code, convertProcessSignalToExitCode('SIGKILL'));
     assert.strictEqual(killSignal, 'SIGKILL');
   }));
 

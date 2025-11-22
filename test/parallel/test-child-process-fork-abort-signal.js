@@ -4,6 +4,7 @@ const { mustCall, mustNotCall } = require('../common');
 const assert = require('assert');
 const fixtures = require('../common/fixtures');
 const { fork } = require('child_process');
+const { convertProcessSignalToExitCode } = require('util');
 
 {
   // Test aborting a forked child_process after calling fork
@@ -13,7 +14,7 @@ const { fork } = require('child_process');
     signal
   });
   cp.on('exit', mustCall((code, killSignal) => {
-    assert.strictEqual(code, null);
+    assert.strictEqual(code, convertProcessSignalToExitCode('SIGTERM'));
     assert.strictEqual(killSignal, 'SIGTERM');
   }));
   cp.on('error', mustCall((err) => {
@@ -30,7 +31,7 @@ const { fork } = require('child_process');
     signal
   });
   cp.on('exit', mustCall((code, killSignal) => {
-    assert.strictEqual(code, null);
+    assert.strictEqual(code, convertProcessSignalToExitCode('SIGTERM'));
     assert.strictEqual(killSignal, 'SIGTERM');
   }));
   cp.on('error', mustCall((err) => {
@@ -48,7 +49,7 @@ const { fork } = require('child_process');
     signal
   });
   cp.on('exit', mustCall((code, killSignal) => {
-    assert.strictEqual(code, null);
+    assert.strictEqual(code, convertProcessSignalToExitCode('SIGTERM'));
     assert.strictEqual(killSignal, 'SIGTERM');
   }));
   cp.on('error', mustCall((err) => {
@@ -63,7 +64,7 @@ const { fork } = require('child_process');
     signal
   });
   cp.on('exit', mustCall((code, killSignal) => {
-    assert.strictEqual(code, null);
+    assert.strictEqual(code, convertProcessSignalToExitCode('SIGTERM'));
     assert.strictEqual(killSignal, 'SIGTERM');
   }));
   cp.on('error', mustCall((err) => {
@@ -81,7 +82,7 @@ const { fork } = require('child_process');
     killSignal: 'SIGKILL',
   });
   cp.on('exit', mustCall((code, killSignal) => {
-    assert.strictEqual(code, null);
+    assert.strictEqual(code, convertProcessSignalToExitCode('SIGKILL'));
     assert.strictEqual(killSignal, 'SIGKILL');
   }));
   cp.on('error', mustCall((err) => {
