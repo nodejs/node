@@ -567,9 +567,19 @@ NODE_EXTERN v8::Local<v8::Context> NewContext(
     v8::Local<v8::ObjectTemplate> object_template =
         v8::Local<v8::ObjectTemplate>());
 
+// Overload that accepts IsolateData for per-isolate options
+v8::Local<v8::Context> NewContext(
+    v8::Isolate* isolate,
+    v8::Local<v8::ObjectTemplate> object_template,
+    IsolateData* isolate_data);
+
 // Runs Node.js-specific tweaks on an already constructed context
 // Return value indicates success of operation
 NODE_EXTERN v8::Maybe<bool> InitializeContext(v8::Local<v8::Context> context);
+
+// Overload that accepts IsolateData for per-isolate options
+v8::Maybe<bool> InitializeContext(v8::Local<v8::Context> context,
+                                  IsolateData* isolate_data);
 
 // If `platform` is passed, it will be used to register new Worker instances.
 // It can be `nullptr`, in which case creating new Workers inside of
