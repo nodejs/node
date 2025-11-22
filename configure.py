@@ -2446,8 +2446,9 @@ if make_global_settings:
 
 print_verbose(output)
 
+# Dump as JSON to allow js2c.cc read it as a simple json file.
 write('config.gypi', do_not_edit +
-      pprint.pformat(output, indent=2, width=128) + '\n')
+      json.dumps(output, indent=2) + '\n')
 
 write('config.status', '#!/bin/sh\nset -x\nexec ./configure ' +
       ' '.join([shlex.quote(arg) for arg in original_argv]) + '\n')
