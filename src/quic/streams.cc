@@ -864,8 +864,6 @@ Stream::Stream(BaseObjectWeakPtr<Session> session,
       stats_(env()->isolate()),
       state_(env()->isolate()),
       session_(std::move(session)),
-      byteCount_(0),
-      byteCountOut_(0),
       inbound_(DataQueue::Create(env())),
       headers_(env()->isolate()) {
   MakeWeak();
@@ -897,8 +895,6 @@ Stream::Stream(BaseObjectWeakPtr<Session> session,
       state_(env()->isolate()),
       session_(std::move(session)),
       inbound_(DataQueue::Create(env())),
-      byteCount_(0),
-      byteCountOut_(0),
       maybe_pending_stream_(
           std::make_unique<PendingStream>(direction, this, session_)),
       headers_(env()->isolate()) {
