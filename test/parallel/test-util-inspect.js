@@ -690,7 +690,7 @@ assert.strictEqual(util.inspect(-5e-324), '-5e-324');
 
 {
   const tmp = Error.stackTraceLimit;
-  Error.stackTraceLimit = 0;
+  Object.defineProperty(Error, 'stackTraceLimit', { value: 0, enumerable: false });
   const err = new Error('foo');
   const err2 = new Error('foo\nbar');
   assert.strictEqual(util.inspect(err, { compact: true }), '[Error: foo]');
@@ -2527,14 +2527,10 @@ assert.strictEqual(
     set foo(val) { foo = val; },
     get inc() { return ++foo; }
   };
-  const thrower = { get foo() { throw new Error('Oops'); } };
   assert.strictEqual(
     inspect(get, { getters: true, colors: true }),
     '{ foo: \u001b[36m[Getter:\u001b[39m ' +
       '\u001b[33m1\u001b[39m\u001b[36m]\u001b[39m }');
-  assert.strictEqual(
-    inspect(thrower, { getters: true }),
-    '{ foo: [Getter: <Inspection threw (Oops)>] }');
   assert.strictEqual(
     inspect(getset, { getters: true }),
     '{ foo: [Getter/Setter: 1], inc: [Getter: 2] }');
@@ -2549,6 +2545,119 @@ assert.strictEqual(
     inspect(getset, { getters: true }),
     '{\n  foo: [Getter/Setter] Set(3) { [ [Object], 2, {} ], ' +
       "'foobar', { x: 1 } },\n  inc: [Getter: NaN]\n}");
+}
+
+// Property getter throwing an error.
+{
+  const error = new Error('Oops');
+  error.stack = [
+    'Error: Oops',
+    '    at get foo (/foo/node_modules/foo.js:2:7)',
+    '    at get bar (/foo/node_modules/bar.js:827:30)',
+  ].join('\n');
+
+  const thrower = {
+    get foo() { throw error; }
+  };
+
+  assert.strictEqual(
+    inspect(thrower, { getters: true }),
+    '{\n' +
+    '  foo: [Getter: <Inspection threw (Error: Oops\n' +
+    '    at get foo (/foo/node_modules/foo.js:2:7)\n' +
+    '    at get bar (/foo/node_modules/bar.js:827:30))>]\n' +
+    '}',
+  );
+};
+
+// Property getter throwing an error with getters that throws.
+// https://github.com/nodejs/node/issues/60683
+{
+  const error = new Error();
+
+  const throwingGetter = {
+    __proto__: null,
+    get() {
+      throw error;
+    },
+    configurable: true,
+    enumerable: true,
+  };
+
+  Object.defineProperties(error, {
+    name: throwingGetter,
+    message: throwingGetter,
+    stack: throwingGetter,
+    cause: throwingGetter,
+  });
+
+  const thrower = {
+    get foo() { throw error; }
+  };
+
+  assert.strictEqual(
+    inspect(thrower, { getters: true }),
+    '{\n' +
+    '  foo: [Getter: <Inspection threw ([object Error] {\n' +
+    '  stack: [Getter/Setter],\n' +
+    '  name: [Getter],\n' +
+    '  message: [Getter],\n' +
+    '  cause: [Getter]\n' +
+    '})>]\n' +
+    '}',
+  );
+}
+
+// Property getter throwing uncommon values.
+{
+  assert.strictEqual(
+    inspect({
+      // eslint-disable-next-line no-throw-literal
+      get foo() { throw undefined; }
+    }, { getters: true }),
+    '{ foo: [Getter: <Inspection threw (undefined)>] }'
+  );
+  assert.strictEqual(
+    inspect({
+      // eslint-disable-next-line no-throw-literal
+      get foo() { throw null; }
+    }, { getters: true }),
+    '{ foo: [Getter: <Inspection threw (null)>] }'
+  );
+  assert.strictEqual(
+    inspect({
+      // eslint-disable-next-line no-throw-literal
+      get foo() { throw 'string'; }
+    }, { getters: true }),
+    "{ foo: [Getter: <Inspection threw ('string')>] }"
+  );
+  assert.strictEqual(
+    inspect({
+      // eslint-disable-next-line no-throw-literal
+      get foo() { throw true; }
+    }, { getters: true }),
+    '{ foo: [Getter: <Inspection threw (true)>] }'
+  );
+  assert.strictEqual(
+    inspect({
+      // eslint-disable-next-line no-throw-literal
+      get foo() { throw {}; }
+    }, { getters: true }),
+    '{ foo: [Getter: <Inspection threw ({})>] }'
+  );
+  assert.strictEqual(
+    inspect({
+      // eslint-disable-next-line no-throw-literal
+      get foo() { throw { get message() { return 'Oops'; } }; }
+    }, { getters: true }),
+    '{ foo: [Getter: <Inspection threw ({ message: [Getter] })>] }'
+  );
+  assert.strictEqual(
+    inspect({
+      get foo() { throw Error; }
+    }, { getters: true }),
+    '{ foo: [Getter: <Inspection threw ([Function: Error])>] }'
+  );
 }
 
 // Check compact number mode.
@@ -3232,25 +3341,26 @@ assert.strictEqual(
       '\x1B[2mdef: \x1B[33m5\x1B[39m\x1B[22m }'
   );
 
-  assert.strictEqual(
+  assert.match(
     inspect(Object.getPrototypeOf(bar), { showHidden: true, getters: true }),
-    '<ref *1> Foo [Map] {\n' +
-    '    [constructor]: [class Bar extends Foo] {\n' +
-    '      [length]: 0,\n' +
-    "      [name]: 'Bar',\n" +
-    '      [prototype]: [Circular *1],\n' +
-    '      [Symbol(Symbol.species)]: [Getter: <Inspection threw ' +
-      "(Symbol.prototype.toString requires that 'this' be a Symbol)>]\n" +
-    '    },\n' +
-    "    [xyz]: [Getter: 'YES!'],\n" +
-    '    [Symbol(nodejs.util.inspect.custom)]: ' +
-      '[Function: [nodejs.util.inspect.custom]] {\n' +
-    '      [length]: 0,\n' +
-    "      [name]: '[nodejs.util.inspect.custom]'\n" +
-    '    },\n' +
-    '    [abc]: [Getter: true],\n' +
-    '    [def]: [Getter/Setter: false]\n' +
-    '  }'
+    new RegExp('^' + RegExp.escape(
+      '<ref *1> Foo [Map] {\n' +
+      '    [constructor]: [class Bar extends Foo] {\n' +
+      '      [length]: 0,\n' +
+      "      [name]: 'Bar',\n" +
+      '      [prototype]: [Circular *1],\n' +
+      '      [Symbol(Symbol.species)]: [Getter: <Inspection threw ' +
+      "(TypeError: Symbol.prototype.toString requires that 'this' be a Symbol") + '.*' + RegExp.escape(')>]\n' +
+      '    },\n' +
+      "    [xyz]: [Getter: 'YES!'],\n" +
+      '    [Symbol(nodejs.util.inspect.custom)]: [Function: [nodejs.util.inspect.custom]] {\n' +
+      '      [length]: 0,\n' +
+      "      [name]: '[nodejs.util.inspect.custom]'\n" +
+      '    },\n' +
+      '    [abc]: [Getter: true],\n' +
+      '    [def]: [Getter/Setter: false]\n' +
+      '  }'
+    ) + '$', 's')
   );
 
   assert.strictEqual(
