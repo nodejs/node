@@ -2,7 +2,7 @@ import assert from 'node:assert';
 // start demo data
 // taken from @fails-components/webtransport tests
 // by the original author
-function createBytesChunk(length) {
+export function createBytesChunk(length) {
   assert.strictEqual(length % 4, 0);
   const workArray = new Array(length / 2);
   for (let i = 0; i < length / 4; i++) {
@@ -52,7 +52,9 @@ export function equalUint8Arrays(arr1, arr2) {
             'Array content differs in length ' +
             arr1.byteLength +
             ' vs. ' +
-            arr2.byteLength);
+            arr2.byteLength +
+            ' diff: ' +
+            (arr1.byteLength - arr2.byteLength));
   for (let i = 0; i < arr1.byteLength; i++) {
     assert.ok(arr1[i] === arr2[i],
               'Array content differs at ' +

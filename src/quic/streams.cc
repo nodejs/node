@@ -167,7 +167,7 @@ Maybe<std::shared_ptr<DataQueue>> Stream::GetDataQueueFromSource(
     }
     entries.push_back(DataQueue::CreateInMemoryEntryFromBackingStore(
         std::move(backing), offset, length));
-    return Just(DataQueue::CreateIdempotent(std::move(entries)));
+    return Just(DataQueue::CreateIdempotent(env, std::move(entries)));
   } else if (value->IsSharedArrayBuffer()) {
     // We aren't going to allow use of SharedArrayBuffer as a data source.
     // The reason is that SharedArrayBuffer memory is possibly shared with
@@ -201,7 +201,7 @@ Maybe<std::shared_ptr<DataQueue>> Stream::GetDataQueueFromSource(
     auto length = view->ByteLength();
     entries.push_back(DataQueue::CreateInMemoryEntryFromBackingStore(
         std::move(backing), offset, length));
-    return Just(DataQueue::CreateIdempotent(std::move(entries)));
+    return Just(DataQueue::CreateIdempotent(env, std::move(entries)));
   } else if (Blob::HasInstance(env, value)) {
     Blob* blob;
     ASSIGN_OR_RETURN_UNWRAP(
@@ -214,14 +214,14 @@ Maybe<std::shared_ptr<DataQueue>> Stream::GetDataQueueFromSource(
     memcpy(backing->Data(), *str, str.length());
     entries.push_back(DataQueue::CreateInMemoryEntryFromBackingStore(
         std::move(backing), 0, backing->ByteLength()));
-    return Just(DataQueue::CreateIdempotent(std::move(entries)));
+    return Just(DataQueue::CreateIdempotent(env, std::move(entries)));
   } else if (DataQueueFeeder::HasInstance(env, value)) {
     // a DataQueueFeeder
     DataQueueFeeder* dataQueueFeeder;
     ASSIGN_OR_RETURN_UNWRAP(
         &dataQueueFeeder, value, Nothing<std::shared_ptr<DataQueue>>());
-    std::shared_ptr<DataQueue> dataQueue = DataQueue::Create();
-    dataQueue->append(DataQueue::CreateFeederEntry(dataQueueFeeder));
+    std::shared_ptr<DataQueue> dataQueue = DataQueue::Create(env);
+    dataQueueFeeder->setDataQueue(dataQueue);
     return Just(dataQueue);
   }
 
@@ -864,7 +864,9 @@ Stream::Stream(BaseObjectWeakPtr<Session> session,
       stats_(env()->isolate()),
       state_(env()->isolate()),
       session_(std::move(session)),
-      inbound_(DataQueue::Create()),
+      byteCount_(0),
+      byteCountOut_(0),
+      inbound_(DataQueue::Create(env())),
       headers_(env()->isolate()) {
   MakeWeak();
   DCHECK(id < kMaxStreamId);
@@ -894,7 +896,9 @@ Stream::Stream(BaseObjectWeakPtr<Session> session,
       stats_(env()->isolate()),
       state_(env()->isolate()),
       session_(std::move(session)),
-      inbound_(DataQueue::Create()),
+      inbound_(DataQueue::Create(env())),
+      byteCount_(0),
+      byteCountOut_(0),
       maybe_pending_stream_(
           std::make_unique<PendingStream>(direction, this, session_)),
       headers_(env()->isolate()) {
@@ -1066,6 +1070,8 @@ void Stream::set_outbound(std::shared_ptr<DataQueue> source) {
   if (!source || !is_writable()) return;
   Debug(this, "Setting the outbound data source");
   DCHECK_NULL(outbound_);
+  // sets us as notifier, to be alerted if new data is there
+  source->SetNotifier(this);
   outbound_ = std::make_unique<Outbound>(this, std::move(source));
   state_->has_outbound = 1;
   if (!is_pending()) session_->ResumeStream(id());
@@ -1234,6 +1240,9 @@ void Stream::ReceiveData(const uint8_t* data,
     return;
   }
 
+  // FIXME(jasnell or martenrichter) this does not allow backpressure
+  // to be signalled, we need to get Watermark from reader!
+
   STAT_INCREMENT_N(Stats, bytes_received, len);
   STAT_RECORD_TIMESTAMP(Stats, received_at);
   JS_TRY_ALLOCATE_BACKING(env(), backing, len)
@@ -1241,7 +1250,9 @@ void Stream::ReceiveData(const uint8_t* data,
   inbound_->append(DataQueue::CreateInMemoryEntryFromBackingStore(
       std::move(backing), 0, len));
 
-  if (flags.fin) EndReadable();
+  if (flags.fin) {
+    EndReadable();
+  }
 }
 
 void Stream::ReceiveStopSending(QuicError error) {
@@ -1331,6 +1342,10 @@ void Stream::EmitWantTrailers() {
 }
 
 // ============================================================================
+
+void Stream::newDataOrCloseAdded() {
+  session_->ResumeStream(id());
+}
 
 void Stream::Schedule(Queue* queue) {
   // If this stream is not already in the queue to send data, add it.
