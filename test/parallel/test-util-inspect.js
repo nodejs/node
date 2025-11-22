@@ -2608,7 +2608,7 @@ assert.strictEqual(
   );
 }
 
-// Property getter throwing throwing uncommon values.
+// Property getter throwing uncommon values.
 {
   assert.strictEqual(
     inspect({
