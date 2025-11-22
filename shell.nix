@@ -32,7 +32,11 @@ pkgs.mkShell {
     ccache
   ]
   ++ devTools
-  ++ benchmarkTools;
+  ++ benchmarkTools
+  ++ pkgs.lib.optionals (withTemporal && !builtins.hasAttr "temporal_capi" sharedLibDeps) [
+    pkgs.cargo
+    pkgs.rustc
+  ];
 
   shellHook =
     if (ccache != null) then
