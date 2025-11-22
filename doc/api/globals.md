@@ -854,6 +854,9 @@ navigator.locks.request('shared_resource', { mode: 'shared' }, async (lock) => {
 
 See [`worker_threads.locks`][] for detailed API documentation.
 
+Use [`process.locksCounters()`][] to monitor lock acquisitions, contention, and
+queue sizes across the process.
+
 ## Class: `PerformanceEntry`
 
 <!-- YAML
@@ -1394,6 +1397,7 @@ A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 [`localStorage`]: https://developer.mozilla.org/en-US/docs/Web/API/Window/localStorage
 [`module`]: modules.md#module
 [`perf_hooks.performance`]: perf_hooks.md#perf_hooksperformance
+[`process.locksCounters()`]: process.md#processlockscounters
 [`process.nextTick()`]: process.md#processnexttickcallback-args
 [`process` object]: process.md#process
 [`require()`]: modules.md#requireid
