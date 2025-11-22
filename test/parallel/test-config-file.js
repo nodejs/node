@@ -407,6 +407,7 @@ describe('namespace-scoped options', () => {
       '--expose-internals',
       '--experimental-config-file',
       fixtures.path('rc/namespaced/node.config.json'),
+      '--no-test',
       '-p', 'require("internal/options").getOptionValue("--test-isolation")',
     ]);
     assert.strictEqual(result.stderr, '');
@@ -421,7 +422,7 @@ describe('namespace-scoped options', () => {
       fixtures.path('rc/unknown-flag-namespace.json'),
       '-p', '"Hello, World!"',
     ]);
-    assert.match(result.stderr, /Unknown or not allowed option unknown-flag for namespace testRunner/);
+    assert.match(result.stderr, /Unknown or not allowed option unknown-flag for namespace test/);
     assert.strictEqual(result.stdout, '');
     assert.strictEqual(result.code, 9);
   });
@@ -483,6 +484,7 @@ describe('namespace-scoped options', () => {
       '--test-isolation', 'process',
       '--experimental-config-file',
       fixtures.path('rc/namespaced/node.config.json'),
+      '--no-test',
       '-p', 'require("internal/options").getOptionValue("--test-isolation")',
     ]);
     assert.strictEqual(result.stderr, '');
@@ -498,6 +500,7 @@ describe('namespace-scoped options', () => {
       '--test-coverage-exclude', 'cli-pattern2',
       '--experimental-config-file',
       fixtures.path('rc/namespace-with-array.json'),
+      '--no-test',
       '-p', 'JSON.stringify(require("internal/options").getOptionValue("--test-coverage-exclude"))',
     ]);
     assert.strictEqual(result.stderr, '');
@@ -520,6 +523,7 @@ describe('namespace-scoped options', () => {
       '--expose-internals',
       '--experimental-config-file',
       fixtures.path('rc/namespace-with-disallowed-envvar.json'),
+      '--no-test',
       '-p', 'require("internal/options").getOptionValue("--test-concurrency")',
     ]);
     assert.strictEqual(result.stderr, '');
@@ -536,10 +540,60 @@ describe('namespace-scoped options', () => {
       '--test-concurrency', '2',
       '--experimental-config-file',
       fixtures.path('rc/namespace-with-disallowed-envvar.json'),
+      '--no-test',
       '-p', 'require("internal/options").getOptionValue("--test-concurrency")',
     ]);
     assert.strictEqual(result.stderr, '');
     assert.strictEqual(result.stdout, '2\n');
+    assert.strictEqual(result.code, 0);
+  });
+
+  it('should throw an error for removed "testRunner" namespace', async () => {
+    const result = await spawnPromisified(process.execPath, [
+      '--no-warnings',
+      '--experimental-config-file',
+      fixtures.path('rc/deprecated-testrunner-namespace.json'),
+      '-p', '"Hello, World!"',
+    ]);
+    assert.match(result.stderr, /the "testRunner" namespace has been removed\. Use "test" instead\./);
+    assert.strictEqual(result.stdout, '');
+    assert.strictEqual(result.code, 9);
+  });
+
+  it('should automatically enable --test flag when test namespace is present', async () => {
+    const result = await spawnPromisified(process.execPath, [
+      '--no-warnings',
+      '--experimental-config-file',
+      fixtures.path('rc/namespaced/node.config.json'),
+      fixtures.path('rc/test.js'),
+    ]);
+    assert.strictEqual(result.code, 0);
+    assert.match(result.stdout, /tests 1/);
+  });
+
+  it('should automatically enable --permission flag when permission namespace is present', async () => {
+    const result = await spawnPromisified(process.execPath, [
+      '--no-warnings',
+      '--expose-internals',
+      '--experimental-config-file',
+      fixtures.path('rc/permission-namespace.json'),
+      '-p', 'require("internal/options").getOptionValue("--permission")',
+    ]);
+    assert.strictEqual(result.stderr, '');
+    assert.strictEqual(result.stdout, 'true\n');
+    assert.strictEqual(result.code, 0);
+  });
+
+  it('should respect explicit test: false in test namespace', async () => {
+    const result = await spawnPromisified(process.execPath, [
+      '--no-warnings',
+      '--expose-internals',
+      '--experimental-config-file',
+      fixtures.path('rc/test-namespace-explicit-false.json'),
+      '-p', 'require("internal/options").getOptionValue("--test")',
+    ]);
+    assert.strictEqual(result.stderr, '');
+    assert.strictEqual(result.stdout, 'false\n');
     assert.strictEqual(result.code, 0);
   });
 });

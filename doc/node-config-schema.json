@@ -186,6 +186,9 @@
         "experimental-websocket": {
           "type": "boolean"
         },
+        "experimental-webstorage": {
+          "type": "boolean"
+        },
         "extra-info-on-fatal-exception": {
           "type": "boolean"
         },
@@ -594,9 +597,6 @@
         "watch-preserve-output": {
           "type": "boolean"
         },
-        "webstorage": {
-          "type": "boolean"
-        },
         "zero-fill-buffers": {
           "type": "boolean"
         }
@@ -652,10 +652,13 @@
         },
         "allow-worker": {
           "type": "boolean"
+        },
+        "permission": {
+          "type": "boolean"
         }
       }
     },
-    "testRunner": {
+    "test": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -663,6 +666,9 @@
           "type": "boolean"
         },
         "experimental-test-module-mocks": {
+          "type": "boolean"
+        },
+        "test": {
           "type": "boolean"
         },
         "test-concurrency": {

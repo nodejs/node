@@ -1,5 +1,5 @@
 {
-    "testRunner": {
+    "test": {
         "experimental-test-coverage": true
     }
 }
