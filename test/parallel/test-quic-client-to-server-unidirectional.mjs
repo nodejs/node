@@ -20,7 +20,6 @@ const certs = readKey('agent1-cert.pem');
 // The opened promise should resolve when the client finished reading
 const serverFinished = Promise.withResolvers();
 
-
 const serverEndpoint = await listen(async (serverSession) => {
   serverSession.onstream = mustCall(async (stream) => {
     strictEqual(stream.direction, 'uni', 'Expects an unidirectional stream');

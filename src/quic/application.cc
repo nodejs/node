@@ -428,8 +428,15 @@ void Session::Application::SendPendingData() {
     packet->Truncate(datalen);
     session_->Send(packet, path);
 
+    if (nwrite > 0 && stream_data.id >= 0) {
+      // We can not be sure, that the stream did not receive more
+      // data since the last call, so we need to check again
+      ResumeStream(stream_data.id);
+    }
+
     // If we have sent the maximum number of packets, we're done.
     if (++packet_send_count == max_packet_count) {
+      // question, who ensures, that SendPendingData is called again
       return;
     }
 
@@ -512,7 +519,9 @@ class DefaultApplication final : public Session::Application {
     Debug(&session(), "Default application getting stream data");
     DCHECK_NOT_NULL(stream_data);
     // If the queue is empty, there aren't any streams with data yet
-    if (stream_queue_.IsEmpty()) return 0;
+    if (stream_queue_.IsEmpty()) {
+      return 0;
+    }
 
     const auto get_length = [](auto vec, size_t count) {
       CHECK_NOT_NULL(vec);

@@ -111,7 +111,8 @@ void BlobFromFilePath(const FunctionCallbackInfo<Value>& args) {
   entries.push_back(std::move(entry));
 
   if (auto blob =
-          Blob::Create(env, DataQueue::CreateIdempotent(std::move(entries)))) {
+          Blob::Create(env,
+            DataQueue::CreateIdempotent(env, std::move(entries)))) {
     Local<Value> vals[2]{
         blob->object(),
         Uint32::NewFromUnsigned(env->isolate(), blob->length()),
@@ -247,7 +248,7 @@ void Blob::New(const FunctionCallbackInfo<Value>& args) {
     }
   }
 
-  auto blob = Create(env, DataQueue::CreateIdempotent(std::move(entries)));
+  auto blob = Create(env, DataQueue::CreateIdempotent(env, std::move(entries)));
   if (blob)
     args.GetReturnValue().Set(blob->object());
 }
@@ -354,21 +355,25 @@ void Blob::Reader::Pull(const FunctionCallbackInfo<Value>& args) {
   // TODO(@jasnell): A unique_ptr is likely better here but making this a unique
   // pointer that is passed into the lambda causes the std::move(next) below to
   // complain about std::function needing to be copy-constructible.
-  Impl* impl = new Impl();
+  // EDIT(martenrichter) We use a shared_ptr instead, as the previous
+  // implementation, with am ommrt unique_ptr did not allow to call next twice
+  // as impl is gone after the first call.
+  std::shared_ptr<Impl> impl = std::make_shared<Impl>();
   impl->reader = BaseObjectPtr<Blob::Reader>(reader);
   impl->callback.Reset(env->isolate(), fn);
   impl->env = env;
 
-  auto next = [impl](int status,
+  auto next = [impl, reader](int status,
                      const DataQueue::Vec* vecs,
                      size_t count,
                      bob::Done doneCb) mutable {
-    auto dropMe = std::unique_ptr<Impl>(impl);
     Environment* env = impl->env;
     HandleScope handleScope(env->isolate());
     Local<Function> fn = impl->callback.Get(env->isolate());
 
-    if (status == bob::STATUS_EOS) impl->reader->eos_ = true;
+    if (status == bob::STATUS_EOS) {
+      impl->reader->eos_ = true;
+    }
 
     if (count > 0) {
       // Copy the returns vectors into a single ArrayBuffer.
