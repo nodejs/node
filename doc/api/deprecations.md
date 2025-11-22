@@ -1540,6 +1540,9 @@ npx codemod@latest @nodejs/util-log-to-console-log
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/60812
+    description: End-of-Life.
   - version: v22.0.0
     pr-url: https://github.com/nodejs/node/pull/50488
     description: Runtime deprecation.
@@ -1551,7 +1554,7 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
 The [`util._extend()`][] API is deprecated because it's an unmaintained
 legacy API that was exposed to user land by accident.
