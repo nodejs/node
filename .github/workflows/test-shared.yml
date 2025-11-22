@@ -20,6 +20,7 @@ on:
       - deps/openssl/*/**
       - deps/simdjson/**
       - deps/sqlite/**
+      - deps/temporal/**
       - deps/uv/**
       - deps/uvwasi/**
       - deps/zlib/**
@@ -51,6 +52,7 @@ on:
       - deps/openssl/*/**
       - deps/simdjson/**
       - deps/sqlite/**
+      - deps/temporal/**
       - deps/uv/**
       - deps/uvwasi/**
       - deps/zlib/**
