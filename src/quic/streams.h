@@ -150,7 +150,8 @@ class PendingStream final {
 // zero-length output.
 class Stream final : public AsyncWrap,
                      public Ngtcp2Source,
-                     public DataQueue::BackpressureListener {
+                     public DataQueue::BackpressureListener,
+                     public DataQueue::Notifier {
  public:
   using Header = NgHeaderBase<BindingData>;
 
@@ -250,6 +251,9 @@ class Stream final : public AsyncWrap,
              size_t count,
              size_t max_count_hint) override;
 
+  // Mechanism, so that the DataQueueFeeder can wake the stream
+  void newDataOrCloseAdded() override;
+
   // Forcefully close the stream immediately. Data already queued in the
   // inbound is preserved but new data will not be accepted. All pending
   // writes are abandoned, and the stream is immediately closed at the ngtcp2
@@ -288,6 +292,8 @@ class Stream final : public AsyncWrap,
   struct Stats;
 
  private:
+  size_t byteCount_;
+  size_t byteCountOut_;
   struct Impl;
   struct PendingHeaders;
 

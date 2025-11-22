@@ -155,6 +155,12 @@ class DataQueue : public MemoryRetainer {
     virtual void EntryRead(size_t amount) = 0;
   };
 
+  // A Notifier, that is called, when data is added or cap is called
+  class Notifier {
+   public:
+    virtual void newDataOrCloseAdded() = 0;
+  };
+
   // A DataQueue::Entry represents a logical chunk of data in the queue.
   // The entry may or may not represent memory-resident data. It may
   // or may not be consumable more than once.
@@ -202,12 +208,14 @@ class DataQueue : public MemoryRetainer {
   // of entries. All of the entries must also be idempotent otherwise
   // an empty std::unique_ptr will be returned.
   static std::shared_ptr<DataQueue> CreateIdempotent(
+      Environment* env,
       std::vector<std::unique_ptr<Entry>> list);
 
   // Creates a non-idempotent DataQueue. This kind of queue can be
   // mutated and updated such that multiple reads are not guaranteed
   // to produce the same result. The entries added can be of any type.
   static std::shared_ptr<DataQueue> Create(
+      Environment* env,
       std::optional<uint64_t> capped = std::nullopt);
 
   // Creates an idempotent Entry from a v8::ArrayBufferView. To help
@@ -233,8 +241,6 @@ class DataQueue : public MemoryRetainer {
 
   static std::unique_ptr<Entry> CreateFdEntry(Environment* env,
                                               v8::Local<v8::Value> path);
-
-  static std::unique_ptr<Entry> CreateFeederEntry(DataQueueFeeder* feeder);
 
   // Creates a Reader for the given queue. If the queue is idempotent,
   // any number of readers can be created, all of which are guaranteed
@@ -313,11 +319,17 @@ class DataQueue : public MemoryRetainer {
   virtual void addBackpressureListener(BackpressureListener* listener) = 0;
   virtual void removeBackpressureListener(BackpressureListener* listener) = 0;
 
+  // Set a notifier, e. g. to schedule packet sending
+  virtual void SetNotifier(Notifier* notfier) = 0;
+  // sets the environment in order to schedule functions
+  virtual void SetEnvironment(Environment* env) = 0;
+
   static void Initialize(Environment* env, v8::Local<v8::Object> target);
   static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 };
 
-class DataQueueFeeder final : public AsyncWrap {
+class DataQueueFeeder final : public AsyncWrap,
+  public DataQueue::BackpressureListener {
  public:
   using Next = bob::Next<DataQueue::Vec>;
 
@@ -327,23 +339,15 @@ class DataQueueFeeder final : public AsyncWrap {
 
   static BaseObjectPtr<DataQueueFeeder> Create();
 
-  void setDataQueue(std::shared_ptr<DataQueue> queue) { dataQueue_ = queue; }
-
-  void clearPendingNext() { pendingPulls_.clear(); }
-
-  struct PendingPull {
-    Next next;
-    explicit PendingPull(Next next) : next(std::move(next)) {}
-  };
-
-  void addPendingPull(PendingPull toAdd) {
-    pendingPulls_.emplace_back(std::move(toAdd));
-  }
+  void setDataQueue(std::shared_ptr<DataQueue> queue);
 
   bool Done() { return done; }
+  bool Full() { return buffer_size_ >= max_buffer_size_; }
 
   void DrainAndClose();
   void tryWakePulls();
+
+  void EntryRead(size_t amount) override;
 
   SET_NO_MEMORY_INFO()
   SET_MEMORY_INFO_NAME(DataQueueFeeder)
@@ -353,7 +357,6 @@ class DataQueueFeeder final : public AsyncWrap {
   static void Submit(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Error(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Ready(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void AddFakePull(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
       Environment* env);
@@ -370,10 +373,11 @@ class DataQueueFeeder final : public AsyncWrap {
   static bool HasInstance(Environment* env, v8::Local<v8::Value> object);
 
  private:
+  const size_t max_buffer_size_ = 16384;
+  size_t buffer_size_;
   std::shared_ptr<DataQueue> dataQueue_;
   v8::Global<v8::Promise::Resolver> readFinish_;
-
-  std::deque<PendingPull> pendingPulls_;
+  size_t bytecount;
   bool done = false;
 };
 
