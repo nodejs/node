@@ -827,8 +827,9 @@ A `TypeError` will be thrown if `size` is not a number.
 The `Buffer` module pre-allocates an internal `Buffer` instance of
 size [`Buffer.poolSize`][] that is used as a pool for the fast allocation of new
 `Buffer` instances created using [`Buffer.allocUnsafe()`][], [`Buffer.from(array)`][],
-[`Buffer.from(string)`][], and [`Buffer.concat()`][] only when `size` is less than
-`Buffer.poolSize >>> 1` (floor of [`Buffer.poolSize`][] divided by two).
+[`Buffer.from(string)`][], [`Buffer.of(...items)`][], and [`Buffer.concat()`][]
+only when `size` is less than `Buffer.poolSize >>> 1` (floor of [`Buffer.poolSize`][]
+divided by two).
 
 Use of this pre-allocated internal memory pool is a key difference between
 calling `Buffer.alloc(size, fill)` vs. `Buffer.allocUnsafe(size).fill(fill)`.
@@ -1417,6 +1418,36 @@ A `TypeError` will be thrown if `string` is not a string or another type
 appropriate for `Buffer.from()` variants.
 
 [`Buffer.from(string)`][] may also use the internal `Buffer` pool like
+[`Buffer.allocUnsafe()`][] does.
+
+### Static method: `Buffer.of(...items)`
+
+<!-- YAML
+added: v5.10.0
+-->
+
+* `...items` {integer} A sequence of numeric byte values (0–255).
+* Returns: {Buffer}
+
+Creates a new `Buffer` from the given numeric arguments.
+
+This is equivalent to the standard `TypedArray.of()` factory, but returns a
+`Buffer` instead of a generic `Uint8Array`. Each argument provides the value of
+the corresponding byte in the resulting buffer.
+
+```mjs
+import { Buffer } from 'node:buffer';
+
+const buf = Buffer.of(0x62, 0x75, 0x66, 0x66, 0x65, 0x72);
+```
+
+```cjs
+const { Buffer } = require('node:buffer');
+
+const buf = Buffer.of(0x62, 0x75, 0x66, 0x66, 0x65, 0x72);
+```
+
+[`Buffer.of(...items)`][] may also use the internal `Buffer` pool like
 [`Buffer.allocUnsafe()`][] does.
 
 ### Static method: `Buffer.isBuffer(obj)`
@@ -5462,8 +5493,9 @@ to one of these new APIs._
   potentially sensitive.
 
 `Buffer` instances returned by [`Buffer.allocUnsafe()`][], [`Buffer.from(string)`][],
-[`Buffer.concat()`][] and [`Buffer.from(array)`][] _may_ be allocated off a shared
-internal memory pool if `size` is less than or equal to half [`Buffer.poolSize`][].
+[`Buffer.of(...items)`][], [`Buffer.concat()`][], and [`Buffer.from(array)`][]
+_may_ be allocated off a shared internal memory pool if `size` is less than or
+equal to half [`Buffer.poolSize`][].
 Instances returned by [`Buffer.allocUnsafeSlow()`][] _never_ use the shared internal
 memory pool.
 
@@ -5516,6 +5548,7 @@ introducing security vulnerabilities into an application.
 [`Buffer.from(arrayBuf)`]: #static-method-bufferfromarraybuffer-byteoffset-length
 [`Buffer.from(buffer)`]: #static-method-bufferfrombuffer
 [`Buffer.from(string)`]: #static-method-bufferfromstring-encoding
+[`Buffer.of(...items)`]: #static-method-bufferofitems
 [`Buffer.poolSize`]: #bufferpoolsize
 [`ERR_INVALID_BUFFER_SIZE`]: errors.md#err_invalid_buffer_size
 [`ERR_OUT_OF_RANGE`]: errors.md#err_out_of_range
