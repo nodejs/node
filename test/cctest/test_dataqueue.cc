@@ -101,7 +101,7 @@ TEST(DataQueue, IdempotentDataQueue) {
 
   // We can create an idempotent DataQueue from a list of entries.
   std::shared_ptr<DataQueue> data_queue =
-      DataQueue::CreateIdempotent(std::move(list));
+      DataQueue::CreateIdempotent(nullptr, std::move(list));
 
   CHECK_NOT_NULL(data_queue);
 
@@ -426,7 +426,7 @@ TEST(DataQueue, NonIdempotentDataQueue) {
       &buffer3, len3, [](void*, size_t, void*) {}, nullptr);
 
   // We can create an non-idempotent DataQueue from a list of entries.
-  std::shared_ptr<DataQueue> data_queue = DataQueue::Create();
+  std::shared_ptr<DataQueue> data_queue = DataQueue::Create(nullptr);
 
   CHECK(!data_queue->is_idempotent());
   CHECK_EQ(data_queue->size().value(), 0);
@@ -579,7 +579,7 @@ TEST(DataQueue, DataQueueEntry) {
 
   // We can create an idempotent DataQueue from a list of entries.
   std::shared_ptr<DataQueue> data_queue =
-      DataQueue::CreateIdempotent(std::move(list));
+      DataQueue::CreateIdempotent(nullptr, std::move(list));
 
   CHECK_NOT_NULL(data_queue);
 
@@ -603,7 +603,7 @@ TEST(DataQueue, DataQueueEntry) {
   // We can add it to another data queue, even if the new one is not
   // idempotent.
 
-  std::shared_ptr<DataQueue> data_queue2 = DataQueue::Create();
+  std::shared_ptr<DataQueue> data_queue2 = DataQueue::Create(nullptr);
   CHECK(data_queue2->append(std::move(slice)).value());
 
   // Our original data queue should have a use count of 2.
