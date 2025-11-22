@@ -363,9 +363,9 @@ void Blob::Reader::Pull(const FunctionCallbackInfo<Value>& args) {
   impl->env = env;
 
   auto next = [impl](int status,
-                             const DataQueue::Vec* vecs,
-                             size_t count,
-                             bob::Done doneCb) mutable {
+                     const DataQueue::Vec* vecs,
+                     size_t count,
+                     bob::Done doneCb) mutable {
     Environment* env = impl->env;
     HandleScope handleScope(env->isolate());
     Local<Function> fn = impl->callback.Get(env->isolate());
