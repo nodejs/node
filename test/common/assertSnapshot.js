@@ -109,7 +109,7 @@ function replaceTestDuration(str) {
 
 const root = path.resolve(__dirname, '..', '..');
 const color = '(\\[\\d+m)';
-const stackTraceBasePath = new RegExp(`${color}\\(${root.replaceAll(/[\\^$*+?.()|[\]{}]/g, '\\$&')}/?${color}(.*)${color}\\)`, 'g');
+const stackTraceBasePath = new RegExp(`${color}\\(${RegExp.escape(root)}/?${color}(.*)${color}\\)`, 'g');
 
 function replaceSpecDuration(str) {
   return str

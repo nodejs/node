@@ -148,7 +148,7 @@ for (const { key, valid, invalid } of cases) {
     const options = {};
     options[key] = value;
     throws(() => new QuicEndpoint(options), {
-      message: new RegExp(`${key}`),
+      message: new RegExp(`${RegExp.escape(key)}`),
     }, value);
   }
 }
