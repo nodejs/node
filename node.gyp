@@ -22,6 +22,7 @@
     'node_shared_cares%': 'false',
     'node_shared_libuv%': 'false',
     'node_shared_sqlite%': 'false',
+    'node_shared_temporal_capi%': 'false',
     'node_shared_uvwasi%': 'false',
     'node_shared_nghttp2%': 'false',
     'node_use_openssl%': 'true',

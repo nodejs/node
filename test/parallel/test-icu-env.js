@@ -35,17 +35,7 @@ try {
 }
 
 
-// small-icu doesn't support non-English locales
-const hasFullICU = (() => {
-  try {
-    const january = new Date(9e8);
-    const spanish = new Intl.DateTimeFormat('es', { month: 'long' });
-    return spanish.format(january) === 'enero';
-  } catch {
-    return false;
-  }
-})();
-if (!hasFullICU)
+if (!common.hasFullICU)
   common.skip('small ICU');
 
 const icuVersionMajor = Number(process.config.variables.icu_ver_major ?? 0);
