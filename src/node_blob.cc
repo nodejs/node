@@ -362,7 +362,7 @@ void Blob::Reader::Pull(const FunctionCallbackInfo<Value>& args) {
   impl->callback.Reset(env->isolate(), fn);
   impl->env = env;
 
-  auto next = [impl, reader](int status,
+  auto next = [impl](int status,
                              const DataQueue::Vec* vecs,
                              size_t count,
                              bob::Done doneCb) mutable {
