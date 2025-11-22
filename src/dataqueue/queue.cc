@@ -65,8 +65,11 @@ class DataQueueImpl final : public DataQueue,
   // added, the size can be cleared if any of the entries are not capable of
   // providing a size.
   DataQueueImpl(Environment* env, std::optional<uint64_t> cap = std::nullopt)
-      : idempotent_(false), size_(0), capped_size_(cap), notifier_(nullptr),
-      env_(env) {}
+      : idempotent_(false), 
+        size_(0),
+        capped_size_(cap),
+        notifier_(nullptr),
+        env_(env) {}
 
   // Disallow moving and copying.
   DataQueueImpl(const DataQueueImpl&) = delete;
@@ -225,8 +228,7 @@ class DataQueueImpl final : public DataQueue,
     virtual void newDataOrEnd() = 0;
   };
 
-  void
-  reader_destructed(NotifyReader* reader) { readers_.erase(reader); }
+  void reader_destructed(NotifyReader* reader) { readers_.erase(reader); }
 
   void SetEnvironment(Environment* env) override { env_ = env; }
 
@@ -1196,7 +1198,7 @@ class FdEntry final : public EntryImpl {
 // ============================================================================
 
 std::shared_ptr<DataQueue> DataQueue::CreateIdempotent(
-    Environment * env, std::vector<std::unique_ptr<Entry>> list) {
+    Environment* env, std::vector<std::unique_ptr<Entry>> list) {
   // Any entry is invalid for an idempotent DataQueue if any of the entries
   // are nullptr or is not idempotent.
   uint64_t size = 0;
