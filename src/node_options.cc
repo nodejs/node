@@ -1092,7 +1092,12 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "Type-stripping for TypeScript files.",
             &EnvironmentOptions::strip_types,
             kAllowedInEnvvar,
-            true);
+#if HAVE_AMARO
+            true
+#else
+            false
+#endif  // HAVE_AMARO
+);
   AddAlias("--experimental-strip-types", "--strip-types");
   AddOption("--experimental-transform-types",
             "enable transformation of TypeScript-only"
