@@ -274,7 +274,7 @@ added: v16.0.0
 
 Global alias for [`buffer.atob()`][].
 
-An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/util-is)):
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/buffer-atob-btoa)):
 
 ```bash
 npx codemod@latest @nodejs/buffer-atob-btoa
@@ -297,6 +297,12 @@ added: v16.0.0
 > Stability: 3 - Legacy. Use `buf.toString('base64')` instead.
 
 Global alias for [`buffer.btoa()`][].
+
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/buffer-atob-btoa)):
+
+```bash
+npx codemod@latest @nodejs/buffer-atob-btoa
+```
 
 ## `clearImmediate(immediateObject)`
 
