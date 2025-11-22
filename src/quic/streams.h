@@ -292,8 +292,6 @@ class Stream final : public AsyncWrap,
   struct Stats;
 
  private:
-  size_t byteCount_;
-  size_t byteCountOut_;
   struct Impl;
   struct PendingHeaders;
 
