@@ -1045,7 +1045,7 @@ test('runs timers as setTime passes ticks', (context) => {
 ## Snapshot testing
 
 <!-- YAML
-added: v20.16.0
+added: v22.3.0
 changes:
   - version: v23.4.0
     pr-url: https://github.com/nodejs/node/pull/55897
@@ -1915,7 +1915,7 @@ assertion already exists with the same name, it is overwritten.
 ## `snapshot`
 
 <!-- YAML
-added: v20.16.0
+added: v22.3.0
 -->
 
 An object whose methods are used to configure default snapshot settings in the
@@ -1926,7 +1926,7 @@ placing common configuration code in a module preloaded with `--require` or
 ### `snapshot.setDefaultSnapshotSerializers(serializers)`
 
 <!-- YAML
-added: v20.16.0
+added: v22.3.0
 -->
 
 * `serializers` {Array} An array of synchronous functions used as the default
@@ -1941,7 +1941,7 @@ more robust serialization mechanism is required, this function should be used.
 ### `snapshot.setResolveSnapshotPath(fn)`
 
 <!-- YAML
-added: v20.16.0
+added: v22.3.0
 -->
 
 * `fn` {Function} A function used to compute the location of the snapshot file.
@@ -3602,7 +3602,7 @@ highlighting.
 #### `context.assert.snapshot(value[, options])`
 
 <!-- YAML
-added: v20.16.0
+added: v22.3.0
 -->
 
 * `value` {any} A value to serialize to a string. If Node.js was started with
