@@ -796,21 +796,11 @@ std::vector<char> JSONify(const std::vector<char>& code) {
   // 1. Remove string comments
   std::vector<char> stripped = StripComments(code);
 
-  // 2. join multiline strings
-  std::vector<char> joined = JoinMultilineString(stripped);
+  // 2. turn pseudo-booleans strings into Booleans
+  std::vector<char> result1 = ReplaceAll(stripped, R"("true")", "true");
+  std::vector<char> result2 = ReplaceAll(result1, R"("false")", "false");
 
-  // 3. normalize string literals from ' into "
-  for (size_t i = 0; i < joined.size(); ++i) {
-    if (joined[i] == '\'') {
-      joined[i] = '"';
-    }
-  }
-
-  // 4. turn pseudo-booleans strings into Booleans
-  std::vector<char> result3 = ReplaceAll(joined, R"("true")", "true");
-  std::vector<char> result4 = ReplaceAll(result3, R"("false")", "false");
-
-  return result4;
+  return result2;
 }
 
 int AddGypi(const std::string& var,
