@@ -1,17 +1,22 @@
 'use strict';
 
+const common = require('../common');
 const {
   isWindows,
   spawnPromisified,
   skipIfSQLiteMissing,
-} = require('../common');
-skipIfSQLiteMissing();
+} = common;
 const fixtures = require('../common/fixtures');
 const tmpdir = require('../common/tmpdir');
 const assert = require('node:assert');
 const { test, it, describe } = require('node:test');
 const { chmodSync, writeFileSync, constants } = require('node:fs');
 const { join } = require('node:path');
+
+if (!process.config.variables.node_use_amaro) {
+  common.skip('Requires Amaro');
+}
+skipIfSQLiteMissing();
 
 test('should handle non existing json', async () => {
   const result = await spawnPromisified(process.execPath, [

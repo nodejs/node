@@ -2,11 +2,15 @@
 
 // This tests NODE_COMPILE_CACHE works with --experimental-transform-types.
 
-require('../common');
+const common = require('../common');
 const { spawnSyncAndAssert } = require('../common/child_process');
 const assert = require('assert');
 const tmpdir = require('../common/tmpdir');
 const fixtures = require('../common/fixtures');
+
+if (!process.config.variables.node_use_amaro) {
+  common.skip('Requires Amaro');
+}
 
 
 tmpdir.refresh();

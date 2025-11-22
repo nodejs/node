@@ -1,4 +1,4 @@
-import { mustCall, mustCallAtLeast } from '../common/index.mjs';
+import { mustCall, mustCallAtLeast, skip } from '../common/index.mjs';
 import * as fixtures from '../common/fixtures.mjs';
 import { describe, it, beforeEach, run } from 'node:test';
 import assert from 'node:assert';
@@ -7,6 +7,10 @@ import tmpdir from '../common/tmpdir.js';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
+
+if (!process.config.variables.node_use_amaro) {
+  skip('Requires Amaro');
+}
 
 const testFixtures = fixtures.path('test-runner', 'global-setup-teardown');
 const runnerFixture = fixtures.path('test-runner', 'test-runner-global-hooks.mjs');

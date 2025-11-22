@@ -1,8 +1,13 @@
-import { spawnPromisified } from '../common/index.mjs';
+import * as common from '../common/index.mjs';
 import * as fixtures from '../common/fixtures.mjs';
 import { spawn } from 'node:child_process';
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
+
+if (!process.config.variables.node_use_amaro) {
+  common.skip('Requires Amaro');
+}
+const { spawnPromisified } = common;
 
 describe('Module syntax detection', { concurrency: !process.env.TEST_PARALLEL }, () => {
   describe('string input', { concurrency: !process.env.TEST_PARALLEL }, () => {

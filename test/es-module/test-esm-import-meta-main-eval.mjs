@@ -1,7 +1,12 @@
-import { spawnPromisified } from '../common/index.mjs';
+import * as common from '../common/index.mjs';
 import * as fixtures from '../common/fixtures.js';
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
+
+if (!process.config.variables.node_use_amaro) {
+  common.skip('Requires Amaro');
+}
+const { spawnPromisified } = common;
 
 function wrapScriptInEvalWorker(script) {
   return `

@@ -1,4 +1,4 @@
-import '../common/index.mjs';
+import * as common from '../common/index.mjs';
 import * as fixtures from '../common/fixtures.mjs';
 import { describe, it, beforeEach } from 'node:test';
 import assert from 'node:assert';
@@ -7,6 +7,10 @@ import { spawn } from 'node:child_process';
 import tmpdir from '../common/tmpdir.js';
 import { once } from 'node:events';
 import { join } from 'node:path';
+
+if (!process.config.variables.node_use_amaro) {
+  common.skip('Requires Amaro');
+}
 
 const testFixtures = fixtures.path('test-runner');
 

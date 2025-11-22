@@ -4,6 +4,10 @@ import * as common from '../common/index.mjs';
 import * as fixtures from '../common/fixtures.mjs';
 import { spawnAndAssert, defaultTransform, ensureCwdIsProjectRoot } from '../common/assertSnapshot.js';
 
+if (!process.config.variables.node_use_amaro) {
+  common.skip('Requires Amaro');
+}
+
 if (!process.features.inspector) {
   common.skip('inspector support required');
 }

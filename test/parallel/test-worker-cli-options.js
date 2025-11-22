@@ -4,6 +4,10 @@ const common = require('../common');
 const { Worker } = require('worker_threads');
 const assert = require('assert');
 
+if (!process.config.variables.node_use_amaro) {
+  common.skip('Requires Amaro');
+}
+
 const CODE = `
 // If the --expose-internals flag does not pass to worker
 // require function will throw an error

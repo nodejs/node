@@ -1,7 +1,11 @@
-import '../common/index.mjs';
+import * as common from '../common/index.mjs';
 import * as fixtures from '../common/fixtures.mjs';
 import * as snapshot from '../common/assertSnapshot.js';
 import { describe, it } from 'node:test';
+
+if (!process.config.variables.node_use_amaro) {
+  common.skip('Requires Amaro');
+}
 
 describe('sourcemaps output', { concurrency: !process.env.TEST_PARALLEL }, () => {
   const defaultTransform = snapshot
