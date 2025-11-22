@@ -226,11 +226,9 @@ class DataQueueImpl final : public DataQueue,
   };
 
   void
-  reader_destructed(NotifyReader* reader) {
-    readers_.erase(reader);
-  }
+  reader_destructed(NotifyReader* reader) { readers_.erase(reader); }
 
-  void SetEnvironment(Environment* env) override { env_ = env;}
+  void SetEnvironment(Environment* env) override { env_ = env; }
 
   std::shared_ptr<Reader> get_reader() override;
   SET_MEMORY_INFO_NAME(DataQueue)
@@ -1198,8 +1196,7 @@ class FdEntry final : public EntryImpl {
 // ============================================================================
 
 std::shared_ptr<DataQueue> DataQueue::CreateIdempotent(
-    Environment * env,
-    std::vector<std::unique_ptr<Entry>> list) {
+    Environment * env, std::vector<std::unique_ptr<Entry>> list) {
   // Any entry is invalid for an idempotent DataQueue if any of the entries
   // are nullptr or is not idempotent.
   uint64_t size = 0;
@@ -1258,7 +1255,7 @@ DataQueue::CreateInMemoryEntryFromBackingStore(
   if (offset + length > store->ByteLength()) {
     return nullptr;
   }
-  return  std::make_unique<InMemoryEntry>(std::move(store), offset, length);
+  return std::make_unique<InMemoryEntry>(std::move(store), offset, length);
 }
 
 std::unique_ptr<DataQueue::Entry> DataQueue::CreateDataQueueEntry(
@@ -1288,7 +1285,6 @@ DataQueueFeeder::DataQueueFeeder(Environment* env, Local<Object> object)
 void DataQueueFeeder::setDataQueue(std::shared_ptr<DataQueue> queue) {
   queue->SetEnvironment(env());
   dataQueue_ = queue;
-
 
   // Allows us to be notified when data is actually read from the
   // queue so that we can limit the data hold in DataQueueFeeder
