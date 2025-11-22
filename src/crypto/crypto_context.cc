@@ -507,7 +507,11 @@ void ReadMacOSKeychainCertificates(
   CFRelease(search);
 
   if (ortn) {
-    fprintf(stderr, "ERROR: SecItemCopyMatching failed %d\n", ortn);
+    per_process::Debug(DebugCategory::CRYPTO,
+                       "Cannot read certificates from system because "
+                       "SecItemCopyMatching failed %d\n",
+                       ortn);
+    return;
   }
 
   CFIndex count = CFArrayGetCount(curr_anchors);
@@ -518,7 +522,9 @@ void ReadMacOSKeychainCertificates(
 
     CFDataRef der_data = SecCertificateCopyData(cert_ref);
     if (!der_data) {
-      fprintf(stderr, "ERROR: SecCertificateCopyData failed\n");
+      per_process::Debug(DebugCategory::CRYPTO,
+                         "Skipping read of a system certificate "
+                         "because SecCertificateCopyData failed\n");
       continue;
     }
     auto data_buffer_pointer = CFDataGetBytePtr(der_data);
@@ -526,9 +532,19 @@ void ReadMacOSKeychainCertificates(
     X509* cert =
         d2i_X509(nullptr, &data_buffer_pointer, CFDataGetLength(der_data));
     CFRelease(der_data);
+
+    if (cert == nullptr) {
+      per_process::Debug(DebugCategory::CRYPTO,
+                         "Skipping read of a system certificate "
+                         "because decoding failed\n");
+      continue;
+    }
+
     bool is_valid = IsCertificateTrustedForPolicy(cert, cert_ref);
     if (is_valid) {
       system_root_certificates_X509->emplace_back(cert);
+    } else {
+      X509_free(cert);
     }
   }
   CFRelease(curr_anchors);
@@ -638,7 +654,14 @@ void GatherCertsForLocation(std::vector<X509*>* vector,
         reinterpret_cast<const unsigned char*>(cert_from_store->pbCertEncoded);
     const size_t cert_size = cert_from_store->cbCertEncoded;
 
-    vector->emplace_back(d2i_X509(nullptr, &cert_data, cert_size));
+    X509* x509 = d2i_X509(nullptr, &cert_data, cert_size);
+    if (x509 == nullptr) {
+      per_process::Debug(DebugCategory::CRYPTO,
+                         "Skipping read of a system certificate "
+                         "because decoding failed\n");
+    } else {
+      vector->emplace_back(x509);
+    }
   }
 }
 
