@@ -1,10 +1,14 @@
-import '../common/index.mjs';
+import * as common from '../common/index.mjs';
 import { before, describe, it } from 'node:test';
 import assert from 'node:assert';
 import { spawnSync } from 'node:child_process';
 import { cp } from 'node:fs/promises';
 import tmpdir from '../common/tmpdir.js';
 import fixtures from '../common/fixtures.js';
+
+if (!process.config.variables.node_use_amaro) {
+  common.skip('Requires Amaro');
+}
 const skipIfNoInspector = {
   skip: !process.features.inspector ? 'inspector disabled' : false
 };

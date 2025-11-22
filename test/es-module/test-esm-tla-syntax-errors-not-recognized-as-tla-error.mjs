@@ -1,6 +1,11 @@
-import { spawnPromisified } from '../common/index.mjs';
+import * as common from '../common/index.mjs';
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
+
+if (!process.config.variables.node_use_amaro) {
+  common.skip('Requires Amaro');
+}
+const { spawnPromisified } = common;
 
 describe('unusual top-level await syntax errors', () => {
   const expressions = [

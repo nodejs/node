@@ -1,9 +1,13 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const { Worker } = require('worker_threads');
 const { test } = require('node:test');
 const { once } = require('events');
+
+if (!process.config.variables.node_use_amaro) {
+  common.skip('Requires Amaro');
+}
 
 const esmHelloWorld = `
     import worker from 'worker_threads';
