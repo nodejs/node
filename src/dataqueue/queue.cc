@@ -65,7 +65,7 @@ class DataQueueImpl final : public DataQueue,
   // added, the size can be cleared if any of the entries are not capable of
   // providing a size.
   DataQueueImpl(Environment* env, std::optional<uint64_t> cap = std::nullopt)
-      : idempotent_(false), 
+      : idempotent_(false),
         size_(0),
         capped_size_(cap),
         notifier_(nullptr),
