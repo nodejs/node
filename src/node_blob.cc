@@ -110,9 +110,8 @@ void BlobFromFilePath(const FunctionCallbackInfo<Value>& args) {
   std::vector<std::unique_ptr<DataQueue::Entry>> entries;
   entries.push_back(std::move(entry));
 
-  if (auto blob =
-          Blob::Create(env,
-            DataQueue::CreateIdempotent(env, std::move(entries)))) {
+  if (auto blob = Blob::Create(
+          env, DataQueue::CreateIdempotent(env, std::move(entries)))) {
     Local<Value> vals[2]{
         blob->object(),
         Uint32::NewFromUnsigned(env->isolate(), blob->length()),
@@ -364,9 +363,9 @@ void Blob::Reader::Pull(const FunctionCallbackInfo<Value>& args) {
   impl->env = env;
 
   auto next = [impl, reader](int status,
-                     const DataQueue::Vec* vecs,
-                     size_t count,
-                     bob::Done doneCb) mutable {
+                             const DataQueue::Vec* vecs,
+                             size_t count,
+                             bob::Done doneCb) mutable {
     Environment* env = impl->env;
     HandleScope handleScope(env->isolate());
     Local<Function> fn = impl->callback.Get(env->isolate());

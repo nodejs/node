@@ -208,15 +208,13 @@ class DataQueue : public MemoryRetainer {
   // of entries. All of the entries must also be idempotent otherwise
   // an empty std::unique_ptr will be returned.
   static std::shared_ptr<DataQueue> CreateIdempotent(
-      Environment* env,
-      std::vector<std::unique_ptr<Entry>> list);
+      Environment* env, std::vector<std::unique_ptr<Entry>> list);
 
   // Creates a non-idempotent DataQueue. This kind of queue can be
   // mutated and updated such that multiple reads are not guaranteed
   // to produce the same result. The entries added can be of any type.
   static std::shared_ptr<DataQueue> Create(
-      Environment* env,
-      std::optional<uint64_t> capped = std::nullopt);
+      Environment* env, std::optional<uint64_t> capped = std::nullopt);
 
   // Creates an idempotent Entry from a v8::ArrayBufferView. To help
   // ensure idempotency, the underlying ArrayBuffer is detached from
@@ -329,7 +327,7 @@ class DataQueue : public MemoryRetainer {
 };
 
 class DataQueueFeeder final : public AsyncWrap,
-  public DataQueue::BackpressureListener {
+                              public DataQueue::BackpressureListener {
  public:
   using Next = bob::Next<DataQueue::Vec>;
 
