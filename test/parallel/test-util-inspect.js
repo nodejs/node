@@ -589,6 +589,25 @@ assert.strictEqual(util.inspect(-5e-324), '-5e-324');
   }), "[ 'foo', <1 empty item>, ... 99 more items ]");
 }
 
+// `breakLength: Infinity` should force single-line output even if `depth` is
+// explicitly set to `Infinity`.
+{
+  const tree = {};
+  for (let i = 0; i < 5; i++) {
+    const branch = tree[`field${i}`] = { leaves: {} };
+    for (let j = 0; j < 5; j++) {
+      branch.leaves[`leaf${j}`] = new Array(10).fill(`value-${i}-${j}`);
+    }
+  }
+
+  const options = { breakLength: Infinity, compact: 3 };
+  const singleLine = util.inspect(tree, options);
+  assert.strictEqual(singleLine.includes('\n'), false);
+
+  const deepOptions = { ...options, depth: Infinity };
+  assert.strictEqual(util.inspect(tree, deepOptions).includes('\n'), false);
+}
+
 // Test for Array constructor in different context.
 {
   const map = new Map();
