@@ -377,6 +377,7 @@ class IdempotentDataQueueReader final
     //                              pull but it is not available yet. The
     //                              caller should not keep calling pull for
     //                              now but may check again later.
+    //                              Though we may call a notifier to signal.
     //  bob::Status::STATUS_WAIT - means that the entry has more data to
     //                             pull but it won't be provided
     //                             synchronously, instead the next() callback
@@ -438,8 +439,8 @@ class NonIdempotentDataQueueReader final
       delete;
 
   void newDataOrEnd() override {
-    if (blocked_next_) {
-      auto next = std::move(blocked_next_);
+    if (waited_next_) {
+      auto next = std::move(waited_next_);
       data_queue_->env()->SetImmediate(
           [next, dropme = shared_from_this()](Environment* env) {
             std::move(next)(
@@ -455,7 +456,7 @@ class NonIdempotentDataQueueReader final
            size_t count,
            size_t max_count_hint = bob::kMaxCountHint) override {
     std::shared_ptr<DataQueue::Reader> self = shared_from_this();
-    assert(!blocked_next_);  // Do not call us with blocked next
+    assert(!waited_next_);  // Do not call us with blocked next
 
     // If ended is true, this reader has already reached the end and cannot
     // provide any more data.
@@ -474,10 +475,18 @@ class NonIdempotentDataQueueReader final
       // status.
       if (!data_queue_->is_capped()) {
         // Do we have to call next?
-        assert(!blocked_next_);
-        next(bob::Status::STATUS_BLOCK, nullptr, 0, [](uint64_t) {});
-        blocked_next_ = std::move(next);
-        return bob::STATUS_BLOCK;
+        if (!(options & bob::OPTIONS_SYNC)) {
+          assert(!waited_next_);
+          next(bob::Status::STATUS_WAIT, nullptr, 0, [](uint64_t) {});
+          waited_next_ = std::move(next);
+          return bob::STATUS_WAIT;
+        } else {
+          std::move(next)(bob::Status::STATUS_BLOCK,
+                          nullptr,
+                          0,
+                          [](uint64_t) {});
+          return bob::STATUS_BLOCK;
+        }
       }
 
       // However, if we are capped, the status will depend on whether the size
@@ -488,9 +497,18 @@ class NonIdempotentDataQueueReader final
         // still might get more data. We just don't know exactly when that'll
         // come, so let's return a blocked status.
         if (data_queue_->size().value() < data_queue_->capped_size_.value()) {
-          next(bob::Status::STATUS_BLOCK, nullptr, 0, [](uint64_t) {});
-          blocked_next_ = std::move(next);
-          return bob::STATUS_BLOCK;
+          if (!(options & bob::OPTIONS_SYNC)) {
+            assert(!waited_next_);
+            next(bob::Status::STATUS_WAIT, nullptr, 0, [](uint64_t) {});
+            waited_next_ = std::move(next);
+            return bob::STATUS_WAIT;
+          } else {
+            std::move(next)(bob::Status::STATUS_BLOCK,
+                      nullptr,
+                      0,
+                      [](uint64_t) {});
+            return bob::STATUS_BLOCK;
+          }
         }
 
         // Otherwise, if size is equal to or greater than capped, we are done.
@@ -516,7 +534,7 @@ class NonIdempotentDataQueueReader final
     CHECK(!pull_pending_);
     pull_pending_ = true;
     int status = current_reader->Pull(
-        [this, next = std::move(next)](
+        [this, next = std::move(next), options](
             int status, const DataQueue::Vec* vecs, uint64_t count, Done done) {
           pull_pending_ = false;
 
@@ -539,10 +557,21 @@ class NonIdempotentDataQueueReader final
               if (data_queue_->is_capped()) {
                 ended_ = true;
               } else {
-                assert(!blocked_next_);
-                next(bob::Status::STATUS_BLOCK, nullptr, 0, [](uint64_t) {});
-                blocked_next_ = std::move(next);
-                return;  // we should not call with move
+                if (!(options & bob::OPTIONS_SYNC)) {
+                  assert(!waited_next_);
+                  next(bob::Status::STATUS_WAIT,
+                      nullptr,
+                      0,
+                      [](uint64_t) {});
+                  waited_next_ = std::move(next);
+                  return;
+                } else {
+                  std::move(next)(bob::Status::STATUS_BLOCK,
+                                  nullptr,
+                                  0,
+                                  [](uint64_t) {});
+                  return;
+                }
               }
             } else {
               status = bob::Status::STATUS_CONTINUE;
@@ -586,6 +615,7 @@ class NonIdempotentDataQueueReader final
     //                              pull but it is not available yet. The
     //                              caller should not keep calling pull for
     //                              now but may check again later.
+    //                              Though we may call a notifier to signal.
     //  bob::Status::STATUS_WAIT - means that the entry has more data to
     //                             pull but it won't be provided
     //                             synchronously, instead the next() callback
@@ -616,7 +646,7 @@ class NonIdempotentDataQueueReader final
   std::shared_ptr<DataQueue::Reader> current_reader_ = nullptr;
   bool ended_ = false;
   bool pull_pending_ = false;
-  Next blocked_next_;
+  Next waited_next_;
 };
 
 std::shared_ptr<DataQueue::Reader> DataQueueImpl::get_reader() {
