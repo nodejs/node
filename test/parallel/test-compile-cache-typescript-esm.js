@@ -3,14 +3,13 @@
 // This tests NODE_COMPILE_CACHE works for ESM with types.
 
 const common = require('../common');
+if (!process.config.variables.node_use_amaro) {
+  common.skip('Requires Amaro');
+}
 const { spawnSyncAndAssert } = require('../common/child_process');
 const assert = require('assert');
 const tmpdir = require('../common/tmpdir');
 const fixtures = require('../common/fixtures');
-
-if (!process.config.variables.node_use_amaro) {
-  common.skip('Requires Amaro');
-}
 
 // Check cache for .ts files that would be run as ESM.
 {

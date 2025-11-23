@@ -1,15 +1,14 @@
 'use strict';
 
 const common = require('../common');
+if (!process.config.variables.node_use_amaro) {
+  common.skip('Requires Amaro');
+}
 const fixtures = require('../common/fixtures');
 const file = fixtures.path('get-call-sites.js');
 const { getCallSites } = require('node:util');
 const { spawnSync } = require('node:child_process');
 const assert = require('node:assert');
-
-if (!process.config.variables.node_use_amaro) {
-  common.skip('Requires Amaro');
-}
 
 {
   const callSites = getCallSites();

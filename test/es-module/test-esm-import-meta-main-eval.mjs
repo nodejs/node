@@ -1,12 +1,7 @@
-import * as common from '../common/index.mjs';
+import { spawnPromisified } from '../common/index.mjs';
 import * as fixtures from '../common/fixtures.js';
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-
-if (!process.config.variables.node_use_amaro) {
-  common.skip('Requires Amaro');
-}
-const { spawnPromisified } = common;
 
 function wrapScriptInEvalWorker(script) {
   return `
@@ -38,7 +33,7 @@ const { isMain: importedModuleIsMain } = await import(
 assert.strictEqual(importedModuleIsMain, false, 'import.meta.main should evaluate false in imported module');
 `;
 
-  it('should evaluate true in evaluated script', async () => {
+  it('should evaluate true in evaluated script', { skip: !process.config.variables.node_use_amaro }, async () => {
     const result = await spawnPromisified(
       process.execPath,
       ['--input-type=module', '--eval', importMetaMainScript],
@@ -103,35 +98,39 @@ assert.strictEqual(importedModuleIsMain, false, 'import.meta.main should evaluat
     });
   });
 
-  it('should evaluate true in worker instantiated with module source by evaluated script', async () => {
-    const result = await spawnPromisified(
-      process.execPath,
-      ['--input-type=module-typescript',
-       '--disable-warning=ExperimentalWarning',
-       '--eval',
-       wrapScriptInEvalWorker(importMetaMainTSScript)],
-    );
-    assert.deepStrictEqual(result, {
-      stderr: '',
-      stdout: '',
-      code: 0,
-      signal: null,
-    });
-  });
+  it('should evaluate true in worker instantiated with module source by evaluated script',
+     { skip: !process.config.variables.node_use_amaro },
+     async () => {
+       const result = await spawnPromisified(
+         process.execPath,
+         ['--input-type=module-typescript',
+          '--disable-warning=ExperimentalWarning',
+          '--eval',
+          wrapScriptInEvalWorker(importMetaMainTSScript)],
+       );
+       assert.deepStrictEqual(result, {
+         stderr: '',
+         stdout: '',
+         code: 0,
+         signal: null,
+       });
+     });
 
-  it('should evaluate true in worker instantiated with `data:` URL by evaluated script', async () => {
-    const result = await spawnPromisified(
-      process.execPath,
-      ['--input-type=module',
-       '--input-type=module-typescript',
-       '--disable-warning=ExperimentalWarning',
-       '--eval', wrapScriptInUrlWorker(importMetaMainTSScript)],
-    );
-    assert.deepStrictEqual(result, {
-      stderr: '',
-      stdout: '',
-      code: 0,
-      signal: null,
-    });
-  });
+  it('should evaluate true in worker instantiated with `data:` URL by evaluated script',
+     { skip: !process.config.variables.node_use_amaro },
+     async () => {
+       const result = await spawnPromisified(
+         process.execPath,
+         ['--input-type=module',
+          '--input-type=module-typescript',
+          '--disable-warning=ExperimentalWarning',
+          '--eval', wrapScriptInUrlWorker(importMetaMainTSScript)],
+       );
+       assert.deepStrictEqual(result, {
+         stderr: '',
+         stdout: '',
+         code: 0,
+         signal: null,
+       });
+     });
 });

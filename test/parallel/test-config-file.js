@@ -1,22 +1,17 @@
 'use strict';
 
-const common = require('../common');
 const {
   isWindows,
   spawnPromisified,
   skipIfSQLiteMissing,
-} = common;
+} = require('../common');
+skipIfSQLiteMissing();
 const fixtures = require('../common/fixtures');
 const tmpdir = require('../common/tmpdir');
 const assert = require('node:assert');
 const { test, it, describe } = require('node:test');
 const { chmodSync, writeFileSync, constants } = require('node:fs');
 const { join } = require('node:path');
-
-if (!process.config.variables.node_use_amaro) {
-  common.skip('Requires Amaro');
-}
-skipIfSQLiteMissing();
 
 test('should handle non existing json', async () => {
   const result = await spawnPromisified(process.execPath, [
@@ -54,7 +49,7 @@ test('should handle empty object json', async () => {
   assert.strictEqual(result.code, 0);
 });
 
-test('should parse boolean flag', async () => {
+test('should parse boolean flag', { skip: !process.config.variables.node_use_amaro }, async () => {
   const result = await spawnPromisified(process.execPath, [
     '--experimental-config-file',
     fixtures.path('rc/transform-types.json'),
@@ -89,7 +84,7 @@ test('should throw an error when a flag is declared twice', async () => {
 });
 
 
-test('should override env-file', async () => {
+test('should override env-file', { skip: !process.config.variables.node_use_amaro }, async () => {
   const result = await spawnPromisified(process.execPath, [
     '--no-warnings',
     '--experimental-config-file',
@@ -102,7 +97,7 @@ test('should override env-file', async () => {
   assert.strictEqual(result.code, 0);
 });
 
-test('should not override NODE_OPTIONS', async () => {
+test('should not override NODE_OPTIONS', { skip: !process.config.variables.node_use_amaro }, async () => {
   const result = await spawnPromisified(process.execPath, [
     '--no-warnings',
     '--experimental-config-file',
@@ -119,7 +114,7 @@ test('should not override NODE_OPTIONS', async () => {
   assert.strictEqual(result.code, 1);
 });
 
-test('should not override CLI flags', async () => {
+test('should not override CLI flags', { skip: !process.config.variables.node_use_amaro }, async () => {
   const result = await spawnPromisified(process.execPath, [
     '--no-warnings',
     '--no-experimental-transform-types',

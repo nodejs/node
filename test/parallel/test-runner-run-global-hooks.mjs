@@ -166,29 +166,31 @@ describe('require(\'node:test\').run with global hooks', { concurrency: false },
         assert.strictEqual(content, 'Setup part, Teardown part');
       });
 
-      it('should run TypeScript globalSetup and globalTeardown functions', async () => {
-        const setupFlagPath = tmpdir.resolve('setup-executed-ts.tmp');
-        const teardownFlagPath = tmpdir.resolve('teardown-executed-ts.tmp');
+      it('should run TypeScript globalSetup and globalTeardown functions',
+         { skip: !process.config.variables.node_use_amaro },
+         async () => {
+           const setupFlagPath = tmpdir.resolve('setup-executed-ts.tmp');
+           const teardownFlagPath = tmpdir.resolve('teardown-executed-ts.tmp');
 
-        const { results } = await runTestWithGlobalHooks({
-          globalSetupFile: 'basic-setup-teardown.ts',
-          runnerEnv: {
-            SETUP_FLAG_PATH: setupFlagPath,
-            TEARDOWN_FLAG_PATH: teardownFlagPath
-          },
-          isolation
-        });
+           const { results } = await runTestWithGlobalHooks({
+             globalSetupFile: 'basic-setup-teardown.ts',
+             runnerEnv: {
+               SETUP_FLAG_PATH: setupFlagPath,
+               TEARDOWN_FLAG_PATH: teardownFlagPath
+             },
+             isolation
+           });
 
-        assert.strictEqual(results.passed, 2);
-        assert.strictEqual(results.failed, 0);
-        // After all tests complete, the teardown should have run
-        assert.ok(fs.existsSync(teardownFlagPath), 'Teardown flag file should exist');
-        const content = fs.readFileSync(teardownFlagPath, 'utf8');
-        assert.strictEqual(content, 'Teardown was executed');
+           assert.strictEqual(results.passed, 2);
+           assert.strictEqual(results.failed, 0);
+           // After all tests complete, the teardown should have run
+           assert.ok(fs.existsSync(teardownFlagPath), 'Teardown flag file should exist');
+           const content = fs.readFileSync(teardownFlagPath, 'utf8');
+           assert.strictEqual(content, 'Teardown was executed');
 
-        // Setup flag should have been removed by teardown
-        assert.ok(!fs.existsSync(setupFlagPath), 'Setup flag file should have been removed');
-      });
+           // Setup flag should have been removed by teardown
+           assert.ok(!fs.existsSync(setupFlagPath), 'Setup flag file should have been removed');
+         });
 
       it('should run ESM globalSetup and globalTeardown functions', async () => {
         const setupFlagPath = tmpdir.resolve('setup-executed-esm.tmp');

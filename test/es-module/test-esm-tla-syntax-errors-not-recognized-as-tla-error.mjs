@@ -1,11 +1,6 @@
-import * as common from '../common/index.mjs';
+import { spawnPromisified } from '../common/index.mjs';
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
-
-if (!process.config.variables.node_use_amaro) {
-  common.skip('Requires Amaro');
-}
-const { spawnPromisified } = common;
 
 describe('unusual top-level await syntax errors', () => {
   const expressions = [
@@ -54,30 +49,32 @@ describe('unusual top-level await syntax errors', () => {
     }
   });
 
-  it('should throw the error for unrelated syntax errors', async () => {
-    const expression = 'foo bar';
-    const wrapperExpressions = [
-      [`function callSyntaxError() {}; callSyntaxError(${expression});`, /missing \) after argument list/],
-      [`if (${expression}) {}`, /Unexpected identifier/],
-      [`{ key: ${expression} }`, /Unexpected identifier/],
-      [`[${expression}]`, /Unexpected identifier/],
-      [`(${expression})`, /Unexpected identifier/],
-      [`const ${expression} = 1;`, /Missing initializer in const declaration/],
-      [`console.log('PI: ' Math.PI);`, /missing \) after argument list/],
-      [`callAwait(await "" "");`, /missing \) after argument list/],
-    ];
+  it('should throw the error for unrelated syntax errors',
+     { skip: !process.config.variables.node_use_amaro },
+     async () => {
+       const expression = 'foo bar';
+       const wrapperExpressions = [
+         [`function callSyntaxError() {}; callSyntaxError(${expression});`, /missing \) after argument list/],
+         [`if (${expression}) {}`, /Unexpected identifier/],
+         [`{ key: ${expression} }`, /Unexpected identifier/],
+         [`[${expression}]`, /Unexpected identifier/],
+         [`(${expression})`, /Unexpected identifier/],
+         [`const ${expression} = 1;`, /Missing initializer in const declaration/],
+         [`console.log('PI: ' Math.PI);`, /missing \) after argument list/],
+         [`callAwait(await "" "");`, /missing \) after argument list/],
+       ];
 
-    for (const [wrapperExpression, error] of wrapperExpressions) {
-      const { code, signal, stdout, stderr } = await spawnPromisified(process.execPath, [
-        '--eval',
-        `
+       for (const [wrapperExpression, error] of wrapperExpressions) {
+         const { code, signal, stdout, stderr } = await spawnPromisified(process.execPath, [
+           '--eval',
+           `
           ${wrapperExpression}
           `,
-      ]);
-      assert.match(stderr, error);
-      assert.strictEqual(stdout, '');
-      assert.strictEqual(code, 1);
-      assert.strictEqual(signal, null);
-    }
-  });
+         ]);
+         assert.match(stderr, error);
+         assert.strictEqual(stdout, '');
+         assert.strictEqual(code, 1);
+         assert.strictEqual(signal, null);
+       }
+     });
 });

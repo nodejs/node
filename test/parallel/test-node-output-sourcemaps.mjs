@@ -1,11 +1,7 @@
-import * as common from '../common/index.mjs';
+import '../common/index.mjs';
 import * as fixtures from '../common/fixtures.mjs';
 import * as snapshot from '../common/assertSnapshot.js';
 import { describe, it } from 'node:test';
-
-if (!process.config.variables.node_use_amaro) {
-  common.skip('Requires Amaro');
-}
 
 describe('sourcemaps output', { concurrency: !process.env.TEST_PARALLEL }, () => {
   const defaultTransform = snapshot
@@ -39,7 +35,8 @@ describe('sourcemaps output', { concurrency: !process.env.TEST_PARALLEL }, () =>
     { name: 'source-map/output/source_map_throw_set_immediate.js' },
   ];
   for (const { name, transform } of tests) {
-    it(name, async () => {
+    const skip = name.endsWith('.ts') && !process.config.variables.node_use_amaro;
+    it(name, { skip }, async () => {
       await snapshot.spawnAndAssert(fixtures.path(name), transform ?? defaultTransform);
     });
   }

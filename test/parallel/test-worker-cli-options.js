@@ -1,12 +1,11 @@
 // Flags: --expose-internals --expose-gc
 'use strict';
 const common = require('../common');
-const { Worker } = require('worker_threads');
-const assert = require('assert');
-
 if (!process.config.variables.node_use_amaro) {
   common.skip('Requires Amaro');
 }
+const { Worker } = require('worker_threads');
+const assert = require('assert');
 
 const CODE = `
 // If the --expose-internals flag does not pass to worker

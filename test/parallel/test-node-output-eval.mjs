@@ -1,12 +1,11 @@
 import * as common from '../common/index.mjs';
+if (!process.config.variables.node_use_amaro) {
+  common.skip('Requires Amaro');
+}
 import * as fixtures from '../common/fixtures.mjs';
 import * as snapshot from '../common/assertSnapshot.js';
 import { basename } from 'node:path';
 import { describe, it } from 'node:test';
-
-if (!process.config.variables.node_use_amaro) {
-  common.skip('Requires Amaro');
-}
 
 describe('eval output', { concurrency: true }, () => {
   function normalize(str) {
