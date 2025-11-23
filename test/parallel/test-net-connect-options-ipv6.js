@@ -32,11 +32,11 @@ const net = require('net');
 const hostAddrIPv6 = '::1';
 const HOSTNAME = 'dummy';
 
-const server = net.createServer({ allowHalfOpen: true }, (socket) => {
+const server = net.createServer({ allowHalfOpen: true }, common.mustCall((socket) => {
   socket.resume();
   socket.on('end', common.mustCall());
   socket.end();
-});
+}));
 
 function tryConnect() {
   const connectOpt = {
@@ -51,17 +51,17 @@ function tryConnect() {
     })
   };
   // No `mustCall`, since test could skip, and it's the only path to `close`.
-  const client = net.connect(connectOpt, () => {
+  const client = net.connect(connectOpt, common.mustCall(() => {
     client.resume();
-    client.on('end', () => {
+    client.on('end', common.mustCall(() => {
       // Wait for next uv tick and make sure the socket stream is writable.
-      setTimeout(function() {
+      setTimeout(common.mustCall(() => {
         assert(client.writable);
         client.end();
-      }, 10);
-    });
+      }), 10);
+    }));
     client.on('close', () => server.close());
-  });
+  }));
 }
 
 server.listen(0, hostAddrIPv6, tryConnect);
