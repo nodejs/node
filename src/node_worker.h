@@ -84,6 +84,7 @@ class Worker : public AsyncWrap {
   static void StopCpuProfile(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void StartHeapProfile(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void StopHeapProfile(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetMemoryUsage(const v8::FunctionCallbackInfo<v8::Value>& args);
 
  private:
   bool CreateEnvMessagePort(Environment* env);

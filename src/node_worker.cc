@@ -271,6 +271,105 @@ class WorkerThreadData {
   friend class Worker;
 };
 
+class WorkerMemoryUsageTaker : public AsyncWrap {
+ public:
+  WorkerMemoryUsageTaker(Environment* env, Local<Object> obj)
+      : AsyncWrap(env, obj, AsyncWrap::PROVIDER_WORKERMEMORYUSAGE) {}
+
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(WorkerMemoryUsageTaker)
+  SET_SELF_SIZE(WorkerMemoryUsageTaker)
+};
+
+void Worker::GetMemoryUsage(const FunctionCallbackInfo<Value>& args) {
+  Worker* w;
+  ASSIGN_OR_RETURN_UNWRAP(&w, args.This());
+
+  Environment* env = w->env();
+  AsyncHooks::DefaultTriggerAsyncIdScope trigger_id_scope(w);
+  Local<Object> wrap;
+  if (!env->worker_memory_usage_taker_template()
+           ->NewInstance(env->context())
+           .ToLocal(&wrap)) {
+    return;
+  }
+
+  std::unique_ptr<BaseObjectPtr<WorkerMemoryUsageTaker>> taker =
+      std::make_unique<BaseObjectPtr<WorkerMemoryUsageTaker>>(
+          MakeDetachedBaseObject<WorkerMemoryUsageTaker>(env, wrap));
+
+  bool scheduled = w->RequestInterrupt([taker = std::move(taker),
+                                        env](Environment* worker_env) mutable {
+    auto stats = std::make_unique<uv_rusage_t>();
+    int rss_err = uv_getrusage_thread(stats.get());
+    HeapStatistics heap_stats;
+    worker_env->isolate()->GetHeapStatistics(&heap_stats);
+    NodeArrayBufferAllocator* allocator =
+        worker_env->isolate_data()->node_allocator();
+
+    env->SetImmediateThreadsafe(
+        [taker = std::move(taker),
+         rss_err,
+         stats = std::move(stats),
+         heap_stats,
+         allocator](Environment* env) mutable {
+          Isolate* isolate = env->isolate();
+          HandleScope handle_scope(isolate);
+          Context::Scope context_scope(env->context());
+          AsyncHooks::DefaultTriggerAsyncIdScope trigger_id_scope(taker->get());
+
+          auto tmpl = env->memory_usage_template();
+          if (tmpl.IsEmpty()) {
+            static constexpr std::string_view names[] = {
+                "rss",
+                "heapTotal",
+                "heapUsed",
+                "external",
+                "arrayBuffers",
+            };
+            tmpl = DictionaryTemplate::New(isolate, names);
+            env->set_memory_usage_template(tmpl);
+          }
+
+          MaybeLocal<Value> values[] = {
+              Number::New(isolate, rss_err ? 0 : stats->ru_maxrss * 1024),
+              Number::New(isolate, heap_stats.total_heap_size()),
+              Number::New(isolate, heap_stats.used_heap_size()),
+              Number::New(isolate, heap_stats.external_memory()),
+              Number::New(isolate, allocator == nullptr
+                                       ? 0
+                                       : allocator->total_mem_usage()),
+          };
+
+          Local<Value> argv[] = {
+              Null(isolate),
+              Undefined(isolate),
+          };
+
+          if (rss_err) {
+            argv[0] = UVException(isolate,
+                                  rss_err,
+                                  "uv_getrusage_thread",
+                                  nullptr,
+                                  nullptr,
+                                  nullptr);
+          } else if (!NewDictionaryInstanceNullProto(
+                           env->context(), tmpl, values)
+                           .ToLocal(&argv[1])) {
+            return;
+          }
+
+          taker->get()->MakeCallback(
+              env->ondone_string(), arraysize(argv), argv);
+        },
+        CallbackFlags::kUnrefed);
+  });
+
+  if (scheduled) {
+    args.GetReturnValue().Set(wrap);
+  }
+}
+
 size_t Worker::NearHeapLimit(void* data, size_t current_heap_limit,
                              size_t initial_heap_limit) {
   Worker* worker = static_cast<Worker*>(data);
@@ -1489,6 +1588,7 @@ void CreateWorkerPerIsolateProperties(IsolateData* isolate_data,
     SetProtoMethod(isolate, w, "loopIdleTime", Worker::LoopIdleTime);
     SetProtoMethod(isolate, w, "loopStartTime", Worker::LoopStartTime);
     SetProtoMethod(isolate, w, "getHeapStatistics", Worker::GetHeapStatistics);
+    SetProtoMethod(isolate, w, "getMemoryUsage", Worker::GetMemoryUsage);
     SetProtoMethod(isolate, w, "cpuUsage", Worker::CpuUsage);
     SetProtoMethod(isolate, w, "startCpuProfile", Worker::StartCpuProfile);
     SetProtoMethod(isolate, w, "stopCpuProfile", Worker::StopCpuProfile);
@@ -1537,6 +1637,20 @@ void CreateWorkerPerIsolateProperties(IsolateData* isolate_data,
         FIXED_ONE_BYTE_STRING(isolate, "WorkerCpuUsageTaker");
     wst->SetClassName(wst_string);
     isolate_data->set_worker_cpu_usage_taker_template(wst->InstanceTemplate());
+  }
+
+  {
+    Local<FunctionTemplate> wst = NewFunctionTemplate(isolate, nullptr);
+
+    wst->InstanceTemplate()->SetInternalFieldCount(
+        WorkerMemoryUsageTaker::kInternalFieldCount);
+    wst->Inherit(AsyncWrap::GetConstructorTemplate(isolate_data));
+
+    Local<String> wst_string =
+        FIXED_ONE_BYTE_STRING(isolate, "WorkerMemoryUsageTaker");
+    wst->SetClassName(wst_string);
+    isolate_data->set_worker_memory_usage_taker_template(
+        wst->InstanceTemplate());
   }
 
   {
@@ -1643,6 +1757,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(Worker::LoopIdleTime);
   registry->Register(Worker::LoopStartTime);
   registry->Register(Worker::GetHeapStatistics);
+  registry->Register(Worker::GetMemoryUsage);
   registry->Register(Worker::CpuUsage);
   registry->Register(Worker::StartCpuProfile);
   registry->Register(Worker::StopCpuProfile);
