@@ -32,7 +32,7 @@ prepare_collaborator_nomination() {
 * Other participation in the wider Node.js community
 -->
 EOF
-  $EDITOR "$BODY_FILE"
+  ${EDITOR:-nano} "$BODY_FILE"
   BODY="$(cat "$BODY_FILE")"
   rm "$BODY_FILE"
 
@@ -42,6 +42,7 @@ EOF
   }
 
   echo "Getting repo ID and discussion category" >&2
+  # shellcheck disable=SC2016
   REPO_ID_AND_DISCUSSION_CATEGORY_ID="$(gh api graphql -f query='
   query($owner:String!,$repo:String!){
     repository(owner:$owner,name:$repo){
@@ -65,6 +66,7 @@ EOF
     return 1
   }
 
+  # shellcheck disable=SC2016
   gh api graphql -f query='
     mutation($repo: ID!,$cat: ID!,$title: String!,$body: String!){
         createDiscussion(input: {
