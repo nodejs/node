@@ -98,3 +98,6 @@ assert.strictEqual(
   '../../../../baz'
 );
 assert.strictEqual(path.posix.normalize('foo/bar\\baz'), 'foo/bar\\baz');
+
+// Missing test for empty string 
+assert.strictEqual(path.posix.normalize(''), '.');
