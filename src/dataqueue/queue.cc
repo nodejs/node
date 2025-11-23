@@ -481,10 +481,8 @@ class NonIdempotentDataQueueReader final
           waited_next_ = std::move(next);
           return bob::STATUS_WAIT;
         } else {
-          std::move(next)(bob::Status::STATUS_BLOCK,
-                          nullptr,
-                          0,
-                          [](uint64_t) {});
+          std::move(next)(
+              bob::Status::STATUS_BLOCK, nullptr, 0, [](uint64_t) {});
           return bob::STATUS_BLOCK;
         }
       }
@@ -503,10 +501,8 @@ class NonIdempotentDataQueueReader final
             waited_next_ = std::move(next);
             return bob::STATUS_WAIT;
           } else {
-            std::move(next)(bob::Status::STATUS_BLOCK,
-                      nullptr,
-                      0,
-                      [](uint64_t) {});
+            std::move(next)(
+                bob::Status::STATUS_BLOCK, nullptr, 0, [](uint64_t) {});
             return bob::STATUS_BLOCK;
           }
         }
@@ -559,17 +555,12 @@ class NonIdempotentDataQueueReader final
               } else {
                 if (!(options & bob::OPTIONS_SYNC)) {
                   assert(!waited_next_);
-                  next(bob::Status::STATUS_WAIT,
-                      nullptr,
-                      0,
-                      [](uint64_t) {});
+                  next(bob::Status::STATUS_WAIT, nullptr, 0, [](uint64_t) {});
                   waited_next_ = std::move(next);
                   return;
                 } else {
-                  std::move(next)(bob::Status::STATUS_BLOCK,
-                                  nullptr,
-                                  0,
-                                  [](uint64_t) {});
+                  std::move(next)(
+                      bob::Status::STATUS_BLOCK, nullptr, 0, [](uint64_t) {});
                   return;
                 }
               }
