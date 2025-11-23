@@ -4,6 +4,7 @@
 #include "node_external_reference.h"
 #include "node_i18n.h"
 #include "node_process-inl.h"
+#include "util.h"
 
 #include <time.h>  // tzset(), _tzset()
 #include <optional>
@@ -16,6 +17,7 @@ using v8::DontDelete;
 using v8::DontEnum;
 using v8::FunctionTemplate;
 using v8::HandleScope;
+using v8::IndexedPropertyHandlerConfiguration;
 using v8::Integer;
 using v8::Intercepted;
 using v8::Isolate;
@@ -570,6 +572,43 @@ static Intercepted EnvDefiner(Local<Name> property,
   }
 }
 
+static Intercepted EnvGetterIndexed(uint32_t index,
+                                    const PropertyCallbackInfo<Value>& info) {
+  Environment* env = Environment::GetCurrent(info);
+  Local<Name> name = Uint32ToString(env->context(), index);
+  return EnvGetter(name, info);
+}
+
+static Intercepted EnvSetterIndexed(uint32_t index,
+                                    Local<Value> value,
+                                    const PropertyCallbackInfo<void>& info) {
+  Environment* env = Environment::GetCurrent(info);
+  Local<Name> name = Uint32ToString(env->context(), index);
+  return EnvSetter(name, value, info);
+}
+
+static Intercepted EnvQueryIndexed(uint32_t index,
+                                   const PropertyCallbackInfo<Integer>& info) {
+  Environment* env = Environment::GetCurrent(info);
+  Local<Name> name = Uint32ToString(env->context(), index);
+  return EnvQuery(name, info);
+}
+
+static Intercepted EnvDeleterIndexed(
+    uint32_t index, const PropertyCallbackInfo<Boolean>& info) {
+  Environment* env = Environment::GetCurrent(info);
+  Local<Name> name = Uint32ToString(env->context(), index);
+  return EnvDeleter(name, info);
+}
+
+static Intercepted EnvDefinerIndexed(uint32_t index,
+                                     const PropertyDescriptor& desc,
+                                     const PropertyCallbackInfo<void>& info) {
+  Environment* env = Environment::GetCurrent(info);
+  Local<Name> name = Uint32ToString(env->context(), index);
+  return EnvDefiner(name, desc, info);
+}
+
 void CreateEnvProxyTemplate(IsolateData* isolate_data) {
   Isolate* isolate = isolate_data->isolate();
   HandleScope scope(isolate);
@@ -588,6 +627,16 @@ void CreateEnvProxyTemplate(IsolateData* isolate_data) {
       nullptr,
       Local<Value>(),
       PropertyHandlerFlags::kHasNoSideEffect));
+  env_proxy_template->SetHandler(IndexedPropertyHandlerConfiguration(
+      EnvGetterIndexed,
+      EnvSetterIndexed,
+      EnvQueryIndexed,
+      EnvDeleterIndexed,
+      nullptr,
+      EnvDefinerIndexed,
+      nullptr,
+      Local<Value>(),
+      PropertyHandlerFlags::kHasNoSideEffect));
   isolate_data->set_env_proxy_template(env_proxy_template);
   isolate_data->set_env_proxy_ctor_template(env_proxy_ctor_template);
 }
@@ -599,6 +648,11 @@ void RegisterEnvVarExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(EnvDeleter);
   registry->Register(EnvEnumerator);
   registry->Register(EnvDefiner);
+  registry->Register(EnvGetterIndexed);
+  registry->Register(EnvSetterIndexed);
+  registry->Register(EnvQueryIndexed);
+  registry->Register(EnvDeleterIndexed);
+  registry->Register(EnvDefinerIndexed);
 }
 }  // namespace node
 
