@@ -33,7 +33,7 @@ const { isMain: importedModuleIsMain } = await import(
 assert.strictEqual(importedModuleIsMain, false, 'import.meta.main should evaluate false in imported module');
 `;
 
-  it('should evaluate true in evaluated script', { skip: !process.config.variables.node_use_amaro }, async () => {
+  it('should evaluate true in evaluated script', async () => {
     const result = await spawnPromisified(
       process.execPath,
       ['--input-type=module', '--eval', importMetaMainScript],
@@ -85,7 +85,7 @@ const { isMain: importedModuleIsMain } = await import(
 assert.strictEqual(importedModuleIsMain, false, 'import.meta.main should evaluate false in imported module');
 `;
 
-  it('should evaluate true in evaluated script', async () => {
+  it('should evaluate true in evaluated script', { skip: !process.config.variables.node_use_amaro }, async () => {
     const result = await spawnPromisified(
       process.execPath,
       ['--input-type=module-typescript', '--disable-warning=ExperimentalWarning', '--eval', importMetaMainTSScript],
