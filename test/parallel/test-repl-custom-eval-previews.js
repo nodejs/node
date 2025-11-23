@@ -45,7 +45,7 @@ describe('with previews', () => {
     );
     const lines = getSingleCommandLines(output);
     assert.match(lines.command, /^'Hello custom' \+ ' eval World!'/);
-    assert.match(lines.prompt, new RegExp(`${testingReplPrompt}$`));
+    assert.match(lines.prompt, new RegExp(`${RegExp.escape(testingReplPrompt)}$`));
     assert.strictEqual(lines.result, "'Hello custom eval World!'");
     assert.strictEqual(lines.preview, undefined);
   });
@@ -62,7 +62,7 @@ describe('with previews', () => {
     );
     const lines = getSingleCommandLines(output);
     assert.match(lines.command, /^'Hello custom' \+ ' eval World!'/);
-    assert.match(lines.prompt, new RegExp(`${testingReplPrompt}$`));
+    assert.match(lines.prompt, new RegExp(`${RegExp.escape(testingReplPrompt)}$`));
     assert.strictEqual(lines.result, "'Hello custom eval World!'");
     assert.match(lines.preview, /'Hello custom eval World!'/);
   });
