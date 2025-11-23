@@ -23,11 +23,10 @@ session.post('Runtime.evaluate', {
   expression: 'a',
   throwOnSideEffect: true,
   contextId: 2 // context's id
-}, (error, res) => {
-  assert.ifError(error);
+}, common.mustSucceed((res) => {
   const { exception } = res.exceptionDetails;
   assert.strictEqual(exception.className, 'EvalError');
   assert.match(exception.description, /Possible side-effect/);
 
   assert(context);  // Keep 'context' alive and make linter happy.
-});
+}));

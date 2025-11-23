@@ -59,23 +59,23 @@ test(function(parent, port) {
     server: 'localhost',
     port: port,
     path: '/',
-  }).on('response', function(res) {
+  }).on('response', common.mustCall((res) => {
     let s = '';
     res.on('data', function(c) {
       s += c.toString();
     });
-    res.on('end', function() {
+    res.on('end', common.mustCall(() => {
       // Kill the worker before we start doing asserts.
       // it's really annoying when tests leave orphans!
       parent.kill();
-      parent.on('exit', function() {
+      parent.on('exit', common.mustCall(() => {
         assert.strictEqual(s, 'hello from worker\n');
         assert.strictEqual(res.statusCode, 200);
         console.log('ok');
         ok = true;
-      });
-    });
-  });
+      }));
+    }));
+  }));
 });
 
 function test(cb) {

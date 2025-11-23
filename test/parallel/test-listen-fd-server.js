@@ -49,21 +49,21 @@ test(function(child, port) {
     server: 'localhost',
     port: port,
     path: '/',
-  }).on('response', function(res) {
+  }).on('response', common.mustCall((res) => {
     let s = '';
     res.on('data', function(c) {
       s += c.toString();
     });
-    res.on('end', function() {
+    res.on('end', common.mustCall(() => {
       child.kill();
-      child.on('exit', function() {
+      child.on('exit', common.mustCall(() => {
         assert.strictEqual(s, 'hello from child\n');
         assert.strictEqual(res.statusCode, 200);
         console.log('ok');
         ok = true;
-      });
-    });
-  });
+      }));
+    }));
+  }));
 });
 
 function child() {

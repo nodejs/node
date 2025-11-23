@@ -46,11 +46,11 @@ function unauthorized() {
   const req = https.request({
     port: server.address().port,
     rejectUnauthorized: false
-  }, function(res) {
+  }, common.mustCall((res) => {
     assert(!req.socket.authorized);
     res.resume();
     rejectUnauthorized();
-  });
+  }));
   req.on('error', function(err) {
     throw err;
   });
@@ -75,11 +75,11 @@ function authorized() {
     ca: [fixtures.readKey('rsa_cert.crt')]
   };
   options.agent = new https.Agent(options);
-  const req = https.request(options, function(res) {
+  const req = https.request(options, common.mustCall((res) => {
     res.resume();
     assert(req.socket.authorized);
     server.close();
-  });
+  }));
   req.on('error', common.mustNotCall());
   req.end();
 }

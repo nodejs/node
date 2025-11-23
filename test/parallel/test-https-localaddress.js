@@ -39,7 +39,7 @@ const options = {
   cert: fixtures.readKey('agent1-cert.pem')
 };
 
-const server = https.createServer(options, function(req, res) {
+const server = https.createServer(options, common.mustCallAtLeast((req, res) => {
   console.log(`Connect from: ${req.connection.remoteAddress}`);
   assert.strictEqual(req.connection.remoteAddress, '127.0.0.2');
 
@@ -48,7 +48,7 @@ const server = https.createServer(options, function(req, res) {
     res.end(`You are from: ${req.connection.remoteAddress}`);
   });
   req.resume();
-});
+}));
 
 server.listen(0, '127.0.0.1', function() {
   const options = {

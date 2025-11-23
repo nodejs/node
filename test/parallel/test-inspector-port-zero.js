@@ -1,5 +1,5 @@
 'use strict';
-const { mustCall, skipIfInspectorDisabled } = require('../common');
+const { mustCall, skipIfInspectorDisabled, mustCallAtLeast } = require('../common');
 
 skipIfInspectorDisabled();
 
@@ -15,24 +15,24 @@ function test(arg, port = '') {
   let stderr = '';
   proc.stdout.on('data', (data) => stdout += data);
   proc.stderr.on('data', (data) => stderr += data);
-  proc.stdout.on('close', (hadErr) => assert(!hadErr));
-  proc.stderr.on('close', (hadErr) => assert(!hadErr));
-  proc.stderr.on('data', () => {
+  proc.stdout.on('close', mustCall((hadErr) => assert(!hadErr)));
+  proc.stderr.on('close', mustCall((hadErr) => assert(!hadErr)));
+  proc.stderr.on('data', mustCallAtLeast(() => {
     if (!stderr.includes('\n')) return;
     assert.match(stderr, /Debugger listening on (.+)/);
     port = new URL(RegExp.$1).port;
     assert(+port > 0);
-  });
+  }, 0));
   if (/inspect-brk/.test(arg)) {
     proc.stderr.on('data', () => {
       if (stderr.includes('\n') && !proc.killed) proc.kill();
     });
   } else {
-    let onclose = () => {
-      onclose = () => assert.strictEqual(port, stdout.trim());
-    };
-    proc.stdout.on('close', mustCall(() => onclose()));
-    proc.stderr.on('close', mustCall(() => onclose()));
+    let onclose = mustCall(() => {
+      onclose = mustCall(() => assert.strictEqual(port, stdout.trim()));
+    });
+    proc.stdout.on('close', () => onclose());
+    proc.stderr.on('close', () => onclose());
     proc.on('exit', mustCall((exitCode, signal) => assert.strictEqual(
       exitCode,
       0,

@@ -40,7 +40,7 @@ const setResponseHeaders = (res) => {
   res.setHeader('Content-Type', 'text/plain; charset=utf-8');
 };
 
-const handleRequest = (req, res) => {
+const handleRequest = common.mustCallAtLeast((req, res) => {
   const path = req.url;
   switch (path) {
     case '/hello-world': {
@@ -49,17 +49,17 @@ const handleRequest = (req, res) => {
       req.on('data', (chunk) => {
         chunks.push(chunk);
       });
-      req.on('end', () => {
+      req.on('end', common.mustCall(() => {
         assert.strictEqual(Buffer.concat(chunks).toString(), 'foobar');
         res.writeHead(200);
         res.end('hello world\n');
-      });
+      }));
       break;
     }
     default:
-      assert(false, `Unexpected path: ${path}`);
+      assert.fail(`Unexpected path: ${path}`);
   }
-};
+});
 
 const httpServer = http.createServer(handleRequest);
 

@@ -57,7 +57,7 @@ server.listen(0, common.mustCall(() => {
       port: server.address().port,
       headers: headers,
       rejectUnauthorized: false
-    }, (res) => {
+    }, common.mustCall((res) => {
       assert.strictEqual(Object.keys(res.headers).length, expected);
       res.on('end', () => {
         if (++responses < maxAndExpected.length) {
@@ -67,7 +67,7 @@ server.listen(0, common.mustCall(() => {
         }
       });
       res.resume();
-    });
+    }));
     req.maxHeadersCount = max;
     req.end();
   }, 3);

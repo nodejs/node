@@ -42,13 +42,13 @@ const options = {
   rejectUnauthorized: false
 };
 
-const server = https.createServer(options, function(req, res) {
+const server = https.createServer(options, common.mustCallAtLeast((req, res) => {
   assert.strictEqual(req.socket.authorized, false); // not a client cert
   assert.strictEqual(req.socket.authorizationError,
                      'DEPTH_ZERO_SELF_SIGNED_CERT');
   res.writeHead(200);
   res.end('OK');
-});
+}));
 
 server.listen(0, options.host, common.mustCall(function() {
   options.port = this.address().port;

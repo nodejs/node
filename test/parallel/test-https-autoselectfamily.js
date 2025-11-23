@@ -25,7 +25,7 @@ const options = {
 // Test that happy eyeballs algorithm is properly implemented when using HTTP.
 
 function _lookup(resolver, hostname, options, cb) {
-  resolver.resolve(hostname, 'ANY', (err, replies) => {
+  resolver.resolve(hostname, 'ANY', common.mustCall((err, replies) => {
     assert.notStrictEqual(options.family, 4);
 
     if (err) {
@@ -41,7 +41,7 @@ function _lookup(resolver, hostname, options, cb) {
     }
 
     return cb(null, hosts[0].address, hosts[0].family);
-  });
+  }));
 }
 
 function createDnsServer(ipv6Addr, ipv4Addr, cb) {
@@ -89,7 +89,7 @@ function createDnsServer(ipv6Addr, ipv4Addr, cb) {
           autoSelectFamily: true,
           servername: 'example.org',
         },
-        (res) => {
+        common.mustCall((res) => {
           assert.strictEqual(res.statusCode, 200);
           res.setEncoding('utf-8');
 
@@ -104,7 +104,7 @@ function createDnsServer(ipv6Addr, ipv4Addr, cb) {
             ipv4Server.close();
             dnsServer.close();
           }));
-        }
+        })
       ).end();
     }));
   }));
@@ -113,11 +113,7 @@ function createDnsServer(ipv6Addr, ipv4Addr, cb) {
 // Test that IPV4 is NOT reached if IPV6 is reachable
 if (common.hasIPv6) {
   createDnsServer('::1', '127.0.0.1', common.mustCall(function({ dnsServer, lookup }) {
-    const ipv4Server = createServer(options, common.mustNotCall((req, res) => {
-      assert.strictEqual(req.socket.servername, 'example.org');
-      res.writeHead(200, { Connection: 'close' });
-      res.end('response-ipv4');
-    }));
+    const ipv4Server = createServer(options, common.mustNotCall());
 
     const ipv6Server = createServer(options, common.mustCall((req, res) => {
       assert.strictEqual(req.socket.servername, 'example.org');
@@ -137,7 +133,7 @@ if (common.hasIPv6) {
             autoSelectFamily: true,
             servername: 'example.org',
           },
-          (res) => {
+          common.mustCall((res) => {
             assert.strictEqual(res.statusCode, 200);
             res.setEncoding('utf-8');
 
@@ -153,7 +149,7 @@ if (common.hasIPv6) {
               ipv6Server.close();
               dnsServer.close();
             }));
-          }
+          })
         ).end();
       }));
     }));
