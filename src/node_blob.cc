@@ -378,10 +378,7 @@ void Blob::Reader::Pull(const FunctionCallbackInfo<Value>& args) {
     }
 
     if (count > 0) {
-      impl->vecs.insert(
-        impl->vecs.end(),
-        vecs,
-        vecs + count);
+      impl->vecs.insert(impl->vecs.end(), vecs, vecs + count);
       impl->dones.push_back(std::move(doneCb));
     }
     if (impl->innext) {
@@ -403,10 +400,8 @@ void Blob::Reader::Pull(const FunctionCallbackInfo<Value>& args) {
             impl->dones.push_back(std::move(doneCb));
           }
         };
-        status = impl->reader->inner_->Pull(std::move(snext),
-                                            node::bob::OPTIONS_SYNC,
-                                            nullptr,
-                                            0);
+        status = impl->reader->inner_->Pull(
+          std::move(snext), node::bob::OPTIONS_SYNC, nullptr, 0);
       }
     }
     // otherwise we commit and call
@@ -429,9 +424,7 @@ void Blob::Reader::Pull(const FunctionCallbackInfo<Value>& args) {
       // Since we copied the data buffers, signal that we're done with them.
       std::for_each(impl->dones.begin(),
                     impl->dones.end(),
-                    [](bob::Done& done) {
-        std::move(done)(0);
-      });
+                    [](bob::Done& done) { std::move(done)(0); });
       Local<Value> argv[2] = {Uint32::New(env->isolate(), bob::STATUS_CONTINUE),
                               ArrayBuffer::New(env->isolate(), store)};
       impl->reader->MakeCallback(fn, arraysize(argv), argv);
