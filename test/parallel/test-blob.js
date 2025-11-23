@@ -243,30 +243,33 @@ assert.throws(() => new Blob({}), {
   const b = new Blob(Array(10).fill('hello'));
   const reader = b.stream().getReader();
   const chunks = [];
+  let byteLength = 0;
   while (true) {
     const res = await reader.read();
     if (res.done) break;
-    assert.strictEqual(res.value.byteLength, 5);
+    byteLength += res.value.byteLength;
+    assert.ok(res.value.byteLength >= 5);
     chunks.push(res.value);
   }
-  assert.strictEqual(chunks.length, 10);
+  assert.strictEqual(byteLength, 50);
 })().then(common.mustCall());
 
 (async () => {
   const b = new Blob(Array(10).fill('hello'));
   const reader = b.stream().getReader();
   const chunks = [];
+  let byteLength = 0;
   while (true) {
     const res = await reader.read();
-    if (chunks.length === 5) {
+    byteLength += res.value.byteLength;
+    if (byteLength >= 50) {
       reader.cancel('boom');
       break;
     }
     if (res.done) break;
-    assert.strictEqual(res.value.byteLength, 5);
+    assert.ok(res.value.byteLength >= 5);
     chunks.push(res.value);
   }
-  assert.strictEqual(chunks.length, 5);
   reader.closed.then(common.mustCall());
 })().then(common.mustCall());
 
@@ -334,11 +337,13 @@ assert.throws(() => new Blob({}), {
   const reader = stream.getReader();
   assert.strictEqual(stream[kState].controller.desiredSize, 0);
   const { value, done } = await reader.read();
-  assert.strictEqual(value.byteLength, 5);
-  assert(!done);
+  assert.ok(value.byteLength >= 5);
+  assert.ok(value.byteLength <= 50);
+  assert(!done || value.byteLength === 50);
   setTimeout(common.mustCall(() => {
     // The blob stream is now a byte stream hence after the first read,
     // it should pull in the next 'hello' which is 5 bytes hence -5.
+    // but recently, we coalesce if possible adjacent memory
     assert.strictEqual(stream[kState].controller.desiredSize, 0);
   }), 0);
 })().then(common.mustCall());
@@ -363,7 +368,8 @@ assert.throws(() => new Blob({}), {
   const reader = stream.getReader({ mode: 'byob' });
   assert.strictEqual(stream[kState].controller.desiredSize, 0);
   const { value, done } = await reader.read(new Uint8Array(100));
-  assert.strictEqual(value.byteLength, 5);
+  assert.ok(value.byteLength >= 5);
+  assert.ok(value.byteLength <= 50);
   assert(!done);
   setTimeout(common.mustCall(() => {
     assert.strictEqual(stream[kState].controller.desiredSize, 0);
@@ -379,7 +385,8 @@ assert.throws(() => new Blob({}), {
   assert.strictEqual(value.byteLength, 2);
   assert(!done);
   setTimeout(common.mustCall(() => {
-    assert.strictEqual(stream[kState].controller.desiredSize, -3);
+    assert.ok(stream[kState].controller.desiredSize <= -3,
+              'desiredSize must be smaller or equal than -3');
   }), 0);
 })().then(common.mustCall());
 
