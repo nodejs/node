@@ -3476,7 +3476,7 @@ const w = new Writable({
 
 <!-- YAML
 changes:
-  - version: v26.0.0
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/60820
     description: Runtime deprecation.
   - version:
