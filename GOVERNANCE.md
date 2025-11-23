@@ -269,6 +269,12 @@ Example of list of contributions:
   organization
 * Other participation in the wider Node.js community
 
+You can use the ad-hoc script to use `gh` to open the private discussion:
+
+```sh
+./tools/actions/nominate.sh GITHUB_ID
+```
+
 The nomination passes if no collaborators oppose it (as described in the
 following section) after one week. In the case of an objection, the TSC is
 responsible for working with the individuals involved and finding a resolution.
