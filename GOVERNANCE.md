@@ -271,7 +271,7 @@ Example of list of contributions:
 
 You can use the ad-hoc script to use `gh` to open the private discussion:
 
-```sh
+```bash
 ./tools/actions/nominate.sh GITHUB_ID
 ```
 
