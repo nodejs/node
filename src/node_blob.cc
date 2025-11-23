@@ -401,7 +401,7 @@ void Blob::Reader::Pull(const FunctionCallbackInfo<Value>& args) {
           }
         };
         status = impl->reader->inner_->Pull(
-          std::move(snext), node::bob::OPTIONS_SYNC, nullptr, 0);
+            std::move(snext), node::bob::OPTIONS_SYNC, nullptr, 0);
       }
     }
     // otherwise we commit and call
