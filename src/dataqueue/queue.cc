@@ -329,7 +329,10 @@ class IdempotentDataQueueReader final
     int status = current_reader->Pull(
         [this, next = std::move(next)](
             int status, const DataQueue::Vec* vecs, uint64_t count, Done done) {
-          pull_pending_ = false;
+          if (status != bob::Status::STATUS_WAIT) {
+            // do not set for an async call
+            pull_pending_ = false;
+          }
           // In each of these cases, we do not expect that the source will
           // actually have provided any actual data.
           CHECK_IMPLIES(status == bob::Status::STATUS_BLOCK ||
@@ -365,8 +368,11 @@ class IdempotentDataQueueReader final
 
     // The pull was handled synchronously. If we're not ended, we want to
     // make sure status returned is CONTINUE.
+    // But if the source blocks, we should let the caller know,
+    // otherwise, we may provoke a busy loop
     if (!pull_pending_) {
-      if (!ended_) return bob::Status::STATUS_CONTINUE;
+      if (!ended_ && status != bob::Status::STATUS_BLOCK)
+        return bob::Status::STATUS_CONTINUE;
       // For all other status, we just fall through and return it straightaway.
     }
 
@@ -1147,6 +1153,13 @@ class FdEntry final : public EntryImpl {
         DrainAndClose();
         std::move(next)(UV_EINVAL, nullptr, 0, [](uint64_t) {});
         return UV_EINVAL;
+      }
+      // Note: we do not support sync reading, so if it is requested
+      // we need to bail out and say we are blocked
+      if ((options & bob::OPTIONS_SYNC)) {
+        std::move(next)(
+              bob::Status::STATUS_BLOCK, nullptr, 0, [](uint64_t) {});
+        return bob::STATUS_BLOCK;
       }
 
       pending_pulls_.emplace_back(std::move(next), shared_from_this());
