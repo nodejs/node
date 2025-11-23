@@ -3,7 +3,7 @@
 
 const common = require('../common');
 const { Readable, finished } = require('stream');
-const { strictEqual } = require('assert');
+const assert = require('assert');
 const AsyncContextFrame = require('internal/async_context_frame');
 const internalAsyncHooks = require('internal/async_hooks');
 
@@ -12,10 +12,11 @@ const internalAsyncHooks = require('internal/async_hooks');
 const readable = new Readable();
 
 finished(readable, common.mustCall(() => {
-  strictEqual(internalAsyncHooks.getHookArrays()[0].length === 0,
-              true, 'Should not have active user async hook');
-  strictEqual(AsyncContextFrame.current() || internalAsyncHooks.getHookArrays()[0].length > 0,
-              false, 'Default callback path should be used');
+  assert.strictEqual(internalAsyncHooks.getHookArrays()[0].length === 0, true);
+  assert.strictEqual(
+    AsyncContextFrame.current() || internalAsyncHooks.getHookArrays()[0].length > 0,
+    false,
+  );
 }));
 
 readable.destroy();

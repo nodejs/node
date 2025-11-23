@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 
 const stream = require('stream');
@@ -108,10 +108,10 @@ function pipeLittle() {
   console.error('pipe a little');
   const w = new Writable();
   let written = 0;
-  w.on('finish', () => {
+  w.on('finish', common.mustCall(() => {
     assert.strictEqual(written, 200);
     setImmediate(read1234);
-  });
+  }));
   w._write = function(chunk, encoding, cb) {
     written += chunk.length;
     if (written >= 200) {
@@ -160,11 +160,11 @@ function pipe() {
     written += chunk.length;
     cb();
   };
-  w.on('finish', () => {
+  w.on('finish', common.mustCall(() => {
     console.error('written', written, totalPushed);
     assert.strictEqual(written, expectEndingData);
     assert.strictEqual(totalPushed, expectTotalData);
     console.log('ok');
-  });
+  }));
   r.pipe(w);
 }

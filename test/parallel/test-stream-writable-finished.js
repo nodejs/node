@@ -14,11 +14,11 @@ const assert = require('assert');
 {
   const writable = new Writable();
 
-  writable._write = (chunk, encoding, cb) => {
+  writable._write = common.mustCall((chunk, encoding, cb) => {
     // The state finished should start in false.
     assert.strictEqual(writable.writableFinished, false);
     cb();
-  };
+  });
 
   writable.on('finish', common.mustCall(() => {
     assert.strictEqual(writable.writableFinished, true);

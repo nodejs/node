@@ -49,7 +49,7 @@ assert.strictEqual(r.readableFlowing, false);
 //
 // We use setImmediate here to give the stream enough time to emit all the
 // events it's about to emit.
-setImmediate(() => {
+setImmediate(common.mustCall(() => {
 
   // Only the _read, push, readable calls have happened. No data must be
   // emitted yet.
@@ -71,7 +71,7 @@ setImmediate(() => {
   // Using setImmediate again to give the stream enough time to emit all the
   // events it wants to emit.
   assert.strictEqual(r.read(), null);
-  setImmediate(() => {
+  setImmediate(common.mustCall(() => {
 
     // There's a new 'readable' event after the data has been pushed.
     // The 'end' event will be emitted only after a 'read()'.
@@ -100,5 +100,5 @@ setImmediate(() => {
         ['_read:a', 'push:a', 'readable', 'data:a',
          '_read:null', 'push:null', 'readable', 'end']);
     });
-  });
-});
+  }));
+}));

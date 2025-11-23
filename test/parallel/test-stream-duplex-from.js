@@ -136,13 +136,13 @@ const { Blob } = require('buffer');
       }
       yield rest;
     }),
-    async function * (source) { // eslint-disable-line require-yield
+    common.mustCall(async function * (source) { // eslint-disable-line require-yield
       let ret = '';
       for await (const x of source) {
         ret += x;
       }
       assert.strictEqual(ret, 'abcdefghi');
-    },
+    }),
     common.mustSucceed(),
   );
 }

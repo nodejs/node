@@ -108,9 +108,9 @@ function testDestroy(factory) {
     s.on('close', common.mustCall(() => {
       assert.strictEqual(constructed, true);
     }));
-    s.destroy(null, () => {
+    s.destroy(null, common.mustCall(() => {
       assert.strictEqual(constructed, true);
-    });
+    }));
   }
 
   {
@@ -142,10 +142,10 @@ function testDestroy(factory) {
     s.on('error', common.mustCall((err) => {
       assert.strictEqual(err.message, 'kaboom');
     }));
-    s.destroy(new Error('kaboom'), (err) => {
+    s.destroy(new Error('kaboom'), common.mustCall((err) => {
       assert.strictEqual(err.message, 'kaboom');
       assert.strictEqual(constructed, true);
-    });
+    }));
   }
 
   {

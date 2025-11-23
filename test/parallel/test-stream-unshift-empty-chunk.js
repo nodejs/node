@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 
 // This test verifies that stream.unshift(Buffer.alloc(0)) or
@@ -74,7 +74,7 @@ const expect =
     'xxxxxxxxxx',
     'yyyyy' ];
 
-r.on('end', () => {
+r.on('end', common.mustCall(() => {
   assert.deepStrictEqual(seen, expect);
   console.log('ok');
-});
+}));

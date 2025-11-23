@@ -45,13 +45,13 @@ function runTest(highWaterMark, objectMode, produce) {
 
   // Make sure pause is only emitted once.
   let pausing = false;
-  r.on('pause', () => {
+  r.on('pause', common.mustCallAtLeast(() => {
     assert.strictEqual(pausing, false);
     pausing = true;
     process.nextTick(() => {
       pausing = false;
     });
-  });
+  }));
 
   let flowing;
   let chunks = 10;

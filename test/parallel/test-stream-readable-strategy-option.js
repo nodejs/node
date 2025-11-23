@@ -2,7 +2,6 @@
 const common = require('../common');
 const { Readable } = require('stream');
 const assert = require('assert');
-const { strictEqual } = require('assert');
 
 {
   // Strategy 2
@@ -53,13 +52,13 @@ const { strictEqual } = require('assert');
 
   const stringStream = new ReadableStream(
     {
-      start(controller) {
+      start: common.mustCall((controller) => {
         // Check if the strategy is being assigned on the init of the ReadableStream
-        strictEqual(controller.desiredSize, desireSizeExpected);
+        assert.strictEqual(controller.desiredSize, desireSizeExpected);
         controller.enqueue('a');
         controller.enqueue('b');
         controller.close();
-      },
+      }),
     },
     new CountQueuingStrategy({ highWaterMark: desireSizeExpected })
   );
@@ -69,7 +68,7 @@ const { strictEqual } = require('assert');
   reader.read().then(common.mustCall());
   reader.read().then(common.mustCall());
   reader.read().then(({ value, done }) => {
-    strictEqual(value, undefined);
-    strictEqual(done, true);
+    assert.strictEqual(value, undefined);
+    assert.strictEqual(done, true);
   });
 }

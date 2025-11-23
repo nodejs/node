@@ -24,10 +24,10 @@ pipeline(a, b, common.mustCall((error) => {
 
   assert(a.listenerCount('error') > 0);
   assert.strictEqual(b.listenerCount('error'), 0);
-  setTimeout(() => {
+  setTimeout(common.mustCall(() => {
     assert.strictEqual(b.listenerCount('error'), 0);
     b.destroy(new Error('no way'));
-  }, 100);
+  }), 100);
 }));
 
 // Async generators
@@ -47,10 +47,10 @@ const d = pipeline(
 
     assert(c.listenerCount('error') > 0);
     assert.strictEqual(d.listenerCount('error'), 0);
-    setTimeout(() => {
+    setTimeout(common.mustCall(() => {
       assert.strictEqual(b.listenerCount('error'), 0);
       d.destroy(new Error('no way'));
-    }, 100);
+    }), 100);
   })
 );
 
@@ -69,8 +69,8 @@ pipeline(e, f, common.mustCall((error) => {
 
   assert(e.listenerCount('error') > 0);
   assert(f.listenerCount('error') > 0);
-  setTimeout(() => {
+  setTimeout(common.mustCall(() => {
     assert(f.listenerCount('error') > 0);
     f.destroy(new Error('no way'));
-  }, 100);
+  }), 100);
 }));
