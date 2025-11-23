@@ -304,7 +304,7 @@ function InstanceTest(x, func) {
     const answer = addon.doInstanceOf(x, func);
     assert.strictEqual(correct_answers[correct_answer_index], answer);
   } catch (e) {
-    assert.ok(/prototype/.test(e));
+    assert.match(`${e}`, /prototype/);
     assert.strictEqual(correct_answers[correct_answer_index], except);
   }
   correct_answer_index++;

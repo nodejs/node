@@ -42,7 +42,7 @@ function runBenchmark(name, env) {
 
     for (let testIdx = 1; testIdx < splitTests.length - 1; testIdx++) {
       const lines = splitTests[testIdx].split('\n');
-      assert.ok(/.+/.test(lines[0]));
+      assert.match(lines[0], /.+/);
 
       if (!lines[1].includes('group="')) {
         assert.strictEqual(lines.length, 2, `benchmark file not running exactly one configuration in test: ${stdout}`);

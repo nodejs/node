@@ -62,7 +62,10 @@ describe('Mock Timers Date Test Suite', () => {
     const returned = Date();
     // Matches the format: 'Mon Jan 01 1970 00:00:00'
     // We don't care about the date, just the format
-    assert.ok(/\w{3}\s\w{3}\s\d{1,2}\s\d{2,4}\s\d{1,2}:\d{2}:\d{2}/.test(returned));
+    assert.match(
+      returned,
+      /\w{3}\s\w{3}\s\d{1,2}\s\d{2,4}\s\d{1,2}:\d{2}:\d{2}/,
+    );
   });
 
   it('should return the date with different argument calls', (t) => {
