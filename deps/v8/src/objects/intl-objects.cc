@@ -2445,7 +2445,7 @@ std::map<std::string, std::string> LookupAndValidateUnicodeExtensions(
   if (U_FAILURE(status)) return extensions;
 
   if (!keywords) return extensions;
-  char value[ULOC_FULLNAME_CAPACITY];
+  char value[ULOC_FULLNAME_CAPACITY + 1];
 
   int32_t length;
   status = U_ZERO_ERROR;
@@ -2459,7 +2459,8 @@ std::map<std::string, std::string> LookupAndValidateUnicodeExtensions(
       continue;
     }
 
-    icu_locale->getKeywordValue(keyword, value, ULOC_FULLNAME_CAPACITY, status);
+    const int32_t value_len = icu_locale->getKeywordValue(
+        keyword, value, ULOC_FULLNAME_CAPACITY, status);
 
     // Ignore failures in ICU and skip to the next keyword.
     //
@@ -2468,6 +2469,9 @@ std::map<std::string, std::string> LookupAndValidateUnicodeExtensions(
       status = U_ZERO_ERROR;
       continue;
     }
+    // Ensure the `value` is null-terminated even when the `status` is
+    // `U_STRING_NOT_TERMINATED_WARNING`.
+    value[value_len] = '\0';
 
     const char* bcp47_key = uloc_toUnicodeLocaleKey(keyword);
 

@@ -2497,7 +2497,8 @@ void SetForNonWrapper(Tagged<DispatchTable> dispatch_table, int index,
   } else {
 #if V8_ENABLE_DRUMBRAKE
     // Ignore call_target, not used in jitless mode.
-    WriteField<int>(offset + kFunctionIndexBias, function_index);
+    dispatch_table->template WriteField<int>(
+        offset + DispatchTable::kFunctionIndexBias, function_index);
 #endif  // V8_ENABLE_DRUMBRAKE
   }
   dispatch_table->WriteProtectedPointerField(
@@ -2578,7 +2579,8 @@ void SetForWrapper(
   } else {
 #if V8_ENABLE_DRUMBRAKE
     // Ignore call_target, not used in jitless mode.
-    WriteField<int>(offset + kFunctionIndexBias, function_index);
+    dispatch_table->template WriteField<int>(
+        offset + DispatchTable::kFunctionIndexBias, function_index);
 #endif  // V8_ENABLE_DRUMBRAKE
   }
   if constexpr (requires { DispatchTable::kSigBias; }) {
