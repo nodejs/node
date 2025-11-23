@@ -12,7 +12,7 @@ const cliMd = path.join(rootDir, 'doc', 'api', 'cli.md');
 const cliText = fs.readFileSync(cliMd, { encoding: 'utf8' });
 
 const parseSection = (text, startMarker, endMarker) => {
-  const regExp = new RegExp(`${startMarker}\r?\n([^]*)\r?\n${endMarker}`);
+  const regExp = new RegExp(`${RegExp.escape(startMarker)}\r?\n([^]*)\r?\n${RegExp.escape(endMarker)}`);
   const match = text.match(regExp);
   assert(match,
          `Unable to locate text between '${startMarker}' and '${endMarker}'.`);

@@ -296,7 +296,7 @@ oans248kpal88CGqsN2so/wZKxVnpiXlPHMdiNL7hRSUqlHkUi07FrP2Htg8kjI=
       'OCSP - URI': ['http://ocsp.nodejs.org/'],
       'CA Issuers - URI': ['http://ca.nodejs.org/ca.cert']
     }),
-    modulusPattern: new RegExp(`^${modulusOSSL}$`, 'i'),
+    modulusPattern: new RegExp(`^${RegExp.escape(modulusOSSL)}$`, 'i'),
     bits: 2048,
     exponent: '0x10001',
     valid_from: 'Sep  3 21:40:37 2022 GMT',
