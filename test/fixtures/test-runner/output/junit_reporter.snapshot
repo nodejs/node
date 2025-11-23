@@ -101,8 +101,8 @@
 }
 		</failure>
 	</testcase>
-	<testcase name="async assertion fail" time="*" classname="test" file="*" failure="Expected values to be strictly equal:true !== false">
-		<failure type="testCodeFailure" message="Expected values to be strictly equal:true !== false">
+	<testcase name="async assertion fail" time="*" classname="test" file="*" failure="Expected values to be strictly equal:&#10;&#10;true !== false&#10;">
+		<failure type="testCodeFailure" message="Expected values to be strictly equal:&#10;&#10;true !== false">
 [Error [ERR_TEST_FAILURE]: Expected values to be strictly equal:
 
 true !== false
@@ -316,8 +316,8 @@ Error [ERR_TEST_FAILURE]: thrown from callback async throw
 [Error [ERR_TEST_FAILURE]: customized] { code: 'ERR_TEST_FAILURE', failureType: 'testCodeFailure', cause: customized }
 		</failure>
 	</testcase>
-	<testcase name="custom inspect symbol that throws fail" time="*" classname="test" file="*" failure="{  foo: 1,  Symbol(nodejs.util.inspect.custom): [Function: [nodejs.util.inspect.custom]]}">
-		<failure type="testCodeFailure" message="{  foo: 1,  Symbol(nodejs.util.inspect.custom): [Function: [nodejs.util.inspect.custom]]}">
+	<testcase name="custom inspect symbol that throws fail" time="*" classname="test" file="*" failure="{&#10;  foo: 1,&#10;  Symbol(nodejs.util.inspect.custom): [Function: [nodejs.util.inspect.custom]]&#10;}">
+		<failure type="testCodeFailure" message="{&#10;  foo: 1,&#10;  Symbol(nodejs.util.inspect.custom): [Function: [nodejs.util.inspect.custom]]&#10;}">
 [Error [ERR_TEST_FAILURE]: {
   foo: 1,
   Symbol(nodejs.util.inspect.custom): [Function: [nodejs.util.inspect.custom]]
@@ -413,8 +413,8 @@ Error [ERR_TEST_FAILURE]: bar
 }
 		</failure>
 	</testcase>
-	<testcase name="assertion errors display actual and expected properly" time="*" classname="test" file="*" failure="Expected values to be loosely deep-equal:{  bar: 1,  baz: {    date: 1970-01-01T00:00:00.000Z,    null: null,    number: 1,    string: 'Hello',    undefined: undefined  },  boo: [    1  ],  foo: 1}should loosely deep-equal{  baz: {    date: 1970-01-01T00:00:00.000Z,    null: null,    number: 1,    string: 'Hello',    undefined: undefined  },  boo: [    1  ],  circular: &lt;ref *1> {    bar: 2,    c: [Circular *1]  }}">
-		<failure type="testCodeFailure" message="Expected values to be loosely deep-equal:{  bar: 1,  baz: {    date: 1970-01-01T00:00:00.000Z,    null: null,    number: 1,    string: 'Hello',    undefined: undefined  },  boo: [    1  ],  foo: 1}should loosely deep-equal{  baz: {    date: 1970-01-01T00:00:00.000Z,    null: null,    number: 1,    string: 'Hello',    undefined: undefined  },  boo: [    1  ],  circular: &lt;ref *1> {    bar: 2,    c: [Circular *1]  }}">
+	<testcase name="assertion errors display actual and expected properly" time="*" classname="test" file="*" failure="Expected values to be loosely deep-equal:&#10;&#10;{&#10;  bar: 1,&#10;  baz: {&#10;    date: 1970-01-01T00:00:00.000Z,&#10;    null: null,&#10;    number: 1,&#10;    string: 'Hello',&#10;    undefined: undefined&#10;  },&#10;  boo: [&#10;    1&#10;  ],&#10;  foo: 1&#10;}&#10;&#10;should loosely deep-equal&#10;&#10;{&#10;  baz: {&#10;    date: 1970-01-01T00:00:00.000Z,&#10;    null: null,&#10;    number: 1,&#10;    string: 'Hello',&#10;    undefined: undefined&#10;  },&#10;  boo: [&#10;    1&#10;  ],&#10;  circular: &lt;ref *1> {&#10;    bar: 2,&#10;    c: [Circular *1]&#10;  }&#10;}">
+		<failure type="testCodeFailure" message="Expected values to be loosely deep-equal:&#10;&#10;{&#10;  bar: 1,&#10;  baz: {&#10;    date: 1970-01-01T00:00:00.000Z,&#10;    null: null,&#10;    number: 1,&#10;    string: 'Hello',&#10;    undefined: undefined&#10;  },&#10;  boo: [&#10;    1&#10;  ],&#10;  foo: 1&#10;}&#10;&#10;should loosely deep-equal&#10;&#10;{&#10;  baz: {&#10;    date: 1970-01-01T00:00:00.000Z,&#10;    null: null,&#10;    number: 1,&#10;    string: 'Hello',&#10;    undefined: undefined&#10;  },&#10;  boo: [&#10;    1&#10;  ],&#10;  circular: &lt;ref *1> {&#10;    bar: 2,&#10;    c: [Circular *1]&#10;  }&#10;}">
 [Error [ERR_TEST_FAILURE]: Expected values to be loosely deep-equal:
 
 {
