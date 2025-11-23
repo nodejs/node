@@ -165,7 +165,7 @@ function onSession(session, next) {
         .setEncoding('utf8')
         .on('data', (chunk) => text += chunk)
         .on('end', common.mustCall(() => {
-          assert.ok(/Missing ALPN Protocol, expected `h2` to be available/.test(text));
+          assert.match(text, /Missing ALPN Protocol, expected `h2` to be available/);
           cleanup();
         }));
     }

@@ -16,13 +16,17 @@ function validate(result) {
 
 function check(worker) {
   [
-    -1,
-    1.1,
     NaN,
     undefined,
+    null,
+  ].forEach((value) => {
+    worker.cpuUsage(value);
+  });
+  [
+    -1,
+    1.1,
     {},
     [],
-    null,
     function() {},
     Symbol(),
     true,
@@ -30,11 +34,9 @@ function check(worker) {
     { user: -1, system: 1 },
     { user: 1, system: -1 },
   ].forEach((value) => {
-    try {
+    assert.throws(() => {
       worker.cpuUsage(value);
-    } catch (e) {
-      assert.ok(/ERR_OUT_OF_RANGE|ERR_INVALID_ARG_TYPE/i.test(e.code));
-    }
+    }, /ERR_OUT_OF_RANGE|ERR_INVALID_ARG_TYPE/i);
   });
 }
 
