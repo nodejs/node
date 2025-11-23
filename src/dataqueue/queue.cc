@@ -1157,8 +1157,7 @@ class FdEntry final : public EntryImpl {
       // Note: we do not support sync reading, so if it is requested
       // we need to bail out and say we are blocked
       if ((options & bob::OPTIONS_SYNC)) {
-        std::move(next)(
-              bob::Status::STATUS_BLOCK, nullptr, 0, [](uint64_t) {});
+        std::move(next)(bob::Status::STATUS_BLOCK, nullptr, 0, [](uint64_t) {});
         return bob::STATUS_BLOCK;
       }
 
