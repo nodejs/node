@@ -9,7 +9,6 @@ const dgram = require('dgram');
   -1,
   1.1,
   NaN,
-  undefined,
   {},
   [],
   null,
@@ -18,11 +17,9 @@ const dgram = require('dgram');
   true,
   Infinity,
 ].forEach((maxTimeout) => {
-  try {
+  assert.throws(() => {
     new dns.Resolver({ maxTimeout });
-  } catch (e) {
-    assert.ok(/ERR_OUT_OF_RANGE|ERR_INVALID_ARG_TYPE/i.test(e.code));
-  }
+  }, /ERR_OUT_OF_RANGE|ERR_INVALID_ARG_TYPE/i);
 });
 
 const server = dgram.createSocket('udp4');
