@@ -609,6 +609,11 @@ TEST(DataQueue, DataQueueEntry) {
   // Our original data queue should have a use count of 2.
   CHECK_EQ(data_queue.use_count(), 2);
 
+  CHECK_EQ(data_queue2->is_capped(), false);
+  data_queue2->cap();  // The data queue needs to be capped, as data
+  // may be added later otherwise
+  CHECK_EQ(data_queue2->is_capped(), true);
+
   std::shared_ptr<DataQueue::Reader> reader = data_queue2->get_reader();
 
   bool pullIsPending = true;
