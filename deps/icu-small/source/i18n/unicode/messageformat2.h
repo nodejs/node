@@ -51,7 +51,7 @@ namespace message2 {
      * @internal ICU 75 technology preview
      * @deprecated This API is for technology preview only.
      */
-    class U_I18N_API MessageFormatter : public UObject {
+    class U_I18N_API_CLASS MessageFormatter : public UObject {
         // Note: This class does not currently inherit from the existing
         // `Format` class.
     public:
@@ -62,14 +62,14 @@ namespace message2 {
          * @internal ICU 75 technology preview
          * @deprecated This API is for technology preview only.
          */
-        MessageFormatter& operator=(MessageFormatter&&) noexcept;
+        U_I18N_API MessageFormatter& operator=(MessageFormatter&&) noexcept;
         /**
          * Destructor.
          *
          * @internal ICU 75 technology preview
          * @deprecated This API is for technology preview only.
          */
-        virtual ~MessageFormatter();
+        U_I18N_API virtual ~MessageFormatter();
 
         /**
          * Formats the message to a string, using the data model that was previously set or parsed,
@@ -85,7 +85,7 @@ namespace message2 {
          * @internal ICU 75 technology preview
          * @deprecated This API is for technology preview only.
          */
-        UnicodeString formatToString(const MessageArguments& arguments, UErrorCode &status);
+        U_I18N_API UnicodeString formatToString(const MessageArguments& arguments, UErrorCode& status);
 
         /**
          * Not yet implemented; formats the message to a `FormattedMessage` object,
@@ -102,7 +102,7 @@ namespace message2 {
          * @internal ICU 75 technology preview
          * @deprecated This API is for technology preview only.
          */
-        FormattedMessage format(const MessageArguments& arguments, UErrorCode &status) const {
+        U_I18N_API FormattedMessage format(const MessageArguments& arguments, UErrorCode& status) const {
             (void) arguments;
             if (U_SUCCESS(status)) {
                 status = U_UNSUPPORTED_ERROR;
@@ -118,7 +118,7 @@ namespace message2 {
          * @internal ICU 75 technology preview
          * @deprecated This API is for technology preview only.
          */
-        const Locale& getLocale() const { return locale; }
+        U_I18N_API const Locale& getLocale() const { return locale; }
 
         /**
          * Serializes the data model as a string in MessageFormat 2.0 syntax.
@@ -129,7 +129,7 @@ namespace message2 {
          * @internal ICU 75 technology preview
          * @deprecated This API is for technology preview only.
          */
-        UnicodeString getPattern() const;
+        U_I18N_API UnicodeString getPattern() const;
 
         /**
          * Accesses the data model referred to by this
@@ -140,7 +140,7 @@ namespace message2 {
          * @internal ICU 75 technology preview
          * @deprecated This API is for technology preview only.
          */
-        const MFDataModel& getDataModel() const;
+        U_I18N_API const MFDataModel& getDataModel() const;
 
         /**
          * Used in conjunction with the
@@ -173,7 +173,7 @@ namespace message2 {
          *
          * Not copyable or movable.
          */
-        class U_I18N_API Builder : public UObject {
+        class U_I18N_API_CLASS Builder : public UObject {
         private:
             friend class MessageFormatter;
 
@@ -208,7 +208,7 @@ namespace message2 {
              * @internal ICU 75 technology preview
              * @deprecated This API is for technology preview only.
              */
-            Builder& setLocale(const Locale& locale);
+            U_I18N_API Builder& setLocale(const Locale& locale);
             /**
              * Sets the pattern (contents of the message) and parses it
              * into a data model. If a data model was
@@ -224,7 +224,9 @@ namespace message2 {
              * @internal ICU 75 technology preview
              * @deprecated This API is for technology preview only.
              */
-            Builder& setPattern(const UnicodeString& pattern, UParseError& parseError, UErrorCode& status);
+            U_I18N_API Builder& setPattern(const UnicodeString& pattern,
+                                           UParseError& parseError,
+                                           UErrorCode& status);
             /**
              * Sets a custom function registry.
              *
@@ -238,7 +240,7 @@ namespace message2 {
              * @internal ICU 75 technology preview
              * @deprecated This API is for technology preview only.
              */
-            Builder& setFunctionRegistry(const MFFunctionRegistry& functionRegistry);
+            U_I18N_API Builder& setFunctionRegistry(const MFFunctionRegistry& functionRegistry);
             /**
              * Sets a data model. If a pattern was previously set, it is removed.
              *
@@ -248,7 +250,7 @@ namespace message2 {
              * @internal ICU 75 technology preview
              * @deprecated This API is for technology preview only.
              */
-            Builder& setDataModel(MFDataModel&& dataModel);
+            U_I18N_API Builder& setDataModel(MFDataModel&& dataModel);
             /**
              * Set the error handling behavior for this formatter.
              *
@@ -278,7 +280,7 @@ namespace message2 {
              * @internal ICU 76 technology preview
              * @deprecated This API is for technology preview only.
              */
-            Builder& setErrorHandlingBehavior(UMFErrorHandlingBehavior type);
+            U_I18N_API Builder& setErrorHandlingBehavior(UMFErrorHandlingBehavior type);
             /**
              * Constructs a new immutable MessageFormatter using the pattern or data model
              * that was previously set, and the locale (if it was previously set)
@@ -293,7 +295,7 @@ namespace message2 {
              * @internal ICU 75 technology preview
              * @deprecated This API is for technology preview only.
              */
-            MessageFormatter build(UErrorCode& status) const;
+            U_I18N_API MessageFormatter build(UErrorCode& status) const;
             /**
              * Default constructor.
              * Returns a Builder with the default locale and with no
@@ -305,14 +307,14 @@ namespace message2 {
              * @internal ICU 75 technology preview
              * @deprecated This API is for technology preview only.
              */
-            Builder(UErrorCode& status);
+            U_I18N_API Builder(UErrorCode& status);
             /**
              * Destructor.
              *
              * @internal ICU 75 technology preview
              * @deprecated This API is for technology preview only.
              */
-            virtual ~Builder();
+            U_I18N_API virtual ~Builder();
         }; // class MessageFormatter::Builder
 
         // TODO: Shouldn't be public; only used for testing
@@ -324,7 +326,7 @@ namespace message2 {
          * @internal ICU 75 technology preview
          * @deprecated This API is for technology preview only.
          */
-        const UnicodeString& getNormalizedPattern() const { return normalizedInput; }
+        U_I18N_API const UnicodeString& getNormalizedPattern() const { return normalizedInput; }
 
     private:
         friend class Builder;
@@ -355,9 +357,7 @@ namespace message2 {
 
         // Formatting methods
 
-        // Used for normalizing variable names and keys for comparison
-        UnicodeString normalizeNFC(const UnicodeString&) const;
-        [[nodiscard]] FormattedPlaceholder formatLiteral(const data_model::Literal&) const;
+        [[nodiscard]] FormattedPlaceholder formatLiteral(const UnicodeString&, const data_model::Literal&) const;
         void formatPattern(MessageContext&, const Environment&, const data_model::Pattern&, UErrorCode&, UnicodeString&) const;
         // Evaluates a function call
         // Dispatches on argument type
@@ -371,13 +371,21 @@ namespace message2 {
                                                      MessageContext& context,
                                                      UErrorCode& status) const;
         // Formats an expression that appears in a pattern or as the definition of a local variable
-        [[nodiscard]] InternalValue* formatExpression(const Environment&,
-                                                     const data_model::Expression&,
-                                                     MessageContext&,
-                                                     UErrorCode&) const;
+        [[nodiscard]] InternalValue* formatExpression(const UnicodeString&,
+                                                      const Environment&,
+                                                      const data_model::Expression&,
+                                                      MessageContext&,
+                                                      UErrorCode&) const;
         [[nodiscard]] FunctionOptions resolveOptions(const Environment& env, const OptionMap&, MessageContext&, UErrorCode&) const;
-        [[nodiscard]] InternalValue* formatOperand(const Environment&, const data_model::Operand&, MessageContext&, UErrorCode&) const;
-        [[nodiscard]] FormattedPlaceholder evalArgument(const data_model::VariableName&, MessageContext&, UErrorCode&) const;
+        [[nodiscard]] InternalValue* formatOperand(const UnicodeString&,
+                                                   const Environment&,
+                                                   const data_model::Operand&,
+                                                   MessageContext&,
+                                                   UErrorCode&) const;
+        [[nodiscard]] FormattedPlaceholder evalArgument(const UnicodeString&,
+                                                        const data_model::VariableName&,
+                                                        MessageContext&,
+                                                        UErrorCode&) const;
         void formatSelectors(MessageContext& context, const Environment& env, UErrorCode &status, UnicodeString& result) const;
 
         // Function registry methods
@@ -451,9 +459,6 @@ namespace message2 {
         // formatting methods return best-effort output.
         // The default is false.
         bool signalErrors = false;
-
-        // Used for implementing normalizeNFC()
-        const Normalizer2* nfcNormalizer = nullptr;
 
     }; // class MessageFormatter
 

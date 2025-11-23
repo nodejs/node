@@ -360,7 +360,7 @@ createCommonDataFile(const char *destDir, const char *name, const char *entrypoi
 
         snprintf(
             buffer, sizeof(buffer),
-            "U_EXPORT struct {\n"
+            "U_EXPORT const struct {\n"
             "    uint16_t headerSize;\n"
             "    uint8_t magic1, magic2;\n"
             "    UDataInfo info;\n"
