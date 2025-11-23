@@ -7,7 +7,7 @@ if (!common.hasCrypto)
 const fixtures = require('../common/fixtures');
 const https = require('https');
 const assert = require('assert');
-const { once, getEventListeners } = require('events');
+const { once, listenerCount } = require('events');
 
 const options = {
   key: fixtures.readKey('agent1-key.pem'),
@@ -30,7 +30,7 @@ const options = {
       rejectUnauthorized: false,
       signal: ac.signal,
     });
-    assert.strictEqual(getEventListeners(ac.signal, 'abort').length, 1);
+    assert.strictEqual(listenerCount(ac.signal, 'abort'), 1);
     process.nextTick(() => ac.abort());
     const [ err ] = await once(req, 'error');
     assert.strictEqual(err.name, 'AbortError');
@@ -57,7 +57,7 @@ const options = {
       rejectUnauthorized: false,
       signal,
     });
-    assert.strictEqual(getEventListeners(ac.signal, 'abort').length, 1);
+    assert.strictEqual(listenerCount(ac.signal, 'abort'), 1);
     ac.abort();
     const [ err ] = await once(req, 'error');
     assert.strictEqual(err.name, 'AbortError');
@@ -85,7 +85,7 @@ const options = {
       rejectUnauthorized: false,
       signal,
     });
-    assert.strictEqual(getEventListeners(ac.signal, 'abort').length, 0);
+    assert.strictEqual(listenerCount(ac.signal, 'abort'), 0);
     const [ err ] = await once(req, 'error');
     assert.strictEqual(err.name, 'AbortError');
     assert.strictEqual(err.code, 'ABORT_ERR');
