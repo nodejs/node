@@ -49,9 +49,9 @@ function addTest(sequences, expectedKeys) {
 //      (addKeyIntervalTest(..)(noop)))()
 // where noop is a terminal function(() => {}).
 
-const addKeyIntervalTest = (sequences, expectedKeys, interval = 550,
-                            assertDelay = 550) => {
-  const fn = common.mustCall((next) => () => {
+function addKeyIntervalTest(sequences, expectedKeys, interval = 550,
+                            assertDelay = 550) {
+  const fn = common.mustCall((next) => common.mustCall(() => {
 
     if (!Array.isArray(sequences)) {
       sequences = [ sequences ];
@@ -66,21 +66,21 @@ const addKeyIntervalTest = (sequences, expectedKeys, interval = 550,
     const keys = [];
     fi.on('keypress', (s, k) => keys.push(k));
 
-    const emitKeys = ([head, ...tail]) => {
+    const emitKeys = common.mustCallAtLeast(([head, ...tail]) => {
       if (head) {
         fi.write(head);
         setTimeout(() => emitKeys(tail), interval);
       } else {
-        setTimeout(() => {
+        setTimeout(common.mustCall(() => {
           next();
           assert.deepStrictEqual(keys, expectedKeys);
-        }, assertDelay);
+        }), assertDelay);
       }
-    };
+    });
     emitKeys(sequences);
-  });
+  }));
   return fn;
-};
+}
 
 // Regular alphanumerics
 addTest('io.JS', [

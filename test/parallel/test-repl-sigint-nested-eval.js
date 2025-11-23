@@ -40,7 +40,7 @@ child.stdout.once('data', common.mustCall(() => {
   );
 }));
 
-child.on('close', function(code) {
+child.on('close', common.mustCall((code) => {
   const expected = 'Script execution was interrupted by `SIGINT`';
   assert.ok(
     stdout.includes(expected),
@@ -50,4 +50,4 @@ child.on('close', function(code) {
     stdout.includes('foobar'),
     `Expected stdout to contain "foobar", got ${stdout}`
   );
-});
+}));

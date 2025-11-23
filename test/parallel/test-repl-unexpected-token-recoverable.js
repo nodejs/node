@@ -2,7 +2,7 @@
 
 // This is a regression test for https://github.com/joyent/node/issues/8874.
 
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 
 const spawn = require('child_process').spawn;
@@ -25,9 +25,9 @@ child.stdout.on('data', (d) => {
   out += d;
 });
 
-child.stdout.on('end', () => {
+child.stdout.on('end', common.mustCall(() => {
   assert.match(out, expectOut);
   console.log('ok');
-});
+}));
 
 child.stdin.end(input);

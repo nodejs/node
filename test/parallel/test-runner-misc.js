@@ -25,9 +25,9 @@ if (process.argv[2] === 'child') {
     // TODO(benjamingr) add more tests to describe + AbortSignal
     // this just tests the parameter is passed
     test.describe('Abort Signal in describe', common.mustCall(({ signal }) => {
-      test.it('Supports AbortSignal', () => {
+      test.it('Supports AbortSignal', common.mustCall(() => {
         assert.strictEqual(signal.aborted, false);
-      });
+      }));
     }));
   } else assert.fail('unreachable');
 } else {

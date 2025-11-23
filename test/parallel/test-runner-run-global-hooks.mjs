@@ -1,4 +1,4 @@
-import '../common/index.mjs';
+import { mustCall, mustCallAtLeast } from '../common/index.mjs';
 import * as fixtures from '../common/fixtures.mjs';
 import { describe, it, beforeEach, run } from 'node:test';
 import assert from 'node:assert';
@@ -11,17 +11,17 @@ import { once } from 'node:events';
 const testFixtures = fixtures.path('test-runner', 'global-setup-teardown');
 const runnerFixture = fixtures.path('test-runner', 'test-runner-global-hooks.mjs');
 
-describe('require(\'node:test\').run with global hooks', { concurrency: false }, () => {
+describe('require(\'node:test\').run with global hooks', { concurrency: false }, mustCall(() => {
   beforeEach(() => {
     tmpdir.refresh();
   });
 
-  async function runTestWithGlobalHooks({
+  const runTestWithGlobalHooks = mustCallAtLeast(async ({
     globalSetupFile,
     testFile = 'test-file.js',
     runnerEnv = {},
     isolation = 'process'
-  }) {
+  }) => {
     const testFilePath = path.join(testFixtures, testFile);
     const globalSetupPath = path.join(testFixtures, globalSetupFile);
 
@@ -57,7 +57,7 @@ describe('require(\'node:test\').run with global hooks', { concurrency: false },
     await once(child, 'exit');
 
     // Assert in order to print a detailed error message if the test fails
-    assert.partialDeepStrictEqual(stderr, '');
+    assert.strictEqual(stderr, '');
     assert.match(stdout, /pass (\d+)/);
     assert.match(stdout, /fail (\d+)/);
 
@@ -67,7 +67,7 @@ describe('require(\'node:test\').run with global hooks', { concurrency: false },
     };
 
     return { results };
-  }
+  });
 
   for (const isolation of ['none', 'process']) {
     describe(`with isolation : ${isolation}`, () => {
@@ -224,4 +224,4 @@ describe('require(\'node:test\').run with global hooks', { concurrency: false },
       });
     });
   });
-});
+}));

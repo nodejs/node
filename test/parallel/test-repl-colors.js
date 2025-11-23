@@ -2,7 +2,7 @@
 require('../common');
 const { Duplex } = require('stream');
 const { inspect } = require('util');
-const { strictEqual } = require('assert');
+const assert = require('assert');
 const { REPLServer } = require('repl');
 
 let output = '';
@@ -25,9 +25,9 @@ process.on('exit', function() {
   // https://github.com/nodejs/node/pull/16485#issuecomment-350428638
   // The color setting of the REPL should not have leaked over into
   // the color setting of `util.inspect.defaultOptions`.
-  strictEqual(output.includes(`"'string'"`), true);
-  strictEqual(output.includes(`'\u001b[32m\\'string\\'\u001b[39m'`), false);
-  strictEqual(inspect.defaultOptions.colors, false);
-  strictEqual(repl.writer.options.colors, true);
-  strictEqual(repl2.writer.options.colors, true);
+  assert.strictEqual(output.includes(`"'string'"`), true);
+  assert.strictEqual(output.includes(`'\u001b[32m\\'string\\'\u001b[39m'`), false);
+  assert.strictEqual(inspect.defaultOptions.colors, false);
+  assert.strictEqual(repl.writer.options.colors, true);
+  assert.strictEqual(repl2.writer.options.colors, true);
 });

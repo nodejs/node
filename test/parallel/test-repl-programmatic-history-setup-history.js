@@ -138,14 +138,12 @@ const tests = [
   },
   // Checking the history file permissions
   {
-    before: function before() {
+    before: common.mustCall(function before() {
       if (common.isWindows) {
         const execSync = require('child_process').execSync;
-        execSync(`ATTRIB +H "${emptyHiddenHistoryPath}"`, (err) => {
-          assert.ifError(err);
-        });
+        execSync(`ATTRIB +H "${emptyHiddenHistoryPath}"`);
       }
-    },
+    }),
     env: { NODE_REPL_HISTORY: emptyHiddenHistoryPath },
     test: [UP],
     expected: [prompt]
@@ -220,7 +218,7 @@ function runTest(assertCleaned) {
   const repl = REPL.start({
     input: new ActionStream(),
     output: new stream.Writable({
-      write(chunk, _, next) {
+      write: common.mustCallAtLeast((chunk, _, next) => {
         const output = chunk.toString();
 
         // Ignore escapes and blank lines
@@ -234,7 +232,7 @@ function runTest(assertCleaned) {
           throw err;
         }
         next();
-      }
+      }),
     }),
     prompt: prompt,
     useColors: false,

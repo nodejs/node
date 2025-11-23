@@ -48,10 +48,10 @@ for (const type of [
 
       assert.strictEqual(data[0].includes('ele.biu'), true);
 
-      data[0].forEach((key) => {
+      for (const key of data[0]) {
         if (!key || key === 'ele.biu') return;
         assert.notStrictEqual(ele[key.slice(4)], undefined);
-      });
+      }
     })
   );
 }
