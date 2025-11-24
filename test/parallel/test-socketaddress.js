@@ -2,11 +2,7 @@
 'use strict';
 
 const common = require('../common');
-const {
-  ok,
-  strictEqual,
-  throws,
-} = require('assert');
+const assert = require('assert');
 const {
   SocketAddress,
 } = require('net');
@@ -26,19 +22,19 @@ describe('net.SocketAddress...', () => {
 
   it('is cloneable', () => {
     const sa = new SocketAddress();
-    strictEqual(sa.address, '127.0.0.1');
-    strictEqual(sa.port, 0);
-    strictEqual(sa.family, 'ipv4');
-    strictEqual(sa.flowlabel, 0);
+    assert.strictEqual(sa.address, '127.0.0.1');
+    assert.strictEqual(sa.port, 0);
+    assert.strictEqual(sa.family, 'ipv4');
+    assert.strictEqual(sa.flowlabel, 0);
 
     const mc = new MessageChannel();
     mc.port1.onmessage = common.mustCall(({ data }) => {
-      ok(SocketAddress.isSocketAddress(data));
+      assert.ok(SocketAddress.isSocketAddress(data));
 
-      strictEqual(data.address, '127.0.0.1');
-      strictEqual(data.port, 0);
-      strictEqual(data.family, 'ipv4');
-      strictEqual(data.flowlabel, 0);
+      assert.strictEqual(data.address, '127.0.0.1');
+      assert.strictEqual(data.port, 0);
+      assert.strictEqual(data.family, 'ipv4');
+      assert.strictEqual(data.flowlabel, 0);
 
       mc.port1.close();
     });
@@ -47,20 +43,20 @@ describe('net.SocketAddress...', () => {
 
   it('has reasonable defaults', () => {
     const sa = new SocketAddress({});
-    strictEqual(sa.address, '127.0.0.1');
-    strictEqual(sa.port, 0);
-    strictEqual(sa.family, 'ipv4');
-    strictEqual(sa.flowlabel, 0);
+    assert.strictEqual(sa.address, '127.0.0.1');
+    assert.strictEqual(sa.port, 0);
+    assert.strictEqual(sa.family, 'ipv4');
+    assert.strictEqual(sa.flowlabel, 0);
   });
 
   it('interprets simple ipv4 correctly', () => {
     const sa = new SocketAddress({
       address: '123.123.123.123',
     });
-    strictEqual(sa.address, '123.123.123.123');
-    strictEqual(sa.port, 0);
-    strictEqual(sa.family, 'ipv4');
-    strictEqual(sa.flowlabel, 0);
+    assert.strictEqual(sa.address, '123.123.123.123');
+    assert.strictEqual(sa.port, 0);
+    assert.strictEqual(sa.family, 'ipv4');
+    assert.strictEqual(sa.flowlabel, 0);
   });
 
   it('sets the port correctly', () => {
@@ -68,20 +64,20 @@ describe('net.SocketAddress...', () => {
       address: '123.123.123.123',
       port: 80
     });
-    strictEqual(sa.address, '123.123.123.123');
-    strictEqual(sa.port, 80);
-    strictEqual(sa.family, 'ipv4');
-    strictEqual(sa.flowlabel, 0);
+    assert.strictEqual(sa.address, '123.123.123.123');
+    assert.strictEqual(sa.port, 80);
+    assert.strictEqual(sa.family, 'ipv4');
+    assert.strictEqual(sa.flowlabel, 0);
   });
 
   it('interprets simple ipv6 correctly', () => {
     const sa = new SocketAddress({
       family: 'ipv6'
     });
-    strictEqual(sa.address, '::');
-    strictEqual(sa.port, 0);
-    strictEqual(sa.family, 'ipv6');
-    strictEqual(sa.flowlabel, 0);
+    assert.strictEqual(sa.address, '::');
+    assert.strictEqual(sa.port, 0);
+    assert.strictEqual(sa.family, 'ipv6');
+    assert.strictEqual(sa.flowlabel, 0);
   });
 
   it('uses the flowlabel correctly', () => {
@@ -89,38 +85,38 @@ describe('net.SocketAddress...', () => {
       family: 'ipv6',
       flowlabel: 1,
     });
-    strictEqual(sa.address, '::');
-    strictEqual(sa.port, 0);
-    strictEqual(sa.family, 'ipv6');
-    strictEqual(sa.flowlabel, 1);
+    assert.strictEqual(sa.address, '::');
+    assert.strictEqual(sa.port, 0);
+    assert.strictEqual(sa.family, 'ipv6');
+    assert.strictEqual(sa.flowlabel, 1);
   });
 
   it('validates input correctly', () => {
     [1, false, 'hello'].forEach((i) => {
-      throws(() => new SocketAddress(i), {
+      assert.throws(() => new SocketAddress(i), {
         code: 'ERR_INVALID_ARG_TYPE'
       });
     });
 
     [1, false, {}, [], 'test'].forEach((family) => {
-      throws(() => new SocketAddress({ family }), {
+      assert.throws(() => new SocketAddress({ family }), {
         code: 'ERR_INVALID_ARG_VALUE'
       });
     });
 
     [1, false, {}, []].forEach((address) => {
-      throws(() => new SocketAddress({ address }), {
+      assert.throws(() => new SocketAddress({ address }), {
         code: 'ERR_INVALID_ARG_TYPE'
       });
     });
 
     [-1, false, {}, []].forEach((port) => {
-      throws(() => new SocketAddress({ port }), {
+      assert.throws(() => new SocketAddress({ port }), {
         code: 'ERR_SOCKET_BAD_PORT'
       });
     });
 
-    throws(() => new SocketAddress({ flowlabel: -1 }), {
+    assert.throws(() => new SocketAddress({ flowlabel: -1 }), {
       code: 'ERR_OUT_OF_RANGE'
     });
   });
@@ -135,11 +131,11 @@ describe('net.SocketAddress...', () => {
     const flowlabel = 0;
     const handle = new _SocketAddress(address, port, AF_INET, flowlabel);
     const addr = new InternalSocketAddress(handle);
-    ok(addr instanceof SocketAddress);
-    strictEqual(addr.address, address);
-    strictEqual(addr.port, port);
-    strictEqual(addr.family, 'ipv4');
-    strictEqual(addr.flowlabel, flowlabel);
+    assert.ok(addr instanceof SocketAddress);
+    assert.strictEqual(addr.address, address);
+    assert.strictEqual(addr.port, port);
+    assert.strictEqual(addr.family, 'ipv4');
+    assert.strictEqual(addr.flowlabel, flowlabel);
   });
 
   it('SocketAddress.parse() works as expected', () => {
@@ -156,9 +152,9 @@ describe('net.SocketAddress...', () => {
 
     good.forEach((i) => {
       const addr = SocketAddress.parse(i.input);
-      strictEqual(addr.address, i.address);
-      strictEqual(addr.port, i.port);
-      strictEqual(addr.family, i.family);
+      assert.strictEqual(addr.address, i.address);
+      assert.strictEqual(addr.port, i.port);
+      assert.strictEqual(addr.family, i.family);
     });
 
     const bad = [
@@ -169,7 +165,7 @@ describe('net.SocketAddress...', () => {
     ];
 
     bad.forEach((i) => {
-      strictEqual(SocketAddress.parse(i), undefined);
+      assert.strictEqual(SocketAddress.parse(i), undefined);
     });
   });
 

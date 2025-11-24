@@ -103,13 +103,13 @@ function sum(p, c) {
   // Support for AbortSignal - deep
   const stream = Readable.from([1, 2, 3]);
   assert.rejects(async () => {
-    await stream.reduce(async (p, c, { signal }) => {
+    await stream.reduce(common.mustCallAtLeast(async (p, c, { signal }) => {
       signal.addEventListener('abort', common.mustCall(), { once: true });
       if (c === 3) {
         await new Promise(() => {}); // Explicitly do not pass signal here
       }
       return Promise.resolve();
-    }, 0, { signal: AbortSignal.abort() });
+    }, 0), 0, { signal: AbortSignal.abort() });
   }, {
     name: 'AbortError',
   }).then(common.mustCall(() => {
