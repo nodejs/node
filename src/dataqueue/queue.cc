@@ -434,7 +434,13 @@ class NonIdempotentDataQueueReader final
     CHECK(!data_queue_->is_idempotent());
   }
 
-  ~NonIdempotentDataQueueReader() { data_queue_->reader_destructed(this); }
+  ~NonIdempotentDataQueueReader() {
+    if (waited_next_) {
+      std::move(waited_next_)(
+          bob::Status::STATUS_EOS, nullptr, 0, [](uint64_t) {});
+    }
+    data_queue_->reader_destructed(this);
+  }
 
   // Disallow moving and copying.
   NonIdempotentDataQueueReader(const NonIdempotentDataQueueReader&) = delete;
