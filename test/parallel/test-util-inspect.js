@@ -2745,6 +2745,43 @@ assert.strictEqual(
   );
 }
 
+// Property getter throwing an error whose own getters throw that same error (infinite recursion).
+{
+  const badError = new Error();
+
+  const throwingGetter = {
+    __proto__: null,
+    get() {
+      throw badError;
+    },
+    configurable: true,
+    enumerable: true,
+  };
+
+  Object.defineProperties(badError, {
+    name: throwingGetter,
+    message: throwingGetter,
+    stack: throwingGetter,
+    cause: throwingGetter,
+  });
+
+  const thrower = {
+    get foo() { throw badError; }
+  };
+
+  assert.strictEqual(
+    inspect(thrower, { getters: true, depth: Infinity }),
+    '{\n' +
+    '  foo: [Getter: <Inspection threw (<ref *1> [object Error] {\n' +
+    '    stack: [Getter/Setter: <Inspection threw ([Circular *1])>],\n' +
+    '    name: [Getter: <Inspection threw ([Circular *1])>],\n' +
+    '    message: [Getter: <Inspection threw ([Circular *1])>],\n' +
+    '    cause: [Getter: <Inspection threw ([Circular *1])>]\n' +
+    '  })>]\n' +
+    '}'
+  );
+}
+
 // Property getter throwing uncommon values.
 {
   assert.strictEqual(
