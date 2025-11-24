@@ -45,7 +45,7 @@ const httpsServer = https.createServer(serverOptions, (req, res) => {
 });
 httpsServer.listen(0);
 
-httpsServer.on('listening', () => {
+httpsServer.on('listening', common.mustCall(() => {
   // Once the server started listening, built the client config
   // with the server´s used port
   const clientOptions = {
@@ -60,4 +60,4 @@ httpsServer.on('listening', () => {
 
   req.on('error', common.mustNotCall());
   req.end();
-});
+}));

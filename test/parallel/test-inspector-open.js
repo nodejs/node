@@ -54,11 +54,11 @@ function tryToOpenWhenOpen(msg) {
 function closeWhenOpen(msg) {
   assert.strictEqual(msg.cmd, 'url');
   assert.strictEqual(msg.url, undefined);
-  ping(firstPort, (err) => {
+  ping(firstPort, common.mustCall((err) => {
     assert(err);
     child.send({ cmd: 'close' });
     child.once('message', common.mustCall(tryToCloseWhenClosed));
-  });
+  }));
 }
 
 function tryToCloseWhenClosed(msg) {
@@ -92,7 +92,7 @@ function beChild() {
 
   process.send({ cmd: 'started' });
 
-  process.on('message', (msg) => {
+  process.on('message', common.mustCall((msg) => {
     if (msg.cmd === 'open') {
       if (msg.args[0] === kFirstOpen) {
         inspector.open(0, false, undefined);
@@ -110,5 +110,5 @@ function beChild() {
       inspector.close();
     }
     process.send({ cmd: 'url', url: inspector.url() });
-  });
+  }));
 }

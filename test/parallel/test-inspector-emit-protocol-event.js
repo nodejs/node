@@ -140,7 +140,7 @@ for (const [domain, events] of Object.entries(EXPECTED_EVENTS)) {
   }
 }
 
-const runAsyncTest = async () => {
+(async () => {
   const session = new inspector.Session();
   session.connect();
 
@@ -167,8 +167,4 @@ const runAsyncTest = async () => {
   await session.post('Network.disable');
   session.on('Network.requestWillBeSent', common.mustNotCall());
   inspector.Network.requestWillBeSent({});
-};
-
-runAsyncTest().then(common.mustCall()).catch((e) => {
-  assert.fail(e);
-});
+})().then(common.mustCall());

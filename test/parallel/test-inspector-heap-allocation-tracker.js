@@ -15,11 +15,11 @@ session.post('HeapProfiler.startTrackingHeapObjects',
              { trackAllocations: true });
 
 // Perform some silly heap allocations for the next 100 ms.
-const interval = setInterval(() => {
+const interval = setInterval(common.mustCallAtLeast(() => {
   new stream.PassThrough().end('abc').on('data', common.mustCall());
-}, 1);
+}), 1);
 
-setTimeout(() => {
+setTimeout(common.mustCall(() => {
   clearInterval(interval);
 
   // Once the main test is done, we re-run it from inside a Worker thread
@@ -43,4 +43,4 @@ setTimeout(() => {
   assert(data.includes('PassThrough'), data);
 
   new Worker(__filename, { workerData: 'stopEarly' });
-}, 100);
+}), 100);
