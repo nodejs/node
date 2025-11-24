@@ -62,7 +62,6 @@ function runSymbol(n) {
 }
 
 function main({ n, method }) {
-
   switch (method) {
     case 'property':
       runProperty(n);
@@ -76,6 +75,7 @@ function main({ n, method }) {
     case 'symbol':
       runSymbol(n);
       break;
+    // Throw an error if an unexpected method is provided to help catch misconfigurations early.
     default:
       throw new Error(`Unexpected method "${method}"`);
   }

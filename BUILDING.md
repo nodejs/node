@@ -88,6 +88,8 @@ There are three support tiers:
   platforms do not block releases. Contributions to improve support for these
   platforms are welcome.
 
+// Clarification: Platform tiers may change in future releases. Always check this document for the latest support status.
+
 Platforms may move between tiers between major release lines. The table below
 will reflect those changes.
 
@@ -450,7 +452,7 @@ with a name that starts with `test-inspector-`, regardless of the directory they
 # Matches test/sequential/test-inspector-*, test/parallel/test-inspector-*,
 # test/known_issues/test-inspector-*, etc.
 tools/test.py "test/*/test-inspector-*"
-tools/test.py "*/test-inspector-*"  # The test/ prefix can be omitted
+tools/test.py "*/test-inspector-*"
 ```
 
 If you want to check the other options, please refer to the help by using
