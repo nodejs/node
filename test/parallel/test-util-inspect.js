@@ -3481,21 +3481,21 @@ assert.strictEqual(
     inspect(Object.getPrototypeOf(bar), { showHidden: true, getters: true }),
     new RegExp('^' + RegExp.escape(
       '<ref *1> Foo [Map] {\n' +
-      '    [constructor]: [class Bar extends Foo] {\n' +
-      '      [length]: 0,\n' +
-      "      [name]: 'Bar',\n" +
-      '      [prototype]: [Circular *1],\n' +
-      '      [Symbol(Symbol.species)]: [Getter: <Inspection threw ' +
+      '  [constructor]: [class Bar extends Foo] {\n' +
+      '    [length]: 0,\n' +
+      "    [name]: 'Bar',\n" +
+      '    [prototype]: [Circular *1],\n' +
+      '    [Symbol(Symbol.species)]: [Getter: <Inspection threw ' +
       "(TypeError: Symbol.prototype.toString requires that 'this' be a Symbol") + '.*' + RegExp.escape(')>]\n' +
-      '    },\n' +
-      "    [xyz]: [Getter: 'YES!'],\n" +
-      '    [Symbol(nodejs.util.inspect.custom)]: [Function: [nodejs.util.inspect.custom]] {\n' +
-      '      [length]: 0,\n' +
-      "      [name]: '[nodejs.util.inspect.custom]'\n" +
-      '    },\n' +
-      '    [abc]: [Getter: true],\n' +
-      '    [def]: [Getter/Setter: false]\n' +
-      '  }'
+      '  },\n' +
+      "  [xyz]: [Getter: 'YES!'],\n" +
+      '  [Symbol(nodejs.util.inspect.custom)]: [Function: [nodejs.util.inspect.custom]] {\n' +
+      '    [length]: 0,\n' +
+      "    [name]: '[nodejs.util.inspect.custom]'\n" +
+      '  },\n' +
+      '  [abc]: [Getter: true],\n' +
+      '  [def]: [Getter/Setter: false]\n' +
+      '}'
     ) + '$', 's')
   );
 
