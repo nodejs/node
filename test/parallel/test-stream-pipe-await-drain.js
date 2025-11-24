@@ -22,7 +22,7 @@ writer1._write = common.mustCall(function(chunk, encoding, cb) {
   process.nextTick(cb);
 }, 1);
 
-writer1.once('chunk-received', () => {
+writer1.once('chunk-received', common.mustCallAtLeast(() => {
   assert.strictEqual(
     reader._readableState.awaitDrainWriters.size,
     0,
@@ -34,7 +34,7 @@ writer1.once('chunk-received', () => {
     // "done" processing.
     reader.push(buffer);
   });
-});
+}));
 
 // A "slow" consumer:
 writer2._write = common.mustCall((chunk, encoding, cb) => {
