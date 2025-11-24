@@ -33,7 +33,7 @@ function check(worker) {
     try {
       worker.cpuUsage(value);
     } catch (e) {
-      assert.ok(/ERR_OUT_OF_RANGE|ERR_INVALID_ARG_TYPE/i.test(e.code));
+      assert.match(e.code, /ERR_OUT_OF_RANGE|ERR_INVALID_ARG_TYPE/i);
     }
   });
 }
