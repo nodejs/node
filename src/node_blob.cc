@@ -428,11 +428,13 @@ void Blob::Reader::Pull(const FunctionCallbackInfo<Value>& args) {
       std::for_each(impl->dones.begin(),
                     impl->dones.end(),
                     [](bob::Done& done) { std::move(done)(0); });
+      impl->dones.clear();
       Local<Value> argv[2] = {Uint32::New(env->isolate(), bob::STATUS_CONTINUE),
                               ArrayBuffer::New(env->isolate(), store)};
       impl->reader->MakeCallback(fn, arraysize(argv), argv);
       return;
     }
+    impl->dones.clear();  // should not be necessary?
 
     Local<Value> argv[2] = {
         Int32::New(env->isolate(), status),
