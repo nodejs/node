@@ -447,12 +447,14 @@ class NonIdempotentDataQueueReader final
   void newDataOrEnd() override {
     if (waited_next_) {
       auto next = std::move(waited_next_);
-      data_queue_->env()->SetImmediate(
+      /* data_queue_->env()->SetImmediate(
           [next, dropme = shared_from_this()](Environment* env) {
             std::move(next)(
                 bob::Status::STATUS_CONTINUE, nullptr, 0, [](uint64_t) {});
           },
-          CallbackFlags::kUnrefed);
+          CallbackFlags::kUnrefed); */
+      std::move(next)(
+          bob::Status::STATUS_CONTINUE, nullptr, 0, [](uint64_t) {});
     }
   }
 
