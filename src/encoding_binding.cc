@@ -198,22 +198,21 @@ void BindingData::EncodeInto(const FunctionCallbackInfo<Value>& args) {
   size_t read = 0;
   size_t written = 0;
   v8::String::ValueView view(isolate, source);
-  size_t length = view.length();
+  size_t length_that_fits =
+      std::min(static_cast<size_t>(view.length()), dest_length);
 
   if (view.is_one_byte()) {
     auto data = reinterpret_cast<const char*>(view.data8());
-    simdutf::result result = simdutf::validate_ascii_with_errors(data, length);
-    // Only copy what fits in the destination
-    written = read = std::min(result.count, dest_length);
-    if (read > 0) {
-      memcpy(write_result, data, read);
-      write_result += read;
-      data += read;
-      length -= read;
-      dest_length -= read;
-    }
-    if (length != 0 && dest_length != 0) {
-      size_t rest = findBestFit(data, length, dest_length);
+    simdutf::result result =
+        simdutf::validate_ascii_with_errors(data, length_that_fits);
+    written = read = result.count;
+    memcpy(write_result, data, read);
+    write_result += read;
+    data += read;
+    length_that_fits -= read;
+    dest_length -= read;
+    if (length_that_fits != 0 && dest_length != 0) {
+      size_t rest = findBestFit(data, length_that_fits, dest_length);
       if (rest != 0) {
         DCHECK_LE(simdutf::utf8_length_from_latin1(data, rest), dest_length);
         written += simdutf::convert_latin1_to_utf8(data, rest, write_result);
@@ -223,14 +222,21 @@ void BindingData::EncodeInto(const FunctionCallbackInfo<Value>& args) {
   } else {
     auto data = reinterpret_cast<const char16_t*>(view.data16());
 
+    // Limit conversion to what could fit in destination, avoiding splitting
+    // a valid surrogate pair at the boundary
+    if (length_that_fits > 0 && length_that_fits < view.length() &&
+        isSurrogatePair(data[length_that_fits - 1], data[length_that_fits])) {
+      length_that_fits--;
+    }
+
     // Check if input has unpaired surrogates - if so, convert to well-formed
     // first
     simdutf::result validation_result =
-        simdutf::validate_utf16_with_errors(data, length);
+        simdutf::validate_utf16_with_errors(data, length_that_fits);
 
     if (validation_result.error == simdutf::SUCCESS) {
       // Valid UTF-16 - use the fast path
-      read = findBestFit(data, length, dest_length);
+      read = findBestFit(data, view.length(), dest_length);
       if (read != 0) {
         DCHECK_LE(simdutf::utf8_length_from_utf16(data, read), dest_length);
         written = simdutf::convert_utf16_to_utf8(data, read, write_result);
@@ -239,20 +245,14 @@ void BindingData::EncodeInto(const FunctionCallbackInfo<Value>& args) {
       // Invalid UTF-16 with unpaired surrogates - convert to well-formed first
       // TODO(anonrig): Use utf8_length_from_utf16_with_replacement when
       // available
-      // Limit conversion to what could fit in destination, avoiding splitting
-      // a valid surrogate pair at the boundary
-      size_t safe_length = std::min(length, dest_length);
-      if (safe_length > 0 && safe_length < view.length() &&
-          isSurrogatePair(data[safe_length - 1], data[safe_length])) {
-        safe_length--;
-      }
-
       MaybeStackBuffer<char16_t, MAX_SIZE_FOR_STACK_ALLOC> conversion_buffer(
-          safe_length);
-      simdutf::to_well_formed_utf16(data, safe_length, conversion_buffer.out());
+          length_that_fits);
+      simdutf::to_well_formed_utf16(
+          data, length_that_fits, conversion_buffer.out());
 
       // Now use findBestFit with the well-formed data
-      read = findBestFit(conversion_buffer.out(), safe_length, dest_length);
+      read =
+          findBestFit(conversion_buffer.out(), length_that_fits, dest_length);
       if (read != 0) {
         DCHECK_LE(
             simdutf::utf8_length_from_utf16(conversion_buffer.out(), read),
