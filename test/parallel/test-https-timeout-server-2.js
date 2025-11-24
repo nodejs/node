@@ -37,13 +37,13 @@ const options = {
 
 const server = https.createServer(options, common.mustNotCall());
 
-server.on('secureConnection', function(cleartext) {
+server.on('secureConnection', common.mustCall((cleartext) => {
   const s = cleartext.setTimeout(50, function() {
     cleartext.destroy();
     server.close();
   });
   assert.ok(s instanceof tls.TLSSocket);
-});
+}));
 
 server.listen(0, function() {
   tls.connect({

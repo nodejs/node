@@ -63,7 +63,7 @@ const serverResponse = 'hello world\n';
 const kTimeout = 1000;
 const kDelta = 200;
 
-const handleStream = (stream, headers) => {
+const handleStream = common.mustCallAtLeast((stream, headers) => {
   const path = headers[http2.constants.HTTP2_HEADER_PATH];
   let body = '';
   switch (path) {
@@ -72,7 +72,7 @@ const handleStream = (stream, headers) => {
         body += chunk;
       });
 
-      stream.on('end', () => {
+      stream.on('end', common.mustCall(() => {
         assert.strictEqual(body, JSON.stringify(requestBody));
 
         stream.pushStream(pushRequestHeaders, common.mustSucceed((pushStream) => {
@@ -85,7 +85,7 @@ const handleStream = (stream, headers) => {
         setTimeout(() => {
           stream.end(serverResponse);
         }, kTimeout);
-      });
+      }));
       break;
     case '/trigger-error':
       stream.close(http2.constants.NGHTTP2_STREAM_CLOSED);
@@ -98,7 +98,7 @@ const handleStream = (stream, headers) => {
     default:
       assert(false, `Unexpected path: ${path}`);
   }
-};
+});
 
 const http2Server = http2.createServer();
 

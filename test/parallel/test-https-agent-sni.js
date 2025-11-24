@@ -27,7 +27,7 @@ const server = https.Server(options, function(req, res) {
   res.end('hello world');
 });
 
-server.listen(0, function() {
+server.listen(0, common.mustCall(function() {
   function expectResponse(id) {
     return common.mustCall(function(res) {
       res.resume();
@@ -59,4 +59,4 @@ server.listen(0, function() {
     servername: '',
     rejectUnauthorized: false
   }, expectResponse(false));
-});
+}));
