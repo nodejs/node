@@ -352,6 +352,7 @@ void Blob::Reader::Pull(const FunctionCallbackInfo<Value>& args) {
     Environment* env;
     std::vector<DataQueue::Vec> vecs;
     std::list<bob::Done> dones;
+    size_t byte_count = 0;
     bool innext = false;
   };
   // TODO(@jasnell): A unique_ptr is likely better here but making this a unique
@@ -380,17 +381,18 @@ void Blob::Reader::Pull(const FunctionCallbackInfo<Value>& args) {
     if (count > 0) {
       impl->vecs.insert(impl->vecs.end(), vecs, vecs + count);
       impl->dones.push_back(std::move(doneCb));
+      for (size_t n = 0; n < count; n++) impl->byte_count += vecs[n].len;
     }
     if (impl->innext) {
       CHECK(status != bob::STATUS_WAIT);
       return;
     }
-    if (status == bob::STATUS_CONTINUE) {
+    if (status == bob::STATUS_CONTINUE && impl->byte_count < 16384) {
       // We pull some more,
       // but it must be sync as we
       // merge it together
       impl->innext = true;
-      while (status == bob::STATUS_CONTINUE) {
+      while (status == bob::STATUS_CONTINUE && impl->byte_count < 16384) {
         auto snext = [impl](int status,
                             const DataQueue::Vec* vecs,
                             size_t count,
@@ -398,6 +400,7 @@ void Blob::Reader::Pull(const FunctionCallbackInfo<Value>& args) {
           if (count > 0) {
             impl->vecs.insert(impl->vecs.end(), vecs, vecs + count);
             impl->dones.push_back(std::move(doneCb));
+            for (size_t n = 0; n < count; n++) impl->byte_count += vecs[n].len;
           }
         };
         status = impl->reader->inner_->Pull(
