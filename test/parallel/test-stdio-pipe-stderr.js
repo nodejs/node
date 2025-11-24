@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const tmpdir = require('../common/tmpdir');
 const assert = require('assert');
 const fs = require('fs');
@@ -19,7 +19,7 @@ const stream = fs.createWriteStream(stderrOutputPath);
 // non-built-in module.
 fs.writeFileSync(fakeModulePath, '', 'utf8');
 
-stream.on('open', () => {
+stream.on('open', common.mustCall(() => {
   spawnSync(process.execPath, {
     input: `require(${JSON.stringify(fakeModulePath)})`,
     stdio: ['pipe', 'pipe', stream]
@@ -33,4 +33,4 @@ stream.on('open', () => {
   stream.end();
   fs.unlinkSync(stderrOutputPath);
   fs.unlinkSync(fakeModulePath);
-});
+}));
