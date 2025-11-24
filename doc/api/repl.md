@@ -696,6 +696,12 @@ deprecated: v24.0.0
 
 A list of the names of some Node.js modules, e.g., `'http'`.
 
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/repl-builtin-modules)):
+
+```bash
+npx codemod@latest @nodejs/repl-builtin-modules
+```
+
 ## `repl.start([options])`
 
 <!-- YAML

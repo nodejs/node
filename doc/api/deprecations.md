@@ -1028,6 +1028,12 @@ Type: Runtime
 The [`util.isArray()`][] API is deprecated. Please use `Array.isArray()`
 instead.
 
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/util-is)):
+
+```bash
+npx codemod@latest @nodejs/util-is
+```
+
 ### DEP0045: `util.isBoolean()`
 
 <!-- YAML
@@ -2184,6 +2190,12 @@ Type: Runtime
 The [`crypto.fips`][] property is deprecated. Please use `crypto.setFips()`
 and `crypto.getFips()` instead.
 
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/crypto-fips-to-getFips)).
+
+```bash
+npx codemod@latest @nodejs/crypto-fips-to-getFips
+```
+
 ### DEP0094: Using `assert.fail()` with more than one argument
 
 <!-- YAML
@@ -2307,6 +2319,12 @@ Type: End-of-Life
 `process.assert()` is deprecated. Please use the [`assert`][] module instead.
 
 This was never a documented feature.
+
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/createCredentials-to-createSecureContext)).
+
+```bash
+npx codemod@latest @nodejs/createCredentials-to-createSecureContext
+```
 
 ### DEP0101: `--with-lttng`
 
@@ -3986,6 +4004,12 @@ Type: Runtime
 Instantiating classes without the `new` qualifier exported by the `node:repl` module is deprecated.
 It is recommended to use the `new` qualifier instead. This applies to all REPL classes, including
 `REPLServer` and `Recoverable`.
+
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/repl-classes-with-new)):
+
+```bash
+npx codemod@latest @nodejs/repl-classes-with-new
+```
 
 <!-- md-lint skip-deprecation DEP0186 -->
 
