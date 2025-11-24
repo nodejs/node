@@ -5189,6 +5189,12 @@ For code running using Node.js APIs, converting between base64-encoded strings
 and binary data should be performed using `Buffer.from(str, 'base64')` and
 `buf.toString('base64')`.**
 
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/buffer-atob-btoa):
+
+```bash
+npx codemod@latest @nodejs/buffer-atob-btoa
+```
+
 ### `buffer.btoa(data)`
 
 <!-- YAML
@@ -5212,6 +5218,12 @@ binary data and predate the introduction of typed arrays in JavaScript.
 For code running using Node.js APIs, converting between base64-encoded strings
 and binary data should be performed using `Buffer.from(str, 'base64')` and
 `buf.toString('base64')`.**
+
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/buffer-atob-btoa):
+
+```bash
+npx codemod@latest @nodejs/buffer-atob-btoa
+```
 
 ### `buffer.isAscii(input)`
 
