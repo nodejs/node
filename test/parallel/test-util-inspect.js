@@ -2783,56 +2783,59 @@ assert.strictEqual(
 }
 
 // Property getter throwing uncommon values.
-{
+[
+  {
+    val: undefined,
+    expected: '{ foo: [Getter: <Inspection threw (undefined)>] }'
+  },
+  {
+    val: null,
+    expected: '{ foo: [Getter: <Inspection threw (null)>] }'
+  },
+  {
+    val: true,
+    expected: '{ foo: [Getter: <Inspection threw (true)>] }'
+  },
+  {
+    val: 1,
+    expected: '{ foo: [Getter: <Inspection threw (1)>] }'
+  },
+  {
+    val: 1n,
+    expected: '{ foo: [Getter: <Inspection threw (1n)>] }'
+  },
+  {
+    val: Symbol(),
+    expected: '{ foo: [Getter: <Inspection threw (Symbol())>] }'
+  },
+  {
+    val: () => {},
+    expected: '{ foo: [Getter: <Inspection threw ([Function: val])>] }'
+  },
+  {
+    val: 'string',
+    expected: "{ foo: [Getter: <Inspection threw ('string')>] }"
+  },
+  {
+    val: [],
+    expected: '{ foo: [Getter: <Inspection threw ([])>] }'
+  },
+  {
+    val: { get message() { return 'Oops'; } },
+    expected: "{ foo: [Getter: <Inspection threw ({ message: [Getter: 'Oops'] })>] }"
+  },
+  {
+    val: Error,
+    expected: '{ foo: [Getter: <Inspection threw ([Function: Error])>] }'
+  },
+].forEach(({ val, expected }) => {
   assert.strictEqual(
     inspect({
-      // eslint-disable-next-line no-throw-literal
-      get foo() { throw undefined; }
+      get foo() { throw val; }
     }, { getters: true }),
-    '{ foo: [Getter: <Inspection threw (undefined)>] }'
+    expected,
   );
-  assert.strictEqual(
-    inspect({
-      // eslint-disable-next-line no-throw-literal
-      get foo() { throw null; }
-    }, { getters: true }),
-    '{ foo: [Getter: <Inspection threw (null)>] }'
-  );
-  assert.strictEqual(
-    inspect({
-      // eslint-disable-next-line no-throw-literal
-      get foo() { throw 'string'; }
-    }, { getters: true }),
-    "{ foo: [Getter: <Inspection threw ('string')>] }"
-  );
-  assert.strictEqual(
-    inspect({
-      // eslint-disable-next-line no-throw-literal
-      get foo() { throw true; }
-    }, { getters: true }),
-    '{ foo: [Getter: <Inspection threw (true)>] }'
-  );
-  assert.strictEqual(
-    inspect({
-      // eslint-disable-next-line no-throw-literal
-      get foo() { throw {}; }
-    }, { getters: true }),
-    '{ foo: [Getter: <Inspection threw ({})>] }'
-  );
-  assert.strictEqual(
-    inspect({
-      // eslint-disable-next-line no-throw-literal
-      get foo() { throw { get message() { return 'Oops'; } }; }
-    }, { getters: true }),
-    "{ foo: [Getter: <Inspection threw ({ message: [Getter: 'Oops'] })>] }"
-  );
-  assert.strictEqual(
-    inspect({
-      get foo() { throw Error; }
-    }, { getters: true }),
-    '{ foo: [Getter: <Inspection threw ([Function: Error])>] }'
-  );
-}
+});
 
 // Check compact number mode.
 {
