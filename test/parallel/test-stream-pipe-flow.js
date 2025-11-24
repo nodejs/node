@@ -74,9 +74,7 @@ const { Readable, Writable, PassThrough } = require('stream');
   const pt = rs
     .pipe(new PassThrough({ objectMode: true, highWaterMark: 2 }));
   assert.strictEqual(pt.listenerCount('drain'), 0);
-  pt.on('finish', () => {
-    assert.strictEqual(pt.listenerCount('drain'), 0);
-  });
+  pt.on('finish', common.mustNotCall());
 
   rs.push('asd');
   assert.strictEqual(pt.listenerCount('drain'), 0);

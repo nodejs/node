@@ -219,9 +219,9 @@ const assert = require('assert');
   .end(true)
   .on('data', common.mustNotCall())
   .on('end', common.mustNotCall())
-  .on('error', (err) => {
+  .on('error', common.mustCall((err) => {
     assert.strictEqual(err, _err);
-  });
+  }));
 }
 
 {
@@ -251,9 +251,9 @@ const assert = require('assert');
   .end(true)
   .on('data', common.mustNotCall())
   .on('end', common.mustNotCall())
-  .on('error', (err) => {
+  .on('error', common.mustCall((err) => {
     assert.strictEqual(err, _err);
-  });
+  }));
 }
 
 {
