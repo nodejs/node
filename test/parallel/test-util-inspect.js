@@ -2564,8 +2564,8 @@ assert.strictEqual(
     inspect(thrower, { getters: true }),
     '{\n' +
     '  foo: [Getter: <Inspection threw (Error: Oops\n' +
-    '    at get foo (/foo/node_modules/foo.js:2:7)\n' +
-    '    at get bar (/foo/node_modules/bar.js:827:30))>]\n' +
+    '      at get foo (/foo/node_modules/foo.js:2:7)\n' +
+    '      at get bar (/foo/node_modules/bar.js:827:30))>]\n' +
     '}',
   );
 };
@@ -2573,18 +2573,25 @@ assert.strictEqual(
 // Property getter throwing an error with getters that throws.
 // https://github.com/nodejs/node/issues/60683
 {
-  const error = new Error();
+  const badError = new Error();
+
+  const innerError = new Error('Oops');
+  innerError.stack = [
+    'Error: Oops',
+    '    at get foo (/foo/node_modules/foo.js:2:7)',
+    '    at get bar (/foo/node_modules/bar.js:827:30)',
+  ].join('\n');
 
   const throwingGetter = {
     __proto__: null,
     get() {
-      throw error;
+      throw innerError;
     },
     configurable: true,
     enumerable: true,
   };
 
-  Object.defineProperties(error, {
+  Object.defineProperties(badError, {
     name: throwingGetter,
     message: throwingGetter,
     stack: throwingGetter,
@@ -2592,19 +2599,149 @@ assert.strictEqual(
   });
 
   const thrower = {
-    get foo() { throw error; }
+    get foo() { throw badError; }
   };
 
   assert.strictEqual(
     inspect(thrower, { getters: true }),
     '{\n' +
     '  foo: [Getter: <Inspection threw ([object Error] {\n' +
-    '  stack: [Getter/Setter],\n' +
-    '  name: [Getter],\n' +
-    '  message: [Getter],\n' +
-    '  cause: [Getter]\n' +
-    '})>]\n' +
-    '}',
+    '    stack: [Getter/Setter: <Inspection threw (Error: Oops\n' +
+    '        at get foo (/foo/node_modules/foo.js:2:7)\n' +
+    '        at get bar (/foo/node_modules/bar.js:827:30))>],\n' +
+    '    name: [Getter: <Inspection threw (Error: Oops\n' +
+    '        at get foo (/foo/node_modules/foo.js:2:7)\n' +
+    '        at get bar (/foo/node_modules/bar.js:827:30))>],\n' +
+    '    message: [Getter: <Inspection threw (Error: Oops\n' +
+    '        at get foo (/foo/node_modules/foo.js:2:7)\n' +
+    '        at get bar (/foo/node_modules/bar.js:827:30))>],\n' +
+    '    cause: [Getter: <Inspection threw (Error: Oops\n' +
+    '        at get foo (/foo/node_modules/foo.js:2:7)\n' +
+    '        at get bar (/foo/node_modules/bar.js:827:30))>]\n' +
+    '  })>]\n' +
+    '}'
+  );
+}
+
+// Property getter throwing an error with getters that throws recursivly.
+{
+  const terminalError = new Error('Oops');
+  terminalError.stack = [
+    'Error: Oops',
+    '    at get foo (/foo/node_modules/foo.js:2:7)',
+  ].join('\n');
+
+  function getRecursiveThrowingError(recursions) {
+    const badError = new Error();
+
+    const innerError = recursions > 0 ?
+      getRecursiveThrowingError(recursions - 1) :
+      terminalError;
+
+    const throwingGetter = {
+      __proto__: null,
+      get() {
+        throw innerError;
+      },
+      configurable: true,
+      enumerable: true,
+    };
+
+    Object.defineProperties(badError, {
+      message: throwingGetter,
+      stack: throwingGetter,
+    });
+
+    return badError;
+  }
+
+  const badRecursiveError = getRecursiveThrowingError(3);
+  const thrower = {
+    get foo() { throw badRecursiveError; }
+  };
+
+  assert.strictEqual(
+    inspect(thrower, { getters: true, depth: 2 }),
+    '{\n' +
+    '  foo: [Getter: <Inspection threw ([object Error] {\n' +
+    '    stack: [Getter/Setter: <Inspection threw ([object Error] {\n' +
+    '      stack: [Getter/Setter: <Inspection threw ([Error])>],\n' +
+    '      message: [Getter: <Inspection threw ([Error])>]\n' +
+    '    })>],\n' +
+    '    message: [Getter: <Inspection threw ([object Error] {\n' +
+    '      stack: [Getter/Setter: <Inspection threw ([Error])>],\n' +
+    '      message: [Getter: <Inspection threw ([Error])>]\n' +
+    '    })>]\n' +
+    '  })>]\n' +
+    '}'
+  );
+
+  assert.strictEqual(
+    inspect(thrower, { getters: true, depth: 4 }),
+    '{\n' +
+    '  foo: [Getter: <Inspection threw ([object Error] {\n' +
+    '    stack: [Getter/Setter: <Inspection threw ([object Error] {\n' +
+    '      stack: [Getter/Setter: <Inspection threw ([object Error] {\n' +
+    '        stack: [Getter/Setter: <Inspection threw ([object Error] {\n' +
+    '          stack: [Getter/Setter: <Inspection threw (Error: Oops\n' +
+    '              at get foo (/foo/node_modules/foo.js:2:7))>],\n' +
+    '          message: [Getter: <Inspection threw (Error: Oops\n' +
+    '              at get foo (/foo/node_modules/foo.js:2:7))>]\n' +
+    '        })>],\n' +
+    '        message: [Getter: <Inspection threw ([object Error] {\n' +
+    '          stack: [Getter/Setter: <Inspection threw (Error: Oops\n' +
+    '              at get foo (/foo/node_modules/foo.js:2:7))>],\n' +
+    '          message: [Getter: <Inspection threw (Error: Oops\n' +
+    '              at get foo (/foo/node_modules/foo.js:2:7))>]\n' +
+    '        })>]\n' +
+    '      })>],\n' +
+    '      message: [Getter: <Inspection threw ([object Error] {\n' +
+    '        stack: [Getter/Setter: <Inspection threw ([object Error] {\n' +
+    '          stack: [Getter/Setter: <Inspection threw (Error: Oops\n' +
+    '              at get foo (/foo/node_modules/foo.js:2:7))>],\n' +
+    '          message: [Getter: <Inspection threw (Error: Oops\n' +
+    '              at get foo (/foo/node_modules/foo.js:2:7))>]\n' +
+    '        })>],\n' +
+    '        message: [Getter: <Inspection threw ([object Error] {\n' +
+    '          stack: [Getter/Setter: <Inspection threw (Error: Oops\n' +
+    '              at get foo (/foo/node_modules/foo.js:2:7))>],\n' +
+    '          message: [Getter: <Inspection threw (Error: Oops\n' +
+    '              at get foo (/foo/node_modules/foo.js:2:7))>]\n' +
+    '        })>]\n' +
+    '      })>]\n' +
+    '    })>],\n' +
+    '    message: [Getter: <Inspection threw ([object Error] {\n' +
+    '      stack: [Getter/Setter: <Inspection threw ([object Error] {\n' +
+    '        stack: [Getter/Setter: <Inspection threw ([object Error] {\n' +
+    '          stack: [Getter/Setter: <Inspection threw (Error: Oops\n' +
+    '              at get foo (/foo/node_modules/foo.js:2:7))>],\n' +
+    '          message: [Getter: <Inspection threw (Error: Oops\n' +
+    '              at get foo (/foo/node_modules/foo.js:2:7))>]\n' +
+    '        })>],\n' +
+    '        message: [Getter: <Inspection threw ([object Error] {\n' +
+    '          stack: [Getter/Setter: <Inspection threw (Error: Oops\n' +
+    '              at get foo (/foo/node_modules/foo.js:2:7))>],\n' +
+    '          message: [Getter: <Inspection threw (Error: Oops\n' +
+    '              at get foo (/foo/node_modules/foo.js:2:7))>]\n' +
+    '        })>]\n' +
+    '      })>],\n' +
+    '      message: [Getter: <Inspection threw ([object Error] {\n' +
+    '        stack: [Getter/Setter: <Inspection threw ([object Error] {\n' +
+    '          stack: [Getter/Setter: <Inspection threw (Error: Oops\n' +
+    '              at get foo (/foo/node_modules/foo.js:2:7))>],\n' +
+    '          message: [Getter: <Inspection threw (Error: Oops\n' +
+    '              at get foo (/foo/node_modules/foo.js:2:7))>]\n' +
+    '        })>],\n' +
+    '        message: [Getter: <Inspection threw ([object Error] {\n' +
+    '          stack: [Getter/Setter: <Inspection threw (Error: Oops\n' +
+    '              at get foo (/foo/node_modules/foo.js:2:7))>],\n' +
+    '          message: [Getter: <Inspection threw (Error: Oops\n' +
+    '              at get foo (/foo/node_modules/foo.js:2:7))>]\n' +
+    '        })>]\n' +
+    '      })>]\n' +
+    '    })>]\n' +
+    '  })>]\n' +
+    '}'
   );
 }
 
@@ -2650,7 +2787,7 @@ assert.strictEqual(
       // eslint-disable-next-line no-throw-literal
       get foo() { throw { get message() { return 'Oops'; } }; }
     }, { getters: true }),
-    '{ foo: [Getter: <Inspection threw ({ message: [Getter] })>] }'
+    "{ foo: [Getter: <Inspection threw ({ message: [Getter: 'Oops'] })>] }"
   );
   assert.strictEqual(
     inspect({
