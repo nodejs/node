@@ -69,9 +69,7 @@ function client() {
     rejectUnauthorized: false,
     ALPNProtocols: ['h2']
   }, () => {
-    client.end(Buffer.concat(h2fstStream.map((s) => Buffer.from(s, 'base64'))), (err) => {
-      assert.ifError(err);
-    });
+    client.end(Buffer.concat(h2fstStream.map((s) => Buffer.from(s, 'base64'))), common.mustSucceed());
   });
 
   client.on('error', (error) => {

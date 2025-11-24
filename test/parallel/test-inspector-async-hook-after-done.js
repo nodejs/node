@@ -57,12 +57,12 @@ session.connect();
 
 session.on('NodeWorker.attachedToWorker', common.mustCall(onAttachToWorker));
 
-session.post('NodeWorker.enable', { waitForDebuggerOnStart: true }, () => {
+session.post('NodeWorker.enable', { waitForDebuggerOnStart: true }, common.mustCall(() => {
   new Worker('console.log("Worker is done")', { eval: true })
-    .once('exit', () => {
-      setTimeout(() => {
+    .once('exit', common.mustCall(() => {
+      setTimeout(common.mustCall(() => {
         assert.strictEqual(done, true);
         console.log('Test is done');
-      }, 0);
-    });
-});
+      }), 0);
+    }));
+}));
