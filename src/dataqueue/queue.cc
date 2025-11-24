@@ -481,7 +481,7 @@ class NonIdempotentDataQueueReader final
       // status.
       if (!data_queue_->is_capped()) {
         // Do we have to call next?
-        if (!(options & bob::OPTIONS_SYNC) && false) {
+        if (!(options & bob::OPTIONS_SYNC)) {
           assert(!waited_next_);
           next(bob::Status::STATUS_WAIT, nullptr, 0, [](uint64_t) {});
           waited_next_ = std::move(next);
