@@ -117,7 +117,7 @@ size_t findBestFit(const Char* data, size_t length, size_t bufferSize) {
         std::max(size_t{1}, std::max(guaranteedToFit, likelyToFit));
     size_t chunkSize = std::min(remainingInput, fitEstimate);
     if (chunkSize == 1) break;
-    DCHECK_GT(chunkSize, 1);
+    CHECK_GT(chunkSize, 1);
 
     size_t chunkUtf8Len;
     if constexpr (UTF16) {
@@ -198,14 +198,16 @@ void BindingData::EncodeInto(const FunctionCallbackInfo<Value>& args) {
   char* write_result = static_cast<char*>(buf->Data()) + dest->ByteOffset();
   size_t dest_length = dest->ByteLength();
 
-  // For small strings (length <= 32), use the old V8 path for better performance
+  // For small strings (length <= 32), use the old V8 path for better
+  // performance
   if (source->Length() <= 32) {
     size_t nchars;
-    size_t written = source->WriteUtf8V2(isolate,
-                                         write_result,
-                                         dest_length,
-                                         String::WriteFlags::kReplaceInvalidUtf8,
-                                         &nchars);
+    size_t written =
+        source->WriteUtf8V2(isolate,
+                            write_result,
+                            dest_length,
+                            String::WriteFlags::kReplaceInvalidUtf8,
+                            &nchars);
     binding_data->encode_into_results_buffer_[0] = nchars;
     binding_data->encode_into_results_buffer_[1] = written;
     return;
