@@ -342,7 +342,7 @@ An alias of [`assert.ok()`][].
 <!-- YAML
 added: v0.1.21
 changes:
-  - version: v25.1.0
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/58849
     description: Message may now be a `printf`-like format string or function.
   - version: v25.0.0
