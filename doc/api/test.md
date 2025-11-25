@@ -3482,7 +3482,9 @@ the path of the root test file.
 ### `context.fullName`
 
 <!-- YAML
-added: v22.3.0
+added:
+  - v22.3.0
+  - v20.16.0
 -->
 
 The name of the test and each of its ancestors, separated by `>`.
@@ -3782,6 +3784,16 @@ added: v22.6.0
 The absolute path of the test file that created the current suite. If a test
 file imports additional modules that generate suites, the imported suites will
 return the path of the root test file.
+
+### `context.fullName`
+
+<!-- YAML
+added:
+  - v22.3.0
+  - v20.16.0
+-->
+
+The name of the suite and each of its ancestors, separated by `>`.
 
 ### `context.name`
 
