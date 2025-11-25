@@ -100,39 +100,35 @@ assert.strictEqual(importedModuleIsMain, false, 'import.meta.main should evaluat
     });
   });
 
-  it('should evaluate true in worker instantiated with module source by evaluated script',
-     onlyWithAmaro,
-     async () => {
-       const result = await spawnPromisified(
-         process.execPath,
-         ['--input-type=module-typescript',
-          '--disable-warning=ExperimentalWarning',
-          '--eval',
-          wrapScriptInEvalWorker(importMetaMainTSScript)],
-       );
-       assert.deepStrictEqual(result, {
-         stderr: '',
-         stdout: '',
-         code: 0,
-         signal: null,
-       });
-     });
+  it('should evaluate true in worker instantiated with module source by evaluated script', onlyWithAmaro, async () => {
+    const result = await spawnPromisified(
+      process.execPath,
+      ['--input-type=module-typescript',
+       '--disable-warning=ExperimentalWarning',
+       '--eval',
+       wrapScriptInEvalWorker(importMetaMainTSScript)],
+    );
+    assert.deepStrictEqual(result, {
+      stderr: '',
+      stdout: '',
+      code: 0,
+      signal: null,
+    });
+  });
 
-  it('should evaluate true in worker instantiated with `data:` URL by evaluated script',
-     onlyWithAmaro,
-     async () => {
-       const result = await spawnPromisified(
-         process.execPath,
-         ['--input-type=module',
-          '--input-type=module-typescript',
-          '--disable-warning=ExperimentalWarning',
-          '--eval', wrapScriptInUrlWorker(importMetaMainTSScript)],
-       );
-       assert.deepStrictEqual(result, {
-         stderr: '',
-         stdout: '',
-         code: 0,
-         signal: null,
-       });
-     });
+  it('should evaluate true in worker instantiated with `data:` URL by evaluated script', onlyWithAmaro, async () => {
+    const result = await spawnPromisified(
+      process.execPath,
+      ['--input-type=module',
+       '--input-type=module-typescript',
+       '--disable-warning=ExperimentalWarning',
+       '--eval', wrapScriptInUrlWorker(importMetaMainTSScript)],
+    );
+    assert.deepStrictEqual(result, {
+      stderr: '',
+      stdout: '',
+      code: 0,
+      signal: null,
+    });
+  });
 });

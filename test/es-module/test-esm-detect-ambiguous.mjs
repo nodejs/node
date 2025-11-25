@@ -264,16 +264,16 @@ describe('Module syntax detection', { concurrency: !process.env.TEST_PARALLEL },
     });
 
     it('still throws on `await` in an ordinary sync function', async () => {
-         const { stdout, stderr, code, signal } = await spawnPromisified(process.execPath, [
-           '--eval',
-           'function fn() { await Promise.resolve(); } fn();',
-         ]);
+      const { stdout, stderr, code, signal } = await spawnPromisified(process.execPath, [
+        '--eval',
+        'function fn() { await Promise.resolve(); } fn();',
+      ]);
 
-         assert.match(stderr, /SyntaxError: await is only valid in async function/);
-         assert.strictEqual(stdout, '');
-         assert.strictEqual(code, 1);
-         assert.strictEqual(signal, null);
-       });
+      assert.match(stderr, /SyntaxError: await is only valid in async function/);
+      assert.strictEqual(stdout, '');
+      assert.strictEqual(code, 1);
+      assert.strictEqual(signal, null);
+    });
 
     it('throws on undefined `require` when top-level `await` triggers ESM parsing', async () => {
       const { stdout, stderr, code, signal } = await spawnPromisified(process.execPath, [
@@ -315,16 +315,16 @@ describe('Module syntax detection', { concurrency: !process.env.TEST_PARALLEL },
     });
 
     it('still throws on double `const` declaration not at the top level', async () => {
-         const { stdout, stderr, code, signal } = await spawnPromisified(process.execPath, [
-           '--eval',
-           'function fn() { const require = 1; const require = 2; } fn();',
-         ]);
+      const { stdout, stderr, code, signal } = await spawnPromisified(process.execPath, [
+        '--eval',
+        'function fn() { const require = 1; const require = 2; } fn();',
+      ]);
 
-         assert.match(stderr, /SyntaxError: Identifier 'require' has already been declared/);
-         assert.strictEqual(stdout, '');
-         assert.strictEqual(code, 1);
-         assert.strictEqual(signal, null);
-       });
+      assert.match(stderr, /SyntaxError: Identifier 'require' has already been declared/);
+      assert.strictEqual(stdout, '');
+      assert.strictEqual(code, 1);
+      assert.strictEqual(signal, null);
+    });
   });
 
   describe('warn about typeless packages for .js files with ESM syntax', { concurrency: true }, () => {
