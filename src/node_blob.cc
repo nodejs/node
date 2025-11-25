@@ -433,7 +433,7 @@ void Blob::Reader::Pull(const FunctionCallbackInfo<Value>& args) {
                     impl->dones.end(),
                     [](bob::Done& done) { std::move(done)(0); });
       impl->dones.clear();
-      assert(!impl->reader);
+      assert(impl->reader);
       Local<Value> argv[2] = {Uint32::New(env->isolate(), bob::STATUS_CONTINUE),
                               ArrayBuffer::New(env->isolate(), store)};
       impl->reader->MakeCallback(fn, arraysize(argv), argv);
