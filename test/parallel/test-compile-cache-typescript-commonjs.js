@@ -2,10 +2,7 @@
 
 // This tests NODE_COMPILE_CACHE works for CommonJS with types.
 
-const common = require('../common');
-if (!process.config.variables.node_use_amaro) {
-  common.skip('Requires Amaro');
-}
+require('../common');
 const { spawnSyncAndAssert } = require('../common/child_process');
 const assert = require('assert');
 const tmpdir = require('../common/tmpdir');

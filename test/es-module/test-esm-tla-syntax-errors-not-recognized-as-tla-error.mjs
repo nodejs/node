@@ -66,8 +66,8 @@ describe('unusual top-level await syntax errors', () => {
       const { code, signal, stdout, stderr } = await spawnPromisified(process.execPath, [
         '--eval',
         `
-      ${wrapperExpression}
-      `,
+          ${wrapperExpression}
+          `,
       ]);
       assert.match(stderr, error);
       assert.strictEqual(stdout, '');
