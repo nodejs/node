@@ -77,6 +77,12 @@ class DataQueueImpl final : public DataQueue,
   DataQueueImpl& operator=(const DataQueueImpl&) = delete;
   DataQueueImpl& operator=(DataQueueImpl&&) = delete;
 
+  ~DataQueueImpl() {
+    for (auto cur = readers_.begin(); cur != readers_.end(); cur++) {
+      (*cur)->clearPendingReads();
+    }
+  }
+
   std::shared_ptr<DataQueue> slice(
       uint64_t start,
       std::optional<uint64_t> maybeEnd = std::nullopt) override {
@@ -226,6 +232,7 @@ class DataQueueImpl final : public DataQueue,
   class NotifyReader {
    public:
     virtual void newDataOrEnd() = 0;
+    virtual void clearPendingReads() = 0;
   };
 
   void reader_destructed(NotifyReader* reader) { readers_.erase(reader); }
@@ -278,6 +285,10 @@ class IdempotentDataQueueReader final
   IdempotentDataQueueReader& operator=(IdempotentDataQueueReader&&) = delete;
 
   void newDataOrEnd() override {
+    // Currently nothing, but it may change
+  }
+
+  void clearPendingReads() override {
     // Currently nothing, but it may change
   }
 
@@ -435,10 +446,7 @@ class NonIdempotentDataQueueReader final
   }
 
   ~NonIdempotentDataQueueReader() {
-    if (waited_next_) {
-      std::move(waited_next_)(
-          bob::Status::STATUS_EOS, nullptr, 0, [](uint64_t) {});
-    }
+    clearPendingReads();
     data_queue_->reader_destructed(this);
   }
 
@@ -459,6 +467,13 @@ class NonIdempotentDataQueueReader final
                 bob::Status::STATUS_CONTINUE, nullptr, 0, [](uint64_t) {});
           },
           CallbackFlags::kUnrefed);
+    }
+  }
+
+  void clearPendingReads() override {
+    if (waited_next_) {
+      std::move(waited_next_)(
+          bob::Status::STATUS_EOS, nullptr, 0, [](uint64_t) {});
     }
   }
 
