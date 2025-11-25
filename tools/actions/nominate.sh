@@ -41,7 +41,9 @@ EOF
     return 1
   }
 
-  read -p 'Open the discussion using `gh`? (y/N)' -n 1 -r
+  # shellcheck disable=SC2016
+  printf 'Open the discussion using `gh`? (y/N) ' >&2
+  read -r REPLY
   echo
   if ! ([ "$REPLY" = "y" ] || [ "$REPLY" = "Y" ]); then
     set +x
