@@ -167,7 +167,7 @@ describe('require(\'node:test\').run with global hooks', { concurrency: false },
       });
 
       it('should run TypeScript globalSetup and globalTeardown functions',
-         { skip: !process.config.variables.node_use_amaro },
+         onlyWithAmaro,
          async () => {
            const setupFlagPath = tmpdir.resolve('setup-executed-ts.tmp');
            const teardownFlagPath = tmpdir.resolve('teardown-executed-ts.tmp');

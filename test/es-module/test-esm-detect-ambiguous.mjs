@@ -4,6 +4,8 @@ import { spawn } from 'node:child_process';
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
 
+const onlyWithAmaro = { skip: !process.config.variables.node_use_amaro };
+
 describe('Module syntax detection', { concurrency: !process.env.TEST_PARALLEL }, () => {
   describe('string input', { concurrency: !process.env.TEST_PARALLEL }, () => {
     it('permits ESM syntax in --eval input without requiring --input-type=module', async () => {
@@ -264,7 +266,7 @@ describe('Module syntax detection', { concurrency: !process.env.TEST_PARALLEL },
     });
 
     it('still throws on `await` in an ordinary sync function',
-       { skip: !process.config.variables.node_use_amaro },
+       onlyWithAmaro,
        async () => {
          const { stdout, stderr, code, signal } = await spawnPromisified(process.execPath, [
            '--eval',
@@ -317,7 +319,7 @@ describe('Module syntax detection', { concurrency: !process.env.TEST_PARALLEL },
     });
 
     it('still throws on double `const` declaration not at the top level',
-       { skip: !process.config.variables.node_use_amaro },
+       onlyWithAmaro,
        async () => {
          const { stdout, stderr, code, signal } = await spawnPromisified(process.execPath, [
            '--eval',

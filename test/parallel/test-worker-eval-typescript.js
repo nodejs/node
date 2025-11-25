@@ -19,15 +19,17 @@ const cjsHelloWorld = `
 
 const disableTypeScriptWarningFlag = '--disable-warning=ExperimentalWarning';
 
+const onlyWithAmaro = { skip: !process.config.variables.node_use_amaro };
+
 test('Worker eval module typescript without input-type',
-     { skip: !process.config.variables.node_use_amaro },
+     onlyWithAmaro,
      async () => {
        const w = new Worker(esmHelloWorld, { eval: true, execArgv: [disableTypeScriptWarningFlag] });
        assert.deepStrictEqual(await once(w, 'message'), ['Hello, World!']);
      });
 
 test('Worker eval module typescript with --input-type=module-typescript',
-     { skip: !process.config.variables.node_use_amaro },
+     onlyWithAmaro,
      async () => {
        const w = new Worker(esmHelloWorld, { eval: true, execArgv: ['--input-type=module-typescript',
                                                                     disableTypeScriptWarningFlag] });
@@ -35,7 +37,7 @@ test('Worker eval module typescript with --input-type=module-typescript',
      });
 
 test('Worker eval module typescript with --input-type=commonjs-typescript',
-     { skip: !process.config.variables.node_use_amaro },
+     onlyWithAmaro,
      async () => {
        const w = new Worker(esmHelloWorld, { eval: true, execArgv: ['--input-type=commonjs-typescript',
                                                                     disableTypeScriptWarningFlag] });
@@ -54,14 +56,14 @@ test('Worker eval module typescript with --input-type=module', async () => {
 });
 
 test('Worker eval commonjs typescript without input-type',
-     { skip: !process.config.variables.node_use_amaro },
+     onlyWithAmaro,
      async () => {
        const w = new Worker(cjsHelloWorld, { eval: true, execArgv: [disableTypeScriptWarningFlag] });
        assert.deepStrictEqual(await once(w, 'message'), ['Hello, World!']);
      });
 
 test('Worker eval commonjs typescript with --input-type=commonjs-typescript',
-     { skip: !process.config.variables.node_use_amaro },
+     onlyWithAmaro,
      async () => {
        const w = new Worker(cjsHelloWorld, { eval: true, execArgv: ['--input-type=commonjs-typescript',
                                                                     disableTypeScriptWarningFlag] });
@@ -69,7 +71,7 @@ test('Worker eval commonjs typescript with --input-type=commonjs-typescript',
      });
 
 test('Worker eval commonjs typescript with --input-type=module-typescript',
-     { skip: !process.config.variables.node_use_amaro },
+     onlyWithAmaro,
      async () => {
        const w = new Worker(cjsHelloWorld, { eval: true, execArgv: ['--input-type=module-typescript',
                                                                     disableTypeScriptWarningFlag] });

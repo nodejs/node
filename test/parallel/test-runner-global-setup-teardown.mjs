@@ -10,6 +10,8 @@ import { join } from 'node:path';
 
 const testFixtures = fixtures.path('test-runner');
 
+const onlyWithAmaro = { skip: !process.config.variables.node_use_amaro };
+
 async function runTest(
   {
     isolation,
@@ -257,7 +259,7 @@ async function runTest(
     });
 
     it('should run TypeScript globalSetup and globalTeardown functions',
-       { skip: !process.config.variables.node_use_amaro },
+       onlyWithAmaro,
        async () => {
          const setupFlagPath = tmpdir.resolve('setup-executed-ts.tmp');
          const teardownFlagPath = tmpdir.resolve('teardown-executed-ts.tmp');
