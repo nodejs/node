@@ -2642,36 +2642,50 @@ assert.strictEqual(
   const thrower = Object.defineProperty({}, 'foo', recursivelyThrowingErrorDesc);
 
   assert.strictEqual(
-    inspect(thrower, { getters: true, depth: 2 }),
+    inspect(thrower, { getters: true, depth: 1 }),
     '{\n' +
     '  foo: [Getter: <Inspection threw ([object Error] {\n' +
-    '    stack: [Getter/Setter: <Inspection threw ([object Error] {\n' +
-    '      stack: [Getter/Setter: <Inspection threw ([Error])>],\n' +
-    '      cause: [Getter: <Inspection threw ([Error])>],\n' +
-    '      name: [Getter: <Inspection threw ([Error])>],\n' +
-    '      message: [Getter: <Inspection threw ([Error])>]\n' +
-    '    })>],\n' +
-    '    cause: [Getter: <Inspection threw ([object Error] {\n' +
-    '      stack: [Getter/Setter: <Inspection threw ([Error])>],\n' +
-    '      cause: [Getter: <Inspection threw ([Error])>],\n' +
-    '      name: [Getter: <Inspection threw ([Error])>],\n' +
-    '      message: [Getter: <Inspection threw ([Error])>]\n' +
-    '    })>],\n' +
-    '    name: [Getter: <Inspection threw ([object Error] {\n' +
-    '      stack: [Getter/Setter: <Inspection threw ([Error])>],\n' +
-    '      cause: [Getter: <Inspection threw ([Error])>],\n' +
-    '      name: [Getter: <Inspection threw ([Error])>],\n' +
-    '      message: [Getter: <Inspection threw ([Error])>]\n' +
-    '    })>],\n' +
-    '    message: [Getter: <Inspection threw ([object Error] {\n' +
-    '      stack: [Getter/Setter: <Inspection threw ([Error])>],\n' +
-    '      cause: [Getter: <Inspection threw ([Error])>],\n' +
-    '      name: [Getter: <Inspection threw ([Error])>],\n' +
-    '      message: [Getter: <Inspection threw ([Error])>]\n' +
-    '    })>]\n' +
+    '    stack: [Getter/Setter: <Inspection threw ([Error])>],\n' +
+    '    cause: [Getter: <Inspection threw ([Error])>],\n' +
+    '    name: [Getter: <Inspection threw ([Error])>],\n' +
+    '    message: [Getter: <Inspection threw ([Error])>]\n' +
     '  })>]\n' +
     '}'
   );
+
+  [{ getters: true, depth: 2 }, { getters: true }].forEach((options) => {
+    assert.strictEqual(
+      inspect(thrower, options),
+      '{\n' +
+      '  foo: [Getter: <Inspection threw ([object Error] {\n' +
+      '    stack: [Getter/Setter: <Inspection threw ([object Error] {\n' +
+      '      stack: [Getter/Setter: <Inspection threw ([Error])>],\n' +
+      '      cause: [Getter: <Inspection threw ([Error])>],\n' +
+      '      name: [Getter: <Inspection threw ([Error])>],\n' +
+      '      message: [Getter: <Inspection threw ([Error])>]\n' +
+      '    })>],\n' +
+      '    cause: [Getter: <Inspection threw ([object Error] {\n' +
+      '      stack: [Getter/Setter: <Inspection threw ([Error])>],\n' +
+      '      cause: [Getter: <Inspection threw ([Error])>],\n' +
+      '      name: [Getter: <Inspection threw ([Error])>],\n' +
+      '      message: [Getter: <Inspection threw ([Error])>]\n' +
+      '    })>],\n' +
+      '    name: [Getter: <Inspection threw ([object Error] {\n' +
+      '      stack: [Getter/Setter: <Inspection threw ([Error])>],\n' +
+      '      cause: [Getter: <Inspection threw ([Error])>],\n' +
+      '      name: [Getter: <Inspection threw ([Error])>],\n' +
+      '      message: [Getter: <Inspection threw ([Error])>]\n' +
+      '    })>],\n' +
+      '    message: [Getter: <Inspection threw ([object Error] {\n' +
+      '      stack: [Getter/Setter: <Inspection threw ([Error])>],\n' +
+      '      cause: [Getter: <Inspection threw ([Error])>],\n' +
+      '      name: [Getter: <Inspection threw ([Error])>],\n' +
+      '      message: [Getter: <Inspection threw ([Error])>]\n' +
+      '    })>]\n' +
+      '  })>]\n' +
+      '}'
+    );
+  });
 }
 
 // Property getter throwing an error whose own getters throw that same error (infinite recursion).
