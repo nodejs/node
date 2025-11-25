@@ -690,6 +690,8 @@ assert.strictEqual(util.inspect(-5e-324), '-5e-324');
 
 {
   const tmp = Error.stackTraceLimit;
+  // Force stackTraceLimit = 0 for this test, but make it non-enumerable
+  // so it doesn't appear in inspect() output when inspecting Error in other tests.
   Object.defineProperty(Error, 'stackTraceLimit', { value: 0, enumerable: false });
   const err = new Error('foo');
   const err2 = new Error('foo\nbar');
