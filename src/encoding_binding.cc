@@ -117,12 +117,15 @@ size_t findBestFit(const Char* data, size_t length, size_t bufferSize) {
         std::max(size_t{1}, std::max(guaranteedToFit, likelyToFit));
     size_t chunkSize = std::min(remainingInput, fitEstimate);
     if (chunkSize == 1) break;
-    DCHECK_GE(chunkSize, 1);
+    DCHECK_GT(chunkSize, 1);
 
     size_t chunkUtf8Len;
     if constexpr (UTF16) {
       // TODO(anonrig): Use utf8_length_from_utf16_with_replacement when
       // available For now, validate and use utf8_length_from_utf16
+      size_t newPos = pos + chunkSize;
+      if (newPos < length && isSurrogatePair(data[newPos - 1], data[newPos]))
+        chunkSize--;
       chunkUtf8Len = simdutf::utf8_length_from_utf16(data + pos, chunkSize);
     } else {
       chunkUtf8Len = simdutf::utf8_length_from_latin1(data + pos, chunkSize);
@@ -223,7 +226,8 @@ void BindingData::EncodeInto(const FunctionCallbackInfo<Value>& args) {
     auto data = reinterpret_cast<const char16_t*>(view.data16());
 
     // Limit conversion to what could fit in destination, avoiding splitting
-    // a valid surrogate pair at the boundary
+    // a valid surrogate pair at the boundary, which could cause a spurious call
+    // of simdutf::to_well_formed_utf16()
     if (length_that_fits > 0 && length_that_fits < view.length() &&
         isSurrogatePair(data[length_that_fits - 1], data[length_that_fits])) {
       length_that_fits--;
@@ -236,7 +240,7 @@ void BindingData::EncodeInto(const FunctionCallbackInfo<Value>& args) {
 
     if (validation_result.error == simdutf::SUCCESS) {
       // Valid UTF-16 - use the fast path
-      read = findBestFit(data, view.length(), dest_length);
+      read = findBestFit(data, length_that_fits, dest_length);
       if (read != 0) {
         DCHECK_LE(simdutf::utf8_length_from_utf16(data, read), dest_length);
         written = simdutf::convert_utf16_to_utf8(data, read, write_result);
@@ -262,7 +266,7 @@ void BindingData::EncodeInto(const FunctionCallbackInfo<Value>& args) {
       }
     }
   }
-  DCHECK_LE(written, dest_length);
+  DCHECK_LE(written, dest->ByteLength(););
 
   binding_data->encode_into_results_buffer_[0] = static_cast<double>(read);
   binding_data->encode_into_results_buffer_[1] = static_cast<double>(written);
