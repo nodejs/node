@@ -85,7 +85,6 @@ test('should throw an error when a flag is declared twice', async () => {
   assert.strictEqual(result.code, 9);
 });
 
-
 test('should override env-file', onlyWithAmaro, async () => {
   const result = await spawnPromisified(process.execPath, [
     '--no-warnings',

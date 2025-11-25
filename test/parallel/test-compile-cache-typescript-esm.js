@@ -12,7 +12,7 @@ const tmpdir = require('../common/tmpdir');
 const fixtures = require('../common/fixtures');
 
 // Check cache for .ts files that would be run as ESM.
-{
+if (process.config.variables.node_use_amaro) {
   tmpdir.refresh();
   const dir = tmpdir.resolve('.compile_cache_dir');
   const script = fixtures.path('typescript', 'ts', 'test-module-typescript.ts');

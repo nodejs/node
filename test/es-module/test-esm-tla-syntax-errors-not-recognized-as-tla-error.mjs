@@ -2,8 +2,6 @@ import { spawnPromisified } from '../common/index.mjs';
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
 
-const onlyWithAmaro = { skip: !process.config.variables.node_use_amaro };
-
 describe('unusual top-level await syntax errors', () => {
   const expressions = [
     // string
@@ -51,9 +49,7 @@ describe('unusual top-level await syntax errors', () => {
     }
   });
 
-  it('should throw the error for unrelated syntax errors',
-     onlyWithAmaro,
-     async () => {
+  it('should throw the error for unrelated syntax errors', async () => {
        const expression = 'foo bar';
        const wrapperExpressions = [
          [`function callSyntaxError() {}; callSyntaxError(${expression});`, /missing \) after argument list/],

@@ -64,7 +64,7 @@ for (const [, envVar, config] of nodeOptionsCC.matchAll(addOptionRE)) {
   }
 
   // Exception for HAVE_AMARO conditional default (defaults to true when Amaro is available)
-  if (process.config.variables.node_use_amaro) {
+  if (config.includes('HAVE_AMARO')) {
     hasTrueAsDefaultValue = true;
   }
 

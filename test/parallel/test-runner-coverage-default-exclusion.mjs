@@ -16,8 +16,6 @@ async function setupFixtures() {
   await cp(fixtureDir, tmpdir.path, { recursive: true });
 }
 
-const onlyWithAmaro = { skip: !process.config.variables.node_use_amaro };
-
 describe('test runner coverage default exclusion', skipIfNoInspector, () => {
   before(async () => {
     await setupFixtures();
@@ -88,7 +86,7 @@ describe('test runner coverage default exclusion', skipIfNoInspector, () => {
     assert.strictEqual(result.status, 0);
   });
 
-  it('should exclude ts test files', onlyWithAmaro, async () => {
+  it('should exclude ts test files', async () => {
     const report = [
       '# start of coverage report',
       '# --------------------------------------------------------------',
