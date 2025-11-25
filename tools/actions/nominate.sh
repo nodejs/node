@@ -41,6 +41,16 @@ EOF
     return 1
   }
 
+  read -p 'Open the discussion using `gh`? (y/N)' -n 1 -r
+  echo
+  if ! ([ "$REPLY" = "y" ] || [ "$REPLY" = "Y" ]); then
+    set +x
+    echo "Here's the body that you set:" >&2
+    echo "$BODY"
+    echo "Open https://github.com/nodejs/collaborators/discussions/new/choose in your browser to create the discussion manually" >&2
+    return 0
+  fi
+
   echo "Getting repo ID and discussion category" >&2
   # shellcheck disable=SC2016
   REPO_ID_AND_DISCUSSION_CATEGORY_ID="$(gh api graphql -f query='
