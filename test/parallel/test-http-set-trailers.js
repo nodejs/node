@@ -43,8 +43,9 @@ function testHttp10(port, callback) {
 
   c.on('end', common.mustCall(() => {
     c.end();
-    assert.ok(
-      !/x-foo/.test(res_buffer),
+    assert.doesNotMatch(
+      res_buffer,
+      /x-foo/,
       `No trailer in HTTP/1.0 response. Response buffer: ${res_buffer}`
     );
     callback();
@@ -68,8 +69,9 @@ function testHttp11(port, callback) {
     res_buffer += chunk;
     if (/0\r\n/.test(res_buffer)) { // got the end.
       clearTimeout(tid);
-      assert.ok(
-        /0\r\nx-foo: bar\r\n\r\n$/.test(res_buffer),
+      assert.match(
+        res_buffer,
+        /0\r\nx-foo: bar\r\n\r\n$/,
         `No trailer in HTTP/1.1 response. Response buffer: ${res_buffer}`
       );
       callback();
