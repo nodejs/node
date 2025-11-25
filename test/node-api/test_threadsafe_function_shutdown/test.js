@@ -11,7 +11,7 @@ if (process.argv[2] === 'child') {
   setTimeout(() => {}, 100);
 } else {
   const child = fork(__filename, ['child']);
-  child.on('close', (code) => {
+  child.on('close', common.mustCall((code) => {
     assert.strictEqual(code, 0);
-  });
+  }));
 }
