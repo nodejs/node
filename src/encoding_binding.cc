@@ -198,6 +198,19 @@ void BindingData::EncodeInto(const FunctionCallbackInfo<Value>& args) {
   char* write_result = static_cast<char*>(buf->Data()) + dest->ByteOffset();
   size_t dest_length = dest->ByteLength();
 
+  // For small strings (length <= 32), use the old V8 path for better performance
+  if (source->Length() <= 32) {
+    size_t nchars;
+    size_t written = source->WriteUtf8V2(isolate,
+                                         write_result,
+                                         dest_length,
+                                         String::WriteFlags::kReplaceInvalidUtf8,
+                                         &nchars);
+    binding_data->encode_into_results_buffer_[0] = nchars;
+    binding_data->encode_into_results_buffer_[1] = written;
+    return;
+  }
+
   size_t read = 0;
   size_t written = 0;
   v8::String::ValueView view(isolate, source);
