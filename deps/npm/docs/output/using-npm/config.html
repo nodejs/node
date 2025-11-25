@@ -141,9 +141,9 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="----config----1163">
+<h1 id="----config----1164">
     <span>config</span>
-    <span class="version">@11.6.3</span>
+    <span class="version">@11.6.4</span>
 </h1>
 <span class="description">More than you probably want to know about npm configuration</span>
 </header>
@@ -171,6 +171,7 @@ Config values are case-insensitive, so <code>NPM_CONFIG_FOO=bar</code> will work
 However, please note that inside <a href="../using-npm/scripts.html"><code>scripts</code></a> npm will set its own environment variables and Node will prefer those lowercase versions over any uppercase ones that you might set.
 For details see <a href="https://github.com/npm/npm/issues/14528">this issue</a>.</p>
 <p>Notice that you need to use underscores instead of dashes, so <code>--allow-same-version</code> would become <code>npm_config_allow_same_version=true</code>.</p>
+<p><strong>Important:</strong> When defining custom configuration keys in <code>.npmrc</code> files, use hyphens instead of underscores (e.g., <code>custom-key=value</code>). This ensures they can be overridden by environment variables, since npm automatically converts underscores to hyphens when reading environment variables. Keys with underscores in <code>.npmrc</code> files cannot be overridden via environment variables.</p>
 <h4 id="npmrc-files">npmrc Files</h4>
 <p>The four relevant files are:</p>
 <ul>

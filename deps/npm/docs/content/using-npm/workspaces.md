@@ -86,6 +86,26 @@ If you want to add a dependency named `abbrev` from the registry as a dependency
 npm install abbrev -w a
 ```
 
+**Adding a workspace as a dependency of another workspace:**
+
+If you want to add workspace **b** as a dependency of workspace **a**, you can use the workspace protocol in the dependency specifier:
+
+```
+npm install b@workspace:* -w a
+```
+
+This will add an entry to workspace **a**'s `package.json` like:
+
+```json
+{
+  "dependencies": {
+    "b": "workspace:*"
+  }
+}
+```
+
+The `workspace:` protocol tells npm to link to the local workspace rather than fetching from the registry. The `*` version means it will use whatever version is defined in workspace **b**'s `package.json`.
+
 Note: other installing commands such as `uninstall`, `ci`, etc will also respect the provided `workspace` configuration.
 
 ### Using workspaces

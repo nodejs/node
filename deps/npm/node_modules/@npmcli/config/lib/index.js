@@ -132,13 +132,19 @@ class Config {
 
     this.sources = new Map([])
 
-    this.list = []
     for (const { data } of this.data.values()) {
       this.list.unshift(data)
     }
-    Object.freeze(this.list)
 
     this.#loaded = false
+  }
+
+  get list () {
+    const list = []
+    for (const { data } of this.data.values()) {
+      list.unshift(data)
+    }
+    return list
   }
 
   get loaded () {
