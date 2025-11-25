@@ -372,7 +372,7 @@ void Blob::Reader::Pull(const FunctionCallbackInfo<Value>& args) {
                      const DataQueue::Vec* vecs,
                      size_t count,
                      bob::Done doneCb) mutable {
-    assert(!impl->reader);
+    assert(impl->reader);
     Environment* env = impl->env;
     HandleScope handleScope(env->isolate());
     Local<Function> fn = impl->callback.Get(env->isolate());
@@ -406,7 +406,7 @@ void Blob::Reader::Pull(const FunctionCallbackInfo<Value>& args) {
             for (size_t n = 0; n < count; n++) impl->byte_count += vecs[n].len;
           }
         };
-        assert(!impl->reader);
+        assert(impl->reader);
         status = impl->reader->inner_->Pull(
             std::move(snext), node::bob::OPTIONS_SYNC, nullptr, 0);
       }
@@ -440,7 +440,7 @@ void Blob::Reader::Pull(const FunctionCallbackInfo<Value>& args) {
       return;
     }
     impl->dones.clear();  // should not be necessary?
-    assert(!impl->reader);
+    assert(impl->reader);
 
     Local<Value> argv[2] = {
         Int32::New(env->isolate(), status),
