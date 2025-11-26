@@ -5,24 +5,23 @@ const { describe, it, test } = require('node:test');
 const util = require('util');
 
 
-it.xfail('sync expect fail', () => {
+it.xfail('sync expect fail (method)', () => {
   throw new Error('should pass');
 });
 
-it('sync expect fail', { xfail: true }, () => {
+it('sync expect fail (options)', { xfail: true }, () => {
   throw new Error('should pass');
 });
 
-it.xfail('sync expect fail', async () => {
+it.xfail('async expect fail (method)', async () => {
   throw new Error('should pass');
 });
 
-it('sync expect fail', { xfail: true }, async () => {
+it('async expect fail (options)', { xfail: true }, async () => {
   throw new Error('should pass');
 });
 
 it.todo('sync pass todo', () => {
-
 });
 
 it('sync pass todo with message', { todo: 'this is a passing todo' }, () => {
