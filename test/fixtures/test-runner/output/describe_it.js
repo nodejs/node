@@ -5,19 +5,19 @@ const { describe, it, test } = require('node:test');
 const util = require('util');
 
 
-it.fail('sync expect to fail', () => {
+it.xfail('sync expect fail', () => {
   throw new Error('should pass');
 });
 
-it('sync expect to fail', { fail: true }, () => {
+it('sync expect fail', { xfail: true }, () => {
   throw new Error('should pass');
 });
 
-it.fail('sync expect to fail', async () => {
+it.xfail('sync expect fail', async () => {
   throw new Error('should pass');
 });
 
-it('sync expect to fail', { fail: true }, async () => {
+it('sync expect fail', { xfail: true }, async () => {
   throw new Error('should pass');
 });
 
@@ -32,7 +32,7 @@ it.todo('sync todo', () => {
   throw new Error('should not count as a failure');
 });
 
-it.todo('sync todo with expect fail', { fail: true }, () => {
+it.todo('sync todo with expect fail', { xfail: true }, () => {
   throw new Error('should not count as an expected failure');
 });
 
@@ -43,7 +43,7 @@ it('sync todo with message', { todo: 'this is a failing todo' }, () => {
 it.skip('sync skip pass', () => {
 });
 
-it.skip('sync skip expect fail', { fail: true }, () => {
+it.skip('sync skip expect fail', { xfail: true }, () => {
   throw new Error('should not fail');
 });
 
