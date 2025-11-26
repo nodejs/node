@@ -34,11 +34,11 @@ void WriteReport(const FunctionCallbackInfo<Value>& info) {
   Local<Value> error;
 
   CHECK_EQ(info.Length(), 4);
-  String::Utf8Value message(isolate, info[0].As<String>());
-  String::Utf8Value trigger(isolate, info[1].As<String>());
+  Utf8Value message(isolate, info[0].As<String>());
+  Utf8Value trigger(isolate, info[1].As<String>());
 
   if (info[2]->IsString())
-    filename = *String::Utf8Value(isolate, info[2]);
+    filename = *Utf8Value(isolate, info[2]);
   if (!info[3].IsEmpty())
     error = info[3];
   else
