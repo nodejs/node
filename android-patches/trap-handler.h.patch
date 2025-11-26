@@ -1,26 +1,47 @@
---- trap-handler.h	2022-08-11 09:01:23.384000000 +0800
-+++ fixed-trap-handler.h	2022-08-11 09:09:15.352000000 +0800
-@@ -17,23 +17,7 @@
- namespace internal {
- namespace trap_handler {
- 
+--- trap-handler.h
++++ fixed-trap-handler.h
+@@ -18,43 +18,1 @@
 -// X64 on Linux, Windows, MacOS, FreeBSD.
 -#if V8_HOST_ARCH_X64 && V8_TARGET_ARCH_X64 &&                        \
 -    ((V8_OS_LINUX && !V8_OS_ANDROID) || V8_OS_WIN || V8_OS_DARWIN || \
 -     V8_OS_FREEBSD)
 -#define V8_TRAP_HANDLER_SUPPORTED true
--// Arm64 (non-simulator) on Mac.
--#elif V8_TARGET_ARCH_ARM64 && V8_HOST_ARCH_ARM64 && V8_OS_DARWIN
+-// Arm64 native on Linux, Windows, MacOS.
+-#elif V8_TARGET_ARCH_ARM64 && V8_HOST_ARCH_ARM64 && \
+-    ((V8_OS_LINUX && !V8_OS_ANDROID) || V8_OS_WIN || V8_OS_DARWIN)
 -#define V8_TRAP_HANDLER_SUPPORTED true
+-// For Linux and Mac, enable the simulator when it's been requested.
+-#if USE_SIMULATOR && ((V8_OS_LINUX && !V8_OS_ANDROID) || V8_OS_DARWIN)
+-#define V8_TRAP_HANDLER_VIA_SIMULATOR
+-#endif
 -// Arm64 simulator on x64 on Linux, Mac, or Windows.
+-//
+-// The simulator case uses some inline assembly code, which cannot be
+-// compiled with MSVC, so don't enable the trap handler in that case.
+-// (MSVC #defines _MSC_VER, but so does Clang when targeting Windows, hence
+-// the check for __clang__.)
 -#elif V8_TARGET_ARCH_ARM64 && V8_HOST_ARCH_X64 && \
--    (V8_OS_LINUX || V8_OS_DARWIN)
+-    (V8_OS_LINUX || V8_OS_DARWIN || V8_OS_WIN) && \
+-    (!defined(_MSC_VER) || defined(__clang__))
+-#define V8_TRAP_HANDLER_VIA_SIMULATOR
+-#define V8_TRAP_HANDLER_SUPPORTED true
+-// Loong64 (non-simulator) on Linux.
+-#elif V8_TARGET_ARCH_LOONG64 && V8_HOST_ARCH_LOONG64 && V8_OS_LINUX
+-#define V8_TRAP_HANDLER_SUPPORTED true
+-// Loong64 simulator on x64 on Linux
+-#elif V8_TARGET_ARCH_LOONG64 && V8_HOST_ARCH_X64 && V8_OS_LINUX
+-#define V8_TRAP_HANDLER_VIA_SIMULATOR
+-#define V8_TRAP_HANDLER_SUPPORTED true
+-// RISCV64 (non-simulator) on Linux.
+-#elif V8_TARGET_ARCH_RISCV64 && V8_HOST_ARCH_RISCV64 && V8_OS_LINUX && \
+-    !V8_OS_ANDROID
+-#define V8_TRAP_HANDLER_SUPPORTED true
+-// RISCV64 simulator on x64 on Linux
+-#elif V8_TARGET_ARCH_RISCV64 && V8_HOST_ARCH_X64 && V8_OS_LINUX
 -#define V8_TRAP_HANDLER_VIA_SIMULATOR
 -#define V8_TRAP_HANDLER_SUPPORTED true
 -// Everything else is unsupported.
 -#else
- #define V8_TRAP_HANDLER_SUPPORTED false
+-#define V8_TRAP_HANDLER_SUPPORTED false
 -#endif
- 
- // Setup for shared library export.
- #if defined(BUILDING_V8_SHARED) && defined(V8_OS_WIN)
++#define V8_TRAP_HANDLER_SUPPORTED false
