@@ -3,7 +3,7 @@
 const common = require('../common');
 const assert = require('assert');
 const { execFile, execFileSync } = require('child_process');
-const { getEventListeners } = require('events');
+const { listenerCount } = require('events');
 const { getSystemErrorName } = require('util');
 const fixtures = require('../common/fixtures');
 const os = require('os');
@@ -106,7 +106,7 @@ common.expectWarning(
   const { signal } = ac;
 
   const callback = common.mustCall((err) => {
-    assert.strictEqual(getEventListeners(ac.signal).length, 0);
+    assert.strictEqual(listenerCount(ac.signal, 'abort'), 0);
     assert.strictEqual(err, null);
   });
   execFile(process.execPath, [fixture, 0], { signal }, callback);
