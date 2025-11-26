@@ -5,7 +5,7 @@ const assert = require('assert');
 const timers = require('timers');
 const { promisify } = require('util');
 
-const { getEventListeners } = require('events');
+const { listenerCount } = require('events');
 const { NodeEventTarget } = require('internal/event_target');
 
 const timerPromises = require('timers/promises');
@@ -118,10 +118,10 @@ const { setInterval } = timerPromises;
   signal.aborted = false;
   const iterator = setInterval(1, undefined, { signal });
   iterator.next().then(common.mustCall(() => {
-    assert.strictEqual(getEventListeners(signal, 'abort').length, 1);
+    assert.strictEqual(listenerCount(signal, 'abort'), 1);
     iterator.return();
   })).finally(common.mustCall(() => {
-    assert.strictEqual(getEventListeners(signal, 'abort').length, 0);
+    assert.strictEqual(listenerCount(signal, 'abort'), 0);
   }));
 }
 
@@ -135,7 +135,7 @@ const { setInterval } = timerPromises;
     // eslint-disable-next-line no-unused-vars
     for await (const _ of iterator) {
       if (i === 0) {
-        assert.strictEqual(getEventListeners(signal, 'abort').length, 1);
+        assert.strictEqual(listenerCount(signal, 'abort'), 1);
       }
       i++;
       if (i === 2) {
@@ -143,7 +143,7 @@ const { setInterval } = timerPromises;
       }
     }
     assert.strictEqual(i, 2);
-    assert.strictEqual(getEventListeners(signal, 'abort').length, 0);
+    assert.strictEqual(listenerCount(signal, 'abort'), 0);
   }
 
   tryBreak().then(common.mustCall());

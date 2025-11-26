@@ -9,7 +9,7 @@ const { once } = require('events');
 const Agent = https.Agent;
 const fixtures = require('../common/fixtures');
 
-const { getEventListeners } = require('events');
+const { listenerCount } = require('events');
 const agent = new Agent();
 
 const options = {
@@ -33,7 +33,7 @@ server.listen(0, common.mustCall(async () => {
     const ac = new AbortController();
     const { signal } = ac;
     const connection = agent.createConnection({ ...options, signal });
-    assert.strictEqual(getEventListeners(signal, 'abort').length, 1);
+    assert.strictEqual(listenerCount(signal, 'abort'), 1);
     ac.abort();
     const [err] = await once(connection, 'error');
     assert.strictEqual(err.name, 'AbortError');
@@ -58,7 +58,7 @@ server.listen(0, common.mustCall(async () => {
       agent: agent,
       signal,
     });
-    assert.strictEqual(getEventListeners(signal, 'abort').length, 1);
+    assert.strictEqual(listenerCount(signal, 'abort'), 1);
     ac.abort();
     const [err] = await once(request, 'error');
     assert.strictEqual(err.name, 'AbortError');
@@ -74,7 +74,7 @@ server.listen(0, common.mustCall(async () => {
       agent: agent,
       signal,
     });
-    assert.strictEqual(getEventListeners(signal, 'abort').length, 0);
+    assert.strictEqual(listenerCount(signal, 'abort'), 0);
     const [err] = await once(request, 'error');
     assert.strictEqual(err.name, 'AbortError');
   }

@@ -34,7 +34,7 @@ const {
   getStringWidth,
   stripVTControlCharacters
 } = require('internal/util/inspect');
-const { EventEmitter, getEventListeners } = require('events');
+const { EventEmitter, listenerCount } = require('events');
 const { Writable, Readable } = require('stream');
 
 class FakeInput extends EventEmitter {
@@ -1438,7 +1438,7 @@ for (let i = 0; i < 12; i++) {
     signal,
   });
   rl.on('close', common.mustCall());
-  assert.strictEqual(getEventListeners(signal, 'abort').length, 0);
+  assert.strictEqual(listenerCount(signal, 'abort'), 0);
 }
 
 {
@@ -1450,10 +1450,10 @@ for (let i = 0; i < 12; i++) {
     output: fi,
     signal,
   });
-  assert.strictEqual(getEventListeners(signal, 'abort').length, 1);
+  assert.strictEqual(listenerCount(signal, 'abort'), 1);
   rl.on('close', common.mustCall());
   ac.abort();
-  assert.strictEqual(getEventListeners(signal, 'abort').length, 0);
+  assert.strictEqual(listenerCount(signal, 'abort'), 0);
 }
 
 {
@@ -1465,9 +1465,9 @@ for (let i = 0; i < 12; i++) {
     output: fi,
     signal,
   });
-  assert.strictEqual(getEventListeners(signal, 'abort').length, 1);
+  assert.strictEqual(listenerCount(signal, 'abort'), 1);
   rl.close();
-  assert.strictEqual(getEventListeners(signal, 'abort').length, 0);
+  assert.strictEqual(listenerCount(signal, 'abort'), 0);
 }
 
 {
