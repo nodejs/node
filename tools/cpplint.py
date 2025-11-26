@@ -306,9 +306,10 @@ _ERROR_CATEGORIES = [
     "build/forward_decl",
     "build/header_guard",
     "build/include",
-    "build/include_subdir",
     "build/include_alpha",
+    "build/include_inline",
     "build/include_order",
+    "build/include_subdir",
     "build/include_what_you_use",
     "build/namespaces_headers",
     "build/namespaces/header/block/literals",
@@ -351,6 +352,7 @@ _ERROR_CATEGORIES = [
     "runtime/string",
     "runtime/threadsafe_fn",
     "runtime/vlog",
+    "runtime/v8_persistent",
     "whitespace/blank_line",
     "whitespace/braces",
     "whitespace/comma",
@@ -920,6 +922,14 @@ _SEARCH_C_FILE = re.compile(
 # Match string that indicates we're working on a Linux Kernel file.
 _SEARCH_KERNEL_FILE = re.compile(r"\b(?:LINT_KERNEL_FILE)")
 
+_NULL_TOKEN_PATTERN = re.compile(r'\bNULL\b')
+
+_V8_PERSISTENT_PATTERN = re.compile(r'\bv8::Persistent\b')
+
+_RIGHT_LEANING_POINTER_PATTERN = re.compile(r'[^=|(,\s><);&?:}]'
+                                            r'(?<!(sizeof|return))'
+                                            r'\s\*[a-zA-z_][0-9a-zA-z_]*')
+
 # Commands for sed to fix the problem
 _SED_FIXUPS = {
     "Remove spaces around =": r"s/ = /=/",
@@ -970,7 +980,7 @@ _line_length = 80
 _include_order = "default"
 
 # This allows different config files to be used
-_config_filename = "CPPLINT.cfg"
+_config_filename = ".cpplint"
 
 # Treat all headers starting with 'h' equally: .h, .hpp, .hxx etc.
 # This is set by --headers flag.
@@ -1256,10 +1266,10 @@ class _IncludeState:
     # needs to move backwards, CheckNextIncludeOrder will raise an error.
     _INITIAL_SECTION = 0
     _MY_H_SECTION = 1
-    _C_SECTION = 2
-    _CPP_SECTION = 3
-    _OTHER_SYS_SECTION = 4
-    _OTHER_H_SECTION = 5
+    _OTHER_H_SECTION = 2
+    _C_SECTION = 3
+    _CPP_SECTION = 4
+    _OTHER_SYS_SECTION = 5
 
     _TYPE_NAMES = {
         _C_SYS_HEADER: "C system header",
@@ -1272,10 +1282,10 @@ class _IncludeState:
     _SECTION_NAMES = {
         _INITIAL_SECTION: "... nothing. (This can't be an error.)",
         _MY_H_SECTION: "a header this file implements",
+        _OTHER_H_SECTION: "other header",
         _C_SECTION: "C system header",
         _CPP_SECTION: "C++ system header",
         _OTHER_SYS_SECTION: "other system header",
-        _OTHER_H_SECTION: "other header",
     }
 
     def __init__(self):
@@ -2794,6 +2804,21 @@ def CheckForBadCharacters(filename, lines, error):
             error(filename, linenum, "readability/nul", 5, "Line contains NUL byte.")
 
 
+def CheckInlineHeader(filename, include_state, error):
+  """Logs an error if both a header and its inline variant are included."""
+
+  all_headers = dict(item for sublist in include_state.include_list
+                     for item in sublist)
+  bad_headers = set('%s.h' % name[:-6] for name in all_headers.keys()
+                    if name.endswith('-inl.h'))
+  bad_headers &= set(all_headers.keys())
+
+  for name in bad_headers:
+    err =  '%s includes both %s and %s-inl.h' % (filename, name, name)
+    linenum = all_headers[name]
+    error(filename, linenum, 'build/include_inline', 5, err)
+
+
 def CheckForNewlineAtEOF(filename, lines, error):
     """Logs an error if there is no newline char at the end of the file.
 
@@ -4044,7 +4069,7 @@ def CheckForFunctionLengths(filename, clean_lines, linenum, function_state, erro
     """Reports for long function bodies.
 
     For an overview why this is done, see:
-    https://google-styleguide.googlecode.com/svn/trunk/cppguide.xml#Write_Short_Functions
+    https://google.github.io/styleguide/cppguide.html#Write_Short_Functions
 
     Uses a simplistic algorithm assuming other style guidelines
     (especially spacing) are followed.
@@ -5432,6 +5457,75 @@ def CheckAltTokens(filename, clean_lines, linenum, error):
         )
 
 
+def CheckNullTokens(filename, clean_lines, linenum, error):
+  """Check NULL usage.
+
+  Args:
+    filename: The name of the current file.
+    clean_lines: A CleansedLines instance containing the file.
+    linenum: The number of the line to check.
+    error: The function to call with any errors found.
+  """
+  line = clean_lines.elided[linenum]
+
+  # Avoid preprocessor lines
+  if re.match(r'^\s*#', line):
+    return
+
+  if line.find('/*') >= 0 or line.find('*/') >= 0:
+    return
+
+  for match in _NULL_TOKEN_PATTERN.finditer(line):
+    error(filename, linenum, 'readability/null_usage', 2,
+          'Use nullptr instead of NULL')
+
+
+def CheckV8PersistentTokens(filename, clean_lines, linenum, error):
+  """Check v8::Persistent usage.
+
+  Args:
+    filename: The name of the current file.
+    clean_lines: A CleansedLines instance containing the file.
+    linenum: The number of the line to check.
+    error: The function to call with any errors found.
+  """
+  line = clean_lines.elided[linenum]
+
+  # Avoid preprocessor lines
+  if re.match(r'^\s*#', line):
+    return
+
+  if line.find('/*') >= 0 or line.find('*/') >= 0:
+    return
+
+  for match in _V8_PERSISTENT_PATTERN.finditer(line):
+    error(filename, linenum, 'runtime/v8_persistent', 2,
+          'Use v8::Global instead of v8::Persistent')
+
+
+def CheckLeftLeaningPointer(filename, clean_lines, linenum, error):
+  """Check for left-leaning pointer placement.
+
+  Args:
+    filename: The name of the current file.
+    clean_lines: A CleansedLines instance containing the file.
+    linenum: The number of the line to check.
+    error: The function to call with any errors found.
+  """
+  line = clean_lines.elided[linenum]
+
+  # Avoid preprocessor lines
+  if re.match(r'^\s*#', line):
+    return
+
+  if '/*' in line or '*/' in line:
+    return
+
+  for match in _RIGHT_LEANING_POINTER_PATTERN.finditer(line):
+    error(filename, linenum, 'readability/null_usage', 2,
+          'Use left leaning pointer instead of right leaning')
+
+
 def GetLineWidth(line):
     """Determines the width of the line in column positions.
 
@@ -5603,6 +5697,9 @@ def CheckStyle(filename, clean_lines, linenum, file_extension, nesting_state, er
     CheckSpacingForFunctionCall(filename, clean_lines, linenum, error)
     CheckCheck(filename, clean_lines, linenum, error)
     CheckAltTokens(filename, clean_lines, linenum, error)
+    CheckNullTokens(filename, clean_lines, linenum, error)
+    CheckV8PersistentTokens(filename, clean_lines, linenum, error)
+    CheckLeftLeaningPointer(filename, clean_lines, linenum, error)
     classinfo = nesting_state.InnermostClass()
     if classinfo:
         CheckSectionSpacing(filename, clean_lines, classinfo, linenum, error)
@@ -6155,7 +6252,7 @@ def CheckLanguage(
             "build/namespaces_headers",
             4,
             "Do not use unnamed namespaces in header files.  See "
-            "https://google-styleguide.googlecode.com/svn/trunk/cppguide.xml#Namespaces"
+            "https://google.github.io/styleguide/cppguide.html#Namespaces"
             " for more information.",
         )
 
@@ -7313,6 +7410,42 @@ def CheckItemIndentationInNamespace(filename, raw_lines_no_comments, linenum, er
         )
 
 
+def CheckLocalVectorUsage(filename, lines, error):
+  """Logs an error if std::vector<v8::Local<T>> is used.
+  Args:
+    filename: The name of the current file.
+    lines: An array of strings, each representing a line of the file.
+    error: The function to call with any errors found.
+  """
+  for linenum, line in enumerate(lines):
+    if (re.search(r'\bstd::vector<v8::Local<[^>]+>>', line) or
+        re.search(r'\bstd::vector<Local<[^>]+>>', line)):
+      error(filename, linenum, 'runtime/local_vector', 5,
+            'Do not use std::vector<v8::Local<T>>. '
+            'Use v8::LocalVector<T> instead.')
+
+
+def CheckStringValueUsage(filename, lines, error):
+  """Logs an error if v8's String::Value/Utf8Value are used.
+  Args:
+    filename: The name of the current file.
+    lines: An array of strings, each representing a line of the file.
+    error: The function to call with any errors found.
+  """
+  if filename.startswith('test/') or filename.startswith('test\\'):
+    return # Skip test files, where Node.js headers may not be available
+
+  for linenum, line in enumerate(lines):
+    if re.search(r'\bString::Utf8Value\b', line):
+      error(filename, linenum, 'runtime/v8_string_value', 5,
+            'Do not use v8::String::Utf8Value. '
+            'Use node::Utf8Value instead.')
+    if re.search(r'\bString::Value\b', line):
+      error(filename, linenum, 'runtime/v8_string_value', 5,
+            'Do not use v8::String::Value. '
+            'Use node::TwoByteValue instead.')
+
+
 def ProcessLine(
     filename,
     file_extension,
@@ -7469,6 +7602,12 @@ def ProcessFileData(filename, file_extension, lines, error, extra_check_function
     CheckForBadCharacters(filename, lines, error)
 
     CheckForNewlineAtEOF(filename, lines, error)
+
+    CheckInlineHeader(filename, include_state, error)
+
+    CheckLocalVectorUsage(filename, lines, error)
+
+    CheckStringValueUsage(filename, lines, error)
 
 
 def ProcessConfigOverrides(filename):
