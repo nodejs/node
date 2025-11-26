@@ -26,6 +26,7 @@
 
 #include "debug_utils-inl.h"
 #include "env-inl.h"
+#include "json_utils.h"
 #include "node_buffer.h"
 #include "node_errors.h"
 #include "node_internals.h"
@@ -85,10 +86,13 @@ constexpr int kMaximumCopyMode =
 
 namespace node {
 
+using v8::AllocationProfile;
 using v8::ArrayBuffer;
 using v8::ArrayBufferView;
 using v8::Context;
 using v8::FunctionTemplate;
+using v8::HandleScope;
+using v8::HeapProfiler;
 using v8::Isolate;
 using v8::Local;
 using v8::Object;
@@ -900,6 +904,63 @@ v8::Maybe<int> GetValidFileMode(Environment* env,
   }
 
   return v8::Just(mode);
+}
+
+static void buildHeapProfileNode(Isolate* isolate,
+                                 const AllocationProfile::Node* node,
+                                 JSONWriter* writer) {
+  size_t selfSize = 0;
+  for (const auto& allocation : node->allocations)
+    selfSize += allocation.size * allocation.count;
+
+  writer->json_keyvalue("selfSize", selfSize);
+  writer->json_keyvalue("id", node->node_id);
+  writer->json_objectstart("callFrame");
+  writer->json_keyvalue("scriptId", node->script_id);
+  writer->json_keyvalue("lineNumber", node->line_number - 1);
+  writer->json_keyvalue("columnNumber", node->column_number - 1);
+  Utf8Value name(isolate, node->name);
+  Utf8Value script_name(isolate, node->script_name);
+  writer->json_keyvalue("functionName", *name);
+  writer->json_keyvalue("url", *script_name);
+  writer->json_objectend();
+
+  writer->json_arraystart("children");
+  for (const auto* child : node->children) {
+    writer->json_start();
+    buildHeapProfileNode(isolate, child, writer);
+    writer->json_end();
+  }
+  writer->json_arrayend();
+}
+
+bool SerializeHeapProfile(Isolate* isolate, std::ostringstream& out_stream) {
+  HandleScope scope(isolate);
+  HeapProfiler* profiler = isolate->GetHeapProfiler();
+  std::unique_ptr<AllocationProfile> profile(profiler->GetAllocationProfile());
+  if (!profile) {
+    return false;
+  }
+  JSONWriter writer(out_stream, false);
+  writer.json_start();
+
+  writer.json_arraystart("samples");
+  for (const auto& sample : profile->GetSamples()) {
+    writer.json_start();
+    writer.json_keyvalue("size", sample.size * sample.count);
+    writer.json_keyvalue("nodeId", sample.node_id);
+    writer.json_keyvalue("ordinal", static_cast<double>(sample.sample_id));
+    writer.json_end();
+  }
+  writer.json_arrayend();
+
+  writer.json_objectstart("head");
+  buildHeapProfileNode(isolate, profile->GetRootNode(), &writer);
+  writer.json_objectend();
+
+  writer.json_end();
+  profiler->StopSamplingHeapProfiler();
+  return true;
 }
 
 }  // namespace node
