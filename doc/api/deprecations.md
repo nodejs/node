@@ -786,6 +786,9 @@ The [`domain`][] module is deprecated and should not be used.
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/60214
+    description: Deprecation revoked.
   - version:
     - v6.12.0
     - v4.8.6
@@ -796,10 +799,12 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Documentation-only
+Type: Revoked
 
-The [`events.listenerCount(emitter, eventName)`][] API is
-deprecated. Please use [`emitter.listenerCount(eventName)`][] instead.
+The [`events.listenerCount(emitter, eventName)`][] API was deprecated, as it
+provided identical fuctionality to [`emitter.listenerCount(eventName)`][]. The
+deprecation was revoked because this function has been repurposed to also
+accept {EventTarget} arguments.
 
 ### DEP0034: `fs.exists(path, callback)`
 
@@ -4422,7 +4427,7 @@ import { opendir } from 'node:fs/promises';
 [`domain`]: domain.md
 [`ecdh.setPublicKey()`]: crypto.md#ecdhsetpublickeypublickey-encoding
 [`emitter.listenerCount(eventName)`]: events.md#emitterlistenercounteventname-listener
-[`events.listenerCount(emitter, eventName)`]: events.md#eventslistenercountemitter-eventname
+[`events.listenerCount(emitter, eventName)`]: events.md#eventslistenercountemitterortarget-eventname
 [`fs.Dir`]: fs.md#class-fsdir
 [`fs.FileHandle`]: fs.md#class-filehandle
 [`fs.access()`]: fs.md#fsaccesspath-mode-callback
