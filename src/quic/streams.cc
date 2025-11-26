@@ -1236,9 +1236,6 @@ void Stream::ReceiveData(const uint8_t* data,
     return;
   }
 
-  // FIXME(jasnell or martenrichter) this does not allow backpressure
-  // to be signalled, we need to get Watermark from reader!
-
   STAT_INCREMENT_N(Stats, bytes_received, len);
   STAT_RECORD_TIMESTAMP(Stats, received_at);
   JS_TRY_ALLOCATE_BACKING(env(), backing, len)
