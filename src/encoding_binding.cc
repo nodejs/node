@@ -281,7 +281,7 @@ void BindingData::EncodeInto(const FunctionCallbackInfo<Value>& args) {
       }
     }
   }
-  DCHECK_LE(written, dest->ByteLength(););
+  DCHECK_LE(written, dest->ByteLength());
 
   binding_data->encode_into_results_buffer_[0] = static_cast<double>(read);
   binding_data->encode_into_results_buffer_[1] = static_cast<double>(written);
