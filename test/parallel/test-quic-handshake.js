@@ -33,10 +33,7 @@ describe('quic basic server/client handshake works', { skip }, async () => {
     connect,
   } = require('node:quic');
 
-  const {
-    strictEqual,
-    ok,
-  } = require('node:assert');
+  const assert = require('node:assert');
 
   it('a quic client can connect to a quic server in the same process', async () => {
     const p1 = Promise.withResolvers();
@@ -46,9 +43,9 @@ describe('quic basic server/client handshake works', { skip }, async () => {
     const serverEndpoint = await listen((serverSession) => {
 
       serverSession.opened.then((info) => {
-        strictEqual(info.servername, 'localhost');
-        strictEqual(info.protocol, 'h3');
-        strictEqual(info.cipher, 'TLS_AES_128_GCM_SHA256');
+        assert.strictEqual(info.servername, 'localhost');
+        assert.strictEqual(info.protocol, 'h3');
+        assert.strictEqual(info.cipher, 'TLS_AES_128_GCM_SHA256');
         p1.resolve();
       });
 
@@ -59,13 +56,13 @@ describe('quic basic server/client handshake works', { skip }, async () => {
       };
     }, { keys, certs });
 
-    ok(serverEndpoint.address !== undefined);
+    assert.ok(serverEndpoint.address !== undefined);
 
     const clientSession = await connect(serverEndpoint.address);
     clientSession.opened.then((info) => {
-      strictEqual(info.servername, 'localhost');
-      strictEqual(info.protocol, 'h3');
-      strictEqual(info.cipher, 'TLS_AES_128_GCM_SHA256');
+      assert.strictEqual(info.servername, 'localhost');
+      assert.strictEqual(info.protocol, 'h3');
+      assert.strictEqual(info.cipher, 'TLS_AES_128_GCM_SHA256');
       p2.resolve();
     });
 
@@ -73,10 +70,10 @@ describe('quic basic server/client handshake works', { skip }, async () => {
     const stream = await clientSession.createUnidirectionalStream({
       body,
     });
-    ok(stream);
+    assert.ok(stream);
 
     const { 2: data } = await Promise.all([p1.promise, p2.promise, p3.promise]);
     clientSession.close();
-    strictEqual(Buffer.from(data).toString(), 'hello');
+    assert.strictEqual(Buffer.from(data).toString(), 'hello');
   });
 });

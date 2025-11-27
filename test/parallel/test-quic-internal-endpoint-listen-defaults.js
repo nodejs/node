@@ -9,12 +9,7 @@ const {
 } = require('node:test');
 
 describe('quic internal endpoint listen defaults', { skip: !hasQuic }, async () => {
-  const {
-    ok,
-    rejects,
-    strictEqual,
-    throws,
-  } = require('node:assert');
+  const assert = require('node:assert');
 
   const {
     kState,
@@ -37,51 +32,51 @@ describe('quic internal endpoint listen defaults', { skip: !hasQuic }, async () 
   it('are reasonable and work as expected', async () => {
     const endpoint = new QuicEndpoint();
 
-    ok(!endpoint[kState].isBound);
-    ok(!endpoint[kState].isReceiving);
-    ok(!endpoint[kState].isListening);
+    assert.ok(!endpoint[kState].isBound);
+    assert.ok(!endpoint[kState].isReceiving);
+    assert.ok(!endpoint[kState].isListening);
 
-    strictEqual(endpoint.address, undefined);
+    assert.strictEqual(endpoint.address, undefined);
 
-    await rejects(listen(123, { keys, certs, endpoint }), {
+    await assert.rejects(listen(123, { keys, certs, endpoint }), {
       code: 'ERR_INVALID_ARG_TYPE',
     });
 
-    await rejects(listen(() => {}, 123), {
+    await assert.rejects(listen(() => {}, 123), {
       code: 'ERR_INVALID_ARG_TYPE',
     });
 
     await listen(() => {}, { keys, certs, endpoint });
-    await rejects(listen(() => {}, { keys, certs, endpoint }), {
+    await assert.rejects(listen(() => {}, { keys, certs, endpoint }), {
       code: 'ERR_INVALID_STATE',
     });
 
-    ok(endpoint[kState].isBound);
-    ok(endpoint[kState].isReceiving);
-    ok(endpoint[kState].isListening);
+    assert.ok(endpoint[kState].isBound);
+    assert.ok(endpoint[kState].isReceiving);
+    assert.ok(endpoint[kState].isListening);
 
     const address = endpoint.address;
-    ok(address instanceof SocketAddress);
+    assert.ok(address instanceof SocketAddress);
 
-    strictEqual(address.address, '127.0.0.1');
-    strictEqual(address.family, 'ipv4');
-    strictEqual(address.flowlabel, 0);
-    ok(address.port !== 0);
+    assert.strictEqual(address.address, '127.0.0.1');
+    assert.strictEqual(address.family, 'ipv4');
+    assert.strictEqual(address.flowlabel, 0);
+    assert.ok(address.port !== 0);
 
-    ok(!endpoint.destroyed);
+    assert.ok(!endpoint.destroyed);
     endpoint.destroy();
-    strictEqual(endpoint.closed, endpoint.close());
+    assert.strictEqual(endpoint.closed, endpoint.close());
     await endpoint.closed;
-    ok(endpoint.destroyed);
+    assert.ok(endpoint.destroyed);
 
-    await rejects(listen(() => {}, { keys, certs, endpoint }), {
+    await assert.rejects(listen(() => {}, { keys, certs, endpoint }), {
       code: 'ERR_INVALID_STATE',
     });
-    throws(() => { endpoint.busy = true; }, {
+    assert.throws(() => { endpoint.busy = true; }, {
       code: 'ERR_INVALID_STATE',
     });
     await endpoint[Symbol.asyncDispose]();
 
-    strictEqual(endpoint.address, undefined);
+    assert.strictEqual(endpoint.address, undefined);
   });
 });
