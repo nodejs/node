@@ -215,21 +215,21 @@ const handleError = (error, name) => {
 
 const regexNonASCII = /[^\x20-\x7E]/;
 const testBattery = {
-  encode: (test) => assert.strictEqual(
+  encode: common.mustCallAtLeast((test) => assert.strictEqual(
     punycode.encode(test.decoded),
     test.encoded
-  ),
-  decode: (test) => assert.strictEqual(
+  )),
+  decode: common.mustCallAtLeast((test) => assert.strictEqual(
     punycode.decode(test.encoded),
     test.decoded
-  ),
-  toASCII: (test) => assert.strictEqual(
+  )),
+  toASCII: common.mustCallAtLeast((test) => assert.strictEqual(
     punycode.toASCII(test.decoded),
     regexNonASCII.test(test.decoded) ?
       `xn--${test.encoded}` :
       test.decoded
-  ),
-  toUnicode: (test) => assert.strictEqual(
+  )),
+  toUnicode: common.mustCallAtLeast((test) => assert.strictEqual(
     punycode.toUnicode(
       regexNonASCII.test(test.decoded) ?
         `xn--${test.encoded}` :
@@ -238,7 +238,7 @@ const testBattery = {
     regexNonASCII.test(test.decoded) ?
       test.decoded.toLowerCase() :
       test.decoded
-  )
+  ))
 };
 
 tests.forEach((testCase) => {

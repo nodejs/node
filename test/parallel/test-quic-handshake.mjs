@@ -1,7 +1,7 @@
 // Flags: --experimental-quic --no-warnings
 
-import { hasQuic, skip } from '../common/index.mjs';
-import { ok, partialDeepStrictEqual } from 'node:assert';
+import { hasQuic, skip, mustCall } from '../common/index.mjs';
+import assert from 'node:assert';
 import { readKey } from '../common/fixtures.mjs';
 
 if (!hasQuic) {
@@ -30,21 +30,22 @@ const check = {
 const serverOpened = Promise.withResolvers();
 const clientOpened = Promise.withResolvers();
 
-const serverEndpoint = await listen(async (serverSession) => {
-  const info = await serverSession.opened;
-  partialDeepStrictEqual(info, check);
-  serverOpened.resolve();
-  serverSession.close();
-}, { keys, certs });
+const serverEndpoint = await listen(mustCall((serverSession) => {
+  serverSession.opened.then((info) => {
+    assert.partialDeepStrictEqual(info, check);
+    serverOpened.resolve();
+    serverSession.close();
+  }).then(mustCall());
+}), { keys, certs });
 
 // The server must have an address to connect to after listen resolves.
-ok(serverEndpoint.address !== undefined);
+assert.ok(serverEndpoint.address !== undefined);
 
 const clientSession = await connect(serverEndpoint.address);
 clientSession.opened.then((info) => {
-  partialDeepStrictEqual(info, check);
+  assert.partialDeepStrictEqual(info, check);
   clientOpened.resolve();
-});
+}).then(mustCall());
 
 await Promise.all([serverOpened.promise, clientOpened.promise]);
 clientSession.close();

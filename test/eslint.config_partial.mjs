@@ -141,6 +141,7 @@ export default [
       ],
       'node-core/require-common-first': 'error',
       'node-core/no-duplicate-requires': 'off',
+      'node-core/must-call-assert': 'error',
     },
   },
   {
@@ -164,62 +165,13 @@ export default [
   },
   {
     files: [
-      `test/{${[
-        'abort',
-        'addons',
-        'async-hooks',
-        'benchmark',
-        'cctest',
-        'client-proxy',
-        'doctool',
-        'embedding',
-        'es-module',
-        'fixtures',
-        'fuzzers',
-        'internet',
-        'js-native-api',
-        'known_issues',
-        'message',
-        'module-hooks',
-        'node-api',
-        'nop',
-        'overlapped-checker',
-        'pseudo-tty',
-        'pummel',
-        'report',
-        'sea',
-        'sequential',
-        'sqlite',
-        'system-ca',
-        'test426',
-        'testpy',
-        'tick-processor',
-        'tools',
-        'v8-updates',
-        'wasi',
-        'wasm-allocation',
-        'wpt',
-      ].join(',')}}/**/*.{js,mjs,cjs}`,
-      `test/parallel/test-{${
-        // 0x61 is code for 'a', this generates a string enumerating latin letters: 'a*,b*,…'
-        Array.from({ length: 13 }, (_, i) => String.fromCharCode(0x61 + i, 42)).join(',')
-      },n*,r*,${
-        // 0x61 is code for 'a', this generates a string enumerating latin letters: 'z*,y*,…'
-        Array.from({ length: 8 }, (_, i) => String.fromCharCode(0x61 + 25 - i, 42)).join(',')
-      }}.{js,mjs,cjs}`,
-    ],
-    rules: {
-      'node-core/must-call-assert': 'error',
-    },
-  },
-  {
-    files: [
       'test/{common,fixtures,wpt}/**/*.{js,mjs,cjs}',
       'test/eslint.config_partial.mjs',
     ],
     rules: {
       'node-core/required-modules': 'off',
       'node-core/require-common-first': 'off',
+      'node-core/must-call-assert': 'off',
     },
   },
   {
