@@ -275,7 +275,7 @@ class Edge {
         this.#error = 'PEER LOCAL'
       } else if (!this.satisfiedBy(this.#to)) {
         this.#error = 'INVALID'
-      } else if (this.overrides && this.#to.edgesOut.size && OverrideSet.doOverrideSetsConflict(this.overrides, this.#to.overrides)) {
+      } else if (this.overrides && this.#to.overrides && this.#to.edgesOut.size && OverrideSet.doOverrideSetsConflict(this.overrides, this.#to.overrides)) {
         // Check for conflicts between the edge's override set and the target node's override set.
         // This catches cases where different parts of the tree have genuinely incompatible
         // version requirements for the same package.

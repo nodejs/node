@@ -119,6 +119,12 @@ Package descriptors have the following fields:
 
 * bin, license, engines, dependencies, optionalDependencies: fields from `package.json`
 
+* os: An array of operating systems this package is compatible with, as specified in `package.json`. This field is included when the package specifies OS restrictions.
+
+* cpu: An array of CPU architectures this package is compatible with, as specified in `package.json`. This field is included when the package specifies CPU restrictions.
+
+* funding: Funding information for the package, as specified in `package.json`. This field contains details about how to support the package maintainers.
+
 #### dependencies
 
 Legacy data for supporting versions of npm that use `lockfileVersion: 1`.

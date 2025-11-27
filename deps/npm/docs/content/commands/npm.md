@@ -14,7 +14,7 @@ Note: This command is unaware of workspaces.
 
 ### Version
 
-11.6.3
+11.6.4
 
 ### Description
 
@@ -64,7 +64,7 @@ In particular, npm has two modes of operation:
   npm installs packages into the current project directory, which defaults to the current working directory.
   Packages install to `./node_modules`, and bins to `./node_modules/.bin`.
 * global mode:
-  npm installs packages into the install prefix at `$npm_config_prefix/lib/node_modules` and bins to `$npm_config_prefix/bin`.
+  npm installs packages into the install prefix at `$NPM_CONFIG_PREFIX/lib/node_modules` and bins to `$NPM_CONFIG_PREFIX/bin`.
 
 Local mode is the default.
 Use `-g` or `--global` on any command to run in global mode instead.
@@ -98,8 +98,8 @@ It reads its configuration options from 5 places.
   All keys take a value, even if they are booleans (the config parser doesn't know what the options are at the time of parsing).
   If you do not provide a value (`--key`) then the option is set to boolean `true`.
 * Environment Variables:
-  Set any config by prefixing the name in an environment variable with `npm_config_`.
-  For example, `export npm_config_key=val`.
+  Set any config by prefixing the name in an environment variable with `NPM_CONFIG_`.
+  For example, `export NPM_CONFIG_KEY=val`.
 * User Configs:
   The file at `$HOME/.npmrc` is an ini-formatted list of configs.
   If present, it is parsed.

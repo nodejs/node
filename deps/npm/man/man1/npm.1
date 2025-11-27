@@ -1,4 +1,4 @@
-.TH "NPM" "1" "November 2025" "NPM@11.6.3" ""
+.TH "NPM" "1" "November 2025" "NPM@11.6.4" ""
 .SH "NAME"
 \fBnpm\fR - javascript package manager
 .SS "Synopsis"
@@ -12,7 +12,7 @@ npm
 Note: This command is unaware of workspaces.
 .SS "Version"
 .P
-11.6.3
+11.6.4
 .SS "Description"
 .P
 npm is the package manager for the Node JavaScript platform. It puts modules in place so that node can find them, and manages dependency conflicts intelligently.
@@ -48,7 +48,7 @@ In particular, npm has two modes of operation:
 .IP \(bu 4
 local mode: npm installs packages into the current project directory, which defaults to the current working directory. Packages install to \fB./node_modules\fR, and bins to \fB./node_modules/.bin\fR.
 .IP \(bu 4
-global mode: npm installs packages into the install prefix at \fB$npm_config_prefix/lib/node_modules\fR and bins to \fB$npm_config_prefix/bin\fR.
+global mode: npm installs packages into the install prefix at \fB$NPM_CONFIG_PREFIX/lib/node_modules\fR and bins to \fB$NPM_CONFIG_PREFIX/bin\fR.
 .RE 0
 
 .P
@@ -76,7 +76,7 @@ npm is extremely configurable. It reads its configuration options from 5 places.
 .IP \(bu 4
 Command line switches: Set a config with \fB--key val\fR. All keys take a value, even if they are booleans (the config parser doesn't know what the options are at the time of parsing). If you do not provide a value (\fB--key\fR) then the option is set to boolean \fBtrue\fR.
 .IP \(bu 4
-Environment Variables: Set any config by prefixing the name in an environment variable with \fBnpm_config_\fR. For example, \fBexport npm_config_key=val\fR.
+Environment Variables: Set any config by prefixing the name in an environment variable with \fBNPM_CONFIG_\fR. For example, \fBexport NPM_CONFIG_KEY=val\fR.
 .IP \(bu 4
 User Configs: The file at \fB$HOME/.npmrc\fR is an ini-formatted list of configs. If present, it is parsed. If the \fBuserconfig\fR option is set in the cli or env, that file will be used instead.
 .IP \(bu 4

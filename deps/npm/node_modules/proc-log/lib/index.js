@@ -122,10 +122,15 @@ module.exports = {
       end: 'end',
       read: 'read',
     },
-    start: function (fn) {
-      process.emit('input', 'start')
+    start: function (...args) {
+      // Support callback for backwards compatibility and pass additional args to event
+      let fn
+      if (typeof args[0] === 'function') {
+        fn = args.shift()
+      }
+      process.emit('input', 'start', ...args)
       function end () {
-        return process.emit('input', 'end')
+        return process.emit('input', 'end', ...args)
       }
       if (typeof fn === 'function') {
         const res = fn()
@@ -137,8 +142,8 @@ module.exports = {
       }
       return end
     },
-    end: function () {
-      return process.emit('input', 'end')
+    end: function (...args) {
+      return process.emit('input', 'end', ...args)
     },
     read: function (...args) {
       let resolve, reject

@@ -43,7 +43,7 @@ These scripts happen in addition to the `pre<event>`, `post<event>`, and
 * Runs BEFORE the package is packed, i.e.
 during `npm publish` and `npm pack`
 * Runs on local `npm install` without any arguments
-* Runs AFTER `prepublish`, but BEFORE `prepublishOnly`
+* Runs AFTER `prepublishOnly` and `prepack`, but BEFORE `postpack`
 * Runs for a package if it's being installed as a link through `npm install <folder>`
 
 * NOTE: If a package being installed through git contains a `prepare` script, its `dependencies` and `devDependencies` will be installed, and the prepare script will be run, before the package is packaged and installed.
@@ -333,7 +333,7 @@ They just have to be some kind of executable file.
 Read through [`package.json`](/configuring-npm/package-json) to see all the things that you can specify and enable by simply describing your package appropriately.
 In general, this will lead to a more robust and consistent state.
 * Inspect the env to determine where to put things.
-For instance, if the `npm_config_binroot` environment variable is set to `/home/user/bin`, then don't try to install executables into `/usr/local/bin`.
+For instance, if the `NPM_CONFIG_BINROOT` environment variable is set to `/home/user/bin`, then don't try to install executables into `/usr/local/bin`.
 The user probably set it up that way for a reason.
 * Don't prefix your script commands with "sudo".  If root permissions are required for some reason, then it'll fail with that error, and the user will sudo the npm command in question.
 * Don't use `install`.

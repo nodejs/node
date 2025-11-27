@@ -141,9 +141,9 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="----workspaces----1163">
+<h1 id="----workspaces----1164">
     <span>workspaces</span>
-    <span class="version">@11.6.3</span>
+    <span class="version">@11.6.4</span>
 </h1>
 <span class="description">Working with workspaces</span>
 </header>
@@ -207,6 +207,18 @@ For example in a project that already has a <code>package.json</code> defined yo
 <p>If you want to add a dependency named <code>abbrev</code> from the registry as a dependency of your workspace <strong>a</strong>, you may use the workspace config to tell the npm installer that package should be added as a dependency of the provided workspace:</p>
 <pre><code>npm install abbrev -w a
 </code></pre>
+<p><strong>Adding a workspace as a dependency of another workspace:</strong></p>
+<p>If you want to add workspace <strong>b</strong> as a dependency of workspace <strong>a</strong>, you can use the workspace protocol in the dependency specifier:</p>
+<pre><code>npm install b@workspace:* -w a
+</code></pre>
+<p>This will add an entry to workspace <strong>a</strong>'s <code>package.json</code> like:</p>
+<pre><code class="language-json">{
+  "dependencies": {
+    "b": "workspace:*"
+  }
+}
+</code></pre>
+<p>The <code>workspace:</code> protocol tells npm to link to the local workspace rather than fetching from the registry. The <code>*</code> version means it will use whatever version is defined in workspace <strong>b</strong>'s <code>package.json</code>.</p>
 <p>Note: other installing commands such as <code>uninstall</code>, <code>ci</code>, etc will also respect the provided <code>workspace</code> configuration.</p>
 <h3 id="using-workspaces">Using workspaces</h3>
 <p>Given the <a href="https://nodejs.org/dist/latest-v14.x/docs/api/modules.html#modules_all_together">specifics of how Node.js handles module resolution</a> it's possible to consume any defined workspace by its declared <code>package.json</code> <code>name</code>.

@@ -1,4 +1,4 @@
-.TH "SCRIPTS" "7" "November 2025" "NPM@11.6.3" ""
+.TH "SCRIPTS" "7" "November 2025" "NPM@11.6.4" ""
 .SH "NAME"
 \fBscripts\fR - How npm handles the "scripts" field
 .SS "Description"
@@ -37,7 +37,7 @@ Runs BEFORE the package is packed, i.e. during \fBnpm publish\fR and \fBnpm pack
 .IP \(bu 4
 Runs on local \fBnpm install\fR without any arguments
 .IP \(bu 4
-Runs AFTER \fBprepublish\fR, but BEFORE \fBprepublishOnly\fR
+Runs AFTER \fBprepublishOnly\fR and \fBprepack\fR, but BEFORE \fBpostpack\fR
 .IP \(bu 4
 Runs for a package if it's being installed as a link through \fBnpm install <folder>\fR
 .IP \(bu 4
@@ -402,7 +402,7 @@ Don't exit with a non-zero error code unless you \fIreally\fR mean it. If the fa
 .IP \(bu 4
 Try not to use scripts to do what npm can do for you. Read through \fB\[rs]fBpackage.json\[rs]fR\fR \fI\(la/configuring-npm/package-json\(ra\fR to see all the things that you can specify and enable by simply describing your package appropriately. In general, this will lead to a more robust and consistent state.
 .IP \(bu 4
-Inspect the env to determine where to put things. For instance, if the \fBnpm_config_binroot\fR environment variable is set to \fB/home/user/bin\fR, then don't try to install executables into \fB/usr/local/bin\fR. The user probably set it up that way for a reason.
+Inspect the env to determine where to put things. For instance, if the \fBNPM_CONFIG_BINROOT\fR environment variable is set to \fB/home/user/bin\fR, then don't try to install executables into \fB/usr/local/bin\fR. The user probably set it up that way for a reason.
 .IP \(bu 4
 Don't prefix your script commands with "sudo". If root permissions are required for some reason, then it'll fail with that error, and the user will sudo the npm command in question.
 .IP \(bu 4

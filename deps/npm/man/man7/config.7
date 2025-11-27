@@ -1,4 +1,4 @@
-.TH "CONFIG" "7" "November 2025" "NPM@11.6.3" ""
+.TH "CONFIG" "7" "November 2025" "NPM@11.6.4" ""
 .SH "NAME"
 \fBconfig\fR - More than you probably want to know about npm configuration
 .SS "Description"
@@ -16,6 +16,8 @@ Example: \fB--flag1 --flag2\fR will set both configuration parameters to \fBtrue
 Any environment variables that start with \fBnpm_config_\fR will be interpreted as a configuration parameter. For example, putting \fBnpm_config_foo=bar\fR in your environment will set the \fBfoo\fR configuration parameter to \fBbar\fR. Any environment configurations that are not given a value will be given the value of \fBtrue\fR. Config values are case-insensitive, so \fBNPM_CONFIG_FOO=bar\fR will work the same. However, please note that inside npm help scripts npm will set its own environment variables and Node will prefer those lowercase versions over any uppercase ones that you might set. For details see \fBthis issue\fR \fI\(lahttps://github.com/npm/npm/issues/14528\(ra\fR.
 .P
 Notice that you need to use underscores instead of dashes, so \fB--allow-same-version\fR would become \fBnpm_config_allow_same_version=true\fR.
+.P
+\fBImportant:\fR When defining custom configuration keys in \fB.npmrc\fR files, use hyphens instead of underscores (e.g., \fBcustom-key=value\fR). This ensures they can be overridden by environment variables, since npm automatically converts underscores to hyphens when reading environment variables. Keys with underscores in \fB.npmrc\fR files cannot be overridden via environment variables.
 .SS "npmrc Files"
 .P
 The four relevant files are:

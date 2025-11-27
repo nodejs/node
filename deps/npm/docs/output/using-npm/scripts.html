@@ -141,9 +141,9 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="----scripts----1163">
+<h1 id="----scripts----1164">
     <span>scripts</span>
-    <span class="version">@11.6.3</span>
+    <span class="version">@11.6.4</span>
 </h1>
 <span class="description">How npm handles the "scripts" field</span>
 </header>
@@ -190,7 +190,7 @@ during <code>npm publish</code> and <code>npm pack</code></p>
 <p>Runs on local <code>npm install</code> without any arguments</p>
 </li>
 <li>
-<p>Runs AFTER <code>prepublish</code>, but BEFORE <code>prepublishOnly</code></p>
+<p>Runs AFTER <code>prepublishOnly</code> and <code>prepack</code>, but BEFORE <code>postpack</code></p>
 </li>
 <li>
 <p>Runs for a package if it's being installed as a link through <code>npm install &lt;folder&gt;</code></p>
@@ -438,7 +438,7 @@ If the failure is minor or only will prevent some optional features, then it's b
 Read through <a href="../configuring-npm/package-json.html"><code>package.json</code></a> to see all the things that you can specify and enable by simply describing your package appropriately.
 In general, this will lead to a more robust and consistent state.</li>
 <li>Inspect the env to determine where to put things.
-For instance, if the <code>npm_config_binroot</code> environment variable is set to <code>/home/user/bin</code>, then don't try to install executables into <code>/usr/local/bin</code>.
+For instance, if the <code>NPM_CONFIG_BINROOT</code> environment variable is set to <code>/home/user/bin</code>, then don't try to install executables into <code>/usr/local/bin</code>.
 The user probably set it up that way for a reason.</li>
 <li>Don't prefix your script commands with "sudo".  If root permissions are required for some reason, then it'll fail with that error, and the user will sudo the npm command in question.</li>
 <li>Don't use <code>install</code>.
