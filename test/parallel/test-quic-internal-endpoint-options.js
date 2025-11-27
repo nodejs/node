@@ -9,10 +9,7 @@ const {
 } = require('node:test');
 
 describe('quic internal endpoint options', { skip: !hasQuic }, async () => {
-  const {
-    strictEqual,
-    throws,
-  } = require('node:assert');
+  const assert = require('node:assert');
 
   const {
     QuicEndpoint,
@@ -24,7 +21,7 @@ describe('quic internal endpoint options', { skip: !hasQuic }, async () => {
 
   it('invalid options', async () => {
     ['a', null, false, NaN].forEach((i) => {
-      throws(() => new QuicEndpoint(i), {
+      assert.throws(() => new QuicEndpoint(i), {
         code: 'ERR_INVALID_ARG_TYPE',
       });
     });
@@ -162,7 +159,7 @@ describe('quic internal endpoint options', { skip: !hasQuic }, async () => {
       for (const value of invalid) {
         const options = {};
         options[key] = value;
-        throws(() => new QuicEndpoint(options), {
+        assert.throws(() => new QuicEndpoint(options), {
           message: new RegExp(`${key}`),
         }, value);
       }
@@ -171,7 +168,7 @@ describe('quic internal endpoint options', { skip: !hasQuic }, async () => {
 
   it('endpoint can be inspected', async () => {
     const endpoint = new QuicEndpoint({});
-    strictEqual(typeof inspect(endpoint), 'string');
+    assert.strictEqual(typeof inspect(endpoint), 'string');
     endpoint.close();
     await endpoint.closed;
   });
@@ -183,7 +180,7 @@ describe('quic internal endpoint options', { skip: !hasQuic }, async () => {
     new QuicEndpoint({
       address: '127.0.0.1:0',
     });
-    throws(() => new QuicEndpoint({ address: 123 }), {
+    assert.throws(() => new QuicEndpoint({ address: 123 }), {
       code: 'ERR_INVALID_ARG_TYPE',
     });
   });
