@@ -1,4 +1,4 @@
-.TH "WORKSPACES" "7" "November 2025" "NPM@11.6.3" ""
+.TH "WORKSPACES" "7" "November 2025" "NPM@11.6.4" ""
 .SH "NAME"
 \fBworkspaces\fR - Working with workspaces
 .SS "Description"
@@ -87,6 +87,30 @@ If you want to add a dependency named \fBabbrev\fR from the registry as a depend
 npm install abbrev -w a
 .fi
 .RE
+.P
+\fBAdding a workspace as a dependency of another workspace:\fR
+.P
+If you want to add workspace \fBb\fR as a dependency of workspace \fBa\fR, you can use the workspace protocol in the dependency specifier:
+.P
+.RS 2
+.nf
+npm install b@workspace:* -w a
+.fi
+.RE
+.P
+This will add an entry to workspace \fBa\fR's \fBpackage.json\fR like:
+.P
+.RS 2
+.nf
+{
+  "dependencies": {
+    "b": "workspace:*"
+  }
+}
+.fi
+.RE
+.P
+The \fBworkspace:\fR protocol tells npm to link to the local workspace rather than fetching from the registry. The \fB*\fR version means it will use whatever version is defined in workspace \fBb\fR's \fBpackage.json\fR.
 .P
 Note: other installing commands such as \fBuninstall\fR, \fBci\fR, etc will also respect the provided \fBworkspace\fR configuration.
 .SS "Using workspaces"

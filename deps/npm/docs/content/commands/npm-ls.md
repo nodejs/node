@@ -23,7 +23,7 @@ Note that nested packages will *also* show the paths to the specified packages.
 For example, running `npm ls promzard` in npm's source tree will show:
 
 ```bash
-npm@11.6.3 /path/to/npm
+npm@11.6.4 /path/to/npm
 └─┬ init-package-json@0.0.4
   └── promzard@0.1.5
 ```
