@@ -27,6 +27,18 @@ function isValid({ key, moduleName, path, propName, value, obj, fullPath }) {
   return true;
 }
 
+function shouldSkipModule(moduleName) {
+  switch (moduleName) {
+    case 'inspector':
+    case 'inspector/promises':
+      if (!process.features.inspector) {
+        return true;
+      }
+      break;
+  }
+  return false;
+}
+
 async function buildList(obj, moduleName, path = [], visited = new WeakMap()) {
   if (!obj || (typeof obj !== 'object' && typeof obj !== 'function')) return [];
 
@@ -86,6 +98,9 @@ async function buildList(obj, moduleName, path = [], visited = new WeakMap()) {
 let total = 0;
 
 await Promise.all(builtinModules.map(async (moduleName) => {
+  if (shouldSkipModule(moduleName)) {
+    return;
+  }
   const module = await import(moduleName);
   const { length } = await buildList(module, moduleName);
   total += length;
