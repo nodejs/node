@@ -41,7 +41,6 @@ using v8::PropertyCallbackInfo;
 using v8::PropertyDescriptor;
 using v8::PropertyHandlerFlags;
 using v8::String;
-using v8::Uint32;
 using v8::Value;
 
 #define THROW_SQLITE_ERROR(env, r)                                             \
@@ -432,10 +431,6 @@ Maybe<void> Storage::Store(Local<Name> key, Local<Value> value) {
   return JustVoid();
 }
 
-static MaybeLocal<String> Uint32ToName(Local<Context> context, uint32_t index) {
-  return Uint32::New(Isolate::GetCurrent(), index)->ToString(context);
-}
-
 static void Clear(const FunctionCallbackInfo<Value>& info) {
   Storage* storage;
   ASSIGN_OR_RETURN_UNWRAP(&storage, info.This());
@@ -631,13 +626,7 @@ static Intercepted StorageDefiner(Local<Name> property,
 static Intercepted IndexedGetter(uint32_t index,
                                  const PropertyCallbackInfo<Value>& info) {
   Environment* env = Environment::GetCurrent(info);
-  Local<Name> name;
-  if (!Uint32ToName(env->context(), index).ToLocal(&name)) {
-    // There was an error converting the index to a name.
-    // We aren't going to return a result but let's indicate
-    // that we intercepted the operation.
-    return Intercepted::kYes;
-  }
+  Local<Name> name = Uint32ToString(env->context(), index);
   return StorageGetter(name, info);
 }
 
@@ -645,39 +634,21 @@ static Intercepted IndexedSetter(uint32_t index,
                                  Local<Value> value,
                                  const PropertyCallbackInfo<void>& info) {
   Environment* env = Environment::GetCurrent(info);
-  Local<Name> name;
-  if (!Uint32ToName(env->context(), index).ToLocal(&name)) {
-    // There was an error converting the index to a name.
-    // We aren't going to return a result but let's indicate
-    // that we intercepted the operation.
-    return Intercepted::kYes;
-  }
+  Local<Name> name = Uint32ToString(env->context(), index);
   return StorageSetter(name, value, info);
 }
 
 static Intercepted IndexedQuery(uint32_t index,
                                 const PropertyCallbackInfo<Integer>& info) {
   Environment* env = Environment::GetCurrent(info);
-  Local<Name> name;
-  if (!Uint32ToName(env->context(), index).ToLocal(&name)) {
-    // There was an error converting the index to a name.
-    // We aren't going to return a result but let's indicate
-    // that we intercepted the operation.
-    return Intercepted::kYes;
-  }
+  Local<Name> name = Uint32ToString(env->context(), index);
   return StorageQuery(name, info);
 }
 
 static Intercepted IndexedDeleter(uint32_t index,
                                   const PropertyCallbackInfo<Boolean>& info) {
   Environment* env = Environment::GetCurrent(info);
-  Local<Name> name;
-  if (!Uint32ToName(env->context(), index).ToLocal(&name)) {
-    // There was an error converting the index to a name.
-    // We aren't going to return a result but let's indicate
-    // that we intercepted the operation.
-    return Intercepted::kYes;
-  }
+  Local<Name> name = Uint32ToString(env->context(), index);
   return StorageDeleter(name, info);
 }
 
@@ -685,13 +656,7 @@ static Intercepted IndexedDefiner(uint32_t index,
                                   const PropertyDescriptor& desc,
                                   const PropertyCallbackInfo<void>& info) {
   Environment* env = Environment::GetCurrent(info);
-  Local<Name> name;
-  if (!Uint32ToName(env->context(), index).ToLocal(&name)) {
-    // There was an error converting the index to a name.
-    // We aren't going to return a result but let's indicate
-    // that we intercepted the operation.
-    return Intercepted::kYes;
-  }
+  Local<Name> name = Uint32ToString(env->context(), index);
   return StorageDefiner(name, desc, info);
 }
 

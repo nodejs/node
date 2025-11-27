@@ -1063,6 +1063,16 @@ inline v8::MaybeLocal<v8::Object> NewDictionaryInstanceNullProto(
     v8::Local<v8::DictionaryTemplate> tmpl,
     v8::MemorySpan<v8::MaybeLocal<v8::Value>> property_values);
 
+// Convert an uint32 to a V8 String.
+inline v8::Local<v8::String> Uint32ToString(v8::Local<v8::Context> context,
+                                            uint32_t index) {
+  // V8 internally caches strings for small integers, and asserts that a
+  // non-empty string local handle is returned for `ToString`.
+  return v8::Uint32::New(v8::Isolate::GetCurrent(), index)
+      ->ToString(context)
+      .ToLocalChecked();
+}
+
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
