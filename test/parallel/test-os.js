@@ -27,16 +27,16 @@ const path = require('path');
 const { inspect } = require('util');
 
 const is = {
-  number: (value, key) => {
+  number: common.mustCallAtLeast((value, key) => {
     assert(!Number.isNaN(value), `${key} should not be NaN`);
     assert.strictEqual(typeof value, 'number');
-  },
-  string: (value) => { assert.strictEqual(typeof value, 'string'); },
-  array: (value) => { assert.ok(Array.isArray(value)); },
-  object: (value) => {
+  }),
+  string: common.mustCallAtLeast((value) => { assert.strictEqual(typeof value, 'string'); }),
+  array: common.mustCallAtLeast((value) => { assert.ok(Array.isArray(value)); }),
+  object: common.mustCallAtLeast((value) => {
     assert.strictEqual(typeof value, 'object');
     assert.notStrictEqual(value, null);
-  }
+  }),
 };
 
 process.env.TMPDIR = '/tmpdir';
@@ -181,15 +181,13 @@ const netmaskToCIDRSuffixMap = new Map(Object.entries({
   'ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff': 128
 }));
 
-Object.values(interfaces)
-  .flat(Infinity)
-  .map((v) => ({ v, mask: netmaskToCIDRSuffixMap.get(v.netmask) }))
-  .forEach(({ v, mask }) => {
-    assert.ok('cidr' in v, `"cidr" prop not found in ${inspect(v)}`);
-    if (mask) {
-      assert.strictEqual(v.cidr, `${v.address}/${mask}`);
-    }
-  });
+for (const v of Object.values(interfaces).flat(Infinity)) {
+  assert.ok('cidr' in v, `"cidr" prop not found in ${inspect(v)}`);
+  const mask = netmaskToCIDRSuffixMap.get(v.netmask);
+  if (mask) {
+    assert.strictEqual(v.cidr, `${v.address}/${mask}`);
+  }
+}
 
 const EOL = os.EOL;
 if (common.isWindows) {

@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 
 console.error(process.uptime());
@@ -31,7 +31,7 @@ assert.ok(process.uptime() <= 15);
 
 const original = process.uptime();
 
-setTimeout(function() {
+setTimeout(common.mustCall(() => {
   const uptime = process.uptime();
   assert.ok(original < uptime);
-}, 10);
+}), 10);
