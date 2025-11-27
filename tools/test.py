@@ -1697,6 +1697,14 @@ def Main():
                     options.store_unexpected_output,
                     options.repeat,
                     options.abort_on_timeout)
+  # Remember the primary mode requested on the CLI so suites can reuse it when
+  # they need to probe for a binary outside of the normal test runner flow.
+  for requested_mode in options.mode:
+    if requested_mode:
+      context.default_mode = requested_mode
+      break
+  else:
+    context.default_mode = 'none'
 
   if options.error_reporter:
     context.use_error_reporter = True
