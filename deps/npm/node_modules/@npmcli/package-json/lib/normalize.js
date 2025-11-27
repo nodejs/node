@@ -474,7 +474,7 @@ async function asyncSteps (pkg, { steps, root, changes }) {
   }
 
   // expand "directories.bin"
-  if (steps.includes('binDir') && data.directories?.bin && !data.bin) {
+  if (steps.includes('binDir') && data.directories?.bin && !data.bin && pkg.path) {
     const binPath = secureAndUnixifyPath(data.directories.bin)
     const bins = await lazyLoadGlob()('**', { cwd: path.resolve(pkg.path, binPath) })
     data.bin = bins.reduce((acc, binFile) => {

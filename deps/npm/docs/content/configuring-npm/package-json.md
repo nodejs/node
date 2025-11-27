@@ -65,6 +65,16 @@ Put keywords in it.
 It's an array of strings.
 This helps people discover your package as it's listed in `npm search`.
 
+Example:
+
+```json
+"keywords": [
+  "node",
+  "javascript",
+  "npm"
+]
+```
+
 ### homepage
 
 The URL to the project homepage.

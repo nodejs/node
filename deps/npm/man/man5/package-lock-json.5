@@ -1,4 +1,4 @@
-.TH "PACKAGE-LOCK.JSON" "5" "November 2025" "NPM@11.6.3" ""
+.TH "PACKAGE-LOCK.JSON" "5" "November 2025" "NPM@11.6.4" ""
 .SH "NAME"
 \fBpackage-lock.json\fR - A manifestation of the manifest
 .SS "Description"
@@ -102,6 +102,12 @@ hasInstallScript: A flag to indicate that the package has a \fBpreinstall\fR, \f
 hasShrinkwrap: A flag to indicate that the package has an \fBnpm-shrinkwrap.json\fR file.
 .IP \(bu 4
 bin, license, engines, dependencies, optionalDependencies: fields from \fBpackage.json\fR
+.IP \(bu 4
+os: An array of operating systems this package is compatible with, as specified in \fBpackage.json\fR. This field is included when the package specifies OS restrictions.
+.IP \(bu 4
+cpu: An array of CPU architectures this package is compatible with, as specified in \fBpackage.json\fR. This field is included when the package specifies CPU restrictions.
+.IP \(bu 4
+funding: Funding information for the package, as specified in \fBpackage.json\fR. This field contains details about how to support the package maintainers.
 .RE 0
 
 .SS "dependencies"
