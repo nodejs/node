@@ -135,14 +135,14 @@ The `section` supports wildcard also:
 
 ```mjs
 import { debuglog } from 'node:util';
-const log = debuglog('foo');
+const log = debuglog('foo-bar');
 
 log('hi there, it\'s foo-bar [%d]', 2333);
 ```
 
 ```cjs
 const { debuglog } = require('node:util');
-const log = debuglog('foo');
+const log = debuglog('foo-bar');
 
 log('hi there, it\'s foo-bar [%d]', 2333);
 ```
