@@ -198,6 +198,10 @@ try {
       subdirPackageType,
       expectedResolvedFormat,
       mainSuffix = '' ] = testVariant;
+    const skip = mainImportScript.endsWith('.ts') && !process.config.variables.node_use_amaro;
+    if (skip) {
+      return;
+    }
 
     const mDir = rel(`node_modules/${moduleName}`);
     const subDir = rel(`node_modules/${moduleName}/subdir`);

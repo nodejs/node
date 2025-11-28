@@ -8,6 +8,8 @@ import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 
+const onlyWithAmaro = { skip: !process.config.variables.node_use_amaro };
+
 const testFixtures = fixtures.path('test-runner', 'global-setup-teardown');
 const runnerFixture = fixtures.path('test-runner', 'test-runner-global-hooks.mjs');
 
@@ -162,7 +164,7 @@ describe('require(\'node:test\').run with global hooks', { concurrency: false },
         assert.strictEqual(content, 'Setup part, Teardown part');
       });
 
-      it('should run TypeScript globalSetup and globalTeardown functions', async () => {
+      it('should run TypeScript globalSetup and globalTeardown functions', onlyWithAmaro, async () => {
         const setupFlagPath = tmpdir.resolve('setup-executed-ts.tmp');
         const teardownFlagPath = tmpdir.resolve('teardown-executed-ts.tmp');
 

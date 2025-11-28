@@ -3,7 +3,10 @@
 // This tests NODE_COMPILE_CACHE can be used for type stripping and ignores
 // --enable-source-maps as there's no difference in the code generated.
 
-require('../common');
+const common = require('../common');
+if (!process.config.variables.node_use_amaro) {
+  common.skip('Requires Amaro');
+}
 const { spawnSyncAndAssert } = require('../common/child_process');
 const assert = require('assert');
 const tmpdir = require('../common/tmpdir');
