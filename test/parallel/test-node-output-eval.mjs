@@ -1,4 +1,7 @@
-import '../common/index.mjs';
+import * as common from '../common/index.mjs';
+if (!process.config.variables.node_use_amaro) {
+  common.skip('Requires Amaro');
+}
 import * as fixtures from '../common/fixtures.mjs';
 import * as snapshot from '../common/assertSnapshot.js';
 import { basename } from 'node:path';
