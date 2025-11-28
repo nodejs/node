@@ -13,6 +13,8 @@ const { test } = require('node:test');
 const { chmodSync, writeFileSync, constants } = require('node:fs');
 const { join } = require('node:path');
 
+const onlyWithAmaro = { skip: !process.config.variables.node_use_amaro };
+
 test('should handle non existing json', async () => {
   const result = await spawnPromisified(process.execPath, [
     '--experimental-config-file',
@@ -49,7 +51,7 @@ test('should handle empty object json', async () => {
   strictEqual(result.code, 0);
 });
 
-test('should parse boolean flag', async () => {
+test('should parse boolean flag', onlyWithAmaro, async () => {
   const result = await spawnPromisified(process.execPath, [
     '--experimental-config-file',
     fixtures.path('rc/transform-types.json'),
@@ -72,7 +74,7 @@ test('should not override a flag declared twice', async () => {
   strictEqual(result.code, 0);
 });
 
-test('should override env-file', async () => {
+test('should override env-file', onlyWithAmaro, async () => {
   const result = await spawnPromisified(process.execPath, [
     '--no-warnings',
     '--experimental-config-file',
@@ -85,7 +87,7 @@ test('should override env-file', async () => {
   strictEqual(result.code, 0);
 });
 
-test('should not override NODE_OPTIONS', async () => {
+test('should not override NODE_OPTIONS', onlyWithAmaro, async () => {
   const result = await spawnPromisified(process.execPath, [
     '--no-warnings',
     '--experimental-strip-types',
@@ -103,7 +105,7 @@ test('should not override NODE_OPTIONS', async () => {
   strictEqual(result.code, 1);
 });
 
-test('should not ovverride CLI flags', async () => {
+test('should not override CLI flags', onlyWithAmaro, async () => {
   const result = await spawnPromisified(process.execPath, [
     '--no-warnings',
     '--no-experimental-transform-types',
