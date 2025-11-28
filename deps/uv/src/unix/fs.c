@@ -31,6 +31,7 @@
 
 #include <errno.h>
 #include <dlfcn.h>
+#include <stdatomic.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -41,24 +42,9 @@
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/uio.h>
-#include <pthread.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <poll.h>
-
-#if defined(__DragonFly__)        ||                                      \
-    defined(__FreeBSD__)          ||                                      \
-    defined(__OpenBSD__)          ||                                      \
-    defined(__NetBSD__)
-# define HAVE_PREADV 1
-#else
-# define HAVE_PREADV 0
-#endif
-
-/* preadv() and pwritev() were added in Android N (level 24) */
-#if defined(__linux__) && !(defined(__ANDROID__) && __ANDROID_API__ < 24)
-# define TRY_PREADV 1
-#endif
 
 #if defined(__linux__)
 # include <sys/sendfile.h>
@@ -153,7 +139,7 @@ extern char *mkdtemp(char *template); /* See issue #740 on AIX < 7 */
 #define POST                                                                  \
   do {                                                                        \
     if (cb != NULL) {                                                         \
-      uv__req_register(loop, req);                                            \
+      uv__req_register(loop);                                                 \
       uv__work_submit(loop,                                                   \
                       &req->work_req,                                         \
                       UV__WORK_FAST_IO,                                       \
@@ -217,8 +203,23 @@ static ssize_t uv__fs_fdatasync(uv_fs_t* req) {
 }
 
 
-UV_UNUSED(static struct timespec uv__fs_to_timespec(double time)) {
+#if defined(__APPLE__)                                                        \
+    || defined(_AIX71)                                                        \
+    || defined(__DragonFly__)                                                 \
+    || defined(__FreeBSD__)                                                   \
+    || defined(__HAIKU__)                                                     \
+    || defined(__NetBSD__)                                                    \
+    || defined(__OpenBSD__)                                                   \
+    || defined(__linux__)                                                     \
+    || defined(__sun)
+static struct timespec uv__fs_to_timespec(double time) {
   struct timespec ts;
+
+  if (uv__isinf(time))
+    return (struct timespec){UTIME_NOW, UTIME_NOW};
+  if (uv__isnan(time))
+    return (struct timespec){UTIME_OMIT, UTIME_OMIT};
+
   ts.tv_sec  = time;
   ts.tv_nsec = (time - ts.tv_sec) * 1e9;
 
@@ -235,41 +236,23 @@ UV_UNUSED(static struct timespec uv__fs_to_timespec(double time)) {
   }
   return ts;
 }
+#endif
 
-UV_UNUSED(static struct timeval uv__fs_to_timeval(double time)) {
-  struct timeval tv;
-  tv.tv_sec  = time;
-  tv.tv_usec = (time - tv.tv_sec) * 1e6;
-  if (tv.tv_usec < 0) {
-    tv.tv_usec += 1e6;
-    tv.tv_sec -= 1;
-  }
-  return tv;
-}
 
 static ssize_t uv__fs_futime(uv_fs_t* req) {
-#if defined(__linux__)                                                        \
+#if defined(__APPLE__)                                                        \
     || defined(_AIX71)                                                        \
+    || defined(__DragonFly__)                                                 \
+    || defined(__FreeBSD__)                                                   \
     || defined(__HAIKU__)                                                     \
-    || defined(__GNU__)
+    || defined(__NetBSD__)                                                    \
+    || defined(__OpenBSD__)                                                   \
+    || defined(__linux__)                                                     \
+    || defined(__sun)
   struct timespec ts[2];
   ts[0] = uv__fs_to_timespec(req->atime);
   ts[1] = uv__fs_to_timespec(req->mtime);
   return futimens(req->file, ts);
-#elif defined(__APPLE__)                                                      \
-    || defined(__DragonFly__)                                                 \
-    || defined(__FreeBSD__)                                                   \
-    || defined(__NetBSD__)                                                    \
-    || defined(__OpenBSD__)                                                   \
-    || defined(__sun)
-  struct timeval tv[2];
-  tv[0] = uv__fs_to_timeval(req->atime);
-  tv[1] = uv__fs_to_timeval(req->mtime);
-# if defined(__sun)
-  return futimesat(req->file, NULL, tv);
-# else
-  return futimes(req->file, tv);
-# endif
 #elif defined(__MVS__)
   attrib_t atr;
   memset(&atr, 0, sizeof(atr));
@@ -410,123 +393,171 @@ static ssize_t uv__fs_open(uv_fs_t* req) {
 }
 
 
-#if !HAVE_PREADV
-static ssize_t uv__fs_preadv(uv_file fd,
-                             uv_buf_t* bufs,
-                             unsigned int nbufs,
-                             off_t off) {
-  uv_buf_t* buf;
-  uv_buf_t* end;
-  ssize_t result;
-  ssize_t rc;
-  size_t pos;
+static ssize_t uv__preadv_or_pwritev_emul(int fd,
+                                          const struct iovec* bufs,
+                                          size_t nbufs,
+                                          off_t off,
+                                          int is_pread) {
+  ssize_t total;
+  ssize_t r;
+  size_t i;
+  size_t n;
+  void* p;
 
-  assert(nbufs > 0);
+  total = 0;
+  for (i = 0; i < (size_t) nbufs; i++) {
+    p = bufs[i].iov_base;
+    n = bufs[i].iov_len;
 
-  result = 0;
-  pos = 0;
-  buf = bufs + 0;
-  end = bufs + nbufs;
-
-  for (;;) {
     do
-      rc = pread(fd, buf->base + pos, buf->len - pos, off + result);
-    while (rc == -1 && errno == EINTR);
+      if (is_pread)
+        r = pread(fd, p, n, off);
+      else
+        r = pwrite(fd, p, n, off);
+    while (r == -1 && errno == EINTR);
 
-    if (rc == 0)
-      break;
+    if (r == -1) {
+      if (total > 0)
+        return total;
+      return -1;
+    }
 
-    if (rc == -1 && result == 0)
-      return UV__ERR(errno);
+    off += r;
+    total += r;
 
-    if (rc == -1)
-      break;  /* We read some data so return that, ignore the error. */
-
-    pos += rc;
-    result += rc;
-
-    if (pos < buf->len)
-      continue;
-
-    pos = 0;
-    buf += 1;
-
-    if (buf == end)
-      break;
+    if ((size_t) r < n)
+      return total;
   }
 
-  return result;
+  return total;
 }
+
+
+#ifdef __linux__
+typedef int uv__iovcnt;
+#else
+typedef size_t uv__iovcnt;
 #endif
+
+
+static ssize_t uv__preadv_emul(int fd,
+                               const struct iovec* bufs,
+                               uv__iovcnt nbufs,
+                               off_t off) {
+  return uv__preadv_or_pwritev_emul(fd, bufs, nbufs, off, /*is_pread*/1);
+}
+
+
+static ssize_t uv__pwritev_emul(int fd,
+                                const struct iovec* bufs,
+                                uv__iovcnt nbufs,
+                                off_t off) {
+  return uv__preadv_or_pwritev_emul(fd, bufs, nbufs, off, /*is_pread*/0);
+}
+
+
+/* The function pointer cache is an uintptr_t because _Atomic void*
+ * doesn't work on macos/ios/etc...
+ */
+static ssize_t uv__preadv_or_pwritev(int fd,
+                                     const struct iovec* bufs,
+                                     size_t nbufs,
+                                     off_t off,
+                                     _Atomic uintptr_t* cache,
+                                     int is_pread) {
+  ssize_t (*f)(int, const struct iovec*, uv__iovcnt, off_t);
+  void* p;
+
+  p = (void*) atomic_load_explicit(cache, memory_order_relaxed);
+  if (p == NULL) {
+#ifdef RTLD_DEFAULT
+    /* Try _LARGEFILE_SOURCE version of preadv/pwritev first,
+     * then fall back to the plain version, for libcs like musl.
+     */
+    p = dlsym(RTLD_DEFAULT, is_pread ? "preadv64" : "pwritev64");
+    if (p == NULL)
+      p = dlsym(RTLD_DEFAULT, is_pread ? "preadv" : "pwritev");
+    dlerror();  /* Clear errors. */
+#endif  /* RTLD_DEFAULT */
+    if (p == NULL)
+      p = is_pread ? uv__preadv_emul : uv__pwritev_emul;
+    atomic_store_explicit(cache, (uintptr_t) p, memory_order_relaxed);
+  }
+
+  f = p;
+  return f(fd, bufs, nbufs, off);
+}
+
+
+static ssize_t uv__preadv(int fd,
+                          const struct iovec* bufs,
+                          size_t nbufs,
+                          off_t off) {
+  static _Atomic uintptr_t cache;
+  return uv__preadv_or_pwritev(fd, bufs, nbufs, off, &cache, /*is_pread*/1);
+}
+
+
+static ssize_t uv__pwritev(int fd,
+                           const struct iovec* bufs,
+                           size_t nbufs,
+                           off_t off) {
+  static _Atomic uintptr_t cache;
+  return uv__preadv_or_pwritev(fd, bufs, nbufs, off, &cache, /*is_pread*/0);
+}
 
 
 static ssize_t uv__fs_read(uv_fs_t* req) {
-#if TRY_PREADV
-  static _Atomic int no_preadv;
-#endif
+  const struct iovec* bufs;
   unsigned int iovmax;
-  ssize_t result;
+  size_t nbufs;
+  ssize_t r;
+  off_t off;
+  int fd;
+
+  fd = req->file;
+  off = req->off;
+  bufs = (const struct iovec*) req->bufs;
+  nbufs = req->nbufs;
 
   iovmax = uv__getiovmax();
-  if (req->nbufs > iovmax)
-    req->nbufs = iovmax;
+  if (nbufs > iovmax)
+    nbufs = iovmax;
 
-  if (req->off < 0) {
-    if (req->nbufs == 1)
-      result = read(req->file, req->bufs[0].base, req->bufs[0].len);
-    else
-      result = readv(req->file, (struct iovec*) req->bufs, req->nbufs);
+  r = 0;
+  if (off < 0) {
+    if (nbufs == 1)
+      r = read(fd, bufs->iov_base, bufs->iov_len);
+    else if (nbufs > 1)
+      r = readv(fd, bufs, nbufs);
   } else {
-    if (req->nbufs == 1) {
-      result = pread(req->file, req->bufs[0].base, req->bufs[0].len, req->off);
-      goto done;
-    }
-
-#if HAVE_PREADV
-    result = preadv(req->file, (struct iovec*) req->bufs, req->nbufs, req->off);
-#else
-# if TRY_PREADV
-    if (atomic_load_explicit(&no_preadv, memory_order_relaxed)) retry:
-# endif
-    {
-      result = uv__fs_preadv(req->file, req->bufs, req->nbufs, req->off);
-    }
-# if TRY_PREADV
-    else {
-      result = preadv(req->file,
-                      (struct iovec*) req->bufs,
-                      req->nbufs,
-                      req->off);
-      if (result == -1 && errno == ENOSYS) {
-        atomic_store_explicit(&no_preadv, 1, memory_order_relaxed);
-        goto retry;
-      }
-    }
-# endif
-#endif
+    if (nbufs == 1)
+      r = pread(fd, bufs->iov_base, bufs->iov_len, off);
+    else if (nbufs > 1)
+      r = uv__preadv(fd, bufs, nbufs, off);
   }
-
-done:
-  /* Early cleanup of bufs allocation, since we're done with it. */
-  if (req->bufs != req->bufsml)
-    uv__free(req->bufs);
-
-  req->bufs = NULL;
-  req->nbufs = 0;
 
 #ifdef __PASE__
   /* PASE returns EOPNOTSUPP when reading a directory, convert to EISDIR */
-  if (result == -1 && errno == EOPNOTSUPP) {
+  if (r == -1 && errno == EOPNOTSUPP) {
     struct stat buf;
     ssize_t rc;
-    rc = uv__fstat(req->file, &buf);
+    rc = uv__fstat(fd, &buf);
     if (rc == 0 && S_ISDIR(buf.st_mode)) {
       errno = EISDIR;
     }
   }
 #endif
 
-  return result;
+  /* We don't own the buffer list in the synchronous case. */
+  if (req->cb != NULL)
+    if (req->bufs != req->bufsml)
+      uv__free(req->bufs);
+
+  req->bufs = NULL;
+  req->nbufs = 0;
+
+  return r;
 }
 
 
@@ -761,13 +792,22 @@ static ssize_t uv__fs_readlink(uv_fs_t* req) {
 
 static ssize_t uv__fs_realpath(uv_fs_t* req) {
   char* buf;
+  char* tmp;
 
 #if defined(_POSIX_VERSION) && _POSIX_VERSION >= 200809L
-  buf = realpath(req->path, NULL);
-  if (buf == NULL)
+  tmp = realpath(req->path, NULL);
+  if (tmp == NULL)
     return -1;
+  buf = uv__strdup(tmp);
+  free(tmp); /* _Not_ uv__free. */
+  if (buf == NULL) {
+    errno = ENOMEM;
+    return -1;
+  }
 #else
   ssize_t len;
+
+  (void)tmp;
 
   len = uv__fs_pathmax_size(req->path);
   buf = uv__malloc(len + 1);
@@ -1032,7 +1072,10 @@ static ssize_t uv__fs_sendfile(uv_fs_t* req) {
 
     return -1;
   }
-#elif defined(__APPLE__) || defined(__DragonFly__) || defined(__FreeBSD__)
+/* sendfile() on iOS(arm64) will throw SIGSYS signal cause crash. */
+#elif (defined(__APPLE__) && !TARGET_OS_IPHONE)                               \
+    || defined(__DragonFly__)                                                 \
+    || defined(__FreeBSD__)
   {
     off_t len;
     ssize_t r;
@@ -1096,25 +1139,20 @@ static ssize_t uv__fs_sendfile(uv_fs_t* req) {
 
 
 static ssize_t uv__fs_utime(uv_fs_t* req) {
-#if defined(__linux__)                                                         \
-    || defined(_AIX71)                                                         \
-    || defined(__sun)                                                          \
-    || defined(__HAIKU__)
+#if defined(__APPLE__)                                                        \
+    || defined(_AIX71)                                                        \
+    || defined(__DragonFly__)                                                 \
+    || defined(__FreeBSD__)                                                   \
+    || defined(__HAIKU__)                                                     \
+    || defined(__NetBSD__)                                                    \
+    || defined(__OpenBSD__)                                                   \
+    || defined(__linux__)                                                     \
+    || defined(__sun)
   struct timespec ts[2];
   ts[0] = uv__fs_to_timespec(req->atime);
   ts[1] = uv__fs_to_timespec(req->mtime);
   return utimensat(AT_FDCWD, req->path, ts, 0);
-#elif defined(__APPLE__)                                                      \
-    || defined(__DragonFly__)                                                 \
-    || defined(__FreeBSD__)                                                   \
-    || defined(__NetBSD__)                                                    \
-    || defined(__OpenBSD__)
-  struct timeval tv[2];
-  tv[0] = uv__fs_to_timeval(req->atime);
-  tv[1] = uv__fs_to_timeval(req->mtime);
-  return utimes(req->path, tv);
-#elif defined(_AIX)                                                           \
-    && !defined(_AIX71)
+#elif defined(_AIX) && !defined(_AIX71)
   struct utimbuf buf;
   buf.actime = req->atime;
   buf.modtime = req->mtime;
@@ -1135,24 +1173,19 @@ static ssize_t uv__fs_utime(uv_fs_t* req) {
 
 
 static ssize_t uv__fs_lutime(uv_fs_t* req) {
-#if defined(__linux__)            ||                                           \
-    defined(_AIX71)               ||                                           \
-    defined(__sun)                ||                                           \
-    defined(__HAIKU__)            ||                                           \
-    defined(__GNU__)              ||                                           \
-    defined(__OpenBSD__)
+#if defined(__APPLE__)                                                        \
+    || defined(_AIX71)                                                        \
+    || defined(__DragonFly__)                                                 \
+    || defined(__FreeBSD__)                                                   \
+    || defined(__HAIKU__)                                                     \
+    || defined(__NetBSD__)                                                    \
+    || defined(__OpenBSD__)                                                   \
+    || defined(__linux__)                                                     \
+    || defined(__sun)
   struct timespec ts[2];
   ts[0] = uv__fs_to_timespec(req->atime);
   ts[1] = uv__fs_to_timespec(req->mtime);
   return utimensat(AT_FDCWD, req->path, ts, AT_SYMLINK_NOFOLLOW);
-#elif defined(__APPLE__)          ||                                          \
-      defined(__DragonFly__)      ||                                          \
-      defined(__FreeBSD__)        ||                                          \
-      defined(__NetBSD__)
-  struct timeval tv[2];
-  tv[0] = uv__fs_to_timeval(req->atime);
-  tv[1] = uv__fs_to_timeval(req->mtime);
-  return lutimes(req->path, tv);
 #else
   errno = ENOSYS;
   return -1;
@@ -1161,64 +1194,33 @@ static ssize_t uv__fs_lutime(uv_fs_t* req) {
 
 
 static ssize_t uv__fs_write(uv_fs_t* req) {
-#if TRY_PREADV
-  static _Atomic int no_pwritev;
-#endif
+  const struct iovec* bufs;
+  size_t nbufs;
   ssize_t r;
+  off_t off;
+  int fd;
 
-  /* Serialize writes on OS X, concurrent write() and pwrite() calls result in
-   * data loss. We can't use a per-file descriptor lock, the descriptor may be
-   * a dup().
-   */
-#if defined(__APPLE__)
-  static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+  fd = req->file;
+  off = req->off;
+  bufs = (const struct iovec*) req->bufs;
+  nbufs = req->nbufs;
 
-  if (pthread_mutex_lock(&lock))
-    abort();
-#endif
-
-  if (req->off < 0) {
-    if (req->nbufs == 1)
-      r = write(req->file, req->bufs[0].base, req->bufs[0].len);
-    else
-      r = writev(req->file, (struct iovec*) req->bufs, req->nbufs);
+  r = 0;
+  if (off < 0) {
+    if (nbufs == 1)
+      r = write(fd, bufs->iov_base, bufs->iov_len);
+    else if (nbufs > 1)
+      r = writev(fd, bufs, nbufs);
   } else {
-    if (req->nbufs == 1) {
-      r = pwrite(req->file, req->bufs[0].base, req->bufs[0].len, req->off);
-      goto done;
-    }
-#if HAVE_PREADV
-    r = pwritev(req->file, (struct iovec*) req->bufs, req->nbufs, req->off);
-#else
-# if TRY_PREADV
-    if (atomic_load_explicit(&no_pwritev, memory_order_relaxed)) retry:
-# endif
-    {
-      r = pwrite(req->file, req->bufs[0].base, req->bufs[0].len, req->off);
-    }
-# if TRY_PREADV
-    else {
-      r = pwritev(req->file,
-                  (struct iovec*) req->bufs,
-                  req->nbufs,
-                  req->off);
-      if (r == -1 && errno == ENOSYS) {
-        atomic_store_explicit(&no_pwritev, 1, memory_order_relaxed);
-        goto retry;
-      }
-    }
-# endif
-#endif
+    if (nbufs == 1)
+      r = pwrite(fd, bufs->iov_base, bufs->iov_len, off);
+    else if (nbufs > 1)
+      r = uv__pwritev(fd, bufs, nbufs, off);
   }
-
-done:
-#if defined(__APPLE__)
-  if (pthread_mutex_unlock(&lock))
-    abort();
-#endif
 
   return r;
 }
+
 
 static ssize_t uv__fs_copyfile(uv_fs_t* req) {
   uv_fs_t fs_req;
@@ -1226,6 +1228,7 @@ static ssize_t uv__fs_copyfile(uv_fs_t* req) {
   uv_file dstfd;
   struct stat src_statsbuf;
   struct stat dst_statsbuf;
+  struct timespec times[2];
   int dst_flags;
   int result;
   int err;
@@ -1302,6 +1305,35 @@ static ssize_t uv__fs_copyfile(uv_fs_t* req) {
       err = 0;
     }
   }
+
+  /**
+   * Change the timestamps of the destination file to match the source file.
+   */
+#if defined(__APPLE__)
+  times[0] = src_statsbuf.st_atimespec;
+  times[1] = src_statsbuf.st_mtimespec;
+#elif defined(_AIX)
+  times[0].tv_sec = src_statsbuf.st_atime;
+  times[0].tv_nsec = src_statsbuf.st_atime_n;
+  times[1].tv_sec = src_statsbuf.st_mtime;
+  times[1].tv_nsec = src_statsbuf.st_mtime_n;
+#else
+  times[0] = src_statsbuf.st_atim;
+  times[1] = src_statsbuf.st_mtim;
+#endif
+
+  if (futimens(dstfd, times) == -1) {
+    err = UV__ERR(errno);
+    goto out;
+  }
+
+  /*
+   * Change the ownership and permissions of the destination file to match the
+   * source file.
+   * `cp -p` does not care about errors here, so we don't either. Reuse the
+   * `result` variable to silence a -Wunused-result warning.
+   */
+  result = fchown(dstfd, src_statsbuf.st_uid, src_statsbuf.st_gid);
 
   if (fchmod(dstfd, src_statsbuf.st_mode) == -1) {
     err = UV__ERR(errno);
@@ -1720,7 +1752,7 @@ static void uv__fs_done(struct uv__work* w, int status) {
   uv_fs_t* req;
 
   req = container_of(w, uv_fs_t, work_req);
-  uv__req_unregister(req->loop, req);
+  uv__req_unregister(req->loop);
 
   if (status == UV_ECANCELED) {
     assert(req->result == 0);
@@ -1728,6 +1760,16 @@ static void uv__fs_done(struct uv__work* w, int status) {
   }
 
   req->cb(req);
+}
+
+
+void uv__fs_post(uv_loop_t* loop, uv_fs_t* req) {
+  uv__req_register(loop);
+  uv__work_submit(loop,
+                  &req->work_req,
+                  UV__WORK_FAST_IO,
+                  uv__fs_work,
+                  uv__fs_done);
 }
 
 
@@ -1857,6 +1899,9 @@ int uv_fs_ftruncate(uv_loop_t* loop,
   INIT(FTRUNCATE);
   req->file = file;
   req->off = off;
+  if (cb != NULL)
+    if (uv__iou_fs_ftruncate(loop, req))
+      return 0;
   POST;
 }
 
@@ -1979,9 +2024,14 @@ int uv_fs_read(uv_loop_t* loop, uv_fs_t* req,
   if (bufs == NULL || nbufs == 0)
     return UV_EINVAL;
 
+  req->off = off;
   req->file = file;
-
+  req->bufs = (uv_buf_t*) bufs;  /* Safe, doesn't mutate |bufs| */
   req->nbufs = nbufs;
+
+  if (cb == NULL)
+    goto post;
+
   req->bufs = req->bufsml;
   if (nbufs > ARRAY_SIZE(req->bufsml))
     req->bufs = uv__malloc(nbufs * sizeof(*bufs));
@@ -1991,12 +2041,10 @@ int uv_fs_read(uv_loop_t* loop, uv_fs_t* req,
 
   memcpy(req->bufs, bufs, nbufs * sizeof(*bufs));
 
-  req->off = off;
+  if (uv__iou_fs_read_or_write(loop, req, /* is_read */ 1))
+    return 0;
 
-  if (cb != NULL)
-    if (uv__iou_fs_read_or_write(loop, req, /* is_read */ 1))
-      return 0;
-
+post:
   POST;
 }
 
