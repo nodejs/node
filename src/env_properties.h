@@ -435,6 +435,7 @@
   V(space_stats_template, v8::DictionaryTemplate)                              \
   V(sqlite_column_template, v8::DictionaryTemplate)                            \
   V(sqlite_statement_sync_constructor_template, v8::FunctionTemplate)          \
+  V(sqlite_statement_async_constructor_template, v8::FunctionTemplate)         \
   V(sqlite_statement_sync_iterator_constructor_template, v8::FunctionTemplate) \
   V(sqlite_session_constructor_template, v8::FunctionTemplate)                 \
   V(srv_record_template, v8::DictionaryTemplate)                               \
