@@ -7736,9 +7736,9 @@ to allow continued writing.
 
 #### Event: `'drop'`
 
-The `'drop'` event is emitted when to maximal length is reached and that data
+The `'drop'` event is emitted when the maximal length is reached and that data
 will not be written. The data that was dropped is passed as the first argument
-to the event handle.
+to the event handler.
 
 #### Event: `'error'`
 
