@@ -247,8 +247,6 @@ class Statement : public BaseObject {
             BaseObjectPtr<Database> db,
             sqlite3_stmt* stmt);
   void MemoryInfo(MemoryTracker* tracker) const override;
-  static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
-      Environment* env, std::string_view class_name);
   static BaseObjectPtr<Statement> Create(Environment* env,
                                          BaseObjectPtr<Database> db,
                                          sqlite3_stmt* stmt);

@@ -1129,6 +1129,21 @@ inline void DatabaseNew(const FunctionCallbackInfo<Value>& args,
             allow_unknown_named_params_v.As<Boolean>()->Value());
       }
     }
+
+    Local<Value> defensive_v;
+    if (!options->Get(env->context(), env->defensive_string())
+             .ToLocal(&defensive_v)) {
+      return;
+    }
+    if (!defensive_v->IsUndefined()) {
+      if (!defensive_v->IsBoolean()) {
+        THROW_ERR_INVALID_ARG_TYPE(
+            env->isolate(),
+            "The \"options.defensive\" argument must be a boolean.");
+        return;
+      }
+      open_config.set_enable_defensive(defensive_v.As<Boolean>()->Value());
+    }
   }
 
   open_config.set_async(async);
@@ -2576,8 +2591,10 @@ MaybeLocal<Promise::Resolver> StatementAsyncExecutionHelper::All(
       }
     }
 
-    resolver->Resolve(env->context(),
-                      Array::New(isolate, js_rows.data(), js_rows.size()));
+    resolver
+        ->Resolve(env->context(),
+                  Array::New(isolate, js_rows.data(), js_rows.size()))
+        .FromJust();
   };
 
   Local<Promise::Resolver> resolver =
@@ -2647,7 +2664,6 @@ MaybeLocal<Promise::Resolver> StatementAsyncExecutionHelper::Get(
 
 MaybeLocal<Promise::Resolver> StatementAsyncExecutionHelper::Run(
     Environment* env, Statement* stmt) {
-  Isolate* isolate = env->isolate();
   Database* db = stmt->db_.get();
   sqlite3* conn = db->Connection();
   auto task =
@@ -3379,61 +3395,16 @@ void SQLTagStore::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackFieldWithSize("sql_tags_cache", cache_content_size);
 }
 
-// TODO(geeksilva97): move this to a common location if other classes need it
-inline Local<FunctionTemplate> GetStatementConstructorTemplate(
-    Isolate* isolate) {
-  Local<FunctionTemplate> tmpl =
-      NewFunctionTemplate(isolate, IllegalConstructor);
-  tmpl->InstanceTemplate()->SetInternalFieldCount(
-      Statement::kInternalFieldCount);
-  SetProtoMethod(isolate, tmpl, "iterate", Statement::Iterate);
-  SetProtoMethod(isolate, tmpl, "all", Statement::All);
-  SetProtoMethod(isolate, tmpl, "get", Statement::Get);
-  SetProtoMethod(isolate, tmpl, "run", Statement::Run);
-  SetProtoMethodNoSideEffect(isolate, tmpl, "columns", Statement::Columns);
-  SetSideEffectFreeGetter(isolate,
-                          tmpl,
-                          FIXED_ONE_BYTE_STRING(isolate, "sourceSQL"),
-                          Statement::SourceSQLGetter);
-  SetSideEffectFreeGetter(isolate,
-                          tmpl,
-                          FIXED_ONE_BYTE_STRING(isolate, "expandedSQL"),
-                          Statement::ExpandedSQLGetter);
-  SetProtoMethod(isolate,
-                 tmpl,
-                 "setAllowBareNamedParameters",
-                 Statement::SetAllowBareNamedParameters);
-  SetProtoMethod(isolate,
-                 tmpl,
-                 "setAllowUnknownNamedParameters",
-                 Statement::SetAllowUnknownNamedParameters);
-  SetProtoMethod(isolate, tmpl, "setReadBigInts", Statement::SetReadBigInts);
-  SetProtoMethod(isolate, tmpl, "setReturnArrays", Statement::SetReturnArrays);
-
-  return tmpl;
-}
-
-Local<FunctionTemplate> Statement::GetConstructorTemplate(
-    Environment* env, std::string_view name = "Statement") {
-  Isolate* isolate = env->isolate();
-  Local<FunctionTemplate> tmpl = GetStatementConstructorTemplate(isolate);
-  Local<String> class_name;
-  if (!String::NewFromUtf8(isolate, name.data()).ToLocal(&class_name)) {
-    return Local<FunctionTemplate>();
-  }
-
-  tmpl->SetClassName(class_name);
-  return tmpl;
-}
-
 BaseObjectPtr<Statement> Statement::Create(Environment* env,
                                            BaseObjectPtr<Database> db,
                                            sqlite3_stmt* stmt) {
+  Local<FunctionTemplate> tmpl =
+      env->sqlite_statement_async_constructor_template();
+  if (!db->is_async()) {
+    tmpl = env->sqlite_statement_sync_constructor_template();
+  }
   Local<Object> obj;
-  if (!GetConstructorTemplate(env)
-           ->InstanceTemplate()
-           ->NewInstance(env->context())
-           .ToLocal(&obj)) {
+  if (!tmpl->InstanceTemplate()->NewInstance(env->context()).ToLocal(&obj)) {
     return nullptr;
   }
 
@@ -3783,18 +3754,32 @@ inline void DefineStatementFunctionTemplates(Environment* env) {
   }
 }
 
-inline void DefineAsyncInterface(Isolate* isolate,
-                                 Local<Object> target,
-                                 Local<Context> context) {
-  Local<FunctionTemplate> db_async_tmpl =
-      NewFunctionTemplate(isolate, Database::NewAsync);
-  db_async_tmpl->InstanceTemplate()->SetInternalFieldCount(
-      Database::kInternalFieldCount);
-
-  SetProtoMethod(isolate, db_async_tmpl, "close", Database::Close);
-  SetProtoMethod(isolate, db_async_tmpl, "prepare", Database::Prepare);
-  SetProtoMethod(isolate, db_async_tmpl, "exec", Database::Exec);
-  SetConstructorFunction(context, target, "Database", db_async_tmpl);
+inline void DefineDatabaseMethods(Isolate* isolate,
+                                  Local<FunctionTemplate> tmpl) {
+  SetProtoMethod(isolate, tmpl, "open", Database::Open);
+  SetProtoMethod(isolate, tmpl, "close", Database::Close);
+  SetProtoDispose(isolate, tmpl, Database::Dispose);
+  SetProtoMethod(isolate, tmpl, "prepare", Database::Prepare);
+  SetProtoMethod(isolate, tmpl, "exec", Database::Exec);
+  SetProtoMethod(isolate, tmpl, "function", Database::CustomFunction);
+  SetProtoMethod(isolate, tmpl, "createTagStore", Database::CreateTagStore);
+  SetProtoMethodNoSideEffect(isolate, tmpl, "location", Database::Location);
+  SetProtoMethod(isolate, tmpl, "aggregate", Database::AggregateFunction);
+  SetProtoMethod(isolate, tmpl, "createSession", Database::CreateSession);
+  SetProtoMethod(isolate, tmpl, "applyChangeset", Database::ApplyChangeset);
+  SetProtoMethod(
+      isolate, tmpl, "enableLoadExtension", Database::EnableLoadExtension);
+  SetProtoMethod(isolate, tmpl, "enableDefensive", Database::EnableDefensive);
+  SetProtoMethod(isolate, tmpl, "loadExtension", Database::LoadExtension);
+  SetProtoMethod(isolate, tmpl, "setAuthorizer", Database::SetAuthorizer);
+  SetSideEffectFreeGetter(isolate,
+                          tmpl,
+                          FIXED_ONE_BYTE_STRING(isolate, "isOpen"),
+                          Database::IsOpenGetter);
+  SetSideEffectFreeGetter(isolate,
+                          tmpl,
+                          FIXED_ONE_BYTE_STRING(isolate, "isTransaction"),
+                          Database::IsTransactionGetter);
 }
 
 static void Initialize(Local<Object> target,
@@ -3806,37 +3791,17 @@ static void Initialize(Local<Object> target,
   Local<FunctionTemplate> db_tmpl = NewFunctionTemplate(isolate, Database::New);
   db_tmpl->InstanceTemplate()->SetInternalFieldCount(
       Database::kInternalFieldCount);
+  Local<FunctionTemplate> db_async_tmpl =
+      NewFunctionTemplate(isolate, Database::NewAsync);
+  db_async_tmpl->InstanceTemplate()->SetInternalFieldCount(
+      Database::kInternalFieldCount);
   Local<Object> constants = Object::New(isolate);
 
   DefineConstants(constants);
-  DefineAsyncInterface(isolate, target, context);
   DefineStatementFunctionTemplates(env);
+  DefineDatabaseMethods(isolate, db_tmpl);
+  DefineDatabaseMethods(isolate, db_async_tmpl);
 
-  SetProtoMethod(isolate, db_tmpl, "open", Database::Open);
-  SetProtoMethod(isolate, db_tmpl, "close", Database::Close);
-  SetProtoDispose(isolate, db_tmpl, Database::Dispose);
-  SetProtoMethod(isolate, db_tmpl, "prepare", Database::Prepare);
-  SetProtoMethod(isolate, db_tmpl, "exec", Database::Exec);
-  SetProtoMethod(isolate, db_tmpl, "function", Database::CustomFunction);
-  SetProtoMethod(isolate, db_tmpl, "createTagStore", Database::CreateTagStore);
-  SetProtoMethodNoSideEffect(isolate, db_tmpl, "location", Database::Location);
-  SetProtoMethod(isolate, db_tmpl, "aggregate", Database::AggregateFunction);
-  SetProtoMethod(isolate, db_tmpl, "createSession", Database::CreateSession);
-  SetProtoMethod(isolate, db_tmpl, "applyChangeset", Database::ApplyChangeset);
-  SetProtoMethod(
-      isolate, db_tmpl, "enableLoadExtension", Database::EnableLoadExtension);
-  SetProtoMethod(
-      isolate, db_tmpl, "enableDefensive", Database::EnableDefensive);
-  SetProtoMethod(isolate, db_tmpl, "loadExtension", Database::LoadExtension);
-  SetProtoMethod(isolate, db_tmpl, "setAuthorizer", Database::SetAuthorizer);
-  SetSideEffectFreeGetter(isolate,
-                          db_tmpl,
-                          FIXED_ONE_BYTE_STRING(isolate, "isOpen"),
-                          Database::IsOpenGetter);
-  SetSideEffectFreeGetter(isolate,
-                          db_tmpl,
-                          FIXED_ONE_BYTE_STRING(isolate, "isTransaction"),
-                          Database::IsTransactionGetter);
   Local<String> sqlite_type_key = FIXED_ONE_BYTE_STRING(isolate, "sqlite-type");
   Local<v8::Symbol> sqlite_type_symbol =
       v8::Symbol::For(isolate, sqlite_type_key);
@@ -3849,6 +3814,8 @@ static void Initialize(Local<Object> target,
                          target,
                          "StatementSync",
                          env->sqlite_statement_sync_constructor_template());
+
+  SetConstructorFunction(context, target, "Database", db_async_tmpl);
   SetConstructorFunction(context,
                          target,
                          "Statement",
