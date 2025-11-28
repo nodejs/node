@@ -673,7 +673,7 @@ impact on Node.js 13.x users with older versions of macOS.
 
 In Node.js 13.9.0 deps/zlib was switched to the chromium maintained implementation. This change
 had the unforseen consequence of breaking building from the tarballs we release as we were too
-aggressively removing `unneccessary files` from the `deps/zlib` folder. This release includes
+aggressively removing `unnecessary files` from the `deps/zlib` folder. This release includes
 a patch that ensures that individuals will once again be able to build Node.js from source.
 
 ### Commits

@@ -1880,7 +1880,7 @@ consumption.
 #### Increase of the default server headers timeout
 
 The default value of `server.headersTimeout` for `http` and `https` servers was
-increased from `40000` to `60000` (60 seconds). This to accomodate for systems
+increased from `40000` to `60000` (60 seconds). This to accommodate for systems
 like AWS ELB that have a timeout of 60 seconds.
 
 Contributed by Tim Costa - [#30071](https://github.com/nodejs/node/pull/30071).
