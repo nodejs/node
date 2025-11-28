@@ -276,14 +276,14 @@ suite('Database() constructor', () => {
     );
   });
 
-  // test('has sqlite-type symbol property', (t) => {
-  //   const dbPath = nextDb();
-  //   const db = new Database(dbPath);
-  //   t.after(() => { db.close(); });
+  test('has sqlite-type symbol property', (t) => {
+    const dbPath = nextDb();
+    const db = new Database(dbPath);
+    t.after(() => { db.close(); });
 
-  //   const sqliteTypeSymbol = Symbol.for('sqlite-type');
-  //   t.assert.strictEqual(db[sqliteTypeSymbol], 'node:sqlite');
-  // });
+    const sqliteTypeSymbol = Symbol.for('sqlite-type');
+    t.assert.strictEqual(db[sqliteTypeSymbol], 'node:sqlite');
+  });
 });
 
 suite('Database.prototype.open()', () => {
