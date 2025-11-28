@@ -2640,17 +2640,21 @@ MaybeLocal<Promise::Resolver> StatementAsyncExecutionHelper::Get(
       return;
     }
 
+    TryCatch try_catch(isolate);
     Local<Value> result;
-    if (!StatementSQLiteToJSConverter::ConvertStatementGet(env,
-                                                           stmt->statement_,
-                                                           num_cols,
-                                                           db->use_big_ints(),
-                                                           stmt->return_arrays_)
-             .ToLocal(&result)) {
+    if (StatementSQLiteToJSConverter::ConvertStatementGet(env,
+                                                          stmt->statement_,
+                                                          num_cols,
+                                                          stmt->use_big_ints_,
+                                                          stmt->return_arrays_)
+            .ToLocal(&result)) {
+      resolver->Resolve(env->context(), result).FromJust();
       return;
     }
 
-    resolver->Resolve(env->context(), result).FromJust();
+    if (try_catch.HasCaught()) {
+      resolver->Reject(env->context(), try_catch.Exception()).FromJust();
+    }
   };
 
   Local<Promise::Resolver> resolver =
