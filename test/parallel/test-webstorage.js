@@ -43,11 +43,12 @@ test('sessionStorage is not persisted', async () => {
 
 test('localStorage emits a warning when used without --localstorage-file ', async () => {
   const cp = await spawnPromisified(process.execPath, [
-    '-pe', 'localStorage.length',
+    '-pe', 'localStorage',
   ]);
   assert.strictEqual(cp.code, 0);
   assert.strictEqual(cp.signal, null);
-  assert.match(cp.stderr, /Warning: `--localstorage-file` was provided without a valid path/);
+  assert.match(cp.stdout, /undefined/);
+  assert.match(cp.stderr, /Warning: Cannot initialize local storage without a `--localstorage-file` path/);
 });
 
 test('localStorage is not persisted if it is unused', async () => {

@@ -70,6 +70,9 @@ const hasSQLite = Boolean(process.versions.sqlite);
 
 const hasQuic = hasCrypto && !!process.features.quic;
 
+const hasLocalStorage = hasSQLite &&
+                        process.execArgv.find((arg) => arg.startsWith('--localstorage-file=')) !== undefined;
+
 /**
  * Parse test metadata from the specified file.
  * @param {string} filename - The name of the file to parse.
@@ -362,7 +365,6 @@ const knownGlobals = new Set([
  'CompressionStream',
  'DecompressionStream',
  'Storage',
- 'localStorage',
  'sessionStorage',
 ].forEach((i) => {
   if (globalThis[i] !== undefined) {
@@ -375,6 +377,10 @@ if (hasCrypto) {
   knownGlobals.add(globalThis.Crypto);
   knownGlobals.add(globalThis.CryptoKey);
   knownGlobals.add(globalThis.SubtleCrypto);
+}
+
+if (hasLocalStorage) {
+  knownGlobals.add(globalThis.localStorage);
 }
 
 const { Worker } = require('node:worker_threads');
@@ -399,6 +405,11 @@ if (process.env.NODE_TEST_KNOWN_GLOBALS !== '0') {
       // globalThis.crypto is a getter that throws if Node.js was compiled
       // without OpenSSL so we'll skip it if it is not available.
       if (val === 'crypto' && !hasCrypto) {
+        continue;
+      }
+      // globalThis.localStorage is a getter that warns if Node.js was
+      // executed without a --localstorage-file path.
+      if (val === 'localStorage' && !hasLocalStorage) {
         continue;
       }
       if (!knownGlobals.has(globalThis[val])) {
@@ -952,6 +963,7 @@ const common = {
   hasQuic,
   hasInspector,
   hasSQLite,
+  hasLocalStorage,
   invalidArgTypeHelper,
   isAlive,
   isASan,
