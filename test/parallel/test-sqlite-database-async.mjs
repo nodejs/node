@@ -125,11 +125,11 @@ suite('Database() constructor', () => {
       CREATE TABLE bar (foo_id INTEGER REFERENCES foo(id));
     `);
     t.after(() => { db.close(); });
-    await t.assert.rejects(db.exec('INSERT INTO bar (foo_id) VALUES (1)')
-      , {
-        code: 'ERR_SQLITE_ERROR',
-        message: 'FOREIGN KEY constraint failed',
-      });
+    await t.assert.rejects(db.exec('INSERT INTO bar (foo_id) VALUES (1)'),
+                           {
+                             code: 'ERR_SQLITE_ERROR',
+                             message: 'FOREIGN KEY constraint failed',
+                           });
   });
 
   test('allows disabling foreign key constraints', (t) => {
@@ -396,11 +396,11 @@ suite('Database.prototype.exec()', () => {
     t.after(() => { db.close(); });
 
     await t.assert.rejects(
-      db.exec('CREATE TABLEEEE')
-    , {
-      code: 'ERR_SQLITE_ERROR',
-      message: /syntax error/,
-    });
+      db.exec('CREATE TABLEEEE'),
+      {
+        code: 'ERR_SQLITE_ERROR',
+        message: /syntax error/,
+      });
   });
 
   test('throws if the URL does not have the file: scheme', (t) => {

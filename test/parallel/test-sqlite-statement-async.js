@@ -194,8 +194,8 @@ suite('Statement.prototype.run()', () => {
     );
     t.assert.strictEqual(setup, undefined);
     const stmt = db.prepare('INSERT INTO data (key, val) VALUES (?, ?)');
-    t.assert.throws(() =>{
-      stmt.run(1, 2, 3)
+    t.assert.throws(() => {
+      stmt.run(1, 2, 3);
     }, {
       code: 'ERR_SQLITE_ERROR',
       message: 'column index out of range',
@@ -213,13 +213,13 @@ suite('Statement.prototype.run()', () => {
     t.assert.strictEqual(setup, undefined);
     const stmt = db.prepare('INSERT INTO data (key, val) VALUES (?, ?)');
     await t.assert.rejects(
-      stmt.run(1)
-    , {
-      code: 'ERR_SQLITE_ERROR',
-      message: 'NOT NULL constraint failed: data.val',
-      errcode: 1299,
-      errstr: 'constraint failed',
-    });
+      stmt.run(1),
+      {
+        code: 'ERR_SQLITE_ERROR',
+        message: 'NOT NULL constraint failed: data.val',
+        errcode: 1299,
+        errstr: 'constraint failed',
+      });
   });
 
   test('returns correct metadata when using RETURNING', async (t) => {
@@ -251,13 +251,13 @@ suite('Statement.prototype.run()', () => {
     const stmt = db.prepare('INSERT INTO data (key, val) VALUES (?1, ?3)');
 
     await t.assert.rejects(
-      stmt.run(1)
-    , {
-      code: 'ERR_SQLITE_ERROR',
-      message: 'NOT NULL constraint failed: data.val',
-      errcode: 1299,
-      errstr: 'constraint failed',
-    });
+      stmt.run(1),
+      {
+        code: 'ERR_SQLITE_ERROR',
+        message: 'NOT NULL constraint failed: data.val',
+        errcode: 1299,
+        errstr: 'constraint failed',
+      });
   });
 
   test('binds ?NNN params by position', async (t) => {
@@ -360,11 +360,11 @@ suite('Statement.prototype.setReadBigInts()', () => {
     t.after(() => { db.close(); });
     const bad = db.prepare(`SELECT ${Number.MAX_SAFE_INTEGER} + 1`);
     await t.assert.rejects(
-      bad.get()
-    , {
-      code: 'ERR_OUT_OF_RANGE',
-      message: /^Value is too large to be represented as a JavaScript number: 9007199254740992$/,
-    });
+      bad.get(),
+      {
+        code: 'ERR_OUT_OF_RANGE',
+        message: /^Value is too large to be represented as a JavaScript number: 9007199254740992$/,
+      });
     const good = db.prepare(`SELECT ${Number.MAX_SAFE_INTEGER} + 1`);
     good.setReadBigInts(true);
     t.assert.deepStrictEqual(await good.get(), {
@@ -580,8 +580,8 @@ suite('Statement.prototype.setAllowBareNamedParameters()', () => {
       { changes: 1, lastInsertRowid: 1 },
     );
     t.assert.strictEqual(stmt.setAllowBareNamedParameters(false), undefined);
-    t.assert.throws(() =>{
-      stmt.run({ k: 2, v: 4 })
+    t.assert.throws(() => {
+      stmt.run({ k: 2, v: 4 });
     }, {
       code: 'ERR_INVALID_STATE',
       message: /Unknown named parameter 'k'/,
