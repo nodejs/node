@@ -15,7 +15,7 @@ const {
   getCpuProfiles,
   kCpuProfInterval,
   env,
-  verifyFrames
+  verifyFrames,
 } = require('../common/cpu-prof');
 
 {
@@ -27,7 +27,7 @@ const {
     fixtures.path('workload', 'fibonacci-sigint.js'),
   ], {
     cwd: tmpdir.path,
-    env
+    env,
   });
   if (!common.isWindows) {
     if (output.signal !== 'SIGINT') {

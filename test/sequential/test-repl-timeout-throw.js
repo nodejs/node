@@ -5,7 +5,7 @@ const assert = require('assert');
 const spawn = require('child_process').spawn;
 
 const child = spawn(process.execPath, [ '-i' ], {
-  stdio: [null, null, 2]
+  stdio: [null, null, 2],
 });
 
 let stdout = '';
