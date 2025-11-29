@@ -35,9 +35,11 @@ namespace node {
 
 using v8::Array;
 using v8::Context;
+using v8::DictionaryTemplate;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
+using v8::HeapStatistics;
 using v8::Int32;
 using v8::Integer;
 using v8::Isolate;
@@ -45,6 +47,7 @@ using v8::Just;
 using v8::JustVoid;
 using v8::Local;
 using v8::Maybe;
+using v8::MaybeLocal;
 using v8::Nothing;
 using v8::Number;
 using v8::Object;
@@ -71,12 +74,15 @@ class ProcessWrap : public HandleWrap {
     SetProtoMethod(isolate, constructor, "kill", Kill);
 
     SetConstructorFunction(context, target, "Process", constructor);
+
+    SetMethod(context, target, "getMemoryUsage", GetMemoryUsage);
   }
 
   static void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
     registry->Register(New);
     registry->Register(Spawn);
     registry->Register(Kill);
+    registry->Register(GetMemoryUsage);
   }
 
   SET_NO_MEMORY_INFO()
@@ -393,6 +399,54 @@ class ProcessWrap : public HandleWrap {
 #endif
     int err = uv_process_kill(&wrap->process_, signal);
     args.GetReturnValue().Set(err);
+  }
+
+  static void GetMemoryUsage(const FunctionCallbackInfo<Value>& args) {
+    Environment* env = Environment::GetCurrent(args);
+    Isolate* isolate = env->isolate();
+
+    HeapStatistics heap_stats;
+    isolate->GetHeapStatistics(&heap_stats);
+
+    NodeArrayBufferAllocator* allocator = env->isolate_data()->node_allocator();
+
+    size_t rss;
+    int err = uv_resident_set_memory(&rss);
+    if (err != 0) {
+      return env->ThrowUVException(err, "uv_resident_set_memory");
+    }
+
+    auto tmpl = env->memory_usage_template();
+    if (tmpl.IsEmpty()) {
+      std::string_view property_names[] = {
+          "rss",
+          "heapTotal",
+          "heapUsed",
+          "external",
+          "arrayBuffers",
+      };
+      tmpl = DictionaryTemplate::New(isolate, property_names);
+      env->set_memory_usage_template(tmpl);
+    }
+
+    MaybeLocal<Value> values[] = {
+        Number::New(isolate, static_cast<double>(rss)),
+        Number::New(isolate, static_cast<double>(heap_stats.total_heap_size())),
+        Number::New(isolate, static_cast<double>(heap_stats.used_heap_size())),
+        Number::New(isolate, static_cast<double>(heap_stats.external_memory())),
+        Number::New(isolate,
+                    allocator == nullptr
+                        ? 0
+                        : static_cast<double>(allocator->total_mem_usage())),
+    };
+
+    Local<Object> result;
+    if (!NewDictionaryInstanceNullProto(env->context(), tmpl, values)
+             .ToLocal(&result)) {
+      return;
+    }
+
+    args.GetReturnValue().Set(result);
   }
 
   static void OnExit(uv_process_t* handle,
