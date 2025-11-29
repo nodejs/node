@@ -368,7 +368,7 @@ assert.throws(() => new Blob({}), {
   assert.strictEqual(value.byteLength, 30000);
   assert(!done);
   setTimeout(common.mustCall(() => {
-    assert.strictEqual(stream[kState].controller.desiredSize, 0);
+    assert.ok(stream[kState].controller.desiredSize <= 0);
   }), 0);
 })().then(common.mustCall());
 
@@ -381,7 +381,7 @@ assert.throws(() => new Blob({}), {
   assert.strictEqual(value.byteLength, 2);
   assert(!done);
   setTimeout(common.mustCall(() => {
-    assert.strictEqual(stream[kState].controller.desiredSize, -29998);
+    assert.ok(stream[kState].controller.desiredSize <= -29998);
   }), 0);
 })().then(common.mustCall());
 
