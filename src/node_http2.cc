@@ -251,7 +251,7 @@ size_t Http2Settings::Init(
     for (uint32_t i = 0; i < numAddSettings; i++) {
       uint32_t key = buffer[offset + i * 2 + 0];
       uint32_t val = buffer[offset + i * 2 + 1];
-      entries[count++] = nghttp2_settings_entry{(int32_t)key, val};
+      entries[count++] = nghttp2_settings_entry{static_cast<int32_t>(key), val};
     }
   }
 
@@ -331,8 +331,8 @@ void Http2Settings::Update(Http2Session* session, get_setting fn, bool local) {
   for (size_t i = 0; i < imax; i++) {
     // We flag unset the settings with a bit above the allowed range
     if (!(custom_settings.entries[i].settings_id & (~0xffff))) {
-      uint32_t settings_id =
-          (uint32_t)(custom_settings.entries[i].settings_id & 0xffff);
+      uint32_t settings_id = static_cast<uint32_t>(
+          custom_settings.entries[i].settings_id & 0xffff);
       size_t j = 0;
       while (j < count) {
         if ((buffer[IDX_SETTINGS_COUNT + 1 + j * 2 + 1] & 0xffff) ==
@@ -647,7 +647,7 @@ void Http2Session::FetchAllowedRemoteCustomSettings() {
           (buffer[offset + i * 2 + 0] & 0xffff) |
           (1
            << 16);  // setting the bit 16 indicates, that no values has been set
-      entries[count++] = nghttp2_settings_entry{(int32_t)key, 0};
+      entries[count++] = nghttp2_settings_entry{static_cast<int32_t>(key), 0};
     }
     remote_custom_settings_.number = count;
   }
