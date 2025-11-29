@@ -2524,8 +2524,6 @@ MaybeLocal<Promise::Resolver> StatementAsyncExecutionHelper::All(
   auto after = [env, isolate, stmt](std::vector<Row> rows,
                                     Local<Promise::Resolver> resolver) {
     LocalVector<Value> js_rows(isolate);
-    int i = 0;
-
     for (auto& row : rows) {
       if (std::holds_alternative<RowArray>(row)) {
         auto& arr = std::get<RowArray>(row);
