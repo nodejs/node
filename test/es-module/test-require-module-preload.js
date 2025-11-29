@@ -16,7 +16,7 @@ function testPreload(preloadFlag) {
         './printA.js',
       ],
       {
-        cwd: fixturesDir
+        cwd: fixturesDir,
       },
       {
         stdout: 'A',
@@ -36,7 +36,7 @@ function testPreload(preloadFlag) {
         './printA.js',
       ],
       {
-        cwd: fixturesDir
+        cwd: fixturesDir,
       },
       {
         stdout: /^world\s+A$/,
@@ -56,7 +56,7 @@ function testPreload(preloadFlag) {
         './printA.js',
       ],
       {
-        cwd: fixturesDir
+        cwd: fixturesDir,
       },
       {
         stdout: /^ok\s+A$/,
@@ -78,7 +78,7 @@ function testPreload(preloadFlag) {
         './printA.js',
       ],
       {
-        cwd: fixturesDir
+        cwd: fixturesDir,
       },
       {
         stdout: /^world\s+A$/,
@@ -103,7 +103,7 @@ testPreload('--import');
       './printA.js',
     ],
     {
-      cwd: fixturesDir
+      cwd: fixturesDir,
     },
     {
       stdout: /^package-type-module\s+A$/,

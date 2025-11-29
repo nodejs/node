@@ -9,7 +9,7 @@ const assert = require('assert');
 assert.throws(() => {
   require('../fixtures/es-modules/runtime-error-esm.js');
 }, {
-  message: 'hello'
+  message: 'hello',
 });
 
 // References errors should be caught too.
@@ -17,5 +17,5 @@ assert.throws(() => {
   require('../fixtures/es-modules/reference-error-esm.js');
 }, {
   name: 'ReferenceError',
-  message: 'exports is not defined in ES module scope'
+  message: 'exports is not defined in ES module scope',
 });

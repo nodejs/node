@@ -14,6 +14,6 @@ spawnSyncAndAssert(
     stderr(output) {
       assert.match(output, /Source phase import object is not defined for module/);
       assert(output.includes(fileUrl));
-    }
+    },
   }
 );
