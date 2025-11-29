@@ -86,10 +86,10 @@ suite('Database() constructor', () => {
     });
   });
 
-  test('is not read-only by default', (t) => {
+  test('is not read-only by default', async (t) => {
     const dbPath = nextDb();
     const db = new Database(dbPath);
-    db.exec('CREATE TABLE foo (id INTEGER PRIMARY KEY)');
+    await db.exec('CREATE TABLE foo (id INTEGER PRIMARY KEY)');
   });
 
   test('is read-only if readOnly is set', async (t) => {
@@ -132,15 +132,15 @@ suite('Database() constructor', () => {
                            });
   });
 
-  test('allows disabling foreign key constraints', (t) => {
+  test('allows disabling foreign key constraints', async (t) => {
     const dbPath = nextDb();
     const db = new Database(dbPath, { enableForeignKeyConstraints: false });
-    db.exec(`
+    await db.exec(`
       CREATE TABLE foo (id INTEGER PRIMARY KEY);
       CREATE TABLE bar (foo_id INTEGER REFERENCES foo(id));
     `);
     t.after(() => { db.close(); });
-    db.exec('INSERT INTO bar (foo_id) VALUES (1)');
+    await db.exec('INSERT INTO bar (foo_id) VALUES (1)');
   });
 
   test('throws if options.enableDoubleQuotedStringLiterals is provided but is not a boolean', (t) => {
@@ -162,11 +162,11 @@ suite('Database() constructor', () => {
     });
   });
 
-  test('allows enabling double-quoted string literals', (t) => {
+  test('allows enabling double-quoted string literals', async (t) => {
     const dbPath = nextDb();
     const db = new Database(dbPath, { enableDoubleQuotedStringLiterals: true });
     t.after(() => { db.close(); });
-    db.exec('SELECT "foo";');
+    await db.exec('SELECT "foo";');
   });
 
   test('throws if options.readBigInts is provided but is not a boolean', (t) => {
