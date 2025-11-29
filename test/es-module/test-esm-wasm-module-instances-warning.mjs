@@ -12,6 +12,6 @@ spawnSyncAndAssert(
     stderr(output) {
       assert.match(output, /ExperimentalWarning/);
       assert.match(output, /Importing WebAssembly module instances/);
-    }
+    },
   }
 );

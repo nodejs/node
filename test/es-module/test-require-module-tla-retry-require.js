@@ -7,10 +7,10 @@ const assert = require('assert');
 assert.throws(() => {
   require('../fixtures/es-modules/tla/resolved.mjs');
 }, {
-  code: 'ERR_REQUIRE_ASYNC_MODULE'
+  code: 'ERR_REQUIRE_ASYNC_MODULE',
 });
 assert.throws(() => {
   require('../fixtures/es-modules/tla/resolved.mjs');
 }, {
-  code: 'ERR_REQUIRE_ASYNC_MODULE'
+  code: 'ERR_REQUIRE_ASYNC_MODULE',
 });
