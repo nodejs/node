@@ -12,7 +12,7 @@ for (const descriptor of Object.values(descriptors)) {
   assert.deepStrictEqual(descriptor, {
     enumerable: true,
     writable: true,
-    configurable: true
+    configurable: true,
   });
 }
 
