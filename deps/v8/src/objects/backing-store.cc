@@ -51,8 +51,23 @@ enum class AllocationStatus {
   kOtherFailure  // Failed for an unknown reason
 };
 
-size_t GetReservationSize(bool has_guard_regions, size_t byte_capacity,
-                          bool is_wasm_memory64) {
+base::AddressRegion GetReservedRegion(bool has_guard_regions,
+                                      bool is_wasm_memory64, void* buffer_start,
+                                      size_t byte_capacity) {
+  return base::AddressRegion(
+      reinterpret_cast<Address>(buffer_start),
+      BackingStore::GetWasmReservationSize(has_guard_regions, byte_capacity, is_wasm_memory64));
+}
+
+void RecordStatus(Isolate* isolate, AllocationStatus status) {
+  isolate->counters()->wasm_memory_allocation_result()->AddSample(
+      static_cast<int>(status));
+}
+
+}  // namespace
+
+size_t BackingStore::GetWasmReservationSize(bool has_guard_regions, size_t byte_capacity,
+                                            bool is_wasm_memory64) {
 #if V8_TARGET_ARCH_64_BIT && V8_ENABLE_WEBASSEMBLY
   DCHECK_IMPLIES(is_wasm_memory64 && has_guard_regions,
                  v8_flags.wasm_memory64_trap_handling);
@@ -72,21 +87,6 @@ size_t GetReservationSize(bool has_guard_regions, size_t byte_capacity,
 
   return byte_capacity;
 }
-
-base::AddressRegion GetReservedRegion(bool has_guard_regions,
-                                      bool is_wasm_memory64, void* buffer_start,
-                                      size_t byte_capacity) {
-  return base::AddressRegion(
-      reinterpret_cast<Address>(buffer_start),
-      GetReservationSize(has_guard_regions, byte_capacity, is_wasm_memory64));
-}
-
-void RecordStatus(Isolate* isolate, AllocationStatus status) {
-  isolate->counters()->wasm_memory_allocation_result()->AddSample(
-      static_cast<int>(status));
-}
-
-}  // namespace
 
 // The backing store for a Wasm shared memory remembers all the isolates
 // with which it has been shared.
@@ -168,7 +168,7 @@ BackingStore::~BackingStore() {
 
 #if V8_ENABLE_WEBASSEMBLY
   if (is_wasm_memory()) {
-    size_t reservation_size = GetReservationSize(
+    size_t reservation_size = GetWasmReservationSize(
         has_guard_regions(), byte_capacity_, is_wasm_memory64());
     TRACE_BS(
         "BSw:free  bs=%p mem=%p (length=%zu, capacity=%zu, reservation=%zu)\n",
@@ -325,7 +325,7 @@ std::unique_ptr<BackingStore> BackingStore::TryAllocateAndPartiallyCommitMemory(
 
   size_t byte_capacity = maximum_pages * page_size;
   size_t reservation_size =
-      GetReservationSize(has_guard_regions, byte_capacity, is_wasm_memory64);
+      GetWasmReservationSize(has_guard_regions, byte_capacity, is_wasm_memory64);
 
   //--------------------------------------------------------------------------
   // Allocate pages (inaccessible by default).
