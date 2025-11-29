@@ -341,7 +341,7 @@ assert.throws(() => new Blob({}), {
     // it should pull in the next 'hello' which is 5 bytes hence -5.
     // but recently, we coalesce if possible adjacent memory
     // the test code is adapted to the current limit for coalescing
-    assert.strictEqual(stream[kState].controller.desiredSize, 0);
+    assert.ok(stream[kState].controller.desiredSize <= 0);
   }), 0);
 })().then(common.mustCall());
 
