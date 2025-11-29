@@ -1,0 +1,11 @@
+{_stream_passthrough}.[Symbol.toStringTag]
+{_stream_passthrough}.default
+{_stream_passthrough}.default.length
+{_stream_passthrough}.default.name
+{_stream_passthrough}.default.prototype
+{_stream_passthrough}.default.prototype._transform
+{_stream_passthrough}.default.prototype._transform.length
+{_stream_passthrough}.default.prototype._transform.name
+{_stream_passthrough}.default.prototype._transform.prototype
+{_stream_passthrough}.default.prototype._transform.prototype.constructor
+{_stream_passthrough}.default.prototype.constructor
