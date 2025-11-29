@@ -1,7 +1,7 @@
 // Flags: --experimental-quic --no-warnings
 
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
-import { ok, strictEqual } from 'node:assert';
+import assert from 'node:assert';
 import { readKey } from '../common/fixtures.mjs';
 import { KNOWN_BYTES_LONG, uint8concat, equalUint8Arrays } from '../common/quic/test-helpers.mjs';
 import { TransformStream } from 'node:stream/web';
@@ -21,14 +21,14 @@ const certs = readKey('agent1-cert.pem');
 const clientFinished = Promise.withResolvers();
 
 
-const serverEndpoint = await listen(async (serverSession) => {
+const serverEndpoint = await listen(mustCall(async (serverSession) => {
   await serverSession.opened;
   const transformStream = new TransformStream();
   const sendStream = await serverSession.createUnidirectionalStream({ body: transformStream.readable });
   sendStream.closed.catch(() => {
     // ignore
   });
-  strictEqual(sendStream.direction, 'uni');
+  assert.strictEqual(sendStream.direction, 'uni');
   const serverWritable = transformStream.writable;
   const writer = serverWritable.getWriter();
   for (const chunk of KNOWN_BYTES_LONG) {
@@ -41,21 +41,21 @@ const serverEndpoint = await listen(async (serverSession) => {
     // ignore the error
   });
   serverSession.close();
-}, { keys, certs });
+}), { keys, certs });
 
 // The server must have an address to connect to after listen resolves.
-ok(serverEndpoint.address !== undefined);
+assert.ok(serverEndpoint.address !== undefined);
 
 const clientSession = await connect(serverEndpoint.address);
 
 clientSession.onstream = mustCall(async (stream) => {
-  strictEqual(stream.direction, 'uni', 'Expects an unidirectional stream');
+  assert.strictEqual(stream.direction, 'uni');
   const reader = stream.readable.getReader();
   const readChunks = [];
   while (true) {
     const { done, value } = await reader.read();
     if (value) {
-      ok(value instanceof Uint8Array, 'Expects value to be a Uint8Array');
+      assert.ok(value instanceof Uint8Array, 'Expects value to be a Uint8Array');
       readChunks.push(value);
     }
     if (done) break;

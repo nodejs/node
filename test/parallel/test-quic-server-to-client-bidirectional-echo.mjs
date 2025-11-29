@@ -1,7 +1,7 @@
 // Flags: --experimental-quic --no-warnings
 
 import { hasQuic, skip, mustCall } from '../common/index.mjs';
-import { ok, strictEqual } from 'node:assert';
+import assert from 'node:assert';
 import { readKey } from '../common/fixtures.mjs';
 import { KNOWN_BYTES_LONG, uint8concat, equalUint8Arrays } from '../common/quic/test-helpers.mjs';
 import { TransformStream } from 'node:stream/web';
@@ -19,7 +19,7 @@ const certs = readKey('agent1-cert.pem');
 
 const finished = Promise.withResolvers();
 
-const serverEndpoint = await listen(async (serverSession) => {
+const serverEndpoint = await listen(mustCall(async (serverSession) => {
   await serverSession.opened;
   const transformStream = new TransformStream();
   serverSession.closed.catch((err) => {
@@ -28,7 +28,7 @@ const serverEndpoint = await listen(async (serverSession) => {
   const sendStream = await serverSession.createBidirectionalStream({ body: transformStream.readable });
   // Now compare what we got
 
-  strictEqual(sendStream.direction, 'bidi');
+  assert.strictEqual(sendStream.direction, 'bidi');
   sendStream.closed.catch(() => {
     // ignore
   });
@@ -42,33 +42,33 @@ const serverEndpoint = await listen(async (serverSession) => {
     await writer.ready;
     await writer.close();
   };
-  const readFromStream = async () => {
+  const readFromStream = mustCall(async () => {
     const reader = sendStream.readable.getReader();
     const readChunks = [];
     while (true) {
       const { done, value } = await reader.read();
       if (value) {
-        ok(value instanceof Uint8Array, 'Expects value to be a Uint8Array');
+        assert.ok(value instanceof Uint8Array, 'Expects value to be a Uint8Array');
         readChunks.push(value);
       }
       if (done) break;
     }
     equalUint8Arrays(uint8concat(KNOWN_BYTES_LONG), uint8concat(readChunks));
-  };
+  });
   await Promise.all([writeToStream(), readFromStream()]);
   serverSession.close();
   finished.resolve();
-}, { keys, certs });
+}), { keys, certs });
 
 // The server must have an address to connect to after listen resolves.
-ok(serverEndpoint.address !== undefined);
+assert.ok(serverEndpoint.address !== undefined);
 
 const clientSession = await connect(serverEndpoint.address);
 await clientSession.opened;
 
 
 clientSession.onstream = mustCall(async (stream) => {
-  strictEqual(stream.direction, 'bidi', 'Expects an bidirectional stream');
+  assert.strictEqual(stream.direction, 'bidi');
   stream.closed.catch(() => {
     // ignore
   });
