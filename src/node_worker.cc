@@ -298,9 +298,8 @@ void Worker::Run() {
   std::string trace_name;
   std::string id = std::to_string(thread_id_.id);
   // Pre-allocate space: "[worker " (8) + thread_id + "]" (1)
-  // + (optional: " " (1) + name)
-  trace_name.reserve(8 + id.size() + 1 +
-                     (name_.empty() ? 0 : 1 + name_.size()));
+  // + (if name exists: " " (1) + name)
+  trace_name.reserve(9 + id.size() + name_.size());
   trace_name = "[worker ";
   trace_name += id;
   trace_name += "]";
