@@ -6179,7 +6179,7 @@ def UpdateIncludeState(filename, include_dict, io=codecs):
   """
   headerfile = None
   try:
-    with io.open(filename, 'r', 'utf8', 'replace') as headerfile:
+    with open(filename, encoding='utf-8', errors='replace') as headerfile:
       linenum = 0
       for line in headerfile:
         linenum += 1
@@ -6706,7 +6706,7 @@ def ProcessConfigOverrides(filename):
       continue
 
     try:
-      with codecs.open(cfg_file, 'r', 'utf8', 'replace') as file_handle:
+      with open(cfg_file, encoding='utf-8', errors='replace') as file_handle:
         for line in file_handle:
           line, _, _ = line.partition('#')  # Remove comments.
           if not line.strip():
@@ -6809,7 +6809,7 @@ def ProcessFile(filename, vlevel, extra_check_functions=None):
                                         codecs.getwriter('utf8'),
                                         'replace').read().split('\n')
     else:
-      with codecs.open(filename, 'r', 'utf8', 'replace') as target_file:
+      with open(filename, encoding='utf-8', errors='replace') as target_file:
         lines = target_file.read().split('\n')
 
     # Remove trailing '\r'.
