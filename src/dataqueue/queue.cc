@@ -651,7 +651,7 @@ std::shared_ptr<DataQueue::Reader> DataQueueImpl::get_reader() {
     auto reader =
         std::make_shared<IdempotentDataQueueReader>(shared_from_this());
     readers_.insert(reader.get());
-    return std::move(reader);
+    return reader;
   }
 
   if (locked_to_reader_) return nullptr;
@@ -660,7 +660,7 @@ std::shared_ptr<DataQueue::Reader> DataQueueImpl::get_reader() {
   auto reader =
       std::make_shared<NonIdempotentDataQueueReader>(shared_from_this());
   readers_.insert(reader.get());
-  return std::move(reader);
+  return reader;
 }
 
 // ============================================================================
