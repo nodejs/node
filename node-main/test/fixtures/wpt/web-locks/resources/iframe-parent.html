@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<title>Helper IFrame</title>
+<script>
+'use strict';
+
+async function onLoad() {
+  // Nested Step 5: wpt/web-locks/partitioned-web-locks.tentative.https.html
+  // Load the innermost child iframe and its content.
+  const params = new URLSearchParams(self.location.search);
+  const frame = document.createElement('iframe');
+  frame.src = params.get('target');
+  document.body.appendChild(frame);
+
+  self.addEventListener('message', evt => {
+    // Nested Step 6: wpt/web-locks/partitioned-web-locks.tentative.https.html
+    // Pass any operations request messages to the
+    // innermost child iframe.
+    if (evt.data.op){
+      // Ensure that the iframe has loaded before passing
+      // on the message.
+      frame.addEventListener('load', function(){
+        frame.contentWindow.postMessage(evt.data, '*');
+      });
+    }
+    // Nested Step 8: wpt/web-locks/partitioned-web-locks.tentative.https.html
+    else {
+      // All other messages, should be sent back to the
+      // top-level site.
+      if (self.opener)
+        self.opener.postMessage(evt.data, '*');
+      else
+        self.top.postMessage(evt.data, '*');
+    }
+  });
+}
+self.addEventListener('load', onLoad);
+</script>

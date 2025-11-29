@@ -1,0 +1,4 @@
+{
+  "crash_type": "CHECK failure",
+  "crash_state": "!maybe.IsCleared() in code-inl.h"
+}

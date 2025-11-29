@@ -1,0 +1,134 @@
+Tests Runtime.getProperties.
+
+Running test: testObject
+{
+    id : <messageId>
+    result : {
+        internalProperties : [
+            [0] : {
+                name : [[Prototype]]
+                value : {
+                    className : Object
+                    description : Object
+                    objectId : <objectId>
+                    type : object
+                }
+            }
+        ]
+        result : [
+            [0] : {
+                configurable : true
+                enumerable : true
+                isOwn : true
+                name : a
+                value : {
+                    description : 1
+                    type : number
+                    value : 1
+                }
+                writable : true
+            }
+        ]
+    }
+}
+{
+    id : <messageId>
+    result : {
+        internalProperties : [
+            [0] : {
+                name : [[Prototype]]
+                value : {
+                    className : Object
+                    description : Object
+                    objectId : <objectId>
+                    type : object
+                }
+            }
+        ]
+        result : [
+            [0] : {
+                configurable : false
+                enumerable : true
+                isOwn : true
+                name : d
+                value : {
+                    description : 42
+                    type : number
+                    value : 42
+                }
+                writable : false
+            }
+            [1] : {
+                configurable : false
+                enumerable : false
+                isOwn : true
+                name : a
+                value : {
+                    description : 42
+                    type : number
+                    value : 42
+                }
+                writable : false
+            }
+            [2] : {
+                configurable : false
+                enumerable : false
+                isOwn : true
+                name : b
+                value : {
+                    description : 42
+                    type : number
+                    value : 42
+                }
+                writable : true
+            }
+            [3] : {
+                configurable : true
+                enumerable : false
+                isOwn : true
+                name : c
+                value : {
+                    description : 42
+                    type : number
+                    value : 42
+                }
+                writable : false
+            }
+            [4] : {
+                configurable : false
+                enumerable : false
+                get : {
+                    className : Function
+                    description : () => 42
+                    objectId : <objectId>
+                    type : function
+                }
+                isOwn : true
+                name : e
+                set : {
+                    className : Function
+                    description : () => 0
+                    objectId : <objectId>
+                    type : function
+                }
+            }
+            [5] : {
+                configurable : false
+                enumerable : false
+                isOwn : true
+                name : Symbol(42)
+                symbol : {
+                    description : Symbol(42)
+                    objectId : <objectId>
+                    type : symbol
+                }
+                value : {
+                    description : 239
+                    type : number
+                    value : 239
+                }
+                writable : false
+            }
+        ]
+    }
+}

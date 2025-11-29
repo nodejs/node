@@ -1,0 +1,2 @@
+Checks that takeHeapSnapshot uses empty accessing_context for access checks.
+Successfully finished

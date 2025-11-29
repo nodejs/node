@@ -1,0 +1,14 @@
+<!doctype html>
+<title>Check import and export between WebAssembly modules</title>
+
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script type=module>
+setup({ single_test: true });
+window.log = [];
+import { logExec } from "./resources/wasm-import-from-wasm.wasm";
+logExec();
+assert_equals(log.length, 1);
+assert_equals(log[0], "executed");
+done();
+</script>

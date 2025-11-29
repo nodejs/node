@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/resources/testdriver.js"></script>
+<script src="/resources/testdriver-actions.js"></script>
+<script src="/resources/testdriver-vendor.js"></script>
+<script src="scroll_support.js"></script>
+<script src="scrollend-user-scroll-common.js"></script>
+<style>
+    #targetDiv {
+        width: 200px;
+        height: 200px;
+        overflow: scroll;
+    }
+
+    #innerDiv {
+        width: 400px;
+        height: 400px;
+    }
+</style>
+</head>
+<body style="margin:0" onload=runTest()>
+    <div id="targetDiv">
+        <div id="innerDiv">
+        </div>
+    </div>
+</body>
+
+<script>
+var target_div = document.getElementById('targetDiv');
+
+function runTest() {
+  promise_test(async (t) => {
+    await test_scrollend_on_touch_drag(t, target_div);
+  }, 'Tests that the target_div gets scrollend event when touch dragging.');
+
+  promise_test(async (t) => {
+    await test_scrollend_on_scrollbar_gutter_click(t, target_div);
+  }, 'Tests that the target_div gets scrollend event when clicking ' +
+     'scrollbar.');
+
+  // Same issue as previous test.
+  promise_test(async (t) => {
+    await test_scrollend_on_scrollbar_thumb_drag(t, target_div);
+  }, 'Tests that the target_div gets scrollend event when dragging the ' +
+      'scrollbar thumb.');
+
+  promise_test(async (t) => {
+    await test_scrollend_on_mousewheel_scroll(t, target_div);
+  }, 'Tests that the target_div gets scrollend event when mouse wheel ' +
+     'scrolling.');
+
+  promise_test(async (t) => {
+    await test_scrollend_on_keyboard_scroll(t, target_div);
+  }, 'Tests that the target_div gets scrollend event when sending DOWN key ' +
+     'to the target.');
+}
+
+
+</script>
+</html>

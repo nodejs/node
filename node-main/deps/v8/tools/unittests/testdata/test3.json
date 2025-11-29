@@ -1,0 +1,17 @@
+{
+  "path": ["."],
+  "owners": ["username@chromium.org"],
+  "flags": [],
+  "run_count": 1,
+  "results_processor": "results_processor.py",
+  "tests": [{
+    "path": ["."],
+    "name": "Octane",
+    "main": "run.js",
+    "results_regexp": "^%s: (.+)$",
+    "tests": [
+      {"name": "Richards"},
+      {"name": "DeltaBlue"}
+    ]
+  }]
+}

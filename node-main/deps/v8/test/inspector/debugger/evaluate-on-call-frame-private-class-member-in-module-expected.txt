@@ -1,0 +1,16 @@
+Evaluate private class member out of class scope in Debugger.evaluateOnCallFrame() in module
+
+class Klass {
+  #field = 1;
+}
+const obj = new Klass;
+debugger;
+
+
+Running test: evaluatePrivateMembers
+Debugger.evaluateOnCallFrame: `obj.#field`
+{
+    description : 1
+    type : number
+    value : 1
+}

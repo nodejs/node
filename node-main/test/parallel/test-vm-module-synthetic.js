@@ -1,0 +1,73 @@
+'use strict';
+
+// Flags: --experimental-vm-modules
+
+const common = require('../common');
+const { SyntheticModule, SourceTextModule } = require('vm');
+const assert = require('assert');
+
+(async () => {
+  {
+    const s = new SyntheticModule(['x'], () => {
+      s.setExport('x', 1);
+    });
+
+    const m = new SourceTextModule(`
+    import { x } from 'synthetic';
+
+    export const getX = () => x;
+    `);
+
+    await m.link(() => s);
+    await m.evaluate();
+
+    assert.strictEqual(m.namespace.getX(), 1);
+    s.setExport('x', 42);
+    assert.strictEqual(m.namespace.getX(), 42);
+  }
+
+  {
+    const s = new SyntheticModule([], () => {
+      const p = Promise.reject();
+      p.catch(() => {});
+      return p;
+    });
+
+    await s.link(common.mustNotCall());
+    assert.strictEqual(await s.evaluate(), undefined);
+  }
+
+  for (const invalidName of [1, Symbol.iterator, {}, [], null, true, 0]) {
+    const s = new SyntheticModule([], () => {});
+    await s.link(() => {});
+    assert.throws(() => {
+      s.setExport(invalidName, undefined);
+    }, {
+      name: 'TypeError',
+    });
+  }
+
+  {
+    const s = new SyntheticModule([], () => {});
+    await s.link(() => {});
+    assert.throws(() => {
+      s.setExport('does not exist');
+    }, {
+      name: 'ReferenceError',
+    });
+  }
+
+  {
+    const s = new SyntheticModule(['name'], () => {});
+    // Exports of SyntheticModule can be immediately set after creation.
+    // No link is required.
+    s.setExport('name', 'value');
+  }
+
+  for (const value of [null, {}, SyntheticModule.prototype]) {
+    assert.throws(() => {
+      SyntheticModule.prototype.setExport.call(value, 'foo');
+    }, { code: 'ERR_INVALID_THIS' });
+  }
+
+})().then(common.mustCall());
