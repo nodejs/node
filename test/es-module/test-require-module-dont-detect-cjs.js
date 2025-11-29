@@ -7,5 +7,5 @@ const assert = require('assert');
 assert.throws(() => {
   require('../fixtures/es-modules/es-note-unexpected-export-1.cjs');
 }, {
-  message: /Unexpected token 'export'/
+  message: /Unexpected token 'export'/,
 });
