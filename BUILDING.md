@@ -443,7 +443,7 @@ tools/test.py parallel/test-stream-*  # The test/ prefix can be omitted
 tools/test.py "test/parallel/test-stream-*"
 ```
 
-The whildcard `*` can be used in any part of the path. For example, to run all tests
+The wildcard `*` can be used in any part of the path. For example, to run all tests
 with a name that starts with `test-inspector-`, regardless of the directory they are in:
 
 ```bash
