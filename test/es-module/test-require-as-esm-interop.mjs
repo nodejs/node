@@ -9,7 +9,7 @@ const tests = {
   'object': { a: 'cjs a', b: 'cjs b' },
   'fauxesmdefault': { default: 'faux esm default' },
   'fauxesmmixed': { default: 'faux esm default', a: 'faux esm a', b: 'faux esm b' },
-  'fauxesmnamed': { a: 'faux esm a', b: 'faux esm b' }
+  'fauxesmnamed': { a: 'faux esm a', b: 'faux esm b' },
 };
 
 // This test demonstrates interop between CJS and CJS represented as ESM

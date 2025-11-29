@@ -145,7 +145,6 @@ export default [
   },
   {
     files: [
-      'test/es-module/**/*.{js,mjs}',
       'test/parallel/**/*.{js,mjs}',
     ],
     rules: {
@@ -163,6 +162,7 @@ export default [
   },
   {
     files: [
+      'test/es-module/**/*.{js,mjs}',
       'test/sequential/**/*.{js,mjs}',
     ],
     rules: {

@@ -9,6 +9,6 @@ spawnSyncAndAssert(
   {
     stdout: '[Object: null prototype] { prop: \'hello world\' }',
     stderr: '',
-    trim: true
+    trim: true,
   }
 );

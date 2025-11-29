@@ -27,21 +27,21 @@ await assert.rejects(async () => {
   await import(`${fixtureBase}/single-quote.mjs`);
 }, {
   name: 'SyntaxError',
-  message: expectedRelative
+  message: expectedRelative,
 }, 'should support relative specifiers with single quotes');
 
 await assert.rejects(async () => {
   await import(`${fixtureBase}/double-quote.mjs`);
 }, {
   name: 'SyntaxError',
-  message: expectedRelative
+  message: expectedRelative,
 }, 'should support relative specifiers with double quotes');
 
 await assert.rejects(async () => {
   await import(`${fixtureBase}/renamed-import.mjs`);
 }, {
   name: 'SyntaxError',
-  message: expectedRenamed
+  message: expectedRenamed,
 }, 'should correctly format named imports with renames');
 
 await assert.rejects(async () => {
@@ -55,21 +55,21 @@ await assert.rejects(async () => {
   await import(`${fixtureBase}/json-hack.mjs`);
 }, {
   name: 'SyntaxError',
-  message: expectedPackageHack
+  message: expectedPackageHack,
 }, 'should respect recursive package.json for module type');
 
 await assert.rejects(async () => {
   await import(`${fixtureBase}/bare-import-single.mjs`);
 }, {
   name: 'SyntaxError',
-  message: expectedBare
+  message: expectedBare,
 }, 'should support bare specifiers with single quotes');
 
 await assert.rejects(async () => {
   await import(`${fixtureBase}/bare-import-double.mjs`);
 }, {
   name: 'SyntaxError',
-  message: expectedBare
+  message: expectedBare,
 }, 'should support bare specifiers with double quotes');
 
 await assert.rejects(async () => {
