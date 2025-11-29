@@ -293,6 +293,7 @@ class PerIsolateOptions : public Options {
   std::string max_old_space_size;
   int64_t stack_trace_limit = 10;
   std::string report_signal = "SIGUSR2";
+  bool disallow_code_generation_from_strings = false;
   bool build_snapshot = false;
   std::string build_snapshot_config;
   inline EnvironmentOptions* get_per_env_options();
