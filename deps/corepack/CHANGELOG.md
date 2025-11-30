@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.34.5](https://github.com/nodejs/corepack/compare/v0.34.4...v0.34.5) (2025-11-24)
+
+
+### Bug Fixes
+
+* **pnpm:** fix bin path for v11 ([#776](https://github.com/nodejs/corepack/issues/776)) ([0c8048a](https://github.com/nodejs/corepack/commit/0c8048adc61651f6eb798448675d3ecc4a7e26a9))
+* update package manager versions ([#773](https://github.com/nodejs/corepack/issues/773)) ([06c286b](https://github.com/nodejs/corepack/commit/06c286b5fc171e43090b5eed5cd501bc9580927f))
+
 ## [0.34.4](https://github.com/nodejs/corepack/compare/v0.34.3...v0.34.4) (2025-11-14)
 
 
