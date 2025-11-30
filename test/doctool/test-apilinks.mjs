@@ -6,10 +6,8 @@ import assert from 'assert';
 import { execFileSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
-import { fileURLToPath } from 'url';
 
-const script = fileURLToPath(
-  new URL('../../tools/doc/apilinks.mjs', import.meta.url));
+const docToolingDir = path.join(import.meta.dirname, '..', '..', 'tools', 'doc');
 const apilinks = fixtures.path('apilinks');
 
 tmpdir.refresh();
@@ -20,14 +18,26 @@ fs.readdirSync(apilinks).forEach(mustCallAtLeast((fixture) => {
 
   const expectedContent = fs.readFileSync(`${input}on`, 'utf8');
   const outputPath = tmpdir.resolve(`${fixture}on`);
+
+  fs.mkdirSync(outputPath);
+
   execFileSync(
     process.execPath,
-    [script, outputPath, input],
+    [
+      path.resolve(docToolingDir, 'node_modules', '.bin', 'doc-kit'),
+      'generate',
+      '-t',
+      'api-links',
+      '-i',
+      input,
+      '-o',
+      outputPath,
+    ],
     { encoding: 'utf-8' },
   );
 
   const expectedLinks = JSON.parse(expectedContent);
-  const actualLinks = JSON.parse(fs.readFileSync(outputPath));
+  const actualLinks = JSON.parse(fs.readFileSync(path.join(outputPath, 'apilinks.json')));
 
   for (const [k, v] of Object.entries(expectedLinks)) {
     assert.ok(k in actualLinks, `link not found: ${k}`);
