@@ -92,6 +92,26 @@ constexpr size_t simpleUtfEncodingLength(uint16_t c) {
   return 3;
 }
 
+// Finds the maximum number of input characters (UTF-16 or Latin1) that can be
+// encoded into a UTF-8 buffer of the given size.
+//
+// The challenge is that UTF-8 encoding expands characters by variable amounts:
+// - ASCII (< 0x80): 1 byte
+// - Code points < 0x800: 2 bytes
+// - Other BMP characters: 3 bytes
+// - Surrogate pairs (supplementary planes): 4 bytes total
+//
+// This function uses an adaptive chunking algorithm:
+// 1. Process the input in chunks, estimating how many characters will fit
+// 2. Calculate the actual UTF-8 length for each chunk using simdutf
+// 3. Adjust the expansion factor based on observed encoding ratios
+// 4. Fall back to character-by-character processing near the buffer boundary
+// 5. Handle UTF-16 surrogate pairs to avoid splitting them across boundaries
+//
+// The algorithm starts with a conservative expansion estimate (1.15x) and
+// dynamically adjusts based on actual character distribution, making it
+// efficient for common ASCII-heavy text while remaining correct for
+// multi-byte heavy content.
 template <typename Char>
 size_t findBestFit(const Char* data, size_t length, size_t bufferSize) {
   size_t pos = 0;
@@ -197,24 +217,23 @@ void BindingData::EncodeInto(const FunctionCallbackInfo<Value>& args) {
 
   char* write_result = static_cast<char*>(buf->Data()) + dest->ByteOffset();
   size_t dest_length = dest->ByteLength();
+  size_t read = 0;
+  size_t written = 0;
 
   // For small strings (length <= 32), use the old V8 path for better
   // performance
-  if (source->Length() <= 32) {
-    size_t nchars;
-    size_t written =
-        source->WriteUtf8V2(isolate,
-                            write_result,
-                            dest_length,
-                            String::WriteFlags::kReplaceInvalidUtf8,
-                            &nchars);
-    binding_data->encode_into_results_buffer_[0] = nchars;
-    binding_data->encode_into_results_buffer_[1] = written;
+  static constexpr int kSmallStringThreshold = 32;
+  if (source->Length() <= kSmallStringThreshold) {
+    written = source->WriteUtf8V2(isolate,
+                                  write_result,
+                                  dest_length,
+                                  String::WriteFlags::kReplaceInvalidUtf8,
+                                  &read);
+    binding_data->encode_into_results_buffer_[0] = static_cast<double>(read);
+    binding_data->encode_into_results_buffer_[1] = static_cast<double>(written);
     return;
   }
 
-  size_t read = 0;
-  size_t written = 0;
   v8::String::ValueView view(isolate, source);
   size_t length_that_fits =
       std::min(static_cast<size_t>(view.length()), dest_length);
@@ -230,8 +249,7 @@ void BindingData::EncodeInto(const FunctionCallbackInfo<Value>& args) {
     length_that_fits -= read;
     dest_length -= read;
     if (length_that_fits != 0 && dest_length != 0) {
-      size_t rest = findBestFit(data, length_that_fits, dest_length);
-      if (rest != 0) {
+      if (size_t rest = findBestFit(data, length_that_fits, dest_length)) {
         DCHECK_LE(simdutf::utf8_length_from_latin1(data, rest), dest_length);
         written += simdutf::convert_latin1_to_utf8(data, rest, write_result);
         read += rest;
