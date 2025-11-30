@@ -150,6 +150,8 @@ void AsyncHooks::push_async_context(
 
   // When this call comes from JS (as a way of increasing the stack size),
   // `resource` will be empty, because JS caches these values anyway.
+  // False positive: https://github.com/cpplint/cpplint/issues/410
+  // NOLINTNEXTLINE(whitespace/newline)
   if (std::visit([](auto* ptr) { return ptr != nullptr; }, resource)) {
     native_execution_async_resources_.resize(offset + 1);
     // Caveat: This is a v8::Local<>* assignment, we do not keep a v8::Global<>!
