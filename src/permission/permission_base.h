@@ -27,7 +27,8 @@ namespace permission {
 #define WORKER_THREADS_PERMISSIONS(V)                                          \
   V(WorkerThreads, "worker", PermissionsRoot, "--allow-worker")
 
-#define INSPECTOR_PERMISSIONS(V) V(Inspector, "inspector", PermissionsRoot, "")
+#define INSPECTOR_PERMISSIONS(V)                                               \
+  V(Inspector, "inspector", PermissionsRoot, "--allow-inspector")
 
 #define ADDON_PERMISSIONS(V)                                                   \
   V(Addon, "addon", PermissionsRoot, "--allow-addons")
