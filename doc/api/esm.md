@@ -1102,7 +1102,7 @@ Note: This function is directly invoked by the CommonJS resolution algorithm.
 Note: This function is directly invoked by the CommonJS resolution algorithm.
 
 > 1. Assert: _specifier_ begins with _"#"_.
-> 2. If _specifier_ is exactly equal to _"#"_ or starts with _"#/"_, then
+> 2. If _specifier_ is exactly equal to _"#"_, then
 >    1. Throw an _Invalid Module Specifier_ error.
 > 3. Let _packageURL_ be the result of **LOOKUP\_PACKAGE\_SCOPE**(_parentURL_).
 > 4. If _packageURL_ is not **null**, then

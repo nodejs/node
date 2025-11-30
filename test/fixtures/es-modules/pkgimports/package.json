@@ -1,5 +1,6 @@
 {
   "imports": {
+    "#/*": "./src/*.js",
     "#branch": {
       "import": "./importbranch.js",
       "require": "./requirebranch.js"
