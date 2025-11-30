@@ -26,6 +26,14 @@ GCLIENT_SOLUTION = [
     "custom_deps" : {
       # These deps are already part of Node.js.
       "v8/base/trace_event/common"            : None,
+      "v8/third_party/abseil-cpp"             : None,
+      "v8/third_party/dragonbox/src"          : None,
+      "v8/third_party/fp16/src"               : None,
+      "v8/third_party/fast_float/src"         : None,
+      "v8/third_party/highway/src"            : None,
+      "v8/third_party/jinja2"                 : None,
+      "v8/third_party/markupsafe"             : None,
+      "v8/third_party/simdutf"                : None,
       # These deps are unnecessary for building.
       "v8/test/benchmarks/data"               : None,
       "v8/testing/gmock"                      : None,
