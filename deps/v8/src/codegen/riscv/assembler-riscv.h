@@ -481,7 +481,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
    public:
     // We leave space for a number of trampoline pool slots, so we do not
     // have to pass in an explicit margin for all scopes.
-    static constexpr int kGap = kTrampolineSlotsSize * 16;
+    static constexpr int kGap = kTrampolineSlotsSize * 32;
 
     explicit BlockPoolsScope(Assembler* assem, int margin = 0)
         : BlockPoolsScope(assem, ConstantPoolEmission::kCheck, margin) {}
