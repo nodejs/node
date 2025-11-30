@@ -46,6 +46,6 @@ process.on('exit', function() {
     common.printSkipMessage('`openssl s_client -ssl3` not supported.');
   } else {
     assert.strictEqual(errors.length, 1);
-    assert(/:version too low/.test(errors[0].message));
+    assert.match(errors[0].message, /:version too low/);
   }
 });
