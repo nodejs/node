@@ -1,6 +1,6 @@
 {
   pkgs ? import ./pkgs.nix { },
-  withSqlite ? true,
+  withSQLite ? true,
   withSsl ? true,
   withTemporal ? false,
 }:
@@ -30,7 +30,7 @@
     ];
   };
 }
-// (pkgs.lib.optionalAttrs withSqlite {
+// (pkgs.lib.optionalAttrs withSQLite {
   inherit (pkgs) sqlite;
 })
 // (pkgs.lib.optionalAttrs withSsl {
