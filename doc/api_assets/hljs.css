@@ -1,3 +1,4 @@
+/* Light mode */
 :not(.dark-mode) {
   pre code.hljs {
     display: block;
@@ -7,27 +8,27 @@
   code.hljs {
     padding: 3px 5px;
   }
-  /*
-  
-  Visual Studio-like style based on original C# coloring by Jason Diamond <jason@diamond.name>
-  
-  */
+
+  /* Visual Studio-like style based on original C# coloring by Jason Diamond */
   .hljs {
     background: white;
     color: black;
   }
+
   .hljs-comment,
   .hljs-quote,
   .hljs-variable {
     color: #008000;
   }
+
   .hljs-keyword,
   .hljs-selector-tag,
   .hljs-built_in,
   .hljs-name,
   .hljs-tag {
-    color: #00f;
+    color: #0000ff;
   }
+
   .hljs-string,
   .hljs-title,
   .hljs-section,
@@ -39,33 +40,39 @@
   .hljs-addition {
     color: #a31515;
   }
+
   .hljs-deletion,
   .hljs-selector-attr,
   .hljs-selector-pseudo,
   .hljs-meta {
     color: #2b91af;
   }
+
   .hljs-doctag {
     color: #808080;
   }
+
   .hljs-attr {
     color: #d00;
   }
+
   .hljs-symbol,
   .hljs-bullet,
   .hljs-link {
     color: #00b0e8;
   }
+
   .hljs-emphasis {
     font-style: italic;
   }
+
   .hljs-strong {
     font-weight: bold;
   }
 }
 
+/* Dark mode */
 .dark-mode {
-
   pre code.hljs {
     display: block;
     overflow-x: auto;
@@ -76,10 +83,7 @@
     padding: 3px 5px;
   }
 
-  /*
-   * Visual Studio 2015 dark style
-   * Author: Nicolas LLOBERA <nllobera@gmail.com>
-   */
+  /* Visual Studio 2015 dark style by Nicolas LLOBERA */
   .hljs {
     background: #1E1E1E;
     color: #DCDCDC;
@@ -163,9 +167,6 @@
     font-weight: bold;
   }
 
-  /*.hljs-code {
-    font-family:'Monospace';
-  }*/
   .hljs-bullet,
   .hljs-selector-tag,
   .hljs-selector-id,
