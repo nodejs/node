@@ -65,6 +65,7 @@
 * [UDP/datagram](dgram.md)
 * [URL](url.md)
 * [Utilities](util.md)
+* [Logger](logger.md)
 * [V8](v8.md)
 * [VM](vm.md)
 * [WASI](wasi.md)
