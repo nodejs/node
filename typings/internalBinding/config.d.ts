@@ -8,6 +8,7 @@ export interface ConfigBinding {
   hasTracing: boolean;
   hasNodeOptions: boolean;
   hasInspector: boolean;
+  hasSQLite: boolean;
   noBrowserGlobals: boolean;
   bits: number;
   getDefaultLocale(): string;
