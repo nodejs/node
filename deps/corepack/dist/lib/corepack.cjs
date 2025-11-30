@@ -21677,7 +21677,7 @@ function String2(descriptor, ...args) {
 }
 
 // package.json
-var version = "0.34.4";
+var version = "0.34.5";
 
 // sources/Engine.ts
 var import_fs6 = __toESM(require("fs"));
@@ -21691,7 +21691,7 @@ var import_valid4 = __toESM(require_valid2());
 var config_default = {
   definitions: {
     npm: {
-      default: "11.6.2+sha1.2af8ff1f23b279df1e5289db7c70cfedd0fe18c5",
+      default: "11.6.3+sha1.3f581bca37cbdadf2be04346c0e5b0be96cdd54b",
       fetchLatestFrom: {
         type: "npm",
         package: "npm"
@@ -21728,7 +21728,7 @@ var config_default = {
       }
     },
     pnpm: {
-      default: "10.22.0+sha1.3e9e4d522d30f3cf4cabb7506f5d15b89feffd04",
+      default: "10.23.0+sha1.b4a44ab0dc2adf2e36371d11d8eb0dc78ffc976c",
       fetchLatestFrom: {
         type: "npm",
         package: "pnpm"
@@ -21766,11 +21766,28 @@ var config_default = {
             ]
           }
         },
-        ">=6.0.0": {
+        "6.x || 7.x || 8.x || 9.x || 10.x": {
           url: "https://registry.npmjs.org/pnpm/-/pnpm-{}.tgz",
           bin: {
             pnpm: "./bin/pnpm.cjs",
             pnpx: "./bin/pnpx.cjs"
+          },
+          registry: {
+            type: "npm",
+            package: "pnpm"
+          },
+          commands: {
+            use: [
+              "pnpm",
+              "install"
+            ]
+          }
+        },
+        ">=11.0.0": {
+          url: "https://registry.npmjs.org/pnpm/-/pnpm-{}.tgz",
+          bin: {
+            pnpm: "./bin/pnpm.mjs",
+            pnpx: "./bin/pnpx.mjs"
           },
           registry: {
             type: "npm",
