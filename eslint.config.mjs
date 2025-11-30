@@ -277,6 +277,8 @@ export default [
         wrapIndent: '  ',
       }],
       'jsdoc/check-alignment': 'error',
+      'jsdoc/reject-any-type': 'off',
+      'jsdoc/reject-function-type': 'off',
 
       // Stylistic rules.
       '@stylistic/js/arrow-parens': 'error',
@@ -298,6 +300,7 @@ export default [
         MemberExpression: 'off',
         ObjectExpression: 'first',
         SwitchCase: 1,
+        assignmentOperator: 'off',
       }],
       '@stylistic/js/key-spacing': 'error',
       '@stylistic/js/keyword-spacing': 'error',
@@ -326,7 +329,7 @@ export default [
         'error',
         { blankLine: 'always', prev: 'function', next: 'function' },
       ],
-      '@stylistic/js/quotes': ['error', 'single', { avoidEscape: true, allowTemplateLiterals: true }],
+      '@stylistic/js/quotes': ['error', 'single', { avoidEscape: true, allowTemplateLiterals: 'always' }],
       '@stylistic/js/quote-props': ['error', 'consistent'],
       '@stylistic/js/rest-spread-spacing': 'error',
       '@stylistic/js/semi': 'error',
