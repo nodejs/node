@@ -16,6 +16,7 @@ const {
 } = require('../common/sea');
 
 skipIfSingleExecutableIsNotSupported();
+common.skipIfInspectorDisabled();
 
 const configFile = tmpdir.resolve('sea-config.json');
 const seaPrepBlob = tmpdir.resolve('sea-prep.blob');
