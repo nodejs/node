@@ -41,7 +41,7 @@ invalidPercentages.forEach((input) => {
     `--max-old-space-size-percentage=${input[0]}`,
   ], { stdio: ['pipe', 'pipe', 'pipe'] });
   assert.notStrictEqual(result.status, 0, `Expected non-zero exit for invalid input ${input[0]}`);
-  assert(input[1].test(result.stderr.toString()), `Unexpected error message for invalid input ${input[0]}`);
+  assert.match(result.stderr.toString(), input[1]);
 });
 
 // Test NODE_OPTIONS with valid percentages
@@ -61,7 +61,7 @@ invalidPercentages.forEach((input) => {
     env: { ...process.env, NODE_OPTIONS: `--max-old-space-size-percentage=${input[0]}` }
   });
   assert.notStrictEqual(result.status, 0, `NODE_OPTIONS: Expected non-zero exit for invalid input ${input[0]}`);
-  assert(input[1].test(result.stderr.toString()), `NODE_OPTIONS: Unexpected error message for invalid input ${input[0]}`);
+  assert.match(result.stderr.toString(), input[1]);
 });
 
 // Test percentage calculation validation
