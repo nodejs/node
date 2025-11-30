@@ -1,5 +1,7 @@
 {
   pkgs ? import ./pkgs.nix { },
+  withSqlite ? true,
+  withSsl ? true,
   withTemporal ? false,
 }:
 {
@@ -12,7 +14,6 @@
     ngtcp2
     simdjson
     simdutf
-    sqlite
     uvwasi
     zlib
     zstd
@@ -28,6 +29,11 @@
       })
     ];
   };
+}
+// (pkgs.lib.optionalAttrs withSqlite {
+  inherit (pkgs) sqlite;
+})
+// (pkgs.lib.optionalAttrs withSsl {
   openssl = pkgs.openssl.overrideAttrs (old: {
     version = "3.5.4";
     src = pkgs.fetchurl {
@@ -45,7 +51,7 @@
       "dev"
     ];
   });
-}
+})
 // (pkgs.lib.optionalAttrs withTemporal {
   inherit (pkgs) temporal_capi;
 })
