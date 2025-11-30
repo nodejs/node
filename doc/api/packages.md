@@ -939,6 +939,26 @@ $ node other.js
 
 ## Dual CommonJS/ES module packages
 
+Dual packages provide both CommonJS and ES module entry points. A common
+approach is to use the `"require"` and `"import"` conditions in `"exports"`
+to serve different files depending on whether the package is loaded through
+`require()` or `import`. However, this can still lead to the *dual package
+hazard*: different parts of an application may end up evaluating separate
+copies of the package, one from each module system.
+
+A more robust pattern is to use the `"node"` and `"default"` conditions
+instead:
+
+```json
+{
+  "name": "example",
+  "exports": {
+    "node": "./index.cjs",
+    "default": "./index.mjs"
+  }
+}
+```
+
 See [the package examples repository][] for details.
 
 ## Node.js `package.json` field definitions
