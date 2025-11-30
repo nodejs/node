@@ -608,6 +608,13 @@ assert.strictEqual(util.inspect(-5e-324), '-5e-324');
   assert.strictEqual(util.inspect(tree, deepOptions).includes('\n'), false);
 }
 
+// `breakLength: Infinity` should prevent grouping even when depth is finite.
+{
+  const arr = Array.from({ length: 10 }, (_, i) => i);
+  const out = util.inspect(arr, { breakLength: Infinity, depth: 2, compact: 3 });
+  assert.strictEqual(out.includes('\n'), false);
+}
+
 // Test for Array constructor in different context.
 {
   const map = new Map();
@@ -2992,18 +2999,19 @@ assert.strictEqual(
 
   out = util.inspect(obj, { compact: 1, breakLength: Infinity, colors: true });
 
+  const inlineArray = [
+    "\u001b[32m'foobar'\u001b[39m", "\u001b[32m'baz'\u001b[39m",
+    "\u001b[32m'foobar'\u001b[39m", "\u001b[32m'baz'\u001b[39m",
+    "\u001b[32m'foobar'\u001b[39m", "\u001b[32m'baz'\u001b[39m",
+    "\u001b[32m'foobar'\u001b[39m", "\u001b[32m'baz'\u001b[39m",
+    "\u001b[32m'foobar'\u001b[39m",
+  ];
   expected = [
     '{',
     '  a: {',
     '    b: { x: \u001b[33m5\u001b[39m, c: \u001b[36m[Object]\u001b[39m }',
     '  },',
-    '  b: [',
-    "    \u001b[32m'foobar'\u001b[39m, \u001b[32m'baz'\u001b[39m,",
-    "    \u001b[32m'foobar'\u001b[39m, \u001b[32m'baz'\u001b[39m,",
-    "    \u001b[32m'foobar'\u001b[39m, \u001b[32m'baz'\u001b[39m,",
-    "    \u001b[32m'foobar'\u001b[39m, \u001b[32m'baz'\u001b[39m,",
-    "    \u001b[32m'foobar'\u001b[39m",
-    '  ]',
+    `  b: [ ${inlineArray.join(', ')} ]`,
     '}',
   ].join('\n');
 
@@ -3012,25 +3020,8 @@ assert.strictEqual(
   obj = Array.from({ length: 60 }).map((e, i) => i);
   out = util.inspect(obj, { compact: 1, breakLength: Infinity, colors: true });
 
-  expected = [
-    '[',
-    '   \u001b[33m0\u001b[39m,  \u001b[33m1\u001b[39m,  \u001b[33m2\u001b[39m,  \u001b[33m3\u001b[39m,',
-    '   \u001b[33m4\u001b[39m,  \u001b[33m5\u001b[39m,  \u001b[33m6\u001b[39m,  \u001b[33m7\u001b[39m,',
-    '   \u001b[33m8\u001b[39m,  \u001b[33m9\u001b[39m, \u001b[33m10\u001b[39m, \u001b[33m11\u001b[39m,',
-    '  \u001b[33m12\u001b[39m, \u001b[33m13\u001b[39m, \u001b[33m14\u001b[39m, \u001b[33m15\u001b[39m,',
-    '  \u001b[33m16\u001b[39m, \u001b[33m17\u001b[39m, \u001b[33m18\u001b[39m, \u001b[33m19\u001b[39m,',
-    '  \u001b[33m20\u001b[39m, \u001b[33m21\u001b[39m, \u001b[33m22\u001b[39m, \u001b[33m23\u001b[39m,',
-    '  \u001b[33m24\u001b[39m, \u001b[33m25\u001b[39m, \u001b[33m26\u001b[39m, \u001b[33m27\u001b[39m,',
-    '  \u001b[33m28\u001b[39m, \u001b[33m29\u001b[39m, \u001b[33m30\u001b[39m, \u001b[33m31\u001b[39m,',
-    '  \u001b[33m32\u001b[39m, \u001b[33m33\u001b[39m, \u001b[33m34\u001b[39m, \u001b[33m35\u001b[39m,',
-    '  \u001b[33m36\u001b[39m, \u001b[33m37\u001b[39m, \u001b[33m38\u001b[39m, \u001b[33m39\u001b[39m,',
-    '  \u001b[33m40\u001b[39m, \u001b[33m41\u001b[39m, \u001b[33m42\u001b[39m, \u001b[33m43\u001b[39m,',
-    '  \u001b[33m44\u001b[39m, \u001b[33m45\u001b[39m, \u001b[33m46\u001b[39m, \u001b[33m47\u001b[39m,',
-    '  \u001b[33m48\u001b[39m, \u001b[33m49\u001b[39m, \u001b[33m50\u001b[39m, \u001b[33m51\u001b[39m,',
-    '  \u001b[33m52\u001b[39m, \u001b[33m53\u001b[39m, \u001b[33m54\u001b[39m, \u001b[33m55\u001b[39m,',
-    '  \u001b[33m56\u001b[39m, \u001b[33m57\u001b[39m, \u001b[33m58\u001b[39m, \u001b[33m59\u001b[39m',
-    ']',
-  ].join('\n');
+  const inlineNumbers = Array.from({ length: 60 }, (_, i) => `\u001b[33m${i}\u001b[39m`);
+  expected = `[ ${inlineNumbers.join(', ')} ]`;
 
   assert.strictEqual(out, expected);
 
