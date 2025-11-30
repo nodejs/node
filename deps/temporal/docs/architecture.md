@@ -51,7 +51,7 @@ A `TimeZoneProvider` API on a core builtin will look like the below.
 
 ```rust
 impl ZonedDateTime {
-    pub fn day_with_provider(&self, provider: &impl TimeZoneProvider) -> TemporalResult<u8> {
+    pub fn day_with_provider(&self, provider: &(impl TimeZoneProvider + ?Sized)) -> TemporalResult<u8> {
         // Code goes here.
     }
 }

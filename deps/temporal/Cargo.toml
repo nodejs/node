@@ -11,8 +11,8 @@ members = [
 
 [workspace.package]
 edition = "2021"
-version = "0.1.0"
-rust-version = "1.82.0"
+version = "0.1.2"
+rust-version = "1.83.0"
 authors = ["boa-dev"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/boa-dev/temporal"
@@ -29,30 +29,35 @@ exclude = [
 
 [workspace.dependencies]
 # Self
-temporal_rs = { version = "~0.1.0", path = ".", default-features = false }
-timezone_provider = { version = "~0.1.0", path = "./provider" }
-zoneinfo_rs = { version = "~0.0.17", path = "./zoneinfo" }
+temporal_rs = { version = "0.1.2", path = ".", default-features = false }
+timezone_provider = { version = "0.1.2", path = "./provider" }
+zoneinfo_rs = { version = "0.0.18", path = "./zoneinfo" }
 
 # Dependencies
-tinystr = "0.8.1"
-icu_calendar = { version = "2.0.3", default-features = false }
-icu_locale = "2.0.0"
 rustc-hash = "2.1.0"
 num-traits = { version = "0.2.19", default-features = false }
-ixdtf = "0.6.0"
 iana-time-zone = "0.1.64"
 log = "0.4.28"
 tzif = "0.4.0"
 jiff-tzdb = "0.1.4"
 combine = "4.6.7"
 web-time = "1.1.0"
-zerovec = "0.11.4"
+
+# ICU4X
+tinystr = "0.8.0"
+icu_calendar = { version = "2.1.0", default-features = false, features = ["unstable"] }
+icu_locale = "2.1.0"
+zerovec = "0.11.0"
+databake = "0.2.0"
+zerotrie = "0.2.0"
+writeable = "0.6.0"
 zoneinfo64 = "0.2.0"
+ixdtf = "0.6.4"
 
 # Diplomat
-diplomat-tool = { version = "0.13.0", default-features = false }
-diplomat-runtime = { version = "0.13.0", default-features = false }
-diplomat = { version = "0.13.0", default-features = false }
+diplomat-tool = { version = "0.14.0", default-features = false }
+diplomat-runtime = { version = "0.14.0", default-features = false }
+diplomat = { version = "0.14.0", default-features = false }
 
 
 [package]
@@ -77,7 +82,7 @@ icu_locale.workspace = true
 ixdtf = { workspace = true, features = ["duration"] }
 num-traits.workspace = true
 tinystr.workspace = true
-writeable = "0.6.1"
+writeable.workspace = true
 
 # log feature
 log = { workspace = true, optional = true }
@@ -104,6 +109,10 @@ tzdb = [
     "timezone_provider/tzif",
 ]
 std = []
+# https://github.com/boa-dev/temporal/issues/613
+# ECMA-conformant implementations must store durations as float64-representable numbers
+# Rust users probably should not enable this, unless they wish to match the quirks of JavaScript
+float64_representable_durations = []
 
 [package.metadata.cargo-all-features]
 denylist = ["default"]
