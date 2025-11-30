@@ -42,6 +42,11 @@ void nghttp3_settings_default_versioned(int settings_version,
 
   switch (settings_version) {
   case NGHTTP3_SETTINGS_VERSION:
+  case NGHTTP3_SETTINGS_V3:
+    settings->glitch_ratelim_burst = NGHTTP3_DEFAULT_GLITCH_RATELIM_BURST;
+    settings->glitch_ratelim_rate = NGHTTP3_DEFAULT_GLITCH_RATELIM_RATE;
+    /* fall through */
+  case NGHTTP3_SETTINGS_V2:
   case NGHTTP3_SETTINGS_V1:
     settings->max_field_section_size = NGHTTP3_VARINT_MAX;
     settings->qpack_encoder_max_dtable_capacity =
@@ -86,6 +91,12 @@ size_t nghttp3_settingslen_version(int settings_version) {
   switch (settings_version) {
   case NGHTTP3_SETTINGS_VERSION:
     return sizeof(settings);
+  case NGHTTP3_SETTINGS_V3:
+    return offsetof(nghttp3_settings, glitch_ratelim_rate) +
+           sizeof(settings.glitch_ratelim_rate);
+  case NGHTTP3_SETTINGS_V2:
+    return offsetof(nghttp3_settings, origin_list) +
+           sizeof(settings.origin_list);
   case NGHTTP3_SETTINGS_V1:
     return offsetof(nghttp3_settings, h3_datagram) +
            sizeof(settings.h3_datagram);
