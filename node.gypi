@@ -436,5 +436,10 @@
     }, {
       'defines': [ 'HAVE_AMARO=0' ]
     }],
+    [ 'node_use_sqlite=="true"', {
+      'defines': [ 'HAVE_SQLITE=1' ],
+    }, {
+      'defines': [ 'HAVE_SQLITE=0' ]
+    }],
   ],
 }
