@@ -72,8 +72,12 @@ static UBool U_CALLCONV timeZoneNames_cleanup()
 static void U_CALLCONV
 deleteTimeZoneNamesCacheEntry(void *obj) {
     icu::TimeZoneNamesCacheEntry *entry = (icu::TimeZoneNamesCacheEntry*)obj;
-    delete (icu::TimeZoneNamesImpl*) entry->names;
-    uprv_free(entry);
+    if (entry->refCount <= 1) {
+        delete (icu::TimeZoneNamesImpl*) entry->names;
+        uprv_free(entry);
+    } else {
+        entry->refCount--;
+    }
 }
 U_CDECL_END
 
@@ -175,7 +179,9 @@ TimeZoneNamesDelegate::TimeZoneNamesDelegate(const Locale& locale, UErrorCode& s
                 status = U_MEMORY_ALLOCATION_ERROR;
             } else {
                 cacheEntry->names = tznames;
-                cacheEntry->refCount = 1;
+                // The initial refCount is 2 because the entry is referenced both
+                // by this TimeZoneDelegate and by the gTimeZoneNamesCache
+                cacheEntry->refCount = 2;
                 cacheEntry->lastAccess = static_cast<double>(uprv_getUTCtime());
 
                 uhash_put(gTimeZoneNamesCache, newKey, cacheEntry, &status);
@@ -209,9 +215,13 @@ TimeZoneNamesDelegate::~TimeZoneNamesDelegate() {
     umtx_lock(&gTimeZoneNamesLock);
     {
         if (fTZnamesCacheEntry) {
-            U_ASSERT(fTZnamesCacheEntry->refCount > 0);
-            // Just decrement the reference count
-            fTZnamesCacheEntry->refCount--;
+            if (fTZnamesCacheEntry->refCount <= 1) {
+                delete fTZnamesCacheEntry->names;
+                uprv_free(fTZnamesCacheEntry);
+            } else {
+                // Just decrement the reference count
+                fTZnamesCacheEntry->refCount--;
+            }
         }
     }
     umtx_unlock(&gTimeZoneNamesLock);

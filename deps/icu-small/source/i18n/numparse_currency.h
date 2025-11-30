@@ -29,8 +29,8 @@ using ::icu::number::impl::CurrencySymbols;
  *
  * @author sffc
  */
-// Exported as U_I18N_API for tests
-class U_I18N_API CombinedCurrencyMatcher : public NumberParseMatcher, public UMemory {
+// Exported as U_I18N_API_CLASS for tests
+class U_I18N_API_CLASS CombinedCurrencyMatcher : public NumberParseMatcher, public UMemory {
   public:
     CombinedCurrencyMatcher() = default;  // WARNING: Leaves the object in an unusable state
 

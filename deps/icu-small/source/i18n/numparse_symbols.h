@@ -163,6 +163,23 @@ class U_I18N_API PlusSignMatcher : public SymbolMatcher {
     bool fAllowTrailing;
 };
 
+
+// Exported as U_I18N_API for tests
+class U_I18N_API ApproximatelySignMatcher : public SymbolMatcher {
+  public:
+    ApproximatelySignMatcher() = default;  // WARNING: Leaves the object in an unusable state
+
+    ApproximatelySignMatcher(const DecimalFormatSymbols& dfs, bool allowTrailing);
+
+  protected:
+    bool isDisabled(const ParsedNumber& result) const override;
+
+    void accept(StringSegment& segment, ParsedNumber& result) const override;
+
+  private:
+    bool fAllowTrailing;
+};
+
 } // namespace numparse::impl
 U_NAMESPACE_END
 

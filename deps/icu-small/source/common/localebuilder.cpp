@@ -8,6 +8,7 @@
 #include "bytesinkutil.h"  // StringByteSink<CharString>
 #include "charstr.h"
 #include "cstring.h"
+#include "fixedstring.h"
 #include "ulocimp.h"
 #include "unicode/localebuilder.h"
 #include "unicode/locid.h"
@@ -131,14 +132,13 @@ LocaleBuilder& LocaleBuilder::setVariant(StringPiece variant)
         variant_ = nullptr;
         return *this;
     }
-    CharString* new_variant = new CharString(variant, status_);
-    if (U_FAILURE(status_)) { return *this; }
-    if (new_variant == nullptr) {
+    FixedString* new_variant = new FixedString(variant);
+    if (new_variant == nullptr || new_variant->isEmpty()) {
         status_ = U_MEMORY_ALLOCATION_ERROR;
         return *this;
     }
-    transform(new_variant->data(), new_variant->length());
-    if (!ultag_isVariantSubtags(new_variant->data(), new_variant->length())) {
+    transform(new_variant->getAlias(), variant.length());
+    if (!ultag_isVariantSubtags(new_variant->data(), variant.length())) {
         delete new_variant;
         status_ = U_ILLEGAL_ARGUMENT_ERROR;
         return *this;

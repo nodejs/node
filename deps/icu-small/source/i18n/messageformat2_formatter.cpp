@@ -119,24 +119,6 @@ namespace message2 {
 
     // MessageFormatter
 
-    // Returns the NFC-normalized version of s, returning s itself
-    // if it's already normalized.
-    UnicodeString MessageFormatter::normalizeNFC(const UnicodeString& s) const {
-        UErrorCode status = U_ZERO_ERROR;
-        // Check if string is already normalized
-        UNormalizationCheckResult result = nfcNormalizer->quickCheck(s, status);
-        // If so, return it
-        if (U_SUCCESS(status) && result == UNORM_YES) {
-            return s;
-        }
-        // Otherwise, normalize it
-        UnicodeString normalized = nfcNormalizer->normalize(s, status);
-        if (U_FAILURE(status)) {
-            return {};
-        }
-        return normalized;
-    }
-
     MessageFormatter::MessageFormatter(const MessageFormatter::Builder& builder, UErrorCode &success) : locale(builder.locale), customMFFunctionRegistry(builder.customMFFunctionRegistry) {
         CHECK_ERROR(success);
 
@@ -148,18 +130,18 @@ namespace message2 {
         FormatterFactory* time = StandardFunctions::DateTimeFactory::time(success);
         FormatterFactory* number = new StandardFunctions::NumberFactory();
         FormatterFactory* integer = new StandardFunctions::IntegerFactory();
-        standardFunctionsBuilder.adoptFormatter(FunctionName(UnicodeString("datetime")), dateTime, success)
-            .adoptFormatter(FunctionName(UnicodeString("date")), date, success)
-            .adoptFormatter(FunctionName(UnicodeString("time")), time, success)
-            .adoptFormatter(FunctionName(UnicodeString("number")), number, success)
-            .adoptFormatter(FunctionName(UnicodeString("integer")), integer, success)
-            .adoptFormatter(FunctionName(UnicodeString("test:function")), new StandardFunctions::TestFormatFactory(), success)
-            .adoptFormatter(FunctionName(UnicodeString("test:format")), new StandardFunctions::TestFormatFactory(), success)
-            .adoptSelector(FunctionName(UnicodeString("number")), new StandardFunctions::PluralFactory(UPLURAL_TYPE_CARDINAL), success)
-            .adoptSelector(FunctionName(UnicodeString("integer")), new StandardFunctions::PluralFactory(StandardFunctions::PluralFactory::integer()), success)
-            .adoptSelector(FunctionName(UnicodeString("string")), new StandardFunctions::TextFactory(), success)
-            .adoptSelector(FunctionName(UnicodeString("test:function")), new StandardFunctions::TestSelectFactory(), success)
-            .adoptSelector(FunctionName(UnicodeString("test:select")), new StandardFunctions::TestSelectFactory(), success);
+        standardFunctionsBuilder.adoptFormatter(FunctionName(functions::DATETIME), dateTime, success)
+            .adoptFormatter(FunctionName(functions::DATE), date, success)
+            .adoptFormatter(FunctionName(functions::TIME), time, success)
+            .adoptFormatter(FunctionName(functions::NUMBER), number, success)
+            .adoptFormatter(FunctionName(functions::INTEGER), integer, success)
+            .adoptFormatter(FunctionName(functions::TEST_FUNCTION), new StandardFunctions::TestFormatFactory(), success)
+            .adoptFormatter(FunctionName(functions::TEST_FORMAT), new StandardFunctions::TestFormatFactory(), success)
+            .adoptSelector(FunctionName(functions::NUMBER), new StandardFunctions::PluralFactory(UPLURAL_TYPE_CARDINAL), success)
+            .adoptSelector(FunctionName(functions::INTEGER), new StandardFunctions::PluralFactory(StandardFunctions::PluralFactory::integer()), success)
+            .adoptSelector(FunctionName(functions::STRING), new StandardFunctions::TextFactory(), success)
+            .adoptSelector(FunctionName(functions::TEST_FUNCTION), new StandardFunctions::TestSelectFactory(), success)
+            .adoptSelector(FunctionName(functions::TEST_SELECT), new StandardFunctions::TestSelectFactory(), success);
         CHECK_ERROR(success);
         standardMFFunctionRegistry = standardFunctionsBuilder.build();
         CHECK_ERROR(success);
@@ -187,8 +169,6 @@ namespace message2 {
             CHECK_ERROR(success);
             errors = errorsNew.orphan();
         }
-
-        nfcNormalizer = Normalizer2::getNFCInstance(success);
 
         // Note: we currently evaluate variables lazily,
         // without memoization. This call is still necessary
@@ -218,7 +198,6 @@ namespace message2 {
         signalErrors = other.signalErrors;
         errors = other.errors;
         other.errors = nullptr;
-        nfcNormalizer = other.nfcNormalizer;
         return *this;
     }
 
