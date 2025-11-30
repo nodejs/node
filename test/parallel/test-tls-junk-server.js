@@ -28,7 +28,7 @@ server.listen(0, common.mustCall(function() {
     expectedErrorMessage = new RegExp('packet length too long');
   };
   req.once('error', common.mustCall(function(err) {
-    assert(expectedErrorMessage.test(err.message));
+    assert.match(err.message, expectedErrorMessage);
     server.close();
   }));
 }));
