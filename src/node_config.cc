@@ -90,6 +90,12 @@ static void InitConfig(Local<Object> target,
   READONLY_FALSE_PROPERTY(target, "hasInspector");
 #endif
 
+#if HAVE_SQLITE
+  READONLY_TRUE_PROPERTY(target, "hasSQLite");
+#else
+  READONLY_FALSE_PROPERTY(target, "hasSQLite");
+#endif
+
 // configure --no-browser-globals
 #ifdef NODE_NO_BROWSER_GLOBALS
   READONLY_TRUE_PROPERTY(target, "noBrowserGlobals");
