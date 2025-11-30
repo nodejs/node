@@ -94,10 +94,10 @@ function runClient(message, cb) {
       if (hint === null || hint === IDENTITY) {
         return {
           identity: IDENTITY,
-          psk: Buffer.from(KEY, 'hex')
+          psk: Buffer.from(KEY, 'hex'),
         };
       }
-    }
+    },
   });
   s.on('secureConnect', common.mustCall(() => {
     let data = '';

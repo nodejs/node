@@ -14,7 +14,7 @@ if (cluster.isPrimary) {
 
     cluster.setupPrimary({
       execArgv: execArgv,
-      stdio: ['pipe', 'pipe', 'pipe', 'ipc', 'pipe']
+      stdio: ['pipe', 'pipe', 'pipe', 'ipc', 'pipe'],
     });
 
     const worker = cluster.fork();

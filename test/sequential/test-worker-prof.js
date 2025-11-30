@@ -64,7 +64,7 @@ if (process.argv[2] === 'child') {
         assert.match(output, workerProfRegexp);
         assert.match(output, parentProfRegexp);
         return true;
-      }
+      },
     });
   const workerProf = stdout.match(workerProfRegexp)[1];
   const parentProf = stdout.match(parentProfRegexp)[1];

@@ -22,7 +22,7 @@ async function getDebuggedPid(instance, waitForLog = true) {
     await session.waitForConsoleOutput('log', 'safe to debug now');
   }
   const { value: innerPid } = (await session.send({
-    'method': 'Runtime.evaluate', 'params': { 'expression': 'process.pid' }
+    'method': 'Runtime.evaluate', 'params': { 'expression': 'process.pid' },
   })).result;
   session.disconnect();
   gettingDebuggedPid = false;

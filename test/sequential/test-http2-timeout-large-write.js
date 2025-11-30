@@ -26,7 +26,7 @@ let didReceiveData = false;
 
 const server = http2.createSecureServer({
   key: fixtures.readKey('agent1-key.pem'),
-  cert: fixtures.readKey('agent1-cert.pem')
+  cert: fixtures.readKey('agent1-cert.pem'),
 });
 const onTimeout = common.mustCallAtLeast(() => {
   assert.ok(!didReceiveData, 'Should not timeout');
@@ -37,7 +37,7 @@ server.on('stream', common.mustCall((stream) => {
   stream.respond({
     'Content-Type': 'application/octet-stream',
     'Content-Length': content.length.toString(),
-    'Vary': 'Accept-Encoding'
+    'Vary': 'Accept-Encoding',
   });
 
   stream.write(content);

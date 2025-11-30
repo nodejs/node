@@ -156,5 +156,5 @@ const args = [
 
 // Verify the shell option works properly
 execFileSync(`"${common.isWindows ? process.execPath : '$NODE'}"`, [], {
-  encoding: 'utf8', shell: true, env
+  encoding: 'utf8', shell: true, env,
 });

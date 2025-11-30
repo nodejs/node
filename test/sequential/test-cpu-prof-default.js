@@ -15,7 +15,7 @@ const { spawnSync } = require('child_process');
 const tmpdir = require('../common/tmpdir');
 const {
   getCpuProfiles,
-  env
+  env,
 } = require('../common/cpu-prof');
 
 {
@@ -25,7 +25,7 @@ const {
     fixtures.path('workload', 'fibonacci.js'),
   ], {
     cwd: tmpdir.path,
-    env
+    env,
   });
   if (output.status !== 0) {
     console.log(output.stderr.toString());

@@ -63,7 +63,7 @@ describe('watch mode - watch flags', { concurrency: !process.env.TEST_PARALLEL, 
       );`, '.js', projectDir);
     const args = ['--watch', '--watch', file];
     const { stdout, stderr } = await runNode({
-      file, args, options: { cwd: projectDir }
+      file, args, options: { cwd: projectDir },
     });
 
     assert.strictEqual(stderr, '');
@@ -85,7 +85,7 @@ describe('watch mode - watch flags', { concurrency: !process.env.TEST_PARALLEL, 
       );`, '.js', projectDir);
     const args = ['--watch', `--watch-path`, file, file];
     const { stdout, stderr } = await runNode({
-      file, args, options: { cwd: projectDir }
+      file, args, options: { cwd: projectDir },
     });
 
     assert.strictEqual(stderr, '');

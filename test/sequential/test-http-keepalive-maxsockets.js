@@ -37,7 +37,7 @@ server.listen(0, common.mustCall(() => {
   const agent = http.Agent({
     keepAlive: true,
     maxSockets: 5,
-    maxFreeSockets: 2
+    maxFreeSockets: 2,
   });
 
   let closed = false;
@@ -83,7 +83,7 @@ server.listen(0, common.mustCall(() => {
     http.request({
       port: server.address().port,
       path: `/${i}`,
-      agent: agent
+      agent: agent,
     }, common.mustCall((res) => {
       let data = '';
       res.setEncoding('ascii');

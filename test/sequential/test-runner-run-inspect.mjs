@@ -15,7 +15,7 @@ async function spawnRunner({ execArgv, expectedPort, expectedHost, expectedIniti
              expectedPort,
              inspectPort,
              expectedHost,
-             expectedInitialPort }
+             expectedInitialPort },
     });
   assert.strictEqual(code, 0);
   assert.strictEqual(signal, null);
@@ -65,7 +65,7 @@ port = debuggerPort + offset++ * 5;
 
 await spawnRunner({
   execArgv: [`--inspect=127.0.0.1:${port}`],
-  expectedPort: port + 1, expectedHost: '127.0.0.1'
+  expectedPort: port + 1, expectedHost: '127.0.0.1',
 });
 
 if (common.hasIPv6) {
@@ -73,14 +73,14 @@ if (common.hasIPv6) {
 
   await spawnRunner({
     execArgv: [`--inspect=[::]:${port}`],
-    expectedPort: port + 1, expectedHost: '::'
+    expectedPort: port + 1, expectedHost: '::',
   });
 
   port = debuggerPort + offset++ * 5;
 
   await spawnRunner({
     execArgv: [`--inspect=[::1]:${port}`],
-    expectedPort: port + 1, expectedHost: '::1'
+    expectedPort: port + 1, expectedHost: '::1',
   });
 }
 
@@ -136,7 +136,7 @@ port = debuggerPort + offset++ * 5;
 
 await spawnRunner({
   execArgv: [`--inspect=${port}`],
-  inspectPort: 'bignumberfunc'
+  inspectPort: 'bignumberfunc',
 });
 
 port = debuggerPort + offset++ * 5;
