@@ -1,28 +1,28 @@
 'use strict';
-require('../common');
-const { strictEqual } = require('node:assert');
+const common = require('../common');
+const assert = require('node:assert');
 const { before, suite, test } = require('node:test');
 
-before((t) => {
-  strictEqual(t.fullName, '<root>');
-});
+before(common.mustCall((t) => {
+  assert.strictEqual(t.fullName, '<root>');
+}));
 
-suite('suite', (t) => {
-  strictEqual(t.fullName, 'suite');
+suite('suite', common.mustCall((t) => {
+  assert.strictEqual(t.fullName, 'suite');
 
   test('test', (t) => {
-    strictEqual(t.fullName, 'suite > test');
+    assert.strictEqual(t.fullName, 'suite > test');
 
     t.test('subtest', (t) => {
-      strictEqual(t.fullName, 'suite > test > subtest');
+      assert.strictEqual(t.fullName, 'suite > test > subtest');
 
       t.test('subsubtest', (t) => {
-        strictEqual(t.fullName, 'suite > test > subtest > subsubtest');
+        assert.strictEqual(t.fullName, 'suite > test > subtest > subsubtest');
       });
     });
   });
-});
+}));
 
 test((t) => {
-  strictEqual(t.fullName, '<anonymous>');
+  assert.strictEqual(t.fullName, '<anonymous>');
 });

@@ -35,6 +35,7 @@ from io import open
 FLAGS_PATTERN = re.compile(r"//\s+Flags:(.*)")
 LS_RE = re.compile(r'^test-.*\.m?js$')
 ENV_PATTERN = re.compile(r"//\s+Env:(.*)")
+NODE_TEST_PATTERN = re.compile(r"('|`|\")node:test\1")
 
 class SimpleTestCase(test.TestCase):
 
@@ -98,6 +99,10 @@ class SimpleTestCase(test.TestCase):
       else:
         result += flags
 
+    if self.context.use_error_reporter and NODE_TEST_PATTERN.search(source):
+      result += ['--test-reporter=./test/common/test-error-reporter.js',
+                 '--test-reporter-destination=stdout']
+
     if self.additional_flags:
       result += self.additional_flags
 
@@ -160,9 +165,7 @@ class AddonTestConfiguration(SimpleTestConfiguration):
     result = []
     for subpath in os.listdir(path):
       if os.path.isdir(os.path.join(path, subpath)):
-        for f in os.listdir(os.path.join(path, subpath)):
-          if SelectTest(f):
-            result.append([subpath, f[:-3]])
+        result.extend([subpath, f[:-3]] for f in os.listdir(os.path.join(path, subpath)) if SelectTest(f))
     return result
 
   def ListTests(self, current_path, path, arch, mode):

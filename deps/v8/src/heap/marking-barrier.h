@@ -44,7 +44,7 @@ class MarkingBarrier {
   static void DeactivateYoung(Heap* heap);
   V8_EXPORT_PRIVATE static void PublishYoung(Heap* heap);
 
-  template <typename TSlot>
+  template <typename TSlot, RecordYoungSlot kRecordYoung = RecordYoungSlot::kNo>
   void Write(Tagged<HeapObject> host, TSlot slot, Tagged<HeapObject> value);
   void Write(Tagged<HeapObject> host, IndirectPointerSlot slot);
   void Write(Tagged<InstructionStream> host, RelocInfo*,
@@ -74,8 +74,11 @@ class MarkingBarrier {
 #if DEBUG
   void AssertMarkingIsActivated() const;
   void AssertSharedMarkingIsActivated() const;
-  bool IsMarked(const Tagged<HeapObject> value) const;
 #endif  // DEBUG
+
+#if V8_VERIFY_WRITE_BARRIERS
+  bool IsMarked(const Tagged<HeapObject> value) const;
+#endif  // V8_VERIFY_WRITE_BARRIERS
 
  private:
   inline void MarkValueShared(Tagged<HeapObject> value);

@@ -1,125 +1,102 @@
-const { depth } = require('treeverse')
-
+// Dep flag (dev, peer, etc.) calculation requires default or reset flags.
+// Flags are true by default and are unset to false as we walk deps.
+// We iterate outward edges looking for dep flags that can
+// be unset based on the current nodes flags and edge type.
+// Examples:
+// - a non-optional node with a non-optional edge out, the edge node should not be optional
+// - a non-peer node with a non-peer edge out, the edge node should not be peer
+// If a node is changed, we add to the queue and continue until no more changes.
+// Flags that remain after all this unsetting should be valid.
+// Examples:
+// - a node still flagged optional must only be reachable via optional edges
+// - a node still flagged peer must only be reachable via peer edges
 const calcDepFlags = (tree, resetRoot = true) => {
   if (resetRoot) {
-    tree.dev = false
-    tree.optional = false
-    tree.devOptional = false
-    tree.peer = false
-  }
-  const ret = depth({
-    tree,
-    visit: node => calcDepFlagsStep(node),
-    filter: node => node,
-    getChildren: (node, tree) =>
-      [...tree.edgesOut.values()].map(edge => edge.to),
-  })
-  return ret
-}
-
-const calcDepFlagsStep = (node) => {
-  // This rewalk is necessary to handle cases where devDep and optional
-  // or normal dependency graphs overlap deep in the dep graph.
-  // Since we're only walking through deps that are not already flagged
-  // as non-dev/non-optional, it's typically a very shallow traversal
-  node.extraneous = false
-  resetParents(node, 'extraneous')
-  resetParents(node, 'dev')
-  resetParents(node, 'peer')
-  resetParents(node, 'devOptional')
-  resetParents(node, 'optional')
-
-  // for links, map their hierarchy appropriately
-  if (node.isLink) {
-    // node.target can be null, we check to ensure it's not null before proceeding
-    if (node.target == null) {
-      return node
-    }
-    node.target.dev = node.dev
-    node.target.optional = node.optional
-    node.target.devOptional = node.devOptional
-    node.target.peer = node.peer
-    return calcDepFlagsStep(node.target)
+    tree.unsetDepFlags()
   }
 
-  node.edgesOut.forEach(({ peer, optional, dev, to }) => {
-    // if the dep is missing, then its flags are already maximally unset
-    if (!to) {
-      return
+  const seen = new Set()
+  const queue = [tree]
+
+  let node
+  while (node = queue.pop()) {
+    seen.add(node)
+
+    // Unset extraneous from all parents to avoid removal of children.
+    if (!node.extraneous) {
+      for (let n = node.resolveParent; n?.extraneous; n = n.resolveParent) {
+        n.extraneous = false
+      }
     }
 
-    // everything with any kind of edge into it is not extraneous
-    to.extraneous = false
-
-    // devOptional is the *overlap* of the dev and optional tree.
-    // however, for convenience and to save an extra rewalk, we leave
-    // it set when we are in *either* tree, and then omit it from the
-    // package-lock if either dev or optional are set.
-    const unsetDevOpt = !node.devOptional && !node.dev && !node.optional && !dev && !optional
-
-    // if we are not in the devOpt tree, then we're also not in
-    // either the dev or opt trees
-    const unsetDev = unsetDevOpt || !node.dev && !dev
-    const unsetOpt = unsetDevOpt || !node.optional && !optional
-    const unsetPeer = !node.peer && !peer
-
-    if (unsetPeer) {
-      unsetFlag(to, 'peer')
+    // for links, map their hierarchy appropriately
+    if (node.isLink) {
+      // node.target can be null, we check to ensure it's not null before proceeding
+      if (node.target == null) {
+        continue
+      }
+      node.target.dev = node.dev
+      node.target.optional = node.optional
+      node.target.devOptional = node.devOptional
+      node.target.peer = node.peer
+      node.target.extraneous = node.extraneous
+      queue.push(node.target)
+      continue
     }
 
-    if (unsetDevOpt) {
-      unsetFlag(to, 'devOptional')
+    for (const { peer, optional, dev, to } of node.edgesOut.values()) {
+      // if the dep is missing, then its flags are already maximally unset
+      if (!to) {
+        continue
+      }
+
+      let changed = false
+
+      // only optional peer dependencies should stay extraneous
+      if (to.extraneous && !node.extraneous && !(peer && optional)) {
+        to.extraneous = false
+        changed = true
+      }
+
+      if (to.dev && !node.dev && !dev) {
+        to.dev = false
+        changed = true
+      }
+
+      if (to.optional && !node.optional && !optional) {
+        to.optional = false
+        changed = true
+      }
+
+      // devOptional is the *overlap* of the dev and optional tree.
+      // A node may be depended on by separate dev and optional nodes.
+      // It SHOULD NOT be removed when pruning dev OR optional.
+      // It SHOULD be removed when pruning dev AND optional.
+      // We only unset here if a node is not dev AND not optional because
+      // if we did unset, it would prevent any overlap deeper in the tree.
+      // We correct this later by removing if dev OR optional is set.
+      if (to.devOptional && !node.devOptional && !node.dev && !node.optional && !dev && !optional) {
+        to.devOptional = false
+        changed = true
+      }
+
+      if (to.peer && !node.peer && !peer) {
+        to.peer = false
+        changed = true
+      }
+
+      if (changed) {
+        queue.push(to)
+      }
     }
-
-    if (unsetDev) {
-      unsetFlag(to, 'dev')
-    }
-
-    if (unsetOpt) {
-      unsetFlag(to, 'optional')
-    }
-  })
-
-  return node
-}
-
-const resetParents = (node, flag) => {
-  if (node[flag]) {
-    return
   }
 
-  for (let p = node; p && (p === node || p[flag]); p = p.resolveParent) {
-    p[flag] = false
-  }
-}
-
-// typically a short walk, since it only traverses deps that have the flag set.
-const unsetFlag = (node, flag) => {
-  if (node[flag]) {
-    node[flag] = false
-    depth({
-      tree: node,
-      visit: node => {
-        node.extraneous = node[flag] = false
-        if (node.isLink && node.target) {
-          node.target.extraneous = node.target[flag] = false
-        }
-      },
-      getChildren: node => {
-        const children = []
-        const targetNode = node.isLink && node.target ? node.target : node
-        for (const edge of targetNode.edgesOut.values()) {
-          if (
-            edge.to &&
-            edge.to[flag] &&
-            ((flag !== 'peer' && edge.type === 'peer') || edge.type === 'prod')
-          ) {
-            children.push(edge.to)
-          }
-        }
-        return children
-      },
-    })
+  // Remove incorrect devOptional flags now that we have walked all deps.
+  seen.delete(tree)
+  for (const node of seen.values()) {
+    if (node.devOptional && (node.dev || node.optional)) {
+      node.devOptional = false
+    }
   }
 }
 

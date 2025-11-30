@@ -13,10 +13,10 @@ if (cluster.isPrimary) {
   worker.on('exit', () => {
     exited = true;
   });
-  setTimeout(() => {
+  setTimeout(common.mustCall(() => {
     assert.ok(!exited);
     worker.kill();
-  }, 3000);
+  }), 3000);
 } else {
   const server = net.createServer(common.mustNotCall());
   server.listen(0, common.mustCall(() => process.channel.unref()));

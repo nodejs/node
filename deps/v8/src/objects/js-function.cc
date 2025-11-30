@@ -52,25 +52,13 @@ CodeKinds JSFunction::GetAvailableCodeKinds(IsolateForSandbox isolate) const {
     }
   }
 
-#ifndef V8_ENABLE_LEAPTIERING
-  // Check the optimized code cache.
-  if (has_feedback_vector() && feedback_vector()->has_optimized_code() &&
-      !feedback_vector()
-           ->optimized_code(isolate)
-           ->marked_for_deoptimization()) {
-    Tagged<Code> code = feedback_vector()->optimized_code(isolate);
-    DCHECK(CodeKindIsOptimizedJSFunction(code->kind()));
-    result |= CodeKindToCodeKindFlag(code->kind());
-  }
-#endif  // !V8_ENABLE_LEAPTIERING
-
   DCHECK_EQ((result & ~kJSFunctionCodeKindsMask), 0);
   return result;
 }
 
 void JSFunction::TraceOptimizationStatus(const char* format, ...) {
   if (!v8_flags.trace_opt_status) return;
-  Isolate* const isolate = GetIsolate();
+  Isolate* const isolate = Isolate::Current();
   PrintF("[optimization status (");
   {
     va_list arguments;
@@ -243,23 +231,21 @@ bool JSFunction::CanDiscardCompiled(IsolateForSandbox isolate) const {
   return (result & kJSFunctionCodeKindsMask) != 0;
 }
 
-namespace {
-
-#ifndef V8_ENABLE_LEAPTIERING
-constexpr TieringState TieringStateFor(CodeKind target_kind,
-                                       ConcurrencyMode mode) {
-  DCHECK(target_kind == CodeKind::MAGLEV ||
-         target_kind == CodeKind::TURBOFAN_JS);
-  return target_kind == CodeKind::MAGLEV
-             ? (IsConcurrent(mode) ? TieringState::kRequestMaglev_Concurrent
-                                   : TieringState::kRequestMaglev_Synchronous)
-             : (IsConcurrent(mode)
-                    ? TieringState::kRequestTurbofan_Concurrent
-                    : TieringState::kRequestTurbofan_Synchronous);
+DirectHandle<Object> JSFunction::GetFunctionPrototype(
+    Isolate* isolate, DirectHandle<JSFunction> function) {
+  if (!function->has_prototype()) {
+    // We lazily allocate .prototype for functions, which confuses debug
+    // evaluate which assumes we can write to temporary objects we allocated
+    // during evaluation. We err on the side of caution here and prevent the
+    // newly allocated prototype from going into the temporary objects set,
+    // which means writes to it will be considered a side effect.
+    DisableTemporaryObjectTracking no_temp_tracking(isolate->debug());
+    DirectHandle<JSObject> proto =
+        isolate->factory()->NewFunctionPrototype(function);
+    JSFunction::SetPrototype(isolate, function, proto);
+  }
+  return DirectHandle<Object>(function->prototype(), isolate);
 }
-#endif  // !V8_ENABLE_LEAPTIERING
-
-}  // namespace
 
 void JSFunction::RequestOptimization(Isolate* isolate, CodeKind target_kind,
                                      ConcurrencyMode mode) {
@@ -274,7 +260,7 @@ void JSFunction::RequestOptimization(Isolate* isolate, CodeKind target_kind,
   DCHECK(!ActiveTierIsTurbofan(isolate));
   DCHECK(shared()->HasBytecodeArray());
   DCHECK(shared()->allows_lazy_compilation() ||
-         !shared()->optimization_disabled());
+         !shared()->optimization_disabled(target_kind));
 
   if (IsConcurrent(mode)) {
     if (tiering_in_progress()) {
@@ -293,7 +279,6 @@ void JSFunction::RequestOptimization(Isolate* isolate, CodeKind target_kind,
     }
   }
 
-#ifdef V8_ENABLE_LEAPTIERING
   JSDispatchTable* jdt = IsolateGroup::current()->js_dispatch_table();
   switch (target_kind) {
     case CodeKind::MAGLEV:
@@ -326,9 +311,6 @@ void JSFunction::RequestOptimization(Isolate* isolate, CodeKind target_kind,
     default:
       UNREACHABLE();
   }
-#else
-  set_tiering_state(isolate, TieringStateFor(target_kind, mode));
-#endif  // V8_ENABLE_LEAPTIERING
 }
 
 void JSFunction::SetInterruptBudget(
@@ -375,9 +357,8 @@ Maybe<bool> JSFunctionOrBoundFunctionOrWrappedFunction::CopyNameAndLength(
     if (attributes.IsNothing()) return Nothing<bool>();
     if (attributes.FromJust() != ABSENT) {
       DirectHandle<Object> target_length;
-      ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, target_length,
-                                       Object::GetProperty(&length_lookup),
-                                       Nothing<bool>());
+      ASSIGN_RETURN_ON_EXCEPTION(isolate, target_length,
+                                 Object::GetProperty(&length_lookup));
       if (IsNumber(*target_length)) {
         length = isolate->factory()->NewNumber(std::max(
             0.0,
@@ -407,19 +388,16 @@ Maybe<bool> JSFunctionOrBoundFunctionOrWrappedFunction::CopyNameAndLength(
       !name_lookup.GetAccessors().is_identical_to(function_name_accessor) ||
       (name_lookup.IsFound() && !name_lookup.HolderIsReceiver())) {
     DirectHandle<Object> target_name;
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, target_name,
-                                     Object::GetProperty(&name_lookup),
-                                     Nothing<bool>());
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, target_name,
+                               Object::GetProperty(&name_lookup));
     DirectHandle<String> name;
     if (IsString(*target_name)) {
-      ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      ASSIGN_RETURN_ON_EXCEPTION(
           isolate, name,
-          Name::ToFunctionName(isolate, Cast<String>(target_name)),
-          Nothing<bool>());
+          Name::ToFunctionName(isolate, Cast<String>(target_name)));
       if (!prefix.is_null()) {
-        ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-            isolate, name, isolate->factory()->NewConsString(prefix, name),
-            Nothing<bool>());
+        ASSIGN_RETURN_ON_EXCEPTION(
+            isolate, name, isolate->factory()->NewConsString(prefix, name));
       }
     } else if (prefix.is_null()) {
       name = isolate->factory()->empty_string();
@@ -489,9 +467,8 @@ Maybe<int> JSBoundFunction::GetLength(Isolate* isolate,
     DirectHandle<JSWrappedFunction> target(
         Cast<JSWrappedFunction>(function->bound_target_function()), isolate);
     int target_length = 0;
-    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-        isolate, target_length, JSWrappedFunction::GetLength(isolate, target),
-        Nothing<int>());
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, target_length,
+                               JSWrappedFunction::GetLength(isolate, target));
     int length = std::max(0, target_length - nof_bound_arguments);
     return Just(length);
   }
@@ -597,10 +574,8 @@ MaybeDirectHandle<Object> JSWrappedFunction::Create(
         creation_context->type_error_function(), isolate);
     DirectHandle<String> string =
         Object::NoSideEffectsToString(isolate, exception);
-    THROW_NEW_ERROR_RETURN_VALUE(
-        isolate,
-        NewError(type_error_function, MessageTemplate::kCannotWrap, string),
-        {});
+    THROW_NEW_ERROR(isolate, NewError(type_error_function,
+                                      MessageTemplate::kCannotWrap, string));
   }
   DCHECK(is_abrupt.FromJust());
 
@@ -651,7 +626,6 @@ void JSFunction::EnsureClosureFeedbackCellArray(
   if (allocate_new_feedback_cell) {
     DirectHandle<FeedbackCell> feedback_cell =
         isolate->factory()->NewOneClosureCell(feedback_cell_array);
-#ifdef V8_ENABLE_LEAPTIERING
     // This is a rare case where we copy the dispatch entry from a JSFunction
     // to its FeedbackCell instead of the other way around.
     // TODO(42204201): investigate whether this can be avoided so that we only
@@ -662,7 +636,6 @@ void JSFunction::EnsureClosureFeedbackCellArray(
     // The feedback cell should never contain context specialized code.
     DCHECK(!function->code(isolate)->is_context_specialized());
     feedback_cell->set_dispatch_handle(function->dispatch_handle());
-#endif  // V8_ENABLE_LEAPTIERING
     function->set_raw_feedback_cell(*feedback_cell, kReleaseStore);
   } else {
     function->raw_feedback_cell()->set_value(*feedback_cell_array,
@@ -718,11 +691,6 @@ void JSFunction::CreateAndAttachFeedbackVector(
   DCHECK_EQ(function->raw_feedback_cell()->value(), *feedback_vector);
   function->SetInterruptBudget(isolate, BudgetModification::kRaise);
 
-#ifndef V8_ENABLE_LEAPTIERING
-  DCHECK_EQ(v8_flags.log_function_events,
-            feedback_vector->log_next_execution());
-#endif
-
   if (v8_flags.profile_guided_optimization &&
       v8_flags.profile_guided_optimization_for_empty_feedback_vector &&
       function->feedback_vector()->length() == 0) {
@@ -767,7 +735,7 @@ void JSFunction::InitializeFeedbackCell(
   }
 
   const bool needs_feedback_vector =
-      !v8_flags.lazy_feedback_allocation || v8_flags.always_turbofan ||
+      !v8_flags.lazy_feedback_allocation ||
       // We also need a feedback vector for certain log events, collecting type
       // profile and more precise code coverage.
       v8_flags.log_function_events ||
@@ -867,7 +835,7 @@ void JSFunction::SetPrototype(Isolate* isolate,
   // constructor field so it can be accessed.  Also, set the prototype
   // used for constructing objects to the original object prototype.
   // See ECMA-262 13.2.2.
-  if (!IsJSReceiver(*value)) {
+  if (IsTheHole(*value) || !IsJSReceiver(*value)) {
     // Copy the map so this does not affect unrelated functions.
     // Remove map transitions because they point to maps with a
     // different prototype.
@@ -1050,7 +1018,7 @@ bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
     case JS_SPECIAL_API_OBJECT_TYPE:
     case JS_TYPED_ARRAY_TYPE:
     case JS_PRIMITIVE_WRAPPER_TYPE:
-    case JS_TEMPORAL_CALENDAR_TYPE:
+#ifdef V8_TEMPORAL_SUPPORT
     case JS_TEMPORAL_DURATION_TYPE:
     case JS_TEMPORAL_INSTANT_TYPE:
     case JS_TEMPORAL_PLAIN_DATE_TYPE:
@@ -1058,8 +1026,8 @@ bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
     case JS_TEMPORAL_PLAIN_MONTH_DAY_TYPE:
     case JS_TEMPORAL_PLAIN_TIME_TYPE:
     case JS_TEMPORAL_PLAIN_YEAR_MONTH_TYPE:
-    case JS_TEMPORAL_TIME_ZONE_TYPE:
     case JS_TEMPORAL_ZONED_DATE_TIME_TYPE:
+#endif
     case JS_WEAK_MAP_TYPE:
     case JS_WEAK_REF_TYPE:
     case JS_WEAK_SET_TYPE:
@@ -1468,7 +1436,7 @@ DirectHandle<String> JSFunction::ToString(Isolate* isolate,
   // If this function was compiled from asm.js, use the recorded offset
   // information.
 #if V8_ENABLE_WEBASSEMBLY
-  if (shared_info->HasWasmExportedFunctionData()) {
+  if (shared_info->HasWasmExportedFunctionData(isolate)) {
     DirectHandle<WasmExportedFunctionData> function_data(
         shared_info->wasm_exported_function_data(), isolate);
     const wasm::WasmModule* module = function_data->instance_data()->module();

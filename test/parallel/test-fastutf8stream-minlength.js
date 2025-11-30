@@ -2,10 +2,7 @@
 
 const common = require('../common');
 const tmpdir = require('../common/tmpdir');
-const {
-  ok,
-  throws,
-} = require('node:assert');
+const assert = require('node:assert');
 const {
   closeSync,
   openSync,
@@ -26,9 +23,9 @@ const MAX_WRITE = 16 * 1024;
   const dest = getTempFile();
   const stream = new Utf8Stream({ dest, sync: false, minLength: 9999 });
 
-  ok(stream.write(Buffer.alloc(1500).fill('x').toString()));
-  ok(stream.write(Buffer.alloc(1500).fill('x').toString()));
-  ok(!stream.write(Buffer.alloc(MAX_WRITE).fill('x').toString()));
+  assert.ok(stream.write(Buffer.alloc(1500).fill('x').toString()));
+  assert.ok(stream.write(Buffer.alloc(1500).fill('x').toString()));
+  assert.ok(!stream.write(Buffer.alloc(MAX_WRITE).fill('x').toString()));
 
   stream.on('drain', common.mustCall(() => stream.end()));
 
@@ -38,7 +35,7 @@ const MAX_WRITE = 16 * 1024;
   const dest = getTempFile();
   const fd = openSync(dest, 'w');
 
-  throws(() => {
+  assert.throws(() => {
     new Utf8Stream({
       fd,
       minLength: MAX_WRITE

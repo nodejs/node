@@ -23,52 +23,155 @@ namespace internal {
 DirectHandle<Object> DeoptimizationLiteral::Reify(Isolate* isolate) const {
   Validate();
   switch (kind_) {
-    case DeoptimizationLiteralKind::kObject: {
+    case DeoptimizationLiteralKind::kObject:
       return object_;
-    }
-    case DeoptimizationLiteralKind::kNumber: {
+    case DeoptimizationLiteralKind::kNumber:
       return isolate->factory()->NewNumber(number_);
-    }
-    case DeoptimizationLiteralKind::kSignedBigInt64: {
+    case DeoptimizationLiteralKind::kSignedBigInt64:
       return BigInt::FromInt64(isolate, int64_);
-    }
-    case DeoptimizationLiteralKind::kUnsignedBigInt64: {
+    case DeoptimizationLiteralKind::kUnsignedBigInt64:
       return BigInt::FromUint64(isolate, uint64_);
-    }
-    case DeoptimizationLiteralKind::kHoleNaN: {
+    case DeoptimizationLiteralKind::kHoleNaN:
       // Hole NaNs that made it to here represent the undefined value.
       return isolate->factory()->undefined_value();
-    }
     case DeoptimizationLiteralKind::kWasmI31Ref:
     case DeoptimizationLiteralKind::kWasmInt32:
     case DeoptimizationLiteralKind::kWasmFloat32:
     case DeoptimizationLiteralKind::kWasmFloat64:
-    case DeoptimizationLiteralKind::kInvalid: {
-      UNREACHABLE();
+    case DeoptimizationLiteralKind::kInvalid:
+      break;
+  }
+  UNREACHABLE();
+}
+
+size_t DeoptimizationLiteral::SerializationSize() const {
+  static constexpr size_t kSizeOfKind = 1;
+  switch (kind_) {
+    case DeoptimizationLiteralKind::kInvalid:
+    case DeoptimizationLiteralKind::kObject:
+    case DeoptimizationLiteralKind::kNumber:
+    case DeoptimizationLiteralKind::kHoleNaN:
+      break;
+    case DeoptimizationLiteralKind::kSignedBigInt64:
+      return kSizeOfKind + sizeof(int64_);
+    case DeoptimizationLiteralKind::kUnsignedBigInt64:
+      return kSizeOfKind + sizeof(uint64_);
+    case DeoptimizationLiteralKind::kWasmI31Ref:
+    case DeoptimizationLiteralKind::kWasmInt32:
+      return kSizeOfKind + sizeof(int32_t);
+    case DeoptimizationLiteralKind::kWasmFloat32:
+      return kSizeOfKind + sizeof(Float32);
+    case DeoptimizationLiteralKind::kWasmFloat64:
+      return kSizeOfKind + sizeof(Float64);
+  }
+  UNREACHABLE();
+}
+
+size_t DeoptimizationLiteral::Write(base::Vector<uint8_t> buffer) const {
+  static constexpr size_t kSizeOfKind = 1;
+  static_assert(
+      std::is_same_v<uint8_t,
+                     std::underlying_type_t<DeoptimizationLiteralKind>>);
+  DCHECK_LE(kSizeOfKind, buffer.size());
+  buffer[0] = static_cast<uint8_t>(kind());
+  buffer += kSizeOfKind;
+  auto WriteValue = [buffer](auto value) {
+    static_assert(std::is_trivially_copyable_v<decltype(value)>);
+    DCHECK_LE(sizeof(value), buffer.size());
+    memcpy(buffer.data(), &value, sizeof(value));
+    return sizeof(value) + kSizeOfKind;
+  };
+  switch (kind_) {
+    case DeoptimizationLiteralKind::kInvalid:
+    case DeoptimizationLiteralKind::kObject:
+    case DeoptimizationLiteralKind::kNumber:
+    case DeoptimizationLiteralKind::kHoleNaN:
+      break;
+    case DeoptimizationLiteralKind::kSignedBigInt64:
+      return WriteValue(int64_);
+    case DeoptimizationLiteralKind::kUnsignedBigInt64:
+      return WriteValue(uint64_);
+    case DeoptimizationLiteralKind::kWasmI31Ref:
+    case DeoptimizationLiteralKind::kWasmInt32:
+      return WriteValue(int32_);
+    case DeoptimizationLiteralKind::kWasmFloat32:
+      return WriteValue(float32_);
+    case DeoptimizationLiteralKind::kWasmFloat64:
+      return WriteValue(float64_);
+  }
+  UNREACHABLE();
+}
+
+// static
+size_t DeoptimizationLiteral::Read(base::Vector<const uint8_t> buffer,
+                                   DeoptimizationLiteral* out) {
+  static constexpr size_t kSizeOfKind = 1;
+  static_assert(
+      std::is_same_v<uint8_t,
+                     std::underlying_type_t<DeoptimizationLiteralKind>>);
+  DCHECK_NE(0, buffer.size());
+  DeoptimizationLiteralKind kind =
+      static_cast<DeoptimizationLiteralKind>(buffer[0]);
+  buffer += kSizeOfKind;
+  auto Read = []<typename T, typename R = T>(base::Vector<const uint8_t> buffer,
+                                             DeoptimizationLiteral* out,
+                                             std::function<R(T)> convert = {}) {
+    T value;
+    DCHECK_LE(sizeof(value), buffer.size());
+    memcpy(&value, buffer.data(), sizeof(value));
+    R result_value;
+    if constexpr (std::is_same_v<T, R>) {
+      result_value = convert ? convert(value) : value;
+    } else {
+      DCHECK_NOT_NULL(convert);
+      result_value = convert(value);
     }
+    *out = DeoptimizationLiteral{result_value};
+    return sizeof(value) + kSizeOfKind;
+  };  // NOLINT(readability/braces)
+
+  switch (kind) {
+    case DeoptimizationLiteralKind::kInvalid:
+    case DeoptimizationLiteralKind::kObject:
+    case DeoptimizationLiteralKind::kNumber:
+    case DeoptimizationLiteralKind::kHoleNaN:
+      break;
+    case DeoptimizationLiteralKind::kSignedBigInt64:
+      return Read.operator()<int64_t>(buffer, out);
+    case DeoptimizationLiteralKind::kUnsignedBigInt64:
+      return Read.operator()<uint64_t>(buffer, out);
+    case DeoptimizationLiteralKind::kWasmI31Ref:
+      return Read.operator()<int32_t, Tagged<Smi>>(
+          buffer, out, [](int32_t value) { return Smi::FromInt(value); });
+    case DeoptimizationLiteralKind::kWasmInt32:
+      return Read.operator()<int32_t>(buffer, out);
+    case DeoptimizationLiteralKind::kWasmFloat32:
+      return Read.operator()<Float32>(buffer, out);
+    case DeoptimizationLiteralKind::kWasmFloat64:
+      return Read.operator()<Float64>(buffer, out);
   }
   UNREACHABLE();
 }
 
 Handle<DeoptimizationData> DeoptimizationData::New(Isolate* isolate,
                                                    int deopt_entry_count) {
-  return Cast<DeoptimizationData>(
+  return TrustedCast<DeoptimizationData>(
       isolate->factory()->NewProtectedFixedArray(LengthFor(deopt_entry_count)));
 }
 
 Handle<DeoptimizationData> DeoptimizationData::New(LocalIsolate* isolate,
                                                    int deopt_entry_count) {
-  return Cast<DeoptimizationData>(
+  return TrustedCast<DeoptimizationData>(
       isolate->factory()->NewProtectedFixedArray(LengthFor(deopt_entry_count)));
 }
 
 Handle<DeoptimizationData> DeoptimizationData::Empty(Isolate* isolate) {
-  return Cast<DeoptimizationData>(
+  return TrustedCast<DeoptimizationData>(
       isolate->factory()->empty_protected_fixed_array());
 }
 
 Handle<DeoptimizationData> DeoptimizationData::Empty(LocalIsolate* isolate) {
-  return Cast<DeoptimizationData>(
+  return TrustedCast<DeoptimizationData>(
       isolate->factory()->empty_protected_fixed_array());
 }
 

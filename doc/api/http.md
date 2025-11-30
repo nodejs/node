@@ -118,14 +118,17 @@ added: v0.3.4
 changes:
   - version:
     - v24.7.0
+    - v22.20.0
     pr-url: https://github.com/nodejs/node/pull/59315
     description: Add support for `agentKeepAliveTimeoutBuffer`.
   - version:
     - v24.5.0
+    - v22.21.0
     pr-url: https://github.com/nodejs/node/pull/58980
     description: Add support for `proxyEnv`.
   - version:
     - v24.5.0
+    - v22.21.0
     pr-url: https://github.com/nodejs/node/pull/58980
     description: Add support for `defaultPort` and `protocol`.
   - version:
@@ -236,23 +239,37 @@ added: v0.11.4
 -->
 
 * `options` {Object} Options containing connection details. Check
-  [`net.createConnection()`][] for the format of the options
-* `callback` {Function} Callback function that receives the created socket
-* Returns: {stream.Duplex}
+  [`net.createConnection()`][] for the format of the options. For custom agents,
+  this object is passed to the custom `createConnection` function.
+* `callback` {Function} (Optional, primarily for custom agents) A function to be
+  called by a custom `createConnection` implementation when the socket is
+  created, especially for asynchronous operations.
+  * `err` {Error | null} An error object if socket creation failed.
+  * `socket` {stream.Duplex} The created socket.
+* Returns: {stream.Duplex} The created socket. This is returned by the default
+  implementation or by a custom synchronous `createConnection` implementation.
+  If a custom `createConnection` uses the `callback` for asynchronous
+  operation, this return value might not be the primary way to obtain the socket.
 
 Produces a socket/stream to be used for HTTP requests.
 
-By default, this function is the same as [`net.createConnection()`][]. However,
-custom agents may override this method in case greater flexibility is desired.
+By default, this function behaves identically to [`net.createConnection()`][],
+synchronously returning the created socket. The optional `callback` parameter in the
+signature is **not** used by this default implementation.
 
-A socket/stream can be supplied in one of two ways: by returning the
-socket/stream from this function, or by passing the socket/stream to `callback`.
+However, custom agents may override this method to provide greater flexibility,
+for example, to create sockets asynchronously. When overriding `createConnection`:
 
-This method is guaranteed to return an instance of the {net.Socket} class,
-a subclass of {stream.Duplex}, unless the user specifies a socket
-type other than {net.Socket}.
+1. **Synchronous socket creation**: The overriding method can return the
+   socket/stream directly.
+2. **Asynchronous socket creation**: The overriding method can accept the `callback`
+   and pass the created socket/stream to it (e.g., `callback(null, newSocket)`).
+   If an error occurs during socket creation, it should be passed as the first
+   argument to the `callback` (e.g., `callback(err)`).
 
-`callback` has a signature of `(err, stream)`.
+The agent will call the provided `createConnection` function with `options` and
+this internal `callback`. The `callback` provided by the agent has a signature
+of `(err, stream)`.
 
 ### `agent.keepSocketAlive(socket)`
 
@@ -636,7 +653,7 @@ added: v0.3.6
 -->
 
 Emitted when the request has been sent. More specifically, this event is emitted
-when the last segment of the response headers and body have been handed off to
+when the last segment of the request headers and body have been handed off to
 the operating system for transmission over the network. It does not imply that
 the server has received anything yet.
 
@@ -742,7 +759,7 @@ added: v0.1.94
 -->
 
 * `response` {http.IncomingMessage}
-* `socket` {stream.Duplex}
+* `stream` {stream.Duplex}
 * `head` {Buffer}
 
 Emitted each time a server responds to a request with an upgrade. If this
@@ -765,13 +782,13 @@ const server = http.createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/plain' });
   res.end('okay');
 });
-server.on('upgrade', (req, socket, head) => {
-  socket.write('HTTP/1.1 101 Web Socket Protocol Handshake\r\n' +
+server.on('upgrade', (req, stream, head) => {
+  stream.write('HTTP/1.1 101 Web Socket Protocol Handshake\r\n' +
                'Upgrade: WebSocket\r\n' +
                'Connection: Upgrade\r\n' +
                '\r\n');
 
-  socket.pipe(socket); // echo back
+  stream.pipe(stream); // echo back
 });
 
 // Now that server is running
@@ -790,9 +807,9 @@ server.listen(1337, '127.0.0.1', () => {
   const req = http.request(options);
   req.end();
 
-  req.on('upgrade', (res, socket, upgradeHead) => {
+  req.on('upgrade', (res, stream, upgradeHead) => {
     console.log('got upgraded!');
-    socket.end();
+    stream.end();
     process.exit(0);
   });
 });
@@ -806,13 +823,13 @@ const server = http.createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/plain' });
   res.end('okay');
 });
-server.on('upgrade', (req, socket, head) => {
-  socket.write('HTTP/1.1 101 Web Socket Protocol Handshake\r\n' +
+server.on('upgrade', (req, stream, head) => {
+  stream.write('HTTP/1.1 101 Web Socket Protocol Handshake\r\n' +
                'Upgrade: WebSocket\r\n' +
                'Connection: Upgrade\r\n' +
                '\r\n');
 
-  socket.pipe(socket); // echo back
+  stream.pipe(stream); // echo back
 });
 
 // Now that server is running
@@ -831,9 +848,9 @@ server.listen(1337, '127.0.0.1', () => {
   const req = http.request(options);
   req.end();
 
-  req.on('upgrade', (res, socket, upgradeHead) => {
+  req.on('upgrade', (res, stream, upgradeHead) => {
     console.log('got upgraded!');
-    socket.end();
+    stream.end();
     process.exit(0);
   });
 });
@@ -1171,6 +1188,7 @@ may run into a 'ECONNRESET' error.
 
 ```mjs
 import http from 'node:http';
+const agent = new http.Agent({ keepAlive: true });
 
 // Server has a 5 seconds keep-alive timeout by default
 http
@@ -1192,6 +1210,7 @@ setInterval(() => {
 
 ```cjs
 const http = require('node:http');
+const agent = new http.Agent({ keepAlive: true });
 
 // Server has a 5 seconds keep-alive timeout by default
 http
@@ -1672,6 +1691,16 @@ per connection (in the case of HTTP Keep-Alive connections).
 added: v0.1.94
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/60016
+    description: Request bodies are no longer exposed raw (unparsed) on the
+                 socket argument. Instead, if a body is received, the stream
+                 argument will be a duplex that emits socket content only
+                 after the request body, while the parsed request body data
+                 will be emitted from the request, just as in normal server
+                 `'request'` events.
+  - version:
+     - v24.9.0
+     - v22.21.0
     pr-url: https://github.com/nodejs/node/pull/59824
     description: Whether this event is fired can now be controlled by the
                  `shouldUpgradeCallback` and sockets will be destroyed
@@ -1684,7 +1713,7 @@ changes:
 
 * `request` {http.IncomingMessage} Arguments for the HTTP request, as it is in
   the [`'request'`][] event
-* `socket` {stream.Duplex} Network socket between the server and client
+* `stream` {stream.Duplex} The upgraded stream between the server and client
 * `head` {Buffer} The first packet of the upgraded stream (may be empty)
 
 Emitted each time a client's HTTP upgrade request is accepted. By default
@@ -1692,23 +1721,29 @@ all HTTP upgrade requests are ignored (i.e. only regular `'request'` events
 are emitted, sticking with the normal HTTP request/response flow) unless you
 listen to this event, in which case they are all accepted (i.e. the `'upgrade'`
 event is emitted instead, and future communication must handled directly
-through the raw socket). You can control this more precisely by using the
+through the raw stream). You can control this more precisely by using the
 server `shouldUpgradeCallback` option.
 
 Listening to this event is optional and clients cannot insist on a protocol
 change.
 
-After this event is emitted, the request's socket will not have a `'data'`
-event listener, meaning it will need to be bound in order to handle data
-sent to the server on that socket.
-
 If an upgrade is accepted by `shouldUpgradeCallback` but no event handler
-is registered then the socket is destroyed, resulting in an immediate
+is registered then the socket will be destroyed, resulting in an immediate
 connection closure for the client.
 
-This event is guaranteed to be passed an instance of the {net.Socket} class,
-a subclass of {stream.Duplex}, unless the user specifies a socket
-type other than {net.Socket}.
+In the uncommon case that the incoming request has a body, this body will be
+parsed as normal, separate to the upgrade stream, and the raw stream data will
+only begin after it has completed. To ensure that reading from the stream isn't
+blocked by waiting for the request body to be read, any reads on the stream
+will start the request body flowing automatically. If you want to read the
+request body, ensure that you do so (i.e. you attach `'data'` listeners)
+before starting to read from the upgraded stream.
+
+The stream argument will typically be the {net.Socket} instance used by the
+request, but in some cases (such as with a request body) it may be a duplex
+stream. If required, you can access the raw connection underlying the request
+via [`request.socket`][], which is guaranteed to be an instance of {net.Socket}
+unless the user specified another socket type.
 
 ### `server.close([callback])`
 
@@ -3554,7 +3589,12 @@ Found'`.
 <!-- YAML
 added: v0.1.13
 changes:
-  - version: REPLACEME
+  - version: v25.1.0
+    pr-url: https://github.com/nodejs/node/pull/59778
+    description: Add optimizeEmptyRequests option.
+  - version:
+     - v24.9.0
+     - v22.21.0
     pr-url: https://github.com/nodejs/node/pull/59824
     description: The `shouldUpgradeCallback` option is now supported.
   - version:
@@ -3658,6 +3698,11 @@ changes:
     using `; `.
   * `rejectNonStandardBodyWrites` {boolean} If set to `true`, an error is thrown
     when writing to an HTTP response which does not have a body.
+    **Default:** `false`.
+  * `optimizeEmptyRequests` {boolean} If set to `true`, requests without `Content-Length`
+    or `Transfer-Encoding` headers (indicating no body) will be initialized with an
+    already-ended body stream, so they will never emit any stream events
+    (like `'data'` or `'end'`). You can use `req.readableEnded` to detect this case.
     **Default:** `false`.
 
 * `requestListener` {Function}
@@ -4328,7 +4373,9 @@ A browser-compatible implementation of {WebSocket}.
 ## Built-in Proxy Support
 
 <!-- YAML
-added: v24.5.0
+added:
+ - v24.5.0
+ - v22.21.0
 -->
 
 > Stability: 1.1 - Active development

@@ -69,7 +69,6 @@ V8_OBJECT class Tuple2 : public StructLayout {
 //   * null: an accessor which has not been set
 V8_OBJECT class AccessorPair : public StructLayout {
  public:
-  NEVER_READ_ONLY_SPACE
   static DirectHandle<AccessorPair> Copy(Isolate* isolate,
                                          DirectHandle<AccessorPair> pair);
 

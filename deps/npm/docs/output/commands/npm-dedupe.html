@@ -141,9 +141,9 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="----npm-dedupe----1160">
+<h1 id="----npm-dedupe----1164">
     <span>npm-dedupe</span>
-    <span class="version">@11.6.0</span>
+    <span class="version">@11.6.4</span>
 </h1>
 <span class="description">Reduce duplication in the package tree</span>
 </header>
@@ -159,9 +159,7 @@ npm command-line interface
 alias: ddp
 </code></pre>
 <h3 id="description">Description</h3>
-<p>Searches the local package tree and attempts to simplify the overall
-structure by moving dependencies further up the tree, where they can
-be more effectively shared by multiple dependent packages.</p>
+<p>Searches the local package tree and attempts to simplify the overall structure by moving dependencies further up the tree, where they can be more effectively shared by multiple dependent packages.</p>
 <p>For example, consider this dependency graph:</p>
 <pre><code>a
 +-- b &lt;-- depends on c@1.0.x
@@ -175,9 +173,7 @@ be more effectively shared by multiple dependent packages.</p>
 +-- d
 `-- c@1.0.10
 </code></pre>
-<p>Because of the hierarchical nature of node's module lookup, b and d
-will both get their dependency met by the single c package at the root
-level of the tree.</p>
+<p>Because of the hierarchical nature of node's module lookup, b and d will both get their dependency met by the single c package at the root level of the tree.</p>
 <p>In some cases, you may have a dependency graph like this:</p>
 <pre><code>a
 +-- b &lt;-- depends on c@1.0.x
@@ -185,23 +181,15 @@ level of the tree.</p>
 `-- d &lt;-- depends on c@1.x
     `-- c@1.9.9
 </code></pre>
-<p>During the installation process, the <code>c@1.0.3</code> dependency for <code>b</code> was
-placed in the root of the tree.  Though <code>d</code>'s dependency on <code>c@1.x</code> could
-have been satisfied by <code>c@1.0.3</code>, the newer <code>c@1.9.0</code> dependency was used,
-because npm favors updates by default, even when doing so causes
-duplication.</p>
-<p>Running <code>npm dedupe</code> will cause npm to note the duplication and
-re-evaluate, deleting the nested <code>c</code> module, because the one in the root is
-sufficient.</p>
-<p>To prefer deduplication over novelty during the installation process, run
-<code>npm install --prefer-dedupe</code> or <code>npm config set prefer-dedupe true</code>.</p>
-<p>Arguments are ignored. Dedupe always acts on the entire tree.</p>
-<p>Note that this operation transforms the dependency tree, but will never
-result in new modules being installed.</p>
+<p>During the installation process, the <code>c@1.0.3</code> dependency for <code>b</code> was placed in the root of the tree.
+Though <code>d</code>'s dependency on <code>c@1.x</code> could have been satisfied by <code>c@1.0.3</code>, the newer <code>c@1.9.0</code> dependency was used, because npm favors updates by default, even when doing so causes duplication.</p>
+<p>Running <code>npm dedupe</code> will cause npm to note the duplication and re-evaluate, deleting the nested <code>c</code> module, because the one in the root is sufficient.</p>
+<p>To prefer deduplication over novelty during the installation process, run <code>npm install --prefer-dedupe</code> or <code>npm config set prefer-dedupe true</code>.</p>
+<p>Arguments are ignored.
+Dedupe always acts on the entire tree.</p>
+<p>Note that this operation transforms the dependency tree, but will never result in new modules being installed.</p>
 <p>Using <code>npm find-dupes</code> will run the command in <code>--dry-run</code> mode.</p>
-<p>Note: <code>npm dedupe</code> will never update the semver values of direct
-dependencies in your project <code>package.json</code>, if you want to update
-values in <code>package.json</code> you can run: <code>npm update --save</code> instead.</p>
+<p>Note: <code>npm dedupe</code> will never update the semver values of direct dependencies in your project <code>package.json</code>, if you want to update values in <code>package.json</code> you can run: <code>npm update --save</code> instead.</p>
 <h3 id="configuration">Configuration</h3>
 <h4 id="install-strategy"><code>install-strategy</code></h4>
 <ul>
@@ -260,7 +248,7 @@ will also prevent <em>writing</em> <code>package-lock.json</code> if <code>save<
 <h4 id="omit"><code>omit</code></h4>
 <ul>
 <li>Default: 'dev' if the <code>NODE_ENV</code> environment variable is set to
-'production', otherwise empty.</li>
+'production'; otherwise, empty.</li>
 <li>Type: "dev", "optional", or "peer" (can be set multiple times)</li>
 </ul>
 <p>Dependency types to omit from the installation tree on disk.</p>

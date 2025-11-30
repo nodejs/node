@@ -60,11 +60,13 @@ Handle<SharedFunctionInfo> FunctionTemplateInfo::GetOrCreateSharedFunctionInfo(
 }
 
 bool FunctionTemplateInfo::IsTemplateFor(Tagged<Map> map) const {
-  RCS_SCOPE(
-      LocalHeap::Current() == nullptr
-          ? GetIsolateChecked()->counters()->runtime_call_stats()
-          : LocalIsolate::FromHeap(LocalHeap::Current())->runtime_call_stats(),
-      RuntimeCallCounterId::kIsTemplateFor);
+#ifdef V8_RUNTIME_CALL_STATS
+  LocalHeap* local_heap = LocalHeap::Current();
+  RCS_SCOPE(local_heap->is_main_thread()
+                ? Isolate::Current()->counters()->runtime_call_stats()
+                : LocalIsolate::FromHeap(local_heap)->runtime_call_stats(),
+            RuntimeCallCounterId::kIsTemplateFor);
+#endif  // V8_RUNTIME_CALL_STATS
 
   // There is a constraint on the object; check.
   if (!IsJSObjectMap(map)) return false;
@@ -231,10 +233,12 @@ DirectHandle<JSObject> CreateSlowJSObjectWithProperties(
     if (!property_values[i].ToLocal(&property_value)) {
       continue;
     }
-    properties = PropertyDictionary::Add(
-        isolate, Cast<PropertyDictionary>(properties),
-        Cast<String>(handle(property_names->get(i), isolate)),
-        Utils::OpenDirectHandle(*property_value), PropertyDetails::Empty());
+    properties =
+        PropertyDictionary::Add(
+            isolate, Cast<PropertyDictionary>(properties),
+            Cast<String>(handle(property_names->get(i), isolate)),
+            Utils::OpenDirectHandle(*property_value), PropertyDetails::Empty())
+            .ToHandleChecked();
   }
   object->set_raw_properties_or_hash(*properties);
   return object;
@@ -247,7 +251,7 @@ DirectHandle<JSObject> DictionaryTemplateInfo::NewInstance(
     DirectHandle<NativeContext> context,
     DirectHandle<DictionaryTemplateInfo> self,
     const MemorySpan<MaybeLocal<Value>>& property_values) {
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::Current();
   DirectHandle<FixedArray> property_names(self->property_names(), isolate);
 
   const int property_names_len = property_names->length();

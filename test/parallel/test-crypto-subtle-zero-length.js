@@ -34,6 +34,4 @@ const { subtle } = globalThis.crypto;
   }, k, e);
   assert(v instanceof ArrayBuffer);
   assert.strictEqual(v.byteLength, 0);
-})().then(common.mustCall()).catch((e) => {
-  assert.ifError(e);
-});
+})().then(common.mustCall());

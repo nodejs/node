@@ -5,7 +5,7 @@ const { finished } = require('stream');
 const http = require('http');
 const assert = require('assert');
 
-const server = http.createServer(function(req, res) {
+const server = http.createServer(common.mustCallAtLeast(function(req, res) {
   let closed = false;
   res
     .on('close', common.mustCall(() => {
@@ -19,7 +19,7 @@ const server = http.createServer(function(req, res) {
     assert.strictEqual(closed, true);
   }));
 
-}).listen(0, function() {
+})).listen(0, function() {
   http
     .request({
       port: this.address().port,

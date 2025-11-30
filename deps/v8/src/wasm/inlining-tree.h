@@ -9,7 +9,6 @@
 #error This header should only be included if WebAssembly is enabled.
 #endif  // !V8_ENABLE_WEBASSEMBLY
 
-#include <cinttypes>
 #include <cstdint>
 #include <queue>
 #include <vector>
@@ -43,7 +42,7 @@ class InliningTree : public ZoneObject {
                                   uint32_t function_index) {
     InliningTree* tree = zone->New<InliningTree>(
         zone->New<Data>(zone, module, function_index), function_index,
-        0,           // Call count.
+        1.0,         // Relative call count
         0,           // Wire byte size. `0` causes the root node to always get
                      // expanded, regardless of budget.
         -1, -1, -1,  // Caller, feedback slot, case.
@@ -71,13 +70,13 @@ class InliningTree : public ZoneObject {
                     static_cast<int>(max_growth_factor * wirebytes));
   }
 
-  int64_t score() const {
-    // Note that the zero-point is arbitrary. Functions with negative score
-    // can still get inlined.
-    constexpr int count_factor = 2;
-    constexpr int size_factor = 3;
-    return int64_t{call_count_} * count_factor -
-           int64_t{wire_byte_size_} * size_factor;
+  double score() const {
+    // '0' can only happen for imported or invalid functions. Every valid
+    // declared function has to have size at least 2 (locals count, kExprEnd).
+    DCHECK_IMPLIES(wire_byte_size_ == 0,
+                   function_index_ < data_->module->num_imported_functions ||
+                       !data_->module->function_was_validated(function_index_));
+    return wire_byte_size_ == 0 ? 0.0 : relative_call_count_ / wire_byte_size_;
   }
 
   // TODO(dlehmann,manoskouk): We are running into this limit, e.g., for the
@@ -150,7 +149,7 @@ class InliningTree : public ZoneObject {
       // both compilers.
       // TODO(jkummerow): When TF is gone, remove this factor by folding it
       // into the flag's default value.
-      constexpr double kTurboshaftCorrectionFactor = 1.4;
+      constexpr double kTurboshaftCorrectionFactor = 1.2;
       double high_cap =
           v8_flags.wasm_inlining_budget * kTurboshaftCorrectionFactor;
       double low_cap = high_cap / 10;
@@ -164,12 +163,13 @@ class InliningTree : public ZoneObject {
     uint32_t topmost_caller_index;
   };
 
-  InliningTree(Data* shared, uint32_t function_index, int call_count,
-               int wire_byte_size, uint32_t caller_index, int feedback_slot,
-               int the_case, uint32_t depth)
+  InliningTree(Data* shared, uint32_t function_index,
+               double relative_call_count, int wire_byte_size,
+               uint32_t caller_index, int feedback_slot, int the_case,
+               uint32_t depth)
       : data_(shared),
         function_index_(function_index),
-        call_count_(call_count),
+        relative_call_count_(relative_call_count),
         wire_byte_size_(wire_byte_size),
         depth_(depth),
         caller_index_(caller_index),
@@ -190,7 +190,7 @@ class InliningTree : public ZoneObject {
 
   Data* data_;
   uint32_t function_index_;
-  int call_count_;
+  double relative_call_count_;
   int wire_byte_size_;
   bool is_inlined_ = false;
   bool feedback_found_ = false;
@@ -229,10 +229,15 @@ void InliningTree::Inline() {
     for (int the_case = 0; the_case < type_feedback[i].num_cases();
          the_case++) {
       uint32_t callee_index = type_feedback[i].function_index(the_case);
-      // TODO(jkummerow): Experiment with propagating relative call counts
-      // into the nested InliningTree, and weighting scores there accordingly.
+      double relative_call_count =
+          feedback.num_invocations != 0
+              ? static_cast<double>(type_feedback[i].call_count(the_case)) /
+                    feedback.num_invocations
+              : 0.0;
       function_calls_[i][the_case] = data_->zone->New<InliningTree>(
-          data_, callee_index, type_feedback[i].call_count(the_case),
+          data_, callee_index,
+          // Propagate relative call counts into the nested InliningTree.
+          relative_call_count * relative_call_count_,
           data_->module->functions[callee_index].code.length(), function_index_,
           static_cast<int>(i), the_case, depth_ + 1);
     }
@@ -265,11 +270,11 @@ void InliningTree::FullyExpand() {
       if (top != this) {
         PrintF(
             "[function %d: in function %d, considering call #%d, case #%d, to "
-            "function %d (count=%d, size=%d, score=%" PRId64 ")... ",
+            "function %d (relative_call_count=%lf, size=%d, score=%lf)... ",
             data_->topmost_caller_index, top->caller_index_,
             top->feedback_slot_, static_cast<int>(top->case_),
-            static_cast<int>(top->function_index_), top->call_count_,
-            top->wire_byte_size_, static_cast<int64_t>(top->score()));
+            static_cast<int>(top->function_index_), top->relative_call_count_,
+            top->wire_byte_size_, top->score());
       } else {
         PrintF("[function %d: expanding topmost caller... ",
                data_->topmost_caller_index);
@@ -292,9 +297,10 @@ void InliningTree::FullyExpand() {
     // Key idea: inlining hot calls is good, inlining big functions is bad,
     // so inline when a candidate is "hotter than it is big". Exception:
     // tiny candidates can get inlined regardless of their call count.
-    if (top != this && top->wire_byte_size_ >= 12 &&
+    if (top->wire_byte_size_ >= 12 &&
         !v8_flags.wasm_inlining_ignore_call_counts) {
-      if (top->call_count_ < top->wire_byte_size_ / 2) {
+      DCHECK_NE(top, this);
+      if (top->score() < 0.0001) {
         if (v8_flags.trace_wasm_inlining) {
           PrintF("not called often enough]\n");
         }
@@ -304,7 +310,8 @@ void InliningTree::FullyExpand() {
 
     if (!top->SmallEnoughToInline(initial_wire_byte_size,
                                   inlined_wire_byte_count)) {
-      if (v8_flags.trace_wasm_inlining && top != this) {
+      DCHECK_NE(top, this);
+      if (v8_flags.trace_wasm_inlining) {
         PrintF("not enough inlining budget]\n");
       }
       continue;

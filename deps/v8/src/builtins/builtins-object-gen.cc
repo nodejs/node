@@ -561,9 +561,9 @@ TF_BUILTIN(ObjectAssign, ObjectBuiltinsAssembler) {
               SideStepTransition::Kind::kObjectAssignValidityCell)));
       TNode<Cell> validity_cell = CAST(
           GetHeapObjectAssumeWeak(maybe_validity_cell, &runtime_map_lookup));
-      GotoIfNot(TaggedEqual(LoadCellValue(validity_cell),
-                            SmiConstant(Map::kPrototypeChainValid)),
-                &runtime_map_lookup);
+      GotoIf(TaggedEqual(LoadCellMaybeValue(validity_cell),
+                         PrototypeChainInvalidConstant()),
+             &runtime_map_lookup);
       clone_map = target_map;
     }
     Goto(&continue_fast_path);
@@ -1405,8 +1405,10 @@ TF_BUILTIN(CreateGeneratorObject, ObjectBuiltinsAssembler) {
   Label done(this), runtime(this);
   GotoIfForceSlowPath(&runtime);
   GotoIfNot(IsFunctionWithPrototypeSlotMap(LoadMap(closure)), &runtime);
-  TNode<HeapObject> maybe_map = LoadObjectField<HeapObject>(
-      closure, JSFunction::kPrototypeOrInitialMapOffset);
+  TNode<UnionOf<JSPrototype, Map, TheHole>> maybe_map =
+      LoadObjectField<UnionOf<JSPrototype, Map, TheHole>>(
+          closure, JSFunction::kPrototypeOrInitialMapOffset);
+  GotoIf(IsTheHole(maybe_map), &runtime);
   GotoIf(DoesntHaveInstanceType(maybe_map, MAP_TYPE), &runtime);
   TNode<Map> map = CAST(maybe_map);
 

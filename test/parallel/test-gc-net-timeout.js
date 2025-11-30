@@ -3,7 +3,7 @@
 // just like test-gc-http-client-timeout.js,
 // but using a net server/client instead
 
-require('../common');
+const common = require('../common');
 const { onGC } = require('../common/gc');
 const assert = require('assert');
 const net = require('net');
@@ -18,9 +18,9 @@ function serverHandler(sock) {
   sock.on('end', function() {
     clearTimeout(timer);
   });
-  sock.on('error', function(err) {
+  sock.on('error', common.mustCallAtLeast((err) => {
     assert.strictEqual(err.code, 'ECONNRESET');
-  });
+  }, 0));
   const timer = setTimeout(function() {
     sock.end('hello\n');
   }, 100);

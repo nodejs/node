@@ -157,7 +157,7 @@ Depending on the host platform, the selection of toolchains may vary.
 | ---------------- | -------------------------------------------------------------- |
 | Linux            | GCC >= 12.2 or Clang >= 19.1                                   |
 | Windows          | Visual Studio >= 2022 with the Windows 10 SDK on a 64-bit host |
-| macOS            | Xcode >= 16.3 (Apple LLVM >= 19)                               |
+| macOS            | Xcode >= 16.4 (Apple LLVM >= 19)                               |
 
 ### Official binary platforms and toolchains
 
@@ -166,14 +166,19 @@ Binaries at <https://nodejs.org/download/release/> are produced on:
 | Binary package          | Platform and Toolchain                                        |
 | ----------------------- | ------------------------------------------------------------- |
 | aix-ppc64               | AIX 7.2 TL04 on PPC64BE with GCC 12[^5]                       |
-| darwin-x64              | macOS 13, Xcode 16 with -mmacosx-version-min=13.5             |
-| darwin-arm64 (and .pkg) | macOS 13 (arm64), Xcode 16 with -mmacosx-version-min=13.5     |
+| darwin-x64              | macOS 15, Xcode 16 with -mmacosx-version-min=13.5             |
+| darwin-arm64 (and .pkg) | macOS 15 (arm64), Xcode 16 with -mmacosx-version-min=13.5     |
 | linux-arm64             | RHEL 8 with Clang 19.1 and gcc-toolset-14-libatomic-devel[^6] |
 | linux-ppc64le           | RHEL 8 with Clang 19.1 and gcc-toolset-14-libatomic-devel[^6] |
 | linux-s390x             | RHEL 8 with Clang 19.1 and gcc-toolset-14-libatomic-devel[^6] |
 | linux-x64               | RHEL 8 with Clang 19.1 and gcc-toolset-14-libatomic-devel[^6] |
 | win-arm64               | Windows Server 2022 (x64) with Visual Studio 2022             |
 | win-x64                 | Windows Server 2022 (x64) with Visual Studio 2022             |
+
+Starting with Node.js 25, official Linux binaries are linked with `libatomic` and these systems
+must have the `libatomic` runtime installed and available at execution time to run the binaries.
+The package name for the `libatomic` runtime is typically `libatomic` or `libatomic1` depending
+on your Linux distibution.
 
 <!--lint disable final-definition-->
 
@@ -239,6 +244,7 @@ Consult previous versions of this document for older versions of Node.js:
 
 Installation via Linux package manager can be achieved with:
 
+* Nix, NixOS: `nix-shell`
 * Ubuntu, Debian: `sudo apt-get install python3 g++-12 gcc-12 make python3-pip`
 * Fedora: `sudo dnf install python3 gcc-c++ make python3-pip`
 * CentOS and RHEL: `sudo yum install python3 gcc-c++ make python3-pip`
@@ -249,7 +255,7 @@ FreeBSD and OpenBSD users may also need to install `libexecinfo`.
 
 #### macOS prerequisites
 
-* Xcode Command Line Tools >= 16.3 for macOS
+* Xcode Command Line Tools >= 16.4 for macOS
 * [A supported version of Python][Python versions]
   * For test coverage, your Python installation must include pip.
 
@@ -259,6 +265,81 @@ installed, you can find them under the menu `Xcode -> Open Developer Tool ->
 More Developer Tools...`. This step will install `clang`, `clang++`, and
 `make`.
 
+#### Nix integration
+
+If you are using Nix and direnv, you can use the following to get started:
+
+```bash
+echo 'use_nix --arg sharedLibDeps {} --argstr icu small' > .envrc
+direnv allow .
+make build-ci -j12
+```
+
+Most dependencies will likely be available in the official nixpkgs cache,
+although for some dependencies we have to deviate for the upstream repository,
+in which case those will be built locally, or you can use the Cachix repository
+for the project: `cachix use nodejs`. See <https://docs.cachix.org/> for more
+information.
+
+The use of `make build-ci` is to ensure you are using the `CONFIG_FLAGS`
+environment variable. You can also specify it manually:
+
+```bash
+./configure $CONFIG_FLAGS
+make -j12
+```
+
+Passing the `--arg sharedLibDeps {}` instructs direnv and Nix to generate an
+environment that uses the vendored-in native dependencies. Using the vendored-in
+dependencies result in a result closer to the official binaries, the tradeoff
+being the build will take longer to complete as you'd have to build those
+dependencies instead of using the cached ones from the Nix cache. You can omit
+that flag to use all the shared dependencies, or specify only some dependencies:
+
+```bash
+cat -> .envrc <<'EOF'
+use nix --arg sharedLibDeps '{
+  inherit (import ./tools/nix/sharedLibDeps.nix {})
+    openssl
+    zlib
+  ;
+}'
+EOF
+```
+
+Passing the `--argstr icu small` instructs direnv and Nix to pass `--with-intl=small` in
+the `CONFIG_FLAGS` environment variable. If you omit this, the prebuilt ICU from Nix cache
+will be used, which should speed up greatly compilation time.
+
+The use of `direnv` is completely optional, you can also use `nix-shell` directly,
+e.g. here's a command you can use to build a binary for benchmarking purposes:
+
+```bash
+# Passing `--arg loadJSBuiltinsDynamically false` to instruct the compiler to
+# embed the JS core files so it is no longer affected by local changes
+# (necessary for getting useful benchmark results).
+# Passing `--arg devTools '[]' --arg benchmarkTools '[]'` since we don't need
+# those to build node.
+nix-shell \
+  --arg loadJSBuiltinsDynamically false \
+  --arg devTools '[]' --arg benchmarkTools '[]' \
+  --run 'make build-ci -j12'
+
+mv out/Release/node ./node_old
+
+# ...
+# Make your local changes, and re-build node
+
+nix-shell \
+  --arg loadJSBuiltinsDynamically false \
+  --arg devTools '[]' --arg benchmarkTools '[]' \
+  --run 'make build-ci -j12'
+
+nix-shell --pure --run './node benchmark/compare.js --old ./node_old  --new ./node http | Rscript benchmark/compare.R'
+```
+
+There are additional attributes you can pass, see `shell.nix` file for more details.
+
 #### Building Node.js
 
 If the path to your build directory contains a space, the build will likely
@@ -267,7 +348,6 @@ fail.
 To build Node.js:
 
 ```bash
-export CXX=g++-12
 ./configure
 make -j4
 ```
@@ -350,6 +430,27 @@ You can also execute the tests in a test suite directory
 
 ```bash
 tools/test.py test/message
+```
+
+You can execute tests that match a specific naming pattern using the wildcard
+`*`. For example, to run all tests under `test/parallel` with a name that starts
+with `test-stream-`:
+
+```bash
+tools/test.py test/parallel/test-stream-*
+tools/test.py parallel/test-stream-*  # The test/ prefix can be omitted
+# In some shell environments, you may need to quote the pattern
+tools/test.py "test/parallel/test-stream-*"
+```
+
+The wildcard `*` can be used in any part of the path. For example, to run all tests
+with a name that starts with `test-inspector-`, regardless of the directory they are in:
+
+```bash
+# Matches test/sequential/test-inspector-*, test/parallel/test-inspector-*,
+# test/known_issues/test-inspector-*, etc.
+tools/test.py "test/*/test-inspector-*"
+tools/test.py "*/test-inspector-*"  # The test/ prefix can be omitted
 ```
 
 If you want to check the other options, please refer to the help by using

@@ -108,18 +108,23 @@ class KeyedAccessMode {
   bool IsStore() const;
   KeyedAccessLoadMode load_mode() const;
   KeyedAccessStoreMode store_mode() const;
+  // This is a hint indicating that the keyed IC was not in "elements mode".
+  // There may well be keys of any kind (string, integer, string representation
+  // of an integer, or "JSAny", really) that will need to be handled.
+  bool string_keys() const { return string_keys_; }
 
  private:
   AccessMode const access_mode_;
-  union LoadStoreMode {
-    LoadStoreMode(KeyedAccessLoadMode load_mode);
-    LoadStoreMode(KeyedAccessStoreMode store_mode);
-    KeyedAccessLoadMode load_mode;
-    KeyedAccessStoreMode store_mode;
-  } const load_store_mode_;
+  union {
+    KeyedAccessLoadMode load_mode_;    // If IsLoad().
+    KeyedAccessStoreMode store_mode_;  // If IsStore().
+  };
+  bool string_keys_;
 
-  KeyedAccessMode(AccessMode access_mode, KeyedAccessLoadMode load_mode);
-  KeyedAccessMode(AccessMode access_mode, KeyedAccessStoreMode store_mode);
+  KeyedAccessMode(AccessMode access_mode, KeyedAccessLoadMode load_mode,
+                  bool string_keys);
+  KeyedAccessMode(AccessMode access_mode, KeyedAccessStoreMode store_mode,
+                  bool string_keys);
 };
 
 class ElementAccessFeedback : public ProcessedFeedback {
@@ -167,18 +172,26 @@ class ElementAccessFeedback : public ProcessedFeedback {
 
 class NamedAccessFeedback : public ProcessedFeedback {
  public:
-  NamedAccessFeedback(NameRef name, ZoneVector<MapRef> const& maps,
+  NamedAccessFeedback(JSHeapBroker* broker, NameRef name,
+                      ZoneVector<MapRef> const& maps,
                       FeedbackSlotKind slot_kind,
                       bool has_deprecated_map_without_migration_target = false);
 
   NameRef name() const { return name_; }
+  NameRef original_name_maybe_thin() const { return original_name_maybe_thin_; }
   ZoneVector<MapRef> const& maps() const { return maps_; }
   bool has_deprecated_map_without_migration_target() const {
     return has_deprecated_map_without_migration_target_;
   }
 
  private:
+  // The unpacked name of the property. If the original name was a ThinString,
+  // this will be the actual underlying string. Used for optimizations that
+  // care about the string's content and require IsUniqueName.
   NameRef const name_;
+  // The original name of the property, which could be a ThinString. This is
+  // crucial for checks that rely on object identity.
+  NameRef const original_name_maybe_thin_;
   ZoneVector<MapRef> const maps_;
   bool has_deprecated_map_without_migration_target_;
 };
@@ -224,6 +237,8 @@ class SingleValueFeedback : public ProcessedFeedback {
       : ProcessedFeedback(K, slot_kind), value_(value) {
     DCHECK(
         (K == kBinaryOperation && slot_kind == FeedbackSlotKind::kBinaryOp) ||
+        (K == kBinaryOperation &&
+         slot_kind == FeedbackSlotKind::kStringAddAndInternalize) ||
         (K == kTypeOf && slot_kind == FeedbackSlotKind::kTypeOf) ||
         (K == kCompareOperation && slot_kind == FeedbackSlotKind::kCompareOp) ||
         (K == kForIn && slot_kind == FeedbackSlotKind::kForIn) ||

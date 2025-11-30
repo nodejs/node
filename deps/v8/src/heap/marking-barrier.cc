@@ -69,7 +69,7 @@ void MarkingBarrier::Write(Tagged<HeapObject> host, IndirectPointerSlot slot) {
       // References to the shared trusted space may only originate from the
       // shared space.
       CHECK(HeapLayout::InWritableSharedSpace(host));
-      DCHECK(MemoryChunk::FromHeapObject(value)->IsTrusted());
+      DCHECK(MemoryChunk::FromHeapObject(value)->Metadata()->is_trusted());
       MarkValueShared(value);
     } else {
       MarkValueLocal(value);
@@ -471,10 +471,13 @@ void MarkingBarrier::AssertMarkingIsActivated() const { DCHECK(is_activated_); }
 void MarkingBarrier::AssertSharedMarkingIsActivated() const {
   DCHECK(shared_heap_worklists_.has_value());
 }
+#endif  // DEBUG
+
+#if V8_VERIFY_WRITE_BARRIERS
 bool MarkingBarrier::IsMarked(const Tagged<HeapObject> value) const {
   return marking_state_.IsMarked(value);
 }
-#endif  // DEBUG
+#endif  // V8_VERIFY_WRITE_BARRIERS
 
 }  // namespace internal
 }  // namespace v8

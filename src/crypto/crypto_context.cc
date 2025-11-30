@@ -1022,7 +1022,7 @@ bool ArrayOfStringsToX509s(Local<Context> context,
                            Local<Array> cert_array,
                            std::vector<X509*>* certs) {
   ClearErrorOnReturn clear_error_on_return;
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   Environment* env = Environment::GetCurrent(context);
   uint32_t array_length = cert_array->Length();
 
@@ -1351,7 +1351,6 @@ SecureContext* SecureContext::Create(Environment* env) {
 SecureContext::SecureContext(Environment* env, Local<Object> wrap)
     : BaseObject(env, wrap) {
   MakeWeak();
-  env->external_memory_accounter()->Increase(env->isolate(), kExternalSize);
 }
 
 inline void SecureContext::Reset() {
@@ -1460,7 +1459,7 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
       method = TLS_client_method();
     } else {
       THROW_ERR_TLS_INVALID_PROTOCOL_METHOD(
-          env, "Unknown method: %s", *sslmethod);
+          env, "Unknown method: %s", sslmethod);
       return;
     }
   }
@@ -1469,6 +1468,8 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
   if (!sc->ctx_) {
     return ThrowCryptoError(env, ERR_get_error(), "SSL_CTX_new");
   }
+
+  env->external_memory_accounter()->Increase(env->isolate(), kExternalSize);
   SSL_CTX_set_app_data(sc->ctx_.get(), sc);
 
   // Disable SSLv2 in the case when method == TLS_method() and the

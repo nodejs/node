@@ -26,13 +26,13 @@ namespace v8 {
 namespace internal {
 
 RwxMemoryWriteScope::RwxMemoryWriteScope(const char* comment) {
-  if (!v8_flags.jitless) {
+  if (!v8_flags.jitless || v8_flags.force_memory_protection_keys) {
     SetWritable();
   }
 }
 
 RwxMemoryWriteScope::~RwxMemoryWriteScope() {
-  if (!v8_flags.jitless) {
+  if (!v8_flags.jitless || v8_flags.force_memory_protection_keys) {
     SetExecutable();
   }
 }

@@ -1,4 +1,4 @@
-/* auto-generated on 2025-07-27 12:29:50 -0400. Do not edit! */
+/* auto-generated on 2025-09-23 12:57:35 -0400. Do not edit! */
 /* begin file src/ada.cpp */
 #include "ada.h"
 /* begin file src/checkers.cpp */
@@ -15841,7 +15841,11 @@ tl::expected<std::string, errors> url_pattern_init::process_search(
   if (value.starts_with("?")) {
     value.remove_prefix(1);
   }
-  ADA_ASSERT_TRUE(!value.starts_with("?"));
+  // We cannot assert that the value is no longer starting with a single
+  // question mark because technically it can start. The question is whether or
+  // not we should remove the first question mark. Ref:
+  // https://github.com/ada-url/ada/pull/992 The spec is not clear on this.
+
   // If type is "pattern" then return strippedValue.
   if (type == process_type::pattern) {
     return std::string(value);
@@ -16282,7 +16286,10 @@ tl::expected<std::string, errors> canonicalize_search(std::string_view input) {
   url->set_search(input);
   if (url->has_search()) {
     const auto search = url->get_search();
-    return std::string(search.substr(1));
+    if (!search.empty()) {
+      return std::string(search.substr(1));
+    }
+    return "";
   }
   return tl::unexpected(errors::type_error);
 }
@@ -16302,7 +16309,10 @@ tl::expected<std::string, errors> canonicalize_hash(std::string_view input) {
   // Return dummyURL's fragment.
   if (url->has_hash()) {
     const auto hash = url->get_hash();
-    return std::string(hash.substr(1));
+    if (!hash.empty()) {
+      return std::string(hash.substr(1));
+    }
+    return "";
   }
   return tl::unexpected(errors::type_error);
 }

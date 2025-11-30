@@ -15,7 +15,28 @@
 namespace hwy {
 namespace {
 
+TEST(AbortTest, WarnOverrideChain) {
+  WarnFunc FirstHandler = [](const char* file, int line,
+                             const char* formatted_err) -> void {
+    fprintf(stderr, "%s from %d of %s", formatted_err, line, file);
+  };
+  WarnFunc SecondHandler = [](const char* file, int line,
+                              const char* formatted_err) -> void {
+    fprintf(stderr, "%s from %d of %s", formatted_err, line, file);
+  };
+
+  // Do not check that the first SetWarnFunc returns nullptr, because it is
+  // not guaranteed to be the first call - other TEST may come first.
+  (void)SetWarnFunc(FirstHandler);
+  HWY_ASSERT(GetWarnFunc() == FirstHandler);
+  HWY_ASSERT(SetWarnFunc(SecondHandler) == FirstHandler);
+  HWY_ASSERT(GetWarnFunc() == SecondHandler);
+  HWY_ASSERT(SetWarnFunc(nullptr) == SecondHandler);
+  HWY_ASSERT(GetWarnFunc() == nullptr);
+}
+
 #ifdef GTEST_HAS_DEATH_TEST
+
 std::string GetBaseName(std::string const& file_name) {
   auto last_slash = file_name.find_last_of("/\\");
   return file_name.substr(last_slash + 1);

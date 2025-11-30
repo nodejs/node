@@ -5,7 +5,7 @@
 // Helpers to test interoperability of Wasm objects in JavaScript.
 
 // The following flags are required:
-// Flags: --turbofan --no-always-turbofan --allow-natives-syntax
+// Flags: --turbofan --allow-natives-syntax
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 

@@ -38,12 +38,12 @@ extern macro CollectionsBuiltinsAssembler::AddToSetTable(
     implicit context: Context)(OrderedHashSet, JSAny, String): OrderedHashSet;
 
 extern macro CollectionsBuiltinsAssembler::TableHasKey(
-    implicit context: Context)(OrderedHashSet, Object): bool;
+    implicit context: Context)(OrderedHashSet, JSAny): bool;
 extern macro CollectionsBuiltinsAssembler::TableHasKey(
-    implicit context: Context)(OrderedHashMap, Object): bool;
+    implicit context: Context)(OrderedHashMap, JSAny): bool;
 
 extern macro CollectionsBuiltinsAssembler::DeleteFromSetTable(
-    implicit context: Context)(OrderedHashSet, Object): Smi labels NotFound;
+    implicit context: Context)(OrderedHashSet, JSAny): Smi labels NotFound;
 
 extern runtime OrderedHashSetShrink(implicit context: Context)(
                                     OrderedHashSet): OrderedHashSet;
@@ -393,7 +393,7 @@ struct StableJSSetBackingTableWitness {
         this.unstable, kOrderedHashSetNumberOfElementsIndex);
   }
 
-  macro HasKey(implicit context: Context)(key: Object): bool {
+  macro HasKey(implicit context: Context)(key: JSAny): bool {
     return TableHasKey(this.unstable, key);
   }
 
@@ -411,7 +411,7 @@ struct StableJSMapBackingTableWitness {
         this.unstable, kOrderedHashMapNumberOfElementsIndex);
   }
 
-  macro HasKey(implicit context: Context)(key: Object): bool {
+  macro HasKey(implicit context: Context)(key: JSAny): bool {
     return TableHasKey(this.unstable, key);
   }
 

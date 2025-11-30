@@ -2,10 +2,7 @@
 
 const common = require('../common');
 const tmpdir = require('../common/tmpdir'); ;
-const {
-  ok,
-  strictEqual,
-} = require('node:assert');
+const assert = require('node:assert');
 const {
   readFile,
   statSync,
@@ -39,17 +36,17 @@ function runTests(sync) {
     const stream = new Utf8Stream({ dest, sync, mode });
 
     stream.on('ready', common.mustCall(() => {
-      ok(stream.write('hello world\n'));
-      ok(stream.write('something else\n'));
+      assert.ok(stream.write('hello world\n'));
+      assert.ok(stream.write('something else\n'));
 
       stream.end();
 
       stream.on('finish', common.mustCall(() => {
         readFile(dest, 'utf8', common.mustSucceed((data) => {
-          strictEqual(data, 'hello world\nsomething else\n');
+          assert.strictEqual(data, 'hello world\nsomething else\n');
           // The actual mode may vary depending on the platform,
           // so we check only the first bit.
-          strictEqual(statSync(dest).mode & 0o700, 0o600);
+          assert.strictEqual(statSync(dest).mode & 0o700, 0o600);
         }));
       }));
     }));
@@ -60,15 +57,15 @@ function runTests(sync) {
     const defaultMode = 0o600;
     const stream = new Utf8Stream({ dest, sync });
     stream.on('ready', common.mustCall(() => {
-      ok(stream.write('hello world\n'));
-      ok(stream.write('something else\n'));
+      assert.ok(stream.write('hello world\n'));
+      assert.ok(stream.write('something else\n'));
 
       stream.end();
 
       stream.on('finish', common.mustCall(() => {
         readFile(dest, 'utf8', common.mustSucceed((data) => {
-          strictEqual(data, 'hello world\nsomething else\n');
-          strictEqual(statSync(dest).mode & 0o700, defaultMode);
+          assert.strictEqual(data, 'hello world\nsomething else\n');
+          assert.strictEqual(statSync(dest).mode & 0o700, defaultMode);
         }));
       }));
     }));
@@ -80,11 +77,11 @@ function runTests(sync) {
     const stream = new Utf8Stream({ dest, mkdir: true, mode, sync });
 
     stream.on('ready', common.mustCall(() => {
-      ok(stream.write('hello world\n'));
+      assert.ok(stream.write('hello world\n'));
       stream.flush();
       stream.on('drain', common.mustCall(() => {
         readFile(dest, 'utf8', common.mustSucceed((data) => {
-          strictEqual(data, 'hello world\n');
+          assert.strictEqual(data, 'hello world\n');
           stream.end();
         }));
       }));
@@ -98,11 +95,11 @@ function runTests(sync) {
     const mode = isWindows ? 0o444 : 0o666;
     const stream = new Utf8Stream({ dest, append: false, mode, sync });
     stream.on('ready', common.mustCall(() => {
-      ok(stream.write('something else\n'));
+      assert.ok(stream.write('something else\n'));
       stream.flush();
       stream.on('drain', common.mustCall(() => {
         readFile(dest, 'utf8', common.mustSucceed((data) => {
-          strictEqual(data, 'something else\n');
+          assert.strictEqual(data, 'something else\n');
           stream.end();
         }));
       }));

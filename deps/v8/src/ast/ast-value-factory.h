@@ -35,6 +35,7 @@
 #include "src/common/globals.h"
 #include "src/handles/handles.h"
 #include "src/numbers/conversions.h"
+#include "src/numbers/hash-seed.h"
 #include "src/objects/name.h"
 #include "src/zone/zone.h"
 
@@ -65,7 +66,7 @@ class AstRawString final : public ZoneObject {
   bool AsArrayIndex(uint32_t* index) const;
   bool IsIntegerIndex() const;
   V8_EXPORT_PRIVATE bool IsOneByteEqualTo(const char* data) const;
-  uint16_t FirstCharacter() const;
+  V8_EXPORT_PRIVATE uint16_t FirstCharacter() const;
 
   template <typename IsolateT>
   void Internalize(IsolateT* isolate);
@@ -251,19 +252,22 @@ using AstRawStringMap =
   F(bigint_string, "bigint")                              \
   F(boolean_string, "boolean")                            \
   F(computed_string, "<computed>")                        \
-  F(dot_brand_string, ".brand")                           \
   F(constructor_string, "constructor")                    \
   F(default_string, "default")                            \
+  F(defer_string, "defer")                                \
   F(done_string, "done")                                  \
+  F(dot_brand_string, ".brand")                           \
+  F(dot_catch_string, ".catch")                           \
   F(dot_default_string, ".default")                       \
   F(dot_for_string, ".for")                               \
   F(dot_generator_object_string, ".generator_object")     \
   F(dot_home_object_string, ".home_object")               \
-  F(dot_result_string, ".result")                         \
+  F(dot_new_target_string, ".new.target")                 \
   F(dot_repl_result_string, ".repl_result")               \
+  F(dot_result_string, ".result")                         \
   F(dot_static_home_object_string, ".static_home_object") \
   F(dot_switch_tag_string, ".switch_tag")                 \
-  F(dot_catch_string, ".catch")                           \
+  F(dot_this_function_string, ".this_function")           \
   F(empty_string, "")                                     \
   F(eval_string, "eval")                                  \
   F(from_string, "from")                                  \
@@ -273,7 +277,6 @@ using AstRawStringMap =
   F(let_string, "let")                                    \
   F(meta_string, "meta")                                  \
   F(native_string, "native")                              \
-  F(new_target_string, ".new.target")                     \
   F(next_string, "next")                                  \
   F(number_string, "number")                              \
   F(object_string, "object")                              \
@@ -287,11 +290,9 @@ using AstRawStringMap =
   F(symbol_string, "symbol")                              \
   F(target_string, "target")                              \
   F(this_string, "this")                                  \
-  F(this_function_string, ".this_function")               \
   F(throw_string, "throw")                                \
   F(undefined_string, "undefined")                        \
   F(value_string, "value")
-
 class AstStringConstants final {
  public:
 #define F(name, str) +1
@@ -299,7 +300,7 @@ class AstStringConstants final {
       0 SINGLE_CHARACTER_ASCII_AST_STRING_CONSTANTS(F);
 #undef F
 
-  AstStringConstants(Isolate* isolate, uint64_t hash_seed);
+  AstStringConstants(Isolate* isolate, const HashSeed hash_seed);
   AstStringConstants(const AstStringConstants&) = delete;
   AstStringConstants& operator=(const AstStringConstants&) = delete;
 
@@ -308,7 +309,7 @@ class AstStringConstants final {
   AST_STRING_CONSTANTS(F)
 #undef F
 
-  uint64_t hash_seed() const { return hash_seed_; }
+  const HashSeed hash_seed() const { return hash_seed_; }
   const AstRawStringMap* string_table() const { return &string_table_; }
   const AstRawString* one_character_string(int c) const {
     DCHECK_GE(c, 0);
@@ -329,7 +330,7 @@ class AstStringConstants final {
  private:
   Zone zone_;
   AstRawStringMap string_table_;
-  uint64_t hash_seed_;
+  const HashSeed hash_seed_;
 
 #define F(name, str) AstRawString* name##_;
   AST_STRING_CONSTANTS(F)
@@ -339,12 +340,12 @@ class AstStringConstants final {
 class AstValueFactory {
  public:
   AstValueFactory(Zone* zone, const AstStringConstants* string_constants,
-                  uint64_t hash_seed)
+                  const HashSeed hash_seed)
       : AstValueFactory(zone, zone, string_constants, hash_seed) {}
 
   AstValueFactory(Zone* ast_raw_string_zone, Zone* single_parse_zone,
                   const AstStringConstants* string_constants,
-                  uint64_t hash_seed)
+                  const HashSeed hash_seed)
       : string_table_(string_constants->string_table()),
         strings_(nullptr),
         strings_end_(&strings_),
@@ -433,7 +434,7 @@ class AstValueFactory {
   Zone* ast_raw_string_zone_;
   Zone* single_parse_zone_;
 
-  uint64_t hash_seed_;
+  const HashSeed hash_seed_;
 };
 
 extern template EXPORT_TEMPLATE_DECLARE(

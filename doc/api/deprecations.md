@@ -551,6 +551,12 @@ Type: End-of-Life
 The `os.tmpDir()` API was deprecated in Node.js 7.0.0 and has since been
 removed. Please use [`os.tmpdir()`][] instead.
 
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/tmpdir-to-tmpdir)):
+
+```bash
+npx codemod@latest @nodejs/tmpDir-to-tmpdir
+```
+
 ### DEP0023: `os.getNetworkInterfaces()`
 
 <!-- YAML
@@ -628,6 +634,12 @@ Type: End-of-Life
 
 `util.print()` has been removed. Please use [`console.log()`][] instead.
 
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/util-print-to-console-log)):
+
+```bash
+npx codemod@latest @nodejs/util-print-to-console-log
+```
+
 ### DEP0027: `util.puts()`
 
 <!-- YAML
@@ -648,6 +660,12 @@ changes:
 Type: End-of-Life
 
 `util.puts()` has been removed. Please use [`console.log()`][] instead.
+
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/util-print-to-console-log)):
+
+```bash
+npx codemod@latest @nodejs/util-print-to-console-log
+```
 
 ### DEP0028: `util.debug()`
 
@@ -670,6 +688,12 @@ Type: End-of-Life
 
 `util.debug()` has been removed. Please use [`console.error()`][] instead.
 
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/util-print-to-console-log)):
+
+```bash
+npx codemod@latest @nodejs/util-print-to-console-log
+```
+
 ### DEP0029: `util.error()`
 
 <!-- YAML
@@ -691,11 +715,17 @@ Type: End-of-Life
 
 `util.error()` has been removed. Please use [`console.error()`][] instead.
 
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/util-print-to-console-log)):
+
+```bash
+npx codemod@latest @nodejs/util-print-to-console-log
+```
+
 ### DEP0030: `SlowBuffer`
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v25.0.0
     pr-url: https://github.com/nodejs/node/pull/58220
     description: End-of-Life.
   - version: v24.0.0
@@ -718,7 +748,7 @@ The `SlowBuffer` class has been removed. Please use
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v25.0.0
     pr-url: https://github.com/nodejs/node/pull/58620
     description: Runtime deprecation.
   - version: v6.12.0
@@ -756,6 +786,9 @@ The [`domain`][] module is deprecated and should not be used.
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/60214
+    description: Deprecation revoked.
   - version:
     - v6.12.0
     - v4.8.6
@@ -766,10 +799,12 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Documentation-only
+Type: Revoked
 
-The [`events.listenerCount(emitter, eventName)`][] API is
-deprecated. Please use [`emitter.listenerCount(eventName)`][] instead.
+The [`events.listenerCount(emitter, eventName)`][] API was deprecated, as it
+provided identical fuctionality to [`emitter.listenerCount(eventName)`][]. The
+deprecation was revoked because this function has been repurposed to also
+accept {EventTarget} arguments.
 
 ### DEP0034: `fs.exists(path, callback)`
 
@@ -1004,6 +1039,12 @@ Type: Runtime
 The [`util.isArray()`][] API is deprecated. Please use `Array.isArray()`
 instead.
 
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/util-is)):
+
+```bash
+npx codemod@latest @nodejs/util-is
+```
+
 ### DEP0045: `util.isBoolean()`
 
 <!-- YAML
@@ -1031,6 +1072,12 @@ Type: End-of-Life
 The `util.isBoolean()` API has been removed. Please use
 `typeof arg === 'boolean'` instead.
 
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/util-is)):
+
+```bash
+npx codemod@latest @nodejs/util-is
+```
+
 ### DEP0046: `util.isBuffer()`
 
 <!-- YAML
@@ -1057,6 +1104,12 @@ Type: End-of-Life
 
 The `util.isBuffer()` API has been removed. Please use
 [`Buffer.isBuffer()`][] instead.
+
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/util-is)):
+
+```bash
+npx codemod@latest @nodejs/util-is
+```
 
 ### DEP0047: `util.isDate()`
 
@@ -1089,6 +1142,12 @@ Also for stronger approaches, consider using:
 `Date.prototype.toString.call(arg) === '[object Date]' && !isNaN(arg)`.
 This can also be used in a `try/catch` block to handle invalid date objects.
 
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/util-is)):
+
+```bash
+npx codemod@latest @nodejs/util-is
+```
+
 ### DEP0048: `util.isError()`
 
 <!-- YAML
@@ -1114,6 +1173,12 @@ changes:
 Type: End-of-Life
 
 The `util.isError()` API has been removed. Please use `Error.isError(arg)`.
+
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/util-is)):
+
+```bash
+npx codemod@latest @nodejs/util-is
+```
 
 ### DEP0049: `util.isFunction()`
 
@@ -1142,6 +1207,12 @@ Type: End-of-Life
 The `util.isFunction()` API has been removed. Please use
 `typeof arg === 'function'` instead.
 
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/util-is)):
+
+```bash
+npx codemod@latest @nodejs/util-is
+```
+
 ### DEP0050: `util.isNull()`
 
 <!-- YAML
@@ -1168,6 +1239,12 @@ Type: End-of-Life
 
 The `util.isNull()` API has been removed. Please use
 `arg === null` instead.
+
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/util-is)):
+
+```bash
+npx codemod@latest @nodejs/util-is
+```
 
 ### DEP0051: `util.isNullOrUndefined()`
 
@@ -1196,6 +1273,12 @@ Type: End-of-Life
 The `util.isNullOrUndefined()` API has been removed. Please use
 `arg === null || arg === undefined` instead.
 
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/util-is)):
+
+```bash
+npx codemod@latest @nodejs/util-is
+```
+
 ### DEP0052: `util.isNumber()`
 
 <!-- YAML
@@ -1222,6 +1305,12 @@ Type: End-of-Life
 
 The `util.isNumber()` API has been removed. Please use
 `typeof arg === 'number'` instead.
+
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/util-is)):
+
+```bash
+npx codemod@latest @nodejs/util-is
+```
 
 ### DEP0053: `util.isObject()`
 
@@ -1250,6 +1339,12 @@ Type: End-of-Life
 The `util.isObject()` API has been removed. Please use
 `arg && typeof arg === 'object'` instead.
 
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/util-is)):
+
+```bash
+npx codemod@latest @nodejs/util-is
+```
+
 ### DEP0054: `util.isPrimitive()`
 
 <!-- YAML
@@ -1275,6 +1370,12 @@ changes:
 Type: End-of-Life
 
 The `util.isPrimitive()` API has been removed. Please use `Object(arg) !== arg` instead.
+
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/util-is)):
+
+```bash
+npx codemod@latest @nodejs/util-is
+```
 
 ### DEP0055: `util.isRegExp()`
 
@@ -1303,6 +1404,12 @@ Type: End-of-Life
 The `util.isRegExp()` API has been removed. Please use
 `arg instanceof RegExp` instead.
 
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/util-is)):
+
+```bash
+npx codemod@latest @nodejs/util-is
+```
+
 ### DEP0056: `util.isString()`
 
 <!-- YAML
@@ -1329,6 +1436,12 @@ Type: End-of-Life
 
 The `util.isString()` API has been removed. Please use
 `typeof arg === 'string'` instead.
+
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/util-is)):
+
+```bash
+npx codemod@latest @nodejs/util-is
+```
 
 ### DEP0057: `util.isSymbol()`
 
@@ -1357,6 +1470,12 @@ Type: End-of-Life
 The `util.isSymbol()` API has been removed. Please use
 `typeof arg === 'symbol'` instead.
 
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/util-is)):
+
+```bash
+npx codemod@latest @nodejs/util-is
+```
+
 ### DEP0058: `util.isUndefined()`
 
 <!-- YAML
@@ -1383,6 +1502,12 @@ Type: End-of-Life
 
 The `util.isUndefined()` API has been removed. Please use
 `arg === undefined` instead.
+
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/util-is)):
+
+```bash
+npx codemod@latest @nodejs/util-is
+```
 
 ### DEP0059: `util.log()`
 
@@ -1415,6 +1540,12 @@ consider the following alternatives based on your specific needs:
 By adopting one of these alternatives, you can transition away from `util.log()`
 and choose a logging strategy that aligns with the specific
 requirements and complexity of your application.
+
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/util-log-to-console-log)):
+
+```bash
+npx codemod@latest @nodejs/util-log-to-console-log
+```
 
 ### DEP0060: `util._extend()`
 
@@ -1481,6 +1612,9 @@ instead.
 <!-- YAML
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/60635
+    description: End-of-Life.
+  - version: v25.0.0
     pr-url: https://github.com/nodejs/node/pull/59060
     description: Runtime deprecation.
   - version: v8.0.0
@@ -1488,7 +1622,7 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
 The `node:http` module `ServerResponse.prototype.writeHeader()` API is
 deprecated. Please use `ServerResponse.prototype.writeHead()` instead.
@@ -1775,7 +1909,7 @@ not handle all certificate subjects correctly and should not be used.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v25.0.0
     pr-url: https://github.com/nodejs/node/pull/58473
     description: End-of-Life.
   - version: v9.0.0
@@ -1860,6 +1994,12 @@ Type: End-of-Life
 `fs.truncate()` `fs.truncateSync()` usage with a file descriptor is
 deprecated. Please use `fs.ftruncate()` or `fs.ftruncateSync()` to work with
 file descriptors.
+
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/fs-truncate-fd-deprecation)):
+
+```bash
+npx codemod@latest @nodejs/fs-truncate-fd-deprecation
+```
 
 ### DEP0082: `REPLServer.prototype.memory()`
 
@@ -2070,11 +2210,17 @@ Type: Runtime
 The [`crypto.fips`][] property is deprecated. Please use `crypto.setFips()`
 and `crypto.getFips()` instead.
 
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/crypto-fips-to-getFips)).
+
+```bash
+npx codemod@latest @nodejs/crypto-fips-to-getFips
+```
+
 ### DEP0094: Using `assert.fail()` with more than one argument
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v25.0.0
     pr-url: https://github.com/nodejs/node/pull/58532
     description: End-of-Life.
   - version: v10.0.0
@@ -2196,6 +2342,12 @@ Type: End-of-Life
 `process.assert()` is deprecated. Please use the [`assert`][] module instead.
 
 This was never a documented feature.
+
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/createCredentials-to-createSecureContext)).
+
+```bash
+npx codemod@latest @nodejs/createCredentials-to-createSecureContext
+```
 
 ### DEP0101: `--with-lttng`
 
@@ -2345,6 +2497,12 @@ because it also made sense to interpret the value as the number of bytes
 read by the engine, but is inconsistent with other streams in Node.js that
 expose values under these names.
 
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/zlib-bytesread-to-byteswritten)):
+
+```bash
+npx codemod@latest @nodejs/zlib-bytesread-to-byteswritten
+```
+
 ### DEP0109: `http`, `https`, and `tls` support for invalid URLs
 
 <!-- YAML
@@ -2403,7 +2561,7 @@ unavailable when the [permission model][] is enabled.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v25.0.0
     pr-url: https://github.com/nodejs/node/pull/58474
     description: End-of-Life.
   - version: v11.0.0
@@ -2503,6 +2661,12 @@ The [legacy URL API][] is deprecated. This includes [`url.format()`][],
 [`url.parse()`][], [`url.resolve()`][], and the [legacy `urlObject`][]. Please
 use the [WHATWG URL API][] instead.
 
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/node-url-to-whatwg-url)).
+
+```bash
+npx codemod@latest @nodejs/node-url-to-whatwg-url
+```
+
 ### DEP0117: Native crypto handles
 
 <!-- YAML
@@ -2527,7 +2691,7 @@ object can lead to crashing the application.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v25.0.0
     pr-url: https://github.com/nodejs/node/pull/58619
     description: End-of-Life.
   - version: v11.0.0
@@ -2615,7 +2779,7 @@ Please use `Server.prototype.setSecureContext()` instead.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v25.0.0
     pr-url: https://github.com/nodejs/node/pull/58533
     description: End-of-Life.
   - version: v12.0.0
@@ -2718,7 +2882,7 @@ Node.js versions.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v25.0.0
     pr-url: https://github.com/nodejs/node/pull/58527
     description: End-of-Life.
   - version: v13.0.0
@@ -2754,6 +2918,12 @@ Type: End-of-Life
 
 Use [`module.createRequire()`][] instead.
 
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/create-require-from-path)):
+
+```bash
+npx codemod@latest @nodejs/create-require-from-path
+```
+
 ### DEP0131: Legacy HTTP parser
 
 <!-- YAML
@@ -2780,7 +2950,7 @@ legacy parser.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v25.0.0
     pr-url: https://github.com/nodejs/node/pull/58528
     description: End-of-Life.
   - version: v12.5.0
@@ -2826,7 +2996,7 @@ an officially supported API.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v25.0.0
     pr-url: https://github.com/nodejs/node/pull/58529
     description: End-of-Life.
   - version: v13.0.0
@@ -2868,7 +3038,7 @@ To maintain existing behavior `response.finished` should be replaced with
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v25.0.0
     pr-url: https://github.com/nodejs/node/pull/58536
     description: End-of-Life.
   - version: v14.0.0
@@ -2914,6 +3084,12 @@ modules is unsupported.
 
 It is deprecated in favor of [`require.main`][], because it serves the same
 purpose and is only available on CommonJS environment.
+
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/process-main-module)):
+
+```bash
+npx codemod@latest @nodejs/process-main-module
+```
 
 ### DEP0139: `process.umask()` with no arguments
 
@@ -2978,6 +3154,12 @@ Type: Documentation-only (supports [`--pending-deprecation`][])
 The `node:repl` module exports a `_builtinLibs` property that contains an array
 of built-in modules. It was incomplete so far and instead it's better to rely
 upon `require('node:module').builtinModules`.
+
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/repl-builtin-modules)):
+
+```bash
+npx codemod@latest @nodejs/repl-builtin-modules
+```
 
 ### DEP0143: `Transform._transformState`
 
@@ -3062,7 +3244,7 @@ The [`crypto.Certificate()` constructor][] is deprecated. Use
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v25.0.0
     pr-url: https://github.com/nodejs/node/pull/58616
     description: End-of-Life.
   - version: v16.0.0
@@ -3084,6 +3266,12 @@ to support a `recursive` option. That option has been removed.
 Use `fs.rm(path, { recursive: true, force: true })`,
 `fs.rmSync(path, { recursive: true, force: true })` or
 `fs.promises.rm(path, { recursive: true, force: true })` instead.
+
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/rmdir)):
+
+```bash
+npx codemod@latest @nodejs/rmdir
+```
 
 ### DEP0148: Folder mappings in `"exports"` (trailing `"/"`)
 
@@ -3167,7 +3355,7 @@ an explicit [`"exports"` or `"main"` entry][] with the exact file extension.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v25.0.0
     pr-url: https://github.com/nodejs/node/pull/58531
     description: End-of-Life.
   - version: v16.0.0
@@ -3210,7 +3398,7 @@ option, or a non-nullish non-boolean value for `verbatim` option in
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v25.0.0
     pr-url: https://github.com/nodejs/node/pull/58706
     description: End-of-Life.
   - version: v20.0.0
@@ -3224,6 +3412,12 @@ changes:
 Type: End-of-Life
 
 Use  `'hashAlgorithm'` instead of `'hash'`, and `'mgf1HashAlgorithm'` instead of `'mgf1Hash'`.
+
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/crypto-rsa-pss-update)):
+
+```bash
+npx codemod@latest @nodejs/crypto-rsa-pss-update
+```
 
 ### DEP0155: Trailing slashes in pattern specifier resolutions
 
@@ -3337,7 +3531,7 @@ the errors used for value type validation.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v25.0.0
     pr-url: https://github.com/nodejs/node/pull/58707
     description: End-of-Life.
   - version: v18.0.0
@@ -3403,7 +3597,9 @@ Convert them to primitive strings.
 
 <!-- YAML
 changes:
-  - version: v24.8.0
+  - version:
+    - v24.8.0
+    - v22.20.0
     pr-url: https://github.com/nodejs/node/pull/59758
     description: Deprecation revoked.
   - version:
@@ -3563,7 +3759,7 @@ issued for `url.parse()` vulnerabilities.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v25.0.0
     pr-url: https://github.com/nodejs/node/pull/58617
     description: End-of-Life.
   - version:
@@ -3604,7 +3800,7 @@ In a future version of Node.js, [`message.headers`][],
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v25.0.0
     pr-url: https://github.com/nodejs/node/pull/58618
     description: End-of-Life.
   - version: v20.0.0
@@ -3621,7 +3817,7 @@ bound to an `AsyncResource`. It no longer does.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v25.0.0
     pr-url: https://github.com/nodejs/node/pull/00000
     description: End-of-Life.
   - version: v20.1.0
@@ -3668,7 +3864,7 @@ The [`util.toUSVString()`][] API is deprecated. Please use
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v25.0.0
     pr-url: https://github.com/nodejs/node/pull/55862
     description: End-of-Life.
   - version: v24.0.0
@@ -3683,6 +3879,12 @@ Type: End-of-Life
 
 `F_OK`, `R_OK`, `W_OK` and `X_OK` getters exposed directly on `node:fs` were
 removed. Get them from `fs.constants` or `fs.promises.constants` instead.
+
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/fs-access-mode-constants)):
+
+```bash
+npx codemod@latest @nodejs/fs-access-mode-constants
+```
 
 ### DEP0177: `util.types.isWebAssemblyCompiledModule`
 
@@ -3851,7 +4053,7 @@ It is recommended to use the `new` qualifier instead. This applies to all Zlib c
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v25.0.0
     pr-url: https://github.com/nodejs/node/pull/59495
     description: End-of-Life.
   - version: v24.0.0
@@ -3869,6 +4071,12 @@ Type: End-of-Life
 Instantiating classes without the `new` qualifier exported by the `node:repl` module is deprecated.
 The `new` qualifier must be used instead. This applies to all REPL classes, including
 `REPLServer` and `Recoverable`.
+
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/repl-classes-with-new)):
+
+```bash
+npx codemod@latest @nodejs/repl-classes-with-new
+```
 
 <!-- md-lint skip-deprecation DEP0186 -->
 
@@ -3961,6 +4169,12 @@ of built-in modules. This was incomplete and matched the already deprecated
 `repl._builtinLibs` ([DEP0142][]) instead it's better to rely
 upon `require('node:module').builtinModules`.
 
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/repl-builtin-modules)):
+
+```bash
+npx codemod@latest @nodejs/repl-builtin-modules
+```
+
 ### DEP0192: `require('node:_tls_common')` and `require('node:_tls_wrap')`
 
 <!-- YAML
@@ -3968,6 +4182,7 @@ changes:
   - version:
       - v24.2.0
       - v22.17.0
+      - v20.19.6
     pr-url: https://github.com/nodejs/node/pull/57643
     description: Runtime deprecation.
 -->
@@ -3984,6 +4199,7 @@ changes:
   - version:
       - v24.2.0
       - v22.17.0
+      - v20.19.6
     pr-url: https://github.com/nodejs/node/pull/58337
     description: Runtime deprecation.
 -->
@@ -4004,6 +4220,7 @@ changes:
   - version:
       - v24.2.0
       - v22.17.0
+      - v20.19.6
     pr-url: https://github.com/nodejs/node/pull/58313
     description: Documentation-only deprecation.
 -->
@@ -4028,6 +4245,12 @@ Type: Documentation-only
 Instantiating classes without the `new` qualifier exported by the `node:http` module is deprecated.
 It is recommended to use the `new` qualifier instead. This applies to all http classes, such as
 `OutgoingMessage`, `IncomingMessage`, `ServerResponse` and `ClientRequest`.
+
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/http-classes-with-new)):
+
+```bash
+npx codemod@latest @nodejs/http-classes-with-new
+```
 
 ### DEP0196: Calling `node:child_process` functions with `options.shell` as an empty string
 
@@ -4068,11 +4291,17 @@ Type: Documentation-only
 
 The [`util.types.isNativeError`][] API is deprecated. Please use [`Error.isError`][] instead.
 
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/types-is-native-error)):
+
+```bash
+npx codemod@latest @nodejs/types-is-native-error
+```
+
 ### DEP0198: Creating SHAKE-128 and SHAKE-256 digests without an explicit `options.outputLength`
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v25.0.0
     pr-url: https://github.com/nodejs/node/pull/59008
     description: Runtime deprecation.
   - version:
@@ -4108,7 +4337,7 @@ an internal nodejs implementation rather than a public facing API, use `node:htt
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v24.9.0
     pr-url: https://github.com/nodejs/node/pull/59839
     description: Documentation-only deprecation.
 -->
@@ -4204,7 +4433,7 @@ import { opendir } from 'node:fs/promises';
 [`domain`]: domain.md
 [`ecdh.setPublicKey()`]: crypto.md#ecdhsetpublickeypublickey-encoding
 [`emitter.listenerCount(eventName)`]: events.md#emitterlistenercounteventname-listener
-[`events.listenerCount(emitter, eventName)`]: events.md#eventslistenercountemitter-eventname
+[`events.listenerCount(emitter, eventName)`]: events.md#eventslistenercountemitterortarget-eventname
 [`fs.Dir`]: fs.md#class-fsdir
 [`fs.FileHandle`]: fs.md#class-filehandle
 [`fs.access()`]: fs.md#fsaccesspath-mode-callback

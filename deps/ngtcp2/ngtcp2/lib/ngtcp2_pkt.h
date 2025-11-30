@@ -144,6 +144,12 @@
    length of data to send is larger than this limit. */
 #define NGTCP2_MIN_STREAM_DATALEN 256
 
+/* NGTCP2_MAX_STREAM_DATACNT is the maximum number of ngtcp2_vec that
+   a ngtcp2_stream can include. */
+#define NGTCP2_MAX_STREAM_DATACNT 256
+
+typedef struct ngtcp2_pcg32 ngtcp2_pcg32;
+
 typedef struct ngtcp2_pkt_retry {
   ngtcp2_cid odcid;
   uint8_t *token;
@@ -1233,5 +1239,82 @@ uint8_t ngtcp2_pkt_versioned_type(uint32_t version, uint32_t pkt_type);
  * library, it returns 0.
  */
 uint8_t ngtcp2_pkt_get_type_long(uint32_t version, uint8_t c);
+
+/*
+ * ngtcp2_pkt_split_vec_rand appends ngtcp2_vec at most |max_add|
+ * times to the array pointed by |data| of length |datacnt| by
+ * splitting the existing ngtcp2_vec into two.  Which ngtcp2_vec to
+ * split is chosen randomly.  |offsets| contains the offset of each
+ * ngtcp2_vec pointed by |data|.  |offsets| is also updated.  The
+ * arrays must have the capacity at least |datacnt| + |max_add|.
+ * |pcg| is a random number generator.
+ *
+ * This function returns |datacnt| plus the number of ngtcp2_vec that
+ * are appended.
+ */
+size_t ngtcp2_pkt_split_vec_rand(ngtcp2_vec *data, size_t datacnt,
+                                 uint64_t *offsets, ngtcp2_pcg32 *pcg,
+                                 size_t max_add);
+
+/*
+ * ngtcp2_pkt_split_vec_at splits data[0] at offset |at|, and the
+ * right side of ngtcp2_vec is assigned to data[datacnt].  Similarly,
+ * offsets[0] + |at| is assigned to offsets[datacnt].  |data| must
+ * point to the array of ngtcp2_vec of length |datacnt|, and |datacnt|
+ * must be greater than 0.  |at| must be strictly less than data->len.
+ *
+ * This function returns |datacnt| + 1.
+ */
+size_t ngtcp2_pkt_split_vec_at(ngtcp2_vec *data, size_t datacnt,
+                               uint64_t *offsets, size_t at);
+
+/*
+ * ngtcp2_pkt_find_server_name searches TLS Server Name Indication
+ * extension in |v|.  If it is found, assign the portion of server
+ * name to the object pointed by |server_name|, and returns nonzero.
+ * Otherwise, it returns 0.  If |v| contains the extension partially,
+ * the function returns 0.  |v| must not be empty.
+ */
+int ngtcp2_pkt_find_server_name(ngtcp2_vec *server_name, const ngtcp2_vec *v);
+
+/*
+ * ngtcp2_pkt_append_ping_and_padding appends PING and PADDING frames
+ * to the array pointed by |data| of length |datacnt|.  The capacity
+ * of array must be at least NGTCP2_MAX_STREAM_DATACNT.  |n| is the
+ * number of bytes available for serialized PING and PADDING frames.
+ * |pcg| is a random number generator.  Which frames to add is
+ * determined randomly.
+ *
+ * The special encoding of PING and PADDING frames into ngtcp2_vec:
+ *
+ * - .base is NULL.
+ * - If .len is 0, it represents PING.  Otherwise, PADDING of .len
+ *   length.
+ *
+ * This function returns |datacnt| plus the number of frames added.
+ */
+size_t ngtcp2_pkt_append_ping_and_padding(ngtcp2_vec *data, size_t datacnt,
+                                          ngtcp2_pcg32 *pcg, size_t n);
+
+/*
+ * ngtcp2_pkt_permutate_vec permutates |data| and |offsets|, both have
+ * the |datacnt| elements.  |pcg| is a random number generator.
+ */
+void ngtcp2_pkt_permutate_vec(ngtcp2_vec *data, size_t datacnt,
+                              uint64_t *offsets, ngtcp2_pcg32 *pcg);
+
+/*
+ * ngtcp2_pkt_remove_vec_partial removes the portion of data that
+ * contains part of |part| from data[0].  This function does not
+ * remove whole range of |part|.  The length of removed data is chosen
+ * randomly.  The removed portion of data is assigned to the object
+ * pointed by |removed_data|.  If there is data located after the
+ * removed data, it will be assigned to data[datacnt].
+ * offsets[datacnt] is also updated, and the function returns
+ * |datacnt| + 1.  Otherwise, this function returns |datacnt|.
+ */
+size_t ngtcp2_pkt_remove_vec_partial(ngtcp2_vec *removed_data, ngtcp2_vec *data,
+                                     size_t datacnt, uint64_t *offsets,
+                                     ngtcp2_pcg32 *pcg, const ngtcp2_vec *part);
 
 #endif /* !defined(NGTCP2_PKT_H) */

@@ -27,6 +27,11 @@
           '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "torque_files =.*?v8_enable_i18n_support.*?torque_files \\+= ")',
         ],
       }],
+      ['v8_enable_temporal_support==1', {
+        'torque_files': [
+          '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "torque_files =.*?v8_enable_temporal_support.*?torque_files \\+= ")',
+        ],
+      }],
       ['v8_enable_webassembly==1', {
         'torque_files': [
           '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "torque_files =.*?v8_enable_webassembly.*?torque_files \\+= ")',
@@ -46,22 +51,31 @@
       }
     },
     'conditions': [
-      ['OS=="mac"', {
-        # Hide symbols that are not explicitly exported with V8_EXPORT.
-        # TODO(joyeecheung): enable it on other platforms. Currently gcc times out
-        # or run out of memory with -fvisibility=hidden on some machines in the CI.
-        'xcode_settings': {
-          'GCC_SYMBOLS_PRIVATE_EXTERN': 'YES',  # -fvisibility=hidden
-        },
+      # Build with -fvisibility=hidden and -fvisibility-inlines-hidden to avoid
+      # including unnecessary internal symbols, which may lead to run-time fixups.
+      # This is not done on AIX where symbols are exported by tools/create_expfile.sh
+      # see https://github.com/nodejs/node/pull/56290#issuecomment-2582703109
+      ['OS!="aix" and OS!="os400"', {
         'defines': [
           'BUILDING_V8_SHARED',  # Make V8_EXPORT visible.
-        ],
+        ]
       }],
       ['node_shared=="true"', {
         'defines': [
           'V8_TLS_USED_IN_LIBRARY',  # Enable V8_TLS_LIBRARY_MODE.
         ],
       }],
+      ['OS=="mac"', {
+        'xcode_settings': {
+          'GCC_SYMBOLS_PRIVATE_EXTERN': 'YES',  # -fvisibility=hidden
+          'GCC_INLINES_ARE_PRIVATE_EXTERN': 'YES'  # -fvisibility-inlines-hidden
+        },
+      }, '(OS!="aix" and OS!="os400") and (OS!="win" or clang==1)', {
+        'cflags': [
+          '-fvisibility=hidden',
+          '-fvisibility-inlines-hidden'
+        ],
+      }],  # MSVC hides the non-public symbols by default so no need to configure it.
     ],
   },
   'targets': [
@@ -305,6 +319,11 @@
             '<(icu_gyp_path):icuuc',
           ],
         }],
+        ['v8_enable_temporal_support==1 and node_shared_temporal_capi=="false"', {
+          'dependencies': [
+            '../../deps/temporal/temporal_capi/temporal_capi.gyp:temporal_capi',
+          ],
+        }],
       ],
     },  # v8_initializers_slow
     {
@@ -340,6 +359,11 @@
           ],
           'sources': [
             '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_initializers.*?v8_enable_webassembly.*?sources \\+= ")',
+          ],
+        }],
+        ['v8_enable_temporal_support==1 and node_shared_temporal_capi=="false"', {
+          'dependencies': [
+            '../../deps/temporal/temporal_capi/temporal_capi.gyp:temporal_capi',
           ],
         }],
         ['v8_target_arch=="ia32"', {
@@ -480,6 +504,16 @@
                  'mksnapshot_flags': ['--no-native-code-counters'],
                },
              }],
+            ['build_type=="Debug"', {
+              'outputs': [
+                '<(INTERMEDIATE_DIR)/src/builtins/builtins-effects.cc',
+              ],
+              'variables': {
+                'mksnapshot_flags': [
+                  '--builtins-effects-src', '<(INTERMEDIATE_DIR)/src/builtins/builtins-effects.cc',
+                ],
+              },
+            }],
           ],
           'action': [
             '>@(_inputs)',
@@ -641,6 +675,11 @@
               '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_header_set.\\"v8_internal_headers\\".*?v8_enable_snapshot_compression.*?sources \\+= ")',
             ],
           }],
+          ['v8_enable_temporal_support==1', {
+            'sources': [
+              '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_header_set.\\"v8_internal_headers\\".*?v8_enable_temporal_support.*?sources \\+= ")',
+            ],
+          }],
           ['v8_enable_sparkplug==1', {
             'sources': [
               '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_header_set.\\"v8_internal_headers\\".*?v8_enable_sparkplug.*?sources \\+= ")',
@@ -664,6 +703,16 @@
               ['v8_target_arch=="x64"', {
                 'sources': [
                   '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_header_set.\\"v8_internal_headers\\".*?v8_enable_maglev.*?v8_current_cpu == \\"x64\\".*?sources \\+= ")',
+                ],
+              }],
+              ['v8_target_arch=="s390x"', {
+                'sources': [
+                  '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_header_set.\\"v8_internal_headers\\".*?v8_enable_maglev.*?v8_current_cpu == \\"s390x\\".*?sources \\+= ")',
+                ],
+              }],
+              ['v8_target_arch=="ppc64"', {
+                'sources': [
+                  '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_header_set.\\"v8_internal_headers\\".*?v8_enable_maglev.*?v8_current_cpu == \\"ppc64\\".*?sources \\+= ")',
                 ],
               }],
             ],
@@ -1088,6 +1137,18 @@
             '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_enable_snapshot_compression.*?sources \\+= ")',
           ],
         }],
+        ['v8_enable_temporal_support==1', {
+          'conditions': [
+            ['node_shared_temporal_capi=="false"', {
+              'dependencies': [
+                '../../deps/temporal/temporal_capi/temporal_capi.gyp:temporal_capi',
+              ],
+            }],
+          ],
+          'sources': [
+            '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_enable_temporal_support.*?sources \\+= ")',
+          ],
+        }],
         ['v8_enable_sparkplug==1', {
           'sources': [
             '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_enable_sparkplug.*?sources \\+= ")',
@@ -1111,6 +1172,16 @@
             ['v8_target_arch=="x64"', {
               'sources': [
                 '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_enable_maglev.*?v8_current_cpu == \\"x64\\".*?sources \\+= ")',
+              ],
+            }],
+            ['v8_target_arch=="s390x"', {
+              'sources': [
+                '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_enable_maglev.*?v8_current_cpu == \\"s390x\\".*?sources \\+= ")',
+              ],
+            }],
+            ['v8_target_arch=="ppc64"', {
+              'sources': [
+                '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_enable_maglev.*?v8_current_cpu == \\"ppc64\\".*?sources \\+= ")',
               ],
             }],
           ],
@@ -2149,6 +2220,8 @@
           '<(V8_ROOT)/src/objects/megadom-handler-inl.h',
           '<(V8_ROOT)/src/objects/name.h',
           '<(V8_ROOT)/src/objects/name-inl.h',
+          '<(V8_ROOT)/src/objects/number-string-cache.h',
+          '<(V8_ROOT)/src/objects/number-string-cache-inl.h',
           '<(V8_ROOT)/src/objects/objects.h',
           '<(V8_ROOT)/src/objects/objects-inl.h',
           '<(V8_ROOT)/src/objects/oddball.h',

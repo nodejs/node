@@ -442,11 +442,9 @@ void Blob::StoreDataObject(const FunctionCallbackInfo<Value>& args) {
   Utf8Value type(isolate, args[3]);
 
   binding_data->store_data_object(
-      std::string(*key, key.length()),
+      key.ToString(),
       BlobBindingData::StoredDataObject(
-        BaseObjectPtr<Blob>(blob),
-        length,
-        std::string(*type, type.length())));
+          BaseObjectPtr<Blob>(blob), length, type.ToString()));
 }
 
 // Note: applying the V8 Fast API to the following function does not produce
@@ -486,7 +484,7 @@ void Blob::GetDataObject(const FunctionCallbackInfo<Value>& args) {
   Utf8Value key(isolate, args[0]);
 
   BlobBindingData::StoredDataObject stored =
-      binding_data->get_data_object(std::string(*key, key.length()));
+      binding_data->get_data_object(key.ToString());
   if (stored.blob) {
     Local<Value> type;
     if (!String::NewFromUtf8(isolate,
@@ -556,7 +554,7 @@ void BlobBindingData::Deserialize(Local<Context> context,
                                   int index,
                                   InternalFieldInfoBase* info) {
   DCHECK_IS_SNAPSHOT_SLOT(index);
-  HandleScope scope(context->GetIsolate());
+  HandleScope scope(Isolate::GetCurrent());
   Realm* realm = Realm::GetCurrent(context);
   BlobBindingData* binding = realm->AddBindingData<BlobBindingData>(holder);
   CHECK_NOT_NULL(binding);

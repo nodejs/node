@@ -17,7 +17,8 @@ bool HeapLayout::InYoungGenerationForStickyMarkbits(const MemoryChunk* chunk,
                                                     Tagged<HeapObject> object) {
   CHECK(v8_flags.sticky_mark_bits.value());
   return !chunk->IsOnlyOldOrMajorMarkingOn() &&
-         !MarkingBitmap::MarkBitFromAddress(object.address())
+         !MarkingBitmap::MarkBitFromAddress(Isolate::Current(),
+                                            object.address())
               .template Get<AccessMode::ATOMIC>();
 }
 
@@ -33,8 +34,7 @@ void HeapLayout::CheckYoungGenerationConsistency(const MemoryChunk* chunk) {
   SLOW_DCHECK(metadata->IsWritable());
   Heap* heap = metadata->heap();
   SLOW_DCHECK(heap != nullptr);
-  DCHECK_IMPLIES(heap->gc_state() == Heap::NOT_IN_GC,
-                 chunk->IsFlagSet(MemoryChunk::TO_PAGE));
+  DCHECK_IMPLIES(heap->gc_state() == Heap::NOT_IN_GC, chunk->IsToPage());
 #endif  // DEBUG
 }
 
@@ -52,6 +52,12 @@ bool HeapLayout::IsSelfForwarded(Tagged<HeapObject> object,
 // static
 bool HeapLayout::IsSelfForwarded(Tagged<HeapObject> object, MapWord map_word) {
   return map_word == MapWord::FromForwardingAddress(object, object);
+}
+
+// static
+bool HeapLayout::IsForwardedPointerTo(Tagged<HeapObject> src,
+                                      Tagged<HeapObject> dest) {
+  return src->map_word(kRelaxedLoad).ToForwardingAddress(src) == dest;
 }
 
 }  // namespace v8::internal

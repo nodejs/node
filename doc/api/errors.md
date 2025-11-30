@@ -703,6 +703,13 @@ by the `node:assert` module.
 An attempt was made to register something that is not a function as an
 `AsyncHooks` callback.
 
+<a id="ERR_ASYNC_LOADER_REQUEST_NEVER_SETTLED"></a>
+
+### `ERR_ASYNC_LOADER_REQUEST_NEVER_SETTLED`
+
+An operation related to module loading is customized by an asynchronous loader
+hook that never settled the promise before the loader thread exits.
+
 <a id="ERR_ASYNC_TYPE"></a>
 
 ### `ERR_ASYNC_TYPE`
@@ -831,7 +838,9 @@ size is reached when the context is created.
 ### `ERR_CPU_PROFILE_ALREADY_STARTED`
 
 <!-- YAML
-added: v24.8.0
+added:
+  - v24.8.0
+  - v22.20.0
 -->
 
 The CPU profile with the given name is already started.
@@ -841,7 +850,9 @@ The CPU profile with the given name is already started.
 ### `ERR_CPU_PROFILE_NOT_STARTED`
 
 <!-- YAML
-added: v24.8.0
+added:
+  - v24.8.0
+  - v22.20.0
 -->
 
 The CPU profile with the given name is not started.
@@ -851,7 +862,9 @@ The CPU profile with the given name is not started.
 ### `ERR_CPU_PROFILE_TOO_MANY`
 
 <!-- YAML
-added: v24.8.0
+added:
+  - v24.8.0
+  - v22.20.0
 -->
 
 There are too many CPU profiles being collected.
@@ -4413,7 +4426,7 @@ An error occurred trying to allocate memory. This should never happen.
 [`new URLSearchParams(iterable)`]: url.md#new-urlsearchparamsiterable
 [`package.json`]: packages.md#nodejs-packagejson-field-definitions
 [`postMessage()`]: worker_threads.md#portpostmessagevalue-transferlist
-[`postMessageToThread()`]: worker_threads.md#workerpostmessagetothreadthreadid-value-transferlist-timeout
+[`postMessageToThread()`]: worker_threads.md#worker_threadspostmessagetothreadthreadid-value-transferlist-timeout
 [`process.on('exit')`]: process.md#event-exit
 [`process.send()`]: process.md#processsendmessage-sendhandle-options-callback
 [`process.setUncaughtExceptionCaptureCallback()`]: process.md#processsetuncaughtexceptioncapturecallbackfn

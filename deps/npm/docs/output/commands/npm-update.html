@@ -141,9 +141,9 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="----npm-update----1160">
+<h1 id="----npm-update----1164">
     <span>npm-update</span>
-    <span class="version">@11.6.0</span>
+    <span class="version">@11.6.4</span>
 </h1>
 <span class="description">Update packages</span>
 </header>
@@ -159,24 +159,15 @@ npm command-line interface
 aliases: up, upgrade, udpate
 </code></pre>
 <h3 id="description">Description</h3>
-<p>This command will update all the packages listed to the latest version
-(specified by the <a href="../using-npm/config#tag.html"><code>tag</code> config</a>), respecting the semver
-constraints of both your package and its dependencies (if they also require the
-same package).</p>
+<p>This command will update all the packages listed to the latest version (specified by the <a href="../using-npm/config#tag.html"><code>tag</code> config</a>), respecting the semver constraints of both your package and its dependencies (if they also require the same package).</p>
 <p>It will also install missing packages.</p>
-<p>If the <code>-g</code> flag is specified, this command will update globally installed
-packages.</p>
-<p>If no package name is specified, all packages in the specified location (global
-or local) will be updated.</p>
-<p>Note that by default <code>npm update</code> will not update the semver values of direct
-dependencies in your project <code>package.json</code>. If you want to also update
-values in <code>package.json</code> you can run: <code>npm update --save</code> (or add the
-<code>save=true</code> option to a <a href="../configuring-npm/npmrc.html">configuration file</a>
-to make that the default behavior).</p>
+<p>If the <code>-g</code> flag is specified, this command will update globally installed packages.</p>
+<p>If no package name is specified, all packages in the specified location (global or local) will be updated.</p>
+<p>Note that by default <code>npm update</code> will not update the semver values of direct dependencies in your project <code>package.json</code>.
+If you want to also update values in <code>package.json</code> you can run: <code>npm update --save</code> (or add the <code>save=true</code> option to a <a href="../configuring-npm/npmrc.html">configuration file</a> to make that the default behavior).</p>
 <h3 id="example">Example</h3>
-<p>For the examples below, assume that the current package is <code>app</code> and it depends
-on dependencies, <code>dep1</code> (<code>dep2</code>, .. etc.).  The published versions of <code>dep1</code>
-are:</p>
+<p>For the examples below, assume that the current package is <code>app</code> and it depends on dependencies, <code>dep1</code> (<code>dep2</code>, .. etc.).
+The published versions of <code>dep1</code> are:</p>
 <pre><code class="language-json">{
   "dist-tags": { "latest": "1.2.2" },
   "versions": [
@@ -206,9 +197,9 @@ are:</p>
   "dep1": "~1.1.1"
 }
 </code></pre>
-<p>In this case, running <code>npm update</code> will install <code>dep1@1.1.2</code>.  Even though the
-<code>latest</code> tag points to <code>1.2.2</code>, this version does not satisfy <code>~1.1.1</code>, which is
-equivalent to <code>&gt;=1.1.1 &lt;1.2.0</code>.  So the highest-sorting version that satisfies
+<p>In this case, running <code>npm update</code> will install <code>dep1@1.1.2</code>.
+Even though the <code>latest</code> tag points to <code>1.2.2</code>, this version does not satisfy <code>~1.1.1</code>, which is equivalent to <code>&gt;=1.1.1 &lt;1.2.0</code>.
+So the highest-sorting version that satisfies
 <code>~1.1.1</code> is used, which is <code>1.1.2</code>.</p>
 <h4 id="caret-dependencies-below-100">Caret Dependencies below 1.0.0</h4>
 <p>Suppose <code>app</code> has a caret dependency on a version below <code>1.0.0</code>, for example:</p>
@@ -222,8 +213,7 @@ equivalent to <code>&gt;=1.1.1 &lt;1.2.0</code>.  So the highest-sorting version
   "dep1": "^0.4.0"
 }
 </code></pre>
-<p>Then <code>npm update</code> will install <code>dep1@0.4.1</code>, because that is the highest-sorting
-version that satisfies <code>^0.4.0</code> (<code>&gt;= 0.4.0 &lt;0.5.0</code>)</p>
+<p>Then <code>npm update</code> will install <code>dep1@0.4.1</code>, because that is the highest-sorting version that satisfies <code>^0.4.0</code> (<code>&gt;= 0.4.0 &lt;0.5.0</code>)</p>
 <h4 id="subdependencies">Subdependencies</h4>
 <p>Suppose your app now also has a dependency on <code>dep2</code></p>
 <pre><code class="language-json">{
@@ -242,21 +232,14 @@ version that satisfies <code>^0.4.0</code> (<code>&gt;= 0.4.0 &lt;0.5.0</code>)<
   }
 }
 </code></pre>
-<p>Then <code>npm update</code> will install <code>dep1@1.1.2</code> because that is the highest
-version that <code>dep2</code> allows.  npm will prioritize having a single version
-of <code>dep1</code> in your tree rather than two when that single version can
-satisfy the semver requirements of multiple dependencies in your tree.
-In this case if you really did need your package to use a newer version
-you would need to use <code>npm install</code>.</p>
+<p>Then <code>npm update</code> will install <code>dep1@1.1.2</code> because that is the highest version that <code>dep2</code> allows.
+npm will prioritize having a single version of <code>dep1</code> in your tree rather than two when that single version can satisfy the semver requirements of multiple dependencies in your tree.
+In this case if you really did need your package to use a newer version you would need to use <code>npm install</code>.</p>
 <h4 id="updating-globally-installed-packages">Updating Globally-Installed Packages</h4>
-<p><code>npm update -g</code> will apply the <code>update</code> action to each globally installed
-package that is <code>outdated</code> -- that is, has a version that is different from
-<code>wanted</code>.</p>
-<p>Note: Globally installed packages are treated as if they are installed with a
-caret semver range specified. So if you require to update to <code>latest</code> you may
-need to run <code>npm install -g [&lt;pkg&gt;...]</code></p>
-<p>NOTE: If a package has been upgraded to a version newer than <code>latest</code>, it will
-be <em>downgraded</em>.</p>
+<p><code>npm update -g</code> will apply the <code>update</code> action to each globally installed package that is <code>outdated</code> -- that is, has a version that is different from <code>wanted</code>.</p>
+<p>Note: Globally installed packages are treated as if they are installed with a caret semver range specified.
+So if you require to update to <code>latest</code> you may need to run <code>npm install -g [&lt;pkg&gt;...]</code></p>
+<p>NOTE: If a package has been upgraded to a version newer than <code>latest</code>, it will be <em>downgraded</em>.</p>
 <h3 id="configuration">Configuration</h3>
 <h4 id="save"><code>save</code></h4>
 <ul>
@@ -315,7 +298,7 @@ on deeper dependencies. Sets <code>--install-strategy=shallow</code>.</p>
 <h4 id="omit"><code>omit</code></h4>
 <ul>
 <li>Default: 'dev' if the <code>NODE_ENV</code> environment variable is set to
-'production', otherwise empty.</li>
+'production'; otherwise, empty.</li>
 <li>Type: "dev", "optional", or "peer" (can be set multiple times)</li>
 </ul>
 <p>Dependency types to omit from the installation tree on disk.</p>

@@ -14,8 +14,7 @@ aliases: tst, t
 
 ### Description
 
-This runs a predefined command specified in the `"test"` property of
-a package's `"scripts"` object.
+This runs a predefined command specified in the `"test"` property of a package's `"scripts"` object.
 
 ### Example
 

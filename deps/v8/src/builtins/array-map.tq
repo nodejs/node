@@ -107,7 +107,7 @@ struct Vector {
       if (this.onlyNumbers) {
         kind = ElementsKind::PACKED_DOUBLE_ELEMENTS;
       } else if (this.onlyNumbersAndUndefined) {
-        dcheck(kEnableExperimentalUndefinedDouble);
+        dcheck(kEnableUndefinedDouble);
         kind = ElementsKind::HOLEY_DOUBLE_ELEMENTS;
       } else {
         kind = ElementsKind::PACKED_ELEMENTS;
@@ -134,26 +134,26 @@ struct Vector {
           AllocateFixedDoubleArrayWithHoles(SmiUntag(length));
       a = NewJSArray(map, this.fixedArray);
       for (let i: Smi = 0; i < validLength; i++) {
-        @if(V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE) {
+        @if(V8_ENABLE_UNDEFINED_DOUBLE) {
           typeswitch (UnsafeCast<(Number | Undefined | TheHole)>(
               this.fixedArray.objects[i])) {
+            case (TheHole): {
+            }
             case (n: Number): {
               elements.values[i] = Convert<float64_or_undefined_or_hole>(n);
             }
             case (Undefined): {
               elements.values[i] = kDoubleUndefined;
             }
-            case (TheHole): {
-            }
           }
         }
-        @ifnot(V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE) {
+        @ifnot(V8_ENABLE_UNDEFINED_DOUBLE) {
           typeswitch (
               UnsafeCast<(Number | TheHole)>(this.fixedArray.objects[i])) {
+            case (TheHole): {
+            }
             case (n: Number): {
               elements.values[i] = Convert<float64_or_undefined_or_hole>(n);
-            }
-            case (TheHole): {
             }
           }
         }
@@ -182,7 +182,7 @@ struct Vector {
       case (s: Undefined): {
         this.onlySmis = false;
         this.onlyNumbers = false;
-        @ifnot(V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE) {
+        @ifnot(V8_ENABLE_UNDEFINED_DOUBLE) {
           // If we are running without undefined doubles, we don't distinguish
           // undefineds here.
           this.onlyNumbersAndUndefined = false;

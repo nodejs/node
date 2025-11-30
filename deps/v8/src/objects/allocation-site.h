@@ -22,7 +22,6 @@ enum InstanceType : uint16_t;
 
 V8_OBJECT class AllocationSite : public HeapObjectLayout {
  public:
-  NEVER_READ_ONLY_SPACE
   static const uint32_t kMaximumArrayBytesToPretransition = 8 * 1024;
 
   // Values for pretenure decision field.
@@ -75,7 +74,7 @@ V8_OBJECT class AllocationSite : public HeapObjectLayout {
 
   // transition_info bitfields, for constructed array transition info.
   using ElementsKindBits = base::BitField<ElementsKind, 0, 6>;
-  using DoNotInlineBit = base::BitField<bool, 6, 1>;
+  using SpeculationDisabledBit = base::BitField<bool, 6, 1>;
   // Unused bits 7-30.
 
   // Bitfields for pretenure_data
@@ -129,8 +128,10 @@ V8_OBJECT class AllocationSite : public HeapObjectLayout {
   inline ElementsKind GetElementsKind() const;
   inline void SetElementsKind(ElementsKind kind);
 
-  inline bool CanInlineCall() const;
-  inline void SetDoNotInlineCall();
+  // The IsSpeculationDisabled flag is only used for the Array constructor, and
+  // protects against deopt loops due to speculative optimizations.
+  inline bool IsSpeculationDisabled() const;
+  inline void SetSpeculationDisabled();
 
   inline bool PointsToLiteral() const;
 

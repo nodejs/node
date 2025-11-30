@@ -11,6 +11,7 @@
 
 #include <memory>
 
+#include "include/v8-wasm.h"  // For WasmStreaming::ModuleCachingInterface.
 #include "src/base/macros.h"
 #include "src/base/vector.h"
 #include "src/wasm/compilation-environment.h"
@@ -73,7 +74,9 @@ class V8_EXPORT_PRIVATE StreamingDecoder {
   // The buffer passed into OnBytesReceived is owned by the caller.
   virtual void OnBytesReceived(base::Vector<const uint8_t> bytes) = 0;
 
-  virtual void Finish(bool can_use_compiled_module = true) = 0;
+  // The argument matches WasmStreaming::GetCachedModuleFn, but we avoid the
+  // include and just repeat the full type instead.
+  virtual void Finish(const WasmStreaming::ModuleCachingCallback&) = 0;
 
   virtual void Abort() = 0;
 
@@ -92,11 +95,7 @@ class V8_EXPORT_PRIVATE StreamingDecoder {
     more_functions_can_be_serialized_callback_ = std::move(callback);
   }
 
-  // Passes previously compiled module bytes from the embedder's cache.
-  // The content shouldn't be used until Finish(true) is called.
-  void SetCompiledModuleBytes(base::Vector<const uint8_t> bytes) {
-    compiled_module_bytes_ = bytes;
-  }
+  virtual void SetHasCompiledModuleBytes() = 0;
 
   virtual void NotifyNativeModuleCreated(
       const std::shared_ptr<NativeModule>& native_module) = 0;
@@ -118,14 +117,9 @@ class V8_EXPORT_PRIVATE StreamingDecoder {
       std::shared_ptr<CompilationResultResolver> resolver);
 
  protected:
-  bool deserializing() const { return !compiled_module_bytes_.empty(); }
-
   const std::shared_ptr<std::string> url_ = std::make_shared<std::string>();
   MoreFunctionsCanBeSerializedCallback
       more_functions_can_be_serialized_callback_;
-  // The content of `compiled_module_bytes_` shouldn't be used until
-  // Finish(true) is called.
-  base::Vector<const uint8_t> compiled_module_bytes_;
 };
 
 }  // namespace v8::internal::wasm

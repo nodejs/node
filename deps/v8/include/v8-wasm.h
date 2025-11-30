@@ -134,6 +134,22 @@ class V8_EXPORT WasmStreaming final {
       internal::kWasmWasmStreamingTag;
   class WasmStreamingImpl;
 
+  class ModuleCachingInterface {
+   public:
+    // Get the full wire bytes, to check against the cached version.
+    virtual MemorySpan<const uint8_t> GetWireBytes() const = 0;
+    // Pass serialized (cached) compiled module bytes, to be deserialized and
+    // used as the result of this streaming compilation.
+    // The passed bytes will only be accessed inside this callback, i.e.
+    // lifetime can end after the call.
+    // The return value indicates whether V8 could use the passed bytes; {false}
+    // would be returned on e.g. version mismatch.
+    // This method can only be called once.
+    virtual bool SetCachedCompiledModuleBytes(MemorySpan<const uint8_t>) = 0;
+  };
+
+  using ModuleCachingCallback = std::function<void(ModuleCachingInterface&)>;
+
   explicit WasmStreaming(std::unique_ptr<WasmStreamingImpl> impl);
 
   ~WasmStreaming();
@@ -153,7 +169,28 @@ class V8_EXPORT WasmStreaming final {
    * If {can_use_compiled_module} is false, the compiled module bytes previously
    * set by {SetCompiledModuleBytes} should not be used.
    */
-  void Finish(bool can_use_compiled_module = true);
+  V8_DEPRECATE_SOON(
+      "Use the new variant of Finish which takes the caching callback argument")
+  void Finish(bool can_use_compiled_module = true) {
+    ModuleCachingCallback callback;
+    if (can_use_compiled_module && !cached_compiled_module_bytes_.empty()) {
+      callback = [bytes = cached_compiled_module_bytes_](
+                     ModuleCachingInterface& caching_interface) {
+        caching_interface.SetCachedCompiledModuleBytes(bytes);
+      };
+    }
+    Finish(callback);
+  }
+
+  /**
+   * {Finish} should be called after all received bytes where passed to
+   * {OnBytesReceived} to tell V8 that there will be no more bytes. {Finish}
+   * must not be called after {Abort} has been called already.
+   * If {SetHasCompiledModuleBytes()} was called before, a {caching_callback}
+   * can be passed which can inspect the full received wire bytes and set cached
+   * module bytes which will be deserialized then.
+   */
+  void Finish(const ModuleCachingCallback& caching_callback);
 
   /**
    * Abort streaming compilation. If {exception} has a value, then the promise
@@ -172,7 +209,25 @@ class V8_EXPORT WasmStreaming final {
    * The compiled module bytes should not be used until {Finish(true)} is
    * called, because they can be invalidated later by {Finish(false)}.
    */
-  bool SetCompiledModuleBytes(const uint8_t* bytes, size_t size);
+  V8_DEPRECATE_SOON(
+      "Use SetHasCompiledModule in combination with the new variant of Finish")
+  bool SetCompiledModuleBytes(const uint8_t* bytes, size_t size) {
+    SetHasCompiledModuleBytes();
+    cached_compiled_module_bytes_ = {bytes, size};
+    // Optimistically return true here, even though we might later find out that
+    // we cannot use the bytes.
+    return true;
+  }
+
+  /**
+   * Mark that the embedder has (potentially) cached compiled module bytes (i.e.
+   * a serialized {CompiledWasmModule}) that could match this streaming request.
+   * This will cause V8 to skip streaming compilation.
+   * The embedder should then pass a callback to the {Finish} method to pass the
+   * serialized bytes, after potentially checking their validity against the
+   * full received wire bytes.
+   */
+  void SetHasCompiledModuleBytes();
 
   /**
    * Sets a callback which is called whenever a significant number of new
@@ -197,6 +252,9 @@ class V8_EXPORT WasmStreaming final {
 
  private:
   std::unique_ptr<WasmStreamingImpl> impl_;
+  // Temporarily store the compiled module bytes here until the deprecation (see
+  // methods above) has gone through.
+  MemorySpan<const uint8_t> cached_compiled_module_bytes_;
 };
 
 /**

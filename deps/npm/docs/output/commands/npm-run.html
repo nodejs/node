@@ -141,9 +141,9 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="----npm-run----1160">
+<h1 id="----npm-run----1164">
     <span>npm-run</span>
-    <span class="version">@11.6.0</span>
+    <span class="version">@11.6.4</span>
 </h1>
 <span class="description">Run arbitrary package scripts</span>
 </header>
@@ -159,55 +159,38 @@ npm command-line interface
 aliases: run-script, rum, urn
 </code></pre>
 <h3 id="description">Description</h3>
-<p>This runs an arbitrary command from a package's <code>"scripts"</code> object.  If no
+<p>This runs an arbitrary command from a package's <code>"scripts"</code> object.
+If no
 <code>"command"</code> is provided, it will list the available scripts.</p>
-<p><code>run[-script]</code> is used by the test, start, restart, and stop commands, but
-can be called directly, as well. When the scripts in the package are
-printed out, they're separated into lifecycle (test, start, restart) and
-directly-run scripts.</p>
-<p>Any positional arguments are passed to the specified script.  Use <code>--</code> to
-pass <code>-</code>-prefixed flags and options which would otherwise be parsed by npm.</p>
+<p><code>run[-script]</code> is used by the test, start, restart, and stop commands, but can be called directly, as well.
+When the scripts in the package are printed out, they're separated into lifecycle (test, start, restart) and directly-run scripts.</p>
+<p>Any positional arguments are passed to the specified script.
+Use <code>--</code> to pass <code>-</code>-prefixed flags and options which would otherwise be parsed by npm.</p>
 <p>For example:</p>
 <pre><code class="language-bash">npm run test -- --grep="pattern"
 </code></pre>
-<p>The arguments will only be passed to the script specified after <code>npm run</code>
-and not to any <code>pre</code> or <code>post</code> script.</p>
-<p>The <code>env</code> script is a special built-in command that can be used to list
-environment variables that will be available to the script at runtime. If an
-"env" command is defined in your package, it will take precedence over the
-built-in.</p>
-<p>In addition to the shell's pre-existing <code>PATH</code>, <code>npm run</code> adds
-<code>node_modules/.bin</code> to the <code>PATH</code> provided to scripts. Any binaries
-provided by locally-installed dependencies can be used without the
-<code>node_modules/.bin</code> prefix. For example, if there is a <code>devDependency</code> on
-<code>tap</code> in your package, you should write:</p>
+<p>The arguments will only be passed to the script specified after <code>npm run</code> and not to any <code>pre</code> or <code>post</code> script.</p>
+<p>The <code>env</code> script is a special built-in command that can be used to list environment variables that will be available to the script at runtime.
+If an "env" command is defined in your package, it will take precedence over the built-in.</p>
+<p>In addition to the shell's pre-existing <code>PATH</code>, <code>npm run</code> adds <code>node_modules/.bin</code> to the <code>PATH</code> provided to scripts.
+Any binaries provided by locally-installed dependencies can be used without the <code>node_modules/.bin</code> prefix.
+For example, if there is a <code>devDependency</code> on <code>tap</code> in your package, you should write:</p>
 <pre><code class="language-bash">"scripts": {"test": "tap test/*.js"}
 </code></pre>
 <p>instead of</p>
 <pre><code class="language-bash">"scripts": {"test": "node_modules/.bin/tap test/*.js"}
 </code></pre>
-<p>The actual shell your script is run within is platform dependent. By default,
-on Unix-like systems it is the <code>/bin/sh</code> command, on Windows it is
-<code>cmd.exe</code>.
+<p>The actual shell your script is run within is platform dependent.
+By default, on Unix-like systems it is the <code>/bin/sh</code> command, on Windows it is <code>cmd.exe</code>.
 The actual shell referred to by <code>/bin/sh</code> also depends on the system.
-You can customize the shell with the
-<a href="../using-npm/config#script-shell.html"><code>script-shell</code> config</a>.</p>
-<p>Scripts are run from the root of the package folder, regardless of what the
-current working directory is when <code>npm run</code> is called. If you want your
-script to use different behavior based on what subdirectory you're in, you
-can use the <code>INIT_CWD</code> environment variable, which holds the full path you
-were in when you ran <code>npm run</code>.</p>
-<p><code>npm run</code> sets the <code>NODE</code> environment variable to the <code>node</code> executable
-with which <code>npm</code> is executed.</p>
-<p>If you try to run a script without having a <code>node_modules</code> directory and it
-fails, you will be given a warning to run <code>npm install</code>, just in case you've
-forgotten.</p>
+You can customize the shell with the <a href="../using-npm/config#script-shell.html"><code>script-shell</code> config</a>.</p>
+<p>Scripts are run from the root of the package folder, regardless of what the current working directory is when <code>npm run</code> is called.
+If you want your script to use different behavior based on what subdirectory you're in, you can use the <code>INIT_CWD</code> environment variable, which holds the full path you were in when you ran <code>npm run</code>.</p>
+<p><code>npm run</code> sets the <code>NODE</code> environment variable to the <code>node</code> executable with which <code>npm</code> is executed.</p>
+<p>If you try to run a script without having a <code>node_modules</code> directory and it fails, you will be given a warning to run <code>npm install</code>, just in case you've forgotten.</p>
 <h3 id="workspaces-support">Workspaces support</h3>
-<p>You may use the <a href="../using-npm/config#workspace.html"><code>workspace</code></a> or
-<a href="../using-npm/config#workspaces.html"><code>workspaces</code></a> configs in order to run an
-arbitrary command from a package's <code>"scripts"</code> object in the context of the
-specified workspaces. If no <code>"command"</code> is provided, it will list the available
-scripts for each of these configured workspaces.</p>
+<p>You may use the <a href="../using-npm/config#workspace.html"><code>workspace</code></a> or <a href="../using-npm/config#workspaces.html"><code>workspaces</code></a> configs in order to run an arbitrary command from a package's <code>"scripts"</code> object in the context of the specified workspaces.
+If no <code>"command"</code> is provided, it will list the available scripts for each of these configured workspaces.</p>
 <p>Given a project with configured workspaces, e.g:</p>
 <pre><code>.
 +-- package.json
@@ -219,30 +202,24 @@ scripts for each of these configured workspaces.</p>
    `-- c
        `-- package.json
 </code></pre>
-<p>Assuming the workspace configuration is properly set up at the root level
-<code>package.json</code> file. e.g:</p>
+<p>Assuming the workspace configuration is properly set up at the root level <code>package.json</code> file.
+e.g:</p>
 <pre><code>{
     "workspaces": [ "./packages/*" ]
 }
 </code></pre>
-<p>And that each of the configured workspaces has a configured <code>test</code> script,
-we can run tests in all of them using the
-<a href="../using-npm/config#workspaces.html"><code>workspaces</code> config</a>:</p>
+<p>And that each of the configured workspaces has a configured <code>test</code> script, we can run tests in all of them using the <a href="../using-npm/config#workspaces.html"><code>workspaces</code> config</a>:</p>
 <pre><code>npm test --workspaces
 </code></pre>
 <h4 id="filtering-workspaces">Filtering workspaces</h4>
-<p>It's also possible to run a script in a single workspace using the <code>workspace</code>
-config along with a name or directory path:</p>
+<p>It's also possible to run a script in a single workspace using the <code>workspace</code> config along with a name or directory path:</p>
 <pre><code>npm test --workspace=a
 </code></pre>
-<p>The <code>workspace</code> config can also be specified multiple times in order to run a
-specific script in the context of multiple workspaces. When defining values for
-the <code>workspace</code> config in the command line, it also possible to use <code>-w</code> as a
-shorthand, e.g:</p>
+<p>The <code>workspace</code> config can also be specified multiple times in order to run a specific script in the context of multiple workspaces.
+When defining values for the <code>workspace</code> config in the command line, it also possible to use <code>-w</code> as a shorthand, e.g:</p>
 <pre><code>npm test -w a -w b
 </code></pre>
-<p>This last command will run <code>test</code> in both <code>./packages/a</code> and <code>./packages/b</code>
-packages.</p>
+<p>This last command will run <code>test</code> in both <code>./packages/a</code> and <code>./packages/b</code> packages.</p>
 <h3 id="configuration">Configuration</h3>
 <h4 id="workspace"><code>workspace</code></h4>
 <ul>

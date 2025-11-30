@@ -235,7 +235,7 @@ class AB2Sorter final : public Reducer {
 
 class AdvancedReducerTest : public TestWithZone {
  public:
-  AdvancedReducerTest() : TestWithZone(kCompressGraphZone), graph_(zone()) {}
+  AdvancedReducerTest() : graph_(zone()) {}
 
  protected:
   TFGraph* graph() { return &graph_; }
@@ -412,7 +412,7 @@ TEST_F(AdvancedReducerTest, ReplaceWithValue_ControlUse3) {
 
 class GraphReducerTest : public TestWithZone {
  public:
-  GraphReducerTest() : TestWithZone(kCompressGraphZone), graph_(zone()) {}
+  GraphReducerTest() : graph_(zone()) {}
 
   static void SetUpTestSuite() {
     TestWithZone::SetUpTestSuite();

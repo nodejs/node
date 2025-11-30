@@ -33,6 +33,7 @@ class InfiniteLooperThread final : public ParkingThread {
         sema_execute_complete_(sema_execute_complete) {}
 
   void Run() override {
+    v8::SandboxHardwareSupport::PrepareCurrentThreadForHardwareSandboxing();
     IsolateWithContextWrapper isolate_wrapper;
     v8::Isolate* v8_isolate = isolate_wrapper.v8_isolate();
     v8::Isolate::Scope isolate_scope(v8_isolate);

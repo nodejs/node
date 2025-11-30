@@ -34,7 +34,7 @@ Scope::~Scope() {
 }
 
 Local<Value> current(Isolate* isolate) {
-  return isolate->GetContinuationPreservedEmbedderData();
+  return isolate->GetContinuationPreservedEmbedderDataV2().As<Value>();
 }
 
 void set(Isolate* isolate, Local<Value> value) {
@@ -43,7 +43,7 @@ void set(Isolate* isolate, Local<Value> value) {
     return;
   }
 
-  isolate->SetContinuationPreservedEmbedderData(value);
+  isolate->SetContinuationPreservedEmbedderDataV2(value);
 }
 
 // NOTE: It's generally recommended to use async_context_frame::Scope

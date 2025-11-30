@@ -38,6 +38,9 @@ TEST_F(ObjectTest, SetAccessorWhenUnconfigurablePropAlreadyDefined) {
 }
 
 using LapContextTest = TestWithIsolate;
+// This tag value has been picked arbitrarily between 0 and
+// V_EXTERNAL_POINTER_TAG_COUNT.
+constexpr v8::ExternalPointerTypeTag kContextTag = 25;
 
 TEST_F(LapContextTest, CurrentContextInLazyAccessorOnPrototype) {
   // The receiver object is created in |receiver_context|, but its prototype
@@ -59,10 +62,10 @@ TEST_F(LapContextTest, CurrentContextInLazyAccessorOnPrototype) {
       [](const FunctionCallbackInfo<Value>& info) {
         ++call_count;
         Local<Context> prototype_context = *reinterpret_cast<Local<Context>*>(
-            info.Data().As<External>()->Value());
+            info.Data().As<External>()->Value(kContextTag));
         EXPECT_EQ(prototype_context, info.GetIsolate()->GetCurrentContext());
       },
-      External::New(isolate(), &prototype_context), signature);
+      External::New(isolate(), &prototype_context, kContextTag), signature);
   function_template->PrototypeTemplate()->SetAccessorProperty(
       property_key, get_or_set, get_or_set);
 
@@ -126,10 +129,10 @@ TEST_F(LapContextTest, CurrentContextInLazyAccessorOnPlatformObject) {
       [](const FunctionCallbackInfo<Value>& info) {
         ++call_count;
         Local<Context> receiver_context = *reinterpret_cast<Local<Context>*>(
-            info.Data().As<External>()->Value());
+            info.Data().As<External>()->Value(kContextTag));
         EXPECT_EQ(receiver_context, info.GetIsolate()->GetCurrentContext());
       },
-      External::New(isolate(), &receiver_context), signature);
+      External::New(isolate(), &receiver_context, kContextTag), signature);
   function_template->InstanceTemplate()->SetAccessorProperty(
       property_key, get_or_set, get_or_set);
 
@@ -177,10 +180,11 @@ TEST_F(LapContextTest, CurrentContextInLazyAccessorOnInterface) {
       [](const FunctionCallbackInfo<Value>& info) {
         ++call_count;
         Local<Context> interface_context = *reinterpret_cast<Local<Context>*>(
-            info.Data().As<External>()->Value());
+            info.Data().As<External>()->Value(kContextTag));
         EXPECT_EQ(interface_context, info.GetIsolate()->GetCurrentContext());
       },
-      External::New(isolate(), &interface_context), Local<Signature>());
+      External::New(isolate(), &interface_context, kContextTag),
+      Local<Signature>());
   function_template->SetAccessorProperty(property_key, get_or_set, get_or_set);
 
   Local<Function> interface =

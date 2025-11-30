@@ -104,7 +104,7 @@ bool SetOption(Environment* env,
     if (!value->ToNumber(env->context()).ToLocal(&num)) {
       Utf8Value nameStr(env->isolate(), name);
       THROW_ERR_INVALID_ARG_VALUE(
-          env, "The %s option must be a number", *nameStr);
+          env, "The %s option must be a number", nameStr);
       return false;
     }
     options->*member = num->Value();
@@ -124,7 +124,7 @@ bool SetOption(Environment* env,
     if (!value->IsUint32()) {
       Utf8Value nameStr(env->isolate(), name);
       THROW_ERR_INVALID_ARG_VALUE(
-          env, "The %s option must be an uint8", *nameStr);
+          env, "The %s option must be an uint8", nameStr);
       return false;
     }
     Local<Uint32> num;
@@ -132,7 +132,7 @@ bool SetOption(Environment* env,
         num->Value() > std::numeric_limits<uint8_t>::max()) {
       Utf8Value nameStr(env->isolate(), name);
       THROW_ERR_INVALID_ARG_VALUE(
-          env, "The %s option must be an uint8", *nameStr);
+          env, "The %s option must be an uint8", nameStr);
       return false;
     }
     options->*member = num->Value();
@@ -151,7 +151,7 @@ bool SetOption(Environment* env,
     if (!value->IsArrayBufferView()) {
       Utf8Value nameStr(env->isolate(), name);
       THROW_ERR_INVALID_ARG_VALUE(
-          env, "The %s option must be an ArrayBufferView", *nameStr);
+          env, "The %s option must be an ArrayBufferView", nameStr);
       return false;
     }
     Store store;
@@ -163,7 +163,7 @@ bool SetOption(Environment* env,
       THROW_ERR_INVALID_ARG_VALUE(
           env,
           "The %s option must be an ArrayBufferView of length %d",
-          *nameStr,
+          nameStr,
           TokenSecret::QUIC_TOKENSECRET_LEN);
       return false;
     }

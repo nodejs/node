@@ -168,8 +168,6 @@ For information about the governance of the Node.js project, see
   **Marco Ippolito** <<marcoippolito54@gmail.com>> (he/him)
 * [mcollina](https://github.com/mcollina) -
   **Matteo Collina** <<matteo.collina@gmail.com>> (he/him)
-* [mhdawson](https://github.com/mhdawson) -
-  **Michael Dawson** <<midawson@redhat.com>> (he/him)
 * [panva](https://github.com/panva) -
   **Filip Skokan** <<panva.ip@gmail.com>> (he/him)
 * [RafaelGSS](https://github.com/RafaelGSS) -
@@ -240,6 +238,8 @@ For information about the governance of the Node.js project, see
   **Isaac Z. Schlueter** <<i@izs.me>>
 * [joshgav](https://github.com/joshgav) -
   **Josh Gavant** <<josh.gavant@outlook.com>>
+* [mhdawson](https://github.com/mhdawson) -
+  **Michael Dawson** <<midawson@redhat.com>> (he/him)
 * [mmarchini](https://github.com/mmarchini) -
   **Mary Marchini** <<oss@mmarchini.me>> (she/her)
 * [mscdex](https://github.com/mscdex) -
@@ -323,8 +323,6 @@ For information about the governance of the Node.js project, see
   **Erick Wendel** <<erick.workspace@gmail.com>> (he/him)
 * [Ethan-Arrowood](https://github.com/Ethan-Arrowood) -
   **Ethan Arrowood** <<ethan@arrowood.dev>> (he/him)
-* [F3n67u](https://github.com/F3n67u) -
-  **Feng Yu** <<F3n67u@outlook.com>> (he/him)
 * [fhinkel](https://github.com/fhinkel) -
   **Franziska Hinkelmann** <<franziska.hinkelmann@gmail.com>> (she/her)
 * [Flarna](https://github.com/Flarna) -
@@ -347,6 +345,8 @@ For information about the governance of the Node.js project, see
   **Harshitha K P** <<harshitha014@gmail.com>> (she/her)
 * [himself65](https://github.com/himself65) -
   **Zeyu "Alex" Yang** <<himself65@outlook.com>> (he/him)
+* [hybrist](https://github.com/hybrist) -
+  **Jan Martin** <<jan.krems@gmail.com>> (he/him)
 * [IlyasShabi](https://github.com/IlyasShabi) -
   **Ilyas Shabi** <<ilyasshabi94@gmail.com>> (he/him)
 * [islandryu](https://github.com/islandryu) -
@@ -359,8 +359,6 @@ For information about the governance of the Node.js project, see
   **James M Snell** <<jasnell@gmail.com>> (he/him)
 * [jazelly](https://github.com/jazelly) -
   **Jason Zhang** <<xzha4350@gmail.com>> (he/him)
-* [jkrems](https://github.com/jkrems) -
-  **Jan Martin** <<jan.krems@gmail.com>> (he/him)
 * [JonasBa](https://github.com/JonasBa) -
   **Jonas Badalic** <<jonas.badalic@gmail.com>> (he/him)
 * [joyeecheung](https://github.com/joyeecheung) -
@@ -417,6 +415,8 @@ For information about the governance of the Node.js project, see
   **Rafael Gonzaga** <<rafael.nunu@hotmail.com>> (he/him) - [Support me](https://github.com/sponsors/RafaelGSS)
 * [RaisinTen](https://github.com/RaisinTen) -
   **Darshan Sen** <<raisinten@gmail.com>> (he/him) - [Support me](https://github.com/sponsors/RaisinTen)
+* [Renegade334](https://github.com/Renegade334) -
+  **René** <<contact.9a5d6388@renegade334.me.uk>>
 * [richardlau](https://github.com/richardlau) -
   **Richard Lau** <<richard.lau@ibm.com>>
 * [rluvaton](https://github.com/rluvaton) -
@@ -527,6 +527,8 @@ For information about the governance of the Node.js project, see
   **Eugene Ostroukhov** <<eostroukhov@google.com>>
 * [evanlucas](https://github.com/evanlucas) -
   **Evan Lucas** <<evanlucas@me.com>> (he/him)
+* [F3n67u](https://github.com/F3n67u) -
+  **Feng Yu** <<F3n67u@outlook.com>> (he/him)
 * [firedfox](https://github.com/firedfox) -
   **Daniel Wang** <<wangyang0123@gmail.com>>
 * [Fishrock123](https://github.com/Fishrock123) -
@@ -751,12 +753,12 @@ maintaining the Node.js project.
   **Oliver Medhurst** <<honk@goose.icu>> (they/them)
 * [daeyeon](https://github.com/daeyeon) -
   **Daeyeon Jeong** <<daeyeon.dev@gmail.com>> (he/him)
-* [F3n67u](https://github.com/F3n67u) -
-  **Feng Yu** <<F3n67u@outlook.com>> (he/him)
 * [gireeshpunathil](https://github.com/gireeshpunathil) -
   **Gireesh Punathil** <<gpunathi@in.ibm.com>> (he/him)
 * [gurgunday](https://github.com/gurgunday) -
   **Gürgün Dayıoğlu** <<hey@gurgun.day>>
+* [haramj](https://github.com/haramj) -
+  **Haram Jeong** <<haramj.dev@gmail.com>>
 * [HBSPS](https://github.com/HBSPS) -
   **Wiyeong Seo** <<hbsps.dev@gmail.com>>
 * [iam-frankqiu](https://github.com/iam-frankqiu) -
@@ -901,11 +903,14 @@ releases on a rotation basis as outlined in the
 
 ## License
 
-Node.js is available under the
-[MIT License](https://opensource.org/licenses/MIT). Node.js also includes
-external libraries that are available under a variety of licenses.  See
-[LICENSE](https://github.com/nodejs/node/blob/HEAD/LICENSE) for the full
-license text.
+Node.js is licensed under the [MIT License](https://opensource.org/licenses/MIT).
+
+This project also depends on external libraries that may use different open-source
+licenses. For a complete list of included licenses, please see the
+[LICENSE](https://github.com/nodejs/node/blob/main/LICENSE) file.
+
+If you are contributing documentation or source changes, please ensure your
+additions comply with the project’s license guidelines.
 
 [Code of Conduct]: https://github.com/nodejs/admin/blob/HEAD/CODE_OF_CONDUCT.md
 [Contributing to the project]: CONTRIBUTING.md

@@ -1,7 +1,9 @@
 #include <algorithm>
 #include <climits>  // INT_MAX
 #include <cmath>
+#ifndef NAPI_EXPERIMENTAL
 #define NAPI_EXPERIMENTAL
+#endif
 #include "env-inl.h"
 #include "js_native_api.h"
 #include "js_native_api_v8.h"
@@ -1588,6 +1590,50 @@ napi_status NAPI_CDECL napi_create_object(napi_env env, napi_value* result) {
 
   *result = v8impl::JsValueFromV8LocalValue(v8::Object::New(env->isolate));
 
+  return napi_clear_last_error(env);
+}
+
+napi_status NAPI_CDECL
+napi_create_object_with_properties(napi_env env,
+                                   napi_value prototype_or_null,
+                                   napi_value* property_names,
+                                   napi_value* property_values,
+                                   size_t property_count,
+                                   napi_value* result) {
+  CHECK_ENV_NOT_IN_GC(env);
+  CHECK_ARG(env, result);
+
+  if (property_count > 0) {
+    CHECK_ARG(env, property_names);
+    CHECK_ARG(env, property_values);
+  }
+
+  v8::Local<v8::Value> v8_prototype_or_null;
+  if (prototype_or_null == nullptr) {
+    v8_prototype_or_null = v8::Null(env->isolate);
+  } else {
+    v8_prototype_or_null = v8impl::V8LocalValueFromJsValue(prototype_or_null);
+  }
+
+  v8::LocalVector<v8::Name> v8_names(env->isolate, property_count);
+  v8::LocalVector<v8::Value> v8_values(env->isolate, property_count);
+
+  for (size_t i = 0; i < property_count; i++) {
+    v8::Local<v8::Value> name_value =
+        v8impl::V8LocalValueFromJsValue(property_names[i]);
+    RETURN_STATUS_IF_FALSE(env, name_value->IsName(), napi_name_expected);
+    v8_names[i] = name_value.As<v8::Name>();
+    v8_values[i] = v8impl::V8LocalValueFromJsValue(property_values[i]);
+  }
+
+  v8::Local<v8::Object> obj = v8::Object::New(env->isolate,
+                                              v8_prototype_or_null,
+                                              v8_names.data(),
+                                              v8_values.data(),
+                                              property_count);
+
+  RETURN_STATUS_IF_FALSE(env, !obj.IsEmpty(), napi_generic_failure);
+  *result = v8impl::JsValueFromV8LocalValue(obj);
   return napi_clear_last_error(env);
 }
 
@@ -3213,6 +3259,10 @@ napi_status NAPI_CDECL napi_create_typedarray(napi_env env,
       CREATE_TYPED_ARRAY(
           env, BigUint64Array, 8, buffer, byte_offset, length, typedArray);
       break;
+    case napi_float16_array:
+      CREATE_TYPED_ARRAY(
+          env, Float16Array, 2, buffer, byte_offset, length, typedArray);
+      break;
     default:
       return napi_set_last_error(env, napi_invalid_arg);
   }
@@ -3251,6 +3301,8 @@ napi_status NAPI_CDECL napi_get_typedarray_info(napi_env env,
       *type = napi_int32_array;
     } else if (value->IsUint32Array()) {
       *type = napi_uint32_array;
+    } else if (value->IsFloat16Array()) {
+      *type = napi_float16_array;
     } else if (value->IsFloat32Array()) {
       *type = napi_float32_array;
     } else if (value->IsFloat64Array()) {
@@ -3298,21 +3350,30 @@ napi_status NAPI_CDECL napi_create_dataview(napi_env env,
   CHECK_ARG(env, result);
 
   v8::Local<v8::Value> value = v8impl::V8LocalValueFromJsValue(arraybuffer);
-  RETURN_STATUS_IF_FALSE(env, value->IsArrayBuffer(), napi_invalid_arg);
 
-  v8::Local<v8::ArrayBuffer> buffer = value.As<v8::ArrayBuffer>();
-  if (byte_length + byte_offset > buffer->ByteLength()) {
-    napi_throw_range_error(env,
-                           "ERR_NAPI_INVALID_DATAVIEW_ARGS",
-                           "byte_offset + byte_length should be less than or "
-                           "equal to the size in bytes of the array passed in");
-    return napi_set_last_error(env, napi_pending_exception);
+  auto create_dataview = [&](auto buffer) -> napi_status {
+    if (byte_length + byte_offset > buffer->ByteLength()) {
+      napi_throw_range_error(
+          env,
+          "ERR_NAPI_INVALID_DATAVIEW_ARGS",
+          "byte_offset + byte_length should be less than or "
+          "equal to the size in bytes of the array passed in");
+      return napi_set_last_error(env, napi_pending_exception);
+    }
+
+    v8::Local<v8::DataView> data_view =
+        v8::DataView::New(buffer, byte_offset, byte_length);
+    *result = v8impl::JsValueFromV8LocalValue(data_view);
+    return GET_RETURN_STATUS(env);
+  };
+
+  if (value->IsArrayBuffer()) {
+    return create_dataview(value.As<v8::ArrayBuffer>());
+  } else if (value->IsSharedArrayBuffer()) {
+    return create_dataview(value.As<v8::SharedArrayBuffer>());
+  } else {
+    return napi_set_last_error(env, napi_invalid_arg);
   }
-  v8::Local<v8::DataView> DataView =
-      v8::DataView::New(buffer, byte_offset, byte_length);
-
-  *result = v8impl::JsValueFromV8LocalValue(DataView);
-  return GET_RETURN_STATUS(env);
 }
 
 napi_status NAPI_CDECL napi_is_dataview(napi_env env,

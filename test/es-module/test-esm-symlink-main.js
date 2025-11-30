@@ -20,6 +20,6 @@ try {
 
 spawn(process.execPath,
       ['--preserve-symlinks', symlinkPath],
-      { stdio: 'inherit' }).on('exit', (code) => {
+      { stdio: 'inherit' }).on('exit', common.mustCall((code) => {
   assert.strictEqual(code, 0);
-});
+}));

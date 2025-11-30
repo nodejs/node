@@ -1,6 +1,5 @@
 const _makeIdealGraph = Symbol('makeIdealGraph')
 const _createIsolatedTree = Symbol.for('createIsolatedTree')
-const _createBundledTree = Symbol('createBundledTree')
 const { mkdirSync } = require('node:fs')
 const pacote = require('pacote')
 const { join } = require('node:path')
@@ -81,7 +80,7 @@ module.exports = cls => class IsolatedReifier extends cls {
         }
         queue.push(e.to)
       })
-      if (!next.isProjectRoot && !next.isWorkspace && !next.ideallyInert) {
+      if (!next.isProjectRoot && !next.isWorkspace && !next.inert) {
         root.external.push(await this.externalProxyMemo(next))
       }
     }
@@ -140,15 +139,15 @@ module.exports = cls => class IsolatedReifier extends cls {
 
   async assignCommonProperties (node, result) {
     function validEdgesOut (node) {
-      return [...node.edgesOut.values()].filter(e => e.to && e.to.target && !(node.package.bundledDepenedencies || node.package.bundleDependencies || []).includes(e.to.name))
+      return [...node.edgesOut.values()].filter(e => e.to && e.to.target && !(node.package.bundledDependencies || node.package.bundleDependencies || []).includes(e.to.name))
     }
     const edges = validEdgesOut(node)
     const optionalDeps = edges.filter(e => e.optional).map(e => e.to.target)
     const nonOptionalDeps = edges.filter(e => !e.optional).map(e => e.to.target)
 
     result.localDependencies = await Promise.all(nonOptionalDeps.filter(n => n.isWorkspace).map(this.workspaceProxyMemo))
-    result.externalDependencies = await Promise.all(nonOptionalDeps.filter(n => !n.isWorkspace && !n.ideallyInert).map(this.externalProxyMemo))
-    result.externalOptionalDependencies = await Promise.all(optionalDeps.filter(n => !n.ideallyInert).map(this.externalProxyMemo))
+    result.externalDependencies = await Promise.all(nonOptionalDeps.filter(n => !n.isWorkspace && !n.inert).map(this.externalProxyMemo))
+    result.externalOptionalDependencies = await Promise.all(optionalDeps.filter(n => !n.inert).map(this.externalProxyMemo))
     result.dependencies = [
       ...result.externalDependencies,
       ...result.localDependencies,
@@ -162,7 +161,7 @@ module.exports = cls => class IsolatedReifier extends cls {
     result.hasInstallScript = node.hasInstallScript
   }
 
-  async [_createBundledTree] () {
+  async #createBundledTree () {
     // TODO: make sure that idealTree object exists
     const idealTree = this.idealTree
     // TODO: test workspaces having bundled deps
@@ -217,7 +216,7 @@ module.exports = cls => class IsolatedReifier extends cls {
 
     const proxiedIdealTree = this.idealGraph
 
-    const bundledTree = await this[_createBundledTree]()
+    const bundledTree = await this.#createBundledTree()
 
     const treeHash = (startNode) => {
       // generate short hash based on the dependency tree

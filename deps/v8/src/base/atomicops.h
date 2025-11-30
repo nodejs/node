@@ -5,55 +5,30 @@
 #ifndef V8_BASE_ATOMICOPS_H_
 #define V8_BASE_ATOMICOPS_H_
 
-// The routines exported by this module are subtle.  If you use them, even if
-// you get the code right, it will depend on careful reasoning about atomicity
-// and memory ordering; it will be less readable, and harder to maintain.  If
-// you plan to use these routines, you should have a good reason, such as solid
-// evidence that performance would otherwise suffer, or there being no
-// alternative.  You should assume only properties explicitly guaranteed by the
-// specifications in this file.  You are almost certainly _not_ writing code
-// just for the x86; if you assume x86 semantics, x86 hardware bugs and
-// implementations on other archtectures will cause your code to break.  If you
-// do not know what you are doing, avoid these routines, and use a Mutex.
-//
-// It is incorrect to make direct assignments to/from an atomic variable.
-// You should use one of the Load or Store routines.  The Relaxed  versions
-// are provided when no fences are needed:
-//   Relaxed_Store()
-//   Relaxed_Load()
-// Although there are currently no compiler enforcement, you are encouraged
-// to use these.
-//
-
 #include <stdint.h>
 
 #include <atomic>
 
-// Small C++ header which defines implementation specific macros used to
-// identify the STL implementation.
-// - libc++: captures __config for _LIBCPP_VERSION
-// - libstdc++: captures bits/c++config.h for __GLIBCXX__
-#include <cstddef>
-
 #include "src/base/base-export.h"
-#include "src/base/build_config.h"
 #include "src/base/macros.h"
 
 #if defined(V8_OS_STARBOARD)
 #include "starboard/atomic.h"
 #endif  // V8_OS_STARBOARD
 
-namespace v8 {
-namespace base {
+namespace v8::base {
 
 #ifdef V8_OS_STARBOARD
+
 using Atomic8 = SbAtomic8;
 using Atomic16 = int16_t;
 using Atomic32 = SbAtomic32;
 #if SB_IS_64_BIT
 using Atomic64 = SbAtomic64;
 #endif
+
 #else
+
 using Atomic8 = char;
 using Atomic16 = int16_t;
 using Atomic32 = int32_t;
@@ -66,6 +41,7 @@ using Atomic64 = int64_t;
 using Atomic64 = intptr_t;
 #endif  // defined(__ILP32__)
 #endif  // defined(V8_HOST_ARCH_64_BIT)
+
 #endif  // V8_OS_STARBOARD
 
 // Use AtomicWord for a machine-sized pointer. It will use the Atomic32 or
@@ -77,20 +53,17 @@ using AtomicWord = Atomic32;
 #endif
 static_assert(sizeof(void*) == sizeof(AtomicWord));
 
-namespace helper {
-template <typename T>
-volatile std::atomic<T>* to_std_atomic(volatile T* ptr) {
-  return reinterpret_cast<volatile std::atomic<T>*>(ptr);
-}
-template <typename T>
-volatile const std::atomic<T>* to_std_atomic_const(volatile const T* ptr) {
-  return reinterpret_cast<volatile const std::atomic<T>*>(ptr);
-}
-}  // namespace helper
-
 inline void SeqCst_MemoryFence() {
   std::atomic_thread_fence(std::memory_order_seq_cst);
 }
+
+template <typename T>
+concept AtomicTypeForTrivialOperations =
+#if defined(V8_HOST_ARCH_64_BIT)
+    std::is_same_v<T, Atomic64> ||
+#endif
+    std::is_same_v<T, Atomic8> || std::is_same_v<T, Atomic16> ||
+    std::is_same_v<T, Atomic32>;
 
 // Atomically execute:
 //   result = *ptr;
@@ -101,267 +74,106 @@ inline void SeqCst_MemoryFence() {
 // I.e. replace |*ptr| with |new_value| if |*ptr| used to be |old_value|.
 // Always return the value of |*ptr| before the operation.
 // Acquire, Relaxed, Release correspond to standard C++ memory orders.
-inline Atomic8 Relaxed_CompareAndSwap(volatile Atomic8* ptr, Atomic8 old_value,
-                                      Atomic8 new_value) {
-  std::atomic_compare_exchange_strong_explicit(
-      helper::to_std_atomic(ptr), &old_value, new_value,
-      std::memory_order_relaxed, std::memory_order_relaxed);
+template <AtomicTypeForTrivialOperations T>
+inline std::type_identity_t<T> Relaxed_CompareAndSwap(
+    T* ptr, std::type_identity_t<T> old_value,
+    std::type_identity_t<T> new_value) {
+  std::atomic_ref<T>(*ptr).compare_exchange_strong(old_value, new_value,
+                                                   std::memory_order_relaxed);
   return old_value;
 }
 
-inline Atomic16 Relaxed_CompareAndSwap(volatile Atomic16* ptr,
-                                       Atomic16 old_value, Atomic16 new_value) {
-  std::atomic_compare_exchange_strong_explicit(
-      helper::to_std_atomic(ptr), &old_value, new_value,
-      std::memory_order_relaxed, std::memory_order_relaxed);
+template <AtomicTypeForTrivialOperations T>
+inline std::type_identity_t<T> AcquireRelease_CompareAndSwap(
+    T* ptr, std::type_identity_t<T> old_value,
+    std::type_identity_t<T> new_value) {
+  std::atomic_ref<T>(*ptr).compare_exchange_strong(old_value, new_value,
+                                                   std::memory_order_acq_rel,
+                                                   std::memory_order_acquire);
   return old_value;
 }
 
-inline Atomic32 Relaxed_CompareAndSwap(volatile Atomic32* ptr,
-                                       Atomic32 old_value, Atomic32 new_value) {
-  std::atomic_compare_exchange_strong_explicit(
-      helper::to_std_atomic(ptr), &old_value, new_value,
-      std::memory_order_relaxed, std::memory_order_relaxed);
+template <AtomicTypeForTrivialOperations T>
+inline std::type_identity_t<T> Release_CompareAndSwap(
+    T* ptr, std::type_identity_t<T> old_value,
+    std::type_identity_t<T> new_value) {
+  std::atomic_ref<T>(*ptr).compare_exchange_strong(old_value, new_value,
+                                                   std::memory_order_release,
+                                                   std::memory_order_relaxed);
   return old_value;
 }
 
-inline Atomic32 Relaxed_AtomicExchange(volatile Atomic32* ptr,
-                                       Atomic32 new_value) {
-  return std::atomic_exchange_explicit(helper::to_std_atomic(ptr), new_value,
-                                       std::memory_order_relaxed);
-}
-
-inline Atomic32 SeqCst_AtomicExchange(volatile Atomic32* ptr,
-                                      Atomic32 new_value) {
-  return std::atomic_exchange_explicit(helper::to_std_atomic(ptr), new_value,
-                                       std::memory_order_seq_cst);
-}
-
-inline Atomic32 Relaxed_AtomicIncrement(volatile Atomic32* ptr,
-                                        Atomic32 increment) {
-  return increment + std::atomic_fetch_add_explicit(helper::to_std_atomic(ptr),
-                                                    increment,
-                                                    std::memory_order_relaxed);
-}
-
-inline Atomic32 Acquire_CompareAndSwap(volatile Atomic32* ptr,
-                                       Atomic32 old_value, Atomic32 new_value) {
-  atomic_compare_exchange_strong_explicit(
-      helper::to_std_atomic(ptr), &old_value, new_value,
-      std::memory_order_acquire, std::memory_order_acquire);
+template <AtomicTypeForTrivialOperations T>
+inline std::type_identity_t<T> SeqCst_CompareAndSwap(
+    T* ptr, std::type_identity_t<T> old_value,
+    std::type_identity_t<T> new_value) {
+  std::atomic_ref<T>(*ptr).compare_exchange_strong(old_value, new_value,
+                                                   std::memory_order_seq_cst,
+                                                   std::memory_order_seq_cst);
   return old_value;
 }
 
-inline Atomic8 Release_CompareAndSwap(volatile Atomic8* ptr, Atomic8 old_value,
-                                      Atomic8 new_value) {
-  bool result = atomic_compare_exchange_strong_explicit(
-      helper::to_std_atomic(ptr), &old_value, new_value,
-      std::memory_order_release, std::memory_order_relaxed);
-  USE(result);  // Make gcc compiler happy.
-  return old_value;
+template <AtomicTypeForTrivialOperations T>
+inline std::type_identity_t<T> Relaxed_AtomicExchange(
+    T* ptr, std::type_identity_t<T> new_value) {
+  return std::atomic_ref<T>(*ptr).exchange(new_value,
+                                           std::memory_order_relaxed);
 }
 
-inline Atomic32 Release_CompareAndSwap(volatile Atomic32* ptr,
-                                       Atomic32 old_value, Atomic32 new_value) {
-  atomic_compare_exchange_strong_explicit(
-      helper::to_std_atomic(ptr), &old_value, new_value,
-      std::memory_order_release, std::memory_order_relaxed);
-  return old_value;
+template <AtomicTypeForTrivialOperations T>
+inline std::type_identity_t<T> SeqCst_AtomicExchange(
+    T* ptr, std::type_identity_t<T> new_value) {
+  return std::atomic_ref<T>(*ptr).exchange(new_value,
+                                           std::memory_order_seq_cst);
 }
 
-inline Atomic32 AcquireRelease_CompareAndSwap(volatile Atomic32* ptr,
-                                              Atomic32 old_value,
-                                              Atomic32 new_value) {
-  atomic_compare_exchange_strong_explicit(
-      helper::to_std_atomic(ptr), &old_value, new_value,
-      std::memory_order_acq_rel, std::memory_order_acquire);
-  return old_value;
+template <AtomicTypeForTrivialOperations T>
+inline std::type_identity_t<T> Relaxed_FetchOr(T* ptr,
+                                               std::type_identity_t<T> bits) {
+  return std::atomic_ref<T>(*ptr).fetch_or(bits, std::memory_order_relaxed);
 }
 
-inline Atomic32 SeqCst_CompareAndSwap(volatile Atomic32* ptr,
-                                      Atomic32 old_value, Atomic32 new_value) {
-  atomic_compare_exchange_strong_explicit(
-      helper::to_std_atomic(ptr), &old_value, new_value,
-      std::memory_order_seq_cst, std::memory_order_seq_cst);
-  return old_value;
+template <AtomicTypeForTrivialOperations T>
+inline std::type_identity_t<T> Relaxed_AtomicIncrement(
+    T* ptr, std::type_identity_t<T> increment) {
+  return increment + std::atomic_ref<T>(*ptr).fetch_add(
+                         increment, std::memory_order_relaxed);
 }
 
-inline void Relaxed_Store(volatile Atomic8* ptr, Atomic8 value) {
-  std::atomic_store_explicit(helper::to_std_atomic(ptr), value,
-                             std::memory_order_relaxed);
+template <AtomicTypeForTrivialOperations T>
+inline void Relaxed_Store(T* ptr, std::type_identity_t<T> value) {
+  std::atomic_ref<T>(*ptr).store(value, std::memory_order_relaxed);
 }
 
-inline void Relaxed_Store(volatile Atomic16* ptr, Atomic16 value) {
-  std::atomic_store_explicit(helper::to_std_atomic(ptr), value,
-                             std::memory_order_relaxed);
+template <AtomicTypeForTrivialOperations T>
+inline void Release_Store(T* ptr, std::type_identity_t<T> value) {
+  std::atomic_ref<T>(*ptr).store(value, std::memory_order_release);
 }
 
-inline void Relaxed_Store(volatile Atomic32* ptr, Atomic32 value) {
-  std::atomic_store_explicit(helper::to_std_atomic(ptr), value,
-                             std::memory_order_relaxed);
+template <AtomicTypeForTrivialOperations T>
+inline void SeqCst_Store(T* ptr, std::type_identity_t<T> value) {
+  std::atomic_ref<T>(*ptr).store(value, std::memory_order_seq_cst);
 }
 
-inline void Release_Store(volatile Atomic8* ptr, Atomic8 value) {
-  std::atomic_store_explicit(helper::to_std_atomic(ptr), value,
-                             std::memory_order_release);
+template <AtomicTypeForTrivialOperations T>
+inline T Relaxed_Load(const T* ptr) {
+  return std::atomic_ref<T>(*const_cast<T*>(ptr))
+      .load(std::memory_order_relaxed);
 }
 
-inline void Release_Store(volatile Atomic16* ptr, Atomic16 value) {
-  std::atomic_store_explicit(helper::to_std_atomic(ptr), value,
-                             std::memory_order_release);
+template <AtomicTypeForTrivialOperations T>
+inline T Acquire_Load(const T* ptr) {
+  return std::atomic_ref<T>(*const_cast<T*>(ptr))
+      .load(std::memory_order_acquire);
 }
 
-inline void Release_Store(volatile Atomic32* ptr, Atomic32 value) {
-  std::atomic_store_explicit(helper::to_std_atomic(ptr), value,
-                             std::memory_order_release);
+template <AtomicTypeForTrivialOperations T>
+inline T SeqCst_Load(const T* ptr) {
+  return std::atomic_ref<T>(*const_cast<T*>(ptr))
+      .load(std::memory_order_seq_cst);
 }
 
-inline void SeqCst_Store(volatile Atomic8* ptr, Atomic8 value) {
-  std::atomic_store_explicit(helper::to_std_atomic(ptr), value,
-                             std::memory_order_seq_cst);
-}
-
-inline void SeqCst_Store(volatile Atomic16* ptr, Atomic16 value) {
-  std::atomic_store_explicit(helper::to_std_atomic(ptr), value,
-                             std::memory_order_seq_cst);
-}
-
-inline void SeqCst_Store(volatile Atomic32* ptr, Atomic32 value) {
-  std::atomic_store_explicit(helper::to_std_atomic(ptr), value,
-                             std::memory_order_seq_cst);
-}
-
-inline Atomic8 Relaxed_Load(volatile const Atomic8* ptr) {
-  return std::atomic_load_explicit(helper::to_std_atomic_const(ptr),
-                                   std::memory_order_relaxed);
-}
-
-inline Atomic16 Relaxed_Load(volatile const Atomic16* ptr) {
-  return std::atomic_load_explicit(helper::to_std_atomic_const(ptr),
-                                   std::memory_order_relaxed);
-}
-
-inline Atomic32 Relaxed_Load(volatile const Atomic32* ptr) {
-  return std::atomic_load_explicit(helper::to_std_atomic_const(ptr),
-                                   std::memory_order_relaxed);
-}
-
-inline Atomic8 Acquire_Load(volatile const Atomic8* ptr) {
-  return std::atomic_load_explicit(helper::to_std_atomic_const(ptr),
-                                   std::memory_order_acquire);
-}
-
-inline Atomic32 Acquire_Load(volatile const Atomic32* ptr) {
-  return std::atomic_load_explicit(helper::to_std_atomic_const(ptr),
-                                   std::memory_order_acquire);
-}
-
-inline Atomic8 SeqCst_Load(volatile const Atomic8* ptr) {
-  return std::atomic_load_explicit(helper::to_std_atomic_const(ptr),
-                                   std::memory_order_seq_cst);
-}
-
-inline Atomic32 SeqCst_Load(volatile const Atomic32* ptr) {
-  return std::atomic_load_explicit(helper::to_std_atomic_const(ptr),
-                                   std::memory_order_seq_cst);
-}
-
-#if defined(V8_HOST_ARCH_64_BIT)
-
-inline Atomic64 Relaxed_CompareAndSwap(volatile Atomic64* ptr,
-                                       Atomic64 old_value, Atomic64 new_value) {
-  std::atomic_compare_exchange_strong_explicit(
-      helper::to_std_atomic(ptr), &old_value, new_value,
-      std::memory_order_relaxed, std::memory_order_relaxed);
-  return old_value;
-}
-
-inline Atomic64 Relaxed_AtomicExchange(volatile Atomic64* ptr,
-                                       Atomic64 new_value) {
-  return std::atomic_exchange_explicit(helper::to_std_atomic(ptr), new_value,
-                                       std::memory_order_relaxed);
-}
-
-inline Atomic64 SeqCst_AtomicExchange(volatile Atomic64* ptr,
-                                      Atomic64 new_value) {
-  return std::atomic_exchange_explicit(helper::to_std_atomic(ptr), new_value,
-                                       std::memory_order_seq_cst);
-}
-
-inline Atomic64 Relaxed_AtomicIncrement(volatile Atomic64* ptr,
-                                        Atomic64 increment) {
-  return increment + std::atomic_fetch_add_explicit(helper::to_std_atomic(ptr),
-                                                    increment,
-                                                    std::memory_order_relaxed);
-}
-
-inline Atomic64 Acquire_CompareAndSwap(volatile Atomic64* ptr,
-                                       Atomic64 old_value, Atomic64 new_value) {
-  std::atomic_compare_exchange_strong_explicit(
-      helper::to_std_atomic(ptr), &old_value, new_value,
-      std::memory_order_acquire, std::memory_order_acquire);
-  return old_value;
-}
-
-inline Atomic64 Release_CompareAndSwap(volatile Atomic64* ptr,
-                                       Atomic64 old_value, Atomic64 new_value) {
-  std::atomic_compare_exchange_strong_explicit(
-      helper::to_std_atomic(ptr), &old_value, new_value,
-      std::memory_order_release, std::memory_order_relaxed);
-  return old_value;
-}
-
-inline Atomic64 AcquireRelease_CompareAndSwap(volatile Atomic64* ptr,
-                                              Atomic64 old_value,
-                                              Atomic64 new_value) {
-  std::atomic_compare_exchange_strong_explicit(
-      helper::to_std_atomic(ptr), &old_value, new_value,
-      std::memory_order_acq_rel, std::memory_order_acquire);
-  return old_value;
-}
-
-inline Atomic64 SeqCst_CompareAndSwap(volatile Atomic64* ptr,
-                                      Atomic64 old_value, Atomic64 new_value) {
-  std::atomic_compare_exchange_strong_explicit(
-      helper::to_std_atomic(ptr), &old_value, new_value,
-      std::memory_order_seq_cst, std::memory_order_seq_cst);
-  return old_value;
-}
-
-inline void Relaxed_Store(volatile Atomic64* ptr, Atomic64 value) {
-  std::atomic_store_explicit(helper::to_std_atomic(ptr), value,
-                             std::memory_order_relaxed);
-}
-
-inline void Release_Store(volatile Atomic64* ptr, Atomic64 value) {
-  std::atomic_store_explicit(helper::to_std_atomic(ptr), value,
-                             std::memory_order_release);
-}
-
-inline void SeqCst_Store(volatile Atomic64* ptr, Atomic64 value) {
-  std::atomic_store_explicit(helper::to_std_atomic(ptr), value,
-                             std::memory_order_seq_cst);
-}
-
-inline Atomic64 Relaxed_Load(volatile const Atomic64* ptr) {
-  return std::atomic_load_explicit(helper::to_std_atomic_const(ptr),
-                                   std::memory_order_relaxed);
-}
-
-inline Atomic64 Acquire_Load(volatile const Atomic64* ptr) {
-  return std::atomic_load_explicit(helper::to_std_atomic_const(ptr),
-                                   std::memory_order_acquire);
-}
-
-inline Atomic64 SeqCst_Load(volatile const Atomic64* ptr) {
-  return std::atomic_load_explicit(helper::to_std_atomic_const(ptr),
-                                   std::memory_order_seq_cst);
-}
-
-#endif  // defined(V8_HOST_ARCH_64_BIT)
-
-inline void Relaxed_Memcpy(volatile Atomic8* dst, volatile const Atomic8* src,
-                           size_t bytes) {
+inline void Relaxed_Memcpy(Atomic8* dst, const Atomic8* src, size_t bytes) {
   constexpr size_t kAtomicWordSize = sizeof(AtomicWord);
   while (bytes > 0 &&
          !IsAligned(reinterpret_cast<uintptr_t>(dst), kAtomicWordSize)) {
@@ -371,9 +183,8 @@ inline void Relaxed_Memcpy(volatile Atomic8* dst, volatile const Atomic8* src,
   if (IsAligned(reinterpret_cast<uintptr_t>(src), kAtomicWordSize) &&
       IsAligned(reinterpret_cast<uintptr_t>(dst), kAtomicWordSize)) {
     while (bytes >= kAtomicWordSize) {
-      Relaxed_Store(
-          reinterpret_cast<volatile AtomicWord*>(dst),
-          Relaxed_Load(reinterpret_cast<const volatile AtomicWord*>(src)));
+      Relaxed_Store(reinterpret_cast<AtomicWord*>(dst),
+                    Relaxed_Load(reinterpret_cast<const AtomicWord*>(src)));
       dst += kAtomicWordSize;
       src += kAtomicWordSize;
       bytes -= kAtomicWordSize;
@@ -385,8 +196,7 @@ inline void Relaxed_Memcpy(volatile Atomic8* dst, volatile const Atomic8* src,
   }
 }
 
-inline void Relaxed_Memmove(volatile Atomic8* dst, volatile const Atomic8* src,
-                            size_t bytes) {
+inline void Relaxed_Memmove(Atomic8* dst, const Atomic8* src, size_t bytes) {
   // Use Relaxed_Memcpy if copying forwards is safe. This is the case if there
   // is no overlap, or {dst} lies before {src}.
   // This single check checks for both:
@@ -411,9 +221,8 @@ inline void Relaxed_Memmove(volatile Atomic8* dst, volatile const Atomic8* src,
       dst -= kAtomicWordSize;
       src -= kAtomicWordSize;
       bytes -= kAtomicWordSize;
-      Relaxed_Store(
-          reinterpret_cast<volatile AtomicWord*>(dst),
-          Relaxed_Load(reinterpret_cast<const volatile AtomicWord*>(src)));
+      Relaxed_Store(reinterpret_cast<AtomicWord*>(dst),
+                    Relaxed_Load(reinterpret_cast<const AtomicWord*>(src)));
     }
   }
   while (bytes > 0) {
@@ -444,8 +253,7 @@ inline int MemcmpNotEqualFundamental(AtomicWord u1, AtomicWord u2) {
 }
 }  // namespace helper
 
-inline int Relaxed_Memcmp(volatile const Atomic8* s1,
-                          volatile const Atomic8* s2, size_t len) {
+inline int Relaxed_Memcmp(const Atomic8* s1, const Atomic8* s2, size_t len) {
   constexpr size_t kAtomicWordSize = sizeof(AtomicWord);
   while (len > 0 &&
          !(IsAligned(reinterpret_cast<uintptr_t>(s1), kAtomicWordSize) &&
@@ -459,10 +267,8 @@ inline int Relaxed_Memcmp(volatile const Atomic8* s1,
   if (IsAligned(reinterpret_cast<uintptr_t>(s1), kAtomicWordSize) &&
       IsAligned(reinterpret_cast<uintptr_t>(s2), kAtomicWordSize)) {
     while (len >= kAtomicWordSize) {
-      AtomicWord u1 =
-          Relaxed_Load(reinterpret_cast<const volatile AtomicWord*>(s1));
-      AtomicWord u2 =
-          Relaxed_Load(reinterpret_cast<const volatile AtomicWord*>(s2));
+      AtomicWord u1 = Relaxed_Load(reinterpret_cast<const AtomicWord*>(s1));
+      AtomicWord u2 = Relaxed_Load(reinterpret_cast<const AtomicWord*>(s2));
       if (u1 != u2) return helper::MemcmpNotEqualFundamental(u1, u2);
       s1 += kAtomicWordSize;
       s2 += kAtomicWordSize;
@@ -480,7 +286,6 @@ inline int Relaxed_Memcmp(volatile const Atomic8* s1,
   return 0;
 }
 
-}  // namespace base
-}  // namespace v8
+}  // namespace v8::base
 
 #endif  // V8_BASE_ATOMICOPS_H_

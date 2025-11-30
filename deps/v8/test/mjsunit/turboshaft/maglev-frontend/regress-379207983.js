@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 //
 // Flags: --allow-natives-syntax --script-context-cells
-// Flags: --no-always-turbofan --turbolev
+// Flags: --turbolev
 
 let v0 = 7;
 function f1() {

@@ -8,11 +8,7 @@
 #include "src/compiler/backend/instruction.h"
 #include "test/cctest/cctest.h"
 
-namespace v8 {
-namespace internal {
-namespace compiler {
-
-using FlagsContinuation = FlagsContinuationT;
+namespace v8::internal::compiler {
 
 // Create InstructionBlocks with a single block.
 InstructionBlocks* CreateSingleBlock(Zone* zone) {
@@ -28,18 +24,20 @@ InstructionBlocks* CreateSingleBlock(Zone* zone) {
 class InstructionSchedulerTester {
  public:
   InstructionSchedulerTester()
-      : scope_(kCompressGraphZone),
+      : scope_(),
         blocks_(CreateSingleBlock(scope_.main_zone())),
         sequence_(scope_.main_isolate(), scope_.main_zone(), blocks_),
         scheduler_(scope_.main_zone(), &sequence_) {}
 
   void StartBlock() { scheduler_.StartBlock(RpoNumber::FromInt(0)); }
-  void EndBlock() { scheduler_.EndBlock(RpoNumber::FromInt(0)); }
+  void EndBlock(Instruction* instr) {
+    scheduler_.EndBlock(RpoNumber::FromInt(0), instr);
+  }
   void AddInstruction(Instruction* instr) { scheduler_.AddInstruction(instr); }
-  void AddTerminator(Instruction* instr) { scheduler_.AddTerminator(instr); }
 
   void CheckHasSideEffect(Instruction* instr) {
-    CHECK(scheduler_.HasSideEffect(instr));
+    int flags = scheduler_.GetInstructionFlags(instr);
+    CHECK(scheduler_.HasSideEffect(flags));
   }
   void CheckIsDeopt(Instruction* instr) { CHECK(instr->IsDeoptimizeCall()); }
 
@@ -47,7 +45,7 @@ class InstructionSchedulerTester {
     InstructionScheduler::ScheduleGraphNode* node = GetNode(instr);
     InstructionScheduler::ScheduleGraphNode* succ_node = GetNode(successor);
 
-    ZoneDeque<InstructionScheduler::ScheduleGraphNode*>& successors =
+    InstructionScheduler::ScheduleGraphNode::SuccessorList& successors =
         node->successors();
     CHECK_NE(std::find(successors.begin(), successors.end(), succ_node),
              successors.end());
@@ -69,19 +67,14 @@ class InstructionSchedulerTester {
   InstructionScheduler scheduler_;
 };
 
-// TODO(391750831, nicohartmann): Currently broken with Turboshaft backend.
-// Needs to be ported.
-#if 0
 TEST(DeoptInMiddleOfBasicBlock) {
   InstructionSchedulerTester tester;
   Zone* zone = tester.zone();
 
   tester.StartBlock();
   InstructionCode jmp_opcode = kArchJmp;
-  Node* dummy_frame_state = Node::New(zone, 0, nullptr, 0, nullptr, false);
   FlagsContinuation cont = FlagsContinuation::ForDeoptimizeForTesting(
-      kEqual, DeoptimizeReason::kUnknown, dummy_frame_state->id(),
-      FeedbackSource{}, dummy_frame_state);
+      kEqual, DeoptimizeReason::kUnknown, 0, FeedbackSource{});
   jmp_opcode = cont.Encode(jmp_opcode);
   Instruction* jmp_inst = Instruction::New(zone, jmp_opcode);
   tester.CheckIsDeopt(jmp_inst);
@@ -92,8 +85,6 @@ TEST(DeoptInMiddleOfBasicBlock) {
   Instruction* other_jmp_inst = Instruction::New(zone, jmp_opcode);
   tester.CheckIsDeopt(other_jmp_inst);
   tester.AddInstruction(other_jmp_inst);
-  Instruction* ret_inst = Instruction::New(zone, kArchRet);
-  tester.AddTerminator(ret_inst);
 
   // Check that an instruction with a side effect is a successor of the deopt.
   tester.CheckInSuccessors(jmp_inst, side_effect_inst);
@@ -101,16 +92,10 @@ TEST(DeoptInMiddleOfBasicBlock) {
   tester.CheckInSuccessors(jmp_inst, other_jmp_inst);
   // Check that the second deopt is a successor of the side-effect instruction.
   tester.CheckInSuccessors(side_effect_inst, other_jmp_inst);
-  // Check that the block terminator is a successor of all other instructions.
-  tester.CheckInSuccessors(jmp_inst, ret_inst);
-  tester.CheckInSuccessors(side_effect_inst, ret_inst);
-  tester.CheckInSuccessors(other_jmp_inst, ret_inst);
 
   // Schedule block.
-  tester.EndBlock();
+  Instruction* ret_inst = Instruction::New(zone, kArchRet);
+  tester.EndBlock(ret_inst);
 }
-#endif
 
-}  // namespace compiler
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal::compiler

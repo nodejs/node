@@ -127,7 +127,7 @@ class EnvironmentOptions : public Options {
   bool experimental_fetch = true;
   bool experimental_websocket = true;
   bool experimental_sqlite = true;
-  bool experimental_webstorage = false;
+  bool webstorage = true;
 #ifndef OPENSSL_NO_QUIC
   bool experimental_quic = false;
 #endif
@@ -155,7 +155,7 @@ class EnvironmentOptions : public Options {
   int64_t heap_snapshot_near_heap_limit = 0;
   std::string heap_snapshot_signal;
   bool network_family_autoselection = true;
-  uint64_t network_family_autoselection_attempt_timeout = 250;
+  uint64_t network_family_autoselection_attempt_timeout = 500;
   uint64_t max_http_header_size = 16 * 1024;
   bool deprecation = true;
   bool force_async_hooks_checks = true;
@@ -185,8 +185,8 @@ class EnvironmentOptions : public Options {
 #endif  // HAVE_INSPECTOR
   std::string redirect_warnings;
   std::string diagnostic_dir;
-  std::string env_file;
-  std::string optional_env_file;
+  std::vector<std::string> env_file;
+  std::vector<std::string> optional_env_file;
   bool has_env_file_string = false;
   bool test_runner = false;
   uint64_t test_runner_concurrency = 0;
@@ -259,7 +259,7 @@ class EnvironmentOptions : public Options {
 
   std::vector<std::string> preload_esm_modules;
 
-  bool experimental_strip_types = true;
+  bool strip_types = HAVE_AMARO;
   bool experimental_transform_types = false;
 
   std::vector<std::string> user_argv;
@@ -415,7 +415,9 @@ std::vector<std::string> MapAvailableNamespaces();
 // Define all namespace entries
 #define OPTION_NAMESPACE_LIST(V)                                               \
   V(kNoNamespace, "")                                                          \
-  V(kTestRunnerNamespace, "testRunner")
+  V(kTestRunnerNamespace, "test")                                              \
+  V(kWatchNamespace, "watch")                                                  \
+  V(kPermissionNamespace, "permission")
 
 enum class OptionNamespaces {
 #define V(name, _) name,

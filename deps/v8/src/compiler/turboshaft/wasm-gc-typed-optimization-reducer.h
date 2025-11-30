@@ -18,6 +18,13 @@
 
 namespace v8::internal::compiler::turboshaft {
 
+inline bool IsCastToCustomDescriptor(const wasm::WasmModule* module,
+                                     WasmTypeCheckConfig config) {
+  return config.to.has_index() &&
+         module->type(config.to.ref_index()).has_descriptor() &&
+         config.exactness == compiler::kExactMatchOnly;
+}
+
 // The WasmGCTypedOptimizationReducer infers type information based on the input
 // graph and reduces type checks and casts based on that information.
 //
@@ -154,6 +161,93 @@ class WasmGCTypedOptimizationReducer : public Next {
     Next::Analyze();
   }
 
+  void Bind(Block* new_block) {
+    Next::Bind(new_block);
+
+    if (v8_flags.wasm_assert_types && __ output_graph().block_count() == 1)
+        [[unlikely]] {
+      // We are just starting the first block. The instance data parameter is
+      // needed for loading the RTT types for the type assertions. All
+      // parameters need to be emitted in the beginning of the first block.
+      instance_data_ = __ WasmInstanceDataParameter();
+    }
+  }
+
+  void AssertType(V<Object> object_in_old_graph, const wasm::ValueType& type) {
+    if (!v8_flags.wasm_assert_types || type == wasm::ValueType()) [[likely]] {
+      return;
+    }
+
+    if (type.is_shared()) {
+      // TODO(mliedtke): Extend this for shared types.
+      return;
+    }
+
+    if (type == wasm::kWasmBottom) {
+      // The analyzer uses kWasmBottom as a sentinel to mark "this operation
+      // shall always trap" Therefore, kWasmBottom may indicate that the type is
+      // only bottom *after* the operation.
+      return;
+    }
+    // If the type is uninhabited, then simply reaching this code path is a
+    // type confusion.
+    if (type.is_uninhabited()) {
+      __ template WasmCallBuiltinThroughJumptable<
+          builtin::WasmTypeAssertionFailed>({});
+      __ Unreachable();
+      // For simplicity (so that callers don't have to check whether a block is
+      // bound), simply create a new Block. As it won't have any predecessors,
+      // it will be removed from the graph.
+      Label<> unreachable(&Asm());
+      BIND(unreachable);
+      return;
+    }
+
+    if (type.is_string_view()) {
+      // String views aren't castable.
+      return;
+    }
+
+    // Use the top type (e.g. so that for anyref we always emit a smi check.)
+    wasm::ValueType top_type = wasm::ToTopType(type);
+
+    if (top_type == type) {
+      // TODO(mliedtke): For kWasmFuncRef we could still check if it is a
+      // function reference.
+      return;
+    }
+
+    OptionalV<Map> rtt;
+    if (type.has_index()) {
+      V<FixedArray> rtts = __ Load(
+          instance_data_.value(), LoadOp::Kind::TaggedBase().Immutable(),
+          MemoryRepresentation::TaggedPointer(),
+          WasmTrustedInstanceData::kManagedObjectMapsOffset);
+      rtt = __ RttCanon(rtts, type.ref_index());
+    }
+
+    V<Object> object = __ MapToNewGraph(object_in_old_graph);
+    if (type.AsNullable() == top_type) {
+      // Only check for null (the lowering doesn't support it otherwise).
+      IF (UNLIKELY(__ IsNull(object, top_type))) {
+        __ template WasmCallBuiltinThroughJumptable<
+            builtin::WasmTypeAssertionFailed>({});
+        __ Unreachable();
+      }
+    } else {
+      // Emit full type check.
+      SubtypeCheckExactness exactness = GetExactness(module_, type.heap_type());
+      WasmTypeCheckConfig config{
+          .from = top_type, .to = type, .exactness = exactness};
+      V<Word32> is_valid = __ WasmTypeCheck(object, rtt, config);
+      IF_NOT (LIKELY(is_valid)) {
+        __ template WasmCallBuiltinThroughJumptable<
+            builtin::WasmTypeAssertionFailed>({});
+        __ Unreachable();
+      }
+    }
+  }
+
   V<Object> REDUCE_INPUT_GRAPH(WasmTypeCast)(V<Object> op_idx,
                                              const WasmTypeCastOp& cast_op) {
     LABEL_BLOCK(no_change) {
@@ -162,6 +256,7 @@ class WasmGCTypedOptimizationReducer : public Next {
     if (ShouldSkipOptimizationStep()) goto no_change;
 
     wasm::ValueType type = analyzer_.GetInputTypeOrSentinelType(op_idx);
+    AssertType(cast_op.object(), type);
     if (type.is_uninhabited()) {
       // We are either already in unreachable code (then this instruction isn't
       // even emitted) or the type analyzer inferred that this instruction will
@@ -178,7 +273,8 @@ class WasmGCTypedOptimizationReducer : public Next {
                                       cast_op.config.to.heap_type(), module_));
       bool to_nullable = cast_op.config.to.is_nullable();
       if (wasm::IsHeapSubtypeOf(type.heap_type(), cast_op.config.to.heap_type(),
-                                module_, module_)) {
+                                module_) &&
+          !IsCastToCustomDescriptor(module_, cast_op.config)) {
         if (to_nullable || type.is_non_nullable()) {
           // The inferred type is already as specific as the cast target, the
           // cast is guaranteed to always succeed and can therefore be removed.
@@ -192,8 +288,7 @@ class WasmGCTypedOptimizationReducer : public Next {
         }
       }
       if (wasm::HeapTypesUnrelated(type.heap_type(),
-                                   cast_op.config.to.heap_type(), module_,
-                                   module_)) {
+                                   cast_op.config.to.heap_type(), module_)) {
         // A cast between unrelated types can only succeed if the argument is
         // null. Otherwise, it always fails.
         V<Word32> non_trapping_condition =
@@ -210,13 +305,13 @@ class WasmGCTypedOptimizationReducer : public Next {
 
       // If the cast resulted in an uninhabitable type, the analyzer should have
       // returned a sentinel (bottom) type as {type}.
-      CHECK(!wasm::Intersection(type, cast_op.config.to, module_, module_)
+      CHECK(!wasm::Intersection(type, cast_op.config.to, module_)
                  .type.is_uninhabited());
 
       // The cast cannot be replaced. Still, we can refine the source type, so
       // that the lowering could potentially skip null or smi checks.
       wasm::ValueType from_type =
-          wasm::Intersection(type, cast_op.config.from, module_, module_).type;
+          wasm::Intersection(type, cast_op.config.from, module_).type;
       DCHECK(!from_type.is_uninhabited());
       WasmTypeCheckConfig config{from_type, cast_op.config.to,
                                  cast_op.config.exactness};
@@ -234,6 +329,7 @@ class WasmGCTypedOptimizationReducer : public Next {
     if (ShouldSkipOptimizationStep()) goto no_change;
 
     wasm::ValueType type = analyzer_.GetInputTypeOrSentinelType(op_idx);
+    AssertType(type_check.object(), type);
     if (type.is_uninhabited()) {
       __ Unreachable();
       return OpIndex::Invalid();
@@ -244,8 +340,10 @@ class WasmGCTypedOptimizationReducer : public Next {
           type.heap_type(), type_check.config.to.heap_type(), module_));
       bool to_nullable = type_check.config.to.is_nullable();
       if (wasm::IsHeapSubtypeOf(type.heap_type(),
-                                type_check.config.to.heap_type(), module_,
-                                module_)) {
+                                type_check.config.to.heap_type(), module_) &&
+          // When checking for a particular custom descriptor, static types
+          // cannot guarantee success.
+          !(IsCastToCustomDescriptor(module_, type_check.config))) {
         if (to_nullable || type.is_non_nullable()) {
           // The inferred type is guaranteed to be a subtype of the checked
           // type.
@@ -258,8 +356,7 @@ class WasmGCTypedOptimizationReducer : public Next {
         }
       }
       if (wasm::HeapTypesUnrelated(type.heap_type(),
-                                   type_check.config.to.heap_type(), module_,
-                                   module_)) {
+                                   type_check.config.to.heap_type(), module_)) {
         if (to_nullable && type.is_nullable()) {
           return __ IsNull(__ MapToNewGraph(type_check.object()), type);
         } else {
@@ -270,7 +367,7 @@ class WasmGCTypedOptimizationReducer : public Next {
       // If there isn't a type that matches our known input type and the
       // type_check.config.to type, the type check always fails.
       wasm::ValueType true_type =
-          wasm::Intersection(type, type_check.config.to, module_, module_).type;
+          wasm::Intersection(type, type_check.config.to, module_).type;
       if (true_type.is_uninhabited()) {
         return __ Word32Constant(0);
       }
@@ -278,8 +375,7 @@ class WasmGCTypedOptimizationReducer : public Next {
       // The check cannot be replaced. Still, we can refine the source type, so
       // that the lowering could potentially skip null or smi checks.
       wasm::ValueType from_type =
-          wasm::Intersection(type, type_check.config.from, module_, module_)
-              .type;
+          wasm::Intersection(type, type_check.config.from, module_).type;
       DCHECK(!from_type.is_uninhabited());
       WasmTypeCheckConfig config{from_type, type_check.config.to,
                                  type_check.config.exactness};
@@ -297,6 +393,7 @@ class WasmGCTypedOptimizationReducer : public Next {
     if (ShouldSkipOptimizationStep()) goto no_change;
 
     wasm::ValueType type = analyzer_.GetInputTypeOrSentinelType(op_idx);
+    AssertType(assert_not_null.object(), type);
     if (type.is_uninhabited()) {
       // We are either already in unreachable code (then this instruction isn't
       // even emitted) or the type analyzer inferred that this instruction will
@@ -321,6 +418,7 @@ class WasmGCTypedOptimizationReducer : public Next {
     if (ShouldSkipOptimizationStep()) goto no_change;
 
     const wasm::ValueType type = analyzer_.GetInputTypeOrSentinelType(op_idx);
+    AssertType(is_null.object(), type);
     if (type.is_uninhabited()) {
       __ Unreachable();
       return OpIndex::Invalid();
@@ -337,6 +435,7 @@ class WasmGCTypedOptimizationReducer : public Next {
 
   V<Object> REDUCE_INPUT_GRAPH(WasmTypeAnnotation)(
       V<Object> op_idx, const WasmTypeAnnotationOp& type_annotation) {
+    AssertType(type_annotation.value(), type_annotation.type);
     // Remove type annotation operations as they are not needed any more.
     return __ MapToNewGraph(type_annotation.value());
   }
@@ -349,6 +448,7 @@ class WasmGCTypedOptimizationReducer : public Next {
     if (ShouldSkipOptimizationStep()) goto no_change;
 
     const wasm::ValueType type = analyzer_.GetInputTypeOrSentinelType(op_idx);
+    AssertType(struct_get.object(), type);
     if (type.is_uninhabited()) {
       // We are either already in unreachable code (then this instruction isn't
       // even emitted) or the type analyzer inferred that this instruction will
@@ -364,7 +464,7 @@ class WasmGCTypedOptimizationReducer : public Next {
       return __ StructGet(__ MapToNewGraph(struct_get.object()),
                           struct_get.type, struct_get.type_index,
                           struct_get.field_index, struct_get.is_signed,
-                          kWithoutNullCheck);
+                          kWithoutNullCheck, struct_get.memory_order);
     }
     goto no_change;
   }
@@ -377,6 +477,7 @@ class WasmGCTypedOptimizationReducer : public Next {
     if (ShouldSkipOptimizationStep()) goto no_change;
 
     const wasm::ValueType type = analyzer_.GetInputTypeOrSentinelType(op_idx);
+    AssertType(struct_set.object(), type);
     if (type.is_uninhabited()) {
       // We are either already in unreachable code (then this instruction isn't
       // even emitted) or the type analyzer inferred that this instruction will
@@ -392,7 +493,7 @@ class WasmGCTypedOptimizationReducer : public Next {
       __ StructSet(__ MapToNewGraph(struct_set.object()),
                    __ MapToNewGraph(struct_set.value()), struct_set.type,
                    struct_set.type_index, struct_set.field_index,
-                   kWithoutNullCheck);
+                   kWithoutNullCheck, struct_set.memory_order);
       return OpIndex::Invalid();
     }
     goto no_change;
@@ -406,6 +507,7 @@ class WasmGCTypedOptimizationReducer : public Next {
     if (ShouldSkipOptimizationStep()) goto no_change;
 
     const wasm::ValueType type = analyzer_.GetInputTypeOrSentinelType(op_idx);
+    AssertType(array_length.array(), type);
     // Remove the null check if it is known to be not null.
     if (array_length.null_check == kWithNullCheck && type.is_non_nullable()) {
       return __ ArrayLength(__ MapToNewGraph(array_length.array()),
@@ -416,8 +518,10 @@ class WasmGCTypedOptimizationReducer : public Next {
 
   // TODO(14108): This isn't a type optimization and doesn't fit well into this
   // reducer.
-  V<Object> REDUCE(AnyConvertExtern)(V<Object> object) {
-    LABEL_BLOCK(no_change) { return Next::ReduceAnyConvertExtern(object); }
+  V<Object> REDUCE(AnyConvertExtern)(V<Object> object, bool is_shared) {
+    LABEL_BLOCK(no_change) {
+      return Next::ReduceAnyConvertExtern(object, is_shared);
+    }
     if (ShouldSkipOptimizationStep()) goto no_change;
 
     if (object.valid()) {
@@ -436,6 +540,7 @@ class WasmGCTypedOptimizationReducer : public Next {
   Graph& graph_ = __ modifiable_input_graph();
   const wasm::WasmModule* module_ = __ data() -> wasm_module();
   WasmGCTypeAnalyzer analyzer_{__ data(), graph_, __ phase_zone()};
+  OptionalV<WasmTrustedInstanceData> instance_data_;
 };
 
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"

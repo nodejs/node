@@ -9,6 +9,7 @@
 // Include the non-inl header before the rest of the headers.
 
 #include "src/common/globals.h"
+#include "src/execution/isolate.h"
 #include "src/objects/tagged.h"
 #include "src/utils/utils.h"
 
@@ -83,11 +84,13 @@ Address V8HeapCompressionSchemeImpl<Cage>::base() {
 // static
 template <typename Cage>
 Tagged_t V8HeapCompressionSchemeImpl<Cage>::CompressObject(Address tagged) {
-  // This is used to help clang produce better code. Values which could be
-  // invalid pointers need to be compressed with CompressAny.
-#ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
-  DCHECK_IMPLIES(!HAS_SMI_TAG(tagged),
-                 (tagged & kPtrComprCageBaseMask) == base());
+#ifdef V8_COMPRESS_POINTERS
+  // Ensure that we do not accidentally compress value from a different cage.
+  // Cleared weak reference must be either pure (with empty upper part) or
+  // belong to the same cage.
+  DCHECK_IMPLIES(
+      !HAS_SMI_TAG(tagged) && (tagged != kClearedWeakHeapObjectLower32),
+      (tagged & kPtrComprCageBaseMask) == base());
 #endif
   return static_cast<Tagged_t>(tagged);
 }
@@ -344,6 +347,7 @@ PtrComprCageAccessScope::PtrComprCageAccessScope(Isolate* isolate)
       saved_current_isolate_group_(IsolateGroup::current())
 #ifdef V8_ENABLE_SANDBOX
       ,
+      saved_trusted_cage_base_(TrustedSpaceCompressionScheme::base()),
       saved_current_sandbox_(Sandbox::current())
 #endif  // V8_ENABLE_SANDBOX
 {
@@ -353,6 +357,8 @@ PtrComprCageAccessScope::PtrComprCageAccessScope(Isolate* isolate)
 #endif  // V8_EXTERNAL_CODE_SPACE
   IsolateGroup::set_current(isolate->isolate_group());
 #ifdef V8_ENABLE_SANDBOX
+  TrustedSpaceCompressionScheme::InitBase(
+      isolate->isolate_group()->GetTrustedPtrComprCageBase());
   Sandbox::set_current(isolate->isolate_group()->sandbox());
 #endif  // V8_ENABLE_SANDBOX
 }
@@ -364,6 +370,7 @@ PtrComprCageAccessScope::~PtrComprCageAccessScope() {
 #endif  // V8_EXTERNAL_CODE_SPACE
   IsolateGroup::set_current(saved_current_isolate_group_);
 #ifdef V8_ENABLE_SANDBOX
+  TrustedSpaceCompressionScheme::InitBase(saved_trusted_cage_base_);
   Sandbox::set_current(saved_current_sandbox_);
 #endif  // V8_ENABLE_SANDBOX
 }

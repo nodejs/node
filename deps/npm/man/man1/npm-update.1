@@ -1,4 +1,4 @@
-.TH "NPM-UPDATE" "1" "September 2025" "NPM@11.6.0" ""
+.TH "NPM-UPDATE" "1" "November 2025" "NPM@11.6.4" ""
 .SH "NAME"
 \fBnpm-update\fR - Update packages
 .SS "Synopsis"
@@ -12,7 +12,7 @@ aliases: up, upgrade, udpate
 .RE
 .SS "Description"
 .P
-This command will update all the packages listed to the latest version (specified by the \fB\fBtag\fR config\fR \fI\(la/using-npm/config#tag\(ra\fR), respecting the semver constraints of both your package and its dependencies (if they also require the same package).
+This command will update all the packages listed to the latest version (specified by the \fB\[rs]fBtag\[rs]fR config\fR \fI\(la/using-npm/config#tag\(ra\fR), respecting the semver constraints of both your package and its dependencies (if they also require the same package).
 .P
 It will also install missing packages.
 .P
@@ -202,7 +202,7 @@ Only install direct dependencies in the top level \fBnode_modules\fR, but hoist 
 .SS "\fBomit\fR"
 .RS 0
 .IP \(bu 4
-Default: 'dev' if the \fBNODE_ENV\fR environment variable is set to 'production', otherwise empty.
+Default: 'dev' if the \fBNODE_ENV\fR environment variable is set to 'production'; otherwise, empty.
 .IP \(bu 4
 Type: "dev", "optional", or "peer" (can be set multiple times)
 .RE 0

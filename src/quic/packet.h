@@ -28,22 +28,23 @@ struct PathDescriptor final {
   std::string ToString() const;
 };
 
-// A Packet encapsulates serialized outbound QUIC data.
-// Packets must never be larger than the path MTU. The
-// default QUIC packet maximum length is 1200 bytes,
-// which we assume by default. The packet storage will
-// be stack allocated up to this size.
+// A Packet encapsulates serialized outbound QUIC data. Packets must never be
+// larger than the path MTU. The default QUIC packet maximum length is 1200
+// bytes, which we assume by default. The packet storage will be stack allocated
+// up to this size.
 //
-// Packets are maintained in a freelist held by the
-// BindingData instance. When using Create() to create
-// a Packet, we'll check to see if there is a free
-// packet in the freelist and use it instead of starting
-// fresh with a new packet. The freelist can store at
-// most kMaxFreeList packets
+// Packets are maintained in a freelist held by the BindingData instance. When
+// using Create() to create a Packet, we'll check to see if there is a free
+// packet in the freelist and use it instead of starting fresh with a new
+// packet. The freelist can store at most kMaxFreeList packets. This is a
+// performance optimization to avoid excessive allocation churn when creating
+// lots of packets since each one is ReqWrap and has a fair amount of associated
+// overhead. However, we don't want to accumulate too many of these in the
+// freelist either, so we cap the size.
 //
-// Packets are always encrypted so their content should
-// be considered opaque to us. We leave it entirely up
-// to ngtcp2 how to encode QUIC frames into the packet.
+// Packets are always encrypted so their content should be considered opaque
+// to us. We leave it entirely up to ngtcp2 how to encode QUIC frames into
+// the packet.
 class Packet final : public ReqWrap<uv_udp_send_t> {
  private:
   struct Data;
@@ -56,11 +57,9 @@ class Packet final : public ReqWrap<uv_udp_send_t> {
     virtual void PacketDone(int status) = 0;
   };
 
-  // Do not use the Packet constructors directly to create
-  // them. These are public only to support MakeBaseObject.
-  // Use the Create, or Create variants to create or
-  // acquire packet instances.
-
+  // Do not use the Packet constructors directly to create them. These are
+  // public only to support MakeBaseObject. Use the Create, or Create variants
+  // to create or acquire packet instances.
   Packet(Environment* env,
          Listener* listener,
          v8::Local<v8::Object> object,
@@ -80,6 +79,7 @@ class Packet final : public ReqWrap<uv_udp_send_t> {
   size_t length() const;
   operator uv_buf_t() const;
   operator ngtcp2_vec() const;
+  operator bool() const;
 
   // Modify the size of the packet after ngtcp2 has written
   // to it. len must be <= length(). We call this after we've
@@ -87,6 +87,9 @@ class Packet final : public ReqWrap<uv_udp_send_t> {
   // tells us how many of the packets bytes were used.
   void Truncate(size_t len);
 
+  // Create (or acquire from the freelist) a Packet with the given
+  // destination and length. The diagnostic_label is used to help
+  // identify the packet purpose in debugging output.
   static BaseObjectPtr<Packet> Create(
       Environment* env,
       Listener* listener,

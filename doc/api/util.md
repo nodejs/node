@@ -135,14 +135,14 @@ The `section` supports wildcard also:
 
 ```mjs
 import { debuglog } from 'node:util';
-const log = debuglog('foo');
+const log = debuglog('foo-bar');
 
 log('hi there, it\'s foo-bar [%d]', 2333);
 ```
 
 ```cjs
 const { debuglog } = require('node:util');
-const log = debuglog('foo');
+const log = debuglog('foo-bar');
 
 log('hi there, it\'s foo-bar [%d]', 2333);
 ```
@@ -225,11 +225,15 @@ added: v14.9.0
 Alias for `util.debuglog`. Usage allows for readability of that doesn't imply
 logging when only using `util.debuglog().enabled`.
 
-## `util.deprecate(fn, msg[, code])`
+## `util.deprecate(fn, msg[, code[, options]])`
 
 <!-- YAML
 added: v0.8.0
 changes:
+  - version: v25.2.0
+    pr-url: https://github.com/nodejs/node/pull/59982
+    description: Add options object with modifyPrototype to conditionally
+                 modify the prototype of the deprecated object.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/16393
     description: Deprecation warnings are only emitted once for each code.
@@ -240,6 +244,10 @@ changes:
   invoked.
 * `code` {string} A deprecation code. See the [list of deprecated APIs][] for a
   list of codes.
+* `options` {Object}
+  * `modifyPrototype` {boolean} When false do not change the prototype of object
+    while emitting the deprecation warning.
+    **Default:** `true`.
 * Returns: {Function} The deprecated function wrapped to emit a warning.
 
 The `util.deprecate()` method wraps `fn` (which may be a function or class) in
@@ -568,7 +576,7 @@ function exampleFunction() {
     console.log(`Function Name: ${callSite.functionName}`);
     console.log(`Script Name: ${callSite.scriptName}`);
     console.log(`Line Number: ${callSite.lineNumber}`);
-    console.log(`Column Number: ${callSite.column}`);
+    console.log(`Column Number: ${callSite.columnNumber}`);
   });
   // CallSite 1:
   // Function Name: exampleFunction
@@ -605,7 +613,7 @@ function exampleFunction() {
     console.log(`Function Name: ${callSite.functionName}`);
     console.log(`Script Name: ${callSite.scriptName}`);
     console.log(`Line Number: ${callSite.lineNumber}`);
-    console.log(`Column Number: ${callSite.column}`);
+    console.log(`Column Number: ${callSite.columnNumber}`);
   });
   // CallSite 1:
   // Function Name: exampleFunction
@@ -848,7 +856,7 @@ stream.write('With ES6');
 added: v0.3.0
 changes:
   - version:
-    - REPLACEME
+    - v25.0.0
     pr-url: https://github.com/nodejs/node/pull/59710
     description: The util.inspect.styles.regexp style is now a method that is
                  invoked for coloring the stringified regular expression.
@@ -1579,7 +1587,7 @@ console.log(arr); // logs the full array
 <!-- YAML
 added: v9.0.0
 changes:
-  - version: REPLACEME
+  - version: v24.9.0
     pr-url: https://github.com/nodejs/node/pull/59762
     description: Added `options` parameter to allow skipping prototype comparison.
 -->
@@ -1651,7 +1659,7 @@ A MIME string is a structured string containing multiple meaningful
 components. When parsed, a `MIMEType` object is returned containing
 properties for each of these components.
 
-### Constructor: `new MIMEType(input)`
+### `new MIMEType(input)`
 
 * `input` {string} The input MIME to parse
 
@@ -1843,7 +1851,7 @@ added:
 The `MIMEParams` API provides read and write access to the parameters of a
 `MIMEType`.
 
-### Constructor: `new MIMEParams()`
+### `new MIMEParams()`
 
 Creates a new `MIMEParams` object by with empty parameters
 
@@ -2211,9 +2219,13 @@ $ node negate.js --no-logfile --logfile=test.log --color --no-color
 added:
   - v21.7.0
   - v20.12.0
+changes:
+  - version:
+     - v24.10.0
+     - v22.21.0
+    pr-url: https://github.com/nodejs/node/pull/59925
+    description: This API is no longer experimental.
 -->
-
-> Stability: 1.1 - Active development
 
 * `content` {string}
 
@@ -3783,6 +3795,12 @@ util.isArray(new Array());
 // Returns: true
 util.isArray({});
 // Returns: false
+```
+
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/util-is)):
+
+```bash
+npx codemod@latest @nodejs/util-is
 ```
 
 [Common System Errors]: errors.md#common-system-errors

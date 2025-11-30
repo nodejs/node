@@ -6,7 +6,7 @@ const {
   workerData,
   Worker,
 } = require('node:worker_threads');
-const { rejects } = require('node:assert');
+const assert = require('node:assert');
 
 const memory = new SharedArrayBuffer(4);
 
@@ -14,7 +14,7 @@ async function test() {
   const worker = new Worker(__filename, { workerData: { memory, children: true } });
   const array = new Int32Array(memory);
 
-  await rejects(common.mustCall(function() {
+  await assert.rejects(common.mustCall(function() {
     return postMessageToThread(worker.threadId, 0, common.platformTimeout(500));
   }), {
     name: 'Error',

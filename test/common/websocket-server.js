@@ -8,10 +8,13 @@ const crypto = require('crypto');
 class WebSocketServer {
   constructor({
     port = 0,
+    server,
+    customHandleUpgradeHeaders = [],
   }) {
     this.port = port;
-    this.server = http.createServer();
+    this.server = server || http.createServer();
     this.clients = new Set();
+    this.customHandleUpgradeHeaders = customHandleUpgradeHeaders;
 
     this.server.on('upgrade', this.handleUpgrade.bind(this));
   }
@@ -35,6 +38,7 @@ class WebSocketServer {
       'Upgrade: websocket',
       'Connection: Upgrade',
       `Sec-WebSocket-Accept: ${acceptKey}`,
+      ...this.customHandleUpgradeHeaders,
     ];
 
     socket.write(responseHeaders.join('\r\n') + '\r\n\r\n');
@@ -44,6 +48,8 @@ class WebSocketServer {
       const opcode = buffer[0] & 0x0f;
 
       if (opcode === 0x8) {
+        // Send a minimal close frame in response:
+        socket.write(Buffer.from([0x88, 0x00]));
         socket.end();
         this.clients.delete(socket);
         return;

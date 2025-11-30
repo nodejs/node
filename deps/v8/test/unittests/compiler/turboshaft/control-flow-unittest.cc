@@ -93,11 +93,11 @@ TEST_F(ControlFlowTest, BranchElimination) {
     __ Return(cond);
   });
 
-  // BranchElimination should remove all branches (except the first one), but
-  // will not inline the destinations right away.
+  // BranchElimination should remove all branches, but will not inline the
+  // destinations right away.
   test.Run<BranchEliminationReducer, MachineOptimizationReducer>();
 
-  ASSERT_EQ(test.CountOp(Opcode::kBranch), 1u);
+  ASSERT_EQ(test.CountOp(Opcode::kBranch), 0u);
 
   // An empty phase will then inline the empty intermediate blocks.
   test.Run<>();

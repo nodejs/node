@@ -22,32 +22,32 @@ function thenable() {
 }
 
 // Await a thenable
-store.run(data, async () => {
+store.run(data, common.mustCall(async () => {
   assert.strictEqual(store.getStore(), data);
   await thenable();
   assert.strictEqual(store.getStore(), data);
-});
+}));
 
 // Returning a thenable in an async function
-store.run(data, async () => {
+store.run(data, common.mustCall(async () => {
   try {
     assert.strictEqual(store.getStore(), data);
     return thenable();
   } finally {
     assert.strictEqual(store.getStore(), data);
   }
-});
+}));
 
 // Resolving a thenable
-store.run(data, () => {
+store.run(data, common.mustCall(() => {
   assert.strictEqual(store.getStore(), data);
   Promise.resolve(thenable());
   assert.strictEqual(store.getStore(), data);
-});
+}));
 
 // Returning a thenable in a then handler
-store.run(data, () => {
+store.run(data, common.mustCall(() => {
   assert.strictEqual(store.getStore(), data);
   Promise.resolve().then(() => thenable());
   assert.strictEqual(store.getStore(), data);
-});
+}));

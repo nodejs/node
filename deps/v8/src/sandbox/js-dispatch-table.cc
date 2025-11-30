@@ -44,10 +44,12 @@ void JSDispatchEntry::CheckFieldOffsets() {
 #endif
 }
 
-JSDispatchHandle JSDispatchTable::PreAllocateEntries(
-    Space* space, int count, bool ensure_static_handles) {
+void JSDispatchTable::PreAllocateEntries(Space* space, int count) {
+#if !V8_STATIC_DISPATCH_HANDLES_BOOL
+  UNREACHABLE();
+#else
   DCHECK(space->BelongsTo(this));
-  DCHECK_IMPLIES(ensure_static_handles, space->is_internal_read_only_space());
+  DCHECK(space->is_internal_read_only_space());
   JSDispatchHandle first;
   for (int i = 0; i < count; ++i) {
     uint32_t idx = AllocateEntry(space);
@@ -57,15 +59,9 @@ JSDispatchHandle JSDispatchTable::PreAllocateEntries(
       // Pre-allocated entries should be consecutive.
       DCHECK_EQ(IndexToHandle(idx), IndexToHandle(HandleToIndex(first) + i));
     }
-#if V8_STATIC_DISPATCH_HANDLES_BOOL
-    if (ensure_static_handles) {
       CHECK_EQ(IndexToHandle(idx), GetStaticHandleForReadOnlySegmentEntry(i));
-    }
-#else
-    CHECK(!ensure_static_handles);
-#endif
   }
-  return first;
+#endif
 }
 
 bool JSDispatchTable::PreAllocatedEntryNeedsInitialization(
@@ -89,15 +85,9 @@ void JSDispatchTable::InitializePreAllocatedEntry(Space* space,
                                 parameter_count, space->allocate_black());
 }
 
-#ifdef DEBUG
-bool JSDispatchTable::IsMarked(JSDispatchHandle handle) {
-  return at(HandleToIndex(handle)).IsMarked();
-}
-#endif  // DEBUG
-
 void JSDispatchTable::PrintEntry(JSDispatchHandle handle) {
   uint32_t index = HandleToIndex(handle);
-  i::PrintF("JSDispatchEntry @ %p\n", &at(index));
+  i::PrintF("JSDispatchEntry (handle: %u) @ %p\n", handle.value(), &at(index));
   i::PrintF("* code %p\n", reinterpret_cast<void*>(GetCode(handle).address()));
   i::PrintF("* params %d\n", at(HandleToIndex(handle)).GetParameterCount());
   i::PrintF("* entrypoint %p\n",

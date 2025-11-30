@@ -218,14 +218,6 @@ static int ecx_import(void *keydata, int selection, const OSSL_PARAM params[])
     include_private = selection & OSSL_KEYMGMT_SELECT_PRIVATE_KEY ? 1 : 0;
     ok = ok && ossl_ecx_key_fromdata(key, params, include_private);
 
-#ifdef FIPS_MODULE
-    if (ok > 0 && ecx_key_type_is_ed(key->type) && !ossl_fips_self_testing())
-        if (key->haspubkey && key->privkey != NULL) {
-            ok = ecd_fips140_pairwise_test(key, key->type, 1);
-            if (ok <= 0)
-                ossl_set_error_state(OSSL_SELF_TEST_TYPE_PCT_IMPORT);
-        }
-#endif  /* FIPS_MODULE */
     return ok;
 }
 

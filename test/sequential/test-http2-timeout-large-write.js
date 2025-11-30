@@ -28,6 +28,9 @@ const server = http2.createSecureServer({
   key: fixtures.readKey('agent1-key.pem'),
   cert: fixtures.readKey('agent1-cert.pem')
 });
+const onTimeout = common.mustCallAtLeast(() => {
+  assert.ok(!didReceiveData, 'Should not timeout');
+}, 0);
 server.on('stream', common.mustCall((stream) => {
   const content = Buffer.alloc(writeSize, 0x44);
 
@@ -39,15 +42,11 @@ server.on('stream', common.mustCall((stream) => {
 
   stream.write(content);
   stream.setTimeout(serverTimeout);
-  stream.on('timeout', () => {
-    assert.ok(!didReceiveData, 'Should not timeout');
-  });
+  stream.on('timeout', onTimeout);
   stream.end();
 }));
 server.setTimeout(serverTimeout);
-server.on('timeout', () => {
-  assert.ok(!didReceiveData, 'Should not timeout');
-});
+server.on('timeout', onTimeout);
 
 server.listen(0, common.mustCall(() => {
   const client = http2.connect(`https://localhost:${server.address().port}`,

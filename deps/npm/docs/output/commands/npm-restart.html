@@ -141,9 +141,9 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="----npm-restart----1160">
+<h1 id="----npm-restart----1164">
     <span>npm-restart</span>
-    <span class="version">@11.6.0</span>
+    <span class="version">@11.6.4</span>
 </h1>
 <span class="description">Restart a package</span>
 </header>
@@ -157,16 +157,15 @@ npm command-line interface
 <pre><code class="language-bash">npm restart [-- &lt;args&gt;]
 </code></pre>
 <h3 id="description">Description</h3>
-<p>This restarts a project.  It is equivalent to running <code>npm run restart</code>.</p>
-<p>If the current project has a <code>"restart"</code> script specified in
-<code>package.json</code>, then the following scripts will be run:</p>
+<p>This restarts a project.
+It is equivalent to running <code>npm run restart</code>.</p>
+<p>If the current project has a <code>"restart"</code> script specified in <code>package.json</code>, then the following scripts will be run:</p>
 <ol>
 <li>prerestart</li>
 <li>restart</li>
 <li>postrestart</li>
 </ol>
-<p>If it does <em>not</em> have a <code>"restart"</code> script specified, but it does have
-<code>stop</code> and/or <code>start</code> scripts, then the following scripts will be run:</p>
+<p>If it does <em>not</em> have a <code>"restart"</code> script specified, but it does have <code>stop</code> and/or <code>start</code> scripts, then the following scripts will be run:</p>
 <ol>
 <li>prerestart</li>
 <li>prestop</li>

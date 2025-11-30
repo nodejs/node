@@ -122,6 +122,11 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
 
   void GenerateStringEqual(TNode<String> left, TNode<String> right,
                            TNode<IntPtrT> length);
+  template <typename SeqStringT, typename CharT>
+  void GenerateSeqStringRelationalComparison(TNode<String> left,
+                                             TNode<String> right,
+                                             Label* if_less, Label* if_equal,
+                                             Label* if_greater);
   void GenerateStringRelationalComparison(TNode<String> left,
                                           TNode<String> right,
                                           StringComparison op);
@@ -170,14 +175,14 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
   // Implements boilerplate logic for {match, split, replace, search} of the
   // form:
   //
-  //  if (!IS_NULL_OR_UNDEFINED(object)) {
+  //  if (IS_OBJECT(object)) {
   //    var maybe_function = object[symbol];
   //    if (!IS_UNDEFINED(maybe_function)) {
   //      return %_Call(maybe_function, ...);
   //    }
   //  }
   //
-  // Contains fast paths for Smi and RegExp objects.
+  // Contains fast paths for RegExp objects.
   // Important: {regexp_call} may not contain any code that can call into JS.
   using NodeFunction0 = std::function<void()>;
   using NodeFunction1 = std::function<void(TNode<Object> fn)>;

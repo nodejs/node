@@ -120,6 +120,8 @@ BaseObjectPtr<Packet> Packet::Create(Environment* env,
 }
 
 BaseObjectPtr<Packet> Packet::Clone() const {
+  // Cloning is copy-free. Our data_ is a shared_ptr so we can just
+  // share it with the cloned packet.
   auto& binding = BindingData::Get(env());
   if (binding.packet_freelist.empty()) {
     JS_NEW_INSTANCE_OR_RETURN(env(), obj, {});
@@ -135,8 +137,8 @@ BaseObjectPtr<Packet> Packet::FromFreeList(Environment* env,
                                            const SocketAddress& destination) {
   auto& binding = BindingData::Get(env);
   if (binding.packet_freelist.empty()) return {};
-  auto obj = binding.packet_freelist.back();
-  binding.packet_freelist.pop_back();
+  auto obj = binding.packet_freelist.front();
+  binding.packet_freelist.pop_front();
   CHECK(obj);
   CHECK_EQ(env, obj->env());
   auto packet = BaseObjectPtr<Packet>(static_cast<Packet*>(obj.get()));
@@ -185,6 +187,8 @@ void Packet::Done(int status) {
   // big, we don't want to accumulate these things forever.
   auto& binding = BindingData::Get(env());
   if (binding.packet_freelist.size() >= kMaxFreeList) {
+    Debug(this, "Freelist full, destroying packet");
+    data_.reset();
     return;
   }
 
@@ -195,6 +199,10 @@ void Packet::Done(int status) {
   binding.packet_freelist.push_back(std::move(self));
 }
 
+Packet::operator bool() const {
+  return data_ != nullptr;
+}
+
 std::string Packet::ToString() const {
   if (!data_) return "Packet (<empty>)";
   return "Packet (" + data_->ToString() + ")";
@@ -202,7 +210,7 @@ std::string Packet::ToString() const {
 
 void Packet::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("destination", destination_);
-  tracker->TrackField("data", data_);
+  if (data_) tracker->TrackField("data", data_);
 }
 
 BaseObjectPtr<Packet> Packet::CreateRetryPacket(

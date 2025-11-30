@@ -6,6 +6,11 @@
 This module contains helper functions to compile V8.
 """
 
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
+load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
+
 FlagInfo = provider("The value of an option.",
 fields = ["value"])
 
@@ -117,6 +122,7 @@ def _default_args():
                 "-Wno-implicit-int-float-conversion",
                 "-Wno-deprecated-copy",
                 "-Wno-non-virtual-dtor",
+                "-Wno-unnecessary-virtual-specifier",
                 "-isystem .",
             ],
             "//conditions:default": [],
@@ -213,7 +219,7 @@ def v8_binary(
         **kwargs):
     default = _default_args()
     if _should_emit_noicu_and_icu(noicu_srcs, noicu_deps, noicu_defines, icu_srcs, icu_deps, icu_defines):
-        native.cc_binary(
+        cc_binary(
             name = "noicu/" + name,
             srcs = srcs + noicu_srcs,
             deps = deps + noicu_deps + default.deps,
@@ -223,7 +229,7 @@ def v8_binary(
             linkopts = linkopts + default.linkopts,
             **kwargs
         )
-        native.cc_binary(
+        cc_binary(
             name = "icu/" + name,
             srcs = srcs + icu_srcs,
             deps = deps + icu_deps + default.deps,
@@ -234,7 +240,7 @@ def v8_binary(
             **kwargs
         )
     else:
-        native.cc_binary(
+        cc_binary(
             name = name,
             srcs = srcs,
             deps = deps + default.deps,
@@ -262,7 +268,7 @@ def v8_library(
         **kwargs):
     default = _default_args()
     if _should_emit_noicu_and_icu(noicu_srcs, noicu_deps, noicu_defines, icu_srcs, icu_deps, icu_defines):
-        native.cc_library(
+        cc_library(
             name = name + "_noicu",
             srcs = srcs + noicu_srcs,
             deps = deps + noicu_deps + default.deps,
@@ -281,7 +287,7 @@ def v8_library(
             name = "noicu/" + name,
             actual = name + "_noicu",
         )
-        native.cc_library(
+        cc_library(
             name = name + "_icu",
             srcs = srcs + icu_srcs,
             deps = deps + icu_deps + default.deps,
@@ -301,7 +307,7 @@ def v8_library(
             actual = name + "_icu",
         )
     else:
-        native.cc_library(
+        cc_library(
             name = name,
             srcs = srcs,
             deps = deps + default.deps,
@@ -437,7 +443,7 @@ def _v8_target_cpu_transition_impl(settings,
         "armeabi-v7a": "arm32",
         "s390x": "s390x",
         "riscv64": "riscv64",
-        "ppc64": "ppc64le",
+        "ppc": "ppc64le",
     }
     v8_target_cpu = mapping[settings["//command_line_option:cpu"]]
     return {"@v8//bazel/config:v8_target_cpu": v8_target_cpu}
@@ -549,7 +555,6 @@ def build_config_content(cpu, icu):
         ("code_comments", "false"),
         ("component_build", "false"),
         ("concurrent_marking", "false"),
-        ("conservative_stack_scanning", "false"),
         ("current_cpu", cpu),
         ("dcheck_always_on", "false"),
         ("debug_code", "false"),
@@ -582,6 +587,7 @@ def build_config_content(cpu, icu):
         ("pointer_compression", "true"),
         ("runtime_call_stats", "false"),
         ("sandbox", "false"),
+        ("sandbox_hardware_support", "false"),
         ("shared_ro_heap", "false"),
         ("simd_mips", "false"),
         ("simulator_run", "false"),

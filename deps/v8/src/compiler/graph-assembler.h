@@ -984,7 +984,6 @@ class V8_EXPORT_PRIVATE JSGraphAssembler : public GraphAssembler {
 #undef SINGLETON_CONST_TEST_DECL
 
   Node* Allocate(AllocationType allocation, Node* size);
-  TNode<HeapNumber> AllocateHeapNumber(Node* value);
 
   TNode<Map> LoadMap(TNode<HeapObject> object);
   Node* LoadField(FieldAccess const&, Node* object);
@@ -1043,6 +1042,8 @@ class V8_EXPORT_PRIVATE JSGraphAssembler : public GraphAssembler {
                const char* file = "", int line = -1);
   void Assert(TNode<Word32T> cond, const char* condition_string = "",
               const char* file = "", int line = -1);
+  void DetachContextCell(TNode<Object> context, TNode<Object> new_value,
+                         int index, FrameState frame_state);
   TNode<Boolean> NumberIsFloat64Hole(TNode<Number> value);
   TNode<Boolean> ToBoolean(TNode<Object> value);
   TNode<Object> ConvertTaggedHoleToUndefined(TNode<Object> value);
@@ -1094,7 +1095,6 @@ class V8_EXPORT_PRIVATE JSGraphAssembler : public GraphAssembler {
   TNode<Object> JSCallRuntime2(Runtime::FunctionId function_id,
                                TNode<Object> arg0, TNode<Object> arg1,
                                TNode<Context> context, FrameState frame_state);
-  Node* Chained(const Operator* op, Node* input);
 
   JSHeapBroker* broker() const { return broker_; }
   JSGraph* jsgraph() const { return jsgraph_; }

@@ -20,26 +20,26 @@ const stop = promiseHooks.onSettled(common.mustCall((promise) => {
 // Constructor resolve triggers hook
 const promise = new Promise((resolve, reject) => {
   assert.strictEqual(seen, undefined);
-  setImmediate(() => {
+  setImmediate(common.mustCall(() => {
     resolve();
     assert.strictEqual(seen, promise);
     seen = undefined;
 
     constructorReject();
-  });
+  }));
 });
 
 // Constructor reject triggers hook
 function constructorReject() {
   const promise = new Promise((resolve, reject) => {
     assert.strictEqual(seen, undefined);
-    setImmediate(() => {
+    setImmediate(common.mustCall(() => {
       reject();
       assert.strictEqual(seen, promise);
       seen = undefined;
 
       simpleResolveReject();
-    });
+    }));
   });
   promise.catch(() => {});
 }

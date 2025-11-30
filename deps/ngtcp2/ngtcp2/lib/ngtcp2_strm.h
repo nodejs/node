@@ -208,14 +208,14 @@ uint64_t ngtcp2_strm_rx_offset(const ngtcp2_strm *strm);
 /*
  * ngtcp2_strm_recv_reordering handles reordered data.
  *
- * It returns 0 if it succeeds, or one of the following negative error
- * codes:
+ * It returns the number of bytes newly buffered if it succeeds, or
+ * one of the following negative error codes:
  *
  * NGTCP2_ERR_NOMEM
  *     Out of memory
  */
-int ngtcp2_strm_recv_reordering(ngtcp2_strm *strm, const uint8_t *data,
-                                size_t datalen, uint64_t offset);
+ngtcp2_ssize ngtcp2_strm_recv_reordering(ngtcp2_strm *strm, const uint8_t *data,
+                                         size_t datalen, uint64_t offset);
 
 /*
  * ngtcp2_strm_update_rx_offset tells that data up to |offset| bytes

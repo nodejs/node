@@ -21,15 +21,16 @@ on:
           - c-ares
           - cjs-module-lexer
           - corepack
-          - doc
           - googletest
           - gyp-next
           - histogram
           - icu
+          - inspector_protocol
           - libuv
           - llhttp
           - minimatch
           - nbytes
+          - nixpkgs-unstable
           - nghttp2
           - nghttp3
           - ngtcp2
@@ -37,13 +38,14 @@ on:
           - root-certificates
           - simdjson
           - sqlite
+          - temporal
           - undici
           - uvwasi
           - zlib
           - zstd
 
 env:
-  PYTHON_VERSION: '3.12'
+  PYTHON_VERSION: '3.14'
 
 permissions:
   contents: read
@@ -118,22 +120,6 @@ jobs:
             run: |
               make corepack-update
               echo "NEW_VERSION=$(node deps/corepack/dist/corepack.js --version)" >> $GITHUB_ENV
-          - id: doc
-            subsystem: tools
-            label: tools
-            run: |
-              cd tools/doc
-              npm ci
-              NEW_VERSION=$(npm outdated --parseable | cut -d: -f4 | xargs)
-              if [ "$NEW_VERSION" != "" ]; then
-                echo "NEW_VERSION=new version" >> $GITHUB_ENV
-                rm -rf package-lock.json node_modules
-                # Include $NEW_VERSION to explicitly update the package.json
-                # entry for the dependency and also so that semver-major updates
-                # are not skipped.
-                npm install --ignore-scripts $NEW_VERSION
-                npm install --ignore-scripts
-              fi
           - id: googletest
             subsystem: deps
             label: dependencies, test
@@ -166,6 +152,14 @@ jobs:
               cat temp-output
               tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
               rm temp-output
+          - id: inspector_protocol
+            subsystem: deps
+            label: dependencies, inspector
+            run: |
+              ./tools/dep_updaters/update-inspector-protocol.sh > temp-output
+              cat temp-output
+              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
+              rm temp-output
           - id: libuv
             subsystem: deps
             label: dependencies
@@ -195,6 +189,17 @@ jobs:
             label: dependencies
             run: |
               ./tools/dep_updaters/update-nbytes.sh > temp-output
+              cat temp-output
+              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
+              rm temp-output
+          - id: nixpkgs-unstable
+            subsystem: tools
+            # dont-land labels are there so we can guarantee released versions of
+            # Node.js can be built with the same env along the whole release line life – or
+            # at least we can detect and document necessary updates.
+            label: tools, dont-land-on-v20.x, dont-land-on-v22.x, dont-land-on-v24.x, dont-land-on-v25.x
+            run: |
+              ./tools/dep_updaters/update-nixpkgs-pin.sh > temp-output
               cat temp-output
               tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
               rm temp-output
@@ -251,6 +256,14 @@ jobs:
               cat temp-output
               tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
               rm temp-output
+          - id: temporal
+            subsystem: deps
+            label: dependencies
+            run: |
+              ./tools/dep_updaters/update-temporal.sh > temp-output
+              cat temp-output
+              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
+              rm temp-output
           - id: undici
             subsystem: deps
             label: dependencies
@@ -288,15 +301,21 @@ jobs:
         run: |
            git config --global user.name "Node.js GitHub Bot"
            git config --global user.email "github-bot@iojs.org"
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd  # v5.0.1
         if: github.event_name == 'schedule' || inputs.id == 'all' || inputs.id == matrix.id
         with:
           persist-credentials: false
       - name: Set up Python ${{ env.PYTHON_VERSION }}
-        if: matrix.id == 'icu' && (github.event_name == 'schedule' || inputs.id == 'all' || inputs.id == matrix.id)
-        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
+        if: |
+          (matrix.id == 'icu' || matrix.id == 'inspector_protocol') &&
+          (github.event_name == 'schedule' || inputs.id == 'all' || inputs.id == matrix.id)
+        uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c  # v6.0.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
+          allow-prereleases: true
+      - name: Set up Nix
+        if: matrix.id == 'nixpkgs-unstable' && (github.event_name == 'schedule' || inputs.id == 'all' || inputs.id == matrix.id)
+        uses: cachix/install-nix-action@0b0e072294b088b73964f1d72dfdac0951439dbd  # v31.8.4
       - run: ${{ matrix.run }}
         if: github.event_name == 'schedule' || inputs.id == 'all' || inputs.id == matrix.id
         env:

@@ -141,9 +141,9 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="----npm-pack----1160">
+<h1 id="----npm-pack----1164">
     <span>npm-pack</span>
-    <span class="version">@11.6.0</span>
+    <span class="version">@11.6.4</span>
 </h1>
 <span class="description">Create a tarball from a package</span>
 </header>
@@ -241,13 +241,8 @@ the specified workspaces, and not on the root project.</p>
 run their intended script if <code>ignore-scripts</code> is set, but they will <em>not</em>
 run any pre- or post-scripts.</p>
 <h3 id="description">Description</h3>
-<p>For anything that's installable (that is, a package folder, tarball,
-tarball url, git url, name@tag, name@version, name, or scoped name), this
-command will fetch it to the cache, copy the tarball to the current working
-directory as <code>&lt;name&gt;-&lt;version&gt;.tgz</code>, and then write the filenames out to
-stdout.</p>
-<p>If the same package is specified multiple times, then the file will be
-overwritten the second time.</p>
+<p>For anything that's installable (that is, a package folder, tarball, tarball url, git url, name@tag, name@version, name, or scoped name), this command will fetch it to the cache, copy the tarball to the current working directory as <code>&lt;name&gt;-&lt;version&gt;.tgz</code>, and then write the filenames out to stdout.</p>
+<p>If the same package is specified multiple times, then the file will be overwritten the second time.</p>
 <p>If no arguments are supplied, then npm packs the current package folder.</p>
 <h3 id="see-also">See Also</h3>
 <ul>

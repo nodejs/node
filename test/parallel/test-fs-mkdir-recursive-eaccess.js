@@ -61,10 +61,10 @@ function makeDirectoryWritable(dir) {
   const dir = tmpdir.resolve(`mkdirp_${n++}`);
   fs.mkdirSync(dir);
   const codeExpected = makeDirectoryReadOnly(dir);
-  fs.mkdir(path.join(dir, '/bar'), { recursive: true }, (err) => {
+  fs.mkdir(path.join(dir, '/bar'), { recursive: true }, common.mustCall((err) => {
     makeDirectoryWritable(dir);
     assert(err);
     assert.strictEqual(err.code, codeExpected);
     assert(err.path);
-  });
+  }));
 }

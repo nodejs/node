@@ -1,11 +1,11 @@
 import { mustCall } from '../common/index.mjs';
 import { glob } from 'node:fs';
 import process from 'node:process';
-import { strictEqual } from 'node:assert';
+import assert from 'node:assert';
 
 // One uncaught error is expected
 process.on('uncaughtException', mustCall((err) => {
-  strictEqual(err.message, 'blep');
+  assert.strictEqual(err.message, 'blep');
 }));
 
 {

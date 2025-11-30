@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --trace-turbo-inlining --allow-natives-syntax
-// Flags: --turbofan --no-always-turbofan --no-always-sparkplug
+// Flags: --turbofan --no-always-sparkplug
 // Concurrent inlining leads to additional traces.
 // Flags: --no-stress-concurrent-inlining
 

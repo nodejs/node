@@ -106,10 +106,19 @@ v8::Local<v8::Array> AsyncHooks::js_execution_async_resources() {
 }
 
 v8::Local<v8::Object> AsyncHooks::native_execution_async_resource(size_t i) {
-  if (i >= native_execution_async_resources_.size() ||
-      native_execution_async_resources_[i] == nullptr)
-    return {};
-  return *native_execution_async_resources_[i];
+  if (i >= native_execution_async_resources_.size()) return {};
+  auto resource = native_execution_async_resources_[i];
+  if (std::holds_alternative<v8::Global<v8::Object>*>(resource)) [[unlikely]] {
+    auto* global = std::get<v8::Global<v8::Object>*>(resource);
+    if (global == nullptr) [[unlikely]]
+      return {};
+    return global->Get(env()->isolate());
+  } else {
+    auto* local = std::get<v8::Local<v8::Object>*>(resource);
+    if (local == nullptr) [[unlikely]]
+      return {};
+    return *local;
+  }
 }
 
 inline v8::Local<v8::String> AsyncHooks::provider_string(int idx) {
@@ -187,9 +196,8 @@ inline Environment* Environment::GetCurrent(v8::Local<v8::Context> context) {
   if (!ContextEmbedderTag::IsNodeContext(context)) [[unlikely]] {
     return nullptr;
   }
-  return static_cast<Environment*>(
-      context->GetAlignedPointerFromEmbedderData(
-          ContextEmbedderIndex::kEnvironment));
+  return static_cast<Environment*>(context->GetAlignedPointerFromEmbedderData(
+      ContextEmbedderIndex::kEnvironment, EmbedderDataTag::kPerContextData));
 }
 
 inline Environment* Environment::GetCurrent(

@@ -485,8 +485,8 @@ function resolveAndLinkDependencies(module) {
         // The "secret" variable refers to the global variable we added to
         // "contextifiedObject" when creating the context.
         export default secret;
-      `, { context: referencingModule.context });
-      moduleMap.set(specifier, linkedModule);
+      `, { context: module.context });
+      moduleMap.set(specifier, requestedModule);
       // Resolve the dependencies of the new module as well.
       resolveAndLinkDependencies(requestedModule);
     }
@@ -566,8 +566,8 @@ const contextifiedObject = vm.createContext({
           // The "secret" variable refers to the global variable we added to
           // "contextifiedObject" when creating the context.
           export default secret;
-        `, { context: referencingModule.context });
-        moduleMap.set(specifier, linkedModule);
+        `, { context: module.context });
+        moduleMap.set(specifier, requestedModule);
         // Resolve the dependencies of the new module as well.
         resolveAndLinkDependencies(requestedModule);
       }
@@ -618,19 +618,47 @@ in the ECMAScript specification.
     work after that. **Default:** `false`.
 * Returns: {Promise} Fulfills with `undefined` upon success.
 
-Evaluate the module.
+Evaluate the module and its depenendencies. Corresponds to the [Evaluate() concrete method][] field of
+[Cyclic Module Record][]s in the ECMAScript specification.
 
-This must be called after the module has been linked; otherwise it will reject.
-It could be called also when the module has already been evaluated, in which
-case it will either do nothing if the initial evaluation ended in success
-(`module.status` is `'evaluated'`) or it will re-throw the exception that the
-initial evaluation resulted in (`module.status` is `'errored'`).
+If the module is a `vm.SourceTextModule`, `evaluate()` must be called after the module has been instantiated;
+otherwise `evaluate()` will return a rejected promise.
 
-This method cannot be called while the module is being evaluated
-(`module.status` is `'evaluating'`).
+For a `vm.SourceTextModule`, the promise returned by `evaluate()` may be fulfilled either
+synchronously or asynchronously:
 
-Corresponds to the [Evaluate() concrete method][] field of [Cyclic Module
-Record][]s in the ECMAScript specification.
+1. If the `vm.SourceTextModule` has no top-level `await` in itself or any of its dependencies, the promise will be
+   fulfilled _synchronously_ after the module and all its dependencies have been evaluated.
+   1. If the evaluation succeeds, the promise will be _synchronously_ resolved to `undefined`.
+   2. If the evaluation results in an exception, the promise will be _synchronously_ rejected with the exception
+      that causes the evaluation to fail, which is the same as `module.error`.
+2. If the `vm.SourceTextModule` has top-level `await` in itself or any of its dependencies, the promise will be
+   fulfilled _asynchronously_ after the module and all its dependencies have been evaluated.
+   1. If the evaluation succeeds, the promise will be _asynchronously_ resolved to `undefined`.
+   2. If the evaluation results in an exception, the promise will be _asynchronously_ rejected with the exception
+      that causes the evaluation to fail.
+
+If the module is a `vm.SyntheticModule`, `evaluate()` always returns a promise that fulfills synchronously, see
+the specification of [Evaluate() of a Synthetic Module Record][]:
+
+1. If the `evaluateCallback` passed to its constructor throws an exception synchronously, `evaluate()` returns
+   a promise that will be synchronously rejected with that exception.
+2. If the `evaluateCallback` does not throw an exception, `evaluate()` returns a promise that will be
+   synchronously resolved to `undefined`.
+
+The `evaluateCallback` of a `vm.SyntheticModule` is executed synchronously within the `evaluate()` call, and its
+return value is discarded. This means if `evaluateCallback` is an asynchronous function, the promise returned by
+`evaluate()` will not reflect its asynchronous behavior, and any rejections from an asynchronous
+`evaluateCallback` will be lost.
+
+`evaluate()` could also be called again after the module has already been evaluated, in which case:
+
+1. If the initial evaluation ended in success (`module.status` is `'evaluated'`), it will do nothing
+   and return a promise that resolves to `undefined`.
+2. If the initial evaluation resulted in an exception (`module.status` is `'errored'`), it will re-reject
+   the exception that the initial evaluation resulted in.
+
+This method cannot be called while the module is being evaluated (`module.status` is `'evaluating'`).
 
 ### `module.identifier`
 
@@ -905,7 +933,9 @@ const module2 = new vm.SourceTextModule('const a = 1;', { cachedData });
 
 <!-- YAML
 changes:
-  - version: v24.4.0
+  - version:
+    - v24.4.0
+    - v22.20.0
     pr-url: https://github.com/nodejs/node/pull/20300
     description: This is deprecated in favour of `sourceTextModule.moduleRequests`.
 -->
@@ -923,7 +953,7 @@ the ECMAScript specification.
 ### `sourceTextModule.hasAsyncGraph()`
 
 <!-- YAML
-added: REPLACEME
+added: v24.9.0
 -->
 
 * Returns: {boolean}
@@ -940,7 +970,7 @@ instantiated yet, an error will be thrown.
 ### `sourceTextModule.hasTopLevelAwait()`
 
 <!-- YAML
-added: REPLACEME
+added: v24.9.0
 -->
 
 * Returns: {boolean}
@@ -953,7 +983,9 @@ ECMAScript specification.
 ### `sourceTextModule.instantiate()`
 
 <!-- YAML
-added: v24.8.0
+added:
+ - v24.8.0
+ - v22.21.0
 -->
 
 * Returns: {undefined}
@@ -971,7 +1003,9 @@ modules in the cycle before calling this method.
 ### `sourceTextModule.linkRequests(modules)`
 
 <!-- YAML
-added: v24.8.0
+added:
+ - v24.8.0
+ - v22.21.0
 -->
 
 * `modules` {vm.Module\[]} Array of `vm.Module` objects that this module depends on.
@@ -1016,7 +1050,9 @@ After each module in the `modules` array is linked, call
 ### `sourceTextModule.moduleRequests`
 
 <!-- YAML
-added: v24.4.0
+added:
+  - v24.4.0
+  - v22.20.0
 -->
 
 * Type: {ModuleRequest\[]} Dependencies of this module.
@@ -1133,7 +1169,9 @@ added:
  - v13.0.0
  - v12.16.0
 changes:
-  - version: v24.8.0
+  - version:
+     - v24.8.0
+     - v22.21.0
     pr-url: https://github.com/nodejs/node/pull/59000
     description: No longer need to call `syntheticModule.link()` before
                  calling this method.
@@ -1170,7 +1208,9 @@ const vm = require('node:vm');
 ## Type: `ModuleRequest`
 
 <!-- YAML
-added: v24.4.0
+added:
+  - v24.4.0
+  - v22.20.0
 -->
 
 * Type: {Object}
@@ -1946,6 +1986,68 @@ inside a `vm.Context`, functions passed to them will be added to global queues,
 which are shared by all contexts. Therefore, callbacks passed to those functions
 are not controllable through the timeout either.
 
+### When `microtaskMode` is `'afterEvaluate'`, beware sharing Promises between Contexts
+
+In `'afterEvaluate'` mode, the `Context` has its own microtask queue, separate
+from the global microtask queue used by the outer (main) context. While this
+mode is necessary to enforce `timeout` and enable `breakOnSigint` with
+asynchronous tasks, it also makes sharing promises between contexts challenging.
+
+In the example below, a promise is created in the inner context and shared with
+the outer context. When the outer context `await` on the promise, the execution
+flow of the outer context is disrupted in a surprising way: the log statement
+is never executed.
+
+```mjs
+import * as vm from 'node:vm';
+
+const inner_context = vm.createContext({}, { microtaskMode: 'afterEvaluate' });
+
+// runInContext() returns a Promise created in the inner context.
+const inner_promise = vm.runInContext(
+  'Promise.resolve()',
+  context,
+);
+
+// As part of performing `await`, the JavaScript runtime must enqueue a task
+// on the microtask queue of the context where `inner_promise` was created.
+// A task is added on the inner microtask queue, but **it will not be run
+// automatically**: this task will remain pending indefinitely.
+//
+// Since the outer microtask queue is empty, execution in the outer module
+// falls through, and the log statement below is never executed.
+await inner_promise;
+
+console.log('this will NOT be printed');
+```
+
+To successfully share promises between contexts with different microtask queues,
+it is necessary to ensure that tasks on the inner microtask queue will be run
+**whenever** the outer context enqueues a task on the inner microtask queue.
+
+The tasks on the microtask queue of a given context are run whenever
+`runInContext()` or `SourceTextModule.evaluate()` are invoked on a script or
+module using this context. In our example, the normal execution flow can be
+restored by scheduling a second call to `runInContext()` _before_ `await
+inner_promise`.
+
+```mjs
+// Schedule `runInContext()` to manually drain the inner context microtask
+// queue; it will run after the `await` statement below.
+setImmediate(() => {
+  vm.runInContext('', context);
+});
+
+await inner_promise;
+
+console.log('OK');
+```
+
+**Note:** Strictly speaking, in this mode, `node:vm` departs from the letter of
+the ECMAScript specification for [enqueing jobs][], by allowing asynchronous
+tasks from different contexts to run in a different order than they were
+enqueued.
+
 ## Support of dynamic `import()` in compilation APIs
 
 The following APIs support an `importModuleDynamically` option to enable dynamic
@@ -2153,6 +2255,7 @@ const { Script, SyntheticModule } = require('node:vm');
 [Cyclic Module Record]: https://tc39.es/ecma262/#sec-cyclic-module-records
 [ECMAScript Module Loader]: esm.md#modules-ecmascript-modules
 [Evaluate() concrete method]: https://tc39.es/ecma262/#sec-moduleevaluation
+[Evaluate() of a Synthetic Module Record]: https://tc39.es/ecma262/#sec-smr-Evaluate
 [FinishLoadingImportedModule]: https://tc39.es/ecma262/#sec-FinishLoadingImportedModule
 [GetModuleNamespace]: https://tc39.es/ecma262/#sec-getmodulenamespace
 [HostLoadImportedModule]: https://tc39.es/ecma262/#sec-HostLoadImportedModule
@@ -2183,6 +2286,7 @@ const { Script, SyntheticModule } = require('node:vm');
 [`vm.runInContext()`]: #vmrunincontextcode-contextifiedobject-options
 [`vm.runInThisContext()`]: #vmruninthiscontextcode-options
 [contextified]: #what-does-it-mean-to-contextify-an-object
+[enqueing jobs]: https://tc39.es/ecma262/#sec-hostenqueuepromisejob
 [global object]: https://tc39.es/ecma262/#sec-global-object
 [indirect `eval()` call]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/eval#direct_and_indirect_eval
 [origin]: https://developer.mozilla.org/en-US/docs/Glossary/Origin

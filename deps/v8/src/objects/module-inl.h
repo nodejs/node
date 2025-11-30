@@ -26,11 +26,6 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(Module)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSModuleNamespace)
 TQ_OBJECT_CONSTRUCTORS_IMPL(ScriptOrModule)
 
-NEVER_READ_ONLY_SPACE_IMPL(Module)
-NEVER_READ_ONLY_SPACE_IMPL(ModuleRequest)
-NEVER_READ_ONLY_SPACE_IMPL(SourceTextModule)
-NEVER_READ_ONLY_SPACE_IMPL(SyntheticModule)
-
 BOOL_ACCESSORS(SourceTextModule, flags, has_toplevel_await,
                HasToplevelAwaitBit::kShift)
 BIT_FIELD_ACCESSORS(SourceTextModule, flags, async_evaluation_ordinal,
@@ -41,14 +36,16 @@ ACCESSORS(SourceTextModule, async_parent_modules, Tagged<ArrayList>,
 BIT_FIELD_ACCESSORS(ModuleRequest, flags, position, ModuleRequest::PositionBits)
 
 inline void ModuleRequest::set_phase(ModuleImportPhase phase) {
-  DCHECK(PhaseBit::is_valid(phase));
+  DCHECK(PhaseBits::is_valid(phase));
   int hints = flags();
-  hints = PhaseBit::update(hints, phase);
+  hints = PhaseBits::update(hints, phase);
   set_flags(hints);
 }
 
 inline ModuleImportPhase ModuleRequest::phase() const {
-  return PhaseBit::decode(flags());
+  int value = flags() & PhaseBits::kMask;
+  DCHECK(value == 0 || value == 1 || value == 2);
+  return static_cast<ModuleImportPhase>(value);
 }
 
 struct Module::Hash {

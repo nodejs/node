@@ -38,12 +38,13 @@ class JSGenericLoweringReducer : public Next {
     // latest experiment was ended with this commit:
     // https://crrev.com/c/4110858.
     switch (kind) {
-#define CASE(Name)                                                            \
-  case GenericBinopOp::Kind::k##Name:                                         \
-    return __ CallBuiltin_##Name(isolate_, frame_state, context, left, right, \
-                                 lazy_deopt_on_throw);
-      GENERIC_BINOP_LIST(CASE)
-#undef CASE
+#define BINOP_CASE(Name)                                      \
+  case GenericBinopOp::Kind::k##Name:                         \
+    return __ template CallBuiltin<builtin::Name>(            \
+        frame_state, context, {.left = left, .right = right}, \
+        lazy_deopt_on_throw);
+      GENERIC_BINOP_LIST(BINOP_CASE)
+#undef BINOP_CASE
     }
   }
 
@@ -51,12 +52,12 @@ class JSGenericLoweringReducer : public Next {
                                 V<Context> context, GenericUnopOp::Kind kind,
                                 LazyDeoptOnThrow lazy_deopt_on_throw) {
     switch (kind) {
-#define CASE(Name)                                                      \
-  case GenericUnopOp::Kind::k##Name:                                    \
-    return __ CallBuiltin_##Name(isolate_, frame_state, context, input, \
-                                 lazy_deopt_on_throw);
-      GENERIC_UNOP_LIST(CASE)
-#undef CASE
+#define UNOP_CASE(Name)                            \
+  case GenericUnopOp::Kind::k##Name:               \
+    return __ template CallBuiltin<builtin::Name>( \
+        frame_state, context, {.input = input}, lazy_deopt_on_throw);
+      GENERIC_UNOP_LIST(UNOP_CASE)
+#undef UNOP_CASE
     }
   }
 
@@ -70,12 +71,14 @@ class JSGenericLoweringReducer : public Next {
             done, input);
     switch (kind) {
       case Object::Conversion::kToNumber:
-        GOTO(done, __ CallBuiltin_ToNumber(isolate_, frame_state, context,
-                                           input, lazy_deopt_on_throw));
+        GOTO(done,
+             __ template CallBuiltin<builtin::ToNumber>(
+                 frame_state, context, {.input = input}, lazy_deopt_on_throw));
         break;
       case Object::Conversion::kToNumeric:
-        GOTO(done, __ CallBuiltin_ToNumeric(isolate_, frame_state, context,
-                                            input, lazy_deopt_on_throw));
+        GOTO(done,
+             __ template CallBuiltin<builtin::ToNumeric>(
+                 frame_state, context, {.input = input}, lazy_deopt_on_throw));
         break;
     }
     BIND(done, result);

@@ -14,8 +14,8 @@ alias: it
 
 ### Description
 
-This command runs an `npm install` followed immediately by an `npm test`. It
-takes exactly the same arguments as `npm install`.
+This command runs an `npm install` followed immediately by an `npm test`.
+It takes exactly the same arguments as `npm install`.
 
 ### Configuration
 
@@ -102,7 +102,7 @@ on deeper dependencies. Sets `--install-strategy=shallow`.
 #### `omit`
 
 * Default: 'dev' if the `NODE_ENV` environment variable is set to
-  'production', otherwise empty.
+  'production'; otherwise, empty.
 * Type: "dev", "optional", or "peer" (can be set multiple times)
 
 Dependency types to omit from the installation tree on disk.

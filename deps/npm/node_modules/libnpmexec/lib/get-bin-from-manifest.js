@@ -1,7 +1,7 @@
 const getBinFromManifest = (mani) => {
   // if we have a bin matching (unscoped portion of) packagename, use that
   // otherwise if there's 1 bin or all bin value is the same (alias), use
-  // that, otherwise fail
+  // that; otherwise, fail
   const bin = mani.bin || {}
   if (new Set(Object.values(bin)).size === 1) {
     return Object.keys(bin)[0]

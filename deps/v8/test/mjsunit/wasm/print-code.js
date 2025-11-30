@@ -3,8 +3,7 @@
 // found in the LICENSE file.
 
 // Force TurboFan code for serialization.
-// Flags: --allow-natives-syntax --print-wasm-code --no-liftoff
-// Flags: --no-wasm-lazy-compilation
+// Flags: --print-wasm-code --no-liftoff --no-wasm-lazy-compilation
 
 // Just test that printing the code of the following wasm modules does not
 // crash.
@@ -27,7 +26,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   var wire_bytes = builder.toBuffer();
   var module = new WebAssembly.Module(wire_bytes);
   print('serializing');
-  var buff = %SerializeWasmModule(module);
+  var buff = d8.wasm.serializeModule(module);
   print('deserializing');
-  module = %DeserializeWasmModule(buff, wire_bytes);
+  module = d8.wasm.deserializeModule(buff, wire_bytes);
 })();

@@ -177,9 +177,6 @@
         "experimental-sqlite": {
           "type": "boolean"
         },
-        "experimental-strip-types": {
-          "type": "boolean"
-        },
         "experimental-transform-types": {
           "type": "boolean"
         },
@@ -363,6 +360,9 @@
         },
         "stack-trace-limit": {
           "type": "number"
+        },
+        "strip-types": {
+          "type": "boolean"
         },
         "test-coverage-branches": {
           "type": "number"
@@ -603,7 +603,62 @@
       },
       "type": "object"
     },
-    "testRunner": {
+    "permission": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "allow-addons": {
+          "type": "boolean"
+        },
+        "allow-child-process": {
+          "type": "boolean"
+        },
+        "allow-fs-read": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string",
+                "minItems": 1
+              },
+              "type": "array"
+            }
+          ]
+        },
+        "allow-fs-write": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string",
+                "minItems": 1
+              },
+              "type": "array"
+            }
+          ]
+        },
+        "allow-inspector": {
+          "type": "boolean"
+        },
+        "allow-net": {
+          "type": "boolean"
+        },
+        "allow-wasi": {
+          "type": "boolean"
+        },
+        "allow-worker": {
+          "type": "boolean"
+        },
+        "permission": {
+          "type": "boolean"
+        }
+      }
+    },
+    "test": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -611,6 +666,9 @@
           "type": "boolean"
         },
         "experimental-test-module-mocks": {
+          "type": "boolean"
+        },
+        "test": {
           "type": "boolean"
         },
         "test-concurrency": {
@@ -731,6 +789,35 @@
           "type": "number"
         },
         "test-update-snapshots": {
+          "type": "boolean"
+        }
+      }
+    },
+    "watch": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "watch": {
+          "type": "boolean"
+        },
+        "watch-kill-signal": {
+          "type": "string"
+        },
+        "watch-path": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string",
+                "minItems": 1
+              },
+              "type": "array"
+            }
+          ]
+        },
+        "watch-preserve-output": {
           "type": "boolean"
         }
       }

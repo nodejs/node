@@ -343,13 +343,6 @@ TF_BUILTIN(StringListFromIterable, IteratorBuiltinsAssembler) {
   Return(StringListFromIterable(context, iterable));
 }
 
-TF_BUILTIN(StringFixedArrayFromIterable, IteratorBuiltinsAssembler) {
-  auto context = Parameter<Context>(Descriptor::kContext);
-  auto iterable = Parameter<JSAny>(Descriptor::kIterable);
-
-  Return(StringListFromIterable(context, iterable));
-}
-
 // This builtin always returns a new JSArray and is thus safe to use even in the
 // presence of code that may call back into user-JS. This builtin will take the
 // fast path if the iterable is a fast array and the Array prototype and the

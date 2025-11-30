@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --jit-fuzzing --fuzzing --allow-natives-syntax
+// Flags: --allow-natives-syntax
 
 function main() {
   const {
@@ -17,14 +17,16 @@ function main() {
     return v2();
   }
   const v4 = v6 => {
-    const v7 = (%PrepareFunctionForOptimization(), f0(), %OptimizeFunctionOnNextCall(), f0(v6));
+    const v7 = (%PrepareFunctionForOptimization(f0), f0(), %OptimizeFunctionOnNextCall(f0), f0(v6));
       gc();
       v7();
   };
+  %PrepareFunctionForOptimization(v4);
   try {
     v4({});
   } catch (e) {}
 }
+%PrepareFunctionForOptimization(main);
 main();
 main();
 %OptimizeFunctionOnNextCall(main);

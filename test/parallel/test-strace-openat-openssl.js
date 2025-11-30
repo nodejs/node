@@ -19,16 +19,20 @@ if (spawnSync('strace').error !== undefined) {
   const allowedOpenCalls = new Set([
     '/etc/ssl/openssl.cnf',
   ]);
+  const syscalls = ['openat'];
+  if (process.arch !== 'riscv64' && process.arch !== 'riscv32') {
+    syscalls.push('open');
+  }
   const strace = spawn('strace', [
     '-f', '-ff',
-    '-e', 'trace=open,openat',
+    '-e', `trace=${syscalls.join(',')}`,
     '-s', '512',
     '-D', process.execPath, '-e', 'require("crypto")',
   ]);
 
   // stderr is the default for strace
   const rl = createInterface({ input: strace.stderr });
-  rl.on('line', (line) => {
+  rl.on('line', common.mustCallAtLeast((line) => {
     if (!line.startsWith('open')) {
       return;
     }
@@ -44,7 +48,7 @@ if (spawnSync('strace').error !== undefined) {
     }
 
     assert(allowedOpenCalls.delete(file), `${file} is not in the list of allowed openat calls`);
-  });
+  }));
   const debugOutput = [];
   strace.stderr.setEncoding('utf8');
   strace.stderr.on('data', (chunk) => {

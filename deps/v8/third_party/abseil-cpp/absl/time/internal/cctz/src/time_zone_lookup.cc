@@ -33,24 +33,32 @@
 #endif
 
 #if defined(_WIN32)
-#include <sdkddkver.h>
-// Include only when the SDK is for Windows 10 (and later), and the binary is
-// targeted for Windows XP and later.
-// Note: The Windows SDK added windows.globalization.h file for Windows 10, but
-// MinGW did not add it until NTDDI_WIN10_NI (SDK version 10.0.22621.0).
-#if ((defined(_WIN32_WINNT_WIN10) && !defined(__MINGW32__)) ||        \
-     (defined(NTDDI_WIN10_NI) && NTDDI_VERSION >= NTDDI_WIN10_NI)) && \
-    (_WIN32_WINNT >= _WIN32_WINNT_WINXP)
+// Include only when <icu.h> is available.
+// https://learn.microsoft.com/en-us/windows/win32/intl/international-components-for-unicode--icu-
+// https://devblogs.microsoft.com/oldnewthing/20210527-00/?p=105255
+#if defined(__has_include)
+#if __has_include(<icu.h>)
 #define USE_WIN32_LOCAL_TIME_ZONE
-#include <roapi.h>
-#include <tchar.h>
-#include <wchar.h>
-#include <windows.globalization.h>
 #include <windows.h>
-#include <winstring.h>
-#endif
-#endif
+#pragma push_macro("_WIN32_WINNT")
+#pragma push_macro("NTDDI_VERSION")
+// Minimum _WIN32_WINNT and NTDDI_VERSION to use ucal_getTimeZoneIDForWindowsID
+#undef _WIN32_WINNT
+#define _WIN32_WINNT 0x0A00  // == _WIN32_WINNT_WIN10
+#undef NTDDI_VERSION
+#define NTDDI_VERSION 0x0A000004  // == NTDDI_WIN10_RS3
+#include <icu.h>
+#pragma pop_macro("NTDDI_VERSION")
+#pragma pop_macro("_WIN32_WINNT")
+#include <timezoneapi.h>
 
+#include <atomic>
+#endif  // __has_include(<icu.h>)
+#endif  // __has_include
+#endif  // _WIN32
+
+#include <array>
+#include <cstdint>
 #include <cstdlib>
 #include <cstring>
 #include <string>
@@ -65,80 +73,78 @@ namespace cctz {
 
 namespace {
 #if defined(USE_WIN32_LOCAL_TIME_ZONE)
-// Calls the WinRT Calendar.GetTimeZone method to obtain the IANA ID of the
-// local time zone. Returns an empty vector in case of an error.
-std::string win32_local_time_zone(const HMODULE combase) {
-  std::string result;
-  const auto ro_activate_instance =
-      reinterpret_cast<decltype(&RoActivateInstance)>(
-          GetProcAddress(combase, "RoActivateInstance"));
-  if (!ro_activate_instance) {
-    return result;
-  }
-  const auto windows_create_string_reference =
-      reinterpret_cast<decltype(&WindowsCreateStringReference)>(
-          GetProcAddress(combase, "WindowsCreateStringReference"));
-  if (!windows_create_string_reference) {
-    return result;
-  }
-  const auto windows_delete_string =
-      reinterpret_cast<decltype(&WindowsDeleteString)>(
-          GetProcAddress(combase, "WindowsDeleteString"));
-  if (!windows_delete_string) {
-    return result;
-  }
-  const auto windows_get_string_raw_buffer =
-      reinterpret_cast<decltype(&WindowsGetStringRawBuffer)>(
-          GetProcAddress(combase, "WindowsGetStringRawBuffer"));
-  if (!windows_get_string_raw_buffer) {
-    return result;
+// True if we have already failed to load the API.
+static std::atomic_bool g_ucal_getTimeZoneIDForWindowsIDUnavailable;
+static std::atomic<decltype(ucal_getTimeZoneIDForWindowsID)*>
+    g_ucal_getTimeZoneIDForWindowsIDRef;
+
+std::string win32_local_time_zone() {
+  // If we have already failed to load the API, then just give up.
+  if (g_ucal_getTimeZoneIDForWindowsIDUnavailable.load()) {
+    return "";
   }
 
-  // The string returned by WindowsCreateStringReference doesn't need to be
-  // deleted.
-  HSTRING calendar_class_id;
-  HSTRING_HEADER calendar_class_id_header;
-  HRESULT hr = windows_create_string_reference(
-      RuntimeClass_Windows_Globalization_Calendar,
-      sizeof(RuntimeClass_Windows_Globalization_Calendar) / sizeof(wchar_t) - 1,
-      &calendar_class_id_header, &calendar_class_id);
-  if (FAILED(hr)) {
-    return result;
-  }
-
-  IInspectable* calendar;
-  hr = ro_activate_instance(calendar_class_id, &calendar);
-  if (FAILED(hr)) {
-    return result;
-  }
-
-  ABI::Windows::Globalization::ITimeZoneOnCalendar* time_zone;
-  hr = calendar->QueryInterface(IID_PPV_ARGS(&time_zone));
-  if (FAILED(hr)) {
-    calendar->Release();
-    return result;
-  }
-
-  HSTRING tz_hstr;
-  hr = time_zone->GetTimeZone(&tz_hstr);
-  if (SUCCEEDED(hr)) {
-    UINT32 wlen;
-    const PCWSTR tz_wstr = windows_get_string_raw_buffer(tz_hstr, &wlen);
-    if (tz_wstr) {
-      const int size =
-          WideCharToMultiByte(CP_UTF8, 0, tz_wstr, static_cast<int>(wlen),
-                              nullptr, 0, nullptr, nullptr);
-      result.resize(static_cast<size_t>(size));
-      WideCharToMultiByte(CP_UTF8, 0, tz_wstr, static_cast<int>(wlen),
-                          &result[0], size, nullptr, nullptr);
+  auto ucal_getTimeZoneIDForWindowsIDFunc =
+      g_ucal_getTimeZoneIDForWindowsIDRef.load();
+  if (ucal_getTimeZoneIDForWindowsIDFunc == nullptr) {
+    // If we have already failed to load the API, then just give up.
+    if (g_ucal_getTimeZoneIDForWindowsIDUnavailable.load()) {
+      return "";
     }
-    windows_delete_string(tz_hstr);
+
+    const HMODULE icudll =
+        ::LoadLibraryExW(L"icu.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
+
+    if (icudll == nullptr) {
+      g_ucal_getTimeZoneIDForWindowsIDUnavailable.store(true);
+      return "";
+    }
+
+    ucal_getTimeZoneIDForWindowsIDFunc =
+        reinterpret_cast<decltype(ucal_getTimeZoneIDForWindowsID)*>(
+            ::GetProcAddress(icudll, "ucal_getTimeZoneIDForWindowsID"));
+
+    if (ucal_getTimeZoneIDForWindowsIDFunc == nullptr) {
+      g_ucal_getTimeZoneIDForWindowsIDUnavailable.store(true);
+      return "";
+    }
+    // store-race is not a problem here, because ::GetProcAddress() returns the
+    // same address for the same function in the same DLL.
+    g_ucal_getTimeZoneIDForWindowsIDRef.store(
+        ucal_getTimeZoneIDForWindowsIDFunc);
+
+    // We intentionally do not call ::FreeLibrary() here to avoid frequent DLL
+    // loadings and unloading. As "icu.dll" is a system library, keeping it on
+    // memory is supposed to have no major drawback.
   }
-  time_zone->Release();
-  calendar->Release();
-  return result;
+
+  DYNAMIC_TIME_ZONE_INFORMATION info = {};
+  if (::GetDynamicTimeZoneInformation(&info) == TIME_ZONE_ID_INVALID) {
+    return "";
+  }
+
+  std::array<UChar, 128> buffer;
+  UErrorCode status = U_ZERO_ERROR;
+  const auto num_chars_in_buffer = ucal_getTimeZoneIDForWindowsIDFunc(
+      reinterpret_cast<const UChar*>(info.TimeZoneKeyName), -1, nullptr,
+      buffer.data(), static_cast<int32_t>(buffer.size()), &status);
+  if (status != U_ZERO_ERROR || num_chars_in_buffer <= 0 ||
+      num_chars_in_buffer > static_cast<int32_t>(buffer.size())) {
+    return "";
+  }
+
+  const int num_bytes_in_utf8 = ::WideCharToMultiByte(
+      CP_UTF8, 0, reinterpret_cast<const wchar_t*>(buffer.data()),
+      static_cast<int>(num_chars_in_buffer), nullptr, 0, nullptr, nullptr);
+  std::string local_time_str;
+  local_time_str.resize(static_cast<size_t>(num_bytes_in_utf8));
+  ::WideCharToMultiByte(
+      CP_UTF8, 0, reinterpret_cast<const wchar_t*>(buffer.data()),
+      static_cast<int>(num_chars_in_buffer), &local_time_str[0],
+      num_bytes_in_utf8, nullptr, nullptr);
+  return local_time_str;
 }
-#endif
+#endif  // USE_WIN32_LOCAL_TIME_ZONE
 }  // namespace
 
 std::string time_zone::name() const { return effective_impl().Name(); }
@@ -256,36 +262,9 @@ time_zone local_time_zone() {
   }
 #endif
 #if defined(USE_WIN32_LOCAL_TIME_ZONE)
-  // Use the WinRT Calendar class to get the local time zone. This feature is
-  // available on Windows 10 and later. The library is dynamically linked to
-  // maintain binary compatibility with Windows XP - Windows 7. On Windows 8,
-  // The combase.dll API functions are available but the RoActivateInstance
-  // call will fail for the Calendar class.
-  std::string winrt_tz;
-  const HMODULE combase =
-      LoadLibraryEx(_T("combase.dll"), nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
-  if (combase) {
-    const auto ro_initialize = reinterpret_cast<decltype(&::RoInitialize)>(
-        GetProcAddress(combase, "RoInitialize"));
-    const auto ro_uninitialize = reinterpret_cast<decltype(&::RoUninitialize)>(
-        GetProcAddress(combase, "RoUninitialize"));
-    if (ro_initialize && ro_uninitialize) {
-      const HRESULT hr = ro_initialize(RO_INIT_MULTITHREADED);
-      // RPC_E_CHANGED_MODE means that a previous RoInitialize call specified
-      // a different concurrency model. The WinRT runtime is initialized and
-      // should work for our purpose here, but we should *not* call
-      // RoUninitialize because it's a failure.
-      if (SUCCEEDED(hr) || hr == RPC_E_CHANGED_MODE) {
-        winrt_tz = win32_local_time_zone(combase);
-        if (SUCCEEDED(hr)) {
-          ro_uninitialize();
-        }
-      }
-    }
-    FreeLibrary(combase);
-  }
-  if (!winrt_tz.empty()) {
-    zone = winrt_tz.c_str();
+  std::string win32_tz = win32_local_time_zone();
+  if (!win32_tz.empty()) {
+    zone = win32_tz.c_str();
   }
 #endif
 

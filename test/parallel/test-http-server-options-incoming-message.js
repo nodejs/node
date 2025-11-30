@@ -25,17 +25,17 @@ const server = http.createServer({
 }));
 server.listen();
 
-server.on('listening', function makeRequest() {
+server.on('listening', common.mustCall(function makeRequest() {
   http.get({
     port: this.address().port,
     headers: {
       'User-Agent': 'node-test'
     }
-  }, (res) => {
+  }, common.mustCall((res) => {
     assert.strictEqual(res.statusCode, 200);
     res.on('end', () => {
       server.close();
     });
     res.resume();
-  });
-});
+  }));
+}));

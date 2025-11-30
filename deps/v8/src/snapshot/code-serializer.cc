@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "src/base/fpu.h"
 #include "src/base/logging.h"
 #include "src/base/platform/elapsed-timer.h"
 #include "src/base/platform/platform.h"
@@ -211,7 +212,7 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
   } else if (InstanceTypeChecker::IsUncompiledDataWithoutPreparseDataWithJob(
                  instance_type)) {
     Handle<UncompiledDataWithoutPreparseDataWithJob> data =
-        Cast<UncompiledDataWithoutPreparseDataWithJob>(obj);
+        TrustedCast<UncompiledDataWithoutPreparseDataWithJob>(obj);
     Address job = data->job();
     data->set_job(kNullAddress);
     SerializeGeneric(data, slot_type);
@@ -220,7 +221,7 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
   } else if (InstanceTypeChecker::IsUncompiledDataWithPreparseDataAndJob(
                  instance_type)) {
     Handle<UncompiledDataWithPreparseDataAndJob> data =
-        Cast<UncompiledDataWithPreparseDataAndJob>(obj);
+        TrustedCast<UncompiledDataWithPreparseDataAndJob>(obj);
     Address job = data->job();
     data->set_job(kNullAddress);
     SerializeGeneric(data, slot_type);
@@ -260,7 +261,8 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
   // --interpreted-frames-native-stack is on. See v8:9122 for more context
   if (V8_UNLIKELY(isolate()->interpreted_frames_native_stack()) &&
       IsInterpreterData(*obj)) {
-    obj = handle(Cast<InterpreterData>(*obj)->bytecode_array(), isolate());
+    obj =
+        handle(TrustedCast<InterpreterData>(*obj)->bytecode_array(), isolate());
   }
 
   // Past this point we should not see any (context-specific) maps anymore.
@@ -348,6 +350,7 @@ class StressOffThreadDeserializeThread final : public base::Thread {
         cached_data_(cached_data) {}
 
   void Run() final {
+    base::FlushDenormalsScope denormals_scope(isolate_->flush_denormals());
     LocalIsolate local_isolate(isolate_, ThreadKind::kBackground);
     UnparkedScope unparked_scope(&local_isolate);
     LocalHandleScope handle_scope(&local_isolate);

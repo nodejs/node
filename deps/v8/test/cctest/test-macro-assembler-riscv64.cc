@@ -153,20 +153,9 @@ TEST(LoadAddress) {
   __ jr(ra);
   __ nop();
   __ bind(&skip);
-  __ li(a4,
-        Operand(masm.jump_address(&to_jump),
-                RelocInfo::INTERNAL_REFERENCE_ENCODED),
-        ADDRESS_LOAD);
+  __ LoadAddress(a4, &to_jump);
   int check_size = masm.InstructionsGeneratedSince(&skip);
-#ifdef RISCV_USE_SV39
-  // NOTE (RISCV): current li generates 4 instructions, if the sequence is
-  // changed, need to adjust the CHECK_EQ value too
-  CHECK_EQ(4, check_size);
-#else
-  // NOTE (RISCV): current li generates 6 instructions, if the sequence is
-  // changed, need to adjust the CHECK_EQ value too
-  CHECK_EQ(6, check_size);
-#endif
+  CHECK_EQ(2, check_size);  // auipc, addi
   __ jr(a4);
   __ nop();
   __ stop();
@@ -557,22 +546,22 @@ TEST(OverflowInstructions) {
         __ Ld(t0, MemOperand(a0, offsetof(T, lhs)));
         __ Ld(t1, MemOperand(a0, offsetof(T, rhs)));
 
-        __ AddOverflow64(t2, t0, Operand(t1), a1);
+        __ AddOverflowWord(t2, t0, Operand(t1), a1);
         __ Sd(t2, MemOperand(a0, offsetof(T, output_add)));
         __ Sd(a1, MemOperand(a0, offsetof(T, overflow_add)));
         __ mv(a1, zero_reg);
-        __ AddOverflow64(t0, t0, Operand(t1), a1);
+        __ AddOverflowWord(t0, t0, Operand(t1), a1);
         __ Sd(t0, MemOperand(a0, offsetof(T, output_add2)));
         __ Sd(a1, MemOperand(a0, offsetof(T, overflow_add2)));
 
         __ Ld(t0, MemOperand(a0, offsetof(T, lhs)));
         __ Ld(t1, MemOperand(a0, offsetof(T, rhs)));
 
-        __ SubOverflow64(t2, t0, Operand(t1), a1);
+        __ SubOverflowWord(t2, t0, Operand(t1), a1);
         __ Sd(t2, MemOperand(a0, offsetof(T, output_sub)));
         __ Sd(a1, MemOperand(a0, offsetof(T, overflow_sub)));
         __ mv(a1, zero_reg);
-        __ SubOverflow64(t0, t0, Operand(t1), a1);
+        __ SubOverflowWord(t0, t0, Operand(t1), a1);
         __ Sd(t0, MemOperand(a0, offsetof(T, output_sub2)));
         __ Sd(a1, MemOperand(a0, offsetof(T, overflow_sub2)));
 

@@ -85,7 +85,7 @@ DirectHandle<NativeContext> Isolate::GetIncumbentContext() {
 }
 
 void Isolate::set_pending_message(Tagged<Object> message_obj) {
-  DCHECK(IsTheHole(message_obj, this) || IsJSMessageObject(message_obj));
+  DCHECK(IsAnyHole(message_obj) || IsJSMessageObject(message_obj));
   thread_local_top()->pending_message_ = message_obj;
 }
 
@@ -103,17 +103,17 @@ bool Isolate::has_pending_message() {
 
 Tagged<Object> Isolate::exception() {
   CHECK(has_exception());
-  DCHECK(!IsException(thread_local_top()->exception_, this));
+  DCHECK(!IsExceptionHole(thread_local_top()->exception_, this));
   return thread_local_top()->exception_;
 }
 
 void Isolate::set_exception(Tagged<Object> exception_obj) {
-  DCHECK(!IsException(exception_obj, this));
+  DCHECK(!IsExceptionHole(exception_obj, this));
   thread_local_top()->exception_ = exception_obj;
 }
 
 void Isolate::clear_internal_exception() {
-  DCHECK(!IsException(thread_local_top()->exception_, this));
+  DCHECK(!IsExceptionHole(thread_local_top()->exception_, this));
   thread_local_top()->exception_ = ReadOnlyRoots(this).the_hole_value();
 }
 
@@ -124,7 +124,7 @@ void Isolate::clear_exception() {
 
 bool Isolate::has_exception() {
   ThreadLocalTop* top = thread_local_top();
-  DCHECK(!IsException(top->exception_, this));
+  DCHECK(!IsExceptionHole(top->exception_, this));
   return !IsTheHole(top->exception_, this);
 }
 
@@ -191,10 +191,6 @@ bool Isolate::is_catchable_by_javascript(Tagged<Object> exception) {
   return exception != ReadOnlyRoots(heap()).termination_exception();
 }
 
-bool Isolate::InFastCCall() const {
-  return isolate_data()->fast_c_call_caller_fp() != kNullAddress;
-}
-
 bool Isolate::is_catchable_by_wasm(Tagged<Object> exception) {
   if (!is_catchable_by_javascript(exception)) return false;
   if (!IsJSObject(exception)) return true;
@@ -232,9 +228,11 @@ bool Isolate::IsInitialArrayPrototype(Tagged<JSArray> array) {
 
 #define NATIVE_CONTEXT_FIELD_ACCESSOR(index, type, name)              \
   Handle<UNPAREN(type)> Isolate::name() {                             \
+    DCHECK(!raw_native_context().is_null());                          \
     return Handle<UNPAREN(type)>(raw_native_context()->name(), this); \
   }                                                                   \
   bool Isolate::is_##name(Tagged<UNPAREN(type)> value) {              \
+    DCHECK(!raw_native_context().is_null());                          \
     return raw_native_context()->is_##name(value);                    \
   }
 NATIVE_CONTEXT_FIELDS(NATIVE_CONTEXT_FIELD_ACCESSOR)

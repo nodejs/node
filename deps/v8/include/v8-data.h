@@ -53,6 +53,11 @@ class V8_EXPORT Data {
   bool IsFunctionTemplate() const;
 
   /**
+   * Returns true if this data is a |v8::DictionaryTemplate|.
+   */
+  bool IsDictionaryTemplate() const;
+
+  /**
    * Returns true if this data is a |v8::Context|.
    */
   bool IsContext() const;

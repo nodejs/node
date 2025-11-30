@@ -1,6 +1,6 @@
 import { spawnPromisified } from '../common/index.mjs';
 import { describe, it } from 'node:test';
-import { strictEqual, match } from 'node:assert';
+import assert from 'node:assert';
 
 describe('unusual top-level await syntax errors', () => {
   const expressions = [
@@ -41,10 +41,10 @@ describe('unusual top-level await syntax errors', () => {
           `,
         ]);
 
-        strictEqual(stderr, '');
-        strictEqual(stdout, '');
-        strictEqual(code, 0);
-        strictEqual(signal, null);
+        assert.strictEqual(stderr, '');
+        assert.strictEqual(stdout, '');
+        assert.strictEqual(code, 0);
+        assert.strictEqual(signal, null);
       }
     }
   });
@@ -69,10 +69,10 @@ describe('unusual top-level await syntax errors', () => {
           ${wrapperExpression}
           `,
       ]);
-      match(stderr, error);
-      strictEqual(stdout, '');
-      strictEqual(code, 1);
-      strictEqual(signal, null);
+      assert.match(stderr, error);
+      assert.strictEqual(stdout, '');
+      assert.strictEqual(code, 1);
+      assert.strictEqual(signal, null);
     }
   });
 });

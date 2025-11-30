@@ -39,7 +39,7 @@ BUILTIN(NumberPrototypeToExponential) {
 
   // Convert the {fraction_digits} to an integer first.
   double fraction_digits_number;
-  MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, fraction_digits_number,
       Object::IntegerValue(isolate, fraction_digits));
 
@@ -87,7 +87,7 @@ BUILTIN(NumberPrototypeToFixed) {
 
   // Convert the {fraction_digits} to an integer first.
   double fraction_digits_number;
-  MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, fraction_digits_number,
       Object::IntegerValue(isolate, fraction_digits));
 
@@ -173,8 +173,8 @@ BUILTIN(NumberPrototypeToPrecision) {
 
   // Convert the {precision} to an integer first.
   double precision_number;
-  MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, precision_number, Object::IntegerValue(isolate, precision));
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, precision_number,
+                                     Object::IntegerValue(isolate, precision));
 
   if (std::isnan(value_number)) return ReadOnlyRoots(isolate).NaN_string();
   if (std::isinf(value_number)) {

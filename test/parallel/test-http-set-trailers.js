@@ -41,14 +41,15 @@ function testHttp10(port, callback) {
     res_buffer += chunk;
   });
 
-  c.on('end', function() {
+  c.on('end', common.mustCall(() => {
     c.end();
-    assert.ok(
-      !/x-foo/.test(res_buffer),
-      `No trailer in HTTP/1.0 response. Response buffer: ${res_buffer}`
+    // Ensure no trailer being in HTTP/1.0 response
+    assert.doesNotMatch(
+      res_buffer,
+      /x-foo/,
     );
     callback();
-  });
+  }));
 }
 
 // Now, we test an HTTP/1.1 request.
@@ -64,29 +65,30 @@ function testHttp11(port, callback) {
   });
 
   let res_buffer = '';
-  c.on('data', function(chunk) {
+  c.on('data', common.mustCallAtLeast((chunk) => {
     res_buffer += chunk;
     if (/0\r\n/.test(res_buffer)) { // got the end.
       clearTimeout(tid);
-      assert.ok(
-        /0\r\nx-foo: bar\r\n\r\n$/.test(res_buffer),
-        `No trailer in HTTP/1.1 response. Response buffer: ${res_buffer}`
+      // Ensure trailer being in HTTP/1.1 response
+      assert.match(
+        res_buffer,
+        /0\r\nx-foo: bar\r\n\r\n$/,
       );
       callback();
     }
-  });
+  }));
 }
 
 // Now, see if the client sees the trailers.
 function testClientTrailers(port, callback) {
-  http.get({ port, path: '/hello', headers: {} }, (res) => {
-    res.on('end', function() {
+  http.get({ port, path: '/hello', headers: {} }, common.mustCall((res) => {
+    res.on('end', common.mustCall(() => {
       assert.ok('x-foo' in res.trailers,
                 `${util.inspect(res.trailers)} misses the 'x-foo' property`);
       callback();
-    });
+    }));
     res.resume();
-  });
+  }));
 }
 
 const server = http.createServer((req, res) => {

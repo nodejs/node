@@ -46,7 +46,7 @@ class ThreadPool {
 
   ~ThreadPool() {
     {
-      absl::MutexLock l(&mu_);
+      absl::MutexLock l(mu_);
       for (size_t i = 0; i < threads_.size(); i++) {
         queue_.push(nullptr);  // Shutdown signal.
       }
@@ -59,7 +59,7 @@ class ThreadPool {
   // Schedule a function to be run on a ThreadPool thread immediately.
   void Schedule(absl::AnyInvocable<void()> func) {
     assert(func != nullptr);
-    absl::MutexLock l(&mu_);
+    absl::MutexLock l(mu_);
     queue_.push(std::move(func));
   }
 
@@ -72,7 +72,7 @@ class ThreadPool {
     while (true) {
       absl::AnyInvocable<void()> func;
       {
-        absl::MutexLock l(&mu_);
+        absl::MutexLock l(mu_);
         mu_.Await(absl::Condition(this, &ThreadPool::WorkAvailable));
         func = std::move(queue_.front());
         queue_.pop();

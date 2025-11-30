@@ -37,6 +37,8 @@ HWY_DLLEXPORT void TypeName(const TypeInfo& info, size_t N, char* string100) {
   }
 }
 
+// The NOLINT are to suppress the warning about passing 100 instead of
+// `sizeof(string100)`, which is a pointer.
 HWY_DLLEXPORT void ToString(const TypeInfo& info, const void* ptr,
                             char* string100) {
   if (info.sizeof_t == 1) {
@@ -52,12 +54,14 @@ HWY_DLLEXPORT void ToString(const TypeInfo& info, const void* ptr,
   } else if (info.sizeof_t == 2) {
     if (info.is_bf16) {
       const double value = static_cast<double>(F32FromBF16Mem(ptr));
-      const char* fmt = hwy::ScalarAbs(value) < 1E-3 ? "%.3E" : "%.3f";
-      snprintf(string100, 100, fmt, value);  // NOLINT
+      // NOLINTNEXTLINE
+      snprintf(string100, 100, hwy::ScalarAbs(value) < 1E-3 ? "%.3E" : "%.3f",
+               value);
     } else if (info.is_float) {
       const double value = static_cast<double>(F32FromF16Mem(ptr));
-      const char* fmt = hwy::ScalarAbs(value) < 1E-4 ? "%.4E" : "%.4f";
-      snprintf(string100, 100, fmt, value);  // NOLINT
+      // NOLINTNEXTLINE
+      snprintf(string100, 100, hwy::ScalarAbs(value) < 1E-4 ? "%.4E" : "%.4f",
+               value);
     } else {
       uint16_t bits;
       CopyBytes<2>(ptr, &bits);
@@ -67,8 +71,9 @@ HWY_DLLEXPORT void ToString(const TypeInfo& info, const void* ptr,
     if (info.is_float) {
       float value;
       CopyBytes<4>(ptr, &value);
-      const char* fmt = hwy::ScalarAbs(value) < 1E-6 ? "%.9E" : "%.9f";
-      snprintf(string100, 100, fmt, static_cast<double>(value));  // NOLINT
+      // NOLINTNEXTLINE
+      snprintf(string100, 100, hwy::ScalarAbs(value) < 1E-6 ? "%.9E" : "%.9f",
+               static_cast<double>(value));
     } else if (info.is_signed) {
       int32_t value;
       CopyBytes<4>(ptr, &value);
@@ -82,8 +87,9 @@ HWY_DLLEXPORT void ToString(const TypeInfo& info, const void* ptr,
     if (info.is_float) {
       double value;
       CopyBytes<8>(ptr, &value);
-      const char* fmt = hwy::ScalarAbs(value) < 1E-9 ? "%.18E" : "%.18f";
-      snprintf(string100, 100, fmt, value);  // NOLINT
+      // NOLINTNEXTLINE
+      snprintf(string100, 100, hwy::ScalarAbs(value) < 1E-9 ? "%.18E" : "%.18f",
+               value);
     } else {
       const uint8_t* ptr8 = reinterpret_cast<const uint8_t*>(ptr);
       uint32_t lo, hi;

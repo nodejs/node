@@ -14,6 +14,9 @@
 # limitations under the License.
 #
 
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_test.bzl", "cc_test")
 load(
     "//absl:copts/configure_copts.bzl",
     "ABSL_DEFAULT_COPTS",
@@ -43,11 +46,11 @@ cc_library(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
         ":city",
-        ":low_level_hash",
         ":weakly_mixed_integer",
         "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/base:endian",
+        "//absl/base:prefetch",
         "//absl/container:fixed_array",
         "//absl/functional:function_ref",
         "//absl/meta:type_traits",
@@ -76,6 +79,7 @@ cc_library(
 
 cc_test(
     name = "hash_test",
+    size = "large",
     srcs = [
         "hash_test.cc",
         "internal/hash_test.h",
@@ -186,22 +190,6 @@ cc_test(
 )
 
 cc_library(
-    name = "low_level_hash",
-    srcs = ["internal/low_level_hash.cc"],
-    hdrs = ["internal/low_level_hash.h"],
-    copts = ABSL_DEFAULT_COPTS,
-    linkopts = ABSL_DEFAULT_LINKOPTS,
-    visibility = ["//visibility:private"],
-    deps = [
-        "//absl/base:config",
-        "//absl/base:core_headers",
-        "//absl/base:endian",
-        "//absl/base:prefetch",
-        "//absl/numeric:int128",
-    ],
-)
-
-cc_library(
     name = "weakly_mixed_integer",
     hdrs = ["internal/weakly_mixed_integer.h"],
     copts = ABSL_DEFAULT_COPTS,
@@ -223,7 +211,7 @@ cc_test(
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = ["//visibility:private"],
     deps = [
-        ":low_level_hash",
+        ":hash",
         "//absl/strings",
         "@googletest//:gtest",
         "@googletest//:gtest_main",

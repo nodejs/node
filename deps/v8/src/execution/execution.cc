@@ -193,6 +193,8 @@ MaybeDirectHandle<Context> NewScriptContext(
   Tagged<SharedFunctionInfo> sfi = function->shared();
   Handle<Script> script(Cast<Script>(sfi->script()), isolate);
   DirectHandle<ScopeInfo> scope_info(sfi->scope_info(), isolate);
+  // Make sure this is the first time we're running this function.
+  CHECK(IsNativeContext(function->context()));
   DirectHandle<NativeContext> native_context(
       Cast<NativeContext>(function->context()), isolate);
   DirectHandle<JSGlobalObject> global_object(native_context->global_object(),
@@ -467,7 +469,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
 #endif
 
   // Update the pending exception flag and return the value.
-  bool has_exception = IsException(value, isolate);
+  bool has_exception = IsExceptionHole(value, isolate);
   DCHECK_EQ(has_exception, isolate->has_exception());
   if (has_exception) {
     isolate->ReportPendingMessages(params.message_handling ==
@@ -619,6 +621,10 @@ static_assert(sizeof(StackHandlerMarker) == StackHandlerConstants::kSize);
 void Execution::CallWasm(Isolate* isolate, DirectHandle<Code> wrapper_code,
                          WasmCodePointer wasm_call_target,
                          DirectHandle<Object> object_ref, Address packed_args) {
+  // Runtime code must be able to get the "current" isolate from TLS, and this
+  // must equal the isolate we execute in.
+  DCHECK_EQ(isolate, Isolate::TryGetCurrent());
+
   using WasmEntryStub = GeneratedCode<Address(
       Address target, Address object_ref, Address argv, Address c_entry_fp)>;
   WasmEntryStub stub_entry =
@@ -643,7 +649,6 @@ void Execution::CallWasm(Isolate* isolate, DirectHandle<Code> wrapper_code,
 #endif
   isolate->thread_local_top()->handler_ =
       reinterpret_cast<Address>(&stack_handler);
-  trap_handler::SetThreadInWasm();
 
   {
     RCS_SCOPE(isolate, RuntimeCallCounterId::kJS_Execution);
@@ -652,16 +657,11 @@ void Execution::CallWasm(Isolate* isolate, DirectHandle<Code> wrapper_code,
     static_assert(compiler::CWasmEntryParameters::kArgumentsBuffer == 2);
     static_assert(compiler::CWasmEntryParameters::kCEntryFp == 3);
     Address result =
-        stub_entry.Call(wasm_call_target.value(), (*object_ref).ptr(),
-                        packed_args, saved_c_entry_fp);
+        stub_entry.CallSandboxed(wasm_call_target.value(), (*object_ref).ptr(),
+                                 packed_args, saved_c_entry_fp);
     if (result != kNullAddress) isolate->set_exception(Tagged<Object>(result));
   }
 
-  // If there was an exception, then the thread-in-wasm flag is cleared
-  // already.
-  if (trap_handler::IsThreadInWasm()) {
-    trap_handler::ClearThreadInWasm();
-  }
   isolate->thread_local_top()->handler_ = stack_handler.next;
   if (saved_js_entry_sp == kNullAddress) {
     *isolate->js_entry_sp_address() = saved_js_entry_sp;

@@ -794,6 +794,8 @@ experimental domain HeapProfiler
       # Average sample interval in bytes. Poisson distribution is used for the intervals. The
       # default value is 32768 bytes.
       optional number samplingInterval
+      # Maximum stack depth. The default value is 128.
+      optional number stackDepth
       # By default, the sampling heap profiler reports only objects which are
       # still alive when the profile is returned via getSamplingProfile or
       # stopSampling, which is useful for determining what functions contribute
@@ -1140,6 +1142,8 @@ domain Runtime
         dataview
         webassemblymemory
         wasmvalue
+        # blink's subtypes.
+        trustedtype
       # Object class (constructor) name. Specified for `object` type values only.
       optional string className
       # Remote object value in case of primitive values or JSON values (if it was requested).
@@ -1201,6 +1205,8 @@ domain Runtime
         dataview
         webassemblymemory
         wasmvalue
+        # blink's subtypes.
+        trustedtype
       # String representation of the object.
       optional string description
       # True iff some of the properties or entries of the original object did not fit.
@@ -1250,6 +1256,8 @@ domain Runtime
         dataview
         webassemblymemory
         wasmvalue
+        # blink's subtypes.
+        trustedtype
 
   experimental type EntryPreview extends object
     properties

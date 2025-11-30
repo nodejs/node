@@ -121,8 +121,8 @@ extern operator '.values[]=' macro StoreFixedDoubleArrayElement(
     FixedDoubleArray, Smi, float64): void;
 extern operator '.values[]' macro LoadFixedDoubleArrayElement(
     FixedDoubleArray, intptr): float64;
-@if(V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE)
-  extern macro StoreFixedDoubleArrayUndefined(FixedDoubleArray, intptr): void;
+@if(V8_ENABLE_UNDEFINED_DOUBLE)
+  extern macro StoreFixedDoubleArrayUndefined(FixedDoubleArray, Smi): void;
 operator '[]=' macro StoreFixedDoubleArrayDirect(
     a: FixedDoubleArray, i: Smi, v: Number): void {
   a.values[i] = Convert<float64_or_undefined_or_hole>(Convert<float64>(v));

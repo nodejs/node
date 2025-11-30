@@ -10,6 +10,7 @@ namespace util {
 
 using v8::ALL_PROPERTIES;
 using v8::Array;
+using v8::ArrayBuffer;
 using v8::ArrayBufferView;
 using v8::BigInt;
 using v8::Boolean;
@@ -34,6 +35,7 @@ using v8::ONLY_WRITABLE;
 using v8::Promise;
 using v8::PropertyFilter;
 using v8::Proxy;
+using v8::SharedArrayBuffer;
 using v8::SKIP_STRINGS;
 using v8::SKIP_SYMBOLS;
 using v8::StackFrame;
@@ -53,8 +55,8 @@ CHAR_TEST(16, IsUnicodeSurrogateTrail, (ch & 0x400) != 0)
 
 static void GetOwnNonIndexProperties(
     const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  Local<Context> context = env->context();
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
 
   CHECK(args[0]->IsObject());
   CHECK(args[1]->IsUint32());
@@ -168,7 +170,7 @@ static void PreviewEntries(const FunctionCallbackInfo<Value>& args) {
   if (!args[0]->IsObject())
     return;
 
-  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = args.GetIsolate();
   bool is_key_value;
   Local<Array> entries;
   if (!args[0].As<Object>()->PreviewEntries(&is_key_value).ToLocal(&entries))
@@ -177,12 +179,8 @@ static void PreviewEntries(const FunctionCallbackInfo<Value>& args) {
   if (args.Length() == 1)
     return args.GetReturnValue().Set(entries);
 
-  Local<Value> ret[] = {
-    entries,
-    Boolean::New(env->isolate(), is_key_value)
-  };
-  return args.GetReturnValue().Set(
-      Array::New(env->isolate(), ret, arraysize(ret)));
+  Local<Value> ret[] = {entries, Boolean::New(isolate, is_key_value)};
+  return args.GetReturnValue().Set(Array::New(isolate, ret, arraysize(ret)));
 }
 
 static void Sleep(const FunctionCallbackInfo<Value>& args) {
@@ -222,9 +220,10 @@ static uint32_t GetUVHandleTypeCode(const uv_handle_type type) {
 }
 
 static void GuessHandleType(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
   int fd;
-  if (!args[0]->Int32Value(env->context()).To(&fd)) return;
+  if (!args[0]->Int32Value(context).To(&fd)) return;
   CHECK_GE(fd, 0);
 
   uv_handle_type t = uv_guess_handle(fd);
@@ -239,10 +238,12 @@ static uint32_t FastGuessHandleType(Local<Value> receiver, const uint32_t fd) {
 CFunction fast_guess_handle_type_(CFunction::Make(FastGuessHandleType));
 
 static void ParseEnv(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
+  Environment* env = Environment::GetCurrent(context);
   CHECK_EQ(args.Length(), 1);  // content
   CHECK(args[0]->IsString());
-  Utf8Value content(env->isolate(), args[0]);
+  Utf8Value content(isolate, args[0]);
   Dotenv dotenv{};
   dotenv.ParseContent(content.ToStringView());
   Local<Object> obj;
@@ -252,8 +253,9 @@ static void ParseEnv(const FunctionCallbackInfo<Value>& args) {
 }
 
 static void GetCallSites(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  Isolate* isolate = env->isolate();
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
+  Environment* env = Environment::GetCurrent(context);
 
   CHECK_EQ(args.Length(), 1);
   CHECK(args[0]->IsNumber());
@@ -306,8 +308,7 @@ static void GetCallSites(const FunctionCallbackInfo<Value>& args) {
     };
 
     Local<Object> callsite;
-    if (!NewDictionaryInstanceNullProto(
-             env->context(), callsite_template, values)
+    if (!NewDictionaryInstanceNullProto(context, callsite_template, values)
              .ToLocal(&callsite)) {
       return;
     }
@@ -439,6 +440,30 @@ static void DefineLazyProperties(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+void ConstructSharedArrayBuffer(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  int64_t length;
+  // Note: IntegerValue() clamps its output, so excessively large input values
+  // will not overflow
+  if (!args[0]->IntegerValue(env->context()).To(&length)) {
+    return;
+  }
+  if (length < 0 ||
+      static_cast<uint64_t>(length) > ArrayBuffer::kMaxByteLength) {
+    env->ThrowRangeError("Invalid array buffer length");
+    return;
+  }
+  Local<SharedArrayBuffer> sab;
+  if (!SharedArrayBuffer::MaybeNew(env->isolate(), static_cast<size_t>(length))
+           .ToLocal(&sab)) {
+    // Note: SharedArrayBuffer::MaybeNew doesn't schedule an exception if it
+    // fails
+    env->ThrowRangeError("Array buffer allocation failed");
+    return;
+  }
+  args.GetReturnValue().Set(sab);
+}
+
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(GetPromiseDetails);
   registry->Register(GetProxyDetails);
@@ -456,6 +481,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(IsInsideNodeModules);
   registry->Register(DefineLazyProperties);
   registry->Register(DefineLazyPropertiesGetter);
+  registry->Register(ConstructSharedArrayBuffer);
 }
 
 void Initialize(Local<Object> target,
@@ -555,9 +581,12 @@ void Initialize(Local<Object> target,
   SetMethodNoSideEffect(context, target, "getCallSites", GetCallSites);
   SetMethod(context, target, "sleep", Sleep);
   SetMethod(context, target, "parseEnv", ParseEnv);
-
   SetMethod(
       context, target, "arrayBufferViewHasBuffer", ArrayBufferViewHasBuffer);
+  SetMethod(context,
+            target,
+            "constructSharedArrayBuffer",
+            ConstructSharedArrayBuffer);
 
   Local<String> should_abort_on_uncaught_toggle =
       FIXED_ONE_BYTE_STRING(env->isolate(), "shouldAbortOnUncaughtToggle");

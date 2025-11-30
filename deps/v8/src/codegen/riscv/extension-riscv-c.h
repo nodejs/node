@@ -63,7 +63,7 @@ class AssemblerRISCVC : public AssemblerRiscvBase {
   static bool IsCJal(Instr instr);
 
   inline int16_t cjump_offset(Label* L) {
-    return (int16_t)branch_offset_helper(L, OffsetSize::kOffset11);
+    return static_cast<int16_t>(branch_offset_helper(L, OffsetSize::kOffset11));
   }
   inline int32_t cbranch_offset(Label* L) {
     return branch_offset_helper(L, OffsetSize::kOffset9);

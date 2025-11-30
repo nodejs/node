@@ -21,13 +21,15 @@ GCRootsProviderScope::GCRootsProviderScope(LocalIsolate* local_isolate,
 GCRootsProviderScope::GCRootsProviderScope(LocalHeap* local_heap,
                                            GCRootsProvider* provider)
     : local_heap_(local_heap) {
-  CHECK_NULL(local_heap_->roots_provider_);
-  local_heap_->roots_provider_ = provider;
+#if DEBUG
+  provider_ = provider;
+#endif
+  local_heap_->roots_providers_.push_back(provider);
 }
 
 GCRootsProviderScope::~GCRootsProviderScope() {
-  DCHECK_NOT_NULL(local_heap_->roots_provider_);
-  local_heap_->roots_provider_ = nullptr;
+  DCHECK_EQ(provider_, local_heap_->roots_providers_.back());
+  local_heap_->roots_providers_.pop_back();
 }
 
 }  // namespace internal

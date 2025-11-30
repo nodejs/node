@@ -7,7 +7,7 @@ const net = require('net');
 
 const HEAD = Buffer.alloc(1024 * 1024, 0);
 
-const server = net.createServer((serverSock) => {
+const server = net.createServer(common.mustCallAtLeast((serverSock) => {
   let recvLen = 0;
   const recv = [];
   serverSock.on('data', common.mustCallAtLeast((chunk) => {
@@ -21,7 +21,7 @@ const server = net.createServer((serverSock) => {
       process.exit(0);
     }
   }, 1));
-})
+}))
   .listen(client);
 
 function client() {

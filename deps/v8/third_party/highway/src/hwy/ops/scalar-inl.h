@@ -72,10 +72,12 @@ struct Vec1 {
 
 // 0 or FF..FF, same size as Vec1.
 template <typename T>
-class Mask1 {
+struct Mask1 {
   using Raw = hwy::MakeUnsigned<T>;
 
- public:
+  using PrivateT = T;                     // only for DFromM
+  static constexpr size_t kPrivateN = 1;  // only for DFromM
+
   static HWY_INLINE Mask1<T> FromBool(bool b) {
     Mask1<T> mask;
     mask.bits = b ? static_cast<Raw>(~Raw{0}) : 0;
@@ -87,6 +89,9 @@ class Mask1 {
 
 template <class V>
 using DFromV = Simd<typename V::PrivateT, V::kPrivateN, 0>;
+
+template <class M>
+using DFromM = Simd<typename M::PrivateT, M::kPrivateN, 0>;
 
 template <class V>
 using TFromV = typename V::PrivateT;
@@ -288,13 +293,6 @@ HWY_API Mask1<T> MaskFromVec(const Vec1<T> v) {
 template <class D>
 using MFromD = decltype(MaskFromVec(VFromD<D>()));
 
-template <typename T>
-Vec1<T> VecFromMask(const Mask1<T> mask) {
-  Vec1<T> v;
-  CopySameSize(&mask, &v);
-  return v;
-}
-
 template <class D, typename T = TFromD<D>>
 Vec1<T> VecFromMask(D /* tag */, const Mask1<T> mask) {
   Vec1<T> v;
@@ -302,9 +300,25 @@ Vec1<T> VecFromMask(D /* tag */, const Mask1<T> mask) {
   return v;
 }
 
+template <class D>
+uint64_t BitsFromMask(D, MFromD<D> mask) {
+  return mask.bits ? 1 : 0;
+}
+
 template <class D, HWY_IF_LANES_D(D, 1), typename T = TFromD<D>>
 HWY_API Mask1<T> FirstN(D /*tag*/, size_t n) {
   return Mask1<T>::FromBool(n != 0);
+}
+
+#ifdef HWY_NATIVE_SET_MASK
+#undef HWY_NATIVE_SET_MASK
+#else
+#define HWY_NATIVE_SET_MASK
+#endif
+
+template <class D>
+HWY_API MFromD<D> SetMask(D /*d*/, bool val) {
+  return MFromD<D>::FromBool(val);
 }
 
 // ------------------------------ IfVecThenElse
@@ -623,8 +637,7 @@ template <class T, HWY_IF_NOT_FLOAT_NOR_SPECIAL(T)>
 HWY_API Vec1<T> AverageRound(const Vec1<T> a, const Vec1<T> b) {
   const T a_val = a.raw;
   const T b_val = b.raw;
-  return Vec1<T>(static_cast<T>(ScalarShr(a_val, 1) + ScalarShr(b_val, 1) +
-                                ((a_val | b_val) & 1)));
+  return Vec1<T>(static_cast<T>((a_val | b_val) - ScalarShr(a_val ^ b_val, 1)));
 }
 
 // ------------------------------ Absolute value
@@ -730,6 +743,11 @@ HWY_API Vec1<MakeWide<T>> MulEven(const Vec1<T> a, const Vec1<T> b) {
   using TW = MakeWide<T>;
   const TW a_wide = a.raw;
   return Vec1<TW>(static_cast<TW>(a_wide * b.raw));
+}
+
+template <class T>
+HWY_API Vec1<MakeWide<T>> MulOdd(const Vec1<T>, const Vec1<T>) {
+  static_assert(sizeof(T) == 0, "There are no odd lanes");
 }
 
 // Approximate reciprocal
@@ -1650,10 +1668,20 @@ HWY_API Vec1<T> OddEvenBlocks(Vec1<T> /* odd */, Vec1<T> even) {
 }
 
 // ------------------------------ SwapAdjacentBlocks
-
 template <typename T>
 HWY_API Vec1<T> SwapAdjacentBlocks(Vec1<T> v) {
   return v;
+}
+
+// ------------------------------ InterleaveEvenBlocks
+template <class D, class V = VFromD<D>>
+HWY_API V InterleaveEvenBlocks(D, V a, V /*b*/) {
+  return a;
+}
+// ------------------------------ InterleaveOddBlocks
+template <class D, class V = VFromD<D>>
+HWY_API V InterleaveOddBlocks(D, V a, V /*b*/) {
+  return a;
 }
 
 // ------------------------------ TableLookupLanes

@@ -54,6 +54,7 @@ class V8_EXPORT_PRIVATE ExternalEntityTable
   static constexpr size_t kSegmentSize = Base::kSegmentSize;
   static constexpr size_t kEntriesPerSegment = Base::kEntriesPerSegment;
   static constexpr size_t kEntrySize = Base::kEntrySize;
+  static constexpr size_t kNumReadOnlySegments = Base::kNumReadOnlySegments;
 
   // A collection of segments in an external entity table.
   //
@@ -115,6 +116,12 @@ class V8_EXPORT_PRIVATE ExternalEntityTable
       return num_segments();
     }
 
+    bool allocate_black() { return allocate_black_; }
+
+    void set_allocate_black(bool allocate_black) {
+      allocate_black_ = allocate_black;
+    }
+
    protected:
     friend class ExternalEntityTable<Entry, size>;
 
@@ -144,16 +151,7 @@ class V8_EXPORT_PRIVATE ExternalEntityTable
 
     // Mutex guarding access to the segments_ set.
     base::Mutex mutex_;
-  };
 
-  // A Space that supports black allocations.
-  struct SpaceWithBlackAllocationSupport : public Space {
-    bool allocate_black() { return allocate_black_; }
-    void set_allocate_black(bool allocate_black) {
-      allocate_black_ = allocate_black;
-    }
-
-   private:
     bool allocate_black_ = false;
   };
 
@@ -245,8 +243,9 @@ class V8_EXPORT_PRIVATE ExternalEntityTable
 
   // Attaches/detaches the given space to the internal read-only segment. Note
   // the lifetime of the underlying segment itself is managed by the table.
-  void AttachSpaceToReadOnlySegment(Space* space);
-  void DetachSpaceFromReadOnlySegment(Space* space);
+  void AttachSpaceToReadOnlySegments(Space* space);
+  void DetachSpaceFromReadOnlySegments(Space* space);
+  void ZeroInternalNullEntry();
 
   // Use this scope to temporarily unseal the read-only segment (i.e. change
   // permissions to RW).
@@ -254,19 +253,20 @@ class V8_EXPORT_PRIVATE ExternalEntityTable
    public:
     explicit UnsealReadOnlySegmentScope(ExternalEntityTable<Entry, size>* table)
         : table_(table) {
-      table_->UnsealReadOnlySegment();
+      table_->UnsealReadOnlySegments();
     }
 
-    ~UnsealReadOnlySegmentScope() { table_->SealReadOnlySegment(); }
+    ~UnsealReadOnlySegmentScope() { table_->SealReadOnlySegments(); }
 
    private:
     ExternalEntityTable<Entry, size>* const table_;
   };
 
  protected:
-  static constexpr uint32_t kInternalReadOnlySegmentOffset = 0;
+  static constexpr uint32_t kInternalReadOnlySegmentsOffset = 0;
   static constexpr uint32_t kInternalNullEntryIndex = 0;
-  static constexpr uint32_t kEndOfInternalReadOnlySegment = kEntriesPerSegment;
+  static constexpr uint32_t kEndOfReadOnlyIndex =
+      kEntriesPerSegment * kNumReadOnlySegments;
 
  private:
   // Required for Isolate::CheckIsolateLayout().
@@ -274,8 +274,8 @@ class V8_EXPORT_PRIVATE ExternalEntityTable
 
   // Helpers to toggle the first segment's permissions between kRead (sealed)
   // and kReadWrite (unsealed).
-  void UnsealReadOnlySegment();
-  void SealReadOnlySegment();
+  void UnsealReadOnlySegments();
+  void SealReadOnlySegments();
 
   // Extends the given space with the given segment.
   void Extend(Space* space, Segment segment, FreelistHead freelist);

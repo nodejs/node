@@ -172,6 +172,10 @@ void V8::Initialize() {
     abort_mode = base::AbortMode::kExitWithSuccessAndIgnoreDcheckFailures;
   } else if (v8_flags.hard_abort) {
     abort_mode = base::AbortMode::kImmediateCrash;
+  } else if (v8_flags.fuzzing) {
+    // For fuzzing, we want to ignore certain types of crashes that are known
+    // to be safe (no security impact), such as OOMs and similar issues.
+    abort_mode = base::AbortMode::kExitIfNoSecurityImpact;
   }
 
   base::OS::Initialize(abort_mode, v8_flags.gc_fake_mmap);
@@ -306,18 +310,17 @@ double Platform::SystemClockTimeMillis() {
 }
 
 // static
-void ThreadIsolatedAllocator::SetDefaultPermissionsForSignalHandler() {
-#if V8_HAS_PKU_JIT_WRITE_PROTECT
-  internal::RwxMemoryWriteScope::SetDefaultPermissionsForSignalHandler();
-#endif
-  // TODO(sroettger): this could move to a more generic
-  // SecurityHardwareSupport::SetDefaultPermissionsForSignalHandler.
-  internal::SandboxHardwareSupport::SetDefaultPermissionsForSignalHandler();
+void SandboxHardwareSupport::InitializeBeforeThreadCreation() {
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+  internal::SandboxHardwareSupport::TryActivateBeforeThreadCreation();
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
 }
 
 // static
-void SandboxHardwareSupport::InitializeBeforeThreadCreation() {
-  internal::SandboxHardwareSupport::InitializeBeforeThreadCreation();
+void SandboxHardwareSupport::PrepareCurrentThreadForHardwareSandboxing() {
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+  internal::SandboxHardwareSupport::EnableForCurrentThread();
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
 }
 
 }  // namespace v8

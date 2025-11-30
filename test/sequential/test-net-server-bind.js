@@ -20,7 +20,7 @@ const net = require('net');
 
   server.listen(common.PORT);
 
-  setTimeout(function() {
+  setTimeout(common.mustCall(() => {
     const address = server.address();
     assert.strictEqual(address.port, common.PORT);
 
@@ -30,7 +30,7 @@ const net = require('net');
       assert.strictEqual(server._connectionKey, `4:0.0.0.0:${address.port}`);
 
     server.close();
-  }, 100);
+  }), 100);
 }
 
 // Callback to listen()

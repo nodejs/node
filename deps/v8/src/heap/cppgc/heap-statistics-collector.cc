@@ -8,7 +8,6 @@
 #include <unordered_map>
 
 #include "include/cppgc/heap-statistics.h"
-#include "include/cppgc/name-provider.h"
 #include "src/heap/cppgc/free-list.h"
 #include "src/heap/cppgc/globals.h"
 #include "src/heap/cppgc/heap-base.h"
@@ -77,17 +76,19 @@ void RecordObjectType(
     std::unordered_map<const void*, size_t>& type_map,
     std::vector<HeapStatistics::ObjectStatsEntry>& object_statistics,
     HeapObjectHeader* header, size_t object_size) {
-  if (NameProvider::SupportsCppClassNamesAsObjectNames()) {
-    // Tries to insert a new entry into the typemap with a running counter. If
-    // the entry is already present, just returns the old one.
-    const auto it = type_map.insert({header->GetName().value, type_map.size()});
-    const size_t type_index = it.first->second;
-    if (object_statistics.size() <= type_index) {
-      object_statistics.resize(type_index + 1);
-    }
-    object_statistics[type_index].allocated_bytes += object_size;
-    object_statistics[type_index].object_count++;
+  // Tries to insert a new entry into the typemap with a running counter. If
+  // the entry is already present, just returns the old one.
+  // Internal cpp objects that do not inherit from NameProvider are recorded
+  // as and merged under "InternalNode". For more detailed statistics Enable
+  // the build flag CPPGC_SUPPORTS_OBJECT_NAMES to instead use the C++ class
+  // name for more detailed statistics.
+  const auto it = type_map.insert({header->GetName().value, type_map.size()});
+  const size_t type_index = it.first->second;
+  if (object_statistics.size() <= type_index) {
+    object_statistics.resize(type_index + 1);
   }
+  object_statistics[type_index].allocated_bytes += object_size;
+  object_statistics[type_index].object_count++;
 }
 
 }  // namespace
@@ -103,11 +104,9 @@ HeapStatistics HeapStatisticsCollector::CollectDetailedStatistics(
   Traverse(heap->raw_heap());
   FinalizeSpace(current_stats_, &current_space_stats_, &current_page_stats_);
 
-  if (NameProvider::SupportsCppClassNamesAsObjectNames()) {
-    stats.type_names.resize(type_name_to_index_map_.size());
-    for (auto& it : type_name_to_index_map_) {
-      stats.type_names[it.second] = reinterpret_cast<const char*>(it.first);
-    }
+  stats.type_names.resize(type_name_to_index_map_.size());
+  for (auto& it : type_name_to_index_map_) {
+    stats.type_names[it.second] = reinterpret_cast<const char*>(it.first);
   }
 
   // Resident set size may be smaller than the than the recorded size in

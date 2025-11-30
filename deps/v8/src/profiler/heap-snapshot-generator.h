@@ -10,6 +10,7 @@
 #include <optional>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
 #include "include/v8-profiler.h"
@@ -23,6 +24,7 @@
 #include "src/objects/objects.h"
 #include "src/objects/string.h"
 #include "src/objects/visitors.h"
+#include "src/profiler/heap-snapshot-common.h"
 #include "src/profiler/strings-storage.h"
 #include "src/strings/string-hasher.h"
 
@@ -411,7 +413,8 @@ class V8_EXPORT_PRIVATE V8HeapExplorer : public HeapEntriesAllocator {
  public:
   V8HeapExplorer(HeapSnapshot* snapshot,
                  SnapshottingProgressReportingInterface* progress,
-                 v8::HeapProfiler::ObjectNameResolver* resolver);
+                 v8::HeapProfiler::ObjectNameResolver* resolver,
+                 v8::HeapProfiler::ContextNameResolver* context_resolver);
   ~V8HeapExplorer() override = default;
   V8HeapExplorer(const V8HeapExplorer&) = delete;
   V8HeapExplorer& operator=(const V8HeapExplorer&) = delete;
@@ -424,15 +427,15 @@ class V8_EXPORT_PRIVATE V8HeapExplorer : public HeapEntriesAllocator {
   void PopulateLineEnds();
   bool IterateAndExtractReferences(HeapSnapshotGenerator* generator);
 
-  using TemporaryGlobalObjectTags =
-      std::vector<std::pair<v8::Global<v8::Object>, const char*>>;
+  using TemporaryNativeContextTags =
+      std::vector<std::pair<v8::Global<v8::Context>, const char*>>;
   // Modifies heap. Must not be run during heap traversal. Collects a temporary
-  // list of global objects and their tags. The list may be invalidated after
-  // running GC.
-  TemporaryGlobalObjectTags CollectTemporaryGlobalObjectsTags();
-  // Converts the temporary list of global objects and their tags into a map
-  // that can be used throughout snapshot generation.
-  void MakeGlobalObjectTagMap(TemporaryGlobalObjectTags&&);
+  // list of NativeContext objects and their tags. The list may be invalidated
+  // after running GC.
+  TemporaryNativeContextTags CollectTemporaryNativeContextTags();
+  // Converts the temporary list of NativeContext objects and their tags into
+  // a map that can be used throughout snapshot generation.
+  void MakeNativeContextTagMap(TemporaryNativeContextTags&&);
 
   void TagBuiltinCodeObject(Tagged<Code> code, const char* name);
   HeapEntry* AddEntry(Address address,
@@ -470,6 +473,8 @@ class V8_EXPORT_PRIVATE V8HeapExplorer : public HeapEntriesAllocator {
                                          Tagged<JSWeakCollection> collection);
   void ExtractEphemeronHashTableReferences(HeapEntry* entry,
                                            Tagged<EphemeronHashTable> table);
+  void ExtractJSDisposableStackReferences(
+      HeapEntry* entry, Tagged<JSDisposableStackBase> disposable_stack);
   void ExtractContextReferences(HeapEntry* entry, Tagged<Context> context);
   void ExtractMapReferences(HeapEntry* entry, Tagged<Map> map);
   void ExtractSharedFunctionInfoReferences(HeapEntry* entry,
@@ -524,6 +529,8 @@ class V8_EXPORT_PRIVATE V8HeapExplorer : public HeapEntriesAllocator {
                                    int field_offset = -1);
   void ExtractElementReferences(Tagged<JSObject> js_obj, HeapEntry* entry);
   void ExtractInternalReferences(Tagged<JSObject> js_obj, HeapEntry* entry);
+  void ExtractCppHeapExternalReferences(HeapEntry* entry,
+                                        Tagged<CppHeapExternalObject> obj);
 
 #if V8_ENABLE_WEBASSEMBLY
   void ExtractWasmStructReferences(Tagged<WasmStruct> obj, HeapEntry* entry);
@@ -542,8 +549,8 @@ class V8_EXPORT_PRIVATE V8HeapExplorer : public HeapEntriesAllocator {
   void SetContextReference(HeapEntry* parent_entry,
                            Tagged<String> reference_name, Tagged<Object> child,
                            int field_offset);
-  void SetNativeBindReference(HeapEntry* parent_entry,
-                              const char* reference_name, Tagged<Object> child);
+  void SetShortcutReference(HeapEntry* parent_entry, const char* reference_name,
+                            Tagged<Object> child);
   void SetElementReference(HeapEntry* parent_entry, int index,
                            Tagged<Object> child);
   void SetInternalReference(HeapEntry* parent_entry, const char* reference_name,
@@ -589,11 +596,12 @@ class V8_EXPORT_PRIVATE V8HeapExplorer : public HeapEntriesAllocator {
   HeapObjectsMap* heap_object_map_;
   SnapshottingProgressReportingInterface* progress_;
   HeapSnapshotGenerator* generator_ = nullptr;
-  std::unordered_map<Tagged<JSGlobalObject>, const char*, Object::Hasher>
-      global_object_tag_map_;
+  std::unordered_map<Tagged<NativeContext>, const char*, Object::Hasher>
+      native_context_tag_map_;
   UnorderedHeapObjectMap<const char*> strong_gc_subroot_names_;
-  std::unordered_set<Tagged<JSGlobalObject>, Object::Hasher> user_roots_;
+  std::unordered_set<Tagged<NativeContext>, Object::Hasher> user_roots_;
   v8::HeapProfiler::ObjectNameResolver* global_object_name_resolver_;
+  v8::HeapProfiler::ContextNameResolver* native_context_name_resolver_;
 
   std::vector<bool> visited_fields_;
   size_t max_pointers_;
@@ -642,9 +650,11 @@ class HeapSnapshotGenerator : public SnapshottingProgressReportingInterface {
   // their representations in heap snapshots.
   using SmiEntriesMap = std::unordered_map<int, HeapEntry*>;
 
-  HeapSnapshotGenerator(HeapSnapshot* snapshot, v8::ActivityControl* control,
-                        v8::HeapProfiler::ObjectNameResolver* resolver,
-                        Heap* heap, cppgc::EmbedderStackState stack_state);
+  HeapSnapshotGenerator(
+      HeapSnapshot* snapshot, v8::ActivityControl* control,
+      v8::HeapProfiler::ObjectNameResolver* resolver,
+      v8::HeapProfiler::ContextNameResolver* context_name_resolver, Heap* heap,
+      cppgc::EmbedderStackState stack_state);
   HeapSnapshotGenerator(const HeapSnapshotGenerator&) = delete;
   HeapSnapshotGenerator& operator=(const HeapSnapshotGenerator&) = delete;
   bool GenerateSnapshot();
@@ -706,6 +716,14 @@ class HeapSnapshotGenerator : public SnapshottingProgressReportingInterface {
 
   Heap* heap() const { return heap_; }
 
+  UnorderedCppHeapExternalObjectSet& GetCppHeapExternalObjects() {
+    return cpp_heap_external_objects_;
+  }
+
+  UnorderedCppHeapExternalObjectSet TakeCppHeapExternalObjects() {
+    return std::move(cpp_heap_external_objects_);
+  }
+
  private:
   bool FillReferences();
   void ProgressStep() override;
@@ -724,6 +742,7 @@ class HeapSnapshotGenerator : public SnapshottingProgressReportingInterface {
   uint32_t progress_total_;
   Heap* heap_;
   cppgc::EmbedderStackState stack_state_;
+  UnorderedCppHeapExternalObjectSet cpp_heap_external_objects_;
 
 #ifdef V8_ENABLE_HEAP_SNAPSHOT_VERIFY
   std::unordered_map<HeapEntry*, HeapThing> reverse_entries_map_;

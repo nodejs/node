@@ -106,6 +106,10 @@ typedef struct {
 #define NGHTTP2_DEFAULT_STREAM_RESET_BURST 1000
 #define NGHTTP2_DEFAULT_STREAM_RESET_RATE 33
 
+/* The default values for glitch rate limiter. */
+#define NGHTTP2_DEFAULT_GLITCH_BURST 1000
+#define NGHTTP2_DEFAULT_GLITCH_RATE 33
+
 /* The default max number of CONTINUATION frames following an incoming
    HEADER frame. */
 #define NGHTTP2_DEFAULT_MAX_CONTINUATIONS 8
@@ -229,6 +233,8 @@ struct nghttp2_session {
   /* Stream reset rate limiter.  If receiving excessive amount of
      stream resets, GOAWAY will be sent. */
   nghttp2_ratelim stream_reset_ratelim;
+  /* Rate limiter for all kinds of glitches. */
+  nghttp2_ratelim glitch_ratelim;
   /* Sequential number across all streams to process streams in
      FIFO. */
   uint64_t stream_seq;

@@ -88,15 +88,12 @@ class CompilationCacheEval : public CompilationCacheEvalOrScript {
 
   void UpdateEval(DirectHandle<String> source,
                   DirectHandle<SharedFunctionInfo> outer_info,
-                  DirectHandle<NativeContext> native_context,
-                  DirectHandle<FeedbackCell> new_feedback_cell,
+                  DirectHandle<JSFunction> js_function,
                   LanguageMode language_mode, int position);
 
   void Put(DirectHandle<String> source,
            DirectHandle<SharedFunctionInfo> outer_info,
-           DirectHandle<SharedFunctionInfo> function_info,
-           DirectHandle<NativeContext> native_context,
-           DirectHandle<FeedbackCell> feedback_cell, int position);
+           DirectHandle<JSFunction> js_function, int position);
 
   void Age();
 
@@ -167,8 +164,7 @@ class V8_EXPORT_PRIVATE CompilationCache {
 
   void UpdateEval(DirectHandle<String> source,
                   DirectHandle<SharedFunctionInfo> outer_info,
-                  DirectHandle<Context> context,
-                  DirectHandle<FeedbackCell> new_feedback_cell,
+                  DirectHandle<JSFunction> js_function,
                   LanguageMode language_mode, int position);
 
   // Returns the regexp data associated with the given regexp if it
@@ -185,9 +181,7 @@ class V8_EXPORT_PRIVATE CompilationCache {
   // with the shared function info. This may overwrite an existing mapping.
   void PutEval(DirectHandle<String> source,
                DirectHandle<SharedFunctionInfo> outer_info,
-               DirectHandle<Context> context,
-               DirectHandle<SharedFunctionInfo> function_info,
-               DirectHandle<FeedbackCell> feedback_cell, int position);
+               DirectHandle<JSFunction> js_function, int position);
 
   // Associate the (source, flags) pair to the given regexp data.
   // This may overwrite an existing mapping.

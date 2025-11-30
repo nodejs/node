@@ -107,11 +107,6 @@ class V8_NODISCARD RwxMemoryWriteScope {
   static int memory_protection_key();
 
   static bool IsPKUWritable();
-
-  // Linux resets key's permissions to kDisableAccess before executing signal
-  // handlers. If the handler requires access to code page bodies it should take
-  // care of changing permissions to the default state (kDisableWrite).
-  static V8_EXPORT void SetDefaultPermissionsForSignalHandler();
 #endif  // V8_HAS_PKU_JIT_WRITE_PROTECT
 
  private:
@@ -440,6 +435,11 @@ class WritableJitAllocation {
   V8_INLINE void WriteValue(Address address, T value, RelaxedStoreTag);
 
   V8_INLINE void ClearBytes(size_t offset, size_t len);
+
+#ifdef V8_ENABLE_WEBASSEMBLY
+  void UpdateWasmCodePointer(WasmCodePointer code_pointer,
+                             uint64_t signature_hash);
+#endif
 
   Address address() const { return address_; }
   size_t size() const { return allocation_.Size(); }

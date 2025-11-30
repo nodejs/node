@@ -71,7 +71,7 @@ namespace quic {
   V(STREAM_OPEN_ALLOWED, stream_open_allowed, uint8_t)                         \
   V(PRIORITY_SUPPORTED, priority_supported, uint8_t)                           \
   V(WRAPPED, wrapped, uint8_t)                                                 \
-  V(LAST_DATAGRAM_ID, last_datagram_id, uint64_t)
+  V(LAST_DATAGRAM_ID, last_datagram_id, datagram_id)
 
 #define SESSION_STATS(V)                                                       \
   V(CREATED_AT, created_at)                                                    \
@@ -123,7 +123,7 @@ STAT_STRUCT(Session, SESSION)
 class Http3Application;
 
 namespace {
-std::string to_string(PreferredAddress::Policy policy) {
+constexpr std::string to_string(PreferredAddress::Policy policy) {
   switch (policy) {
     case PreferredAddress::Policy::USE_PREFERRED:
       return "use";
@@ -133,7 +133,7 @@ std::string to_string(PreferredAddress::Policy policy) {
   return "<unknown>";
 }
 
-std::string to_string(Side side) {
+constexpr std::string to_string(Side side) {
   switch (side) {
     case Side::CLIENT:
       return "client";
@@ -143,7 +143,7 @@ std::string to_string(Side side) {
   return "<unknown>";
 }
 
-std::string to_string(ngtcp2_encryption_level level) {
+constexpr std::string to_string(ngtcp2_encryption_level level) {
   switch (level) {
     case NGTCP2_ENCRYPTION_LEVEL_1RTT:
       return "1rtt";
@@ -157,7 +157,7 @@ std::string to_string(ngtcp2_encryption_level level) {
   return "<unknown>";
 }
 
-std::string to_string(ngtcp2_cc_algo cc_algorithm) {
+constexpr std::string to_string(ngtcp2_cc_algo cc_algorithm) {
 #define V(name, label)                                                         \
   case NGTCP2_CC_ALGO_##name:                                                  \
     return #label;
@@ -346,7 +346,7 @@ Session::Config::Config(Environment* env,
   // We currently do not support Path MTU Discovery. Once we do, unset this.
   settings.no_pmtud = 1;
   // Per the ngtcp2 documentation, when no_tx_udp_payload_size_shaping is set
-  // to a non-zero value, ngtcp2 not to limit the UDP payload size to
+  // to a non-zero value, it tells ngtcp2 not to limit the UDP payload size to
   // NGTCP2_MAX_UDP_PAYLOAD_SIZE` and will instead "use the minimum size among
   // the given buffer size, :member:`max_tx_udp_payload_size`, and the
   // received max_udp_payload_size QUIC transport parameter." For now, this
@@ -543,6 +543,7 @@ struct Session::Impl final : public MemoryRetainer {
         timer_(session_->env(), [this] { session_->OnTimeout(); }) {
     timer_.Unref();
   }
+  DISALLOW_COPY_AND_MOVE(Impl)
 
   inline bool is_closing() const { return state_->closing; }
 
@@ -647,12 +648,18 @@ struct Session::Impl final : public MemoryRetainer {
 
   // JavaScript APIs
 
+  // TODO(@jasnell): Fast API alternatives for each of these
+
   JS_METHOD(Destroy) {
     auto env = Environment::GetCurrent(args);
     Session* session;
     ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
     if (session->is_destroyed()) {
-      THROW_ERR_INVALID_STATE(env, "Session is destroyed");
+      // At this layer, Destroy should only be called once. At the
+      // JavaScript layer calling destroy() multiple times should be
+      // an idempotent operation. Be sure to check for that there
+      // as we strictly enforce it here.
+      return THROW_ERR_INVALID_STATE(env, "Session is destroyed");
     }
     session->Destroy();
   }
@@ -663,7 +670,7 @@ struct Session::Impl final : public MemoryRetainer {
     ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
 
     if (session->is_destroyed()) {
-      THROW_ERR_INVALID_STATE(env, "Session is destroyed");
+      return THROW_ERR_INVALID_STATE(env, "Session is destroyed");
     }
 
     auto address = session->remote_address();
@@ -678,7 +685,7 @@ struct Session::Impl final : public MemoryRetainer {
     ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
 
     if (session->is_destroyed()) {
-      THROW_ERR_INVALID_STATE(env, "Session is destroyed");
+      return THROW_ERR_INVALID_STATE(env, "Session is destroyed");
     }
 
     Local<Value> ret;
@@ -692,7 +699,7 @@ struct Session::Impl final : public MemoryRetainer {
     ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
 
     if (session->is_destroyed()) {
-      THROW_ERR_INVALID_STATE(env, "Session is destroyed");
+      return THROW_ERR_INVALID_STATE(env, "Session is destroyed");
     }
 
     Local<Object> ret;
@@ -707,7 +714,7 @@ struct Session::Impl final : public MemoryRetainer {
     ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
 
     if (session->is_destroyed()) {
-      THROW_ERR_INVALID_STATE(env, "Session is destroyed");
+      return THROW_ERR_INVALID_STATE(env, "Session is destroyed");
     }
 
     Local<Value> ret;
@@ -721,7 +728,7 @@ struct Session::Impl final : public MemoryRetainer {
     ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
 
     if (session->is_destroyed()) {
-      THROW_ERR_INVALID_STATE(env, "Session is destroyed");
+      return THROW_ERR_INVALID_STATE(env, "Session is destroyed");
     }
 
     session->Close(CloseMethod::GRACEFUL);
@@ -734,7 +741,7 @@ struct Session::Impl final : public MemoryRetainer {
     ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
 
     if (session->is_destroyed()) {
-      THROW_ERR_INVALID_STATE(env, "Session is destroyed");
+      return THROW_ERR_INVALID_STATE(env, "Session is destroyed");
     }
 
     session->Close(CloseMethod::SILENT);
@@ -746,7 +753,7 @@ struct Session::Impl final : public MemoryRetainer {
     ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
 
     if (session->is_destroyed()) {
-      THROW_ERR_INVALID_STATE(env, "Session is destroyed");
+      return THROW_ERR_INVALID_STATE(env, "Session is destroyed");
     }
 
     // Initiating a key update may fail if it is done too early (either
@@ -763,7 +770,7 @@ struct Session::Impl final : public MemoryRetainer {
     ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
 
     if (session->is_destroyed()) {
-      THROW_ERR_INVALID_STATE(env, "Session is destroyed");
+      return THROW_ERR_INVALID_STATE(env, "Session is destroyed");
     }
 
     DCHECK(args[0]->IsUint32());
@@ -790,7 +797,7 @@ struct Session::Impl final : public MemoryRetainer {
     ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
 
     if (session->is_destroyed()) {
-      THROW_ERR_INVALID_STATE(env, "Session is destroyed");
+      return THROW_ERR_INVALID_STATE(env, "Session is destroyed");
     }
 
     DCHECK(args[0]->IsArrayBufferView());
@@ -808,7 +815,7 @@ struct Session::Impl final : public MemoryRetainer {
   // Internal ngtcp2 callbacks
 
   static int on_acknowledge_stream_data_offset(ngtcp2_conn* conn,
-                                               int64_t stream_id,
+                                               stream_id stream_id,
                                                uint64_t offset,
                                                uint64_t datalen,
                                                void* user_data,
@@ -828,7 +835,7 @@ struct Session::Impl final : public MemoryRetainer {
   }
 
   static int on_acknowledge_datagram(ngtcp2_conn* conn,
-                                     uint64_t dgram_id,
+                                     datagram_id dgram_id,
                                      void* user_data) {
     NGTCP2_CALLBACK_SCOPE(session)
     session->DatagramStatus(dgram_id, DatagramStatus::ACKNOWLEDGED);
@@ -898,7 +905,7 @@ struct Session::Impl final : public MemoryRetainer {
   }
 
   static int on_extend_max_stream_data(ngtcp2_conn* conn,
-                                       int64_t stream_id,
+                                       stream_id stream_id,
                                        uint64_t max_data,
                                        void* user_data,
                                        void* stream_user_data) {
@@ -931,7 +938,7 @@ struct Session::Impl final : public MemoryRetainer {
   }
 
   static int on_lost_datagram(ngtcp2_conn* conn,
-                              uint64_t dgram_id,
+                              datagram_id dgram_id,
                               void* user_data) {
     NGTCP2_CALLBACK_SCOPE(session)
     session->DatagramStatus(dgram_id, DatagramStatus::LOST);
@@ -1015,7 +1022,7 @@ struct Session::Impl final : public MemoryRetainer {
 
   static int on_receive_stream_data(ngtcp2_conn* conn,
                                     uint32_t flags,
-                                    int64_t stream_id,
+                                    stream_id stream_id,
                                     uint64_t offset,
                                     const uint8_t* data,
                                     size_t datalen,
@@ -1098,8 +1105,8 @@ struct Session::Impl final : public MemoryRetainer {
 
   static int on_stream_close(ngtcp2_conn* conn,
                              uint32_t flags,
-                             int64_t stream_id,
-                             uint64_t app_error_code,
+                             stream_id stream_id,
+                             error_code app_error_code,
                              void* user_data,
                              void* stream_user_data) {
     NGTCP2_CALLBACK_SCOPE(session)
@@ -1114,9 +1121,9 @@ struct Session::Impl final : public MemoryRetainer {
   }
 
   static int on_stream_reset(ngtcp2_conn* conn,
-                             int64_t stream_id,
+                             stream_id stream_id,
                              uint64_t final_size,
-                             uint64_t app_error_code,
+                             error_code app_error_code,
                              void* user_data,
                              void* stream_user_data) {
     NGTCP2_CALLBACK_SCOPE(session)
@@ -1128,8 +1135,8 @@ struct Session::Impl final : public MemoryRetainer {
   }
 
   static int on_stream_stop_sending(ngtcp2_conn* conn,
-                                    int64_t stream_id,
-                                    uint64_t app_error_code,
+                                    stream_id stream_id,
+                                    error_code app_error_code,
                                     void* user_data,
                                     void* stream_user_data) {
     NGTCP2_CALLBACK_SCOPE(session)
@@ -1474,47 +1481,47 @@ void Session::Destroy() {
 }
 
 PendingStream::PendingStreamQueue& Session::pending_bidi_stream_queue() const {
-  CHECK(!is_destroyed());
+  DCHECK(!is_destroyed());
   return impl_->pending_bidi_stream_queue_;
 }
 
 PendingStream::PendingStreamQueue& Session::pending_uni_stream_queue() const {
-  CHECK(!is_destroyed());
+  DCHECK(!is_destroyed());
   return impl_->pending_uni_stream_queue_;
 }
 
 size_t Session::max_packet_size() const {
-  CHECK(!is_destroyed());
+  DCHECK(!is_destroyed());
   return ngtcp2_conn_get_max_tx_udp_payload_size(*this);
 }
 
 uint32_t Session::version() const {
-  CHECK(!is_destroyed());
+  DCHECK(!is_destroyed());
   return impl_->config_.version;
 }
 
 Endpoint& Session::endpoint() const {
-  CHECK(!is_destroyed());
+  DCHECK(!is_destroyed());
   return *impl_->endpoint_;
 }
 
 TLSSession& Session::tls_session() const {
-  CHECK(!is_destroyed());
+  DCHECK(!is_destroyed());
   return *tls_session_;
 }
 
 Session::Application& Session::application() const {
-  CHECK(!is_destroyed());
+  DCHECK(!is_destroyed());
   return *impl_->application_;
 }
 
 const SocketAddress& Session::remote_address() const {
-  CHECK(!is_destroyed());
+  DCHECK(!is_destroyed());
   return impl_->remote_address_;
 }
 
 const SocketAddress& Session::local_address() const {
-  CHECK(!is_destroyed());
+  DCHECK(!is_destroyed());
   return impl_->local_address_;
 }
 
@@ -1527,17 +1534,17 @@ std::string Session::diagnostic_name() const {
 }
 
 const Session::Config& Session::config() const {
-  CHECK(!is_destroyed());
+  DCHECK(!is_destroyed());
   return impl_->config_;
 }
 
 Session::Config& Session::config() {
-  CHECK(!is_destroyed());
+  DCHECK(!is_destroyed());
   return impl_->config_;
 }
 
 const Session::Options& Session::options() const {
-  CHECK(!is_destroyed());
+  DCHECK(!is_destroyed());
   return impl_->config_.options;
 }
 
@@ -1558,17 +1565,17 @@ void Session::HandleQlog(uint32_t flags, const void* data, size_t len) {
 }
 
 const TransportParams Session::local_transport_params() const {
-  CHECK(!is_destroyed());
+  DCHECK(!is_destroyed());
   return ngtcp2_conn_get_local_transport_params(*this);
 }
 
 const TransportParams Session::remote_transport_params() const {
-  CHECK(!is_destroyed());
+  DCHECK(!is_destroyed());
   return ngtcp2_conn_get_remote_transport_params(*this);
 }
 
 void Session::SetLastError(QuicError&& error) {
-  CHECK(!is_destroyed());
+  DCHECK(!is_destroyed());
   Debug(this, "Setting last error to %s", error);
   impl_->last_error_ = std::move(error);
 }
@@ -1576,10 +1583,10 @@ void Session::SetLastError(QuicError&& error) {
 bool Session::Receive(Store&& store,
                       const SocketAddress& local_address,
                       const SocketAddress& remote_address) {
-  CHECK(!is_destroyed());
+  DCHECK(!is_destroyed());
   impl_->remote_address_ = remote_address;
 
-  // When we are done processing thins packet, we arrange to send any
+  // When we are done processing this packet, we arrange to send any
   // pending data for this session.
   SendPendingDataScope send_scope(this);
 
@@ -1690,7 +1697,7 @@ void Session::Send(const BaseObjectPtr<Packet>& packet) {
 
   // That said, we should never be trying to send a packet when we're in
   // a draining period.
-  CHECK(!is_destroyed());
+  DCHECK(!is_destroyed());
   DCHECK(!is_in_draining_period());
 
   if (!can_send_packets()) [[unlikely]] {
@@ -1705,12 +1712,19 @@ void Session::Send(const BaseObjectPtr<Packet>& packet) {
 
 void Session::Send(const BaseObjectPtr<Packet>& packet,
                    const PathStorage& path) {
+  DCHECK(!is_destroyed());
+  DCHECK(!is_in_draining_period());
   UpdatePath(path);
   Send(packet);
 }
 
-uint64_t Session::SendDatagram(Store&& data) {
-  CHECK(!is_destroyed());
+datagram_id Session::SendDatagram(Store&& data) {
+  DCHECK(!is_destroyed());
+
+  // Sending a datagram is best effort. If we cannot send it for any reason,
+  // we just return 0 to indicate that the datagram was not sent an the
+  // data is dropped on the floor.
+
   if (!can_send_packets()) {
     Debug(this, "Unable to send datagram");
     return 0;
@@ -1740,7 +1754,7 @@ uint64_t Session::SendDatagram(Store&& data) {
   ngtcp2_vec vec = data;
   PathStorage path;
   int flags = NGTCP2_WRITE_DATAGRAM_FLAG_MORE;
-  uint64_t did = impl_->state_->last_datagram_id + 1;
+  datagram_id did = impl_->state_->last_datagram_id + 1;
 
   Debug(this, "Sending %zu-byte datagram %" PRIu64, data.length(), did);
 
@@ -1766,7 +1780,8 @@ uint64_t Session::SendDatagram(Store&& data) {
                               ngtcp2_conn_get_max_tx_udp_payload_size(*this),
                               "datagram");
       // Typically sending datagrams is best effort, but if we cannot create
-      // the packet, then we handle it as a fatal error.
+      // the packet, then we handle it as a fatal error as that indicates
+      // something else is likely very wrong.
       if (!packet) {
         SetLastError(QuicError::ForNgtcp2Error(NGTCP2_ERR_INTERNAL));
         Close(CloseMethod::SILENT);
@@ -1794,34 +1809,60 @@ uint64_t Session::SendDatagram(Store&& data) {
           // We cannot send data because of congestion control or the data will
           // not fit. Since datagrams are best effort, we are going to abandon
           // the attempt and just return.
-          CHECK_EQ(accepted, 0);
+          DCHECK_EQ(accepted, 0);
           packet->CancelPacket();
           return 0;
         }
         case NGTCP2_ERR_WRITE_MORE: {
-          // We keep on looping! Keep on sending!
+          // The library wants us to keep writing more data to the packet.
+          // This is typically an indication that the packet is not yet
+          // full enough.
           continue;
         }
         case NGTCP2_ERR_INVALID_STATE: {
           // The remote endpoint does not want to accept datagrams. That's ok,
           // just return 0.
+          DCHECK_EQ(accepted, 0);
           packet->CancelPacket();
           return 0;
         }
         case NGTCP2_ERR_INVALID_ARGUMENT: {
           // The datagram is too large. That should have been caught above but
           // that's ok. We'll just abandon the attempt and return.
+          DCHECK_EQ(accepted, 0);
           packet->CancelPacket();
           return 0;
         }
         case NGTCP2_ERR_PKT_NUM_EXHAUSTED: {
           // We've exhausted the packet number space. Sadly we have to treat it
           // as a fatal condition (which we will do after the switch)
+          DCHECK_EQ(accepted, 0);
+          Debug(this,
+                "ngtcp2_conn_writev_datagram failed: Packet number "
+                "exhausted");
           break;
         }
         case NGTCP2_ERR_CALLBACK_FAILURE: {
           // There was an internal failure. Sadly we have to treat it as a fatal
           // condition. (which we will do after the switch)
+          Debug(this,
+                "ngtcp2_conn_writev_datagram failed: Callback "
+                "failure");
+          break;
+        }
+        case NGTCP2_ERR_NOMEM: {
+          // Out of memory. Sadly we have to treat it as a fatal condition.
+          // (which we will do after the switch)
+          Debug(this, "ngtcp2_conn_writev_datagram failed: Out of memory");
+          break;
+        }
+        default: {
+          // Some other unknown, and unexpected failure.
+          // We have to treat it as a fatal condition.
+          Debug(this,
+                "ngtcp2_conn_writev_datagram failed with an unexpected "
+                "error: %zd",
+                nwrite);
           break;
         }
       }
@@ -1840,7 +1881,8 @@ uint64_t Session::SendDatagram(Store&& data) {
 
     if (accepted) {
       // Yay! The datagram was accepted into the packet we just sent and we can
-      // return the datagram ID.
+      // return the datagram ID. Note that per the spec, datagrams cannot be
+      // fragmented, so if it was accepted, the entire datagram was sent.
       Debug(this, "Datagram %" PRIu64 " sent", did);
       auto& stats_ = impl_->stats_;
       STAT_INCREMENT(Stats, datagrams_sent);
@@ -1850,7 +1892,8 @@ uint64_t Session::SendDatagram(Store&& data) {
     }
 
     // We sent a packet, but it wasn't the datagram packet. That can happen.
-    // Let's loop around and try again.
+    // Let's loop around and try again. We will limit the number of retries
+    // we do here to avoid looping indefinitely.
     if (++attempts == kMaxAttempts) [[unlikely]] {
       Debug(this, "Too many attempts to send datagram. Canceling.");
       // Too many attempts to send the datagram.
@@ -1865,12 +1908,12 @@ uint64_t Session::SendDatagram(Store&& data) {
 }
 
 void Session::UpdatePacketTxTime() {
-  CHECK(!is_destroyed());
+  DCHECK(!is_destroyed());
   ngtcp2_conn_update_pkt_tx_time(*this, uv_hrtime());
 }
 
 void Session::UpdatePath(const PathStorage& storage) {
-  CHECK(!is_destroyed());
+  DCHECK(!is_destroyed());
   impl_->remote_address_.Update(storage.path.remote.addr,
                                 storage.path.remote.addrlen);
   impl_->local_address_.Update(storage.path.local.addr,
@@ -1881,7 +1924,7 @@ void Session::UpdatePath(const PathStorage& storage) {
         impl_->remote_address_);
 }
 
-BaseObjectPtr<Stream> Session::FindStream(int64_t id) const {
+BaseObjectPtr<Stream> Session::FindStream(stream_id id) const {
   if (is_destroyed()) return {};
   auto it = impl_->streams_.find(id);
   if (it == std::end(impl_->streams_)) return {};
@@ -1889,7 +1932,7 @@ BaseObjectPtr<Stream> Session::FindStream(int64_t id) const {
 }
 
 BaseObjectPtr<Stream> Session::CreateStream(
-    int64_t id,
+    stream_id id,
     CreateStreamOption option,
     std::shared_ptr<DataQueue> data_source) {
   if (!can_create_streams()) [[unlikely]]
@@ -1922,7 +1965,7 @@ MaybeLocal<Object> Session::OpenStream(Direction direction,
     return {};
   }
 
-  int64_t id = -1;
+  stream_id id = -1;
   auto open = [&] {
     switch (direction) {
       case Direction::BIDIRECTIONAL: {
@@ -1965,13 +2008,13 @@ MaybeLocal<Object> Session::OpenStream(Direction direction,
 
 void Session::AddStream(BaseObjectPtr<Stream> stream,
                         CreateStreamOption option) {
-  CHECK(!is_destroyed());
-  CHECK(stream);
+  DCHECK(!is_destroyed());
+  DCHECK(stream);
 
   auto id = stream->id();
   auto direction = stream->direction();
 
-  // Let's double check that a stream with the given id does not already
+  // Let's double check that a stream with the given id does not alreadys
   // exist. If it does, that means we've got a bug somewhere.
   DCHECK_EQ(impl_->streams_.find(id), impl_->streams_.end());
 
@@ -2018,8 +2061,8 @@ void Session::AddStream(BaseObjectPtr<Stream> stream,
   }
 }
 
-void Session::RemoveStream(int64_t id) {
-  CHECK(!is_destroyed());
+void Session::RemoveStream(stream_id id) {
+  DCHECK(!is_destroyed());
   Debug(this, "Removing stream %" PRIi64 " from session", id);
   if (!is_in_draining_period() && !is_in_closing_period() &&
       !ngtcp2_conn_is_local_stream(*this, id)) {
@@ -2050,14 +2093,14 @@ void Session::RemoveStream(int64_t id) {
   }
 }
 
-void Session::ResumeStream(int64_t id) {
-  CHECK(!is_destroyed());
+void Session::ResumeStream(stream_id id) {
+  DCHECK(!is_destroyed());
   SendPendingDataScope send_scope(this);
   application().ResumeStream(id);
 }
 
-void Session::ShutdownStream(int64_t id, QuicError error) {
-  CHECK(!is_destroyed());
+void Session::ShutdownStream(stream_id id, QuicError error) {
+  DCHECK(!is_destroyed());
   Debug(this, "Shutting down stream %" PRIi64 " with error %s", id, error);
   SendPendingDataScope send_scope(this);
   ngtcp2_conn_shutdown_stream(*this,
@@ -2068,8 +2111,8 @@ void Session::ShutdownStream(int64_t id, QuicError error) {
                                   : application().GetNoErrorCode());
 }
 
-void Session::ShutdownStreamWrite(int64_t id, QuicError code) {
-  CHECK(!is_destroyed());
+void Session::ShutdownStreamWrite(stream_id id, QuicError code) {
+  DCHECK(!is_destroyed());
   Debug(this, "Shutting down stream %" PRIi64 " write with error %s", id, code);
   SendPendingDataScope send_scope(this);
   ngtcp2_conn_shutdown_stream_write(*this,
@@ -2080,8 +2123,8 @@ void Session::ShutdownStreamWrite(int64_t id, QuicError code) {
                                         : application().GetNoErrorCode());
 }
 
-void Session::StreamDataBlocked(int64_t id) {
-  CHECK(!is_destroyed());
+void Session::StreamDataBlocked(stream_id id) {
+  DCHECK(!is_destroyed());
   auto& stats_ = impl_->stats_;
   STAT_INCREMENT(Stats, block_count);
   application().BlockStream(id);
@@ -2089,13 +2132,13 @@ void Session::StreamDataBlocked(int64_t id) {
 
 void Session::CollectSessionTicketAppData(
     SessionTicket::AppData* app_data) const {
-  CHECK(!is_destroyed());
+  DCHECK(!is_destroyed());
   application().CollectSessionTicketAppData(app_data);
 }
 
 SessionTicket::AppData::Status Session::ExtractSessionTicketAppData(
     const SessionTicket::AppData& app_data, Flag flag) {
-  CHECK(!is_destroyed());
+  DCHECK(!is_destroyed());
   return application().ExtractSessionTicketAppData(app_data, flag);
 }
 
@@ -2113,12 +2156,12 @@ void Session::MemoryInfo(MemoryTracker* tracker) const {
 }
 
 bool Session::is_in_closing_period() const {
-  CHECK(!is_destroyed());
+  DCHECK(!is_destroyed());
   return ngtcp2_conn_in_closing_period(*this) != 0;
 }
 
 bool Session::is_in_draining_period() const {
-  CHECK(!is_destroyed());
+  DCHECK(!is_destroyed());
   return ngtcp2_conn_in_draining_period(*this) != 0;
 }
 
@@ -2127,7 +2170,7 @@ bool Session::wants_session_ticket() const {
 }
 
 void Session::SetStreamOpenAllowed() {
-  CHECK(!is_destroyed());
+  DCHECK(!is_destroyed());
   impl_->state_->stream_open_allowed = 1;
 }
 
@@ -2149,39 +2192,39 @@ bool Session::can_open_streams() const {
 }
 
 uint64_t Session::max_data_left() const {
-  CHECK(!is_destroyed());
+  DCHECK(!is_destroyed());
   return ngtcp2_conn_get_max_data_left(*this);
 }
 
 uint64_t Session::max_local_streams_uni() const {
-  CHECK(!is_destroyed());
+  DCHECK(!is_destroyed());
   return ngtcp2_conn_get_streams_uni_left(*this);
 }
 
 uint64_t Session::max_local_streams_bidi() const {
-  CHECK(!is_destroyed());
+  DCHECK(!is_destroyed());
   return ngtcp2_conn_get_local_transport_params(*this)
       ->initial_max_streams_bidi;
 }
 
 void Session::set_wrapped() {
-  CHECK(!is_destroyed());
+  DCHECK(!is_destroyed());
   impl_->state_->wrapped = 1;
 }
 
 void Session::set_priority_supported(bool on) {
-  CHECK(!is_destroyed());
+  DCHECK(!is_destroyed());
   impl_->state_->priority_supported = on ? 1 : 0;
 }
 
-void Session::ExtendStreamOffset(int64_t id, size_t amount) {
-  CHECK(!is_destroyed());
+void Session::ExtendStreamOffset(stream_id id, size_t amount) {
+  DCHECK(!is_destroyed());
   Debug(this, "Extending stream %" PRIi64 " offset by %zu bytes", id, amount);
   ngtcp2_conn_extend_max_stream_offset(*this, id, amount);
 }
 
 void Session::ExtendOffset(size_t amount) {
-  CHECK(!is_destroyed());
+  DCHECK(!is_destroyed());
   Debug(this, "Extending offset by %zu bytes", amount);
   ngtcp2_conn_extend_max_offset(*this, amount);
 }
@@ -2265,7 +2308,7 @@ void Session::SendConnectionClose() {
 }
 
 void Session::OnTimeout() {
-  CHECK(!is_destroyed());
+  DCHECK(!is_destroyed());
   HandleScope scope(env()->isolate());
   int ret = ngtcp2_conn_handle_expiry(*this, uv_hrtime());
   if (NGTCP2_OK(ret) && !is_in_closing_period() && !is_in_draining_period()) {
@@ -2278,7 +2321,7 @@ void Session::OnTimeout() {
 }
 
 void Session::UpdateTimer() {
-  CHECK(!is_destroyed());
+  DCHECK(!is_destroyed());
   // Both uv_hrtime and ngtcp2_conn_get_expiry return nanosecond units.
   uint64_t expiry = ngtcp2_conn_get_expiry(*this);
   uint64_t now = uv_hrtime();
@@ -2298,7 +2341,8 @@ void Session::UpdateTimer() {
   impl_->timer_.Update(timeout == 0 ? 1 : timeout);
 }
 
-void Session::DatagramStatus(uint64_t datagramId, quic::DatagramStatus status) {
+void Session::DatagramStatus(datagram_id datagramId,
+                             quic::DatagramStatus status) {
   DCHECK(!is_destroyed());
   auto& stats_ = impl_->stats_;
   switch (status) {
@@ -2435,7 +2479,7 @@ void Session::ProcessPendingBidiStreams() {
   // It shouldn't be possible to get here if can_create_streams() is false.
   DCHECK(can_create_streams());
 
-  int64_t id;
+  stream_id id;
 
   while (!impl_->pending_bidi_stream_queue_.IsEmpty()) {
     if (ngtcp2_conn_get_streams_bidi_left(*this) == 0) {
@@ -2468,7 +2512,7 @@ void Session::ProcessPendingUniStreams() {
   // It shouldn't be possible to get here if can_create_streams() is false.
   DCHECK(can_create_streams());
 
-  int64_t id;
+  stream_id id;
 
   while (!impl_->pending_uni_stream_queue_.IsEmpty()) {
     if (ngtcp2_conn_get_streams_uni_left(*this) == 0) {
@@ -2540,7 +2584,7 @@ void Session::EmitDatagram(Store&& datagram, DatagramReceivedFlags flag) {
                argv);
 }
 
-void Session::EmitDatagramStatus(uint64_t id, quic::DatagramStatus status) {
+void Session::EmitDatagramStatus(datagram_id id, quic::DatagramStatus status) {
   DCHECK(!is_destroyed());
 
   if (!env()->can_call_into_js()) return;

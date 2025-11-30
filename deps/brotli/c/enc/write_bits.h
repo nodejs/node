@@ -9,8 +9,6 @@
 #ifndef BROTLI_ENC_WRITE_BITS_H_
 #define BROTLI_ENC_WRITE_BITS_H_
 
-#include <brotli/types.h>
-
 #include "../common/platform.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)

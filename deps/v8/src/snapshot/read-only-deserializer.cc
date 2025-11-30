@@ -226,7 +226,7 @@ class ObjectPostProcessor final {
     DCHECK_EQ(o->map(isolate_)->instance_type(), instance_type);
 #define V(TYPE)                                       \
   if (InstanceTypeChecker::Is##TYPE(instance_type)) { \
-    return PostProcess##TYPE(Cast<TYPE>(o));          \
+    return PostProcess##TYPE(TrustedCast<TYPE>(o));   \
   }
     POST_PROCESS_TYPE_LIST(V)
 #undef V
@@ -261,15 +261,19 @@ class ObjectPostProcessor final {
         slot.GetContentAsIndexAfterDeserialization(no_gc));
     Address slot_value =
         GetAnyExternalReferenceAt(encoded.index, encoded.is_api_reference);
-    DCHECK(slot.ExactTagIsKnown());
-    slot.init(isolate_, host, slot_value, slot.exact_tag());
+    ExternalPointerTag tag = static_cast<ExternalPointerTag>(encoded.tag);
+    slot.init(isolate_, host, slot_value, tag);
 #ifdef V8_ENABLE_SANDBOX
     // Register these slots during deserialization s.t. later isolates (which
     // share the RO space we are currently deserializing) can properly
     // initialize their external pointer table RO space. Note that slot values
     // are only fully finalized at the end of deserialization, thus we only
     // register the slot itself now and read the handle/value in Finalize.
-    external_pointer_slots_.emplace_back(slot);
+    //
+    // We have to create a new ExternalPointerSlot here because the incoming
+    // ExternalPointerSlot has a tag range, but here we need an exact tag.
+    external_pointer_slots_.emplace_back(
+        ExternalPointerSlot(slot.address(), tag));
 #endif  // V8_ENABLE_SANDBOX
   }
   void DecodeLazilyInitializedExternalPointerSlot(Tagged<HeapObject> host,
@@ -283,18 +287,22 @@ class ObjectPostProcessor final {
         slot.GetContentAsIndexAfterDeserialization(no_gc));
     Address slot_value =
         GetAnyExternalReferenceAt(encoded.index, encoded.is_api_reference);
-    DCHECK(slot.ExactTagIsKnown());
     if (slot_value == kNullAddress) {
       slot.init_lazily_initialized();
     } else {
-      slot.init(isolate_, host, slot_value, slot.exact_tag());
+      ExternalPointerTag tag = static_cast<ExternalPointerTag>(encoded.tag);
+      slot.init(isolate_, host, slot_value, tag);
 #ifdef V8_ENABLE_SANDBOX
       // Register these slots during deserialization s.t. later isolates (which
       // share the RO space we are currently deserializing) can properly
       // initialize their external pointer table RO space. Note that slot values
       // are only fully finalized at the end of deserialization, thus we only
       // register the slot itself now and read the handle/value in Finalize.
-      external_pointer_slots_.emplace_back(slot);
+      //
+      // We have to create a new ExternalPointerSlot here because the incoming
+      // ExternalPointerSlot has a tag range, but here we need an exact tag.
+      external_pointer_slots_.emplace_back(
+          ExternalPointerSlot(slot.address(), tag));
 #endif  // V8_ENABLE_SANDBOX
     }
   }
@@ -322,8 +330,9 @@ class ObjectPostProcessor final {
   }
   void PostProcessJSExternalObject(Tagged<JSExternalObject> o) {
     DecodeExternalPointerSlot(
-        o, o->RawExternalPointerField(JSExternalObject::kValueOffset,
-                                      kExternalObjectValueTag));
+        o, o->RawExternalPointerField(
+               JSExternalObject::kValueOffset,
+               {kFirstExternalTypeTag, kLastExternalTypeTag}));
   }
   void PostProcessFunctionTemplateInfo(Tagged<FunctionTemplateInfo> o) {
     DecodeExternalPointerSlot(
@@ -332,6 +341,34 @@ class ObjectPostProcessor final {
                kFunctionTemplateInfoCallbackTag));
     if (USE_SIMULATOR_BOOL) o->init_callback_redirection(isolate_);
   }
+
+#if V8_ENABLE_GEARBOX
+  V8_INLINE void UpdateGearboxPlaceholderBuiltin(Tagged<Code> code) {
+    // When gearbox is enabled, placeholder builtins dispatch to a variant
+    // (either generic or ISX) based on the client's CPU supported ISA
+    // (instruction set architecture) feature.
+    if (code->is_gearbox_placeholder_builtin()) {
+      Tagged<Code> src = code;
+      Builtin generic_id = potential_generic_code_->builtin_id();
+      Builtin ISX_id = potential_ISX_code_->builtin_id();
+      DCHECK(Builtins::IsGenericVariant(generic_id));
+      DCHECK(Builtins::IsISXVariant(ISX_id));
+      USE(generic_id);
+      USE(ISX_id);
+      // Check for the two code object's builtin id were adjacent.
+      DCHECK_EQ(++generic_id, ISX_id);
+      if (Builtins::CpuHasISXSupport()) {
+        src = potential_ISX_code_;
+      } else {
+        src = potential_generic_code_;
+      }
+      Code::CopyFieldsWithGearboxForDeserialization(code, src, isolate_);
+    }
+    potential_generic_code_ = potential_ISX_code_;
+    potential_ISX_code_ = code;
+  }
+#endif
+
   void PostProcessCode(Tagged<Code> o) {
     o->init_self_indirect_pointer(isolate_);
     o->wrapper()->set_code(o);
@@ -339,9 +376,18 @@ class ObjectPostProcessor final {
     // attached InstructionStream.
     DCHECK(o->is_builtin());
     DCHECK(!o->has_instruction_stream());
+    Builtin builtin = o->builtin_id();
+    // Mark disabled bultins as such (RO space serializer resets this flag).
+    DCHECK(!o->is_disabled_builtin());
+    if (Builtins::IsDisabled(builtin)) {
+      o->set_is_disabled_builtin(true);
+    }
     o->SetInstructionStartForOffHeapBuiltin(
-        isolate_,
-        EmbeddedData::FromBlob(isolate_).InstructionStartOf(o->builtin_id()));
+        isolate_, EmbeddedData::FromBlob(isolate_).InstructionStartOf(builtin));
+
+#if V8_ENABLE_GEARBOX
+    UpdateGearboxPlaceholderBuiltin(o);
+#endif
   }
   void PostProcessSharedFunctionInfo(Tagged<SharedFunctionInfo> o) {
     // Reset the id to avoid collisions - it must be unique in this isolate.
@@ -350,6 +396,15 @@ class ObjectPostProcessor final {
 
   Isolate* const isolate_;
   const EmbeddedData embedded_data_;
+
+#if V8_ENABLE_GEARBOX
+  // We have to store preceding and second preceding Code object here, because
+  // they are not registered in isolate, we couldn't find them through isolate
+  // yet.
+  // We use them for maintain the potential generic and ISX code object.
+  Tagged<Code> potential_generic_code_;
+  Tagged<Code> potential_ISX_code_;
+#endif
 
 #ifdef V8_ENABLE_SANDBOX
   std::vector<ExternalPointerSlot> external_pointer_slots_;

@@ -384,7 +384,7 @@ describe('glob - withFileTypes', function() {
       const actual = await promisified(pattern, {
         cwd: fixtureDir,
         withFileTypes: true,
-        exclude: (dirent) => assert.ok(dirent instanceof Dirent),
+        exclude: common.mustCallAtLeast((dirent) => assert.ok(dirent instanceof Dirent), 0),
       });
       assertDirents(actual);
       assert.deepStrictEqual(actual.map(normalizeDirent).sort(), expected.filter(Boolean).map(normalizePath).sort());
@@ -398,7 +398,7 @@ describe('globSync - withFileTypes', function() {
       const actual = globSync(pattern, {
         cwd: fixtureDir,
         withFileTypes: true,
-        exclude: (dirent) => assert.ok(dirent instanceof Dirent),
+        exclude: common.mustCallAtLeast((dirent) => assert.ok(dirent instanceof Dirent), 0),
       });
       assertDirents(actual);
       assert.deepStrictEqual(actual.map(normalizeDirent).sort(), expected.filter(Boolean).map(normalizePath).sort());
@@ -413,7 +413,7 @@ describe('fsPromises glob - withFileTypes', function() {
       for await (const item of asyncGlob(pattern, {
         cwd: fixtureDir,
         withFileTypes: true,
-        exclude: (dirent) => assert.ok(dirent instanceof Dirent),
+        exclude: common.mustCallAtLeast((dirent) => assert.ok(dirent instanceof Dirent), 0),
       })) actual.push(item);
       assertDirents(actual);
       assert.deepStrictEqual(actual.map(normalizeDirent).sort(), expected.filter(Boolean).map(normalizePath).sort());

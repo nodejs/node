@@ -4,6 +4,7 @@
 
 #include "src/wasm/module-decoder.h"
 
+#include "src/logging/counters.h"
 #include "src/logging/metrics.h"
 #include "src/tracing/trace-event.h"
 #include "src/wasm/constant-expression.h"
@@ -63,10 +64,12 @@ const char* SectionName(SectionCode code) {
       return kBuildIdString;
     case kInstTraceSectionCode:
       return kInstTraceString;
-    case kCompilationHintsSectionCode:
-      return kCompilationHintsString;
     case kBranchHintsSectionCode:
       return kBranchHintsString;
+    case kCompilationPrioritySectionCode:
+      return kCompilationPriorityString;
+    case kDescriptorsSectionCode:
+      return kDescriptorsString;
     default:
       return "<unknown>";
   }
@@ -86,9 +89,9 @@ ModuleResult DecodeWasmModule(
     size_counter->AddSample(static_cast<int>(wire_bytes.size()));
   }
 
-  v8::metrics::WasmModuleDecoded metrics_event;
-  base::ElapsedTimer timer;
-  timer.Start();
+  base::TimeTicks start;
+  if (base::TimeTicks::IsHighResolution()) start = base::TimeTicks::Now();
+
   ModuleResult result =
       DecodeWasmModule(enabled_features, wire_bytes, validate_functions, origin,
                        detected_features);
@@ -100,17 +103,19 @@ ModuleResult DecodeWasmModule(
   }
 
   // Record event metrics.
-  metrics_event.wall_clock_duration_in_us = timer.Elapsed().InMicroseconds();
-  timer.Stop();
-  metrics_event.success = result.ok();
-  metrics_event.async = decoding_method == DecodingMethod::kAsync ||
-                        decoding_method == DecodingMethod::kAsyncStream;
-  metrics_event.streamed = decoding_method == DecodingMethod::kSyncStream ||
-                           decoding_method == DecodingMethod::kAsyncStream;
-  if (result.ok()) {
-    metrics_event.function_count = result.value()->num_declared_functions;
+  v8::metrics::WasmModuleDecoded metrics_event{
+      .async = decoding_method == DecodingMethod::kAsync ||
+               decoding_method == DecodingMethod::kAsyncStream,
+      .streamed = decoding_method == DecodingMethod::kSyncStream ||
+                  decoding_method == DecodingMethod::kAsyncStream,
+      .success = result.ok(),
+      .module_size_in_bytes = wire_bytes.size(),
+      .function_count =
+          result.ok() ? result.value()->num_declared_functions : 0};
+  if (!start.IsNull()) {
+    base::TimeDelta duration = base::TimeTicks::Now() - start;
+    metrics_event.wall_clock_duration_in_us = duration.InMicroseconds();
   }
-  metrics_event.module_size_in_bytes = wire_bytes.size();
   metrics_recorder->DelayMainThreadEvent(metrics_event, context_id);
 
   return result;
@@ -740,8 +745,6 @@ DecodedNameSection::DecodedNameSection(base::Vector<const uint8_t> wire_bytes,
     }
   }
 }
-
-#undef TRACE
 
 }  // namespace wasm
 }  // namespace internal

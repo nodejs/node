@@ -4,8 +4,12 @@
 
 #include "include/v8-function.h"
 #include "src/flags/flags.h"
+#include "test/common/flag-utils.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#if V8_ENABLE_WEBASSEMBLY
+#include "include/v8-wasm.h"
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace {
 
@@ -22,6 +26,7 @@ using v8::Location;
 using v8::MaybeLocal;
 using v8::Module;
 using v8::ModuleRequest;
+using v8::Object;
 using v8::Promise;
 using v8::ScriptCompiler;
 using v8::ScriptOrigin;
@@ -41,7 +46,7 @@ MaybeLocal<Module> ResolveCallback(Local<Context> context,
                                    Local<FixedArray> import_attributes,
                                    Local<Module> referrer) {
   CHECK_EQ(0, import_attributes->Length());
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   if (specifier->StrictEquals(
           String::NewFromUtf8(isolate, "./dep1.js").ToLocalChecked())) {
     return dep1_global.Get(isolate);
@@ -143,7 +148,7 @@ static v8::Global<Module> barModule_global;
 MaybeLocal<Module> ResolveCallbackWithImportAttributes(
     Local<Context> context, Local<String> specifier,
     Local<FixedArray> import_attributes, Local<Module> referrer) {
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   if (specifier->StrictEquals(
           String::NewFromUtf8(isolate, "./foo.js").ToLocalChecked())) {
     CHECK_EQ(0, import_attributes->Length());
@@ -373,7 +378,7 @@ static MaybeLocal<Module> CompileSpecifierAsModuleResolveCallback(
     Local<Context> context, Local<String> specifier,
     Local<FixedArray> import_attributes, Local<Module> referrer) {
   CHECK_EQ(0, import_attributes->Length());
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   ScriptOrigin origin = ModuleOrigin(
       String::NewFromUtf8(isolate, "module.js").ToLocalChecked(), isolate);
   ScriptCompiler::Source source(specifier, origin);
@@ -489,7 +494,7 @@ MaybeLocal<Module> ResolveCallbackForModuleEvaluationError2(
     Local<Context> context, Local<String> specifier,
     Local<FixedArray> import_attributes, Local<Module> referrer) {
   CHECK_EQ(0, import_attributes->Length());
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   if (specifier->StrictEquals(
           String::NewFromUtf8(isolate, "./failure.js").ToLocalChecked())) {
     return failure_module_global.Get(isolate);
@@ -890,7 +895,7 @@ v8::MaybeLocal<v8::Promise> HostImportModuleDynamicallyCallbackResolve(
     Local<Context> context, Local<Data> host_defined_options,
     Local<Value> resource_name, Local<String> specifier,
     Local<FixedArray> import_attributes) {
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   Local<v8::Promise::Resolver> resolver =
       v8::Promise::Resolver::New(context).ToLocalChecked();
   DynamicImportData* data =
@@ -903,7 +908,7 @@ v8::MaybeLocal<v8::Promise> HostImportModuleDynamicallyCallbackReject(
     Local<Context> context, Local<Data> host_defined_options,
     Local<Value> resource_name, Local<String> specifier,
     Local<FixedArray> import_attributes) {
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   Local<v8::Promise::Resolver> resolver =
       v8::Promise::Resolver::New(context).ToLocalChecked();
   DynamicImportData* data =
@@ -1080,7 +1085,7 @@ MaybeLocal<Module> ResolveCallbackForIsGraphAsyncTopLevelAwait(
     Local<Context> context, Local<String> specifier,
     Local<FixedArray> import_attributes, Local<Module> referrer) {
   CHECK_EQ(0, import_attributes->Length());
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   if (specifier->StrictEquals(
           String::NewFromUtf8(isolate, "./async_leaf.js").ToLocalChecked())) {
     return async_leaf_module_global.Get(isolate);
@@ -1210,6 +1215,60 @@ TEST_F(ModuleTest, IsGraphAsyncTopLevelAwait) {
   cycle_two_module_global.Reset();
 }
 
+bool resolve_source_return_object_invoked = false;
+MaybeLocal<Object> ResolveSourceReturnObject(
+    Local<Context> context, Local<String> specifier,
+    Local<FixedArray> import_attributes, Local<Module> referrer) {
+  Isolate* isolate = Isolate::GetCurrent();
+
+  CHECK(!specifier.IsEmpty());
+  String::Utf8Value specifier_utf8(isolate, specifier);
+  CHECK_EQ(0, strcmp("my-mod", *specifier_utf8));
+
+  CHECK_EQ(0, import_attributes->Length());
+
+  resolve_source_return_object_invoked = true;
+
+  return Object::New(isolate);
+}
+
+TEST_F(ModuleTest, IsGraphAsyncImportSource) {
+  i::FlagScope<bool> f(&i::v8_flags.js_source_phase_imports, true);
+
+  HandleScope scope(isolate());
+
+  // Check that v8::Module::IsGraphAsync() returns false for source
+  // phase imports.
+
+  Local<String> url = NewString("www.google.com");
+  Local<String> source_text =
+      NewString("import source modSource from 'my-mod';");
+
+  ScriptOrigin origin(url, 0, 0, false, -1, Local<v8::Value>(), false, false,
+                      true);
+  ScriptCompiler::Source source(source_text, origin);
+
+  Local<Module> module =
+      ScriptCompiler::CompileModule(isolate(), &source).ToLocalChecked();
+
+  CHECK(!resolve_source_return_object_invoked);
+  CHECK(module
+            ->InstantiateModule(
+                context(),
+                [](Local<Context> context, Local<String> specifier,
+                   Local<FixedArray> import_attributes,
+                   Local<Module> referrer) -> MaybeLocal<Module> {
+                  // There is no evaluation phase import.
+                  UNREACHABLE();
+                },
+                ResolveSourceReturnObject)
+            .IsJust());
+  CHECK(resolve_source_return_object_invoked);
+
+  // IsGraphAsync should return false
+  CHECK_EQ(module->IsGraphAsync(), false);
+}
+
 TEST_F(ModuleTest, HasTopLevelAwait) {
   HandleScope scope(isolate());
   {
@@ -1258,5 +1317,294 @@ TEST_F(ModuleTest, AsyncEvaluatingInEvaluateEntryPoint) {
 
   CHECK_EQ(v8::Promise::kFulfilled, promise1->State());
 }
+
+// Test data for index-based module resolution
+static std::vector<v8::Global<Module>> index_modules_global;
+
+static MaybeLocal<Module> ResolveModuleByIndexCallback(
+    Local<Context> context, size_t module_request_index,
+    Local<Module> referrer) {
+  Isolate* isolate = Isolate::GetCurrent();
+  CHECK_LE(module_request_index, index_modules_global.size());
+  return index_modules_global[module_request_index].Get(isolate);
+}
+
+static MaybeLocal<v8::Object> ResolveSourceByIndexUnreachableCallback(
+    Local<Context> context, size_t module_request_index,
+    Local<Module> referrer) {
+  UNREACHABLE();
+}
+
+TEST_F(ModuleTest, ModuleInstantiationByIndex) {
+  HandleScope scope(isolate());
+  v8::TryCatch try_catch(isolate());
+
+  Local<Module> module;
+  {
+    Local<String> source_text = NewString(
+        "import { x } from './dep1.js';\n"
+        "export { y } from './dep2.js';\n"
+        "export const z = x;\n");
+    ScriptOrigin origin = ModuleOrigin(NewString("main.js"), isolate());
+    ScriptCompiler::Source source(source_text, origin);
+    module = ScriptCompiler::CompileModule(isolate(), &source).ToLocalChecked();
+    CHECK_EQ(Module::kUninstantiated, module->GetStatus());
+
+    Local<FixedArray> module_requests = module->GetModuleRequests();
+    CHECK_EQ(2, module_requests->Length());
+
+    // Verify the requests are in expected order
+    Local<ModuleRequest> module_request_0 =
+        module_requests->Get(context(), 0).As<ModuleRequest>();
+    CHECK(
+        NewString("./dep1.js")->StrictEquals(module_request_0->GetSpecifier()));
+
+    Local<ModuleRequest> module_request_1 =
+        module_requests->Get(context(), 1).As<ModuleRequest>();
+    CHECK(
+        NewString("./dep2.js")->StrictEquals(module_request_1->GetSpecifier()));
+  }
+
+  // Create dependency modules to be resolved by index
+  {
+    Local<String> source_text = NewString("export const x = 42;");
+    ScriptOrigin origin = ModuleOrigin(NewString("dep1.js"), isolate());
+    ScriptCompiler::Source source(source_text, origin);
+    Local<Module> dep1 =
+        ScriptCompiler::CompileModule(isolate(), &source).ToLocalChecked();
+    index_modules_global.emplace_back(isolate(), dep1);
+  }
+
+  {
+    Local<String> source_text = NewString("export const y = 24;");
+    ScriptOrigin origin = ModuleOrigin(NewString("dep2.js"), isolate());
+    ScriptCompiler::Source source(source_text, origin);
+    Local<Module> dep2 =
+        ScriptCompiler::CompileModule(isolate(), &source).ToLocalChecked();
+    index_modules_global.emplace_back(isolate(), dep2);
+  }
+
+  // Instantiate using index-based callback
+  CHECK(module
+            ->InstantiateModule(context(), ResolveModuleByIndexCallback,
+                                ResolveSourceByIndexUnreachableCallback)
+            .FromJust());
+  CHECK_EQ(Module::kInstantiated, module->GetStatus());
+
+  // Verify evaluation works
+  MaybeLocal<Value> result = module->Evaluate(context());
+  CHECK_EQ(Module::kEvaluated, module->GetStatus());
+  Local<Promise> promise = Local<Promise>::Cast(result.ToLocalChecked());
+  CHECK_EQ(promise->State(), v8::Promise::kFulfilled);
+
+  CHECK(!try_catch.HasCaught());
+
+  CHECK_EQ(42, module->GetModuleNamespace()
+                   .As<v8::Object>()
+                   ->Get(context(), NewString("z"))
+                   .ToLocalChecked()
+                   ->Int32Value(context())
+                   .ToChecked());
+  CHECK_EQ(24, module->GetModuleNamespace()
+                   .As<v8::Object>()
+                   ->Get(context(), NewString("y"))
+                   .ToLocalChecked()
+                   ->Int32Value(context())
+                   .ToChecked());
+  // Clean up
+  for (auto& mod : index_modules_global) {
+    mod.Reset();
+  }
+  index_modules_global.clear();
+}
+
+static bool resolve_module_by_index_failure_called = false;
+static MaybeLocal<Module> ResolveModuleByIndexFailureCallback(
+    Local<Context> context, size_t module_request_index,
+    Local<Module> referrer) {
+  CHECK(!resolve_module_by_index_failure_called);
+  resolve_module_by_index_failure_called = true;
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  std::string message =
+      "module " + std::to_string(module_request_index) + " not found";
+  isolate->ThrowException(
+      String::NewFromUtf8(isolate, message.c_str()).ToLocalChecked());
+  return MaybeLocal<Module>();
+}
+
+TEST_F(ModuleTest, ModuleInstantiationByIndexFailure) {
+  HandleScope scope(isolate());
+  v8::TryCatch try_catch(isolate());
+
+  Local<Module> module;
+  {
+    Local<String> source_text = NewString(
+        "import './dep1.js';\n"
+        "import './dep2.js';\n"
+        "import './dep3.js';");
+    ScriptOrigin origin = ModuleOrigin(NewString("main.js"), isolate());
+    ScriptCompiler::Source source(source_text, origin);
+    module = ScriptCompiler::CompileModule(isolate(), &source).ToLocalChecked();
+    CHECK_EQ(Module::kUninstantiated, module->GetStatus());
+
+    Local<FixedArray> module_requests = module->GetModuleRequests();
+    CHECK_EQ(3, module_requests->Length());
+  }
+
+  // Instantiation should fail and the callback should only be called once.
+  {
+    v8::TryCatch inner_try_catch(isolate());
+    CHECK(module
+              ->InstantiateModule(context(),
+                                  ResolveModuleByIndexFailureCallback,
+                                  ResolveSourceByIndexUnreachableCallback)
+              .IsNothing());
+    CHECK(inner_try_catch.HasCaught());
+    CHECK(inner_try_catch.Exception()->StrictEquals(
+        NewString("module 0 not found")));
+    CHECK_EQ(Module::kUninstantiated, module->GetStatus());
+  }
+
+  // Should not leak to the outer try-catch.
+  CHECK(!try_catch.HasCaught());
+}
+
+static bool resolve_source_by_index_failure_called = false;
+MaybeLocal<v8::Object> ResolveSourceByIndexFailureCallback(
+    Local<Context> context, size_t module_request_index,
+    Local<Module> referrer) {
+  CHECK(!resolve_source_by_index_failure_called);
+  resolve_source_by_index_failure_called = true;
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  std::string message =
+      "module source " + std::to_string(module_request_index) + " not found";
+  isolate->ThrowException(
+      String::NewFromUtf8(isolate, message.c_str()).ToLocalChecked());
+  return MaybeLocal<v8::Object>();
+}
+
+static MaybeLocal<Module> ResolveModuleByIndexUnreachableCallback(
+    Local<Context> context, size_t module_request_index,
+    Local<Module> referrer) {
+  UNREACHABLE();
+}
+
+TEST_F(ModuleTest, ModuleInstantiationByIndexWithSourceFaliure) {
+  bool prev_import_attributes = i::v8_flags.js_source_phase_imports;
+  i::v8_flags.js_source_phase_imports = true;
+  HandleScope scope(isolate());
+  v8::TryCatch try_catch(isolate());
+
+  Local<Module> module;
+  {
+    Local<String> source_text = NewString(
+        "import source mod from './foo.wasm;'\n"
+        "export { mod };\n");
+    ScriptOrigin origin = ModuleOrigin(NewString("main.js"), isolate());
+    ScriptCompiler::Source source(source_text, origin);
+    module = ScriptCompiler::CompileModule(isolate(), &source).ToLocalChecked();
+    CHECK_EQ(Module::kUninstantiated, module->GetStatus());
+
+    Local<FixedArray> module_requests = module->GetModuleRequests();
+    CHECK_EQ(1, module_requests->Length());
+  }
+
+  // Instantiation should fail and the callback should only be called once.
+  {
+    v8::TryCatch inner_try_catch(isolate());
+    CHECK(module
+              ->InstantiateModule(context(),
+                                  ResolveModuleByIndexUnreachableCallback,
+                                  ResolveSourceByIndexFailureCallback)
+              .IsNothing());
+    CHECK(inner_try_catch.HasCaught());
+    CHECK(inner_try_catch.Exception()->StrictEquals(
+        NewString("module source 0 not found")));
+    CHECK_EQ(Module::kUninstantiated, module->GetStatus());
+  }
+
+  // Should not leak to the outer try-catch.
+  CHECK(!try_catch.HasCaught());
+  i::v8_flags.js_source_phase_imports = prev_import_attributes;
+}
+
+#if V8_ENABLE_WEBASSEMBLY
+
+// The bytes of a minimal WebAssembly module.
+static const uint8_t kMinimalWasmModuleBytes[]{0x00, 0x61, 0x73, 0x6d,
+                                               0x01, 0x00, 0x00, 0x00};
+
+static bool resolve_source_by_index_called = false;
+static v8::Global<v8::Object> wasm_module_global;
+MaybeLocal<v8::Object> ResolveSourceByIndexCallback(Local<Context> context,
+                                                    size_t module_request_index,
+                                                    Local<Module> referrer) {
+  CHECK(!resolve_source_by_index_called);
+  resolve_source_by_index_called = true;
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  return wasm_module_global.Get(isolate);
+}
+
+TEST_F(ModuleTest, ModuleInstantiationByIndexWithSource) {
+  bool prev_import_attributes = i::v8_flags.js_source_phase_imports;
+  i::v8_flags.js_source_phase_imports = true;
+  HandleScope scope(isolate());
+  v8::TryCatch try_catch(isolate());
+
+  Local<Module> module;
+  {
+    Local<String> source_text = NewString(
+        "import source mod from './foo.wasm';\n"
+        "export { mod };\n");
+    ScriptOrigin origin = ModuleOrigin(NewString("main.js"), isolate());
+    ScriptCompiler::Source source(source_text, origin);
+    module = ScriptCompiler::CompileModule(isolate(), &source).ToLocalChecked();
+    CHECK_EQ(Module::kUninstantiated, module->GetStatus());
+
+    Local<FixedArray> module_requests = module->GetModuleRequests();
+    CHECK_EQ(1, module_requests->Length());
+
+    Local<ModuleRequest> module_request_0 =
+        module_requests->Get(context(), 0).As<ModuleRequest>();
+    CHECK(NewString("./foo.wasm")
+              ->StrictEquals(module_request_0->GetSpecifier()));
+    CHECK_EQ(v8::ModuleImportPhase::kSource, module_request_0->GetPhase());
+  }
+
+  {
+    Local<v8::WasmModuleObject> wasm_module =
+        v8::WasmModuleObject::Compile(
+            isolate(),
+            {kMinimalWasmModuleBytes, arraysize(kMinimalWasmModuleBytes)})
+            .ToLocalChecked();
+    wasm_module_global.Reset(isolate(), wasm_module);
+  }
+
+  // Instantiate using index-based callback
+  CHECK(module
+            ->InstantiateModule(context(),
+                                ResolveModuleByIndexUnreachableCallback,
+                                ResolveSourceByIndexCallback)
+            .FromJust());
+  CHECK_EQ(Module::kInstantiated, module->GetStatus());
+
+  // Verify evaluation works
+  MaybeLocal<Value> result = module->Evaluate(context());
+  CHECK_EQ(Module::kEvaluated, module->GetStatus());
+  Local<Promise> promise = Local<Promise>::Cast(result.ToLocalChecked());
+  CHECK_EQ(promise->State(), v8::Promise::kFulfilled);
+
+  CHECK(!try_catch.HasCaught());
+  Local<Value> mod = module->GetModuleNamespace()
+                         .As<v8::Object>()
+                         ->Get(context(), NewString("mod"))
+                         .ToLocalChecked();
+  CHECK(mod->StrictEquals(wasm_module_global.Get(isolate())));
+
+  i::v8_flags.js_source_phase_imports = prev_import_attributes;
+  wasm_module_global.Reset();
+}
+
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 }  // anonymous namespace

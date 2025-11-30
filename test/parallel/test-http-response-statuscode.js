@@ -74,10 +74,10 @@ server.listen();
 
 const countdown = new Countdown(MAX_REQUESTS, () => server.close());
 
-server.on('listening', function makeRequest() {
+server.on('listening', common.mustCall(function makeRequest() {
   http.get({
     port: this.address().port
-  }, (res) => {
+  }, common.mustCall((res) => {
     assert.strictEqual(res.statusCode, 200);
     res.on('end', () => {
       countdown.dec();
@@ -86,5 +86,5 @@ server.on('listening', function makeRequest() {
         makeRequest.call(this);
     });
     res.resume();
-  });
-});
+  }));
+}));

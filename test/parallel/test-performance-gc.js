@@ -46,9 +46,9 @@ const kinds = [
 // GC should not keep the event loop alive
 {
   let didCall = false;
-  process.on('beforeExit', () => {
+  process.on('beforeExit', common.mustCall(() => {
     assert(!didCall);
     didCall = true;
     globalThis.gc();
-  });
+  }));
 }

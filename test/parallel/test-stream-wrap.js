@@ -19,10 +19,10 @@ function testShutdown(callback) {
   const wrap = new StreamWrap(stream);
 
   const req = new ShutdownWrap();
-  req.oncomplete = function(code) {
+  req.oncomplete = common.mustCall(function(code) {
     assert(code < 0);
     callback();
-  };
+  });
   req.handle = wrap._handle;
 
   // Close the handle to simulate

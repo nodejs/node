@@ -126,10 +126,12 @@ using ConservativeStackVisitorTest = TestWithHeapInternalsAndContext;
 // Stack::IteratePointers.
 
 TEST_F(ConservativeStackVisitorTest, DirectBasePointer) {
+  ManualGCScope manual_gc_scope(isolate());
   auto recorder = std::make_unique<RecordingVisitor>(isolate());
 
   // Ensure the heap is iterable before CSS.
-  IsolateSafepointScope safepoint_scope(heap());
+  SafepointScope safepoint_scope(isolate(),
+                                 kGlobalSafepointForSharedSpaceIsolate);
   heap()->MakeHeapIterable();
 
   {
@@ -156,7 +158,8 @@ TEST_F(ConservativeStackVisitorTest, TaggedBasePointer) {
   auto recorder = std::make_unique<RecordingVisitor>(isolate());
 
   // Ensure the heap is iterable before CSS.
-  IsolateSafepointScope safepoint_scope(heap());
+  SafepointScope safepoint_scope(isolate(),
+                                 kGlobalSafepointForSharedSpaceIsolate);
   heap()->MakeHeapIterable();
 
   {
@@ -183,7 +186,8 @@ TEST_F(ConservativeStackVisitorTest, InnerPointer) {
   auto recorder = std::make_unique<RecordingVisitor>(isolate());
 
   // Ensure the heap is iterable before CSS.
-  IsolateSafepointScope safepoint_scope(heap());
+  SafepointScope safepoint_scope(isolate(),
+                                 kGlobalSafepointForSharedSpaceIsolate);
   heap()->MakeHeapIterable();
 
   {
@@ -212,7 +216,8 @@ TEST_F(ConservativeStackVisitorTest, HalfWord1) {
   auto recorder = std::make_unique<RecordingVisitor>(isolate());
 
   // Ensure the heap is iterable before CSS.
-  IsolateSafepointScope safepoint_scope(heap());
+  SafepointScope safepoint_scope(isolate(),
+                                 kGlobalSafepointForSharedSpaceIsolate);
   heap()->MakeHeapIterable();
 
   {
@@ -241,7 +246,8 @@ TEST_F(ConservativeStackVisitorTest, HalfWord2) {
   auto recorder = std::make_unique<RecordingVisitor>(isolate());
 
   // Ensure the heap is iterable before CSS.
-  IsolateSafepointScope safepoint_scope(heap());
+  SafepointScope safepoint_scope(isolate(),
+                                 kGlobalSafepointForSharedSpaceIsolate);
   heap()->MakeHeapIterable();
 
   {
@@ -270,7 +276,8 @@ TEST_F(ConservativeStackVisitorTest, InnerHalfWord1) {
   auto recorder = std::make_unique<RecordingVisitor>(isolate());
 
   // Ensure the heap is iterable before CSS.
-  IsolateSafepointScope safepoint_scope(heap());
+  SafepointScope safepoint_scope(isolate(),
+                                 kGlobalSafepointForSharedSpaceIsolate);
   heap()->MakeHeapIterable();
 
   {
@@ -299,7 +306,8 @@ TEST_F(ConservativeStackVisitorTest, InnerHalfWord2) {
   auto recorder = std::make_unique<RecordingVisitor>(isolate());
 
   // Ensure the heap is iterable before CSS.
-  IsolateSafepointScope safepoint_scope(heap());
+  SafepointScope safepoint_scope(isolate(),
+                                 kGlobalSafepointForSharedSpaceIsolate);
   heap()->MakeHeapIterable();
 
   {

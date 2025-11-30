@@ -93,27 +93,11 @@
  *      }
  *    };
  *
- *    // TODO(mslekova): Clean-up these constants
- *    // The constants kV8EmbedderWrapperTypeIndex and
- *    // kV8EmbedderWrapperObjectIndex describe the offsets for the type info
- *    // struct and the native object, when expressed as internal field indices
- *    // within a JSObject. The existance of this helper function assumes that
- *    // all embedder objects have their JSObject-side type info at the same
- *    // offset, but this is not a limitation of the API itself. For a detailed
- *    // use case, see the third example.
- *    static constexpr int kV8EmbedderWrapperTypeIndex = 0;
- *    static constexpr int kV8EmbedderWrapperObjectIndex = 1;
- *
  *    // The following setup function can be templatized based on
  *    // the {embedder_object} argument.
  *    void SetupCustomEmbedderObject(v8::Isolate* isolate,
  *                                   v8::Local<v8::Context> context,
  *                                   CustomEmbedderType* embedder_object) {
- *      isolate->set_embedder_wrapper_type_index(
- *        kV8EmbedderWrapperTypeIndex);
- *      isolate->set_embedder_wrapper_object_index(
- *        kV8EmbedderWrapperObjectIndex);
- *
  *      v8::CFunction c_func =
  *        MakeV8CFunction(CustomEmbedderType::FastMethod);
  *
@@ -225,6 +209,7 @@
 #include <tuple>
 #include <type_traits>
 
+#include "v8-external.h"      // NOLINT(build/include_directory)
 #include "v8-internal.h"      // NOLINT(build/include_directory)
 #include "v8-local-handle.h"  // NOLINT(build/include_directory)
 #include "v8-typed-array.h"   // NOLINT(build/include_directory)
@@ -235,7 +220,6 @@ namespace v8 {
 
 class Isolate;
 
-START_ALLOW_USE_DEPRECATED()
 class CTypeInfo {
  public:
   enum class Type : uint8_t {
@@ -269,14 +253,6 @@ class CTypeInfo {
   // than any valid Type enum.
   static constexpr Type kCallbackOptionsType = Type(255);
 
-  enum class V8_DEPRECATE_SOON(
-      "There is no special support in V8 anymore, there is no need to"
-      "use a SequenceType") SequenceType : uint8_t {
-    kScalar,
-    kIsSequence,    // sequence<T>
-    kIsArrayBuffer  // ArrayBuffer
-  };
-
   enum class Flags : uint8_t {
     kNone = 0,
     kAllowSharedBit = 1 << 0,   // Must be an ArrayBuffer or TypedArray
@@ -286,27 +262,18 @@ class CTypeInfo {
   };
 
   explicit constexpr CTypeInfo(Type type, Flags flags = Flags::kNone)
-      : type_(type), sequence_type_(SequenceType::kScalar), flags_(flags) {}
-
-  V8_DEPRECATE_SOON("Use CTypeInfo(Type, Flags) instead")
-  constexpr CTypeInfo(Type type, SequenceType sequence_type,
-                      Flags flags = Flags::kNone)
-      : type_(type), sequence_type_(sequence_type), flags_(flags) {}
+      : type_(type), flags_(flags) {}
 
   typedef uint32_t Identifier;
   explicit constexpr CTypeInfo(Identifier identifier)
-      : CTypeInfo(static_cast<Type>(identifier >> 16),
-                  static_cast<SequenceType>((identifier >> 8) & 255),
-                  static_cast<Flags>(identifier & 255)) {}
+      : type_(static_cast<Type>((identifier >> 8) & 255)),
+        flags_(static_cast<Flags>(identifier & 255)) {}
   constexpr Identifier GetId() const {
-    return static_cast<uint8_t>(type_) << 16 |
-           static_cast<uint8_t>(sequence_type_) << 8 |
+    return static_cast<uint8_t>(type_) << 8 |
            static_cast<uint8_t>(flags_);
   }
 
   constexpr Type GetType() const { return type_; }
-  V8_DEPRECATE_SOON("Use the constant SequenceType::kScalar instead")
-  constexpr SequenceType GetSequenceType() const { return sequence_type_; }
   constexpr Flags GetFlags() const { return flags_; }
 
   static constexpr bool IsIntegralType(Type type) {
@@ -326,10 +293,8 @@ class CTypeInfo {
 
  private:
   Type type_;
-  SequenceType sequence_type_;
   Flags flags_;
 };
-END_ALLOW_USE_DEPRECATED()
 
 struct FastOneByteString {
   const char* data;
@@ -714,8 +679,7 @@ class CFunctionBuilderWithFunction {
   // Flags in the template parameter pack are ignored.
   template <unsigned int N, CTypeInfo::Flags... Flags>
   struct GetArgBuilder<false, N, Flags...> {
-    using type =
-        typename std::tuple_element<N, std::tuple<ArgBuilders...>>::type;
+    using type = std::tuple_element_t<N, std::tuple<ArgBuilders...>>;
   };
 
   // Returns an ArgBuilder with the same base type as the one at index N,
@@ -723,10 +687,8 @@ class CFunctionBuilderWithFunction {
   template <unsigned int N, CTypeInfo::Flags... Flags>
   struct GetArgBuilder<true, N, Flags...> {
     using type = CTypeInfoBuilder<
-        typename std::tuple_element<N,
-                                    std::tuple<ArgBuilders...>>::type::BaseType,
-        std::tuple_element<N, std::tuple<ArgBuilders...>>::type::Build()
-            .GetFlags(),
+        typename std::tuple_element_t<N, std::tuple<ArgBuilders...>>::BaseType,
+        std::tuple_element_t<N, std::tuple<ArgBuilders...>>::Build().GetFlags(),
         Flags...>;
   };
 
@@ -813,6 +775,9 @@ bool V8_EXPORT V8_WARN_UNUSED_RESULT
 TryToCopyAndConvertArrayToCppBuffer<CTypeInfoBuilder<double>::Build().GetId(),
                                     double>(Local<Array> src, double* dst,
                                             uint32_t max_length);
+
+constexpr v8::ExternalPointerTypeTag kFastAPIPointerTag =
+    V8_EXTERNAL_POINTER_TAG_COUNT - 1;
 
 }  // namespace v8
 

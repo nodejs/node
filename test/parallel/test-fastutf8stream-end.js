@@ -2,9 +2,7 @@
 
 const common = require('../common');
 const tmpdir = require('../common/tmpdir');
-const {
-  strictEqual,
-} = require('node:assert');
+const assert = require('node:assert');
 const fs = require('node:fs');
 const { Utf8Stream } = require('node:fs');
 const { join } = require('node:path');
@@ -35,7 +33,7 @@ function runTests(sync) {
       stream.write('after reopen\n');
       stream.on('finish', common.mustCall(() => {
         fs.readFile(after, 'utf8', common.mustSucceed((data) => {
-          strictEqual(data, 'after reopen\n');
+          assert.strictEqual(data, 'after reopen\n');
         }));
       }));
       stream.end();
@@ -53,7 +51,7 @@ function runTests(sync) {
       stream.write('after reopen\n');
       stream.on('finish', common.mustCall(() => {
         fs.readFile(after, 'utf8', common.mustSucceed((data) => {
-          strictEqual(data, 'after reopen\n');
+          assert.strictEqual(data, 'after reopen\n');
         }));
       }));
       stream.end();
@@ -69,7 +67,7 @@ function runTests(sync) {
     stream.write('after reopen\n');
     stream.on('finish', common.mustCall(() => {
       fs.readFile(after, 'utf8', common.mustSucceed((data) => {
-        strictEqual(data, 'after reopen\n');
+        assert.strictEqual(data, 'after reopen\n');
       }));
     }));
 
@@ -102,8 +100,8 @@ function runTests(sync) {
 
     stream.on('finish', common.mustCall(() => {
       fs.readFile(dest, 'utf8', common.mustSucceed((data) => {
-        strictEqual(data.length, 10000);
-        strictEqual(data, str);
+        assert.strictEqual(data.length, 10000);
+        assert.strictEqual(data, str);
       }));
     }));
 

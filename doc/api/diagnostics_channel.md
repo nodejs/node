@@ -374,7 +374,9 @@ added:
  - v15.1.0
  - v14.17.0
 changes:
-  - version: v24.8.0
+  - version:
+    - v24.8.0
+    - v22.20.0
     pr-url: https://github.com/nodejs/node/pull/59758
     description: Deprecation revoked.
   - version:
@@ -419,7 +421,9 @@ added:
  - v15.1.0
  - v14.17.0
 changes:
-  - version: v24.8.0
+  - version:
+    - v24.8.0
+    - v22.20.0
     pr-url: https://github.com/nodejs/node/pull/59758
     description: Deprecation revoked.
   - version:
@@ -1238,6 +1242,23 @@ Emitted when an error occurs during the processing of a stream on the client.
 * `flags` {number}
 
 Emitted when a stream is received on the client.
+
+##### Event: `'http2.client.stream.bodyChunkSent'`
+
+* `stream` {ClientHttp2Stream}
+* `writev` {boolean}
+* `data` {Buffer | string | Buffer\[] | Object\[]}
+  * `chunk` {Buffer|string}
+  * `encoding` {string}
+* `encoding` {string}
+
+Emitted when a chunk of the client stream body is being sent.
+
+##### Event: `'http2.client.stream.bodySent'`
+
+* `stream` {ClientHttp2Stream}
+
+Emitted after the client stream body has been fully sent.
 
 ##### Event: `'http2.client.stream.close'`
 

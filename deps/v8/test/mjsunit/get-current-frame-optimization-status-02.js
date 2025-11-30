@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --sparkplug --no-always-sparkplug --maglev --turbofan
-// Flags: --no-always-turbofan --allow-natives-syntax --concurrent-recompilation
+// Flags: --allow-natives-syntax --concurrent-recompilation
 
 // Note: OSR from Maglev to Turbofan requires --concurrent-recompilation.
 

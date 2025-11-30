@@ -17,7 +17,7 @@
 namespace v8 {
 namespace internal {
 
-template <typename TSlot>
+template <typename TSlot, RecordYoungSlot kRecordYoung>
 void MarkingBarrier::Write(Tagged<HeapObject> host, TSlot slot,
                            Tagged<HeapObject> value) {
   DCHECK(IsCurrentMarkingBarrier(host));
@@ -26,8 +26,13 @@ void MarkingBarrier::Write(Tagged<HeapObject> host, TSlot slot,
 
   MarkValue(host, value);
 
-  if (slot.address() && IsCompacting(host)) {
-    MarkCompactCollector::RecordSlot(host, slot, value);
+  // When recording slots to young pointers, we need to call RecordSlot even if
+  // IsCompacting() returns true. This is because IsCompacting() simply returns
+  // false when there are no evacuation candidates. New space pages are not
+  // considered evacuation candidates and may still be relocated.
+  if (slot.address() &&
+      (static_cast<bool>(kRecordYoung) || IsCompacting(host))) {
+    MarkCompactCollector::RecordSlot<TSlot, kRecordYoung>(host, slot, value);
   }
 }
 

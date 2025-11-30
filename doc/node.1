@@ -207,8 +207,8 @@ Enable experimental support for the EventSource Web API.
 .It Fl -no-experimental-websocket
 Disable experimental support for the WebSocket API.
 .
-.It Fl -experimental-webstorage
-Enable experimental support for the Web Storage API.
+.It Fl -no-experimental-webstorage
+Disable experimental support for the Web Storage API.
 .
 .It Fl -no-experimental-repl-await
 Disable top-level await keyword support in REPL.
@@ -216,8 +216,8 @@ Disable top-level await keyword support in REPL.
 .It Fl -no-experimental-sqlite
 Disable the experimental node:sqlite module.
 .
-.It Fl -no-experimental-strip-types
-Disable experimental type-stripping for TypeScript files.
+.It Fl -no-strip-types
+Disable type-stripping for TypeScript files.
 .
 .It Fl -experimental-vm-modules
 Enable experimental ES module support in VM module.
@@ -339,7 +339,7 @@ The file used to store localStorage data.
 Specify the maximum size of HTTP headers in bytes. Defaults to 16 KiB.
 .
 .It Fl -max-old-space-size-percentage Ns = Ns Ar percentage
-Sets the max memory size of V8's old memory section as a percentage of available system memory.
+Sets the maximum memory size of V8's old memory section as a percentage of available system memory.
 This flag takes precedence over
 .Fl -max-old-space-size
 when both are specified.
@@ -347,6 +347,10 @@ The
 .Ar percentage
 parameter must be a number greater than 0 and up to 100, representing the percentage
 of available system memory to allocate to the V8 heap.
+.Pp
+Note: This flag utilizes
+.Fl -max-old-space-size ,
+which may be unreliable on 32-bit platforms due to integer overflow issues.
 .
 .It Fl -napi-modules
 This option is a no-op.

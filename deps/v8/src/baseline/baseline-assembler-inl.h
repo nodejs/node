@@ -57,6 +57,11 @@ void BaselineAssembler::RecordComment(const char* string) {
 }
 void BaselineAssembler::Trap() { __ Trap(); }
 void BaselineAssembler::DebugBreak() { __ DebugBreak(); }
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+void BaselineAssembler::AssertInSandboxedExecutionMode() {
+  __ AssertInSandboxedExecutionMode();
+}
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
 void BaselineAssembler::CallRuntime(Runtime::FunctionId function, int nargs) {
   __ CallRuntime(function, nargs);
 }

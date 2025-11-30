@@ -6,6 +6,7 @@
 
 #include <iomanip>
 
+#include "src/base/string-format.h"
 #include "src/codegen/handler-table.h"
 #include "src/codegen/source-position-table.h"
 #include "src/common/globals.h"
@@ -90,7 +91,7 @@ void BytecodeArray::PrintJson(std::ostream& os) {
     for (int i = 0; i < constant_pool_length; i++) {
       Tagged<Object> object = constant_pool()->get(i);
       if (i > 0) os << ", ";
-      os << "\"" << object << "\"";
+      os << "\"" << base::JSONEscaped(object) << "\"";
     }
     os << "]";
   }
@@ -124,7 +125,11 @@ void BytecodeArray::Disassemble(Handle<BytecodeArray> handle,
     if (!source_positions.done() &&
         iterator.current_offset() == source_positions.code_offset()) {
       os << std::setw(5) << source_positions.source_position().ScriptOffset();
-      os << (source_positions.is_statement() ? " S> " : " E> ");
+      if (source_positions.is_breakable()) {
+        os << (source_positions.is_statement() ? " S> " : " E> ");
+      } else {
+        os << (source_positions.is_statement() ? " s> " : " e> ");
+      }
       source_positions.Advance();
     } else {
       os << "         ";

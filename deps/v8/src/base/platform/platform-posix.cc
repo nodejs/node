@@ -10,12 +10,14 @@
 #include <limits.h>
 #include <pthread.h>
 
+#include "src/base/fpu.h"
 #include "src/base/logging.h"
 #if defined(__DragonFly__) || defined(__FreeBSD__) || defined(__OpenBSD__)
 #include <pthread_np.h>  // for pthread_set_name_np
 #endif
 #include <fcntl.h>
 #include <sched.h>  // for sched_yield
+#include <signal.h>
 #include <stdio.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
@@ -127,15 +129,6 @@ DEFINE_LAZY_LEAKY_OBJECT_GETTER(RandomNumberGenerator,
 static LazyMutex rng_mutex = LAZY_MUTEX_INITIALIZER;
 
 #if !V8_OS_FUCHSIA && !V8_OS_ZOS
-#if V8_OS_DARWIN
-// kMmapFd is used to pass vm_alloc flags to tag the region with the user
-// defined tag 255 This helps identify V8-allocated regions in memory analysis
-// tools like vmmap(1).
-const int kMmapFd = VM_MAKE_TAG(255);
-#else   // !V8_OS_DARWIN
-const int kMmapFd = -1;
-#endif  // !V8_OS_DARWIN
-
 #if defined(V8_TARGET_OS_MACOS) && V8_HOST_ARCH_ARM64
 // During snapshot generation in cross builds, sysconf() runs on the Intel
 // host and returns host page size, while the snapshot needs to use the
@@ -147,9 +140,16 @@ const int kMmapFdOffset = 0;
 
 enum class PageType { kShared, kPrivate };
 
-int GetFlagsForMemoryPermission(OS::MemoryPermission access,
-                                PageType page_type) {
-  int flags = MAP_ANONYMOUS;
+int GetFlagsForMemoryPermission(OS::MemoryPermission access, PageType page_type,
+                                PlatformSharedMemoryHandle handle,
+                                bool fixed = false) {
+  int flags = 0;
+  if (handle == kInvalidSharedMemoryHandle) {
+    flags |= MAP_ANONYMOUS;
+  }
+  if (fixed) {
+    flags |= MAP_FIXED;
+  }
   flags |= (page_type == PageType::kShared) ? MAP_SHARED : MAP_PRIVATE;
   if (access == OS::MemoryPermission::kNoAccess ||
       access == OS::MemoryPermission::kNoAccessWillJitLater) {
@@ -174,10 +174,20 @@ int GetFlagsForMemoryPermission(OS::MemoryPermission access,
 }
 
 void* Allocate(void* hint, size_t size, OS::MemoryPermission access,
-               PageType page_type) {
+               PageType page_type,
+               PlatformSharedMemoryHandle handle = kInvalidSharedMemoryHandle,
+               bool fixed = false) {
   int prot = GetProtectionFromMemoryPermission(access);
-  int flags = GetFlagsForMemoryPermission(access, page_type);
-  void* result = mmap(hint, size, prot, flags, kMmapFd, kMmapFdOffset);
+  int flags = GetFlagsForMemoryPermission(access, page_type, handle, fixed);
+#if V8_OS_DARWIN
+  // fd is used to pass vm_alloc flags to tag the region with the user
+  // defined tag 255 This helps identify V8-allocated regions in memory analysis
+  // tools like vmmap(1).
+  int fd = VM_MAKE_TAG(255);
+#else
+  int fd = FileDescriptorFromSharedMemoryHandle(handle);
+#endif
+  void* result = mmap(hint, size, prot, flags, fd, kMmapFdOffset);
   if (result == MAP_FAILED) return nullptr;
 
 #if V8_OS_LINUX && V8_ENABLE_PRIVATE_MAPPING_FORK_OPTIMIZATION
@@ -284,12 +294,48 @@ void OS::Initialize(AbortMode abort_mode, const char* const gc_fake_mmap) {
 
 bool OS::IsHardwareEnforcedShadowStacksEnabled() { return false; }
 
+void OS::EnsureAlternativeSignalStackIsAvailableForCurrentThread() {
+// sigaltstack() is forbidden on tvOS and its usage causes build errors.
+#if !V8_OS_TVOS
+  stack_t ss, old_ss;
+  memset(&ss, 0, sizeof(stack_t));
+  memset(&old_ss, 0, sizeof(stack_t));
+
+  if (sigaltstack(nullptr, &old_ss) == -1) {
+    FATAL("sigaltstack failed with error %d: %s", errno, strerror(errno));
+  }
+
+  // If an alternative stack is already registered, there's nothing left to do.
+  if (!(old_ss.ss_flags & SS_DISABLE)) return;
+
+  // The default alternative stack size of SIGSTKSZ can be too small (e.g.
+  // 8192). For example the profiler signal handler requires a larger stack.
+  const size_t kStackSize = 1024 * 1024;
+  CHECK_GE(kStackSize, SIGSTKSZ);
+  // Allocate the alternative stack with guard regions on both sides to
+  // ensure that we catch stack overflows (and similar issues) on that stack.
+  const size_t kPageSize = AllocatePageSize();
+  const size_t kAllocationSize = kStackSize + 2 * kPageSize;
+  void* ptr = Allocate(nullptr, kAllocationSize, kPageSize,
+                       MemoryPermission::kNoAccess);
+  CHECK_NE(ptr, nullptr);
+  void* stack_ptr = reinterpret_cast<char*>(ptr) + kPageSize;
+  CHECK(SetPermissions(stack_ptr, kStackSize, MemoryPermission::kReadWrite));
+
+  ss.ss_sp = stack_ptr;
+  ss.ss_size = kStackSize;
+  ss.ss_flags = 0;
+
+  if (sigaltstack(&ss, nullptr) == -1) {
+    FATAL("sigaltstack failed with error %d: %s", errno, strerror(errno));
+  }
+#endif
+}
+
 int OS::ActivationFrameAlignment() {
 #if V8_TARGET_ARCH_ARM
   // On EABI ARM targets this is required for fp correctness in the
   // runtime system.
-  return 8;
-#elif V8_TARGET_ARCH_MIPS
   return 8;
 #elif V8_TARGET_ARCH_S390X
   return 8;
@@ -431,7 +477,7 @@ void* OS::GetRandomMmapAddr() {
 #if !V8_OS_ZOS
 // static
 void* OS::Allocate(void* hint, size_t size, size_t alignment,
-                   MemoryPermission access) {
+                   MemoryPermission access, PlatformSharedMemoryHandle handle) {
   size_t page_size = AllocatePageSize();
   DCHECK_EQ(0, size % page_size);
   DCHECK_EQ(0, alignment % page_size);
@@ -439,7 +485,8 @@ void* OS::Allocate(void* hint, size_t size, size_t alignment,
   // Add the maximum misalignment so we are guaranteed an aligned base address.
   size_t request_size = size + (alignment - page_size);
   request_size = RoundUp(request_size, OS::AllocatePageSize());
-  void* result = base::Allocate(hint, request_size, access, PageType::kPrivate);
+  PageType page_type = PageType::kPrivate;
+  void* result = base::Allocate(hint, request_size, access, page_type, handle);
   if (result == nullptr) return nullptr;
 
   // Unmap memory allocated before the aligned base address.
@@ -461,6 +508,17 @@ void* OS::Allocate(void* hint, size_t size, size_t alignment,
   }
 
   DCHECK_EQ(size, request_size);
+
+  if (aligned_base != base && handle != kInvalidSharedMemoryHandle) {
+    // We have to remap because the base of mapping must correspond to the base
+    // of the the underlying file.
+    uint8_t* new_base = reinterpret_cast<uint8_t*>(base::Allocate(
+        aligned_base, size, access, page_type, handle, true /* fixed */));
+    if (new_base != aligned_base) {
+      return nullptr;
+    }
+  }
+
   return static_cast<void*>(aligned_base);
 }
 
@@ -649,19 +707,19 @@ bool OS::CanReserveAddressSpace() { return true; }
 
 // static
 std::optional<AddressSpaceReservation> OS::CreateAddressSpaceReservation(
-    void* hint, size_t size, size_t alignment,
-    MemoryPermission max_permission) {
+    void* hint, size_t size, size_t alignment, MemoryPermission max_permission,
+    PlatformSharedMemoryHandle handle) {
   // On POSIX, address space reservations are backed by private memory mappings.
   MemoryPermission permission = MemoryPermission::kNoAccess;
   if (max_permission == MemoryPermission::kReadWriteExecute) {
     permission = MemoryPermission::kNoAccessWillJitLater;
   }
 
-  void* reservation = Allocate(hint, size, alignment, permission);
+  void* reservation = Allocate(hint, size, alignment, permission, handle);
   if (!reservation && permission == MemoryPermission::kNoAccessWillJitLater) {
     // Retry without MAP_JIT, for example in case we are running on an old OS X.
     permission = MemoryPermission::kNoAccess;
-    reservation = Allocate(hint, size, alignment, permission);
+    reservation = Allocate(hint, size, alignment, permission, handle);
   }
 
   if (!reservation) return {};
@@ -741,6 +799,7 @@ void OS::Abort() {
       _exit(-1);
     case AbortMode::kImmediateCrash:
       IMMEDIATE_CRASH();
+    case AbortMode::kExitIfNoSecurityImpact:
     case AbortMode::kDefault:
       break;
   }
@@ -1204,6 +1263,10 @@ static void SetThreadName(const char* name) {
 }
 
 static void* ThreadEntry(void* arg) {
+  // Reset denormals state to default, in case we picked up a non-default one
+  // with the posix clone() call.
+  base::FPU::SetFlushDenormals(false);
+
   Thread* thread = reinterpret_cast<Thread*>(arg);
   // We take the lock here to make sure that pthread_create finished first since
   // we don't know which thread will run first (the original thread or the new

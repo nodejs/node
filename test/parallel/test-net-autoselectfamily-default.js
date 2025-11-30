@@ -10,12 +10,12 @@ const autoSelectFamilyAttemptTimeout = common.defaultAutoSelectFamilyAttemptTime
 
 // Test that IPV4 is reached by default if IPV6 is not reachable and the default is enabled
 {
-  const ipv4Server = createServer((socket) => {
+  const ipv4Server = createServer(common.mustCall((socket) => {
     socket.on('data', common.mustCall(() => {
       socket.write('response-ipv4');
       socket.end();
     }));
-  });
+  }));
 
   ipv4Server.listen(0, '127.0.0.1', common.mustCall(() => {
     setDefaultAutoSelectFamily(true);
@@ -45,12 +45,12 @@ const autoSelectFamilyAttemptTimeout = common.defaultAutoSelectFamilyAttemptTime
 
 // Test that IPV4 is not reached by default if IPV6 is not reachable and the default is disabled
 {
-  const ipv4Server = createServer((socket) => {
+  const ipv4Server = createServer(common.mustCallAtLeast((socket) => {
     socket.on('data', common.mustCall(() => {
       socket.write('response-ipv4');
       socket.end();
     }));
-  });
+  }, 0));
 
   ipv4Server.listen(0, '127.0.0.1', common.mustCall(() => {
     setDefaultAutoSelectFamily(false);

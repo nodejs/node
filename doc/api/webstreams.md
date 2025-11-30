@@ -1480,7 +1480,9 @@ changes:
 <!-- YAML
 added: v17.0.0
 changes:
-  - version: v24.7.0
+  - version:
+    - v24.7.0
+    - v22.20.0
     pr-url: https://github.com/nodejs/node/pull/59464
     description: format now accepts `brotli` value.
   - version:
@@ -1523,7 +1525,9 @@ changes:
 <!-- YAML
 added: v17.0.0
 changes:
-  - version: v24.7.0
+  - version:
+    - v24.7.0
+    - v22.20.0
     pr-url: https://github.com/nodejs/node/pull/59464
     description: format now accepts `brotli` value.
   - version:
@@ -1773,7 +1777,7 @@ text(readable).then((data) => {
 [Streams]: stream.md
 [WHATWG Streams Standard]: https://streams.spec.whatwg.org/
 [`stream.Duplex.fromWeb`]: stream.md#streamduplexfromwebpair-options
-[`stream.Duplex.toWeb`]: stream.md#streamduplextowebstreamduplex
+[`stream.Duplex.toWeb`]: stream.md#streamduplextowebstreamduplex-options
 [`stream.Duplex`]: stream.md#class-streamduplex
 [`stream.Readable.fromWeb`]: stream.md#streamreadablefromwebreadablestream-options
 [`stream.Readable.toWeb`]: stream.md#streamreadabletowebstreamreadable-options

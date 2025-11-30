@@ -1794,6 +1794,12 @@ The formatting process operates as follows:
   string, an [`Error`][] is thrown.
 * `result` is returned.
 
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/node-url-to-whatwg-url)).
+
+```bash
+npx codemod@latest @nodejs/node-url-to-whatwg-url
+```
+
 ### `url.parse(urlString[, parseQueryString[, slashesDenoteHost]])`
 
 <!-- YAML
@@ -1847,7 +1853,31 @@ A `URIError` is thrown if the `auth` property is present but cannot be decoded.
 strings. It is prone to security issues such as [host name spoofing][]
 and incorrect handling of usernames and passwords. Do not use with untrusted
 input. CVEs are not issued for `url.parse()` vulnerabilities. Use the
-[WHATWG URL][] API instead.
+[WHATWG URL][] API instead, for example:
+
+```js
+function getURL(req) {
+  const proto = req.headers['x-forwarded-proto'] || 'https';
+  const host = req.headers['x-forwarded-host'] || req.headers.host || 'example.com';
+  return new URL(`${proto}://${host}${req.url || '/'}`);
+}
+```
+
+The example above assumes well-formed headers are forwarded from a reverse
+proxy to your Node.js server. If you are not using a reverse proxy, you should
+use the example below:
+
+```js
+function getURL(req) {
+  return new URL(`https://example.com${req.url || '/'}`);
+}
+```
+
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/node-url-to-whatwg-url)).
+
+```bash
+npx codemod@latest @nodejs/node-url-to-whatwg-url
+```
 
 ### `url.resolve(from, to)`
 

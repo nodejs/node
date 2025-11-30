@@ -1,22 +1,11 @@
 'use strict';
 
 const common = require('../common');
-const ArrayStream = require('../common/arraystream');
 const { hijackStderr, restoreStderr } = require('../common/hijackstdio');
 const assert = require('assert');
+const { startNewREPLServer } = require('../common/repl');
 
-const repl = require('repl');
-
-const input = new ArrayStream();
-const replServer = repl.start({
-  prompt: '',
-  input,
-  output: process.stdout,
-  allowBlockingCompletions: true,
-});
-
-// Some errors are passed to the domain, but do not callback
-replServer._domain.on('error', assert.ifError);
+const { replServer, input } = startNewREPLServer();
 
 for (const type of [
   Array,
@@ -59,10 +48,10 @@ for (const type of [
 
       assert.strictEqual(data[0].includes('ele.biu'), true);
 
-      data[0].forEach((key) => {
+      for (const key of data[0]) {
         if (!key || key === 'ele.biu') return;
         assert.notStrictEqual(ele[key.slice(4)], undefined);
-      });
+      }
     })
   );
 }

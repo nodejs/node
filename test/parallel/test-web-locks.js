@@ -26,10 +26,10 @@ describe('Web Locks with worker threads', () => {
     assert.strictEqual(result.success, true);
     await worker.terminate();
 
-    await navigator.locks.request('exclusive-test', async (lock) => {
+    await navigator.locks.request('exclusive-test', common.mustCall(async (lock) => {
       assert.strictEqual(lock.mode, 'exclusive');
       assert.strictEqual(lock.name, 'exclusive-test');
-    });
+    }));
   });
 
   it('should handle shared locks', async () => {
@@ -48,41 +48,43 @@ describe('Web Locks with worker threads', () => {
     });
     assert.strictEqual(result.success, true);
 
-    await navigator.locks.request('shared-test', { mode: 'shared' }, async (lock1) => {
-      await navigator.locks.request('shared-test', { mode: 'shared' }, async (lock2) => {
+    await navigator.locks.request('shared-test', { mode: 'shared' }, common.mustCall(async (lock1) => {
+      await navigator.locks.request('shared-test', { mode: 'shared' }, common.mustCall(async (lock2) => {
         assert.strictEqual(lock1.mode, 'shared');
         assert.strictEqual(lock2.mode, 'shared');
-      });
-    });
+      }));
+    }));
 
     await worker.terminate();
   });
 
   it('should handle steal option - no existing lock', async () => {
-    await navigator.locks.request('steal-simple', { steal: true }, async (lock) => {
+    await navigator.locks.request('steal-simple', { steal: true }, common.mustCall(async (lock) => {
       assert.strictEqual(lock.name, 'steal-simple');
       assert.strictEqual(lock.mode, 'exclusive');
-    });
+    }));
   });
 
   it('should handle steal option - existing lock', async () => {
     let originalLockRejected = false;
 
-    const originalLockPromise = navigator.locks.request('steal-target', async (lock) => {
+    const originalLockPromise = navigator.locks.request('steal-target', common.mustCall(async (lock) => {
       assert.strictEqual(lock.name, 'steal-target');
       return 'original-completed';
-    }).catch((err) => {
+    })).catch(common.mustCall((err) => {
       originalLockRejected = true;
       assert.strictEqual(err.name, 'AbortError');
       assert.strictEqual(err.message, 'The operation was aborted');
       return 'original-rejected';
-    });
+    }));
 
-    const stealResult = await navigator.locks.request('steal-target', { steal: true }, async (stolenLock) => {
-      assert.strictEqual(stolenLock.name, 'steal-target');
-      assert.strictEqual(stolenLock.mode, 'exclusive');
-      return 'steal-completed';
-    });
+    const stealResult = await navigator.locks.request(
+      'steal-target', { steal: true },
+      common.mustCall(async (stolenLock) => {
+        assert.strictEqual(stolenLock.name, 'steal-target');
+        assert.strictEqual(stolenLock.mode, 'exclusive');
+        return 'steal-completed';
+      }));
 
     assert.strictEqual(stealResult, 'steal-completed');
 
@@ -92,7 +94,7 @@ describe('Web Locks with worker threads', () => {
   });
 
   it('should handle ifAvailable option', async () => {
-    await navigator.locks.request('ifavailable-test', async () => {
+    await navigator.locks.request('ifavailable-test', common.mustCall(async () => {
       const result = await navigator.locks.request('ifavailable-test', { ifAvailable: true }, (lock) => {
         return lock; // should be null
       });
@@ -105,7 +107,7 @@ describe('Web Locks with worker threads', () => {
                                                             });
 
       assert.strictEqual(availableResult, true);
-    });
+    }));
   });
 
   it('should handle AbortSignal', async () => {
@@ -179,18 +181,18 @@ describe('Web Locks with worker threads', () => {
     const als = new AsyncLocalStorage();
     const store = { id: 'lock' };
 
-    als.run(store, () => {
+    als.run(store, common.mustCall(() => {
       navigator.locks
-        .request('als-context-test', async () => {
+        .request('als-context-test', common.mustCall(async () => {
           assert.strictEqual(als.getStore(), store);
-        })
+        }))
         .then(common.mustCall());
-    });
+    }));
   });
 
   it('should clean up when worker is terminated with a pending lock', async () => {
     // Acquire the lock in the main thread so that the worker's request will be pending
-    await navigator.locks.request('cleanup-test', async () => {
+    await navigator.locks.request('cleanup-test', common.mustCall(async () => {
       // Launch a worker that requests the same lock
       const worker = new Worker(`
         const { parentPort } = require('worker_threads');
@@ -212,11 +214,11 @@ describe('Web Locks with worker threads', () => {
 
       await worker.terminate();
 
-    });
+    }));
 
     // Request the lock again to make sure cleanup succeeded
-    await navigator.locks.request('cleanup-test', async (lock) => {
+    await navigator.locks.request('cleanup-test', common.mustCall(async (lock) => {
       assert.strictEqual(lock.name, 'cleanup-test');
-    });
+    }));
   });
 });

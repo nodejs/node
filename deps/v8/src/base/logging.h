@@ -29,6 +29,8 @@ V8_BASE_EXPORT V8_NOINLINE void V8_Dcheck(const char* file, int line,
 [[noreturn]] PRINTF_FORMAT(3, 4) V8_BASE_EXPORT V8_NOINLINE
     void V8_Fatal(const char* file, int line, const char* format, ...);
 #define FATAL(...) V8_Fatal(__FILE__, __LINE__, __VA_ARGS__)
+#define FATAL_WITH_LOC(loc, ...) \
+  V8_Fatal((loc).FileName(), static_cast<int>((loc).Line()), __VA_ARGS__)
 
 // The following can be used instead of FATAL() to prevent calling
 // IMMEDIATE_CRASH in official mode. Please only use if needed for testing.
@@ -45,6 +47,7 @@ V8_BASE_EXPORT V8_NOINLINE void V8_Dcheck(const char* file, int line,
 // numbers. It saves binary size to drop the |file| & |line| as opposed to just
 // passing in "", 0 for them.
 #define FATAL(...) V8_Fatal(__VA_ARGS__)
+#define FATAL_WITH_LOC(loc, ...) FATAL(__VA_ARGS__)
 #else
 // FATAL(msg) -> IMMEDIATE_CRASH()
 // FATAL(msg, ...) -> V8_Fatal(msg, ...)
@@ -54,6 +57,7 @@ V8_BASE_EXPORT V8_NOINLINE void V8_Dcheck(const char* file, int line,
   FATAL_HELPER(__VA_ARGS__, V8_Fatal, V8_Fatal, V8_Fatal, V8_Fatal, V8_Fatal, \
                V8_Fatal, FATAL_DISCARD_ARG)                                   \
   (__VA_ARGS__)
+#define FATAL_WITH_LOC(loc, ...) FATAL(__VA_ARGS__)
 #endif  // !defined(OFFICIAL_BUILD)
 #endif  // DEBUG
 
@@ -101,6 +105,16 @@ enum class OOMType {
 // recognizes as such by fuzzers and other tooling.
 [[noreturn]] V8_BASE_EXPORT void FatalOOM(OOMType type, const char* msg);
 
+// A variant of Fatal that makes it clear that the failure does not have any
+// security impact. This is useful for automatic vulnerability discover systems
+// (e.g. fuzzers) to ignore or discard such crashes.
+//
+// USE WITH CARE! Using this function means that fuzzers will *not* report
+// situations in which the function is reached. Legitimate use cases include
+// expected crashes due to misconfigurations (e.g. invalid runtime flags) or
+// invalid use of (debug-only) runtime functions exposed to JS.
+[[noreturn]] V8_BASE_EXPORT void FatalNoSecurityImpact(const char* format, ...);
+
 // In official builds, assume all check failures can be debugged given just the
 // stack trace.
 #if !defined(DEBUG) && defined(OFFICIAL_BUILD)
@@ -125,11 +139,11 @@ enum class OOMType {
 
 #ifdef DEBUG
 
-#define DCHECK_WITH_MSG_AND_LOC(condition, message, loc)                \
-  do {                                                                  \
-    if (V8_UNLIKELY(!(condition))) {                                    \
-      V8_Dcheck(loc.FileName(), static_cast<int>(loc.Line()), message); \
-    }                                                                   \
+#define DCHECK_WITH_MSG_AND_LOC(condition, message, loc)                    \
+  do {                                                                      \
+    if (V8_UNLIKELY(!(condition))) {                                        \
+      V8_Dcheck((loc).FileName(), static_cast<int>((loc).Line()), message); \
+    }                                                                       \
   } while (false)
 #define DCHECK_WITH_MSG(condition, message)   \
   do {                                        \
@@ -207,16 +221,10 @@ auto GetUnderlyingEnumTypeForPrinting(T val) {
 
 }  // namespace detail
 
-// Define default PrintCheckOperand<T> for non-printable types.
-template <typename T>
-std::string PrintCheckOperand(T val) {
-  return "<unprintable>";
-}
-
 // Define PrintCheckOperand<T> for each T which defines operator<< for ostream,
 // except types explicitly specialized below.
 template <typename T>
-  requires(!std::is_function_v<typename std::remove_pointer<T>::type> &&
+  requires(!std::is_function_v<std::remove_pointer_t<T>> &&
            !std::is_enum_v<T> && has_output_operator<T, CheckMessageStream>)
 std::string PrintCheckOperand(T val) {
   return detail::PrintToString(std::forward<T>(val));
@@ -261,21 +269,25 @@ std::string PrintCheckOperand(T val) {
 template <typename T>
   requires(!has_output_operator<T, CheckMessageStream> &&
            requires(T t) {
-             { t.begin() } -> std::forward_iterator;
+             { std::begin(t) } -> std::forward_iterator;
            })
-std::string PrintCheckOperand(T container) {
+std::string PrintCheckOperand(const T& container) {
   CheckMessageStream oss;
-  oss << "{";
-  bool first = true;
-  for (const auto& val : container) {
-    if (!first) {
-      oss << ",";
-    } else {
-      first = false;
+  const size_t size = std::size(container);
+  oss << size << " element" << (size == 1 ? "" : "s");
+  if constexpr (requires(const T& t) { PrintCheckOperand(*std::begin(t)); }) {
+    oss << ": {";
+    bool first = true;
+    for (const auto& val : container) {
+      if (!first) {
+        oss << ",";
+      } else {
+        first = false;
+      }
+      oss << PrintCheckOperand(val);
     }
-    oss << PrintCheckOperand(val);
+    oss << "}";
   }
-  oss << "}";
   return oss.str();
 }
 
@@ -299,16 +311,27 @@ DEFINE_PRINT_CHECK_OPERAND_CHAR(unsigned char)
 // takes ownership of the returned string.
 template <typename Lhs, typename Rhs>
 V8_NOINLINE std::string* MakeCheckOpString(Lhs lhs, Rhs rhs, char const* msg) {
-  std::string lhs_str = PrintCheckOperand<Lhs>(lhs);
-  std::string rhs_str = PrintCheckOperand<Rhs>(rhs);
+  constexpr bool kLhsIsPrintable = requires { PrintCheckOperand(lhs); };
+  constexpr bool kRhsIsPrintable = requires { PrintCheckOperand(rhs); };
+
   CheckMessageStream ss;
   ss << msg;
-  constexpr size_t kMaxInlineLength = 50;
-  if (lhs_str.size() <= kMaxInlineLength &&
-      rhs_str.size() <= kMaxInlineLength) {
-    ss << " (" << lhs_str << " vs. " << rhs_str << ")";
-  } else {
-    ss << "\n   " << lhs_str << "\n vs.\n   " << rhs_str << "\n";
+  if constexpr (kLhsIsPrintable || kRhsIsPrintable) {
+    std::string tmp_lhs_str;
+    std::string tmp_rhs_str;
+    if constexpr (kLhsIsPrintable) tmp_lhs_str = PrintCheckOperand(lhs);
+    if constexpr (kRhsIsPrintable) tmp_rhs_str = PrintCheckOperand(rhs);
+    std::string_view lhs_str{kLhsIsPrintable ? std::string_view{tmp_lhs_str}
+                                             : "<unprintable>"};
+    std::string_view rhs_str{kRhsIsPrintable ? std::string_view{tmp_rhs_str}
+                                             : "<unprintable>"};
+
+    constexpr size_t kMaxInlineLength = 50;
+    if (std::max(lhs_str.size(), rhs_str.size()) <= kMaxInlineLength) {
+      ss << " (" << lhs_str << " vs. " << rhs_str << ")";
+    } else {
+      ss << "\n   " << lhs_str << "\n vs.\n   " << rhs_str << "\n";
+    }
   }
   return new std::string(ss.str());
 }
@@ -330,21 +353,20 @@ EXPLICIT_CHECK_OP_INSTANTIATION(void const*)
 #undef EXPLICIT_CHECK_OP_INSTANTIATION
 
 // comparison_underlying_type provides the underlying integral type of an enum,
-// or std::decay<T>::type if T is not an enum. Booleans are converted to
+// or std::decay_t<T> if T is not an enum. Booleans are converted to
 // "unsigned int", to allow "unsigned int == bool" comparisons.
 template <typename T>
 struct comparison_underlying_type {
   // std::underlying_type must only be used with enum types, thus use this
   // {Dummy} type if the given type is not an enum.
   enum Dummy {};
-  using decay = typename std::decay<T>::type;
+  using decay = std::decay_t<T>;
   static constexpr bool is_enum = std::is_enum_v<decay>;
-  using underlying = typename std::underlying_type<
-      typename std::conditional<is_enum, decay, Dummy>::type>::type;
-  using type_or_bool =
-      typename std::conditional<is_enum, underlying, decay>::type;
-  using type = typename std::conditional<std::is_same_v<type_or_bool, bool>,
-                                         unsigned int, type_or_bool>::type;
+  using underlying =
+      std::underlying_type_t<std::conditional_t<is_enum, decay, Dummy>>;
+  using type_or_bool = std::conditional_t<is_enum, underlying, decay>;
+  using type = std::conditional_t<std::is_same_v<type_or_bool, bool>,
+                                  unsigned int, type_or_bool>;
 };
 // Cast a value to its underlying type
 #define MAKE_UNDERLYING(Type, value) \
@@ -391,9 +413,9 @@ DEFINE_CMP_IMPL(GT, >)
 
 // Specialize the compare functions for signed vs. unsigned comparisons (via the
 // `requires` clause).
-#define MAKE_UNSIGNED(Type, value)         \
-  static_cast<typename std::make_unsigned< \
-      typename comparison_underlying_type<Type>::type>::type>(value)
+#define MAKE_UNSIGNED(Type, value)           \
+  static_cast<typename std::make_unsigned_t< \
+      typename comparison_underlying_type<Type>::type>>(value)
 #define DEFINE_SIGNED_MISMATCH_COMP(CHECK, NAME, IMPL)         \
   template <typename Lhs, typename Rhs>                        \
     requires(CHECK<Lhs, Rhs>::value)                           \

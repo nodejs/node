@@ -14,11 +14,9 @@ Note: This command is unaware of workspaces.
 
 ### Description
 
-This command will update the npm registry entry for a package, removing any
-deprecation warnings that currently exist.
+This command will update the npm registry entry for a package, removing any deprecation warnings that currently exist.
 
-It works in the same way as [npm deprecate](/commands/npm-deprecate), except
-that this command removes deprecation warnings instead of adding them.
+It works in the same way as [npm deprecate](/commands/npm-deprecate), except that this command removes deprecation warnings instead of adding them.
 
 ### Configuration
 

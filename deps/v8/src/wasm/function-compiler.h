@@ -16,18 +16,18 @@
 #include "src/codegen/compiler.h"
 #include "src/wasm/compilation-environment.h"
 #include "src/wasm/function-body-decoder.h"
+#include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-deopt-data.h"
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-tier.h"
 
-namespace v8 {
-namespace internal {
-
+namespace v8::internal {
 class Counters;
 class TurbofanCompilationJob;
+}  // namespace v8::internal
 
-namespace wasm {
+namespace v8::internal::wasm {
 
 class NativeModule;
 class WasmCode;
@@ -66,6 +66,7 @@ struct WasmCompilationResult {
   enum Kind : int8_t {
     kFunction,
     kWasmToJsWrapper,
+    kStackEntryWrapper,
 #if V8_ENABLE_DRUMBRAKE
     kInterpreterEntry,
 #endif  // V8_ENABLE_DRUMBRAKE
@@ -91,6 +92,7 @@ struct WasmCompilationResult {
   Kind kind = kFunction;
   ForDebugging for_debugging = kNotForDebugging;
   bool frame_has_feedback_slot = false;
+  base::OwnedVector<const WasmCode::EffectHandler> effect_handlers;
 };
 
 class V8_EXPORT_PRIVATE WasmCompilationUnit final {
@@ -102,15 +104,15 @@ class V8_EXPORT_PRIVATE WasmCompilationUnit final {
   }
 
   WasmCompilationResult ExecuteCompilation(CompilationEnv*,
-                                           const WireBytesStorage*, Counters*,
-                                           WasmDetectedFeatures* detected);
+                                           const WireBytesStorage*,
+                                           DelayedCounterUpdates*,
+                                           WasmDetectedFeatures*);
 
   ExecutionTier tier() const { return tier_; }
   ForDebugging for_debugging() const { return for_debugging_; }
   int func_index() const { return func_index_; }
 
-  static void CompileWasmFunction(Counters*, NativeModule*,
-                                  WasmDetectedFeatures* detected,
+  static void CompileWasmFunction(NativeModule*, WasmDetectedFeatures*,
                                   const WasmFunction*, ExecutionTier);
 
  private:
@@ -127,7 +129,7 @@ static_assert(sizeof(WasmCompilationUnit) <= 2 * kSystemPointerSize);
 class V8_EXPORT_PRIVATE JSToWasmWrapperCompilationUnit final {
  public:
   JSToWasmWrapperCompilationUnit(Isolate* isolate, const CanonicalSig* sig,
-                                 CanonicalTypeIndex sig_index);
+                                 bool receiver_is_first_param);
   ~JSToWasmWrapperCompilationUnit();
 
   // Allow move construction and assignment, for putting units in a std::vector.
@@ -142,11 +144,10 @@ class V8_EXPORT_PRIVATE JSToWasmWrapperCompilationUnit final {
   DirectHandle<Code> Finalize();
 
   const CanonicalSig* sig() const { return sig_; }
-  CanonicalTypeIndex sig_index() const { return sig_index_; }
 
   // Run a compilation unit synchronously.
   static DirectHandle<Code> CompileJSToWasmWrapper(
-      Isolate* isolate, const CanonicalSig* sig, CanonicalTypeIndex sig_index);
+      Isolate* isolate, const CanonicalSig* sig, bool receiver_is_first_param);
 
  private:
   // Wrapper compilation is bound to an isolate. Concurrent accesses to the
@@ -155,26 +156,24 @@ class V8_EXPORT_PRIVATE JSToWasmWrapperCompilationUnit final {
   // is guaranteed to be alive when this unit executes.
   Isolate* isolate_;
   const CanonicalSig* sig_;
-  CanonicalTypeIndex sig_index_;
+  bool receiver_is_first_param_;
   std::unique_ptr<OptimizedCompilationJob> job_;
 };
 
-inline bool CanUseGenericJsToWasmWrapper(const WasmModule* module,
+inline bool CanUseGenericJsToWasmWrapper(ModuleOrigin origin,
                                          const CanonicalSig* sig) {
 #if (V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_IA32 ||  \
      V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_S390X || V8_TARGET_ARCH_PPC64 || \
      V8_TARGET_ARCH_LOONG64)
   // We don't use the generic wrapper for asm.js, because it creates invalid
   // stack traces.
-  return !is_asmjs_module(module) && v8_flags.wasm_generic_wrapper &&
+  return origin == kWasmOrigin && v8_flags.wasm_generic_wrapper &&
          IsJSCompatibleSignature(sig);
 #else
   return false;
 #endif
 }
 
-}  // namespace wasm
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal::wasm
 
 #endif  // V8_WASM_FUNCTION_COMPILER_H_

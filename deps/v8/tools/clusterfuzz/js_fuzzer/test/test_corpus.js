@@ -153,7 +153,7 @@ describe('Fuzzilli corpus', () => {
     sandbox.restore();
   });
 
-  it('loads sources with all flags', () => {
+  it('loads normal-fuzzing sources with all flags', () => {
     const source = sourceHelpers.loadSource(
         helpers.FUZZILLI_TEST_CORPUS,
         'fuzzilli/fuzzdir-1/corpus/program_1.js');
@@ -165,5 +165,31 @@ describe('Fuzzilli corpus', () => {
       '--fuzzilli-flag2'
     ];
     assert.deepEqual(expectedFlags, source.flags);
+  });
+
+  it('loads diff-fuzz sources with all flags', () => {
+    const source = sourceHelpers.loadSource(
+        helpers.FUZZILLI_DIFF_FUZZ_TEST_CORPUS,
+        'fuzzilli/fuzzdir-diff-fuzz-1/corpus/program_2.js');
+    const expectedFlags = [
+      '--fuzzing',
+      '--fuzzilli-flag3',
+      '--random-seed=456',
+    ];
+    assert.deepEqual(expectedFlags, source.flags);
+  });
+
+  it('skips diff-fuzz sources', () => {
+    const expectedFiles = ['fuzzilli/fuzzdir-1/corpus/program_1.js'];
+    assert.deepEqual(
+        expectedFiles,
+        Array.from(helpers.FUZZILLI_TEST_CORPUS.relFiles()));
+  });
+
+  it('skips normal-fuzzing sources', () => {
+    const expectedFiles = ['fuzzilli/fuzzdir-diff-fuzz-1/corpus/program_2.js'];
+    assert.deepEqual(
+        expectedFiles,
+        Array.from(helpers.FUZZILLI_DIFF_FUZZ_TEST_CORPUS.relFiles()));
   });
 });

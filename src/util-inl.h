@@ -194,10 +194,14 @@ char ToLower(char c) {
   return std::tolower(c, std::locale::classic());
 }
 
-std::string ToLower(const std::string& in) {
-  std::string out(in.size(), 0);
-  for (size_t i = 0; i < in.size(); ++i)
-    out[i] = ToLower(in[i]);
+template <typename T>
+std::string ToLower(const T& in) {
+  auto it = std::cbegin(in);
+  auto end = std::cend(in);
+  std::string out(std::distance(it, end), 0);
+  size_t i;
+  for (i = 0; it != end; ++it, ++i) out[i] = ToLower(*it);
+  DCHECK_EQ(i, out.size());
   return out;
 }
 
@@ -205,10 +209,14 @@ char ToUpper(char c) {
   return std::toupper(c, std::locale::classic());
 }
 
-std::string ToUpper(const std::string& in) {
-  std::string out(in.size(), 0);
-  for (size_t i = 0; i < in.size(); ++i)
-    out[i] = ToUpper(in[i]);
+template <typename T>
+std::string ToUpper(const T& in) {
+  auto it = std::cbegin(in);
+  auto end = std::cend(in);
+  std::string out(std::distance(it, end), 0);
+  size_t i;
+  for (i = 0; it != end; ++it, ++i) out[i] = ToUpper(*it);
+  DCHECK_EQ(i, out.size());
   return out;
 }
 
@@ -328,14 +336,14 @@ v8::Maybe<void> FromV8Array(v8::Local<v8::Context> context,
                             std::vector<v8::Global<v8::Value>>* out) {
   uint32_t count = js_array->Length();
   out->reserve(count);
-  ArrayIterationData data{out, context->GetIsolate()};
+  ArrayIterationData data{out, v8::Isolate::GetCurrent()};
   return js_array->Iterate(context, PushItemToVector, &data);
 }
 
 v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
                                     std::string_view str,
                                     v8::Isolate* isolate) {
-  if (isolate == nullptr) isolate = context->GetIsolate();
+  if (isolate == nullptr) isolate = v8::Isolate::GetCurrent();
   if (str.size() >= static_cast<size_t>(v8::String::kMaxLength)) [[unlikely]] {
     // V8 only has a TODO comment about adding an exception when the maximum
     // string size is exceeded.
@@ -349,9 +357,29 @@ v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
 }
 
 v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
+                                    std::u16string_view str,
+                                    v8::Isolate* isolate) {
+  if (isolate == nullptr) isolate = v8::Isolate::GetCurrent();
+  if (str.length() >= static_cast<size_t>(v8::String::kMaxLength))
+      [[unlikely]] {
+    // V8 only has a TODO comment about adding an exception when the maximum
+    // string size is exceeded.
+    ThrowErrStringTooLong(isolate);
+    return v8::MaybeLocal<v8::Value>();
+  }
+
+  return v8::String::NewFromTwoByte(
+             isolate,
+             reinterpret_cast<const uint16_t*>(str.data()),
+             v8::NewStringType::kNormal,
+             str.length())
+      .FromMaybe(v8::Local<v8::String>());
+}
+
+v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
                                     v8_inspector::StringView str,
                                     v8::Isolate* isolate) {
-  if (isolate == nullptr) isolate = context->GetIsolate();
+  if (isolate == nullptr) isolate = v8::Isolate::GetCurrent();
   if (str.length() >= static_cast<size_t>(v8::String::kMaxLength))
       [[unlikely]] {
     // V8 only has a TODO comment about adding an exception when the maximum
@@ -378,7 +406,7 @@ template <typename T>
 v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
                                     const std::vector<T>& vec,
                                     v8::Isolate* isolate) {
-  if (isolate == nullptr) isolate = context->GetIsolate();
+  if (isolate == nullptr) isolate = v8::Isolate::GetCurrent();
   v8::EscapableHandleScope handle_scope(isolate);
 
   MaybeStackBuffer<v8::Local<v8::Value>, 128> arr(vec.size());
@@ -395,7 +423,7 @@ template <typename T>
 v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
                                     const std::set<T>& set,
                                     v8::Isolate* isolate) {
-  if (isolate == nullptr) isolate = context->GetIsolate();
+  if (isolate == nullptr) isolate = v8::Isolate::GetCurrent();
   v8::Local<v8::Set> set_js = v8::Set::New(isolate);
   v8::HandleScope handle_scope(isolate);
 
@@ -414,7 +442,7 @@ template <typename T, std::size_t U>
 v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
                                     const std::ranges::elements_view<T, U>& vec,
                                     v8::Isolate* isolate) {
-  if (isolate == nullptr) isolate = context->GetIsolate();
+  if (isolate == nullptr) isolate = v8::Isolate::GetCurrent();
   v8::EscapableHandleScope handle_scope(isolate);
 
   MaybeStackBuffer<v8::Local<v8::Value>, 128> arr(vec.size());
@@ -433,7 +461,7 @@ template <typename T, typename U>
 v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
                                     const std::unordered_map<T, U>& map,
                                     v8::Isolate* isolate) {
-  if (isolate == nullptr) isolate = context->GetIsolate();
+  if (isolate == nullptr) isolate = v8::Isolate::GetCurrent();
   v8::EscapableHandleScope handle_scope(isolate);
 
   v8::Local<v8::Map> ret = v8::Map::New(isolate);
@@ -476,7 +504,7 @@ template <typename T, typename>
 v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
                                     const T& number,
                                     v8::Isolate* isolate) {
-  if (isolate == nullptr) isolate = context->GetIsolate();
+  if (isolate == nullptr) isolate = v8::Isolate::GetCurrent();
   return ConvertNumberToV8Value(isolate, number);
 }
 
@@ -489,7 +517,7 @@ v8::Local<v8::Array> ToV8ValuePrimitiveArray(v8::Local<v8::Context> context,
           std::is_floating_point_v<T>,
       "Only primitive types (bool, integral, floating-point) are supported.");
 
-  if (isolate == nullptr) isolate = context->GetIsolate();
+  if (isolate == nullptr) isolate = v8::Isolate::GetCurrent();
   v8::EscapableHandleScope handle_scope(isolate);
 
   v8::LocalVector<v8::Value> elements(isolate);
@@ -690,12 +718,11 @@ inline bool IsWindowsBatchFile(const char* filename) {
   return !extension.empty() && (extension == "cmd" || extension == "bat");
 }
 
-inline std::wstring ConvertToWideString(const std::string& str,
-                                        UINT code_page) {
+inline std::wstring ConvertUTF8ToWideString(const std::string& str) {
   int size_needed = MultiByteToWideChar(
-      code_page, 0, &str[0], static_cast<int>(str.size()), nullptr, 0);
+      CP_UTF8, 0, &str[0], static_cast<int>(str.size()), nullptr, 0);
   std::wstring wstrTo(size_needed, 0);
-  MultiByteToWideChar(code_page,
+  MultiByteToWideChar(CP_UTF8,
                       0,
                       &str[0],
                       static_cast<int>(str.size()),
@@ -703,6 +730,59 @@ inline std::wstring ConvertToWideString(const std::string& str,
                       size_needed);
   return wstrTo;
 }
+
+std::string ConvertWideStringToUTF8(const std::wstring& wstr) {
+  if (wstr.empty()) return std::string();
+
+  int size_needed = WideCharToMultiByte(CP_UTF8,
+                                        0,
+                                        &wstr[0],
+                                        static_cast<int>(wstr.size()),
+                                        nullptr,
+                                        0,
+                                        nullptr,
+                                        nullptr);
+  std::string strTo(size_needed, 0);
+  WideCharToMultiByte(CP_UTF8,
+                      0,
+                      &wstr[0],
+                      static_cast<int>(wstr.size()),
+                      &strTo[0],
+                      size_needed,
+                      nullptr,
+                      nullptr);
+  return strTo;
+}
+
+template <typename T, size_t kStackStorageSize>
+std::filesystem::path MaybeStackBuffer<T, kStackStorageSize>::ToPath() const {
+  std::wstring wide_path = ConvertUTF8ToWideString(ToString());
+  return std::filesystem::path(wide_path);
+}
+
+std::string ConvertPathToUTF8(const std::filesystem::path& path) {
+  return ConvertWideStringToUTF8(path.wstring());
+}
+
+std::string ConvertGenericPathToUTF8(const std::filesystem::path& path) {
+  return ConvertWideStringToUTF8(path.generic_wstring());
+}
+
+#else  // _WIN32
+
+template <typename T, size_t kStackStorageSize>
+std::filesystem::path MaybeStackBuffer<T, kStackStorageSize>::ToPath() const {
+  return std::filesystem::path(ToStringView());
+}
+
+std::string ConvertPathToUTF8(const std::filesystem::path& path) {
+  return path.native();
+}
+
+std::string ConvertGenericPathToUTF8(const std::filesystem::path& path) {
+  return path.generic_string();
+}
+
 #endif  // _WIN32
 
 inline v8::MaybeLocal<v8::Object> NewDictionaryInstance(
@@ -723,7 +803,7 @@ inline v8::MaybeLocal<v8::Object> NewDictionaryInstanceNullProto(
     if (value.IsEmpty()) return v8::MaybeLocal<v8::Object>();
   }
   v8::Local<v8::Object> obj = tmpl->NewInstance(context, property_values);
-  if (obj->SetPrototypeV2(context, v8::Null(context->GetIsolate()))
+  if (obj->SetPrototypeV2(context, v8::Null(v8::Isolate::GetCurrent()))
           .IsNothing()) {
     return v8::MaybeLocal<v8::Object>();
   }

@@ -34,9 +34,12 @@
 
 #include "src/codegen/assembler.h"
 
+#include "absl/container/flat_hash_map.h"
+#include "src/base/macros.h"
 #ifdef V8_CODE_COMMENTS
 #include <iomanip>
 #endif
+
 #include "src/base/vector.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/deoptimizer/deoptimizer.h"
@@ -220,6 +223,7 @@ bool CpuFeatures::supports_cetss_ = false;
 unsigned CpuFeatures::supported_ = 0;
 unsigned CpuFeatures::icache_line_size_ = 0;
 unsigned CpuFeatures::dcache_line_size_ = 0;
+unsigned CpuFeatures::vlen_ = 0;
 
 HeapNumberRequest::HeapNumberRequest(double heap_number, int offset)
     : offset_(offset) {
@@ -232,9 +236,8 @@ HeapNumberRequest::HeapNumberRequest(double heap_number, int offset)
 void Assembler::RecordDeoptReason(DeoptimizeReason reason, uint32_t node_id,
                                   SourcePosition position, int id) {
   static_assert(RelocInfoWriter::kMaxSize * 2 <= kGap);
-  {
+  if (position.IsKnown()) {
     EnsureSpace space(this);
-    DCHECK(position.IsKnown());
     RecordRelocInfo(RelocInfo::DEOPT_SCRIPT_OFFSET, position.ScriptOffset());
     RecordRelocInfo(RelocInfo::DEOPT_INLINING_ID, position.InliningId());
   }
@@ -262,6 +265,40 @@ void Assembler::DataAlign(int m) {
 void AssemblerBase::RequestHeapNumber(HeapNumberRequest request) {
   request.set_offset(pc_offset());
   heap_number_requests_.push_front(request);
+}
+
+void AssemblerBase::AllocateAndInstallRequestedHeapNumbers(
+    LocalIsolate* isolate) {
+  DCHECK_IMPLIES(isolate == nullptr, heap_number_requests_.empty());
+
+  // {previous_requests} is a cache of HeapNumbers that have already been
+  // requested. It is keyed on uint64_t rather than doubles to avoid undefined
+  // behavior when NaN is used as a key (where the uint64_t are just bitcasts
+  // from the doubles).
+  absl::flat_hash_map<uint64_t, Handle<HeapNumber>> previous_requests;
+
+  for (HeapNumberRequest& request : heap_number_requests_) {
+    Handle<HeapNumber> object;
+
+    if (v8_flags.deduplicate_heap_number_requests) {
+      uint64_t cache_key = base::bit_cast<uint64_t>(request.heap_number());
+      auto it = previous_requests.find(cache_key);
+      if (it != previous_requests.end()) {
+        object = it->second;
+      } else {
+        object = isolate->factory()->NewHeapNumber<AllocationType::kOld>(
+            request.heap_number());
+        previous_requests.insert({cache_key, object});
+      }
+    } else {
+      object = isolate->factory()->NewHeapNumber<AllocationType::kOld>(
+          request.heap_number());
+    }
+
+    Address pc = reinterpret_cast<Address>(buffer_start_) + request.offset();
+
+    PatchInHeapNumberRequest(pc, object);
+  }
 }
 
 int AssemblerBase::AddCodeTarget(IndirectHandle<Code> target) {
@@ -318,7 +355,7 @@ int Assembler::WriteCodeComments() {
 #ifdef V8_CODE_COMMENTS
 int Assembler::CodeComment::depth() const { return assembler_->comment_depth_; }
 void Assembler::CodeComment::Open(const std::string& comment,
-                                  const SourceLocation& loc) {
+                                  SourceLocation loc) {
   std::stringstream sstream;
   sstream << std::setfill(' ') << std::setw(depth() * kIndentWidth + 2);
   sstream << "[ " << comment;

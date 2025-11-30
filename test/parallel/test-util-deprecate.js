@@ -1,7 +1,7 @@
 // Flags: --expose-internals
 'use strict';
 
-require('../common');
+const common = require('../common');
 
 // Tests basic functionality of util.deprecate().
 
@@ -61,7 +61,29 @@ for (const fn of [
   fn2();
 }
 
-process.on('warning', (warning) => {
+
+// Test modifyPrototype option
+{
+  const msg = 'prototype-test';
+  const code = 'proto-code';
+
+  function OriginalFn() {}
+  OriginalFn.prototype.testMethod = function() { return 'test'; };
+
+  const deprecatedWithoutProto = util.deprecate(OriginalFn, msg, code, { modifyPrototype: false });
+
+  assert.notStrictEqual(deprecatedWithoutProto.prototype, OriginalFn.prototype);
+  assert.notStrictEqual(Object.getPrototypeOf(deprecatedWithoutProto), OriginalFn);
+  assert.strictEqual(deprecatedWithoutProto.prototype.testMethod, undefined);
+
+  const deprecatedWithProto = util.deprecate(OriginalFn, msg, code);
+
+  assert.strictEqual(deprecatedWithProto.prototype, OriginalFn.prototype);
+  assert.strictEqual(Object.getPrototypeOf(deprecatedWithProto), OriginalFn);
+  assert.strictEqual(typeof deprecatedWithProto.prototype.testMethod, 'function');
+}
+
+process.on('warning', common.mustCallAtLeast((warning) => {
   assert.strictEqual(warning.name, 'DeprecationWarning');
   assert.ok(expectedWarnings.has(warning.message));
   const expected = expectedWarnings.get(warning.message);
@@ -69,7 +91,7 @@ process.on('warning', (warning) => {
   expected.count = expected.count - 1;
   if (expected.count === 0)
     expectedWarnings.delete(warning.message);
-});
+}));
 
 process.on('exit', () => {
   assert.deepStrictEqual(expectedWarnings, new Map());

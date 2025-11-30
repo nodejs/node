@@ -109,11 +109,11 @@ absl_cc_library(
     absl::core_headers
     absl::dynamic_annotations
     absl::malloc_internal
+    absl::meta
     absl::nullability
     absl::raw_logging_internal
     absl::stacktrace
     absl::symbolize
-    absl::tracing_internal
     absl::time
     absl::tracing_internal
     Threads::Threads
@@ -193,6 +193,7 @@ absl_cc_test(
     absl::core_headers
     absl::log
     absl::memory
+    absl::random_random
     absl::time
     GTest::gmock_main
 )

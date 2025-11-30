@@ -276,7 +276,8 @@ class LargeObjectConcurrentAllocationThread final : public v8::base::Thread {
           kLargeObjectSize, AllocationType::kOld, AllocationOrigin::kRuntime,
           AllocationAlignment::kTaggedAligned);
       if (result.IsFailure()) {
-        heap_->CollectGarbageFromAnyThread(&local_heap);
+        heap_->TriggerAndWaitForGCFromBackgroundThread(&local_heap,
+                                                       RequestedGCKind::kMajor);
       } else {
         Address address = result.ToAddress();
         CreateFixedArray(heap_, address, kLargeObjectSize);
@@ -402,11 +403,13 @@ UNINITIALIZED_TEST(ConcurrentBlackAllocation) {
       if (v8_flags.black_allocated_pages) {
         CHECK(heap->marking_state()->IsUnmarked(object));
         if (i < kWhiteIterations * kObjectsAllocatedPerIteration) {
-          CHECK(!PageMetadata::FromHeapObject(object)->Chunk()->IsFlagSet(
-              MemoryChunk::BLACK_ALLOCATED));
+          CHECK(!PageMetadata::FromHeapObject(object)
+                     ->Chunk()
+                     ->IsBlackAllocatedPage());
         } else {
-          CHECK(PageMetadata::FromHeapObject(object)->Chunk()->IsFlagSet(
-              MemoryChunk::BLACK_ALLOCATED));
+          CHECK(PageMetadata::FromHeapObject(object)
+                    ->Chunk()
+                    ->IsBlackAllocatedPage());
         }
       } else {
         if (i < kWhiteIterations * kObjectsAllocatedPerIteration) {

@@ -45,23 +45,13 @@ function createFuzzTest(fake_db, settings, inputFiles) {
 }
 
 function execFile(jsFile) {
-  execSync("node " + jsFile, {stdio: ['pipe']});
+  execSync("node --allow-natives-syntax " + jsFile, {stdio: ['pipe']});
 }
 
 describe('Regression tests', () => {
   beforeEach(() => {
     helpers.deterministicRandom(sandbox);
-
-    this.settings = {
-      ADD_VAR_OR_OBJ_MUTATIONS: 0.0,
-      MUTATE_CROSSOVER_INSERT: 0.0,
-      MUTATE_EXPRESSIONS: 0.0,
-      MUTATE_FUNCTION_CALLS: 0.0,
-      MUTATE_NUMBERS: 0.0,
-      MUTATE_VARIABLES: 0.0,
-      engine: 'v8',
-      testing: true,
-    }
+    this.settings = helpers.zeroSettings();
   });
 
   afterEach(() => {
@@ -152,13 +142,18 @@ describe('Regression tests', () => {
 
   it('resolves flag contradictions', () => {
     sandbox.stub(exceptions, 'CONTRADICTORY_FLAGS').value(
-        [['--flag1', '--flag2']])
+        [['--flag1', '--flag2']]);
     const {file, flags} = createFuzzTest(
         'test_data/regress/empty_db',
         this.settings,
         ['v8/regress/contradictions/input1.js',
          'v8/regress/contradictions/input2.js']);
-    assert.deepEqual(['--flag1'], flags);
+
+    const isFlag1 = flags.length === 1 && flags[0] === '--flag1';
+    const isFlag2 = flags.length === 1 && flags[0] === '--flag2';
+
+    assert.ok(isFlag1 || isFlag2,
+      `Expected flags to be either ['--flag1'] or ['--flag2'], but got [${flags}]`);
   });
 
   it('skips mjs flags', () => {
@@ -474,11 +469,6 @@ describe('DB tests', () => {
     const source = helpers.loadTestData('regress/db/input/input.js');
     mutateDb.process(source);
     mutateDb.writeIndex();
-    const expressionFile = path.join(tmpOut, 'CallExpression/113f1844.json');
-    const content = fs.readFileSync(expressionFile, 'utf-8');
-    assert.deepEqual(
-        '{"type":"CallExpression","source":"Object.assign(VAR_0, VAR_1)",' +
-        '"path":"regress/db/input/input.js","dependencies":["VAR_0","VAR_1"]}',
-        content);
+    helpers.assertExpectedPath('regress/db/assign_expected', tmpOut);
   });
 });

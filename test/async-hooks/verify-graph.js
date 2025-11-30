@@ -1,8 +1,7 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
 const assert = require('assert');
-const util = require('util');
 
 function findInGraph(graph, type, n) {
   let found = 0;
@@ -56,7 +55,7 @@ function pruneTickObjects(activities) {
   return activities;
 }
 
-module.exports = function verifyGraph(hooks, graph) {
+module.exports = common.mustCallAtLeast(function verifyGraph(hooks, graph) {
   pruneTickObjects(hooks);
 
   // Map actual ids to standin ids defined in the graph
@@ -111,29 +110,4 @@ module.exports = function verifyGraph(hooks, graph) {
               `Type '${type}': expecting: ${expTypes[type]} ` +
               `found: ${typeSeen[type]}`);
   }
-};
-
-//
-// Helper to generate the input to the verifyGraph tests
-//
-function inspect(obj, depth) {
-  console.error(util.inspect(obj, false, depth || 5, true));
-}
-
-module.exports.printGraph = function printGraph(hooks) {
-  const ids = {};
-  const uidtoid = {};
-  const activities = pruneTickObjects(hooks.activities);
-  const graph = [];
-  activities.forEach(processNode);
-
-  function processNode(x) {
-    const key = x.type.replace(/WRAP/, '').toLowerCase();
-    ids[key] ||= 1;
-    const id = `${key}:${ids[key]++}`;
-    uidtoid[x.uid] = id;
-    const triggerAsyncId = uidtoid[x.triggerAsyncId] || null;
-    graph.push({ type: x.type, id, triggerAsyncId });
-  }
-  inspect(graph);
-};
+}, 0);

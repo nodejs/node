@@ -33,7 +33,8 @@ npm view ronn@0.3.5 dependencies
 ```
 
 By default, `npm view` shows data about the current project context (by looking for a `package.json`).
-To show field data for the current project use a file path (i.e. `.`):
+To show field data for the current project use a file path (i.e.
+`.`):
 
 ```bash
 npm view . dependencies
@@ -46,25 +47,22 @@ To view the git repository URL for the latest version of `npm`, you would run th
 npm view npm repository.url
 ```
 
-This makes it easy to view information about a dependency with a bit of
-shell scripting. For example, to view all the data about the version of
-`opts` that `ronn` depends on, you could write the following:
+This makes it easy to view information about a dependency with a bit of shell scripting.
+For example, to view all the data about the version of `opts` that `ronn` depends on, you could write the following:
 
 ```bash
 npm view opts@$(npm view ronn dependencies.opts)
 ```
 
-For fields that are arrays, requesting a non-numeric field will return
-all of the values from the objects in the list. For example, to get all
-the contributor email addresses for the `express` package, you would run:
+For fields that are arrays, requesting a non-numeric field will return all of the values from the objects in the list.
+For example, to get all the contributor email addresses for the `express` package, you would run:
 
 ```bash
 npm view express contributors.email
 ```
 
-You may also use numeric indices in square braces to specifically select
-an item in an array field. To just get the email address of the first
-contributor in the list, you can run:
+You may also use numeric indices in square braces to specifically select an item in an array field.
+To just get the email address of the first contributor in the list, you can run:
 
 ```bash
 npm view express contributors[0].email
@@ -77,31 +75,28 @@ npm view express time'[4.8.0]'
 ```
 
 Multiple fields may be specified, and will be printed one after another.
-For example, to get all the contributor names and email addresses, you
-can do this:
+For example, to get all the contributor names and email addresses, you can do this:
 
 ```bash
 npm view express contributors.name contributors.email
 ```
 
-"Person" fields are shown as a string if they would be shown as an
-object.  So, for example, this will show the list of `npm` contributors in
-the shortened string format.  (See [`package.json`](/configuring-npm/package-json) for more on this.)
+"Person" fields are shown as a string if they would be shown as an object.
+So, for example, this will show the list of `npm` contributors in the shortened string format.
+ (See [`package.json`](/configuring-npm/package-json) for more on this.)
 
 ```bash
 npm view npm contributors
 ```
 
-If a version range is provided, then data will be printed for every
-matching version of the package.  This will show which version of `jsdom`
-was required by each matching version of `yui3`:
+If a version range is provided, then data will be printed for every matching version of the package.
+This will show which version of `jsdom` was required by each matching version of `yui3`:
 
 ```bash
 npm view yui3@'>0.5.4' dependencies.jsdom
 ```
 
-To show the `connect` package version history, you can do
-this:
+To show the `connect` package version history, you can do this:
 
 ```bash
 npm view connect versions
@@ -178,17 +173,14 @@ This value is not exported to the environment for child processes.
 
 ### Output
 
-If only a single string field for a single version is output, then it
-will not be colorized or quoted, to enable piping the output to
-another command. If the field is an object, it will be output as a JavaScript object literal.
+If only a single string field for a single version is output, then it will not be colorized or quoted, to enable piping the output to another command.
+If the field is an object, it will be output as a JavaScript object literal.
 
 If the `--json` flag is given, the outputted fields will be JSON.
 
-If the version range matches multiple versions then each printed value
-will be prefixed with the version it applies to.
+If the version range matches multiple versions then each printed value will be prefixed with the version it applies to.
 
-If multiple fields are requested, then each of them is prefixed with
-the field name.
+If multiple fields are requested, then each of them is prefixed with the field name.
 
 ### See Also
 

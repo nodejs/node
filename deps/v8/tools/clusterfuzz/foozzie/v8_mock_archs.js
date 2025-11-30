@@ -14,12 +14,13 @@
 // https://crbug.com/380147861
 // https://crbug.com/380322452
 // https://crbug.com/381129314
+// https://crbug.com/417090728
 (function() {
   const origMathPow = Math.pow;
   const origNumber = Number;
   const origToExponential = Number.prototype.toExponential;
   Math.pow = function(a, b) {
     let result = origMathPow(a, b);
-    return origNumber(origToExponential.call(result, 11));
+    return origNumber(origToExponential.call(result, 10));
   }
 })();

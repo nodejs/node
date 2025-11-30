@@ -1,7 +1,9 @@
 #include "async_context_frame.h"
 #include "async_wrap-inl.h"
 #include "env-inl.h"
+#ifndef NAPI_EXPERIMENTAL
 #define NAPI_EXPERIMENTAL
+#endif
 #include "js_native_api_v8.h"
 #include "memory_tracker-inl.h"
 #include "node_api.h"
@@ -198,7 +200,7 @@ class BufferFinalizer : private Finalizer {
   ~BufferFinalizer() { env()->Unref(); }
 };
 
-class ThreadSafeFunction : public node::AsyncResource {
+class ThreadSafeFunction {
  public:
   ThreadSafeFunction(v8::Local<v8::Function> func,
                      v8::Local<v8::Object> resource,
@@ -210,11 +212,12 @@ class ThreadSafeFunction : public node::AsyncResource {
                      void* finalize_data_,
                      napi_finalize finalize_cb_,
                      napi_threadsafe_function_call_js call_js_cb_)
-      : AsyncResource(env_->isolate,
-                      resource,
-                      *v8::String::Utf8Value(env_->isolate, name)),
+      : async_resource(std::in_place,
+                       env_->isolate,
+                       resource,
+                       node::Utf8Value(env_->isolate, name).ToStringView()),
         thread_count(thread_count_),
-        is_closing(false),
+        state(kOpen),
         dispatch_state(kDispatchIdle),
         context(context_),
         max_queue_size(max_queue_size_),
@@ -228,76 +231,104 @@ class ThreadSafeFunction : public node::AsyncResource {
     env->Ref();
   }
 
-  ~ThreadSafeFunction() override {
-    node::RemoveEnvironmentCleanupHook(env->isolate, Cleanup, this);
-    env->Unref();
-  }
+  ~ThreadSafeFunction() { ReleaseResources(); }
 
   // These methods can be called from any thread.
 
   napi_status Push(void* data, napi_threadsafe_function_call_mode mode) {
-    node::Mutex::ScopedLock lock(this->mutex);
+    {
+      node::Mutex::ScopedLock lock(this->mutex);
 
-    while (queue.size() >= max_queue_size && max_queue_size > 0 &&
-           !is_closing) {
-      if (mode == napi_tsfn_nonblocking) {
-        return napi_queue_full;
+      while (queue.size() >= max_queue_size && max_queue_size > 0 &&
+             state == kOpen) {
+        if (mode == napi_tsfn_nonblocking) {
+          return napi_queue_full;
+        }
+        cond->Wait(lock);
       }
-      cond->Wait(lock);
-    }
 
-    if (is_closing) {
+      if (state == kOpen) {
+        queue.push(data);
+        Send();
+        return napi_ok;
+      }
       if (thread_count == 0) {
         return napi_invalid_arg;
-      } else {
-        thread_count--;
+      }
+      thread_count--;
+      if (!(state == kClosed && thread_count == 0)) {
         return napi_closing;
       }
-    } else {
-      queue.push(data);
-      Send();
-      return napi_ok;
     }
+    // Make sure to release lock before destroying
+    delete this;
+    return napi_closing;
   }
 
   napi_status Acquire() {
     node::Mutex::ScopedLock lock(this->mutex);
 
-    if (is_closing) {
-      return napi_closing;
+    if (state == kOpen) {
+      thread_count++;
+
+      return napi_ok;
     }
 
-    thread_count++;
-
-    return napi_ok;
+    return napi_closing;
   }
 
   napi_status Release(napi_threadsafe_function_release_mode mode) {
-    node::Mutex::ScopedLock lock(this->mutex);
+    {
+      node::Mutex::ScopedLock lock(this->mutex);
 
-    if (thread_count == 0) {
-      return napi_invalid_arg;
-    }
+      if (thread_count == 0) {
+        return napi_invalid_arg;
+      }
 
-    thread_count--;
+      thread_count--;
 
-    if (thread_count == 0 || mode == napi_tsfn_abort) {
-      if (!is_closing) {
-        is_closing = (mode == napi_tsfn_abort);
-        if (is_closing && max_queue_size > 0) {
-          cond->Signal(lock);
+      if (thread_count == 0 || mode == napi_tsfn_abort) {
+        if (state == kOpen) {
+          if (mode == napi_tsfn_abort) {
+            state = kClosing;
+          }
+          if (state == kClosing && max_queue_size > 0) {
+            cond->Signal(lock);
+          }
+          Send();
         }
-        Send();
+      }
+
+      if (!(state == kClosed && thread_count == 0)) {
+        return napi_ok;
       }
     }
-
+    // Make sure to release lock before destroying
+    delete this;
     return napi_ok;
   }
 
-  void EmptyQueueAndDelete() {
-    for (; !queue.empty(); queue.pop()) {
-      call_js_cb(nullptr, nullptr, context, queue.front());
+  void EmptyQueueAndMaybeDelete() {
+    std::queue<void*> drain_queue;
+    {
+      node::Mutex::ScopedLock lock(this->mutex);
+      queue.swap(drain_queue);
     }
+    for (; !drain_queue.empty(); drain_queue.pop()) {
+      call_js_cb(nullptr, nullptr, context, drain_queue.front());
+    }
+    {
+      node::Mutex::ScopedLock lock(this->mutex);
+      if (thread_count > 0) {
+        // At this point this TSFN is effectively done, but we need to keep
+        // it alive for other threads that still have pointers to it until
+        // they release them.
+        // But we already release all the resources that we can at this point
+        ReleaseResources();
+        return;
+      }
+    }
+    // Make sure to release lock before destroying
     delete this;
   }
 
@@ -349,6 +380,16 @@ class ThreadSafeFunction : public node::AsyncResource {
   inline void* Context() { return context; }
 
  protected:
+  void ReleaseResources() {
+    if (state != kClosed) {
+      state = kClosed;
+      ref.Reset();
+      node::RemoveEnvironmentCleanupHook(env->isolate, Cleanup, this);
+      env->Unref();
+      async_resource.reset();
+    }
+  }
+
   void Dispatch() {
     bool has_more = true;
 
@@ -377,9 +418,7 @@ class ThreadSafeFunction : public node::AsyncResource {
 
     {
       node::Mutex::ScopedLock lock(this->mutex);
-      if (is_closing) {
-        CloseHandlesAndMaybeDelete();
-      } else {
+      if (state == kOpen) {
         size_t size = queue.size();
         if (size > 0) {
           data = queue.front();
@@ -393,7 +432,7 @@ class ThreadSafeFunction : public node::AsyncResource {
 
         if (size == 0) {
           if (thread_count == 0) {
-            is_closing = true;
+            state = kClosing;
             if (max_queue_size > 0) {
               cond->Signal(lock);
             }
@@ -402,12 +441,14 @@ class ThreadSafeFunction : public node::AsyncResource {
         } else {
           has_more = true;
         }
+      } else {
+        CloseHandlesAndMaybeDelete();
       }
     }
 
     if (popped_value) {
       v8::HandleScope scope(env->isolate);
-      CallbackScope cb_scope(this);
+      AsyncResource::CallbackScope cb_scope(&*async_resource);
       napi_value js_callback = nullptr;
       if (!ref.IsEmpty()) {
         v8::Local<v8::Function> js_cb =
@@ -424,17 +465,17 @@ class ThreadSafeFunction : public node::AsyncResource {
   void Finalize() {
     v8::HandleScope scope(env->isolate);
     if (finalize_cb) {
-      CallbackScope cb_scope(this);
+      AsyncResource::CallbackScope cb_scope(&*async_resource);
       env->CallFinalizer<false>(finalize_cb, finalize_data, context);
     }
-    EmptyQueueAndDelete();
+    EmptyQueueAndMaybeDelete();
   }
 
   void CloseHandlesAndMaybeDelete(bool set_closing = false) {
     v8::HandleScope scope(env->isolate);
     if (set_closing) {
       node::Mutex::ScopedLock lock(this->mutex);
-      is_closing = true;
+      state = kClosing;
       if (max_queue_size > 0) {
         cond->Signal(lock);
       }
@@ -499,11 +540,22 @@ class ThreadSafeFunction : public node::AsyncResource {
   }
 
  private:
+  // Needed because node::AsyncResource::CallbackScope is protected
+  class AsyncResource : public node::AsyncResource {
+   public:
+    using node::AsyncResource::AsyncResource;
+    using node::AsyncResource::CallbackScope;
+  };
+
+  enum State : unsigned char { kOpen, kClosing, kClosed };
+
   static const unsigned char kDispatchIdle = 0;
   static const unsigned char kDispatchRunning = 1 << 0;
   static const unsigned char kDispatchPending = 1 << 1;
 
   static const unsigned int kMaxIterationCount = 1000;
+
+  std::optional<AsyncResource> async_resource;
 
   // These are variables protected by the mutex.
   node::Mutex mutex;
@@ -511,7 +563,7 @@ class ThreadSafeFunction : public node::AsyncResource {
   std::queue<void*> queue;
   uv_async_t async;
   size_t thread_count;
-  bool is_closing;
+  State state;
   std::atomic_uchar dispatch_state;
 
   // These are variables set once, upon creation, and then never again, which
@@ -538,19 +590,13 @@ class AsyncContext {
  public:
   AsyncContext(node_napi_env env,
                v8::Local<v8::Object> resource_object,
-               const v8::Local<v8::String> resource_name,
-               bool externally_managed_resource)
+               v8::Local<v8::String> resource_name)
       : env_(env) {
     async_id_ = node_env()->new_async_id();
     trigger_async_id_ = node_env()->get_default_trigger_async_id();
     v8::Isolate* isolate = node_env()->isolate();
     resource_.Reset(isolate, resource_object);
     context_frame_.Reset(isolate, node::async_context_frame::current(isolate));
-    lost_reference_ = false;
-    if (externally_managed_resource) {
-      resource_.SetWeak(
-          this, AsyncContext::WeakCallback, v8::WeakCallbackType::kParameter);
-    }
 
     node::AsyncWrap::EmitAsyncInit(node_env(),
                                    resource_object,
@@ -559,18 +605,13 @@ class AsyncContext {
                                    trigger_async_id_);
   }
 
-  ~AsyncContext() {
-    resource_.Reset();
-    lost_reference_ = true;
-    node::AsyncWrap::EmitDestroy(node_env(), async_id_);
-  }
+  ~AsyncContext() { node::AsyncWrap::EmitDestroy(node_env(), async_id_); }
 
   inline v8::MaybeLocal<v8::Value> MakeCallback(
       v8::Local<v8::Object> recv,
       const v8::Local<v8::Function> callback,
       int argc,
       v8::Local<v8::Value> argv[]) {
-    EnsureReference();
     return node::InternalMakeCallback(
         node_env(),
         resource(),
@@ -583,20 +624,9 @@ class AsyncContext {
   }
 
   inline napi_callback_scope OpenCallbackScope() {
-    EnsureReference();
-    napi_callback_scope it =
-        reinterpret_cast<napi_callback_scope>(new CallbackScope(this));
+    auto scope = new HeapAllocatedCallbackScope(this);
     env_->open_callback_scopes++;
-    return it;
-  }
-
-  inline void EnsureReference() {
-    if (lost_reference_) {
-      const v8::HandleScope handle_scope(node_env()->isolate());
-      resource_.Reset(node_env()->isolate(),
-                      v8::Object::New(node_env()->isolate()));
-      lost_reference_ = false;
-    }
+    return scope->to_opaque();
   }
 
   inline node::Environment* node_env() { return env_->node_env(); }
@@ -609,32 +639,34 @@ class AsyncContext {
 
   static inline void CloseCallbackScope(node_napi_env env,
                                         napi_callback_scope s) {
-    CallbackScope* callback_scope = reinterpret_cast<CallbackScope*>(s);
-    delete callback_scope;
+    delete HeapAllocatedCallbackScope::FromOpaque(s);
+    CHECK_GT(env->open_callback_scopes, 0);
     env->open_callback_scopes--;
   }
 
-  static void WeakCallback(const v8::WeakCallbackInfo<AsyncContext>& data) {
-    AsyncContext* async_context = data.GetParameter();
-    async_context->resource_.Reset();
-    async_context->lost_reference_ = true;
-  }
-
  private:
-  class CallbackScope : public node::CallbackScope {
+  class HeapAllocatedCallbackScope final {
    public:
-    explicit CallbackScope(AsyncContext* async_context)
-        : node::CallbackScope(async_context->node_env(),
-                              async_context->resource_.Get(
-                                  async_context->node_env()->isolate()),
-                              async_context->async_context()) {}
+    napi_callback_scope to_opaque() {
+      return reinterpret_cast<napi_callback_scope>(this);
+    }
+    static HeapAllocatedCallbackScope* FromOpaque(napi_callback_scope s) {
+      return reinterpret_cast<HeapAllocatedCallbackScope*>(s);
+    }
+
+    explicit HeapAllocatedCallbackScope(AsyncContext* async_context)
+        : cs_(async_context->node_env(),
+              &async_context->resource_,
+              async_context->async_context()) {}
+
+   private:
+    node::CallbackScope cs_;
   };
 
   node_napi_env env_;
   double async_id_;
   double trigger_async_id_;
   v8::Global<v8::Object> resource_;
-  bool lost_reference_;
   v8::Global<v8::Value> context_frame_;
 };
 
@@ -932,23 +964,17 @@ napi_status NAPI_CDECL napi_async_init(napi_env env,
   v8::Local<v8::Context> context = env->context();
 
   v8::Local<v8::Object> v8_resource;
-  bool externally_managed_resource;
   if (async_resource != nullptr) {
     CHECK_TO_OBJECT(env, context, v8_resource, async_resource);
-    externally_managed_resource = true;
   } else {
     v8_resource = v8::Object::New(isolate);
-    externally_managed_resource = false;
   }
 
   v8::Local<v8::String> v8_resource_name;
   CHECK_TO_STRING(env, context, v8_resource_name, async_resource_name);
 
-  v8impl::AsyncContext* async_context =
-      new v8impl::AsyncContext(reinterpret_cast<node_napi_env>(env),
-                               v8_resource,
-                               v8_resource_name,
-                               externally_managed_resource);
+  v8impl::AsyncContext* async_context = new v8impl::AsyncContext(
+      reinterpret_cast<node_napi_env>(env), v8_resource, v8_resource_name);
 
   *result = reinterpret_cast<napi_async_context>(async_context);
 
@@ -1176,7 +1202,7 @@ class Work : public node::AsyncResource, public node::ThreadPoolWork {
       : AsyncResource(
             env->isolate,
             async_resource,
-            *v8::String::Utf8Value(env->isolate, async_resource_name)),
+            node::Utf8Value(env->isolate, async_resource_name).ToStringView()),
         ThreadPoolWork(env->node_env(), "node_api"),
         _env(env),
         _data(data),

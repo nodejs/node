@@ -24,8 +24,6 @@ test-snapshot-incompatible: SKIP
 test-inspector-network-fetch: PASS, FLAKY
 # https://github.com/nodejs/node/issues/54808
 test-async-context-frame: PASS, FLAKY
-# https://github.com/nodejs/node/issues/54534
-test-runner-run-watch: PASS, FLAKY
 # https://github.com/nodejs/node/issues/59636
 test-fs-cp-sync-error-on-exist: SKIP
 test-fs-cp-sync-symlink-points-to-dest-error: SKIP
@@ -43,21 +41,17 @@ test-without-async-context-frame: PASS, FLAKY
 test-performance-function: PASS, FLAKY
 # https://github.com/nodejs/node/issues/54346
 test-esm-loader-hooks-inspect-wait: PASS, FLAKY
-# https://github.com/nodejs/node/issues/54534
-test-runner-run-watch: PASS, FLAKY
 
 [$system==linux && $arch==s390x]
 # https://github.com/nodejs/node/issues/58353
 test-http2-debug: PASS, FLAKY
 
-[$system==linux || $system==win32]
-# https://github.com/nodejs/node/issues/49605
-test-runner-watch-mode: PASS,FLAKY
-
 [$system==macos]
 # https://github.com/nodejs/node/issues/42741
 test-http-server-headers-timeout-keepalive: PASS,FLAKY
 test-http-server-request-timeout-keepalive: PASS,FLAKY
+# https://github.com/nodejs/node/issues/60050
+test-cluster-dgram-1: SKIP
 
 [$arch==arm || $arch==arm64]
 # https://github.com/nodejs/node/pull/31178
@@ -85,8 +79,6 @@ test-esm-loader-hooks-inspect-wait: PASS, FLAKY
 test-fs-promises-watch-iterator: SKIP
 # https://github.com/nodejs/node/issues/50050
 test-tick-processor-arguments: SKIP
-# https://github.com/nodejs/node/issues/54534
-test-runner-run-watch: PASS, FLAKY
 
 [$system==freebsd]
 # https://github.com/nodejs/node/issues/54346
@@ -132,14 +124,17 @@ test-tls-write-error: PASS, FLAKY
 # https://github.com/nodejs/node/issues/48047
 test-http-pipeline-flood: SKIP
 # https://github.com/nodejs/node/issues/58582
-test-http-proxy-fetch: SKIP
-test-https-proxy-fetch: SKIP
 test-inspector-network-fetch:  SKIP
 test-inspector-network-content-type: SKIP
 test-fetch:  SKIP
 test-without-async-context-frame: SKIP
 test-process-cpuUsage: PASS, FLAKY
-
+test-web-locks: SKIP
+test-http2-allow-http1-upgrade-ws: SKIP
+test-inspector-network-websocket: SKIP
+test-tls-set-default-ca-certificates-append-fetch: SKIP
+test-tls-set-default-ca-certificates-reset-fetch: SKIP
+test-inspector-invalid-protocol: SKIP
 
 [$asan==on]
 # https://github.com/nodejs/node/issues/39655

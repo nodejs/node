@@ -8,16 +8,16 @@ if (!common.hasCrypto) { common.skip('missing crypto'); }
 // Capitalized headers
 
 const http2 = require('http2');
-const { throws } = require('assert');
+const assert = require('assert');
 
 {
   const server = http2.createServer(common.mustCall((req, res) => {
-    throws(() => {
+    assert.throws(() => {
       res.setHeader(':path', '/');
     }, {
       code: 'ERR_HTTP2_PSEUDOHEADER_NOT_ALLOWED'
     });
-    throws(() => {
+    assert.throws(() => {
       res.setHeader('t est', 123);
     }, {
       code: 'ERR_INVALID_HTTP_TOKEN'
@@ -42,7 +42,7 @@ const { throws } = require('assert');
   const server = http2.createServer();
   server.listen(0, common.mustCall(() => {
     const session = http2.connect(`http://localhost:${server.address().port}`);
-    throws(() => {
+    assert.throws(() => {
       session.request({ 't est': 123 });
     }, {
       code: 'ERR_INVALID_HTTP_TOKEN'
@@ -56,7 +56,7 @@ const { throws } = require('assert');
   const server = http2.createServer();
   server.listen(0, common.mustCall(() => {
     const session = http2.connect(`http://localhost:${server.address().port}`);
-    throws(() => {
+    assert.throws(() => {
       session.request({ ' test': 123 });
     }, {
       code: 'ERR_INVALID_HTTP_TOKEN'
@@ -70,7 +70,7 @@ const { throws } = require('assert');
   const server = http2.createServer();
   server.listen(0, common.mustCall(() => {
     const session = http2.connect(`http://localhost:${server.address().port}`);
-    throws(() => {
+    assert.throws(() => {
       session.request({ ':test': 123 });
     }, {
       code: 'ERR_HTTP2_INVALID_PSEUDOHEADER'

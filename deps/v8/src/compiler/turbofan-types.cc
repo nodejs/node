@@ -294,7 +294,7 @@ Type::bitset BitsetType::Lub(MapRefLike map, JSHeapBroker* broker) {
     case JS_SHARED_STRUCT_TYPE:
     case JS_ATOMICS_CONDITION_TYPE:
     case JS_ATOMICS_MUTEX_TYPE:
-    case JS_TEMPORAL_CALENDAR_TYPE:
+#ifdef V8_TEMPORAL_SUPPORT
     case JS_TEMPORAL_DURATION_TYPE:
     case JS_TEMPORAL_INSTANT_TYPE:
     case JS_TEMPORAL_PLAIN_DATE_TYPE:
@@ -302,8 +302,8 @@ Type::bitset BitsetType::Lub(MapRefLike map, JSHeapBroker* broker) {
     case JS_TEMPORAL_PLAIN_MONTH_DAY_TYPE:
     case JS_TEMPORAL_PLAIN_TIME_TYPE:
     case JS_TEMPORAL_PLAIN_YEAR_MONTH_TYPE:
-    case JS_TEMPORAL_TIME_ZONE_TYPE:
     case JS_TEMPORAL_ZONED_DATE_TIME_TYPE:
+#endif  // V8_TEMPORAL_SUPPORT
     case JS_RAW_JSON_TYPE:
 #if V8_ENABLE_WEBASSEMBLY
     case WASM_GLOBAL_OBJECT_TYPE:
@@ -933,15 +933,15 @@ Type Type::Constant(JSHeapBroker* broker, ObjectRef ref, Zone* zone) {
   if (ref.IsSmi()) {
     return Constant(static_cast<double>(ref.AsSmi()), zone);
   }
+  if (ref.HoleType() != HoleType::kNone) {
+    return Type::Hole();
+  }
   if (ref.IsString() && !ref.IsInternalizedString()) {
     return Type::String();
   }
   if (ref.IsJSPrimitiveWrapper() &&
       ref.AsJSPrimitiveWrapper().IsStringWrapper(broker)) {
     return Type::StringWrapper();
-  }
-  if (ref.HoleType() != HoleType::kNone) {
-    return Type::Hole();
   }
   if (ref.IsJSTypedArray()) {
     return Type::TypedArray();

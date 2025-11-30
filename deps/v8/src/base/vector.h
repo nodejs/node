@@ -297,8 +297,6 @@ class OwnedVector {
   }
 
   // Allocates a new vector containing the specified collection of values.
-  // {Iterator} is the common type of {std::begin} and {std::end} called on a
-  // {const U&}. This function is only instantiable if that type exists.
   template <typename U>
   static OwnedVector<U> NewByCopying(const U* data, size_t size) {
     auto result = OwnedVector<U>::NewForOverwrite(size);
@@ -329,6 +327,10 @@ constexpr Vector<const char> StaticCharVector(const char (&array)[N]) {
 // Unknown length, not constexpr.
 inline Vector<const char> CStrVector(const char* data) {
   return {data, strlen(data)};
+}
+
+inline Vector<const char> StrVector(std::string_view str) {
+  return {str.data(), str.size()};
 }
 
 // OneByteVector is never constexpr because the data pointer is

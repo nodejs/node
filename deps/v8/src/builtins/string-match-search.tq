@@ -46,10 +46,10 @@ transitioning macro StringMatchSearch<F: type>(
 
     return functor.CallFast(UnsafeCast<FastJSRegExp>(heapRegexp), string);
   } label Slow deferred {
-    // 2. If regexp is neither undefined nor null, then
-    if (regexp != Undefined && regexp != Null) {
+    // 2. If regexp is an Object, then
+    if (Is<JSReceiver>(regexp)) {
       try {
-        // a. Let fn be ? GetMethod(regexp, @@match/@@search).
+        // a. Let fn be ? GetMethod(regexp, %Symbol.match%/%Symbol.search%).
         // b. If fn is not undefined, then
         const fn = GetMethod(regexp, functor.FnSymbol())
             otherwise FnSymbolIsNullOrUndefined;
@@ -64,7 +64,7 @@ transitioning macro StringMatchSearch<F: type>(
     // 4. Let rx be ? RegExpCreate(regexp, undefined).
     const rx = regexp::RegExpCreate(context, regexp, kEmptyString);
 
-    // 5. Return ? Invoke(rx, @@match/@@search, « string »).
+    // 5. Return ? Invoke(rx, %Symbol.match%/%Symbol.search%, « string »).
     const fn = GetProperty(rx, functor.FnSymbol());
     return Call(context, fn, rx, string);
   }

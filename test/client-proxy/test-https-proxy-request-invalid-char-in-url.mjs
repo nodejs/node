@@ -67,7 +67,7 @@ for (const testCase of testCases) {
     url: severHost,
     headers: { host: severHost },
   });
-  https.request(url, (res) => {
+  https.request(url, common.mustCall((res) => {
     res.on('error', common.mustNotCall());
     res.setEncoding('utf8');
     res.on('data', (data) => {
@@ -77,14 +77,26 @@ for (const testCase of testCases) {
       console.log(`[Proxy client] #${++counter} closed request for: ${inspect(url)}`);
       // Finished all test cases.
       if (counter === testCases.length) {
-        setImmediate(() => {
+        setImmediate(common.mustCall(() => {
           console.log('All requests completed, shutting down.');
           proxy.close();
           server.close();
           assert.deepStrictEqual(requests, expectedUrls);
-          assert.deepStrictEqual(new Set(logs), expectedProxyLogs);
-        });
+          const logSet = new Set(logs);
+          for (const log of logSet) {
+            if (log.source === 'proxy connect' && log.error?.code === 'EPIPE') {
+              // There can be a race from eagerly shutting down the servers and severing
+              // two pipes at the same time but for the purpose of this test, we only
+              // care about whether the requests are initiated from the client as expected,
+              // not how the upstream/proxy servers behave. Ignore EPIPE errors from them..
+              // Refs: https://github.com/nodejs/node/issues/59741
+              console.log('Ignoring EPIPE error from proxy connect', log.error);
+              logSet.delete(log);
+            }
+          }
+          assert.deepStrictEqual(logSet, expectedProxyLogs);
+        }));
       }
     }));
-  }).on('error', common.mustNotCall()).end();
+  })).on('error', common.mustNotCall()).end();
 }

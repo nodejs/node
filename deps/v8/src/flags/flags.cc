@@ -16,6 +16,7 @@
 #include <set>
 #include <sstream>
 
+#include "src/base/fpu.h"
 #include "src/base/hashing.h"
 #include "src/base/lazy-instance.h"
 #include "src/base/platform/platform.h"
@@ -137,7 +138,9 @@ bool Flag::CheckFlagChange(SetBy new_set_by, bool change_flag,
     struct FatalError : public std::ostringstream {
       // MSVC complains about non-returning destructor; disable that.
       MSVC_SUPPRESS_WARNING(4722)
-      ~FatalError() { FATAL("%s.\n%s", str().c_str(), kHint); }
+      ~FatalError() {
+        base::FatalNoSecurityImpact("%s.\n%s", str().c_str(), kHint);
+      }
     };
     // Readonly flags cannot change value.
     if (change_flag && IsReadOnly()) {
@@ -450,6 +453,9 @@ uint32_t ComputeFlagListHash() {
   std::ostringstream modified_args_as_string;
   if (COMPRESS_POINTERS_BOOL) modified_args_as_string << "ptr-compr";
   if (DEBUG_BOOL) modified_args_as_string << "debug";
+  if (base::FPU::GetFlushDenormals()) {
+    modified_args_as_string << "flush-denormals";
+  }
 
 #ifdef DEBUG
   // These two sets are used to check that we don't leave out any flags
@@ -472,6 +478,15 @@ uint32_t ComputeFlagListHash() {
     // code caching.
     if (flag.PointsTo(&v8_flags.random_seed)) continue;
     if (flag.PointsTo(&v8_flags.predictable)) continue;
+
+    // These flags are not relevant for code caching and are often set by
+    // embedders to tune memory usage.
+    if (flag.PointsTo(&v8_flags.max_old_space_size) ||
+        flag.PointsTo(&v8_flags.min_semi_space_size) ||
+        flag.PointsTo(&v8_flags.max_semi_space_size) ||
+        flag.PointsTo(&v8_flags.max_heap_size)) {
+      continue;
+    }
 
     // The following flags are implied by --predictable (some negated).
     if (flag.PointsTo(&v8_flags.concurrent_sparkplug) ||
@@ -1109,10 +1124,6 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
       CONTRADICTION(always_osr_from_maglev, lite_mode),
       CONTRADICTION(always_osr_from_maglev, turbofan),
       CONTRADICTION(always_osr_from_maglev, turboshaft),
-      CONTRADICTION(always_turbofan, disable_optimizing_compilers),
-      CONTRADICTION(always_turbofan, jitless),
-      CONTRADICTION(always_turbofan, lite_mode),
-      CONTRADICTION(always_turbofan, turboshaft),
       CONTRADICTION(assert_types, stress_concurrent_inlining),
       CONTRADICTION(assert_types, stress_concurrent_inlining_attach_code),
       CONTRADICTION(disable_optimizing_compilers, maglev_future),
@@ -1122,7 +1133,9 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
       CONTRADICTION(disable_optimizing_compilers, stress_maglev),
       CONTRADICTION(disable_optimizing_compilers,
                     turboshaft_wasm_in_js_inlining),
+      CONTRADICTION(jit_fuzzing, max_lazy),
       CONTRADICTION(jitless, maglev_future),
+      CONTRADICTION(jitless, turbolev_future),
       CONTRADICTION(jitless, stress_concurrent_inlining),
       CONTRADICTION(jitless, stress_concurrent_inlining_attach_code),
       CONTRADICTION(jitless, stress_maglev),
@@ -1140,10 +1153,17 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
                     turboshaft_assert_types),
       CONTRADICTION(turboshaft, stress_concurrent_inlining),
       CONTRADICTION(turboshaft, stress_concurrent_inlining_attach_code),
+      CONTRADICTION(minor_ms, handle_weak_ref_weakly_in_minor_gc),
 
       // List of flags that shouldn't be used when --fuzzing or
       // --correctness-fuzzer-suppressions is passed. These flags will be reset
       // to their defaults.
+
+      // https://crbug.com/419424082
+      RESET_WHEN_CORRECTNESS_FUZZING(default_to_experimental_regexp_engine),
+      RESET_WHEN_CORRECTNESS_FUZZING(enable_experimental_regexp_engine),
+      RESET_WHEN_CORRECTNESS_FUZZING(
+          experimental_regexp_engine_capture_group_opt),
 
       // https://crbug.com/369652671
       RESET_WHEN_CORRECTNESS_FUZZING(stress_lazy_compilation),
@@ -1161,6 +1181,19 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
 
       // https://crbug.com/366671002
       RESET_WHEN_FUZZING(stress_snapshot),
+
+      // https://crbug.com/393401455
+      RESET_WHEN_FUZZING(turboshaft),
+
+      // OOBs are expected when using --mock-arraybuffer-allocator.
+      RESET_WHEN_FUZZING(mock_arraybuffer_allocator),
+
+#if V8_ENABLE_WEBASSEMBLY
+      // https://crbug.com/448681081
+      // Lazy validation does change whether or when exceptions are thrown for
+      // invalid function bodies.
+      RESET_WHEN_CORRECTNESS_FUZZING(wasm_lazy_validation),
+#endif  // V8_ENABLE_WEBASSEMBLY
   };
   for (auto [flag1, flag2] : contradictions) {
     if (!flag1 || !flag2) continue;

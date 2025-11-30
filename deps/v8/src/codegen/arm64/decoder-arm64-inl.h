@@ -24,8 +24,9 @@ void Decoder<V>::Decode(Instruction* instr) {
         break;
 
       // 1:   Add/sub immediate.
+      //      Min/max immediate.
       case 0x1:
-        DecodeAddSubImmediate(instr);
+        DecodeDataProcessingImmediate(instr);
         break;
 
       // A:   Logical shifted register.
@@ -85,6 +86,7 @@ void Decoder<V>::Decode(Instruction* instr) {
       //      Load/store register pair pre-index.
       //      Load/store register unsigned immediate.
       //      Advanced SIMD.
+      //      MOPS cpy.
       case 0x8:
       case 0x9:
       case 0xC:
@@ -337,7 +339,14 @@ void Decoder<V>::DecodeLoadStore(Instruction* instr) {
       }
     } else {
       if (instr->Bit(29) == 0) {
-        V::VisitUnallocated(instr);
+        if (instr->Mask(CpyFMask) == CpyFixed && instr->Bits(23, 22) != 0x3) {
+          V::VisitCpy(instr);
+        } else if (instr->Mask(SetFMask) == SetFixed &&
+                   instr->Bits(15, 14) != 0x3) {
+          V::VisitSet(instr);
+        } else {
+          V::VisitUnallocated(instr);
+        }
       } else {
         if ((instr->Mask(0x84C00000) == 0x80C00000) ||
             (instr->Mask(0x44800000) == 0x44800000) ||
@@ -396,10 +405,17 @@ void Decoder<V>::DecodeBitfieldExtract(Instruction* instr) {
 }
 
 template <typename V>
-void Decoder<V>::DecodeAddSubImmediate(Instruction* instr) {
+void Decoder<V>::DecodeDataProcessingImmediate(Instruction* instr) {
+  DCHECK_EQ(instr->Bit(28), 1);
   DCHECK_EQ(0x1, instr->Bits(27, 24));
-  if (instr->Bit(23) == 1) {
+  if (instr->Bits(23, 22) == 2) {
     V::VisitUnallocated(instr);
+  } else if (instr->Bit(23) == 1) {
+    if (instr->Bits(30, 29) != 0 || instr->Bits(21, 20) != 0) {
+      V::VisitUnallocated(instr);
+    } else {
+      V::VisitMinMaxImmediate(instr);
+    }
   } else {
     V::VisitAddSubImmediate(instr);
   }
@@ -451,13 +467,9 @@ void Decoder<V>::DecodeDataProcessing(Instruction* instr) {
             V::VisitUnallocated(instr);
           } else {
             if (instr->Bit(30) == 0) {
-              if ((instr->Bit(15) == 0x1) || (instr->Bits(15, 11) == 0) ||
-                  (instr->Bits(15, 12) == 0x1) ||
-                  (instr->Bits(15, 12) == 0x3) ||
-                  (instr->Bits(15, 13) == 0x3) ||
-                  (instr->Mask(0x8000EC00) == 0x00004C00) ||
-                  (instr->Mask(0x8000E800) == 0x80004000) ||
-                  (instr->Mask(0x8000E400) == 0x80004000)) {
+              if ((instr->Bits(15, 11) == 0) || (instr->Bits(15, 12) == 0x1) ||
+                  ((instr->Bits(15, 12) > 2) && (instr->Bits(15, 12) < 6)) ||
+                  (instr->Bits(15, 10) > 0x1B)) {
                 V::VisitUnallocated(instr);
               } else {
                 V::VisitDataProcessing2Source(instr);

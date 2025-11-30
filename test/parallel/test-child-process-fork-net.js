@@ -172,12 +172,12 @@ if (process.argv[2] === 'child') {
   function closeServer() {
     server.close();
 
-    setTimeout(() => {
+    setTimeout(mustCall(() => {
       assert(!closeEmitted);
       child1.send('close');
       child2.send('close');
       child3.disconnect();
-    }, platformTimeout(200));
+    }), platformTimeout(200));
   }
 
   process.on('exit', function() {

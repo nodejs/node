@@ -553,7 +553,7 @@ static void ReportFatalException(Environment* env,
   }
 
   if (env->isolate_data()->options()->report_uncaught_exception) {
-    TriggerNodeReport(env, report_message.c_str(), "Exception", "", error);
+    TriggerNodeReport(env, report_message, "Exception", "", error);
   }
 
   if (env->options()->trace_uncaught) {
@@ -633,7 +633,7 @@ v8::ModifyCodeGenerationFromStringsResult ModifyCodeGenerationFromStrings(
     v8::Local<v8::Context> context,
     v8::Local<v8::Value> source,
     bool is_code_like) {
-  HandleScope scope(context->GetIsolate());
+  HandleScope scope(Isolate::GetCurrent());
 
   if (context->GetNumberOfEmbedderDataFields() <=
       ContextEmbedderIndex::kAllowCodeGenerationFromStrings) {
@@ -1016,7 +1016,7 @@ const char* errno_string(int errorno) {
 }
 
 void PerIsolateMessageListener(Local<Message> message, Local<Value> error) {
-  Isolate* isolate = message->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   switch (message->ErrorLevel()) {
     case Isolate::MessageErrorLevel::kMessageWarning: {
       Environment* env = Environment::GetCurrent(isolate);
@@ -1024,15 +1024,14 @@ void PerIsolateMessageListener(Local<Message> message, Local<Value> error) {
         break;
       }
       Utf8Value filename(isolate, message->GetScriptOrigin().ResourceName());
+      Utf8Value msg(isolate, message->Get());
       // (filename):(line) (message)
-      std::stringstream warning;
-      warning << *filename;
-      warning << ":";
-      warning << message->GetLineNumber(env->context()).FromMaybe(-1);
-      warning << " ";
-      v8::String::Utf8Value msg(isolate, message->Get());
-      warning << *msg;
-      USE(ProcessEmitWarningGeneric(env, warning.str().c_str(), "V8"));
+      std::string warning =
+          SPrintF("%s:%s %s",
+                  filename,
+                  message->GetLineNumber(env->context()).FromMaybe(-1),
+                  msg);
+      USE(ProcessEmitWarningGeneric(env, warning, "V8"));
       break;
     }
     case Isolate::MessageErrorLevel::kMessageError:
@@ -1177,7 +1176,7 @@ void Initialize(Local<Object> target,
   SetMethod(
       context, target, "getErrorSourcePositions", GetErrorSourcePositions);
 
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   Local<Object> exit_codes = Object::New(isolate);
   READONLY_PROPERTY(target, "exitCodes", exit_codes);
 

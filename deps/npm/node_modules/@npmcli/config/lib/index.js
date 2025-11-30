@@ -132,13 +132,19 @@ class Config {
 
     this.sources = new Map([])
 
-    this.list = []
     for (const { data } of this.data.values()) {
       this.list.unshift(data)
     }
-    Object.freeze(this.list)
 
     this.#loaded = false
+  }
+
+  get list () {
+    const list = []
+    for (const { data } of this.data.values()) {
+      list.unshift(data)
+    }
+    return list
   }
 
   get loaded () {
@@ -281,7 +287,7 @@ class Config {
     }
 
     try {
-      // This does not have an actual definition because this is not user defineable
+      // This does not have an actual definition because this is not user definable
       defaultsObject['npm-version'] = require(join(this.npmPath, 'package.json')).version
     } catch {
       // in some weird state where the passed in npmPath does not have a package.json
@@ -589,7 +595,7 @@ class Config {
           if (this.definitions[key]?.exclusive) {
             for (const exclusive of this.definitions[key].exclusive) {
               if (!this.isDefault(exclusive)) {
-                throw new TypeError(`--${key} can not be provided when using --${exclusive}`)
+                throw new TypeError(`--${key} cannot be provided when using --${exclusive}`)
               }
             }
           }
@@ -672,7 +678,7 @@ class Config {
     // if we're in the ~ directory, and there happens to be a node_modules
     // folder (which is not TOO uncommon, it turns out), then we can end
     // up loading the "project" config where the "userconfig" will be,
-    // which causes some calamaties.  So, we only load project config if
+    // which causes some calamities.  So, we only load project config if
     // it doesn't match what the userconfig will be.
     if (projectFile !== this.#get('userconfig')) {
       return this.#loadFile(projectFile, 'project')

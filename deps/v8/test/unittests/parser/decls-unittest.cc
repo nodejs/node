@@ -120,11 +120,15 @@ DeclarationContext::DeclarationContext()
   // Do nothing.
 }
 
+// This tag value has been picked arbitrarily between 0 and
+// V8_EXTERNAL_POINTER_TAG_COUNT.
+constexpr v8::ExternalPointerTypeTag kDeclarationContextTag = 27;
+
 void DeclarationContext::InitializeIfNeeded() {
   if (is_initialized_) return;
   HandleScope scope(isolate_);
   Local<FunctionTemplate> function = FunctionTemplate::New(isolate_);
-  Local<Value> data = External::New(isolate_, this);
+  Local<Value> data = External::New(isolate_, this, kDeclarationContextTag);
   GetHolder(function)->SetHandler(v8::NamedPropertyHandlerConfiguration(
       &HandleGet, &HandleSet, &HandleQuery, nullptr, nullptr, data));
   Local<Context> context = Context::New(
@@ -218,7 +222,7 @@ v8::Intercepted DeclarationContext::HandleQuery(
 }
 
 DeclarationContext* DeclarationContext::GetInstance(Local<Value> data) {
-  void* value = Local<External>::Cast(data)->Value();
+  void* value = Local<External>::Cast(data)->Value(kDeclarationContextTag);
   return static_cast<DeclarationContext*>(value);
 }
 
@@ -435,12 +439,12 @@ class SimpleContext {
 
   void Check(const char* source, Expectations expectations,
              v8::Local<Value> value = Local<Value>()) {
-    HandleScope scope(context_->GetIsolate());
-    TryCatch catcher(context_->GetIsolate());
+    v8::Isolate* isolate = v8::Isolate::GetCurrent();
+    HandleScope scope(isolate);
+    TryCatch catcher(isolate);
     catcher.SetVerbose(true);
     MaybeLocal<Script> script = Script::Compile(
-        context_,
-        String::NewFromUtf8(context_->GetIsolate(), source).ToLocalChecked());
+        context_, String::NewFromUtf8(isolate, source).ToLocalChecked());
     if (expectations == EXPECT_ERROR) {
       CHECK(script.IsEmpty());
       return;

@@ -441,5 +441,12 @@ RegExpClassSetExpression* RegExpClassSetExpression::Empty(Zone* zone,
       operands);
 }
 
+bool RegExpText::StartsWithAtom() const {
+  if (elements_.length() == 0) return false;
+  return elements_.at(0).text_type() == TextElement::ATOM;
+}
+
+RegExpAtom* RegExpText::FirstAtom() const { return elements_.at(0).atom(); }
+
 }  // namespace internal
 }  // namespace v8

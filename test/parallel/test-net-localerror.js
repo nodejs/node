@@ -20,16 +20,16 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const net = require('net');
 
-const connect = (opts, code, type) => {
+const connect = common.mustCall((opts, code, type) => {
   assert.throws(
     () => net.connect(opts),
     { code, name: type.name }
   );
-};
+}, 2);
 
 connect({
   host: 'localhost',

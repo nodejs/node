@@ -55,8 +55,9 @@ JSUDPWrap::JSUDPWrap(Environment* env, Local<Object> obj)
   : AsyncWrap(env, obj, PROVIDER_JSUDPWRAP) {
   MakeWeak();
 
-  obj->SetAlignedPointerInInternalField(
-      kUDPWrapBaseField, static_cast<UDPWrapBase*>(this));
+  obj->SetAlignedPointerInInternalField(kUDPWrapBaseField,
+                                        static_cast<UDPWrapBase*>(this),
+                                        EmbedderDataTag::kDefault);
 }
 
 int JSUDPWrap::RecvStart() {

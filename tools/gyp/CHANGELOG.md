@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.21.0](https://github.com/nodejs/gyp-next/compare/v0.20.5...v0.21.0) (2025-11-04)
+
+
+### Features
+
+* add support for Visual Studio 2026 ([#319](https://github.com/nodejs/gyp-next/issues/319)) ([cb13bbc](https://github.com/nodejs/gyp-next/commit/cb13bbc4ab7a7d86b51221b39ebee4281e1d3e19))
+
+## [0.20.5](https://github.com/nodejs/gyp-next/compare/v0.20.4...v0.20.5) (2025-10-13)
+
+
+### Bug Fixes
+
+* Fix ruff v0.13.0 adds ruff rule RUF059 ([bd4491a](https://github.com/nodejs/gyp-next/commit/bd4491a3ba641eeb040b785bbce367f72c3baf19))
+* handle `None` case in xcode_emulation regexes ([#311](https://github.com/nodejs/gyp-next/issues/311)) ([b21ee31](https://github.com/nodejs/gyp-next/commit/b21ee3150eea9fc1a8811e910e5ba64f42e1fb77))
+
 ## [0.20.4](https://github.com/nodejs/gyp-next/compare/v0.20.3...v0.20.4) (2025-08-25)
 
 

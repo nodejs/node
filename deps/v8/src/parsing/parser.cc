@@ -18,6 +18,7 @@
 #include "src/codegen/bailout-reason.h"
 #include "src/common/globals.h"
 #include "src/common/message-template.h"
+#include "src/common/scoped-modification.h"
 #include "src/compiler-dispatcher/lazy-compile-dispatcher.h"
 #include "src/heap/parked-scope.h"
 #include "src/logging/counters.h"
@@ -337,6 +338,7 @@ bool Parser::ShortcutStringLiteralAppendExpression(Expression** x,
   }
   if ((*x)->IsConsStringLiteral()) {
     (*x)->AsLiteral()->AsConsString()->AddString(zone(), y_val);
+    (*x)->clear_parenthesized();
     return true;
   }
   return false;
@@ -473,15 +475,15 @@ Expression* Parser::NewSuperPropertyReference(int pos) {
 
 SuperCallReference* Parser::NewSuperCallReference(int pos) {
   VariableProxy* new_target_proxy =
-      NewUnresolved(ast_value_factory()->new_target_string(), pos);
+      NewUnresolved(ast_value_factory()->dot_new_target_string(), pos);
   VariableProxy* this_function_proxy =
-      NewUnresolved(ast_value_factory()->this_function_string(), pos);
+      NewUnresolved(ast_value_factory()->dot_this_function_string(), pos);
   return factory()->NewSuperCallReference(new_target_proxy, this_function_proxy,
                                           pos);
 }
 
 Expression* Parser::NewTargetExpression(int pos) {
-  auto proxy = NewUnresolved(ast_value_factory()->new_target_string(), pos);
+  auto proxy = NewUnresolved(ast_value_factory()->dot_new_target_string(), pos);
   proxy->set_is_new_target();
   return proxy;
 }
@@ -529,6 +531,9 @@ Expression* Parser::ExpressionFromLiteral(Token::Value token, int pos) {
 Expression* Parser::NewV8Intrinsic(const AstRawString* name,
                                    const ScopedPtrList<Expression>& args,
                                    int pos) {
+  // Natives syntax is not allowed in extensions code but it might be useful
+  // for debugging purposes provided that --allow-natives-syntax flag is
+  // enabled.
   if (ParsingExtension()) {
     // The extension structures are only accessible while parsing the
     // very first time, not when reparsing because of lazy compilation.
@@ -744,7 +749,14 @@ FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info) {
   DCHECK_EQ(parsing_on_main_thread_, isolate != nullptr);
   DCHECK_NULL(scope_);
 
-  ParsingModeScope mode(this, allow_lazy_ ? PARSE_LAZILY : PARSE_EAGERLY);
+  std::optional<base::ElapsedTimer> timer;
+  if (v8_flags.enable_parser_ablation && base::TimeTicks::IsHighResolution()) {
+    timer.emplace();
+    timer->Start();
+  }
+
+  ScopedModification<Mode> mode_scope(
+      &mode_, allow_lazy_ ? PARSE_LAZILY : PARSE_EAGERLY);
   ResetInfoId();
 
   FunctionLiteral* result = nullptr;
@@ -819,6 +831,13 @@ FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info) {
     }
     CheckConflictingVarDeclarations(scope);
 
+    // For sloppy eval though, we clear dynamic variables created for toplevel
+    // var to avoid resolving to a variable when the variable and proxy are in
+    // the same eval execution. The variable is not available on subsequent lazy
+    // executions of functions in the eval, so this avoids inner functions from
+    // looking up different variables during eager and lazy compilation.
+    if (flags().is_eval()) outer->RemoveDynamic();
+
     if (flags().parse_restriction() == ONLY_SINGLE_FUNCTION_LITERAL) {
       if (body.length() != 1 || !body.at(0)->IsExpressionStatement() ||
           !body.at(0)
@@ -840,6 +859,16 @@ FunctionLiteral* Parser::DoParseProgram(Isolate* isolate, ParseInfo* info) {
   if (has_error()) return nullptr;
 
   RecordFunctionLiteralSourceRange(result);
+
+  if (timer && timer->Elapsed().InNanoseconds() > 0) {
+    auto end = timer->Elapsed();
+    end += std::min(base::TimeDelta::FromSeconds(1),
+                    base::TimeDelta::FromMicroseconds(
+                        static_cast<double>(end.InMicroseconds()) *
+                        v8_flags.parser_ablation_amount));
+    while (timer->Elapsed() < end) {
+    }
+  }
 
   return result;
 }
@@ -903,7 +932,7 @@ void Parser::ParseWrapped(Isolate* isolate, ParseInfo* info,
                           DeclarationScope* outer_scope, Zone* zone) {
   DCHECK(parsing_on_main_thread_);
   DCHECK(info->is_wrapped_as_function());
-  ParsingModeScope parsing_mode(this, PARSE_EAGERLY);
+  ScopedModification<Mode> mode_scope(&mode_, PARSE_EAGERLY);
 
   // Set function and block state for the outer eval scope.
   DCHECK(outer_scope->is_eval_scope());
@@ -1025,7 +1054,7 @@ void Parser::ParseFunction(Isolate* isolate, ParseInfo* info,
     maybe_wrapped_arguments_ = handle(script->wrapped_arguments(), isolate);
   }
 
-  int function_literal_id = shared_info->function_literal_id();
+  int function_literal_id = shared_info->function_literal_id(kRelaxedLoad);
 
   // Initialize parser state.
   info->set_function_name(ast_value_factory()->GetString(
@@ -1080,6 +1109,12 @@ FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
   DCHECK_NOT_NULL(raw_name);
   DCHECK_NULL(scope_);
 
+  std::optional<base::ElapsedTimer> timer;
+  if (v8_flags.enable_parser_ablation && base::TimeTicks::IsHighResolution()) {
+    timer.emplace();
+    timer->Start();
+  }
+
   DCHECK(ast_value_factory());
   fni_.PushEnclosingName(raw_name);
 
@@ -1087,7 +1122,7 @@ FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
   DCHECK_LT(0, function_literal_id);
   SkipInfos(function_literal_id - 1);
 
-  ParsingModeScope parsing_mode(this, PARSE_EAGERLY);
+  ScopedModification<Mode> mode_scope(&mode_, PARSE_EAGERLY);
 
   // Place holder for the result.
   FunctionLiteral* result = nullptr;
@@ -1194,6 +1229,16 @@ FunctionLiteral* Parser::DoParseFunction(Isolate* isolate, ParseInfo* info,
 
   info->set_max_info_id(GetLastInfoId());
 
+  if (timer && timer->Elapsed().InNanoseconds() > 0) {
+    auto end = timer->Elapsed();
+    end += std::min(base::TimeDelta::FromSeconds(1),
+                    base::TimeDelta::FromMicroseconds(
+                        static_cast<double>(end.InMicroseconds()) *
+                        v8_flags.parser_ablation_amount));
+    while (timer->Elapsed() < end) {
+    }
+  }
+
   DCHECK_IMPLIES(result, function_literal_id == result->function_literal_id());
   return result;
 }
@@ -1217,7 +1262,7 @@ FunctionLiteral* Parser::ParseClassForMemberInitialization(
 
   // We preparse the class members that are not fields with initializers
   // in order to collect the function literal ids.
-  ParsingModeScope mode(this, PARSE_LAZILY);
+  ScopedModification<Mode> mode_scope(&mode_, PARSE_LAZILY);
 
   ExpressionParsingScope no_expression_scope(impl());
 
@@ -1540,6 +1585,7 @@ void Parser::ParseImportDeclaration() {
   //       AssertClause ';'
   //   'import' ModuleSpecifier [no LineTerminator here] AssertClause';'
   //   'import' 'source' ImportedBinding 'from' ModuleSpecifier ';'
+  //   'import' 'defer'  NameSpaceImport FromClause WithClause_opt ';'
   //
   // ImportClause :
   //   ImportedDefaultBinding
@@ -1578,18 +1624,28 @@ void Parser::ParseImportDeclaration() {
         PeekAheadAhead() == Token::kIdentifier) {
       Consume(Token::kIdentifier);
       import_phase = ModuleImportPhase::kSource;
+    } else if (v8_flags.js_defer_import_eval &&
+               PeekContextualKeyword(ast_value_factory()->defer_string()) &&
+               PeekAhead() == Token::kMul &&
+               PeekAheadAhead() == Token::kIdentifier) {
+      Consume(Token::kIdentifier);
+      import_phase = ModuleImportPhase::kDefer;
     }
-    import_default_binding = ParseNonRestrictedIdentifier();
-    import_default_binding_loc = scanner()->location();
-    DeclareUnboundVariable(import_default_binding, VariableMode::kConst,
-                           kNeedsInitialization, pos);
+
+    // 'import defer' is only allowed with namespaced import
+    if (import_phase != ModuleImportPhase::kDefer) {
+      import_default_binding = ParseNonRestrictedIdentifier();
+      import_default_binding_loc = scanner()->location();
+      DeclareUnboundVariable(import_default_binding, VariableMode::kConst,
+                             kNeedsInitialization, pos);
+    }
   }
 
   // Parse NameSpaceImport or NamedImports if present.
   const AstRawString* module_namespace_binding = nullptr;
   Scanner::Location module_namespace_binding_loc;
   const ZonePtrList<const NamedImport>* named_imports = nullptr;
-  if (import_phase == ModuleImportPhase::kEvaluation &&
+  if (import_phase != ModuleImportPhase::kSource &&
       (import_default_binding == nullptr || Check(Token::kComma))) {
     switch (peek()) {
       case Token::kMul: {
@@ -1603,6 +1659,10 @@ void Parser::ParseImportDeclaration() {
       }
 
       case Token::kLeftBrace:
+        if (import_phase == ModuleImportPhase::kDefer) {
+          ReportUnexpectedToken(scanner()->current_token());
+          return;
+        }
         named_imports = ParseNamedImports(pos);
         break;
 
@@ -1618,7 +1678,7 @@ void Parser::ParseImportDeclaration() {
   // TODO(42204365): Enable import attributes with source phase import once
   // specified.
   const ImportAttributes* import_attributes =
-      import_phase == ModuleImportPhase::kEvaluation
+      import_phase != ModuleImportPhase::kSource
           ? ParseImportWithOrAssertClause()
           : zone()->New<ImportAttributes>(zone());
   ExpectSemicolon();
@@ -1632,10 +1692,11 @@ void Parser::ParseImportDeclaration() {
   // Declare that takes a location?
 
   if (module_namespace_binding != nullptr) {
-    DCHECK_EQ(ModuleImportPhase::kEvaluation, import_phase);
-    module()->AddStarImport(module_namespace_binding, module_specifier,
-                            import_attributes, module_namespace_binding_loc,
-                            specifier_loc, zone());
+    DCHECK(import_phase == ModuleImportPhase::kEvaluation ||
+           import_phase == ModuleImportPhase::kDefer);
+    module()->AddStarImport(
+        module_namespace_binding, module_specifier, import_phase,
+        import_attributes, module_namespace_binding_loc, specifier_loc, zone());
   }
 
   if (import_default_binding != nullptr) {
@@ -1778,7 +1839,8 @@ void Parser::ParseExportStar() {
   const ImportAttributes* import_attributes = ParseImportWithOrAssertClause();
   ExpectSemicolon();
 
-  module()->AddStarImport(local_name, module_specifier, import_attributes,
+  module()->AddStarImport(local_name, module_specifier,
+                          ModuleImportPhase::kEvaluation, import_attributes,
                           local_name_loc, specifier_loc, zone());
   module()->AddExport(local_name, export_name, export_name_loc, zone());
 }
@@ -2400,7 +2462,10 @@ Statement* Parser::DesugarLexicalBindingsInForStatement(
     //    make statement: let/const x = temp_x.
     for (int i = 0; i < for_info.bound_names.length(); i++) {
       VariableProxy* proxy = DeclareBoundVariable(
-          for_info.bound_names[i], for_info.parsing_result.descriptor.mode,
+          for_info.bound_names[i],
+          for_info.parsing_result.descriptor.mode == VariableMode::kAwaitUsing
+              ? VariableMode::kConst
+              : for_info.parsing_result.descriptor.mode,
           kNoSourcePosition);
       inner_vars.Add(proxy->var());
       VariableProxy* temp_proxy = factory()->NewVariableProxy(temps.at(i));
@@ -2762,7 +2827,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
 
   // Determine whether we can lazy parse the inner function. Lazy compilation
   // has to be enabled, which is either forced by overall parse flags or via a
-  // ParsingModeScope.
+  // ScopedModification.
   const bool can_preparse = parse_lazily();
 
   // Determine whether we can post any parallel compile tasks. Preparsing must
@@ -2950,9 +3015,26 @@ bool Parser::SkipFunction(const AstRawString* function_name, FunctionKind kind,
   // AST. This gathers the data needed to build a lazy function.
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.PreParse");
 
+  std::optional<base::ElapsedTimer> timer;
+  if (v8_flags.enable_preparser_ablation &&
+      base::TimeTicks::IsHighResolution()) {
+    timer.emplace();
+    timer->Start();
+  }
+
   PreParser::PreParseResult result = reusable_preparser()->PreParseFunction(
       function_name, kind, function_syntax_kind, function_scope, use_counts_,
       produced_preparse_data);
+
+  if (timer && timer->Elapsed().InNanoseconds() > 0) {
+    auto end = timer->Elapsed();
+    end += std::min(base::TimeDelta::FromSeconds(1),
+                    base::TimeDelta::FromMicroseconds(
+                        static_cast<double>(end.InMicroseconds()) *
+                        v8_flags.preparser_ablation_amount));
+    while (timer->Elapsed() < end) {
+    }
+  }
 
   if (result == PreParser::kPreParseStackOverflow) {
     // Propagate stack overflow.
@@ -3050,7 +3132,8 @@ void Parser::ParseFunction(
     int* suspend_count,
     ZonePtrList<const AstRawString>* arguments_for_wrapped_function) {
   FunctionParsingScope function_parsing_scope(this);
-  ParsingModeScope mode(this, allow_lazy_ ? PARSE_LAZILY : PARSE_EAGERLY);
+  ScopedModification<Mode> mode_scope(
+      &mode_, allow_lazy_ ? PARSE_LAZILY : PARSE_EAGERLY);
 
   FunctionState function_state(&function_state_, &scope_, function_scope);
 

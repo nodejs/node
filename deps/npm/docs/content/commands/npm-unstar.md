@@ -14,8 +14,7 @@ Note: This command is unaware of workspaces.
 
 ### Description
 
-"Unstarring" a package is the opposite of [`npm star`](/commands/npm-star),
-it removes an item from your list of favorite packages.
+"Unstarring" a package is the opposite of [`npm star`](/commands/npm-star), it removes an item from your list of favorite packages.
 
 ### More
 

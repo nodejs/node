@@ -52,14 +52,6 @@ class V8_EXPORT_PRIVATE IsolateForSandbox final {
   Isolate* const isolate_;
 };
 
-// Use this function instead of `Internals::GetIsolateForSandbox` for internal
-// code, as this function is fully inlinable.
-// Note that this method might return an isolate which is not the "current" one
-// as returned by `Isolate::Current()`. Use `GetCurrentIsolateForSandbox`
-// instead where possible.
-// TODO(396607238): Replace all callers with `GetCurrentIsolateForSandbox()`.
-V8_INLINE IsolateForSandbox GetIsolateForSandbox(Tagged<HeapObject> object);
-
 V8_INLINE IsolateForSandbox GetCurrentIsolateForSandbox();
 
 #else  // V8_ENABLE_SANDBOX
@@ -72,9 +64,6 @@ class V8_EXPORT_PRIVATE IsolateForSandbox final {
   constexpr IsolateForSandbox() = default;
 };
 
-V8_INLINE IsolateForSandbox GetIsolateForSandbox(Tagged<HeapObject>) {
-  return {};
-}
 V8_INLINE IsolateForSandbox GetCurrentIsolateForSandbox() { return {}; }
 
 #endif  // V8_ENABLE_SANDBOX
