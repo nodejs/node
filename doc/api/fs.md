@@ -4842,6 +4842,29 @@ implemented by monitoring changes in a directory versus specific files. This
 allows substitution of a file and fs reporting changes on the new file
 with the same filename.
 
+##### Event Reliability with Rapid Operations
+
+<!--type=misc-->
+
+When files are created, modified, or deleted in rapid succession, `fs.watch`
+may miss events or coalesce multiple events into one. This is due to the
+underlying operating system file watching mechanisms (such as `inotify` on
+Linux, `FSEvents` on macOS, and `ReadDirectoryChangesW` on Windows) which
+may debounce or batch events to reduce system overhead.
+
+For applications requiring reliable detection of all file system events,
+especially during rapid operations, consider using:
+
+* **Third-party libraries** like [`chokidar`][] which provide more robust
+  event handling and cross-platform consistency.
+* **`fs.watchFile()`** for individual files where guaranteed event detection
+  is critical, though this uses polling and is less efficient.
+* **Debouncing logic** in your event handlers to handle potential duplicate
+  or coalesced events.
+
+[`chokidar`]: https://github.com/paulmillr/chokidar
+
+
 ##### Availability
 
 <!--type=misc-->
