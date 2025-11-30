@@ -21,7 +21,7 @@ const assert = require('assert');
         assert.match(output, /Start c/);
         assert.match(output, /dynamic import b\.mjs failed.*ERR_REQUIRE_CYCLE_MODULE/);
         assert.match(output, /dynamic import d\.mjs failed.*ERR_REQUIRE_CYCLE_MODULE/);
-      }
+      },
     }
   );
 }

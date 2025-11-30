@@ -17,7 +17,7 @@ spawnSyncAndAssert(
   ],
   {
     trim: true,
-    stdout: / default: { hello: 'world' }/
+    stdout: / default: { hello: 'world' }/,
   }
 );
 
@@ -31,6 +31,6 @@ spawnSyncAndAssert(
   ],
   {
     trim: true,
-    stdout: / default: { hello: 'world' }/
+    stdout: / default: { hello: 'world' }/,
   }
 );

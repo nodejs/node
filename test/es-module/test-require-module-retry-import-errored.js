@@ -9,7 +9,7 @@ const { exportedReject } = require('../fixtures/es-modules/tla/export-promise.mj
 assert.throws(() => {
   require('../fixtures/es-modules/tla/await-export-promise.mjs');
 }, {
-  code: 'ERR_REQUIRE_ASYNC_MODULE'
+  code: 'ERR_REQUIRE_ASYNC_MODULE',
 });
 
 const interval = setInterval(() => {}, 1000);  // Keep the test running, because await alone doesn't.
