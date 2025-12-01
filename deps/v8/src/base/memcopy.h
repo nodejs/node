@@ -202,11 +202,11 @@ inline void MemCopyAndSwitchEndianness(void* dst, void* src,
       MemCopy(dst, src, num_elements);
       return;
     case 2:
-      COPY_LOOP(uint16_t, ByteReverse16);
+      COPY_LOOP(uint16_t, bits::ByteReverse16);
     case 4:
-      COPY_LOOP(uint32_t, ByteReverse32);
+      COPY_LOOP(uint32_t, bits::ByteReverse32);
     case 8:
-      COPY_LOOP(uint64_t, ByteReverse64);
+      COPY_LOOP(uint64_t, bits::ByteReverse64);
     default:
       UNREACHABLE();
   }
