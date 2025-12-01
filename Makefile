@@ -78,10 +78,16 @@ EXEEXT := $(shell $(PYTHON) -c \
 		"import sys; print('.exe' if sys.platform == 'win32' else '')")
 
 NODE_EXE = node$(EXEEXT)
-# Use $(PWD) so we can cd to anywhere before calling this
-NODE ?= "$(PWD)/$(NODE_EXE)"
 NODE_G_EXE = node_g$(EXEEXT)
 NPM ?= ./deps/npm/bin/npm-cli.js
+
+# Release build of node.
+# Use $(PWD) so we can cd to anywhere before calling this.
+NODE ?= "$(PWD)/$(NODE_EXE)"
+# Prefer $(OUT_NODE) when running tests. Use $(NODE)
+# when generating coverage reports or running toolings as
+# debug build is be slower.
+OUT_NODE ?= "$(PWD)/out/$(BUILDTYPE)/node$(EXEEXT)"
 
 # Flags for packaging.
 BUILD_DOWNLOAD_FLAGS ?= --download=all
@@ -108,8 +114,10 @@ available-node = \
 # just the debug build, run `make -C out BUILDTYPE=Debug` instead.
 ifeq ($(BUILDTYPE),Release)
 all: $(NODE_EXE) ## Build node in out/Release/node (Default).
+$(OUT_NODE): $(NODE_EXE)
 else
 all: $(NODE_EXE) $(NODE_G_EXE)
+$(OUT_NODE): $(NODE_G_EXE)
 endif
 
 .PHONY: help
@@ -293,7 +301,7 @@ coverage-report-js: ## Report JavaScript coverage results.
 
 cctest: all ## Run the C++ tests using the built `cctest` executable.
 	@out/$(BUILDTYPE)/$@ --gtest_filter=$(GTEST_FILTER)
-	$(NODE) ./test/embedding/test-embedding.js
+	$(OUT_NODE) ./test/embedding/test-embedding.js
 
 .PHONY: list-gtests
 list-gtests: ## List all available C++ gtests.
@@ -605,7 +613,7 @@ test-ci: | clear-stalled bench-addons-build build-addons build-js-native-api-tes
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) -p tap --logfile test.tap \
 		--mode=$(BUILDTYPE_LOWER) --flaky-tests=$(FLAKY_TESTS) \
 		$(TEST_CI_ARGS) $(CI_JS_SUITES) $(CI_NATIVE_SUITES) $(CI_DOC)
-	$(NODE) ./test/embedding/test-embedding.js
+	$(OUT_NODE) ./test/embedding/test-embedding.js
 	$(info Clean up any leftover processes, error if found.)
 	ps awwx | grep Release/node | grep -v grep | cat
 	@PS_OUT=`ps awwx | grep Release/node | grep -v grep | awk '{print $$1}'`; \
@@ -651,7 +659,7 @@ test-wpt: all ## Run the Web Platform Tests.
 test-wpt-report: ## Run the Web Platform Tests and generate a report.
 	$(RM) -r out/wpt
 	mkdir -p out/wpt
-	-WPT_REPORT=1 $(PYTHON) tools/test.py --shell $(NODE) $(PARALLEL_ARGS) wpt
+	-WPT_REPORT=1 $(PYTHON) tools/test.py --shell $(OUT_NODE) $(PARALLEL_ARGS) wpt
 	$(NODE) "$$PWD/tools/merge-wpt-reports.mjs"
 
 .PHONY: test-internet
@@ -684,12 +692,12 @@ test-known-issues: all ## Run tests for known issues.
 
 # Related CI job: node-test-npm
 .PHONY: test-npm
-test-npm: $(NODE_EXE) ## Run the npm test suite on deps/npm.
-	$(NODE) tools/test-npm-package --install --logfile=test-npm.tap deps/npm test
+test-npm: $(OUT_NODE) ## Run the npm test suite on deps/npm.
+	$(OUT_NODE) tools/test-npm-package --install --logfile=test-npm.tap deps/npm test
 
 .PHONY: test-npm-publish
-test-npm-publish: $(NODE_EXE) ## Test the `npm publish` command.
-	npm_package_config_publishtest=true $(NODE) deps/npm/test/run.js
+test-npm-publish: $(OUT_NODE) ## Test the `npm publish` command.
+	npm_package_config_publishtest=true $(OUT_NODE) deps/npm/test/run.js
 
 .PHONY: test-js-native-api
 test-js-native-api: test-build-js-native-api ## Run JS Native-API tests.
