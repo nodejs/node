@@ -483,6 +483,39 @@ inline int32_t WraparoundNeg32(int32_t x) {
   return static_cast<int32_t>(-static_cast<uint32_t>(x));
 }
 
+inline constexpr uint16_t ByteReverse16(uint16_t value) {
+#if V8_HAS_BUILTIN_BSWAP16
+  return __builtin_bswap16(value);
+#else
+  return value << 8 | (value >> 8 & 0x00FF);
+#endif
+}
+
+inline constexpr uint32_t ByteReverse32(uint32_t value) {
+#if V8_HAS_BUILTIN_BSWAP32
+  return __builtin_bswap32(value);
+#else
+  return value << 24 | ((value << 8) & 0x00FF0000) |
+         ((value >> 8) & 0x0000FF00) | ((value >> 24) & 0x00000FF);
+#endif
+}
+
+inline constexpr uint64_t ByteReverse64(uint64_t value) {
+#if V8_HAS_BUILTIN_BSWAP64
+  return __builtin_bswap64(value);
+#else
+  size_t bits_of_v = sizeof(value) * kBitsPerByte;
+  return value << (bits_of_v - 8) |
+         ((value << (bits_of_v - 24)) & 0x00FF000000000000) |
+         ((value << (bits_of_v - 40)) & 0x0000FF0000000000) |
+         ((value << (bits_of_v - 56)) & 0x000000FF00000000) |
+         ((value >> (bits_of_v - 56)) & 0x00000000FF000000) |
+         ((value >> (bits_of_v - 40)) & 0x0000000000FF0000) |
+         ((value >> (bits_of_v - 24)) & 0x000000000000FF00) |
+         ((value >> (bits_of_v - 8)) & 0x00000000000000FF);
+#endif
+}
+
 // SignedSaturatedAdd64(lhs, rhs) adds |lhs| and |rhs|,
 // checks and returns the result.
 V8_BASE_EXPORT int64_t SignedSaturatedAdd64(int64_t lhs, int64_t rhs);
