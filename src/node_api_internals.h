@@ -45,4 +45,6 @@ struct node_napi_env__ : public napi_env__ {
 
 using node_napi_env = node_napi_env__*;
 
+extern node_api_vtable* node_api_get_vtable();
+
 #endif  // SRC_NODE_API_INTERNALS_H_
