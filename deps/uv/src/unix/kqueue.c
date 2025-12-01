@@ -30,6 +30,9 @@
 #include <sys/types.h>
 #include <sys/event.h>
 #include <sys/time.h>
+#if defined(__FreeBSD__)
+#include <sys/user.h>
+#endif
 #include <unistd.h>
 #include <fcntl.h>
 #include <time.h>
@@ -94,20 +97,47 @@ int uv__io_fork(uv_loop_t* loop) {
 
 
 int uv__io_check_fd(uv_loop_t* loop, int fd) {
-  struct kevent ev;
-  int rc;
+  struct kevent ev[2];
+  struct stat sb;
+#ifdef __APPLE__
+  char path[MAXPATHLEN];
+#endif
 
-  rc = 0;
-  EV_SET(&ev, fd, EVFILT_READ, EV_ADD, 0, 0, 0);
-  if (kevent(loop->backend_fd, &ev, 1, NULL, 0, NULL))
-    rc = UV__ERR(errno);
+  if (uv__fstat(fd, &sb))
+    return UV__ERR(errno);
 
-  EV_SET(&ev, fd, EVFILT_READ, EV_DELETE, 0, 0, 0);
-  if (rc == 0)
-    if (kevent(loop->backend_fd, &ev, 1, NULL, 0, NULL))
-      abort();
+  /* On FreeBSD, kqueue only supports EVFILT_READ notification for regular files
+   * and always reports ready events for writing, resulting in busy-looping.
+   *
+   * On Darwin, DragonFlyBSD, NetBSD and OpenBSD, kqueue reports ready events for
+   * regular files as readable and writable only once, acting like an EV_ONESHOT.
+   * 
+   * Neither of the above cases should be added to the kqueue.
+   */
+  if (S_ISREG(sb.st_mode) || S_ISDIR(sb.st_mode))
+    return UV_EINVAL;
 
-  return rc;
+#ifdef __APPLE__
+  /* On Darwin (both macOS and iOS), in addition to regular files, FIFOs also don't
+   * work properly with kqueue: the disconnection from the last writer won't trigger
+   * an event for kqueue in spite of what the man pages say. Thus, we also disallow
+   * the case of S_IFIFO. */ 
+  if (S_ISFIFO(sb.st_mode)) {
+    /* File descriptors of FIFO, pipe and kqueue share the same type of file, 
+     * therefore there is no way to tell them apart via stat.st_mode&S_IFMT.
+     * Fortunately, FIFO is the only one that has a persisted file on filesystem,
+     * from which we're able to make the distinction for it. */
+    if (!fcntl(fd, F_GETPATH, path))
+      return UV_EINVAL;
+  }
+#endif
+
+  EV_SET(ev, fd, EVFILT_READ, EV_ADD, 0, 0, 0);
+  EV_SET(ev + 1, fd, EVFILT_READ, EV_DELETE, 0, 0, 0);
+  if (kevent(loop->backend_fd, ev, 2, NULL, 0, NULL))
+    return UV__ERR(errno);
+
+  return 0;
 }
 
 
@@ -262,6 +292,9 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
 
     if (nfds == -1)
       assert(errno == EINTR);
+    else if (nfds == 0)
+      /* Unlimited timeout should only return with events or signal. */
+      assert(timeout != -1);
 
     if (pset != NULL)
       pthread_sigmask(SIG_UNBLOCK, pset, NULL);
@@ -286,8 +319,6 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
         timeout = user_timeout;
         reset_timeout = 0;
       } else if (nfds == 0) {
-        /* Reached the user timeout value. */
-        assert(timeout != -1);
         return;
       }
 
@@ -329,6 +360,17 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
         uv__kqueue_delete(loop->backend_fd, ev);
         continue;
       }
+
+#if UV__KQUEUE_EVFILT_USER
+      if (ev->filter == EVFILT_USER) {
+        w = &loop->async_io_watcher;
+        assert(fd == w->fd);
+        uv__metrics_update_idle_time(loop);
+        w->cb(loop, w, w->events);
+        nevents++;
+        continue;
+      }
+#endif
 
       if (ev->filter == EVFILT_VNODE) {
         assert(w->events == POLLIN);
@@ -479,6 +521,26 @@ static void uv__fs_event(uv_loop_t* loop, uv__io_t* w, unsigned int fflags) {
    */
   if (fcntl(handle->event_watcher.fd, F_GETPATH, pathbuf) == 0)
     path = uv__basename_r(pathbuf);
+#elif defined(F_KINFO)
+  /* We try to get the file info reference from the file descriptor.
+   * the struct's kf_structsize must be initialised beforehand
+   * whether with the KINFO_FILE_SIZE constant or this way.
+   */
+  struct stat statbuf;
+  struct kinfo_file kf;
+
+  if (handle->event_watcher.fd != -1 &&
+     (!uv__fstat(handle->event_watcher.fd, &statbuf) && !(statbuf.st_mode & S_IFDIR))) {
+     /* we are purposely not using KINFO_FILE_SIZE here
+      * as it is not available on non intl archs
+      * and here it gives 1392 too on intel.
+      * anyway, the man page also mentions we can proceed
+      * this way.
+      */
+     kf.kf_structsize = sizeof(kf);
+     if (fcntl(handle->event_watcher.fd, F_KINFO, &kf) == 0)
+       path = uv__basename_r(kf.kf_path);
+  }
 #endif
   handle->cb(handle, path, events, 0);
 
@@ -507,6 +569,7 @@ int uv_fs_event_start(uv_fs_event_t* handle,
                       const char* path,
                       unsigned int flags) {
   int fd;
+  int r;
 #if defined(__APPLE__) && MAC_OS_X_VERSION_MAX_ALLOWED >= 1070
   struct stat statbuf;
 #endif
@@ -542,7 +605,6 @@ int uv_fs_event_start(uv_fs_event_t* handle,
 
   if (0 == atomic_load_explicit(&uv__has_forked_with_cfrunloop,
                                 memory_order_relaxed)) {
-    int r;
     /* The fallback fd is no longer needed */
     uv__close_nocheckstdio(fd);
     handle->event_watcher.fd = -1;
@@ -558,11 +620,16 @@ int uv_fs_event_start(uv_fs_event_t* handle,
 fallback:
 #endif /* #if defined(__APPLE__) && MAC_OS_X_VERSION_MAX_ALLOWED >= 1070 */
 
-  uv__handle_start(handle);
-  uv__io_init(&handle->event_watcher, uv__fs_event, fd);
-  uv__io_start(handle->loop, &handle->event_watcher, POLLIN);
+  r = uv__io_init_start(handle->loop,
+                        &handle->event_watcher,
+                        uv__fs_event,
+                        fd,
+                        POLLIN);
 
-  return 0;
+  if (!r)
+    uv__handle_start(handle);
+
+  return r;
 }
 
 
