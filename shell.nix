@@ -12,6 +12,7 @@
 
   # Build options
   icu ? pkgs.icu,
+  withAmaro ? true,
   withSQLite ? true,
   withSSL ? true,
   withTemporal ? false,
@@ -79,6 +80,7 @@ pkgs.mkShell {
       )
     ]
     ++ extraConfigFlags
+    ++ pkgs.lib.optional (!withAmaro) "--without-amaro"
     ++ pkgs.lib.optional (!withSQLite) "--without-sqlite"
     ++ pkgs.lib.optional (!withSSL) "--without-ssl"
     ++ pkgs.lib.optional withTemporal "--v8-enable-temporal-support"
