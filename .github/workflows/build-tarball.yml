@@ -25,7 +25,7 @@ on:
       - tools/eslint/**
       - tools/lint-md/**
       - typings/**
-      - vcbuild.bat 
+      - vcbuild.bat
       - .**
       - '!.github/workflows/build-tarball.yml'
   push:
@@ -55,7 +55,7 @@ on:
       - tools/eslint/**
       - tools/lint-md/**
       - typings/**
-      - vcbuild.bat 
+      - vcbuild.bat
       - .**
       - '!.github/workflows/build-tarball.yml'
 

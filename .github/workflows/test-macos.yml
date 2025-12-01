@@ -25,7 +25,7 @@ on:
       - tools/eslint/**
       - tools/lint-md/**
       - typings/**
-      - vcbuild.bat 
+      - vcbuild.bat
       - .**
       - '!.github/workflows/test-macos.yml'
   push:
@@ -56,7 +56,7 @@ on:
       - tools/eslint/**
       - tools/lint-md/**
       - typings/**
-      - vcbuild.bat 
+      - vcbuild.bat
       - .**
       - '!.github/workflows/test-macos.yml'
 

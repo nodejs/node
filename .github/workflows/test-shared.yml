@@ -40,7 +40,7 @@ on:
       - '!tools/v8/**'
       - '!tools/v8_gypfiles/**'
       - typings/**
-      - vcbuild.bat 
+      - vcbuild.bat
       - .**
       - '!.github/workflows/test-shared.yml'
     types: [opened, synchronize, reopened, ready_for_review]
@@ -86,7 +86,7 @@ on:
       - '!tools/v8/**'
       - '!tools/v8_gypfiles/**'
       - typings/**
-      - vcbuild.bat 
+      - vcbuild.bat
       - .**
       - '!.github/workflows/test-shared.yml'
 
