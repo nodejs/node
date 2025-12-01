@@ -12,6 +12,7 @@
 
 #include <list>
 #include <map>
+#include <queue>
 #include <unordered_set>
 
 namespace node {
@@ -194,6 +195,8 @@ class Database : public BaseObject {
   void AddBackup(BackupJob* backup);
   void AddAsyncTask(ThreadPoolWork* async_task);
   void RemoveAsyncTask(ThreadPoolWork* async_task);
+  void ScheduleAsyncTask(ThreadPoolWork* async_task);
+  void ProcessNextAsyncTask();
   void FinalizeBackups();
   void UntrackStatement(Statement* statement);
   bool IsOpen();
@@ -230,6 +233,8 @@ class Database : public BaseObject {
   bool ignore_next_sqlite_error_;
 
   std::set<ThreadPoolWork*> async_tasks_;
+  std::queue<ThreadPoolWork*> task_queue_;
+  bool has_running_task_ = false;
   std::set<BackupJob*> backups_;
   std::set<sqlite3_session*> sessions_;
   std::unordered_set<Statement*> statements_;

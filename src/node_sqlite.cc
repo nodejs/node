@@ -474,6 +474,7 @@ class SQLiteAsyncTask : public ThreadPoolWork {
       after_(result_, resolver);
       Finalize();
     }
+    db_->ProcessNextAsyncTask();
   }
 
   void Finalize() { db_->RemoveAsyncTask(this); }
@@ -743,6 +744,25 @@ void Database::AddAsyncTask(ThreadPoolWork* async_task) {
 
 void Database::RemoveAsyncTask(ThreadPoolWork* async_task) {
   async_tasks_.erase(async_task);
+}
+
+void Database::ScheduleAsyncTask(ThreadPoolWork* work) {
+  if (has_running_task_) {
+    task_queue_.push(work);
+  } else {
+    has_running_task_ = true;
+    work->ScheduleWork();
+  }
+}
+
+void Database::ProcessNextAsyncTask() {
+  if (task_queue_.empty()) {
+    has_running_task_ = false;
+  } else {
+    ThreadPoolWork* next_work = task_queue_.front();
+    task_queue_.pop();
+    next_work->ScheduleWork();
+  }
 }
 
 void Database::DeleteSessions() {
@@ -1234,8 +1254,8 @@ Local<Promise::Resolver> MakeSQLiteAsyncWork(
   }
 
   auto* work = new SQLiteAsyncTask<T>(env, db, resolver, task, after);
-  work->ScheduleWork();
   db->AddAsyncTask(work);
+  db->ScheduleAsyncTask(work);
   return resolver;
 }
 
