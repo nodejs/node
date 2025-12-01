@@ -63,11 +63,9 @@ struct ModuleCacheKey : public MemoryRetainer {
   std::string ToString() const;
 
   template <int elements_per_attribute = 3>
-  static ModuleCacheKey From(v8::Local<v8::Context> context,
-                             v8::Local<v8::String> specifier,
+  static ModuleCacheKey From(v8::Local<v8::String> specifier,
                              v8::Local<v8::FixedArray> import_attributes);
-  static ModuleCacheKey From(v8::Local<v8::Context> context,
-                             v8::Local<v8::ModuleRequest> v8_request);
+  static ModuleCacheKey From(v8::Local<v8::ModuleRequest> v8_request);
 
   struct Hash {
     std::size_t operator()(const ModuleCacheKey& request) const {
