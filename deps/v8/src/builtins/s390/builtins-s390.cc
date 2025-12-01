@@ -3565,7 +3565,7 @@ void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
   __ EnterFrame(StackFrame::WASM_STACK_EXIT);
   Register tag = WasmFXSuspendDescriptor::GetRegisterParameter(0);
   Register cont = WasmFXSuspendDescriptor::GetRegisterParameter(1);
-  Register arg_buffer = WasmFXResumeDescriptor::GetRegisterParameter(1);
+  Register arg_buffer = WasmFXSuspendDescriptor::GetRegisterParameter(2);
   Label resume;
   __ Push(arg_buffer);
   __ Push(cont, kContextRegister);
@@ -3594,8 +3594,8 @@ void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
 
   __ bind(&ok);
   DCHECK_EQ(cont, kReturnRegister0);
-  DCHECK(!AreAliased(r5, arg_buffer, target_stack));
-  LoadJumpBuffer(masm, target_stack, true, r5);
+  DCHECK(!AreAliased(r1, arg_buffer, target_stack));
+  LoadJumpBuffer(masm, target_stack, true, r1);
   __ Trap();
   __ bind(&resume);
   __ Move(kReturnRegister0, WasmFXResumeDescriptor::GetRegisterParameter(1));
