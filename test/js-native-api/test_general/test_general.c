@@ -252,6 +252,12 @@ static void finalizer_only_callback(napi_env env, void* data, void* hint) {
   NODE_API_CALL_RETURN_VOID(env, napi_delete_reference(env, js_cb_ref));
 }
 
+static void schedule_finalizer_only_callback(node_api_nogc_env env, void* data, void* hint) {
+  NODE_API_CALL_RETURN_VOID((napi_env)env,
+      node_api_post_finalizer(
+          (napi_env)env, finalizer_only_callback, data, NULL));
+}
+
 static napi_value add_finalizer_only(napi_env env, napi_callback_info info) {
   size_t argc = 2;
   napi_value argv[2];
@@ -261,7 +267,7 @@ static napi_value add_finalizer_only(napi_env env, napi_callback_info info) {
   NODE_API_CALL(env, napi_create_reference(env, argv[1], 1, &js_cb_ref));
   NODE_API_CALL(env,
       napi_add_finalizer(
-          env, argv[0], js_cb_ref, finalizer_only_callback, NULL, NULL));
+          env, argv[0], js_cb_ref, schedule_finalizer_only_callback, NULL, NULL));
   return NULL;
 }
 
