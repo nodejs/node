@@ -23,7 +23,7 @@ if (process.argv[2] === 'child') {
   process.chdir(dir);
   fs.rmdirSync(dir);
   assert.throws(process.cwd,
-                /^Error: ENOENT: no such file or directory, uv_cwd$/);
+                /^Error: process\.cwd\(\) failed: current working directory no longer exists$/);
 
   const r = cp.spawnSync(process.execPath, [__filename, 'child']);
 
