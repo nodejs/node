@@ -901,7 +901,7 @@ void StartLoadingCertificatesOffThread(
   // loading.
   {
     Mutex::ScopedLock cli_lock(node::per_process::cli_options_mutex);
-    if (!per_process::cli_options->ssl_openssl_cert_store) {
+    if (per_process::cli_options->ssl_openssl_cert_store) {
       return;
     }
   }
