@@ -2,9 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <fuzzer/FuzzedDataProvider.h>
 #include <algorithm>
 #include <cstdint>
 #include <cstring>
+#include <memory>
 #include <vector>
 
 #include "unzip.h"
@@ -19,11 +21,30 @@
   } while (0)
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
+  FuzzedDataProvider fdp(data, size);
+
+  unsigned long filename_sz = fdp.ConsumeIntegralInRange(0, UINT16_MAX + 3);
+  unsigned long extra_sz = fdp.ConsumeIntegralInRange(0, UINT16_MAX + 3);
+  unsigned long comment_sz = fdp.ConsumeIntegralInRange(0, UINT16_MAX + 3);
+
+  std::unique_ptr<char[]> filename;
+  if (fdp.ConsumeBool()) {
+    filename = std::make_unique<char[]>(filename_sz);
+  }
+  std::unique_ptr<char[]> extra;
+  if (fdp.ConsumeBool()) {
+    extra = std::make_unique<char[]>(extra_sz);
+  }
+  std::unique_ptr<char[]> comment;
+  if (fdp.ConsumeBool()) {
+    comment = std::make_unique<char[]>(comment_sz);
+  }
+
   // Mock read-only filesystem with only one file, file_data. In the calls
   // below, 'opaque' points to file_data, and 'strm' points to the file's seek
   // position, which is heap allocated so that failing to "close" it triggers a
   // leak error.
-  std::vector<uint8_t> file_data(data, data + size);
+  std::vector<uint8_t> file_data = fdp.ConsumeRemainingBytes<uint8_t>();
   zlib_filefunc64_def file_func = {
       .zopen64_file = [](void* opaque, const void* filename,
                          int mode) -> void* {
@@ -83,19 +104,23 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   while (true) {
     unz_file_info64 info = {0};
 
-    // TODO: Pass nullptrs and different buffer sizes to cover more code.
-    char filename[UINT16_MAX + 1];  // +1 for the null terminator.
-    char extra[UINT16_MAX];         // No null terminator.
-    char comment[UINT16_MAX + 1];   // +1 for the null terminator.
-
-    if (unzGetCurrentFileInfo64(uzf, &info, filename, sizeof(filename), extra,
-                                sizeof(extra), comment, sizeof(comment)) == UNZ_OK) {
-      ASSERT(info.size_filename <= UINT16_MAX);
-      ASSERT(info.size_file_extra <= UINT16_MAX);
-      ASSERT(info.size_file_comment <= UINT16_MAX);
-
-      ASSERT(filename[info.size_filename] == '\0');
-      ASSERT(comment[info.size_file_comment] == '\0');
+    if (unzGetCurrentFileInfo64(uzf, &info, filename.get(), filename_sz, extra.get(),
+                                extra_sz, comment.get(), comment_sz) == UNZ_OK) {
+      if (filename) {
+        ASSERT(info.size_filename <= UINT16_MAX);
+        if (info.size_filename < filename_sz) {
+          ASSERT(filename[info.size_filename] == '\0');
+        }
+      }
+      if (extra) {
+        ASSERT(info.size_file_extra <= UINT16_MAX);
+      }
+      if (comment) {
+        ASSERT(info.size_file_comment <= UINT16_MAX);
+        if (info.size_file_comment < comment_sz) {
+          ASSERT(comment[info.size_file_comment] == '\0');
+        }
+      }
     }
 
     if (unzOpenCurrentFile(uzf) == UNZ_OK) {
