@@ -79,6 +79,17 @@ InternalFieldInfoBase* BindingData::Serialize(int index) {
 // Copyright (c) 2017-2025 Cloudflare, Inc.
 // Licensed under the Apache 2.0 license found in the LICENSE file or at:
 //     https://opensource.org/licenses/Apache-2.0
+
+// Windows-1252 specific mappings for bytes 0x80-0x9F
+// These differ from ISO-8859-1 (Latin-1) which leaves these bytes undefined
+// Reference: https://encoding.spec.whatwg.org/#windows-1252
+static constexpr uint16_t kWindows1252Table[32] = {
+  0x20AC, 0x0081, 0x201A, 0x0192, 0x201E, 0x2026, 0x2020, 0x2021,  // 0x80-0x87
+  0x02C6, 0x2030, 0x0160, 0x2039, 0x0152, 0x008D, 0x017D, 0x008F,  // 0x88-0x8F
+  0x0090, 0x2018, 0x2019, 0x201C, 0x201D, 0x2022, 0x2013, 0x2014,  // 0x90-0x97
+  0x02DC, 0x2122, 0x0161, 0x203A, 0x0153, 0x009D, 0x017E, 0x0178   // 0x98-0x9F
+};
+
 namespace {
 constexpr int MAX_SIZE_FOR_STACK_ALLOC = 4096;
 
@@ -415,6 +426,7 @@ void BindingData::CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethodNoSideEffect(isolate, target, "toASCII", ToASCII);
   SetMethodNoSideEffect(isolate, target, "toUnicode", ToUnicode);
   SetMethodNoSideEffect(isolate, target, "decodeLatin1", DecodeLatin1);
+  SetMethodNoSideEffect(isolate, target, "decodeWindows1252", DecodeWindows1252);
 }
 
 void BindingData::CreatePerContextProperties(Local<Object> target,
@@ -433,6 +445,7 @@ void BindingData::RegisterTimerExternalReferences(
   registry->Register(ToASCII);
   registry->Register(ToUnicode);
   registry->Register(DecodeLatin1);
+  registry->Register(DecodeWindows1252);
 }
 
 void BindingData::DecodeLatin1(const FunctionCallbackInfo<Value>& args) {
@@ -474,6 +487,80 @@ void BindingData::DecodeLatin1(const FunctionCallbackInfo<Value>& args) {
   }
 
   std::string_view view(result.c_str(), written);
+
+  Local<Value> ret;
+  if (ToV8Value(env->context(), view, env->isolate()).ToLocal(&ret)) {
+    args.GetReturnValue().Set(ret);
+  }
+}
+
+void BindingData::DecodeWindows1252(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  CHECK_GE(args.Length(), 1);
+  if (!(args[0]->IsArrayBuffer() || args[0]->IsSharedArrayBuffer() ||
+        args[0]->IsArrayBufferView())) {
+    return node::THROW_ERR_INVALID_ARG_TYPE(
+        env->isolate(),
+        "The \"input\" argument must be an instance of ArrayBuffer, "
+        "SharedArrayBuffer, or ArrayBufferView.");
+  }
+
+  bool ignore_bom = args[1]->IsTrue();
+  bool has_fatal = args[2]->IsTrue();
+
+  ArrayBufferViewContents<uint8_t> buffer(args[0]);
+  const uint8_t* data = buffer.data();
+  size_t length = buffer.length();
+
+  if (ignore_bom && length > 0 && data[0] == 0xFF) {
+    data++;
+    length--;
+  }
+
+  if (length == 0) {
+    return args.GetReturnValue().SetEmptyString();
+  }
+
+  // Convert Windows-1252 to UTF-8
+  // Maximum expansion: 3 bytes per input byte (for characters in 0x80-0x9F range)
+  std::string result;
+  result.reserve(length * 3);
+
+  for (size_t i = 0; i < length; i++) {
+    uint8_t byte = data[i];
+    uint32_t codepoint;
+
+    if (byte >= 0x80 && byte <= 0x9F) {
+      // Use Windows-1252 specific mapping for bytes 0x80-0x9F
+      codepoint = kWindows1252Table[byte - 0x80];
+    } else {
+      // Use direct Latin-1 mapping for other bytes (0x00-0x7F and 0xA0-0xFF)
+      codepoint = byte;
+    }
+
+    // Convert codepoint to UTF-8
+    if (codepoint < 0x80) {
+      // 1-byte sequence (ASCII)
+      result += static_cast<char>(codepoint);
+    } else if (codepoint < 0x800) {
+      // 2-byte sequence
+      result += static_cast<char>(0xC0 | (codepoint >> 6));
+      result += static_cast<char>(0x80 | (codepoint & 0x3F));
+    } else {
+      // 3-byte sequence
+      result += static_cast<char>(0xE0 | (codepoint >> 12));
+      result += static_cast<char>(0x80 | ((codepoint >> 6) & 0x3F));
+      result += static_cast<char>(0x80 | (codepoint & 0x3F));
+    }
+  }
+
+  if (has_fatal && result.empty() && length > 0) {
+    return node::THROW_ERR_ENCODING_INVALID_ENCODED_DATA(
+        env->isolate(), "The encoded data was not valid for encoding windows-1252");
+  }
+
+  std::string_view view(result.c_str(), result.size());
 
   Local<Value> ret;
   if (ToV8Value(env->context(), view, env->isolate()).ToLocal(&ret)) {

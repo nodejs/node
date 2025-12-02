@@ -32,6 +32,7 @@ class BindingData : public SnapshotableObject {
   static void EncodeUtf8String(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void DecodeUTF8(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void DecodeLatin1(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void DecodeWindows1252(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   static void ToASCII(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void ToUnicode(const v8::FunctionCallbackInfo<v8::Value>& args);
