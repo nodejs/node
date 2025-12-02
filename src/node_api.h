@@ -63,9 +63,9 @@ struct uv_loop_s;  // Forward declaration.
 #ifdef NODE_API_MODULE_USE_VTABLE
 #define NODE_API_MODULE_SET_VTABLE_DEFINITION                                  \
   const node_api_module_vtable* g_node_api_module_vtable =                     \
-      NULL; /* NOLINT(readability/null_usage) */                               \
+      NULL; /* NOLINT (readability/null_usage) */                              \
   const node_api_js_native_vtable* g_node_api_js_native_vtable =               \
-      NULL; /* NOLINT(readability/null_usage) */                               \
+      NULL; /* NOLINT (readability/null_usage) */                              \
   NAPI_MODULE_EXPORT void NODE_API_MODULE_SET_VTABLE(                          \
       const node_api_module_vtable* module_vtable,                             \
       const node_api_js_native_vtable* js_native_vtable) {                     \
