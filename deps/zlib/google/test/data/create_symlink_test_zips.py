@@ -16,6 +16,10 @@ def make_file(zf, path, content):
     zf.writestr(zipfile.ZipInfo(path), content)
 
 
+def make_dir(zf, path):
+    zf.mkdir(path)
+
+
 def make_test_zips():
     with make_zip('symlinks.zip') as zf:
         make_file(zf, 'a.txt', 'A')
@@ -38,6 +42,11 @@ def make_test_zips():
     with make_zip('symlink_follow_own_link.zip') as zf:
         make_link(zf, 'file', 'link')
         make_file(zf, 'link', 'Hello world')
+
+    with make_zip('symlink_follow_own_link_dir.zip') as zf:
+        make_dir(zf, 'dir')
+        make_link(zf, 'dir', 'link')
+        make_file(zf, 'link/file', 'Hello world')
 
     with make_zip('symlink_duplicate_link.zip') as zf:
         make_link(zf, 'target_1', 'link')

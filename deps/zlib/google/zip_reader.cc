@@ -118,6 +118,66 @@ void SetPosixFilePermissions(int fd, int mode) {
 }
 #endif
 
+// Callback function for zlib that opens a file stream from a ReaderDelegate.
+void* OpenReaderDelegate(void* opaque, const void* /*filename*/, int mode) {
+  if ((mode & ZLIB_FILEFUNC_MODE_READWRITEFILTER) != ZLIB_FILEFUNC_MODE_READ) {
+    return nullptr;
+  }
+  // The opaque parameter is the ReaderDelegate pointer.
+  return opaque;
+}
+
+uLong ReadReaderDelegate(void* opaque, void* stream, void* buf, uLong size) {
+  ReaderDelegate* delegate = static_cast<ReaderDelegate*>(opaque);
+  // SAFETY: raw Read() method from third_party library.
+  auto span = UNSAFE_BUFFERS(
+      base::span(static_cast<uint8_t*>(buf), static_cast<size_t>(size)));
+  int64_t bytes_read = delegate->ReadBytes(span);
+  return (bytes_read < 0) ? 0 : static_cast<uLong>(bytes_read);
+}
+
+uLong WriteReaderDelegate(void* /*opaque*/,
+                          void* /*stream*/,
+                          const void* /*buf*/,
+                          uLong /*size*/) {
+  NOTREACHED();
+}
+
+ZPOS64_T TellReaderDelegate(void* opaque, void* stream) {
+  ReaderDelegate* delegate = static_cast<ReaderDelegate*>(opaque);
+  return delegate->Tell();
+}
+
+long SeekReaderDelegate(void* opaque,
+                        void* stream,
+                        ZPOS64_T offset,
+                        int origin) {
+  ReaderDelegate* delegate = static_cast<ReaderDelegate*>(opaque);
+  int64_t new_offset = 0;
+
+  if (origin == ZLIB_FILEFUNC_SEEK_SET) {
+    new_offset = offset;
+  } else if (origin == ZLIB_FILEFUNC_SEEK_CUR) {
+    new_offset = delegate->Tell() + offset;
+  } else if (origin == ZLIB_FILEFUNC_SEEK_END) {
+    // For SEEK_END, offset is the distance from the end of the file.
+    new_offset = delegate->GetLength() - offset;
+  } else {
+    return -1;
+  }
+
+  return delegate->Seek(new_offset) ? 0 : -1;
+}
+
+int CloseReaderDelegate(void* opaque, void* stream) {
+  // We don't own the delegate, so we don't delete it.
+  return 0;
+}
+
+int ErrorReaderDelegate(void* opaque, void* stream) {
+  return 0;
+}
+
 }  // namespace
 
 ZipReader::ZipReader() {
@@ -162,6 +222,28 @@ bool ZipReader::OpenFromString(const std::string& data) {
   zip_file_ = internal::PrepareMemoryForUnzipping(data);
   if (!zip_file_)
     return false;
+  return OpenInternal();
+}
+
+bool ZipReader::OpenFromReaderDelegate(ReaderDelegate* delegate) {
+  DCHECK(!zip_file_);
+  DCHECK(delegate);
+
+  zlib_filefunc64_def zip_funcs;
+  zip_funcs.zopen64_file = OpenReaderDelegate;
+  zip_funcs.zread_file = ReadReaderDelegate;
+  zip_funcs.zwrite_file = WriteReaderDelegate;
+  zip_funcs.ztell64_file = TellReaderDelegate;
+  zip_funcs.zseek64_file = SeekReaderDelegate;
+  zip_funcs.zclose_file = CloseReaderDelegate;
+  zip_funcs.zerror_file = ErrorReaderDelegate;
+  zip_funcs.opaque = delegate;
+
+  zip_file_ = unzOpen2_64(nullptr, &zip_funcs);
+  if (!zip_file_) {
+    return false;
+  }
+
   return OpenInternal();
 }
 

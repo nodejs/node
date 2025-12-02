@@ -14,6 +14,7 @@
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
+#include "base/containers/flat_set.h"
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
 #include "base/strings/string_util.h"
@@ -167,6 +168,8 @@ bool UnzipImpl(
     return false;
   }
 
+  base::flat_set<base::FilePath> symlinks;
+
   while (const ZipReader::Entry* const entry = reader.Next()) {
     if (entry->is_unsafe) {
       LOG(ERROR) << "Found unsafe entry " << Redact(entry->path) << " in ZIP";
@@ -178,6 +181,24 @@ bool UnzipImpl(
 
     if (options.filter && !options.filter.Run(entry->path)) {
       VLOG(1) << "Skipped ZIP entry " << Redact(entry->path);
+      continue;
+    }
+
+    base::FilePath path = entry->path;
+    bool is_in_symlinked_dir = false;
+    while (path.DirName() != path) {
+      path = path.DirName();
+      if (symlinks.contains(path)) {
+        is_in_symlinked_dir = true;
+        break;
+      }
+    }
+    if (is_in_symlinked_dir) {
+      LOG(ERROR) << "Found entry " << Redact(entry->path)
+                 << " in symlinked directory " << Redact(path);
+      if (!options.continue_on_error) {
+        return false;
+      }
       continue;
     }
 
@@ -217,6 +238,7 @@ bool UnzipImpl(
         }
         continue;
       }
+      symlinks.insert(entry->path);
       continue;
     }
 #endif  // defined(OS_POSIX)
