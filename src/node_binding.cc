@@ -243,8 +243,11 @@ static bool libc_may_be_musl() {
 }
 #endif  // __linux__
 
-// Defined in the node_api.cc
-extern node_api_vtable* node_api_get_vtable();
+// Defined in js_native_api_v8.cc
+const node_api_js_native_vtable* node_api_get_js_native_vtable();
+
+// Defined in node_api.cc
+const node_api_module_vtable* node_api_get_module_vtable();
 
 namespace node {
 
@@ -426,9 +429,9 @@ inline node_api_addon_get_api_version_func GetNodeApiAddonGetApiVersionCallback(
       dlib->GetSymbolAddress(STRINGIFY(NODE_API_MODULE_GET_API_VERSION)));
 }
 
-inline node_api_addon_set_vtable_func GetNodeApiAddonSetVtableCallback(
+inline node_api_addon_set_module_vtable_func GetNodeApiAddonSetVtableCallback(
     DLib* dlib) {
-  return reinterpret_cast<node_api_addon_set_vtable_func>(
+  return reinterpret_cast<node_api_addon_set_module_vtable_func>(
       dlib->GetSymbolAddress(STRINGIFY(NODE_API_MODULE_SET_VTABLE)));
 }
 
@@ -514,9 +517,10 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
                 GetNodeApiAddonGetApiVersionCallback(dlib)) {
           module_api_version = get_version();
         }
-        if (node_api_addon_set_vtable_func set_vtable =
+        if (node_api_addon_set_module_vtable_func set_module_vtable =
                 GetNodeApiAddonSetVtableCallback(dlib)) {
-          set_vtable(node_api_get_vtable());
+          set_module_vtable(node_api_get_module_vtable(),
+                            node_api_get_js_native_vtable());
         }
         napi_module_register_by_symbol(
             exports, module, context, init_module, module_api_version);
