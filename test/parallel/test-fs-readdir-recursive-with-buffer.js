@@ -1,9 +1,6 @@
 'use strict';
 
-// This test will fail because the the implementation does not properly
-// handle the case when the path is a Buffer and the function is called
-// in recursive mode.
-
+// Test that readdir callback works with Buffer paths in recursive mode.
 // Refs: https://github.com/nodejs/node/issues/58892
 
 const common = require('../common');
