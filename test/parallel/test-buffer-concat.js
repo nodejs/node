@@ -22,6 +22,7 @@
 'use strict';
 const common = require('../common');
 const assert = require('assert');
+const util = require('util');
 
 const zero = [];
 const one = [ Buffer.from('asdf') ];
@@ -58,18 +59,16 @@ assert.strictEqual(flatLongLen.toString(), check);
   assert.throws(() => {
     Buffer.concat(value);
   }, {
-    code: 'ERR_INVALID_ARG_TYPE',
-    message: 'The "list[0]" argument must be an instance of Buffer ' +
-             `or Uint8Array.${common.invalidArgTypeHelper(value[0])}`
+    code: 'ERR_INVALID_ARG_VALUE',
+    message: `The argument 'list[0]' must be a Buffer or Uint8Array. Received ${util.inspect(value[0])}`
   });
 });
 
 assert.throws(() => {
   Buffer.concat([Buffer.from('hello'), 3]);
 }, {
-  code: 'ERR_INVALID_ARG_TYPE',
-  message: 'The "list[1]" argument must be an instance of Buffer ' +
-           'or Uint8Array. Received type number (3)'
+  code: 'ERR_INVALID_ARG_VALUE',
+  message: "The argument 'list[1]' must be a Buffer or Uint8Array. Received 3"
 });
 
 // eslint-disable-next-line node-core/crypto-check

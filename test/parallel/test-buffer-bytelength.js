@@ -76,9 +76,15 @@ assert.strictEqual(Buffer.byteLength('𠝹𠱓𠱸', 'UTF8'), 12);
 assert.strictEqual(Buffer.byteLength('hey there'), 9);
 assert.strictEqual(Buffer.byteLength('𠱸挶νξ#xx :)'), 17);
 assert.strictEqual(Buffer.byteLength('hello world', ''), 11);
-// It should also be assumed with unrecognized encoding
-assert.strictEqual(Buffer.byteLength('hello world', 'abc'), 11);
-assert.strictEqual(Buffer.byteLength('ßœ∑≈', 'unkn0wn enc0ding'), 10);
+// It should throw with unrecognized encoding
+assert.throws(() => Buffer.byteLength('hello world', 'abc'), {
+  code: 'ERR_UNKNOWN_ENCODING',
+  message: 'Unknown encoding: abc'
+});
+assert.throws(() => Buffer.byteLength('ßœ∑≈', 'unkn0wn enc0ding'), {
+  code: 'ERR_UNKNOWN_ENCODING',
+  message: 'Unknown encoding: unkn0wn enc0ding'
+});
 
 // base64
 assert.strictEqual(Buffer.byteLength('aGVsbG8gd29ybGQ=', 'base64'), 11);
@@ -117,11 +123,13 @@ for (const encoding of ['ucs2', 'ucs-2', 'utf16le', 'utf-16le'].flatMap((e) => [
 const arrayBuf = vm.runInNewContext('new ArrayBuffer()');
 assert.strictEqual(Buffer.byteLength(arrayBuf), 0);
 
-// Verify that invalid encodings are treated as utf8
+// Verify that invalid encodings throw
 for (let i = 1; i < 10; i++) {
   const encoding = String(i).repeat(i);
 
   assert.ok(!Buffer.isEncoding(encoding));
-  assert.strictEqual(Buffer.byteLength('foo', encoding),
-                     Buffer.byteLength('foo', 'utf8'));
+  assert.throws(() => Buffer.byteLength('foo', encoding), {
+    code: 'ERR_UNKNOWN_ENCODING',
+    message: `Unknown encoding: ${encoding}`
+  });
 }

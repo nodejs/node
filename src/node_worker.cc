@@ -76,8 +76,8 @@ Worker::Worker(Environment* env,
       embedder_preload_(env->embedder_preload()),
       snapshot_data_(snapshot_data),
       is_internal_(is_internal) {
-  Debug(this, "Creating new worker instance with thread id %llu",
-        thread_id_.id);
+  Debug(
+      this, "Creating new worker instance with thread id %llu", thread_id_.id);
 
   // Set up everything that needs to be set up in the parent environment.
   MessagePort* parent_port = MessagePort::New(env, env->context());
@@ -93,9 +93,10 @@ Worker::Worker(Environment* env,
       ->Set(env->context(), env->message_port_string(), parent_port->object())
       .Check();
 
-  object()->Set(env->context(),
-                env->thread_id_string(),
-                Number::New(env->isolate(), static_cast<double>(thread_id_.id)))
+  object()
+      ->Set(env->context(),
+            env->thread_id_string(),
+            Number::New(env->isolate(), static_cast<double>(thread_id_.id)))
       .Check();
 
   object()
@@ -124,8 +125,7 @@ Worker::Worker(Environment* env,
 
 bool Worker::is_stopped() const {
   Mutex::ScopedLock lock(mutex_);
-  if (env_ != nullptr)
-    return env_->is_stopping();
+  if (env_ != nullptr) return env_->is_stopping();
   return stopped_;
 }
 
@@ -162,14 +162,12 @@ void Worker::UpdateResourceConstraints(ResourceConstraints* constraints) {
 // (Eventually, the Environment instance should probably also be moved here.)
 class WorkerThreadData {
  public:
-  explicit WorkerThreadData(Worker* w)
-    : w_(w) {
+  explicit WorkerThreadData(Worker* w) : w_(w) {
     int ret = uv_loop_init(&loop_);
     if (ret != 0) {
       char err_buf[128];
       uv_err_name_r(ret, err_buf, sizeof(err_buf));
-      // TODO(joyeecheung): maybe this should be kBootstrapFailure instead?
-      w->Exit(ExitCode::kGenericUserError, "ERR_WORKER_INIT_FAILED", err_buf);
+      w->Exit(ExitCode::kBootstrapFailure, "ERR_WORKER_INIT_FAILED", err_buf);
       return;
     }
     loop_init_failed_ = false;
@@ -184,8 +182,7 @@ class WorkerThreadData {
     Isolate* isolate =
         NewIsolate(&params, &loop_, w->platform_, w->snapshot_data());
     if (isolate == nullptr) {
-      // TODO(joyeecheung): maybe this should be kBootstrapFailure instead?
-      w->Exit(ExitCode::kGenericUserError,
+      w->Exit(ExitCode::kBootstrapFailure,
               "ERR_WORKER_INIT_FAILED",
               "Failed to create new Isolate");
       return;
@@ -245,9 +242,10 @@ class WorkerThreadData {
         isolate_data_.reset();
       }
 
-      w_->platform_->AddIsolateFinishedCallback(isolate, [](void* data) {
-        *static_cast<bool*>(data) = true;
-      }, &platform_finished);
+      w_->platform_->AddIsolateFinishedCallback(
+          isolate,
+          [](void* data) { *static_cast<bool*>(data) = true; },
+          &platform_finished);
 
       w_->platform_->DisposeIsolate(isolate);
 
@@ -271,7 +269,8 @@ class WorkerThreadData {
   friend class Worker;
 };
 
-size_t Worker::NearHeapLimit(void* data, size_t current_heap_limit,
+size_t Worker::NearHeapLimit(void* data,
+                             size_t current_heap_limit,
                              size_t initial_heap_limit) {
   Worker* worker = static_cast<Worker*>(data);
   // Give the current GC some extra leeway to let it finish rather than
@@ -287,8 +286,7 @@ size_t Worker::NearHeapLimit(void* data, size_t current_heap_limit,
           "new_limit=%" PRIu64 "\n",
           static_cast<uint64_t>(new_limit));
   }
-  // TODO(joyeecheung): maybe this should be kV8FatalError instead?
-  worker->Exit(ExitCode::kGenericUserError,
+  worker->Exit(ExitCode::kV8FatalError,
                "ERR_WORKER_OUT_OF_MEMORY",
                "JS heap out of memory");
   return new_limit;
@@ -360,8 +358,7 @@ void Worker::Run() {
           context = NewContext(isolate_);
         }
         if (context.IsEmpty()) {
-          // TODO(joyeecheung): maybe this should be kBootstrapFailure instead?
-          Exit(ExitCode::kGenericUserError,
+          Exit(ExitCode::kBootstrapFailure,
                "ERR_WORKER_INIT_FAILED",
                "Failed to create new Context");
           return;
@@ -445,9 +442,8 @@ bool Worker::CreateEnvMessagePort(Environment* env) {
   }
 
   // Set up the message channel for receiving messages in the child.
-  MessagePort* child_port = MessagePort::New(env,
-                                             env->context(),
-                                             std::move(data));
+  MessagePort* child_port =
+      MessagePort::New(env, env->context(), std::move(data));
   // MessagePort::New() may return nullptr if execution is terminated
   // within it.
   if (child_port != nullptr)
@@ -457,8 +453,7 @@ bool Worker::CreateEnvMessagePort(Environment* env) {
 }
 
 void Worker::JoinThread() {
-  if (!tid_.has_value())
-    return;
+  if (!tid_.has_value()) return;
   CHECK_EQ(uv_thread_join(&tid_.value()), 0);
   tid_.reset();
 
@@ -472,9 +467,11 @@ void Worker::JoinThread() {
     Context::Scope context_scope(env()->context());
 
     // Reset the parent port as we're closing it now anyway.
-    object()->Set(env()->context(),
-                  env()->message_port_string(),
-                  Undefined(env()->isolate())).Check();
+    object()
+        ->Set(env()->context(),
+              env()->message_port_string(),
+              Undefined(env()->isolate()))
+        .Check();
 
     Local<Value> args[] = {
         Integer::New(env()->isolate(), static_cast<int>(exit_code_)),
@@ -749,37 +746,39 @@ void Worker::StartThread(const FunctionCallbackInfo<Value>& args) {
   thread_options.stack_size = w->stack_size_;
 
   uv_thread_t* tid = &w->tid_.emplace();  // Create uv_thread_t instance
-  int ret = uv_thread_create_ex(tid, &thread_options, [](void* arg) {
-    // XXX: This could become a std::unique_ptr, but that makes at least
-    // gcc 6.3 detect undefined behaviour when there shouldn't be any.
-    // gcc 7+ handles this well.
-    Worker* w = static_cast<Worker*>(arg);
-    const uintptr_t stack_top = reinterpret_cast<uintptr_t>(&arg);
+  int ret = uv_thread_create_ex(
+      tid,
+      &thread_options,
+      [](void* arg) {
+        // XXX: This could become a std::unique_ptr, but that makes at least
+        // gcc 6.3 detect undefined behaviour when there shouldn't be any.
+        // gcc 7+ handles this well.
+        Worker* w = static_cast<Worker*>(arg);
+        const uintptr_t stack_top = reinterpret_cast<uintptr_t>(&arg);
 
-    uv_thread_setname(w->name_.c_str());
-    // Leave a few kilobytes just to make sure we're within limits and have
-    // some space to do work in C++ land.
-    w->stack_base_ = stack_top - (w->stack_size_ - kStackBufferSize);
+        uv_thread_setname(w->name_.c_str());
+        // Leave a few kilobytes just to make sure we're within limits and have
+        // some space to do work in C++ land.
+        w->stack_base_ = stack_top - (w->stack_size_ - kStackBufferSize);
 
-    w->Run();
+        w->Run();
 
-    Mutex::ScopedLock lock(w->mutex_);
-    w->env()->SetImmediateThreadsafe(
-        [w = std::unique_ptr<Worker>(w)](Environment* env) {
-          if (w->has_ref_)
-            env->add_refs(-1);
-          w->JoinThread();
-          // implicitly delete w
-        });
-  }, static_cast<void*>(w));
+        Mutex::ScopedLock lock(w->mutex_);
+        w->env()->SetImmediateThreadsafe(
+            [w = std::unique_ptr<Worker>(w)](Environment* env) {
+              if (w->has_ref_) env->add_refs(-1);
+              w->JoinThread();
+              // implicitly delete w
+            });
+      },
+      static_cast<void*>(w));
 
   if (ret == 0) {
     // The object now owns the created thread and should not be garbage
     // collected until that finishes.
     w->ClearWeak();
 
-    if (w->has_ref_)
-      w->env()->add_refs(1);
+    if (w->has_ref_) w->env()->add_refs(1);
 
     w->env()->add_sub_worker_context(w);
   } else {
@@ -1356,7 +1355,7 @@ bool Worker::IsNotIndicativeOfMemoryLeakAtExit() const {
 class WorkerHeapSnapshotTaker : public AsyncWrap {
  public:
   WorkerHeapSnapshotTaker(Environment* env, Local<Object> obj)
-    : AsyncWrap(env, obj, AsyncWrap::PROVIDER_WORKERHEAPSNAPSHOT) {}
+      : AsyncWrap(env, obj, AsyncWrap::PROVIDER_WORKERHEAPSNAPSHOT) {}
 
   SET_NO_MEMORY_INFO()
   SET_MEMORY_INFO_NAME(WorkerHeapSnapshotTaker)
@@ -1375,7 +1374,8 @@ void Worker::TakeHeapSnapshot(const FunctionCallbackInfo<Value>& args) {
   AsyncHooks::DefaultTriggerAsyncIdScope trigger_id_scope(w);
   Local<Object> wrap;
   if (!env->worker_heap_snapshot_taker_template()
-      ->NewInstance(env->context()).ToLocal(&wrap)) {
+           ->NewInstance(env->context())
+           .ToLocal(&wrap)) {
     return;
   }
 
@@ -1431,8 +1431,7 @@ void Worker::LoopIdleTime(const FunctionCallbackInfo<Value>& args) {
   // Using w->is_stopped() here leads to a deadlock, and checking is_stopped()
   // before locking the mutex is a race condition. So manually do the same
   // check.
-  if (w->stopped_ || w->env_ == nullptr)
-    return args.GetReturnValue().Set(-1);
+  if (w->stopped_ || w->env_ == nullptr) return args.GetReturnValue().Set(-1);
 
   uint64_t idle_time = uv_metrics_idle_time(w->env_->event_loop());
   args.GetReturnValue().Set(1.0 * idle_time / 1e6);
@@ -1446,11 +1445,11 @@ void Worker::LoopStartTime(const FunctionCallbackInfo<Value>& args) {
   // Using w->is_stopped() here leads to a deadlock, and checking is_stopped()
   // before locking the mutex is a race condition. So manually do the same
   // check.
-  if (w->stopped_ || w->env_ == nullptr)
-    return args.GetReturnValue().Set(-1);
+  if (w->stopped_ || w->env_ == nullptr) return args.GetReturnValue().Set(-1);
 
-  double loop_start_time = w->env_->performance_state()->milestones[
-      node::performance::NODE_PERFORMANCE_MILESTONE_LOOP_START];
+  double loop_start_time =
+      w->env_->performance_state()->milestones
+          [node::performance::NODE_PERFORMANCE_MILESTONE_LOOP_START];
   CHECK_GE(loop_start_time, 0);
   args.GetReturnValue().Set(loop_start_time / 1e6);
 }
@@ -1475,8 +1474,7 @@ void CreateWorkerPerIsolateProperties(IsolateData* isolate_data,
   {
     Local<FunctionTemplate> w = NewFunctionTemplate(isolate, Worker::New);
 
-    w->InstanceTemplate()->SetInternalFieldCount(
-        Worker::kInternalFieldCount);
+    w->InstanceTemplate()->SetInternalFieldCount(Worker::kInternalFieldCount);
     w->Inherit(AsyncWrap::GetConstructorTemplate(isolate_data));
 
     SetProtoMethod(isolate, w, "startThread", Worker::StartThread);
