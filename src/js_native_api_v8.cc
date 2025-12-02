@@ -1568,8 +1568,8 @@ napi_status NAPI_CDECL napi_strict_equals(napi_env env,
 }
 
 napi_status NAPI_CDECL node_api_set_prototype(napi_env env,
-                                          napi_value object,
-                                          napi_value value) {
+                                              napi_value object,
+                                              napi_value value) {
   NAPI_PREAMBLE(env);
   CHECK_ARG(env, value);
 
