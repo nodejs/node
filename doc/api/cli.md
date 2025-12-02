@@ -1184,9 +1184,9 @@ changes:
 
 > This flag is discouraged and may be removed in a future version of Node.js.
 > Please use
-> [`--import` with `register()`][module customization hooks: enabling] instead.
+> [`--import` with `register()`][preloading asynchronous module customization hooks] instead.
 
-Specify the `module` containing exported [module customization hooks][].
+Specify the `module` containing exported [asynchronous module customization hooks][].
 `module` may be any string accepted as an [`import` specifier][].
 
 This feature requires `--allow-worker` if used with the [Permission Model][].
@@ -4146,8 +4146,6 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [ExperimentalWarning: `vm.measureMemory` is an experimental feature]: vm.md#vmmeasurememoryoptions
 [File System Permissions]: permissions.md#file-system-permissions
 [Loading ECMAScript modules using `require()`]: modules.md#loading-ecmascript-modules-using-require
-[Module customization hooks]: module.md#customization-hooks
-[Module customization hooks: enabling]: module.md#enabling
 [Module resolution and loading]: packages.md#module-resolution-and-loading
 [Navigator API]: globals.md#navigator
 [Node.js issue tracker]: https://github.com/nodejs/node/issues
@@ -4210,6 +4208,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`v8.startupSnapshot.addDeserializeCallback()`]: v8.md#v8startupsnapshotadddeserializecallbackcallback-data
 [`v8.startupSnapshot.setDeserializeMainFunction()`]: v8.md#v8startupsnapshotsetdeserializemainfunctioncallback-data
 [`v8.startupSnapshot` API]: v8.md#startup-snapshot-api
+[asynchronous module customization hooks]: module.md#asynchronous-customization-hooks
 [captured by the built-in snapshot of Node.js]: https://github.com/nodejs/node/blob/b19525a33cc84033af4addd0f80acd4dc33ce0cf/test/parallel/test-bootstrap-modules.js#L24
 [collecting code coverage from tests]: test.md#collecting-code-coverage
 [conditional exports]: packages.md#conditional-exports
@@ -4224,6 +4223,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [jitless]: https://v8.dev/blog/jitless
 [libuv threadpool documentation]: https://docs.libuv.org/en/latest/threadpool.html
 [module compile cache]: module.md#module-compile-cache
+[preloading asynchronous module customization hooks]: module.md#registration-of-asynchronous-customization-hooks
 [remote code execution]: https://www.owasp.org/index.php/Code_Injection
 [running tests from the command line]: test.md#running-tests-from-the-command-line
 [scavenge garbage collector]: https://v8.dev/blog/orinoco-parallel-scavenger
