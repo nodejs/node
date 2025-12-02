@@ -3,6 +3,8 @@
 
 #include "js_native_api_types.h"
 
+struct uv_loop_s;  // Forward declaration.
+
 typedef napi_value(NAPI_CDECL* napi_addon_register_func)(napi_env env,
                                                          napi_value exports);
 // False positive: https://github.com/cpplint/cpplint/issues/409

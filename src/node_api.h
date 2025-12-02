@@ -13,8 +13,6 @@
 #include "js_native_api.h"
 #include "node_api_types.h"
 
-struct uv_loop_s;  // Forward declaration.
-
 #ifdef _WIN32
 #define NAPI_MODULE_EXPORT __declspec(dllexport)
 #else
