@@ -3,7 +3,7 @@
 // This tests the creation of a single executable application that can be
 // debugged using the inspector protocol with NODE_OPTIONS=--inspect-brk=0
 
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const { writeFileSync, existsSync } = require('fs');
 const { spawn } = require('child_process');
@@ -16,6 +16,7 @@ const {
 } = require('../common/sea');
 
 skipIfSingleExecutableIsNotSupported();
+common.skipIfInspectorDisabled();
 
 const configFile = tmpdir.resolve('sea-config.json');
 const seaPrepBlob = tmpdir.resolve('sea-prep.blob');
