@@ -1567,7 +1567,7 @@ napi_status NAPI_CDECL napi_strict_equals(napi_env env,
   return GET_RETURN_STATUS(env);
 }
 
-napi_status NAPI_CDECL napi_set_prototype(napi_env env,
+napi_status NAPI_CDECL node_api_set_prototype(napi_env env,
                                           napi_value object,
                                           napi_value value) {
   NAPI_PREAMBLE(env);
