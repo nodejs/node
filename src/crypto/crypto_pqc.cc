@@ -1,4 +1,4 @@
-#include "crypto/crypto_ml_dsa.h"
+#include "crypto/crypto_pqc.h"
 #include "crypto/crypto_util.h"
 #include "env-inl.h"
 #include "string_bytes.h"
@@ -15,7 +15,7 @@ using v8::Value;
 namespace crypto {
 
 #if OPENSSL_WITH_PQC
-constexpr const char* GetMlDsaAlgorithmName(int id) {
+constexpr const char* GetPqcAlgorithmName(int id) {
   switch (id) {
     case EVP_PKEY_ML_DSA_44:
       return "ML-DSA-44";
@@ -23,27 +23,33 @@ constexpr const char* GetMlDsaAlgorithmName(int id) {
       return "ML-DSA-65";
     case EVP_PKEY_ML_DSA_87:
       return "ML-DSA-87";
+    case EVP_PKEY_ML_KEM_512:
+      return "ML-KEM-512";
+    case EVP_PKEY_ML_KEM_768:
+      return "ML-KEM-768";
+    case EVP_PKEY_ML_KEM_1024:
+      return "ML-KEM-1024";
     default:
       return nullptr;
   }
 }
 
 /**
- * Exports an ML-DSA key to JWK format.
+ * Exports a PQC key (ML-DSA or ML-KEM) to JWK format.
  *
  * The resulting JWK object contains:
  * - "kty": "AKP" (Asymmetric Key Pair - required)
- * - "alg": "ML-DSA-XX" (Algorithm identifier - required for "AKP")
+ * - "alg": "ML-(KEM|DSA)-..." (Algorithm identifier - required for "AKP")
  * - "pub": "<Base64URL-encoded raw public key>" (required)
  * - "priv": <"Base64URL-encoded raw seed>" (required for private keys only)
  */
-bool ExportJwkMlDsaKey(Environment* env,
-                       const KeyObjectData& key,
-                       Local<Object> target) {
+bool ExportJwkPqcKey(Environment* env,
+                     const KeyObjectData& key,
+                     Local<Object> target) {
   Mutex::ScopedLock lock(key.mutex());
   const auto& pkey = key.GetAsymmetricKey();
 
-  const char* alg = GetMlDsaAlgorithmName(pkey.id());
+  const char* alg = GetPqcAlgorithmName(pkey.id());
   CHECK(alg);
 
   static constexpr auto trySetKey = [](Environment* env,
