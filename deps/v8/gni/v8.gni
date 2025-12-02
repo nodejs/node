@@ -61,8 +61,7 @@ declare_args() {
   # is still not accessible unless --harmony-temporal is enabled at runtime)
   #
   # Furthermore, some architectures don't have Rust toolchains in Chromium
-  v8_enable_temporal_support = !(defined(build_with_node) && build_with_node) &&
-                               target_cpu != "ppc64" && target_cpu != "s390x"
+  v8_enable_temporal_support = !(defined(build_with_node) && build_with_node)
 
   # Use static libraries instead of source_sets.
   v8_static_library = false
