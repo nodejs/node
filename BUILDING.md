@@ -1044,6 +1044,16 @@ configure option:
 ./configure --openssl-conf-name=<some_conf_name>
 ```
 
+## Building Node.js with Temporal support
+
+Node.js supports the [Temporal](https://github.com/tc39/proposal-temporal) APIs, when
+linking statically or dynamically with a version [temporal\_rs](https://github.com/boa-dev/temporal).
+
+To build Node.js with Temporal support, a Rust toolchain is required:
+
+* rustc >= 1.82 (with LLVM >= 19)
+* cargo >= 1.82
+
 ## Building Node.js with FIPS-compliant OpenSSL
 
 Node.js supports FIPS when statically or dynamically linked with OpenSSL 3 via
