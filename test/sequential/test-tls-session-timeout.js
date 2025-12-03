@@ -83,7 +83,7 @@ function doTest() {
       flags.push('-sess_out', sessOut);
     }
     const client = spawn(opensslCli, flags, {
-      stdio: ['ignore', 'pipe', 'inherit']
+      stdio: ['ignore', 'pipe', 'inherit'],
     });
 
     let clientOutput = '';

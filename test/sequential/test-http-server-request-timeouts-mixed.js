@@ -21,7 +21,7 @@ const server = createServer({
   headersTimeout,
   requestTimeout: headersTimeout * 2,
   keepAliveTimeout: 0,
-  connectionsCheckingInterval
+  connectionsCheckingInterval,
 }, common.mustCall((req, res) => {
   req.resume();
 
@@ -40,7 +40,7 @@ function createClient(server) {
     index: i++,
     client: connect(server.address().port),
     response: '',
-    completed: false
+    completed: false,
   };
 
   request.client.setEncoding('utf8');
