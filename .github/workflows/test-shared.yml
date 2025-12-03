@@ -5,9 +5,14 @@ name: Test Shared libraries
 on:
   pull_request:
     paths-ignore:
-      - .mailmap
       - '**.md'
-      - AUTHORS
+      - eslint.config.mjs
+      - '**/eslint.config_partial.mjs'
+      - android-configure
+      - android-configure.py
+      - android-patches/**
+      - benchmarks/**
+      - codecov.yml
       - deps/ada/**
       - deps/brotli/**
       - deps/cares/**
@@ -26,8 +31,17 @@ on:
       - deps/zlib/**
       - deps/zstd/**
       - doc/**
+      - pyproject.yml
+      - tsconfig.json
       - test/internet/**
-      - .github/**
+      - tools/**
+      - '!tools/gyp/**'
+      - '!tools/nix/**'
+      - '!tools/v8/**'
+      - '!tools/v8_gypfiles/**'
+      - typings/**
+      - vcbuild.bat
+      - .**
       - '!.github/workflows/test-shared.yml'
     types: [opened, synchronize, reopened, ready_for_review]
   push:
@@ -37,9 +51,14 @@ on:
       - v[0-9]+.x-staging
       - v[0-9]+.x
     paths-ignore:
-      - .mailmap
       - '**.md'
-      - AUTHORS
+      - eslint.config.mjs
+      - '**/eslint.config_partial.mjs'
+      - android-configure
+      - android-configure.py
+      - android-patches/**
+      - benchmarks/**
+      - codecov.yml
       - deps/ada/**
       - deps/brotli/**
       - deps/cares/**
@@ -58,8 +77,17 @@ on:
       - deps/zlib/**
       - deps/zstd/**
       - doc/**
+      - pyproject.yml
+      - tsconfig.json
       - test/internet/**
-      - .github/**
+      - tools/**
+      - '!tools/gyp/**'
+      - '!tools/nix/**'
+      - '!tools/v8/**'
+      - '!tools/v8_gypfiles/**'
+      - typings/**
+      - vcbuild.bat
+      - .**
       - '!.github/workflows/test-shared.yml'
 
 concurrency:
