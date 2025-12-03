@@ -229,7 +229,7 @@ changes:
     description: Synchronous and in-thread hooks are now release candidate.
 -->
 
-> Stability: 1.1 - Active development
+> Stability: 1.2 - Release candidate
 
 * `options` {Object}
   * `load` {Function|undefined} See [load hook][]. **Default:** `undefined`.
@@ -603,6 +603,10 @@ changes:
 added: v8.8.0
 changes:
   - version:
+    - REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/60960
+    description: Synchronous and in-thread hooks are now release candidate.
+  - version:
     - v23.5.0
     - v22.15.0
     pr-url: https://github.com/nodejs/node/pull/55698
@@ -641,7 +645,7 @@ for simplicity.
 
 ### Synchronous customization hooks
 
-> Stability: 1.1 - Active Development
+> Stability: 1.2 - Release candidate
 
 <i id="enabling_module_customization_hooks"></i>
 
