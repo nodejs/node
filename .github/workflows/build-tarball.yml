@@ -76,7 +76,7 @@ jobs:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd  # v5.0.1
+      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3  # v6.0.0
         with:
           persist-credentials: false
       - name: Set up Python ${{ env.PYTHON_VERSION }}
@@ -106,7 +106,7 @@ jobs:
       CXX: sccache clang++-19
       SCCACHE_GHA_ENABLED: 'true'
     steps:
-      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd  # v5.0.1
+      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3  # v6.0.0
         with:
           persist-credentials: false
           sparse-checkout: .github/actions/install-clang

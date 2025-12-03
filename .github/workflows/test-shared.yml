@@ -106,7 +106,7 @@ jobs:
     name: ${{ github.event_name == 'workflow_dispatch' && 'Skipped job' || 'Build slim tarball' }}
     runs-on: ubuntu-24.04-arm
     steps:
-      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd  # v5.0.1
+      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3  # v6.0.0
         if: ${{ github.event_name != 'workflow_dispatch' }}
         with:
           persist-credentials: false
