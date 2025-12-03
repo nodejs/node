@@ -164,7 +164,7 @@ jobs:
             --arg ccache '(import <nixpkgs> {}).sccache' \
             --arg devTools '[]' \
             --arg benchmarkTools '[]' \
-            ${{ endsWith(matrix.system, '-darwin') && '--arg extraConfigFlags ''["--without-inspector"]'' \' || '\' }}
+            ${{ endsWith(matrix.system, '-darwin') && '--arg extraConfigFlags ''["--without-amaro" "--without-inspector"]'' \' || '\' }}
             --run '
                 make -C "$TAR_DIR" run-ci -j4 V=1 TEST_CI_ARGS="-p actions --measure-flakiness 9 --skip-tests=$CI_SKIP_TESTS"
             '
