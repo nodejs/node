@@ -53,7 +53,7 @@ const TEST_ALLOCATION = kHeapProfInterval * 2;
 const env = {
   ...process.env,
   TEST_ALLOCATION,
-  NODE_DEBUG_NATIVE: 'INSPECTOR_PROFILER'
+  NODE_DEBUG_NATIVE: 'INSPECTOR_PROFILER',
 };
 
 function getHeapProfiles(dir) {
@@ -76,7 +76,7 @@ function getHeapProfiles(dir) {
     fixtures.path('workload', 'allocation.js'),
   ], {
     cwd: tmpdir.path,
-    env
+    env,
   });
   if (output.status !== 0) {
     console.log(output.stderr.toString());
@@ -104,7 +104,7 @@ function getHeapProfiles(dir) {
     fixtures.path('workload', 'allocation.js'),
   ], {
     cwd: tmpdir.path,
-    env
+    env,
   });
   if (output.status !== 0) {
     console.log(output.stderr.toString());
