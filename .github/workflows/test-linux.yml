@@ -35,6 +35,7 @@ env:
   CC: sccache clang-19
   CXX: sccache clang++-19
   SCCACHE_GHA_ENABLED: 'true'
+  RUSTC_VERSION: '1.82'
 
 permissions:
   contents: read
@@ -56,6 +57,10 @@ jobs:
         uses: ./node/.github/actions/install-clang
         with:
           clang-version: ${{ env.CLANG_VERSION }}
+      - name: Install Rust ${{ env.RUSTC_VERSION }}
+        run: |
+          rustup override set ${{ env.RUSTC_VERSION }}
+          rustup --version
       - name: Set up Python ${{ env.PYTHON_VERSION }}
         uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c  # v6.0.0
         with:
@@ -68,7 +73,7 @@ jobs:
       - name: Environment Information
         run: npx envinfo
       - name: Build
-        run: make -C node build-ci -j4 V=1 CONFIG_FLAGS="--error-on-warn"
+        run: make -C node build-ci -j4 V=1 CONFIG_FLAGS="--error-on-warn --v8-enable-temporal-support"
       - name: Test
         run: make -C node run-ci -j4 V=1 TEST_CI_ARGS="-p actions --measure-flakiness 9"
       - name: Re-run test in a folder whose name contains unusual chars
