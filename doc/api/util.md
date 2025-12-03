@@ -564,6 +564,9 @@ changes:
 Returns an array of call site objects containing the stack of
 the caller function.
 
+Unlike accessing an `error.stack`, the result returned from this API is not
+interfered with `Error.prepareStackTrace`.
+
 ```mjs
 import { getCallSites } from 'node:util';
 
