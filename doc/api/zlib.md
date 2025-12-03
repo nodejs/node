@@ -244,7 +244,7 @@ import { pipeline } from 'node:stream';
 const request = http.get({ host: 'example.com',
                            path: '/',
                            port: 80,
-                           headers: { 'Accept-Encoding': 'br,gzip,deflate' } });
+                           headers: { 'Accept-Encoding': 'br,gzip,deflate,zstd' } });
 request.on('response', (response) => {
   const output = fs.createWriteStream('example.com_index.html');
 
@@ -265,6 +265,9 @@ request.on('response', (response) => {
       break;
     case 'deflate':
       pipeline(response, zlib.createInflate(), output, onError);
+      break;
+    case 'zstd':
+      pipeline(response, zlib.createZstdDecompress(), output, onError);
       break;
     default:
       pipeline(response, output, onError);
@@ -353,6 +356,9 @@ http.createServer((request, response) => {
   } else if (/\bbr\b/.test(acceptEncoding)) {
     response.writeHead(200, { 'Content-Encoding': 'br' });
     pipeline(raw, zlib.createBrotliCompress(), response, onError);
+  } else if (/\bzstd\b/.test(acceptEncoding)) {
+    response.writeHead(200, { 'Content-Encoding': 'zstd' });
+    pipeline(raw, zlib.createZstdCompress(), response, onError);
   } else {
     response.writeHead(200, {});
     pipeline(raw, response, onError);
