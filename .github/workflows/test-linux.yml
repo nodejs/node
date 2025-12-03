@@ -59,7 +59,7 @@ jobs:
           clang-version: ${{ env.CLANG_VERSION }}
       - name: Install Rust ${{ env.RUSTC_VERSION }}
         run: |
-          rustup override set ${{ env.RUSTC_VERSION }}
+          rustup override set "$RUSTC_VERSION"
           rustup --version
       - name: Set up Python ${{ env.PYTHON_VERSION }}
         uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c  # v6.0.0
