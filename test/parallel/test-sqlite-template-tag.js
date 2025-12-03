@@ -1,4 +1,6 @@
 'use strict';
+// Flags: --expose-gc
+
 require('../common');
 const assert = require('assert');
 const { DatabaseSync } = require('node:sqlite');
@@ -99,4 +101,15 @@ test('TagStore capacity, size, and clear', () => {
 
 test('sql.db returns the associated DatabaseSync instance', () => {
   assert.strictEqual(sql.db, db);
+});
+
+test('a tag store keeps the database alive by itself', () => {
+  const sql = new DatabaseSync(':memory:').createTagStore();
+
+  sql.db.exec('CREATE TABLE test (data INTEGER)');
+
+  global.gc();
+
+  // eslint-disable-next-line no-unused-expressions
+  sql.run`INSERT INTO test (data) VALUES (1)`;
 });

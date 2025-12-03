@@ -306,11 +306,12 @@ class SQLTagStore : public BaseObject {
  public:
   SQLTagStore(Environment* env,
               v8::Local<v8::Object> object,
-              BaseObjectWeakPtr<DatabaseSync> database,
+              BaseObjectPtr<DatabaseSync> database,
               int capacity);
   ~SQLTagStore() override;
-  static BaseObjectPtr<SQLTagStore> Create(
-      Environment* env, BaseObjectWeakPtr<DatabaseSync> database, int capacity);
+  static BaseObjectPtr<SQLTagStore> Create(Environment* env,
+                                           BaseObjectPtr<DatabaseSync> database,
+                                           int capacity);
   static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
       Environment* env);
   static void All(const v8::FunctionCallbackInfo<v8::Value>& info);
@@ -329,7 +330,7 @@ class SQLTagStore : public BaseObject {
  private:
   static BaseObjectPtr<StatementSync> PrepareStatement(
       const v8::FunctionCallbackInfo<v8::Value>& args);
-  BaseObjectWeakPtr<DatabaseSync> database_;
+  BaseObjectPtr<DatabaseSync> database_;
   LRUCache<std::string, BaseObjectPtr<StatementSync>> sql_tags_;
   int capacity_;
   friend class StatementExecutionHelper;
