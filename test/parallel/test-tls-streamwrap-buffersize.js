@@ -66,6 +66,6 @@ const net = require('net');
 
         client.end();
       }));
-    });
+    }).then(common.mustCall());
   }));
 }

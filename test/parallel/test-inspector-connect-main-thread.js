@@ -115,7 +115,7 @@ async function main() {
   const arrayBuffer = new Uint8Array(sharedBuffer);
   arrayBuffer[0] = 1;
   const worker = await startWorker(false, sharedBuffer);
-  worker.onConsoleRequest.then(doConsoleLog.bind(null, arrayBuffer));
+  worker.onConsoleRequest.then(doConsoleLog.bind(null, arrayBuffer)).then(common.mustCall());
   assert.strictEqual(toDebug(), 400);
   assert.deepStrictEqual(await worker.onMessagesSent, [
     'Debugger.enable',

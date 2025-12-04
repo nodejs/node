@@ -24,5 +24,6 @@ const { pipeline } = require('node:stream/promises');
     // eslint-disable-next-line node-core/must-call-assert
     require('assert').deepStrictEqual(messages, ['Hello', 'World']);
   })()
+  // eslint-disable-next-line node-core/must-call-assert
   .then(require('../common').mustCall());
 }

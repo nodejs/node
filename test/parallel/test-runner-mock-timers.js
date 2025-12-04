@@ -575,9 +575,9 @@ describe('Mock Timers Test Suite', () => {
           const ac = new AbortController();
 
           // id 1 & pos 1 in priority queue
-          nodeTimersPromises.setTimeout(100, undefined, { signal: ac.signal }).then(f1, f1);
+          nodeTimersPromises.setTimeout(100, undefined, { signal: ac.signal }).then(f1, f1).then(common.mustCall());
           // id 2 & pos 1 in priority queue (id 1 is moved to pos 2)
-          nodeTimersPromises.setTimeout(50).then(f2, f2);
+          nodeTimersPromises.setTimeout(50).then(f2, f2).then(common.mustCall());
 
           ac.abort(); // BUG: will remove timer at pos 1 not timer with id 1!
 
@@ -600,9 +600,9 @@ describe('Mock Timers Test Suite', () => {
           const ac = new AbortController();
 
           // id 1 & pos 1 in priority queue
-          nodeTimersPromises.setTimeout(50, true, { signal: ac.signal }).then(f1, f1);
+          nodeTimersPromises.setTimeout(50, true, { signal: ac.signal }).then(f1, f1).then(common.mustCall());
           // id 2 & pos 2 in priority queue
-          nodeTimersPromises.setTimeout(100).then(f2, f2);
+          nodeTimersPromises.setTimeout(100).then(f2, f2).then(common.mustCall());
 
           // First setTimeout resolves
           t.mock.timers.tick(50);

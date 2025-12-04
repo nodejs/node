@@ -605,7 +605,8 @@ test(function test_lookup_ip_promise(done) {
       assert.strictEqual(family, 4);
 
       done();
-    });
+    })
+    .then(common.mustCall());
 });
 
 

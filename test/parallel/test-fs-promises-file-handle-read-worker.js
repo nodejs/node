@@ -17,7 +17,7 @@ if (isMainThread || !workerData) {
       workerData: { handle },
       transferList: [handle]
     });
-  });
+  }).then(common.mustCall());
   fs.promises.open(file, 'r').then(async (handle) => {
     try {
       fs.createReadStream(null, { fd: handle });
@@ -33,7 +33,7 @@ if (isMainThread || !workerData) {
     } finally {
       await handle.close();
     }
-  });
+  }).then(common.mustCall());
 } else {
   let output = '';
 
