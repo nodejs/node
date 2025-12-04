@@ -414,7 +414,8 @@ void BindingData::CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethodNoSideEffect(isolate, target, "decodeUTF8", DecodeUTF8);
   SetMethodNoSideEffect(isolate, target, "toASCII", ToASCII);
   SetMethodNoSideEffect(isolate, target, "toUnicode", ToUnicode);
-  SetMethodNoSideEffect(isolate, target, "decodeLatin1", DecodeLatin1);
+  SetMethodNoSideEffect(
+      isolate, target, "decodeWindows1252", DecodeWindows1252);
 }
 
 void BindingData::CreatePerContextProperties(Local<Object> target,
@@ -432,10 +433,10 @@ void BindingData::RegisterTimerExternalReferences(
   registry->Register(DecodeUTF8);
   registry->Register(ToASCII);
   registry->Register(ToUnicode);
-  registry->Register(DecodeLatin1);
+  registry->Register(DecodeWindows1252);
 }
 
-void BindingData::DecodeLatin1(const FunctionCallbackInfo<Value>& args) {
+void BindingData::DecodeWindows1252(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   CHECK_GE(args.Length(), 1);
@@ -448,7 +449,6 @@ void BindingData::DecodeLatin1(const FunctionCallbackInfo<Value>& args) {
   }
 
   bool ignore_bom = args[1]->IsTrue();
-  bool has_fatal = args[2]->IsTrue();
 
   ArrayBufferViewContents<uint8_t> buffer(args[0]);
   const uint8_t* data = buffer.data();
@@ -463,20 +463,45 @@ void BindingData::DecodeLatin1(const FunctionCallbackInfo<Value>& args) {
     return args.GetReturnValue().SetEmptyString();
   }
 
-  std::string result(length * 2, '\0');
+  // Windows-1252 specific mapping for bytes 128-159
+  // These differ from Latin-1/ISO-8859-1
+  static const uint16_t windows1252_mapping[32] = {
+      0x20AC, 0x0081, 0x201A, 0x0192, 0x201E, 0x2026, 0x2020, 0x2021,  // 80-87
+      0x02C6, 0x2030, 0x0160, 0x2039, 0x0152, 0x008D, 0x017D, 0x008F,  // 88-8F
+      0x0090, 0x2018, 0x2019, 0x201C, 0x201D, 0x2022, 0x2013, 0x2014,  // 90-97
+      0x02DC, 0x2122, 0x0161, 0x203A, 0x0153, 0x009D, 0x017E, 0x0178   // 98-9F
+  };
 
-  size_t written = simdutf::convert_latin1_to_utf8(
-      reinterpret_cast<const char*>(data), length, result.data());
+  std::string result;
+  result.reserve(length * 3);  // Reserve space for UTF-8 output
 
-  if (has_fatal && written == 0) {
-    return node::THROW_ERR_ENCODING_INVALID_ENCODED_DATA(
-        env->isolate(), "The encoded data was not valid for encoding latin1");
+  for (size_t i = 0; i < length; i++) {
+    uint8_t byte = data[i];
+    uint32_t codepoint;
+
+    // Check if byte is in the special Windows-1252 range (128-159)
+    if (byte >= 0x80 && byte <= 0x9F) {
+      codepoint = windows1252_mapping[byte - 0x80];
+    } else {
+      // For all other bytes, Windows-1252 is identical to Latin-1
+      codepoint = byte;
+    }
+
+    // Convert codepoint to UTF-8
+    if (codepoint < 0x80) {
+      result.push_back(static_cast<char>(codepoint));
+    } else if (codepoint < 0x800) {
+      result.push_back(static_cast<char>(0xC0 | (codepoint >> 6)));
+      result.push_back(static_cast<char>(0x80 | (codepoint & 0x3F)));
+    } else {
+      result.push_back(static_cast<char>(0xE0 | (codepoint >> 12)));
+      result.push_back(static_cast<char>(0x80 | ((codepoint >> 6) & 0x3F)));
+      result.push_back(static_cast<char>(0x80 | (codepoint & 0x3F)));
+    }
   }
 
-  std::string_view view(result.c_str(), written);
-
   Local<Value> ret;
-  if (ToV8Value(env->context(), view, env->isolate()).ToLocal(&ret)) {
+  if (ToV8Value(env->context(), result, env->isolate()).ToLocal(&ret)) {
     args.GetReturnValue().Set(ret);
   }
 }
