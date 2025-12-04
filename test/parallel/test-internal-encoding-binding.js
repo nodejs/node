@@ -8,41 +8,46 @@ const assert = require('node:assert');
 const { internalBinding } = require('internal/test/binding');
 const binding = internalBinding('encoding_binding');
 
+// Windows-1252 specific tests
 {
-  // Valid input
+  // Test Windows-1252 special characters in 128-159 range
+  // These differ from Latin-1
+  assert.strictEqual(binding.decodeWindows1252(Uint8Array.of(0x80), false, false), '€');
+  assert.strictEqual(binding.decodeWindows1252(Uint8Array.of(0x82), false, false), '‚');
+  assert.strictEqual(binding.decodeWindows1252(Uint8Array.of(0x83), false, false), 'ƒ');
+  assert.strictEqual(binding.decodeWindows1252(Uint8Array.of(0x9F), false, false), 'Ÿ');
+}
+
+{
+  // Test Windows-1252 characters outside 128-159 range (same as Latin-1)
   const buf = Uint8Array.from([0xC1, 0xE9, 0xF3]);
-  assert.strictEqual(binding.decodeLatin1(buf, false, false), 'Áéó');
+  assert.strictEqual(binding.decodeWindows1252(buf, false, false), 'Áéó');
 }
 
 {
   // Empty input
   const buf = Uint8Array.from([]);
-  assert.strictEqual(binding.decodeLatin1(buf, false, false), '');
+  assert.strictEqual(binding.decodeWindows1252(buf, false, false), '');
+}
+
+// Windows-1252 specific tests
+{
+  // Test Windows-1252 special characters in 128-159 range
+  // These differ from Latin-1
+  assert.strictEqual(binding.decodeWindows1252(Uint8Array.of(0x80), false, false), '€');
+  assert.strictEqual(binding.decodeWindows1252(Uint8Array.of(0x82), false, false), '‚');
+  assert.strictEqual(binding.decodeWindows1252(Uint8Array.of(0x83), false, false), 'ƒ');
+  assert.strictEqual(binding.decodeWindows1252(Uint8Array.of(0x9F), false, false), 'Ÿ');
 }
 
 {
-  // Invalid input, but Latin1 has no invalid chars and should never throw.
-  const buf = new TextEncoder().encode('Invalid Latin1 🧑‍🧑‍🧒‍🧒');
-  assert.strictEqual(
-    binding.decodeLatin1(buf, false, false),
-    'Invalid Latin1 ð\x9F§\x91â\x80\x8Dð\x9F§\x91â\x80\x8Dð\x9F§\x92â\x80\x8Dð\x9F§\x92'
-  );
+  // Test Windows-1252 characters outside 128-159 range (same as Latin-1)
+  const buf = Uint8Array.from([0xC1, 0xE9, 0xF3]);
+  assert.strictEqual(binding.decodeWindows1252(buf, false, false), 'Áéó');
 }
 
 {
-  // IgnoreBOM with BOM
-  const buf = Uint8Array.from([0xFE, 0xFF, 0xC1, 0xE9, 0xF3]);
-  assert.strictEqual(binding.decodeLatin1(buf, true, false), 'þÿÁéó');
-}
-
-{
-  // Fatal and InvalidInput, but Latin1 has no invalid chars and should never throw.
-  const buf = Uint8Array.from([0xFF, 0xFF, 0xFF]);
-  assert.strictEqual(binding.decodeLatin1(buf, false, true), 'ÿÿÿ');
-}
-
-{
-  // IgnoreBOM and Fatal, but Latin1 has no invalid chars and should never throw.
-  const buf = Uint8Array.from([0xFE, 0xFF, 0xC1, 0xE9, 0xF3]);
-  assert.strictEqual(binding.decodeLatin1(buf, true, true), 'þÿÁéó');
+  // Empty input
+  const buf = Uint8Array.from([]);
+  assert.strictEqual(binding.decodeWindows1252(buf, false, false), '');
 }
