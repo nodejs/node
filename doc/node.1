@@ -927,3 +927,14 @@ Documentation:
 .Pp
 GitHub repository and issue tracker:
 .Sy https://github.com/nodejs/node
+.TP
+.B --env-file
+Load environment variables from the specified file. Node.js exits with an error if the file does not exist.
+
+.TP
+.B --env-file-if-exists
+Load environment variables from the specified file if it exists. No error is thrown when the file is missing.
+
+.TP
+.B --report-dir, --report-directory
+Set the directory where diagnostic reports are written. Node.js may create the directory if it does not exist.

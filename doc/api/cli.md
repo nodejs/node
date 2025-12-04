@@ -956,6 +956,19 @@ export USERNAME="nodejs" # will result in `nodejs` as the value.
 If you want to load environment variables from a file that may not exist, you
 can use the [`--env-file-if-exists`][] flag instead.
 
+#### `--env-file`
+Loads environment variables from the provided file and applies them to the current process environment.  
+If the file does not exist, Node.js will exit with an error.
+
+#### `--env-file-if-exists`
+Same as `--env-file` but does not error when the file is missing.  
+Useful for optional `.env` setups.
+
+#### `--report-dir`, `--report-directory`
+Specifies the directory where diagnostic reports will be written.  
+If the directory does not exist, Node.js will attempt to create it.
+
+
 ### `-e`, `--eval "script"`
 
 <!-- YAML
