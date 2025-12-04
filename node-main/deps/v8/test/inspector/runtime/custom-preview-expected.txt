@@ -1,0 +1,368 @@
+RemoteObject.CustomPreview
+Dump custom previews..
+{
+    bodyGetterId : <bodyGetterId>
+    header : [
+        [0] : span
+        [1] : {
+        }
+        [2] : Header formatted by 1 
+        [3] : a
+    ]
+}
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : object
+            value : [
+                [0] : span
+                [1] : {
+                }
+                [2] : Body formatted by 1 
+                [3] : a
+                [4] : [
+                    [0] : object
+                    [1] : {
+                        className : Object
+                        description : Object
+                        objectId : <objectId>
+                        type : object
+                    }
+                ]
+            ]
+        }
+    }
+}
+{
+    bodyGetterId : <bodyGetterId>
+    header : [
+        [0] : span
+        [1] : {
+        }
+        [2] : Header formatted by 2 
+        [3] : b
+    ]
+}
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : object
+            value : [
+                [0] : span
+                [1] : {
+                }
+                [2] : Body formatted by 2 
+                [3] : b
+            ]
+        }
+    }
+}
+{
+    bodyGetterId : <bodyGetterId>
+    header : [
+        [0] : span
+        [1] : {
+        }
+        [2] : Header formatted by 1 
+        [3] : c
+    ]
+}
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : object
+            value : [
+                [0] : span
+                [1] : {
+                }
+                [2] : Body formatted by 1 
+                [3] : c
+                [4] : [
+                    [0] : object
+                    [1] : {
+                        className : Object
+                        description : Object
+                        objectId : <objectId>
+                        type : object
+                    }
+                ]
+            ]
+        }
+    }
+}
+{
+    header : [
+        [0] : span
+        [1] : {
+        }
+        [2] : Formatter with config 
+        [3] : [
+            [0] : object
+            [1] : {
+                className : Object
+                customPreview : {
+                    bodyGetterId : <bodyGetterId>
+                    header : ["span",{},"Header ","info: ","additional info"]
+                }
+                description : Object
+                objectId : <objectId>
+                type : object
+            }
+        ]
+    ]
+}
+{
+    bodyGetterId : <bodyGetterId>
+    header : [
+        [0] : span
+        [1] : {
+        }
+        [2] : Null body: 
+        [3] : nullBodyTest
+    ]
+}
+{
+    id : <messageId>
+    result : {
+        result : {
+            subtype : null
+            type : object
+            value : null
+        }
+    }
+}
+Change formatters order and dump again..
+{
+    bodyGetterId : <bodyGetterId>
+    header : [
+        [0] : span
+        [1] : {
+        }
+        [2] : Header formatted by 1 
+        [3] : a
+    ]
+}
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : object
+            value : [
+                [0] : span
+                [1] : {
+                }
+                [2] : Body formatted by 1 
+                [3] : a
+                [4] : [
+                    [0] : object
+                    [1] : {
+                        className : Object
+                        description : Object
+                        objectId : <objectId>
+                        type : object
+                    }
+                ]
+            ]
+        }
+    }
+}
+{
+    bodyGetterId : <bodyGetterId>
+    header : [
+        [0] : span
+        [1] : {
+        }
+        [2] : Header formatted by 2 
+        [3] : b
+    ]
+}
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : object
+            value : [
+                [0] : span
+                [1] : {
+                }
+                [2] : Body formatted by 2 
+                [3] : b
+            ]
+        }
+    }
+}
+{
+    bodyGetterId : <bodyGetterId>
+    header : [
+        [0] : span
+        [1] : {
+        }
+        [2] : Header formatted by 2 
+        [3] : c
+    ]
+}
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : object
+            value : [
+                [0] : span
+                [1] : {
+                }
+                [2] : Body formatted by 2 
+                [3] : c
+            ]
+        }
+    }
+}
+{
+    header : [
+        [0] : span
+        [1] : {
+        }
+        [2] : Formatter with config 
+        [3] : [
+            [0] : object
+            [1] : {
+                className : Object
+                customPreview : {
+                    bodyGetterId : <bodyGetterId>
+                    header : ["span",{},"Header ","info: ","additional info"]
+                }
+                description : Object
+                objectId : <objectId>
+                type : object
+            }
+        ]
+    ]
+}
+{
+    bodyGetterId : <bodyGetterId>
+    header : [
+        [0] : span
+        [1] : {
+        }
+        [2] : Null body: 
+        [3] : nullBodyTest
+    ]
+}
+{
+    id : <messageId>
+    result : {
+        result : {
+            subtype : null
+            type : object
+            value : null
+        }
+    }
+}
+Test Runtime.getProperties
+{
+    bodyGetterId : <bodyGetterId>
+    header : [
+        [0] : span
+        [1] : {
+        }
+        [2] : Header formatted by 1 
+        [3] : a
+    ]
+}
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : object
+            value : [
+                [0] : span
+                [1] : {
+                }
+                [2] : Body formatted by 1 
+                [3] : a
+                [4] : [
+                    [0] : object
+                    [1] : {
+                        className : Object
+                        description : Object
+                        objectId : <objectId>
+                        type : object
+                    }
+                ]
+            ]
+        }
+    }
+}
+Try to break custom preview..
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                type : string
+                value : Custom Formatter Failed: Uncaught 1
+            }
+        ]
+        executionContextId : <executionContextId>
+        timestamp : <timestamp>
+        type : error
+    }
+}
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                type : string
+                value : Custom Formatter Failed: Uncaught 1
+            }
+        ]
+        executionContextId : <executionContextId>
+        timestamp : <timestamp>
+        type : error
+    }
+}
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                type : string
+                value : Custom Formatter Failed: Uncaught 2
+            }
+        ]
+        executionContextId : <executionContextId>
+        timestamp : <timestamp>
+        type : error
+    }
+}
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                type : string
+                value : Custom Formatter Failed: Uncaught 3
+            }
+        ]
+        executionContextId : <executionContextId>
+        timestamp : <timestamp>
+        type : error
+    }
+}
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                type : string
+                value : Custom Formatter Failed: Uncaught 4
+            }
+        ]
+        executionContextId : <executionContextId>
+        timestamp : <timestamp>
+        type : error
+    }
+}

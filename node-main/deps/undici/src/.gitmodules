@@ -1,0 +1,6 @@
+[submodule "test/web-platform-tests/wpt"]
+	path = test/web-platform-tests/wpt
+	url = https://github.com/web-platform-tests/wpt.git
+[submodule "test/fixtures/cache-tests"]
+	path = test/fixtures/cache-tests
+	url = https://github.com/http-tests/cache-tests

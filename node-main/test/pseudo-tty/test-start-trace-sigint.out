@@ -1,0 +1,11 @@
+KEYBOARD_INTERRUPT: Script execution was interrupted by `SIGINT`
+    at main (*/test-start-trace-sigint.js:*)
+    at */test-start-trace-sigint.js:*
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *
+    at *

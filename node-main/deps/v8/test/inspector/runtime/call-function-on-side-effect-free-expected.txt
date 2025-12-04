@@ -1,0 +1,9 @@
+Tests side-effect-free Runtime.callFunctionOn()
+
+Running test: testCallFunctionOnSideEffectFree
+function getA() { return this.a; }: ok
+function setA(a) { this.a = a; }: throws
+function getB() { return this.b; }: ok
+function setB(b) { this.b = b; }: throws
+function setSomeGlobal() { globalThis.someGlobal = this; }: throws
+function localSideEffect() { const date = new Date(); date.setDate(this.a); return date; }: ok
