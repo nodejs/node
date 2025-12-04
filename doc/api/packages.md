@@ -527,6 +527,10 @@ can be written:
 added:
   - v14.6.0
   - v12.19.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/60864
+    description: Allow subpath imports that start with `#/`.
 -->
 
 In addition to the [`"exports"`][] field, there is a package `"imports"` field
