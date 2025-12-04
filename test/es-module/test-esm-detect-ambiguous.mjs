@@ -283,7 +283,7 @@ describe('Module syntax detection', { concurrency: !process.env.TEST_PARALLEL },
 
       assert.match(
         stderr,
-        /ReferenceError: Cannot determine intended module format because both require\(\) and top-level await are present\. If the code is intended to be CommonJS, wrap await in an async function\. If the code is intended to be an ES module, replace require\(\) with import\./
+        /ReferenceError: Cannot determine intended module format because both require and top-level await are present\. If the code is intended to be CommonJS, wrap await in an async function\. If the code is intended to be an ES module, replace require with import\./
       );
       assert.strictEqual(stdout, '');
       assert.strictEqual(code, 1);
@@ -440,7 +440,26 @@ describe('cjs & esm ambiguous syntax case', () => {
 
     assert.match(
       stderr,
-      /ReferenceError: Cannot determine intended module format because both require\(\) and top-level await are present\. If the code is intended to be CommonJS, wrap await in an async function\. If the code is intended to be an ES module, replace require\(\) with import\./
+      /ReferenceError: Cannot determine intended module format because both require and top-level await are present\. If the code is intended to be CommonJS, wrap await in an async function\. If the code is intended to be an ES module, replace require with import\./
+    );
+
+    assert.strictEqual(code, 1);
+    assert.strictEqual(signal, null);
+  });
+
+  it('should throw an ambiguous syntax error when using top-level await with module', async () => {
+    const { stderr, code, signal } = await spawnPromisified(
+      process.execPath,
+      [
+        '--input-type=module',
+        '--eval',
+        `await 1;\nmodule.exports = 1;`,
+      ]
+    );
+
+    assert.match(
+      stderr,
+      /ReferenceError: Cannot determine intended module format because both module and top-level await are present\. If the code is intended to be CommonJS, wrap await in an async function\. If the code is intended to be an ES module, replace module with import\./
     );
 
     assert.strictEqual(code, 1);
