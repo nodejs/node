@@ -128,13 +128,10 @@ for (const [name, { supported, publicKey, privateKey, sharedSecretLength, cipher
     },
   ];
 
-  // TODO(@panva): ML-KEM does not have a JWK format defined yet, add once standardized
-  if (!keyObjects.privateKey.asymmetricKeyType.startsWith('ml')) {
-    keyPairs.push({
-      publicKey: formatKeyAs(keyObjects.publicKey, { format: 'jwk' }),
-      privateKey: formatKeyAs(keyObjects.privateKey, { format: 'jwk' })
-    });
-  }
+  keyPairs.push({
+    publicKey: formatKeyAs(keyObjects.publicKey, { format: 'jwk' }),
+    privateKey: formatKeyAs(keyObjects.privateKey, { format: 'jwk' })
+  });
 
   for (const kp of keyPairs) {
     // sync
