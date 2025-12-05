@@ -1225,27 +1225,6 @@ added: v25.0.0
 
 Enable experimental support for the QUIC protocol.
 
-### `--experimental-require-module`
-
-<!-- YAML
-added:
-  - v22.0.0
-  - v20.17.0
-changes:
-  - version:
-    - v23.0.0
-    - v22.12.0
-    - v20.19.0
-    pr-url: https://github.com/nodejs/node/pull/55085
-    description: This is now true by default.
--->
-
-> Stability: 1.1 - Active Development
-
-Supports loading a synchronous ES module graph in `require()`.
-
-See [Loading ECMAScript modules using `require()`][].
-
 ### `--experimental-sea-config`
 
 <!-- YAML
@@ -1921,6 +1900,11 @@ added:
   - v20.17.0
 changes:
   - version:
+    - REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/60959
+    description: The flag was renamed from `--no-experimental-require-module` to
+                 `--no-require-module`, with the former marked as legacy.
+  - version:
     - v23.0.0
     - v22.12.0
     - v20.19.0
@@ -1928,11 +1912,9 @@ changes:
     description: This is now false by default.
 -->
 
-> Stability: 1.1 - Active Development
+> Stability: 3 - Legacy: Use [`--no-require-module`][] instead.
 
-Disable support for loading a synchronous ES module graph in `require()`.
-
-See [Loading ECMAScript modules using `require()`][].
+Legacy alias for [`--no-require-module`][].
 
 ### `--no-experimental-sqlite`
 
@@ -2010,6 +1992,34 @@ changes:
 
 Disables the family autoselection algorithm unless connection options explicitly
 enables it.
+
+<a id="--experimental-require-module"></a>
+
+### `--no-require-module`
+
+<!-- YAML
+added:
+  - v22.0.0
+  - v20.17.0
+changes:
+  - version:
+    - REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/60959
+    description: This flag was renamed from `--no-experimental-require-module`
+                 to `--no-require-module`.
+  - version:
+    - v23.0.0
+    - v22.12.0
+    - v20.19.0
+    pr-url: https://github.com/nodejs/node/pull/55085
+    description: This is now false by default.
+-->
+
+> Stability: 1.2 - Release Candidate
+
+Disable support for loading a synchronous ES module graph in `require()`.
+
+See [Loading ECMAScript modules using `require()`][].
 
 ### `--no-strip-types`
 
@@ -3624,6 +3634,7 @@ one is included in the list below.
 * `--report-on-signal`
 * `--report-signal`
 * `--report-uncaught-exception`
+* `--require-module`
 * `--require`, `-r`
 * `--secure-heap-min`
 * `--secure-heap`
@@ -4164,6 +4175,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`--experimental-sea-config`]: single-executable-applications.md#generating-single-executable-preparation-blobs
 [`--heap-prof-dir`]: #--heap-prof-dir
 [`--import`]: #--importmodule
+[`--no-require-module`]: #--no-require-module
 [`--no-strip-types`]: #--no-strip-types
 [`--openssl-config`]: #--openssl-configfile
 [`--preserve-symlinks`]: #--preserve-symlinks
