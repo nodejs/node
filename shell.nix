@@ -1,54 +1,64 @@
 {
   pkgs ? import ./tools/nix/pkgs.nix { },
-  loadJSBuiltinsDynamically ? true, # Load `lib/**.js` from disk instead of embedding
-  withTemporal ? false,
-  ncu-path ? null, # Provide this if you want to use a local version of NCU
-  icu ? pkgs.icu,
-  sharedLibDeps ? import ./tools/nix/sharedLibDeps.nix { inherit pkgs withTemporal; },
+
+  # Optional build tools / config
   ccache ? pkgs.ccache,
+  loadJSBuiltinsDynamically ? true, # Load `lib/**.js` from disk instead of embedding
   ninja ? pkgs.ninja,
-  devTools ? import ./tools/nix/devTools.nix { inherit pkgs ncu-path; },
-  benchmarkTools ? import ./tools/nix/benchmarkTools.nix { inherit pkgs; },
   extraConfigFlags ? [
     "--without-npm"
     "--debug-node"
-  ]
-  ++ pkgs.lib.optionals withTemporal [
-    "--v8-enable-temporal-support"
   ],
+
+  # Build options
+  icu ? pkgs.icu,
+  withAmaro ? true,
+  withSQLite ? true,
+  withSSL ? true,
+  withTemporal ? false,
+  sharedLibDeps ? import ./tools/nix/sharedLibDeps.nix {
+    inherit
+      pkgs
+      withSQLite
+      withSSL
+      withTemporal
+      ;
+  },
+
+  # dev tools (not needed to build Node.js, useful to maintain it)
+  ncu-path ? null, # Provide this if you want to use a local version of NCU
+  devTools ? import ./tools/nix/devTools.nix { inherit pkgs ncu-path; },
+  benchmarkTools ? import ./tools/nix/benchmarkTools.nix { inherit pkgs; },
 }:
 
 let
   useSharedICU = if builtins.isString icu then icu == "system" else icu != null;
   useSharedAda = builtins.hasAttr "ada" sharedLibDeps;
   useSharedOpenSSL = builtins.hasAttr "openssl" sharedLibDeps;
+
+  needsRustCompiler = withTemporal && !builtins.hasAttr "temporal_capi" sharedLibDeps;
 in
 pkgs.mkShell {
   inherit (pkgs.nodejs_latest) nativeBuildInputs;
 
   buildInputs = builtins.attrValues sharedLibDeps ++ pkgs.lib.optional useSharedICU icu;
 
-  packages = [
-    ccache
-  ]
-  ++ devTools
-  ++ benchmarkTools
-  ++ pkgs.lib.optionals (withTemporal && !builtins.hasAttr "temporal_capi" sharedLibDeps) [
-    pkgs.cargo
-    pkgs.rustc
-  ];
+  packages =
+    pkgs.lib.optional (ccache != null) ccache
+    ++ devTools
+    ++ benchmarkTools
+    ++ pkgs.lib.optionals needsRustCompiler [
+      pkgs.cargo
+      pkgs.rustc
+    ];
 
-  shellHook =
-    if (ccache != null) then
-      ''
-        export CC="${pkgs.lib.getExe ccache} $CC"
-        export CXX="${pkgs.lib.getExe ccache} $CXX"
-      ''
-    else
-      "";
+  shellHook = pkgs.lib.optionalString (ccache != null) ''
+    export CC="${pkgs.lib.getExe ccache} $CC"
+    export CXX="${pkgs.lib.getExe ccache} $CXX"
+  '';
 
   BUILD_WITH = if (ninja != null) then "ninja" else "make";
-  NINJA = if (ninja != null) then "${pkgs.lib.getExe ninja}" else "";
+  NINJA = pkgs.lib.optionalString (ninja != null) "${pkgs.lib.getExe ninja}";
   CI_SKIP_TESTS = pkgs.lib.concatStringsSep "," (
     [ ]
     ++ pkgs.lib.optionals useSharedAda [
@@ -70,12 +80,12 @@ pkgs.mkShell {
       )
     ]
     ++ extraConfigFlags
-    ++ pkgs.lib.optionals (ninja != null) [
-      "--ninja"
-    ]
-    ++ pkgs.lib.optionals loadJSBuiltinsDynamically [
-      "--node-builtin-modules-path=${builtins.toString ./.}"
-    ]
+    ++ pkgs.lib.optional (!withAmaro) "--without-amaro"
+    ++ pkgs.lib.optional (!withSQLite) "--without-sqlite"
+    ++ pkgs.lib.optional (!withSSL) "--without-ssl"
+    ++ pkgs.lib.optional withTemporal "--v8-enable-temporal-support"
+    ++ pkgs.lib.optional (ninja != null) "--ninja"
+    ++ pkgs.lib.optional loadJSBuiltinsDynamically "--node-builtin-modules-path=${builtins.toString ./.}"
     ++ pkgs.lib.concatMap (name: [
       "--shared-${builtins.replaceStrings [ "c-ares" ] [ "cares" ] name}"
       "--shared-${builtins.replaceStrings [ "c-ares" ] [ "cares" ] name}-libpath=${
@@ -86,4 +96,5 @@ pkgs.mkShell {
       }/include"
     ]) (builtins.attrNames sharedLibDeps)
   );
+  NOSQLITE = pkgs.lib.optionalString (!withSQLite) "1";
 }
