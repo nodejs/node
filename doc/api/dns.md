@@ -248,7 +248,7 @@ changes:
 -->
 
 * `hostname` {string}
-* `options` {integer | Object}
+* `options` {integer|Object}
   * `family` {integer|string} The record family. Must be `4`, `6`, or `0`. For
     backward compatibility reasons,`'IPv4'` and `'IPv6'` are interpreted as `4`
     and `6` respectively. The value `0` indicates that either an IPv4 or IPv6
@@ -427,7 +427,7 @@ changes:
 * `rrtype` {string} Resource record type. **Default:** `'A'`.
 * `callback` {Function}
   * `err` {Error}
-  * `records` {string\[] | Object\[] | Object}
+  * `records` {string\[]|Object\[]|Object}
 
 Uses the DNS protocol to resolve a host name (e.g. `'nodejs.org'`) into an array
 of the resource records. The `callback` function has arguments
@@ -477,7 +477,7 @@ changes:
     with the TTL expressed in seconds.
 * `callback` {Function}
   * `err` {Error}
-  * `addresses` {string\[] | Object\[]}
+  * `addresses` {string\[]|Object\[]}
 
 Uses the DNS protocol to resolve a IPv4 addresses (`A` records) for the
 `hostname`. The `addresses` argument passed to the `callback` function
@@ -508,7 +508,7 @@ changes:
     strings, with the TTL expressed in seconds.
 * `callback` {Function}
   * `err` {Error}
-  * `addresses` {string\[] | Object\[]}
+  * `addresses` {string\[]|Object\[]}
 
 Uses the DNS protocol to resolve IPv6 addresses (`AAAA` records) for the
 `hostname`. The `addresses` argument passed to the `callback` function
@@ -1099,7 +1099,7 @@ changes:
 -->
 
 * `hostname` {string}
-* `options` {integer | Object}
+* `options` {integer|Object}
   * `family` {integer} The record family. Must be `4`, `6`, or `0`. The value
     `0` indicates that either an IPv4 or IPv6 address is returned. If the
     value `0` is used with `{ all: true }` (see below), either one of or both

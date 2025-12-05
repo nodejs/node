@@ -1887,7 +1887,7 @@ is the `name`, the second item of the array is the `value`.
 ### `mimeParams.get(name)`
 
 * `name` {string}
-* Returns: {string | null} A string or `null` if there is no name-value pair
+* Returns: {string|null} A string or `null` if there is no name-value pair
   with the given `name`.
 
 Returns the value of the first name-value pair whose name is `name`. If there
@@ -2036,7 +2036,7 @@ changes:
       times. If `true`, all values will be collected in an array. If
       `false`, values for the option are last-wins. **Default:** `false`.
     * `short` {string} A single character alias for the option.
-    * `default` {string | boolean | string\[] | boolean\[]} The value to assign to
+    * `default` {string|boolean|string\[]|boolean\[]} The value to assign to
       the option if it does not appear in the arguments to be parsed. The value
       must match the type specified by the `type` property. If `multiple` is
       `true`, it must be an array. No default value is applied when the option
@@ -2061,7 +2061,7 @@ changes:
   * `values` {Object} A mapping of parsed option names with their {string}
     or {boolean} values.
   * `positionals` {string\[]} Positional arguments.
-  * `tokens` {Object\[] | undefined} See [parseArgs tokens](#parseargs-tokens)
+  * `tokens` {Object\[]|undefined} See [parseArgs tokens](#parseargs-tokens)
     section. Only returned if `config` includes `tokens: true`.
 
 Provides a higher level API for command-line argument parsing than interacting
@@ -2121,9 +2121,9 @@ The returned tokens have properties describing:
 * option tokens
   * `name` {string} Long name of option.
   * `rawName` {string} How option used in args, like `-f` of `--foo`.
-  * `value` {string | undefined} Option value specified in args.
+  * `value` {string|undefined} Option value specified in args.
     Undefined for boolean options.
-  * `inlineValue` {boolean | undefined} Whether option value specified inline,
+  * `inlineValue` {boolean|undefined} Whether option value specified inline,
     like `--foo=bar`.
 * positional tokens
   * `value` {string} The value of the positional argument in args (i.e. `args[index]`).
@@ -2513,7 +2513,7 @@ changes:
       such as NO_COLOR, NODE_DISABLE_COLORS, and FORCE_COLOR.
 -->
 
-* `format` {string | Array} A text format or an Array
+* `format` {string|Array} A text format or an Array
   of text formats defined in `util.inspect.colors`.
 * `text` {string} The text to to be formatted.
 * `options` {Object}

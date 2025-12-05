@@ -302,7 +302,7 @@ git node release -S --prepare x.y.z
 to automate the remaining steps until step 6 or you can perform it manually
 following the below steps.
 
-***
+---
 
 Create a new branch named `vx.y.z-proposal`, off the corresponding staging
 branch.
@@ -763,7 +763,7 @@ git node release --promote \
 
 </details>
 
-***
+---
 
 Create a new tag: By waiting until this stage to create tags, you can discard
 a proposed release if something goes wrong or additional commits are required.
