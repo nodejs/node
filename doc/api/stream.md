@@ -3722,7 +3722,7 @@ changes:
 
 <!-- eslint-disable no-useless-constructor -->
 
-```js
+```cjs
 const { Writable } = require('node:stream');
 
 class MyWritable extends Writable {
@@ -3734,18 +3734,18 @@ class MyWritable extends Writable {
 }
 ```
 
-Or, when using pre-ES6 style constructors:
+<!-- eslint-disable no-useless-constructor -->
 
-```js
-const { Writable } = require('node:stream');
-const util = require('node:util');
+```mjs
+import { Writable } from 'node:stream';
 
-function MyWritable(options) {
-  if (!(this instanceof MyWritable))
-    return new MyWritable(options);
-  Writable.call(this, options);
+class MyWritable extends Writable {
+  constructor(options) {
+    // Calls the stream.Writable() constructor.
+    super(options);
+    // ...
+  }
 }
-util.inherits(MyWritable, Writable);
 ```
 
 Or, using the simplified constructor approach:
@@ -4095,20 +4095,6 @@ class MyReadable extends Readable {
 }
 ```
 
-Or, when using pre-ES6 style constructors:
-
-```js
-const { Readable } = require('node:stream');
-const util = require('node:util');
-
-function MyReadable(options) {
-  if (!(this instanceof MyReadable))
-    return new MyReadable(options);
-  Readable.call(this, options);
-}
-util.inherits(MyReadable, Readable);
-```
-
 Or, using the simplified constructor approach:
 
 ```js
@@ -4427,7 +4413,7 @@ changes:
 
 <!-- eslint-disable no-useless-constructor -->
 
-```js
+```cjs
 const { Duplex } = require('node:stream');
 
 class MyDuplex extends Duplex {
@@ -4438,18 +4424,17 @@ class MyDuplex extends Duplex {
 }
 ```
 
-Or, when using pre-ES6 style constructors:
+<!-- eslint-disable no-useless-constructor -->
 
-```js
-const { Duplex } = require('node:stream');
-const util = require('node:util');
+```mjs
+import { Duplex } from 'node:stream';
 
-function MyDuplex(options) {
-  if (!(this instanceof MyDuplex))
-    return new MyDuplex(options);
-  Duplex.call(this, options);
+class MyDuplex extends Duplex {
+  constructor(options) {
+    super(options);
+    // ...
+  }
 }
-util.inherits(MyDuplex, Duplex);
 ```
 
 Or, using the simplified constructor approach:
@@ -4624,7 +4609,7 @@ output on the `Readable` side is not consumed.
 
 <!-- eslint-disable no-useless-constructor -->
 
-```js
+```cjs
 const { Transform } = require('node:stream');
 
 class MyTransform extends Transform {
@@ -4635,18 +4620,17 @@ class MyTransform extends Transform {
 }
 ```
 
-Or, when using pre-ES6 style constructors:
+<!-- eslint-disable no-useless-constructor -->
 
-```js
-const { Transform } = require('node:stream');
-const util = require('node:util');
+```mjs
+import { Transform } from 'node:stream';
 
-function MyTransform(options) {
-  if (!(this instanceof MyTransform))
-    return new MyTransform(options);
-  Transform.call(this, options);
+class MyTransform extends Transform {
+  constructor(options) {
+    super(options);
+    // ...
+  }
 }
-util.inherits(MyTransform, Transform);
 ```
 
 Or, using the simplified constructor approach:
