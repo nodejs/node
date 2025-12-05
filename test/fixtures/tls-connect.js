@@ -57,7 +57,7 @@ exports.connect = function connect(options, callback) {
     }).listen(0, function() {
       server.server = this;
 
-      const optClient = util._extend({
+      const optClient = Object.assign({
         port: this.address().port,
       }, options.client);
 
