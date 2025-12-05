@@ -2,7 +2,6 @@ import { mustCall, mustNotCall, isWindows } from '../common/index.mjs';
 import assert from 'assert';
 import { convertProcessSignalToExitCode } from 'util';
 import { spawn } from 'child_process';
-import os from 'os';
 
 // Test valid signal names
 {
