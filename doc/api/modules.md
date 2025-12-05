@@ -176,6 +176,10 @@ added:
   - v20.17.0
 changes:
   - version:
+    - REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/60959
+    description: This feature is no longer experimental.
+  - version:
     - v23.5.0
     - v22.13.0
     - v20.19.0
@@ -194,8 +198,6 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/54563
     description: Support `'module.exports'` interop export in `require(esm)`.
 -->
-
-> Stability: 1.2 - Release candidate
 
 The `.mjs` extension is reserved for [ECMAScript Modules][].
 See [Determining module system][] section for more info

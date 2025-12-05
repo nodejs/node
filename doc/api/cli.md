@@ -1993,6 +1993,10 @@ changes:
   - version:
     - REPLACEME
     pr-url: https://github.com/nodejs/node/pull/60959
+    description: This flag is no longer experimental.
+  - version:
+    - REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/60959
     description: This flag was renamed from `--no-experimental-require-module`
                  to `--no-require-module`.
   - version:
@@ -2002,8 +2006,6 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/55085
     description: This is now false by default.
 -->
-
-> Stability: 1.2 - Release Candidate
 
 Disable support for loading a synchronous ES module graph in `require()`.
 

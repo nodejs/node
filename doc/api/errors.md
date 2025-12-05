@@ -2661,8 +2661,6 @@ A QUIC session failed because version negotiation is required.
 
 ### `ERR_REQUIRE_ASYNC_MODULE`
 
-> Stability: 1 - Experimental
-
 When trying to `require()` a [ES Module][], the module turns out to be asynchronous.
 That is, it contains top-level await.
 
@@ -2673,8 +2671,6 @@ before looking for the top-level awaits).
 <a id="ERR_REQUIRE_CYCLE_MODULE"></a>
 
 ### `ERR_REQUIRE_CYCLE_MODULE`
-
-> Stability: 1 - Experimental
 
 When trying to `require()` a [ES Module][], a CommonJS to ESM or ESM to CommonJS edge
 participates in an immediate cycle.
