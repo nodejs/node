@@ -1,0 +1,22 @@
+---
+source: macro/src/lib.rs
+expression: "pretty_print_code(gen_bridge(parse_quote!\n{\n    mod ffi\n    {\n        struct Foo {} impl Foo\n        { #[cfg(feature = \"foo\")] pub fn bar(s: u8) { unimplemented!() } }\n    }\n}).to_token_stream())"
+---
+mod ffi {
+    #[repr(C)]
+    struct Foo {}
+    impl Foo {
+        #[cfg(feature = "foo")]
+        pub fn bar(s: u8) {
+            unimplemented!()
+        }
+    }
+    use diplomat_runtime::*;
+    use core::ffi::c_void;
+    #[no_mangle]
+    #[cfg(feature = "foo")]
+    #[allow(deprecated)]
+    extern "C" fn Foo_bar(s: u8) {
+        Foo::bar(s)
+    }
+}
