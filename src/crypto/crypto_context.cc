@@ -101,11 +101,11 @@ static thread_local X509_STORE* root_cert_store = nullptr;
 // from this set.
 static thread_local std::unique_ptr<X509Set> root_certs_from_users;
 
-X509_STORE* GetOrCreateRootCertStore() {
+X509_STORE* GetOrCreateRootCertStore(Environment* env) {
   if (root_cert_store != nullptr) {
     return root_cert_store;
   }
-  root_cert_store = NewRootCertStore();
+  root_cert_store = NewRootCertStore(env);
   return root_cert_store;
 }
 
@@ -861,6 +861,7 @@ static std::vector<X509*>& GetExtraCACertificates() {
 }
 
 static void LoadCACertificates(void* data) {
+  Environment* env = static_cast<Environment*>(data);
   per_process::Debug(DebugCategory::CRYPTO,
                      "Started loading bundled root certificates off-thread\n");
   GetBundledRootCertificates();
@@ -873,7 +874,7 @@ static void LoadCACertificates(void* data) {
 
   {
     Mutex::ScopedLock cli_lock(node::per_process::cli_options_mutex);
-    if (!per_process::cli_options->use_system_ca) {
+    if (!env->options()->use_system_ca) {
       return;
     }
   }
@@ -917,7 +918,8 @@ void StartLoadingCertificatesOffThread(
       return;
     }
     tried_cert_loading_off_thread.store(true);
-    int r = uv_thread_create(&cert_loading_thread, LoadCACertificates, nullptr);
+    Environment* env = Environment::GetCurrent(args);
+    int r = uv_thread_create(&cert_loading_thread, LoadCACertificates, env);
     cert_loading_thread_started.store(r == 0);
     if (r != 0) {
       FPrintF(stderr,
@@ -947,13 +949,13 @@ void StartLoadingCertificatesOffThread(
 //    with all the other flags.
 // 7. Certificates from --use-bundled-ca, --use-system-ca and
 //    NODE_EXTRA_CA_CERTS are cached after first load. Certificates
-//    from --use-system-ca are not cached and always reloaded from
+//    from --use-openssl-ca are not cached and always reloaded from
 //    disk.
 // 8. If users have reset the root cert store by calling
 //    tls.setDefaultCACertificates(), the store will be populated with
 //    the certificates provided by users.
 // TODO(joyeecheung): maybe these rules need a bit of consolidation?
-X509_STORE* NewRootCertStore() {
+X509_STORE* NewRootCertStore(Environment* env) {
   X509_STORE* store = X509_STORE_new();
   CHECK_NOT_NULL(store);
 
@@ -982,7 +984,7 @@ X509_STORE* NewRootCertStore() {
     for (X509* cert : GetBundledRootCertificates()) {
       CHECK_EQ(1, X509_STORE_add_cert(store, cert));
     }
-    if (per_process::cli_options->use_system_ca) {
+    if (env->options()->use_system_ca) {
       for (X509* cert : GetSystemStoreCACertificates()) {
         CHECK_EQ(1, X509_STORE_add_cert(store, cert));
       }
@@ -1189,7 +1191,7 @@ void ResetRootCertStore(const FunctionCallbackInfo<Value>& args) {
 
   // TODO(joyeecheung): we can probably just reset it to nullptr
   // and let the next call to NewRootCertStore() create a new one.
-  root_cert_store = NewRootCertStore();
+  root_cert_store = nullptr;
 }
 
 void GetSystemCACertificates(const FunctionCallbackInfo<Value>& args) {
@@ -1700,11 +1702,12 @@ void SecureContext::SetX509StoreFlag(unsigned long flags) {
 }
 
 X509_STORE* SecureContext::GetCertStoreOwnedByThisSecureContext() {
+  Environment* env = this->env();
   if (own_cert_store_cache_ != nullptr) return own_cert_store_cache_;
 
   X509_STORE* cert_store = SSL_CTX_get_cert_store(ctx_.get());
-  if (cert_store == GetOrCreateRootCertStore()) {
-    cert_store = NewRootCertStore();
+  if (cert_store == GetOrCreateRootCertStore(env)) {
+    cert_store = NewRootCertStore(env);
     SSL_CTX_set_cert_store(ctx_.get(), cert_store);
   }
 
@@ -1777,7 +1780,8 @@ void SecureContext::AddCRL(const FunctionCallbackInfo<Value>& args) {
 
 void SecureContext::SetRootCerts() {
   ClearErrorOnReturn clear_error_on_return;
-  auto store = GetOrCreateRootCertStore();
+  Environment* env = this->env();
+  auto store = GetOrCreateRootCertStore(env);
 
   // Increment reference count so global store is not deleted along with CTX.
   X509_STORE_up_ref(store);
