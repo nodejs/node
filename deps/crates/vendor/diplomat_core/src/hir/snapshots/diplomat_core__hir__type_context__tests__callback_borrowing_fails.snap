@@ -1,0 +1,5 @@
+---
+source: core/src/hir/type_context.rs
+expression: output
+---
+Lowering error in Foo::apply_callback: Callbacks cannot take references since they can be unsafely persisted, set `unsafe_references_in_callbacks` config to override.

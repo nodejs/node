@@ -1,0 +1,12 @@
+---
+source: core/src/ast/types.rs
+expression: "TypeName::from_syn(&syn::parse_quote! { Foo < 'a, 'b > }, None)"
+---
+Named:
+  path:
+    elements:
+      - Foo
+  lifetimes:
+    - Named: a
+    - Named: b
+

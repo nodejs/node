@@ -1,0 +1,152 @@
+---
+source: core/src/hir/elision.rs
+expression: method
+---
+Method {
+    docs: Docs(
+        "",
+        [],
+    ),
+    name: "elided",
+    abi_name: "Opaque_elided",
+    lifetime_env: LifetimeEnv {
+        nodes: [],
+        num_lifetimes: 3,
+    },
+    param_self: Some(
+        ParamSelf {
+            ty: Opaque(
+                OpaquePath {
+                    lifetimes: Lifetimes {
+                        indices: [],
+                    },
+                    optional: NonOptional,
+                    owner: Borrow {
+                        lifetime: NonStatic(
+                            Lifetime(
+                                0,
+                            ),
+                        ),
+                        mutability: Immutable,
+                    },
+                    tcx_id: OpaqueId(
+                        0,
+                    ),
+                },
+            ),
+            attrs: Attrs {
+                disable: false,
+                deprecated: None,
+                namespace: None,
+                rename: RenameAttr {
+                    pattern: None,
+                },
+                abi_rename: RenameAttr {
+                    pattern: None,
+                },
+                special_method: None,
+                custom_errors: false,
+                default: false,
+                demo_attrs: DemoInfo {
+                    generate: false,
+                    default_constructor: false,
+                    external: false,
+                    custom_func: None,
+                    input_cfg: DemoInputCFG {
+                        label: "",
+                        default_value: "",
+                    },
+                },
+                generate_mocking_interface: false,
+                abi_compatible: false,
+            },
+        },
+    ),
+    params: [
+        Param {
+            name: "x",
+            ty: Opaque(
+                OpaquePath {
+                    lifetimes: Lifetimes {
+                        indices: [
+                            NonStatic(
+                                Lifetime(
+                                    2,
+                                ),
+                            ),
+                        ],
+                    },
+                    optional: Optional(
+                        false,
+                    ),
+                    owner: Borrow {
+                        lifetime: NonStatic(
+                            Lifetime(
+                                1,
+                            ),
+                        ),
+                        mutability: Immutable,
+                    },
+                    tcx_id: OpaqueId(
+                        1,
+                    ),
+                },
+            ),
+            attrs: Attrs {
+                disable: false,
+                deprecated: None,
+                namespace: None,
+                rename: RenameAttr {
+                    pattern: None,
+                },
+                abi_rename: RenameAttr {
+                    pattern: None,
+                },
+                special_method: None,
+                custom_errors: false,
+                default: false,
+                demo_attrs: DemoInfo {
+                    generate: false,
+                    default_constructor: false,
+                    external: false,
+                    custom_func: None,
+                    input_cfg: DemoInputCFG {
+                        label: "",
+                        default_value: "",
+                    },
+                },
+                generate_mocking_interface: false,
+                abi_compatible: false,
+            },
+        },
+    ],
+    output: Infallible(
+        Unit,
+    ),
+    attrs: Attrs {
+        disable: false,
+        deprecated: None,
+        namespace: None,
+        rename: RenameAttr {
+            pattern: None,
+        },
+        abi_rename: RenameAttr {
+            pattern: None,
+        },
+        special_method: None,
+        custom_errors: false,
+        default: false,
+        demo_attrs: DemoInfo {
+            generate: false,
+            default_constructor: false,
+            external: false,
+            custom_func: None,
+            input_cfg: DemoInputCFG {
+                label: "",
+                default_value: "",
+            },
+        },
+        generate_mocking_interface: false,
+        abi_compatible: false,
+    },
+}

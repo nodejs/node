@@ -1,0 +1,75 @@
+// @generated
+/// Implement `DataProvider<CalendarJapaneseModernV1>` on the given struct using the data
+/// hardcoded in this file. This allows the struct to be used with
+/// `icu`'s `_unstable` constructors.
+///
+/// Using this implementation will embed the following data in the binary's data segment:
+/// * 134B[^1] for the singleton data struct
+///
+/// [^1]: these numbers can be smaller in practice due to linker deduplication
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __impl_calendar_japanese_modern_v1 {
+    ($ provider : ty) => {
+        #[clippy::msrv = "1.82"]
+        const _: () = <$provider>::MUST_USE_MAKE_PROVIDER_MACRO;
+        #[clippy::msrv = "1.82"]
+        impl $provider {
+            #[doc(hidden)]
+            pub const SINGLETON_CALENDAR_JAPANESE_MODERN_V1: &'static <icu::calendar::provider::CalendarJapaneseModernV1 as icu_provider::DynamicDataMarker>::DataStruct = &icu::calendar::provider::JapaneseEras { dates_to_eras: unsafe { zerovec::ZeroVec::from_bytes_unchecked(b"L\x07\0\0\n\x17meiji\0\0\0\0\0\0\0\0\0\0\0x\x07\0\0\x07\x1Etaisho\0\0\0\0\0\0\0\0\0\0\x86\x07\0\0\x0C\x19showa\0\0\0\0\0\0\0\0\0\0\0\xC5\x07\0\0\x01\x08heisei\0\0\0\0\0\0\0\0\0\0\xE3\x07\0\0\x05\x01reiwa\0\0\0\0\0\0\0\0\0\0\0") } };
+        }
+        #[clippy::msrv = "1.82"]
+        impl icu_provider::DataProvider<icu::calendar::provider::CalendarJapaneseModernV1> for $provider {
+            fn load(&self, req: icu_provider::DataRequest) -> Result<icu_provider::DataResponse<icu::calendar::provider::CalendarJapaneseModernV1>, icu_provider::DataError> {
+                if req.id.locale.is_unknown() {
+                    Ok(icu_provider::DataResponse { payload: icu_provider::DataPayload::from_static_ref(Self::SINGLETON_CALENDAR_JAPANESE_MODERN_V1), metadata: icu_provider::DataResponseMetadata::default() })
+                } else {
+                    Err(icu_provider::DataErrorKind::InvalidRequest.with_req(<icu::calendar::provider::CalendarJapaneseModernV1 as icu_provider::DataMarker>::INFO, req))
+                }
+            }
+        }
+    };
+    ($ provider : ty , ITER) => {
+        __impl_calendar_japanese_modern_v1!($provider);
+        #[clippy::msrv = "1.82"]
+        impl icu_provider::IterableDataProvider<icu::calendar::provider::CalendarJapaneseModernV1> for $provider {
+            fn iter_ids(&self) -> Result<std::collections::BtreeSet<icu_provider::DataIdentifierCow<'static>>, icu_provider::DataError> {
+                Ok([Default::default()].into_iter().collect())
+            }
+        }
+    };
+    ($ provider : ty , DRY) => {
+        __impl_calendar_japanese_modern_v1!($provider);
+        #[clippy::msrv = "1.82"]
+        impl icu_provider::DryDataProvider<icu::calendar::provider::CalendarJapaneseModernV1> for $provider {
+            fn dry_load(&self, req: icu_provider::DataRequest) -> Result<icu_provider::DataResponseMetadata, icu_provider::DataError> {
+                if req.id.locale.is_unknown() {
+                    Ok(icu_provider::DataResponseMetadata::default())
+                } else {
+                    Err(icu_provider::DataErrorKind::InvalidRequest.with_req(<icu::calendar::provider::CalendarJapaneseModernV1 as icu_provider::DataMarker>::INFO, req))
+                }
+            }
+        }
+    };
+    ($ provider : ty , DRY , ITER) => {
+        __impl_calendar_japanese_modern_v1!($provider);
+        #[clippy::msrv = "1.82"]
+        impl icu_provider::DryDataProvider<icu::calendar::provider::CalendarJapaneseModernV1> for $provider {
+            fn dry_load(&self, req: icu_provider::DataRequest) -> Result<icu_provider::DataResponseMetadata, icu_provider::DataError> {
+                if req.id.locale.is_unknown() {
+                    Ok(icu_provider::DataResponseMetadata::default())
+                } else {
+                    Err(icu_provider::DataErrorKind::InvalidRequest.with_req(<icu::calendar::provider::CalendarJapaneseModernV1 as icu_provider::DataMarker>::INFO, req))
+                }
+            }
+        }
+        #[clippy::msrv = "1.82"]
+        impl icu_provider::IterableDataProvider<icu::calendar::provider::CalendarJapaneseModernV1> for $provider {
+            fn iter_ids(&self) -> Result<std::collections::BtreeSet<icu_provider::DataIdentifierCow<'static>>, icu_provider::DataError> {
+                Ok([Default::default()].into_iter().collect())
+            }
+        }
+    };
+}
+#[doc(inline)]
+pub use __impl_calendar_japanese_modern_v1 as impl_calendar_japanese_modern_v1;

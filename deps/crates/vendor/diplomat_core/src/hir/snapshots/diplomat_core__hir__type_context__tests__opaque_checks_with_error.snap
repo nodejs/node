@@ -1,0 +1,7 @@
+---
+source: core/src/hir/type_context.rs
+expression: output
+---
+Lowering error in OpaqueStruct::new: Opaque passed by value in input: OpaqueStruct
+Lowering error in OpaqueStruct::get_i32: Method `OpaqueStruct_get_i32` takes an opaque by value as the self parameter, but opaques as inputs must be behind refs
+
