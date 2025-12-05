@@ -343,6 +343,9 @@
             }
           ]
         },
+        "require-module": {
+          "type": "boolean"
+        },
         "secure-heap": {
           "type": "number"
         },
