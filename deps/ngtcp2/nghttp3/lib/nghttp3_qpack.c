@@ -916,6 +916,7 @@ void nghttp3_qpack_encoder_init(nghttp3_qpack_encoder *encoder,
   encoder->min_dtable_update = SIZE_MAX;
   encoder->last_max_dtable_update = 0;
   encoder->uninterrupted_decoderlen = 0;
+  encoder->indexing_strat = NGHTTP3_QPACK_INDEXING_STRAT_NONE;
   encoder->flags = NGHTTP3_QPACK_ENCODER_FLAG_NONE;
 
   nghttp3_qpack_read_state_reset(&encoder->rstate);
@@ -958,6 +959,11 @@ void nghttp3_qpack_encoder_set_max_dtable_capacity(
 void nghttp3_qpack_encoder_set_max_blocked_streams(
   nghttp3_qpack_encoder *encoder, size_t max_blocked_streams) {
   encoder->ctx.max_blocked_streams = max_blocked_streams;
+}
+
+void nghttp3_qpack_encoder_set_indexing_strat(
+  nghttp3_qpack_encoder *encoder, nghttp3_qpack_indexing_strat strat) {
+  encoder->indexing_strat = strat;
 }
 
 uint64_t nghttp3_qpack_encoder_get_min_cnt(nghttp3_qpack_encoder *encoder) {
@@ -1313,6 +1319,20 @@ qpack_encoder_decide_indexing_mode(nghttp3_qpack_encoder *encoder,
     }
     break;
   case -1:
+    switch (encoder->indexing_strat) {
+    case NGHTTP3_QPACK_INDEXING_STRAT_EAGER:
+      break;
+    case NGHTTP3_QPACK_INDEXING_STRAT_NONE:
+      if (nv->flags & NGHTTP3_NV_FLAG_TRY_INDEX) {
+        break;
+      }
+
+      return NGHTTP3_QPACK_INDEXING_MODE_LITERAL;
+    default:
+      nghttp3_unreachable();
+    }
+
+    break;
   case NGHTTP3_QPACK_TOKEN__PATH:
   case NGHTTP3_QPACK_TOKEN_AGE:
   case NGHTTP3_QPACK_TOKEN_CONTENT_LENGTH:
