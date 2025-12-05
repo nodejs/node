@@ -4,6 +4,10 @@ const assert = require('assert');
 const exec = require('child_process').execFile;
 const { describe, it } = require('node:test');
 
+if (process.config.variables.node_without_node_options) {
+  common.skip('missing NODE_OPTIONS support');
+}
+
 const mjsFile = require.resolve('../fixtures/es-modules/mjs-file.mjs');
 const cjsFile = require.resolve('../fixtures/es-modules/cjs-file.cjs');
 const packageWithoutTypeMain =
