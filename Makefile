@@ -1236,6 +1236,7 @@ ifeq ($(SKIP_SHARED_DEPS), 1)
 	$(RM) -r $(TARNAME)/deps/ada
 	$(RM) -r $(TARNAME)/deps/brotli
 	$(RM) -r $(TARNAME)/deps/cares
+	$(RM) -r $(TARNAME)/deps/crates
 	$(RM) -r $(TARNAME)/deps/icu-small
 	$(RM) -r $(TARNAME)/deps/icu-tmp
 	$(RM) -r $(TARNAME)/deps/llhttp
@@ -1245,7 +1246,6 @@ ifeq ($(SKIP_SHARED_DEPS), 1)
 	find $(TARNAME)/deps/openssl -mindepth 1 -maxdepth 1 -type d -exec $(RM) -r {} +
 	$(RM) -r $(TARNAME)/deps/simdjson
 	$(RM) -r $(TARNAME)/deps/sqlite
-	$(RM) -r $(TARNAME)/deps/temporal
 	$(RM) -r $(TARNAME)/deps/uv
 	$(RM) -r $(TARNAME)/deps/uvwasi
 	$(RM) -r $(TARNAME)/deps/zlib
