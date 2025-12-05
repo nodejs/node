@@ -321,7 +321,7 @@
         }],
         ['v8_enable_temporal_support==1 and node_shared_temporal_capi=="false"', {
           'dependencies': [
-            '../../deps/temporal/temporal_capi/temporal_capi.gyp:temporal_capi',
+            '../../deps/crates/crates.gyp:temporal_capi',
           ],
         }],
       ],
@@ -363,7 +363,7 @@
         }],
         ['v8_enable_temporal_support==1 and node_shared_temporal_capi=="false"', {
           'dependencies': [
-            '../../deps/temporal/temporal_capi/temporal_capi.gyp:temporal_capi',
+            '../../deps/crates/crates.gyp:temporal_capi',
           ],
         }],
         ['v8_target_arch=="ia32"', {
@@ -1141,7 +1141,7 @@
           'conditions': [
             ['node_shared_temporal_capi=="false"', {
               'dependencies': [
-                '../../deps/temporal/temporal_capi/temporal_capi.gyp:temporal_capi',
+                '../../deps/crates/crates.gyp:temporal_capi',
               ],
             }],
           ],
