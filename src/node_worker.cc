@@ -295,8 +295,18 @@ size_t Worker::NearHeapLimit(void* data, size_t current_heap_limit,
 }
 
 void Worker::Run() {
-  std::string trace_name = "[worker " + std::to_string(thread_id_.id) + "]" +
-                           (name_ == "" ? "" : " " + name_);
+  std::string trace_name;
+  std::string id = std::to_string(thread_id_.id);
+  // Pre-allocate space: "[worker " (8) + thread_id + "]" (1)
+  // + (if name exists: " " (1) + name)
+  trace_name.reserve(9 + id.size() + name_.size());
+  trace_name = "[worker ";
+  trace_name += id;
+  trace_name += "]";
+  if (!name_.empty()) {
+    trace_name += " ";
+    trace_name += name_;
+  }
   TRACE_EVENT_METADATA1(
       "__metadata", "thread_name", "name", TRACE_STR_COPY(trace_name.c_str()));
   CHECK_NOT_NULL(platform_);
