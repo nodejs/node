@@ -176,6 +176,10 @@ added:
   - v20.17.0
 changes:
   - version:
+    - REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/60959
+    description: This feature is no longer experimental.
+  - version:
     - v23.5.0
     - v22.13.0
     - v20.19.0
@@ -194,8 +198,6 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/54563
     description: Support `'module.exports'` interop export in `require(esm)`.
 -->
-
-> Stability: 1.2 - Release candidate
 
 The `.mjs` extension is reserved for [ECMAScript Modules][].
 See [Determining module system][] section for more info
@@ -324,8 +326,8 @@ If `--experimental-print-required-tla` is enabled, instead of throwing
 module, try to locate the top-level awaits, and print their location to
 help users fix them.
 
-Support for loading ES modules using `require()` is currently
-experimental and can be disabled using `--no-experimental-require-module`.
+If support for loading ES modules using `require()` results in unexpected
+breakage, it can be disabled using `--no-require-module`.
 To print where this feature is used, use [`--trace-require-module`][].
 
 This feature can be detected by checking if
@@ -422,7 +424,7 @@ LOAD_PACKAGE_IMPORTS(X, DIR)
 1. Find the closest package scope SCOPE to DIR.
 2. If no scope was found, return.
 3. If the SCOPE/package.json "imports" is null or undefined, return.
-4. If `--experimental-require-module` is enabled
+4. If `--no-require-module` is not enabled
   a. let CONDITIONS = ["node", "require", "module-sync"]
   b. Else, let CONDITIONS = ["node", "require"]
 5. let MATCH = PACKAGE_IMPORTS_RESOLVE(X, pathToFileURL(SCOPE),
@@ -436,7 +438,7 @@ LOAD_PACKAGE_EXPORTS(X, DIR)
    return.
 3. Parse DIR/NAME/package.json, and look for "exports" field.
 4. If "exports" is null or undefined, return.
-5. If `--experimental-require-module` is enabled
+5. If `--no-require-module` is not enabled
   a. let CONDITIONS = ["node", "require", "module-sync"]
   b. Else, let CONDITIONS = ["node", "require"]
 6. let MATCH = PACKAGE_EXPORTS_RESOLVE(pathToFileURL(DIR/NAME), "." + SUBPATH,
