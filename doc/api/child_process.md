@@ -1547,6 +1547,42 @@ exited, `code` is the final exit code of the process, otherwise `null`. If the
 process terminated due to receipt of a signal, `signal` is the string name of
 the signal, otherwise `null`. One of the two will always be non-`null`.
 
+When `code` is `null` due to signal termination, you can use
+[`util.convertProcessSignalToExitCode()`][] to convert the signal to a POSIX
+exit code.
+
+```cjs
+const { spawn } = require('node:child_process');
+const { convertProcessSignalToExitCode } = require('node:util');
+
+const ls = spawn('ls', ['-lh', '/usr']);
+
+ls.kill();
+
+ls.on('exit', (code, signal) => {
+  const exitCode = convertProcessSignalToExitCode(signal);
+  console.log(`signal ${signal}, POSIX exit code: ${exitCode}`);
+});
+
+// signal SIGTERM, POSIX exit code: 143
+```
+
+```mjs
+import { spawn } from 'node:child_process';
+import { once } from 'node:events';
+import { convertProcessSignalToExitCode } from 'node:util';
+
+const ls = spawn('ls', ['-lh', '/usr']);
+
+ls.kill();
+
+const [code, signal] = await once(ls, 'exit');
+const exitCode = convertProcessSignalToExitCode(signal);
+console.log(`signal ${signal}, POSIX exit code: ${exitCode}`);
+
+// signal SIGTERM, POSIX exit code: 143
+```
+
 When the `'exit'` event is triggered, child process stdio streams might still be
 open.
 
@@ -1670,6 +1706,16 @@ within the child process to close the IPC channel as well.
 
 The `subprocess.exitCode` property indicates the exit code of the child process.
 If the child process is still running, the field will be `null`.
+
+When the child process is terminated by a signal, `subprocess.exitCode` will be
+`null`. To get the corresponding POSIX exit code, use
+[`util.convertProcessSignalToExitCode(subprocess.signalCode)`][`util.convertProcessSignalToExitCode()`].
+
+**Note:** The `child_process` module does not automatically set `exitCode` when
+a process is terminated by a signal to avoid breaking changes in existing code
+that may depend on `exitCode` being `null` in such cases. The
+[`util.convertProcessSignalToExitCode()`][] utility function is provided to
+allow applications to opt-in to this conversion when needed.
 
 ### `subprocess.kill([signal])`
 
@@ -2393,6 +2439,7 @@ or [`child_process.fork()`][].
 [`subprocess.stdin`]: #subprocessstdin
 [`subprocess.stdio`]: #subprocessstdio
 [`subprocess.stdout`]: #subprocessstdout
+[`util.convertProcessSignalToExitCode()`]: util.md#utilconvertprocesssignaltoexitcodesignalcode
 [`util.promisify()`]: util.md#utilpromisifyoriginal
 [synchronous counterparts]: #synchronous-process-creation
 [v8.serdes]: v8.md#serialization-api
