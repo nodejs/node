@@ -1,0 +1,11 @@
+---
+source: core/src/hir/type_context.rs
+expression: output
+---
+Lowering error in Opaque::use_foo: Method should explicitly include this lifetime bound from param foo: 'y: 'x (comes from source type's 'b: 'a)
+Lowering error in Opaque::use_foo: Method should explicitly include this lifetime bound from param foo: 'z: 'y (comes from source type's 'c: 'b)
+Lowering error in Opaque::return_foo: Method should explicitly include this lifetime bound from return type: 'y: 'x (comes from source type's 'b: 'a)
+Lowering error in Opaque::return_foo: Method should explicitly include this lifetime bound from return type: 'z: 'y (comes from source type's 'c: 'b)
+Lowering error in Opaque::return_result_foo: Method should explicitly include this lifetime bound from return type: 'y: 'x (comes from source type's 'b: 'a)
+Lowering error in Opaque::return_result_foo: Method should explicitly include this lifetime bound from return type: 'z: 'y (comes from source type's 'c: 'b)
+
