@@ -819,11 +819,9 @@ VERSION=v$(RAWVER)
 
 .PHONY: doc-only
 doc-only: tools/doc/node_modules \
-	$(apidoc_dirs)  ## Builds the docs with the local or the global Node.js binary.
+	$(apidoc_dirs) $(apidocs_html) $(apidocs_json) out/doc/api/all.html out/doc/api/all.json out/doc/apilinks.json  ## Builds the docs with the local or the global Node.js binary.
 	@if [ "$(shell $(node_use_openssl_and_icu))" != "true" ]; then \
 		echo "Skipping doc-only (no crypto or no icu)"; \
-	else \
-		$(MAKE) out/doc/api/all.html out/doc/api/all.json out/doc/apilinks.json; \
 	fi
 
 .PHONY: doc
@@ -839,45 +837,21 @@ out/doc/api: doc/api
 	mkdir -p $@
 	cp -r doc/api out/doc
 
-# For generating individual doc files instead of all at once
-out/doc/api/%.html out/doc/api/%.json: doc/api/%.md tools/doc/node_modules | out/doc/api
-	$(call available-node, \
-		$(DOC_KIT) generate \
-		-t $(subst .,legacy-, $(suffix $@)) \
-		-i $< \
-		--ignore $(skip_apidoc_files) \
-		-o $(@D) \
-		-c ./CHANGELOG.md \
-		-v $(VERSION) \
-		--index doc/api/index.md \
-		--type-map doc/type-map.json \
-	) \
-
-out/doc/api/all.html: $(apidocs_html) | out/doc/api
+# Generate all doc files (individual and all.html/all.json) in a single doc-kit call
+# Using grouped targets (&:) so Make knows one command produces all outputs
+$(apidocs_html) $(apidocs_json) out/doc/api/all.html out/doc/api/all.json &: $(apidoc_sources) tools/doc/node_modules | out/doc/api
 	$(call available-node, \
 		$(DOC_KIT) generate \
 		-t legacy-html-all \
-		-i doc/api/*.md \
-		--ignore $(skip_apidoc_files) \
-		-o $(@D) \
-		-c ./CHANGELOG.md \
-		-v $(VERSION) \
-		--index doc/api/index.md \
-		--type-map doc/type-map.json \
-	) \
-
-out/doc/api/all.json: $(apidocs_json) | out/doc/api
-	$(call available-node, \
-		$(DOC_KIT) generate \
 		-t legacy-json-all \
 		-i doc/api/*.md \
 		--ignore $(skip_apidoc_files) \
-		-o $(@D) \
+		-o out/doc/api \
 		-c ./CHANGELOG.md \
 		-v $(VERSION) \
 		--index doc/api/index.md \
 		--type-map doc/type-map.json \
-	) \
+	)
 
 out/doc/apilinks.json: $(wildcard lib/*.js) | out/doc
 	$(call available-node, \
