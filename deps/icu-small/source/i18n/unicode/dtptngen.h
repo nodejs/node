@@ -55,7 +55,7 @@ class SharedDateTimePatternGenerator;
  * That would be useful for getting the UI order of field elements.</i>
  * @stable ICU 3.8
 **/
-class U_I18N_API DateTimePatternGenerator : public UObject {
+class U_I18N_API_CLASS DateTimePatternGenerator : public UObject {
 public:
     /**
      * Construct a flexible generator according to default locale.
@@ -63,7 +63,7 @@ public:
      *               which must not indicate a failure before the function call.
      * @stable ICU 3.8
      */
-    static DateTimePatternGenerator* U_EXPORT2 createInstance(UErrorCode& status);
+    U_I18N_API static DateTimePatternGenerator* createInstance(UErrorCode& status);
 
     /**
      * Construct a flexible generator according to data for a given locale.
@@ -72,7 +72,7 @@ public:
      *               which must not indicate a failure before the function call.
      * @stable ICU 3.8
      */
-    static DateTimePatternGenerator* U_EXPORT2 createInstance(const Locale& uLocale, UErrorCode& status);
+    U_I18N_API static DateTimePatternGenerator* createInstance(const Locale& uLocale, UErrorCode& status);
 
 #ifndef U_HIDE_INTERNAL_API
 
@@ -81,7 +81,8 @@ public:
      *
      * @internal
      */
-    static DateTimePatternGenerator* U_EXPORT2 createInstanceNoStdPat(const Locale& uLocale, UErrorCode& status);
+    U_I18N_API static DateTimePatternGenerator* createInstanceNoStdPat(const Locale& uLocale,
+                                                                       UErrorCode& status);
 
 #endif /* U_HIDE_INTERNAL_API */
 
@@ -91,29 +92,29 @@ public:
      *               which must not indicate a failure before the function call.
      * @stable ICU 3.8
      */
-     static DateTimePatternGenerator* U_EXPORT2 createEmptyInstance(UErrorCode& status);
+    U_I18N_API static DateTimePatternGenerator* createEmptyInstance(UErrorCode& status);
 
     /**
      * Destructor.
      * @stable ICU 3.8
      */
-    virtual ~DateTimePatternGenerator();
+    U_I18N_API virtual ~DateTimePatternGenerator();
 
     /**
      * Clone DateTimePatternGenerator object. Clients are responsible for
      * deleting the DateTimePatternGenerator object cloned.
      * @stable ICU 3.8
      */
-    DateTimePatternGenerator* clone() const;
+    U_I18N_API DateTimePatternGenerator* clone() const;
 
-     /**
-      * Return true if another object is semantically equal to this one.
-      *
-      * @param other    the DateTimePatternGenerator object to be compared with.
-      * @return         true if other is semantically equal to this.
-      * @stable ICU 3.8
-      */
-    bool operator==(const DateTimePatternGenerator& other) const;
+    /**
+     * Return true if another object is semantically equal to this one.
+     *
+     * @param other    the DateTimePatternGenerator object to be compared with.
+     * @return         true if other is semantically equal to this.
+     * @stable ICU 3.8
+     */
+    U_I18N_API bool operator==(const DateTimePatternGenerator& other) const;
 
     /**
      * Return true if another object is semantically unequal to this one.
@@ -122,7 +123,7 @@ public:
      * @return         true if other is semantically unequal to this.
      * @stable ICU 3.8
      */
-    bool operator!=(const DateTimePatternGenerator& other) const;
+    U_I18N_API bool operator!=(const DateTimePatternGenerator& other) const;
 
     /**
      * Utility to return a unique skeleton from a given pattern. For example,
@@ -134,7 +135,7 @@ public:
      * @return skeleton such as "MMMdd"
      * @stable ICU 56
      */
-    static UnicodeString staticGetSkeleton(const UnicodeString& pattern, UErrorCode& status);
+    U_I18N_API static UnicodeString staticGetSkeleton(const UnicodeString& pattern, UErrorCode& status);
 
     /**
      * Utility to return a unique skeleton from a given pattern. For example,
@@ -148,7 +149,7 @@ public:
      * @return skeleton such as "MMMdd"
      * @stable ICU 3.8
      */
-    UnicodeString getSkeleton(const UnicodeString& pattern, UErrorCode& status); /* {
+    U_I18N_API UnicodeString getSkeleton(const UnicodeString& pattern, UErrorCode& status); /* {
         The function is commented out because it is a stable API calling a draft API.
         After staticGetSkeleton becomes stable, staticGetSkeleton can be used and
         these comments and the definition of getSkeleton in dtptngen.cpp should be removed.
@@ -168,7 +169,8 @@ public:
      * @return base skeleton, such as "MMMd"
      * @stable ICU 56
      */
-    static UnicodeString staticGetBaseSkeleton(const UnicodeString& pattern, UErrorCode& status);
+    U_I18N_API static UnicodeString staticGetBaseSkeleton(const UnicodeString& pattern,
+                                                          UErrorCode& status);
 
     /**
      * Utility to return a unique base skeleton from a given pattern. This is
@@ -185,7 +187,7 @@ public:
      * @return base skeleton, such as "MMMd"
      * @stable ICU 3.8
      */
-    UnicodeString getBaseSkeleton(const UnicodeString& pattern, UErrorCode& status); /* {
+    U_I18N_API UnicodeString getBaseSkeleton(const UnicodeString& pattern, UErrorCode& status); /* {
         The function is commented out because it is a stable API calling a draft API.
         After staticGetBaseSkeleton becomes stable, staticGetBaseSkeleton can be used and
         these comments and the definition of getBaseSkeleton in dtptngen.cpp should be removed.
@@ -212,10 +214,23 @@ public:
      *                             UDATPG_BASE_CONFLICT or UDATPG_CONFLICT.
      * @stable ICU 3.8
      */
-    UDateTimePatternConflict addPattern(const UnicodeString& pattern,
-                                        UBool override,
-                                        UnicodeString& conflictingPattern,
-                                        UErrorCode& status);
+    U_I18N_API UDateTimePatternConflict addPattern(const UnicodeString& pattern,
+                                                   UBool override,
+                                                   UnicodeString& conflictingPattern,
+                                                   UErrorCode& status);
+
+#ifndef U_HIDE_INTERNAL_API
+     /**
+      * Like addPattern, but associates the pattern with the given skeleton.
+      *
+      * @internal ICU 78
+      */
+    U_I18N_API UDateTimePatternConflict addPatternWithSkeleton(const UnicodeString& pattern,
+                                                               const UnicodeString& skeletonToUse,
+                                                               UBool override,
+                                                               UnicodeString& conflictingPattern,
+                                                               UErrorCode& status);
+#endif  /* U_HIDE_INTERNAL_API */
 
     /**
      * An AppendItem format is a pattern used to append a field if there is no
@@ -235,7 +250,7 @@ public:
      * @param value  pattern, such as "{0}, {1}"
      * @stable ICU 3.8
      */
-    void setAppendItemFormat(UDateTimePatternField field, const UnicodeString& value);
+    U_I18N_API void setAppendItemFormat(UDateTimePatternField field, const UnicodeString& value);
 
     /**
      * Getter corresponding to setAppendItemFormat. Values below 0 or at or
@@ -245,7 +260,7 @@ public:
      * @return append pattern for field
      * @stable ICU 3.8
      */
-    const UnicodeString& getAppendItemFormat(UDateTimePatternField field) const;
+    U_I18N_API const UnicodeString& getAppendItemFormat(UDateTimePatternField field) const;
 
     /**
      * Sets the names of field, eg "era" in English for ERA. These are only
@@ -258,7 +273,7 @@ public:
      * @param value   name of the field
      * @stable ICU 3.8
      */
-    void setAppendItemName(UDateTimePatternField field, const UnicodeString& value);
+    U_I18N_API void setAppendItemName(UDateTimePatternField field, const UnicodeString& value);
 
     /**
      * Getter corresponding to setAppendItemNames. Values below 0 or at or above
@@ -270,7 +285,7 @@ public:
      * @see getFieldDisplayName
      * @stable ICU 3.8
      */
-    const UnicodeString& getAppendItemName(UDateTimePatternField field) const;
+    U_I18N_API const UnicodeString& getAppendItemName(UDateTimePatternField field) const;
 
     /**
      * The general interface to get a display name for a particular date/time field,
@@ -281,7 +296,8 @@ public:
      * @return       The display name for field
      * @stable ICU 61
      */
-    UnicodeString getFieldDisplayName(UDateTimePatternField field, UDateTimePGDisplayWidth width) const;
+    U_I18N_API UnicodeString getFieldDisplayName(UDateTimePatternField field,
+                                                 UDateTimePGDisplayWidth width) const;
 
     /**
      * The DateTimeFormat is a message format pattern used to compose date and
@@ -309,7 +325,7 @@ public:
      *            pattern and {0} will be replaced by the time pattern.
      * @stable ICU 3.8
      */
-    void setDateTimeFormat(const UnicodeString& dateTimeFormat);
+    U_I18N_API void setDateTimeFormat(const UnicodeString& dateTimeFormat);
 
     /**
      * Getter corresponding to setDateTimeFormat.
@@ -322,7 +338,7 @@ public:
      * @return DateTimeFormat.
      * @stable ICU 3.8
      */
-    const UnicodeString& getDateTimeFormat() const;
+    U_I18N_API const UnicodeString& getDateTimeFormat() const;
 
 #if !UCONFIG_NO_FORMATTING
     /**
@@ -340,15 +356,16 @@ public:
      * @param style
      *              one of DateFormat.FULL..DateFormat.SHORT. Error if out of range.
      * @param dateTimeFormat
-     *              the new dateTimeFormat to set for the the specified style
+     *              the new dateTimeFormat to set for the specified style
      * @param status
      *              in/out parameter; if no failure status is already set,
      *              it will be set according to result of the function (e.g.
      *              U_ILLEGAL_ARGUMENT_ERROR for style out of range).
      * @stable ICU 71
      */
-    void setDateTimeFormat(UDateFormatStyle style, const UnicodeString& dateTimeFormat,
-                            UErrorCode& status);
+    U_I18N_API void setDateTimeFormat(UDateFormatStyle style,
+                                      const UnicodeString& dateTimeFormat,
+                                      UErrorCode& status);
 
     /**
      * Getter corresponding to setDateTimeFormat.
@@ -360,15 +377,14 @@ public:
      *              it will be set according to result of the function (e.g.
      *              U_ILLEGAL_ARGUMENT_ERROR for style out of range).
      * @return
-     *              the current dateTimeFormat for the the specified style, or
+     *              the current dateTimeFormat for the specified style, or
      *              empty string in case of error. The UnicodeString reference,
      *              or the contents of the string, may no longer be valid if
      *              setDateTimeFormat is called, or the DateTimePatternGenerator
      *              object is deleted.
      * @stable ICU 71
      */
-    const UnicodeString& getDateTimeFormat(UDateFormatStyle style,
-                            UErrorCode& status) const;
+    U_I18N_API const UnicodeString& getDateTimeFormat(UDateFormatStyle style, UErrorCode& status) const;
 #endif /* #if !UCONFIG_NO_FORMATTING */
 
     /**
@@ -384,8 +400,7 @@ public:
      *            The best pattern found from the given skeleton.
      * @stable ICU 3.8
      */
-     UnicodeString getBestPattern(const UnicodeString& skeleton, UErrorCode& status);
-
+    U_I18N_API UnicodeString getBestPattern(const UnicodeString& skeleton, UErrorCode& status);
 
     /**
      * Return the best pattern matching the input skeleton. It is guaranteed to
@@ -406,10 +421,9 @@ public:
      *            The best pattern found from the given skeleton.
      * @stable ICU 4.4
      */
-     UnicodeString getBestPattern(const UnicodeString& skeleton,
-                                  UDateTimePatternMatchOptions options,
-                                  UErrorCode& status);
-
+    U_I18N_API UnicodeString getBestPattern(const UnicodeString& skeleton,
+                                            UDateTimePatternMatchOptions options,
+                                            UErrorCode& status);
 
     /**
      * Adjusts the field types (width and subtype) of a pattern to match what is
@@ -427,9 +441,9 @@ public:
      * @return pattern adjusted to match the skeleton fields widths and subtypes.
      * @stable ICU 3.8
      */
-     UnicodeString replaceFieldTypes(const UnicodeString& pattern,
-                                     const UnicodeString& skeleton,
-                                     UErrorCode& status);
+    U_I18N_API UnicodeString replaceFieldTypes(const UnicodeString& pattern,
+                                               const UnicodeString& skeleton,
+                                               UErrorCode& status);
 
     /**
      * Adjusts the field types (width and subtype) of a pattern to match what is
@@ -453,10 +467,10 @@ public:
      * @return pattern adjusted to match the skeleton fields widths and subtypes.
      * @stable ICU 4.4
      */
-     UnicodeString replaceFieldTypes(const UnicodeString& pattern,
-                                     const UnicodeString& skeleton,
-                                     UDateTimePatternMatchOptions options,
-                                     UErrorCode& status);
+    U_I18N_API UnicodeString replaceFieldTypes(const UnicodeString& pattern,
+                                               const UnicodeString& skeleton,
+                                               UDateTimePatternMatchOptions options,
+                                               UErrorCode& status);
 
     /**
      * Return a list of all the skeletons (in canonical form) from this class.
@@ -469,15 +483,15 @@ public:
      *         The caller must delete the object.
      * @stable ICU 3.8
      */
-     StringEnumeration* getSkeletons(UErrorCode& status) const;
+    U_I18N_API StringEnumeration* getSkeletons(UErrorCode& status) const;
 
-     /**
-      * Get the pattern corresponding to a given skeleton.
-      * @param skeleton
-      * @return pattern corresponding to a given skeleton.
-      * @stable ICU 3.8
-      */
-     const UnicodeString& getPatternForSkeleton(const UnicodeString& skeleton) const;
+    /**
+     * Get the pattern corresponding to a given skeleton.
+     * @param skeleton
+     * @return pattern corresponding to a given skeleton.
+     * @stable ICU 3.8
+     */
+    U_I18N_API const UnicodeString& getPatternForSkeleton(const UnicodeString& skeleton) const;
 
     /**
      * Return a list of all the base skeletons (in canonical form) from this class.
@@ -488,7 +502,7 @@ public:
      *         The caller must delete the object.
      * @stable ICU 3.8
      */
-     StringEnumeration* getBaseSkeletons(UErrorCode& status) const;
+    U_I18N_API StringEnumeration* getBaseSkeletons(UErrorCode& status) const;
 
 #ifndef U_HIDE_INTERNAL_API
      /**
@@ -503,7 +517,7 @@ public:
       *         The caller must delete the object.
       * @internal ICU 3.8
       */
-     StringEnumeration* getRedundants(UErrorCode& status);
+    U_I18N_API StringEnumeration* getRedundants(UErrorCode& status);
 #endif  /* U_HIDE_INTERNAL_API */
 
     /**
@@ -517,14 +531,14 @@ public:
      * @param decimal
      * @stable ICU 3.8
      */
-    void setDecimal(const UnicodeString& decimal);
+    U_I18N_API void setDecimal(const UnicodeString& decimal);
 
     /**
      * Getter corresponding to setDecimal.
      * @return UnicodeString corresponding to the decimal point
      * @stable ICU 3.8
      */
-    const UnicodeString& getDecimal() const;
+    U_I18N_API const UnicodeString& getDecimal() const;
 
 #if !UCONFIG_NO_FORMATTING
 
@@ -540,7 +554,7 @@ public:
      * @return the default hour cycle.
      * @stable ICU 67
      */
-    UDateFormatHourCycle getDefaultHourCycle(UErrorCode& status) const;
+    U_I18N_API UDateFormatHourCycle getDefaultHourCycle(UErrorCode& status) const;
 
 #endif /* #if !UCONFIG_NO_FORMATTING */
     
@@ -549,14 +563,14 @@ public:
      *
      * @stable ICU 3.8
      */
-    virtual UClassID getDynamicClassID() const override;
+    U_I18N_API virtual UClassID getDynamicClassID() const override;
 
     /**
      * ICU "poor man's RTTI", returns a UClassID for this class.
      *
      * @stable ICU 3.8
      */
-    static UClassID U_EXPORT2 getStaticClassID();
+    U_I18N_API static UClassID getStaticClassID();
 
 private:
     /**
@@ -619,7 +633,7 @@ private:
     void getCalendarTypeToUse(const Locale& locale, CharString& destination, UErrorCode& err);
     void consumeShortTimePattern(const UnicodeString& shortTimePattern, UErrorCode& status);
     void addCLDRData(const Locale& locale, UErrorCode& status);
-    UDateTimePatternConflict addPatternWithSkeleton(const UnicodeString& pattern, const UnicodeString * skeletonToUse, UBool override, UnicodeString& conflictingPattern, UErrorCode& status);
+    UDateTimePatternConflict addPatternWithOptionalSkeleton(const UnicodeString& pattern, const UnicodeString * skeletonToUse, UBool override, UnicodeString& conflictingPattern, UErrorCode& status);
     void initHashtable(UErrorCode& status);
     void setDateTimeFromCalendar(const Locale& locale, UErrorCode& status);
     void setDecimalSymbols(const Locale& locale, UErrorCode& status);

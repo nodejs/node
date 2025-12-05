@@ -382,7 +382,7 @@ class SimpleNumberFormatter;
  * subclasses, such code will not necessarily work and will not be
  * guaranteed to work stably from release to release.
  */
-class U_I18N_API SimpleDateFormat: public DateFormat {
+class U_I18N_API_CLASS SimpleDateFormat: public DateFormat {
 public:
     /**
      * Construct a SimpleDateFormat using the default pattern for the default
@@ -393,7 +393,7 @@ public:
      * @param status    Output param set to success/failure code.
      * @stable ICU 2.0
      */
-    SimpleDateFormat(UErrorCode& status);
+    U_I18N_API SimpleDateFormat(UErrorCode& status);
 
     /**
      * Construct a SimpleDateFormat using the given pattern and the default locale.
@@ -406,7 +406,7 @@ public:
      * @param status     Output param set to success/failure code.
      * @stable ICU 2.0
      */
-    SimpleDateFormat(const UnicodeString& pattern,
+    U_I18N_API SimpleDateFormat(const UnicodeString& pattern,
                      UErrorCode& status);
 
     /**
@@ -430,9 +430,9 @@ public:
      * @param status     Output param set to success/failure code.
      * @stable ICU 4.2
      */
-    SimpleDateFormat(const UnicodeString& pattern,
-                     const UnicodeString& override,
-                     UErrorCode& status);
+    U_I18N_API SimpleDateFormat(const UnicodeString& pattern,
+                                const UnicodeString& override,
+                                UErrorCode& status);
 
     /**
      * Construct a SimpleDateFormat using the given pattern and locale.
@@ -446,9 +446,7 @@ public:
      * @param status     Output param set to success/failure code.
      * @stable ICU 2.0
      */
-    SimpleDateFormat(const UnicodeString& pattern,
-                     const Locale& locale,
-                     UErrorCode& status);
+    U_I18N_API SimpleDateFormat(const UnicodeString& pattern, const Locale& locale, UErrorCode& status);
 
     /**
      * Construct a SimpleDateFormat using the given pattern, numbering system override, and locale.
@@ -471,10 +469,10 @@ public:
      * @param status     Output param set to success/failure code.
      * @stable ICU 4.2
      */
-    SimpleDateFormat(const UnicodeString& pattern,
-                     const UnicodeString& override,
-                     const Locale& locale,
-                     UErrorCode& status);
+    U_I18N_API SimpleDateFormat(const UnicodeString& pattern,
+                                const UnicodeString& override,
+                                const Locale& locale,
+                                UErrorCode& status);
 
     /**
      * Construct a SimpleDateFormat using the given pattern and locale-specific
@@ -485,9 +483,9 @@ public:
      * @param status            Output param set to success/faulure code.
      * @stable ICU 2.0
      */
-    SimpleDateFormat(const UnicodeString& pattern,
-                     DateFormatSymbols* formatDataToAdopt,
-                     UErrorCode& status);
+    U_I18N_API SimpleDateFormat(const UnicodeString& pattern,
+                                DateFormatSymbols* formatDataToAdopt,
+                                UErrorCode& status);
 
     /**
      * Construct a SimpleDateFormat using the given pattern and locale-specific
@@ -498,27 +496,27 @@ public:
      * @param status            Output param set to success/faulure code.
      * @stable ICU 2.0
      */
-    SimpleDateFormat(const UnicodeString& pattern,
-                     const DateFormatSymbols& formatData,
-                     UErrorCode& status);
+    U_I18N_API SimpleDateFormat(const UnicodeString& pattern,
+                                const DateFormatSymbols& formatData,
+                                UErrorCode& status);
 
     /**
      * Copy constructor.
      * @stable ICU 2.0
      */
-    SimpleDateFormat(const SimpleDateFormat&);
+    U_I18N_API SimpleDateFormat(const SimpleDateFormat&);
 
     /**
      * Assignment operator.
      * @stable ICU 2.0
      */
-    SimpleDateFormat& operator=(const SimpleDateFormat&);
+    U_I18N_API SimpleDateFormat& operator=(const SimpleDateFormat&);
 
     /**
      * Destructor.
      * @stable ICU 2.0
      */
-    virtual ~SimpleDateFormat();
+    U_I18N_API virtual ~SimpleDateFormat();
 
     /**
      * Clone this Format object polymorphically. The caller owns the result and
@@ -526,7 +524,7 @@ public:
      * @return    A copy of the object.
      * @stable ICU 2.0
      */
-    virtual SimpleDateFormat* clone() const override;
+    U_I18N_API virtual SimpleDateFormat* clone() const override;
 
     /**
      * Return true if the given Format objects are semantically equal. Objects
@@ -535,8 +533,7 @@ public:
      * @return         true if the given Format objects are semantically equal.
      * @stable ICU 2.0
      */
-    virtual bool operator==(const Format& other) const override;
-
+    U_I18N_API virtual bool operator==(const Format& other) const override;
 
     using DateFormat::format;
 
@@ -556,9 +553,9 @@ public:
      * @return          Reference to 'appendTo' parameter.
      * @stable ICU 2.1
      */
-    virtual UnicodeString& format(  Calendar& cal,
-                                    UnicodeString& appendTo,
-                                    FieldPosition& pos) const override;
+    U_I18N_API virtual UnicodeString& format(Calendar& cal,
+                                             UnicodeString& appendTo,
+                                             FieldPosition& pos) const override;
 
     /**
      * Format a date or time, which is the standard millis since 24:00 GMT, Jan
@@ -578,10 +575,10 @@ public:
      * @return          Reference to 'appendTo' parameter.
      * @stable ICU 4.4
      */
-    virtual UnicodeString& format(  Calendar& cal,
-                                    UnicodeString& appendTo,
-                                    FieldPositionIterator* posIter,
-                                    UErrorCode& status) const override;
+    U_I18N_API virtual UnicodeString& format(Calendar& cal,
+                                             UnicodeString& appendTo,
+                                             FieldPositionIterator* posIter,
+                                             UErrorCode& status) const override;
 
     using DateFormat::parse;
 
@@ -611,10 +608,9 @@ public:
      *              start position if the parse failed.
      * @stable ICU 2.1
      */
-    virtual void parse( const UnicodeString& text,
-                        Calendar& cal,
-                        ParsePosition& pos) const override;
-
+    U_I18N_API virtual void parse(const UnicodeString& text,
+                                  Calendar& cal,
+                                  ParsePosition& pos) const override;
 
     /**
      * Set the start UDate used to interpret two-digit year strings.
@@ -632,7 +628,7 @@ public:
      *               an error value if there was a parse error.
      * @stable ICU 2.0
      */
-    virtual void set2DigitYearStart(UDate d, UErrorCode& status);
+    U_I18N_API virtual void set2DigitYearStart(UDate d, UErrorCode& status);
 
     /**
      * Get the start UDate used to interpret two-digit year strings.
@@ -649,7 +645,7 @@ public:
      *               an error value if there was a parse error.
      * @stable ICU 2.0
      */
-    UDate get2DigitYearStart(UErrorCode& status) const;
+    U_I18N_API UDate get2DigitYearStart(UErrorCode& status) const;
 
     /**
      * Return a pattern string describing this date format.
@@ -657,7 +653,7 @@ public:
      * @return       A reference to 'result'.
      * @stable ICU 2.0
      */
-    virtual UnicodeString& toPattern(UnicodeString& result) const;
+    U_I18N_API virtual UnicodeString& toPattern(UnicodeString& result) const;
 
     /**
      * Return a localized pattern string describing this date format.
@@ -681,8 +677,8 @@ public:
      * @return          A reference to 'result'.
      * @stable ICU 2.0
      */
-    virtual UnicodeString& toLocalizedPattern(UnicodeString& result,
-                                              UErrorCode& status) const;
+    U_I18N_API virtual UnicodeString& toLocalizedPattern(UnicodeString& result,
+                                                         UErrorCode& status) const;
 
     /**
      * Apply the given unlocalized pattern string to this date format.
@@ -692,7 +688,7 @@ public:
      * @param pattern   The pattern to be applied.
      * @stable ICU 2.0
      */
-    virtual void applyPattern(const UnicodeString& pattern);
+    U_I18N_API virtual void applyPattern(const UnicodeString& pattern);
 
     /**
      * Apply the given localized pattern string to this date format.
@@ -704,8 +700,7 @@ public:
      *                  set to a failure result.
      * @stable ICU 2.0
      */
-    virtual void applyLocalizedPattern(const UnicodeString& pattern,
-                                       UErrorCode& status);
+    U_I18N_API virtual void applyLocalizedPattern(const UnicodeString& pattern, UErrorCode& status);
 
     /**
      * Gets the date/time formatting symbols (this is an object carrying
@@ -715,7 +710,7 @@ public:
      * with this date-time formatter.
      * @stable ICU 2.0
      */
-    virtual const DateFormatSymbols* getDateFormatSymbols() const;
+    U_I18N_API virtual const DateFormatSymbols* getDateFormatSymbols() const;
 
     /**
      * Set the date/time formatting symbols.  The caller no longer owns the
@@ -723,14 +718,14 @@ public:
      * @param newFormatSymbols the given date-time formatting symbols to copy.
      * @stable ICU 2.0
      */
-    virtual void adoptDateFormatSymbols(DateFormatSymbols* newFormatSymbols);
+    U_I18N_API virtual void adoptDateFormatSymbols(DateFormatSymbols* newFormatSymbols);
 
     /**
      * Set the date/time formatting data.
      * @param newFormatSymbols the given date-time formatting symbols to copy.
      * @stable ICU 2.0
      */
-    virtual void setDateFormatSymbols(const DateFormatSymbols& newFormatSymbols);
+    U_I18N_API virtual void setDateFormatSymbols(const DateFormatSymbols& newFormatSymbols);
 
     /**
      * Return the class ID for this class. This is useful only for comparing to
@@ -743,7 +738,7 @@ public:
      * @return          The class ID for all objects of this class.
      * @stable ICU 2.0
      */
-    static UClassID U_EXPORT2 getStaticClassID();
+    U_I18N_API static UClassID getStaticClassID();
 
     /**
      * Returns a unique class ID POLYMORPHICALLY. Pure virtual override. This
@@ -756,7 +751,7 @@ public:
      *                  other classes have different class IDs.
      * @stable ICU 2.0
      */
-    virtual UClassID getDynamicClassID() const override;
+    U_I18N_API virtual UClassID getDynamicClassID() const override;
 
     /**
      * Set the calendar to be used by this date format. Initially, the default
@@ -767,7 +762,7 @@ public:
      * @param calendarToAdopt    Calendar object to be adopted.
      * @stable ICU 2.0
      */
-    virtual void adoptCalendar(Calendar* calendarToAdopt) override;
+    U_I18N_API virtual void adoptCalendar(Calendar* calendarToAdopt) override;
 
     /* Cannot use #ifndef U_HIDE_INTERNAL_API for the following methods since they are virtual */
     /**
@@ -777,21 +772,21 @@ public:
      * @param timeZoneFormatToAdopt The TimeZoneFormat object to be adopted.
      * @internal ICU 49 technology preview
      */
-    virtual void adoptTimeZoneFormat(TimeZoneFormat* timeZoneFormatToAdopt);
+    U_I18N_API virtual void adoptTimeZoneFormat(TimeZoneFormat* timeZoneFormatToAdopt);
 
     /**
      * Sets the TimeZoneFormat to be used by this date/time formatter.
      * @param newTimeZoneFormat The TimeZoneFormat object to copy.
      * @internal ICU 49 technology preview
      */
-    virtual void setTimeZoneFormat(const TimeZoneFormat& newTimeZoneFormat);
+    U_I18N_API virtual void setTimeZoneFormat(const TimeZoneFormat& newTimeZoneFormat);
 
     /**
      * Gets the time zone format object associated with this date/time formatter.
      * @return the time zone format associated with this date/time formatter.
      * @internal ICU 49 technology preview
      */
-    virtual const TimeZoneFormat* getTimeZoneFormat() const;
+    U_I18N_API virtual const TimeZoneFormat* getTimeZoneFormat() const;
 
     /**
      * Set a particular UDisplayContext value in the formatter, such as
@@ -803,7 +798,7 @@ public:
      *               updated with any new status from the function.
      * @stable ICU 53
      */
-    virtual void setContext(UDisplayContext value, UErrorCode& status) override;
+    U_I18N_API virtual void setContext(UDisplayContext value, UErrorCode& status) override;
 
     /**
      * Overrides base class method and
@@ -812,7 +807,7 @@ public:
      * @param formatToAdopt the NumbeferFormat used
      * @stable ICU 54
      */
-    void adoptNumberFormat(NumberFormat *formatToAdopt) override;
+    U_I18N_API void adoptNumberFormat(NumberFormat* formatToAdopt) override;
 
     /**
      * Allow the user to set the NumberFormat for several fields
@@ -829,14 +824,16 @@ public:
      *                if the operation succeeds.
      * @stable ICU 54
      */
-    void adoptNumberFormat(const UnicodeString& fields, NumberFormat *formatToAdopt, UErrorCode &status);
+    U_I18N_API void adoptNumberFormat(const UnicodeString& fields,
+                                      NumberFormat* formatToAdopt,
+                                      UErrorCode& status);
 
     /**
      * Get the numbering system to be used for a particular field.
      * @param field The UDateFormatField to get
      * @stable ICU 54
      */
-    const NumberFormat * getNumberFormatForField(char16_t field) const;
+    U_I18N_API const NumberFormat* getNumberFormatForField(char16_t field) const;
 
 #ifndef U_HIDE_INTERNAL_API
     /**
@@ -849,8 +846,7 @@ public:
      *                 covered in pattern. false otherwise.
      * @internal ICU 4.0
      */
-    UBool isFieldUnitIgnored(UCalendarDateFields field) const;
-
+    U_I18N_API UBool isFieldUnitIgnored(UCalendarDateFields field) const;
 
     /**
      * This is for ICU internal use only. Please do not use.
@@ -863,8 +859,7 @@ public:
      *                 covered in pattern. false otherwise.
      * @internal ICU 4.0
      */
-    static UBool isFieldUnitIgnored(const UnicodeString& pattern,
-                                    UCalendarDateFields field);
+    U_I18N_API static UBool isFieldUnitIgnored(const UnicodeString& pattern, UCalendarDateFields field);
 
     /**
      * This is for ICU internal use only. Please do not use.
@@ -874,7 +869,7 @@ public:
      * @return   locale in this simple date formatter
      * @internal ICU 4.0
      */
-    const Locale& getSmpFmtLocale() const;
+    U_I18N_API const Locale& getSmpFmtLocale() const;
 #endif  /* U_HIDE_INTERNAL_API */
 
 private:
