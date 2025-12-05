@@ -16,6 +16,7 @@ on:
       - deps/ada/**
       - deps/brotli/**
       - deps/cares/**
+      - deps/crates/**
       - deps/corepack/**
       - deps/icu-small/**
       - deps/icu-tmp/**
@@ -25,7 +26,6 @@ on:
       - deps/openssl/*/**
       - deps/simdjson/**
       - deps/sqlite/**
-      - deps/temporal/**
       - deps/uv/**
       - deps/uvwasi/**
       - deps/zlib/**
@@ -62,6 +62,7 @@ on:
       - deps/ada/**
       - deps/brotli/**
       - deps/cares/**
+      - deps/crates/**
       - deps/corepack/**
       - deps/icu-small/**
       - deps/icu-tmp/**
@@ -71,7 +72,6 @@ on:
       - deps/openssl/*/**
       - deps/simdjson/**
       - deps/sqlite/**
-      - deps/temporal/**
       - deps/uv/**
       - deps/uvwasi/**
       - deps/zlib/**
