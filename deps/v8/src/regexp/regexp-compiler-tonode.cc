@@ -1248,9 +1248,9 @@ RegExpNode* RegExpCapture::ToNode(RegExpTree* body, int index,
   int start_reg = RegExpCapture::StartRegister(index);
   int end_reg = RegExpCapture::EndRegister(index);
   if (compiler->read_backward()) std::swap(start_reg, end_reg);
-  RegExpNode* store_end = ActionNode::StorePosition(end_reg, true, on_success);
+  RegExpNode* store_end = ActionNode::ClearPosition(end_reg, on_success);
   RegExpNode* body_node = body->ToNode(compiler, store_end);
-  return ActionNode::StorePosition(start_reg, true, body_node);
+  return ActionNode::ClearPosition(start_reg, body_node);
 }
 
 namespace {
@@ -2039,7 +2039,7 @@ RegExpNode* RegExpQuantifier::ToNode(int min, int max, bool is_greedy,
   if (body_can_be_empty) {
     // If the body can be empty we need to store the start position
     // so we can bail out if it was empty.
-    body_node = ActionNode::StorePosition(body_start_reg, false, body_node);
+    body_node = ActionNode::RestorePosition(body_start_reg, body_node);
   }
   if (needs_capture_clearing) {
     // Before entering the body of this loop we need to clear captures.

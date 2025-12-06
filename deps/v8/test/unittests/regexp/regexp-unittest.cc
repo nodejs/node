@@ -1121,7 +1121,7 @@ TEST_F(RegExpTest, MacroAssemblerNativeRegisters) {
   m.ReadCurrentPositionFromRegister(out3);
   m.Bind(&loop3);
   m.AdvanceCurrentPosition(1);
-  m.CheckGreedyLoop(&exit_loop3);
+  m.CheckFixedLengthLoop(&exit_loop3);
   m.GoTo(&loop3);
   m.Bind(&exit_loop3);
   m.PopCurrentPosition();
