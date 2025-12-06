@@ -652,8 +652,6 @@ added:
   - v22.19.0
 -->
 
-> Stability: 1.1 - Active Development
-
 This feature is only available with the `--experimental-inspector-network-resource` flag enabled.
 
 The inspector.NetworkResources.put method is used to provide a response for a loadNetworkResource

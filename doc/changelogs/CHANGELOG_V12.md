@@ -2989,7 +2989,7 @@ function or pressing Ctrl+C).
 
 legendecas [#30516](https://github.com/nodejs/node/pull/30516).
 
-***
+---
 
 The new `--trace-uncaught` CLI flag makes Node.js print a stack trace at the
 time of throwing uncaught exceptions, rather than at the creation of the `Error`
@@ -2999,7 +2999,7 @@ behavior negatively.
 
 Anna Henningsen [#30025](https://github.com/nodejs/node/pull/30025).
 
-***
+---
 
 The `--disallow-code-generation-from-strings` V8 CLI flag is now whitelisted in
 the `NODE_OPTIONS` environment variable.
@@ -3017,7 +3017,7 @@ option, which can have one of two values:
 
 Tobias Nießen [#29292](https://github.com/nodejs/node/pull/29292).
 
-***
+---
 
 A new method was added to `Hash`: `Hash.prototype.copy`. It makes it possible to
 clone the internal state of a `Hash` object into a new `Hash` object, allowing
@@ -3050,7 +3050,7 @@ libuv was updated to 1.34.0. This includes fixes to `uv_fs_copyfile()` and
 
 Colin Ihrig [#30783](https://github.com/nodejs/node/pull/30783).
 
-***
+---
 
 V8 was updated to 7.8.279.23. This includes performance improvements to object
 destructuring, RegExp match failures and WebAssembly startup time.
@@ -3087,7 +3087,7 @@ const { on, EventEmitter } = require('events');
 
 Matteo Collina [#27994](https://github.com/nodejs/node/pull/27994).
 
-***
+---
 
 It is now possible to monitor `'error'` events on an `EventEmitter` without
 consuming the emitted error by installing a listener using the symbol
@@ -3106,7 +3106,7 @@ myEmitter.emit('error', new Error('whoops!'));
 
 Gerhard Stoebich [#30932](https://github.com/nodejs/node/pull/30932).
 
-***
+---
 
 Using `async` functions with event handlers is problematic, because it
 can lead to an unhandled rejection in case of a thrown exception:

@@ -2605,7 +2605,7 @@ Rebuild due to stale build worker git reflogs for 1.0.0 release
 * doc: improve write style consistency (Rui Marinho)
 * win,msi: correct doc website link (Bert Belder)
 
-***
+---
 
 <a id="1.0.0"></a>
 Below is a summary of the user-facing changes to be found in the io.js v1.0.0 release as compared to the

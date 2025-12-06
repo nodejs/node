@@ -1110,7 +1110,7 @@ A new `IsolateSettingsFlag` is available for those calling `SetIsolateUpForNode(
 
 Contributed by Shelley Vohr [#36447](https://github.com/nodejs/node/pull/36447).
 
-***
+---
 
 Added `node::GetEnvironmentIsolateData()` and `node::GetArrayBufferAllocator()` to respectively get the current `IsolateData*` and, from it, the current Node.js `ArrayBufferAllocator` if there is one.
 

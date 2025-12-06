@@ -3,11 +3,9 @@
   "description": "markdown linting",
   "version": "1.0.0",
   "dependencies": {
-    "remark-parse": "^11.0.0",
-    "remark-preset-lint-node": "^5.1.2",
-    "remark-stringify": "^11.0.0",
+    "@node-core/remark-lint": "^1.2.0",
+    "remark": "^15.0.1",
     "to-vfile": "^8.0.0",
-    "unified": "^11.0.5",
     "vfile-reporter": "^8.1.1"
   }
 }

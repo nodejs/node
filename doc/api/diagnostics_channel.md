@@ -1247,7 +1247,7 @@ Emitted when a stream is received on the client.
 
 * `stream` {ClientHttp2Stream}
 * `writev` {boolean}
-* `data` {Buffer | string | Buffer\[] | Object\[]}
+* `data` {Buffer|string|Buffer\[]|Object\[]}
   * `chunk` {Buffer|string}
   * `encoding` {string}
 * `encoding` {string}

@@ -1,12 +1,12 @@
 import fs from 'node:fs';
 import { parseArgs } from 'node:util';
 
-import { unified } from 'unified';
-import remarkParse from 'remark-parse';
-import remarkStringify from 'remark-stringify';
-import presetLintNode from 'remark-preset-lint-node';
+import { remark } from 'remark';
+import remarkLintApi from '@node-core/remark-lint/api';
+import remarkLintBase from '@node-core/remark-lint';
 import { read } from 'to-vfile';
 import { reporter } from 'vfile-reporter';
+import typeMap from '../../doc/api/type-map.json' with { type: 'json' };
 
 const { values: { format }, positionals: paths } = parseArgs({
   options: {
@@ -20,13 +20,14 @@ if (!paths.length) {
   process.exit(1);
 }
 
-const linter = unified()
-  .use(remarkParse)
-  .use(presetLintNode)
-  .use(remarkStringify);
+const apiLintProcessor = remarkLintApi({ typeMap, releasedVersions: process.env.NODE_RELEASED_VERSIONS?.split(',') });
+const apiLinter = remark().use(apiLintProcessor);
+const baseLinter = remark().use(remarkLintBase).use({ settings: apiLintProcessor.settings });
 
 paths.forEach(async (path) => {
   const file = await read(path);
+  const linter = path.startsWith('doc/api/') ? apiLinter : baseLinter;
+
   // We need to calculate `fileContents` before running `linter.process(files)`
   // because `linter.process(files)` mutates `file` and returns it as `result`.
   // So we won't be able to use `file` after that to see if its contents have
@@ -35,26 +36,18 @@ paths.forEach(async (path) => {
   const result = await linter.process(file);
   const isDifferent = fileContents !== result.toString();
 
-  if (path.startsWith('doc/api/')) {
-    if (!fileContents.includes('introduced_in')) {
-      console.error(`${path} is missing an 'introduced_in' version. Please add one.`);
-      process.exitCode = 1;
-    }
+  if (result.messages.length) {
+    process.exitCode = 1;
+    console.error(reporter(result));
   }
 
   if (format) {
     if (isDifferent) {
       fs.writeFileSync(path, result.toString());
     }
-  } else {
-    if (isDifferent) {
-      process.exitCode = 1;
-      const cmd = process.platform === 'win32' ? 'vcbuild' : 'make';
-      console.error(`${path} is not formatted. Please run '${cmd} format-md'.`);
-    }
-    if (result.messages.length) {
-      process.exitCode = 1;
-      console.error(reporter(result));
-    }
+  } else if (isDifferent) {
+    process.exitCode = 1;
+    const cmd = process.platform === 'win32' ? 'vcbuild' : 'make';
+    console.error(`${path} is not formatted. Please run '${cmd} format-md'.`);
   }
 });

@@ -2871,8 +2871,7 @@ changes:
     description: Add support for async generators.
 -->
 
-* `streams` {Stream\[]|Iterable\[]|AsyncIterable\[]|Function\[]|
-  ReadableStream\[]|WritableStream\[]|TransformStream\[]}
+* `streams` {Stream\[]|Iterable\[]|AsyncIterable\[]|Function\[]|ReadableStream\[]|WritableStream\[]|TransformStream\[]}
 * `source` {Stream|Iterable|AsyncIterable|Function|ReadableStream}
   * Returns: {Iterable|AsyncIterable}
 * `...transforms` {Stream|Function|TransformStream}
@@ -2967,8 +2966,7 @@ changes:
 
 > Stability: 1 - `stream.compose` is experimental.
 
-* `streams` {Stream\[]|Iterable\[]|AsyncIterable\[]|Function\[]|
-  ReadableStream\[]|WritableStream\[]|TransformStream\[]|Duplex\[]|Function}
+* `streams` {Stream|Iterable|AsyncIterable|Function|ReadableStream|WritableStream|TransformStream}
 * Returns: {stream.Duplex}
 
 Combines two or more streams into a `Duplex` stream that writes to the
@@ -3264,9 +3262,7 @@ changes:
                  `WritableStream`.
 -->
 
-* `src` {Stream|Blob|ArrayBuffer|string|Iterable|AsyncIterable|
-  AsyncGeneratorFunction|AsyncFunction|Promise|Object|
-  ReadableStream|WritableStream}
+* `src` {Stream|Blob|ArrayBuffer|string|Iterable|AsyncIterable|Function|Promise|Object|ReadableStream|WritableStream}
 
 A utility method for creating duplex streams.
 
