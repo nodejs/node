@@ -2,7 +2,7 @@
 
 require('../common');
 const assert = require('assert');
-const { Logger, JSONConsumer, stdSerializers } = require('logger');
+const { Logger, JSONConsumer, stdSerializers } = require('node:logger');
 const { Writable } = require('stream');
 
 // Test helper to capture log output
