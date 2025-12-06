@@ -1,6 +1,6 @@
 // Flags: --expose_gc
 //
-import '../common/index.mjs';
+import { mustCall } from '../common/index.mjs';
 import { gcUntil } from '../common/gc.js';
 import { describe, it } from 'node:test';
 
@@ -146,7 +146,7 @@ it('drops settled dependant signals when signal is composite', (t, done) => {
   t.assert.strictEqual(controllers[0].signal[kDependantSignals].size, 2);
   t.assert.strictEqual(controllers[1].signal[kDependantSignals].size, 1);
 
-  setImmediate(() => {
+  setImmediate(mustCall(() => {
     globalThis.gc({ execution: 'async' }).then(async () => {
       await gcUntil('all signals are GCed', () => {
         const totalDependantSignals = Math.max(
@@ -158,8 +158,8 @@ it('drops settled dependant signals when signal is composite', (t, done) => {
       });
 
       done();
-    });
-  });
+    }).then(mustCall());
+  }));
 });
 
 it('drops settled signals even when there are listeners', (t, done) => {

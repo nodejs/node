@@ -64,7 +64,7 @@ const { finished: finishedPromise } = require('stream/promises');
     assert.deepStrictEqual(values, ['asd']);
   }
 
-  finishedPromise(rs).then(common.mustSucceed());
+  finishedPromise(rs).then(common.mustCall());
 
   test();
 }
@@ -193,7 +193,7 @@ const { finished: finishedPromise } = require('stream/promises');
     }
   });
 
-  finishedPromise(ws).then(common.mustSucceed(() => {
+  finishedPromise(ws).then(common.mustCall(() => {
     assert.strictEqual(str, 'asd');
   }));
 

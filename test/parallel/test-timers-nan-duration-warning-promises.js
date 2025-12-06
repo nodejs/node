@@ -8,4 +8,4 @@ process.once('warning', common.mustCall((warning) => {
   assert.strictEqual(warning.name, 'TimeoutNaNWarning');
 }));
 
-setTimeout(NaN).then(common.mustCall(), common.mustNotCall());
+setTimeout(NaN).then(common.mustCall());

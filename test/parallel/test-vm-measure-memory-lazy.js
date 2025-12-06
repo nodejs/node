@@ -14,24 +14,24 @@ expectExperimentalWarning();
 // or otherwise these may not resolve.
 {
   vm.measureMemory()
-    .then(common.mustCall(assertSummaryShape));
+    .then(assertSummaryShape).then(common.mustCall());
   globalThis.gc();
 }
 
 {
   vm.measureMemory({})
-    .then(common.mustCall(assertSummaryShape));
+    .then(assertSummaryShape).then(common.mustCall());
   globalThis.gc();
 }
 
 {
   vm.measureMemory({ mode: 'summary' })
-    .then(common.mustCall(assertSummaryShape));
+    .then(assertSummaryShape).then(common.mustCall());
   globalThis.gc();
 }
 
 {
   vm.measureMemory({ mode: 'detailed' })
-    .then(common.mustCall(assertSummaryShape));
+    .then(assertSummaryShape).then(common.mustCall());
   globalThis.gc();
 }

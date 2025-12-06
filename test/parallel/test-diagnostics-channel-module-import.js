@@ -57,5 +57,4 @@ import('http').then(
       },
     ]);
   }),
-  common.mustNotCall(),
 );

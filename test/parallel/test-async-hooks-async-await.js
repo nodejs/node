@@ -2,7 +2,7 @@
 // asyncIds & triggerAsyncId for async-await
 'use strict';
 
-require('../common');
+const common = require('../common');
 const async_hooks = require('async_hooks');
 const assert = require('assert');
 
@@ -23,4 +23,4 @@ main().then(() => {
   assert.strictEqual(asyncIds[0][1], asyncIds[1][0]);
   assert.strictEqual(asyncIds[0][1], asyncIds[3][0]);
   assert.strictEqual(asyncIds[1][1], asyncIds[2][0]);
-});
+}).then(common.mustCall());

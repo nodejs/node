@@ -64,9 +64,9 @@ function testPromise() {
   assert.strictEqual(activeId, res.asyncId());
   res.emitDestroy();
   // Promise has higher prio than emit destroy
-  Promise.resolve().then(common.mustCall(() =>
-    assert.strictEqual(activeId, res.asyncId())),
-  );
+  Promise.resolve().then(common.mustCall(() => {
+    assert.strictEqual(activeId, res.asyncId());
+  }));
 }
 
 async function testAwait() {

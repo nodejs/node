@@ -67,15 +67,16 @@ const server = net.createServer(function(socket) {
 
 server.maxConnections = 1;
 
-server.listen(0, function() {
+server.listen(0, common.mustCall(() => {
   createConnection(0)
     .then(createConnection.bind(null, 1))
     .then(closeConnection.bind(null, 0))
     .then(createConnection.bind(null, 2))
     .then(createConnection.bind(null, 3))
     .then(server.close.bind(server))
-    .then(closeConnection.bind(null, 2));
-});
+    .then(closeConnection.bind(null, 2))
+    .then(common.mustCall());
+}));
 
 process.on('exit', function() {
   // Confirm that all connections tried to send data...
