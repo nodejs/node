@@ -143,9 +143,7 @@ release.
   LTS releases.
 * Release versions in **bold** text are the most recent supported releases.
 
-***
-
-***
+---
 
 ## 2016-05-06, Version 0.12.14 (Maintenance), @rvagg
 

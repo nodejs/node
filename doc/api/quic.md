@@ -475,7 +475,7 @@ added: v23.8.0
 -->
 
 * `options` {Object}
-  * `body` {ArrayBuffer | ArrayBufferView | Blob}
+  * `body` {ArrayBuffer|ArrayBufferView|Blob}
   * `sendOrder` {number}
 * Returns: {Promise} for a {quic.QuicStream}
 
@@ -489,7 +489,7 @@ added: v23.8.0
 -->
 
 * `options` {Object}
-  * `body` {ArrayBuffer | ArrayBufferView | Blob}
+  * `body` {ArrayBuffer|ArrayBufferView|Blob}
   * `sendOrder` {number}
 * Returns: {Promise} for a {quic.QuicStream}
 
