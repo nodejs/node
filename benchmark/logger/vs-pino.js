@@ -15,7 +15,7 @@ function main({ n, logger, scenario }) {
   let consumer;
 
   if (logger === 'node-logger') {
-    const { createLogger, JSONConsumer } = require('logger');
+    const { createLogger, JSONConsumer } = require('node:logger');
 
     switch (scenario) {
       case 'simple': {
