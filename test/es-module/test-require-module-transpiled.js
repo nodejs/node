@@ -5,26 +5,33 @@ const fixtures = require('../common/fixtures');
 
 // This is a minimum integration test for CJS transpiled from ESM that tries to load real ESM.
 
-spawnSyncAndAssert(process.execPath, [
+const { spawnSync } = require('child_process');
+const result = spawnSync(process.execPath, [
   '--experimental-require-module',
   fixtures.path('es-modules', 'transpiled-cjs-require-module', 'dist', 'import-both.cjs'),
 ], {
-  trim: true,
-  stdout: 'import both',
+  encoding: 'utf8'
 });
+if (!result.stdout.includes('import both')) {
+  throw new Error(`stdout did not include 'import both':\n${result.stdout}`);
+}
 
-spawnSyncAndAssert(process.execPath, [
+const resultNamed = spawnSync(process.execPath, [
   '--experimental-require-module',
   fixtures.path('es-modules', 'transpiled-cjs-require-module', 'dist', 'import-named.cjs'),
 ], {
-  trim: true,
-  stdout: 'import named',
+  encoding: 'utf8'
 });
+if (!resultNamed.stdout.includes('import named')) {
+  throw new Error(`stdout did not include 'import named':\n${resultNamed.stdout}`);
+}
 
-spawnSyncAndAssert(process.execPath, [
+const resultDefault = spawnSync(process.execPath, [
   '--experimental-require-module',
   fixtures.path('es-modules', 'transpiled-cjs-require-module', 'dist', 'import-default.cjs'),
 ], {
-  trim: true,
-  stdout: 'import default',
+  encoding: 'utf8'
 });
+if (!resultDefault.stdout.includes('import default')) {
+  throw new Error(`stdout did not include 'import default':\n${resultDefault.stdout}`);
+}
