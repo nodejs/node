@@ -625,9 +625,7 @@ if not defined doc if not defined build_addons (
 )
 if exist "tools\doc\node_modules\unified\package.json" goto skip-install-doctools
 SETLOCAL
-cd tools\doc
-%npm_exe% ci
-cd ..\..
+%npm_exe% --prefix tools\doc ci
 if errorlevel 1 goto exit
 ENDLOCAL
 :skip-install-doctools
@@ -770,9 +768,7 @@ goto lint-js-build
 
 :lint-js-build
 if not defined lint_js_build if not defined lint_js if not defined lint_js_fix goto lint-md-build
-cd tools\eslint
-%npm_exe% ci
-cd ..\..
+%npm_exe% --prefix tools\eslint ci
 
 :lint-js
 if not defined lint_js goto lint-js-fix
@@ -790,9 +786,7 @@ goto lint-md-build
 
 :lint-md-build
 if not defined lint_md if not defined format_md goto lint-md
-cd tools\lint-md
-%npm_exe% ci
-cd ..\..
+%npm_exe% --prefix tools\lint-md ci
 
 :lint-md
 if not defined lint_md goto format-md
