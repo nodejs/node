@@ -1,6 +1,5 @@
 'use strict';
 require('../common');
-const { spawnSyncAndAssert } = require('../common/child_process');
 const fixtures = require('../common/fixtures');
 
 // This is a minimum integration test for CJS transpiled from ESM that tries to load real ESM.
