@@ -168,3 +168,19 @@ function listener2() {}
   ee.removeListener('foo', listener1);
   assert.strictEqual(ee._events.foo, listener2);
 }
+
+{
+  const { Writable } = require('stream');
+  const stream = new Writable({
+    write(chunk, encoding, callback) {
+      callback();
+    }
+  });
+
+  stream.on('removeListener', common.mustCall((eventName, listener) => {
+    assert.strictEqual(eventName, 'finish');
+  }));
+
+  stream.once('finish', common.mustCall());
+  stream.end();
+}
