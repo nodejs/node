@@ -22,6 +22,7 @@ const noChange = 'test';
     util.styleText(invalidOption, 'test');
   }, {
     code: 'ERR_INVALID_ARG_VALUE',
+    message: /grey/, // gray alias
   });
   assert.throws(() => {
     util.styleText('red', invalidOption);
