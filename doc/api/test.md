@@ -224,6 +224,66 @@ test('todo() method with message', (t) => {
 });
 ```
 
+## Expecting tests to fail
+
+These are tests written to otherwise pass but there is some issue (often
+upstream) causing them to fail. Rather than using `skip` or `todo`, which would
+effectively silence the failure, the test would instead be marked `xfail` (`x`
+from "expected" + `fail`). That way, when the issue is resolved, that is
+explicitly surfaced.
+
+The test would normally be written:
+
+```js
+it('should do the thing', () => {
+  assert.strictEqual(doTheThing(), true);
+});
+
+it('should do the thing', () => {
+  assert.strictEqual(doTheThing(), true);
+});
+```
+
+But for whatever reason, `doTheThing` is not and _currently_ cannot return `true`.
+
+```js
+it.xfail('should do the thing', () => {
+  assert.strictEqual(doTheThing(), true);
+});
+
+it('should do the thing', { xfail: true }, () => {
+  assert.strictEqual(doTheThing(), true);
+});
+```
+
+`skip` and/or `todo` are mutually exclusive to `xfail`, and `skip` or `todo`
+will "win" when both are applied (`skip` wins against both, and `todo` wins
+against `xfail`).
+
+These tests will be skipped (and not run):
+
+```js
+it.xfail('should do the thing', { skip: true }, () => {
+  assert.strictEqual(doTheThing(), true);
+});
+
+it.skip('should do the thing', { xfail: true }, () => {
+  assert.strictEqual(doTheThing(), true);
+});
+```
+
+These tests will be marked "todo" (silencing errors):
+
+```js
+it.xfail('should do the thing', { todo: true }, () => {
+  assert.strictEqual(doTheThing(), true);
+});
+
+it.todo('should do the thing', { xfail: true }, () => {
+  assert.strictEqual(doTheThing(), true);
+});
+```
+
 ## `describe()` and `it()` aliases
 
 Suites and tests can also be written using the `describe()` and `it()`
