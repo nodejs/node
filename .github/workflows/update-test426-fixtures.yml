@@ -1,0 +1,35 @@
+name: test426 fixtures update
+
+on:
+  schedule:
+    - cron: 0 0 * * 0
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  update-test426-fixtures:
+    if: github.repository == 'nodejs/node' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3  # v6.0.0
+        with:
+          persist-credentials: false
+
+      - name: Update test426 fixtures from tc39/source-map-tests
+        run: bash tools/dep_updaters/update-test426-fixtures.sh
+
+      - name: Open or update PR for test426 fixtures
+        uses: gr2m/create-or-update-pull-request-action@77596e3166f328b24613f7082ab30bf2d93079d5
+        with:
+          branch: actions/update-test426-fixtures
+          author: Node.js GitHub Bot <github-bot@iojs.org>
+          title: 'test: update test426 fixtures from tc39/source-map-tests'
+          commit-message: 'test: update test426 fixtures from tc39/source-map-tests'
+          labels: test
+          update-pull-request-title-and-body: true
+          body: |
+            This is an automated update of the test426 fixtures from https://github.com/tc39/source-map-tests.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_USER_TOKEN }}
