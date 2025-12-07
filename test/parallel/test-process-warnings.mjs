@@ -9,6 +9,8 @@ const dep1Message = /\(node:\d+\) \[DEP1\] DeprecationWarning/;
 const dep2Message = /\(node:\d+\) \[DEP2\] DeprecationWarning/;
 const experimentalWarningMessage = /\(node:\d+\) ExperimentalWarning/;
 
+const onlyIfNodeOptionsSupport = { skip: process.config.variables.node_without_node_options };
+
 describe('process warnings', { concurrency: !process.env.TEST_PARALLEL }, () => {
 
   it('should emit all warnings by default', async () => {
@@ -142,7 +144,7 @@ describe('process warnings', { concurrency: !process.env.TEST_PARALLEL }, () => 
       assert.strictEqual(signal, null);
     });
 
-    it('should be specifiable in NODE_OPTIONS', async () => {
+    it('should be specifiable in NODE_OPTIONS', onlyIfNodeOptionsSupport, async () => {
       const { stdout, stderr, code, signal } = await spawnPromisified(process.execPath, [
         fixturePath,
       ], {

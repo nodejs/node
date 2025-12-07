@@ -6,6 +6,10 @@ const assert = require('assert');
 const exec = require('child_process').execFile;
 const fs = require('fs');
 
+if (process.config.variables.node_without_node_options) {
+  common.skip('missing NODE_OPTIONS support');
+}
+
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 const tmpDir = tmpdir.path;
