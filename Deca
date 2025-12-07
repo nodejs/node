@@ -1,0 +1,366 @@
+import React, { useState } from "react";
+
+// SmartMarketingAssistant.jsx
+// Single-file React component (JavaScript + Tailwind classes) for DECA project
+// - Default export is the App component
+// - Uses Tailwind CSS for styling (assumes Tailwind is installed in host project)
+// - Includes mock AI logic for channel recommendation, posting-time prediction, and ad-copy generation
+// - Includes option to connect to a real AI API by replacing mockGenerate* functions with real fetch calls
+
+// ---------- Utility helpers (mock AI) ----------
+function analyzeBusinessProfile({ industry, audienceAge, audienceLocation, averagePrice }) {
+  // Basic heuristic scoring for channels
+  const scores = {
+    instagram: 0,
+    tiktok: 0,
+    facebook: 0,
+    linkedin: 0,
+    email: 0,
+    google: 0,
+  };
+
+  // Industry biases
+  const youthIndustries = ["fashion", "beauty", "food", "entertainment", "gaming"];
+  const b2bIndustries = ["consulting", "software", "hardware", "manufacturing"];
+
+  if (youthIndustries.includes(industry)) {
+    scores.instagram += 3; scores.tiktok += 4; scores.facebook += 1; scores.email += 0;
+  }
+  if (b2bIndustries.includes(industry)) {
+    scores.linkedin += 4; scores.email += 3; scores.google += 2;
+  }
+
+  // Age influence
+  if (audienceAge === "under25") { scores.tiktok += 3; scores.instagram += 2; }
+  if (audienceAge === "25to44") { scores.instagram += 2; scores.facebook += 2; }
+  if (audienceAge === "45plus") { scores.facebook += 3; scores.email += 2; }
+
+  // Price influence
+  if (averagePrice > 200) { scores.linkedin += 1; scores.google += 2; }
+  if (averagePrice < 50) { scores.tiktok += 1; scores.instagram += 1; }
+
+  // Location (global vs local)
+  if (audienceLocation === "local") {
+    scores.facebook += 2; scores.google += 2; scores.email += 1;
+  } else {
+    // worldwide
+    scores.instagram += 1; scores.tiktok += 1; scores.google += 1;
+  }
+
+  // Convert to sorted recommendations
+  const recommendations = Object.entries(scores)
+    .sort((a, b) => b[1] - a[1])
+    .map(([k, v]) => ({ channel: k, score: v }));
+
+  return recommendations;
+}
+
+function predictPostingTimes(recommendations) {
+  // Mock posting time suggestions based on channel
+  const times = {
+    instagram: ["Weekdays 11:00–13:00", "Evenings 19:00–21:00"],
+    tiktok: ["Evenings 18:00–23:00", "Weekends 10:00–14:00"],
+    facebook: ["Weekdays 10:00–12:00", "Weekdays 18:00–20:00"],
+    linkedin: ["Weekdays 07:30–09:00", "Weekdays 12:00–13:30"],
+    email: ["Tuesday or Thursday 09:00–11:00"],
+    google: ["Continuous (PPC peak bids at 09:00–17:00)"]
+  };
+
+  return recommendations.slice(0, 3).map(r => ({ channel: r.channel, times: times[r.channel] || ["Anytime"] }));
+}
+
+function generateAdCopy({ businessName, product, tone, channel, callToAction }) {
+  // Small templates for each channel
+  const templates = {
+    instagram: [
+      `${product} ✨ by ${businessName} — ${tone} & affordable. ${callToAction}`,
+      `New drop: ${product}. Tap to shop and enjoy exclusive savings! ${callToAction}`
+    ],
+    tiktok: [
+      `You won't believe how ${product} transforms your day. ${callToAction}`,
+      `Trend alert! ${product} from ${businessName} — watch till the end. ${callToAction}`
+    ],
+    facebook: [
+      `${businessName} presents ${product}. Trusted by customers worldwide. ${callToAction}`,
+      `Discover ${product} — quality and value. Shop now at ${businessName}. ${callToAction}`
+    ],
+    linkedin: [
+      `${product} from ${businessName} increases efficiency and ROI. Contact us to learn more. ${callToAction}`
+    ],
+    email: [
+      `Subject: ${product} — Special offer from ${businessName}\n\nHi there,\nCheck out ${product} and enjoy an exclusive deal. ${callToAction}`
+    ],
+    google: [
+      `${product} — ${businessName}. Buy now. ${callToAction}`
+    ]
+  };
+
+  const list = templates[channel] || [`Check out ${product} at ${businessName}. ${callToAction}`];
+  // return first + a variant
+  return { primary: list[0], variant: list[1] || list[0] };
+}
+
+// ---------- Small UI components ----------
+function Badge({ children }) {
+  return <span className="inline-block bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full text-xs font-semibold">{children}</span>;
+}
+
+function ChannelCard({ channel, score, times, adCopy }) {
+  return (
+    <div className="p-4 border rounded-lg shadow-sm hover:shadow-md transition">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-3">
+          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-500 to-pink-500 flex items-center justify-center text-white font-bold uppercase">{channel[0]}</div>
+          <div>
+            <div className="font-semibold capitalize">{channel}</div>
+            <div className="text-sm text-gray-500">Score: {score}</div>
+          </div>
+        </div>
+        <div>
+          <Badge>{Math.round(score)} pts</Badge>
+        </div>
+      </div>
+
+      <div className="mt-3 text-sm">
+        <div className="font-medium">Suggested Times</div>
+        <ul className="list-disc list-inside text-gray-600">
+          {times.map((t, i) => <li key={i}>{t}</li>)}
+        </ul>
+      </div>
+
+      <div className="mt-3">
+        <div className="font-medium">Ad Copy</div>
+        <div className="mt-2 text-sm bg-gray-50 p-3 rounded">
+          <div><strong>Primary:</strong> {adCopy.primary}</div>
+          {adCopy.variant && <div className="mt-2 text-gray-700"><strong>Variant:</strong> {adCopy.variant}</div>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------- Main App ----------
+export default function App() {
+  const [form, setForm] = useState({
+    businessName: "",
+    industry: "fashion",
+    product: "",
+    audienceAge: "25to44",
+    audienceLocation: "global",
+    averagePrice: 50,
+    tone: "friendly",
+    callToAction: "Shop now",
+  });
+  const [recommendations, setRecommendations] = useState(null);
+  const [postingTimes, setPostingTimes] = useState(null);
+  const [adCopies, setAdCopies] = useState(null);
+  const [lang, setLang] = useState("en");
+  const [loading, setLoading] = useState(false);
+
+  async function handleAnalyze(e) {
+    e.preventDefault();
+    setLoading(true);
+
+    // 1) Channel recommendations (mock AI)
+    const recs = analyzeBusinessProfile(form);
+
+    // 2) Predict posting times
+    const times = predictPostingTimes(recs);
+
+    // 3) Generate ad copy for top 3 channels
+    const copies = {};
+    times.forEach(t => {
+      copies[t.channel] = generateAdCopy({
+        businessName: form.businessName || "Your Business",
+        product: form.product || "your product",
+        tone: form.tone,
+        channel: t.channel,
+        callToAction: form.callToAction
+      });
+    });
+
+    // simulate network delay
+    await new Promise(r => setTimeout(r, 500));
+
+    setRecommendations(recs.slice(0, 5));
+    setPostingTimes(times);
+    setAdCopies(copies);
+    setLoading(false);
+  }
+
+  function handleChange(e) {
+    const { name, value } = e.target;
+    setForm(prev => ({ ...prev, [name]: name === "averagePrice" ? Number(value) : value }));
+  }
+
+  function downloadReport() {
+    // Create a minimal report and trigger download
+    const report = {
+      generatedAt: new Date().toISOString(),
+      profile: form,
+      recommendations,
+      postingTimes,
+      adCopies
+    };
+    const blob = new Blob([JSON.stringify(report, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `${form.businessName || 'sma-report'}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-white via-indigo-50 to-pink-50 p-6">
+      <div className="max-w-6xl mx-auto">
+        <header className="flex items-center justify-between mb-6">
+          <div className="flex items-center space-x-4">
+            <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-indigo-600 to-pink-500 flex items-center justify-center text-white font-extrabold text-lg">SMA</div>
+            <div>
+              <h1 className="text-2xl font-bold">Smart Marketing Assistant</h1>
+              <p className="text-sm text-gray-600">AI-driven channel, timing, and ad copy suggestions for small businesses.</p>
+            </div>
+          </div>
+
+          <div className="flex items-center space-x-3">
+            <select value={lang} onChange={e => setLang(e.target.value)} className="px-3 py-2 rounded border bg-white">
+              <option value="en">English</option>
+              <option value="es">Español</option>
+              <option value="fr">Français</option>
+              <option value="pt">Português</option>
+            </select>
+
+            <button onClick={() => window.open('#', '_blank')} className="px-4 py-2 bg-white border rounded shadow-sm">Help</button>
+          </div>
+        </header>
+
+        <main className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <form onSubmit={handleAnalyze} className="col-span-1 lg:col-span-1 p-6 bg-white rounded-lg shadow">
+            <h2 className="font-semibold text-lg mb-4">Business Profile</h2>
+
+            <label className="block text-sm font-medium text-gray-700">Business name</label>
+            <input name="businessName" value={form.businessName} onChange={handleChange} className="mt-1 w-full px-3 py-2 border rounded" placeholder="e.g., Sunny Cafe" />
+
+            <label className="mt-3 block text-sm font-medium text-gray-700">Industry</label>
+            <select name="industry" value={form.industry} onChange={handleChange} className="mt-1 w-full px-3 py-2 border rounded">
+              <option value="fashion">Fashion</option>
+              <option value="beauty">Beauty</option>
+              <option value="food">Food & Beverage</option>
+              <option value="software">Software</option>
+              <option value="consulting">Consulting</option>
+              <option value="fitness">Fitness</option>
+              <option value="entertainment">Entertainment</option>
+              <option value="other">Other</option>
+            </select>
+
+            <label className="mt-3 block text-sm font-medium text-gray-700">Main product / service</label>
+            <input name="product" value={form.product} onChange={handleChange} className="mt-1 w-full px-3 py-2 border rounded" placeholder="e.g., Handcrafted lattes" />
+
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Audience age</label>
+                <select name="audienceAge" value={form.audienceAge} onChange={handleChange} className="mt-1 w-full px-3 py-2 border rounded">
+                  <option value="under25">Under 25</option>
+                  <option value="25to44">25–44</option>
+                  <option value="45plus">45+</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Audience reach</label>
+                <select name="audienceLocation" value={form.audienceLocation} onChange={handleChange} className="mt-1 w-full px-3 py-2 border rounded">
+                  <option value="local">Local</option>
+                  <option value="regional">Regional</option>
+                  <option value="global">Global</option>
+                </select>
+              </div>
+            </div>
+
+            <label className="mt-3 block text-sm font-medium text-gray-700">Average price ($)</label>
+            <input name="averagePrice" type="number" value={form.averagePrice} onChange={handleChange} className="mt-1 w-full px-3 py-2 border rounded" />
+
+            <label className="mt-3 block text-sm font-medium text-gray-700">Tone</label>
+            <select name="tone" value={form.tone} onChange={handleChange} className="mt-1 w-full px-3 py-2 border rounded">
+              <option value="friendly">Friendly</option>
+              <option value="professional">Professional</option>
+              <option value="fun">Fun</option>
+              <option value="luxury">Luxury</option>
+            </select>
+
+            <label className="mt-3 block text-sm font-medium text-gray-700">Call to action</label>
+            <input name="callToAction" value={form.callToAction} onChange={handleChange} className="mt-1 w-full px-3 py-2 border rounded" />
+
+            <div className="mt-5 flex space-x-2">
+              <button type="submit" className="px-4 py-2 bg-indigo-600 text-white rounded shadow">{loading ? 'Analyzing...' : 'Analyze & Generate'}</button>
+              <button type="button" onClick={() => { setForm({ businessName: '', industry: 'fashion', product: '', audienceAge: '25to44', audienceLocation: 'global', averagePrice: 50, tone: 'friendly', callToAction: 'Shop now' }); setRecommendations(null); setPostingTimes(null); setAdCopies(null); }} className="px-4 py-2 border rounded">Reset</button>
+            </div>
+
+            <div className="mt-6 text-xs text-gray-500">Local mock AI runs in-browser. To connect a real AI service, replace mock functions with API calls in the source code.</div>
+          </form>
+
+          <section className="col-span-1 lg:col-span-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div className="p-4 bg-white rounded shadow">
+                <h3 className="font-semibold">Summary</h3>
+                <p className="text-sm text-gray-600 mt-2">Overview of recommendations and quick links to export results or copy ad copy to clipboard.</p>
+
+                <div className="mt-3 flex space-x-2">
+                  <button onClick={downloadReport} disabled={!recommendations} className="px-3 py-2 bg-green-600 text-white rounded disabled:opacity-50">Download JSON Report</button>
+                  <button onClick={() => navigator.clipboard.writeText(JSON.stringify({ recommendations, postingTimes, adCopies }, null, 2))} disabled={!recommendations} className="px-3 py-2 bg-indigo-600 text-white rounded disabled:opacity-50">Copy Results</button>
+                </div>
+              </div>
+
+              <div className="p-4 bg-white rounded shadow">
+                <h3 className="font-semibold">Impact Forecast (mock)</h3>
+                <div className="mt-2 text-sm text-gray-600">Estimated improvements after 3 months of using SMA:</div>
+                <ul className="mt-3 list-disc list-inside text-gray-700">
+                  <li>Engagement: +30%</li>
+                  <li>Ad spend waste reduction: -25%</li>
+                  <li>Average ROI improvement: +20%</li>
+                </ul>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {recommendations ? recommendations.map((r, i) => (
+                <ChannelCard key={r.channel} channel={r.channel} score={r.score} times={(postingTimes.find(t => t.channel === r.channel) || { times: ['Anytime'] }).times} adCopy={(adCopies && adCopies[r.channel]) || generateAdCopy({ businessName: form.businessName, product: form.product, tone: form.tone, channel: r.channel, callToAction: form.callToAction })} />
+              )) : (
+                <div className="col-span-1 md:col-span-3 p-6 bg-white rounded shadow text-center text-gray-500">Run an analysis to see channel recommendations, optimal posting times, and tailored ad copy.</div>
+              )}
+            </div>
+
+            <div className="mt-6 p-6 bg-white rounded shadow">
+              <h3 className="font-semibold">Implementation Roadmap</h3>
+              <ol className="list-decimal list-inside mt-3 text-gray-700">
+                <li>Connect social accounts + website analytics (Month 1)</li>
+                <li>Train SMA with business data & set goals (Month 2)</li>
+                <li>Launch first 4-week campaign with AI recommendations (Month 3)</li>
+                <li>Optimize & scale based on KPIs (Months 4–6)</li>
+              </ol>
+
+              <div className="mt-4 text-sm text-gray-600">Tip: Always A/B test AI-generated copy against human-written copy for best results.</div>
+            </div>
+
+            <div className="mt-6 p-6 bg-white rounded shadow">
+              <h3 className="font-semibold">About the Demo & Next Steps</h3>
+              <p className="text-sm text-gray-600 mt-2">This demo runs mock AI logic in-browser for offline demonstration and judging. For production/global use, replace the mock generators with calls to a server-side AI (OpenAI, Anthropic, etc.), secure your API keys, and add internationalization of copy templates.</p>
+
+              <div className="mt-3 text-sm">
+                <strong>Checklist to go worldwide:</strong>
+                <ul className="list-disc list-inside text-gray-700">
+                  <li>Server side AI & rate-limiting</li>
+                  <li>Secure storage (GDPR / data residency)</li>
+                  <li>Translation & localization</li>
+                  <li>Payment & subscription for a SaaS model</li>
+                </ul>
+              </div>
+            </div>
+
+          </section>
+        </main>
+
+        <footer className="mt-8 text-center text-gray-600 text-sm">Built for DECA — Smart Marketing Assistant • Demo UI (in-browser mock AI) • Customize for your competition</footer>
+      </div>
+    </div>
+  );
+}
