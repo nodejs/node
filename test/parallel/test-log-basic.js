@@ -1,9 +1,8 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
 
 const assert = require('node:assert');
-const common = require('../common');
 const { createLogger, Logger, LogConsumer, JSONConsumer, LEVELS, channels } = require('node:logger');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -111,14 +110,16 @@ const path = require('node:path');
   // Flush synchronously and read the output
   consumer.flushSync();
   consumer.end(() => {
-    const output = fs.readFileSync(tmpfile, 'utf8').trim();
-    assert.notStrictEqual(output, '');
-    const parsed = JSON.parse(output);
-    assert.strictEqual(parsed.level, 'info');
-    assert.strictEqual(parsed.msg, 'test message');
-    assert.strictEqual(parsed.userId, 123);
-    assert.strictEqual(typeof parsed.time, 'number');
-    fs.unlinkSync(tmpfile);
+    common.mustSucceed(() => {
+      const output = fs.readFileSync(tmpfile, 'utf8').trim();
+      assert.notStrictEqual(output, '');
+      const parsed = JSON.parse(output);
+      assert.strictEqual(parsed.level, 'info');
+      assert.strictEqual(parsed.msg, 'test message');
+      assert.strictEqual(parsed.userId, 123);
+      assert.strictEqual(typeof parsed.time, 'number');
+      fs.unlinkSync(tmpfile);
+    })();
   });
 }
 
@@ -137,13 +138,15 @@ const path = require('node:path');
 
   consumer.flushSync();
   consumer.end(() => {
-    const output = fs.readFileSync(tmpfile, 'utf8').trim();
-    assert.notStrictEqual(output, '');
-    const parsed = JSON.parse(output);
-    assert.strictEqual(parsed.hostname, 'test-host');
-    assert.strictEqual(parsed.pid, 12345);
-    assert.strictEqual(parsed.msg, 'with fields');
-    fs.unlinkSync(tmpfile);
+    common.mustSucceed(() => {
+      const output = fs.readFileSync(tmpfile, 'utf8').trim();
+      assert.notStrictEqual(output, '');
+      const parsed = JSON.parse(output);
+      assert.strictEqual(parsed.hostname, 'test-host');
+      assert.strictEqual(parsed.pid, 12345);
+      assert.strictEqual(parsed.msg, 'with fields');
+      fs.unlinkSync(tmpfile);
+    })();
   });
 }
 
@@ -162,13 +165,15 @@ const path = require('node:path');
 
   consumer.flushSync();
   consumer.end(() => {
-    const output = fs.readFileSync(tmpfile, 'utf8').trim();
-    assert.notStrictEqual(output, '');
-    const parsed = JSON.parse(output);
-    assert.strictEqual(parsed.requestId, 'xyz-789');
-    assert.strictEqual(parsed.action, 'create');
-    assert.strictEqual(parsed.msg, 'child log');
-    fs.unlinkSync(tmpfile);
+    common.mustSucceed(() => {
+      const output = fs.readFileSync(tmpfile, 'utf8').trim();
+      assert.notStrictEqual(output, '');
+      const parsed = JSON.parse(output);
+      assert.strictEqual(parsed.requestId, 'xyz-789');
+      assert.strictEqual(parsed.action, 'create');
+      assert.strictEqual(parsed.msg, 'child log');
+      fs.unlinkSync(tmpfile);
+    })();
   });
 }
 
@@ -239,12 +244,14 @@ const path = require('node:path');
 
   consumer.flushSync();
   consumer.end(() => {
-    const output = fs.readFileSync(tmpfile, 'utf8').trim();
-    assert.notStrictEqual(output, '');
-    const parsed = JSON.parse(output);
-    assert.strictEqual(parsed.msg, 'simple message');
-    assert.strictEqual(parsed.level, 'info');
-    fs.unlinkSync(tmpfile);
+    common.mustSucceed(() => {
+      const output = fs.readFileSync(tmpfile, 'utf8').trim();
+      assert.notStrictEqual(output, '');
+      const parsed = JSON.parse(output);
+      assert.strictEqual(parsed.msg, 'simple message');
+      assert.strictEqual(parsed.level, 'info');
+      fs.unlinkSync(tmpfile);
+    })();
   });
 }
 
@@ -262,13 +269,15 @@ const path = require('node:path');
 
   consumer.flushSync();
   consumer.end(() => {
-    const output = fs.readFileSync(tmpfile, 'utf8').trim();
-    assert.notStrictEqual(output, '');
-    const parsed = JSON.parse(output);
-    assert.strictEqual(parsed.msg, 'user login');
-    assert.strictEqual(parsed.userId, 123);
-    assert.strictEqual(parsed.ip, '127.0.0.1');
-    fs.unlinkSync(tmpfile);
+    common.mustSucceed(() => {
+      const output = fs.readFileSync(tmpfile, 'utf8').trim();
+      assert.notStrictEqual(output, '');
+      const parsed = JSON.parse(output);
+      assert.strictEqual(parsed.msg, 'user login');
+      assert.strictEqual(parsed.userId, 123);
+      assert.strictEqual(parsed.ip, '127.0.0.1');
+      fs.unlinkSync(tmpfile);
+    })();
   });
 }
 
@@ -288,16 +297,18 @@ const path = require('node:path');
 
   consumer.flushSync();
   consumer.end(() => {
-    const output = fs.readFileSync(tmpfile, 'utf8').trim();
-    assert.notStrictEqual(output, '');
-    const parsed = JSON.parse(output);
-    // Error should be serialized with stack trace
-    assert.strictEqual(parsed.msg, 'operation failed');
-    assert.strictEqual(typeof parsed.err, 'object');
-    assert.strictEqual(parsed.err.message, 'test error');
-    assert.strictEqual(parsed.err.code, 'TEST_ERROR');
-    assert(parsed.err.stack);
-    fs.unlinkSync(tmpfile);
+    common.mustSucceed(() => {
+      const output = fs.readFileSync(tmpfile, 'utf8').trim();
+      assert.notStrictEqual(output, '');
+      const parsed = JSON.parse(output);
+      // Error should be serialized with stack trace
+      assert.strictEqual(parsed.msg, 'operation failed');
+      assert.strictEqual(typeof parsed.err, 'object');
+      assert.strictEqual(parsed.err.message, 'test error');
+      assert.strictEqual(parsed.err.code, 'TEST_ERROR');
+      assert(parsed.err.stack);
+      fs.unlinkSync(tmpfile);
+    })();
   });
 }
 
@@ -316,13 +327,15 @@ const path = require('node:path');
 
   consumer.flushSync();
   consumer.end(() => {
-    const output = fs.readFileSync(tmpfile, 'utf8').trim();
-    assert.notStrictEqual(output, '');
-    const parsed = JSON.parse(output);
-    assert.strictEqual(parsed.msg, 'boom'); // message from error
-    assert.strictEqual(typeof parsed.err, 'object');
-    assert(parsed.err.stack);
-    fs.unlinkSync(tmpfile);
+    common.mustSucceed(() => {
+      const output = fs.readFileSync(tmpfile, 'utf8').trim();
+      assert.notStrictEqual(output, '');
+      const parsed = JSON.parse(output);
+      assert.strictEqual(parsed.msg, 'boom'); // message from error
+      assert.strictEqual(typeof parsed.err, 'object');
+      assert(parsed.err.stack);
+      fs.unlinkSync(tmpfile);
+    })();
   });
 }
 
@@ -342,15 +355,17 @@ const path = require('node:path');
 
   consumer.flushSync();
   consumer.end(() => {
-    const output = fs.readFileSync(tmpfile, 'utf8').trim();
-    assert.notStrictEqual(output, '');
-    const parsed = JSON.parse(output);
-    // Merge order: consumer fields < bindings < log fields
-    assert.strictEqual(parsed.service, 'api');
-    assert.strictEqual(parsed.requestId, '123');
-    assert.strictEqual(parsed.duration, 150);
-    assert.strictEqual(parsed.msg, 'request processed');
-    fs.unlinkSync(tmpfile);
+    common.mustSucceed(() => {
+      const output = fs.readFileSync(tmpfile, 'utf8').trim();
+      assert.notStrictEqual(output, '');
+      const parsed = JSON.parse(output);
+      // Merge order: consumer fields < bindings < log fields
+      assert.strictEqual(parsed.service, 'api');
+      assert.strictEqual(parsed.requestId, '123');
+      assert.strictEqual(parsed.duration, 150);
+      assert.strictEqual(parsed.msg, 'request processed');
+      fs.unlinkSync(tmpfile);
+    })();
   });
 }
 
@@ -370,13 +385,15 @@ const path = require('node:path');
 
   consumer.flushSync();
   consumer.end(() => {
-    const output = fs.readFileSync(tmpfile, 'utf8').trim();
-    assert.notStrictEqual(output, '');
-    const parsed = JSON.parse(output);
-    // Log fields should override everything
-    assert.strictEqual(parsed.env, 'production');
-    assert.strictEqual(parsed.version, '1.0');
-    fs.unlinkSync(tmpfile);
+    common.mustSucceed(() => {
+      const output = fs.readFileSync(tmpfile, 'utf8').trim();
+      assert.notStrictEqual(output, '');
+      const parsed = JSON.parse(output);
+      // Log fields should override everything
+      assert.strictEqual(parsed.env, 'production');
+      assert.strictEqual(parsed.version, '1.0');
+      fs.unlinkSync(tmpfile);
+    })();
   });
 }
 
@@ -418,20 +435,22 @@ const path = require('node:path');
       const output2 = fs.readFileSync(tmpfile2, 'utf8');
       const lines2 = output2.trim().split('\n').filter(Boolean);
 
-      // Consumer1 dosya formatı satır başına log yazıyorsa 4 olmalı, değilse bu kontrolü güncelle.
-      assert.strictEqual(lines1.length, 4);
-      assert.strictEqual(JSON.parse(lines1[0]).level, 'debug');
-      assert.strictEqual(JSON.parse(lines1[1]).level, 'info');
-      assert.strictEqual(JSON.parse(lines1[2]).level, 'warn');
-      assert.strictEqual(JSON.parse(lines1[3]).level, 'error');
+      // Consumer1 should have 4 log lines if each log is written per line.
+      common.mustSucceed(() => {
+        assert.strictEqual(lines1.length, 4);
+        assert.strictEqual(JSON.parse(lines1[0]).level, 'debug');
+        assert.strictEqual(JSON.parse(lines1[1]).level, 'info');
+        assert.strictEqual(JSON.parse(lines1[2]).level, 'warn');
+        assert.strictEqual(JSON.parse(lines1[3]).level, 'error');
 
-      // Consumer2 dosya formatı satır başına log yazıyorsa 2 olmalı, değilse bu kontrolü güncelle.
-      assert.strictEqual(lines2.length, 2);
-      assert.strictEqual(JSON.parse(lines2[0]).level, 'warn');
-      assert.strictEqual(JSON.parse(lines2[1]).level, 'error');
+        // Consumer2 should have 2 log lines if each log is written per line.
+        assert.strictEqual(lines2.length, 2);
+        assert.strictEqual(JSON.parse(lines2[0]).level, 'warn');
+        assert.strictEqual(JSON.parse(lines2[1]).level, 'error');
 
-      fs.unlinkSync(tmpfile1);
-      fs.unlinkSync(tmpfile2);
+        fs.unlinkSync(tmpfile1);
+        fs.unlinkSync(tmpfile2);
+      })();
     }
   }
 
@@ -471,11 +490,13 @@ const path = require('node:path');
 
   logger.error({ msg: 'Multiple errors', err, error });
 
-  assert.strictEqual(logs.length, 1);
-  assert.strictEqual(logs[0].err.message, 'Error 1');
-  assert.strictEqual(logs[0].error.message, 'Error 2');
-  assert.ok(logs[0].err.stack);
-  assert.ok(logs[0].error.stack);
+  common.mustSucceed(() => {
+    assert.strictEqual(logs.length, 1);
+    assert.strictEqual(logs[0].err.message, 'Error 1');
+    assert.strictEqual(logs[0].error.message, 'Error 2');
+    assert.ok(logs[0].err.stack);
+    assert.ok(logs[0].error.stack);
+  })();
 }
 
 // Test: 'error' field serialization
@@ -498,8 +519,10 @@ const path = require('node:path');
 
   logger.error({ msg: 'Operation failed', error });
 
-  assert.strictEqual(logs.length, 1);
-  assert.strictEqual(logs[0].error.message, 'Test error');
-  assert.strictEqual(logs[0].error.code, 'TEST_CODE');
-  assert.ok(logs[0].error.stack);
+  common.mustSucceed(() => {
+    assert.strictEqual(logs.length, 1);
+    assert.strictEqual(logs[0].error.message, 'Test error');
+    assert.strictEqual(logs[0].error.code, 'TEST_CODE');
+    assert.ok(logs[0].error.stack);
+  })();
 }
