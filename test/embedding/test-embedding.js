@@ -154,7 +154,7 @@ for (const extraSnapshotArgs of [
 }
 
 // Guarantee NODE_REPL_EXTERNAL_MODULE won't bypass kDisableNodeOptionsEnv
-{
+if (!process.config.variables.node_without_node_options) {
   spawnSyncAndExit(
     binary,
     ['require("os")'],
