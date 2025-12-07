@@ -729,7 +729,7 @@ Intercepted DatabaseSyncLimits::LimitsGetter(
   }
 
   DatabaseSyncLimits* limits;
-  ASSIGN_OR_RETURN_UNWRAP(&limits, info.This(), Intercepted::kNo);
+  ASSIGN_OR_RETURN_UNWRAP(&limits, info.HolderV2(), Intercepted::kNo);
 
   Environment* env = limits->env();
   Isolate* isolate = env->isolate();
@@ -761,7 +761,7 @@ Intercepted DatabaseSyncLimits::LimitsSetter(
   }
 
   DatabaseSyncLimits* limits;
-  ASSIGN_OR_RETURN_UNWRAP(&limits, info.This(), Intercepted::kNo);
+  ASSIGN_OR_RETURN_UNWRAP(&limits, info.HolderV2(), Intercepted::kNo);
 
   Environment* env = limits->env();
   Isolate* isolate = env->isolate();
