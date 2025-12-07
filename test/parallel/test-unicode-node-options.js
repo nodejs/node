@@ -1,9 +1,13 @@
 'use strict';
 // Flags: --expose-internals
-require('../common');
+const common = require('../common');
 const { getOptionValue } = require('internal/options');
 const assert = require('assert');
 const cp = require('child_process');
+
+if (process.config.variables.node_without_node_options) {
+  common.skip('missing NODE_OPTIONS support');
+}
 
 const expected_redirect_value = 'foó';
 

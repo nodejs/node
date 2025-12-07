@@ -1,10 +1,15 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
 const {
   spawnSyncAndExitWithoutError,
   spawnSyncAndAssert,
 } = require('../common/child_process');
+
+if (process.config.variables.node_without_node_options) {
+  common.skip('missing NODE_OPTIONS support');
+}
+
 const fixtures = require('../common/fixtures');
 spawnSyncAndExitWithoutError(
   process.execPath,
