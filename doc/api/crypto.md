@@ -4527,7 +4527,7 @@ added:
  - v20.12.0
 changes:
   - version: REPLACEME
-    pr-url: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/60994
     description: This API is no longer experimental.
   - version: v24.4.0
     pr-url: https://github.com/nodejs/node/pull/58121
