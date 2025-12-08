@@ -10,3 +10,5 @@ const { join } = require('node:path');
 
 const testDirPath = join(__dirname, '..', '..');
 readdir(Buffer.from(testDirPath), { recursive: true }).then(common.mustCall());
+
+readdir(Buffer.from(testDirPath), { recursive: true, withFileTypes: true }).then(common.mustCall());
