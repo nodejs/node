@@ -320,22 +320,20 @@ static void GetCallSites(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(callsites);
 }
 
+/**
+ * Checks whether the current call directly initiated from a file inside
+ * node_modules. This checks up to `frame_limit` stack frames, until it finds
+ * a frame that is not part of node internal modules.
+ */
 static void IsInsideNodeModules(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
-  CHECK_EQ(args.Length(), 2);
-  CHECK(args[0]->IsInt32());  // frame_limit
-  // The second argument is the default value.
 
-  int frames_limit = args[0].As<v8::Int32>()->Value();
+  int frames_limit = (args.Length() > 0 && args[0]->IsInt32())
+                         ? args[0].As<v8::Int32>()->Value()
+                         : 10;
   Local<StackTrace> stack =
       StackTrace::CurrentStackTrace(isolate, frames_limit);
   int frame_count = stack->GetFrameCount();
-
-  // If the search requires looking into more than |frames_limit| frames, give
-  // up and return the specified default value.
-  if (frame_count == frames_limit) {
-    return args.GetReturnValue().Set(args[1]);
-  }
 
   bool result = false;
   for (int i = 0; i < frame_count; ++i) {
@@ -350,13 +348,11 @@ static void IsInsideNodeModules(const FunctionCallbackInfo<Value>& args) {
     if (script_name_str.starts_with("node:")) {
       continue;
     }
-    if (script_name_str.find("/node_modules/") != std::string::npos ||
-        script_name_str.find("\\node_modules\\") != std::string::npos ||
-        script_name_str.find("/node_modules\\") != std::string::npos ||
-        script_name_str.find("\\node_modules/") != std::string::npos) {
-      result = true;
-      break;
-    }
+    result = script_name_str.find("/node_modules/") != std::string::npos ||
+             script_name_str.find("\\node_modules\\") != std::string::npos ||
+             script_name_str.find("/node_modules\\") != std::string::npos ||
+             script_name_str.find("\\node_modules/") != std::string::npos;
+    break;
   }
 
   args.GetReturnValue().Set(result);
