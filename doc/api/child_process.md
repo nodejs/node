@@ -1711,12 +1711,6 @@ When the child process is terminated by a signal, `subprocess.exitCode` will be
 `null`. To get the corresponding POSIX exit code, use
 [`util.convertProcessSignalToExitCode(subprocess.signalCode)`][`util.convertProcessSignalToExitCode()`].
 
-**Note:** The `child_process` module does not automatically set `exitCode` when
-a process is terminated by a signal to avoid breaking changes in existing code
-that may depend on `exitCode` being `null` in such cases. The
-[`util.convertProcessSignalToExitCode()`][] utility function is provided to
-allow applications to opt-in to this conversion when needed.
-
 ### `subprocess.kill([signal])`
 
 <!-- YAML
