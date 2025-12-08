@@ -125,4 +125,28 @@ describe('test runner flag propagation', () => {
       });
     }
   });
+
+  describe('V8 specific flags', () => {
+    const v8FlagTestFixture = path.join(fixtureDir, 'issue-60986.mjs');
+    it('should propagate V8 only flags to child tests', () => {
+
+      const child = spawnSync(
+        process.execPath,
+        [
+          '--allow-natives-syntax',
+          '--expose-gc',
+          '--test',
+          v8FlagTestFixture,
+        ],
+        {
+          cwd: fixtureDir,
+        },
+      );
+
+      assert.strictEqual(child.status, 0, `V8 flag propagation test failed.`);
+      const stdout = child.stdout.toString();
+      assert.match(stdout, /tests 1/, `Test should execute for V8 flag propagation`);
+      assert.match(stdout, /pass 1/, `Test should pass for V8 flag propagation check`);
+    });
+  });
 });
