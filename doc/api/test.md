@@ -226,6 +226,11 @@ test('todo() method with message', (t) => {
 
 ## Expecting tests to fail
 
+<!-- YAML
+added:
+ - REPLACEME
+-->
+
 These are tests written to otherwise pass but there is some issue (often
 upstream) causing them to fail. Rather than using `skip` or `todo`, which would
 effectively silence the failure, the test would instead be marked `xfail` (`x`
