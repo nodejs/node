@@ -5,6 +5,7 @@ on:
     paths-ignore:
       - .mailmap
       - README.md
+      - vcbuild.bat
       - test/internet/**
       - .github/**
       - '!.github/workflows/test-linux.yml'
@@ -18,6 +19,7 @@ on:
     paths-ignore:
       - .mailmap
       - README.md
+      - vcbuild.bat
       - test/internet/**
       - .github/**
       - '!.github/workflows/test-linux.yml'
