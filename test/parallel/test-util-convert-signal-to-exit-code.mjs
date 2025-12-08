@@ -3,7 +3,6 @@ import assert from 'assert';
 import { convertProcessSignalToExitCode } from 'util';
 import { spawn } from 'child_process';
 
-// Test valid signal names
 {
   // SIGTERM = 15, so 128 + 15 = 143
   assert.strictEqual(convertProcessSignalToExitCode('SIGTERM'), 143);
@@ -21,16 +20,11 @@ import { spawn } from 'child_process';
   assert.strictEqual(convertProcessSignalToExitCode('SIGABRT'), 134);
 }
 
-// Test invalid signal names return null
-{
-  assert.strictEqual(convertProcessSignalToExitCode('INVALID'), null);
-  assert.strictEqual(convertProcessSignalToExitCode(''), null);
-  assert.strictEqual(convertProcessSignalToExitCode('SIG'), null);
-}
-
-// Test invalid argument types
 {
   [
+    'INVALID',
+    '',
+    'SIG',
     undefined,
     null,
     123,
@@ -44,14 +38,13 @@ import { spawn } from 'child_process';
     assert.throws(
       () => convertProcessSignalToExitCode(value),
       {
-        code: 'ERR_INVALID_ARG_TYPE',
+        code: 'ERR_INVALID_ARG_VALUE',
         name: 'TypeError',
       }
     );
   });
 }
 
-// Test with actual child process termination
 {
   const cat = spawn(isWindows ? 'cmd' : 'cat');
   cat.stdout.on('end', mustCall());
@@ -63,7 +56,6 @@ import { spawn } from 'child_process';
     assert.strictEqual(signal, 'SIGTERM');
     assert.strictEqual(cat.signalCode, 'SIGTERM');
 
-    // Verify the utility function returns correct exit code
     const exitCode = convertProcessSignalToExitCode(signal);
     assert.strictEqual(exitCode, 143);
   }));
