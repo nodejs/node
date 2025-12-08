@@ -1547,42 +1547,6 @@ exited, `code` is the final exit code of the process, otherwise `null`. If the
 process terminated due to receipt of a signal, `signal` is the string name of
 the signal, otherwise `null`. One of the two will always be non-`null`.
 
-When `code` is `null` due to signal termination, you can use
-[`util.convertProcessSignalToExitCode()`][] to convert the signal to a POSIX
-exit code.
-
-```cjs
-const { spawn } = require('node:child_process');
-const { convertProcessSignalToExitCode } = require('node:util');
-
-const ls = spawn('ls', ['-lh', '/usr']);
-
-ls.kill();
-
-ls.on('exit', (code, signal) => {
-  const exitCode = convertProcessSignalToExitCode(signal);
-  console.log(`signal ${signal}, POSIX exit code: ${exitCode}`);
-});
-
-// signal SIGTERM, POSIX exit code: 143
-```
-
-```mjs
-import { spawn } from 'node:child_process';
-import { once } from 'node:events';
-import { convertProcessSignalToExitCode } from 'node:util';
-
-const ls = spawn('ls', ['-lh', '/usr']);
-
-ls.kill();
-
-const [code, signal] = await once(ls, 'exit');
-const exitCode = convertProcessSignalToExitCode(signal);
-console.log(`signal ${signal}, POSIX exit code: ${exitCode}`);
-
-// signal SIGTERM, POSIX exit code: 143
-```
-
 When the `'exit'` event is triggered, child process stdio streams might still be
 open.
 
@@ -1592,6 +1556,10 @@ Rather, Node.js will perform a sequence of cleanup actions and then will
 re-raise the handled signal.
 
 See waitpid(2).
+
+When `code` is `null` due to signal termination, you can use
+[`util.convertProcessSignalToExitCode()`][] to convert the signal to a POSIX
+exit code.
 
 ### Event: `'message'`
 
@@ -1708,7 +1676,8 @@ The `subprocess.exitCode` property indicates the exit code of the child process.
 If the child process is still running, the field will be `null`.
 
 When the child process is terminated by a signal, `subprocess.exitCode` will be
-`null`. To get the corresponding POSIX exit code, use
+`null` and [`subprocess.signalCode`][] will be set. To get the corresponding
+POSIX exit code, use
 [`util.convertProcessSignalToExitCode(subprocess.signalCode)`][`util.convertProcessSignalToExitCode()`].
 
 ### `subprocess.kill([signal])`
@@ -2147,6 +2116,10 @@ connection to the child.
 The `subprocess.signalCode` property indicates the signal received by
 the child process if any, else `null`.
 
+When the child process is terminated by a signal, [`subprocess.exitCode`][] will be `null`.
+To get the corresponding POSIX exit code, use
+[`util.convertProcessSignalToExitCode(subprocess.signalCode)`][`util.convertProcessSignalToExitCode()`].
+
 ### `subprocess.spawnargs`
 
 * Type: {Array}
@@ -2427,8 +2400,10 @@ or [`child_process.fork()`][].
 [`stdio`]: #optionsstdio
 [`subprocess.connected`]: #subprocessconnected
 [`subprocess.disconnect()`]: #subprocessdisconnect
+[`subprocess.exitCode`]: #subprocessexitcode
 [`subprocess.kill()`]: #subprocesskillsignal
 [`subprocess.send()`]: #subprocesssendmessage-sendhandle-options-callback
+[`subprocess.signalCode`]: #subprocesssignalcode
 [`subprocess.stderr`]: #subprocessstderr
 [`subprocess.stdin`]: #subprocessstdin
 [`subprocess.stdio`]: #subprocessstdio
