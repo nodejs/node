@@ -1,0 +1,102 @@
+// app.js (Express + pg + socket.io)
+const express = require('express');
+const {Pool} = require('pg');
+const http = require('http');
+const socketio = require('socket.io');
+
+const pool = new Pool({ /* connection config */ });
+const app = express();
+app.use(express.json());
+const server = http.createServer(app);
+const io = socketio(server);
+
+// simple auth middleware placeholder
+function auth(req, res, next) {
+  // assume req.user set by token middleware
+  req.user = { id: req.header('x-user-id') || 'test-user' };
+  next();
+}
+
+// WebSocket namespace for auctions
+io.of('/auctions').on('connection', socket => {
+  const {auctionId} = socket.handshake.query;
+  socket.join(`auction:${auctionId}`);
+});
+
+// POST /auctions/:id/bid
+app.post('/auctions/:id/bid', auth, async (req, res) => {
+  const auctionId = req.params.id;
+  const userId = req.user.id;
+  const amount = Number(req.body.amount);
+  if (!amount || amount <= 0) return res.status(400).json({error:'invalid amount'});
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // Lock the auction row to prevent race
+    const aRes = await client.query(
+      `SELECT id, reserve_price, end_time, status, highest_bid_id FROM auctions WHERE id=$1 FOR UPDATE`,
+      [auctionId]
+    );
+    if (aRes.rowCount === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({error:'auction not found'});
+    }
+    const auction = aRes.rows[0];
+    if (auction.status !== 'running') {
+      await client.query('ROLLBACK');
+      return res.status(400).json({error:'auction not running'});
+    }
+
+    // get current highest bid amount
+    let currentHighest = 0;
+    if (auction.highest_bid_id) {
+      const hb = await client.query('SELECT amount FROM bids WHERE id=$1', [auction.highest_bid_id]);
+      if (hb.rowCount) currentHighest = Number(hb.rows[0].amount);
+    }
+
+    const minIncrement = 1; // business rule; could vary
+    const minAllowed = Math.max(auction.reserve_price || 0, currentHighest + minIncrement);
+
+    if (amount < minAllowed) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({error:'bid too low', minAllowed});
+    }
+
+    // insert bid
+    const bidRes = await client.query(
+      `INSERT INTO bids (auction_id, user_id, amount, is_proxy, created_at)
+       VALUES ($1,$2,$3,false,now()) RETURNING id, created_at`,
+      [auctionId, userId, amount]
+    );
+    const bidId = bidRes.rows[0].id;
+
+    // update auction cache pointer
+    await client.query(`UPDATE auctions SET highest_bid_id=$1 WHERE id=$2`, [bidId, auctionId]);
+
+    // write audit event
+    await client.query(
+      `INSERT INTO audit_events (auction_id, event_type, payload_json, created_at)
+       VALUES ($1,'bid_placed', $2, now())`,
+      [auctionId, JSON.stringify({bidId, userId, amount})]
+    );
+
+    await client.query('COMMIT');
+
+    // notify via websocket
+    io.of('/auctions').to(`auction:${auctionId}`).emit('bid_update', {
+      auctionId, bidId, userId, amount, timestamp: bidRes.rows[0].created_at
+    });
+
+    return res.json({status:'accepted', bidId, current_price: amount});
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error(err);
+    return res.status(500).json({error:'internal'});
+  } finally {
+    client.release();
+  }
+});
+
+server.listen(3000, ()=> console.log('listening 3000'));
