@@ -5,6 +5,7 @@ on:
     paths-ignore:
       - .mailmap
       - README.md
+      - vcbuild.bat
       - test/internet/**
       - '**.nix'
       - .github/**
@@ -19,6 +20,7 @@ on:
     paths-ignore:
       - .mailmap
       - README.md
+      - vcbuild.bat
       - test/internet/**
       - '**.nix'
       - .github/**
