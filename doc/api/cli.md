@@ -403,9 +403,12 @@ Error: Access to this API has been restricted
 
 <!-- YAML
 added: v18.8.0
+changes:
+  - version:
+    - REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/60954
+    description: The snapshot building process is no longer experimental.
 -->
-
-> Stability: 1 - Experimental
 
 Generates a snapshot blob when the process exits and writes it to
 disk, which can be loaded later with `--snapshot-blob`.
@@ -442,18 +445,25 @@ I am from the snapshot
 
 For more information, check out the [`v8.startupSnapshot` API][] documentation.
 
-Currently the support for run-time snapshot is experimental in that:
+The snapshot currently only supports loding a single entrypoint during the
+snapshot building process, which can load built-in modules, but not additional user-land modules.
+Users can bundle their applications into a single script with their bundler
+of choice before building a snapshot.
 
-1. User-land modules are not yet supported in the snapshot, so only
-   one single file can be snapshotted. Users can bundle their applications
-   into a single script with their bundler of choice before building
-   a snapshot, however.
-2. Only a subset of the built-in modules work in the snapshot, though the
-   Node.js core test suite checks that a few fairly complex applications
-   can be snapshotted. Support for more modules are being added. If any
-   crashes or buggy behaviors occur when building a snapshot, please file
-   a report in the [Node.js issue tracker][] and link to it in the
-   [tracking issue for user-land snapshots][].
+As it's complicated to ensure the serializablility of all built-in modules,
+which are also growing over time, only a subset of the built-in modules are
+well tested to be serializable during the snapshot building process.
+The Node.js core test suite checks that a few fairly complex applications
+can be snapshotted. The list of built-in modules being
+[captured by the built-in snapshot of Node.js][] is considered supported.
+When the snapshot builder encounters a built-in module that cannot be
+serialized, it may crash the snapshot building process. In that case a typical
+workaround would be to delay loading that module until
+runtime, using either [`v8.startupSnapshot.setDeserializeMainFunction()`][] or
+[`v8.startupSnapshot.addDeserializeCallback()`][]. If serialization for
+an additional module during the snapshot building process is needed,
+please file a request in the [Node.js issue tracker][] and link to it in the
+[tracking issue for user-land snapshots][].
 
 ### `--build-snapshot-config`
 
@@ -461,9 +471,12 @@ Currently the support for run-time snapshot is experimental in that:
 added:
   - v21.6.0
   - v20.12.0
+changes:
+  - version:
+    - REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/60954
+    description: The snapshot building process is no longer experimental.
 -->
-
-> Stability: 1 - Experimental
 
 Specifies the path to a JSON configuration file which configures snapshot
 creation behavior.
@@ -4175,7 +4188,10 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`tls.DEFAULT_MAX_VERSION`]: tls.md#tlsdefault_max_version
 [`tls.DEFAULT_MIN_VERSION`]: tls.md#tlsdefault_min_version
 [`unhandledRejection`]: process.md#event-unhandledrejection
+[`v8.startupSnapshot.addDeserializeCallback()`]: v8.md#v8startupsnapshotadddeserializecallbackcallback-data
+[`v8.startupSnapshot.setDeserializeMainFunction()`]: v8.md#v8startupsnapshotsetdeserializemainfunctioncallback-data
 [`v8.startupSnapshot` API]: v8.md#startup-snapshot-api
+[captured by the built-in snapshot of Node.js]: https://github.com/nodejs/node/blob/b19525a33cc84033af4addd0f80acd4dc33ce0cf/test/parallel/test-bootstrap-modules.js#L24
 [collecting code coverage from tests]: test.md#collecting-code-coverage
 [conditional exports]: packages.md#conditional-exports
 [context-aware]: addons.md#context-aware-addons
