@@ -415,6 +415,11 @@ to disk when the Node.js instance is about to exit. This is subject to change. T
 is flushed to disk in case the application wants to spawn other Node.js instances
 and let them share the cache long before the parent exits.
 
+The compile cache layout on disk is an implementation detail and should not be
+relied upon. The compile cache generated is typically only reusable in the same
+version of Node.js, and should be not assumed to be compatible across different
+versions of Node.js.
+
 ### Portability of the compile cache
 
 By default, caches are invalidated when the absolute paths of the modules being
@@ -454,9 +459,11 @@ separately if the same base directory is used to persist the cache, so they can 
 
 <!-- YAML
 added: v22.8.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/60971
+    description: This feature is no longer experimental.
 -->
-
-> Stability: 1.1 - Active Development
 
 The following constants are returned as the `status` field in the object returned by
 [`module.enableCompileCache()`][] to indicate the result of the attempt to enable the
@@ -508,6 +515,9 @@ The following constants are returned as the `status` field in the object returne
 <!-- YAML
 added: v22.8.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/60971
+    description: This feature is no longer experimental.
   - version: v24.12.0
     pr-url: https://github.com/nodejs/node/pull/58797
     description: Add `portable` option to enable portable compile cache.
@@ -515,8 +525,6 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/59931
     description: Rename the unreleased `path` option to `directory` to maintain consistency.
 -->
-
-> Stability: 1.1 - Active Development
 
 * `options` {string|Object} Optional. If a string is passed, it is considered to be `options.directory`.
   * `directory` {string} Optional. Directory to store the compile cache. If not specified,
@@ -562,9 +570,11 @@ be inherited into the child workers. The directory can be obtained either from t
 added:
  - v23.0.0
  - v22.10.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/60971
+    description: This feature is no longer experimental.
 -->
-
-> Stability: 1.1 - Active Development
 
 Flush the [module compile cache][] accumulated from modules already loaded
 in the current Node.js instance to disk. This returns after all the flushing
@@ -576,9 +586,11 @@ interfere with the actual operation of the application.
 
 <!-- YAML
 added: v22.8.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/60971
+    description: This feature is no longer experimental.
 -->
-
-> Stability: 1.1 - Active Development
 
 * Returns: {string|undefined} Path to the [module compile cache][] directory if it is enabled,
   or `undefined` otherwise.
