@@ -4361,7 +4361,7 @@ added:
 
 Set the maximum number of idle HTTP parsers.
 
-## `http.setGlobalProxyFromEnv(proxyEnv)`
+## `http.setGlobalProxyFromEnv([proxyEnv])`
 
 <!-- YAML
 added:
@@ -4369,7 +4369,8 @@ added:
 -->
 
 * `proxyEnv` {Object} An object containing proxy configuration. This accepts the
-  same options as the `proxyEnv` option accepted by [`Agent`][]
+  same options as the `proxyEnv` option accepted by [`Agent`][]. **Default:**
+  `process.env`.
 * Returns: {Function} A function that restores the original agent and dispatcher
   settings to the state before this `http.setGlobalProxyFromEnv()` is invoked.
 
@@ -4466,7 +4467,47 @@ Or the `--use-env-proxy` flag.
 HTTP_PROXY=http://proxy.example.com:8080 NO_PROXY=localhost,127.0.0.1 node --use-env-proxy client.js
 ```
 
-To enable proxy support dynamically and globally:
+To enable proxy support dynamically and globally with `process.env` (the default option of `http.setGlobalProxyFromEnv()`):
+
+```cjs
+const http = require('node:http');
+
+// Reads proxy-related environment variables from process.env
+const restore = http.setGlobalProxyFromEnv();
+
+// Subsequent requests will use the configured proxies from environment variables
+http.get('http://www.example.com', (res) => {
+  // This request will be proxied if HTTP_PROXY or http_proxy is set
+});
+
+fetch('https://www.example.com', (res) => {
+  // This request will be proxied if HTTPS_PROXY or https_proxy is set
+});
+
+// To restore the original global agent and dispatcher settings, call the returned function.
+// restore();
+```
+
+```mjs
+import http from 'node:http';
+
+// Reads proxy-related environment variables from process.env
+http.setGlobalProxyFromEnv();
+
+// Subsequent requests will use the configured proxies from environment variables
+http.get('http://www.example.com', (res) => {
+  // This request will be proxied if HTTP_PROXY or http_proxy is set
+});
+
+fetch('https://www.example.com', (res) => {
+  // This request will be proxied if HTTPS_PROXY or https_proxy is set
+});
+
+// To restore the original global agent and dispatcher settings, call the returned function.
+// restore();
+```
+
+To enable proxy support dynamically and globally with custom settings:
 
 ```cjs
 const http = require('node:http');
@@ -4504,25 +4545,6 @@ http.get('http://www.example.com', (res) => {
 fetch('https://www.example.com', (res) => {
   // This request will be proxied through proxy.example.com:8443
 });
-```
-
-To clear the dynamically enabled global proxy configuration:
-
-```cjs
-const http = require('node:http');
-const restore = http.setGlobalProxyFromEnv({ /* ... */ });
-// Perform requests that will be proxied.
-restore();
-// From now on, requests will no longer be proxied.
-```
-
-```mjs
-import http from 'node:http';
-
-const restore = http.setGlobalProxyFromEnv({ /* ... */ });
-// Perform requests that will be proxied.
-restore();
-// From now on, requests will no longer be proxied.
 ```
 
 To create a custom agent with built-in proxy support:

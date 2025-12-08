@@ -2,6 +2,8 @@ let restore;
 if (process.env.SET_GLOBAL_PROXY) {
   const config = JSON.parse(process.env.SET_GLOBAL_PROXY);
   restore = require('http').setGlobalProxyFromEnv(config);
+} else if (process.env.SET_GLOBAL_PROXY_DEFAULT) {
+  restore = require('http').setGlobalProxyFromEnv();
 }
 
 const url = process.env.REQUEST_URL;
