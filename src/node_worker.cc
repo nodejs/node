@@ -352,7 +352,8 @@ void Worker::Run() {
                                           SnapshotData::kNodeBaseContextIndex)
                         .ToLocalChecked();
           if (!context.IsEmpty() &&
-              !InitializeContextRuntime(context, data.isolate_data_.get()).IsJust()) {
+              !InitializeContextRuntime(context, data.isolate_data_.get())
+                   .IsJust()) {
             context = Local<Context>();
           }
         } else {
