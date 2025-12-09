@@ -1,9 +1,9 @@
 # Source Map Tests
 
-This repository holds testing discussions and tests for the the Source Map debugging format. Specifically, we're looking to encourage discussion around:
+This repository holds discussions on testing and tests for the Source Map debugging format. Specifically, we're looking to encourage discussion around:
 
 - Manual and automated testing strategies for Source Maps
-- Gathering a list of Soure Map generators and consumers
+- Gathering a list of Source Map generators and consumers
 - General discussion around deviations between source maps
 
 Open discussion happens in the [GitHub issues](https://github.com/source-map/source-map-tests/issues).
@@ -53,3 +53,8 @@ How to run in Chrome Devtools:
     * Run `git apply <path to .patch file>` in `devtools-frontend` repo
 
 More information about running Chrome Devtools without building Chromium can be found [here](https://chromium.googlesource.com/devtools/devtools-frontend/+/refs/heads/chromium/3965/README.md)
+
+#### Node.js
+
+Follow the [running Node.js tests guide](https://github.com/nodejs/node/blob/main/BUILDING.md#running-tests) to build Node.js and run tests locally.
+Read more about running the source map tests at [here](https://github.com/nodejs/node/tree/main/test/test426).
