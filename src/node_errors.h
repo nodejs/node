@@ -328,7 +328,7 @@ namespace errors {
 
 class TryCatchScope : public v8::TryCatch {
  public:
-  enum class CatchMode { kNormal, kFatal };
+  enum class CatchMode { kNormal, kFatal, kFatalRethrowStackOverflow };
 
   explicit TryCatchScope(Environment* env, CatchMode mode = CatchMode::kNormal)
       : v8::TryCatch(env->isolate()), env_(env), mode_(mode) {}

@@ -474,7 +474,8 @@ static void PrintJavaScriptStack(JSONWriter* writer,
                                  const char* trigger) {
   HandleScope scope(isolate);
   Local<v8::StackTrace> stack;
-  if (!GetCurrentStackTrace(isolate, MAX_FRAME_COUNT).ToLocal(&stack)) {
+  if (!GetCurrentStackTrace(isolate, MAX_FRAME_COUNT).ToLocal(&stack) ||
+      stack->GetFrameCount() == 0) {
     PrintEmptyJavaScriptStack(writer);
     return;
   }
