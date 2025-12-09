@@ -67,7 +67,8 @@ static const char* const provider_names[] = {
 void AsyncWrap::DestroyAsyncIdsCallback(Environment* env) {
   Local<Function> fn = env->async_hooks_destroy_function();
 
-  TryCatchScope try_catch(env, TryCatchScope::CatchMode::kFatal);
+  TryCatchScope try_catch(env,
+                          TryCatchScope::CatchMode::kFatalRethrowStackOverflow);
 
   do {
     std::vector<double> destroy_async_id_list;
@@ -96,7 +97,8 @@ void Emit(Environment* env, double async_id, AsyncHooks::Fields type,
 
   HandleScope handle_scope(env->isolate());
   Local<Value> async_id_value = Number::New(env->isolate(), async_id);
-  TryCatchScope try_catch(env, TryCatchScope::CatchMode::kFatal);
+  TryCatchScope try_catch(env,
+                          TryCatchScope::CatchMode::kFatalRethrowStackOverflow);
   USE(fn->Call(env->context(), Undefined(env->isolate()), 1, &async_id_value));
 }
 
@@ -668,7 +670,8 @@ void AsyncWrap::EmitAsyncInit(Environment* env,
     object,
   };
 
-  TryCatchScope try_catch(env, TryCatchScope::CatchMode::kFatal);
+  TryCatchScope try_catch(env,
+                          TryCatchScope::CatchMode::kFatalRethrowStackOverflow);
   USE(init_fn->Call(env->context(), object, arraysize(argv), argv));
 }
 
