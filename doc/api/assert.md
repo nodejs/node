@@ -1682,6 +1682,8 @@ If no arguments are passed in at all `message` will be set to the string:
 Be aware that in the `repl` the error message will be different to the one
 thrown in a file! See below for further details.
 
+<!-- eslint-skip -->
+
 ```mjs
 import assert from 'node:assert/strict';
 
@@ -1716,6 +1718,8 @@ assert.ok(0);
 //
 //   assert.ok(0)
 ```
+
+<!-- eslint-skip -->
 
 ```cjs
 const assert = require('node:assert/strict');
@@ -1756,20 +1760,20 @@ assert.ok(0);
 import assert from 'node:assert/strict';
 
 // Using `assert()` works the same:
-assert(0);
+assert(2 + 2 > 5);
 // AssertionError: The expression evaluated to a falsy value:
 //
-//   assert(0)
+//   assert(2 + 2 > 5)
 ```
 
 ```cjs
 const assert = require('node:assert');
 
 // Using `assert()` works the same:
-assert(0);
+assert(2 + 2 > 5);
 // AssertionError: The expression evaluated to a falsy value:
 //
-//   assert(0)
+//   assert(2 + 2 > 5)
 ```
 
 ## `assert.rejects(asyncFn[, error][, message])`
