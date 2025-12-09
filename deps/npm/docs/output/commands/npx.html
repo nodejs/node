@@ -141,9 +141,9 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="----npx----1164">
+<h1 id="----npx----1170">
     <span>npx</span>
-    <span class="version">@11.6.4</span>
+    <span class="version">@11.7.0</span>
 </h1>
 <span class="description">Run a command from a local or remote npm package</span>
 </header>
@@ -161,6 +161,7 @@ npx --package=foo -c '&lt;cmd&gt; [args...]'
 </code></pre>
 <h3 id="description">Description</h3>
 <p>This command allows you to run an arbitrary command from an npm package (either one installed locally, or fetched remotely), in a similar context as running it via <code>npm run</code>.</p>
+<p>Run this command to execute a package's binary. Any options and arguments after the package name are passed directly to the executed command, not to npx itself. For example, <code>npx create-react-app my-app --template typescript</code> will pass <code>my-app</code> and <code>--template typescript</code> to the <code>create-react-app</code> command. To see what options a specific package accepts, consult that package's documentation (e.g., at npmjs.com or in its repository).</p>
 <p>Whatever packages are specified by the <code>--package</code> option will be provided in the <code>PATH</code> of the executed command, along with any locally installed package executables.
 The <code>--package</code> option may be specified multiple times, to execute the supplied command in an environment where all specified packages are available.</p>
 <p>If any requested packages are not present in the local project dependencies, then they are installed to a folder in the npm cache, which is added to the <code>PATH</code> environment variable in the executed process.

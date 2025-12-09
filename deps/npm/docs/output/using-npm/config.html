@@ -141,9 +141,9 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="----config----1164">
+<h1 id="----config----1170">
     <span>config</span>
-    <span class="version">@11.6.4</span>
+    <span class="version">@11.7.0</span>
 </h1>
 <span class="description">More than you probably want to know about npm configuration</span>
 </header>
@@ -163,6 +163,13 @@ A <code>--</code> argument tells the cli parser to stop reading flags.
 Using <code>--flag</code> without specifying any value will set the value to <code>true</code>.</p>
 <p>Example: <code>--flag1 --flag2</code> will set both configuration parameters to <code>true</code>, while <code>--flag1 --flag2 bar</code> will set <code>flag1</code> to <code>true</code>, and <code>flag2</code> to <code>bar</code>.
 Finally, <code>--flag1 --flag2 -- bar</code> will set both configuration parameters to <code>true</code>, and the <code>bar</code> is taken as a command argument.</p>
+<p><strong>Common examples:</strong></p>
+<ul>
+<li><code>npm install --prefix /path/to/dir</code> - Runs npm commands in a different directory without changing the current working directory</li>
+<li><code>npm install --global</code> - Installs packages globally (shorthand: <code>-g</code>)</li>
+<li><code>npm install --save-dev</code> - Saves to devDependencies (shorthand: <code>-D</code>)</li>
+</ul>
+<p>Any configuration option documented in the <a href="#config-settings">Config Settings</a> section below can be set via command line flags using <code>--option-name value</code> syntax.</p>
 <h4 id="environment-variables">Environment Variables</h4>
 <p>Any environment variables that start with <code>npm_config_</code> will be interpreted as a configuration parameter.
 For example, putting <code>npm_config_foo=bar</code> in your environment will set the <code>foo</code> configuration parameter to <code>bar</code>.
@@ -971,8 +978,7 @@ time.</p>
 <li>Type: null or String (can be set multiple times)</li>
 </ul>
 <p>When creating a Granular Access Token with <code>npm token create</code>, this limits
-the token access to specific organizations. Provide a comma-separated list
-of organization names.</p>
+the token access to specific organizations.</p>
 <h4 id="orgs-permission"><code>orgs-permission</code></h4>
 <ul>
 <li>Default: null</li>
@@ -1033,8 +1039,7 @@ instead of checking <code>node_modules</code> and downloading dependencies.</p>
 <li>Type: null or String (can be set multiple times)</li>
 </ul>
 <p>When creating a Granular Access Token with <code>npm token create</code>, this limits
-the token access to specific packages. Provide a comma-separated list of
-package names.</p>
+the token access to specific packages.</p>
 <h4 id="packages-all"><code>packages-all</code></h4>
 <ul>
 <li>Default: false</li>
@@ -1273,8 +1278,8 @@ npm init --scope=@foo --yes
 <li>Type: null or String (can be set multiple times)</li>
 </ul>
 <p>When creating a Granular Access Token with <code>npm token create</code>, this limits
-the token access to specific scopes. Provide a comma-separated list of scope
-names (with or without @ prefix).</p>
+the token access to specific scopes. Provide a scope name (with or without @
+prefix).</p>
 <h4 id="script-shell"><code>script-shell</code></h4>
 <ul>
 <li>Default: '/bin/sh' on POSIX systems, 'cmd.exe' on Windows</li>

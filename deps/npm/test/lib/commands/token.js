@@ -63,9 +63,9 @@ t.test('token list', async t => {
   registry.getTokens(tokens)
   await npm.exec('token', [])
   t.strictSame(outputs, [
-    `Publish token efgh5678efgh5678… with id abcd123 created ${now.slice(0, 10)}`,
+    `Token efgh5678efgh5678… with id abcd123 created ${now.slice(0, 10)}`,
     '',
-    `Read only token hgfe8765… with id abcd125 created ${now.slice(0, 10)}`,
+    `Token hgfe8765… with id abcd125 created ${now.slice(0, 10)}`,
     'with IP whitelist: 192.168.1.1/32',
     '',
   ])
@@ -263,7 +263,7 @@ t.test('token create defaults', async t => {
   })
 
   await npm.exec('token', ['create'])
-  t.match(outputs, ['Created publish token n3wt0k3n'])
+  t.match(outputs, ['Created token n3wt0k3n'])
 })
 
 t.test('token create extra token attributes', async t => {
@@ -311,7 +311,7 @@ t.test('token create extra token attributes', async t => {
 
   await npm.exec('token', ['create'])
   t.match(outputs, [
-    'Created read only token n3wt0k3n',
+    'Created token n3wt0k3n',
     'with IP whitelist: 10.0.0.0/8,192.168.1.0/24',
     `expires: ${expires.toISOString()}`,
   ])
@@ -340,7 +340,7 @@ t.test('token create access.read-only', async t => {
   })
 
   await npm.exec('token', ['create'])
-  t.match(outputs, ['Created read only token n3wt0k3n'])
+  t.match(outputs, ['Created token n3wt0k3n'])
 })
 
 t.test('token create readonly', async t => {
@@ -368,7 +368,7 @@ t.test('token create readonly', async t => {
   })
 
   await npm.exec('token', ['create'])
-  t.match(outputs, ['Created read only token n3wt0k3n'])
+  t.match(outputs, ['Created token n3wt0k3n'])
 })
 
 t.test('token create json output', async t => {

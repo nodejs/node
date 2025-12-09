@@ -1,4 +1,4 @@
-.TH "CONFIG" "7" "November 2025" "NPM@11.6.4" ""
+.TH "CONFIG" "7" "December 2025" "NPM@11.7.0" ""
 .SH "NAME"
 \fBconfig\fR - More than you probably want to know about npm configuration
 .SS "Description"
@@ -11,6 +11,19 @@ npm gets its configuration values from the following sources, sorted by priority
 Putting \fB--foo bar\fR on the command line sets the \fBfoo\fR configuration parameter to \fB"bar"\fR. A \fB--\fR argument tells the cli parser to stop reading flags. Using \fB--flag\fR without specifying any value will set the value to \fBtrue\fR.
 .P
 Example: \fB--flag1 --flag2\fR will set both configuration parameters to \fBtrue\fR, while \fB--flag1 --flag2 bar\fR will set \fBflag1\fR to \fBtrue\fR, and \fBflag2\fR to \fBbar\fR. Finally, \fB--flag1 --flag2 -- bar\fR will set both configuration parameters to \fBtrue\fR, and the \fBbar\fR is taken as a command argument.
+.P
+\fBCommon examples:\fR
+.RS 0
+.IP \(bu 4
+\fBnpm install --prefix /path/to/dir\fR - Runs npm commands in a different directory without changing the current working directory
+.IP \(bu 4
+\fBnpm install --global\fR - Installs packages globally (shorthand: \fB-g\fR)
+.IP \(bu 4
+\fBnpm install --save-dev\fR - Saves to devDependencies (shorthand: \fB-D\fR)
+.RE 0
+
+.P
+Any configuration option documented in the \fI(Config Settings)\fR section below can be set via command line flags using \fB--option-name value\fR syntax.
 .SS "Environment Variables"
 .P
 Any environment variables that start with \fBnpm_config_\fR will be interpreted as a configuration parameter. For example, putting \fBnpm_config_foo=bar\fR in your environment will set the \fBfoo\fR configuration parameter to \fBbar\fR. Any environment configurations that are not given a value will be given the value of \fBtrue\fR. Config values are case-insensitive, so \fBNPM_CONFIG_FOO=bar\fR will work the same. However, please note that inside npm help scripts npm will set its own environment variables and Node will prefer those lowercase versions over any uppercase ones that you might set. For details see \fBthis issue\fR \fI\(lahttps://github.com/npm/npm/issues/14528\(ra\fR.
@@ -1157,7 +1170,7 @@ Type: null or String (can be set multiple times)
 .RE 0
 
 .P
-When creating a Granular Access Token with \fBnpm token create\fR, this limits the token access to specific organizations. Provide a comma-separated list of organization names.
+When creating a Granular Access Token with \fBnpm token create\fR, this limits the token access to specific organizations.
 .SS "\fBorgs-permission\fR"
 .RS 0
 .IP \(bu 4
@@ -1243,7 +1256,7 @@ Type: null or String (can be set multiple times)
 .RE 0
 
 .P
-When creating a Granular Access Token with \fBnpm token create\fR, this limits the token access to specific packages. Provide a comma-separated list of package names.
+When creating a Granular Access Token with \fBnpm token create\fR, this limits the token access to specific packages.
 .SS "\fBpackages-all\fR"
 .RS 0
 .IP \(bu 4
@@ -1586,7 +1599,7 @@ Type: null or String (can be set multiple times)
 .RE 0
 
 .P
-When creating a Granular Access Token with \fBnpm token create\fR, this limits the token access to specific scopes. Provide a comma-separated list of scope names (with or without @ prefix).
+When creating a Granular Access Token with \fBnpm token create\fR, this limits the token access to specific scopes. Provide a scope name (with or without @ prefix).
 .SS "\fBscript-shell\fR"
 .RS 0
 .IP \(bu 4
