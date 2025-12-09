@@ -53,7 +53,7 @@ fs.watchFile(FILENAME, { interval: TIMEOUT - 250 }, common.mustCall((curr, prev)
       fs.unwatchFile(FILENAME);
       break;
     default:
-      assert(0);
+      assert.fail();
   }
 }, 4));
 

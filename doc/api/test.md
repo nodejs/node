@@ -1788,7 +1788,7 @@ This function creates a hook that runs before executing a suite.
 describe('tests', async () => {
   before(() => console.log('about to run some test'));
   it('is a subtest', () => {
-    assert.ok('some relevant assertion here');
+    // Some relevant assertions here
   });
 });
 ```
@@ -1818,7 +1818,7 @@ This function creates a hook that runs after executing a suite.
 describe('tests', async () => {
   after(() => console.log('finished running tests'));
   it('is a subtest', () => {
-    assert.ok('some relevant assertion here');
+    // Some relevant assertion here
   });
 });
 ```
@@ -1851,7 +1851,7 @@ This function creates a hook that runs before each test in the current suite.
 describe('tests', async () => {
   beforeEach(() => console.log('about to run a test'));
   it('is a subtest', () => {
-    assert.ok('some relevant assertion here');
+    // Some relevant assertion here
   });
 });
 ```
@@ -1882,7 +1882,7 @@ The `afterEach()` hook is run even if the test fails.
 describe('tests', async () => {
   afterEach(() => console.log('finished running a test'));
   it('is a subtest', () => {
-    assert.ok('some relevant assertion here');
+    // Some relevant assertion here
   });
 });
 ```
@@ -3469,7 +3469,7 @@ test('top level test', async (t) => {
   await t.test(
     'This is a subtest',
     (t) => {
-      assert.ok('some relevant assertion here');
+      // Some relevant assertion here
     },
   );
 });
@@ -3500,7 +3500,7 @@ finishes.
 ```js
 test('top level test', async (t) => {
   t.after((t) => t.diagnostic(`finished running ${t.name}`));
-  assert.ok('some relevant assertion here');
+  // Some relevant assertion here
 });
 ```
 
@@ -3532,7 +3532,7 @@ test('top level test', async (t) => {
   await t.test(
     'This is a subtest',
     (t) => {
-      assert.ok('some relevant assertion here');
+      // Some relevant assertion here
     },
   );
 });

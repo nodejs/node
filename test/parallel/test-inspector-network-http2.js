@@ -96,7 +96,7 @@ const handleStream = common.mustCallAtLeast((stream, headers) => {
       }));
       break;
     default:
-      assert(false, `Unexpected path: ${path}`);
+      assert.fail(`Unexpected path: ${path}`);
   }
 });
 

@@ -4,4 +4,4 @@
 require('../common');
 
 const assert = require('internal/assert');
-assert(false);
+assert(2 + 2 > 5);

@@ -39,7 +39,7 @@ const assert = require('assert');
   duplex.on('end', common.mustNotCall());
   async function run() {
     for await (const chunk of duplex) {
-      assert(false, chunk);
+      assert.fail(chunk);
     }
   }
   run().then(common.mustCall());
