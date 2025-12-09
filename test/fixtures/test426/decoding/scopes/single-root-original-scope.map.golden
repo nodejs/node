@@ -1,0 +1,43 @@
+{
+  "file": "single-root-original-scope.js",
+  "mappings": [],
+  "sources": [
+    {
+      "url": "original_0.js",
+      "content": null,
+      "ignored": false,
+      "scope": {
+        "start": {
+          "line": 0,
+          "column": 0
+        },
+        "end": {
+          "line": 10,
+          "column": 0
+        },
+        "name": null,
+        "kind": "global",
+        "isStackFrame": false,
+        "variables": [],
+        "children": []
+      }
+    }
+  ],
+  "ranges": [
+    {
+      "start": {
+        "line": 0,
+        "column": 0
+      },
+      "end": {
+        "line": 0,
+        "column": 10
+      },
+      "definitionIndex": 0,
+      "stackFrameType": "none",
+      "callSite": null,
+      "bindings": [],
+      "children": []
+    }
+  ]
+}
