@@ -230,7 +230,9 @@ logging when only using `util.debuglog().enabled`.
 <!-- YAML
 added: v0.8.0
 changes:
-  - version: v25.2.0
+  - version:
+      - v25.2.0
+      - v24.12.0
     pr-url: https://github.com/nodejs/node/pull/59982
     description: Add options object with modifyPrototype to conditionally
                  modify the prototype of the deprecated object.

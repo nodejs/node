@@ -3589,7 +3589,9 @@ Found'`.
 <!-- YAML
 added: v0.1.13
 changes:
-  - version: v25.1.0
+  - version:
+      - v25.1.0
+      - v24.12.0
     pr-url: https://github.com/nodejs/node/pull/59778
     description: Add optimizeEmptyRequests option.
   - version:

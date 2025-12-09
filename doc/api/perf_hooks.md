@@ -121,7 +121,9 @@ added:
  - v14.10.0
  - v12.19.0
 changes:
-  - version: v25.2.0
+  - version:
+      - v25.2.0
+      - v24.12.0
     pr-url: https://github.com/nodejs/node/pull/60370
     description: Added `perf_hooks.eventLoopUtilization` alias.
 -->
@@ -375,7 +377,9 @@ which the current `node` process began, measured in Unix time.
 <!-- YAML
 added: v8.5.0
 changes:
-  - version: v25.2.0
+  - version:
+      - v25.2.0
+      - v24.12.0
     pr-url: https://github.com/nodejs/node/pull/60370
     description: Added `perf_hooks.timerify` alias.
   - version: v16.0.0
@@ -1626,7 +1630,9 @@ Returns a {RecordableHistogram}.
 ## `perf_hooks.eventLoopUtilization([utilization1[, utilization2]])`
 
 <!-- YAML
-added: v25.2.0
+added:
+  - v25.2.0
+  - v24.12.0
 -->
 
 * `utilization1` {Object} The result of a previous call to
@@ -1751,7 +1757,9 @@ console.log(h.percentile(99));
 ## `perf_hooks.timerify(fn[, options])`
 
 <!-- YAML
-added: v25.2.0
+added:
+  - v25.2.0
+  - v24.12.0
 -->
 
 * `fn` {Function}

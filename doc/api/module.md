@@ -513,10 +513,14 @@ changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/60971
     description: This feature is no longer experimental.
-  - version: v25.0.0
+  - version:
+      - v25.0.0
+      - v24.12.0
     pr-url: https://github.com/nodejs/node/pull/58797
     description: Add `portable` option to enable portable compile cache.
-  - version: v25.0.0
+  - version:
+      - v25.0.0
+      - v24.12.0
     pr-url: https://github.com/nodejs/node/pull/59931
     description: Rename the unreleased `path` option to `directory` to maintain consistency.
 -->

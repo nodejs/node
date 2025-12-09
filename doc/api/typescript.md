@@ -2,7 +2,9 @@
 
 <!-- YAML
 changes:
-  - version: v25.2.0
+  - version:
+      - v25.2.0
+      - v24.12.0
     pr-url: https://github.com/nodejs/node/pull/60600
     description: Type stripping is now stable.
   - version:
@@ -64,7 +66,9 @@ To use TypeScript with full support for all TypeScript features, including
 <!-- YAML
 added: v22.6.0
 changes:
-  - version: v25.2.0
+  - version:
+      - v25.2.0
+      - v24.12.0
     pr-url: https://github.com/nodejs/node/pull/60600
     description: Type stripping is now stable.
 -->
