@@ -361,7 +361,7 @@ TEST_F(WeakMapsTest, WeakMapsWithChainedEntries) {
       i_isolate()->heap());
   v8::HandleScope scope(isolate);
 
-  const int initial_gc_count = i_isolate()->heap()->gc_count();
+  const GCEpoch initial_gc_count = i_isolate()->heap()->gc_count();
   DirectHandle<JSWeakMap> weakmap1 = i_isolate()->factory()->NewJSWeakMap();
   DirectHandle<JSWeakMap> weakmap2 = i_isolate()->factory()->NewJSWeakMap();
   v8::Global<v8::Object> g1;
@@ -384,7 +384,8 @@ TEST_F(WeakMapsTest, WeakMapsWithChainedEntries) {
   InvokeMajorGC();
   CHECK(g1.IsEmpty());
   CHECK(g2.IsEmpty());
-  CHECK_EQ(1, i_isolate()->heap()->gc_count() - initial_gc_count);
+  CHECK_EQ(1,
+           i_isolate()->heap()->gc_count().value() - initial_gc_count.value());
 }
 
 }  // namespace test_weakmaps

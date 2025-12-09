@@ -112,14 +112,12 @@ int RandomNumberGenerator::NextInt(int max) {
 
 
 double RandomNumberGenerator::NextDouble() {
-  XorShift128(&state0_, &state1_);
-  return ToDouble(state0_);
+  return ToDouble(XorShift128(&state0_, &state1_));
 }
 
 
 int64_t RandomNumberGenerator::NextInt64() {
-  XorShift128(&state0_, &state1_);
-  return base::bit_cast<int64_t>(state0_ + state1_);
+  return base::bit_cast<int64_t>(XorShift128(&state0_, &state1_));
 }
 
 
@@ -212,8 +210,8 @@ std::vector<uint64_t> RandomNumberGenerator::NextSampleSlow(
 int RandomNumberGenerator::Next(int bits) {
   DCHECK_LT(0, bits);
   DCHECK_GE(32, bits);
-  XorShift128(&state0_, &state1_);
-  return static_cast<int>((state0_ + state1_) >> (64 - bits));
+  uint64_t random = XorShift128(&state0_, &state1_);
+  return static_cast<int>(random >> (64 - bits));
 }
 
 

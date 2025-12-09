@@ -237,8 +237,7 @@ class ConcurrentMarking::JobTaskMajor : public v8::JobTask {
         code_flush_mode_(code_flush_mode),
         should_keep_ages_unchanged_(should_keep_ages_unchanged),
         trace_id_(reinterpret_cast<uint64_t>(concurrent_marking) ^
-                  concurrent_marking->heap_->tracer()->CurrentEpoch(
-                      GCTracer::Scope::MC_BACKGROUND_MARKING)) {}
+                  concurrent_marking->heap_->tracer()->CurrentEpoch()) {}
 
   ~JobTaskMajor() override = default;
   JobTaskMajor(const JobTaskMajor&) = delete;
@@ -285,8 +284,7 @@ class ConcurrentMarking::JobTaskMinor : public v8::JobTask {
   explicit JobTaskMinor(ConcurrentMarking* concurrent_marking)
       : concurrent_marking_(concurrent_marking),
         trace_id_(reinterpret_cast<uint64_t>(concurrent_marking) ^
-                  concurrent_marking->heap_->tracer()->CurrentEpoch(
-                      GCTracer::Scope::MINOR_MS_MARK_PARALLEL)) {}
+                  concurrent_marking->heap_->tracer()->CurrentEpoch()) {}
 
   ~JobTaskMinor() override = default;
   JobTaskMinor(const JobTaskMinor&) = delete;

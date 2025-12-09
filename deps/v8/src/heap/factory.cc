@@ -275,20 +275,18 @@ Tagged<HeapObject> Factory::CodeBuilder::AllocateUninitializedInstructionStream(
         heap->heap()->allocator()->AllocateRawWith<HeapAllocator::kRetryOrFail>(
             object_size, AllocationType::kCode, AllocationOrigin::kRuntime);
     CHECK(!result.is_null());
-#if COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL
-    CHECK_IMPLIES(v8_flags.reserve_contiguous_compressed_read_only_space,
-                  (result.ptr() & kContiguousReadOnlySpaceMask) != 0);
-#endif  //  COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL
+#if CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
+    CHECK_NE(result.ptr() & kContiguousReadOnlySpaceMask, 0);
+#endif  //  CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
     return result;
   }
   // Return null if we cannot allocate the code object.
   result = heap->AllocateRawWith<HeapAllocator::kLightRetry>(
       object_size, AllocationType::kCode);
-#if COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL
-  CHECK_IMPLIES(v8_flags.reserve_contiguous_compressed_read_only_space &&
-                    !result.is_null(),
+#if CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
+  CHECK_IMPLIES(!result.is_null(),
                 (result.ptr() & kContiguousReadOnlySpaceMask) != 0);
-#endif  //  COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL
+#endif  //  CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
   return result;
 }
 
@@ -348,8 +346,9 @@ void Factory::InitializeAllocationMemento(
 
 Tagged<HeapObject> Factory::New(DirectHandle<Map> map,
                                 AllocationType allocation) {
-  DCHECK(map->instance_type() != MAP_TYPE);
+  DCHECK_NE(map->instance_type(), MAP_TYPE);
   int size = map->instance_size();
+  DCHECK_NE(size, kVariableSizeSentinel);
   Tagged<HeapObject> result =
       allocator()->AllocateRawWith<HeapAllocator::kRetryOrFail>(size,
                                                                 allocation);
@@ -421,9 +420,13 @@ DirectHandle<Tuple2> Factory::NewTuple2(DirectHandle<Object> value1,
 }
 
 DirectHandle<Hole> Factory::NewHole() {
+#if V8_CAN_UNMAP_HOLES_BOOL
+  UNREACHABLE();
+#else
   DirectHandle<Hole> hole(
       Cast<Hole>(New(hole_map(), AllocationType::kReadOnly)), isolate());
   return hole;
+#endif
 }
 
 DirectHandle<PropertyArray> Factory::NewPropertyArray(
@@ -1538,8 +1541,8 @@ DirectHandle<AccessorInfo> Factory::NewAccessorInfo() {
   Tagged<AccessorInfo> info =
       Cast<AccessorInfo>(New(accessor_info_map(), AllocationType::kOld));
   DisallowGarbageCollection no_gc;
-  info->set_name(*empty_string(), SKIP_WRITE_BARRIER);
   info->set_data(*undefined_value(), SKIP_WRITE_BARRIER);
+  info->set_name(*empty_string(), SKIP_WRITE_BARRIER);
   info->set_flags(0);  // Must clear the flags, it was initialized as undefined.
   info->set_is_sloppy(true);
   info->set_initial_property_attributes(NONE);
@@ -1698,7 +1701,7 @@ DirectHandle<WasmTrustedInstanceData> Factory::NewWasmTrustedInstanceData(
           shared ? AllocationType::kSharedTrusted : AllocationType::kTrusted,
           read_only_roots().wasm_trusted_instance_data_map()));
   DisallowGarbageCollection no_gc;
-  result->init_self_indirect_pointer(isolate());
+  result->InitAndPublish(isolate());
   result->clear_padding();
   for (int offset : WasmTrustedInstanceData::kTaggedFieldOffsets) {
     result->RawField(offset).store(read_only_roots().undefined_value());
@@ -1724,7 +1727,7 @@ DirectHandle<WasmDispatchTable> Factory::NewWasmDispatchTable(
           shared ? AllocationType::kSharedTrusted : AllocationType::kTrusted,
           read_only_roots().wasm_dispatch_table_map()));
   DisallowGarbageCollection no_gc;
-  result->init_self_indirect_pointer(isolate());
+  result->InitAndPublish(isolate());
   result->WriteField<int>(WasmDispatchTable::kLengthOffset, length);
   result->WriteField<int>(WasmDispatchTable::kCapacityOffset, length);
   result->set_protected_offheap_data(*offheap_data);
@@ -1864,7 +1867,7 @@ DirectHandle<WasmInternalFunction> Factory::NewWasmInternalFunction(
           *wasm_internal_function_map()));
 
   DisallowGarbageCollection no_gc;
-  internal->init_self_indirect_pointer(isolate());
+  internal->InitAndPublish(isolate());
   internal->set_call_target(call_target);
   DCHECK(IsWasmTrustedInstanceData(*implicit_arg) ||
          IsWasmImportData(*implicit_arg));
@@ -1919,7 +1922,7 @@ DirectHandle<WasmJSFunctionData> Factory::NewWasmJSFunctionData(
   Tagged<WasmJSFunctionData> result =
       TrustedCast<WasmJSFunctionData>(AllocateRawWithImmortalMap(
           map->instance_size(), AllocationType::kTrusted, map));
-  result->init_self_indirect_pointer(isolate());
+  result->InitAndPublish(isolate());
   DisallowGarbageCollection no_gc;
   result->set_func_ref(*func_ref);
   result->set_internal(*internal);
@@ -1949,7 +1952,7 @@ DirectHandle<WasmSuspenderObject> Factory::NewWasmSuspenderObject() {
           map->instance_size(), AllocationType::kTrusted, map));
   auto suspender = handle(obj, isolate());
   // Ensure that all properties are initialized before the allocation below.
-  suspender->init_self_indirect_pointer(isolate());
+  suspender->InitAndPublish(isolate());
   suspender->init_stack(IsolateForSandbox(isolate()), nullptr);
   suspender->clear_parent();
   suspender->set_promise(*undefined_value());
@@ -2008,7 +2011,7 @@ DirectHandle<WasmExportedFunctionData> Factory::NewWasmExportedFunctionData(
   Tagged<WasmExportedFunctionData> result =
       TrustedCast<WasmExportedFunctionData>(AllocateRawWithImmortalMap(
           map->instance_size(), AllocationType::kTrusted, map));
-  result->init_self_indirect_pointer(isolate());
+  result->InitAndPublish(isolate());
   DisallowGarbageCollection no_gc;
   result->set_func_ref(*func_ref);
   result->set_internal(*internal_function);
@@ -2047,7 +2050,7 @@ DirectHandle<WasmCapiFunctionData> Factory::NewWasmCapiFunctionData(
   Tagged<WasmCapiFunctionData> result =
       TrustedCast<WasmCapiFunctionData>(AllocateRawWithImmortalMap(
           map->instance_size(), AllocationType::kTrusted, map));
-  result->init_self_indirect_pointer(isolate());
+  result->InitAndPublish(isolate());
   DisallowGarbageCollection no_gc;
   result->set_func_ref(*func_ref);
   result->set_internal(*internal);
@@ -2061,10 +2064,11 @@ DirectHandle<WasmCapiFunctionData> Factory::NewWasmCapiFunctionData(
 
 Tagged<WasmArray> Factory::NewWasmArrayUninitialized(uint32_t length,
                                                      DirectHandle<Map> map) {
-  Tagged<HeapObject> raw = AllocateRaw(WasmArray::SizeFor(*map, length),
-                                       HeapLayout::InAnySharedSpace(*map)
-                                           ? AllocationType::kSharedOld
-                                           : AllocationType::kYoung);
+  const bool is_shared = HeapLayout::InAnySharedSpace(*map);
+  Tagged<HeapObject> raw = AllocateRaw(
+      WasmArray::SizeFor(*map, length),
+      is_shared ? AllocationType::kSharedOld : AllocationType::kYoung,
+      is_shared ? kDoubleUnaligned : kTaggedAligned);
   DisallowGarbageCollection no_gc;
   raw->set_map_after_allocation(isolate(), *map);
   Tagged<WasmArray> result = Cast<WasmArray>(raw);
@@ -2176,7 +2180,11 @@ DirectHandle<Object> Factory::NewWasmArrayFromElementSegment(
 Handle<WasmStruct> Factory::NewWasmStructUninitialized(
     const wasm::StructType* type, DirectHandle<Map> map,
     AllocationType allocation) {
-  Tagged<HeapObject> raw = AllocateRaw(WasmStruct::Size(type), allocation);
+  DCHECK_IMPLIES(type->is_shared(), allocation == AllocationType::kSharedOld);
+  AllocationAlignment alignment =
+      type->is_shared() ? kDoubleAligned : kTaggedAligned;
+  Tagged<HeapObject> raw =
+      AllocateRaw(WasmStruct::Size(type), allocation, alignment);
   raw->set_map_after_allocation(isolate(), *map);
   Tagged<WasmStruct> result = Cast<WasmStruct>(raw);
   result->set_raw_properties_or_hash(*empty_fixed_array(), kRelaxedStore);
@@ -2186,10 +2194,13 @@ Handle<WasmStruct> Factory::NewWasmStructUninitialized(
 DirectHandle<WasmStruct> Factory::NewWasmStruct(const wasm::StructType* type,
                                                 wasm::WasmValue* args,
                                                 DirectHandle<Map> map) {
-  Tagged<HeapObject> raw =
-      AllocateRaw(WasmStruct::Size(type), HeapLayout::InAnySharedSpace(*map)
-                                              ? AllocationType::kSharedOld
-                                              : AllocationType::kYoung);
+  AllocationAlignment alignment =
+      type->is_shared() ? kDoubleAligned : kTaggedAligned;
+  Tagged<HeapObject> raw = AllocateRaw(WasmStruct::Size(type),
+                                       HeapLayout::InAnySharedSpace(*map)
+                                           ? AllocationType::kSharedOld
+                                           : AllocationType::kYoung,
+                                       alignment);
   raw->set_map_after_allocation(isolate(), *map);
   Tagged<WasmStruct> result = Cast<WasmStruct>(raw);
   result->set_raw_properties_or_hash(*empty_fixed_array(), kRelaxedStore);
@@ -3041,6 +3052,10 @@ DirectHandle<Code> Factory::NewCodeObjectForEmbeddedBuiltin(
 
 DirectHandle<BytecodeArray> Factory::CopyBytecodeArray(
     DirectHandle<BytecodeArray> source) {
+  // We don't validate bytecode when copying it, as we assume that the source
+  // bytecode was verified before. This DCHECK makes this assumption explicit
+  // (BytecodeArrays are unpublished until they are verified).
+  CHECK(source->IsPublished(isolate()));
   DirectHandle<BytecodeWrapper> wrapper = NewBytecodeWrapper();
   int size = BytecodeArray::SizeFor(source->length());
   Tagged<BytecodeArray> copy =
@@ -3048,7 +3063,7 @@ DirectHandle<BytecodeArray> Factory::CopyBytecodeArray(
           size, AllocationType::kTrusted, *bytecode_array_map()));
   DisallowGarbageCollection no_gc;
   Tagged<BytecodeArray> raw_source = *source;
-  copy->init_self_indirect_pointer(isolate());
+  copy->InitAndPublish(isolate());
   copy->set_length(raw_source->length());
   copy->set_frame_size(raw_source->frame_size());
   copy->set_parameter_count(raw_source->parameter_count());
@@ -4014,7 +4029,7 @@ DirectHandle<InterpreterData> Factory::NewInterpreterData(
       AllocateRawWithImmortalMap(map->instance_size(), AllocationType::kTrusted,
                                  *interpreter_data_map()));
   DisallowGarbageCollection no_gc;
-  interpreter_data->init_self_indirect_pointer(isolate());
+  interpreter_data->InitAndPublish(isolate());
   interpreter_data->set_bytecode_array(*bytecode_array);
   interpreter_data->set_interpreter_trampoline(*code);
   return direct_handle(interpreter_data, isolate());
@@ -4285,7 +4300,7 @@ DirectHandle<RegExpData> Factory::NewAtomRegExpData(
       size, AllocationType::kTrusted, read_only_roots().atom_regexp_data_map());
   DisallowGarbageCollection no_gc;
   Tagged<AtomRegExpData> instance = TrustedCast<AtomRegExpData>(result);
-  instance->init_self_indirect_pointer(isolate());
+  instance->InitAndPublish(isolate());
   instance->set_type_tag(RegExpData::Type::ATOM);
   instance->set_source(*source);
   instance->set_flags(flags);
@@ -4307,7 +4322,7 @@ DirectHandle<RegExpData> Factory::NewIrRegExpData(DirectHandle<String> source,
       size, AllocationType::kTrusted, read_only_roots().ir_regexp_data_map());
   DisallowGarbageCollection no_gc;
   Tagged<IrRegExpData> instance = TrustedCast<IrRegExpData>(result);
-  instance->init_self_indirect_pointer(isolate());
+  instance->InitAndPublish(isolate());
   instance->set_type_tag(RegExpData::Type::IRREGEXP);
   instance->set_source(*source);
   instance->set_flags(flags);
@@ -4345,7 +4360,7 @@ DirectHandle<RegExpData> Factory::NewExperimentalRegExpData(
   // struct. `RegExpExecInternal` should probably distinguish between
   // EXPERIMENTAL and IRREGEXP, and then we can get rid of all the IRREGEXP only
   // fields.
-  instance->init_self_indirect_pointer(isolate());
+  instance->InitAndPublish(isolate());
   instance->set_type_tag(RegExpData::Type::EXPERIMENTAL);
   instance->set_source(*source);
   instance->set_flags(flags);

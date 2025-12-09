@@ -1146,6 +1146,11 @@ void EnableExperimentalWasmFeatures(v8::Isolate* isolate) {
       v8_flags.experimental_wasm_revectorize = true;
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
+#if V8_TARGET_ARCH_ARM64
+      // Fuzz the Wasm SIMD optimizations in Turboshaft for aarch64.
+      v8_flags.experimental_wasm_simd_opt = true;
+#endif  // V8_TARGET_ARCH_ARM64
+
       // Enforce implications from enabling features.
       FlagList::EnforceFlagImplications();
 

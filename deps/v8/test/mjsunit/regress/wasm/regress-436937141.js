@@ -15,7 +15,7 @@ builder.endRecGroup();
 
 builder.addGlobal(wasmRefType($struct0), true, false, [
   kExprRefNull, kNullRefCode,
-  kGCPrefix, kExprStructNewDefault, $struct0,
+  kGCPrefix, kExprStructNewDefaultDesc, $struct0,
 ]);
 
 assertThrows(() => builder.instantiate(), WebAssembly.RuntimeError,

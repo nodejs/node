@@ -1139,12 +1139,13 @@ ABSL_ATTRIBUTE_ALWAYS_INLINE
 inline Mutex::~Mutex() { Dtor(); }
 #endif
 
-#if defined(NDEBUG) && !defined(ABSL_HAVE_THREAD_SANITIZER)
-// Use default (empty) destructor in release build for performance reasons.
-// We need to mark both Dtor and ~Mutex as always inline for inconsistent
-// builds that use both NDEBUG and !NDEBUG with dynamic libraries. In these
-// cases we want the empty functions to dissolve entirely rather than being
-// exported from dynamic libraries and potentially override the non-empty ones.
+#if defined(NDEBUG) && !defined(ABSL_HAVE_THREAD_SANITIZER) && \
+    !defined(ABSL_BUILD_DLL)
+// Under NDEBUG and without TSAN, Dtor is normally fully inlined for
+// performance. However, when building Abseil as a shared library
+// (ABSL_BUILD_DLL), we must provide an out-of-line definition. This ensures the
+// Mutex::Dtor symbol is exported from the DLL, maintaining ABI compatibility
+// with clients that might be built in debug mode and thus expect the symbol.
 ABSL_ATTRIBUTE_ALWAYS_INLINE
 inline void Mutex::Dtor() {}
 #endif

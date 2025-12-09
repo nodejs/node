@@ -487,7 +487,7 @@ Global<T> GetWeakGlobal(Isolate* isolate, Local<T> object) {
 
 FutexWaitListNode::FutexWaitListNode(std::weak_ptr<BackingStore> backing_store,
                                      void* wait_location,
-                                     DirectHandle<JSObject> promise,
+                                     DirectHandle<JSPromise> promise,
                                      Isolate* isolate)
     : wait_location_(wait_location),
       waiting_(true),
@@ -496,7 +496,7 @@ FutexWaitListNode::FutexWaitListNode(std::weak_ptr<BackingStore> backing_store,
           V8::GetCurrentPlatform()->GetForegroundTaskRunner(
               reinterpret_cast<v8::Isolate*>(isolate)),
           std::move(backing_store),
-          GetWeakGlobal(isolate, Utils::PromiseToLocal(promise)),
+          GetWeakGlobal(isolate, Utils::ToLocal(promise)),
           GetWeakGlobal(isolate, Utils::ToLocal(isolate->native_context())))) {}
 
 template <typename T>
@@ -509,7 +509,7 @@ Tagged<Object> FutexEmulation::WaitAsync(
   Factory* factory = isolate->factory();
   DirectHandle<JSObject> result =
       factory->NewJSObject(isolate->object_function());
-  DirectHandle<JSObject> promise_capability = factory->NewJSPromise();
+  DirectHandle<JSPromise> promise_capability = factory->NewJSPromise();
 
   enum class ResultKind { kNotEqual, kTimedOut, kAsync };
   ResultKind result_kind;

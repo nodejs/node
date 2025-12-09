@@ -107,6 +107,7 @@ class RegisteredExtension {
   V(ToLocal, JSArrayBuffer, ArrayBuffer)                                \
   V(ToLocal, JSArrayBufferView, ArrayBufferView)                        \
   V(ToLocal, JSDataView, DataView)                                      \
+  V(ToLocal, JSPromise, Promise)                                        \
   V(ToLocal, JSRabGsabDataView, DataView)                               \
   V(ToLocal, JSTypedArray, TypedArray)                                  \
   V(ToLocalShared, JSArrayBuffer, SharedArrayBuffer)                    \
@@ -115,7 +116,6 @@ class RegisteredExtension {
   V(ToLocal, DictionaryTemplateInfo, DictionaryTemplate)                \
   V(SignatureToLocal, FunctionTemplateInfo, Signature)                  \
   V(MessageToLocal, Object, Message)                                    \
-  V(PromiseToLocal, JSObject, Promise)                                  \
   V(StackTraceToLocal, StackTraceInfo, StackTrace)                      \
   V(StackFrameToLocal, StackFrameInfo, StackFrame)                      \
   V(NumberToLocal, Object, Number)                                      \
@@ -137,7 +137,6 @@ class RegisteredExtension {
   V(ToLocalShared)            \
   V(SignatureToLocal)         \
   V(MessageToLocal)           \
-  V(PromiseToLocal)           \
   V(StackTraceToLocal)        \
   V(StackFrameToLocal)        \
   V(NumberToLocal)            \

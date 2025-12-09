@@ -16,6 +16,7 @@ bitfield struct PropertyDescriptorObjectFlags extends uint31 {
   has_set: bool: 1 bit;
 }
 
+@cppObjectLayoutDefinition
 extern class PropertyDescriptorObject extends Struct {
   macro IsDataDescriptor(): bool {
     return this.flags.has_value || this.flags.has_writable;

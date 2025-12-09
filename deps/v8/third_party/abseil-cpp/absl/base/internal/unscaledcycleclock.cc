@@ -62,7 +62,7 @@ double UnscaledCycleClock::Frequency() {
 
 int64_t UnscaledCycleClock::Now() {
 #ifdef __GLIBC__
-  return __ppc_get_timebase();
+  return static_cast<int64_t>(__ppc_get_timebase());
 #else
 #ifdef __powerpc64__
   int64_t tbr;

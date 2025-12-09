@@ -57,6 +57,9 @@ specific_include_rules = {
     "+src/compiler/access-builder.h",
     "+src/compiler/wasm-compiler.h",
   ],
+  "module-instantiate\.cc": [
+    "+src/compiler/fast-api-calls.h",
+  ],
   "simd-shuffle\.h": [
     "+src/compiler/backend/instruction-codes.h",
   ],

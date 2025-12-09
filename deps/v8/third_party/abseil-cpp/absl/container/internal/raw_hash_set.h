@@ -461,15 +461,6 @@ class PerTableSeed {
   const uint16_t seed_;
 };
 
-// Returns next per-table seed.
-inline uint16_t NextSeed() {
-  static_assert(PerTableSeed::kBitCount == 16);
-  thread_local uint16_t seed =
-      static_cast<uint16_t>(reinterpret_cast<uintptr_t>(&seed));
-  seed += uint16_t{0xad53};
-  return seed;
-}
-
 // The size and also has additionally
 // 1) one bit that stores whether we have infoz.
 // 2) PerTableSeed::kBitCount bits for the seed.
@@ -516,6 +507,9 @@ class HashtableSize {
   void set_has_infoz() { data_ |= kHasInfozMask; }
 
   void set_no_seed_for_testing() { data_ &= ~kSeedMask; }
+
+  // Returns next per-table seed.
+  static uint16_t NextSeed();
 
  private:
   void set_seed(uint16_t seed) {
@@ -1175,32 +1169,30 @@ constexpr size_t NormalizeCapacity(size_t n) {
 }
 
 // General notes on capacity/growth methods below:
-// - We use 27/32 as maximum load factor. For 16-wide groups, that gives an
-//   average of 2.5 empty slots per group.
+// - We use 7/8th as maximum load factor. For 16-wide groups, that gives an
+//   average of two empty slots per group.
+// - For (capacity+1) >= Group::kWidth, growth is 7/8*capacity.
 // - For (capacity+1) < Group::kWidth, growth == capacity. In this case, we
 //   never need to probe (the whole table fits in one group) so we don't need a
 //   load factor less than 1.
-// - For (capacity+1) == Group::kWidth, growth is capacity - 1 since we need
-//   at least one empty slot for probing algorithm.
-// - For (capacity+1) > Group::kWidth, growth is 27/32*capacity.
 
 // Given `capacity`, applies the load factor; i.e., it returns the maximum
 // number of values we should put into the table before a resizing rehash.
 constexpr size_t CapacityToGrowth(size_t capacity) {
   ABSL_SWISSTABLE_ASSERT(IsValidCapacity(capacity));
-  // `capacity*27/32`
+  // `capacity*7/8`
   if (Group::kWidth == 8 && capacity == 7) {
-    // formula does not work when x==7.
+    // x-x/8 does not work when x==7.
     return 6;
   }
-  return capacity - capacity / 8 - capacity / 32;
+  return capacity - capacity / 8;
 }
 
 // Given `size`, "unapplies" the load factor to find how large the capacity
 // should be to stay within the load factor.
 //
 // For size == 0, returns 0.
-// For other values, returns the same as `NormalizeCapacity(size*32/27)`.
+// For other values, returns the same as `NormalizeCapacity(size*8/7)`.
 constexpr size_t SizeToCapacity(size_t size) {
   if (size == 0) {
     return 0;
@@ -1209,10 +1201,18 @@ constexpr size_t SizeToCapacity(size_t size) {
   // Shifting right `~size_t{}` by `leading_zeros` yields
   // NormalizeCapacity(size).
   int leading_zeros = absl::countl_zero(size);
-  size_t next_capacity = ~size_t{} >> leading_zeros;
-  size_t max_size_for_next_capacity = CapacityToGrowth(next_capacity);
+  constexpr size_t kLast3Bits = size_t{7} << (sizeof(size_t) * 8 - 3);
+  // max_size_for_next_capacity = max_load_factor * next_capacity
+  //                            = (7/8) * (~size_t{} >> leading_zeros)
+  //                            = (7/8*~size_t{}) >> leading_zeros
+  //                            = kLast3Bits >> leading_zeros
+  size_t max_size_for_next_capacity = kLast3Bits >> leading_zeros;
   // Decrease shift if size is too big for the minimum capacity.
   leading_zeros -= static_cast<int>(size > max_size_for_next_capacity);
+  if constexpr (Group::kWidth == 8) {
+    // Formula doesn't work when size==7 for 8-wide groups.
+    leading_zeros -= (size == 7);
+  }
   return (~size_t{}) >> leading_zeros;
 }
 
@@ -1492,10 +1492,12 @@ constexpr bool ShouldSampleHashtablezInfoForAlloc() {
 
 // Allocates `n` bytes for a backing array.
 template <size_t AlignOfBackingArray, typename Alloc>
-ABSL_ATTRIBUTE_NOINLINE void* AllocateBackingArray(void* alloc, size_t n) {
+void* AllocateBackingArray(void* alloc, size_t n) {
   return Allocate<AlignOfBackingArray>(static_cast<Alloc*>(alloc), n);
 }
 
+// Note: we mark this function as ABSL_ATTRIBUTE_NOINLINE because we don't want
+// it to be inlined into e.g. the destructor to save code size.
 template <size_t AlignOfBackingArray, typename Alloc>
 ABSL_ATTRIBUTE_NOINLINE void DeallocateBackingArray(
     void* alloc, size_t capacity, ctrl_t* ctrl, size_t slot_size,
@@ -3173,6 +3175,7 @@ class raw_hash_set {
     }
     if (!empty()) {
       if (equal_to(key, single_slot())) {
+        common().infoz().RecordInsertHit();
         return {single_iterator(), false};
       }
     }
@@ -3204,6 +3207,7 @@ class raw_hash_set {
           if (ABSL_PREDICT_TRUE(equal_to(key, slot_array() + seq.offset(i)))) {
             index = seq.offset(i);
             inserted = false;
+            common().infoz().RecordInsertHit();
             return;
           }
         }
@@ -3702,6 +3706,14 @@ extern template size_t GrowSooTableToNextCapacityAndPrepareInsert<16, true>(
     CommonFields&, const PolicyFunctions&, absl::FunctionRef<size_t(size_t)>,
     bool);
 #endif
+
+extern template void* AllocateBackingArray<
+    BackingArrayAlignment(alignof(size_t)), std::allocator<char>>(void* alloc,
+                                                                  size_t n);
+extern template void DeallocateBackingArray<
+    BackingArrayAlignment(alignof(size_t)), std::allocator<char>>(
+    void* alloc, size_t capacity, ctrl_t* ctrl, size_t slot_size,
+    size_t slot_align, bool had_infoz);
 
 }  // namespace container_internal
 ABSL_NAMESPACE_END

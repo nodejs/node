@@ -18,7 +18,7 @@ assertEquals(verify, $bot_desc);
 
 let $g = builder.addGlobal(wasmRefType($bot), false, false, [
     kGCPrefix, kExprStructNewDefault, $bot_desc,
-    kGCPrefix, kExprStructNewDefault, $bot
+    kGCPrefix, kExprStructNewDefaultDesc, $bot
 ]);
 
 builder.addFunction("main", kSig_v_v).exportFunc().addBody([

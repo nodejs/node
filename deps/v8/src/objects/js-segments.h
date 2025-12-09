@@ -63,7 +63,7 @@ class JSSegments : public TorqueGeneratedJSSegments<JSSegments, JSObject> {
   inline JSSegmenter::Granularity granularity() const;
 
   // Bit positions in |flags|.
-  DEFINE_TORQUE_GENERATED_JS_SEGMENT_ITERATOR_FLAGS()
+  DEFINE_TORQUE_GENERATED_JS_SEGMENTS_FLAGS()
 
   static_assert(GranularityBits::is_valid(JSSegmenter::Granularity::GRAPHEME));
   static_assert(GranularityBits::is_valid(JSSegmenter::Granularity::WORD));

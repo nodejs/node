@@ -15,11 +15,11 @@ frame size: 1
 parameter count: 2
 bytecode array length: 14
 bytecodes: [
-  /*   10 E> */ B(CreateFunctionContext), U8(0), U8(1),
+  /*   10 E> */ B(CreateFunctionContext), U8(0:SCOPE_INFO_TYPE), U8(1),
                 B(PushContext), R(0),
                 B(Ldar), R(arg0),
-                B(StaCurrentContextSlotNoCell), U8(2),
-  /*   19 S> */ B(CreateClosure), U8(1), U8(0), U8(2),
+                B(StaCurrentContextSlotNoCell), C8(2),
+  /*   19 S> */ B(CreateClosure), U8(1:SHARED_FUNCTION_INFO_TYPE), FBV(0), Flag8(0x2),
   /*   51 S> */ B(Return),
 ]
 constant pool: [
@@ -38,13 +38,13 @@ frame size: 2
 parameter count: 2
 bytecode array length: 17
 bytecodes: [
-  /*   10 E> */ B(CreateFunctionContext), U8(0), U8(1),
+  /*   10 E> */ B(CreateFunctionContext), U8(0:SCOPE_INFO_TYPE), U8(1),
                 B(PushContext), R(1),
                 B(Ldar), R(arg0),
-                B(StaCurrentContextSlotNoCell), U8(2),
-  /*   27 S> */ B(CreateClosure), U8(1), U8(0), U8(2),
+                B(StaCurrentContextSlotNoCell), C8(2),
+  /*   27 S> */ B(CreateClosure), U8(1:SHARED_FUNCTION_INFO_TYPE), FBV(0), Flag8(0x2),
                 B(Star0),
-  /*   53 S> */ B(LdaCurrentContextSlotNoCell), U8(2),
+  /*   53 S> */ B(LdaCurrentContextSlotNoCell), C8(2),
   /*   65 S> */ B(Return),
 ]
 constant pool: [
@@ -63,13 +63,13 @@ frame size: 1
 parameter count: 5
 bytecode array length: 18
 bytecodes: [
-  /*   10 E> */ B(CreateFunctionContext), U8(0), U8(2),
+  /*   10 E> */ B(CreateFunctionContext), U8(0:SCOPE_INFO_TYPE), U8(2),
                 B(PushContext), R(0),
                 B(Ldar), R(arg0),
-                B(StaCurrentContextSlotNoCell), U8(3),
+                B(StaCurrentContextSlotNoCell), C8(3),
                 B(Ldar), R(arg2),
-                B(StaCurrentContextSlotNoCell), U8(2),
-  /*   29 S> */ B(CreateClosure), U8(1), U8(0), U8(2),
+                B(StaCurrentContextSlotNoCell), C8(2),
+  /*   29 S> */ B(CreateClosure), U8(1:SHARED_FUNCTION_INFO_TYPE), FBV(0), Flag8(0x2),
   /*   60 S> */ B(Return),
 ]
 constant pool: [
@@ -88,11 +88,11 @@ frame size: 1
 parameter count: 1
 bytecode array length: 14
 bytecodes: [
-  /*   10 E> */ B(CreateFunctionContext), U8(0), U8(1),
+  /*   10 E> */ B(CreateFunctionContext), U8(0:SCOPE_INFO_TYPE), U8(1),
                 B(PushContext), R(0),
   /*   26 S> */ B(Ldar), R(this),
-  /*   26 E> */ B(StaCurrentContextSlotNoCell), U8(2),
-  /*   32 S> */ B(CreateClosure), U8(1), U8(0), U8(2),
+  /*   26 E> */ B(StaCurrentContextSlotNoCell), C8(2),
+  /*   32 S> */ B(CreateClosure), U8(1:SHARED_FUNCTION_INFO_TYPE), FBV(0), Flag8(0x2),
   /*   64 S> */ B(Return),
 ]
 constant pool: [

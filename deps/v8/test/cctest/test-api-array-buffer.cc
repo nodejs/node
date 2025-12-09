@@ -6,6 +6,7 @@
 #include "src/base/logging.h"
 #include "src/base/strings.h"
 #include "src/common/globals.h"
+#include "src/heap/heap.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/sandbox/sandbox.h"
 #include "test/cctest/heap/heap-utils.h"
@@ -171,7 +172,7 @@ TEST(ArrayBuffer_MaxSize) {
 
   {
     i::Heap* heap = reinterpret_cast<i::Isolate*>(isolate)->heap();
-    int gc_count = heap->gc_count();
+    i::GCEpoch gc_count = heap->gc_count();
     v8::HandleScope scope(isolate);
     LocalContext context(isolate);
 
@@ -252,7 +253,7 @@ TEST(ArrayBuffer_TotalSize) {
 
   {
     i::Heap* heap = reinterpret_cast<i::Isolate*>(isolate)->heap();
-    int gc_count = heap->gc_count();
+    i::GCEpoch gc_count = heap->gc_count();
     v8::HandleScope scope(isolate);
     LocalContext context(isolate);
     // When some allocation below fails, we need to invoke GC without stack,

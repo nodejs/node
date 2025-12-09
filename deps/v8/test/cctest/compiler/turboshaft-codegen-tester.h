@@ -25,7 +25,7 @@
 
 namespace v8::internal::compiler::turboshaft {
 
-using BaseAssembler = TSAssembler<LoadStoreSimplificationReducer>;
+using BaseAssembler = Assembler<LoadStoreSimplificationReducer>;
 
 class DataHolder {
  public:
@@ -42,7 +42,8 @@ class DataHolder {
         descriptor_(Linkage::GetSimplifiedCDescriptor(
             zone, CSignature::New(zone, return_type, p...),
             CallDescriptor::kInitializeRootRegister)) {
-    ts_pipeline_data_.InitializeGraphComponent(nullptr);
+    ts_pipeline_data_.InitializeGraphComponent(nullptr,
+                                               Graph::Origin::kPureTurboshaft);
   }
 
   PipelineData& ts_pipeline_data() { return ts_pipeline_data_; }
@@ -185,7 +186,7 @@ class RawMachineAssemblerTester : public HandleAndZoneScope,
     // graph (because the register allocator doesn't like it when Parameters are
     // not in the 1st block). Subsequent calls to `m.Parameter()` will reuse the
     // Parameters created here, thanks to Turboshaft's parameter cache (see
-    // TurboshaftAssemblerOpInterface::Parameter).
+    // AssemblerOpInterface::Parameter).
     for (size_t i = 0; i < call_descriptor()->ParameterCount(); i++) {
       Parameter(static_cast<int>(i));
     }

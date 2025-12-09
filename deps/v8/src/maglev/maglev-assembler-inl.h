@@ -763,7 +763,25 @@ void MoveArgumentsForBuiltin(MaglevAssembler* masm, Args&&... args) {
 
 }  // namespace detail
 
+inline void MaglevAssembler::CallJSBuiltin(Builtin builtin,
+                                           uint16_t parameter_count) {
+  // Non-JS builtins must be called via CallBuiltin().
+  DCHECK(Builtins::HasJSLinkage(builtin));
+
+  // This SBXCHECK is a defense-in-depth measure to ensure that we always
+  // generate valid calls here (with matching signatures).
+  SBXCHECK(Builtins::IsCompatibleJSBuiltin(builtin, parameter_count));
+
+  CallBuiltinImpl(builtin);
+}
+
 inline void MaglevAssembler::CallBuiltin(Builtin builtin) {
+  // JS builtins must be called via CallJSBuiltin().
+  DCHECK(!Builtins::HasJSLinkage(builtin));
+  CallBuiltinImpl(builtin);
+}
+
+inline void MaglevAssembler::CallBuiltinImpl(Builtin builtin) {
   // Special case allowing calls to DoubleToI, which takes care to preserve all
   // registers and therefore doesn't require special spill handling.
   DCHECK(allow_call() || builtin == Builtin::kDoubleToI);

@@ -25,15 +25,10 @@ namespace internal {
 namespace detail {
 class WaiterQueueLockGuard;
 class WaiterQueueNode;
-template <typename T>
-class AsyncWaiterQueueNode;
 }  // namespace detail
 
 using detail::WaiterQueueLockGuard;
 using detail::WaiterQueueNode;
-using LockAsyncWaiterQueueNode = detail::AsyncWaiterQueueNode<JSAtomicsMutex>;
-using WaitAsyncWaiterQueueNode =
-    detail::AsyncWaiterQueueNode<JSAtomicsCondition>;
 
 // JSSynchronizationPrimitive is the base class for JSAtomicsMutex and
 // JSAtomicsCondition. It contains a 32-bit state field and a pointer to a
@@ -115,9 +110,6 @@ class JSSynchronizationPrimitive
 #else
   inline WaiterQueueNode** waiter_queue_head_location() const;
 #endif
-  // Remove the matching async waiter queue nodes from the locked and unlocked
-  // async waiter lists in the isolate.
-  static void CleanupAsyncWaiterLists(Isolate* isolate, DequeueMatcher matcher);
 };
 
 // A non-recursive mutex that is exposed to JS.
@@ -174,7 +166,6 @@ class JSAtomicsMutex
     : public TorqueGeneratedJSAtomicsMutex<JSAtomicsMutex,
                                            JSSynchronizationPrimitive> {
  public:
-  using AsyncWaiterNodeType = LockAsyncWaiterQueueNode;
   // A non-copyable wrapper class that provides an RAII-style mechanism for
   // owning the `JSAtomicsMutex`.
   class V8_NODISCARD LockGuardBase {
@@ -215,10 +206,6 @@ class JSAtomicsMutex
   DECL_PRINTER(JSAtomicsMutex)
   EXPORT_DECL_VERIFIER(JSAtomicsMutex)
 
-  static DirectHandle<JSObject> CreateResultObject(Isolate* isolate,
-                                                   DirectHandle<Object> value,
-                                                   bool success);
-
   // Lock the mutex, blocking if it's currently owned by another thread.
   // Returns false if the lock times out, true otherwise.
   static inline bool Lock(
@@ -227,68 +214,13 @@ class JSAtomicsMutex
 
   V8_WARN_UNUSED_RESULT inline bool TryLock();
 
-  // Try to lock the mutex, if it's currently owned by another thread, creates
-  // a LockAsyncWaiterQueueNode and enqueue it in the mutex's waiter queue.
-  // The `internal_locked_promise` is resolved when the node is notified.
-  // Returns true if the lock was acquired, false otherwise.
-  static bool LockAsync(Isolate* requester, DirectHandle<JSAtomicsMutex> mutex,
-                        Handle<JSPromise> internal_locked_promise,
-                        MaybeHandle<JSPromise> unlocked_promise,
-                        AsyncWaiterNodeType** waiter_node,
-                        std::optional<base::TimeDelta> timeout = std::nullopt);
-
-  // A wrapper for LockAsync called when an asyncWait call returns control
-  // to the lockAsync callback. It calls `LockAsync` without setting all the
-  // logic to run the callback, since the callback is already running.
-  static DirectHandle<JSPromise> LockAsyncWrapperForWait(
-      Isolate* requester, DirectHandle<JSAtomicsMutex> mutex);
-
-  // Try to take the lock and set up the promise logic to asynchronously run
-  // the callback under the lock. Always returns a promise that settles when the
-  // promise is unlocked or times out.
-  static MaybeDirectHandle<JSPromise> LockOrEnqueuePromise(
-      Isolate* isolate, DirectHandle<JSAtomicsMutex> mutex,
-      DirectHandle<Object> callback, std::optional<base::TimeDelta> timeout);
-
-  // Try to take the lock or requeue an existing node.
-  static bool LockOrEnqueueAsyncNode(Isolate* isolate,
-                                     DirectHandle<JSAtomicsMutex> mutex,
-                                     LockAsyncWaiterQueueNode* node);
-  static void HandleAsyncNotify(LockAsyncWaiterQueueNode* node);
-  static void HandleAsyncTimeout(LockAsyncWaiterQueueNode* node);
-
   inline void Unlock(Isolate* requester);
 
   inline bool IsHeld();
   inline bool IsCurrentThreadOwner();
 
-  void UnlockAsyncLockedMutex(
-      Isolate* requester, DirectHandle<Foreign> async_locked_waiter_wrapper);
-
-  static void CleanupMatchingAsyncWaiters(Isolate* isolate,
-                                          WaiterQueueNode* node,
-                                          DequeueMatcher matcher);
-
-  // The context slots for the artificial context created for the resolve and
-  // reject handlers in charge of unlocking the mutex after the callback passed
-  // to Atomics.Mutex.lockAsync is executed.
-  enum {
-    // The context slot for the js mutex that is locked asynchronously.
-    kMutexAsyncContextSlot = Context::MIN_CONTEXT_SLOTS,
-    // The context slot for the js exposed promise returned by the call to
-    // Atomics.Mutex.lockAsync, it should be resolved or rejected after the
-    // mutex is released.
-    kUnlockedPromiseAsyncContextSlot,
-    // The isolate keeps track of WaiterQueueNodes for each mutex locked
-    // asynchronously, this is so that the lock can be released in case worker
-    // termination. The kAsyncLockedWaiterAsyncContextSlot slot is used to store
-    // a Foreign wrapping around an ExternalPointerHandle (or raw
-    // pointer when pointer compression is disabled) pointing to the
-    // WaiterQueueNode so that it can be removed from the list when the lock is
-    // released through the usual path.
-    kAsyncLockedWaiterAsyncContextSlot,
-    kAsyncContextLength
-  };
+  V8_EXPORT_PRIVATE static DirectHandle<JSObject> CreateResultObject(
+      Isolate* isolate, DirectHandle<Object> value, bool success);
 
   TQ_OBJECT_CONSTRUCTORS(JSAtomicsMutex)
 
@@ -311,13 +243,6 @@ class JSAtomicsMutex
   V8_EXPORT_PRIVATE static bool LockSlowPath(
       Isolate* requester, DirectHandle<JSAtomicsMutex> mutex,
       std::atomic<StateT>* state, std::optional<base::TimeDelta> timeout);
-  static bool LockAsyncSlowPath(Isolate* isolate,
-                                DirectHandle<JSAtomicsMutex> mutex,
-                                std::atomic<StateT>* state,
-                                Handle<JSPromise> internal_locked_promise,
-                                MaybeHandle<JSPromise> unlocked_promise,
-                                AsyncWaiterNodeType** waiter_node,
-                                std::optional<base::TimeDelta> timeout);
 
   V8_EXPORT_PRIVATE void UnlockSlowPath(Isolate* requester,
                                         std::atomic<StateT>* state);
@@ -338,10 +263,6 @@ class JSAtomicsMutex
   V8_INLINE static bool BackoffTryLock(Isolate* requester,
                                        DirectHandle<JSAtomicsMutex> mutex,
                                        std::atomic<StateT>* state);
-  static bool DequeueTimedOutAsyncWaiter(Isolate* requester,
-                                         DirectHandle<JSAtomicsMutex> mutex,
-                                         std::atomic<StateT>* state,
-                                         WaiterQueueNode* timed_out_waiter);
 
   V8_EXPORT_PRIVATE static bool MaybeEnqueueNode(
       Isolate* requester, DirectHandle<JSAtomicsMutex> mutex,
@@ -401,7 +322,6 @@ class JSAtomicsCondition
     : public TorqueGeneratedJSAtomicsCondition<JSAtomicsCondition,
                                                JSSynchronizationPrimitive> {
  public:
-  using AsyncWaiterNodeType = WaitAsyncWaiterQueueNode;
   DECL_PRINTER(JSAtomicsCondition)
   EXPORT_DECL_VERIFIER(JSAtomicsCondition)
 
@@ -410,30 +330,12 @@ class JSAtomicsCondition
                                         DirectHandle<JSAtomicsMutex> mutex,
                                         std::optional<base::TimeDelta> timeout);
 
-  V8_EXPORT_PRIVATE static MaybeDirectHandle<JSReceiver> WaitAsync(
-      Isolate* requester, DirectHandle<JSAtomicsCondition> cv,
-      DirectHandle<JSAtomicsMutex> mutex,
-      std::optional<base::TimeDelta> timeout);
-
-  static void HandleAsyncNotify(WaitAsyncWaiterQueueNode* node);
-  static void HandleAsyncTimeout(WaitAsyncWaiterQueueNode* node);
-
   static constexpr uint32_t kAllWaiters = UINT32_MAX;
 
   // Notify {count} waiters. Returns the number of waiters woken up.
   static V8_EXPORT_PRIVATE uint32_t Notify(Isolate* requester,
                                            DirectHandle<JSAtomicsCondition> cv,
                                            uint32_t count);
-
-  static void CleanupMatchingAsyncWaiters(Isolate* isolate,
-                                          WaiterQueueNode* node,
-                                          DequeueMatcher matcher);
-
-  enum {
-    kMutexAsyncContextSlot = Context::MIN_CONTEXT_SLOTS,
-    kConditionVariableAsyncContextSlot,
-    kAsyncContextLength
-  };
 
   TQ_OBJECT_CONSTRUCTORS(JSAtomicsCondition)
 

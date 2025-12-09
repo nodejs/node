@@ -17,7 +17,7 @@
 
 #include <cassert>
 
-#include "absl/strings/internal/resize_uninitialized.h"
+#include "absl/strings/resize_and_overwrite.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
@@ -42,12 +42,14 @@ void Base64EscapeInternal(const unsigned char* src, size_t szsrc, String* dest,
                           bool do_padding, const char* base64_chars) {
   const size_t calc_escaped_size =
       CalculateBase64EscapedLenInternal(szsrc, do_padding);
-  STLStringResizeUninitialized(dest, calc_escaped_size);
-
-  const size_t escaped_len = Base64EscapeInternal(
-      src, szsrc, &(*dest)[0], dest->size(), base64_chars, do_padding);
-  assert(calc_escaped_size == escaped_len);
-  dest->erase(escaped_len);
+  StringResizeAndOverwrite(
+      *dest, calc_escaped_size,
+      [src, szsrc, base64_chars, do_padding](char* buf, size_t buf_size) {
+        const size_t escaped_len = Base64EscapeInternal(
+            src, szsrc, buf, buf_size, base64_chars, do_padding);
+        assert(escaped_len == buf_size);
+        return escaped_len;
+      });
 }
 
 }  // namespace strings_internal

@@ -338,18 +338,20 @@ int64_t GetCurrentTimeNanos() {
   // to the same shared data.
   seq_read0 = time_state.seq.load(std::memory_order_acquire);
 
-  base_ns = time_state.last_sample.base_ns.load(std::memory_order_relaxed);
+  // The algorithm does not require that the following four loads be ordered
+  // with respect to one another; it requires only that they precede the load of
+  // time_state.seq below them. Nevertheless, we mark each of them as an
+  // acquire-load, rather than using a barrier immediately before the
+  // time_state.seq load, because the former is likely faster on most CPUs of
+  // interest. Architectures that may see a regression because of this approach
+  // include PowerPC and MIPS.
+  base_ns = time_state.last_sample.base_ns.load(std::memory_order_acquire);
   base_cycles =
-      time_state.last_sample.base_cycles.load(std::memory_order_relaxed);
+      time_state.last_sample.base_cycles.load(std::memory_order_acquire);
   nsscaled_per_cycle =
-      time_state.last_sample.nsscaled_per_cycle.load(std::memory_order_relaxed);
+      time_state.last_sample.nsscaled_per_cycle.load(std::memory_order_acquire);
   min_cycles_per_sample = time_state.last_sample.min_cycles_per_sample.load(
-      std::memory_order_relaxed);
-
-  // This acquire fence pairs with the release fence in SeqAcquire.  Since it
-  // is sequenced between reads of shared data and seq_read1, the reads of
-  // shared data are effectively acquiring.
-  std::atomic_thread_fence(std::memory_order_acquire);
+      std::memory_order_acquire);
 
   // The shared-data reads are effectively acquire ordered, and the
   // shared-data writes are effectively release ordered. Therefore if our

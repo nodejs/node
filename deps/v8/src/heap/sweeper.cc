@@ -281,12 +281,9 @@ void Sweeper::SweepingState<scope>::InitializeSweeping() {
                  !sweeper_->heap_->ShouldReduceMemory());
   should_reduce_memory_ = (scope != Sweeper::SweepingScope::kMinor) &&
                           sweeper_->heap_->ShouldReduceMemory();
-  trace_id_ =
-      (reinterpret_cast<uint64_t>(sweeper_) ^
-       sweeper_->heap_->tracer()->CurrentEpoch(
-           scope == SweepingScope::kMajor ? GCTracer::Scope::MC_SWEEP
-                                          : GCTracer::Scope::MINOR_MS_SWEEP))
-      << 1;
+  trace_id_ = (reinterpret_cast<uint64_t>(sweeper_) ^
+               sweeper_->heap_->tracer()->CurrentEpoch())
+              << 1;
   background_trace_id_ = trace_id_ + 1;
 }
 

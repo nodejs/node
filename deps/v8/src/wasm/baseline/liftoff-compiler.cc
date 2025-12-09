@@ -1288,6 +1288,11 @@ class LiftoffCompiler {
     StackCheck(decoder, 0);
 
     if (V8_UNLIKELY(v8_flags.trace_wasm)) TraceFunctionEntry(decoder);
+
+    if (EnableCompilationHintsInfrastructure()) {
+      decoder->module_->feedback_slots_to_wire_byte_offsets.emplace(
+          func_index_, std::vector<uint32_t>());
+    }
   }
 
   void GenerateOutOfLineCode(OutOfLineCode* ool) {
@@ -2015,7 +2020,7 @@ class LiftoffCompiler {
 
   void ResumeHandler(FullDecoder* decoder,
                      base::Vector<const HandlerCase> handlers,
-                     int handler_index, Value* cont) {
+                     size_t handler_index, Value* cont, Value* tag_params) {
     // "Resume" bails out before this can be reached.
     UNREACHABLE();
   }
@@ -2023,10 +2028,19 @@ class LiftoffCompiler {
   void ResumeThrow(FullDecoder* decoder,
                    const wasm::ContIndexImmediate& cont_imm,
                    const TagIndexImmediate& exc_imm,
-                   base::Vector<wasm::HandlerCase> handlers, const Value args[],
-                   const Value returns[]) {
+                   base::Vector<wasm::HandlerCase> handlers, const Value& cont,
+                   const Value args[], const Value returns[]) {
     unsupported(decoder, kWasmfx,
                 "unimplemented Liftoff instruction: resume_throw");
+  }
+
+  void ResumeThrowRef(FullDecoder* decoder,
+                      const wasm::ContIndexImmediate& cont_imm,
+                      base::Vector<wasm::HandlerCase> handlers,
+                      const Value& cont, const Value& exn,
+                      const Value returns[]) {
+    unsupported(decoder, kWasmfx,
+                "unimplemented Liftoff instruction: resume_throw_ref");
   }
 
   void Switch(FullDecoder* decoder, const TagIndexImmediate& tag_imm,
@@ -9742,7 +9756,8 @@ class LiftoffCompiler {
                             : compiler::kWasmFunction);
     call_descriptor = GetLoweredCallDescriptor(zone_, call_descriptor);
 
-    int vector_slot = NextFeedbackVectorSlot();
+    int vector_slot = NextFeedbackVectorSlot(decoder);
+
     if (v8_flags.wasm_inlining) {
       encountered_call_instructions_.push_back(imm.index);
     }
@@ -10105,7 +10120,8 @@ class LiftoffCompiler {
                 kRef);
         VarState vector_var{kRef, vector.reg(), 0};
 
-        int vector_slot = NextFeedbackVectorSlot();
+        int vector_slot = NextFeedbackVectorSlot(decoder);
+
         encountered_call_instructions_.push_back(
             FunctionTypeFeedback::kCallIndirect);
         VarState index_var(kI32, vector_slot, 0);
@@ -10243,7 +10259,8 @@ class LiftoffCompiler {
 
       __ Fill(vector, WasmLiftoffFrameConstants::kFeedbackVectorOffset, kRef);
       VarState vector_var{kRef, vector, 0};
-      int vector_slot = NextFeedbackVectorSlot();
+
+      int vector_slot = NextFeedbackVectorSlot(decoder);
       encountered_call_instructions_.push_back(FunctionTypeFeedback::kCallRef);
       VarState index_var(kI32, vector_slot, 0);
 
@@ -10574,7 +10591,7 @@ class LiftoffCompiler {
     }
   }
 
-  int NextFeedbackVectorSlot() {
+  int NextFeedbackVectorSlot(FullDecoder* decoder) {
     // A constant `int` is sufficient for the vector slot index.
     // The number of call instructions (and hence feedback vector slots) is
     // capped by the number of instructions, which is capped by the maximum
@@ -10583,6 +10600,12 @@ class LiftoffCompiler {
                           FeedbackConstants::kSlotsPerInstruction +
                       FeedbackConstants::kHeaderSlots <
                   static_cast<size_t>(std::numeric_limits<int>::max()));
+
+    if (EnableCompilationHintsInfrastructure()) {
+      decoder->module_->feedback_slots_to_wire_byte_offsets[func_index_]
+          .push_back(decoder->pc_relative_offset());
+    }
+
     return static_cast<int>(encountered_call_instructions_.size() *
                                 FeedbackConstants::kSlotsPerInstruction +
                             FeedbackConstants::kHeaderSlots);
@@ -10652,6 +10675,11 @@ class LiftoffCompiler {
     if (instance == no_reg) instance = fallback;
     __ LoadInstanceDataFromFrame(instance);
     return instance;
+  }
+
+  bool EnableCompilationHintsInfrastructure() {
+    return v8_flags.wasm_generate_compilation_hints ||
+           v8_flags.trace_wasm_generate_compilation_hints;
   }
 
   static constexpr WasmOpcode kNoOutstandingOp = kExprUnreachable;

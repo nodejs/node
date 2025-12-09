@@ -1731,6 +1731,7 @@ TEST_F(InterpreterTest, InterpreterSmiComparisons) {
         FeedbackVectorSpec feedback_spec(zone());
         BytecodeArrayBuilder builder(zone(), 1, 1, &feedback_spec);
 
+        size_t comparison_bytecode_offset;
         FeedbackSlot slot = feedback_spec.AddCompareICSlot();
         Handle<i::FeedbackMetadata> metadata =
             FeedbackMetadata::New(i_isolate(), &feedback_spec);
@@ -1738,8 +1739,13 @@ TEST_F(InterpreterTest, InterpreterSmiComparisons) {
         Register r0(0);
         builder.LoadLiteral(Smi::FromInt(inputs[i]))
             .StoreAccumulatorInRegister(r0)
-            .LoadLiteral(Smi::FromInt(inputs[j]))
-            .CompareOperation(comparison, r0, GetIndex(slot))
+            .LoadLiteral(Smi::FromInt(inputs[j]));
+        comparison_bytecode_offset = builder.current_bytecode_size();
+        builder
+            .CompareOperation(comparison, r0,
+                              comparison == Token::kEqStrict
+                                  ? kFeedbackIsEmbedded
+                                  : GetIndex(slot))
             .Return();
 
         Handle<BytecodeArray> bytecode_array =
@@ -1750,7 +1756,13 @@ TEST_F(InterpreterTest, InterpreterSmiComparisons) {
         CHECK(IsBoolean(*return_value));
         CHECK_EQ(Object::BooleanValue(*return_value, i_isolate()),
                  CompareC(comparison, inputs[i], inputs[j]));
-        if (tester.HasFeedbackMetadata()) {
+        if (comparison == Token::kEqStrict) {
+          auto embedded_feedback =
+              tester.GetEmbeddedFeedback<CompareOperationFeedback::Type>(
+                  comparison, comparison_bytecode_offset,
+                  /*feedback_value_offset=*/2);
+          CHECK(CompareOperationFeedback::kSignedSmall == embedded_feedback);
+        } else if (tester.HasFeedbackMetadata()) {
           Tagged<MaybeObject> feedback = callable.vector()->Get(slot);
           CHECK(IsSmi(feedback));
           CHECK_EQ(CompareOperationFeedback::kSignedSmall,
@@ -1780,14 +1792,21 @@ TEST_F(InterpreterTest, InterpreterHeapNumberComparisons) {
         BytecodeArrayBuilder builder(zone(), 1, 1, &feedback_spec);
 
         FeedbackSlot slot = feedback_spec.AddCompareICSlot();
+        size_t comparison_bytecode_offset;
         Handle<i::FeedbackMetadata> metadata =
             FeedbackMetadata::New(i_isolate(), &feedback_spec);
 
         Register r0(0);
         builder.LoadLiteral(inputs[i])
             .StoreAccumulatorInRegister(r0)
-            .LoadLiteral(inputs[j])
-            .CompareOperation(comparison, r0, GetIndex(slot))
+            .LoadLiteral(inputs[j]);
+
+        comparison_bytecode_offset = builder.current_bytecode_size();
+        builder
+            .CompareOperation(comparison, r0,
+                              comparison == Token::kEqStrict
+                                  ? kFeedbackIsEmbedded
+                                  : GetIndex(slot))
             .Return();
 
         ast_factory.Internalize(i_isolate());
@@ -1799,7 +1818,13 @@ TEST_F(InterpreterTest, InterpreterHeapNumberComparisons) {
         CHECK(IsBoolean(*return_value));
         CHECK_EQ(Object::BooleanValue(*return_value, i_isolate()),
                  CompareC(comparison, inputs[i], inputs[j]));
-        if (tester.HasFeedbackMetadata()) {
+        if (comparison == Token::kEqStrict) {
+          auto embedded_feedback =
+              tester.GetEmbeddedFeedback<CompareOperationFeedback::Type>(
+                  comparison, comparison_bytecode_offset,
+                  /*feedback_value_offset=*/2);
+          CHECK(CompareOperationFeedback::kNumber == embedded_feedback);
+        } else if (tester.HasFeedbackMetadata()) {
           Tagged<MaybeObject> feedback = callable.vector()->Get(slot);
           CHECK(IsSmi(feedback));
           CHECK_EQ(CompareOperationFeedback::kNumber, feedback.ToSmi().value());
@@ -1824,14 +1849,21 @@ TEST_F(InterpreterTest, InterpreterBigIntComparisons) {
         BytecodeArrayBuilder builder(zone(), 1, 1, &feedback_spec);
 
         FeedbackSlot slot = feedback_spec.AddCompareICSlot();
+        size_t comparison_bytecode_offset;
         Handle<i::FeedbackMetadata> metadata =
             FeedbackMetadata::New(i_isolate(), &feedback_spec);
 
         Register r0(0);
         builder.LoadLiteral(inputs[i])
             .StoreAccumulatorInRegister(r0)
-            .LoadLiteral(inputs[j])
-            .CompareOperation(comparison, r0, GetIndex(slot))
+            .LoadLiteral(inputs[j]);
+
+        comparison_bytecode_offset = builder.current_bytecode_size();
+        builder
+            .CompareOperation(comparison, r0,
+                              comparison == Token::kEqStrict
+                                  ? kFeedbackIsEmbedded
+                                  : GetIndex(slot))
             .Return();
 
         ast_factory.Internalize(i_isolate());
@@ -1841,7 +1873,14 @@ TEST_F(InterpreterTest, InterpreterBigIntComparisons) {
         auto callable = tester.GetCallable<>();
         DirectHandle<Object> return_value = callable().ToHandleChecked();
         CHECK(IsBoolean(*return_value));
-        if (tester.HasFeedbackMetadata()) {
+        if (comparison == Token::kEqStrict) {
+          auto embedded_feedback =
+              tester.GetEmbeddedFeedback<CompareOperationFeedback::Type>(
+                  comparison, comparison_bytecode_offset,
+                  /*feedback_value_offset=*/2);
+          CHECK(CompareOperationFeedback::kBigInt == embedded_feedback ||
+                CompareOperationFeedback::kBigInt64 == embedded_feedback);
+        } else if (tester.HasFeedbackMetadata()) {
           Tagged<MaybeObject> feedback = callable.vector()->Get(slot);
           CHECK(IsSmi(feedback));
           // TODO(panq): Create a standalone unit test for kBigInt64.
@@ -1868,6 +1907,7 @@ TEST_F(InterpreterTest, InterpreterStringComparisons) {
         const char* rhs = inputs[j].c_str();
 
         FeedbackVectorSpec feedback_spec(zone());
+        size_t comparison_bytecode_offset;
         FeedbackSlot slot = feedback_spec.AddCompareICSlot();
         Handle<i::FeedbackMetadata> metadata =
             FeedbackMetadata::New(i_isolate(), &feedback_spec);
@@ -1876,8 +1916,13 @@ TEST_F(InterpreterTest, InterpreterStringComparisons) {
         Register r0(0);
         builder.LoadLiteral(ast_factory.GetOneByteString(lhs))
             .StoreAccumulatorInRegister(r0)
-            .LoadLiteral(ast_factory.GetOneByteString(rhs))
-            .CompareOperation(comparison, r0, GetIndex(slot))
+            .LoadLiteral(ast_factory.GetOneByteString(rhs));
+        comparison_bytecode_offset = builder.current_bytecode_size();
+        builder
+            .CompareOperation(comparison, r0,
+                              comparison == Token::kEqStrict
+                                  ? kFeedbackIsEmbedded
+                                  : GetIndex(slot))
             .Return();
 
         ast_factory.Internalize(i_isolate());
@@ -1889,7 +1934,17 @@ TEST_F(InterpreterTest, InterpreterStringComparisons) {
         CHECK(IsBoolean(*return_value));
         CHECK_EQ(Object::BooleanValue(*return_value, i_isolate()),
                  CompareC(comparison, inputs[i], inputs[j]));
-        if (tester.HasFeedbackMetadata()) {
+        if (comparison == Token::kEqStrict) {
+          auto embedded_feedback =
+              tester.GetEmbeddedFeedback<CompareOperationFeedback::Type>(
+                  comparison, comparison_bytecode_offset,
+                  /*feedback_value_offset=*/2);
+          int const expected_feedback =
+              Token::IsOrderedRelationalCompareOp(comparison)
+                  ? CompareOperationFeedback::kString
+                  : CompareOperationFeedback::kInternalizedString;
+          CHECK_EQ(static_cast<int>(embedded_feedback), expected_feedback);
+        } else if (tester.HasFeedbackMetadata()) {
           Tagged<MaybeObject> feedback = callable.vector()->Get(slot);
           CHECK(IsSmi(feedback));
           int const expected_feedback =
@@ -1949,6 +2004,7 @@ TEST_F(InterpreterTest, InterpreterMixedComparisons) {
 
             FeedbackSlot string_add_slot = feedback_spec.AddBinaryOpICSlot();
             FeedbackSlot slot = feedback_spec.AddCompareICSlot();
+            size_t comparison_bytecode_offset;
             Handle<i::FeedbackMetadata> metadata =
                 FeedbackMetadata::New(i_isolate(), &feedback_spec);
 
@@ -1986,8 +2042,12 @@ TEST_F(InterpreterTest, InterpreterMixedComparisons) {
 
               builder.LoadLiteral(rhs);
             }
-
-            builder.CompareOperation(comparison, lhs_reg, GetIndex(slot))
+            comparison_bytecode_offset = builder.current_bytecode_size();
+            builder
+                .CompareOperation(comparison, lhs_reg,
+                                  comparison == Token::kEqStrict
+                                      ? kFeedbackIsEmbedded
+                                      : GetIndex(slot))
                 .Return();
 
             ast_factory.Internalize(i_isolate());
@@ -1999,7 +2059,13 @@ TEST_F(InterpreterTest, InterpreterMixedComparisons) {
             CHECK(IsBoolean(*return_value));
             CHECK_EQ(Object::BooleanValue(*return_value, i_isolate()),
                      CompareC(comparison, lhs, rhs, true));
-            if (tester.HasFeedbackMetadata()) {
+            if (comparison == Token::kEqStrict) {
+              auto embedded_feedback =
+                  tester.GetEmbeddedFeedback<CompareOperationFeedback::Type>(
+                      comparison, comparison_bytecode_offset,
+                      /*feedback_value_offset=*/2);
+              CHECK_EQ(CompareOperationFeedback::kAny, embedded_feedback);
+            } else if (tester.HasFeedbackMetadata()) {
               Tagged<MaybeObject> feedback = callable.vector()->Get(slot);
               CHECK(IsSmi(feedback));
               if (kComparisonTypes[c] == Token::kEq) {

@@ -99,12 +99,26 @@ void StaticRootsTableGen::write(Isolate* isolate, const char* file) {
   const auto size = static_cast<int>(RootIndex::kReadOnlyRootsCount);
   StaticRootsTableGenImpl gen(isolate);
 
+  bool arm64_addsubimm_max_seen = false;
+  int prev_page = 0;
+
   for (auto& entry : gen.sorted_roots()) {
     Tagged_t ptr = entry.first;
-    CHECK_LT(ptr, kRegularPageSize);
+    // CHECK_LT(ptr, kRegularPageSize);
     const std::list<RootIndex>& roots = entry.second;
 
     for (RootIndex root : roots) {
+      if (!arm64_addsubimm_max_seen && !is_uint12(ptr)) {
+        arm64_addsubimm_max_seen = true;
+        out << "  // -- End of values that fit in arm64 add/sub immediates "
+               "--\n";
+      }
+      int page = ptr / kRegularPageSize;
+      if (page != prev_page) {
+        out << "  // -- End of page " << prev_page << " --\n";
+        prev_page = page;
+      }
+
       static const char* kPreString = "  static constexpr Tagged_t k";
       const std::string& name = gen.camel_name(root);
       size_t ptr_len = ceil(log2(ptr) / 4.0);

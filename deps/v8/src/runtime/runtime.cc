@@ -286,10 +286,6 @@ bool Runtime::IsEnabledForFuzzing(FunctionId id) {
 #endif  // V8_ENABLE_WEBASSEMBLY
     // TODO(353685107): investigate whether these should be exposed to fuzzers.
     case Runtime::kConstructDouble:
-    case Runtime::kConstructConsString:
-    case Runtime::kConstructSlicedString:
-    case Runtime::kConstructInternalizedString:
-    case Runtime::kConstructThinString:
     // TODO(353971258): investigate whether this should be exposed to fuzzers.
     case Runtime::kSerializeDeserializeNow:
     // TODO(353928347): investigate whether this should be exposed to fuzzers.

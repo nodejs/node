@@ -552,7 +552,6 @@ void CodeGenerator::AssembleCodeStartRegisterCheck() {
             kJavaScriptCallCodeStartRegister, Operand(kScratchReg));
 }
 
-#ifdef V8_ENABLE_LEAPTIERING
 // Check that {kJavaScriptCallDispatchHandleRegister} is correct.
 void CodeGenerator::AssembleDispatchHandleRegisterCheck() {
   DCHECK(linkage()->GetIncomingDescriptor()->IsJSFunctionCall());
@@ -580,9 +579,8 @@ void CodeGenerator::AssembleDispatchHandleRegisterCheck() {
   __ Assert(eq, AbortReason::kWrongFunctionDispatchHandle,
             actual_parameter_count, Operand(parameter_count_));
 }
-#endif  // V8_ENABLE_LEAPTIERING
 
-void CodeGenerator::BailoutIfDeoptimized() { __ BailoutIfDeoptimized(); }
+void CodeGenerator::AssertNotDeoptimized() { __ AssertNotDeoptimized(); }
 // Assembles an instruction after register allocation, producing machine code.
 
 CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
@@ -1665,7 +1663,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kMips64Float64InsertHighWord32:
       __ FmoveHigh(i.OutputDoubleRegister(), i.InputRegister(1));
       break;
-    // ... more basic instructions ...
+      // ... more basic instructions ...
 
     case kMips64Seb:
       __ seb(i.OutputRegister(), i.InputRegister(0));

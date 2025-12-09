@@ -15,7 +15,7 @@ bytecode array length: 9
 bytecodes: [
   /*   42 S> */ B(LdaSmi), I8(1),
                 B(Star0),
-  /*   45 S> */ B(AddSmi), I8(2), U8(0),
+  /*   45 S> */ B(AddSmi), I8(2), FBV(0),
                 B(Star0),
                 B(LdaUndefined),
   /*   53 S> */ B(Return),
@@ -35,7 +35,7 @@ bytecode array length: 9
 bytecodes: [
   /*   42 S> */ B(LdaSmi), I8(1),
                 B(Star0),
-  /*   45 S> */ B(DivSmi), I8(2), U8(0),
+  /*   45 S> */ B(DivSmi), I8(2), FBV(0),
                 B(Star0),
                 B(LdaUndefined),
   /*   53 S> */ B(Return),
@@ -53,11 +53,11 @@ frame size: 1
 parameter count: 1
 bytecode array length: 18
 bytecodes: [
-  /*   42 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(41),
+  /*   42 S> */ B(CreateObjectLiteral), U8(0:OBJECT_BOILERPLATE_DESCRIPTION_TYPE), FBV(0), Flag8(0x29),
                 B(Star0),
-  /*   54 S> */ B(GetNamedProperty), R(0), U8(1), U8(1),
-                B(MulSmi), I8(2), U8(3),
-  /*   61 E> */ B(SetNamedProperty), R(0), U8(1), U8(4),
+  /*   54 S> */ B(GetNamedProperty), R(0), U8(1:"name"), FBV(1),
+                B(MulSmi), I8(2), FBV(3),
+  /*   61 E> */ B(SetNamedProperty), R(0), U8(1:"name"), FBV(4),
                 B(LdaUndefined),
   /*   67 S> */ B(Return),
 ]
@@ -76,13 +76,13 @@ frame size: 3
 parameter count: 1
 bytecode array length: 20
 bytecodes: [
-  /*   42 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(41),
+  /*   42 S> */ B(CreateObjectLiteral), U8(0:OBJECT_BOILERPLATE_DESCRIPTION_TYPE), FBV(0), Flag8(0x29),
                 B(Star0),
   /*   52 S> */ B(LdaSmi), I8(1),
                 B(Star2),
-                B(GetKeyedProperty), R(0), U8(1),
-                B(BitwiseXorSmi), I8(2), U8(3),
-  /*   57 E> */ B(SetKeyedProperty), R(0), R(2), U8(4),
+                B(GetKeyedProperty), R(0), FBV(1),
+                B(BitwiseXorSmi), I8(2), FBV(3),
+  /*   57 E> */ B(SetKeyedProperty), R(0), R(2), FBV(4),
                 B(LdaUndefined),
   /*   63 S> */ B(Return),
 ]
@@ -100,14 +100,14 @@ frame size: 1
 parameter count: 1
 bytecode array length: 22
 bytecodes: [
-  /*   30 E> */ B(CreateFunctionContext), U8(0), U8(1),
+  /*   30 E> */ B(CreateFunctionContext), U8(0:SCOPE_INFO_TYPE), U8(1),
                 B(PushContext), R(0),
   /*   42 S> */ B(LdaSmi), I8(1),
-  /*   42 E> */ B(StaCurrentContextSlotNoCell), U8(2),
-  /*   45 S> */ B(CreateClosure), U8(1), U8(0), U8(2),
-  /*   75 S> */ B(LdaCurrentContextSlotNoCell), U8(2),
-                B(BitwiseOrSmi), I8(24), U8(0),
-  /*   77 E> */ B(StaCurrentContextSlotNoCell), U8(2),
+  /*   42 E> */ B(StaCurrentContextSlotNoCell), C8(2),
+  /*   45 S> */ B(CreateClosure), U8(1:SHARED_FUNCTION_INFO_TYPE), FBV(0), Flag8(0x2),
+  /*   75 S> */ B(LdaCurrentContextSlotNoCell), C8(2),
+                B(BitwiseOrSmi), I8(24), FBV(0),
+  /*   77 E> */ B(StaCurrentContextSlotNoCell), C8(2),
                 B(LdaUndefined),
   /*   84 S> */ B(Return),
 ]

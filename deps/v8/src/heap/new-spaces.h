@@ -195,15 +195,6 @@ class NewSpace : NON_EXPORTED_BASE(public SpaceWithLinearArea) {
   virtual bool Contains(Tagged<HeapObject> object) const = 0;
   virtual bool ContainsSlow(Address a) const = 0;
 
-  size_t ExternalBackingStoreOverallBytes() const {
-    size_t result = 0;
-    ForAll<ExternalBackingStoreType>(
-        [this, &result](ExternalBackingStoreType type, int index) {
-          result += ExternalBackingStoreBytes(type);
-        });
-    return result;
-  }
-
   // Promotes a young generation page to the old generation.
   //
   // Does not clear `will_be_promoted()` to allow for different collector
@@ -319,13 +310,6 @@ class V8_EXPORT_PRIVATE SemiSpaceNewSpace final : public NewSpace {
 
   bool ReachedTargetCapacity() const {
     return to_space_.current_capacity_ >= target_capacity_;
-  }
-
-  size_t ExternalBackingStoreBytes(ExternalBackingStoreType type) const final {
-    if (type == ExternalBackingStoreType::kArrayBuffer)
-      return heap()->YoungArrayBufferBytes();
-    DCHECK_EQ(0, from_space_.ExternalBackingStoreBytes(type));
-    return to_space_.ExternalBackingStoreBytes(type);
   }
 
   size_t AllocatedSinceLastGC() const final;
@@ -546,12 +530,6 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
   void RemovePage(PageMetadata* page) final;
   void RemovePageFromSpace(PageMetadata* page) final;
 
-  size_t ExternalBackingStoreBytes(ExternalBackingStoreType type) const final {
-    if (type == ExternalBackingStoreType::kArrayBuffer)
-      return heap()->YoungArrayBufferBytes();
-    return external_backing_store_bytes_[static_cast<int>(type)];
-  }
-
 #ifdef VERIFY_HEAP
   void Verify(Isolate* isolate, SpaceVerificationVisitor* visitor) const final;
 #endif  // VERIFY_HEAP
@@ -647,10 +625,6 @@ class V8_EXPORT_PRIVATE PagedNewSpace final : public NewSpace {
 
   // Return the available bytes without growing.
   size_t Available() const final { return paged_space_.Available(); }
-
-  size_t ExternalBackingStoreBytes(ExternalBackingStoreType type) const final {
-    return paged_space_.ExternalBackingStoreBytes(type);
-  }
 
   size_t AllocatedSinceLastGC() const final {
     return paged_space_.AllocatedSinceLastGC();

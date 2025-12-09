@@ -19,7 +19,7 @@ builder.addFunction("main", kSig_v_v).exportFunc()
     kExprLoop, kWasmVoid,
       kExprBlock, kWasmVoid,
         kExprLocalGet, 0,
-        kGCPrefix, kExprStructNewDefault, $struct0,
+        kGCPrefix, kExprStructNewDefaultDesc, $struct0,
         kExprDrop,
         kExprI32Const, 0,
         kExprIf, kWasmVoid,
@@ -35,7 +35,7 @@ builder.addFunction("main", kSig_v_v).exportFunc()
       kExprBrIf, 0,
     kExprEnd,  // loop
     kExprLocalGet, 0,
-    kGCPrefix, kExprStructNewDefault, $struct0,
+    kGCPrefix, kExprStructNewDefaultDesc, $struct0,
     kExprDrop,
   ]);
 

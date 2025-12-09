@@ -70,7 +70,7 @@ void ZoneList<T>::Resize(int new_capacity, Zone* zone) {
   T* new_data = zone->AllocateArray<T>(new_capacity);
   if (length_ > 0) {
     if (std::is_trivially_copyable_v<T>) {
-      MemCopy(new_data, data_, length_ * sizeof(T));
+      v8::internal::MemCopy(new_data, data_, length_ * sizeof(T));
     } else {
       std::copy(&data_[0], &data_[length_], &new_data[0]);
     }

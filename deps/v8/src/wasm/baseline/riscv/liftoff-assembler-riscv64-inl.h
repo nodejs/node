@@ -504,86 +504,181 @@ inline void AtomicBinop(LiftoffAssembler* lasm, Register dst_addr,
   Register actual_addr = liftoff::CalculateActualAddress(
       lasm, temps, dst_addr, offset_reg, offset_imm);
 
-  // Allocate an additional {temp} register to hold the result that should be
-  // stored to memory. Note that {temp} and {store_result} are not allowed to be
-  // the same register.
-  Register temp = temps.Acquire();
-
   Label retry;
   __ bind(&retry);
-  if (protected_load_pc) *protected_load_pc = lasm->pc_offset();
-  switch (type.value()) {
-    case StoreType::kI64Store8:
-    case StoreType::kI32Store8:
-      __ lbu(result_reg, actual_addr, 0);
-      __ sync();
-      break;
-    case StoreType::kI64Store16:
-    case StoreType::kI32Store16:
-      __ lhu(result_reg, actual_addr, 0);
-      __ sync();
-      break;
-    case StoreType::kI64Store32:
-      __ lr_w(true, false, result_reg, actual_addr);
-      __ ZeroExtendWord(result_reg, result_reg);
-      break;
-    case StoreType::kI32Store:
-      __ lr_w(true, false, result_reg, actual_addr);
-      break;
-    case StoreType::kI64Store:
-      __ lr_d(true, false, result_reg, actual_addr);
-      break;
-    default:
-      UNREACHABLE();
-  }
+  if (type.value() == StoreType::kI32Store ||
+      type.value() == StoreType::kI64Store) {
+    auto trapper = [protected_load_pc](int offset) {
+      if (protected_load_pc) *protected_load_pc = static_cast<uint32_t>(offset);
+    };
+    switch (op) {
+      case Binop::kAdd:
+        switch (type.value()) {
+          case StoreType::kI32Store:
+            __ AmoAdd_w(true, true, result_reg, actual_addr, value.gp(),
+                        trapper);
+            break;
+          case StoreType::kI64Store:
+            __ AmoAdd_d(true, true, result_reg, actual_addr, value.gp(),
+                        trapper);
+            break;
+          default:
+            UNREACHABLE();
+        }
+        break;
+      case Binop::kSub:
+        __ neg(result_reg, value.gp());
+        switch (type.value()) {
+          case StoreType::kI32Store:
+            __ AmoAdd_w(true, true, result_reg, actual_addr, result_reg,
+                        trapper);
+            break;
+          case StoreType::kI64Store:
+            __ AmoAdd_d(true, true, result_reg, actual_addr, result_reg,
+                        trapper);
+            break;
+          default:
+            UNREACHABLE();
+        }
+        break;
+      case Binop::kAnd:
+        switch (type.value()) {
+          case StoreType::kI32Store:
+            __ AmoAnd_w(true, true, result_reg, actual_addr, value.gp(),
+                        trapper);
+            break;
+          case StoreType::kI64Store:
+            __ AmoAnd_d(true, true, result_reg, actual_addr, value.gp(),
+                        trapper);
+            break;
+          default:
+            UNREACHABLE();
+        }
+        break;
+      case Binop::kOr:
+        switch (type.value()) {
+          case StoreType::kI32Store:
+            __ AmoOr_w(true, true, result_reg, actual_addr, value.gp(),
+                       trapper);
+            break;
+          case StoreType::kI64Store:
+            __ AmoOr_d(true, true, result_reg, actual_addr, value.gp(),
+                       trapper);
+            break;
+          default:
+            UNREACHABLE();
+        }
+        break;
+      case Binop::kXor:
+        switch (type.value()) {
+          case StoreType::kI32Store:
+            __ AmoXor_w(true, true, result_reg, actual_addr, value.gp(),
+                        trapper);
+            break;
+          case StoreType::kI64Store:
+            __ AmoXor_d(true, true, result_reg, actual_addr, value.gp(),
+                        trapper);
+            break;
+          default:
+            UNREACHABLE();
+        }
+        break;
+      case Binop::kExchange:
+        switch (type.value()) {
+          case StoreType::kI32Store:
+            trapper(lasm->pc_offset());
+            __ AmoSwap_w(true, true, result_reg, actual_addr, value.gp(),
+                         trapper);
+            break;
+          case StoreType::kI64Store:
+            trapper(lasm->pc_offset());
+            __ AmoSwap_d(true, true, result_reg, actual_addr, value.gp(),
+                         trapper);
+            break;
+          default:
+            UNREACHABLE();
+        }
+        break;
+    }
+  } else {
+    // Allocate an additional {temp} register to hold the result that should be
+    // stored to memory. Note that {temp} and {store_result} are not allowed to
+    // be the same register.
+    Register temp = temps.Acquire();
+    if (protected_load_pc) *protected_load_pc = lasm->pc_offset();
+    // TODO(riscv): use Zabha instruction if enabled
+    switch (type.value()) {
+      case StoreType::kI64Store8:
+      case StoreType::kI32Store8:
+        __ lbu(result_reg, actual_addr, 0);
+        __ sync();
+        break;
+      case StoreType::kI64Store16:
+      case StoreType::kI32Store16:
+        __ lhu(result_reg, actual_addr, 0);
+        __ sync();
+        break;
+      case StoreType::kI64Store32:
+        __ lr_w(true, false, result_reg, actual_addr);
+        __ ZeroExtendWord(result_reg, result_reg);
+        break;
+      case StoreType::kI32Store:
+        __ lr_w(true, false, result_reg, actual_addr);
+        break;
+      case StoreType::kI64Store:
+        __ lr_d(true, false, result_reg, actual_addr);
+        break;
+      default:
+        UNREACHABLE();
+    }
 
-  switch (op) {
-    case Binop::kAdd:
-      __ add(temp, result_reg, value.gp());
-      break;
-    case Binop::kSub:
-      __ sub(temp, result_reg, value.gp());
-      break;
-    case Binop::kAnd:
-      __ and_(temp, result_reg, value.gp());
-      break;
-    case Binop::kOr:
-      __ or_(temp, result_reg, value.gp());
-      break;
-    case Binop::kXor:
-      __ xor_(temp, result_reg, value.gp());
-      break;
-    case Binop::kExchange:
-      __ mv(temp, value.gp());
-      break;
+    switch (op) {
+      case Binop::kAdd:
+        __ add(temp, result_reg, value.gp());
+        break;
+      case Binop::kSub:
+        __ sub(temp, result_reg, value.gp());
+        break;
+      case Binop::kAnd:
+        __ and_(temp, result_reg, value.gp());
+        break;
+      case Binop::kOr:
+        __ or_(temp, result_reg, value.gp());
+        break;
+      case Binop::kXor:
+        __ xor_(temp, result_reg, value.gp());
+        break;
+      case Binop::kExchange:
+        __ mv(temp, value.gp());
+        break;
+    }
+    switch (type.value()) {
+      case StoreType::kI64Store8:
+      case StoreType::kI32Store8:
+        __ sync();
+        __ sb(temp, actual_addr, 0);
+        __ sync();
+        __ mv(store_result, zero_reg);
+        break;
+      case StoreType::kI64Store16:
+      case StoreType::kI32Store16:
+        __ sync();
+        __ sh(temp, actual_addr, 0);
+        __ sync();
+        __ mv(store_result, zero_reg);
+        break;
+      case StoreType::kI64Store32:
+      case StoreType::kI32Store:
+        __ sc_w(false, true, store_result, actual_addr, temp);
+        break;
+      case StoreType::kI64Store:
+        __ sc_d(false, true, store_result, actual_addr, temp);
+        break;
+      default:
+        UNREACHABLE();
+    }
+    __ bnez(store_result, &retry);
   }
-  switch (type.value()) {
-    case StoreType::kI64Store8:
-    case StoreType::kI32Store8:
-      __ sync();
-      __ sb(temp, actual_addr, 0);
-      __ sync();
-      __ mv(store_result, zero_reg);
-      break;
-    case StoreType::kI64Store16:
-    case StoreType::kI32Store16:
-      __ sync();
-      __ sh(temp, actual_addr, 0);
-      __ sync();
-      __ mv(store_result, zero_reg);
-      break;
-    case StoreType::kI64Store32:
-    case StoreType::kI32Store:
-      __ sc_w(false, true, store_result, actual_addr, temp);
-      break;
-    case StoreType::kI64Store:
-      __ sc_d(false, true, store_result, actual_addr, temp);
-      break;
-    default:
-      UNREACHABLE();
-  }
-
-  __ bnez(store_result, &retry);
   if (result_reg != result.gp()) {
     __ mv(result.gp(), result_reg);
   }

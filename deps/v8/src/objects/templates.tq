@@ -78,8 +78,8 @@ extern class FunctionTemplateInfo extends TemplateInfoWithProperties {
   // A data value passed to the callback C function. This field is initialized
   // with |the_hole_value| until the callback is initialized.
   // This field is used as a synchronization point for accessing |callback_data|
-  // and |maybe_redirected_callback| from background compilation thread, thus
-  // Acquire/Release semantics.
+  // and |callback| from background compilation thread, thus Acquire/Release
+  // semantics.
   @cppAcquireLoad @cppReleaseStore callback_data: Object;
 
   // Internal field to store a flag bitfield.
@@ -102,7 +102,7 @@ extern class FunctionTemplateInfo extends TemplateInfoWithProperties {
   // For simulator builds this field contains the address of the trampoline
   // callable from generated code and for native builds - the address of
   // the callback C function.
-  maybe_redirected_callback: ExternalPointer;
+  callback: ExternalPointer;
 }
 
 bitfield struct ObjectTemplateInfoFlags extends uint31 {

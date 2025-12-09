@@ -24,7 +24,8 @@ using BlockConstReverseIterator =
 struct MaglevCallSiteInfo;
 class MaglevCallSiteInfoCompare {
  public:
-  bool operator()(const MaglevCallSiteInfo*, const MaglevCallSiteInfo*);
+  V8_EXPORT_PRIVATE bool operator()(const MaglevCallSiteInfo*,
+                                    const MaglevCallSiteInfo*);
 };
 using MaglevCallSiteCandidates =
     ZonePriorityQueue<MaglevCallSiteInfo*, MaglevCallSiteInfoCompare>;
@@ -45,8 +46,10 @@ class Graph final : public ZoneObject {
         tagged_index_constants_(zone()),
         int32_constants_(zone()),
         uint32_constants_(zone()),
+        shifted_int53_constants_(zone()),
         intptr_constants_(zone()),
         float64_constants_(zone()),
+        holey_float64_constants_(zone()),
         heap_number_constants_(zone()),
         parameters_(zone()),
         eager_deopt_top_frames_(zone()),
@@ -141,9 +144,15 @@ class Graph final : public ZoneObject {
     return tagged_index_constants_;
   }
   ZoneMap<int32_t, Int32Constant*>& int32() { return int32_constants_; }
+  ZoneMap<ShiftedInt53, ShiftedInt53Constant*>& shifted_int53() {
+    return shifted_int53_constants_;
+  }
   ZoneMap<uint32_t, Uint32Constant*>& uint32() { return uint32_constants_; }
   ZoneMap<intptr_t, IntPtrConstant*>& intptr() { return intptr_constants_; }
   ZoneMap<uint64_t, Float64Constant*>& float64() { return float64_constants_; }
+  ZoneMap<uint64_t, HoleyFloat64Constant*>& holey_float64() {
+    return holey_float64_constants_;
+  }
   ZoneMap<uint64_t, Constant*>& heap_number() { return heap_number_constants_; }
   compiler::ZoneRefMap<compiler::HeapObjectRef, TrustedConstant*>&
   trusted_constants() {
@@ -250,6 +259,10 @@ class Graph final : public ZoneObject {
     return GetOrAddNewConstantNode(int32_constants_, constant);
   }
 
+  ShiftedInt53Constant* GetShiftedInt53Constant(ShiftedInt53 constant) {
+    return GetOrAddNewConstantNode(shifted_int53_constants_, constant);
+  }
+
   IntPtrConstant* GetIntPtrConstant(intptr_t constant) {
     return GetOrAddNewConstantNode(intptr_constants_, constant);
   }
@@ -265,6 +278,11 @@ class Graph final : public ZoneObject {
 
   Float64Constant* GetFloat64Constant(Float64 constant) {
     return GetOrAddNewConstantNode(float64_constants_, constant.get_bits());
+  }
+
+  HoleyFloat64Constant* GetHoleyFloat64Constant(Float64 constant) {
+    return GetOrAddNewConstantNode(holey_float64_constants_,
+                                   constant.get_bits());
   }
 
   Constant* GetHeapNumberConstant(double constant);
@@ -314,9 +332,11 @@ class Graph final : public ZoneObject {
   ZoneMap<int, TaggedIndexConstant*> tagged_index_constants_;
   ZoneMap<int32_t, Int32Constant*> int32_constants_;
   ZoneMap<uint32_t, Uint32Constant*> uint32_constants_;
+  ZoneMap<ShiftedInt53, ShiftedInt53Constant*> shifted_int53_constants_;
   ZoneMap<intptr_t, IntPtrConstant*> intptr_constants_;
   // Use the bits of the float as the key.
   ZoneMap<uint64_t, Float64Constant*> float64_constants_;
+  ZoneMap<uint64_t, HoleyFloat64Constant*> holey_float64_constants_;
   ZoneMap<uint64_t, Constant*> heap_number_constants_;
   ZoneVector<InitialValue*> parameters_;
   ZoneAbslFlatHashSet<DeoptFrame*> eager_deopt_top_frames_;

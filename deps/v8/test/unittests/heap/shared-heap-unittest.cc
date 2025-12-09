@@ -10,6 +10,7 @@
 #include "src/heap/parked-scope-inl.h"
 #include "src/objects/bytecode-array.h"
 #include "src/objects/fixed-array.h"
+#include "src/sandbox/bytecode-verifier.h"
 #include "test/unittests/heap/heap-utils.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -268,6 +269,10 @@ TEST_F(SharedHeapTest, TrustedToSharedTrustedPointer) {
   Handle<BytecodeArray> bc = factory->NewBytecodeArray(
       kRawBytesSize, kRawBytes, kFrameSize, kParameterCount, kMaxArguments,
       constant_pool, handler_table);
+  // We still need to verify the bytecode, otherwise the bytecode array won't
+  // be published (be sandbox-accessible), causing the GC to be surprised. We
+  // could use dummy verification here though if necessary.
+  BytecodeVerifier::Verify(isolate, bc);
   CHECK_EQ(MemoryChunk::FromHeapObject(*bc)->Metadata()->owner()->identity(),
            TRUSTED_SPACE);
 

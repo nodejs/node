@@ -10,6 +10,10 @@
 namespace v8 {
 namespace internal {
 
+using FieldLocation = AccessorAssembler::FieldLocation;
+using FieldKind = AccessorAssembler::FieldKind;
+const int kNotSpecifiedFieldIndex = AccessorAssembler::kNotSpecifiedFieldIndex;
+
 void Builtins::Generate_LoadIC(compiler::CodeAssemblerState* state) {
   AccessorAssembler assembler(state);
   assembler.GenerateLoadIC();
@@ -31,9 +35,56 @@ void Builtins::Generate_LoadICTrampoline(compiler::CodeAssemblerState* state) {
   AccessorAssembler assembler(state);
   assembler.GenerateLoadICTrampoline();
 }
-void Builtins::Generate_LoadICBaseline(compiler::CodeAssemblerState* state) {
+void Builtins::Generate_LoadICUninitializedBaseline(
+    compiler::CodeAssemblerState* state) {
   AccessorAssembler assembler(state);
-  assembler.GenerateLoadICBaseline();
+  assembler.GenerateLoadICUninitializedBaseline();
+}
+void Builtins::Generate_LoadICInObjectNonDoubleFieldBaseline(
+    compiler::CodeAssemblerState* state) {
+  AccessorAssembler assembler(state);
+  assembler.GenerateLoadICFieldBaseline(
+      FieldLocation::kInObject, FieldKind::kNonDouble, kNotSpecifiedFieldIndex);
+}
+void Builtins::Generate_LoadICOutOfObjectNonDoubleFieldBaseline(
+    compiler::CodeAssemblerState* state) {
+  AccessorAssembler assembler(state);
+  assembler.GenerateLoadICFieldBaseline(FieldLocation::kOutOfObject,
+                                        FieldKind::kNonDouble,
+                                        kNotSpecifiedFieldIndex);
+}
+void Builtins::Generate_LoadICDoubleFieldBaseline(
+    compiler::CodeAssemblerState* state) {
+  AccessorAssembler assembler(state);
+  assembler.GenerateLoadICFieldBaseline(FieldLocation::kNotSpecified,
+                                        FieldKind::kDouble,
+                                        kNotSpecifiedFieldIndex);
+}
+
+#define GENERATE_LOAD_IC_FIELD(V, Location, Representation, Kind, Index)  \
+  void Builtins::                                                         \
+      Generate_LoadIC##Location##Representation##Kind##Index##Baseline(   \
+          compiler::CodeAssemblerState* state) {                          \
+    AccessorAssembler assembler(state);                                   \
+    assembler.GenerateLoadICFieldBaseline(                                \
+        FieldLocation::k##Location, FieldKind::k##Representation, Index); \
+  }
+
+LOAD_IC_IN_OBJECT_FIELD_WITH_INDEX_HANDLER_LIST(
+    /*V*/, GENERATE_LOAD_IC_FIELD)
+LOAD_IC_OUT_OF_OBJECT_FIELD_WITH_INDEX_HANDLER_LIST(
+    /*V*/, GENERATE_LOAD_IC_FIELD)
+#undef GENERATE_LOAD_IC_FIELD
+
+void Builtins::Generate_LoadICConstantFromPrototypeBaseline(
+    compiler::CodeAssemblerState* state) {
+  AccessorAssembler assembler(state);
+  assembler.GenerateLoadICConstantFromPrototypeBaseline();
+}
+void Builtins::Generate_LoadICGenericBaseline(
+    compiler::CodeAssemblerState* state) {
+  AccessorAssembler assembler(state);
+  assembler.GenerateLoadICGenericBaseline();
 }
 void Builtins::Generate_LoadICTrampoline_Megamorphic(
     compiler::CodeAssemblerState* state) {

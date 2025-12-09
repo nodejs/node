@@ -161,7 +161,6 @@ class JSFunction : public TorqueGeneratedJSFunction<
   template <typename IsolateT>
   inline Tagged<AbstractCode> abstract_code(IsolateT* isolate);
 
-#ifdef V8_ENABLE_LEAPTIERING
   static inline JSDispatchHandle AllocateDispatchHandle(
       Handle<JSFunction> function, Isolate* isolate, uint16_t parameter_count,
       DirectHandle<Code> code,
@@ -172,7 +171,6 @@ class JSFunction : public TorqueGeneratedJSFunction<
   inline void set_dispatch_handle(
       JSDispatchHandle handle,
       WriteBarrierMode mode = WriteBarrierMode::UPDATE_WRITE_BARRIER);
-#endif  // V8_ENABLE_LEAPTIERING
 
   // The predicates for querying code kinds related to this function have
   // specific terminology:
@@ -221,9 +219,6 @@ class JSFunction : public TorqueGeneratedJSFunction<
   // kinds, e.g. TURBOFAN, ignore the tiering state).
   inline bool ChecksTieringState(IsolateForSandbox isolate);
 
-#ifndef V8_ENABLE_LEAPTIERING
-  inline TieringState tiering_state() const;
-#endif  // !V8_ENABLE_LEAPTIERING
 
   // Tiering up a function happens as follows:
   // 1. RequestOptimization is called
@@ -454,9 +449,6 @@ class JSFunction : public TorqueGeneratedJSFunction<
   // Hide TorqueGeneratedClass::kHeaderSize to avoid confusion.
   static const int kHeaderSize;
 
-#ifndef V8_ENABLE_LEAPTIERING
-  inline void set_tiering_state(IsolateForSandbox isolate, TieringState state);
-#endif  // !V8_ENABLE_LEAPTIERING
 
   inline void UpdateCodeImpl(Isolate* isolate, Tagged<Code> code,
                              WriteBarrierMode mode, bool keep_tiering_request);

@@ -47,6 +47,11 @@ static constexpr T FirstFromVarArgs(T x, ...) noexcept {
 #define BUILTIN_CODE(isolate, name) \
   (isolate)->builtins()->code_handle(i::Builtin::k##name)
 
+#define ADD_ONE(Name, ...) +1
+static constexpr int kBuiltinLoadICHandlerCount =
+    0 BUILTIN_LOAD_IC_HANDLER_LIST(ADD_ONE);
+#undef ADD_ONE
+
 enum class Builtin : int32_t {
   kNoBuiltinId = -1,
 #define DEF_ENUM(Name, ...) k##Name,
@@ -56,8 +61,11 @@ enum class Builtin : int32_t {
 #define EXTRACT_NAME(Name, ...) k##Name,
   // Define kFirstBytecodeHandler,
   kFirstBytecodeHandler = FirstFromVarArgs(
-      BUILTIN_LIST_BYTECODE_HANDLERS(EXTRACT_NAME, EXTRACT_NAME) 0)
+      BUILTIN_LIST_BYTECODE_HANDLERS(EXTRACT_NAME, EXTRACT_NAME) 0),
+  kFirstLoadICHandler =
+      FirstFromVarArgs(BUILTIN_LOAD_IC_HANDLER_LIST(EXTRACT_NAME) 0),
 #undef EXTRACT_NAME
+  kLastLoadICHandler = kFirstLoadICHandler + kBuiltinLoadICHandlerCount - 1
 };
 enum class TieringBuiltin : int32_t {
 #define DEF_ENUM(Name, ...) k##Name = static_cast<int32_t>(Builtin::k##Name),
@@ -332,6 +340,16 @@ class Builtins {
       Builtin builtin, int function_length,
       int formal_parameter_count_with_receiver);
 
+  // Checks that a call to this JS builtin is allowed to be generated in user
+  // code. Ensures that the formal parameter count matches the builtin's
+  // parameter count and that the builtin is not a JS trampoline. The latter
+  // is a sanity check against generating direct calls to JS trampolines - this
+  // just doesn't make sense.
+  // This is a similar to JSDispatchTable::IsCompatibleCode(..) but for
+  // builtins.
+  static inline bool IsCompatibleJSBuiltin(Builtin builtin,
+                                           uint16_t parameter_count);
+
   V8_EXPORT_PRIVATE static const char* name(Builtin builtin);
   V8_EXPORT_PRIVATE static const char* NameForStackTrace(Isolate* isolate,
                                                          Builtin builtin);
@@ -491,9 +509,10 @@ class Builtins {
     //    has JS calling convention for convenience.
     kEnabled = 1 << 0,
 
-    // Builtin represents some core V8 functionality which might or might not
-    // be currently used (for example, CompileLazy).
-    kCoreV8 = 1 << 1,
+    // Builtin represents some JS trampoline builtin that can be set as a
+    // JSFunction's code (for example, CompileLazy). It might or might not
+    // be currently used.
+    kCoreV8JSTrampoline = 1 << 1,
 
     // The builtin belongs to a JS language feature that's always available,
     // i.e. the builtin must be installed in some JSFunction by default.
@@ -520,7 +539,7 @@ class Builtins {
     kNonJSLinkage = 1 << 5,
 
     // Common combinations.
-    kJSTrampoline = kEnabled | kCoreV8,
+    kJSTrampoline = kEnabled | kCoreV8JSTrampoline,
     kCoreJSMandatory = kEnabled | kCoreJS,
     kCoreJSLazy = kEnabled | kCoreJS | kLazy,
 
@@ -532,20 +551,23 @@ class Builtins {
     kDisabledFlagDependentLazy = kFlagDependent | kLazy,
   };
   using JSBuiltinStateFlags = base::Flags<JSBuiltinStateFlag>;
-  static JSBuiltinStateFlags GetJSBuiltinState(Builtin builtin);
+  V8_EXPORT_PRIVATE static JSBuiltinStateFlags GetJSBuiltinState(
+      Builtin builtin);
 
   // Returns true for disabled builtins with JS linkage (all non-JS builtins
   // are considered enabled).
-  static bool IsDisabled(Builtin builtin) {
-    auto flags = Builtins::GetJSBuiltinState(builtin);
-    DCHECK_EQ(Builtins::HasJSLinkage(builtin),
-              !(flags & Builtins::JSBuiltinStateFlag::kNonJSLinkage));
-    if (!(flags & Builtins::JSBuiltinStateFlag::kNonJSLinkage) &&
-        !(flags & Builtins::JSBuiltinStateFlag::kEnabled)) {
-      return true;
-    }
-    return false;
-  }
+  static inline bool IsDisabled(Builtin builtin);
+
+  // Returns true if given builtin is a JS trampoline builtin - the builtin
+  // that can be installed into JSFunction as a code object. Note, that
+  // for example tiering trampoines are not allowed to be installed into
+  // JSFunctions. This predicate is used as an allow-list of cases where
+  // a signature mismatch is allowed. See JSDispatchTable::IsCompatibleCode().
+  static inline bool IsJSTrampoline(Builtin builtin);
+
+  // Returns true if given builtin is enabled and it's not a JS trampoline
+  // builtin.
+  static inline bool IsEnabledAndNotJSTrampoline(Builtin builtin);
 
 #ifdef DEBUG
   // Verify correctness of GetJSBuiltinState() which has to be maintained

@@ -109,18 +109,23 @@ struct ForOfNextResult {
   done: Object;
 }
 
-extern transitioning macro ForOfNextHelper(Context, Object, Object):
-    ForOfNextResult;
+extern transitioning macro ForOfNextHelper(
+    Context, Object, Object, Undefined|FeedbackVector,
+    uintptr): ForOfNextResult;
 
 transitioning builtin ForOfNext(
-    context: Context, iterator: JSAny, next: JSFunction): ForOfNextResult {
-  return ForOfNextHelper(context, iterator, next);
+    context: Context, iterator: JSAny, next: JSFunction,
+    feedbackVector: Undefined|FeedbackVector, callSlot: Smi): ForOfNextResult {
+  return ForOfNextHelper(
+      context, iterator, next, feedbackVector, Unsigned(SmiUntag(callSlot)));
 }
 
 transitioning builtin ForOfNextBaseline(
-    context: Context, iterator: JSAny, next: JSFunction,
-    resultSlot: RawPtr): Undefined {
-  const result: ForOfNextResult = ForOfNext(context, iterator, next);
+    context: Context, iterator: JSAny, next: JSFunction, resultSlot: RawPtr,
+    callSlot: Smi): Undefined {
+  const feedbackVector = LoadFeedbackVectorFromBaseline();
+  const result: ForOfNextResult = ForOfNextHelper(
+      context, iterator, next, feedbackVector, Unsigned(SmiUntag(callSlot)));
 
   // The result slot address points to the first interpreter register slot.
   const firstResultSlot = resultSlot;

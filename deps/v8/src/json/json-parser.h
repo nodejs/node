@@ -164,7 +164,45 @@ enum class JsonToken : uint8_t {
   EOS
 };
 
-// A simple json parser.
+template <JsonToken token, JsonToken... tokens>
+concept JsonTokenIsOneOf = ((token == tokens) || ...);
+
+template <JsonToken token>
+concept JsonTokenIsCharacter =
+    JsonTokenIsOneOf<token, JsonToken::STRING, JsonToken::LBRACE,
+                     JsonToken::RBRACE, JsonToken::LBRACK, JsonToken::RBRACK,
+                     JsonToken::TRUE_LITERAL, JsonToken::FALSE_LITERAL,
+                     JsonToken::NULL_LITERAL, JsonToken::COLON,
+                     JsonToken::COMMA>;
+
+constexpr uint8_t JsonTokenToCharacter(JsonToken token) {
+  switch (token) {
+    case JsonToken::STRING:
+      return '"';
+    case JsonToken::LBRACE:
+      return '{';
+    case JsonToken::RBRACE:
+      return '}';
+    case JsonToken::LBRACK:
+      return '[';
+    case JsonToken::RBRACK:
+      return ']';
+    case JsonToken::TRUE_LITERAL:
+      return 't';
+    case JsonToken::FALSE_LITERAL:
+      return 'f';
+    case JsonToken::NULL_LITERAL:
+      return 'n';
+    case JsonToken::COLON:
+      return ':';
+    case JsonToken::COMMA:
+      return ',';
+    default:
+      CONSTEXPR_UNREACHABLE();
+  }
+}
+
+// A json parser.
 template <typename Char>
 class JsonParser final {
  public:
@@ -225,7 +263,7 @@ class JsonParser final {
 
   void advance() { ++cursor_; }
 
-  base::uc32 CurrentCharacter() {
+  base::uc32 CurrentCharacter() const {
     if (V8_UNLIKELY(is_at_end())) return kEndOfString;
     return *cursor_;
   }
@@ -237,37 +275,58 @@ class JsonParser final {
 
   void AdvanceToNonDecimal();
 
-  V8_INLINE JsonToken peek() const { return next_; }
+  V8_INLINE JsonToken peek() const;
 
   void Consume(JsonToken token) {
     DCHECK_EQ(peek(), token);
     advance();
   }
 
+  template <JsonToken token>
+  V8_INLINE bool IsNextToken() {
+    if constexpr (token == JsonToken::EOS) {
+      return is_at_end();
+    } else if constexpr (JsonTokenIsCharacter<token>) {
+      constexpr Char expected_char = JsonTokenToCharacter(token);
+      return V8_LIKELY(expected_char == CurrentCharacter());
+    } else {
+      return false;
+    }
+  }
+
+  template <JsonToken token>
+  V8_WARN_UNUSED_RESULT bool Check() {
+    if (V8_LIKELY(IsNextToken<token>())) {
+      advance();
+      return true;
+    }
+    GetNextNonWhitespaceToken();
+    if (peek() == token) {
+      advance();
+      return true;
+    }
+    return false;
+  }
+
+  template <JsonToken token>
   V8_WARN_UNUSED_RESULT bool Expect(
-      JsonToken token,
       std::optional<MessageTemplate> errorMessage = std::nullopt) {
     if (V8_LIKELY(peek() == token)) {
       advance();
       return true;
     }
-    errorMessage ? ReportUnexpectedToken(peek(), errorMessage.value())
-                 : ReportUnexpectedToken(peek());
+    ReportUnexpectedToken(peek(), errorMessage);
     return false;
   }
 
+  template <JsonToken token>
   V8_WARN_UNUSED_RESULT bool ExpectNext(
-      JsonToken token,
-      std::optional<MessageTemplate> errorMessage = std::nullopt) {
-    SkipWhitespace();
-    return errorMessage ? Expect(token, errorMessage.value()) : Expect(token);
-  }
-
-  V8_WARN_UNUSED_RESULT bool Check(JsonToken token) {
-    SkipWhitespace();
-    if (next_ != token) return false;
-    advance();
-    return true;
+      std::optional<MessageTemplate> errorMessage) {
+    if (Check<token>()) {
+      return true;
+    }
+    ReportUnexpectedToken(peek(), errorMessage);
+    return false;
   }
 
   template <size_t N>
@@ -300,7 +359,7 @@ class JsonParser final {
   // The JSON lexical grammar is specified in the ECMAScript 5 standard,
   // section 15.12.1.1. The only allowed whitespace characters between tokens
   // are tab, carriage-return, newline and space.
-  void SkipWhitespace();
+  void GetNextNonWhitespaceToken();
 
   // A JSON string (production JSONString) is subset of valid JavaScript string
   // literals. The string must only be double-quoted (not single-quoted), and
