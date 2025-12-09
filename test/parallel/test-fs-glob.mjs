@@ -529,7 +529,6 @@ describe('glob - with restricted directory', function() {
       for await (const match of asyncGlob('*', { cwd: restrictedDir })) {
         results.push(match);
       }
-      assert.ok(true, 'glob completed without throwing on readdir error');
     } finally {
       try {
         chmodSync(restrictedDir, 0o755);
