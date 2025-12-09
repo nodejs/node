@@ -2640,7 +2640,7 @@ ECMAScript Language Specification.
 #### `napi_create_object_with_properties`
 
 <!-- YAML
-added: REPLACEME
+added: v24.12.0
 -->
 
 > Stability: 1 - Experimental

@@ -266,7 +266,7 @@ Examples can be found in the [File System Permissions][] documentation.
 ### `--allow-inspector`
 
 <!-- YAML
-added: REPLACEME
+added: v24.12.0
 -->
 
 > Stability: 1.0 - Early development
@@ -1905,7 +1905,7 @@ enables it.
 <!-- YAML
 added: v22.6.0
 changes:
-  - version: REPLACEME
+  - version: v24.12.0
     pr-url: https://github.com/nodejs/node/pull/60600
     description: Type stripping is now stable.
   - version:
