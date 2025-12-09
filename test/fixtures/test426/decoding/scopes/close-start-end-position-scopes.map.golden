@@ -1,0 +1,73 @@
+{
+  "file": "close-start-end-position-scopes.js",
+  "mappings": [],
+  "sources": [
+    {
+      "url": "original_0.js",
+      "content": null,
+      "ignored": false,
+      "scope": {
+        "start": {
+          "line": 0,
+          "column": 0
+        },
+        "end": {
+          "line": 1,
+          "column": 0
+        },
+        "name": null,
+        "kind": null,
+        "isStackFrame": false,
+        "variables": [],
+        "children": [
+          {
+            "start": {
+              "line": 0,
+              "column": 0
+            },
+            "end": {
+              "line": 0,
+              "column": 1
+            },
+            "name": null,
+            "kind": null,
+            "isStackFrame": false,
+            "variables": [],
+            "children": []
+          },
+          {
+            "start": {
+              "line": 0,
+              "column": 1
+            },
+            "end": {
+              "line": 0,
+              "column": 2
+            },
+            "name": null,
+            "kind": null,
+            "isStackFrame": false,
+            "variables": [],
+            "children": []
+          },
+          {
+            "start": {
+              "line": 0,
+              "column": 3
+            },
+            "end": {
+              "line": 0,
+              "column": 5
+            },
+            "name": null,
+            "kind": null,
+            "isStackFrame": false,
+            "variables": [],
+            "children": []
+          }
+        ]
+      }
+    }
+  ],
+  "ranges": []
+}

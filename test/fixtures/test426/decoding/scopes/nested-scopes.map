@@ -1,0 +1,14 @@
+{
+  "version": 3,
+  "file": "nested-scopes.js",
+  "sources": [
+    "original_0.js"
+  ],
+  "mappings": "",
+  "names": [
+    "originalFunctionFoo",
+    "innerOriginalFunction",
+    "block"
+  ],
+  "scopes": "BAAA,BFKAA,BFFCC,BCFEE,CFE,CBC,CBA,CBA"
+}
