@@ -58,10 +58,10 @@ L_vpaes_consts:
 .align	6,0x90
 .align	4
 __vpaes_preheat:
-	%ifdef __CET__
+	#ifdef __CET__
 
 .byte	243,15,30,251
-	%endif
+	#endif
 
 	addl	(%esp),%ebp
 	movdqa	-48(%ebp),%xmm7
@@ -69,10 +69,10 @@ __vpaes_preheat:
 	ret
 .align	4
 __vpaes_encrypt_core:
-	%ifdef __CET__
+	#ifdef __CET__
 
 .byte	243,15,30,251
-	%endif
+	#endif
 
 	movl	$16,%ecx
 	movl	240(%edx),%eax
@@ -149,10 +149,10 @@ L000enc_entry:
 	ret
 .align	4
 __vpaes_decrypt_core:
-	%ifdef __CET__
+	#ifdef __CET__
 
 .byte	243,15,30,251
-	%endif
+	#endif
 
 	leal	608(%ebp),%ebx
 	movl	240(%edx),%eax
@@ -240,10 +240,10 @@ L002dec_entry:
 	ret
 .align	4
 __vpaes_schedule_core:
-	%ifdef __CET__
+	#ifdef __CET__
 
 .byte	243,15,30,251
-	%endif
+	#endif
 
 	addl	(%esp),%ebp
 	movdqu	(%esi),%xmm0
@@ -337,10 +337,10 @@ L013schedule_mangle_last_dec:
 	ret
 .align	4
 __vpaes_schedule_192_smear:
-	%ifdef __CET__
+	#ifdef __CET__
 
 .byte	243,15,30,251
-	%endif
+	#endif
 
 	pshufd	$128,%xmm6,%xmm1
 	pshufd	$254,%xmm7,%xmm0
@@ -352,10 +352,10 @@ __vpaes_schedule_192_smear:
 	ret
 .align	4
 __vpaes_schedule_round:
-	%ifdef __CET__
+	#ifdef __CET__
 
 .byte	243,15,30,251
-	%endif
+	#endif
 
 	movdqa	8(%esp),%xmm2
 	pxor	%xmm1,%xmm1
@@ -404,10 +404,10 @@ L_vpaes_schedule_low_round:
 	ret
 .align	4
 __vpaes_schedule_transform:
-	%ifdef __CET__
+	#ifdef __CET__
 
 .byte	243,15,30,251
-	%endif
+	#endif
 
 	movdqa	-16(%ebp),%xmm2
 	movdqa	%xmm2,%xmm1
@@ -422,10 +422,10 @@ __vpaes_schedule_transform:
 	ret
 .align	4
 __vpaes_schedule_mangle:
-	%ifdef __CET__
+	#ifdef __CET__
 
 .byte	243,15,30,251
-	%endif
+	#endif
 
 	movdqa	%xmm0,%xmm4
 	movdqa	128(%ebp),%xmm5
@@ -486,10 +486,10 @@ L015schedule_mangle_both:
 .align	4
 _vpaes_set_encrypt_key:
 L_vpaes_set_encrypt_key_begin:
-	%ifdef __CET__
+	#ifdef __CET__
 
 .byte	243,15,30,251
-	%endif
+	#endif
 
 	pushl	%ebp
 	pushl	%ebx
@@ -522,10 +522,10 @@ L016pic_point:
 .align	4
 _vpaes_set_decrypt_key:
 L_vpaes_set_decrypt_key_begin:
-	%ifdef __CET__
+	#ifdef __CET__
 
 .byte	243,15,30,251
-	%endif
+	#endif
 
 	pushl	%ebp
 	pushl	%ebx
@@ -563,10 +563,10 @@ L017pic_point:
 .align	4
 _vpaes_encrypt:
 L_vpaes_encrypt_begin:
-	%ifdef __CET__
+	#ifdef __CET__
 
 .byte	243,15,30,251
-	%endif
+	#endif
 
 	pushl	%ebp
 	pushl	%ebx
@@ -595,10 +595,10 @@ L018pic_point:
 .align	4
 _vpaes_decrypt:
 L_vpaes_decrypt_begin:
-	%ifdef __CET__
+	#ifdef __CET__
 
 .byte	243,15,30,251
-	%endif
+	#endif
 
 	pushl	%ebp
 	pushl	%ebx
@@ -627,10 +627,10 @@ L019pic_point:
 .align	4
 _vpaes_cbc_encrypt:
 L_vpaes_cbc_encrypt_begin:
-	%ifdef __CET__
+	#ifdef __CET__
 
 .byte	243,15,30,251
-	%endif
+	#endif
 
 	pushl	%ebp
 	pushl	%ebx
