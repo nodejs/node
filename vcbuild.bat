@@ -184,7 +184,7 @@ if defined package set stage_package=1
 :: assign path to node_exe
 set "node_exe=%config%\node.exe"
 set "node_gyp_exe="%node_exe%" deps\npm\node_modules\node-gyp\bin\node-gyp"
-set "npm_exe="%~dp0%node_exe%" %~dp0deps\npm\bin\npm-cli.js"
+set "npm_exe="%node_exe%" deps\npm\bin\npm-cli.js"
 if "%target_env%"=="vs2022" set "node_gyp_exe=%node_gyp_exe% --msvs_version=2022"
 
 :: skip building if the only argument received was lint
@@ -600,9 +600,7 @@ if not defined doc if not defined build_addons (
 )
 if exist "tools\doc\node_modules\unified\package.json" goto skip-install-doctools
 SETLOCAL
-cd tools\doc
-%npm_exe% ci
-cd ..\..
+%npm_exe% --prefix tools\doc ci
 if errorlevel 1 goto exit
 ENDLOCAL
 :skip-install-doctools
@@ -745,9 +743,7 @@ goto lint-js-build
 
 :lint-js-build
 if not defined lint_js_build if not defined lint_js if not defined lint_js_fix goto lint-md-build
-cd tools\eslint
-%npm_exe% ci
-cd ..\..
+%npm_exe% --prefix tools\eslint ci
 
 :lint-js
 if not defined lint_js goto lint-js-fix
@@ -765,9 +761,7 @@ goto lint-md-build
 
 :lint-md-build
 if not defined lint_md if not defined format_md goto lint-md
-cd tools\lint-md
-%npm_exe% ci
-cd ..\..
+%npm_exe% --prefix tools\lint-md ci
 
 :lint-md
 if not defined lint_md goto format-md
