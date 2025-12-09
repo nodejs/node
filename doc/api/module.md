@@ -699,7 +699,7 @@ any worker threads by default as well.
 
 ##### Registering hooks before application code runs programmatically
 
-Alternatively,  `registerHooks()` can be called from the entry point.
+Alternatively, `registerHooks()` can be called from the entry point.
 
 If the entry point needs to load other modules and the loading process needs to be
 customized, load them using either `require()` or dynamic `import()` after the hooks
@@ -777,15 +777,11 @@ registerHooks(hook2);
 ```
 
 In this example, the registered hooks will form chains. These chains run
-last-in, first out (LIFO). If both `hook1` and `hook2` define a `resolve`
+last-in, first-out (LIFO). If both `hook1` and `hook2` define a `resolve`
 hook, they will be called like so (note the right-to-left,
 starting with `hook2.resolve`, then `hook1.resolve`, then the Node.js default):
 
-<!-- lint disable prohibited-strings remark-lint-->
-
-Node.js' default ← `hook1.resolve` ← `hook2.resolve`
-
-<!--lint enable prohibited-strings-->
+Node.js default `resolve` ← `hook1.resolve` ← `hook2.resolve`
 
 The same applies to all the other hooks.
 
@@ -1016,7 +1012,7 @@ is not a string, it is converted to a string using [`util.TextDecoder`][].
 
 #### Caveats of asynchronous customization hooks
 
-The asynchronous customization hooks have many caveats and the it is uncertain if their
+The asynchronous customization hooks have many caveats and it is uncertain if their
 issues can be resolved. Users are encouraged to use the synchronous customization hooks
 via `module.registerHooks()` instead to avoid these caveats.
 
@@ -1151,11 +1147,7 @@ import('./my-app.mjs');
 If `foo.mjs` and `bar.mjs` define a `resolve` hook, they will be called like so
 (note the right-to-left, starting with `./bar.mjs`, then `./foo.mjs`, then the Node.js default):
 
-<!-- lint disable prohibited-strings remark-lint-->
-
-The Node.js' default ← `./foo.mjs` ← `./bar.mjs`
-
-<!-- lint enable prohibited-strings remark-lint-->
+Node.js default ← `./foo.mjs` ← `./bar.mjs`
 
 When using the asynchronous hooks, the registered hooks also affect subsequent
 `register` calls, which takes care of loading hook modules. In the example above,
