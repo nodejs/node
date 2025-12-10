@@ -1442,11 +1442,9 @@ const definitions = {
   orgs: new Definition('orgs', {
     default: null,
     type: [null, String, Array],
-    hint: '<org1,org2>',
     description: `
       When creating a Granular Access Token with \`npm token create\`,
-      this limits the token access to specific organizations. Provide
-      a comma-separated list of organization names.
+      this limits the token access to specific organizations.
     `,
     flatten,
   }),
@@ -1549,11 +1547,9 @@ const definitions = {
   packages: new Definition('packages', {
     default: [],
     type: [null, String, Array],
-    hint: '<pkg1,pkg2>',
     description: `
       When creating a Granular Access Token with \`npm token create\`,
-      this limits the token access to specific packages. Provide
-      a comma-separated list of package names.
+      this limits the token access to specific packages.
     `,
     flatten,
   }),
@@ -1955,11 +1951,10 @@ const definitions = {
   scopes: new Definition('scopes', {
     default: null,
     type: [null, String, Array],
-    hint: '<@scope1,@scope2>',
     description: `
       When creating a Granular Access Token with \`npm token create\`,
       this limits the token access to specific scopes. Provide
-      a comma-separated list of scope names (with or without @ prefix).
+      a scope name (with or without @ prefix).
     `,
     flatten,
   }),

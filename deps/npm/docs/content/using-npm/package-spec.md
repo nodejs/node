@@ -37,9 +37,9 @@ The `<alias>` is the name of the package as it is reified in the `node_modules` 
 See `Package name` above for more info on referring to a package by name, and [registry](/using-npm/config#registry) for configuring which registry is used when referring to a package by name.
 
 Examples:
-* `semver:@npm:@npmcli/semver-with-patch`
-* `semver:@npm:semver@7.2.2`
-* `semver:@npm:semver@legacy`
+* `semver@npm:@npmcli/semver-with-patch`
+* `semver@npm:semver@7.2.2`
+* `semver@npm:semver@legacy`
 
 ### Folders
 

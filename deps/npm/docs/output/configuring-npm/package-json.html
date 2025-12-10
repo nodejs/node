@@ -141,16 +141,16 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="----packagejson----1164">
+<h1 id="----packagejson----1170">
     <span>package.json</span>
-    <span class="version">@11.6.4</span>
+    <span class="version">@11.7.0</span>
 </h1>
 <span class="description">Specifics of npm's package.json handling</span>
 </header>
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#description">Description</a></li><li><a href="#name">name</a></li><li><a href="#version">version</a></li><li><a href="#description2">description</a></li><li><a href="#keywords">keywords</a></li><li><a href="#homepage">homepage</a></li><li><a href="#bugs">bugs</a></li><li><a href="#license">license</a></li><li><a href="#people-fields-author-contributors">people fields: author, contributors</a></li><li><a href="#funding">funding</a></li><li><a href="#files">files</a></li><li><a href="#exports">exports</a></li><li><a href="#main">main</a></li><li><a href="#browser">browser</a></li><li><a href="#bin">bin</a></li><li><a href="#man">man</a></li><li><a href="#directories">directories</a></li><ul><li><a href="#directoriesbin">directories.bin</a></li><li><a href="#directoriesman">directories.man</a></li></ul><li><a href="#repository">repository</a></li><li><a href="#scripts">scripts</a></li><li><a href="#config">config</a></li><li><a href="#dependencies">dependencies</a></li><ul><li><a href="#urls-as-dependencies">URLs as Dependencies</a></li><li><a href="#git-urls-as-dependencies">Git URLs as Dependencies</a></li><li><a href="#github-urls">GitHub URLs</a></li><li><a href="#local-paths">Local Paths</a></li></ul><li><a href="#devdependencies">devDependencies</a></li><li><a href="#peerdependencies">peerDependencies</a></li><li><a href="#peerdependenciesmeta">peerDependenciesMeta</a></li><li><a href="#bundledependencies">bundleDependencies</a></li><li><a href="#optionaldependencies">optionalDependencies</a></li><li><a href="#overrides">overrides</a></li><li><a href="#engines">engines</a></li><li><a href="#os">os</a></li><li><a href="#cpu">cpu</a></li><li><a href="#libc">libc</a></li><li><a href="#devengines">devEngines</a></li><li><a href="#private">private</a></li><li><a href="#publishconfig">publishConfig</a></li><li><a href="#workspaces">workspaces</a></li><li><a href="#default-values">DEFAULT VALUES</a></li><li><a href="#see-also">SEE ALSO</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#description">Description</a></li><li><a href="#name">name</a></li><li><a href="#version">version</a></li><li><a href="#description2">description</a></li><li><a href="#keywords">keywords</a></li><li><a href="#homepage">homepage</a></li><li><a href="#bugs">bugs</a></li><li><a href="#license">license</a></li><li><a href="#people-fields-author-contributors">people fields: author, contributors</a></li><li><a href="#funding">funding</a></li><li><a href="#files">files</a></li><li><a href="#exports">exports</a></li><li><a href="#main">main</a></li><li><a href="#type">type</a></li><li><a href="#browser">browser</a></li><li><a href="#bin">bin</a></li><li><a href="#man">man</a></li><li><a href="#directories">directories</a></li><ul><li><a href="#directoriesbin">directories.bin</a></li><li><a href="#directoriesman">directories.man</a></li></ul><li><a href="#repository">repository</a></li><li><a href="#scripts">scripts</a></li><li><a href="#gypfile">gypfile</a></li><li><a href="#config">config</a></li><li><a href="#dependencies">dependencies</a></li><ul><li><a href="#urls-as-dependencies">URLs as Dependencies</a></li><li><a href="#git-urls-as-dependencies">Git URLs as Dependencies</a></li><li><a href="#github-urls">GitHub URLs</a></li><li><a href="#local-paths">Local Paths</a></li></ul><li><a href="#devdependencies">devDependencies</a></li><li><a href="#peerdependencies">peerDependencies</a></li><li><a href="#peerdependenciesmeta">peerDependenciesMeta</a></li><li><a href="#bundledependencies">bundleDependencies</a></li><li><a href="#optionaldependencies">optionalDependencies</a></li><li><a href="#overrides">overrides</a></li><ul><li><a href="#replacing-a-dependency-with-a-fork">Replacing a dependency with a fork</a></li></ul><li><a href="#engines">engines</a></li><li><a href="#os">os</a></li><li><a href="#cpu">cpu</a></li><li><a href="#libc">libc</a></li><li><a href="#devengines">devEngines</a></li><li><a href="#private">private</a></li><li><a href="#publishconfig">publishConfig</a></li><li><a href="#workspaces">workspaces</a></li><li><a href="#default-values">DEFAULT VALUES</a></li><li><a href="#see-also">SEE ALSO</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="description">Description</h3>
@@ -399,6 +399,9 @@ That is, if your package is named <code>foo</code>, and a user installs it, and 
 <p>This should be a module relative to the root of your package folder.</p>
 <p>For most modules, it makes the most sense to have a main script and often not much else.</p>
 <p>If <code>main</code> is not set, it defaults to <code>index.js</code> in the package's root folder.</p>
+<h3 id="type">type</h3>
+<p>The <code>type</code> field defines how Node.js should interpret <code>.js</code> files in your package. This field is not used by npm.</p>
+<p>See the <a href="https://nodejs.org/api/packages.html#type">Node.js documentation on the type field</a> for more information.</p>
 <h3 id="browser">browser</h3>
 <p>If your module is meant to be used client-side the browser field should be used instead of the main field.
 This is helpful to hint users that it might rely on primitives that aren't available in Node.js modules.
@@ -516,6 +519,15 @@ It's for computers.</p>
   "repository": "gitlab:user/repo"
 }
 </code></pre>
+<p><strong>Note on normalization:</strong> When you publish a package, npm normalizes the <code>repository</code> field to the full object format with a <code>url</code> property. If you use a shorthand format (like <code>"npm/example"</code>), you'll see a warning during <code>npm publish</code> indicating that the field was auto-corrected. While the shorthand format currently works, it's recommended to use the full object format in your <code>package.json</code> to avoid warnings and ensure future compatibility:</p>
+<pre><code class="language-json">{
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/npm/example.git"
+  }
+}
+</code></pre>
+<p>You can run <code>npm pkg fix</code> to automatically convert shorthand formats to the normalized object format.</p>
 <p>If the <code>package.json</code> for your package is not in the root directory (for example if it is part of a monorepo), you can specify the directory in which it lives:</p>
 <pre><code class="language-json">{
   "repository": {
@@ -529,6 +541,14 @@ It's for computers.</p>
 <p>The "scripts" property is a dictionary containing script commands that are run at various times in the lifecycle of your package.
 The key is the lifecycle event, and the value is the command to run at that point.</p>
 <p>See <a href="../using-npm/scripts.html"><code>scripts</code></a> to find out more about writing package scripts.</p>
+<h3 id="gypfile">gypfile</h3>
+<p>If you have a binding.gyp file in the root of your package and you have not defined your own <code>install</code> or <code>preinstall</code> scripts, npm will default to building your module using node-gyp.</p>
+<p>To prevent npm from automatically building your module with node-gyp, set <code>gypfile</code> to <code>false</code>:</p>
+<pre><code class="language-json">{
+  "gypfile": false
+}
+</code></pre>
+<p>This is useful for packages that include native addons but want to handle the build process differently, or packages that have a binding.gyp file but should not be built as a native addon.</p>
 <h3 id="config">config</h3>
 <p>A "config" object can be used to set configuration parameters used in package scripts that persist across upgrades.
 For instance, if a package had the following:</p>
@@ -830,6 +850,39 @@ To make this limitation easier to deal with, overrides may also be defined as a 
     "@npm/foo": "$foo",
     // the referenced package does not need to match the overridden one
     "@npm/bar": "$foo"
+  }
+}
+</code></pre>
+<h4 id="replacing-a-dependency-with-a-fork">Replacing a dependency with a fork</h4>
+<p>You can replace a package with a different package or fork using several methods:</p>
+<p><strong>Using the <code>npm:</code> prefix to replace with a different package name:</strong></p>
+<pre><code class="language-json">{
+  "overrides": {
+    "package-name": "npm:@scope/forked-package@1.0.0"
+  }
+}
+</code></pre>
+<p><strong>Using a GitHub repository (supports branches, tags, or commit hashes):</strong></p>
+<pre><code class="language-json">{
+  "overrides": {
+    "package-name": "github:username/repo#branch-name"
+  }
+}
+</code></pre>
+<p><strong>Using a local file path:</strong></p>
+<pre><code class="language-json">{
+  "overrides": {
+    "package-name": "file:../local-fork"
+  }
+}
+</code></pre>
+<p>These replacement methods work for both top-level overrides and nested overrides.
+For example, to replace a transitive dependency with a fork:</p>
+<pre><code class="language-json">{
+  "overrides": {
+    "parent-package": {
+      "vulnerable-dep": "github:username/patched-fork#v2.0.1"
+    }
   }
 }
 </code></pre>

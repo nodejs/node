@@ -20,6 +20,14 @@ Using `--flag` without specifying any value will set the value to `true`.
 Example: `--flag1 --flag2` will set both configuration parameters to `true`, while `--flag1 --flag2 bar` will set `flag1` to `true`, and `flag2` to `bar`.
 Finally, `--flag1 --flag2 -- bar` will set both configuration parameters to `true`, and the `bar` is taken as a command argument.
 
+**Common examples:**
+
+* `npm install --prefix /path/to/dir` - Runs npm commands in a different directory without changing the current working directory
+* `npm install --global` - Installs packages globally (shorthand: `-g`)
+* `npm install --save-dev` - Saves to devDependencies (shorthand: `-D`)
+
+Any configuration option documented in the [Config Settings](#config-settings) section below can be set via command line flags using `--option-name value` syntax.
+
 #### Environment Variables
 
 Any environment variables that start with `npm_config_` will be interpreted as a configuration parameter.
@@ -1138,8 +1146,7 @@ time.
 * Type: null or String (can be set multiple times)
 
 When creating a Granular Access Token with `npm token create`, this limits
-the token access to specific organizations. Provide a comma-separated list
-of organization names.
+the token access to specific organizations.
 
 
 
@@ -1227,8 +1234,7 @@ For `list` this means the output will be based on the tree described by the
 * Type: null or String (can be set multiple times)
 
 When creating a Granular Access Token with `npm token create`, this limits
-the token access to specific packages. Provide a comma-separated list of
-package names.
+the token access to specific packages.
 
 
 
@@ -1564,8 +1570,8 @@ npm init --scope=@foo --yes
 * Type: null or String (can be set multiple times)
 
 When creating a Granular Access Token with `npm token create`, this limits
-the token access to specific scopes. Provide a comma-separated list of scope
-names (with or without @ prefix).
+the token access to specific scopes. Provide a scope name (with or without @
+prefix).
 
 
 

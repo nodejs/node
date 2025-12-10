@@ -510,7 +510,7 @@ module.exports = cls => class Reifier extends cls {
         if (er.code === 'ENOENT') {
           return didMkdirp ? null : mkdir(dirname(to), { recursive: true }).then(() =>
             this[_renamePath](from, to, true))
-        } else if (er.code === 'EEXIST') {
+        } else if (er.code === 'EEXIST' || er.code === 'ENOTEMPTY') {
           return rm(to, { recursive: true, force: true }).then(() => moveFile(from, to))
         } else {
           throw er

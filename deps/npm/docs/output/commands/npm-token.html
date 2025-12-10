@@ -141,58 +141,34 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="----npm-token----1164">
+<h1 id="----npm-token----1170">
     <span>npm-token</span>
-    <span class="version">@11.6.4</span>
+    <span class="version">@11.7.0</span>
 </h1>
 <span class="description">Manage your authentication tokens</span>
 </header>
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#name"><code>name</code></a></li><li><a href="#token-description"><code>token-description</code></a></li><li><a href="#expires"><code>expires</code></a></li><li><a href="#packages"><code>packages</code></a></li><li><a href="#packages-all"><code>packages-all</code></a></li><li><a href="#scopes"><code>scopes</code></a></li><li><a href="#orgs"><code>orgs</code></a></li><li><a href="#packages-and-scopes-permission"><code>packages-and-scopes-permission</code></a></li><li><a href="#orgs-permission"><code>orgs-permission</code></a></li><li><a href="#cidr"><code>cidr</code></a></li><li><a href="#bypass-2fa"><code>bypass-2fa</code></a></li><li><a href="#password"><code>password</code></a></li><li><a href="#registry"><code>registry</code></a></li><li><a href="#otp"><code>otp</code></a></li><li><a href="#read-only"><code>read-only</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><ul><li><a href="#listing-tokens">Listing tokens</a></li><li><a href="#generating-tokens">Generating tokens</a></li><li><a href="#revoking-tokens">Revoking tokens</a></li></ul><li><a href="#configuration">Configuration</a></li><ul><li><a href="#name"><code>name</code></a></li><li><a href="#token-description"><code>token-description</code></a></li><li><a href="#expires"><code>expires</code></a></li><li><a href="#packages"><code>packages</code></a></li><li><a href="#packages-all"><code>packages-all</code></a></li><li><a href="#scopes"><code>scopes</code></a></li><li><a href="#orgs"><code>orgs</code></a></li><li><a href="#packages-and-scopes-permission"><code>packages-and-scopes-permission</code></a></li><li><a href="#orgs-permission"><code>orgs-permission</code></a></li><li><a href="#cidr"><code>cidr</code></a></li><li><a href="#bypass-2fa"><code>bypass-2fa</code></a></li><li><a href="#password"><code>password</code></a></li><li><a href="#registry"><code>registry</code></a></li><li><a href="#otp"><code>otp</code></a></li><li><a href="#read-only"><code>read-only</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
 <pre><code class="language-bash">npm token list
 npm token revoke &lt;id|token&gt;
-npm token create --name=&lt;name&gt; [--token-description=&lt;desc&gt;] [--packages=&lt;pkg1,pkg2&gt;] [--packages-all] [--scopes=&lt;scope1,scope2&gt;] [--orgs=&lt;org1,org2&gt;] [--packages-and-scopes-permission=&lt;read-only|read-write|no-access&gt;] [--orgs-permission=&lt;read-only|read-write|no-access&gt;] [--expires=&lt;days&gt;] [--cidr=&lt;ip-range&gt;] [--bypass-2fa] [--password=&lt;pass&gt;]
+npm token create
 </code></pre>
 <p>Note: This command is unaware of workspaces.</p>
 <h3 id="description">Description</h3>
 <p>This lets you list, create and revoke authentication tokens.</p>
-<ul>
-<li><code>npm token list</code>:
-Shows a table of all active authentication tokens.
-You can request this as JSON with <code>--json</code> or tab-separated values with <code>--parseable</code>.</li>
-</ul>
-<pre><code>Read only token npm_1f… with id 7f3134 created 2017-10-21
-
-Publish token npm_af…  with id c03241 created 2017-10-02
-with IP Whitelist: 192.168.0.1/24
-
-Publish token npm_… with id e0cf92 created 2017-10-02
-
-</code></pre>
-<ul>
-<li>
-<p><code>npm token create [--read-only] [--cidr=&lt;cidr-ranges&gt;]</code>:
-Create a new authentication token.
-It can be <code>--read-only</code>, or accept a list of <a href="https://en.wikipedia.org/wiki/Classless_Inter-Domain_Routing">CIDR</a> ranges with which to limit use of this token.
-This will prompt you for your password, and, if you have two-factor authentication enabled, an otp.</p>
-<p>Currently, the cli cannot generate automation tokens.
-Please refer to the <a href="https://docs.npmjs.com/creating-and-viewing-access-tokens">docs website</a> for more information on generating automation tokens.</p>
-</li>
-</ul>
-<pre><code>Created publish token a73c9572-f1b9-8983-983d-ba3ac3cc913d
-</code></pre>
-<ul>
-<li><code>npm token revoke &lt;token|id&gt;</code>:
-Immediately removes an authentication token from the registry.
-You will no longer be able to use it.
-This can accept both complete tokens (such as those you get back from <code>npm token create</code>, and those found in your <code>.npmrc</code>), and ids as seen in the parseable or json output of <code>npm token list</code>.
-This will NOT accept the truncated token found in the normal <code>npm token list</code> output.</li>
-</ul>
+<h4 id="listing-tokens">Listing tokens</h4>
+<p>When listing tokens, an abbreviated token will be displayed.  For security purposes the full token is not displayed.</p>
+<h4 id="generating-tokens">Generating tokens</h4>
+<p>When generating tokens, you will be prompted you for your password and, if you have two-factor authentication enabled, an otp.</p>
+<p>Please refer to the <a href="https://docs.npmjs.com/creating-and-viewing-access-tokens">docs website</a> for more information on generating tokens for CI/CD.</p>
+<h4 id="revoking-tokens">Revoking tokens</h4>
+<p>When revoking a token, you can use the full token (e.g. what you get back from <code>npm token create</code>, or as can be found in an <code>.npmrc</code> file), or a truncated id.  If the given truncated id is not distinct enough to differentiate between multiple existing tokens, you will need to use enough of the id to allow npm to distinguish between them.  Full token ids can be found on the <a href="https://www.npmjs.com">npm website</a>, or in the <code>--parseable</code> or <code>--json</code> output of <code>npm token list</code>.  This command will NOT accept the truncated token found in the normal <code>npm token list</code> output.</p>
+<p>A revoked token will immediately be removed from the registry and you will no longer be able to use it.</p>
 <h3 id="configuration">Configuration</h3>
 <h4 id="name"><code>name</code></h4>
 <ul>
@@ -221,8 +197,7 @@ expiration.</p>
 <li>Type: null or String (can be set multiple times)</li>
 </ul>
 <p>When creating a Granular Access Token with <code>npm token create</code>, this limits
-the token access to specific packages. Provide a comma-separated list of
-package names.</p>
+the token access to specific packages.</p>
 <h4 id="packages-all"><code>packages-all</code></h4>
 <ul>
 <li>Default: false</li>
@@ -236,16 +211,15 @@ token access to all packages instead of limiting to specific packages.</p>
 <li>Type: null or String (can be set multiple times)</li>
 </ul>
 <p>When creating a Granular Access Token with <code>npm token create</code>, this limits
-the token access to specific scopes. Provide a comma-separated list of scope
-names (with or without @ prefix).</p>
+the token access to specific scopes. Provide a scope name (with or without @
+prefix).</p>
 <h4 id="orgs"><code>orgs</code></h4>
 <ul>
 <li>Default: null</li>
 <li>Type: null or String (can be set multiple times)</li>
 </ul>
 <p>When creating a Granular Access Token with <code>npm token create</code>, this limits
-the token access to specific organizations. Provide a comma-separated list
-of organization names.</p>
+the token access to specific organizations.</p>
 <h4 id="packages-and-scopes-permission"><code>packages-and-scopes-permission</code></h4>
 <ul>
 <li>Default: null</li>

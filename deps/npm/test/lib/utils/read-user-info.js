@@ -118,3 +118,35 @@ t.test('email - invalid warns and retries', async (t) => {
   t.equal(result, 'foo@bar.baz', 'received the email')
   t.equal(logMsg, 'invalid email')
 })
+
+t.test('read-user-info integration works', async (t) => {
+  t.teardown(() => {
+    readResult = null
+    readOpts = null
+  })
+
+  readResult = 'regular-input'
+  const username = await readUserInfo.username('Username: ')
+  t.equal(username, 'regular-input', 'should return username from regular prompt')
+  t.notOk(readOpts.silent, 'username prompt should not set silent')
+
+  readResult = 'secret-password'
+  const password = await readUserInfo.password('Password: ')
+  t.equal(password, 'secret-password', 'should return password from silent prompt')
+  t.match(readOpts, { silent: true }, 'password prompt should set silent: true')
+})
+
+t.test('silent metadata is passed correctly by read-user-info', async (t) => {
+  t.teardown(() => {
+    readResult = null
+    readOpts = null
+  })
+
+  readResult = 'username'
+  await readUserInfo.username('Username: ')
+  t.notOk(readOpts?.silent, 'username prompt should not set silent')
+
+  readResult = 'password'
+  await readUserInfo.password('Password: ')
+  t.equal(readOpts?.silent, true, 'password prompt should set silent: true')
+})
