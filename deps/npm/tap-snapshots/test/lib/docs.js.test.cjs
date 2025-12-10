@@ -1196,8 +1196,7 @@ time.
 * Type: null or String (can be set multiple times)
 
 When creating a Granular Access Token with \`npm token create\`, this limits
-the token access to specific organizations. Provide a comma-separated list
-of organization names.
+the token access to specific organizations.
 
 
 
@@ -1285,8 +1284,7 @@ For \`list\` this means the output will be based on the tree described by the
 * Type: null or String (can be set multiple times)
 
 When creating a Granular Access Token with \`npm token create\`, this limits
-the token access to specific packages. Provide a comma-separated list of
-package names.
+the token access to specific packages.
 
 
 
@@ -1622,8 +1620,8 @@ npm init --scope=@foo --yes
 * Type: null or String (can be set multiple times)
 
 When creating a Granular Access Token with \`npm token create\`, this limits
-the token access to specific scopes. Provide a comma-separated list of scope
-names (with or without @ prefix).
+the token access to specific scopes. Provide a scope name (with or without @
+prefix).
 
 
 
@@ -4457,13 +4455,12 @@ Manage your authentication tokens
 Usage:
 npm token list
 npm token revoke <id|token>
-npm token create --name=<name> [--token-description=<desc>] [--packages=<pkg1,pkg2>] [--packages-all] [--scopes=<scope1,scope2>] [--orgs=<org1,org2>] [--packages-and-scopes-permission=<read-only|read-write|no-access>] [--orgs-permission=<read-only|read-write|no-access>] [--expires=<days>] [--cidr=<ip-range>] [--bypass-2fa] [--password=<pass>]
+npm token create
 
 Options:
 [--name <name>] [--token-description <token-description>] [--expires <expires>]
-[--packages <pkg1,pkg2> [--packages <pkg1,pkg2> ...]] [--packages-all]
-[--scopes <@scope1,@scope2> [--scopes <@scope1,@scope2> ...]]
-[--orgs <org1,org2> [--orgs <org1,org2> ...]]
+[--packages <packages> [--packages <packages> ...]] [--packages-all]
+[--scopes <scopes> [--scopes <scopes> ...]] [--orgs <orgs> [--orgs <orgs> ...]]
 [--packages-and-scopes-permission <read-only|read-write|no-access>]
 [--orgs-permission <read-only|read-write|no-access>]
 [--cidr <cidr> [--cidr <cidr> ...]] [--bypass-2fa] [--password <password>]
@@ -4474,7 +4471,7 @@ Run "npm help token" for more info
 \`\`\`bash
 npm token list
 npm token revoke <id|token>
-npm token create --name=<name> [--token-description=<desc>] [--packages=<pkg1,pkg2>] [--packages-all] [--scopes=<scope1,scope2>] [--orgs=<org1,org2>] [--packages-and-scopes-permission=<read-only|read-write|no-access>] [--orgs-permission=<read-only|read-write|no-access>] [--expires=<days>] [--cidr=<ip-range>] [--bypass-2fa] [--password=<pass>]
+npm token create
 \`\`\`
 
 Note: This command is unaware of workspaces.

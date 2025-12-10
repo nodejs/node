@@ -1,4 +1,4 @@
-.TH "PACKAGE-LOCK.JSON" "5" "November 2025" "NPM@11.6.4" ""
+.TH "PACKAGE-LOCK.JSON" "5" "December 2025" "NPM@11.7.0" ""
 .SH "NAME"
 \fBpackage-lock.json\fR - A manifestation of the manifest
 .SS "Description"
@@ -119,7 +119,7 @@ npm v7 ignores this section entirely if a \fBpackages\fR section is present, but
 Dependency objects have the following fields:
 .RS 0
 .IP \(bu 4
-version: a specifier that varies depending on the nature of the package, and is usable in fetching a new copy of it.
+version: a specifier that varies depending on the nature of the package, and is usable in fetching a new copy of it. Note that for peer dependencies that are not installed, or optional dependencies that are not installed, this field may be omitted.
 .RS 4
 .IP \(bu 4
 bundled dependencies: Regardless of source, this is a version number that is purely for informational purposes.
@@ -135,6 +135,8 @@ local tarball sources: This is the file URL of the tarball. (eg \fBfile:///opt/s
 local link sources: This is the file URL of the link. (eg \fBfile:libs/our-module\fR)
 .RE 0
 
+.P
+\fBNote:\fR The \fBversion\fR field may be omitted for certain types of dependencies, such as optional peer dependencies that are not installed. In these cases, only metadata fields like \fBdev\fR, \fBoptional\fR, and \fBpeer\fR will be present.
 .IP \(bu 4
 integrity: A \fBsha512\fR or \fBsha1\fR \fBStandard Subresource Integrity\fR \fI\(lahttps://w3c.github.io/webappsec/specs/subresourceintegrity/\(ra\fR string for the artifact that was unpacked in this location. For git dependencies, this is the commit sha.
 .IP \(bu 4
