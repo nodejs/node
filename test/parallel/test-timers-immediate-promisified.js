@@ -49,7 +49,7 @@ process.on('multipleResolves', common.mustNotCall());
   const ac = new AbortController();
   const signal = ac.signal;
   setPromiseImmediate(10, { signal })
-    .then(common.mustCall(() => { ac.abort(); }))
+    .then(() => { ac.abort(); })
     .then(common.mustCall());
 }
 

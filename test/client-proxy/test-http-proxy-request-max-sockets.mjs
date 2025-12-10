@@ -20,7 +20,7 @@ const server = http.createServer(common.mustCall((req, res) => {
       console.log('Responding to /first');
       res.writeHead(200, { 'Content-Type': 'text/plain' });
       res.end('Response for /first');
-    });
+    }).then(common.mustCall());
   } else if (req.url === '/second') {
     // Respond immediately for the second request
     res.writeHead(200, { 'Content-Type': 'text/plain' });
