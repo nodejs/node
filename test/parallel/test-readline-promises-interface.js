@@ -396,7 +396,7 @@ function assertCursorRowsAndCols(rli, rows, cols) {
 {
   const [rli] = getInterface({ terminal: true });
   const expectedLines = ['foo'];
-  rli.question(expectedLines[0]).then(() => rli.close());
+  rli.question(expectedLines[0]).then(() => rli.close()).then(common.mustNotCall('never settling promise'));
   assertCursorRowsAndCols(rli, 0, expectedLines[0].length);
   rli.close();
 }
@@ -405,7 +405,7 @@ function assertCursorRowsAndCols(rli, rows, cols) {
 {
   const [rli] = getInterface({ terminal: true });
   const expectedLines = ['foo', 'bar'];
-  rli.question(expectedLines.join('\n')).then(() => rli.close());
+  rli.question(expectedLines.join('\n')).then(() => rli.close()).then(common.mustNotCall('never settling promise'));
   assertCursorRowsAndCols(
     rli, expectedLines.length - 1, expectedLines.slice(-1)[0].length);
   rli.close();
@@ -997,11 +997,12 @@ for (let i = 0; i < 12; i++) {
     rli.question('What\'s your name?').then(common.mustCall((name) => {
       assert.strictEqual(name, 'Node.js');
       rli.close();
-      rli.question('How are you?')
-        .then(common.mustNotCall(), common.expectsError({
+      assert.rejects(
+        rli.question('How are you?'),
+        {
           code: 'ERR_USE_AFTER_CLOSE',
           name: 'Error'
-        }));
+        }).then(common.mustCall());
       assert.notStrictEqual(rli.getPrompt(), 'How are you?');
     }));
     fi.emit('data', 'Node.js\n');

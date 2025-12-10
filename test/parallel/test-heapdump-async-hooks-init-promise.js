@@ -42,5 +42,5 @@ async_hooks.createHook({
 }).enable();
 
 
-Promise.resolve().then(() => {});
+Promise.resolve().then(common.mustCall());
 setImmediate(globalThis.gc);

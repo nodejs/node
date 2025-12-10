@@ -159,7 +159,7 @@ async function closeStreamWhileNextIsPending() {
   yielded.then(() => {
     stream.destroy();
     resolveDestroy();
-  });
+  }).then(mustCall());
 }
 
 async function closeAfterNullYielded() {

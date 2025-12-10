@@ -24,6 +24,6 @@ const promise = Promise.resolve().then(() => {
 promise.then(() => {
   assert.strictEqual(seen, promise);
   stop();
-});
+}).then(common.mustCall());
 
 assert.strictEqual(seen, undefined);

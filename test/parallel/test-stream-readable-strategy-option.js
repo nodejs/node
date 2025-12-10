@@ -70,5 +70,5 @@ const assert = require('assert');
   reader.read().then(({ value, done }) => {
     assert.strictEqual(value, undefined);
     assert.strictEqual(done, true);
-  });
+  }).then(common.mustCall());
 }
