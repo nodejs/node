@@ -3701,16 +3701,73 @@ static HWY_INLINE V VsxF2INormalizeSrcVals(V v) {
 #endif
 }
 
+template <class VF32>
+static HWY_INLINE HWY_MAYBE_UNUSED VFromD<Repartition<int64_t, DFromV<VF32>>>
+VsxXvcvspsxds(VF32 vf32) {
+  using VI64 = VFromD<Repartition<int64_t, DFromV<VF32>>>;
+#if (HWY_COMPILER_GCC_ACTUAL && HWY_COMPILER_GCC_ACTUAL < 1500) || \
+    HWY_HAS_BUILTIN(__builtin_vsx_xvcvspsxds)
+  // Use __builtin_vsx_xvcvspsxds if it is available (which is the case with
+  // GCC 4.8 through GCC 14 or Clang 13 or later on PPC8/PPC9/PPC10)
+  return VI64{__builtin_vsx_xvcvspsxds(vf32.raw)};
+#elif HWY_COMPILER_GCC_ACTUAL >= 1500 && HWY_IS_LITTLE_ENDIAN
+  // On little-endian PPC8/PPC9/PPC10 with GCC 15 or later, use the F32->I64
+  // vec_signedo intrinsic as the __builtin_vsx_xvcvspsxds intrinsic has been
+  // removed from GCC in GCC 15
+  return VI64{vec_signedo(vf32.raw)};
+#elif HWY_COMPILER_GCC_ACTUAL >= 1500 && HWY_IS_BIG_ENDIAN
+  // On big-endian PPC8/PPC9/PPC10 with GCC 15 or later, use the F32->I64
+  // vec_signede intrinsic as the __builtin_vsx_xvcvspsxds intrinsic has been
+  // removed from GCC in GCC 15
+  return VI64{vec_signede(vf32.raw)};
+#else
+  // Inline assembly fallback for older versions of Clang that do not have the
+  // __builtin_vsx_xvcvspsxds intrinsic
+  __vector signed long long raw_result;
+  __asm__("xvcvspsxds %x0, %x1" : "=wa"(raw_result) : "wa"(vf32.raw) :);
+  return VI64{raw_result};
+#endif
+}
+
+template <class VF32>
+static HWY_INLINE HWY_MAYBE_UNUSED VFromD<Repartition<uint64_t, DFromV<VF32>>>
+VsxXvcvspuxds(VF32 vf32) {
+  using VU64 = VFromD<Repartition<uint64_t, DFromV<VF32>>>;
+#if (HWY_COMPILER_GCC_ACTUAL && HWY_COMPILER_GCC_ACTUAL < 1500) || \
+    HWY_HAS_BUILTIN(__builtin_vsx_xvcvspuxds)
+  // Use __builtin_vsx_xvcvspuxds if it is available (which is the case with
+  // GCC 4.8 through GCC 14 or Clang 13 or later on PPC8/PPC9/PPC10)
+  return VU64{reinterpret_cast<__vector unsigned long long>(
+      __builtin_vsx_xvcvspuxds(vf32.raw))};
+#elif HWY_COMPILER_GCC_ACTUAL >= 1500 && HWY_IS_LITTLE_ENDIAN
+  // On little-endian PPC8/PPC9/PPC10 with GCC 15 or later, use the F32->U64
+  // vec_unsignedo intrinsic as the __builtin_vsx_xvcvspuxds intrinsic has been
+  // removed from GCC in GCC 15
+  return VU64{vec_unsignedo(vf32.raw)};
+#elif HWY_COMPILER_GCC_ACTUAL >= 1500 && HWY_IS_BIG_ENDIAN
+  // On big-endian PPC8/PPC9/PPC10 with GCC 15 or later, use the F32->U64
+  // vec_unsignedo intrinsic as the __builtin_vsx_xvcvspuxds intrinsic has been
+  // removed from GCC in GCC 15
+  return VU64{vec_unsignede(vf32.raw)};
+#else
+  // Inline assembly fallback for older versions of Clang that do not have the
+  // __builtin_vsx_xvcvspuxds intrinsic
+  __vector unsigned long long raw_result;
+  __asm__("xvcvspuxds %x0, %x1" : "=wa"(raw_result) : "wa"(vf32.raw) :);
+  return VU64{raw_result};
+#endif
+}
+
 }  // namespace detail
 #endif  // !HWY_S390X_HAVE_Z14
 
 template <class D, HWY_IF_I64_D(D)>
 HWY_API VFromD<D> PromoteTo(D di64, VFromD<Rebind<float, D>> v) {
-#if !HWY_S390X_HAVE_Z14 && \
-    (HWY_COMPILER_GCC_ACTUAL || HWY_HAS_BUILTIN(__builtin_vsx_xvcvspsxds))
-  const __vector float raw_v =
-      detail::VsxF2INormalizeSrcVals(InterleaveLower(v, v)).raw;
-  return VFromD<decltype(di64)>{__builtin_vsx_xvcvspsxds(raw_v)};
+#if !HWY_S390X_HAVE_Z14
+  const Repartition<float, decltype(di64)> dt_f32;
+  const auto vt_f32 = ResizeBitCast(dt_f32, v);
+  return detail::VsxXvcvspsxds(
+      detail::VsxF2INormalizeSrcVals(InterleaveLower(vt_f32, vt_f32)));
 #else
   const RebindToFloat<decltype(di64)> df64;
   return ConvertTo(di64, PromoteTo(df64, v));
@@ -3719,12 +3776,11 @@ HWY_API VFromD<D> PromoteTo(D di64, VFromD<Rebind<float, D>> v) {
 
 template <class D, HWY_IF_U64_D(D)>
 HWY_API VFromD<D> PromoteTo(D du64, VFromD<Rebind<float, D>> v) {
-#if !HWY_S390X_HAVE_Z14 && \
-    (HWY_COMPILER_GCC_ACTUAL || HWY_HAS_BUILTIN(__builtin_vsx_xvcvspuxds))
-  const __vector float raw_v =
-      detail::VsxF2INormalizeSrcVals(InterleaveLower(v, v)).raw;
-  return VFromD<decltype(du64)>{reinterpret_cast<__vector unsigned long long>(
-      __builtin_vsx_xvcvspuxds(raw_v))};
+#if !HWY_S390X_HAVE_Z14
+  const Repartition<float, decltype(du64)> dt_f32;
+  const auto vt_f32 = ResizeBitCast(dt_f32, v);
+  return detail::VsxXvcvspuxds(
+      detail::VsxF2INormalizeSrcVals(InterleaveLower(vt_f32, vt_f32)));
 #else
   const RebindToFloat<decltype(du64)> df64;
   return ConvertTo(du64, PromoteTo(df64, v));
@@ -3829,12 +3885,10 @@ HWY_API VFromD<D> PromoteUpperTo(D df64, Vec128<uint32_t> v) {
 
 template <class D, HWY_IF_V_SIZE_D(D, 16), HWY_IF_I64_D(D)>
 HWY_API VFromD<D> PromoteUpperTo(D di64, Vec128<float> v) {
-#if !HWY_S390X_HAVE_Z14 && \
-    (HWY_COMPILER_GCC_ACTUAL || HWY_HAS_BUILTIN(__builtin_vsx_xvcvspsxds))
-  const __vector float raw_v =
-      detail::VsxF2INormalizeSrcVals(InterleaveUpper(Full128<float>(), v, v))
-          .raw;
-  return VFromD<decltype(di64)>{__builtin_vsx_xvcvspsxds(raw_v)};
+#if !HWY_S390X_HAVE_Z14
+  (void)di64;
+  return detail::VsxXvcvspsxds(
+      detail::VsxF2INormalizeSrcVals(InterleaveUpper(Full128<float>(), v, v)));
 #else
   const RebindToFloat<decltype(di64)> df64;
   return ConvertTo(di64, PromoteUpperTo(df64, v));
@@ -3843,13 +3897,10 @@ HWY_API VFromD<D> PromoteUpperTo(D di64, Vec128<float> v) {
 
 template <class D, HWY_IF_V_SIZE_D(D, 16), HWY_IF_U64_D(D)>
 HWY_API VFromD<D> PromoteUpperTo(D du64, Vec128<float> v) {
-#if !HWY_S390X_HAVE_Z14 && \
-    (HWY_COMPILER_GCC_ACTUAL || HWY_HAS_BUILTIN(__builtin_vsx_xvcvspuxds))
-  const __vector float raw_v =
-      detail::VsxF2INormalizeSrcVals(InterleaveUpper(Full128<float>(), v, v))
-          .raw;
-  return VFromD<decltype(du64)>{reinterpret_cast<__vector unsigned long long>(
-      __builtin_vsx_xvcvspuxds(raw_v))};
+#if !HWY_S390X_HAVE_Z14
+  (void)du64;
+  return detail::VsxXvcvspuxds(
+      detail::VsxF2INormalizeSrcVals(InterleaveUpper(Full128<float>(), v, v)));
 #else
   const RebindToFloat<decltype(du64)> df64;
   return ConvertTo(du64, PromoteUpperTo(df64, v));
@@ -3937,20 +3988,18 @@ HWY_INLINE VFromD<D> PromoteEvenTo(hwy::SignedTag /*to_type_tag*/,
                                    hwy::SizeTag<8> /*to_lane_size_tag*/,
                                    hwy::FloatTag /*from_type_tag*/, D d_to,
                                    V v) {
-#if !HWY_S390X_HAVE_Z14 && \
-    (HWY_COMPILER_GCC_ACTUAL || HWY_HAS_BUILTIN(__builtin_vsx_xvcvspsxds))
+#if !HWY_S390X_HAVE_Z14
   (void)d_to;
   const auto normalized_v = detail::VsxF2INormalizeSrcVals(v);
 #if HWY_IS_LITTLE_ENDIAN
-  // __builtin_vsx_xvcvspsxds expects the source values to be in the odd lanes
-  // on little-endian PPC, and the vec_sld operation below will shift the even
+  // VsxXvcvspsxds expects the source values to be in the odd lanes on
+  // little-endian PPC, and the Shuffle2103 operation below will shift the even
   // lanes of normalized_v into the odd lanes.
-  return VFromD<D>{
-      __builtin_vsx_xvcvspsxds(vec_sld(normalized_v.raw, normalized_v.raw, 4))};
+  return VsxXvcvspsxds(Shuffle2103(normalized_v));
 #else
-  // __builtin_vsx_xvcvspsxds expects the source values to be in the even lanes
-  // on big-endian PPC.
-  return VFromD<D>{__builtin_vsx_xvcvspsxds(normalized_v.raw)};
+  // VsxXvcvspsxds expects the source values to be in the even lanes on
+  // big-endian PPC.
+  return VsxXvcvspsxds(normalized_v);
 #endif
 #else
   const RebindToFloat<decltype(d_to)> df64;
@@ -3965,22 +4014,18 @@ HWY_INLINE VFromD<D> PromoteEvenTo(hwy::UnsignedTag /*to_type_tag*/,
                                    hwy::SizeTag<8> /*to_lane_size_tag*/,
                                    hwy::FloatTag /*from_type_tag*/, D d_to,
                                    V v) {
-#if !HWY_S390X_HAVE_Z14 && \
-    (HWY_COMPILER_GCC_ACTUAL || HWY_HAS_BUILTIN(__builtin_vsx_xvcvspuxds))
+#if !HWY_S390X_HAVE_Z14
   (void)d_to;
   const auto normalized_v = detail::VsxF2INormalizeSrcVals(v);
 #if HWY_IS_LITTLE_ENDIAN
-  // __builtin_vsx_xvcvspuxds expects the source values to be in the odd lanes
-  // on little-endian PPC, and the vec_sld operation below will shift the even
-  // lanes of normalized_v into the odd lanes.
-  return VFromD<D>{
-      reinterpret_cast<__vector unsigned long long>(__builtin_vsx_xvcvspuxds(
-          vec_sld(normalized_v.raw, normalized_v.raw, 4)))};
+  // VsxXvcvspuxds expects the source values to be in the odd lanes
+  // on little-endian PPC, and the Shuffle2103 operation below will shift the
+  // even lanes of normalized_v into the odd lanes.
+  return VsxXvcvspuxds(Shuffle2103(normalized_v));
 #else
-  // __builtin_vsx_xvcvspuxds expects the source values to be in the even lanes
+  // VsxXvcvspuxds expects the source values to be in the even lanes
   // on big-endian PPC.
-  return VFromD<D>{reinterpret_cast<__vector unsigned long long>(
-      __builtin_vsx_xvcvspuxds(normalized_v.raw))};
+  return VsxXvcvspuxds(normalized_v);
 #endif
 #else
   const RebindToFloat<decltype(d_to)> df64;
@@ -4022,20 +4067,18 @@ HWY_INLINE VFromD<D> PromoteOddTo(hwy::SignedTag /*to_type_tag*/,
                                   hwy::SizeTag<8> /*to_lane_size_tag*/,
                                   hwy::FloatTag /*from_type_tag*/, D d_to,
                                   V v) {
-#if !HWY_S390X_HAVE_Z14 && \
-    (HWY_COMPILER_GCC_ACTUAL || HWY_HAS_BUILTIN(__builtin_vsx_xvcvspsxds))
+#if !HWY_S390X_HAVE_Z14
   (void)d_to;
   const auto normalized_v = detail::VsxF2INormalizeSrcVals(v);
 #if HWY_IS_LITTLE_ENDIAN
-  // __builtin_vsx_xvcvspsxds expects the source values to be in the odd lanes
+  // VsxXvcvspsxds expects the source values to be in the odd lanes
   // on little-endian PPC
-  return VFromD<D>{__builtin_vsx_xvcvspsxds(normalized_v.raw)};
+  return VsxXvcvspsxds(normalized_v);
 #else
-  // __builtin_vsx_xvcvspsxds expects the source values to be in the even lanes
-  // on big-endian PPC, and the vec_sld operation below will shift the odd lanes
-  // of normalized_v into the even lanes.
-  return VFromD<D>{
-      __builtin_vsx_xvcvspsxds(vec_sld(normalized_v.raw, normalized_v.raw, 4))};
+  // VsxXvcvspsxds expects the source values to be in the even lanes
+  // on big-endian PPC, and the Shuffle0321 operation below will shift the odd
+  // lanes of normalized_v into the even lanes.
+  return VsxXvcvspsxds(Shuffle0321(normalized_v));
 #endif
 #else
   const RebindToFloat<decltype(d_to)> df64;
@@ -4050,22 +4093,18 @@ HWY_INLINE VFromD<D> PromoteOddTo(hwy::UnsignedTag /*to_type_tag*/,
                                   hwy::SizeTag<8> /*to_lane_size_tag*/,
                                   hwy::FloatTag /*from_type_tag*/, D d_to,
                                   V v) {
-#if !HWY_S390X_HAVE_Z14 && \
-    (HWY_COMPILER_GCC_ACTUAL || HWY_HAS_BUILTIN(__builtin_vsx_xvcvspuxds))
+#if !HWY_S390X_HAVE_Z14
   (void)d_to;
   const auto normalized_v = detail::VsxF2INormalizeSrcVals(v);
 #if HWY_IS_LITTLE_ENDIAN
-  // __builtin_vsx_xvcvspuxds expects the source values to be in the odd lanes
+  // VsxXvcvspuxds expects the source values to be in the odd lanes
   // on little-endian PPC
-  return VFromD<D>{reinterpret_cast<__vector unsigned long long>(
-      __builtin_vsx_xvcvspuxds(normalized_v.raw))};
+  return VsxXvcvspuxds(normalized_v);
 #else
-  // __builtin_vsx_xvcvspuxds expects the source values to be in the even lanes
-  // on big-endian PPC, and the vec_sld operation below will shift the odd lanes
-  // of normalized_v into the even lanes.
-  return VFromD<D>{
-      reinterpret_cast<__vector unsigned long long>(__builtin_vsx_xvcvspuxds(
-          vec_sld(normalized_v.raw, normalized_v.raw, 4)))};
+  // VsxXvcvspuxds expects the source values to be in the even lanes
+  // on big-endian PPC, and the Shuffle0321 operation below will shift the odd
+  // lanes of normalized_v into the even lanes.
+  return VsxXvcvspuxds(Shuffle0321(normalized_v));
 #endif
 #else
   const RebindToFloat<decltype(d_to)> df64;
