@@ -18,22 +18,22 @@ const { setInterval } = timerPromises;
   const iterable = setInterval(1, undefined);
   const iterator = iterable[Symbol.asyncIterator]();
   const promise = iterator.next();
-  promise.then(common.mustCall((result) => {
+  promise.then((result) => {
     assert.ok(!result.done, 'iterator was wrongly marked as done');
     assert.strictEqual(result.value, undefined);
     return iterator.return();
-  })).then(common.mustCall());
+  }).then(common.mustCall());
 }
 
 {
   const iterable = setInterval(1, 'foobar');
   const iterator = iterable[Symbol.asyncIterator]();
   const promise = iterator.next();
-  promise.then(common.mustCall((result) => {
+  promise.then((result) => {
     assert.ok(!result.done, 'iterator was wronly marked as done');
     assert.strictEqual(result.value, 'foobar');
     return iterator.return();
-  })).then(common.mustCall());
+  }).then(common.mustCall());
 }
 
 {
@@ -41,16 +41,16 @@ const { setInterval } = timerPromises;
   const iterator = iterable[Symbol.asyncIterator]();
   const promise = iterator.next();
   promise
-    .then(common.mustCall((result) => {
+    .then((result) => {
       assert.ok(!result.done, 'iterator was wronly marked as done');
       assert.strictEqual(result.value, 'foobar');
       return iterator.next();
-    }))
-    .then(common.mustCall((result) => {
+    })
+    .then((result) => {
       assert.ok(!result.done, 'iterator was wrongly marked as done');
       assert.strictEqual(result.value, 'foobar');
       return iterator.return();
-    }))
+    })
     .then(common.mustCall());
 }
 
@@ -230,14 +230,14 @@ const { setInterval } = timerPromises;
       const iterable = timerPromises.setInterval(time_unit * 2);
       const iterator = iterable[Symbol.asyncIterator]();
 
-      iterator.next().then(() => {
+      res(iterator.next().then(() => {
         assert.ok(pre, 'interval ran too early');
         assert.ok(!post, 'interval ran too late');
         return iterator.next();
       }).then(() => {
         assert.ok(post, 'second interval ran too early');
         return iterator.return();
-      }).then(res);
+      }));
     }),
     setPromiseTimeout(time_unit * 3).then(() => post = true),
   ]).then(common.mustCall());

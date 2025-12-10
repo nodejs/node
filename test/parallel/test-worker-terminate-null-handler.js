@@ -14,8 +14,7 @@ parentPort.postMessage({ hello: 'world' });
 process.once('beforeExit', common.mustCall(() => worker.ref()));
 
 worker.on('exit', common.mustCall(() => {
-  worker.terminate().then((res) => assert.strictEqual(res, undefined));
-
+  worker.terminate().then((res) => assert.strictEqual(res, undefined)).then(common.mustCall());
 }));
 
 worker.unref();

@@ -25,6 +25,7 @@ const assert = require('assert');
 
 const implementations = [
   function(fn) {
+    // eslint-disable-next-line node-core/must-call-assert
     Promise.resolve().then(fn);
   },
 ];

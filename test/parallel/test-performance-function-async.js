@@ -36,4 +36,4 @@ const timerified = timerify(doIt);
 
 const res = timerified();
 assert(res instanceof Promise);
-res.then(common.mustCall(assert));
+res.then(assert).then(common.mustCall());
