@@ -2,22 +2,16 @@ import { mustCall, mustNotCall, isWindows } from '../common/index.mjs';
 import assert from 'assert';
 import { convertProcessSignalToExitCode } from 'util';
 import { spawn } from 'child_process';
+import { constants } from 'os';
+const { signals } = constants;
 
 {
-  // SIGTERM = 15, so 128 + 15 = 143
-  assert.strictEqual(convertProcessSignalToExitCode('SIGTERM'), 143);
 
-  // SIGKILL = 9, so 128 + 9 = 137
-  assert.strictEqual(convertProcessSignalToExitCode('SIGKILL'), 137);
-
-  // SIGINT = 2, so 128 + 2 = 130
-  assert.strictEqual(convertProcessSignalToExitCode('SIGINT'), 130);
-
-  // SIGHUP = 1, so 128 + 1 = 129
-  assert.strictEqual(convertProcessSignalToExitCode('SIGHUP'), 129);
-
-  // SIGABRT = 6, so 128 + 6 = 134
-  assert.strictEqual(convertProcessSignalToExitCode('SIGABRT'), 134);
+  assert.strictEqual(convertProcessSignalToExitCode('SIGTERM'), 128 + signals.SIGTERM);
+  assert.strictEqual(convertProcessSignalToExitCode('SIGKILL'), 128 + signals.SIGKILL);
+  assert.strictEqual(convertProcessSignalToExitCode('SIGINT'), 128 + signals.SIGINT);
+  assert.strictEqual(convertProcessSignalToExitCode('SIGHUP'), 128 + signals.SIGHUP);
+  assert.strictEqual(convertProcessSignalToExitCode('SIGABRT'), 128 + signals.SIGABRT);
 }
 
 {
