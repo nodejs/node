@@ -1,4 +1,4 @@
-.TH "NPM-VIEW" "1" "November 2025" "NPM@11.6.4" ""
+.TH "NPM-VIEW" "1" "December 2025" "NPM@11.7.0" ""
 .SH "NAME"
 \fBnpm-view\fR - View registry info
 .SS "Synopsis"
@@ -80,6 +80,24 @@ npm view express time'\[lB]4.8.0\[rB]'
 .fi
 .RE
 .P
+Note: When accessing object properties that contain special characters or numeric keys, you need to use quotes around the key name. For example, to get the publish time of a specific version:
+.P
+.RS 2
+.nf
+npm view express "time\[lB]4.17.1\[rB]"
+.fi
+.RE
+.P
+Without quotes, the shell may interpret the square brackets as glob patterns, causing the command to fail. You can also access the time field for a specific version by specifying the version in the package descriptor:
+.P
+.RS 2
+.nf
+npm view express@4.17.1 time
+.fi
+.RE
+.P
+This will return all version-time pairs, but the context will be for that specific version.
+.P
 Multiple fields may be specified, and will be printed one after another. For example, to get all the contributor names and email addresses, you can do this:
 .P
 .RS 2
@@ -109,6 +127,59 @@ To show the \fBconnect\fR package version history, you can do this:
 .RS 2
 .nf
 npm view connect versions
+.fi
+.RE
+.SS "Field Access Patterns"
+.P
+The \fBnpm view\fR command supports different ways to access nested fields and array elements in package metadata. Understanding these patterns makes it easier to extract specific information.
+.SS "Nested Object Fields"
+.P
+Use dot notation to access nested object fields:
+.P
+.RS 2
+.nf
+# Access nested properties
+npm view npm repository.url
+npm view express bugs.url
+.fi
+.RE
+.SS "Array Element Access"
+.P
+For arrays, use numeric indices in square brackets to access specific elements:
+.P
+.RS 2
+.nf
+# Get the first contributor's email
+npm view express contributors\[lB]0\[rB].email
+
+# Get the second maintainer's name
+npm view express maintainers\[lB]1\[rB].name
+.fi
+.RE
+.SS "Object Property Access"
+.P
+For object properties (like accessing specific versions in the \fBtime\fR field), use bracket notation with the property name in quotes:
+.P
+.RS 2
+.nf
+# Get publish time for a specific version
+npm view express "time\[lB]4.17.1\[rB]"
+
+# Get dist-tags
+npm view express "dist-tags.latest"
+.fi
+.RE
+.SS "Extracting Fields from Arrays"
+.P
+Request a non-numeric field on an array to get all values from objects in the list:
+.P
+.RS 2
+.nf
+# Get all contributor emails
+npm view express contributors.email
+
+# Get all contributor names
+npm view express contributors.name
 .fi
 .RE
 .SS "Configuration"

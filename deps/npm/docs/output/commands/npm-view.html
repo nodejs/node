@@ -141,16 +141,16 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="----npm-view----1164">
+<h1 id="----npm-view----1170">
     <span>npm-view</span>
-    <span class="version">@11.6.4</span>
+    <span class="version">@11.7.0</span>
 </h1>
 <span class="description">View registry info</span>
 </header>
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#json"><code>json</code></a></li><li><a href="#workspace"><code>workspace</code></a></li><li><a href="#workspaces"><code>workspaces</code></a></li><li><a href="#include-workspace-root"><code>include-workspace-root</code></a></li></ul><li><a href="#output">Output</a></li><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#field-access-patterns">Field Access Patterns</a></li><ul><li><a href="#nested-object-fields">Nested Object Fields</a></li><li><a href="#array-element-access">Array Element Access</a></li><li><a href="#object-property-access">Object Property Access</a></li><li><a href="#extracting-fields-from-arrays">Extracting Fields from Arrays</a></li></ul><li><a href="#configuration">Configuration</a></li><ul><li><a href="#json"><code>json</code></a></li><li><a href="#workspace"><code>workspace</code></a></li><li><a href="#workspaces"><code>workspaces</code></a></li><li><a href="#include-workspace-root"><code>include-workspace-root</code></a></li></ul><li><a href="#output">Output</a></li><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
@@ -193,6 +193,15 @@ To just get the email address of the first contributor in the list, you can run:
 <p>If the field value you are querying for is a property of an object, you should run:</p>
 <pre><code class="language-bash">npm view express time'[4.8.0]'
 </code></pre>
+<p>Note: When accessing object properties that contain special characters or numeric keys, you need to use quotes around the key name.
+For example, to get the publish time of a specific version:</p>
+<pre><code class="language-bash">npm view express "time[4.17.1]"
+</code></pre>
+<p>Without quotes, the shell may interpret the square brackets as glob patterns, causing the command to fail.
+You can also access the time field for a specific version by specifying the version in the package descriptor:</p>
+<pre><code class="language-bash">npm view express@4.17.1 time
+</code></pre>
+<p>This will return all version-time pairs, but the context will be for that specific version.</p>
 <p>Multiple fields may be specified, and will be printed one after another.
 For example, to get all the contributor names and email addresses, you can do this:</p>
 <pre><code class="language-bash">npm view express contributors.name contributors.email
@@ -208,6 +217,38 @@ This will show which version of <code>jsdom</code> was required by each matching
 </code></pre>
 <p>To show the <code>connect</code> package version history, you can do this:</p>
 <pre><code class="language-bash">npm view connect versions
+</code></pre>
+<h3 id="field-access-patterns">Field Access Patterns</h3>
+<p>The <code>npm view</code> command supports different ways to access nested fields and array elements in package metadata. Understanding these patterns makes it easier to extract specific information.</p>
+<h4 id="nested-object-fields">Nested Object Fields</h4>
+<p>Use dot notation to access nested object fields:</p>
+<pre><code class="language-bash"># Access nested properties
+npm view npm repository.url
+npm view express bugs.url
+</code></pre>
+<h4 id="array-element-access">Array Element Access</h4>
+<p>For arrays, use numeric indices in square brackets to access specific elements:</p>
+<pre><code class="language-bash"># Get the first contributor's email
+npm view express contributors[0].email
+
+# Get the second maintainer's name
+npm view express maintainers[1].name
+</code></pre>
+<h4 id="object-property-access">Object Property Access</h4>
+<p>For object properties (like accessing specific versions in the <code>time</code> field), use bracket notation with the property name in quotes:</p>
+<pre><code class="language-bash"># Get publish time for a specific version
+npm view express "time[4.17.1]"
+
+# Get dist-tags
+npm view express "dist-tags.latest"
+</code></pre>
+<h4 id="extracting-fields-from-arrays">Extracting Fields from Arrays</h4>
+<p>Request a non-numeric field on an array to get all values from objects in the list:</p>
+<pre><code class="language-bash"># Get all contributor emails
+npm view express contributors.email
+
+# Get all contributor names
+npm view express contributors.name
 </code></pre>
 <h3 id="configuration">Configuration</h3>
 <h4 id="json"><code>json</code></h4>

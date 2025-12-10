@@ -99,6 +99,8 @@ Even if you never publish your package, you can still get a lot of benefits of u
 
     In most cases, this will install the version of the modules tagged as `latest` on the npm registry.
 
+    **Note:** When installing by name without specifying a version or tag, npm prioritizes versions that match the current Node.js version based on the package's `engines` field. If the `latest` tag points to a version incompatible with your current Node.js version, npm will install the newest compatible version instead. To install a specific version regardless of `engines` compatibility, explicitly specify the version or tag: `npm install <name>@latest`.
+
     Example:
 
     ```bash
@@ -200,6 +202,15 @@ Even if you never publish your package, you can still get a lot of benefits of u
     ```bash
     npm install sax@">=0.1.0 <0.2.0"
     npm install @myorg/privatepackage@"16 - 17"
+    ```
+
+    **Prerelease versions:** By default, version ranges only match stable versions. To include prerelease versions, they must be explicitly specified in the range. Prerelease versions are tied to a specific version triple (major.minor.patch). For example, `^1.2.3-beta.1` will only match prereleases for `1.2.x`, not `1.3.x`. To match all prereleases for a major version, use a range like `^1.0.0-0`, which will include all `1.x.x` prereleases.
+
+    Example:
+
+    ```bash
+    npm install package@^1.2.3-beta.1  # Matches 1.2.3-beta.1, 1.2.3-beta.2, 1.2.4-beta.1, etc.
+    npm install package@^1.0.0-0       # Matches all 1.x.x prereleases and stable versions
     ```
 
 * `npm install <git remote url>`:
@@ -318,6 +329,8 @@ npm install sax@">=0.1.0 <0.2.0" bench supervisor
 
 The `--tag` argument will apply to all of the specified install targets.
 If a tag with the given name exists, the tagged version is preferred over newer versions.
+
+**Note:** The `--tag` option only affects packages specified on the command line. It does not override version ranges specified in `package.json`. For example, if `package.json` specifies `"foo": "^1.0.0"` and you run `npm install --tag beta`, npm will still install a version matching `^1.0.0` even if the `beta` tag points to a different version. To install a tagged version, specify the package explicitly: `npm install foo@beta`.
 
 The `--dry-run` argument will report in the usual way what the install would have done without actually installing anything.
 

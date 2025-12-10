@@ -1,4 +1,4 @@
-.TH "NPX" "1" "November 2025" "NPM@11.6.4" ""
+.TH "NPX" "1" "December 2025" "NPM@11.7.0" ""
 .SH "NAME"
 \fBnpx\fR - Run a command from a local or remote npm package
 .SS "Synopsis"
@@ -14,6 +14,8 @@ npx --package=foo -c '<cmd> \[lB]args...\[rB]'
 .SS "Description"
 .P
 This command allows you to run an arbitrary command from an npm package (either one installed locally, or fetched remotely), in a similar context as running it via \fBnpm run\fR.
+.P
+Run this command to execute a package's binary. Any options and arguments after the package name are passed directly to the executed command, not to npx itself. For example, \fBnpx create-react-app my-app --template typescript\fR will pass \fBmy-app\fR and \fB--template typescript\fR to the \fBcreate-react-app\fR command. To see what options a specific package accepts, consult that package's documentation (e.g., at npmjs.com or in its repository).
 .P
 Whatever packages are specified by the \fB--package\fR option will be provided in the \fBPATH\fR of the executed command, along with any locally installed package executables. The \fB--package\fR option may be specified multiple times, to execute the supplied command in an environment where all specified packages are available.
 .P

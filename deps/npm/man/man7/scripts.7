@@ -1,4 +1,4 @@
-.TH "SCRIPTS" "7" "November 2025" "NPM@11.6.4" ""
+.TH "SCRIPTS" "7" "December 2025" "NPM@11.7.0" ""
 .SH "NAME"
 \fBscripts\fR - How npm handles the "scripts" field
 .SS "Description"
@@ -35,7 +35,7 @@ There are some special life cycle scripts that happen only in certain situations
 .IP \(bu 4
 Runs BEFORE the package is packed, i.e. during \fBnpm publish\fR and \fBnpm pack\fR
 .IP \(bu 4
-Runs on local \fBnpm install\fR without any arguments
+Runs on local \fBnpm install\fR without package arguments (runs with flags like \fB--production\fR or \fB--omit=dev\fR, but does not run when installing specific packages like \fBnpm install express\fR)
 .IP \(bu 4
 Runs AFTER \fBprepublishOnly\fR and \fBprepack\fR, but BEFORE \fBpostpack\fR
 .IP \(bu 4
@@ -44,6 +44,8 @@ Runs for a package if it's being installed as a link through \fBnpm install <fol
 NOTE: If a package being installed through git contains a \fBprepare\fR script, its \fBdependencies\fR and \fBdevDependencies\fR will be installed, and the prepare script will be run, before the package is packaged and installed.
 .IP \(bu 4
 As of \fBnpm@7\fR these scripts run in the background. To see the output, run with: \fB--foreground-scripts\fR.
+.IP \(bu 4
+\fBIn workspaces, prepare scripts run concurrently\fR across all packages. If you have interdependent packages where one must build before another, consider using \fB--foreground-scripts\fR (which can be set in \fB.npmrc\fR with \fBforeground-scripts=true\fR) to run scripts sequentially, or structure your build differently.
 .RE 0
 
 .P
@@ -95,10 +97,10 @@ See \fI\(lahttps://github.com/npm/npm/issues/10074\(ra\fR for a much lengthier j
 .P
 \fBUse Cases\fR
 .P
-If you need to perform operations on your package before it is used, in a way that is not dependent on the operating system or architecture of the target system, use a \fBprepublish\fR script. This includes tasks such as:
+Use a \fBprepare\fR script to perform build tasks that are platform-independent and need to run before your package is used. This includes tasks such as:
 .RS 0
 .IP \(bu 4
-Compiling CoffeeScript source code into JavaScript.
+Compiling TypeScript or other source code into JavaScript.
 .IP \(bu 4
 Creating minified versions of JavaScript source code.
 .IP \(bu 4
@@ -106,10 +108,10 @@ Fetching remote resources that your package will use.
 .RE 0
 
 .P
-The advantage of doing these things at \fBprepublish\fR time is that they can be done once, in a single place, thus reducing complexity and variability. Additionally, this means that:
+Running these build tasks in the \fBprepare\fR script ensures they happen once, in a single place, reducing complexity and variability. Additionally, this means that:
 .RS 0
 .IP \(bu 4
-You can depend on \fBcoffee-script\fR as a \fBdevDependency\fR, and thus your users don't need to have it installed.
+You can depend on build tools as \fBdevDependencies\fR, and thus your users don't need to have them installed.
 .IP \(bu 4
 You don't need to include minifiers in your package, reducing the size for your users.
 .IP \(bu 4
@@ -344,7 +346,43 @@ If you depend on modules that define executable scripts, like test suites, then 
 then you could run \fBnpm start\fR to execute the \fBbar\fR script, which is exported into the \fBnode_modules/.bin\fR directory on \fBnpm install\fR.
 .SS "package.json vars"
 .P
-The package.json fields are tacked onto the \fBnpm_package_\fR prefix. So, for instance, if you had \fB{"name":"foo", "version":"1.2.5"}\fR in your package.json file, then your package scripts would have the \fBnpm_package_name\fR environment variable set to "foo", and the \fBnpm_package_version\fR set to "1.2.5". You can access these variables in your code with \fBprocess.env.npm_package_name\fR and \fBprocess.env.npm_package_version\fR, and so on for other fields.
+npm sets the following environment variables from the package.json:
+.RS 0
+.IP \(bu 4
+\fBnpm_package_name\fR - The package name
+.IP \(bu 4
+\fBnpm_package_version\fR - The package version
+.IP \(bu 4
+\fBnpm_package_bin_*\fR - Each executable defined in the bin field
+.IP \(bu 4
+\fBnpm_package_engines_*\fR - Each engine defined in the engines field
+.IP \(bu 4
+\fBnpm_package_config_*\fR - Each config value defined in the config field
+.IP \(bu 4
+\fBnpm_package_json\fR - The full path to the package.json file
+.RE 0
+
+.P
+Additionally, for install scripts (\fBpreinstall\fR, \fBinstall\fR, \fBpostinstall\fR), npm sets these environment variables:
+.RS 0
+.IP \(bu 4
+\fBnpm_package_resolved\fR - The resolved URL for the package
+.IP \(bu 4
+\fBnpm_package_integrity\fR - The integrity hash for the package
+.IP \(bu 4
+\fBnpm_package_optional\fR - Set to \fB"true"\fR if the package is optional
+.IP \(bu 4
+\fBnpm_package_dev\fR - Set to \fB"true"\fR if the package is a dev dependency
+.IP \(bu 4
+\fBnpm_package_peer\fR - Set to \fB"true"\fR if the package is a peer dependency
+.IP \(bu 4
+\fBnpm_package_dev_optional\fR - Set to \fB"true"\fR if the package is both dev and optional
+.RE 0
+
+.P
+For example, if you had \fB{"name":"foo", "version":"1.2.5"}\fR in your package.json file, then your package scripts would have the \fBnpm_package_name\fR environment variable set to "foo", and the \fBnpm_package_version\fR set to "1.2.5". You can access these variables in your code with \fBprocess.env.npm_package_name\fR and \fBprocess.env.npm_package_version\fR.
+.P
+\fBNote:\fR In npm 7 and later, most package.json fields are no longer provided as environment variables. Scripts that need access to other package.json fields should read the package.json file directly. The \fBnpm_package_json\fR environment variable provides the path to the file for this purpose.
 .P
 See \fB\[rs]fBpackage.json\[rs]fR\fR \fI\(la/configuring-npm/package-json\(ra\fR for more on package configs.
 .SS "current lifecycle event"
@@ -366,24 +404,24 @@ For example, if your package.json contains this:
 .nf
 {
   "scripts" : {
-    "install" : "scripts/install.js",
-    "postinstall" : "scripts/install.js"
+    "prepare" : "scripts/build.js",
+    "test" : "scripts/test.js"
   }
 }
 .fi
 .RE
 .P
-then \fBscripts/install.js\fR will be called for the install and post-install stages of the lifecycle. Since \fBscripts/install.js\fR is running for two different phases, it would be wise in this case to look at the \fBnpm_lifecycle_event\fR environment variable.
+then \fBscripts/build.js\fR will be called for the prepare stage of the lifecycle, and you can check the \fBnpm_lifecycle_event\fR environment variable if your script needs to behave differently in different contexts.
 .P
-If you want to run a make command, you can do so. This works just fine:
+If you want to run build commands, you can do so. This works just fine:
 .P
 .RS 2
 .nf
 {
   "scripts" : {
-    "preinstall" : "./configure",
-    "install" : "make && make install",
-    "test" : "make test"
+    "prepare" : "npm run build",
+    "build" : "tsc",
+    "test" : "jest"
   }
 }
 .fi

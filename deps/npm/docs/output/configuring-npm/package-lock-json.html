@@ -141,9 +141,9 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="----package-lockjson----1164">
+<h1 id="----package-lockjson----1170">
     <span>package-lock.json</span>
-    <span class="version">@11.6.4</span>
+    <span class="version">@11.7.0</span>
 </h1>
 <span class="description">A manifestation of the manifest</span>
 </header>
@@ -276,7 +276,8 @@ Because the object structure is strictly hierarchical, symbolic link dependencie
 <p>Dependency objects have the following fields:</p>
 <ul>
 <li>
-<p>version: a specifier that varies depending on the nature of the package, and is usable in fetching a new copy of it.</p>
+<p>version: a specifier that varies depending on the nature of the package, and is usable in fetching a new copy of it.
+Note that for peer dependencies that are not installed, or optional dependencies that are not installed, this field may be omitted.</p>
 <ul>
 <li>bundled dependencies: Regardless of source, this is a version number that is purely for informational purposes.</li>
 <li>registry sources: This is a version number.
@@ -290,6 +291,7 @@ Because the object structure is strictly hierarchical, symbolic link dependencie
 <li>local link sources: This is the file URL of the link.
 (eg <code>file:libs/our-module</code>)</li>
 </ul>
+<p><strong>Note:</strong> The <code>version</code> field may be omitted for certain types of dependencies, such as optional peer dependencies that are not installed. In these cases, only metadata fields like <code>dev</code>, <code>optional</code>, and <code>peer</code> will be present.</p>
 </li>
 <li>
 <p>integrity: A <code>sha512</code> or <code>sha1</code> <a href="https://w3c.github.io/webappsec/specs/subresourceintegrity/">Standard Subresource Integrity</a> string for the artifact that was unpacked in this location.
