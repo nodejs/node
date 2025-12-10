@@ -183,6 +183,14 @@
 #include "src/diagnostics/etw-jit-win.h"
 #endif  // V8_ENABLE_ETW_STACK_WALKING
 
+#if V8_OS_WIN
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#include <psapi.h>
+#else
+#include <sys/resource.h>
+#include <unistd.h>
+#endif
 namespace v8 {
 
 i::ExternalPointerTag ToExternalPointerTag(v8::EmbedderDataTypeTag api_tag) {
@@ -6277,6 +6285,9 @@ bool v8::V8::Initialize(const int build_config) {
 bool TryHandleWebAssemblyTrapPosix(int sig_code, siginfo_t* info,
                                    void* context) {
 #if V8_ENABLE_WEBASSEMBLY && V8_TRAP_HANDLER_SUPPORTED
+  if (!i::trap_handler::IsTrapHandlerEnabled()) {
+    return false;
+  }
   return i::trap_handler::TryHandleSignal(sig_code, info, context);
 #else
   return false;
@@ -6287,12 +6298,61 @@ bool TryHandleWebAssemblyTrapPosix(int sig_code, siginfo_t* info,
 #if V8_OS_WIN
 bool TryHandleWebAssemblyTrapWindows(EXCEPTION_POINTERS* exception) {
 #if V8_ENABLE_WEBASSEMBLY && V8_TRAP_HANDLER_SUPPORTED
+  if (!i::trap_handler::IsTrapHandlerEnabled()) {
+    return false;
+  }
   return i::trap_handler::TryHandleWasmTrap(exception);
 #else
   return false;
 #endif
 }
 #endif
+
+static uint64_t GetAddressSpaceSize() {
+#if V8_OS_WIN
+  SYSTEM_INFO si{};
+  GetSystemInfo(&si);
+
+  auto lo = reinterpret_cast<uintptr_t>(si.lpMinimumApplicationAddress);
+  auto hi = reinterpret_cast<uintptr_t>(si.lpMaximumApplicationAddress);
+
+  // The range is inclusive, so add 1.
+  return static_cast<uint64_t>(hi - lo) + 1ULL;
+#else
+  struct rlimit lim;
+  if (getrlimit(RLIMIT_AS, &lim) == 0 && lim.rlim_cur != RLIM_INFINITY) {
+    return static_cast<uint64_t>(lim.rlim_cur);
+  }
+  // Either RLIM_INFINITY or getrlimit failed — treat as "unlimited".
+  return std::numeric_limits<uintptr_t>::max();
+#endif
+}
+
+bool V8::CanEnableWebAssemblyTrapHandler() {
+#if V8_ENABLE_WEBASSEMBLY && V8_TRAP_HANDLER_SUPPORTED
+  uint64_t virtual_memory_available = GetAddressSpaceSize();
+  if (virtual_memory_available == 0) {
+    // There's no limit, assume trap handler can be enabled.
+    return true;
+  }
+  bool has_guard_regions = true;  // Assume guard regions are enabled.
+  // Check if it can reserve memory for an allocation as low as 1 byte.
+  size_t byte_capacity = 1;
+  size_t memory32_size = i::BackingStore::GetWasmReservationSize(
+      has_guard_regions, byte_capacity, false);
+  uint64_t required_size = static_cast<uint64_t>(memory32_size);
+  if (i::v8_flags.wasm_memory64_trap_handling) {
+    uint64_t memory64_size =
+        static_cast<uint64_t>(i::BackingStore::GetWasmReservationSize(
+            has_guard_regions, byte_capacity, true));
+    required_size = std::max(memory64_size, required_size);
+  }
+
+  return virtual_memory_available >= required_size;
+#else
+  return false;
+#endif
+}
 
 bool V8::EnableWebAssemblyTrapHandler(bool use_v8_signal_handler) {
 #if V8_ENABLE_WEBASSEMBLY
