@@ -1192,11 +1192,12 @@ for (let i = 0; i < 12; i++) {
     question('What\'s your name?').then(common.mustCall((name) => {
       assert.strictEqual(name, 'Node.js');
       rli.close();
-      question('How are you?')
-        .then(common.mustNotCall(), common.expectsError({
+      assert.rejects(
+        question('How are you?'),
+        {
           code: 'ERR_USE_AFTER_CLOSE',
           name: 'Error'
-        }));
+        }).then(common.mustCall());
       assert.notStrictEqual(rli.getPrompt(), 'How are you?');
     }));
     fi.emit('data', 'Node.js\n');

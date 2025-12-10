@@ -201,7 +201,7 @@ function testRunnerMain() {
         { expectedInitialPort: port + 2 },
       ],
     });
-  });
+  }).then(common.mustCall());
 }
 
 function primaryProcessMain() {

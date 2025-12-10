@@ -20,7 +20,7 @@ tester.run('must-call-assert', rule, {
     'process.once("message", common.mustCall((code) => { (() => assert.strictEqual(code, 0))(); }));',
     'someAsyncTask(common.mustSucceed((code) => { (() => assert.strictEqual(code, 0))(); }));',
     'someAsyncTask(mustSucceed((code) => { (() => assert.strictEqual(code, 0))(); }));',
-    '(async () => {await assert.rejects(fun())})().then()',
+    '(async () => {await assert.rejects(fun())})().then(common.mustCall())',
     '[1, true].forEach((val) => assert.strictEqual(fun(val), 0));',
     'const assert = require("node:assert")',
     'const assert = require("assert")',
@@ -113,6 +113,11 @@ tester.run('must-call-assert', rule, {
     'eval("(" + function() {} + ")()")',
     // eslint-disable-next-line no-template-curly-in-string
     'eval(`(${function() {}})()`)',
+    'promise.then(mustCall())',
+    'promise.then(mustNotCall("expected a never settling promise"))',
+    'promise.then(common.mustCall((val) => { assert.ok(val); }))',
+    'await promise.then((val) => { assert.ok(val); })',
+    'checkSupportReusePort().then(test, () => common.skip("reuse port is not supported"))',
   ],
   invalid: [
     {
@@ -212,6 +217,40 @@ tester.run('must-call-assert', rule, {
     {
       code: 'import "node:assert"',
       errors: [{ message: 'Only assign `node:assert` to `assert`' }],
+    },
+    {
+      code: 'promise.then(common.mustCall((val) => assert.ok(val)))',
+      errors: [{ message: 'Add an additional `.then(common.mustCall())` to detect if resulting promise settles' }],
+    },
+    {
+      code: 'promise.then(common.mustCall(async (val) => { assert.ok(val); }))',
+      errors: [{ message: 'Add an additional `.then(common.mustCall())` to detect if resulting promise settles' }],
+    },
+    {
+      code: 'promise.then(common.mustCall((val) => { assert.ok(val); return; }))',
+      errors: [{ message: 'Cannot mix `common.mustCall` and return statement inside a `.then` chain' }],
+    },
+    {
+      code: 'promise.then((val) => val).then(common.mustCall((val) => { assert.ok(val); })).then(common.mustCall())',
+      errors: [{ message: 'in a `.then` chain, only use mustCall as the last node' }],
+    },
+    {
+      code: 'promise.then((val) => val).then((val) => { assert.ok(val); })',
+      errors: [{
+        message: 'Last item of `.then` list must use `mustCall()` or `mustNotCall("expected never settling promise")`',
+      }],
+    },
+    {
+      code: 'promise.then((val) => { assert.ok(val); })',
+      errors: [{
+        message: 'Last item of `.then` list must use `mustCall()` or `mustNotCall("expected never settling promise")`',
+      }],
+    },
+    {
+      code: 'promise.then((val) => { assert.ok(val); }).then(common.mustCallAtLeast())',
+      errors: [{
+        message: 'Last item of `.then` list must use `mustCall()` or `mustNotCall("expected never settling promise")`',
+      }],
     },
   ]
 });

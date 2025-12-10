@@ -20,7 +20,8 @@ if (module !== require.main) {
     // Test that the thread-safe function can access the instance data.
     .then(() => new Promise((resolve) =>
       test_instance_data.testThreadsafeFunction(common.mustCall(),
-                                                common.mustCall(resolve))));
+                                                common.mustCall(resolve))))
+    .then(common.mustCall());
 } else {
   // When launched as a script, run tests in either a child process or in a
   // worker thread.

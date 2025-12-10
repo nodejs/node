@@ -26,5 +26,6 @@ const assert = require('assert');
     .then(() => cli.quit())
     .then((code) => {
       assert.strictEqual(code, 0);
-    });
+    })
+    .then(common.mustCall());
 }
