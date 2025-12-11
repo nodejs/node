@@ -271,6 +271,8 @@ int ares_init_options(ares_channel_t           **channelptr,
     goto done;
   }
 
+  ares_set_socket_functions_def(channel);
+
   /* Initialize Server List */
   channel->servers =
     ares_slist_create(channel->rand_state, server_sort_cb, server_destroy_cb);
@@ -346,8 +348,6 @@ int ares_init_options(ares_channel_t           **channelptr,
     goto done;
   }
 
-  ares_set_socket_functions_def(channel);
-
   /* Initialize the event thread */
   if (channel->optmask & ARES_OPT_EVENT_THREAD) {
     ares_event_thread_t *e = NULL;
@@ -362,7 +362,8 @@ int ares_init_options(ares_channel_t           **channelptr,
     e      = channel->sock_state_cb_data;
     status = ares_event_configchg_init(&e->configchg, e);
     if (status != ARES_SUCCESS && status != ARES_ENOTIMP) {
-      goto done; /* LCOV_EXCL_LINE: UntestablePath */
+      DEBUGF(fprintf(stderr, "Error: ares_event_configchg_init failed: %s\n",
+                     ares_strerror(status)));
     }
     status = ARES_SUCCESS;
   }
@@ -484,16 +485,20 @@ int ares_dup(ares_channel_t **dest, const ares_channel_t *src)
   ares_channel_lock(src);
   /* Now clone the options that ares_save_options() doesn't support, but are
    * user-provided */
-  (*dest)->sock_create_cb            = src->sock_create_cb;
-  (*dest)->sock_create_cb_data       = src->sock_create_cb_data;
-  (*dest)->sock_config_cb            = src->sock_config_cb;
-  (*dest)->sock_config_cb_data       = src->sock_config_cb_data;
+  (*dest)->sock_create_cb               = src->sock_create_cb;
+  (*dest)->sock_create_cb_data          = src->sock_create_cb_data;
+  (*dest)->sock_config_cb               = src->sock_config_cb;
+  (*dest)->sock_config_cb_data          = src->sock_config_cb_data;
   memcpy(&(*dest)->sock_funcs, &(src->sock_funcs), sizeof((*dest)->sock_funcs));
-  (*dest)->sock_func_cb_data         = src->sock_func_cb_data;
-  (*dest)->legacy_sock_funcs         = src->legacy_sock_funcs;
-  (*dest)->legacy_sock_funcs_cb_data = src->legacy_sock_funcs_cb_data;
-  (*dest)->server_state_cb           = src->server_state_cb;
-  (*dest)->server_state_cb_data      = src->server_state_cb_data;
+  (*dest)->sock_func_cb_data            = src->sock_func_cb_data;
+  (*dest)->legacy_sock_funcs            = src->legacy_sock_funcs;
+  (*dest)->legacy_sock_funcs_cb_data    = src->legacy_sock_funcs_cb_data;
+  (*dest)->server_state_cb              = src->server_state_cb;
+  (*dest)->server_state_cb_data         = src->server_state_cb_data;
+  (*dest)->notify_pending_write_cb      = src->notify_pending_write_cb;
+  (*dest)->notify_pending_write_cb_data = src->notify_pending_write_cb_data;
+  (*dest)->query_enqueue_cb             = src->query_enqueue_cb;
+  (*dest)->query_enqueue_cb_data        = src->query_enqueue_cb_data;
 
   ares_strcpy((*dest)->local_dev_name, src->local_dev_name,
               sizeof((*dest)->local_dev_name));
@@ -597,4 +602,16 @@ int ares_set_sortlist(ares_channel_t *channel, const char *sortstr)
   }
   ares_channel_unlock(channel);
   return (int)status;
+}
+
+void ares_set_query_enqueue_cb(ares_channel_t       *channel,
+                               ares_query_enqueue_cb callback,
+                               void                 *user_data)
+{
+  if (channel == NULL) {
+    return;
+  }
+
+  channel->query_enqueue_cb      = callback;
+  channel->query_enqueue_cb_data = user_data;
 }
