@@ -1,6 +1,5 @@
-# This workflow runs every night and tests various releases of Node.js
-# (latest nightly, current, and two latest LTS release lines) against the
-# `epochs/daily` branch of WPT.
+# This workflow runs every night and tests non-EOL releases of Node.js
+# against the `epochs/daily` branch of WPT.
 
 name: Daily WPT report
 
@@ -27,7 +26,7 @@ jobs:
     steps:
       - id: query
         run: |
-          matrix=$(curl -s https://raw.githubusercontent.com/nodejs/Release/refs/heads/main/schedule.json | jq -c --arg now "$(date +%Y-%m-%d)" '[with_entries(select(.value.end > $now and .value.start < $now)) | keys[] | ltrimstr("v") | tonumber] + ["latest-nightly"]')
+          matrix=$(curl -s https://raw.githubusercontent.com/nodejs/Release/refs/heads/main/schedule.json | jq -c --arg now "$(date +%Y-%m-%d)" '[with_entries(select(.value.end > $now and .value.start < $now)) | keys[] | ltrimstr("v") | tonumber]')
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
   report:
     needs:
@@ -47,27 +46,17 @@ jobs:
         run: npx envinfo
 
       # install a version and checkout
-      - name: Get latest nightly
-        if: matrix.node-version == 'latest-nightly'
-        run: echo "NIGHTLY=$(curl -s https://nodejs.org/download/nightly/index.json | jq -r '[.[] | select(.files[] | contains("linux-x64"))][0].version')" >> $GITHUB_ENV
       - name: Install Node.js
         id: setup-node
         uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903  # v6.0.0
         with:
-          node-version: ${{ env.NIGHTLY || matrix.node-version }}
+          node-version: ${{ matrix.node-version }}
           check-latest: true
-      - name: Get nightly ref
-        if: contains(matrix.node-version, 'nightly')
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          SHORT_SHA=$(node -p 'process.version.split(/-nightly\d{8}/)[1]')
-          echo "NIGHTLY_REF=$(gh api /repos/nodejs/node/commits/$SHORT_SHA --jq '.sha')" >> $GITHUB_ENV
       - name: Checkout ${{ steps.setup-node.outputs.node-version }}
         uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3  # v6.0.0
         with:
           persist-credentials: false
-          ref: ${{ env.NIGHTLY_REF || steps.setup-node.outputs.node-version }}
+          ref: ${{ steps.setup-node.outputs.node-version }}
       - name: Set env.NODE
         run: echo "NODE=$(which node)" >> $GITHUB_ENV
       - name: Set env.WPT_REVISION
