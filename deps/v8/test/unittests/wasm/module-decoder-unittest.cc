@@ -2551,10 +2551,10 @@ TEST_F(WasmModuleVerifyTest, InstructionFrequencies) {
   InstructionFrequencies& frequencies = result.value()->instruction_frequencies;
   EXPECT_EQ(2U, frequencies.size());
   EXPECT_EQ(2U, frequencies.at(0).size());
-  EXPECT_EQ(std::pair(5, 31U), frequencies.at(0)[0]);
-  EXPECT_EQ(std::pair(11, 31U), frequencies.at(0)[1]);
+  EXPECT_EQ((std::make_pair(uint32_t{5}, uint8_t{31})), frequencies.at(0)[0]);
+  EXPECT_EQ((std::make_pair(uint32_t{11}, uint8_t{31})), frequencies.at(0)[1]);
   EXPECT_EQ(1U, frequencies.at(1).size());
-  EXPECT_EQ(std::pair(1, 32U), frequencies.at(1)[0]);
+  EXPECT_EQ((std::make_pair(uint32_t{1}, uint8_t{32})), frequencies.at(1)[0]);
 }
 
 TEST_F(WasmModuleVerifyTest, InstructionFrequenciesOutOfOrderFunctions) {
@@ -2649,7 +2649,7 @@ TEST_F(WasmModuleVerifyTest, InstructionFrequenciesHintLengthGreaterThanOne) {
   InstructionFrequencies& frequencies = result.value()->instruction_frequencies;
   EXPECT_EQ(1U, frequencies.size());
   EXPECT_EQ(1U, frequencies.at(0).size());
-  EXPECT_EQ(std::pair(11, 31U), frequencies.at(0)[0]);
+  EXPECT_EQ((std::make_pair(uint32_t{11}, uint8_t{31})), frequencies.at(0)[0]);
 }
 
 TEST_F(WasmModuleVerifyTest, InstructionFrequenciesHintLengthZero) {

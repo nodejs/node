@@ -215,14 +215,6 @@ class V8_EXPORT_PRIVATE Utf8 {
   template <typename Char>
   static size_t WriteLeadingAscii(const Char* src, char* dest, size_t size);
 
-  template <>
-  size_t WriteLeadingAscii<uint8_t>(const uint8_t* src, char* dest,
-                                    size_t size);
-
-  template <>
-  size_t WriteLeadingAscii<uint16_t>(const uint16_t* src, char* dest,
-                                     size_t size);
-
   // Encode the given characters as Utf8 into the provided output buffer.
   struct EncodingResult {
     size_t bytes_written;
@@ -233,6 +225,14 @@ class V8_EXPORT_PRIVATE Utf8 {
                                char* buffer, size_t capacity, bool write_null,
                                bool replace_invalid_utf8);
 };
+
+template <>
+size_t unibrow::Utf8::WriteLeadingAscii<uint8_t>(const uint8_t* src, char* dest,
+                                                 size_t size);
+
+template <>
+size_t unibrow::Utf8::WriteLeadingAscii<uint16_t>(const uint16_t* src,
+                                                  char* dest, size_t size);
 
 #if V8_ENABLE_WEBASSEMBLY
 class V8_EXPORT_PRIVATE Wtf8 {
