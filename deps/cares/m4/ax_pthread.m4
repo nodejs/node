@@ -160,7 +160,7 @@ ax_pthread_flags="pthreads none -Kthread -pthread -pthreads -mthreads pthread --
 
 case $host_os in
 
-        freebsd*)
+        freebsd*|midnightbsd*)
 
         # -kthread: FreeBSD kernel threads (preferred to -pthread since SMP-able)
         # lthread: LinuxThreads port on FreeBSD (also preferred to -pthread)

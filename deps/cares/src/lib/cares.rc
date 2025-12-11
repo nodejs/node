@@ -63,7 +63,7 @@ BEGIN
 #endif
       VALUE "ProductName",      "The c-ares library\0"
       VALUE "ProductVersion",   ARES_VERSION_STR "\0"
-      VALUE "LegalCopyright",   "© " ARES_COPYRIGHT "\0"
+      VALUE "LegalCopyright",   "Copyright (c) " ARES_COPYRIGHT "\0"
       VALUE "License",          "https://c-ares.org/license.html\0"
     END
   END
