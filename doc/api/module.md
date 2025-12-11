@@ -940,8 +940,6 @@ added:
   - v22.15.0
 -->
 
-> Stability: 1.1 - Active development
-
 The `module.registerHooks()` method accepts synchronous hook functions.
 `initialize()` is not supported nor necessary, as the hook implementer
 can simply run the initialization code directly before the call to

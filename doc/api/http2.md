@@ -917,7 +917,7 @@ are passed through as provided by the user or received from the peer.
 added: v10.12.0
 -->
 
-* `origins` { string | URL | Object } One or more URL Strings passed as
+* `origins` {string|URL|Object } One or more URL Strings passed as
   separate arguments.
 
 Submits an `ORIGIN` frame (as defined by [RFC 8336][]) to the connected client

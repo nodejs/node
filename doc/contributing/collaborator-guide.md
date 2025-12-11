@@ -930,7 +930,7 @@ If you cannot find who to cc for a file, `git shortlog -n -s <file>` can help.
 * `tsc-agenda`: Open issues and pull requests with this label will be added to
   the Technical Steering Committee meeting agenda
 
-***
+---
 
 * `author-ready` - A pull request is _author ready_ when:
   * There is a CI run in progress or completed.
@@ -942,7 +942,7 @@ Please always add the `author ready` label to pull requests that qualify.
 Please always remove it again as soon as the conditions are not met anymore,
 such as if the CI run fails or a new outstanding review comment is posted.
 
-***
+---
 
 * `semver-{minor,major}`
   * be conservative – that is, if a change has the remote _chance_ of breaking

@@ -244,7 +244,7 @@ added: v0.11.4
 * `callback` {Function} (Optional, primarily for custom agents) A function to be
   called by a custom `createConnection` implementation when the socket is
   created, especially for asynchronous operations.
-  * `err` {Error | null} An error object if socket creation failed.
+  * `err` {Error|null} An error object if socket creation failed.
   * `socket` {stream.Duplex} The created socket.
 * Returns: {stream.Duplex} The created socket. This is returned by the default
   implementation or by a custom synchronous `createConnection` implementation.
@@ -2194,7 +2194,7 @@ added: v0.4.0
 -->
 
 * `name` {string}
-* Returns: {number | string | string\[] | undefined}
+* Returns: {number|string|string\[]|undefined}
 
 Reads out a header that's already been queued but not sent to the client.
 The name is case-insensitive. The type of the return value depends
@@ -2329,7 +2329,7 @@ added: v0.4.0
 -->
 
 * `name` {string}
-* `value` {number | string | string\[]}
+* `value` {number|string|string\[]}
 * Returns: {http.ServerResponse}
 
 Returns the response object.
@@ -3280,7 +3280,7 @@ added: v0.4.0
 -->
 
 * `name` {string} Name of header
-* Returns: {number | string | string\[] | undefined}
+* Returns: {number|string|string\[]|undefined}
 
 Gets the value of the HTTP header with the given name. If that header is not
 set, the returned value will be `undefined`.
@@ -3382,7 +3382,7 @@ added: v0.4.0
 -->
 
 * `name` {string} Header name
-* `value` {number | string | string\[]} Header value
+* `value` {number|string|string\[]} Header value
 * Returns: {this}
 
 Sets a single header value. If the header already exists in the to-be-sent
@@ -3794,7 +3794,7 @@ changes:
     description: The `options` parameter can be a WHATWG `URL` object.
 -->
 
-* `url` {string | URL}
+* `url` {string|URL}
 * `options` {Object} Accepts the same `options` as
   [`http.request()`][], with the method set to GET by default.
 * `callback` {Function}
@@ -3930,9 +3930,9 @@ changes:
     description: The `options` parameter can be a WHATWG `URL` object.
 -->
 
-* `url` {string | URL}
+* `url` {string|URL}
 * `options` {Object}
-  * `agent` {http.Agent | boolean} Controls [`Agent`][] behavior. Possible
+  * `agent` {http.Agent|boolean} Controls [`Agent`][] behavior. Possible
     values:
     * `undefined` (default): use [`http.globalAgent`][] for this host and port.
     * `Agent` object: explicitly use the passed in `Agent`.

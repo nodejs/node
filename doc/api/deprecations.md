@@ -2619,11 +2619,13 @@ of Node.js core and was removed.
 <!-- YAML
 changes:
   - version: v11.0.0
-    pr-url:
-      - https://github.com/nodejs/node/pull/22519
-      - https://github.com/nodejs/node/pull/23017
-    description: Documentation-only deprecation
+    pr-url: https://github.com/nodejs/node/pull/22519
+    description: Deprecation revoked.
+                 Status changed to a documentation-only deprecation
                  with `--pending-deprecation` support.
+  - version: v11.0.0
+    pr-url: https://github.com/nodejs/node/pull/23017
+    description: Runtime deprecation.
 -->
 
 Type: Documentation-only (supports [`--pending-deprecation`][])

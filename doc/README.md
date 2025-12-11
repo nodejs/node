@@ -15,7 +15,7 @@ professionalism across all documents.
 7. [Formatting](#formatting)
 8. [Product and Project Naming](#product-and-project-naming)
 
-***
+---
 
 ## General guidelines
 
@@ -38,7 +38,7 @@ professionalism across all documents.
 
 * Validate documentation changes using `make test-doc -j` or `vcbuild test-doc`.
 
-***
+---
 
 ## Writing style
 
@@ -68,7 +68,7 @@ professionalism across all documents.
 * Use precise technical terms and avoid colloquialisms.
 * Define any specialized terms or acronyms at first use.
 
-***
+---
 
 ## Punctuation
 
@@ -87,7 +87,7 @@ professionalism across all documents.
 * Use colons to introduce lists or explanations.
 * Use semicolons to link closely related independent clauses.
 
-***
+---
 
 ## Document structure
 
@@ -109,7 +109,7 @@ professionalism across all documents.
 
 * Use tables to present structured information clearly. Ensure they are readable in plain text.
 
-***
+---
 
 ## API documentation
 
@@ -129,7 +129,7 @@ professionalism across all documents.
     * `byteOffset` {integer} Index of first byte to expose. **Default:** `0`.
     ```
 
-***
+---
 
 ## Code blocks
 
@@ -165,7 +165,7 @@ professionalism across all documents.
 * Use comments to explain complex logic within code examples.
 * Follow the standard commenting style of the respective language.
 
-***
+---
 
 ## Formatting
 
@@ -198,7 +198,7 @@ professionalism across all documents.
   * Returns: {AsyncHook} A reference to `asyncHook`.
   ```
 
-***
+---
 
 ## Product and project naming
 
@@ -225,7 +225,7 @@ professionalism across all documents.
 
 For topics not addressed here, please consult the [Microsoft Writing Style Guide][].
 
-***
+---
 
 [Microsoft Writing Style Guide]: https://learn.microsoft.com/en-us/style-guide/welcome/
 [US spelling]: https://learn.microsoft.com/en-us/style-guide/word-choice/use-us-spelling-avoid-non-english-words

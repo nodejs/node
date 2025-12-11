@@ -355,8 +355,8 @@ changes:
     description: The `options` parameter can be a WHATWG `URL` object.
 -->
 
-* `url` {string | URL}
-* `options` {Object | string | URL} Accepts the same `options` as
+* `url` {string|URL}
+* `options` {Object|string|URL} Accepts the same `options` as
   [`https.request()`][], with the method set to GET by default.
 * `callback` {Function}
 * Returns: {http.ClientRequest}
@@ -452,8 +452,8 @@ changes:
     description: The `options` parameter can be a WHATWG `URL` object.
 -->
 
-* `url` {string | URL}
-* `options` {Object | string | URL} Accepts all `options` from
+* `url` {string|URL}
+* `options` {Object|string|URL} Accepts all `options` from
   [`http.request()`][], with some differences in default values:
   * `protocol` **Default:** `'https:'`
   * `port` **Default:** `443`

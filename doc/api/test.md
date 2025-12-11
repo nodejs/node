@@ -2546,7 +2546,7 @@ Enables timer mocking for the specified timers.
     If no array is provided, all time related APIs (`'setInterval'`, `'clearInterval'`,
     `'setTimeout'`, `'clearTimeout'`, `'setImmediate'`, `'clearImmediate'`, and
     `'Date'`) will be mocked by default.
-  * `now` {number | Date} An optional number or Date object representing the
+  * `now` {number|Date} An optional number or Date object representing the
     initial time (in milliseconds) to use as the value
     for `Date.now()`. **Default:** `0`.
 
