@@ -313,15 +313,14 @@ class SQLTagStore : public BaseObject {
       Environment* env, BaseObjectWeakPtr<DatabaseSync> database, int capacity);
   static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
       Environment* env);
-  static void All(const v8::FunctionCallbackInfo<v8::Value>& info);
-  static void Get(const v8::FunctionCallbackInfo<v8::Value>& info);
-  static void Iterate(const v8::FunctionCallbackInfo<v8::Value>& info);
-  static void Run(const v8::FunctionCallbackInfo<v8::Value>& info);
-  static void Size(const v8::FunctionCallbackInfo<v8::Value>& info);
-  static void Capacity(const v8::FunctionCallbackInfo<v8::Value>& info);
-  static void Reset(const v8::FunctionCallbackInfo<v8::Value>& info);
-  static void Clear(const v8::FunctionCallbackInfo<v8::Value>& info);
-  static void DatabaseGetter(const v8::FunctionCallbackInfo<v8::Value>& info);
+  static void All(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Get(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Iterate(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Run(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Clear(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void CapacityGetter(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void DatabaseGetter(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SizeGetter(const v8::FunctionCallbackInfo<v8::Value>& args);
   void MemoryInfo(MemoryTracker* tracker) const override;
   SET_MEMORY_INFO_NAME(SQLTagStore)
   SET_SELF_SIZE(SQLTagStore)
