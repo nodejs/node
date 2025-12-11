@@ -362,8 +362,6 @@ const knownGlobals = new Set([
  'CompressionStream',
  'DecompressionStream',
  'Storage',
- 'localStorage',
- 'sessionStorage',
 ].forEach((i) => {
   if (globalThis[i] !== undefined) {
     knownGlobals.add(globalThis[i]);
@@ -375,6 +373,11 @@ if (hasCrypto) {
   knownGlobals.add(globalThis.Crypto);
   knownGlobals.add(globalThis.CryptoKey);
   knownGlobals.add(globalThis.SubtleCrypto);
+}
+
+if (hasSQLite) {
+  knownGlobals.add(globalThis.localStorage);
+  knownGlobals.add(globalThis.sessionStorage);
 }
 
 const { Worker } = require('node:worker_threads');
