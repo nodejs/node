@@ -39,34 +39,10 @@ for (const [, envVar] of manPageText.matchAll(/\.It Fl (-[a-zA-Z0-9._-]+)/g)) {
 }
 
 for (const [, envVar, config] of nodeOptionsCC.matchAll(addOptionRE)) {
-  let hasTrueAsDefaultValue = false;
-  let isInNodeOption = false;
-  let isV8Option = false;
-  let isNoOp = false;
-
-  if (config.includes('NoOp{}')) {
-    isNoOp = true;
-  }
-
-  if (config.includes('kAllowedInEnvvar')) {
-    isInNodeOption = true;
-  }
-  if (config.includes('kDisallowedInEnvvar')) {
-    isInNodeOption = false;
-  }
-
-  if (config.includes('V8Option{}')) {
-    isV8Option = true;
-  }
-
-  if (/^\s*true\s*$/.test(config.split(',').pop())) {
-    hasTrueAsDefaultValue = true;
-  }
-
-  // Exception for HAVE_AMARO conditional default (defaults to true when Amaro is available)
-  if (config.includes('HAVE_AMARO')) {
-    hasTrueAsDefaultValue = true;
-  }
+  const hasTrueAsDefaultValue = /,\s*(?:true|HAVE_[A-Z_]+)\s*$/.test(config);
+  const isInNodeOption = config.includes('kAllowedInEnvvar') && !config.includes('kDisallowedInEnvvar');
+  const isV8Option = config.includes('V8Option{}');
+  const isNoOp = config.includes('NoOp{}');
 
   if (
     envVar.startsWith('[') ||
@@ -79,27 +55,27 @@ for (const [, envVar, config] of nodeOptionsCC.matchAll(addOptionRE)) {
   }
 
   // Internal API options are documented in /doc/contributing/internal-api.md
-  if (new RegExp(`####.*\`${envVar}[[=\\s\\b\`]`).test(internalApiText) === true) {
+  if (new RegExp(`####.*\`${RegExp.escape(envVar)}[[=\\s\\b\`]`).test(internalApiText)) {
     manPagesOptions.delete(envVar.slice(1));
     continue;
   }
 
   // CLI options
   if (!isV8Option && !hasTrueAsDefaultValue) {
-    if (new RegExp(`###.*\`${envVar}[[=\\s\\b\`]`).test(cliText) === false) {
-      assert(false, `Should have option ${envVar} documented`);
+    if (!new RegExp(`###.*\`${RegExp.escape(envVar)}[[=\\s\\b\`]`).test(cliText)) {
+      assert.fail(`Should have option ${envVar} documented`);
     } else {
       manPagesOptions.delete(envVar.slice(1));
     }
   }
 
-  if (!hasTrueAsDefaultValue && new RegExp(`###.*\`--no${envVar.slice(1)}[[=\\s\\b\`]`).test(cliText) === true) {
-    assert(false, `Should not have option --no${envVar.slice(1)} documented`);
+  if (!hasTrueAsDefaultValue && new RegExp(`###.*\`--no${RegExp.escape(envVar.slice(1))}[[=\\s\\b\`]`).test(cliText)) {
+    assert.fail(`Should not have option --no${envVar.slice(1)} documented`);
   }
 
   if (!isV8Option && hasTrueAsDefaultValue) {
-    if (new RegExp(`###.*\`--no${envVar.slice(1)}[[=\\s\\b\`]`).test(cliText) === false) {
-      assert(false, `Should have option --no${envVar.slice(1)} documented`);
+    if (!new RegExp(`###.*\`--no${RegExp.escape(envVar.slice(1))}[[=\\s\\b\`]`).test(cliText)) {
+      assert.fail(`Should have option --no${envVar.slice(1)} documented`);
     } else {
       manPagesOptions.delete(`-no${envVar.slice(1)}`);
     }
@@ -107,22 +83,22 @@ for (const [, envVar, config] of nodeOptionsCC.matchAll(addOptionRE)) {
 
   // NODE_OPTIONS
   if (isInNodeOption && !hasTrueAsDefaultValue &&
-    new RegExp(`\`${envVar}\``).test(nodeOptionsText) === false) {
-    assert(false, `Should have option ${envVar} in NODE_OPTIONS documented`);
+    !new RegExp(`\`${RegExp.escape(envVar)}\``).test(nodeOptionsText)) {
+    assert.fail(`Should have option ${envVar} in NODE_OPTIONS documented`);
   }
 
-  if (isInNodeOption && hasTrueAsDefaultValue && new RegExp(`\`--no${envVar.slice(1)}\``).test(cliText) === false) {
-    assert(false, `Should have option --no${envVar.slice(1)} in NODE_OPTIONS documented`);
+  if (isInNodeOption && hasTrueAsDefaultValue && !new RegExp(`\`--no${RegExp.escape(envVar.slice(1))}\``).test(cliText)) {
+    assert.fail(`Should have option --no${envVar.slice(1)} in NODE_OPTIONS documented`);
   }
 
-  if (!hasTrueAsDefaultValue && new RegExp(`\`--no${envVar.slice(1)}\``).test(cliText) === true) {
-    assert(false, `Should not have option --no${envVar.slice(1)} in NODE_OPTIONS documented`);
+  if (!hasTrueAsDefaultValue && new RegExp(`\`--no${RegExp.escape(envVar.slice(1))}\``).test(cliText)) {
+    assert.fail(`Should not have option --no${envVar.slice(1)} in NODE_OPTIONS documented`);
   }
 
   // V8 options
   if (isV8Option) {
-    if (new RegExp(`###.*\`${envVar}[[=\\s\\b\`]`).test(v8OptionsText) === false) {
-      assert(false, `Should have option ${envVar} in V8 options documented`);
+    if (!new RegExp(`###.*\`${RegExp.escape(envVar)}[[=\\s\\b\`]`).test(v8OptionsText)) {
+      assert.fail(`Should have option ${envVar} in V8 options documented`);
     } else {
       manPagesOptions.delete(envVar.slice(1));
     }
