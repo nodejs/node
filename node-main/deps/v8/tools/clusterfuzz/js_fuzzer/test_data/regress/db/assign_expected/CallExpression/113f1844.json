@@ -1,0 +1,1 @@
+{"type":"CallExpression","source":"Object.assign(VAR_0, VAR_1)","path":"regress/db/input/input.js","dependencies":["VAR_0","VAR_1"]}

@@ -1,0 +1,35 @@
+<!doctype html>
+<title>CustomEvent</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<div id="log"></div>
+<script>
+test(function() {
+  var type = "foo";
+
+  var target = document.createElement("div");
+  target.addEventListener(type, this.step_func(function(evt) {
+    assert_equals(evt.type, type);
+  }), true);
+
+  var fooEvent = document.createEvent("CustomEvent");
+  fooEvent.initEvent(type, true, true);
+  target.dispatchEvent(fooEvent);
+}, "CustomEvent dispatching.");
+
+test(function() {
+    var e = document.createEvent("CustomEvent");
+    assert_throws_js(TypeError, function() {
+        e.initCustomEvent();
+    });
+}, "First parameter to initCustomEvent should be mandatory.");
+
+test(function() {
+    var e = document.createEvent("CustomEvent");
+    e.initCustomEvent("foo");
+    assert_equals(e.type, "foo", "type");
+    assert_false(e.bubbles, "bubbles");
+    assert_false(e.cancelable, "cancelable");
+    assert_equals(e.detail, null, "detail");
+}, "initCustomEvent's default parameter values.");
+</script>

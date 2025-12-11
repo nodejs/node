@@ -1,0 +1,20 @@
+<body>
+<script>
+function request() {
+  var client = new XMLHttpRequest,
+      baseurl = "http://{{hosts[alt][]}}:{{ports[http][0]}}{{location[pathname]}}",
+      subresource = "fake_responses.py",
+      redirecturl = new URL(subresource, "https://{{hosts[][www]}}:{{ports[https][0]}}{{location[pathname]}}").href,
+      url = new URL(subresource + "?redirect=" + redirecturl, baseurl).href;
+    client.open("GET", url, false)
+    client.send(null)
+    client.open("GET", url, false)
+    client.send(null)
+}
+
+if(window.parent.setup_iframe) {
+  window.parent.setup_iframe();
+  request();
+}
+</script>
+</body>

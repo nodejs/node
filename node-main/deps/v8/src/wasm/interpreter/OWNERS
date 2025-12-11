@@ -1,0 +1,8 @@
+# This directory is owned and maintained by Microsoft.
+# Therefore, owner approval by one of their developers is required.
+set noparent
+paolosev@microsoft.com
+Emmanuel.Romero@microsoft.com
+
+# Allow OWNERS file itself to be changed by the Wasm owners if needed.
+per-file OWNERS=file://src/wasm/OWNERS

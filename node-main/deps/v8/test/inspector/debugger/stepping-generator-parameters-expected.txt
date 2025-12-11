@@ -1,0 +1,14 @@
+Generator stepping with non-simple parameters
+
+Running test: testStepIntoInitialYield
+Setting breakpoint on call to generator()
+Calling callGenerator()
+function callGenerator() {
+  #return generator(1);
+}
+
+Stepping into the generator()
+function callGenerator() {
+  return generator(1);#
+}
+

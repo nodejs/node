@@ -1,0 +1,77 @@
+name: Coverage Windows
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - lib/**/*.js
+      - vcbuild.bat
+      - src/**/*.cc
+      - src/**/*.h
+      - test/**
+      - tools/gyp/**
+      - tools/test.py
+      - .github/workflows/coverage-windows.yml
+      - codecov.yml
+      - .nycrc
+  push:
+    branches:
+      - main
+    paths:
+      - lib/**/*.js
+      - vcbuild.bat
+      - src/**/*.cc
+      - src/**/*.h
+      - test/**
+      - tools/gyp/**
+      - tools/test.py
+      - .github/workflows/coverage-windows.yml
+      - codecov.yml
+      - .nycrc
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: '3.14'
+  FLAKY_TESTS: keep_retrying
+
+permissions:
+  contents: read
+
+jobs:
+  coverage-windows:
+    if: github.event.pull_request.draft == false
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
+        with:
+          persist-credentials: false
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c  # v6.0.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          allow-prereleases: true
+      - name: Install deps
+        run: choco install nasm
+      - name: Environment Information
+        run: npx envinfo
+      - name: Build
+        run: ./vcbuild.bat clang-cl
+      # TODO(bcoe): investigate tests that fail with coverage enabled
+      # on Windows.
+      - name: Test
+        run: ./vcbuild.bat noprojgen nobuild test-ci-js; node -e 'process.exit(0)'
+        env:
+          NODE_V8_COVERAGE: ./coverage/tmp
+      - name: Report
+        run: npx c8 report
+        env:
+          NODE_OPTIONS: --max-old-space-size=8192
+      - name: Clean tmp
+        run: npx rimraf ./coverage/tmp
+      - name: Upload
+        uses: codecov/codecov-action@5a1091511ad55cbe89839c7260b706298ca349f7  # v5.5.1
+        with:
+          directory: ./coverage

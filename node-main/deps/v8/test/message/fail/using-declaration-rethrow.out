@@ -1,0 +1,5 @@
+*%(basename)s:{NUMBER}: TypeError: An object is expected with `using` declarations
+  using x = 1; // Not an object
+            ^
+TypeError: An object is expected with `using` declarations
+    at *%(basename)s:{NUMBER}:{NUMBER}
