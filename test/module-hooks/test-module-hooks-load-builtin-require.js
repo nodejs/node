@@ -36,10 +36,13 @@ hook.deregister();
 // stripped for internal lookups should not get passed into the hooks.
 const schemelessBlockList = new Set([
   'sea',
-  'sqlite',
   'test',
   'test/reporters',
 ]);
+
+if (common.hasSQLite) {
+  schemelessBlockList.add('sqlite');
+}
 
 const testModules = [];
 for (const mod of schemelessBlockList) {

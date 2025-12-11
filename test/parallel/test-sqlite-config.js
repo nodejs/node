@@ -2,8 +2,8 @@
 const { skipIfSQLiteMissing } = require('../common/index.mjs');
 const { test } = require('node:test');
 const assert = require('node:assert');
-const { DatabaseSync } = require('node:sqlite');
 skipIfSQLiteMissing();
+const { DatabaseSync } = require('node:sqlite');
 
 function checkDefensiveMode(db) {
   function journalMode() {

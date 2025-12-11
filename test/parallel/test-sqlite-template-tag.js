@@ -1,5 +1,7 @@
 'use strict';
-require('../common');
+const { skipIfSQLiteMissing } = require('../common');
+skipIfSQLiteMissing();
+
 const assert = require('assert');
 const { DatabaseSync } = require('node:sqlite');
 const { test, beforeEach } = require('node:test');
