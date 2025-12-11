@@ -1,53 +1,59 @@
 'use strict';
 
-const common = require('../common');
+require('../common');
 
 const assert = require('assert');
-const { subscribe } = require('node:diagnostics_channel');
-const { metrics } = require('node:perf_hooks');
-const { createCounter, Counter, Timer, MetricReport } = metrics;
+const { metrics } = require('perf_hooks');
 
-// Create a counter for timing
-const testCounter = createCounter('test.duration', { base: 'test' });
-assert.ok(testCounter instanceof Counter);
+// Test Timer duration measurement
+const m = metrics.create('test.timer', { unit: 'ms' });
 
-assert.strictEqual(testCounter.type, 'counter');
-assert.strictEqual(testCounter.name, 'test.duration');
-assert.deepStrictEqual(testCounter.meta, { base: 'test' });
-assert.strictEqual(testCounter.channelName, 'metrics:counter:test.duration');
+const consumer = metrics.createConsumer({
+  'test.timer': { aggregation: 'sum' },
+});
 
-// Create timers from the counter
-const a = testCounter.createTimer({ timer: 'a', meta: 'extra' });
-const b = testCounter.createTimer({ timer: 'b' });
+// Start timer
+const timer = m.startTimer();
+assert.ok(timer);
 
-assert.ok(a instanceof Timer);
-assert.ok(b instanceof Timer);
-
-const messages = [
-  [50, { base: 'test', timer: 'a', meta: 'extra' }],
-  [100, { base: 'test', timer: 'b' }],
-];
-
-subscribe(testCounter.channelName, common.mustCall((report) => {
-  assert.ok(report instanceof MetricReport);
-  assert.strictEqual(report.type, 'counter');
-  assert.strictEqual(report.name, 'test.duration');
-  assert.ok(report.time > 0);
-
-  const [value, meta] = messages.shift();
-  assert.ok(near(report.value, value));
-  assert.deepStrictEqual(report.meta, meta);
-}, 2));
-
-// NOTE: If this test is flaky, tune the threshold to give more leeway to the timing
-function near(actual, expected, threshold = 10) {
-  return Math.abs(actual - expected) <= threshold;
+// Do some work
+for (let i = 0; i < 100000; i++) {
+  // Simulate work
 }
 
-setTimeout(() => {
-  a.stop();
-}, 50);
+// Stop timer and get duration
+const duration = timer.stop();
+assert.ok(typeof duration === 'number');
+assert.ok(duration > 0);
+assert.ok(duration < 10000); // Should be less than 10 seconds
 
-setTimeout(() => {
-  b[Symbol.dispose]();
-}, 100);
+// Check consumer received the value
+const result = consumer.collect();
+assert.strictEqual(result[0].dataPoints[0].count, 1);
+assert.ok(result[0].dataPoints[0].sum > 0);
+
+consumer.close();
+
+// Test timer with attributes (groupByAttributes: true enables attribute tracking)
+const m2 = metrics.create('test.timer.attrs', { unit: 'ms' });
+
+const consumer2 = metrics.createConsumer({
+  'groupByAttributes': true,
+  'test.timer.attrs': { aggregation: 'sum' },
+});
+
+const timer2 = m2.startTimer({ operation: 'test' });
+timer2.stop();
+
+const result2 = consumer2.collect();
+assert.deepStrictEqual(result2[0].dataPoints[0].attributes, { operation: 'test' });
+
+consumer2.close();
+
+// Test double-stop throws
+const m3 = metrics.create('test.timer.double');
+const timer3 = m3.startTimer();
+timer3.stop();
+assert.throws(() => timer3.stop(), {
+  code: 'ERR_INVALID_STATE',
+});

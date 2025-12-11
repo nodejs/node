@@ -6,9 +6,11 @@
 
 <!-- source_link=lib/internal/perf/metrics.js -->
 
-The metrics API provides an API for application instrumentation and
-performance monitoring. It offers various metric types and built-in exporters
-for popular monitoring systems.
+The `node:perf_hooks` metrics API provides a flexible, low-overhead
+instrumentation system for application performance monitoring. It follows a
+three-layer architecture: value producers generate values via direct recording,
+timers, or observable callbacks; descriptors identify and group metric values;
+consumers subscribe to metrics and aggregate values into snapshots.
 
 The metrics API can be accessed using:
 
@@ -20,189 +22,331 @@ import { metrics } from 'node:perf_hooks';
 const { metrics } = require('node:perf_hooks');
 ```
 
-## Overview
+## Public API
 
-The metrics API enables developers to instrument their applications with custom
-metrics that can be collected and exported to monitoring systems. All metrics
-publish their data through the `node:diagnostics_channel` module, allowing for
-flexible consumption patterns.
-
-### Example
+### Overview
 
 ```mjs
 import { metrics } from 'node:perf_hooks';
-const { createCounter } = metrics;
 
-// Create counter metrics
-const apiCalls = createCounter('api.calls', { service: 'web' });
-const requestDuration = createCounter('api.request.duration.ms', { service: 'web' });
+// Create a metric (singleton — same name returns same instance)
+const requests = metrics.create('http.requests', { unit: '{count}' });
 
-// Use metrics in your application
-function handleRequest(req, res) {
-  const timer = requestDuration.createTimer({ endpoint: req.url });
+// Create a consumer to aggregate values
+const consumer = metrics.createConsumer({
+  defaultAggregation: 'sum',
+  groupByAttributes: true,
+  metrics: {
+    'http.requests': { aggregation: 'sum' },
+  },
+});
 
-  apiCalls.increment();
+// Record values with optional attributes
+requests.record(1, { method: 'GET', status: 200 });
+requests.record(1, { method: 'POST', status: 201 });
 
-  // Process request...
+// Collect aggregated snapshots
+const snapshot = consumer.collect();
+console.log(snapshot[0].dataPoints);
+// [
+//   { sum: 1, count: 1, attributes: { method: 'GET', status: 200 } },
+//   { sum: 1, count: 1, attributes: { method: 'POST', status: 201 } },
+// ]
 
-  timer.stop(); // Increments requestDuration with the elapsed time
-}
+consumer.close();
+requests.close();
 ```
 
 ```cjs
 const { metrics } = require('node:perf_hooks');
-const { createCounter } = metrics;
 
-// Create counter metrics
-const apiCalls = createCounter('api.calls', { service: 'web' });
-const requestDuration = createCounter('api.request.duration.ms', { service: 'web' });
+const requests = metrics.create('http.requests', { unit: '{count}' });
 
-// Use metrics in your application
-function handleRequest(req, res) {
-  const timer = requestDuration.createTimer({ endpoint: req.url });
-
-  apiCalls.increment();
-
-  // Process request...
-
-  timer.stop(); // Increments requestDuration with the elapsed time
-}
-```
-
-## Metric Types
-
-### `metrics.createCounter(name[, meta])`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* `name` {string} The name of the counter metric.
-* `meta` {Object} Optional metadata to attach to all reports.
-* Returns: {metrics.Counter}
-
-Creates a counter metric that tracks cumulative values.
-
-```mjs
-import { metrics } from 'node:perf_hooks';
-const { createCounter } = metrics;
-
-const errorCount = createCounter('errors.total', { component: 'database' });
-
-errorCount.increment();     // Increment by 1
-errorCount.increment(5);    // Increment by 5
-errorCount.decrement(2);    // Decrement by 2
-```
-
-### `metrics.createGauge(name[, meta])`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* `name` {string} The name of the gauge metric.
-* `meta` {Object} Optional metadata to attach to all reports.
-* Returns: {metrics.Gauge}
-
-Creates a gauge metric that represents a single value at a point in time.
-
-```mjs
-import { metrics } from 'node:perf_hooks';
-const { createGauge } = metrics;
-import { memoryUsage } from 'node:process';
-
-const memory = createGauge('memory.usage.bytes');
-
-memory.reset(memoryUsage().heapUsed);
-```
-
-### `metrics.createPullGauge(name, fn[, meta])`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* `name` {string} The name of the pull gauge metric.
-* `fn` {Function} A function that returns the current value.
-* `meta` {Object} Optional metadata to attach to all reports.
-* Returns: {metrics.PullGauge}
-
-Creates a gauge that samples a value on-demand by calling the provided function.
-
-```mjs
-import { metrics } from 'node:perf_hooks';
-const { createPullGauge } = metrics;
-import { cpuUsage } from 'node:process';
-
-const cpu = createPullGauge('cpu.usage', () => {
-  return cpuUsage().user;
+const consumer = metrics.createConsumer({
+  defaultAggregation: 'sum',
+  groupByAttributes: true,
+  metrics: {
+    'http.requests': { aggregation: 'sum' },
+  },
 });
 
-// Sample the gauge when needed
-cpu.sample();
+requests.record(1, { method: 'GET', status: 200 });
+requests.record(1, { method: 'POST', status: 201 });
+
+const snapshot = consumer.collect();
+console.log(snapshot[0].dataPoints);
+
+consumer.close();
+requests.close();
 ```
 
-## Classes
-
-### Class: `MetricReport`
+#### `metrics.create(name[, options])`
 
 <!-- YAML
 added: REPLACEME
 -->
 
-Represents a single metric measurement.
+* `name` {string} The metric name. Must not be empty.
+* `options` {Object}
+  * `unit` {string} The unit of measurement (e.g., `'ms'`, `'By'`,
+    `'{count}'`).
+  * `description` {string} Human-readable description.
+  * `observable` {Function} If provided, makes the metric observable. The
+    function is called during [`consumer.collect()`][] with a facade object
+    as its argument. The facade has:
+    * `record(value[, attributes])` — Records a value for the current
+      subscriber.
+    * `descriptor` — The [`MetricDescriptor`][] for this metric.
+  * `scope` {InstrumentationScope} The instrumentation scope.
+* Returns: {Metric}
 
-#### `metricReport.type`
+Creates a new metric or returns the existing one with the same name. If a
+metric with the same name already exists but with different options, a
+`'MetricsWarning'` process warning is emitted and the existing metric is
+returned unchanged.
+
+Each metric maintains its own subscriber list. Values are dispatched directly
+to subscribed consumers with no per-value identity lookups, similar to
+`node:diagnostics_channel`.
+
+```mjs
+import { metrics } from 'node:perf_hooks';
+import { memoryUsage } from 'node:process';
+
+// Direct metric — record values explicitly
+const duration = metrics.create('http.request.duration', {
+  unit: 'ms',
+  description: 'HTTP request duration in milliseconds',
+});
+
+duration.record(42, { route: '/api/users' });
+
+// Observable metric — sampled on demand during collect()
+const memory = metrics.create('process.memory.heap', {
+  unit: 'By',
+  observable: (metric) => {
+    const mem = memoryUsage();
+    metric.record(mem.heapUsed, { type: 'used' });
+    metric.record(mem.heapTotal, { type: 'total' });
+  },
+});
+```
+
+```cjs
+const { metrics } = require('node:perf_hooks');
+const { memoryUsage } = require('node:process');
+
+const duration = metrics.create('http.request.duration', {
+  unit: 'ms',
+  description: 'HTTP request duration in milliseconds',
+});
+
+duration.record(42, { route: '/api/users' });
+
+const memory = metrics.create('process.memory.heap', {
+  unit: 'By',
+  observable: (metric) => {
+    const mem = memoryUsage();
+    metric.record(mem.heapUsed, { type: 'used' });
+    metric.record(mem.heapTotal, { type: 'total' });
+  },
+});
+```
+
+#### `metrics.createConsumer([config])`
 
 <!-- YAML
 added: REPLACEME
 -->
 
-* {string}
+* `config` {Object}
+  * `defaultAggregation` {string} Default aggregation strategy for all
+    metrics. One of `'sum'`, `'lastValue'`, `'histogram'`, `'summary'`, or a
+    custom aggregator object. **Default:** `'sum'`.
+  * `defaultTemporality` {string} Default temporality. `'cumulative'` means
+    data points represent totals since metric creation; `'delta'` means
+    data points represent values since the last [`consumer.collect()`][]
+    call and state is reset after collection. **Default:** `'cumulative'`.
+  * `groupByAttributes` {boolean} When `true`, values are bucketed by their
+    attribute combinations. When `false`, all values aggregate into a single
+    bucket regardless of attributes. **Default:** `false`.
+  * `metrics` {Object} Per-metric configuration keyed by metric name. Each
+    value is an object with:
+    * `aggregation` {string|Object} Aggregation strategy for this metric.
+      Built-in strategies:
+      * `'sum'` — Running sum and count. Supports `monotonic: true` to
+        reject negative values. Data point fields: `sum`, `count`.
+      * `'lastValue'` — Most recent value and its timestamp. Data point
+        fields: `value`, `timestamp`.
+      * `'histogram'` — Explicit-boundary histogram. Data point fields:
+        `buckets` (array of `{ le, count }`), `sum`, `count`, `min`, `max`.
+      * `'summary'` — Quantile summary. Data point fields: `quantiles`
+        (object mapping quantile to value), `sum`, `count`, `min`, `max`.
+      * Custom object with `createState(config)`, `aggregate(state, value[,
+        timestamp])`, `finalize(state)`, and optional `resetState(state)` and
+        `needsTimestamp` properties.
+    * `temporality` {string} Overrides `defaultTemporality` for this metric.
+    * `monotonic` {boolean} For `'sum'` aggregation, reject negative values.
+    * `boundaries` {number\[]} For `'histogram'` aggregation, bucket
+      boundaries. **Default:** `[10, 50, 100, 500, 1000]`.
+    * `quantiles` {number\[]} For `'summary'` aggregation, quantile values.
+      **Default:** `[0.5, 0.9, 0.95, 0.99]`.
+    * `groupBy` {string\[]} Attribute keys to group by (subset of all
+      attributes).
+    * `normalizeAttributes` {Function} Function to normalize attribute
+      objects before grouping.
+    * `attributeKey` {Function} Custom function to derive the grouping key
+      from an attributes object.
+    * `cardinalityLimit` {number} Maximum unique attribute combinations when
+      `groupByAttributes` is enabled. Oldest entries are evicted for
+      `'delta'` temporality; new entries are dropped for `'cumulative'`
+      temporality. A `'MetricsWarning'` is emitted on first limit hit.
+      **Default:** `2000`.
+    * `exemplar` {Object} Exemplar sampler. Must implement three methods:
+      `sample(value, timestamp, attributes)` called on each recorded value,
+      `getExemplars()` returning an {Exemplar\[]} array, and `reset()` called
+      after collection to clear stored exemplars. See [`ReservoirSampler`][]
+      and [`BoundarySampler`][] for built-in implementations.
+* Returns: {Consumer}
 
-The type of the metric (e.g., 'counter', 'gauge', 'pullGauge',
-'timer').
+Creates a consumer that aggregates metric values. The consumer subscribes to
+existing metrics immediately and to metrics created later that match its
+configuration. A wildcard consumer (no `metrics` key, or empty `metrics`)
+subscribes to all current and future metrics.
 
-#### `metricReport.name`
+Config keys that are not reserved (`defaultAggregation`, `defaultTemporality`,
+`groupByAttributes`, `metrics`) are treated as metric names in the shorthand
+format:
+
+```mjs
+import { metrics } from 'node:perf_hooks';
+
+// Shorthand: top-level keys are metric names
+const consumer = metrics.createConsumer({
+  'http.requests': { aggregation: 'sum' },
+  'http.duration': { aggregation: 'histogram' },
+});
+
+// Explicit: nested under 'metrics' key
+const consumer2 = metrics.createConsumer({
+  defaultAggregation: 'sum',
+  groupByAttributes: true,
+  metrics: {
+    'http.requests': { aggregation: 'sum' },
+    'http.duration': { aggregation: 'histogram' },
+  },
+});
+
+// Wildcard: subscribes to all metrics
+const wildcard = metrics.createConsumer();
+
+consumer.close();
+consumer2.close();
+wildcard.close();
+```
+
+```cjs
+const { metrics } = require('node:perf_hooks');
+
+const consumer = metrics.createConsumer({
+  'http.requests': { aggregation: 'sum' },
+  'http.duration': { aggregation: 'histogram' },
+});
+
+const consumer2 = metrics.createConsumer({
+  defaultAggregation: 'sum',
+  groupByAttributes: true,
+  metrics: {
+    'http.requests': { aggregation: 'sum' },
+    'http.duration': { aggregation: 'histogram' },
+  },
+});
+
+const wildcard = metrics.createConsumer();
+
+consumer.close();
+consumer2.close();
+wildcard.close();
+```
+
+#### `metrics.createDiagnosticsChannelConsumer()`
 
 <!-- YAML
 added: REPLACEME
 -->
 
-* {string}
+* Returns: {Object}
 
-The name of the metric.
+Creates a singleton consumer that forwards all metric values to
+`node:diagnostics_channel`. Each metric publishes to a channel named
+`metrics:{name}`. Values are only published when the channel has active
+subscribers.
 
-#### `metricReport.value`
+Calling this function again after the first call returns the same instance.
+The returned object has `collect()` (to sample observable metrics) and
+`close()` methods.
+
+```mjs
+import diagnosticsChannel from 'node:diagnostics_channel';
+import { metrics } from 'node:perf_hooks';
+
+diagnosticsChannel.subscribe('metrics:http.requests', (msg) => {
+  // msg.descriptor, msg.value, msg.attributes, msg.timestamp
+  console.log(msg.value, msg.attributes);
+});
+
+metrics.createDiagnosticsChannelConsumer();
+
+const m = metrics.create('http.requests');
+m.record(1, { method: 'GET' }); // Published to the channel immediately
+```
+
+```cjs
+const diagnosticsChannel = require('node:diagnostics_channel');
+const { metrics } = require('node:perf_hooks');
+
+diagnosticsChannel.subscribe('metrics:http.requests', (msg) => {
+  console.log(msg.value, msg.attributes);
+});
+
+metrics.createDiagnosticsChannelConsumer();
+
+const m = metrics.create('http.requests');
+m.record(1, { method: 'GET' });
+```
+
+#### `metrics.get(name)`
 
 <!-- YAML
 added: REPLACEME
 -->
 
-* {number}
+* `name` {string}
+* Returns: {Metric|undefined}
 
-The numeric value of the measurement.
+Returns the registered metric with the given name, or `undefined` if not
+found.
 
-#### `metricReport.meta`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {Object}
-
-Additional metadata associated with the measurement.
-
-#### `metricReport.time`
+#### `metrics.list()`
 
 <!-- YAML
 added: REPLACEME
 -->
 
-* {number}
+* Returns: {Metric\[]}
 
-The `performance.now()` timestamp when the measurement was recorded in
-milliseconds since `performance.timeOrigin`.
+Returns an array of all currently registered metrics.
+
+#### `metrics.diagnosticsChannelConsumer`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {Object|null}
+
+The diagnostics channel consumer singleton. `null` if
+[`metrics.createDiagnosticsChannelConsumer()`][] has not been called.
 
 ### Class: `Metric`
 
@@ -210,61 +354,22 @@ milliseconds since `performance.timeOrigin`.
 added: REPLACEME
 -->
 
-Manages the lifecycle of a metric channel and provides methods for reporting
-values to it. Each metric type holds a `Metric` instance which it reports to.
+A metric records values and dispatches them immediately to all subscribed
+consumers. Metrics are created with [`metrics.create()`][], which implements a
+singleton pattern — creating a metric with an already-registered name returns
+the existing instance.
 
-#### `metric.type`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {string}
-
-The type of the metric (e.g., 'counter', 'gauge', 'pullGauge',
-'timer').
-
-#### `metric.name`
+#### `metric.descriptor`
 
 <!-- YAML
 added: REPLACEME
 -->
 
-* {string}
+* {MetricDescriptor}
 
-The name of the metric.
+The immutable descriptor for this metric.
 
-#### `metric.meta`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {Object}
-
-Additional metadata associated with the metric.
-
-#### `metric.channelName`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {string}
-
-The name of the diagnostics\_channel used for this metric.
-
-#### `metric.channel`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {Channel}
-
-The diagnostics channel instance used for this metric.
-
-#### `metric.shouldReport`
+#### `metric.isObservable`
 
 <!-- YAML
 added: REPLACEME
@@ -272,190 +377,103 @@ added: REPLACEME
 
 * {boolean}
 
-Indicates whether the metric should report values. This can be used to
-conditionally enable or disable value preparation work.
+`true` if this metric has an observable callback.
 
-#### `metric.report(value[, meta])`
+#### `metric.isClosed`
 
 <!-- YAML
 added: REPLACEME
 -->
 
-* `value` {number} The value to report.
-* `meta` {Object} Additional metadata for this report.
-* Returns: {metrics.MetricReport}
+* {boolean}
 
-Reports a value for the metric, creating a `MetricReport` instance.
-This bypasses the metric type specific methods, allowing direct reporting
-to a channel.
+`true` if this metric has been closed.
 
-Generally this method should not be used directly. Instead, use the
-specific methods provided by each metric type (e.g., `increment`, `reset`,
-`mark`, etc.) which internally call this method with the appropriate value and
-metadata.
+#### `metric.record(value[, attributes[, timestamp]])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `value` {number|bigint} The value to record.
+* `attributes` {Object} Attributes for this value. **Default:** `{}`.
+* `timestamp` {number} Optional timestamp override.
+
+Records a value and dispatches it to all subscribed consumers. Validation is
+always performed. If there are no subscribers, the value is not stored.
 
 ```mjs
 import { metrics } from 'node:perf_hooks';
-const { createGauge } = metrics;
 
-const memoryUsage = gauge('memory.usage', { service: 'web' });
+const m = metrics.create('db.query.duration', { unit: 'ms' });
 
-memoryUsage.report(85); // Reports a value of 85
-memoryUsage.report(90, { threshold: 'warning' }); // Reports 90 with metadata
+m.record(12.5, { db: 'postgres', operation: 'SELECT' });
+m.record(3n);         // BigInt values are supported
+m.record(0.5);
 ```
 
-### Class: `Counter`
+```cjs
+const { metrics } = require('node:perf_hooks');
 
-* Extends: {metrics.Metric}
+const m = metrics.create('db.query.duration', { unit: 'ms' });
 
-<!-- YAML
-added: REPLACEME
--->
-
-A metric that only increases or decreases.
-
-#### `counter.value`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {number}
-
-The current value of the counter.
-
-#### `counter.increment([n[, meta]])`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* `n` {number} The amount to increment. **Default:** `1`
-* `meta` {Object} Additional metadata for this report.
-
-Increments the counter by the specified amount.
-
-```mjs
-import { metrics } from 'node:perf_hooks';
-const { createCounter } = metrics;
-
-const apiCalls = createCounter('api.calls', { service: 'web' });
-
-apiCalls.increment();     // Increment by 1
-apiCalls.increment(5);    // Increment by 5
-apiCalls.increment(10, { endpoint: '/api/users' }); // Increment by 10 with metadata
-apiCalls.increment({ endpoint: '/api/orders' });    // Increment by 1 with metadata
+m.record(12.5, { db: 'postgres', operation: 'SELECT' });
+m.record(3n);
+m.record(0.5);
 ```
 
-#### `counter.decrement([n[, meta]])`
+#### `metric.startTimer([attributes])`
 
 <!-- YAML
 added: REPLACEME
 -->
 
-* `n` {number} The amount to decrement. **Default:** `1`
-* `meta` {Object} Additional metadata for this report.
-
-Decrements the counter by the specified amount.
-
-```mjs
-import { metrics } from 'node:perf_hooks';
-const { createCounter } = metrics;
-
-const errorCount = createCounter('errors.total', { component: 'database' });
-
-errorCount.decrement();     // Decrement by 1
-errorCount.decrement(3);    // Decrement by 3
-errorCount.decrement(2, { errorType: 'timeout' }); // Decrement by 2 with metadata
-errorCount.decrement({ errorType: 'timeout' });    // Decrement by 1 with metadata
-```
-
-#### `counter.createTimer([meta])`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* `meta` {Object} Additional metadata to include with the report.
+* `attributes` {Object} Attributes to include with the recorded duration.
+  **Default:** `{}`.
 * Returns: {Timer}
 
-Creates a timer that will increment this counter with its duration when stopped.
+Creates a {Timer} that records its duration to this metric when stopped.
+Timers are pooled for reuse to reduce garbage collection pressure.
 
 ```mjs
 import { metrics } from 'node:perf_hooks';
-const { createCounter } = metrics;
 
-const requestDuration = createCounter('request.duration.ms');
+const duration = metrics.create('http.request.duration', { unit: 'ms' });
 
-const timer = requestDuration.createTimer({ endpoint: '/api/users' });
-// Process request...
-const duration = timer.stop(); // Counter is incremented with duration
+// Manual stop
+const timer = duration.startTimer({ route: '/api/users' });
+// ... handle request ...
+const ms = timer.stop(); // Records duration and returns it
+
+// Automatic stop using `using`
+{
+  using t = duration.startTimer({ route: '/api/orders' });
+  // ... handle request ...
+  // Timer is stopped automatically at end of block
+}
 ```
 
-### Class: `Gauge`
+```cjs
+const { metrics } = require('node:perf_hooks');
 
-* Extends: {metrics.Metric}
+const duration = metrics.create('http.request.duration', { unit: 'ms' });
 
-<!-- YAML
-added: REPLACEME
--->
-
-A metric representing a single value that can go up or down.
-
-#### `gauge.value`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {number}
-
-The current value of the metric.
-
-#### `gauge.reset([value[, meta]])`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* `value` {number} The new value. **Default:** `0`
-* `meta` {Object} Additional metadata for this report.
-
-Sets the gauge to a specific value and reports it.
-
-```mjs
-import { metrics } from 'node:perf_hooks';
-const { createGauge } = metrics;
-import { memoryUsage } from 'node:process';
-
-const memory = createGauge('memory.usage.bytes');
-
-memory.reset(); // Reset to 0
-memory.reset(memoryUsage().heapUsed); // Set to current memory usage
-memory.reset(1024, { source: 'system' }); // Set to 1024 with metadata
+const timer = duration.startTimer({ route: '/api/users' });
+// ... handle request ...
+const ms = timer.stop();
 ```
 
-#### `gauge.createTimer([meta])`
+#### `metric.close()`
 
 <!-- YAML
 added: REPLACEME
 -->
 
-* `meta` {Object} Additional metadata to include with the report.
-* Returns: {Timer}
-
-Creates a timer that will set this gauge to its duration when stopped.
-
-```mjs
-import { metrics } from 'node:perf_hooks';
-const { createGauge } = metrics;
-
-const responseTime = createGauge('response.time.ms');
-
-const timer = responseTime.createTimer({ endpoint: '/api/users' });
-// Process request...
-const duration = timer.stop(); // Gauge is set to duration
-```
+Unregisters the metric from the global registry and notifies all consumers
+via [`consumer.onMetricClosed()`][]. After closing, `record()` calls are
+silently ignored (but still validated) and consumers receive no further values.
+Calling `close()` multiple times is safe. After closing, a new metric can be
+created with the same name.
 
 ### Class: `Timer`
 
@@ -463,9 +481,9 @@ const duration = timer.stop(); // Gauge is set to duration
 added: REPLACEME
 -->
 
-A helper for measuring durations that reports the elapsed time via a callback when stopped.
+A helper for measuring durations. Obtained via [`metric.startTimer()`][].
 
-#### `timer.start`
+#### `timer.startTime`
 
 <!-- YAML
 added: REPLACEME
@@ -473,28 +491,7 @@ added: REPLACEME
 
 * {number}
 
-The start time of the timer (milliseconds since `performance.timeOrigin`). This property is read-only.
-
-#### `timer.end`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {number|undefined}
-
-The end time of the timer (milliseconds since `performance.timeOrigin`). `undefined` if timer is still running.
-This property is read-only.
-
-#### `timer.duration`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* {number|undefined}
-
-The duration in milliseconds. `undefined` if timer is still running. This property is read-only.
+The start time in milliseconds from `performance.now()`.
 
 #### `timer.stop()`
 
@@ -504,21 +501,8 @@ added: REPLACEME
 
 * Returns: {number} The duration in milliseconds.
 
-Stops the timer and reports the duration. Can only be called once.
-
-```mjs
-import { metrics } from 'node:perf_hooks';
-const { createCounter } = metrics;
-
-const dbQueryDuration = createCounter('db.query.duration');
-
-const t = dbQueryDuration.createTimer({ query: 'SELECT * FROM users' });
-
-// Perform database query...
-
-// Stop the timer and get the duration
-const duration = t.stop(); // Returns duration in milliseconds
-```
+Stops the timer and records the duration to the associated metric. Throws
+`ERR_INVALID_STATE` if called after the timer has already been stopped.
 
 #### `timer[Symbol.dispose]()`
 
@@ -526,110 +510,514 @@ const duration = t.stop(); // Returns duration in milliseconds
 added: REPLACEME
 -->
 
-Allows `using` syntax to automatically stop the timer when done.
+Stops the timer if it has not already been stopped. Enables `using` syntax
+for automatic cleanup.
+
+### Class: `Consumer`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Aggregates metric values using a subscriber model. Each consumer subscribes
+directly to metrics at subscription time, eliminating per-value identity
+lookups. Consumers are created with [`metrics.createConsumer()`][].
+
+#### `consumer.collect()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {Object\[]}
+
+Collects all metrics and returns an array of metric snapshots. Observable
+metrics are sampled during this call, each receiving only its own subscriber
+to maintain consumer isolation.
+
+Each snapshot is an object with:
+
+* `descriptor` {Object} The metric descriptor (`name`, `unit`, `description`,
+  `scope`).
+* `temporality` {string} `'cumulative'` or `'delta'`.
+* `timestamp` {number} The collection timestamp.
+* `startTime` {number} Start of the time window (`'delta'` temporality only).
+* `dataPoints` {Object\[]} Array of aggregated data points. Each has an
+  `attributes` property plus aggregation-specific fields (see
+  [`metrics.createConsumer()`][]).
+
+Snapshots with no data points are omitted. For `'delta'` temporality,
+subscriber state is reset after collection.
 
 ```mjs
 import { metrics } from 'node:perf_hooks';
-const { createCounter } = metrics;
 
-const dbQueryDuration = createCounter('db.query.duration');
+const m = metrics.create('app.requests');
+const consumer = metrics.createConsumer({
+  groupByAttributes: true,
+  metrics: { 'app.requests': { aggregation: 'sum' } },
+});
 
-{
-  using t = dbQueryDuration.createTimer({ query: 'SELECT * FROM users' });
-  // Perform database query...
+m.record(1, { status: 200 });
+m.record(1, { status: 404 });
 
-  // Timer is automatically stopped here
+const snapshot = consumer.collect();
+console.log(snapshot[0].dataPoints);
+// [
+//   { sum: 1, count: 1, attributes: { status: 200 } },
+//   { sum: 1, count: 1, attributes: { status: 404 } },
+// ]
+
+consumer.close();
+m.close();
+```
+
+```cjs
+const { metrics } = require('node:perf_hooks');
+
+const m = metrics.create('app.requests');
+const consumer = metrics.createConsumer({
+  groupByAttributes: true,
+  metrics: { 'app.requests': { aggregation: 'sum' } },
+});
+
+m.record(1, { status: 200 });
+m.record(1, { status: 404 });
+
+const snapshot = consumer.collect();
+console.log(snapshot[0].dataPoints);
+
+consumer.close();
+m.close();
+```
+
+#### `consumer.autoCollect(interval, callback)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `interval` {number} Collection interval in milliseconds.
+* `callback` {Function} Called with the snapshot array from each collection.
+* Returns: {Function} A stop function that cancels auto-collection.
+
+Starts periodic automatic collection. The underlying timer is unref'd so it
+does not keep the process alive. Throws `ERR_INVALID_STATE` if auto-collection
+is already active or if the consumer is closed.
+
+```mjs
+import { metrics } from 'node:perf_hooks';
+
+const consumer = metrics.createConsumer();
+
+const stop = consumer.autoCollect(10_000, (snapshot) => {
+  // Called every 10 seconds with the collected snapshot
+  for (const metric of snapshot) {
+    console.log(metric.descriptor.name, metric.dataPoints);
+  }
+});
+
+// Later, cancel periodic collection
+stop();
+consumer.close();
+```
+
+```cjs
+const { metrics } = require('node:perf_hooks');
+
+const consumer = metrics.createConsumer();
+
+const stop = consumer.autoCollect(10_000, (snapshot) => {
+  for (const metric of snapshot) {
+    console.log(metric.descriptor.name, metric.dataPoints);
+  }
+});
+
+stop();
+consumer.close();
+```
+
+#### `consumer.close()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Closes the consumer: stops auto-collection, unsubscribes from all metrics,
+and unregisters from the global registry. Safe to call multiple times.
+
+#### `consumer.onMetricCreated(metric)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `metric` {Metric}
+
+Called by the registry when a new metric is created. Override to observe
+metric creation events. The default implementation subscribes to the metric
+if it matches the consumer's configuration.
+
+#### `consumer.onMetricClosed(metric)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `metric` {Metric}
+
+Called by the registry when a metric is closed. Override to observe metric
+closure events. The default implementation cleans up the consumer's
+subscriptions for that metric.
+
+### Class: `MetricDescriptor`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+An immutable descriptor for a metric. Created once per metric and reused.
+Consumers can use reference equality (`===`) for fast comparisons. Obtained
+via [`metric.descriptor`][].
+
+#### `metricDescriptor.name`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {string}
+
+The metric name.
+
+#### `metricDescriptor.unit`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {string|undefined}
+
+The unit of measurement.
+
+#### `metricDescriptor.description`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {string|undefined}
+
+The human-readable description.
+
+#### `metricDescriptor.scope`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {InstrumentationScope|undefined}
+
+The instrumentation scope.
+
+#### `metricDescriptor.channel`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {Channel}
+
+The `node:diagnostics_channel` channel for this metric (lazily created). The
+channel name is `metrics:{name}`.
+
+#### `metricDescriptor.toJSON()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {Object}
+
+Returns a plain object representation suitable for JSON serialization.
+
+### Class: `InstrumentationScope`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Identifies the library or module producing metrics. Corresponds to the
+[OpenTelemetry Instrumentation Scope][] concept.
+
+#### `new InstrumentationScope(name[, version[, schemaUrl]])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `name` {string} The scope name (e.g., package name).
+* `version` {string} The scope version.
+* `schemaUrl` {string} The schema URL.
+
+#### `instrumentationScope.name`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {string}
+
+#### `instrumentationScope.version`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {string|undefined}
+
+#### `instrumentationScope.schemaUrl`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {string|undefined}
+
+#### `instrumentationScope.toJSON()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {Object}
+
+### Class: `Exemplar`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+A sample measurement with trace context, used to correlate metric data points
+with distributed traces. See the [OpenTelemetry Exemplars][] specification.
+`Exemplar` instances are returned by [`reservoirSampler.getExemplars()`][] and
+[`boundarySampler.getExemplars()`][].
+
+#### `exemplar.value`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {number|bigint}
+
+#### `exemplar.timestamp`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {number}
+
+#### `exemplar.traceId`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {string}
+
+#### `exemplar.spanId`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {string}
+
+#### `exemplar.filteredAttributes`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {Object}
+
+#### `exemplar.toJSON()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {Object}
+
+### Class: `ReservoirSampler`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+An exemplar sampler using reservoir sampling (Algorithm R). Maintains a
+fixed-size random sample of exemplars over the collection window.
+
+#### `new metrics.ReservoirSampler(maxExemplars, extract)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `maxExemplars` {number} Maximum number of exemplars to retain. Must be
+  at least `1`.
+* `extract` {Function} Called with the recording attributes to extract trace
+  context. Must return an object with `traceId`, `spanId`, and
+  `filteredAttributes` properties, or `null` to skip sampling.
+
+```mjs
+import { metrics } from 'node:perf_hooks';
+
+const { ReservoirSampler } = metrics;
+
+function extractTraceContext(attributes) {
+  if (!attributes.traceId || !attributes.spanId) return null;
+  const { traceId, spanId, ...filteredAttributes } = attributes;
+  return { traceId, spanId, filteredAttributes };
 }
+
+const sampler = new ReservoirSampler(10, extractTraceContext);
+
+const consumer = metrics.createConsumer({
+  metrics: {
+    'http.request.duration': {
+      aggregation: 'histogram',
+      exemplar: sampler,
+    },
+  },
+});
 ```
 
-### Class: `PullGauge`
-
-* Extends: {metrics.Metric}
+#### `reservoirSampler.sample(value, timestamp, attributes)`
 
 <!-- YAML
 added: REPLACEME
 -->
 
-A gauge that samples values on-demand when the `sample()` method is called.
+* `value` {number|bigint}
+* `timestamp` {number}
+* `attributes` {Object}
 
-#### `pullGauge.sample([meta])`
+Records a candidate exemplar. If the reservoir is not full, the sample is
+added directly. Otherwise, it randomly replaces an existing sample with
+decreasing probability (Algorithm R).
+
+#### `reservoirSampler.getExemplars()`
 
 <!-- YAML
 added: REPLACEME
 -->
 
-* `meta` {Object} Additional metadata for this specific sample.
-* Returns: {number} The sampled value.
+* Returns: {Exemplar\[]}
 
-Calls the configured function to get the current value and reports it.
+Returns the current set of sampled exemplars.
+
+#### `reservoirSampler.reset()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Clears all exemplars and resets the sample count. Called automatically after
+`'delta'` temporality collection.
+
+### Class: `BoundarySampler`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+An exemplar sampler that maintains one exemplar per histogram bucket boundary.
+Suitable for use with `'histogram'` aggregation when you want one representative
+trace per bucket.
+
+#### `new metrics.BoundarySampler(boundaries, extract)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `boundaries` {number\[]} Histogram bucket boundaries. Should match the
+  `boundaries` option passed to the consumer for the same metric.
+* `extract` {Function} Called with the recording attributes to extract trace
+  context. Must return an object with `traceId`, `spanId`, and
+  `filteredAttributes` properties, or `null` to skip sampling.
 
 ```mjs
 import { metrics } from 'node:perf_hooks';
-const { createPullGauge } = metrics;
-import { cpuUsage } from 'node:process';
 
-const cpu = createPullGauge('cpu.usage', () => {
-  return cpuUsage().user;
-});
+const { BoundarySampler } = metrics;
 
-// Sample the gauge when needed
-const value = cpu.sample();
-console.log(`Current CPU usage: ${value}`);
+function extractTraceContext(attributes) {
+  if (!attributes.traceId || !attributes.spanId) return null;
+  const { traceId, spanId, ...filteredAttributes } = attributes;
+  return { traceId, spanId, filteredAttributes };
+}
 
-// Sample with additional metadata
-cpu.sample({ threshold: 'high' });
-```
+const boundaries = [10, 50, 100, 500];
+const sampler = new BoundarySampler(boundaries, extractTraceContext);
 
-## Integration with Diagnostics Channel
-
-All metrics publish their reports through `node:diagnostics_channel`. The channel
-name format is `metrics:{type}:{name}` where `{type}` is the metric type and
-`{name}` is the metric name.
-
-```mjs
-import { subscribe } from 'node:diagnostics_channel';
-
-// Subscribe to a specific metric
-subscribe('metrics:counter:api.calls', (report) => {
-  console.log(`API calls: ${report.value}`);
+const consumer = metrics.createConsumer({
+  metrics: {
+    'http.request.duration': {
+      aggregation: 'histogram',
+      boundaries,
+      exemplar: sampler,
+    },
+  },
 });
 ```
 
-```cjs
-const { subscribe } = require('node:diagnostics_channel');
+#### `boundarySampler.sample(value, timestamp, attributes)`
 
-subscribe('metrics:counter:api.calls', (report) => {
-  console.log(`API calls: ${report.value}`);
-});
-```
+<!-- YAML
+added: REPLACEME
+-->
 
-Additionally there is a specialized channel `metrics:new` which publishes any
-newly created metrics, allowing subcribing to all metrics without needing to
-know their names in advance.
+* `value` {number|bigint}
+* `timestamp` {number}
+* `attributes` {Object}
 
-```mjs
-import { subscribe } from 'node:diagnostics_channel';
+Records a candidate exemplar into the bucket corresponding to `value`. Each
+bucket retains only its most recently sampled exemplar.
 
-subscribe('metrics:new', (metric) => {
-  console.log(`New metric created: ${metric.type} - ${metric.name}`);
-});
-```
+#### `boundarySampler.getExemplars()`
 
-```cjs
-const { subscribe } = require('node:diagnostics_channel');
+<!-- YAML
+added: REPLACEME
+-->
 
-subscribe('metrics:new', (metric) => {
-  console.log(`New metric created: ${metric.type} - ${metric.name}`);
-});
-```
+* Returns: {Exemplar\[]}
 
-## Best Practices
+Returns exemplars for all populated buckets.
 
-1. **Naming Conventions**: Use dot-separated hierarchical names (e.g., `http.requests.total`).
+#### `boundarySampler.reset()`
 
-2. **Metadata**: Use metadata to add dimensions to your metrics without creating separate metric instances.
+<!-- YAML
+added: REPLACEME
+-->
 
-3. **Performance**: Metric types are designed to be lightweight. However, avoid
-   creating metric types in hot code paths. As with diagnostics\_channel, metric
-   creation is optimized for capture time performance by moving costly
-   operations to metric type creation time.
+Clears all stored exemplars. Called automatically after `'delta'` temporality
+collection.
+
+[OpenTelemetry Exemplars]: https://opentelemetry.io/docs/specs/otel/metrics/data-model/#exemplars
+[OpenTelemetry Instrumentation Scope]: https://opentelemetry.io/docs/specs/otel/glossary/#instrumentation-scope
+[`BoundarySampler`]: #class-boundarysampler
+[`MetricDescriptor`]: #class-metricdescriptor
+[`ReservoirSampler`]: #class-reservoirsampler
+[`boundarySampler.getExemplars()`]: #boundarysamplergetexemplars
+[`consumer.collect()`]: #consumercollect
+[`consumer.onMetricClosed()`]: #consumeronmetricclosedmetric
+[`metric.descriptor`]: #metricdescriptor
+[`metric.startTimer()`]: #metricstarttimerattributes
+[`metrics.create()`]: #metricscreatenameoptions
+[`metrics.createConsumer()`]: #metricscreateConsumerconfig
+[`metrics.createDiagnosticsChannelConsumer()`]: #metricscreatediagnosticschannelconsumer
+[`reservoirSampler.getExemplars()`]: #reservoirsamplergetexemplars

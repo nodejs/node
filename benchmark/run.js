@@ -18,6 +18,7 @@ const cli = new CLI(`usage: ./node run.js [options] [--] <category> ...
   --set    variable=value   set benchmark variable (can be repeated)
   --format [simple|csv]     optional value that specifies the output format
   --track                   Display the time elapsed to run each benchmark file.
+  --cpu-prof                enable CPU profiling for each benchmark run
   test                      only run a single configuration from the options
                             matrix
   all                       each benchmark category is run one after the other
@@ -27,7 +28,7 @@ const cli = new CLI(`usage: ./node run.js [options] [--] <category> ...
     --set CPUSET=0-2          Specifies that benchmarks should run on CPU cores 0 to 2.
 
   Note: The CPUSET format should match the specifications of the 'taskset' command on your system.
-`, { arrayArgs: ['set', 'filter', 'exclude'], boolArgs: ['track'] });
+`, { arrayArgs: ['set', 'filter', 'exclude'], boolArgs: ['track', 'cpu-prof'] });
 
 const benchmarks = cli.benchmarks();
 
@@ -54,15 +55,18 @@ function runBenchmark(filename) {
 
   const args = cli.test ? ['--test'] : cli.optional.set;
   const cpuCore = cli.getCpuCoreSetting();
+  const cpuProf = cli.optional['cpu-prof'];
+  const nodeArgs = cpuProf ? ['--cpu-prof'] : [];
   let child;
   if (cpuCore !== null) {
-    child = spawn('taskset', ['-c', cpuCore, 'node', scriptPath, ...args], {
+    child = spawn('taskset', ['-c', cpuCore, 'node', ...nodeArgs, scriptPath, ...args], {
       stdio: ['inherit', 'inherit', 'inherit', 'ipc'],
     });
   } else {
     child = fork(
       scriptPath,
       args,
+      { execArgv: nodeArgs },
     );
   }
 
