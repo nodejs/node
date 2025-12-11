@@ -1511,12 +1511,13 @@ TEST_F(HeapTest, ReportStatsAsCrashKeys) {
     const size_t bytes = size.value();
 
     if (bytes >= MB) {
-      return std::format("{:.2f}MB", static_cast<double>(bytes) / MB);
+      return absl::StrFormat("%.2fMB", static_cast<double>(bytes) / MB);
     } else if (bytes >= KB) {
-      return std::format("{:.2f}KB", static_cast<double>(bytes) / KB);
+      return absl::StrFormat("%.2fKB", static_cast<double>(bytes) / KB);
     } else {
-      return std::format("{}B", bytes);
+      return absl::StrFormat("%zuB", bytes);
     }
+
   };
 
   const std::vector<std::pair<std::string, ByteSize>>
