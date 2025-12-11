@@ -1557,6 +1557,10 @@ re-raise the handled signal.
 
 See waitpid(2).
 
+When `code` is `null` due to signal termination, you can use
+[`util.convertProcessSignalToExitCode()`][] to convert the signal to a POSIX
+exit code.
+
 ### Event: `'message'`
 
 <!-- YAML
@@ -1670,6 +1674,11 @@ within the child process to close the IPC channel as well.
 
 The `subprocess.exitCode` property indicates the exit code of the child process.
 If the child process is still running, the field will be `null`.
+
+When the child process is terminated by a signal, `subprocess.exitCode` will be
+`null` and [`subprocess.signalCode`][] will be set. To get the corresponding
+POSIX exit code, use
+[`util.convertProcessSignalToExitCode(subprocess.signalCode)`][`util.convertProcessSignalToExitCode()`].
 
 ### `subprocess.kill([signal])`
 
@@ -2107,6 +2116,10 @@ connection to the child.
 The `subprocess.signalCode` property indicates the signal received by
 the child process if any, else `null`.
 
+When the child process is terminated by a signal, [`subprocess.exitCode`][] will be `null`.
+To get the corresponding POSIX exit code, use
+[`util.convertProcessSignalToExitCode(subprocess.signalCode)`][`util.convertProcessSignalToExitCode()`].
+
 ### `subprocess.spawnargs`
 
 * Type: {Array}
@@ -2387,12 +2400,15 @@ or [`child_process.fork()`][].
 [`stdio`]: #optionsstdio
 [`subprocess.connected`]: #subprocessconnected
 [`subprocess.disconnect()`]: #subprocessdisconnect
+[`subprocess.exitCode`]: #subprocessexitcode
 [`subprocess.kill()`]: #subprocesskillsignal
 [`subprocess.send()`]: #subprocesssendmessage-sendhandle-options-callback
+[`subprocess.signalCode`]: #subprocesssignalcode
 [`subprocess.stderr`]: #subprocessstderr
 [`subprocess.stdin`]: #subprocessstdin
 [`subprocess.stdio`]: #subprocessstdio
 [`subprocess.stdout`]: #subprocessstdout
+[`util.convertProcessSignalToExitCode()`]: util.md#utilconvertprocesssignaltoexitcodesignalcode
 [`util.promisify()`]: util.md#utilpromisifyoriginal
 [synchronous counterparts]: #synchronous-process-creation
 [v8.serdes]: v8.md#serialization-api
