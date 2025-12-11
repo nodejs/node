@@ -933,7 +933,6 @@
           'sources': [
             '<@(node_sqlite_sources)',
           ],
-          'defines': [ 'HAVE_SQLITE=1' ],
         }],
         [ 'node_shared=="true" and node_module_version!="" and OS!="win"', {
           'product_extension': '<(shlib_suffix)',
@@ -982,7 +981,6 @@
           'sources': [
             '<@(node_sqlite_sources)',
           ],
-          'defines': [ 'HAVE_SQLITE=1' ],
         }],
         [ 'OS in "linux freebsd mac solaris openharmony" and '
           'target_arch=="x64" and '

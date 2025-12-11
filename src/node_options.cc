@@ -577,7 +577,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "experimental Web Storage API",
             &EnvironmentOptions::webstorage,
             kAllowedInEnvvar,
-            true);
+            HAVE_SQLITE);
   AddAlias("--webstorage", "--experimental-webstorage");
   AddOption("--localstorage-file",
             "file used to persist localStorage data",
