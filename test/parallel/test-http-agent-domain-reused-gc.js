@@ -1,4 +1,4 @@
-// Flags: --expose-gc --expose-internals
+// Flags: --allow-async-hooks --expose-gc --expose-internals
 'use strict';
 const common = require('../common');
 const http = require('http');

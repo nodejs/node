@@ -146,6 +146,7 @@ class EnvironmentOptions : public Options {
   bool allow_net = false;
   bool allow_wasi = false;
   bool allow_worker_threads = false;
+  bool allow_async_hooks = false;
   bool experimental_repl_await = true;
   bool experimental_vm_modules = false;
   bool async_context_frame = true;

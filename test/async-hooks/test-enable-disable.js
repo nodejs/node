@@ -81,6 +81,7 @@
 
 
 'use strict';
+// Flags: --allow-async-hooks
 
 const common = require('../common');
 const assert = require('assert');

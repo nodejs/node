@@ -1,5 +1,5 @@
 'use strict';
-// Flags: --expose_gc
+// Flags: --allow-async-hooks --expose_gc
 
 const common = require('../common');
 const assert = require('assert');

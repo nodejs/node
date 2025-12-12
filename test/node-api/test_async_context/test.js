@@ -1,5 +1,5 @@
 'use strict';
-// Flags: --gc-interval=100 --gc-global
+// Flags: --allow-async-hooks --gc-interval=100 --gc-global
 
 const common = require('../../common');
 const assert = require('assert');

@@ -1,4 +1,4 @@
-// Flags: --max-old-space-size=16 --trace-gc
+// Flags: --allow-async-hooks --max-old-space-size=16 --trace-gc
 'use strict';
 
 // This tests that vm.compileFunction with dynamic import callback does not leak.

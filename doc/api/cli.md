@@ -139,6 +139,46 @@ Error: Cannot load native addon because loading addons is disabled.
 }
 ```
 
+### `--allow-async-hooks`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Allow use of `async_hooks.createHook()`. This flag is required to enable
+the `createHook` API, which is disabled by default.
+
+Example:
+
+```mjs
+import { createHook } from 'node:async_hooks';
+
+createHook({ init() {} }).enable();
+```
+
+```cjs
+const { createHook } = require('node:async_hooks');
+
+createHook({ init() {} }).enable();
+```
+
+```console
+$ node index.js
+node:async_hooks:160
+    throw new ERR_ASYNC_HOOKS_CREATE_HOOK_DISABLED();
+    ^
+
+Error [ERR_ASYNC_HOOKS_CREATE_HOOK_DISABLED]: async_hooks.createHook() is disabled. Use --allow-async-hooks to enable it.
+    at createHook (node:async_hooks:160:11)
+    at Object.<anonymous> (/home/user/index.js:3:1)
+    ...
+```
+
+```console
+$ node --allow-async-hooks index.js
+# Works without error
+```
+
 ### `--allow-child-process`
 
 <!-- YAML

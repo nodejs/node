@@ -1,5 +1,5 @@
 'use strict';
-// Flags: --expose_gc --expose-internals
+// Flags: --allow-async-hooks --expose_gc --expose-internals
 
 // This test ensures that AsyncLocalStorage gets gced once it was disabled
 // and no strong references remain in userland.
