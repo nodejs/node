@@ -730,7 +730,7 @@ const errorTests = [
   },
   {
     send: 'repl.writer.options.showProxy = false, new Proxy({x:42}, {});',
-    expect: '{ x: 42 }'
+    expect: 'Proxy({ x: 42 })'
   },
 
   // Newline within template string maintains whitespace.
