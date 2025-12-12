@@ -1,3 +1,4 @@
+// Flags: --enable-async-hooks
 'use strict';
 // fs.readFile()/fs.promises.readFile() read files of up to one chunk
 // (512 KiB) with a single thread pool round trip and hand larger files over
