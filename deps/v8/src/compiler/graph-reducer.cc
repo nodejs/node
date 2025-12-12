@@ -263,6 +263,7 @@ void GraphReducer::ReplaceWithValue(Node* node, Node* value, Node* effect,
     DCHECK(!user->IsDead());
     if (NodeProperties::IsControlEdge(edge)) {
       if (user->opcode() == IrOpcode::kIfSuccess) {
+        DCHECK_NOT_NULL(control);
         Replace(user, control);
       } else if (user->opcode() == IrOpcode::kIfException) {
         DCHECK_NOT_NULL(dead_);
