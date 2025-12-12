@@ -1,6 +1,6 @@
 'use strict';
 
-// Flags: --expose-gc
+// Flags: --enable-async-hooks --expose-gc
 
 const common = require('../common');
 common.skipIfInspectorDisabled();
