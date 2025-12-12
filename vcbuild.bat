@@ -4,7 +4,7 @@
 :: explicitly allow them to persist in the calling shell.
 endlocal
 
-set "arg=%1"
+set "arg=%1" 
 if /i "%arg:~-1%"=="?" goto help
 if /i "%arg:~-4%"=="help" goto help
 
