@@ -1,3 +1,4 @@
+// Flags: --allow-async-hooks
 'use strict';
 
 const common = require('../common');

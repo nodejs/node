@@ -1,4 +1,4 @@
-// Flags: --expose-gc --experimental-sqlite
+// Flags: --allow-async-hooks --expose-gc --experimental-sqlite
 'use strict';
 const { skipIfSQLiteMissing } = require('../common');
 skipIfSQLiteMissing();

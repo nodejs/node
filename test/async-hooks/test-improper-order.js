@@ -1,4 +1,4 @@
-// Flags: --expose-internals
+// Flags: --allow-async-hooks --expose-internals
 'use strict';
 
 const common = require('../common');
@@ -41,7 +41,7 @@ if (process.argv[2] === 'child') {
     emitAfter(asyncId);
   }
 } else {
-  const args = ['--expose-internals']
+  const args = ['--allow-async-hooks', '--expose-internals']
     .concat(process.argv.slice(1))
     .concat('child');
   let errData = Buffer.from('');

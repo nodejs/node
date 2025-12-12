@@ -1,4 +1,4 @@
-// Flags: --enable-source-maps --max-old-space-size=10 --expose-gc
+// Flags: --allow-async-hooks --enable-source-maps --max-old-space-size=10 --expose-gc
 
 /**
  * This test verifies that the source map of a CJS module is cleared after the

@@ -947,6 +947,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             kAllowedInEnvvar,
             false,
             OptionNamespaces::kPermissionNamespace);
+  AddOption("--allow-async-hooks",
+            "allow use of async_hooks.createHook",
+            BOOL_FIELD(allow_async_hooks),
+            kAllowedInEnvvar);
   AddOption("--allow-openssl-store",
             "allow use of OpenSSL STORE loaders when any permissions are set",
             BOOL_FIELD(allow_openssl_store),

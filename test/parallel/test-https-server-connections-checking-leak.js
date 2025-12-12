@@ -1,6 +1,6 @@
 'use strict';
 
-// Flags: --expose-gc
+// Flags: --allow-async-hooks --expose-gc
 
 // Check that creating a server without listening does not leak resources.
 

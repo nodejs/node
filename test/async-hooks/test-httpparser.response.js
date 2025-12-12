@@ -1,4 +1,4 @@
-// Flags: --expose-internals --no-warnings
+// Flags: --allow-async-hooks --expose-internals --no-warnings
 
 'use strict';
 
