@@ -899,6 +899,11 @@ changes:
   * `rejectUnauthorized`: See [`tls.createServer()`][]
   * `ALPNProtocols`: See [`tls.createServer()`][]
   * `SNICallback`: See [`tls.createServer()`][]
+    * `ALPNCallback` {Function} A callback function that will be called when a
+    client supports ALPN to select a protocol from the list offered by the
+    client. The callback receives an object with `servername` and `protocols`
+    properties. Should return a string from the `protocols` list or `undefined`
+    if none match. Only used when `isServer` is `true`.
   * `session` {Buffer} A `Buffer` instance containing a TLS session.
   * `requestOCSP` {boolean} If `true`, specifies that the OCSP status request
     extension will be added to the client hello and an `'OCSPResponse'` event
