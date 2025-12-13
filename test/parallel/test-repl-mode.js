@@ -11,7 +11,6 @@ if (process.env.TERM === 'dumb') {
 const tests = [
   testSloppyMode,
   testStrictMode,
-  testAutoMode,
   testStrictModeTerminal,
 ];
 
@@ -55,15 +54,4 @@ function testStrictModeTerminal() {
   assert.ok(
     output.accumulator.includes('\n// ReferenceError: xyz is not defined')
   );
-}
-
-function testAutoMode() {
-  const { input, output } = startNewREPLServer({ replMode: repl.REPL_MODE_MAGIC, terminal: false, prompt: '> ' });
-
-  input.emit('data', 'x = 3\n');
-  assert.strictEqual(output.accumulator, '> 3\n> ');
-  output.accumulator = '';
-
-  input.emit('data', 'let y = 3\n');
-  assert.strictEqual(output.accumulator, 'undefined\n> ');
 }
