@@ -18,7 +18,7 @@ builder.addFunction("make", makeSig([kWasmExternRef], [kWasmAnyRef]))
   .exportFunc()
   .addBody([kExprLocalGet, 0,
             kGCPrefix, kExprStructNew, $desc0,
-            kGCPrefix, kExprStructNewDefault, $struct0,
+            kGCPrefix, kExprStructNewDefaultDesc, $struct0,
             ]);
 
 let instance = builder.instantiate();

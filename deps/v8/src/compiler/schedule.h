@@ -17,7 +17,6 @@ namespace compiler {
 
 // Forward declarations.
 class BasicBlock;
-class BasicBlockInstrumentor;
 class Node;
 
 using BasicBlockVector = ZoneVector<BasicBlock*>;
@@ -288,7 +287,6 @@ class V8_EXPORT_PRIVATE Schedule final : public NON_EXPORTED_BASE(ZoneObject) {
  private:
   friend class GraphAssembler;
   friend class Scheduler;
-  friend class BasicBlockInstrumentor;
   friend class RawMachineAssembler;
 
   // For CSA/Torque: Ensure properties of the CFG assumed by further stages.

@@ -404,8 +404,7 @@ Handle<Object> ConstantArrayBuilder::Entry::ToHandle(IsolateT* isolate) const {
     case Tag::kJumpTableSmi:
       return handle(smi_, isolate);
     case Tag::kUninitializedJumpTableSmi:
-      // TODO(leszeks): There's probably a better value we could use here.
-      return isolate->factory()->the_hole_value();
+      UNREACHABLE();
     case Tag::kRawString:
       return raw_string_->string();
     case Tag::kConsString:

@@ -50,11 +50,15 @@ ABSL_NAMESPACE_BEGIN
 bool SimpleAtof(absl::string_view str, float* absl_nonnull out) {
   *out = 0.0;
   str = StripAsciiWhitespace(str);
+  if (str.empty()) {
+    // absl::from_chars doesn't accept empty strings.
+    return false;
+  }
   // std::from_chars doesn't accept an initial +, but SimpleAtof does, so if one
   // is present, skip it, while avoiding accepting "+-0" as valid.
-  if (!str.empty() && str[0] == '+') {
+  if (str[0] == '+') {
     str.remove_prefix(1);
-    if (!str.empty() && str[0] == '-') {
+    if (str.empty() || str[0] == '-') {
       return false;
     }
   }

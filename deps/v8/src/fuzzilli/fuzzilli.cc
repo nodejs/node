@@ -8,8 +8,10 @@
 #include "include/v8-primitive.h"
 #include "include/v8-template.h"
 #include "src/api/api.h"
+#include "src/codegen/external-reference.h"
 #include "src/execution/isolate-inl.h"
 #include "src/execution/isolate.h"
+#include "src/execution/simulator.h"
 #include "src/fuzzilli/cov.h"
 #include "src/sandbox/sandbox.h"
 #include "src/sandbox/testing.h"
@@ -121,6 +123,10 @@ void FuzzilliExtension::Fuzzilli(const FunctionCallbackInfo<Value>& info) {
 #ifdef DEBUG
         IMMEDIATE_CRASH();
 #endif
+        break;
+      }
+      case 9: {
+        abort_with_sandbox_violation();
         break;
       }
       default:

@@ -748,6 +748,11 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   void DebugBreak();
   void Unreachable();
 
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+  void ExitSandbox();
+  void EnterSandbox();
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+
   // Hack for supporting SourceLocation alongside template packs.
   struct MessageWithSourceLocation {
     const char* message;

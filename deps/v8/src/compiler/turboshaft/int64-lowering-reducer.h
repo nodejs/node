@@ -477,8 +477,8 @@ class Int64LoweringReducer : public Next {
       const MakeTupleOp& tuple =
           __ Get(output_index).template Cast<MakeTupleOp>();
       DCHECK_EQ(tuple.input_count, 2);
-      OpIndex new_inputs[2] = {__ MapToNewGraph(input_phi.input(0)),
-                               __ MapToNewGraph(input_phi.input(1))};
+      OpIndex new_inputs[2] = {__ MapToNewGraph(input_phi.forward_edge()),
+                               __ MapToNewGraph(input_phi.back_edge())};
       for (size_t i = 0; i < 2; ++i) {
         OpIndex phi_index = tuple.input(i);
         if (!output_graph_loop->Contains(phi_index)) {

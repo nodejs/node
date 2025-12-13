@@ -182,6 +182,11 @@ extern class ScopeInfo extends HeapObject {
 
   // EmptyContextExtension-dependent code objects.
   dependent_code?[flags.sloppy_eval_can_extend_vars]: DependentCode;
+
+  // For the first 31 formal parameters, these bits will be set if they are
+  // explicitly unused within the body of the function.
+  const unused_parameter_bits?
+      [flags.scope_type == ScopeType::FUNCTION_SCOPE]: Smi;
 }
 
 extern macro NameToIndexHashTableLookup(

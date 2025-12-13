@@ -590,11 +590,9 @@ bool WasmEngine::SyncValidate(Isolate* isolate, WasmEnabledFeatures enabled,
   if (bytes.empty()) return false;
 
   WasmDetectedFeatures unused_detected_features;
-  auto result = DecodeWasmModule(
-      enabled, bytes, true, kWasmOrigin, isolate->counters(),
-      isolate->metrics_recorder(),
-      isolate->GetOrRegisterRecorderContextId(isolate->native_context()),
-      DecodingMethod::kSync, &unused_detected_features);
+  auto result =
+      DecodeWasmModule(isolate, enabled, bytes, true, kWasmOrigin,
+                       DecodingMethod::kSync, &unused_detected_features);
   if (result.failed()) return false;
   WasmError error = ValidateAndSetBuiltinImports(
       result.value().get(), bytes, compile_imports, &unused_detected_features);
@@ -612,15 +610,10 @@ MaybeHandle<AsmWasmData> WasmEngine::SyncCompileTranslatedAsmJs(
   ModuleOrigin origin = language_mode == LanguageMode::kSloppy
                             ? kAsmJsSloppyOrigin
                             : kAsmJsStrictOrigin;
-  // TODO(leszeks): If we want asm.js in UKM, we should figure out a way to pass
-  // the context id in here.
-  v8::metrics::Recorder::ContextId context_id =
-      v8::metrics::Recorder::ContextId::Empty();
   WasmDetectedFeatures detected_features;
   ModuleResult result = DecodeWasmModule(
-      WasmEnabledFeatures::ForAsmjs(), bytes.as_vector(), false, origin,
-      isolate->counters(), isolate->metrics_recorder(), context_id,
-      DecodingMethod::kSync, &detected_features);
+      isolate, WasmEnabledFeatures::ForAsmjs(), bytes.as_vector(), false,
+      origin, DecodingMethod::kSync, &detected_features);
   if (result.failed()) {
     // This happens once in a while when we have missed some limit check
     // in the asm parser. Output an error message to help diagnose, but crash.
@@ -634,6 +627,8 @@ MaybeHandle<AsmWasmData> WasmEngine::SyncCompileTranslatedAsmJs(
   // Transfer ownership of the WasmModule to the {Managed<WasmModule>} generated
   // in {CompileToNativeModule}.
   constexpr ProfileInformation* kNoProfileInformation = nullptr;
+  v8::metrics::Recorder::ContextId context_id =
+      isolate->GetOrRegisterRecorderContextId(isolate->native_context());
   std::shared_ptr<NativeModule> native_module = CompileToNativeModule(
       isolate, WasmEnabledFeatures::ForAsmjs(), detected_features,
       CompileTimeImports{}, thrower, std::move(result).value(),
@@ -682,9 +677,8 @@ MaybeDirectHandle<WasmModuleObject> WasmEngine::SyncCompile(
     // mode the only opportunity of validatiom is during decoding.
     bool validate_module = v8_flags.wasm_jitless;
     ModuleResult result = DecodeWasmModule(
-        enabled_features, bytes.as_vector(), validate_module, kWasmOrigin,
-        isolate->counters(), isolate->metrics_recorder(), context_id,
-        DecodingMethod::kSync, &detected_features);
+        isolate, enabled_features, bytes.as_vector(), validate_module,
+        kWasmOrigin, DecodingMethod::kSync, &detected_features);
     if (result.failed()) {
       thrower->CompileFailed(result.error());
       return {};
@@ -814,10 +808,10 @@ void WasmEngine::AsyncCompile(
 
   if (v8_flags.wasm_test_streaming) {
     std::shared_ptr<StreamingDecoder> streaming_decoder =
-        StartStreamingCompilation(isolate, enabled, std::move(compile_imports),
-                                  direct_handle(isolate->context(), isolate),
+        StartStreamingCompilation(enabled, std::move(compile_imports),
                                   api_method_name_for_errors,
                                   std::move(resolver));
+    streaming_decoder->InitializeIsolateSpecificInfo(isolate);
 
     auto* rng = isolate->random_number_generator();
     base::SmallVector<base::Vector<const uint8_t>, 16> ranges;
@@ -844,15 +838,14 @@ void WasmEngine::AsyncCompile(
   }
 
   AsyncCompileJob* job = CreateAsyncCompileJob(
-      isolate, enabled, std::move(compile_imports), std::move(bytes),
-      isolate->native_context(), api_method_name_for_errors,
-      std::move(resolver), compilation_id);
+      enabled, std::move(compile_imports), std::move(bytes),
+      api_method_name_for_errors, std::move(resolver), compilation_id);
+  job->InitializeIsolateSpecificInfo(isolate);
   job->StartAsyncDecoding();
 }
 
 std::shared_ptr<StreamingDecoder> WasmEngine::StartStreamingCompilation(
-    Isolate* isolate, WasmEnabledFeatures enabled,
-    CompileTimeImports compile_imports, DirectHandle<Context> context,
+    WasmEnabledFeatures enabled, CompileTimeImports compile_imports,
     const char* api_method_name,
     std::shared_ptr<CompilationResultResolver> resolver) {
   int compilation_id = next_compilation_id_.fetch_add(1);
@@ -860,12 +853,12 @@ std::shared_ptr<StreamingDecoder> WasmEngine::StartStreamingCompilation(
                compilation_id);
   if (v8_flags.wasm_async_compilation) {
     AsyncCompileJob* job = CreateAsyncCompileJob(
-        isolate, enabled, std::move(compile_imports), {}, context,
-        api_method_name, std::move(resolver), compilation_id);
+        enabled, std::move(compile_imports), {}, api_method_name,
+        std::move(resolver), compilation_id);
     return job->CreateStreamingDecoder();
   }
   return StreamingDecoder::CreateSyncStreamingDecoder(
-      isolate, enabled, std::move(compile_imports), context, api_method_name,
+      enabled, std::move(compile_imports), api_method_name,
       std::move(resolver));
 }
 
@@ -1149,15 +1142,12 @@ CodeTracer* WasmEngine::GetCodeTracer() {
 }
 
 AsyncCompileJob* WasmEngine::CreateAsyncCompileJob(
-    Isolate* isolate, WasmEnabledFeatures enabled,
-    CompileTimeImports compile_imports, base::OwnedVector<const uint8_t> bytes,
-    DirectHandle<Context> context, const char* api_method_name,
+    WasmEnabledFeatures enabled, CompileTimeImports compile_imports,
+    base::OwnedVector<const uint8_t> bytes, const char* api_method_name,
     std::shared_ptr<CompilationResultResolver> resolver, int compilation_id) {
-  DirectHandle<NativeContext> incumbent_context =
-      isolate->GetIncumbentContext();
-  AsyncCompileJob* job = new AsyncCompileJob(
-      isolate, enabled, std::move(compile_imports), std::move(bytes), context,
-      incumbent_context, api_method_name, std::move(resolver), compilation_id);
+  AsyncCompileJob* job =
+      new AsyncCompileJob(enabled, std::move(compile_imports), std::move(bytes),
+                          api_method_name, std::move(resolver), compilation_id);
   // Pass ownership to the unique_ptr in {async_compile_jobs_}.
   base::MutexGuard guard(&mutex_);
   async_compile_jobs_[job] = std::unique_ptr<AsyncCompileJob>(job);
@@ -1191,7 +1181,9 @@ void WasmEngine::DeleteCompileJobsOnContext(DirectHandle<Context> context) {
     base::MutexGuard guard(&mutex_);
     for (auto it = async_compile_jobs_.begin();
          it != async_compile_jobs_.end();) {
-      if (!it->first->context().is_identical_to(context)) {
+      DirectHandle<NativeContext> job_context;
+      if (it->first->context().ToHandle(&job_context) &&
+          job_context.is_identical_to(context)) {
         ++it;
         continue;
       }

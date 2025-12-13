@@ -14,6 +14,11 @@ Macros:
   - CASE_=case
   - FOR_WITH_HANDLE_SCOPE(isolate, init, loop_var, limit_check, increment)=for(init; loop_var; increment)
   - WHILE_WITH_HANDLE_SCOPE(isolate, limit_check)=while(limit_check)
+  # Make clang-format parse conditions in flag implications as expressions, not type definitions.
+  - DEFINE_IMPLICATION(cond,flag,value)=if(cond) { flag; };
+  - DEFINE_WEAK_IMPLICATION(cond,flag,value)=if(cond) { flag; };
+  - DEFINE_VALUE_IMPLICATION(cond,flag,value)=if(cond) { flag = value; };
+  - DEFINE_WEAK_VALUE_IMPLICATION(cond,flag,value)=if(cond) { flag = value; };
 StatementMacros:
   - DECL_CAST
   - DECL_VERIFIER

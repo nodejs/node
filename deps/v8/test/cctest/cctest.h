@@ -465,11 +465,6 @@ static inline v8::MaybeLocal<v8::Script> v8_try_compile(const char* x) {
   return v8_try_compile(v8_str(x));
 }
 
-static inline int32_t v8_run_int32value(v8::Local<v8::Script> script) {
-  v8::Local<v8::Context> context = CcTest::isolate()->GetCurrentContext();
-  return script->Run(context).ToLocalChecked()->Int32Value(context).FromJust();
-}
-
 static inline v8::Local<v8::Script> CompileWithOrigin(
     v8::Local<v8::String> source, v8::Local<v8::String> origin_url,
     bool is_shared_cross_origin) {
@@ -512,6 +507,10 @@ static inline v8::Local<v8::Value> CompileRunChecked(v8::Isolate* isolate,
   return script->Run(context).ToLocalChecked();
 }
 
+static inline v8::Local<v8::Value> CompileRunChecked(const char* source) {
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  return CompileRunChecked(isolate, source);
+}
 
 static inline v8::Local<v8::Value> CompileRun(v8::Local<v8::String> source) {
   v8::Local<v8::Value> result;
@@ -529,6 +528,22 @@ static inline v8::Local<v8::Value> CompileRun(const char* source) {
   return CompileRun(v8_str(source));
 }
 
+static inline int32_t v8_run_int32value(v8::Local<v8::Script> script) {
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  return script->Run(context).ToLocalChecked()->Int32Value(context).FromJust();
+}
+
+static inline int32_t v8_run_int32(const char* source) {
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  return CompileRunChecked(isolate, source)->Int32Value(context).FromJust();
+}
+
+static inline bool v8_run_bool(const char* source) {
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  return CompileRunChecked(isolate, source)->BooleanValue(isolate);
+}
 
 static inline v8::Local<v8::Value> CompileRun(
     v8::Local<v8::Context> context, v8::ScriptCompiler::Source* script_source,

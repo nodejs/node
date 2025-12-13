@@ -29,15 +29,16 @@ static_assert(1 << BYTECODE_SHIFT > BYTECODE_MASK);
 // Basic operand types that have a direct mapping to a C-type.
 // Getters/Setters for these are fully auto-generated.
 // Format: V(Name, C type)
-#define BASIC_BYTECODE_OPERAND_TYPE_LIST(V) \
-  V(Int16, int16_t)                         \
-  V(Int32, int32_t)                         \
-  V(Uint32, uint32_t)                       \
-  V(Char, base::uc16)                       \
-  V(JumpTarget, uint32_t)                   \
-  V(Offset, int16_t)                        \
-  V(Register, uint16_t)                     \
-  V(StackCheckFlag, RegExpMacroAssembler::StackCheckFlag)
+#define BASIC_BYTECODE_OPERAND_TYPE_LIST(V)               \
+  V(Int16, int16_t)                                       \
+  V(Int32, int32_t)                                       \
+  V(Uint32, uint32_t)                                     \
+  V(Char, base::uc16)                                     \
+  V(JumpTarget, uint32_t)                                 \
+  V(Offset, int16_t)                                      \
+  V(Register, uint16_t)                                   \
+  V(StackCheckFlag, RegExpMacroAssembler::StackCheckFlag) \
+  V(StandardCharacterSet, StandardCharacterSet)
 
 // Special operand types that don't have a direct mapping to a C-type.
 // Getters/Setters for these types need to be specialized manually.
@@ -113,6 +114,9 @@ using ReBcOpType = RegExpBytecodeOperandType;
   /* I.e. jumps to |on_failure| if current pos + |cp_offset| >= subject len */ \
   V(CheckPosition, CHECK_CURRENT_POSITION, (cp_offset, on_failure),            \
     (ReBcOpType::kOffset, ReBcOpType::kJumpTarget))                            \
+  V(CheckSpecialClassRanges, CHECK_SPECIAL_CLASS_RANGES,                       \
+    (character_set, on_no_match),                                              \
+    (ReBcOpType::kStandardCharacterSet, ReBcOpType::kJumpTarget))              \
   /* Check if current character is equal to a given character               */ \
   V(CheckCharacter, CHECK_CHAR, (character, on_equal),                         \
     (ReBcOpType::kChar, ReBcOpType::kJumpTarget))                              \
@@ -121,11 +125,13 @@ using ReBcOpType = RegExpBytecodeOperandType;
   /* Checks if the current character combined with mask (bitwise and)       */ \
   /* matches a character (e.g. used when two characters in a disjunction    */ \
   /* differ by only a single bit                                            */ \
+  /* TODO(pthier): mask should be kChar */                                     \
   V(CheckCharacterAfterAnd, AND_CHECK_CHAR, (character, mask, on_equal),       \
-    (ReBcOpType::kChar, ReBcOpType::kChar, ReBcOpType::kJumpTarget))           \
+    (ReBcOpType::kChar, ReBcOpType::kUint32, ReBcOpType::kJumpTarget))         \
+  /* TODO(pthier): mask should be kChar */                                     \
   V(CheckNotCharacterAfterAnd, AND_CHECK_NOT_CHAR,                             \
     (character, mask, on_not_equal),                                           \
-    (ReBcOpType::kChar, ReBcOpType::kChar, ReBcOpType::kJumpTarget))           \
+    (ReBcOpType::kChar, ReBcOpType::kUint32, ReBcOpType::kJumpTarget))         \
   V(CheckNotCharacterAfterMinusAnd, MINUS_AND_CHECK_NOT_CHAR,                  \
     (character, minus, mask, on_not_equal),                                    \
     (ReBcOpType::kChar, ReBcOpType::kChar, ReBcOpType::kChar,                  \
@@ -242,11 +248,12 @@ using ReBcOpType = RegExpBytecodeOperandType;
   /* Combination of:                                                        */ \
   /* CHECK_CURRENT_POSITION, LOAD_CURRENT_CHAR_UNCHECKED, AND_CHECK_CHAR    */ \
   /* and ADVANCE_CP_AND_GOTO                                                */ \
+  /* TODO(pthier): mask should be kChar */                                     \
   V(SkipUntilCharAnd, SKIP_UNTIL_CHAR_AND,                                     \
     (cp_offset, advance_by, character, mask, eats_at_least, on_match,          \
      on_no_match),                                                             \
     (ReBcOpType::kOffset, ReBcOpType::kOffset, ReBcOpType::kChar,              \
-     ReBcOpType::kChar, ReBcOpType::kUint32, ReBcOpType::kJumpTarget,          \
+     ReBcOpType::kUint32, ReBcOpType::kUint32, ReBcOpType::kJumpTarget,        \
      ReBcOpType::kJumpTarget)) /* TODO(pthier): eats_at_least should be Offset \
                                 */                                             \
   /* Combination of:                                                        */ \
@@ -289,6 +296,27 @@ using ReBcOpType = RegExpBytecodeOperandType;
      ReBcOpType::kUint32, ReBcOpType::kOffset, ReBcOpType::kUint32,            \
      ReBcOpType::kUint32, ReBcOpType::kUint32, ReBcOpType::kUint32,            \
      ReBcOpType::kJumpTarget, ReBcOpType::kJumpTarget,                         \
+     ReBcOpType::kJumpTarget))                                                 \
+  /* Combination of:                                                        */ \
+  /* SkipUntilBitInTable, CheckPosition, LoadCurrentCharacter,              */ \
+  /* CheckCharacterAfterAnd, AdvanceCurrentPosition, LoadCurrentCharacter,  */ \
+  /* CheckCharacterAfterAnd, CheckCharacterAfterAnd,                        */ \
+  /* CheckNotCharacterAfterAnd.                                             */ \
+  /* This pattern is common for finding a match from an alternative, e.g.:  */ \
+  /* /<script|<style|<link/i.                                               */ \
+  V(SkipUntilOneOfMasked3, SKIP_UNTIL_ONE_OF_MASKED3,                          \
+    (bc0_cp_offset, bc0_advance_by, bc0_advance_by_padding, bc0_table,         \
+     bc1_cp_offset, bc1_cp_offset_padding, bc1_on_failure, bc2_cp_offset,      \
+     bc2_cp_offset_padding, bc3_characters, bc3_mask, bc4_by, bc5_cp_offset,   \
+     bc6_characters, bc6_mask, bc6_on_equal, bc7_characters, bc7_mask,         \
+     bc7_on_equal, bc8_characters, bc8_mask, fallthrough_jump_target),         \
+    (ReBcOpType::kOffset, ReBcOpType::kOffset, ReBcOpType::kPadding2,          \
+     ReBcOpType::kBitTable, ReBcOpType::kOffset, ReBcOpType::kPadding2,        \
+     ReBcOpType::kJumpTarget, ReBcOpType::kOffset, ReBcOpType::kPadding2,      \
+     ReBcOpType::kUint32, ReBcOpType::kUint32, ReBcOpType::kOffset,            \
+     ReBcOpType::kOffset, ReBcOpType::kUint32, ReBcOpType::kUint32,            \
+     ReBcOpType::kJumpTarget, ReBcOpType::kUint32, ReBcOpType::kUint32,        \
+     ReBcOpType::kJumpTarget, ReBcOpType::kUint32, ReBcOpType::kUint32,        \
      ReBcOpType::kJumpTarget))
 
 #define REGEXP_BYTECODE_LIST(V) \
@@ -336,14 +364,16 @@ using ReBcOpType = RegExpBytecodeOperandType;
   /* 0x08 - 0x1F:   Offset from current position                            */ \
   /* 0x20 - 0x3F:   Address of bytecode when position is out of range       */ \
   V(CHECK_CURRENT_POSITION, 18, 8) /* bc8 idx24 addr32         */              \
+  /* Checks if a character matches a standard character set */                 \
+  V(CHECK_SPECIAL_CLASS_RANGES, 19, 8)                                         \
   /* Check if current character is equal to a given character               */ \
   /* Bit Layout:                                                            */ \
   /* 0x00 - 0x07:   0x19 (fixed) Bytecode                                   */ \
   /* 0x08 - 0x0F:   0x00 (unused) Padding                                   */ \
   /* 0x10 - 0x1F:   Character to check                                      */ \
   /* 0x20 - 0x3F:   Address of bytecode when matched                        */ \
-  V(CHECK_CHAR, 19, 8)     /* bc8 pad8 uint16 addr32                        */ \
-  V(CHECK_NOT_CHAR, 20, 8) /* bc8 pad8 uint16 addr32                        */ \
+  V(CHECK_CHAR, 20, 8)     /* bc8 pad8 uint16 addr32                        */ \
+  V(CHECK_NOT_CHAR, 21, 8) /* bc8 pad8 uint16 addr32                        */ \
   /* Checks if the current character combined with mask (bitwise and)       */ \
   /* matches a character (e.g. used when two characters in a disjunction    */ \
   /* differ by only a single bit                                            */ \
@@ -353,38 +383,38 @@ using ReBcOpType = RegExpBytecodeOperandType;
   /* 0x10 - 0x1F:   Character to match against (after mask aplied)          */ \
   /* 0x20 - 0x3F:   Bitmask bitwise and combined with current character     */ \
   /* 0x40 - 0x5F:   Address of bytecode when matched                        */ \
-  V(AND_CHECK_CHAR, 21, 12)     /* bc8 pad8 uint16 uint32 addr32            */ \
-  V(AND_CHECK_NOT_CHAR, 22, 12) /* bc8 pad8 uint16 uint32 addr32            */ \
-  V(MINUS_AND_CHECK_NOT_CHAR, 23,                                              \
+  V(AND_CHECK_CHAR, 22, 12)     /* bc8 pad8 uint16 uint32 addr32            */ \
+  V(AND_CHECK_NOT_CHAR, 23, 12) /* bc8 pad8 uint16 uint32 addr32            */ \
+  V(MINUS_AND_CHECK_NOT_CHAR, 24,                                              \
     12) /* bc8 pad8 base::uc16 base::uc16 base::uc16 addr32                 */ \
-  V(CHECK_CHAR_IN_RANGE, 24, 12) /* bc8 pad24 base::uc16 base::uc16 addr32  */ \
-  V(CHECK_CHAR_NOT_IN_RANGE, 25,                                               \
+  V(CHECK_CHAR_IN_RANGE, 25, 12) /* bc8 pad24 base::uc16 base::uc16 addr32  */ \
+  V(CHECK_CHAR_NOT_IN_RANGE, 26,                                               \
     12) /* bc8 pad24 base::uc16 base::uc16 addr32                           */ \
-  V(CHECK_LT, 26, 8)              /* bc8 pad8 base::uc16 addr32             */ \
-  V(CHECK_GT, 27, 8)              /* bc8 pad8 base::uc16 addr32             */ \
-  V(CHECK_REGISTER_LT, 28, 12)    /* bc8 reg_idx24 value32 addr32           */ \
-  V(CHECK_REGISTER_GE, 29, 12)    /* bc8 reg_idx24 value32 addr32           */ \
-  V(CHECK_REGISTER_EQ_POS, 30, 8) /* bc8 reg_idx24 addr32                   */ \
-  V(CHECK_AT_START, 31, 8)        /* bc8 pad24 addr32                       */ \
-  V(CHECK_NOT_AT_START, 32, 8)    /* bc8 offset24 addr32                    */ \
+  V(CHECK_LT, 27, 8)              /* bc8 pad8 base::uc16 addr32             */ \
+  V(CHECK_GT, 28, 8)              /* bc8 pad8 base::uc16 addr32             */ \
+  V(CHECK_REGISTER_LT, 29, 12)    /* bc8 reg_idx24 value32 addr32           */ \
+  V(CHECK_REGISTER_GE, 30, 12)    /* bc8 reg_idx24 value32 addr32           */ \
+  V(CHECK_REGISTER_EQ_POS, 31, 8) /* bc8 reg_idx24 addr32                   */ \
+  V(CHECK_AT_START, 32, 8)        /* bc8 pad24 addr32                       */ \
+  V(CHECK_NOT_AT_START, 33, 8)    /* bc8 offset24 addr32                    */ \
   /* Checks if the current position matches top of backtrack stack          */ \
   /* Bit Layout:                                                            */ \
   /* 0x00 - 0x07:   0x31 (fixed) Bytecode                                   */ \
   /* 0x08 - 0x1F:   0x00 (unused) Padding                                   */ \
   /* 0x20 - 0x3F:   Address of bytecode when current matches tos            */ \
-  V(CHECK_FIXED_LENGTH, 33, 8) /* bc8 pad24 addr32                          */ \
+  V(CHECK_FIXED_LENGTH, 34, 8) /* bc8 pad24 addr32                          */ \
   /* Advance character pointer by given offset and jump to another bytecode.*/ \
   /* Bit Layout:                                                            */ \
   /* 0x00 - 0x07:   0x32 (fixed) Bytecode                                   */ \
   /* 0x08 - 0x1F:   Number of characters to advance                         */ \
   /* 0x20 - 0x3F:   Address of bytecode to jump to                          */ \
-  V(SET_CURRENT_POSITION_FROM_END, 34, 4) /* bc8 idx24                      */ \
-  V(POP_BT, 35, 4)                        /* bc8 pad24                      */ \
+  V(SET_CURRENT_POSITION_FROM_END, 35, 4) /* bc8 idx24                      */ \
+  V(POP_BT, 36, 4)                        /* bc8 pad24                      */ \
   /* Load character at given offset without range checks.                   */ \
   /* Bit Layout:                                                            */ \
   /* 0x00 - 0x07:   0x12 (fixed) Bytecode                                   */ \
   /* 0x08 - 0x1F:   Offset from current position                            */ \
-  V(LOAD_CURRENT_CHAR_UNCHECKED, 36, 4) /* bc8 offset24                   */   \
+  V(LOAD_CURRENT_CHAR_UNCHECKED, 37, 4) /* bc8 offset24                   */   \
   /* Checks if the current character matches any of the characters encoded  */ \
   /* in a bit table. Similar to/inspired by boyer moore string search       */ \
   /* Bit Layout:                                                            */ \
@@ -392,23 +422,23 @@ using ReBcOpType = RegExpBytecodeOperandType;
   /* 0x08 - 0x1F:   0x00 (unused) Padding                                   */ \
   /* 0x20 - 0x3F:   Address of bytecode when bit is set                     */ \
   /* 0x40 - 0xBF:   Bit table                                               */ \
-  V(CHECK_BIT_IN_TABLE, 37, 24)            /* bc8 pad24 addr32 bits128      */ \
-  V(LOAD_2_CURRENT_CHARS, 38, 8)           /* bc8 offset24 addr32           */ \
-  V(LOAD_2_CURRENT_CHARS_UNCHECKED, 39, 4) /* bc8 offset24                  */ \
-  V(LOAD_4_CURRENT_CHARS, 40, 8)           /* bc8 offset24 addr32           */ \
-  V(LOAD_4_CURRENT_CHARS_UNCHECKED, 41, 4) /* bc8 offset24                  */ \
-  V(CHECK_4_CHARS, 42, 12)                 /* bc8 pad24 uint32 addr32       */ \
-  V(CHECK_NOT_4_CHARS, 43, 12)             /* bc8 pad24 uint32 addr32       */ \
-  V(AND_CHECK_4_CHARS, 44, 16)             /* bc8 pad24 uint32 uint32 addr32*/ \
-  V(AND_CHECK_NOT_4_CHARS, 45, 16)         /* bc8 pad24 uint32 uint32 addr32*/ \
-  V(ADVANCE_CP_AND_GOTO, 46, 8)            /* bc8 offset24 addr32           */ \
-  V(CHECK_NOT_BACK_REF, 47, 8)             /* bc8 reg_idx24 addr32     */      \
-  V(CHECK_NOT_BACK_REF_NO_CASE, 48, 8)     /* bc8 reg_idx24 addr32     */      \
-  V(CHECK_NOT_BACK_REF_NO_CASE_UNICODE, 49, 8)                                 \
-  V(CHECK_NOT_BACK_REF_BACKWARD, 50, 8)         /* bc8 reg_idx24 addr32     */ \
-  V(CHECK_NOT_BACK_REF_NO_CASE_BACKWARD, 51, 8) /* bc8 reg_idx24 addr32     */ \
-  V(CHECK_NOT_BACK_REF_NO_CASE_UNICODE_BACKWARD, 52, 8)                        \
-  V(CHECK_NOT_REGS_EQUAL, 53, 12) /* bc8 regidx24 reg_idx32 addr32          */ \
+  V(CHECK_BIT_IN_TABLE, 38, 24)            /* bc8 pad24 addr32 bits128      */ \
+  V(LOAD_2_CURRENT_CHARS, 39, 8)           /* bc8 offset24 addr32           */ \
+  V(LOAD_2_CURRENT_CHARS_UNCHECKED, 40, 4) /* bc8 offset24                  */ \
+  V(LOAD_4_CURRENT_CHARS, 41, 8)           /* bc8 offset24 addr32           */ \
+  V(LOAD_4_CURRENT_CHARS_UNCHECKED, 42, 4) /* bc8 offset24                  */ \
+  V(CHECK_4_CHARS, 43, 12)                 /* bc8 pad24 uint32 addr32       */ \
+  V(CHECK_NOT_4_CHARS, 44, 12)             /* bc8 pad24 uint32 addr32       */ \
+  V(AND_CHECK_4_CHARS, 45, 16)             /* bc8 pad24 uint32 uint32 addr32*/ \
+  V(AND_CHECK_NOT_4_CHARS, 46, 16)         /* bc8 pad24 uint32 uint32 addr32*/ \
+  V(ADVANCE_CP_AND_GOTO, 47, 8)            /* bc8 offset24 addr32           */ \
+  V(CHECK_NOT_BACK_REF, 48, 8)             /* bc8 reg_idx24 addr32     */      \
+  V(CHECK_NOT_BACK_REF_NO_CASE, 49, 8)     /* bc8 reg_idx24 addr32     */      \
+  V(CHECK_NOT_BACK_REF_NO_CASE_UNICODE, 50, 8)                                 \
+  V(CHECK_NOT_BACK_REF_BACKWARD, 51, 8)         /* bc8 reg_idx24 addr32     */ \
+  V(CHECK_NOT_BACK_REF_NO_CASE_BACKWARD, 52, 8) /* bc8 reg_idx24 addr32     */ \
+  V(CHECK_NOT_BACK_REF_NO_CASE_UNICODE_BACKWARD, 53, 8)                        \
+  V(CHECK_NOT_REGS_EQUAL, 54, 12) /* bc8 regidx24 reg_idx32 addr32          */ \
   /* Combination of:                                                        */ \
   /* LOAD_CURRENT_CHAR, CHECK_BIT_IN_TABLE and ADVANCE_CP_AND_GOTO          */ \
   /* Emitted by RegExpBytecodePeepholeOptimization.                         */ \
@@ -419,7 +449,7 @@ using ReBcOpType = RegExpBytecodeOperandType;
   /* 0x40 - 0xBF    Bit Table                                               */ \
   /* 0xC0 - 0xDF    Address of bytecode when character is matched           */ \
   /* 0xE0 - 0xFF    Address of bytecode when no match                       */ \
-  V(SKIP_UNTIL_BIT_IN_TABLE, 54, 32)                                           \
+  V(SKIP_UNTIL_BIT_IN_TABLE, 55, 32)                                           \
   /* Combination of:                                                        */ \
   /* CHECK_CURRENT_POSITION, LOAD_CURRENT_CHAR_UNCHECKED, AND_CHECK_CHAR    */ \
   /* and ADVANCE_CP_AND_GOTO                                                */ \
@@ -433,7 +463,7 @@ using ReBcOpType = RegExpBytecodeOperandType;
   /* 0x60 - 0x7F    Minimum number of characters this pattern consumes      */ \
   /* 0x80 - 0x9F    Address of bytecode when character is matched           */ \
   /* 0xA0 - 0xBF    Address of bytecode when no match                       */ \
-  V(SKIP_UNTIL_CHAR_AND, 55, 24)                                               \
+  V(SKIP_UNTIL_CHAR_AND, 56, 24)                                               \
   /* Combination of:                                                        */ \
   /* LOAD_CURRENT_CHAR, CHECK_CHAR and ADVANCE_CP_AND_GOTO                  */ \
   /* Emitted by RegExpBytecodePeepholeOptimization.                         */ \
@@ -444,7 +474,7 @@ using ReBcOpType = RegExpBytecodeOperandType;
   /* 0x30 - 0x3F    Character to match                                      */ \
   /* 0x40 - 0x5F    Address of bytecode when character is matched           */ \
   /* 0x60 - 0x7F    Address of bytecode when no match                       */ \
-  V(SKIP_UNTIL_CHAR, 56, 16)                                                   \
+  V(SKIP_UNTIL_CHAR, 57, 16)                                                   \
   /* Combination of:                                                        */ \
   /* CHECK_CURRENT_POSITION, LOAD_CURRENT_CHAR_UNCHECKED, CHECK_CHAR        */ \
   /* and ADVANCE_CP_AND_GOTO                                                */ \
@@ -457,7 +487,7 @@ using ReBcOpType = RegExpBytecodeOperandType;
   /* 0x40 - 0x5F    Minimum number of characters this pattern consumes      */ \
   /* 0x60 - 0x7F    Address of bytecode when character is matched           */ \
   /* 0x80 - 0x9F    Address of bytecode when no match                       */ \
-  V(SKIP_UNTIL_CHAR_POS_CHECKED, 57, 20)                                       \
+  V(SKIP_UNTIL_CHAR_POS_CHECKED, 58, 20)                                       \
   /* Combination of:                                                        */ \
   /* LOAD_CURRENT_CHAR, CHECK_CHAR, CHECK_CHAR and ADVANCE_CP_AND_GOTO      */ \
   /* Emitted by RegExpBytecodePeepholeOptimization.                         */ \
@@ -469,7 +499,7 @@ using ReBcOpType = RegExpBytecodeOperandType;
   /* 0x50 - 0x5F    Other Character to match                                */ \
   /* 0x60 - 0x7F    Address of bytecode when either character is matched    */ \
   /* 0x80 - 0x9F    Address of bytecode when no match                       */ \
-  V(SKIP_UNTIL_CHAR_OR_CHAR, 58, 20)                                           \
+  V(SKIP_UNTIL_CHAR_OR_CHAR, 59, 20)                                           \
   /* Combination of:                                                        */ \
   /* LOAD_CURRENT_CHAR, CHECK_GT, CHECK_BIT_IN_TABLE, GOTO and              */ \
   /* and ADVANCE_CP_AND_GOTO                                                */ \
@@ -482,18 +512,26 @@ using ReBcOpType = RegExpBytecodeOperandType;
   /* 0x40 - 0xBF    Bit Table                                               */ \
   /* 0xC0 - 0xDF    Address of bytecode when character is matched           */ \
   /* 0xE0 - 0xFF    Address of bytecode when no match                       */ \
-  V(SKIP_UNTIL_GT_OR_NOT_BIT_IN_TABLE, 59, 32)                                 \
+  V(SKIP_UNTIL_GT_OR_NOT_BIT_IN_TABLE, 60, 32)                                 \
   /* Combination of:                                                        */ \
   /* CHECK_CURRENT_POSITION, LOAD_4_CURRENT_CHARS_UNCHECKED,                */ \
   /* AND_CHECK_4_CHARS, ADVANCE_CP_AND_GOTO, AND_CHECK_4_CHARS,             */ \
   /* AND_CHECK_NOT_4_CHARS                                                  */ \
   /* This pattern is common for finding a match from an alternative with    */ \
   /* few different characters. E.g. /[ab]bbbc|[de]eeef/.                    */ \
-  V(SKIP_UNTIL_ONE_OF_MASKED, 60, 48)
+  V(SKIP_UNTIL_ONE_OF_MASKED, 61, 48)                                          \
+  V(SKIP_UNTIL_ONE_OF_MASKED3, 62, 84)
 
 #define COUNT(...) +1
 static constexpr int kRegExpBytecodeCount = BYTECODE_ITERATOR(COUNT);
 #undef COUNT
+
+// Just making sure we assigned values above properly. They should be
+// contiguous, strictly increasing, and start at 0.
+// TODO(jgruber): Do not explicitly assign values, instead generate them
+// implicitly from the list order.
+static_assert(kRegExpBytecodeCount == 63);
+static_assert(kRegExpBytecodeCount <= kRegExpPaddedBytecodeCount);
 
 enum class RegExpBytecode : uint8_t {
 #define DECLARE_BYTECODE(CamelName, ...) k##CamelName,
@@ -533,12 +571,6 @@ class RegExpBytecodes final : public AllStatic {
   static constexpr uint8_t Size(RegExpBytecode bytecode);
   static constexpr uint8_t Size(uint8_t bytecode);
 };
-
-// Just making sure we assigned values above properly. They should be
-// contiguous, strictly increasing, and start at 0.
-// TODO(jgruber): Do not explicitly assign values, instead generate them
-// implicitly from the list order.
-static_assert(kRegExpBytecodeCount == 61);
 
 #define DECLARE_BYTECODES(name, code, length) \
   static constexpr int BC_##name = code;

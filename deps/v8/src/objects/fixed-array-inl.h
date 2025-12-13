@@ -63,6 +63,11 @@ int detail::ArrayHeaderBase<S, true>::length() const {
 }
 
 template <class S>
+uint32_t detail::ArrayHeaderBase<S, true>::ulength() const {
+  return static_cast<uint32_t>(length());
+}
+
+template <class S>
 int detail::ArrayHeaderBase<S, true>::length(AcquireLoadTag tag) const {
   return length_.Acquire_Load().value();
 }
@@ -81,6 +86,11 @@ void detail::ArrayHeaderBase<S, true>::set_length(int value,
 template <class S>
 int detail::ArrayHeaderBase<S, true>::capacity() const {
   return length();
+}
+
+template <class S>
+uint32_t detail::ArrayHeaderBase<S, true>::ucapacity() const {
+  return static_cast<uint32_t>(capacity());
 }
 
 template <class S>
@@ -112,7 +122,7 @@ bool TaggedArrayBase<D, S, P>::IsCowArray() const {
 
 template <class D, class S, class P>
 Tagged<typename TaggedArrayBase<D, S, P>::ElementT>
-TaggedArrayBase<D, S, P>::get(int index) const {
+TaggedArrayBase<D, S, P>::get(uint32_t index) const {
   DCHECK(IsInBounds(index));
   // TODO(jgruber): This tag-less overload shouldn't be relaxed.
   return objects()[index].Relaxed_Load();
@@ -120,21 +130,21 @@ TaggedArrayBase<D, S, P>::get(int index) const {
 
 template <class D, class S, class P>
 Tagged<typename TaggedArrayBase<D, S, P>::ElementT>
-TaggedArrayBase<D, S, P>::get(int index, RelaxedLoadTag) const {
+TaggedArrayBase<D, S, P>::get(uint32_t index, RelaxedLoadTag) const {
   DCHECK(IsInBounds(index));
   return objects()[index].Relaxed_Load();
 }
 
 template <class D, class S, class P>
 Tagged<typename TaggedArrayBase<D, S, P>::ElementT>
-TaggedArrayBase<D, S, P>::get(int index, AcquireLoadTag) const {
+TaggedArrayBase<D, S, P>::get(uint32_t index, AcquireLoadTag) const {
   DCHECK(IsInBounds(index));
   return objects()[index].Acquire_Load();
 }
 
 template <class D, class S, class P>
 Tagged<typename TaggedArrayBase<D, S, P>::ElementT>
-TaggedArrayBase<D, S, P>::get(int index, SeqCstAccessTag) const {
+TaggedArrayBase<D, S, P>::get(uint32_t index, SeqCstAccessTag) const {
   DCHECK(IsInBounds(index));
   return objects()[index].SeqCst_Load();
 }

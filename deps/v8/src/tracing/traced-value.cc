@@ -7,10 +7,7 @@
 #include "src/base/platform/platform.h"
 #include "src/base/vector.h"
 #include "src/numbers/conversions.h"
-
-#ifdef V8_USE_PERFETTO
-#include "protos/perfetto/trace/track_event/debug_annotation.pbzero.h"
-#endif
+#include "src/tracing/perfetto-sdk.h"
 
 namespace v8 {
 namespace tracing {

@@ -50,7 +50,7 @@ void BuildWasmWrapper(compiler::turboshaft::PipelineData* data,
                       const CanonicalSig* sig,
                       WrapperCompilationInfo wrapper_info) {
   Zone zone(allocator, ZONE_NAME);
-  using Assembler = compiler::turboshaft::TSAssembler<
+  using Assembler = compiler::turboshaft::Assembler<
       compiler::turboshaft::SelectLoweringReducer,
       compiler::turboshaft::DataViewLoweringReducer,
       compiler::turboshaft::VariableReducer>;

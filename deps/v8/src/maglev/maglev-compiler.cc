@@ -53,7 +53,7 @@ void PrintGraph(Graph* graph, bool condition, const char* message,
                   graph->compilation_info()->is_tracing_enabled())) {
     UnparkedScopeIfOnBackground unparked_scope(
         graph->broker()->local_isolate()->heap());
-    std::cout << "\n" << message << std::endl;
+    std::cout << "\n----- " << message << " -----" << std::endl;
     PrintGraph(std::cout, graph, has_regalloc_data);
   }
 }
@@ -88,7 +88,8 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
       MaglevCompilationUnit* top_level_unit =
           compilation_info->toplevel_compilation_unit();
       std::cout << "Compiling " << Brief(*compilation_info->toplevel_function())
-                << " with Maglev\n";
+                << " with Maglev";
+      std::cout << "\n----- Bytecode array -----" << std::endl;
       BytecodeArray::Disassemble(top_level_unit->bytecode().object(),
                                  std::cout);
       if (v8_flags.maglev_print_feedback) {

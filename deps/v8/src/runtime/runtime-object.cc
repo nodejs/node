@@ -658,13 +658,16 @@ RUNTIME_FUNCTION(Runtime_GetProperty) {
   if (IsJSObject(*lookup_start_obj)) {
     DirectHandle<JSObject> lookup_start_object =
         Cast<JSObject>(lookup_start_obj);
-    if (!IsJSGlobalProxy(*lookup_start_object) &&
-        !IsAccessCheckNeeded(*lookup_start_object) && IsName(*key_obj)) {
+    if (IsName(*key_obj) &&
+        (!IsSpecialReceiverMap(lookup_start_object->map()) ||
+         (IsJSGlobalObject(*lookup_start_obj) &&
+          !lookup_start_object->map()->has_named_interceptor()))) {
       DirectHandle<Name> key = Cast<Name>(key_obj);
       key_obj = key = isolate->factory()->InternalizeName(key);
 
       DisallowGarbageCollection no_gc;
       if (IsJSGlobalObject(*lookup_start_object)) {
+        CHECK(!lookup_start_object->map()->is_access_check_needed());
         // Attempt dictionary lookup.
         Tagged<GlobalDictionary> dictionary =
             Cast<JSGlobalObject>(*lookup_start_object)

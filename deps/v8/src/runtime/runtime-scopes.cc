@@ -40,6 +40,12 @@ RUNTIME_FUNCTION(Runtime_ThrowUsingAssignError) {
                                  NewTypeError(MessageTemplate::kUsingAssign));
 }
 
+RUNTIME_FUNCTION(Runtime_ThrowAwaitUsingAssignError) {
+  HandleScope scope(isolate);
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate, NewTypeError(MessageTemplate::kAwaitUsingAssign));
+}
+
 namespace {
 
 enum class RedeclarationType { kSyntaxError = 0, kTypeError = 1 };

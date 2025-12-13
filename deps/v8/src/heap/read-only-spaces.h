@@ -16,6 +16,7 @@
 #include "src/heap/allocation-stats.h"
 #include "src/heap/base-space.h"
 #include "src/heap/heap-verifier.h"
+#include "src/heap/heap.h"
 #include "src/heap/memory-chunk-layout.h"
 #include "src/heap/memory-chunk-metadata.h"
 
@@ -243,6 +244,9 @@ class ReadOnlySpace : public BaseSpace {
 
   void EnsureSpaceForAllocation(int size_in_bytes);
   void FreeLinearAllocationArea();
+
+  AllocationResult AllocateRawUnmappableAllocation(
+      int mapped_prefix_in_bytes, int unmapped_payload_in_bytes);
 
   size_t capacity_ = 0;
 

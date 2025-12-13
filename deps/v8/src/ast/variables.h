@@ -306,6 +306,9 @@ class Variable final : public ZoneObject {
     bit_field_ = VariableModeField::update(bit_field_, VariableMode::kLet);
     bit_field_ =
         InitializationFlagField::update(bit_field_, kNeedsInitialization);
+    // It's possible a parameter hasn't been used but when we introduce
+    // temporaries, it will be used in the initialization block.
+    set_is_used();
   }
 
   static InitializationFlag DefaultInitializationFlag(VariableMode mode) {

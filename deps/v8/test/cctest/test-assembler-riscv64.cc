@@ -734,6 +734,7 @@ TEST(RISCVZicond) {
   }
 }
 
+#ifdef USE_SIMULATOR
 TEST(RISCVZicfiss) {
   if (!CpuFeatures::IsSupported(ZICFISS)) return;
   CcTest::InitializeVM();
@@ -759,7 +760,6 @@ TEST(RISCVZicfiss) {
   }
 }
 
-#ifdef USE_SIMULATOR
 TEST(RISCVZicfiss_popchk) {
   if (!CpuFeatures::IsSupported(ZICFISS)) return;
   i::v8_flags.sim_abort_on_shadowstack_mismatch = false;

@@ -505,6 +505,12 @@ bool is_inbounds(float_t v) {
 #define IF_TSAN(V, ...)
 #endif  // V8_IS_TSAN
 
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+#define IF_HARDWARE_SANDBOX(V, ...) EXPAND(V(__VA_ARGS__))
+#else
+#define IF_HARDWARE_SANDBOX(V, ...)
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+
 // Defines IF_INTL, to be used in macro lists for elements that should only be
 // there if INTL is enabled.
 #ifdef V8_INTL_SUPPORT
@@ -570,6 +576,18 @@ bool is_inbounds(float_t v) {
 #else
 #define START_PROHIBIT_SIGN_CONVERSION()
 #define END_PROHIBIT_SIGN_CONVERSION()
+#endif  // defined(__clang__)
+
+// Disable/enable -Wmissing-designated-field-initializers warnings in code.
+#if defined(__clang__)
+#define START_ALLOW_MISSING_DESIGNATED_FIELD_INITIALIZERS() \
+  _Pragma("clang diagnostic push") _Pragma(                 \
+      "clang diagnostic ignored \"-Wmissing-designated-field-initializers\"")
+#define END_ALLOW_MISSING_DESIGNATED_FIELD_INITIALIZERS() \
+  _Pragma("clang diagnostic pop")
+#else
+#define START_ALLOW_MISSING_DESIGNATED_FIELD_INITIALIZERS()
+#define END_ALLOW_MISSING_DESIGNATED_FIELD_INITIALIZERS()
 #endif  // defined(__clang__)
 
 #endif  // V8_BASE_MACROS_H_

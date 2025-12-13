@@ -1,0 +1,11 @@
+TestInliningDirectCall
+[function 1: expanding topmost caller... budget=min(55, 6000), size 11->11 queueing 1 callee(s)]
+[function 1: in function 1, considering call #0, case #0, to function 0 (relative_call_count=4294967296.000000, size=7, score=613566756.571429)... budget=min(55, 6000), size 11->18 decided to inline! no feedback yet or no callees]
+[function 1: inlining direct call #0 to function 0]
+[function 1: emitted {NUMBER} nodes]
+TestNoHintForIntermediate
+[function 2: expanding topmost caller... budget=min(55, 6000), size 11->11 queueing 1 callee(s)]
+[function 2: in function 2, considering call #0, case #0, to function 1 (relative_call_count=4294967296.000000, size=14, score=306783378.285714)... budget=min(55, 6000), size 11->25 decided to inline! no feedback yet or no callees]
+[function 2: inlining direct call #0 to function 1]
+[function 1 (inlined): inlining direct call #0 to function 0]
+[function 2: emitted {NUMBER} nodes]

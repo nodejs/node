@@ -6,8 +6,7 @@ function TestOverflowMap() {
   const map = new Map();
 
   for (let i = 0; i < 0xFFFFFFFF; i++) {
-    const s = "str_" + i;
-    map.set(s, i);
+    map.set(i, i);
   }
 }
 

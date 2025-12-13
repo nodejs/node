@@ -776,57 +776,6 @@ Immediate MacroAssembler::ClearedValue() const {
 
 namespace {
 
-#ifndef V8_ENABLE_LEAPTIERING
-void TailCallOptimizedCodeSlot(MacroAssembler* masm,
-                               Register optimized_code_entry) {
-  // ----------- S t a t e -------------
-  //  -- eax : actual argument count
-  //  -- edx : new target (preserved for callee if needed, and caller)
-  //  -- edi : target function (preserved for callee if needed, and caller)
-  // -----------------------------------
-  ASM_CODE_COMMENT(masm);
-  DCHECK(!AreAliased(edx, edi, optimized_code_entry));
-
-  Register closure = edi;
-  __ Push(eax);
-  __ Push(edx);
-
-  Label heal_optimized_code_slot;
-
-  // If the optimized code is cleared, go to runtime to update the optimization
-  // marker field.
-  __ LoadWeakValue(optimized_code_entry, &heal_optimized_code_slot);
-
-  // The entry references a CodeWrapper object. Unwrap it now.
-  __ mov(optimized_code_entry,
-         FieldOperand(optimized_code_entry, CodeWrapper::kCodeOffset));
-
-  // Check if the optimized code is marked for deopt. If it is, bailout to a
-  // given label.
-  __ TestCodeIsMarkedForDeoptimization(optimized_code_entry);
-  __ j(not_zero, &heal_optimized_code_slot);
-
-  // Optimized code is good, get it into the closure and link the closure
-  // into the optimized functions list, then tail call the optimized code.
-  __ Push(optimized_code_entry);
-  __ ReplaceClosureCodeWithOptimizedCode(optimized_code_entry, closure, edx,
-                                         ecx);
-  static_assert(kJavaScriptCallCodeStartRegister == ecx, "ABI mismatch");
-  __ Pop(optimized_code_entry);
-  __ LoadCodeInstructionStart(ecx, optimized_code_entry);
-  __ Pop(edx);
-  __ Pop(eax);
-  __ jmp(ecx);
-
-  // Optimized code slot contains deoptimized code or code is cleared and
-  // optimized code marker isn't updated. Evict the code, update the marker
-  // and re-enter the closure's code.
-  __ bind(&heal_optimized_code_slot);
-  __ Pop(edx);
-  __ Pop(eax);
-  __ GenerateTailCallToReturnedCode(Runtime::kHealOptimizedCodeSlot);
-}
-#endif  // V8_ENABLE_LEAPTIERING
 
 }  // namespace
 
@@ -865,9 +814,6 @@ void MacroAssembler::GenerateTailCallToReturnedCode(
     push(kJavaScriptCallTargetRegister);
 
     CallRuntime(function_id, 1);
-#ifndef V8_ENABLE_LEAPTIERING
-    mov(ecx, eax);
-#endif
 
     // Restore target function, new target and actual argument count.
     pop(kJavaScriptCallArgCountRegister);
@@ -877,78 +823,9 @@ void MacroAssembler::GenerateTailCallToReturnedCode(
   }
 
   static_assert(kJavaScriptCallCodeStartRegister == ecx, "ABI mismatch");
-#ifdef V8_ENABLE_LEAPTIERING
   JumpJSFunction(kJavaScriptCallTargetRegister);
-#else
-  JumpCodeObject(ecx);
-#endif
 }
 
-#ifndef V8_ENABLE_LEAPTIERING
-
-void MacroAssembler::ReplaceClosureCodeWithOptimizedCode(
-    Register optimized_code, Register closure, Register value,
-    Register slot_address) {
-  ASM_CODE_COMMENT(this);
-  // Store the optimized code in the closure.
-  mov(FieldOperand(closure, JSFunction::kCodeOffset), optimized_code);
-  mov(value, optimized_code);  // Write barrier clobbers slot_address below.
-  RecordWriteField(closure, JSFunction::kCodeOffset, value, slot_address,
-                   SaveFPRegsMode::kIgnore, SmiCheck::kOmit);
-}
-
-// Read off the flags in the feedback vector and check if there
-// is optimized code or a tiering state that needs to be processed.
-// Registers flags and feedback_vector must be aliased.
-void MacroAssembler::LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
-    Register flags, XMMRegister saved_feedback_vector,
-    CodeKind current_code_kind, Label* flags_need_processing) {
-  ASM_CODE_COMMENT(this);
-  DCHECK(CodeKindCanTierUp(current_code_kind));
-  Register feedback_vector = flags;
-
-  // Store feedback_vector. We may need it if we need to load the optimize code
-  // slot entry.
-  movd(saved_feedback_vector, feedback_vector);
-  mov_w(flags, FieldOperand(feedback_vector, FeedbackVector::kFlagsOffset));
-
-  // Check if there is optimized code or a tiering state that needes to be
-  // processed.
-  uint32_t kFlagsMask = FeedbackVector::kFlagsTieringStateIsAnyRequested |
-                        FeedbackVector::kFlagsMaybeHasTurbofanCode |
-                        FeedbackVector::kFlagsLogNextExecution;
-  if (current_code_kind != CodeKind::MAGLEV) {
-    kFlagsMask |= FeedbackVector::kFlagsMaybeHasMaglevCode;
-  }
-  test_w(flags, Immediate(kFlagsMask));
-  j(not_zero, flags_need_processing);
-}
-
-void MacroAssembler::OptimizeCodeOrTailCallOptimizedCodeSlot(
-    Register flags, XMMRegister saved_feedback_vector) {
-  ASM_CODE_COMMENT(this);
-  Label maybe_has_optimized_code, maybe_needs_logging;
-  // Check if optimized code is available.
-  test(flags, Immediate(FeedbackVector::kFlagsTieringStateIsAnyRequested));
-  j(zero, &maybe_needs_logging);
-
-  GenerateTailCallToReturnedCode(Runtime::kCompileOptimized);
-
-  bind(&maybe_needs_logging);
-  test(flags, Immediate(FeedbackVector::LogNextExecutionBit::kMask));
-  j(zero, &maybe_has_optimized_code);
-  GenerateTailCallToReturnedCode(Runtime::kFunctionLogNextExecution);
-
-  bind(&maybe_has_optimized_code);
-  Register optimized_code_entry = flags;
-  Register feedback_vector = flags;
-  movd(feedback_vector, saved_feedback_vector);  // Restore feedback vector.
-  mov(optimized_code_entry,
-      FieldOperand(feedback_vector, FeedbackVector::kMaybeOptimizedCodeOffset));
-  TailCallOptimizedCodeSlot(this, optimized_code_entry);
-}
-
-#endif  // !V8_ENABLE_LEAPTIERING
 
 #ifdef V8_ENABLE_DEBUG_CODE
 void MacroAssembler::AssertSmi(Register object) {
@@ -2175,7 +2052,6 @@ void MacroAssembler::JumpCodeObject(Register code_object, JumpMode jump_mode) {
   }
 }
 
-#ifdef V8_ENABLE_LEAPTIERING
 void MacroAssembler::LoadEntrypointFromJSDispatchTable(
     Register destination, Register dispatch_handle) {
   // TODO(olivf): If there ever is a caller that has a spare register here, we
@@ -2193,33 +2069,21 @@ void MacroAssembler::LoadEntrypointFromJSDispatchTable(
                            JSDispatchEntry::kEntrypointOffset));
   movd(eax, xmm0);
 }
-#endif  // V8_ENABLE_LEAPTIERING
 
 void MacroAssembler::CallJSFunction(Register function_object,
                                     uint16_t argument_count) {
-#if V8_ENABLE_LEAPTIERING
   static_assert(kJavaScriptCallCodeStartRegister == ecx, "ABI mismatch");
   mov(ecx, FieldOperand(function_object, JSFunction::kDispatchHandleOffset));
   LoadEntrypointFromJSDispatchTable(ecx, ecx);
   call(ecx);
-#else
-  static_assert(kJavaScriptCallCodeStartRegister == ecx, "ABI mismatch");
-  mov(ecx, FieldOperand(function_object, JSFunction::kCodeOffset));
-  CallCodeObject(ecx);
-#endif  // V8_ENABLE_LEAPTIERING
 }
 
 void MacroAssembler::JumpJSFunction(Register function_object,
                                     JumpMode jump_mode) {
   static_assert(kJavaScriptCallCodeStartRegister == ecx, "ABI mismatch");
-#if V8_ENABLE_LEAPTIERING
   mov(ecx, FieldOperand(function_object, JSFunction::kDispatchHandleOffset));
   LoadEntrypointFromJSDispatchTable(ecx, ecx);
   jmp(ecx);
-#else
-  mov(ecx, FieldOperand(function_object, JSFunction::kCodeOffset));
-  JumpCodeObject(ecx, jump_mode);
-#endif  // V8_ENABLE_LEAPTIERING
 }
 
 #ifdef V8_ENABLE_WEBASSEMBLY

@@ -72,17 +72,5 @@ bool SerializerDeserializer::CanBeDeferred(Tagged<HeapObject> o,
          !(IsEmbedderDataArray(o) && Cast<EmbedderDataArray>(o)->length() > 0);
 }
 
-void SerializerDeserializer::RestoreExternalReferenceRedirector(
-    Isolate* isolate, Tagged<AccessorInfo> accessor_info) {
-  DisallowGarbageCollection no_gc;
-  accessor_info->init_getter_redirection(isolate);
-}
-
-void SerializerDeserializer::RestoreExternalReferenceRedirector(
-    Isolate* isolate, Tagged<FunctionTemplateInfo> function_template_info) {
-  DisallowGarbageCollection no_gc;
-  function_template_info->init_callback_redirection(isolate);
-}
-
 }  // namespace internal
 }  // namespace v8

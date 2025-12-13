@@ -108,11 +108,9 @@ class JSArray : public TorqueGeneratedJSArray<JSArray, JSObject> {
   // - {raw_fixed_array} is a tagged FixedArray pointer.
   // - {raw_separator} and {raw_dest} are tagged String pointers.
   // - Returns a tagged String pointer.
-  static Address ArrayJoinConcatToSequentialString(Isolate* isolate,
-                                                   Address raw_list_head,
-                                                   intptr_t last_chunk_length,
-                                                   Address raw_separator,
-                                                   Address raw_dest);
+  static Address ArrayJoinConcatToSequentialString(
+      Isolate* isolate, Address raw_list_head, uintptr_t raw_last_chunk_length,
+      Address raw_separator, Address raw_dest);
 
   // Checks whether the Array has the current realm's Array.prototype as its
   // prototype. This function is best-effort and only gives a conservative

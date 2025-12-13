@@ -36,8 +36,9 @@ std::optional<BailoutReason> BuildGraphPhase::Run(
       turbofan_data->source_positions());
   ZoneWithNamePointer<NodeOriginTable, kGraphZoneName> node_origins(
       turbofan_data->node_origins());
-  data->InitializeGraphComponentWithGraphZone(turbofan_data->ReleaseGraphZone(),
-                                              source_positions, node_origins);
+  data->InitializeGraphComponentWithGraphZone(
+      turbofan_data->ReleaseGraphZone(), source_positions, node_origins,
+      Graph::Origin::kCreatedFromTurbofan);
 
   if (auto bailout = turboshaft::BuildGraph(data, schedule, temp_zone, linkage,
                                             js_wasm_calls_sidetable)) {

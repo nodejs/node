@@ -17,7 +17,6 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerLOONG64
   RegExpMacroAssemblerLOONG64(Isolate* isolate, Zone* zone, Mode mode,
                               int registers_to_save);
   ~RegExpMacroAssemblerLOONG64() override;
-  int stack_limit_slack_slot_count() override;
   void AdvanceCurrentPosition(int by) override;
   void AdvanceRegister(int reg, int by) override;
   void Backtrack() override;
@@ -59,7 +58,7 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerLOONG64
   // Checks whether the given offset from the current position is before
   // the end of the string.
   void CheckPosition(int cp_offset, Label* on_outside_input) override;
-  bool CheckSpecialClassRanges(StandardCharacterSet type,
+  void CheckSpecialClassRanges(StandardCharacterSet type,
                                Label* on_no_match) override;
   void Fail() override;
   DirectHandle<HeapObject> GetCode(DirectHandle<String> source,
@@ -200,9 +199,6 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerLOONG64
   // Register holding pointer to the current code object.
   static constexpr Register code_pointer() { return s1; }
 
-  // Byte size of chars in the string to match (decided by the Mode argument).
-  inline int char_size() { return static_cast<int>(mode_); }
-
   // Equivalent to a conditional branch to the label, unless the label
   // is nullptr, in which case it is a conditional Backtrack.
   void BranchOrBacktrack(Label* to, Condition condition, Register rs,
@@ -233,9 +229,6 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerLOONG64
   const std::unique_ptr<MacroAssembler> masm_;
 
   const NoRootArrayScope no_root_array_scope_;
-
-  // Which mode to generate code for (Latin1 or UC16).
-  const Mode mode_;
 
   // One greater than maximal register index actually used.
   int num_registers_;

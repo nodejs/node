@@ -31,8 +31,8 @@ class V8_EXPORT Function : public Object {
    * for a given FunctionCallback.
    */
   static MaybeLocal<Function> New(
-      Local<Context> context, FunctionCallback callback,
-      Local<Value> data = Local<Value>(), int length = 0,
+      Local<Context> context, FunctionCallback callback, Local<Data> data = {},
+      int length = 0,
       ConstructorBehavior behavior = ConstructorBehavior::kAllow,
       SideEffectType side_effect_type = SideEffectType::kHasSideEffect);
 

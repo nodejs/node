@@ -199,9 +199,8 @@ Tagged<Object> SharedFunctionInfo::GetTrustedData(
 template <typename T, IndirectPointerTag tag>
 Tagged<T> SharedFunctionInfo::GetTrustedData(IsolateForSandbox isolate) const {
   static_assert(tag != kUnknownIndirectPointerTag);
-  return HeapObject::CastExposedTrustedObjectByTag<tag>(
-      ReadMaybeEmptyTrustedPointerField<tag>(kTrustedFunctionDataOffset,
-                                             isolate, kAcquireLoad));
+  return HeapObject::ReadTrustedPointerField<tag>(kTrustedFunctionDataOffset,
+                                                  isolate, kAcquireLoad);
 }
 
 Tagged<Object> SharedFunctionInfo::GetUntrustedData() const {
@@ -237,6 +236,11 @@ bool SharedFunctionInfo::IsSloppyNormalJSFunction() const {
   // TODO(dcarney): Fix the empty scope and push this down into
   //                ScopeInfo::IsSloppyNormalJSFunction.
   return kind() == FunctionKind::kNormalFunction && is_sloppy(language_mode());
+}
+
+uint32_t SharedFunctionInfo::unused_parameter_bits() const {
+  DCHECK_EQ(scope_info(kAcquireLoad)->scope_type(), ScopeType::FUNCTION_SCOPE);
+  return scope_info(kAcquireLoad)->unused_parameter_bits();
 }
 
 bool SharedFunctionInfo::CanOnlyAccessFixedFormalParameters() const {
@@ -638,9 +642,8 @@ bool SharedFunctionInfo::HasOuterScopeInfo() const {
   if (info->IsEmpty()) {
     if (is_compiled()) return false;
     Tagged<UnionOf<ScopeInfo, TheHole>> maybe_outer_info = outer_scope_info();
-    if (IsTheHole(maybe_outer_info) || !IsScopeInfo(outer_scope_info()))
-      return false;
-    outer_info = Cast<ScopeInfo>(outer_scope_info());
+    if (IsTheHole(maybe_outer_info)) return false;
+    outer_info = Cast<ScopeInfo>(maybe_outer_info);
   } else {
     if (!info->HasOuterScopeInfo()) return false;
     outer_info = info->OuterScopeInfo();
@@ -667,13 +670,13 @@ void SharedFunctionInfo::set_outer_scope_info(
 bool SharedFunctionInfo::HasFeedbackMetadata() const {
   Tagged<UnionOf<ScopeInfo, FeedbackMetadata, TheHole>> raw =
       raw_outer_scope_info_or_feedback_metadata();
-  return !IsTheHole(raw) && IsFeedbackMetadata(raw);
+  return IsFeedbackMetadata(raw);
 }
 
 bool SharedFunctionInfo::HasFeedbackMetadata(AcquireLoadTag tag) const {
   Tagged<UnionOf<ScopeInfo, FeedbackMetadata, TheHole>> raw =
       raw_outer_scope_info_or_feedback_metadata(tag);
-  return !IsTheHole(raw) && IsFeedbackMetadata(raw);
+  return IsFeedbackMetadata(raw);
 }
 
 DEF_GETTER(SharedFunctionInfo, feedback_metadata, Tagged<FeedbackMetadata>) {
@@ -781,7 +784,11 @@ bool SharedFunctionInfo::has_simple_parameters() const {
 }
 
 bool SharedFunctionInfo::CanCollectSourcePosition(Isolate* isolate) {
-  return v8_flags.enable_lazy_source_positions && HasBytecodeArray() &&
+  // This function is called during heap iteration and so might see
+  // dead-but-inconsistent SFIs, e.g. those referencing an unpublished trusted
+  // object, so we need to check for that here.
+  return v8_flags.enable_lazy_source_positions &&
+         !HasUnpublishedTrustedData(isolate) && HasBytecodeArray() &&
          !GetBytecodeArray(isolate)->HasSourcePositionTable();
 }
 
@@ -1036,7 +1043,8 @@ void SharedFunctionInfo::set_builtin_id(Builtin builtin) {
 }
 
 bool SharedFunctionInfo::HasUncompiledData(IsolateForSandbox isolate) const {
-  return IsUncompiledData(GetTrustedData(isolate));
+  return !HasUnpublishedTrustedData(isolate) &&
+         IsUncompiledData(GetTrustedData(isolate));
 }
 
 Tagged<UncompiledData> SharedFunctionInfo::uncompiled_data(
@@ -1134,7 +1142,7 @@ void UncompiledData::InitAfterBytecodeFlush(
                        Tagged<HeapObject> target)>
         gc_notify_updated_slot) {
 #ifdef V8_ENABLE_SANDBOX
-  init_self_indirect_pointer(isolate);
+  InitAndPublish(isolate);
 #endif
   set_inferred_name(inferred_name);
   gc_notify_updated_slot(this, ObjectSlot(&inferred_name_), inferred_name);

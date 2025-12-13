@@ -659,6 +659,12 @@ void CodeAssembler::DebugBreak() { raw_assembler()->DebugBreak(); }
 
 void CodeAssembler::Unreachable() { raw_assembler()->Unreachable(); }
 
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+void CodeAssembler::EnterSandbox() { raw_assembler()->EnterSandbox(); }
+
+void CodeAssembler::ExitSandbox() { raw_assembler()->ExitSandbox(); }
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+
 void CodeAssembler::EmitComment(std::string str) {
   if (!v8_flags.code_comments) return;
   raw_assembler()->Comment(str);
