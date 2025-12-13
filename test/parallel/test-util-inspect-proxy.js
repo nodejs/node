@@ -116,7 +116,7 @@ const proxy3 = new Proxy(proxy2, proxy1);
 const proxy4 = new Proxy(proxy1, proxy2);
 const proxy5 = new Proxy(proxy3, proxy4);
 const proxy6 = new Proxy(proxy5, proxy5);
-const expected0 = '{}';
+const expected0 = 'Proxy({})';
 const expected1 = 'Proxy [ {}, {} ]';
 const expected2 = 'Proxy [ Proxy [ {}, {} ], {} ]';
 const expected3 = 'Proxy [ Proxy [ Proxy [ {}, {} ], {} ], Proxy [ {}, {} ] ]';
@@ -154,7 +154,7 @@ assert.strictEqual(util.inspect(proxy6), expected0);
 const proxy7 = new Proxy([], []);
 const expected7 = 'Proxy [ [], [] ]';
 assert.strictEqual(util.inspect(proxy7, opts), expected7);
-assert.strictEqual(util.inspect(proxy7), '[]');
+assert.strictEqual(util.inspect(proxy7), 'Proxy([])');
 
 // Now we're just getting silly, right?
 const proxy8 = new Proxy(Date, []);
@@ -163,8 +163,8 @@ const expected8 = 'Proxy [ [Function: Date], [] ]';
 const expected9 = 'Proxy [ [Function: Date], [Function: String] ]';
 assert.strictEqual(util.inspect(proxy8, opts), expected8);
 assert.strictEqual(util.inspect(proxy9, opts), expected9);
-assert.strictEqual(util.inspect(proxy8), '[Function: Date]');
-assert.strictEqual(util.inspect(proxy9), '[Function: Date]');
+assert.strictEqual(util.inspect(proxy8), 'Proxy([Function: Date])');
+assert.strictEqual(util.inspect(proxy9), 'Proxy([Function: Date])');
 
 const proxy10 = new Proxy(() => {}, {});
 const proxy11 = new Proxy(() => {}, {
@@ -175,7 +175,16 @@ const proxy11 = new Proxy(() => {}, {
     return proxy11;
   }
 });
-const expected10 = '[Function (anonymous)]';
-const expected11 = '[Function (anonymous)]';
+const expected10 = 'Proxy([Function (anonymous)])';
+const expected11 = 'Proxy([Function (anonymous)])';
 assert.strictEqual(util.inspect(proxy10), expected10);
 assert.strictEqual(util.inspect(proxy11), expected11);
+
+const proxy12 = new Proxy([1, 2, 3], proxy5);
+assert.strictEqual(
+  util.inspect(proxy12, { colors: true, breakLength: 1 }),
+  '\x1B[36mProxy(\x1B[39m' +
+    '[\n  \x1B[33m1\x1B[39m,\n  \x1B[33m2\x1B[39m,\n  \x1B[33m3\x1B[39m\n]\x1B[36m' +
+    ')\x1B[39m'
+);
+assert.strictEqual(util.format('%s', proxy12), 'Proxy([ 1, 2, 3 ])');
