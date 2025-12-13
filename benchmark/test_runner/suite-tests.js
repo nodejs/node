@@ -6,15 +6,22 @@ const reporter = require('../fixtures/empty-test-reporter');
 
 const { describe, it } = require('node:test');
 
-const bench = common.createBenchmark(main, {
-  numberOfSuites: [10, 100],
-  testsPerSuite: [10, 100, 1000],
-  testType: ['sync', 'async'],
-  concurrency: ['yes', 'no'],
-}, {
-  // We don't want to test the reporter here
-  flags: ['--test-reporter=./benchmark/fixtures/empty-test-reporter.js'],
-});
+const bench = common.createBenchmark(
+  main,
+  {
+    numberOfSuites: [10, 100],
+    testsPerSuite: [10, 100, 1000],
+    testType: ['sync', 'async'],
+    concurrency: ['yes', 'no'],
+  },
+  {
+    // We don't want to test the reporter here
+    flags: [
+      '--test-reporter=./benchmark/fixtures/empty-test-reporter.js',
+      '--test-reporter-destination=stdout',
+    ],
+  },
+);
 
 async function run({ numberOfSuites, testsPerSuite, testType, concurrency }) {
   concurrency = concurrency === 'yes';
