@@ -1,18 +1,42 @@
 TAP version 13
+# Subtest: sync expect fail (method)
+ok 1 - sync expect fail (method) # EXPECTED FAILURE
+  ---
+  duration_ms: *
+  type: 'test'
+  ...
+# Subtest: sync expect fail (options)
+ok 2 - sync expect fail (options) # EXPECTED FAILURE
+  ---
+  duration_ms: *
+  type: 'test'
+  ...
+# Subtest: async expect fail (method)
+ok 3 - async expect fail (method) # EXPECTED FAILURE
+  ---
+  duration_ms: *
+  type: 'test'
+  ...
+# Subtest: async expect fail (options)
+ok 4 - async expect fail (options) # EXPECTED FAILURE
+  ---
+  duration_ms: *
+  type: 'test'
+  ...
 # Subtest: sync pass todo
-ok 1 - sync pass todo # TODO
+ok 5 - sync pass todo # TODO
   ---
   duration_ms: *
   type: 'test'
   ...
 # Subtest: sync pass todo with message
-ok 2 - sync pass todo with message # TODO this is a passing todo
+ok 6 - sync pass todo with message # TODO this is a passing todo
   ---
   duration_ms: *
   type: 'test'
   ...
 # Subtest: sync todo
-not ok 3 - sync todo # TODO
+not ok 7 - sync todo # TODO
   ---
   duration_ms: *
   type: 'test'
@@ -29,8 +53,14 @@ not ok 3 - sync todo # TODO
     *
     *
   ...
+# Subtest: sync todo with expect fail
+ok 8 - sync todo with expect fail # TODO
+  ---
+  duration_ms: *
+  type: 'test'
+  ...
 # Subtest: sync todo with message
-not ok 4 - sync todo with message # TODO this is a failing todo
+not ok 9 - sync todo with message # TODO this is a failing todo
   ---
   duration_ms: *
   type: 'test'
@@ -48,25 +78,31 @@ not ok 4 - sync todo with message # TODO this is a failing todo
     *
   ...
 # Subtest: sync skip pass
-ok 5 - sync skip pass # SKIP
+ok 10 - sync skip pass # SKIP
+  ---
+  duration_ms: *
+  type: 'test'
+  ...
+# Subtest: sync skip expect fail
+ok 11 - sync skip expect fail # SKIP
   ---
   duration_ms: *
   type: 'test'
   ...
 # Subtest: sync skip pass with message
-ok 6 - sync skip pass with message # SKIP this is skipped
+ok 12 - sync skip pass with message # SKIP this is skipped
   ---
   duration_ms: *
   type: 'test'
   ...
 # Subtest: sync pass
-ok 7 - sync pass
+ok 13 - sync pass
   ---
   duration_ms: *
   type: 'test'
   ...
 # Subtest: sync throw fail
-not ok 8 - sync throw fail
+not ok 14 - sync throw fail
   ---
   duration_ms: *
   type: 'test'
@@ -84,25 +120,25 @@ not ok 8 - sync throw fail
     *
   ...
 # Subtest: async skip pass
-ok 9 - async skip pass # SKIP
+ok 15 - async skip pass # SKIP
   ---
   duration_ms: *
   type: 'test'
   ...
 # Subtest: async pass
-ok 10 - async pass
+ok 16 - async pass
   ---
   duration_ms: *
   type: 'test'
   ...
 # Subtest: mixing describe/it and test should work
-ok 11 - mixing describe/it and test should work
+ok 17 - mixing describe/it and test should work
   ---
   duration_ms: *
   type: 'test'
   ...
 # Subtest: async throw fail
-not ok 12 - async throw fail
+not ok 18 - async throw fail
   ---
   duration_ms: *
   type: 'test'
@@ -120,7 +156,7 @@ not ok 12 - async throw fail
     *
   ...
 # Subtest: async skip fail
-not ok 13 - async skip fail # SKIP
+not ok 19 - async skip fail # SKIP
   ---
   duration_ms: *
   type: 'test'
@@ -130,7 +166,7 @@ not ok 13 - async skip fail # SKIP
   code: 'ERR_TEST_FAILURE'
   ...
 # Subtest: async assertion fail
-not ok 14 - async assertion fail
+not ok 20 - async assertion fail
   ---
   duration_ms: *
   type: 'test'
@@ -156,13 +192,13 @@ not ok 14 - async assertion fail
     *
   ...
 # Subtest: resolve pass
-ok 15 - resolve pass
+ok 21 - resolve pass
   ---
   duration_ms: *
   type: 'test'
   ...
 # Subtest: reject fail
-not ok 16 - reject fail
+not ok 22 - reject fail
   ---
   duration_ms: *
   type: 'test'
@@ -180,31 +216,31 @@ not ok 16 - reject fail
     *
   ...
 # Subtest: unhandled rejection - passes but warns
-ok 17 - unhandled rejection - passes but warns
+ok 23 - unhandled rejection - passes but warns
   ---
   duration_ms: *
   type: 'test'
   ...
 # Subtest: async unhandled rejection - passes but warns
-ok 18 - async unhandled rejection - passes but warns
+ok 24 - async unhandled rejection - passes but warns
   ---
   duration_ms: *
   type: 'test'
   ...
 # Subtest: immediate throw - passes but warns
-ok 19 - immediate throw - passes but warns
+ok 25 - immediate throw - passes but warns
   ---
   duration_ms: *
   type: 'test'
   ...
 # Subtest: immediate reject - passes but warns
-ok 20 - immediate reject - passes but warns
+ok 26 - immediate reject - passes but warns
   ---
   duration_ms: *
   type: 'test'
   ...
 # Subtest: immediate resolve pass
-ok 21 - immediate resolve pass
+ok 27 - immediate resolve pass
   ---
   duration_ms: *
   type: 'test'
@@ -238,7 +274,7 @@ ok 21 - immediate resolve pass
       type: 'test'
       ...
     1..2
-not ok 22 - subtest sync throw fail
+not ok 28 - subtest sync throw fail
   ---
   duration_ms: *
   type: 'suite'
@@ -248,7 +284,7 @@ not ok 22 - subtest sync throw fail
   code: 'ERR_TEST_FAILURE'
   ...
 # Subtest: sync throw non-error fail
-not ok 23 - sync throw non-error fail
+not ok 29 - sync throw non-error fail
   ---
   duration_ms: *
   type: 'test'
@@ -283,31 +319,31 @@ not ok 23 - sync throw non-error fail
       type: 'test'
       ...
     1..4
-ok 24 - level 0a
+ok 30 - level 0a
   ---
   duration_ms: *
   type: 'suite'
   ...
 # Subtest: invalid subtest - pass but subtest fails
-ok 25 - invalid subtest - pass but subtest fails
+ok 31 - invalid subtest - pass but subtest fails
   ---
   duration_ms: *
   type: 'suite'
   ...
 # Subtest: sync skip option
-ok 26 - sync skip option # SKIP
+ok 32 - sync skip option # SKIP
   ---
   duration_ms: *
   type: 'test'
   ...
 # Subtest: sync skip option with message
-ok 27 - sync skip option with message # SKIP this is skipped
+ok 33 - sync skip option with message # SKIP this is skipped
   ---
   duration_ms: *
   type: 'test'
   ...
 # Subtest: sync skip option is false fail
-not ok 28 - sync skip option is false fail
+not ok 34 - sync skip option is false fail
   ---
   duration_ms: *
   type: 'test'
@@ -325,61 +361,61 @@ not ok 28 - sync skip option is false fail
     *
   ...
 # Subtest: <anonymous>
-ok 29 - <anonymous>
+ok 35 - <anonymous>
   ---
   duration_ms: *
   type: 'test'
   ...
 # Subtest: functionOnly
-ok 30 - functionOnly
+ok 36 - functionOnly
   ---
   duration_ms: *
   type: 'test'
   ...
 # Subtest: <anonymous>
-ok 31 - <anonymous>
+ok 37 - <anonymous>
   ---
   duration_ms: *
   type: 'test'
   ...
 # Subtest: test with only a name provided
-ok 32 - test with only a name provided
+ok 38 - test with only a name provided
   ---
   duration_ms: *
   type: 'test'
   ...
 # Subtest: <anonymous>
-ok 33 - <anonymous>
+ok 39 - <anonymous>
   ---
   duration_ms: *
   type: 'test'
   ...
 # Subtest: <anonymous>
-ok 34 - <anonymous> # SKIP
+ok 40 - <anonymous> # SKIP
   ---
   duration_ms: *
   type: 'test'
   ...
 # Subtest: test with a name and options provided
-ok 35 - test with a name and options provided # SKIP
+ok 41 - test with a name and options provided # SKIP
   ---
   duration_ms: *
   type: 'test'
   ...
 # Subtest: functionAndOptions
-ok 36 - functionAndOptions # SKIP
+ok 42 - functionAndOptions # SKIP
   ---
   duration_ms: *
   type: 'test'
   ...
 # Subtest: callback pass
-ok 37 - callback pass
+ok 43 - callback pass
   ---
   duration_ms: *
   type: 'test'
   ...
 # Subtest: callback fail
-not ok 38 - callback fail
+not ok 44 - callback fail
   ---
   duration_ms: *
   type: 'test'
@@ -392,25 +428,25 @@ not ok 38 - callback fail
     *
   ...
 # Subtest: sync t is this in test
-ok 39 - sync t is this in test
+ok 45 - sync t is this in test
   ---
   duration_ms: *
   type: 'test'
   ...
 # Subtest: async t is this in test
-ok 40 - async t is this in test
+ok 46 - async t is this in test
   ---
   duration_ms: *
   type: 'test'
   ...
 # Subtest: callback t is this in test
-ok 41 - callback t is this in test
+ok 47 - callback t is this in test
   ---
   duration_ms: *
   type: 'test'
   ...
 # Subtest: callback also returns a Promise
-not ok 42 - callback also returns a Promise
+not ok 48 - callback also returns a Promise
   ---
   duration_ms: *
   type: 'test'
@@ -420,7 +456,7 @@ not ok 42 - callback also returns a Promise
   code: 'ERR_TEST_FAILURE'
   ...
 # Subtest: callback throw
-not ok 43 - callback throw
+not ok 49 - callback throw
   ---
   duration_ms: *
   type: 'test'
@@ -438,7 +474,7 @@ not ok 43 - callback throw
     *
   ...
 # Subtest: callback called twice
-not ok 44 - callback called twice
+not ok 50 - callback called twice
   ---
   duration_ms: *
   type: 'test'
@@ -451,13 +487,13 @@ not ok 44 - callback called twice
     *
   ...
 # Subtest: callback called twice in different ticks
-ok 45 - callback called twice in different ticks
+ok 51 - callback called twice in different ticks
   ---
   duration_ms: *
   type: 'test'
   ...
 # Subtest: callback called twice in future tick
-not ok 46 - callback called twice in future tick
+not ok 52 - callback called twice in future tick
   ---
   duration_ms: *
   type: 'test'
@@ -469,7 +505,7 @@ not ok 46 - callback called twice in future tick
     *
   ...
 # Subtest: callback async throw
-not ok 47 - callback async throw
+not ok 53 - callback async throw
   ---
   duration_ms: *
   type: 'test'
@@ -482,13 +518,13 @@ not ok 47 - callback async throw
     *
   ...
 # Subtest: callback async throw after done
-ok 48 - callback async throw after done
+ok 54 - callback async throw after done
   ---
   duration_ms: *
   type: 'test'
   ...
 # Subtest: custom inspect symbol fail
-not ok 49 - custom inspect symbol fail
+not ok 55 - custom inspect symbol fail
   ---
   duration_ms: *
   type: 'test'
@@ -498,7 +534,7 @@ not ok 49 - custom inspect symbol fail
   code: 'ERR_TEST_FAILURE'
   ...
 # Subtest: custom inspect symbol that throws fail
-not ok 50 - custom inspect symbol that throws fail
+not ok 56 - custom inspect symbol that throws fail
   ---
   duration_ms: *
   type: 'test'
@@ -554,7 +590,7 @@ not ok 50 - custom inspect symbol that throws fail
         *
       ...
     1..2
-not ok 51 - subtest sync throw fails
+not ok 57 - subtest sync throw fails
   ---
   duration_ms: *
   type: 'suite'
@@ -575,7 +611,7 @@ not ok 51 - subtest sync throw fails
       code: 'ERR_TEST_FAILURE'
       ...
     1..1
-not ok 52 - describe sync throw fails
+not ok 58 - describe sync throw fails
   ---
   duration_ms: *
   type: 'suite'
@@ -607,7 +643,7 @@ not ok 52 - describe sync throw fails
       code: 'ERR_TEST_FAILURE'
       ...
     1..1
-not ok 53 - describe async throw fails
+not ok 59 - describe async throw fails
   ---
   duration_ms: *
   type: 'suite'
@@ -663,7 +699,7 @@ not ok 53 - describe async throw fails
       type: 'test'
       ...
     1..4
-not ok 54 - timeouts
+not ok 60 - timeouts
   ---
   duration_ms: *
   type: 'suite'
@@ -694,7 +730,7 @@ not ok 54 - timeouts
         *
       ...
     1..2
-not ok 55 - successful thenable
+not ok 61 - successful thenable
   ---
   duration_ms: *
   type: 'suite'
@@ -704,7 +740,7 @@ not ok 55 - successful thenable
   code: 'ERR_TEST_FAILURE'
   ...
 # Subtest: rejected thenable
-not ok 56 - rejected thenable
+not ok 62 - rejected thenable
   ---
   duration_ms: *
   type: 'suite'
@@ -743,13 +779,13 @@ not ok 56 - rejected thenable
       type: 'suite'
       ...
     1..3
-ok 57 - async describe function
+ok 63 - async describe function
   ---
   duration_ms: *
   type: 'suite'
   ...
 # Subtest: invalid subtest fail
-not ok 58 - invalid subtest fail
+not ok 64 - invalid subtest fail
   ---
   duration_ms: *
   type: 'test'
@@ -760,18 +796,18 @@ not ok 58 - invalid subtest fail
   stack: |-
     *
   ...
-1..58
+1..64
 # Error: Test "unhandled rejection - passes but warns" at test/fixtures/test-runner/output/describe_it.js:(LINE):1 generated asynchronous activity after the test ended. This activity created the error "Error: rejected from unhandled rejection fail" and would have caused the test to fail, but instead triggered an unhandledRejection event.
 # Error: Test "async unhandled rejection - passes but warns" at test/fixtures/test-runner/output/describe_it.js:(LINE):1 generated asynchronous activity after the test ended. This activity created the error "Error: rejected from async unhandled rejection fail" and would have caused the test to fail, but instead triggered an unhandledRejection event.
 # Error: Test "immediate throw - passes but warns" at test/fixtures/test-runner/output/describe_it.js:(LINE):1 generated asynchronous activity after the test ended. This activity created the error "Error: thrown from immediate throw fail" and would have caused the test to fail, but instead triggered an uncaughtException event.
 # Error: Test "immediate reject - passes but warns" at test/fixtures/test-runner/output/describe_it.js:(LINE):1 generated asynchronous activity after the test ended. This activity created the error "Error: rejected from immediate reject fail" and would have caused the test to fail, but instead triggered an unhandledRejection event.
 # Error: Test "callback called twice in different ticks" at test/fixtures/test-runner/output/describe_it.js:(LINE):1 generated asynchronous activity after the test ended. This activity created the error "Error [ERR_TEST_FAILURE]: callback invoked multiple times" and would have caused the test to fail, but instead triggered an uncaughtException event.
 # Error: Test "callback async throw after done" at test/fixtures/test-runner/output/describe_it.js:(LINE):1 generated asynchronous activity after the test ended. This activity created the error "Error: thrown from callback async throw after done" and would have caused the test to fail, but instead triggered an uncaughtException event.
-# tests 67
+# tests 73
 # suites 11
-# pass 31
+# pass 35
 # fail 19
 # cancelled 4
-# skipped 9
-# todo 4
+# skipped 10
+# todo 5
 # duration_ms *
