@@ -29,7 +29,6 @@
 
 # streams
 
-/lib/_stream* @nodejs/streams
 /lib/internal/streams/* @nodejs/streams
 /lib/stream.js @nodejs/streams
 /lib/stream/* @nodejs/streams
