@@ -58,8 +58,8 @@ assert.strictEqual(flatLongLen.toString(), check);
   assert.throws(() => {
     Buffer.concat(value);
   }, {
-    code: 'ERR_INVALID_ARG_TYPE',
-    message: 'The "list[0]" argument must be an instance of Buffer ' +
+    code: 'ERR_INVALID_CONTAINER_ELEMENT_TYPE',
+    message: 'The "list[0]" must be an instance of Buffer ' +
              `or Uint8Array.${common.invalidArgTypeHelper(value[0])}`
   });
 });
@@ -67,8 +67,8 @@ assert.strictEqual(flatLongLen.toString(), check);
 assert.throws(() => {
   Buffer.concat([Buffer.from('hello'), 3]);
 }, {
-  code: 'ERR_INVALID_ARG_TYPE',
-  message: 'The "list[1]" argument must be an instance of Buffer ' +
+  code: 'ERR_INVALID_CONTAINER_ELEMENT_TYPE',
+  message: 'The "list[1]" must be an instance of Buffer ' +
            'or Uint8Array. Received type number (3)'
 });
 

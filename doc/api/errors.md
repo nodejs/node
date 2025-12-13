@@ -1973,6 +1973,12 @@ operation.
 
 Invalid characters were detected in headers.
 
+<a id="ERR_INVALID_CONTAINER_ELEMENT_TYPE"></a>
+
+### `ERR_INVALID_CONTAINER_ELEMENT_TYPE`
+
+A container element (e.g. array, set, map, etc.) of the wrong type was passed to a Node.js API.
+
 <a id="ERR_INVALID_CURSOR_POS"></a>
 
 ### `ERR_INVALID_CURSOR_POS`
