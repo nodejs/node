@@ -19,7 +19,28 @@ if (!hasOpenSSL(3, 5)) {
     });
   }
 } else {
-  for (const asymmetricKeyType of ['ml-kem-512', 'ml-kem-768', 'ml-kem-1024']) {
+  for (const [asymmetricKeyType, pubLen] of [
+    ['ml-kem-512', 800], ['ml-kem-768', 1184], ['ml-kem-1024', 1568],
+  ]) {
+
+    function assertJwk(jwk) {
+      assert.strictEqual(jwk.kty, 'AKP');
+      assert.strictEqual(jwk.alg, asymmetricKeyType.toUpperCase());
+      assert.ok(jwk.pub);
+      assert.strictEqual(Buffer.from(jwk.pub, 'base64url').byteLength, pubLen);
+    }
+
+    function assertPublicJwk(jwk) {
+      assertJwk(jwk);
+      assert.ok(!jwk.priv);
+    }
+
+    function assertPrivateJwk(jwk) {
+      assertJwk(jwk);
+      assert.ok(jwk.priv);
+      assert.strictEqual(Buffer.from(jwk.priv, 'base64url').byteLength, 64);
+    }
+
     for (const [publicKeyEncoding, validate] of [
       /* eslint-disable node-core/must-call-assert */
       [undefined, (publicKey) => {
@@ -27,6 +48,7 @@ if (!hasOpenSSL(3, 5)) {
         assert.strictEqual(publicKey.asymmetricKeyType, asymmetricKeyType);
         assert.deepStrictEqual(publicKey.asymmetricKeyDetails, {});
       }],
+      [{ format: 'jwk' }, (publicKey) => assertPublicJwk(publicKey)],
       [{ format: 'pem', type: 'spki' }, (publicKey) => assert.strictEqual(typeof publicKey, 'string')],
       [{ format: 'der', type: 'spki' }, (publicKey) => assert.strictEqual(Buffer.isBuffer(publicKey), true)],
       /* eslint-enable node-core/must-call-assert */
@@ -40,6 +62,7 @@ if (!hasOpenSSL(3, 5)) {
         assert.strictEqual(privateKey.asymmetricKeyType, asymmetricKeyType);
         assert.deepStrictEqual(privateKey.asymmetricKeyDetails, {});
       }],
+      [{ format: 'jwk' }, (_, privateKey) => assertPrivateJwk(privateKey)],
       [{ format: 'pem', type: 'pkcs8' }, (_, privateKey) => assert.strictEqual(typeof privateKey, 'string')],
       [{ format: 'der', type: 'pkcs8' }, (_, privateKey) => assert.strictEqual(Buffer.isBuffer(privateKey), true)],
       /* eslint-enable node-core/must-call-assert */

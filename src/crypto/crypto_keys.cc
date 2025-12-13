@@ -5,7 +5,7 @@
 #include "crypto/crypto_dh.h"
 #include "crypto/crypto_dsa.h"
 #include "crypto/crypto_ec.h"
-#include "crypto/crypto_ml_dsa.h"
+#include "crypto/crypto_pqc.h"
 #include "crypto/crypto_rsa.h"
 #include "crypto/crypto_util.h"
 #include "env-inl.h"
@@ -183,7 +183,13 @@ bool ExportJWKAsymmetricKey(Environment* env,
     case EVP_PKEY_ML_DSA_65:
       // Fall through
     case EVP_PKEY_ML_DSA_87:
-      return ExportJwkMlDsaKey(env, key, target);
+      // Fall through
+    case EVP_PKEY_ML_KEM_512:
+      // Fall through
+    case EVP_PKEY_ML_KEM_768:
+      // Fall through
+    case EVP_PKEY_ML_KEM_1024:
+      return ExportJwkPqcKey(env, key, target);
 #endif
   }
   THROW_ERR_CRYPTO_JWK_UNSUPPORTED_KEY_TYPE(env);
