@@ -140,7 +140,7 @@ class SlowStream extends stream.Stream {
         return this.emit('end');
       }
       const end = Math.min(this.offset + this.trickle, this.length);
-      const c = this.chunk.slice(this.offset, end);
+      const c = this.chunk.subarray(this.offset, end);
       this.offset += c.length;
       this.emit('data', c);
       process.nextTick(emit);
