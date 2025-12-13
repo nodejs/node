@@ -17,14 +17,12 @@ mkdirSync(subdir);
 writeFileSync(join(tmpdir.path, 'file1.txt'), 'content1');
 writeFileSync(join(subdir, 'file2.txt'), 'content2');
 
-readdir(Buffer.from(tmpdir.path), { recursive: true }, common.mustCall((err, result) => {
-  assert.ifError(err);
+readdir(Buffer.from(tmpdir.path), { recursive: true }, common.mustSucceed((result) => {
   assert(Array.isArray(result));
   assert.strictEqual(result.length, 3);
 }));
 
-readdir(Buffer.from(tmpdir.path), { recursive: true, withFileTypes: true }, common.mustCall((err, result) => {
-  assert.ifError(err);
+readdir(Buffer.from(tmpdir.path), { recursive: true, withFileTypes: true }, common.mustSucceed((result) => {
   assert(Array.isArray(result));
   assert.strictEqual(result.length, 3);
 }));
