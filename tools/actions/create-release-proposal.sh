@@ -1,7 +1,5 @@
 #!/bin/sh
 
-set -xe
-
 GITHUB_REPOSITORY=${GITHUB_REPOSITORY:-nodejs/node}
 BOT_TOKEN=${BOT_TOKEN:-}
 
@@ -19,10 +17,16 @@ if [ -z "$GITHUB_REPOSITORY" ] || [ -z "$BOT_TOKEN" ]; then
   exit 1
 fi
 
-if ! command -v node || ! command -v gh || ! command -v git || ! command -v awk; then
-  echo "Missing required dependencies"
-  exit 1
-fi
+HAS_MISSING_DEPS=
+for dep in node gh git git-node awk; do
+  command -v "$dep" > /dev/null || {
+    echo "Required dependency $dep is missing" >&2
+    HAS_MISSING_DEPS=1
+  }
+done
+[ -z "$HAS_MISSING_DEPS" ] || exit 1
+
+set -xe
 
 git node release --prepare --skipBranchDiff --yes --releaseDate "$RELEASE_DATE"
 
