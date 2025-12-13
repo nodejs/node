@@ -115,6 +115,33 @@ describe('REPL completion in relation of getters', () => {
           ['objWithGetters[getGFooKey()].b', []],
         ]);
     });
+
+    test('no side effects are triggered for getters during completion', async () => {
+      const { replServer } = startNewREPLServer();
+
+      await new Promise((resolve, reject) => {
+        replServer.eval('const foo = { get name() { globalThis.nameGetterRun = true; throw new Error(); } };',
+                        replServer.context, '', (err) => {
+                          if (err) {
+                            reject(err);
+                          } else {
+                            resolve();
+                          }
+                        });
+      });
+
+      ['foo.name.', 'foo["name"].'].forEach((test) => {
+        replServer.complete(
+          test,
+          common.mustCall((error, data) => {
+            // The context's nameGetterRun variable hasn't been set
+            assert.strictEqual(replServer.context.nameGetterRun, undefined);
+            // No errors has been thrown
+            assert.strictEqual(error, null);
+          })
+        );
+      });
+    });
   });
 
   describe('completions on proxies', () => {
