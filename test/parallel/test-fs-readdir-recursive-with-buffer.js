@@ -4,9 +4,27 @@
 // Refs: https://github.com/nodejs/node/issues/58892
 
 const common = require('../common');
+const tmpdir = require('../common/tmpdir');
 
-const { readdir } = require('node:fs');
+const assert = require('node:assert');
+const { readdir, mkdirSync, writeFileSync } = require('node:fs');
 const { join } = require('node:path');
 
-const testDirPath = join(__dirname, '..', '..');
-readdir(Buffer.from(testDirPath), { recursive: true }, common.mustCall());
+tmpdir.refresh();
+
+const subdir = join(tmpdir.path, 'subdir');
+mkdirSync(subdir);
+writeFileSync(join(tmpdir.path, 'file1.txt'), 'content1');
+writeFileSync(join(subdir, 'file2.txt'), 'content2');
+
+readdir(Buffer.from(tmpdir.path), { recursive: true }, common.mustCall((err, result) => {
+  assert.ifError(err);
+  assert(Array.isArray(result));
+  assert.strictEqual(result.length, 3);
+}));
+
+readdir(Buffer.from(tmpdir.path), { recursive: true, withFileTypes: true }, common.mustCall((err, result) => {
+  assert.ifError(err);
+  assert(Array.isArray(result));
+  assert.strictEqual(result.length, 3);
+}));
