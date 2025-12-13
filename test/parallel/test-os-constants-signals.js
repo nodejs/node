@@ -1,5 +1,6 @@
 'use strict';
 
+require('../common');
 const { test } = require('node:test');
 const assert = require('node:assert');
 const { constants } = require('node:os');
