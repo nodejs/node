@@ -12,15 +12,13 @@
 #include "endpoint.h"
 #include "node_external_reference.h"
 
-namespace node {
+namespace node::quic {
 
 using v8::Context;
 using v8::Local;
 using v8::Object;
 using v8::ObjectTemplate;
 using v8::Value;
-
-namespace quic {
 
 void CreatePerIsolateProperties(IsolateData* isolate_data,
                                 Local<ObjectTemplate> target) {
@@ -47,8 +45,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   Stream::RegisterExternalReferences(registry);
 }
 
-}  // namespace quic
-}  // namespace node
+}  // namespace node::quic
 
 NODE_BINDING_CONTEXT_AWARE_INTERNAL(quic,
                                     node::quic::CreatePerContextProperties)
