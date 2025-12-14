@@ -323,7 +323,7 @@ void Int32Multiply::GenerateCode(MaglevAssembler* masm,
   __ Smull(out, left, right);
 
   // Making sure that the 32-bit output is zero-extended.
-  __ Move(out.W(), out.W());
+  __ Mov(out.W(), out.W());
 }
 
 void Int32MultiplyOverflownBits::SetValueLocationConstraints() {
@@ -468,7 +468,7 @@ void Int32MultiplyWithOverflow::GenerateCode(MaglevAssembler* masm,
 
   // Making sure that the 32-bit output is zero-extended (and moving it to the
   // right register if {out_alias_input} is true).
-  __ Move(out, res.W());
+  __ Mov(out, res.W());
 }
 
 void Int32DivideWithOverflow::SetValueLocationConstraints() {
@@ -536,7 +536,7 @@ void Int32DivideWithOverflow::GenerateCode(MaglevAssembler* masm,
   __ CompareAndBranch(temp, Immediate(0), ne,
                       __ GetDeoptLabel(this, DeoptimizeReason::kNotInt32));
 
-  __ Move(out, res);
+  __ Mov(out, res);
 }
 
 void Int32ModulusWithOverflow::SetValueLocationConstraints() {
