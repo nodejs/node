@@ -95,7 +95,7 @@
 #define GTEST_STRINGIFY_(...) GTEST_STRINGIFY_HELPER_(__VA_ARGS__, )
 
 namespace proto2 {
-class MessageLite;
+class [[nodiscard]] MessageLite;
 }
 
 namespace testing {
@@ -115,15 +115,15 @@ template <typename T>
 namespace internal {
 
 struct TraceInfo;    // Information about a trace point.
-class TestInfoImpl;  // Opaque implementation of TestInfo
-class UnitTestImpl;  // Opaque implementation of UnitTest
+class [[nodiscard]] TestInfoImpl;  // Opaque implementation of TestInfo
+class [[nodiscard]] UnitTestImpl;  // Opaque implementation of UnitTest
 
 // The text used in failure messages to indicate the start of the
 // stack trace.
 GTEST_API_ extern const char kStackTraceMarker[];
 
 // An IgnoredValue object can be implicitly constructed from ANY value.
-class IgnoredValue {
+class [[nodiscard]] IgnoredValue {
   struct Sink {};
 
  public:
@@ -155,7 +155,8 @@ GTEST_DISABLE_MSC_WARNINGS_PUSH_(
 // errors presumably detectable only at run time.  Since
 // std::runtime_error inherits from std::exception, many testing
 // frameworks know how to extract and print the message inside it.
-class GTEST_API_ GoogleTestFailureException : public ::std::runtime_error {
+class GTEST_API_ [[nodiscard]] GoogleTestFailureException
+    : public ::std::runtime_error {
  public:
   explicit GoogleTestFailureException(const TestPartResult& failure);
 };
@@ -242,7 +243,7 @@ GTEST_API_ std::string GetBoolAssertionFailureMessage(
 //
 //   RawType: the raw floating-point type (either float or double)
 template <typename RawType>
-class FloatingPoint {
+class [[nodiscard]] FloatingPoint {
  public:
   // Defines the unsigned integer type that has the same size as the
   // floating point number.
@@ -392,7 +393,7 @@ typedef FloatingPoint<double> Double;
 typedef const void* TypeId;
 
 template <typename T>
-class TypeIdHelper {
+class [[nodiscard]] TypeIdHelper {
  public:
   // dummy_ must not have a const type.  Otherwise an overly eager
   // compiler (e.g. MSVC 7.1 & 8.0) may try to merge
@@ -424,7 +425,7 @@ GTEST_API_ TypeId GetTestTypeId();
 
 // Defines the abstract factory interface that creates instances
 // of a Test object.
-class TestFactoryBase {
+class [[nodiscard]] TestFactoryBase {
  public:
   virtual ~TestFactoryBase() = default;
 
@@ -443,7 +444,7 @@ class TestFactoryBase {
 // This class provides implementation of TestFactoryBase interface.
 // It is used in TEST and TEST_F macros.
 template <class TestClass>
-class TestFactoryImpl : public TestFactoryBase {
+class [[nodiscard]] TestFactoryImpl : public TestFactoryBase {
  public:
   Test* CreateTest() override { return new TestClass; }
 };
@@ -570,7 +571,7 @@ GTEST_DISABLE_MSC_WARNINGS_PUSH_(4251 \
 /* class A needs to have dll-interface to be used by clients of class B */)
 
 // State of the definition of a type-parameterized test suite.
-class GTEST_API_ TypedTestSuitePState {
+class GTEST_API_ [[nodiscard]] TypedTestSuitePState {
  public:
   TypedTestSuitePState() : registered_(false) {}
 
@@ -685,7 +686,7 @@ std::vector<std::string> GenerateNames() {
 // Implementation note: The GTEST_TEMPLATE_ macro declares a template
 // template parameter.  It's defined in gtest-type-util.h.
 template <GTEST_TEMPLATE_ Fixture, class TestSel, typename Types>
-class TypeParameterizedTest {
+class [[nodiscard]] TypeParameterizedTest {
  public:
   // 'index' is the index of the test in the type list 'Types'
   // specified in INSTANTIATE_TYPED_TEST_SUITE_P(Prefix, TestSuite,
@@ -723,7 +724,7 @@ class TypeParameterizedTest {
 
 // The base case for the compile time recursion.
 template <GTEST_TEMPLATE_ Fixture, class TestSel>
-class TypeParameterizedTest<Fixture, TestSel, internal::None> {
+class [[nodiscard]] TypeParameterizedTest<Fixture, TestSel, internal::None> {
  public:
   static bool Register(const char* /*prefix*/, CodeLocation,
                        const char* /*case_name*/, const char* /*test_names*/,
@@ -744,7 +745,7 @@ GTEST_API_ void RegisterTypeParameterizedTestSuiteInstantiation(
 // Test.  The return value is insignificant - we just need to return
 // something such that we can call this function in a namespace scope.
 template <GTEST_TEMPLATE_ Fixture, typename Tests, typename Types>
-class TypeParameterizedTestSuite {
+class [[nodiscard]] TypeParameterizedTestSuite {
  public:
   static bool Register(const char* prefix, CodeLocation code_location,
                        const TypedTestSuitePState* state, const char* case_name,
@@ -782,7 +783,7 @@ class TypeParameterizedTestSuite {
 
 // The base case for the compile time recursion.
 template <GTEST_TEMPLATE_ Fixture, typename Types>
-class TypeParameterizedTestSuite<Fixture, internal::None, Types> {
+class [[nodiscard]] TypeParameterizedTestSuite<Fixture, internal::None, Types> {
  public:
   static bool Register(const char* /*prefix*/, const CodeLocation&,
                        const TypedTestSuitePState* /*state*/,
@@ -838,7 +839,7 @@ struct TrueWithString {
 // doesn't use global state (and therefore can't interfere with user
 // code).  Unlike rand_r(), it's portable.  An LCG isn't very random,
 // but it's good enough for our purposes.
-class GTEST_API_ Random {
+class GTEST_API_ [[nodiscard]] Random {
  public:
   static const uint32_t kMaxRange = 1u << 31;
 
@@ -864,7 +865,7 @@ class GTEST_API_ Random {
 // that's true if and only if T has methods DebugString() and ShortDebugString()
 // that return std::string.
 template <typename T>
-class HasDebugStringAndShortDebugString {
+class [[nodiscard]] HasDebugStringAndShortDebugString {
  private:
   template <typename C>
   static auto CheckDebugString(C*) -> typename std::is_same<
@@ -1064,7 +1065,7 @@ struct RelationToSourceCopy {};
 // this requirement.  Element can be an array type itself (hence
 // multi-dimensional arrays are supported).
 template <typename Element>
-class NativeArray {
+class [[nodiscard]] NativeArray {
  public:
   // STL-style container typedefs.
   typedef Element value_type;
@@ -1150,7 +1151,7 @@ struct ElemFromList {
 struct FlatTupleConstructTag {};
 
 template <typename... T>
-class FlatTuple;
+class [[nodiscard]] FlatTuple;
 
 template <typename Derived, size_t I>
 struct FlatTupleElemBase;
@@ -1209,7 +1210,7 @@ struct FlatTupleBase<FlatTuple<T...>, std::index_sequence<Idx...>>
 // std::make_index_sequence, on the other hand, it is recursive but with an
 // instantiation depth of O(ln(N)).
 template <typename... T>
-class FlatTuple
+class [[nodiscard]] FlatTuple
     : private FlatTupleBase<FlatTuple<T...>,
                             std::make_index_sequence<sizeof...(T)>> {
   using Indices =
@@ -1317,7 +1318,7 @@ struct tuple_size<testing::internal::FlatTuple<Ts...>>
 namespace testing {
 namespace internal {
 
-class NeverThrown {
+class [[nodiscard]] NeverThrown {
  public:
   const char* what() const noexcept {
     return "this exception should never be thrown";

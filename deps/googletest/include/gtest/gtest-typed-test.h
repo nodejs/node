@@ -45,7 +45,7 @@
 // First, define a fixture class template.  It should be parameterized
 // by a type.  Remember to derive it from testing::Test.
 template <typename T>
-class FooTest : public testing::Test {
+class [[nodiscard]] FooTest : public testing::Test {
  public:
   ...
   using List = ::std::list<T>;
@@ -123,7 +123,7 @@ TYPED_TEST(FooTest, HasPropertyA) { ... }
 // First, define a fixture class template.  It should be parameterized
 // by a type.  Remember to derive it from testing::Test.
 template <typename T>
-class FooTest : public testing::Test {
+class [[nodiscard]] FooTest : public testing::Test {
   ...
 };
 

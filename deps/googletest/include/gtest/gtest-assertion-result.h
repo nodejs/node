@@ -137,7 +137,7 @@ namespace testing {
 class [[nodiscard]] AssertionResult;
 #endif  // !SWIG
 
-class GTEST_API_ AssertionResult {
+class GTEST_API_ [[nodiscard]] AssertionResult {
  public:
   // Copy constructor.
   // Used in EXPECT_TRUE/FALSE(assertion_result).
