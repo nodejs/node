@@ -118,10 +118,9 @@ class Benchmark {
       const [, key, value] = match;
       if (configs[key] !== undefined) {
         cliOptions[key] ||= [];
-        cliOptions[key].push(
-          // Infer the type from the config object and parse accordingly
-          typeof configs[key][0] === 'number' ? +value : value,
-        );
+        const configType = typeof configs[key][0];
+        const configValue = configType === 'number' ? +value : configType === 'boolean' ? value === 'true' : value;
+        cliOptions[key].push(configValue);
       } else {
         extraOptions[key] = value;
       }
@@ -141,7 +140,7 @@ class Benchmark {
       const values = options[key];
 
       for (const value of values) {
-        if (typeof value !== 'number' && typeof value !== 'string') {
+        if (typeof value !== 'number' && typeof value !== 'string' && typeof value !== 'boolean') {
           throw new TypeError(
             `configuration "${key}" had type ${typeof value}`);
         }
