@@ -121,8 +121,39 @@
 
 /* single-code point definitions -------------------------------------------- */
 
+#ifndef U_HIDE_DRAFT_API
+
+/**
+ * Is c a Unicode code point U+0000..U+10FFFF?
+ * https://www.unicode.org/glossary/#code_point
+ *
+ * @param c 32-bit code point
+ * @return true or false
+ * @draft ICU 78
+ * @see AllCodePoints
+ * @see U_IS_SCALAR_VALUE
+ */
+#define U_IS_CODE_POINT(c) ((uint32_t)(c)<=0x10ffff)
+
+/**
+ * Is c a Unicode scalar value, that is, a non-surrogate code point?
+ * Only scalar values can be represented in well-formed UTF-8/16/32.
+ * https://www.unicode.org/glossary/#unicode_scalar_value
+ *
+ * @param c 32-bit code point
+ * @return true or false
+ * @draft ICU 78
+ * @see AllScalarValues
+ * @see U_IS_CODE_POINT
+ */
+#define U_IS_SCALAR_VALUE(c) ((uint32_t)(c)<0xd800 || (0xe000<=(c) && (c)<=0x10ffff))
+
+#endif  // U_HIDE_DRAFT_API
+
 /**
  * Is this code point a Unicode noncharacter?
+ * https://www.unicode.org/glossary/#noncharacter
+ *
  * @param c 32-bit code point
  * @return true or false
  * @stable ICU 2.4
@@ -150,7 +181,7 @@
  */
 #define U_IS_UNICODE_CHAR(c) \
     ((uint32_t)(c)<0xd800 || \
-        (0xdfff<(c) && (c)<=0x10ffff && !U_IS_UNICODE_NONCHAR(c)))
+        (0xe000<=(c) && (c)<=0x10ffff && !U_IS_UNICODE_NONCHAR(c)))
 
 /**
  * Is this code point a BMP code point (U+0000..U+ffff)?

@@ -46,8 +46,9 @@ RequireDecimalSeparatorValidator::RequireDecimalSeparatorValidator(bool patternH
 }
 
 void RequireDecimalSeparatorValidator::postProcess(ParsedNumber& result) const {
+    bool parseIsInfNaN = 0 != (result.flags & FLAG_INFINITY) || 0 != (result.flags & FLAG_NAN);
     bool parseHasDecimalSeparator = 0 != (result.flags & FLAG_HAS_DECIMAL_SEPARATOR);
-    if (parseHasDecimalSeparator != fPatternHasDecimalSeparator) {
+    if (!parseIsInfNaN && parseHasDecimalSeparator != fPatternHasDecimalSeparator) {
         result.flags |= FLAG_FAIL;
     }
 }

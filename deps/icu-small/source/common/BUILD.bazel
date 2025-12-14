@@ -64,6 +64,7 @@ cc_library(
         "umutex.cpp",
         "sharedobject.cpp",
         "utrace.cpp",
+        "fixedstring.cpp",
     ],
     deps = [
         ":headers",

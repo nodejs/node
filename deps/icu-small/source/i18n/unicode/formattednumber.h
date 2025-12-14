@@ -175,7 +175,6 @@ class U_I18N_API FormattedNumber : public UMemory, public FormattedValue {
 
     /**
      * Internal constructor from data type. Adopts the data pointer.
-     * @internal (private)
      */
     explicit FormattedNumber(impl::UFormattedNumberData *results)
         : fData(results), fErrorCode(U_ZERO_ERROR) {}

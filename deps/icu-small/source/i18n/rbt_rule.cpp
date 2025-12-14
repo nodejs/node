@@ -50,7 +50,7 @@ U_NAMESPACE_BEGIN
  * segments, or null if there are none.  The array itself is adopted,
  * but the pointers within it are not.
  * @param segsCount number of elements in segs[]
- * @param anchorStart true if the the rule is anchored on the left to
+ * @param anchorStart true if the rule is anchored on the left to
  * the context start
  * @param anchorEnd true if the rule is anchored on the right to the
  * context limit
