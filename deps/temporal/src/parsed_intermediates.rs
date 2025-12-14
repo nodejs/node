@@ -24,6 +24,9 @@ use ixdtf::records::UtcOffsetRecordOrZ;
 fn extract_kind(calendar: Option<&[u8]>) -> TemporalResult<AnyCalendarKind> {
     Ok(calendar
         .map(Calendar::try_kind_from_utf8)
+        // Note that this will successfully parse AnyCalendarKind::HijriSimulatedMecca
+        // However, Calendar::new will immediately turn it into an ISO calendar,
+        // so we don't need to do anything here.
         .transpose()?
         .unwrap_or(AnyCalendarKind::Iso))
 }
@@ -129,7 +132,7 @@ impl ParsedZonedDateTime {
     /// Converts a UTF-8 encoded string into a `ParsedZonedDateTime`.
     pub fn from_utf8_with_provider(
         source: &[u8],
-        provider: &impl TimeZoneProvider,
+        provider: &(impl TimeZoneProvider + ?Sized),
     ) -> TemporalResult<Self> {
         // Steps from the parse bits of of ToZonedDateTime
 

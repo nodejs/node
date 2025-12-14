@@ -4,7 +4,8 @@ use core::fmt;
 use ixdtf::ParseError;
 use timezone_provider::TimeZoneProviderError;
 
-use icu_calendar::DateError;
+use icu_calendar::cal::AnyCalendarDifferenceError;
+use icu_calendar::error::{DateError, DateFromFieldsError, RangeError};
 
 /// `TemporalError`'s error type.
 #[derive(Debug, Default, Clone, Copy, PartialEq)]
@@ -153,6 +154,23 @@ impl From<DateError> for TemporalError {
     }
 }
 
+impl From<DateFromFieldsError> for TemporalError {
+    fn from(error: DateFromFieldsError) -> Self {
+        let kind = if error == DateFromFieldsError::NotEnoughFields {
+            ErrorKind::Type
+        } else {
+            ErrorKind::Range
+        };
+        TemporalError::new(kind).with_enum(ErrorMessage::Icu4xDateFromFields(error))
+    }
+}
+
+impl From<AnyCalendarDifferenceError> for TemporalError {
+    fn from(error: AnyCalendarDifferenceError) -> Self {
+        TemporalError::range().with_enum(ErrorMessage::Icu4xUntil(error))
+    }
+}
+
 impl From<ParseError> for TemporalError {
     fn from(error: ParseError) -> Self {
         TemporalError::range().with_enum(ErrorMessage::Ixdtf(error))
@@ -168,6 +186,7 @@ pub(crate) enum ErrorMessage {
     ZDTOutOfDayBounds,
     LargestUnitCannotBeDateUnit,
     DateOutOfRange,
+    DurationNotValid,
 
     // Numerical errors
     NumberNotFinite,
@@ -206,6 +225,8 @@ pub(crate) enum ErrorMessage {
     String(&'static str),
     Ixdtf(ParseError),
     Icu4xDate(DateError),
+    Icu4xDateFromFields(DateFromFieldsError),
+    Icu4xUntil(AnyCalendarDifferenceError),
 }
 
 impl ErrorMessage {
@@ -218,6 +239,7 @@ impl ErrorMessage {
             Self::ZDTOutOfDayBounds => "ZonedDateTime is outside the expected day bounds",
             Self::LargestUnitCannotBeDateUnit => "Largest unit cannot be a date unit",
             Self::DateOutOfRange => "Date is not within ISO date time limits.",
+            Self::DurationNotValid => "Duration was not valid.",
             Self::NumberNotFinite => "number value is not a finite value.",
             Self::NumberNotIntegral => "value must be integral.",
             Self::NumberNotPositive => "integer must be positive.",
@@ -250,15 +272,42 @@ impl ErrorMessage {
             Self::None => "",
             Self::String(s) => s,
             Self::Ixdtf(s) => ixdtf_error_to_static_string(s),
-            Self::Icu4xDate(DateError::Range { field, .. }) => match field {
-                "year" => "Year out of range.",
-                "month" => "Month out of range.",
-                "day" => "Day out of range.",
-                _ => "Field out of range.",
-            },
-            Self::Icu4xDate(DateError::UnknownEra) => "Unknown era.",
+            Self::Icu4xDate(DateError::Range { field, .. })
+            | Self::Icu4xDateFromFields(DateFromFieldsError::Range(RangeError { field, .. })) => {
+                match field {
+                    "year" => "Year out of range.",
+                    "month" => "Month out of range.",
+                    "day" => "Day out of range.",
+                    _ => "Field out of range.",
+                }
+            }
+            Self::Icu4xDate(DateError::UnknownEra)
+            | Self::Icu4xDateFromFields(DateFromFieldsError::UnknownEra) => "Unknown era.",
             Self::Icu4xDate(DateError::UnknownMonthCode(..)) => "Unknown month code.",
+            Self::Icu4xDateFromFields(DateFromFieldsError::MonthCodeInvalidSyntax) => {
+                "Invalid month code."
+            }
+            Self::Icu4xDateFromFields(DateFromFieldsError::MonthCodeNotInCalendar) => {
+                "Month code not in calendar."
+            }
+            Self::Icu4xDateFromFields(DateFromFieldsError::MonthCodeNotInYear) => {
+                "Month code not in year."
+            }
+            Self::Icu4xDateFromFields(DateFromFieldsError::InconsistentYear) => {
+                "Inconsistent year."
+            }
+            Self::Icu4xDateFromFields(DateFromFieldsError::InconsistentMonth) => {
+                "Inconsistent month/monthCode."
+            }
+            Self::Icu4xDateFromFields(DateFromFieldsError::NotEnoughFields) => {
+                "Insufficient fields."
+            }
             Self::Icu4xDate(_) => "Date error.",
+            Self::Icu4xDateFromFields(_) => "Date error.",
+            Self::Icu4xUntil(AnyCalendarDifferenceError::MismatchedCalendars) => {
+                "Mismatched calendars."
+            }
+            Self::Icu4xUntil(_) => "Arithmetic error.",
         }
     }
 }
@@ -294,7 +343,7 @@ pub fn ixdtf_error_to_static_string(error: ParseError) -> &'static str {
 
         ParseError::InvalidDayRange => "Parsed day value not in a valid range.",
 
-        ParseError::DateYear => "Invalid chracter while parsing year value.",
+        ParseError::DateYear => "Invalid character while parsing year value.",
 
         ParseError::DateExtendedYear => "Invalid character while parsing extended year value.",
 
