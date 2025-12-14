@@ -56,21 +56,12 @@ typedef struct nghttp3_ksl_blk nghttp3_ksl_blk;
 /*
  * nghttp3_ksl_node is a node which contains either nghttp3_ksl_blk or
  * opaque data.  If a node is an internal node, it contains
- * nghttp3_ksl_blk.  Otherwise, it has data.  The key is stored at the
- * location starting at key.
+ * nghttp3_ksl_blk.  Otherwise, it has data.
  */
 struct nghttp3_ksl_node {
   union {
     nghttp3_ksl_blk *blk;
     void *data;
-  };
-  union {
-    uint64_t align;
-    /* key is a buffer to include key associated to this node.
-       Because the length of key is unknown until nghttp3_ksl_init is
-       called, the actual buffer will be allocated after this
-       field. */
-    uint8_t key[1];
   };
 };
 
@@ -89,14 +80,14 @@ struct nghttp3_ksl_blk {
       uint32_t n;
       /* leaf is nonzero if this block contains leaf nodes. */
       uint32_t leaf;
+      nghttp3_ksl_node nodes[NGHTTP3_KSL_MAX_NBLK];
       union {
         uint64_t align;
-        /* nodes is a buffer to contain NGHTTP3_KSL_MAX_NBLK
-           nghttp3_ksl_node objects.  Because nghttp3_ksl_node object
-           is allocated along with the additional variable length key
-           storage, the size of buffer is unknown until
-           nghttp3_ksl_init is called. */
-        uint8_t nodes[1];
+        /* keys is a buffer to include NGHTTP3_KSL_MAX_NBLK keys.
+           Because the length of key is unknown until nghttp3_ksl_init
+           is called, the actual buffer will be allocated after this
+           field. */
+        uint8_t keys[1];
       };
     };
 
@@ -134,11 +125,10 @@ typedef size_t (*nghttp3_ksl_search)(const nghttp3_ksl *ksl,
                                     nghttp3_ksl_blk *blk,                      \
                                     const nghttp3_ksl_key *key) {              \
     size_t i;                                                                  \
-    nghttp3_ksl_node *node;                                                    \
+    uint8_t *node_key;                                                         \
                                                                                \
-    for (i = 0, node = (nghttp3_ksl_node *)(void *)blk->nodes;                 \
-         i < blk->n && COMPAR((nghttp3_ksl_key *)node->key, key); ++i,         \
-        node = (nghttp3_ksl_node *)(void *)((uint8_t *)node + ksl->nodelen))   \
+    for (i = 0, node_key = blk->keys; i < blk->n && COMPAR(node_key, key);     \
+         ++i, node_key += ksl->aligned_keylen)                                 \
       ;                                                                        \
                                                                                \
     return i;                                                                  \
@@ -172,9 +162,7 @@ struct nghttp3_ksl {
   size_t n;
   /* keylen is the size of key */
   size_t keylen;
-  /* nodelen is the actual size of nghttp3_ksl_node including key
-     storage. */
-  size_t nodelen;
+  size_t aligned_keylen;
 };
 
 /*
@@ -293,12 +281,12 @@ size_t nghttp3_ksl_len(const nghttp3_ksl *ksl);
 void nghttp3_ksl_clear(nghttp3_ksl *ksl);
 
 /*
- * nghttp3_ksl_nth_node returns the |n|th node under |blk|.
+ * nghttp3_ksl_nth_key returns the |n|th key under |blk|.
  */
-static inline nghttp3_ksl_node *nghttp3_ksl_nth_node(const nghttp3_ksl *ksl,
-                                                     const nghttp3_ksl_blk *blk,
-                                                     size_t n) {
-  return (nghttp3_ksl_node *)(void *)(blk->nodes + ksl->nodelen * n);
+static inline const nghttp3_ksl_key *
+nghttp3_ksl_nth_key(const nghttp3_ksl *ksl, const nghttp3_ksl_blk *blk,
+                    size_t n) {
+  return blk->keys + n * ksl->aligned_keylen;
 }
 
 #ifndef WIN32
@@ -322,7 +310,7 @@ void nghttp3_ksl_it_init(nghttp3_ksl_it *it, const nghttp3_ksl *ksl,
  * nghttp3_ksl_it_end(it) returns nonzero.
  */
 static inline void *nghttp3_ksl_it_get(const nghttp3_ksl_it *it) {
-  return nghttp3_ksl_nth_node(it->ksl, it->blk, it->i)->data;
+  return it->blk->nodes[it->i].data;
 }
 
 /*
@@ -364,8 +352,9 @@ int nghttp3_ksl_it_begin(const nghttp3_ksl_it *it);
  * It is undefined to call this function when nghttp3_ksl_it_end(it)
  * returns nonzero.
  */
-static inline nghttp3_ksl_key *nghttp3_ksl_it_key(const nghttp3_ksl_it *it) {
-  return (nghttp3_ksl_key *)nghttp3_ksl_nth_node(it->ksl, it->blk, it->i)->key;
+static inline const nghttp3_ksl_key *
+nghttp3_ksl_it_key(const nghttp3_ksl_it *it) {
+  return nghttp3_ksl_nth_key(it->ksl, it->blk, it->i);
 }
 
 /*

@@ -125,8 +125,7 @@ static void delete_out_chunks(nghttp3_ringbuf *chunks,
     buf = nghttp3_ringbuf_get(chunks, i);
 
     if (nghttp3_buf_cap(buf) == NGHTTP3_STREAM_MIN_CHUNK_SIZE) {
-      nghttp3_objalloc_chunk_release(out_chunk_objalloc,
-                                     (nghttp3_chunk *)(void *)buf->begin);
+      nghttp3_objalloc_chunk_release(out_chunk_objalloc, (void *)buf->begin);
       continue;
     }
 
@@ -946,7 +945,7 @@ static void stream_pop_outq_entry(nghttp3_stream *stream,
     if (chunk->last == tbuf->buf.last) {
       if (nghttp3_buf_cap(chunk) == NGHTTP3_STREAM_MIN_CHUNK_SIZE) {
         nghttp3_objalloc_chunk_release(stream->out_chunk_objalloc,
-                                       (nghttp3_chunk *)(void *)chunk->begin);
+                                       (void *)chunk->begin);
       } else {
         nghttp3_buf_free(chunk, stream->mem);
       }
@@ -955,7 +954,7 @@ static void stream_pop_outq_entry(nghttp3_stream *stream,
     break;
   default:
     nghttp3_unreachable();
-  };
+  }
 
   nghttp3_ringbuf_pop_front(&stream->outq);
 }

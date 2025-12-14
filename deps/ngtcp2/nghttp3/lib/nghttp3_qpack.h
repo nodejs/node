@@ -261,6 +261,9 @@ struct nghttp3_qpack_encoder {
   /* uninterrupted_decoderlen is the number of bytes read from decoder
      stream without encoding a single field section. */
   size_t uninterrupted_decoderlen;
+  /* indexing_strat is the indexing strategy for fields not defined in
+     nghttp3_qpack_token. */
+  nghttp3_qpack_indexing_strat indexing_strat;
   /* flags is bitwise OR of zero or more of
      NGHTTP3_QPACK_ENCODER_FLAG_*. */
   uint8_t flags;
