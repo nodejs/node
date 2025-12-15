@@ -179,3 +179,22 @@ const expected10 = '[Function (anonymous)]';
 const expected11 = '[Function (anonymous)]';
 assert.strictEqual(util.inspect(proxy10), expected10);
 assert.strictEqual(util.inspect(proxy11), expected11);
+
+// Regression test for https://github.com/nodejs/node/issues/61061
+{
+  const throwingProxy = new Proxy({}, {
+    get() {
+      throw new EvalError('boom');
+    }
+  });
+
+  const nestedThrowingProxy = new Proxy(throwingProxy, {});
+
+  // showProxy: false must NOT trigger proxy traps
+  // Directly inspect proxies; it should not throw
+  const result1 = util.inspect(throwingProxy, { showProxy: false });
+  assert.strictEqual(result1, '{}');
+
+  const result2 = util.inspect(nestedThrowingProxy, { showProxy: false });
+  assert.strictEqual(result2, '{}');
+}
