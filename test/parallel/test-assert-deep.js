@@ -779,6 +779,19 @@ test('Additional tests', () => {
 
   assertNotDeepOrStrict(new Date(), new Date(2000, 3, 14));
 
+  {
+    // Invalid dates deep comparison.
+    const date1 = new Date('foo');
+    const date2 = new Date('bar');
+    date1.foo = true;
+    date2.foo = true;
+    assertDeepAndStrictEqual(date1, date2);
+
+    date1.bar = false;
+    date2.bar = true;
+    assertNotDeepOrStrict(date1, date2);
+  }
+
   assertDeepAndStrictEqual(/a/, /a/);
   assertDeepAndStrictEqual(/a/g, /a/g);
   assertDeepAndStrictEqual(/a/i, /a/i);
