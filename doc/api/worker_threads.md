@@ -2232,17 +2232,17 @@ thread spawned will spawn another until the application crashes.
 [`ERR_WORKER_NOT_RUNNING`]: errors.md#err_worker_not_running
 [`FileHandle`]: fs.md#class-filehandle
 [`MessagePort`]: #class-messageport
-[`WebAssembly.Module`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/Module
+[`WebAssembly.Module`]: https://developer.mozilla.org/en-US/docs/WebAssembly/Reference/JavaScript_interface/Module
 [`Worker constructor options`]: #new-workerfilename-options
 [`Worker`]: #class-worker
-[`data:` URL]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
+[`data:` URL]: https://developer.mozilla.org/en-US/docs/Web/URI/Reference/Schemes/data
 [`fs.close()`]: fs.md#fsclosefd-callback
 [`fs.open()`]: fs.md#fsopenpath-flags-mode-callback
 [`markAsUntransferable()`]: #worker_threadsmarkasuntransferableobject
 [`node:cluster` module]: cluster.md
 [`perf_hooks` `eventLoopUtilization()`]: perf_hooks.md#perf_hookseventlooputilizationutilization1-utilization2
 [`port.on('message')`]: #event-message
-[`port.onmessage()`]: https://developer.mozilla.org/en-US/docs/Web/API/MessagePort/onmessage
+[`port.onmessage()`]: https://developer.mozilla.org/en-US/docs/Web/API/MessagePort/message_event
 [`port.postMessage()`]: #portpostmessagevalue-transferlist
 [`process.abort()`]: process.md#processabort
 [`process.chdir()`]: process.md#processchdirdirectory
