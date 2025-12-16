@@ -3858,7 +3858,7 @@ npx codemod@latest @nodejs/util-is
 [`mime.toString()`]: #mimetostring
 [`mimeParams.entries()`]: #mimeparamsentries
 [`napi_create_external()`]: n-api.md#napi_create_external
-[`target` and `handler`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy#Terminology
+[`target` and `handler`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy#terminology
 [`tty.hasColors()`]: tty.md#writestreamhascolorscount-env
 [`util.diff()`]: #utildiffactual-expected
 [`util.format()`]: #utilformatformat-args
@@ -3869,7 +3869,7 @@ npx codemod@latest @nodejs/util-is
 [`util.types.isSharedArrayBuffer()`]: #utiltypesissharedarraybuffervalue
 [async function]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/async_function
 [built-in `Error` type]: https://tc39.es/ecma262/#sec-error-objects
-[compare function]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/sort#Parameters
+[compare function]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/sort#parameters
 [constructor]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/constructor
 [default sort]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/sort
 [global symbol registry]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Symbol/for

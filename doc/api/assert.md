@@ -2443,7 +2443,7 @@ assert.partialDeepStrictEqual(
 // AssertionError
 ```
 
-[Object wrappers]: https://developer.mozilla.org/en-US/docs/Glossary/Primitive#Primitive_wrapper_objects_in_JavaScript
+[Object wrappers]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Data_structures#primitive_values
 [Object.prototype.toString()]: https://tc39.github.io/ecma262/#sec-object.prototype.tostring
 [`!=` operator]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Inequality
 [`===` operator]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Strict_equality
@@ -2464,5 +2464,5 @@ assert.partialDeepStrictEqual(
 [`assert.strictEqual()`]: #assertstrictequalactual-expected-message
 [`assert.throws()`]: #assertthrowsfn-error-message
 [`getColorDepth()`]: tty.md#writestreamgetcolordepthenv
-[enumerable "own" properties]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Enumerability_and_ownership_of_properties
+[enumerable "own" properties]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Enumerability_and_ownership_of_properties
 [prototype-spec]: https://tc39.github.io/ecma262/#sec-ordinary-object-internal-methods-and-internal-slots
