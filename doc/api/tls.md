@@ -1730,6 +1730,10 @@ changes:
     **Default:** `1024`.
   * `highWaterMark` {number} Consistent with the readable stream `highWaterMark` parameter.
     **Default:** `16 * 1024`.
+  * `timeout` {number} Sets the socket to timeout after `timeout` milliseconds
+    of inactivity. By default, no timeout is set. This option is supported
+    because `tls.connect()` internally uses [`net.createConnection()`][]
+    and is equivalent to calling [`socket.setTimeout()`][] on the returned socket.
   * `secureContext`: TLS context object created with
     [`tls.createSecureContext()`][]. If a `secureContext` is _not_ provided, one
     will be created by passing the entire `options` object to
@@ -1740,7 +1744,7 @@ changes:
     `onread` option of [`net.Socket`][] for details.
   * ...: [`tls.createSecureContext()`][] options that are used if the
     `secureContext` option is missing, otherwise they are ignored.
-  * ...: Any [`socket.connect()`][] option not already listed.
+  * ...: Any [`net.createConnection()`][] option not already listed.
 * `callback` {Function}
 * Returns: {tls.TLSSocket}
 
@@ -2473,12 +2477,13 @@ added: v0.11.3
 [`net.Server.address()`]: net.md#serveraddress
 [`net.Server`]: net.md#class-netserver
 [`net.Socket`]: net.md#class-netsocket
+[`net.createConnection()`]: https://nodejs.org/api/net.html#net_net_createconnection_options_callback
 [`net.createServer()`]: net.md#netcreateserveroptions-connectionlistener
 [`server.addContext()`]: #serveraddcontexthostname-context
 [`server.getTicketKeys()`]: #servergetticketkeys
 [`server.listen()`]: net.md#serverlisten
 [`server.setTicketKeys()`]: #serversetticketkeyskeys
-[`socket.connect()`]: net.md#socketconnectoptions-connectlistener
+[`socket.setTimeout()`]: https://nodejs.org/api/net.html#socketsettimeouttimeout-callback
 [`tls.DEFAULT_ECDH_CURVE`]: #tlsdefault_ecdh_curve
 [`tls.DEFAULT_MAX_VERSION`]: #tlsdefault_max_version
 [`tls.DEFAULT_MIN_VERSION`]: #tlsdefault_min_version
