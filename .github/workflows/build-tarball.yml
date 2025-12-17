@@ -138,4 +138,4 @@ jobs:
       - name: Build
         run: make -C "$TAR_DIR" build-ci -j4 V=1
       - name: Test
-        run: make -C "$TAR_DIR" run-ci -j4 V=1 TEST_CI_ARGS="-p dots --measure-flakiness 9"
+        run: make -C "$TAR_DIR" test-ci -j1 V=1 TEST_CI_ARGS="-p dots --measure-flakiness 9"
