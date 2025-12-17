@@ -2069,6 +2069,7 @@ def configure_v8(o, configs):
   if sys.platform != 'darwin':
     if o['variables']['v8_enable_webassembly'] and o['variables']['target_arch'] == 'x64':
       o['variables']['v8_enable_wasm_simd256_revec'] = 1
+  o['variables']['v8_enable_verify_write_barriers'] = 1 if options.debug else 0
 
 def configure_openssl(o):
   variables = o['variables']
