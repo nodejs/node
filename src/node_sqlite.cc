@@ -309,7 +309,7 @@ class CustomAggregate {
   static inline void xStepBase(sqlite3_context* ctx,
                                int argc,
                                sqlite3_value** argv,
-                               Global<Function> CustomAggregate::*mptr) {
+                               Global<Function> CustomAggregate::* mptr) {
     CustomAggregate* self =
         static_cast<CustomAggregate*>(sqlite3_user_data(ctx));
     Environment* env = self->env_;
@@ -2947,7 +2947,7 @@ BaseObjectPtr<StatementSync> SQLTagStore::PrepareStatement(
         session->database_->connection_, sql.data(), sql.size(), &s, 0);
 
     if (r != SQLITE_OK) {
-      THROW_ERR_SQLITE_ERROR(isolate, "Failed to prepare statement");
+      THROW_ERR_SQLITE_ERROR(isolate, session->database_.get());
       sqlite3_finalize(s);
       return BaseObjectPtr<StatementSync>();
     }
