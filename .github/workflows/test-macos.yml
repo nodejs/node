@@ -127,7 +127,7 @@ jobs:
       - name: Free Space After Build
         run: df -h
       - name: Test
-        run: make -C node run-ci -j$(getconf _NPROCESSORS_ONLN) V=1 TEST_CI_ARGS="-p actions --measure-flakiness 9"
+        run: make -C node test-ci -j1 V=1 TEST_CI_ARGS="-p actions --measure-flakiness 9"
       - name: Re-run test in a folder whose name contains unusual chars
         run: |
           mv node "$DIR"
