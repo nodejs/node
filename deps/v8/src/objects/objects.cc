@@ -3937,6 +3937,9 @@ void DescriptorArray::Initialize(Tagged<EnumCache> empty_enum_cache,
   set_enum_cache(empty_enum_cache, SKIP_WRITE_BARRIER);
   set_flags(FastIterableBits::encode(FastIterableState::kUnknown),
             kRelaxedStore);
+#if TAGGED_SIZE_8_BYTES
+  set_optional_padding(0);
+#endif
   MemsetTagged(GetDescriptorSlot(0), undefined_value,
                number_of_all_descriptors() * kEntrySize);
 }
