@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.34.5](https://github.com/nodejs/corepack/compare/v0.34.4...v0.34.5) (2025-11-24)
+
+
+### Bug Fixes
+
+* **pnpm:** fix bin path for v11 ([#776](https://github.com/nodejs/corepack/issues/776)) ([0c8048a](https://github.com/nodejs/corepack/commit/0c8048adc61651f6eb798448675d3ecc4a7e26a9))
+* update package manager versions ([#773](https://github.com/nodejs/corepack/issues/773)) ([06c286b](https://github.com/nodejs/corepack/commit/06c286b5fc171e43090b5eed5cd501bc9580927f))
+
+## [0.34.4](https://github.com/nodejs/corepack/compare/v0.34.3...v0.34.4) (2025-11-14)
+
+
+### Bug Fixes
+
+* bump pnpm version in `config.json` ([#768](https://github.com/nodejs/corepack/issues/768)) ([99a9a6e](https://github.com/nodejs/corepack/commit/99a9a6eb1b6e918ceb896b3d558bb5ed583bdc70))
+* ignore devEngines version range when CLI provides a version ([#762](https://github.com/nodejs/corepack/issues/762)) ([ac518c4](https://github.com/nodejs/corepack/commit/ac518c4106f8d9ceb4e85e6c3614b1eba5d03fcb))
+* use `lstatSync` in `generatePosixLink` ([#767](https://github.com/nodejs/corepack/issues/767)) ([a02bea0](https://github.com/nodejs/corepack/commit/a02bea078eb584ed7492ec561626987e35386bae))
+
+## [0.34.3](https://github.com/nodejs/corepack/compare/v0.34.2...v0.34.3) (2025-11-07)
+
+
+### Bug Fixes
+
+* update package manager versions ([#765](https://github.com/nodejs/corepack/issues/765)) ([13a2e98](https://github.com/nodejs/corepack/commit/13a2e989ee37694a7ec1b1d60acdaa28f90642d1))
+* Yarn switch install support and tests ([#761](https://github.com/nodejs/corepack/issues/761)) ([d04d483](https://github.com/nodejs/corepack/commit/d04d4839aeecaf4fca989c577f6c000dc90be933))
+
 ## [0.34.2](https://github.com/nodejs/corepack/compare/v0.34.1...v0.34.2) (2025-10-31)
 
 

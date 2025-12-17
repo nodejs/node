@@ -718,12 +718,11 @@ inline bool IsWindowsBatchFile(const char* filename) {
   return !extension.empty() && (extension == "cmd" || extension == "bat");
 }
 
-inline std::wstring ConvertToWideString(const std::string& str,
-                                        UINT code_page) {
+inline std::wstring ConvertUTF8ToWideString(const std::string& str) {
   int size_needed = MultiByteToWideChar(
-      code_page, 0, &str[0], static_cast<int>(str.size()), nullptr, 0);
+      CP_UTF8, 0, &str[0], static_cast<int>(str.size()), nullptr, 0);
   std::wstring wstrTo(size_needed, 0);
-  MultiByteToWideChar(code_page,
+  MultiByteToWideChar(CP_UTF8,
                       0,
                       &str[0],
                       static_cast<int>(str.size()),
@@ -731,6 +730,59 @@ inline std::wstring ConvertToWideString(const std::string& str,
                       size_needed);
   return wstrTo;
 }
+
+std::string ConvertWideStringToUTF8(const std::wstring& wstr) {
+  if (wstr.empty()) return std::string();
+
+  int size_needed = WideCharToMultiByte(CP_UTF8,
+                                        0,
+                                        &wstr[0],
+                                        static_cast<int>(wstr.size()),
+                                        nullptr,
+                                        0,
+                                        nullptr,
+                                        nullptr);
+  std::string strTo(size_needed, 0);
+  WideCharToMultiByte(CP_UTF8,
+                      0,
+                      &wstr[0],
+                      static_cast<int>(wstr.size()),
+                      &strTo[0],
+                      size_needed,
+                      nullptr,
+                      nullptr);
+  return strTo;
+}
+
+template <typename T, size_t kStackStorageSize>
+std::filesystem::path MaybeStackBuffer<T, kStackStorageSize>::ToPath() const {
+  std::wstring wide_path = ConvertUTF8ToWideString(ToString());
+  return std::filesystem::path(wide_path);
+}
+
+std::string ConvertPathToUTF8(const std::filesystem::path& path) {
+  return ConvertWideStringToUTF8(path.wstring());
+}
+
+std::string ConvertGenericPathToUTF8(const std::filesystem::path& path) {
+  return ConvertWideStringToUTF8(path.generic_wstring());
+}
+
+#else  // _WIN32
+
+template <typename T, size_t kStackStorageSize>
+std::filesystem::path MaybeStackBuffer<T, kStackStorageSize>::ToPath() const {
+  return std::filesystem::path(ToStringView());
+}
+
+std::string ConvertPathToUTF8(const std::filesystem::path& path) {
+  return path.native();
+}
+
+std::string ConvertGenericPathToUTF8(const std::filesystem::path& path) {
+  return path.generic_string();
+}
+
 #endif  // _WIN32
 
 inline v8::MaybeLocal<v8::Object> NewDictionaryInstance(

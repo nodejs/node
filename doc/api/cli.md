@@ -263,6 +263,36 @@ When passing a single flag with a comma a warning will be displayed.
 
 Examples can be found in the [File System Permissions][] documentation.
 
+### `--allow-inspector`
+
+<!-- YAML
+added: v24.12.0
+-->
+
+> Stability: 1.0 - Early development
+
+When using the [Permission Model][], the process will not be able to connect
+through inspector protocol.
+
+Attempts to do so will throw an `ERR_ACCESS_DENIED` unless the
+user explicitly passes the `--allow-inspector` flag when starting Node.js.
+
+Example:
+
+```js
+const { Session } = require('node:inspector/promises');
+
+const session = new Session();
+session.connect();
+```
+
+```console
+$ node --permission index.js
+Error: connect ERR_ACCESS_DENIED Access to this API has been restricted. Use --allow-inspector to manage permissions.
+  code: 'ERR_ACCESS_DENIED',
+}
+```
+
 ### `--allow-wasi`
 
 <!-- YAML
@@ -1875,7 +1905,7 @@ enables it.
 <!-- YAML
 added: v22.6.0
 changes:
-  - version: REPLACEME
+  - version: v24.12.0
     pr-url: https://github.com/nodejs/node/pull/60600
     description: Type stripping is now stable.
   - version:
@@ -3382,6 +3412,7 @@ one is included in the list below.
 * `--allow-child-process`
 * `--allow-fs-read`
 * `--allow-fs-write`
+* `--allow-inspector`
 * `--allow-wasi`
 * `--allow-worker`
 * `--conditions`, `-C`

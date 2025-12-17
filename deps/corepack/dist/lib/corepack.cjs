@@ -21677,7 +21677,7 @@ function String2(descriptor, ...args) {
 }
 
 // package.json
-var version = "0.34.2";
+var version = "0.34.5";
 
 // sources/Engine.ts
 var import_fs6 = __toESM(require("fs"));
@@ -21691,7 +21691,7 @@ var import_valid4 = __toESM(require_valid2());
 var config_default = {
   definitions: {
     npm: {
-      default: "11.6.2+sha1.2af8ff1f23b279df1e5289db7c70cfedd0fe18c5",
+      default: "11.6.3+sha1.3f581bca37cbdadf2be04346c0e5b0be96cdd54b",
       fetchLatestFrom: {
         type: "npm",
         package: "npm"
@@ -21728,7 +21728,7 @@ var config_default = {
       }
     },
     pnpm: {
-      default: "10.20.0+sha1.a9bfe8cf88011d4758e1acbeb0da8883ecbd52ce",
+      default: "10.23.0+sha1.b4a44ab0dc2adf2e36371d11d8eb0dc78ffc976c",
       fetchLatestFrom: {
         type: "npm",
         package: "pnpm"
@@ -21766,11 +21766,28 @@ var config_default = {
             ]
           }
         },
-        ">=6.0.0": {
+        "6.x || 7.x || 8.x || 9.x || 10.x": {
           url: "https://registry.npmjs.org/pnpm/-/pnpm-{}.tgz",
           bin: {
             pnpm: "./bin/pnpm.cjs",
             pnpx: "./bin/pnpx.cjs"
+          },
+          registry: {
+            type: "npm",
+            package: "pnpm"
+          },
+          commands: {
+            use: [
+              "pnpm",
+              "install"
+            ]
+          }
+        },
+        ">=11.0.0": {
+          url: "https://registry.npmjs.org/pnpm/-/pnpm-{}.tgz",
+          bin: {
+            pnpm: "./bin/pnpm.mjs",
+            pnpx: "./bin/pnpx.mjs"
           },
           registry: {
             type: "npm",
@@ -21792,7 +21809,7 @@ var config_default = {
         package: "yarn"
       },
       transparent: {
-        default: "4.10.3+sha224.6020b3cdcdfbd7dbc24b7a7b75d58a249ce36068a8bf97d39aa8cc6d",
+        default: "4.11.0+sha224.209a3e277c6bbc03df6e4206fbfcb0c1621c27ecf0688f79a0c619f0",
         commands: [
           [
             "yarn",
@@ -22099,6 +22116,50 @@ async function getProxyAgent(input) {
   return new ProxyAgent(proxy);
 }
 
+// sources/nodeUtils.ts
+var import_os2 = __toESM(require("os"));
+function isNodeError(err) {
+  return !!err?.code;
+}
+function isExistError(err) {
+  return err.code === `EEXIST` || err.code === `ENOTEMPTY`;
+}
+function getEndOfLine(content) {
+  const matches = content.match(/\r?\n/g);
+  if (matches === null)
+    return import_os2.default.EOL;
+  const crlf = matches.filter((nl) => nl === `\r
+`).length;
+  const lf = matches.length - crlf;
+  return crlf > lf ? `\r
+` : `
+`;
+}
+function normalizeLineEndings(originalContent, newContent) {
+  return newContent.replace(/\r?\n/g, getEndOfLine(originalContent));
+}
+function getIndent(content) {
+  const indentMatch = content.match(/^[ \t]+/m);
+  if (indentMatch) {
+    return indentMatch[0];
+  } else {
+    return `  `;
+  }
+}
+function stripBOM(content) {
+  if (content.charCodeAt(0) === 65279) {
+    return content.slice(1);
+  } else {
+    return content;
+  }
+}
+function readPackageJson(content) {
+  return {
+    data: JSON.parse(stripBOM(content) || `{}`),
+    indent: getIndent(content)
+  };
+}
+
 // sources/corepackUtils.ts
 var YARN_SWITCH_REGEX = /[/\\]switch[/\\]bin[/\\]/;
 function isYarnSwitchPath(p) {
@@ -22156,7 +22217,7 @@ async function findInstalledVersion(installTarget, descriptor) {
   try {
     cacheDirectory = await import_fs4.default.promises.opendir(installFolder);
   } catch (error) {
-    if (error.code === `ENOENT`) {
+    if (isNodeError(error) && error.code === `ENOENT`) {
       return null;
     } else {
       throw error;
@@ -22228,9 +22289,13 @@ async function download(installTarget, url, algo, binPath = null) {
     try {
       await renameSafe(downloadedBin, outputFile);
     } catch (err) {
-      if (err?.code === `ENOENT`)
+      if (isNodeError(err) && err.code === `ENOENT`)
         throw new Error(`Cannot locate '${binPath}' in downloaded tarball`, { cause: err });
-      throw err;
+      if (isNodeError(err) && isExistError(err)) {
+        await import_fs4.default.promises.rm(downloadedBin);
+      } else {
+        throw err;
+      }
     }
     const fileStream = import_fs4.default.createReadStream(outputFile);
     hash = fileStream.pipe((0, import_crypto2.createHash)(algo));
@@ -22258,7 +22323,7 @@ async function installVersion(installTarget, locator, { spec }) {
       bin: corepackData.bin
     };
   } catch (err) {
-    if (err?.code !== `ENOENT`) {
+    if (isNodeError(err) && err.code !== `ENOENT`) {
       throw err;
     }
   }
@@ -22336,8 +22401,8 @@ async function installVersion(installTarget, locator, { spec }) {
   try {
     await renameSafe(tmpFolder, installFolder);
   } catch (err) {
-    if (err.code === `ENOTEMPTY` || // On Windows the error code is EPERM so we check if it is a directory
-    err.code === `EPERM` && (await import_fs4.default.promises.stat(installFolder)).isDirectory()) {
+    if (isNodeError(err) && (isExistError(err) || // On Windows the error code is EPERM so we check if it is a directory
+    err.code === `EPERM` && (await import_fs4.default.promises.stat(installFolder)).isDirectory())) {
       log(`Another instance of corepack installed ${locator.name}@${locator.reference}`);
       await import_fs4.default.promises.rm(tmpFolder, { recursive: true, force: true });
     } else {
@@ -22376,7 +22441,7 @@ async function renameUnderWindows(oldPath, newPath) {
       await import_fs4.default.promises.rename(oldPath, newPath);
       break;
     } catch (err) {
-      if ((err.code === `ENOENT` || err.code === `EPERM`) && i < retries - 1) {
+      if (isNodeError(err) && (err.code === `ENOENT` || err.code === `EPERM`) && i < retries - 1) {
         await (0, import_promises2.setTimeout)(100 * 2 ** i);
         continue;
       } else {
@@ -22466,44 +22531,6 @@ var import_satisfies = __toESM(require_satisfies());
 var import_valid = __toESM(require_valid());
 var import_valid2 = __toESM(require_valid2());
 var import_util = require("util");
-
-// sources/nodeUtils.ts
-var import_os2 = __toESM(require("os"));
-function getEndOfLine(content) {
-  const matches = content.match(/\r?\n/g);
-  if (matches === null)
-    return import_os2.default.EOL;
-  const crlf = matches.filter((nl) => nl === `\r
-`).length;
-  const lf = matches.length - crlf;
-  return crlf > lf ? `\r
-` : `
-`;
-}
-function normalizeLineEndings(originalContent, newContent) {
-  return newContent.replace(/\r?\n/g, getEndOfLine(originalContent));
-}
-function getIndent(content) {
-  const indentMatch = content.match(/^[ \t]+/m);
-  if (indentMatch) {
-    return indentMatch[0];
-  } else {
-    return `  `;
-  }
-}
-function stripBOM(content) {
-  if (content.charCodeAt(0) === 65279) {
-    return content.slice(1);
-  } else {
-    return content;
-  }
-}
-function readPackageJson(content) {
-  return {
-    data: JSON.parse(stripBOM(content) || `{}`),
-    indent: getIndent(content)
-  };
-}
 
 // sources/types.ts
 var SupportedPackageManagers = /* @__PURE__ */ ((SupportedPackageManagers3) => {
@@ -22691,7 +22718,7 @@ async function loadSpec(initialCwd) {
       onFail: selection.data.devEngines.packageManager.onFail
     },
     // Lazy-loading it so we do not throw errors on commands that do not need valid spec.
-    getSpec: () => parseSpec(rawPmSpec, import_path4.default.relative(initialCwd, selection.manifestPath))
+    getSpec: ({ enforceExactVersion = true } = {}) => parseSpec(rawPmSpec, import_path4.default.relative(initialCwd, selection.manifestPath), { enforceExactVersion })
   };
 }
 
@@ -22874,7 +22901,7 @@ var Engine = class {
    * project using the default package managers, and configure it so that we
    * don't need to ask again in the future.
    */
-  async findProjectSpec(initialCwd, locator, { transparent = false } = {}) {
+  async findProjectSpec(initialCwd, locator, { transparent = false, binaryVersion } = {}) {
     const fallbackDescriptor = { name: locator.name, range: `${locator.reference}` };
     if (import_process3.default.env.COREPACK_ENABLE_PROJECT_SPEC === `0`) {
       if (typeof locator.reference === `function`)
@@ -22909,7 +22936,7 @@ var Engine = class {
           return fallbackDescriptor;
         }
         case `Found`: {
-          const spec = result.getSpec();
+          const spec = result.getSpec({ enforceExactVersion: !binaryVersion });
           if (spec.name !== locator.name) {
             if (transparent) {
               if (typeof locator.reference === `function`)
@@ -22948,7 +22975,7 @@ var Engine = class {
         reference: fallbackReference
       };
     }
-    const descriptor = await this.findProjectSpec(cwd, fallbackLocator, { transparent: isTransparentCommand });
+    const descriptor = await this.findProjectSpec(cwd, fallbackLocator, { transparent: isTransparentCommand, binaryVersion });
     if (binaryVersion)
       descriptor.range = binaryVersion;
     const resolved = await this.resolveDescriptor(descriptor, { allowTags: true });
@@ -23148,17 +23175,19 @@ var EnableCommand = class extends Command {
   async generatePosixLink(installDirectory, distFolder, binName) {
     const file = import_path7.default.join(installDirectory, binName);
     const symlink = import_path7.default.relative(installDirectory, import_path7.default.join(distFolder, `${binName}.js`));
-    if (import_fs9.default.existsSync(file)) {
-      const currentSymlink = await import_fs9.default.promises.readlink(file);
-      if (binName.includes(`yarn`) && isYarnSwitchPath(await import_fs9.default.promises.realpath(file))) {
-        console.warn(`${binName} is already installed in ${file} and points to a Yarn Switch install - skipping`);
-        return;
+    const stats = import_fs9.default.lstatSync(file, { throwIfNoEntry: false });
+    if (stats) {
+      if (stats.isSymbolicLink()) {
+        const currentSymlink = await import_fs9.default.promises.readlink(file);
+        if (binName.includes(`yarn`) && isYarnSwitchPath(await import_fs9.default.promises.realpath(file))) {
+          console.warn(`${binName} is already installed in ${file} and points to a Yarn Switch install - skipping`);
+          return;
+        }
+        if (currentSymlink === symlink) {
+          return;
+        }
       }
-      if (currentSymlink !== symlink) {
-        await import_fs9.default.promises.unlink(file);
-      } else {
-        return;
-      }
+      await import_fs9.default.promises.unlink(file);
     }
     await import_fs9.default.promises.symlink(symlink, file);
   }

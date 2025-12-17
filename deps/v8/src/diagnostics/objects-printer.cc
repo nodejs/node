@@ -357,6 +357,9 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {
     case BIG_INT_BASE_TYPE:
       Cast<BigIntBase>(*this)->BigIntBasePrint(os);
       break;
+    case FREE_SPACE_TYPE:
+      Cast<FreeSpace>(*this)->FreeSpacePrint(os);
+      break;
     case JS_CLASS_CONSTRUCTOR_TYPE:
     case JS_PROMISE_CONSTRUCTOR_TYPE:
     case JS_REG_EXP_CONSTRUCTOR_TYPE:

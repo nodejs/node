@@ -28,7 +28,7 @@ void FreeListCategory::Unlink(FreeList* owner) {
 
 void FreeListCategory::Reset(FreeList* owner) {
   Unlink(owner);
-  set_top(FreeSpace());
+  set_top(Tagged<FreeSpace>());
   available_ = 0;
 }
 
@@ -39,7 +39,7 @@ Tagged<FreeSpace> FreeListCategory::PickNodeFromList(size_t minimum_size,
   DCHECK(MemoryChunk::FromHeapObject(node)->CanAllocate());
   if (static_cast<size_t>(node->Size()) < minimum_size) {
     *node_size = 0;
-    return FreeSpace();
+    return Tagged<FreeSpace>();
   }
   set_top(node->next());
   *node_size = node->Size();
@@ -80,7 +80,7 @@ Tagged<FreeSpace> FreeListCategory::SearchForNodeInList(size_t minimum_size,
 
     prev_non_evac_node = cur_node;
   }
-  return FreeSpace();
+  return Tagged<FreeSpace>();
 }
 
 void FreeListCategory::Free(const WritableFreeSpace& writable_free_space,
@@ -140,7 +140,7 @@ Tagged<FreeSpace> FreeList::TryFindNodeIn(FreeListCategoryType type,
                                           size_t minimum_size,
                                           size_t* node_size) {
   FreeListCategory* category = categories_[type];
-  if (category == nullptr) return FreeSpace();
+  if (category == nullptr) return Tagged<FreeSpace>();
   Tagged<FreeSpace> node = category->PickNodeFromList(minimum_size, node_size);
   if (!node.is_null()) {
     DecreaseAvailableBytes(*node_size);
