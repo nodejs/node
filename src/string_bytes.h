@@ -95,6 +95,11 @@ class StringBytes {
                                           const char* buf,
                                           enum encoding encoding);
 
+  // Does not reverse endianness on BE, transfers ownership of buf
+  static v8::MaybeLocal<v8::Value> Raw(v8::Isolate* isolate,
+                                       uint16_t* buf,
+                                       size_t buflen);
+
  private:
   static size_t WriteUCS2(v8::Isolate* isolate,
                           char* buf,

@@ -1,5 +1,6 @@
 #include "encoding_binding.h"
 #include "ada.h"
+#include "encoding_singlebyte.h"
 #include "env-inl.h"
 #include "node_errors.h"
 #include "node_external_reference.h"
@@ -398,6 +399,73 @@ void BindingData::DecodeUTF8(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+void BindingData::DecodeSingleByte(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  CHECK_GE(args.Length(), 2);
+  Isolate* isolate = env->isolate();
+
+  if (!(args[0]->IsArrayBuffer() || args[0]->IsSharedArrayBuffer() ||
+        args[0]->IsArrayBufferView())) {
+    return node::THROW_ERR_INVALID_ARG_TYPE(
+        isolate,
+        "The \"input\" argument must be an instance of SharedArrayBuffer, "
+        "ArrayBuffer or ArrayBufferView.");
+  }
+
+  CHECK(args[1]->IsInt32());
+  const int encoding = args[1].As<v8::Int32>()->Value();
+  CHECK(encoding >= 0 && encoding <= kXUserDefined);
+
+  ArrayBufferViewContents<uint8_t> buffer(args[0]);
+  const uint8_t* data = buffer.data();
+  size_t length = buffer.length();
+
+  if (length == 0) return args.GetReturnValue().SetEmptyString();
+
+  const char* dataChar = reinterpret_cast<const char*>(data);
+  if (!simdutf::validate_ascii_with_errors(dataChar, length).error) {
+    Local<Value> ret;
+    if (StringBytes::Encode(isolate, dataChar, length, LATIN1).ToLocal(&ret)) {
+      args.GetReturnValue().Set(ret);
+    }
+    return;
+  }
+
+  if (length > static_cast<size_t>(v8::String::kMaxLength)) {
+    isolate->ThrowException(ERR_STRING_TOO_LONG(isolate));
+    return;
+  }
+
+  uint16_t* dst = node::UncheckedMalloc<uint16_t>(length);
+  if (dst == nullptr) return node::THROW_ERR_MEMORY_ALLOCATION_FAILED(isolate);
+
+  if (encoding == kXUserDefined) {
+    // x-user-defined
+    for (size_t i = 0; i < length; i++) {
+      dst[i] = data[i] >= 0x80 ? data[i] + 0xf700 : data[i];
+    }
+  } else {
+    bool has_fatal = args[2]->IsTrue();
+
+    const uint16_t* table = tSingleByteEncodings[encoding];
+    for (size_t i = 0; i < length; i++) dst[i] = table[data[i]];
+
+    const char16_t* dst16 = reinterpret_cast<char16_t*>(dst);
+    if (has_fatal && fSingleByteEncodings[encoding] &&
+        simdutf::find(dst16, dst16 + length, 0xfffd) != dst16 + length) {
+      free(dst);
+      return node::THROW_ERR_ENCODING_INVALID_ENCODED_DATA(
+          isolate, "The encoded data was not valid for this encoding");
+    }
+  }
+
+  Local<Value> ret;
+  if (StringBytes::Raw(isolate, dst, length).ToLocal(&ret)) {
+    args.GetReturnValue().Set(ret);
+  }
+}
+
 void BindingData::ToASCII(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   CHECK_GE(args.Length(), 1);
@@ -430,6 +498,7 @@ void BindingData::CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethod(isolate, target, "encodeInto", EncodeInto);
   SetMethodNoSideEffect(isolate, target, "encodeUtf8String", EncodeUtf8String);
   SetMethodNoSideEffect(isolate, target, "decodeUTF8", DecodeUTF8);
+  SetMethodNoSideEffect(isolate, target, "decodeSingleByte", DecodeSingleByte);
   SetMethodNoSideEffect(isolate, target, "toASCII", ToASCII);
   SetMethodNoSideEffect(isolate, target, "toUnicode", ToUnicode);
 }
@@ -447,6 +516,7 @@ void BindingData::RegisterTimerExternalReferences(
   registry->Register(EncodeInto);
   registry->Register(EncodeUtf8String);
   registry->Register(DecodeUTF8);
+  registry->Register(DecodeSingleByte);
   registry->Register(ToASCII);
   registry->Register(ToUnicode);
 }
