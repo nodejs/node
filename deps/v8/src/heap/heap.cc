@@ -7653,7 +7653,7 @@ StrongRootAllocatorBase::StrongRootAllocatorBase(LocalIsolate* isolate)
 // returns a pointer to Address 1.
 Address* StrongRootAllocatorBase::allocate_impl(size_t n) {
   void* block = base::Malloc(sizeof(StrongRootsEntry*) + n * sizeof(Address));
-  if(!block) heap()->FatalProcessOutOfMemory("StrongRootAllocatorBase::allocate_impl");
+  if (!block) heap()->FatalProcessOutOfMemory("StrongRootAllocatorBase::allocate_impl");
 
   StrongRootsEntry** header = reinterpret_cast<StrongRootsEntry**>(block);
   Address* ret = reinterpret_cast<Address*>(reinterpret_cast<char*>(block) +
