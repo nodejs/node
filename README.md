@@ -287,6 +287,8 @@ For information about the governance of the Node.js project, see
   **Yagiz Nizipli** <<yagiz@nizipli.com>> (he/him) - [Support me](https://github.com/sponsors/anonrig)
 * [atlowChemi](https://github.com/atlowChemi) -
   **Chemi Atlow** <<chemi@atlow.co.il>> (he/him)
+* [avivkeller](https://github.com/avivkeller) -
+  **Aviv Keller** <<me@aviv.sh>> (he/him) - [Support me](https://github.com/sponsors/avivkeller)
 * [Ayase-252](https://github.com/Ayase-252) -
   **Qingyu Deng** <<i@ayase-lab.com>>
 * [bengl](https://github.com/bengl) -
