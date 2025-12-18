@@ -282,7 +282,9 @@ const { PassThrough, Transform } = require('stream');
       pt.write(Buffer.from('ef'), common.mustCall(function() {
         pt.end();
       }));
-      assert.strictEqual(pt.read().toString(), 'abcdef');
+      assert.strictEqual(pt.read().toString(), 'abc');
+      assert.strictEqual(pt.read().toString(), 'd');
+      assert.strictEqual(pt.read().toString(), 'ef');
       assert.strictEqual(pt.read(), null);
     });
   });
