@@ -4,7 +4,6 @@
 const common = require('../common');
 const assert = require('assert');
 const { registerHooks } = require('module');
-const fixtures = require('../common/fixtures');
 
 // Pick a builtin that's unlikely to be loaded already - like zlib or dns.
 assert(!process.moduleLoadList.includes('NativeModule zlib'));
