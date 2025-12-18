@@ -1,0 +1,1 @@
+Trace/breakpoint trap (core dumped)

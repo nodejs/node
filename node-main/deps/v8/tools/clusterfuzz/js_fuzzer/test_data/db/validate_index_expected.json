@@ -1,0 +1,24 @@
+[
+  {
+    "path": "CallExpression/0a096256.json",
+    "super": false
+  },
+  {
+    "path": "CallExpression/8eee3ad0.json",
+    "super": true
+  },
+  {
+    "path": "CallExpression/9a863bde.json",
+    "super": true
+  },
+  {
+    "path": "CallExpression/d4095491.json",
+    "super": false,
+    "tc": true
+  },
+  {
+    "path": "CallExpression/d453f081.json",
+    "super": false,
+    "tc": true
+  }
+]

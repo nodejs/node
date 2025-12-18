@@ -1,0 +1,26 @@
+Line breakpoints for await
+
+Running test: testAwaitInAsyncFunctionWithLeadingWhitespace
+Setting breakpoint on `await this.foo()` in `obj.bar`
+Calling `obj.bar()`
+Hit breakpoint before calling into `this.foo`
+
+Running test: testAwaitInAsyncFunctionWithoutLeadingWhitespace
+Setting breakpoint on `await this.foo()` in `obj.baz`
+Calling `obj.baz()`
+Hit breakpoint before calling into `this.foo`
+
+Running test: testAwaitInAsyncGeneratorWithLeadingWhitespace
+Setting breakpoint on `await this.foo()` in `obj.barGenerator`
+Calling `obj.barGenerator().next()`
+Hit breakpoint before calling into `this.foo`
+
+Running test: testAwaitInAsyncGeneratorWithoutLeadingWhitespace
+Setting breakpoint on `await this.foo()` in `obj.bazGenerator`
+Calling `obj.bazGenerator().next()`
+Hit breakpoint before calling into `this.foo`
+
+Running test: testAwaitInAsyncFunctionMinified
+Setting breakpoint on `await this.foo()` in `obj.minified`
+Calling `obj.minified()`
+Hit breakpoint before calling into `this.foo`

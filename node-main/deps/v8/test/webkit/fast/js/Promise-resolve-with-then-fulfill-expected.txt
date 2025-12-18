@@ -1,0 +1,13 @@
+Test whether Promise treats thenable correctly.
+
+On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE".
+
+The promise is not fulfilled now.
+PASS value.then is called.
+PASS thisValue is value
+PASS fulfilled
+PASS result is "hello"
+PASS successfullyParsed is true
+
+TEST COMPLETE
+

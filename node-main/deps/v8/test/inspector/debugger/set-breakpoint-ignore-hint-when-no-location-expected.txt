@@ -1,0 +1,11 @@
+Tests breakpoint when two scripts have the same url.
+{
+    breakpointId : <breakpointId>
+    locations : [
+        [0] : {
+            columnNumber : 2
+            lineNumber : 2
+            scriptId : <scriptId>
+        }
+    ]
+}

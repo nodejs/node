@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html class="test-wait">
+<meta charset="utf-8">
+<script>
+  var worker = new Worker(URL.createObjectURL(new Blob([`
+    postMessage("hi");
+    (async () => {
+      const abort = new AbortController()
+      await navigator.locks.request("weblock_0", { signal: abort.signal }, () => {})
+    })()
+  `])));
+  worker.onmessage = () => {
+    worker.terminate();
+    document.documentElement.classList.remove("test-wait");
+  };
+</script>

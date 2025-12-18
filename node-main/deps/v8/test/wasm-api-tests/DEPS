@@ -1,0 +1,5 @@
+include_rules = [
+  "+src",
+  "+testing",
+  "+third_party/wasm-api"
+]

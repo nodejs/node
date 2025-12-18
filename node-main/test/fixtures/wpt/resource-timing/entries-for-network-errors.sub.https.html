@@ -1,0 +1,35 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>This test validates that a failed cross-origin fetch creates an opaque network timing entry.
+</title>
+<link rel="author" title="Noam Rosenthal" href="noam@webkit.org">
+<link rel="help" href="https://www.w3.org/TR/resource-timing-2/#sec-performanceresourcetiming"/>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="/common/get-host-info.sub.js"></script>
+<script src="resources/entry-invariants.js"></script>
+</head>
+<body>
+<script>
+const validDataURL = 'data:,Hello%2C%20World%21'
+const {REMOTE_ORIGIN, ORIGINAL_HOST, HTTP_PORT} = get_host_info();
+const validXmlUrl = '/common/dummy.xml';
+
+network_error_entry_test(
+    `${REMOTE_ORIGIN}${validXmlUrl}`, null, `failed cross-origin requests`);
+
+network_error_entry_test(`/common/redirect.py?location=${validDataURL}`, null, "non-HTTP redirect");
+network_error_entry_test('//{{hosts[][nonexistent]}}/common/dummy.xml', null, "DNS failure");
+network_error_entry_test(`http://${ORIGINAL_HOST}:${HTTP_PORT}/commo/dummy.xml`, null, "Mixed content");
+
+network_error_entry_test('/common/dummy.xml', {cache: 'only-if-cached', mode: 'same-origin'},
+    "only-if-cached resource that was not cached");
+
+network_error_entry_test(
+    `/element-timing/resources/multiple-redirects.py?redirect_count=22&final_resource=${validXmlUrl}`,
+    null, "too many redirects");
+</script>
+</body>
+</html>

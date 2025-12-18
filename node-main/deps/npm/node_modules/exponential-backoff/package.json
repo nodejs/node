@@ -1,0 +1,62 @@
+{
+  "name": "exponential-backoff",
+  "version": "3.1.2",
+  "description": "A utility that allows retrying a function with an exponential delay between attempts.",
+  "files": [
+    "dist/",
+    "src/"
+  ],
+  "main": "dist/backoff.js",
+  "types": "dist/backoff.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "jest",
+    "test:watch": "jest --watch"
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged"
+    }
+  },
+  "lint-staged": {
+    "*.{ts,json,md}": [
+      "prettier --write",
+      "git add"
+    ]
+  },
+  "jest": {
+    "transform": {
+      "^.+\\.ts$": "ts-jest"
+    },
+    "testRegex": "\\.spec\\.ts$",
+    "moduleFileExtensions": [
+      "ts",
+      "js"
+    ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/coveooss/exponential-backoff.git"
+  },
+  "keywords": [
+    "exponential",
+    "backoff",
+    "retry"
+  ],
+  "author": "Sami Sayegh",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/coveooss/exponential-backoff/issues"
+  },
+  "homepage": "https://github.com/coveooss/exponential-backoff#readme",
+  "devDependencies": {
+    "@types/jest": "^24.0.18",
+    "@types/node": "^10.14.21",
+    "husky": "^3.0.9",
+    "jest": "^24.9.0",
+    "lint-staged": "^9.4.2",
+    "prettier": "^1.18.2",
+    "ts-jest": "^24.1.0",
+    "typescript": "^3.6.4"
+  }
+}

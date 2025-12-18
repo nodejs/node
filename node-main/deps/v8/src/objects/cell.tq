@@ -1,0 +1,19 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+extern class Cell extends HeapObject {
+  maybe_value: MaybeObject;
+}
+
+// These strong accessors are for the cases when a Cell is known to contain
+// only Objects.
+operator '.value' macro LoadCellValue(cell: Cell): Object {
+  const value = cell.maybe_value;
+  dcheck(!IsWeakOrCleared(value));
+  return UnsafeCast<Object>(value);
+}
+
+operator '.value=' macro StoreCellValue(cell: Cell, value: Object): void {
+  cell.maybe_value = value;
+}
