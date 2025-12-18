@@ -962,6 +962,15 @@ for `CCM` mode or before [`decipher.final()`][] for `GCM` and `OCB` modes and
 `chacha20-poly1305`.
 `decipher.setAuthTag()` can only be called once.
 
+Because the `node:crypto` module was originally designed to closely mirror
+OpenSSL's behavior, this function permits short GCM authentication tags unless
+an explicit authentication tag length was passed to
+[`crypto.createDecipheriv()`][] when the `decipher` object was created. This
+behavior is deprecated and subject to change (see [DEP0182][]). <strong class="critical">
+In the meantime, applications should either set the `authTagLength` option when
+calling `createDecipheriv()` or check the actual
+authentication tag length before passing it to `setAuthTag()`.</strong>
+
 When passing a string as the authentication tag, please consider
 [caveats when using strings as inputs to cryptographic APIs][].
 
@@ -3352,8 +3361,13 @@ The `options` argument controls stream behavior and is optional except when a
 cipher in CCM or OCB mode (e.g. `'aes-128-ccm'`) is used. In that case, the
 `authTagLength` option is required and specifies the length of the
 authentication tag in bytes, see [CCM mode][].
-For AES-GCM and `chacha20-poly1305`, the `authTagLength` option defaults to 16
+For `chacha20-poly1305`, the `authTagLength` option defaults to 16
 bytes and must be set to a different value if a different length is used.
+For AES-GCM, the `authTagLength` option has no default value when decrypting,
+and `setAuthTag()` will accept arbitrarily short authentication tags. This
+behavior is deprecated and subject to change (see [DEP0182][]). <strong class="critical">
+In the meantime, applications should either set the `authTagLength` option or
+check the actual authentication tag length before passing it to `setAuthTag()`.</strong>
 
 The `algorithm` is dependent on OpenSSL, examples are `'aes192'`, etc. On
 recent OpenSSL releases, `openssl list -cipher-algorithms` will
@@ -6508,6 +6522,7 @@ See the [list of SSL OP Flags][] for details.
 [CVE-2021-44532]: https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2021-44532
 [Caveats]: #support-for-weak-or-compromised-algorithms
 [Crypto constants]: #crypto-constants
+[DEP0182]: deprecations.md#dep0182-short-gcm-authentication-tags-without-explicit-authtaglength
 [FIPS module configuration file]: https://www.openssl.org/docs/man3.0/man5/fips_config.html
 [FIPS provider from OpenSSL 3]: https://www.openssl.org/docs/man3.0/man7/crypto.html#FIPS-provider
 [HTML 5.2]: https://www.w3.org/TR/html52/changes.html#features-removed
