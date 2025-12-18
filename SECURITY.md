@@ -125,6 +125,26 @@ This policy recognizes that experimental platforms may not compile, may not
 pass the test suite, and do not have the same level of testing and support
 infrastructure as Tier 1 and Tier 2 platforms.
 
+### Experimental features behind compile-time flags
+
+Node.js includes certain experimental features that are only available when
+Node.js is compiled with specific flags. These features are intended for
+development, debugging, or testing purposes and are not enabled in official
+releases.
+
+* Security vulnerabilities that only affect features behind compile-time flags
+  will **not** be accepted as valid security issues.
+* Any issues with these features will be treated as normal bugs.
+* No CVEs will be issued for issues that only affect compile-time flag features.
+* Bug bounty rewards are not available for compile-time flag feature issues.
+
+This policy recognizes that experimental features behind compile-time flags
+are not ready for public consumption and may have incomplete implementations,
+missing security hardening, or other limitations that make them unsuitable
+for production use.
+
+### What constitutes a vulnerability
+
 Being able to cause the following through control of the elements that Node.js
 does not trust is considered a vulnerability:
 
