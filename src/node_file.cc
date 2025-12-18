@@ -3210,8 +3210,8 @@ static void CpSyncCheckPaths(const FunctionCallbackInfo<Value>& args) {
 
   std::error_code error_code;
   auto src_status = dereference
-                        ? std::filesystem::symlink_status(src_path, error_code)
-                        : std::filesystem::status(src_path, error_code);
+                        ? std::filesystem::status(src_path, error_code)
+                        : std::filesystem::symlink_status(src_path, error_code);
 
   if (error_code) {
 #ifdef _WIN32
