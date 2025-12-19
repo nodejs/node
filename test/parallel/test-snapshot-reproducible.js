@@ -6,6 +6,12 @@ const tmpdir = require('../common/tmpdir');
 const fs = require('fs');
 const assert = require('assert');
 
+// When the test fails this helper can be modified to write outputs
+// differently and aid debugging.
+function log(line) {
+  console.log(line);
+}
+
 function generateSnapshot() {
   tmpdir.refresh();
 
