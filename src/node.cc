@@ -1380,11 +1380,12 @@ ExitCode GenerateAndWriteSnapshotData(const SnapshotData** snapshot_data_ptr,
   if (builder_script == "node:generate_default_snapshot_source") {
     // Reset to empty to generate from scratch.
     snapshot_config.builder_script_path = {};
-    exit_code = node::SnapshotBuilder::GenerateAsSource("snapshot.cc",
-                                                        args_maybe_patched,
-                                                        result->exec_args(),
-                                                        snapshot_config,
-                                                        true /* use_array_literals */);
+    exit_code =
+        node::SnapshotBuilder::GenerateAsSource("snapshot.cc",
+                                                args_maybe_patched,
+                                                result->exec_args(),
+                                                snapshot_config,
+                                                true /* use_array_literals */);
     return exit_code;
   }
 
