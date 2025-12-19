@@ -192,12 +192,13 @@ jobs:
         with:
           persist-credentials: false
           sparse-checkout: |
-            Makefile
-            benchmark/
-            doc/
-            lib/
-            src/node_version.h
-            tools/
+            /Makefile
+            /benchmark/
+            /doc/
+            /lib/
+            /src/node_version.h
+            /tools/
+            pyproject.toml
             *.py
           sparse-checkout-cone-mode: false
       - name: Set up Python ${{ env.PYTHON_VERSION }}
