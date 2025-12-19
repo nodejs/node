@@ -193,6 +193,8 @@ jobs:
           persist-credentials: false
           sparse-checkout: |
             Makefile
+            configure.py
+            src/node_version.h
             tools/pip/
             *.py
           sparse-checkout-cone-mode: false
@@ -253,8 +255,6 @@ jobs:
       - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3  # v6.0.0
         with:
           persist-credentials: false
-          sparse-checkout: .github/CODEOWNERS
-          sparse-checkout-cone-mode: false
       - uses: mszostok/codeowners-validator@7f3f5e28c6d7b8dfae5731e54ce2272ca384592f
         with:
           checks: files,duppatterns
@@ -280,7 +280,7 @@ jobs:
           persist-credentials: false
           sparse-checkout: |
             README.md
-            tools/tools/lint-readme-lists.mjs
+            tools/lint-readme-lists.mjs
           sparse-checkout-cone-mode: false
       - name: Get team members if possible
         if: ${{ (github.event.pull_request && github.event.pull_request.base.ref == github.event.pull_request.base.repo.default_branch) || github.event.ref == github.event.repository.default_branch }}
