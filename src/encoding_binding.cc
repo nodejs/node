@@ -380,6 +380,8 @@ void BindingData::DecodeUTF8(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+static uint32_t * tWindows1252x2 = 0;
+
 void BindingData::DecodeSingleByte(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -416,6 +418,26 @@ void BindingData::DecodeSingleByte(const FunctionCallbackInfo<Value>& args) {
   if (encoding == 28) {
     // x-user-defined
     for (size_t i = 0; i < length; i++) dst[i] = data[i] >= 0x80 ? data[i] + 0xf700 : data[i];
+  } else if (encoding == 21 && (tWindows1252x2 || length > 256 * 256) && ((size_t) data) % 2 == 0) {
+    // TODO(chalker): remove alignment check and align
+
+    const uint16_t* table = tSingleByteEncodings[encoding];
+    if (!tWindows1252x2) {
+      tWindows1252x2 = (uint32_t *) malloc(256 * 256 * 4); // 256 KiB
+      for (uint16_t i = 0; i < 256; i++) {
+        for (uint16_t j = 0; j < 256; j++) {
+          tWindows1252x2[(i << 8) + j] = (((uint32_t) table[i]) << 16) + table[j];
+        }
+      }
+    }
+
+    size_t length2 = length / 2;
+    size_t i = 0;
+    const uint16_t* data2 = reinterpret_cast<const uint16_t *>(data);
+    uint32_t* dst2 = reinterpret_cast<uint32_t *>(dst);
+    for (; i < length2; i++) dst2[i] = tWindows1252x2[data2[i]];
+    i *= 2;
+    for (; i < length; i++) dst[i] = table[data[i]];
   } else {
     bool has_fatal = args[2]->IsTrue();
 
