@@ -193,9 +193,11 @@ jobs:
           persist-credentials: false
           sparse-checkout: |
             Makefile
-            configure.py
+            benchmark/
+            doc/
+            lib/
             src/node_version.h
-            tools/pip/
+            tools/
             *.py
           sparse-checkout-cone-mode: false
       - name: Set up Python ${{ env.PYTHON_VERSION }}
