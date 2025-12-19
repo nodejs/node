@@ -365,7 +365,7 @@ void BindingData::DecodeUTF8(const FunctionCallbackInfo<Value>& args) {
 
   if (has_fatal) {
     // Are we perhaps ASCII? Then we won't have to check for UTF-8
-    if (simdutf::validate_ascii(data, length)) {
+    if (!simdutf::validate_ascii_with_errors(data, length).error) {
       Local<Value> ret;
       if (StringBytes::Encode(env->isolate(), data, length, LATIN1)
               .ToLocal(&ret)) {
