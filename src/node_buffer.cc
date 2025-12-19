@@ -1252,7 +1252,8 @@ static void IsAscii(const FunctionCallbackInfo<Value>& args) {
         env, "Cannot validate on a detached buffer");
   }
 
-  args.GetReturnValue().Set(simdutf::validate_ascii(abv.data(), abv.length()));
+  args.GetReturnValue().Set(
+      !simdutf::validate_ascii_with_errors(abv.data(), abv.length()).error);
 }
 
 void SetBufferPrototype(const FunctionCallbackInfo<Value>& args) {
