@@ -28,6 +28,13 @@ jobs:
       - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3  # v6.0.0
         with:
           persist-credentials: false
+          sparse-checkout: |
+            *
+            !doc/
+            !lib/
+            !.github/
+            !.devcontainer/
+          sparse-checkout-cone-mode: false
       - name: Use Node.js ${{ env.NODE_VERSION }}
         uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903  # v6.0.0
         with:
@@ -43,6 +50,13 @@ jobs:
       - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3  # v6.0.0
         with:
           persist-credentials: false
+          sparse-checkout: |
+            *
+            !doc/
+            !lib/
+            !.github/
+            !.devcontainer/
+          sparse-checkout-cone-mode: false
       - name: Set up Python ${{ env.PYTHON_VERSION }}
         uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548  # v6.1.0
         with:
@@ -60,6 +74,13 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+          sparse-checkout: |
+            *
+            !doc/
+            !lib/
+            !.github/
+            !.devcontainer/
+          sparse-checkout-cone-mode: false
       - name: Use Node.js ${{ env.NODE_VERSION }}
         uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903  # v6.0.0
         with:
@@ -98,6 +119,13 @@ jobs:
       - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3  # v6.0.0
         with:
           persist-credentials: false
+          sparse-checkout: |
+            *
+            !deps/
+            !src/
+            !.github/
+            !.devcontainer/
+          sparse-checkout-cone-mode: false
       - name: Use Node.js ${{ env.NODE_VERSION }}
         uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903  # v6.0.0
         with:
@@ -163,6 +191,11 @@ jobs:
       - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3  # v6.0.0
         with:
           persist-credentials: false
+          sparse-checkout: |
+            Makefile
+            tools/pip/
+            *.py
+          sparse-checkout-cone-mode: false
       - name: Set up Python ${{ env.PYTHON_VERSION }}
         uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548  # v6.1.0
         with:
@@ -181,6 +214,12 @@ jobs:
       - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3  # v6.0.0
         with:
           persist-credentials: false
+          sparse-checkout: |
+            Makefile
+            tools/pip/
+            *.yml
+            *.yaml
+          sparse-checkout-cone-mode: false
       - name: Use Python ${{ env.PYTHON_VERSION }}
         uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548  # v6.1.0
         with:
@@ -200,6 +239,10 @@ jobs:
       - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3  # v6.0.0
         with:
           persist-credentials: false
+          sparse-checkout: |
+            tools/lint-sh.mjs
+            *.sh
+          sparse-checkout-cone-mode: false
       - run: shellcheck -V
       - name: Lint Shell scripts
         run: tools/lint-sh.mjs .
@@ -210,6 +253,8 @@ jobs:
       - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3  # v6.0.0
         with:
           persist-credentials: false
+          sparse-checkout: .github/CODEOWNERS
+          sparse-checkout-cone-mode: false
       - uses: mszostok/codeowners-validator@7f3f5e28c6d7b8dfae5731e54ce2272ca384592f
         with:
           checks: files,duppatterns
@@ -221,6 +266,10 @@ jobs:
         with:
           fetch-depth: 2
           persist-credentials: false
+          sparse-checkout: |
+            tools/lint-pr-url.mjs
+            doc/api/
+          sparse-checkout-cone-mode: false
       # GH Actions squashes all PR commits, HEAD^ refers to the base branch.
       - run: git diff HEAD^ HEAD -G"pr-url:" -- "*.md" | ./tools/lint-pr-url.mjs ${{ github.event.pull_request.html_url }}
   lint-readme:
@@ -229,6 +278,10 @@ jobs:
       - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3  # v6.0.0
         with:
           persist-credentials: false
+          sparse-checkout: |
+            README.md
+            tools/tools/lint-readme-lists.mjs
+          sparse-checkout-cone-mode: false
       - name: Get team members if possible
         if: ${{ (github.event.pull_request && github.event.pull_request.base.ref == github.event.pull_request.base.repo.default_branch) || github.event.ref == github.event.repository.default_branch }}
         id: team_members
