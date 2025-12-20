@@ -201,7 +201,10 @@ assert.strictEqual(util.format('%s', proxy12), 'Proxy([ 1, 2, 3 ])');
   // Nested proxies should not trigger any proxy handlers.
   const nestedProxy = new Proxy(new Proxy(new Proxy({}, handler), {}), {});
 
-  assert.strictEqual(util.inspect(nestedProxy, { showProxy: true }), 'Proxy [ Proxy [ Proxy [ {}, [Object] ], {} ], {} ]');
+  assert.strictEqual(
+    util.inspect(nestedProxy, { showProxy: true }),
+    'Proxy [ Proxy [ Proxy [ {}, [Object] ], {} ], {} ]'
+  );
   assert.strictEqual(util.inspect(nestedProxy, { showProxy: false }), expected3NoShowProxy);
 }
 
@@ -212,5 +215,5 @@ assert.strictEqual(util.format('%s', proxy12), 'Proxy([ 1, 2, 3 ])');
   const nestedProxy = new Proxy(revocable.proxy, {});
 
   assert.strictEqual(util.inspect(nestedProxy, { showProxy: true }), 'Proxy [ <Revoked Proxy>, {} ]');
-  assert.strictEqual(util.inspect(nestedProxy, { showProxy: false }), '<Revoked Proxy>');
+  assert.strictEqual(util.inspect(nestedProxy, { showProxy: false }), 'Proxy(<Revoked Proxy>)');
 }
