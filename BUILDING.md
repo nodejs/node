@@ -870,6 +870,11 @@ To test if Node.js was built correctly:
 Release\node -e "console.log('Hello from Node.js', process.version)"
 ```
 
+> \[!TIP]
+> On Windows, creating symlinks requires [Developer Mode][] to be enabled or
+> running the command as Administrator. Tests that rely on creating symlinks
+> may fail with EPERM errors if symlink creation is not permitted.
+
 ##### Using ccache:
 
 Follow <https://github.com/ccache/ccache/wiki/MS-Visual-Studio>, and you
@@ -1130,4 +1135,5 @@ by opening a pull request against the registry available at
 <https://github.com/nodejs/node/blob/HEAD/doc/abi_version_registry.json>.
 
 [AIX toolbox]: https://www.ibm.com/support/pages/aix-toolbox-open-source-software-overview
+[Developer Mode]: https://learn.microsoft.com/en-us/windows/advanced-settings/developer-mode
 [Python versions]: https://devguide.python.org/versions/
