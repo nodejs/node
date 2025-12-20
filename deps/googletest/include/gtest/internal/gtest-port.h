@@ -827,6 +827,8 @@ typedef struct _RTL_CRITICAL_SECTION GTEST_CRITICAL_SECTION;
 #elif defined(GTEST_CREATE_SHARED_LIBRARY) && GTEST_CREATE_SHARED_LIBRARY
 #define GTEST_API_ __declspec(dllexport)
 #endif
+#elif GTEST_INTERNAL_HAVE_CPP_ATTRIBUTE(gnu::visibility)
+#define GTEST_API_ [[gnu::visibility("default")]]
 #elif GTEST_HAVE_ATTRIBUTE_(visibility)
 #define GTEST_API_ __attribute__((visibility("default")))
 #endif  // _MSC_VER
@@ -917,7 +919,7 @@ namespace internal {
 // A secret type that Google Test users don't know about.  It has no
 // accessible constructors on purpose.  Therefore it's impossible to create a
 // Secret object, which is what we want.
-class Secret {
+class [[nodiscard]] Secret {
   Secret(const Secret&) = delete;
 };
 
@@ -932,7 +934,7 @@ GTEST_API_ bool IsTrue(bool condition);
 // This is almost `using RE = ::RE2`, except it is copy-constructible, and it
 // needs to disambiguate the `std::string`, `absl::string_view`, and `const
 // char*` constructors.
-class GTEST_API_ RE {
+class GTEST_API_ [[nodiscard]] RE {
  public:
   RE(absl::string_view regex) : regex_(regex) {}                  // NOLINT
   RE(const char* regex) : RE(absl::string_view(regex)) {}         // NOLINT
@@ -958,7 +960,7 @@ GTEST_DISABLE_MSC_WARNINGS_PUSH_(4251 \
 
 // A simple C++ wrapper for <regex.h>.  It uses the POSIX Extended
 // Regular Expression syntax.
-class GTEST_API_ RE {
+class GTEST_API_ [[nodiscard]] RE {
  public:
   // A copy constructor is required by the Standard to initialize object
   // references from r-values.
@@ -1027,7 +1029,7 @@ enum GTestLogSeverity { GTEST_INFO, GTEST_WARNING, GTEST_ERROR, GTEST_FATAL };
 // Formats log entry severity, provides a stream object for streaming the
 // log message, and terminates the message with a newline when going out of
 // scope.
-class GTEST_API_ GTestLog {
+class GTEST_API_ [[nodiscard]] GTestLog {
  public:
   GTestLog(GTestLogSeverity severity, const char* file, int line);
 
@@ -1190,7 +1192,7 @@ void ClearInjectableArgvs();
 #ifdef GTEST_OS_WINDOWS
 // Provides leak-safe Windows kernel handle ownership.
 // Used in death tests and in threading support.
-class GTEST_API_ AutoHandle {
+class GTEST_API_ [[nodiscard]] AutoHandle {
  public:
   // Assume that Win32 HANDLE type is equivalent to void*. Doing so allows us to
   // avoid including <windows.h> in this header file. Including <windows.h> is
@@ -1234,7 +1236,7 @@ GTEST_DISABLE_MSC_WARNINGS_PUSH_(4251 \
 // This class is only for testing Google Test's own constructs. Do not
 // use it in user tests, either directly or indirectly.
 // TODO(b/203539622): Replace unconditionally with absl::Notification.
-class GTEST_API_ Notification {
+class GTEST_API_ [[nodiscard]] Notification {
  public:
   Notification() : notified_(false) {}
   Notification(const Notification&) = delete;
@@ -1273,7 +1275,7 @@ GTEST_DISABLE_MSC_WARNINGS_POP_()  // 4251
 // in order to call its Run(). Introducing ThreadWithParamBase as a
 // non-templated base class for ThreadWithParam allows us to bypass this
 // problem.
-class ThreadWithParamBase {
+class [[nodiscard]] ThreadWithParamBase {
  public:
   virtual ~ThreadWithParamBase() = default;
   virtual void Run() = 0;
@@ -1303,7 +1305,7 @@ extern "C" inline void* ThreadFuncWithCLinkage(void* thread) {
 // These classes are only for testing Google Test's own constructs. Do
 // not use them in user tests, either directly or indirectly.
 template <typename T>
-class ThreadWithParam : public ThreadWithParamBase {
+class [[nodiscard]] ThreadWithParam : public ThreadWithParamBase {
  public:
   typedef void UserThreadFunc(T);
 
@@ -1369,7 +1371,7 @@ class ThreadWithParam : public ThreadWithParamBase {
 //   GTEST_DECLARE_STATIC_MUTEX_(g_some_mutex);
 //
 // (A non-static Mutex is defined/declared in the usual way).
-class GTEST_API_ Mutex {
+class GTEST_API_ [[nodiscard]] Mutex {
  public:
   enum MutexType { kStatic = 0, kDynamic = 1 };
   // We rely on kStaticMutex being 0 as it is to what the linker initializes
@@ -1422,7 +1424,7 @@ class GTEST_API_ Mutex {
 // platforms. That macro is used as a defensive measure to prevent against
 // inadvertent misuses of MutexLock like "MutexLock(&mu)" rather than
 // "MutexLock l(&mu)".  Hence the typedef trick below.
-class GTestMutexLock {
+class [[nodiscard]] GTestMutexLock {
  public:
   explicit GTestMutexLock(Mutex& mutex) : mutex_(mutex) { mutex_.lock(); }
   ~GTestMutexLock() { mutex_.unlock(); }
@@ -1438,14 +1440,14 @@ typedef GTestMutexLock MutexLock;
 
 // Base class for ValueHolder<T>.  Allows a caller to hold and delete a value
 // without knowing its type.
-class ThreadLocalValueHolderBase {
+class [[nodiscard]] ThreadLocalValueHolderBase {
  public:
   virtual ~ThreadLocalValueHolderBase() {}
 };
 
 // Provides a way for a thread to send notifications to a ThreadLocal
 // regardless of its parameter type.
-class ThreadLocalBase {
+class [[nodiscard]] ThreadLocalBase {
  public:
   // Creates a new ValueHolder<T> object holding a default value passed to
   // this ThreadLocal<T>'s constructor and returns it.  It is the caller's
@@ -1465,7 +1467,7 @@ class ThreadLocalBase {
 // Maps a thread to a set of ThreadLocals that have values instantiated on that
 // thread and notifies them when the thread exits.  A ThreadLocal instance is
 // expected to persist until all threads it has values on have terminated.
-class GTEST_API_ ThreadLocalRegistry {
+class GTEST_API_ [[nodiscard]] ThreadLocalRegistry {
  public:
   // Registers thread_local_instance as having value on the current thread.
   // Returns a value that can be used to identify the thread from other threads.
@@ -1477,7 +1479,7 @@ class GTEST_API_ ThreadLocalRegistry {
       const ThreadLocalBase* thread_local_instance);
 };
 
-class GTEST_API_ ThreadWithParamBase {
+class GTEST_API_ [[nodiscard]] ThreadWithParamBase {
  public:
   void Join();
 
@@ -1497,7 +1499,7 @@ class GTEST_API_ ThreadWithParamBase {
 
 // Helper class for testing Google Test's multi-threading constructs.
 template <typename T>
-class ThreadWithParam : public ThreadWithParamBase {
+class [[nodiscard]] ThreadWithParam : public ThreadWithParamBase {
  public:
   typedef void UserThreadFunc(T);
 
@@ -1552,7 +1554,7 @@ class ThreadWithParam : public ThreadWithParamBase {
 // object managed by Google Test will be leaked as long as all threads
 // using Google Test have exited when main() returns.
 template <typename T>
-class ThreadLocal : public ThreadLocalBase {
+class [[nodiscard]] ThreadLocal : public ThreadLocalBase {
  public:
   ThreadLocal() : default_factory_(new DefaultValueHolderFactory()) {}
   explicit ThreadLocal(const T& value)
@@ -1637,7 +1639,7 @@ class ThreadLocal : public ThreadLocalBase {
 #elif GTEST_HAS_PTHREAD
 
 // MutexBase and Mutex implement mutex on pthreads-based platforms.
-class MutexBase {
+class [[nodiscard]] MutexBase {
  public:
   // Acquires this mutex.
   void lock() {
@@ -1695,7 +1697,7 @@ class MutexBase {
 
 // The Mutex class can only be used for mutexes created at runtime. It
 // shares its API with MutexBase otherwise.
-class Mutex : public MutexBase {
+class [[nodiscard]] Mutex : public MutexBase {
  public:
   Mutex() {
     GTEST_CHECK_POSIX_SUCCESS_(pthread_mutex_init(&mutex_, nullptr));
@@ -1713,7 +1715,7 @@ class Mutex : public MutexBase {
 // platforms. That macro is used as a defensive measure to prevent against
 // inadvertent misuses of MutexLock like "MutexLock(&mu)" rather than
 // "MutexLock l(&mu)".  Hence the typedef trick below.
-class GTestMutexLock {
+class [[nodiscard]] GTestMutexLock {
  public:
   explicit GTestMutexLock(MutexBase& mutex) : mutex_(mutex) { mutex_.lock(); }
   ~GTestMutexLock() { mutex_.unlock(); }
@@ -1733,7 +1735,7 @@ typedef GTestMutexLock MutexLock;
 // C-linkage.  Therefore it cannot be templatized to access
 // ThreadLocal<T>.  Hence the need for class
 // ThreadLocalValueHolderBase.
-class GTEST_API_ ThreadLocalValueHolderBase {
+class GTEST_API_ [[nodiscard]] ThreadLocalValueHolderBase {
  public:
   virtual ~ThreadLocalValueHolderBase() = default;
 };
@@ -1746,7 +1748,7 @@ extern "C" inline void DeleteThreadLocalValue(void* value_holder) {
 
 // Implements thread-local storage on pthreads-based systems.
 template <typename T>
-class GTEST_API_ ThreadLocal {
+class GTEST_API_ [[nodiscard]] ThreadLocal {
  public:
   ThreadLocal()
       : key_(CreateKey()), default_factory_(new DefaultValueHolderFactory()) {}
@@ -1859,7 +1861,7 @@ class GTEST_API_ ThreadLocal {
 // mutex is not supported - using Google Test in multiple threads is not
 // supported on such platforms.
 
-class Mutex {
+class [[nodiscard]] Mutex {
  public:
   Mutex() {}
   void lock() {}
@@ -1877,7 +1879,7 @@ class Mutex {
 // platforms. That macro is used as a defensive measure to prevent against
 // inadvertent misuses of MutexLock like "MutexLock(&mu)" rather than
 // "MutexLock l(&mu)".  Hence the typedef trick below.
-class GTestMutexLock {
+class [[nodiscard]] GTestMutexLock {
  public:
   explicit GTestMutexLock(Mutex&) {}  // NOLINT
 };
@@ -1885,7 +1887,7 @@ class GTestMutexLock {
 typedef GTestMutexLock MutexLock;
 
 template <typename T>
-class GTEST_API_ ThreadLocal {
+class GTEST_API_ [[nodiscard]] ThreadLocal {
  public:
   ThreadLocal() : value_() {}
   explicit ThreadLocal(const T& value) : value_(value) {}
@@ -2193,7 +2195,7 @@ constexpr BiggestInt kMaxBiggestInt = (std::numeric_limits<BiggestInt>::max)();
 // needs.  Other types can be easily added in the future if need
 // arises.
 template <size_t size>
-class TypeWithSize {
+class [[nodiscard]] TypeWithSize {
  public:
   // This prevents the user from using TypeWithSize<N> with incorrect
   // values of N.
@@ -2202,7 +2204,7 @@ class TypeWithSize {
 
 // The specialization for size 4.
 template <>
-class TypeWithSize<4> {
+class [[nodiscard]] TypeWithSize<4> {
  public:
   using Int = std::int32_t;
   using UInt = std::uint32_t;
@@ -2210,7 +2212,7 @@ class TypeWithSize<4> {
 
 // The specialization for size 8.
 template <>
-class TypeWithSize<8> {
+class [[nodiscard]] TypeWithSize<8> {
  public:
   using Int = std::int64_t;
   using UInt = std::uint64_t;

@@ -382,7 +382,7 @@ void PrintWithFallback(const T& value, ::std::ostream* os) {
 
 // The default case.
 template <typename ToPrint, typename OtherOperand>
-class FormatForComparison {
+class [[nodiscard]] FormatForComparison {
  public:
   static ::std::string Format(const ToPrint& value) {
     return ::testing::PrintToString(value);
@@ -391,7 +391,7 @@ class FormatForComparison {
 
 // Array.
 template <typename ToPrint, size_t N, typename OtherOperand>
-class FormatForComparison<ToPrint[N], OtherOperand> {
+class [[nodiscard]] FormatForComparison<ToPrint[N], OtherOperand> {
  public:
   static ::std::string Format(const ToPrint* value) {
     return FormatForComparison<const ToPrint*, OtherOperand>::Format(value);
@@ -477,7 +477,7 @@ std::string FormatForComparisonFailureMessage(const T1& value,
 // function template), as we need to partially specialize it for
 // reference types, which cannot be done with function templates.
 template <typename T>
-class UniversalPrinter;
+class [[nodiscard]] UniversalPrinter;
 
 // Prints the given value using the << operator if it has one;
 // otherwise prints the bytes in it.  This is what
@@ -889,7 +889,7 @@ void PrintTo(const ::std::pair<T1, T2>& value, ::std::ostream* os) {
 // Implements printing a non-reference type T by letting the compiler
 // pick the right overload of PrintTo() for T.
 template <typename T>
-class UniversalPrinter {
+class [[nodiscard]] UniversalPrinter {
  public:
   // MSVC warns about adding const to a function type, so we want to
   // disable the warning.
@@ -915,11 +915,11 @@ class UniversalPrinter {
 
 // Remove any const-qualifiers before passing a type to UniversalPrinter.
 template <typename T>
-class UniversalPrinter<const T> : public UniversalPrinter<T> {};
+class [[nodiscard]] UniversalPrinter<const T> : public UniversalPrinter<T> {};
 
 // Printer for std::any
 template <>
-class UniversalPrinter<std::any> {
+class [[nodiscard]] UniversalPrinter<std::any> {
  public:
   static void Print(const std::any& value, ::std::ostream* os) {
     if (value.has_value()) {
@@ -942,7 +942,7 @@ class UniversalPrinter<std::any> {
 
 // Printer for std::optional
 template <typename T>
-class UniversalPrinter<std::optional<T>> {
+class [[nodiscard]] UniversalPrinter<std::optional<T>> {
  public:
   static void Print(const std::optional<T>& value, ::std::ostream* os) {
     *os << '(';
@@ -956,14 +956,14 @@ class UniversalPrinter<std::optional<T>> {
 };
 
 template <>
-class UniversalPrinter<std::nullopt_t> {
+class [[nodiscard]] UniversalPrinter<std::nullopt_t> {
  public:
   static void Print(std::nullopt_t, ::std::ostream* os) { *os << "(nullopt)"; }
 };
 
 // Printer for std::variant
 template <typename... T>
-class UniversalPrinter<std::variant<T...>> {
+class [[nodiscard]] UniversalPrinter<std::variant<T...>> {
  public:
   static void Print(const std::variant<T...>& value, ::std::ostream* os) {
     *os << '(';
@@ -1031,7 +1031,7 @@ GTEST_API_ void UniversalPrintArray(const wchar_t* begin, size_t len,
 
 // Implements printing an array type T[N].
 template <typename T, size_t N>
-class UniversalPrinter<T[N]> {
+class [[nodiscard]] UniversalPrinter<T[N]> {
  public:
   // Prints the given array, omitting some elements when there are too
   // many.
@@ -1042,7 +1042,7 @@ class UniversalPrinter<T[N]> {
 
 // Implements printing a reference type T&.
 template <typename T>
-class UniversalPrinter<T&> {
+class [[nodiscard]] UniversalPrinter<T&> {
  public:
   // MSVC warns about adding const to a function type, so we want to
   // disable the warning.
@@ -1065,35 +1065,35 @@ class UniversalPrinter<T&> {
 // NUL-terminated string (but not the pointer) is printed.
 
 template <typename T>
-class UniversalTersePrinter {
+class [[nodiscard]] UniversalTersePrinter {
  public:
   static void Print(const T& value, ::std::ostream* os) {
     UniversalPrint(value, os);
   }
 };
 template <typename T>
-class UniversalTersePrinter<T&> {
+class [[nodiscard]] UniversalTersePrinter<T&> {
  public:
   static void Print(const T& value, ::std::ostream* os) {
     UniversalPrint(value, os);
   }
 };
 template <typename T>
-class UniversalTersePrinter<std::reference_wrapper<T>> {
+class [[nodiscard]] UniversalTersePrinter<std::reference_wrapper<T>> {
  public:
   static void Print(std::reference_wrapper<T> value, ::std::ostream* os) {
     UniversalTersePrinter<T>::Print(value.get(), os);
   }
 };
 template <typename T, size_t N>
-class UniversalTersePrinter<T[N]> {
+class [[nodiscard]] UniversalTersePrinter<T[N]> {
  public:
   static void Print(const T (&value)[N], ::std::ostream* os) {
     UniversalPrinter<T[N]>::Print(value, os);
   }
 };
 template <>
-class UniversalTersePrinter<const char*> {
+class [[nodiscard]] UniversalTersePrinter<const char*> {
  public:
   static void Print(const char* str, ::std::ostream* os) {
     if (str == nullptr) {
@@ -1104,12 +1104,12 @@ class UniversalTersePrinter<const char*> {
   }
 };
 template <>
-class UniversalTersePrinter<char*> : public UniversalTersePrinter<const char*> {
-};
+class [[nodiscard]]
+UniversalTersePrinter<char*> : public UniversalTersePrinter<const char*> {};
 
 #ifdef __cpp_lib_char8_t
 template <>
-class UniversalTersePrinter<const char8_t*> {
+class [[nodiscard]] UniversalTersePrinter<const char8_t*> {
  public:
   static void Print(const char8_t* str, ::std::ostream* os) {
     if (str == nullptr) {
@@ -1120,12 +1120,12 @@ class UniversalTersePrinter<const char8_t*> {
   }
 };
 template <>
-class UniversalTersePrinter<char8_t*>
+class [[nodiscard]] UniversalTersePrinter<char8_t*>
     : public UniversalTersePrinter<const char8_t*> {};
 #endif
 
 template <>
-class UniversalTersePrinter<const char16_t*> {
+class [[nodiscard]] UniversalTersePrinter<const char16_t*> {
  public:
   static void Print(const char16_t* str, ::std::ostream* os) {
     if (str == nullptr) {
@@ -1136,11 +1136,11 @@ class UniversalTersePrinter<const char16_t*> {
   }
 };
 template <>
-class UniversalTersePrinter<char16_t*>
+class [[nodiscard]] UniversalTersePrinter<char16_t*>
     : public UniversalTersePrinter<const char16_t*> {};
 
 template <>
-class UniversalTersePrinter<const char32_t*> {
+class [[nodiscard]] UniversalTersePrinter<const char32_t*> {
  public:
   static void Print(const char32_t* str, ::std::ostream* os) {
     if (str == nullptr) {
@@ -1151,12 +1151,12 @@ class UniversalTersePrinter<const char32_t*> {
   }
 };
 template <>
-class UniversalTersePrinter<char32_t*>
+class [[nodiscard]] UniversalTersePrinter<char32_t*>
     : public UniversalTersePrinter<const char32_t*> {};
 
 #if GTEST_HAS_STD_WSTRING
 template <>
-class UniversalTersePrinter<const wchar_t*> {
+class [[nodiscard]] UniversalTersePrinter<const wchar_t*> {
  public:
   static void Print(const wchar_t* str, ::std::ostream* os) {
     if (str == nullptr) {
@@ -1169,7 +1169,7 @@ class UniversalTersePrinter<const wchar_t*> {
 #endif
 
 template <>
-class UniversalTersePrinter<wchar_t*> {
+class [[nodiscard]] UniversalTersePrinter<wchar_t*> {
  public:
   static void Print(wchar_t* str, ::std::ostream* os) {
     UniversalTersePrinter<const wchar_t*>::Print(str, os);
