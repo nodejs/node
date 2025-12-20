@@ -14,6 +14,10 @@ test-single-executable-application*: SKIP
 # https://github.com/nodejs/node/issues/59561
 test-single-executable-application*: SKIP
 
+[$system==linux && $arch==riscv64]
+# https://github.com/nodejs/node/issues/61110
+test-single-executable-application*: SKIP
+
 [$system==win32]
 # https://github.com/nodejs/node/issues/49630
 test-single-executable-application-snapshot: PASS, FLAKY
