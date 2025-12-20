@@ -1068,7 +1068,7 @@ test('Check proxies', () => {
   assert.throws(
     () => assert.deepStrictEqual(arrProxy, [1, 2, 3]),
     { message: `${defaultMsgStartFull}\n\n` +
-               '  [\n    1,\n    2,\n-   3\n  ]\n' }
+               '+ Proxy([\n- [\n    1,\n    2,\n+ ])\n-   3\n- ]\n' }
   );
   util.inspect.defaultOptions = tmp;
 
