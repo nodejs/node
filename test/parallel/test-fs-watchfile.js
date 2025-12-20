@@ -42,10 +42,14 @@ const expectedStatObject = new fs.Stats(
   0,                                        // ino
   0,                                        // size
   0,                                        // blocks
-  Date.UTC(1970, 0, 1, 0, 0, 0),            // atime
-  Date.UTC(1970, 0, 1, 0, 0, 0),            // mtime
-  Date.UTC(1970, 0, 1, 0, 0, 0),            // ctime
-  Date.UTC(1970, 0, 1, 0, 0, 0)             // birthtime
+  0,                                        // atimeS
+  0,                                        // atimeNs
+  0,                                        // mtimeS
+  0,                                        // mtimeNs
+  0,                                        // ctime
+  0,                                        // ctimeNs
+  0,                                        // birthtime
+  0,                                        // birthtimeNs
 );
 
 tmpdir.refresh();
