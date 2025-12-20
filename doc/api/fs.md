@@ -39,6 +39,8 @@ forms, and are accessible using both CommonJS syntax and ES6 Modules (ESM).
 Promise-based operations return a promise that is fulfilled when the
 asynchronous operation is complete.
 
+The "node:fs/promises" module is implemented as a separate entry point from "node:fs". While "fs.promises" is exposed as a property on the main "fs" module, importing "node:fs/promises" loads the promised-based APIs directly.
+
 ```mjs
 import { unlink } from 'node:fs/promises';
 
