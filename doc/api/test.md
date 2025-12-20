@@ -175,7 +175,7 @@ example of a state file:
 ```json
 [
   {
-    "test.js:10:5": { "passed_on_attempt": 0, "name": "test 1" },
+    "test.js:10:5": { "passed_on_attempt": 0, "name": "test 1" }
   },
   {
     "test.js:10:5": { "passed_on_attempt": 0, "name": "test 1" },
@@ -915,7 +915,7 @@ test('mocks the Date object with initial time', (context) => {
 You can use the `.setTime()` method to manually move the mocked date to another
 time. This method only accepts a positive integer.
 
-**Note:** This method will execute any mocked timers that are in the past
+**Note:** This method will **not** execute any mocked timers that are in the past
 from the new time.
 
 In the below example we are setting a new time for the mocked date.
@@ -952,15 +952,14 @@ test('sets the time of a date object', (context) => {
 });
 ```
 
-If you have any timer that's set to run in the past, it will be executed as if
-the `.tick()` method has been called. This is useful if you want to test
-time-dependent functionality that's already in the past.
+Timers scheduled in the past will **not** run when you call `setTime()`. To execute those timers, you can use
+the `.tick()` method to move forward from the new time.
 
 ```mjs
 import assert from 'node:assert';
 import { test } from 'node:test';
 
-test('runs timers as setTime passes ticks', (context) => {
+test('setTime does not execute timers', (context) => {
   // Optionally choose what to mock
   context.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
   const fn = context.mock.fn();
@@ -972,7 +971,10 @@ test('runs timers as setTime passes ticks', (context) => {
   assert.strictEqual(Date.now(), 800);
 
   context.mock.timers.setTime(1200);
-  // Timer is executed as the time is now reached
+  // Timer is still not executed
+  assert.strictEqual(fn.mock.callCount(), 0);
+  // Advance in time to execute the timer
+  context.mock.timers.tick(0);
   assert.strictEqual(fn.mock.callCount(), 1);
   assert.strictEqual(Date.now(), 1200);
 });
@@ -3068,7 +3070,7 @@ Dates and timer objects are dependent on each other. If you use `setTime()` to
 pass the current time to the mocked `Date` object, the set timers with
 `setTimeout` and `setInterval` will **not** be affected.
 
-However, the `tick` method **will** advanced the mocked `Date` object.
+However, the `tick` method **will** advance the mocked `Date` object.
 
 ```mjs
 import assert from 'node:assert';
