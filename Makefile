@@ -655,11 +655,15 @@ test-test426: all ## Run the Web Platform Tests.
 test-wpt: all ## Run the Web Platform Tests.
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) wpt
 
+# https://github.com/nodejs/node/blob/a00d95c73dcac8fc2b316238fb978a7d5aa650c6/.github/workflows/daily-wpt-fyi.yml#L71-L97
+# This uses NODE instead of OUT_NODE and if changes are to be made they'd need to be made on all
+# non-EOL release lines' since the wpt.fyi job checks out the repository in a state of a given release
+# to ensure future changes to the WPT runner don't need to be backported.
 .PHONY: test-wpt-report
 test-wpt-report: ## Run the Web Platform Tests and generate a report.
 	$(RM) -r out/wpt
 	mkdir -p out/wpt
-	-WPT_REPORT=1 $(PYTHON) tools/test.py --shell $(OUT_NODE) $(PARALLEL_ARGS) wpt
+	-WPT_REPORT=1 $(PYTHON) tools/test.py --shell $(NODE) $(PARALLEL_ARGS) wpt
 	$(NODE) "$$PWD/tools/merge-wpt-reports.mjs"
 
 .PHONY: test-internet
