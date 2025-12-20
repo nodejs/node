@@ -330,7 +330,6 @@ class SQLTagStore : public BaseObject {
       const v8::FunctionCallbackInfo<v8::Value>& args);
   BaseObjectWeakPtr<DatabaseSync> database_;
   LRUCache<std::string, BaseObjectPtr<StatementSync>> sql_tags_;
-  int capacity_;
   friend class StatementExecutionHelper;
 };
 

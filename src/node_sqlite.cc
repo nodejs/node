@@ -2664,8 +2664,7 @@ SQLTagStore::SQLTagStore(Environment* env,
                          int capacity)
     : BaseObject(env, object),
       database_(std::move(database)),
-      sql_tags_(capacity),
-      capacity_(capacity) {
+      sql_tags_(capacity) {
   MakeWeak();
 }
 
