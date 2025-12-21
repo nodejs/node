@@ -12,6 +12,8 @@ const fakeEventTarget = {
   someOtherField: 42
 };
 
-assert.doesNotThrow(() => {
-  util.inspect(fakeEventTarget);
-});
+// should not throw when calling the custom inspect method
+const output = util.inspect(fakeEventTarget);
+
+assert.strictEqual(typeof output, 'string');
+
