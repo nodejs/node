@@ -1,5 +1,6 @@
 'use strict';
 
+require('../common');
 const assert = require('assert');
 const util = require('util');
 
@@ -12,8 +13,7 @@ const fakeEventTarget = {
   someOtherField: 42
 };
 
-// should not throw when calling the custom inspect method
+// Should not throw when calling the custom inspect method
 const output = util.inspect(fakeEventTarget);
 
 assert.strictEqual(typeof output, 'string');
-
