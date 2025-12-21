@@ -50,11 +50,11 @@ void nghttp2_set_debug_vprintf_callback(
   static_debug_vprintf_callback = debug_vprintf_callback;
 }
 
-#else /* !DEBUGBUILD */
+#else /* !defined(DEBUGBUILD) */
 
 void nghttp2_set_debug_vprintf_callback(
   nghttp2_debug_vprintf_callback debug_vprintf_callback) {
   (void)debug_vprintf_callback;
 }
 
-#endif /* !DEBUGBUILD */
+#endif /* !defined(DEBUGBUILD) */

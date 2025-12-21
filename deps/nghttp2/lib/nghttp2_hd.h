@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <nghttp2/nghttp2.h>
 
@@ -439,4 +439,4 @@ nghttp2_ssize nghttp2_hd_huff_decode(nghttp2_hd_huff_decode_context *ctx,
  */
 int nghttp2_hd_huff_decode_failure_state(nghttp2_hd_huff_decode_context *ctx);
 
-#endif /* NGHTTP2_HD_H */
+#endif /* !defined(NGHTTP2_HD_H) */
