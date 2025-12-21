@@ -163,9 +163,10 @@ static void Cwd(const FunctionCallbackInfo<Value>& args) {
   size_t cwd_len = sizeof(buf);
   int err = uv_cwd(buf, &cwd_len);
   if (err) {
-    return env->ThrowUVException(err, "uv_cwd");
+    std::string msg =
+        std::string("process.cwd failed with error ") + uv_strerror(err);
+    return env->ThrowUVException(err, "uv_cwd", msg.c_str());
   }
-
   Local<String> cwd;
   if (String::NewFromUtf8(env->isolate(), buf, NewStringType::kNormal, cwd_len)
           .ToLocal(&cwd)) {
