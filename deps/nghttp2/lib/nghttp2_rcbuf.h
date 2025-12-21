@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <nghttp2/nghttp2.h>
 
@@ -77,4 +77,4 @@ int nghttp2_rcbuf_new2(nghttp2_rcbuf **rcbuf_ptr, const uint8_t *src,
  */
 void nghttp2_rcbuf_del(nghttp2_rcbuf *rcbuf);
 
-#endif /* NGHTTP2_RCBUF_H */
+#endif /* !defined(NGHTTP2_RCBUF_H) */
