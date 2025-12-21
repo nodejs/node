@@ -36,11 +36,12 @@ jobs:
         with:
           persist-credentials: false
       - name: Check commit message
+        id: commit-check
         run: npx -q core-validate-commit "$COMMIT"
         env:
           COMMIT: ${{ github.event.after }}
       - name: Slack Notification
-        if: failure()
+        if: ${{ failure() && steps.commit-check.conclusion == 'failure' }}
         uses: rtCamp/action-slack-notify@e31e87e03dd19038e411e38ae27cbad084a90661  # 2.3.3
         env:
           SLACK_COLOR: '#DE512A'
