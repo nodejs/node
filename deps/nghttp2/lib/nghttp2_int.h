@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <nghttp2/nghttp2.h>
 
@@ -59,4 +59,4 @@ typedef enum {
   NGHTTP2_ERR_PUSH_CANCEL = -107,
 } nghttp2_internal_error;
 
-#endif /* NGHTTP2_INT_H */
+#endif /* !defined(NGHTTP2_INT_H) */
