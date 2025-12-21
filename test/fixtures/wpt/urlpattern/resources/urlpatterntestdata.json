@@ -3108,5 +3108,15 @@
       "hostname": { "input": "www.example.com", "groups": {} },
       "pathname": { "input": "/path/with/x", "groups": { "0": "path/with/x" } }
     }
+  },
+  {
+    "pattern": [{ "hostname": ":domain(.*)" }],
+    "inputs": [{ "hostname": "localhost" }],
+    "expected_obj": {
+      "hostname": ":domain(.*)"
+    },
+    "expected_match": {
+      "hostname": { "input": "localhost", "groups": { "domain" : "localhost"} }
+    }
   }
 ]
