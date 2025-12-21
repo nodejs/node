@@ -395,7 +395,7 @@ impl Instant {
     pub fn to_zoned_date_time_iso_with_provider(
         &self,
         time_zone: TimeZone,
-        provider: &impl TimeZoneProvider,
+        provider: &(impl TimeZoneProvider + ?Sized),
     ) -> TemporalResult<ZonedDateTime> {
         ZonedDateTime::new_unchecked_with_provider(*self, time_zone, Calendar::ISO, provider)
     }
@@ -409,7 +409,7 @@ impl Instant {
         &self,
         timezone: Option<TimeZone>,
         options: ToStringRoundingOptions,
-        provider: &impl TimeZoneProvider,
+        provider: &(impl TimeZoneProvider + ?Sized),
     ) -> TemporalResult<String> {
         self.to_ixdtf_writeable_with_provider(timezone, options, provider)
             .map(|x| x.write_to_string().into())
@@ -420,7 +420,7 @@ impl Instant {
         &self,
         timezone: Option<TimeZone>,
         options: ToStringRoundingOptions,
-        provider: &impl TimeZoneProvider,
+        provider: &(impl TimeZoneProvider + ?Sized),
     ) -> TemporalResult<impl Writeable + '_> {
         let resolved_options = options.resolve()?;
         let round = self.round_instant(ResolvedRoundingOptions::from_to_string_options(

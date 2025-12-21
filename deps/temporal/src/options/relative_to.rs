@@ -38,7 +38,7 @@ impl RelativeTo {
     /// is invalid, then an error is returned.
     pub fn try_from_str_with_provider(
         source: &str,
-        provider: &impl TimeZoneProvider,
+        provider: &(impl TimeZoneProvider + ?Sized),
     ) -> TemporalResult<Self> {
         // b. Let result be ? ParseISODateTime(value, « TemporalDateTimeString[+Zoned], TemporalDateTimeString[~Zoned] »).
         let bytes = source.as_bytes();

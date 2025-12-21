@@ -594,6 +594,7 @@ impl Writeable for FormattableDuration {
                     let unit_below_minute = self.date.is_none() && hours == 0 && minutes == 0;
 
                     let write_second = seconds != 0
+                        || ns != 0
                         || unit_below_minute
                         || matches!(self.precision, Precision::Digit(_));
 
@@ -899,10 +900,26 @@ pub fn parse_allowed_calendar_formats(s: &[u8]) -> Option<&[u8]> {
 
 #[cfg(test)]
 mod tests {
-    use super::{FormattableDate, FormattableOffset};
-    use crate::parsers::{FormattableTime, Precision};
+    use super::{FormattableDate, FormattableDuration, FormattableOffset};
+    use crate::parsers::{FormattableTime, FormattableTimeDuration, Precision};
     use alloc::format;
     use writeable::assert_writeable_eq;
+
+    #[test]
+    fn duration() {
+        let duration = FormattableDuration {
+            sign: crate::Sign::Positive,
+            date: Some(super::FormattableDateDuration {
+                years: 1,
+                months: 0,
+                weeks: 0,
+                days: 0,
+            }),
+            time: Some(FormattableTimeDuration::Seconds(0, 0, 0, Some(1))),
+            precision: Precision::Auto,
+        };
+        assert_writeable_eq!(duration, "P1YT0.000000001S");
+    }
 
     #[test]
     fn offset_string() {

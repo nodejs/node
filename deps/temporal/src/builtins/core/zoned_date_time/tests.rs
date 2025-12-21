@@ -488,7 +488,7 @@ fn basic_zdt_add() {
 
 fn parse_zdt_with_reject(
     s: &str,
-    provider: &impl TimeZoneProvider,
+    provider: &(impl TimeZoneProvider + ?Sized),
 ) -> TemporalResult<ZonedDateTime> {
     ZonedDateTime::from_utf8_with_provider(
         s.as_bytes(),
@@ -500,7 +500,7 @@ fn parse_zdt_with_reject(
 
 fn parse_zdt_with_compatible(
     s: &str,
-    provider: &impl TimeZoneProvider,
+    provider: &(impl TimeZoneProvider + ?Sized),
 ) -> TemporalResult<ZonedDateTime> {
     ZonedDateTime::from_utf8_with_provider(
         s.as_bytes(),
@@ -599,7 +599,10 @@ fn test_pacific_niue() {
     })
 }
 
-fn total_seconds_for_one_day(s: &str, provider: &impl TimeZoneProvider) -> TemporalResult<f64> {
+fn total_seconds_for_one_day(
+    s: &str,
+    provider: &(impl TimeZoneProvider + ?Sized),
+) -> TemporalResult<f64> {
     Ok(Duration::new(0, 0, 0, 1, 0, 0, 0, 0, 0, 0)
         .unwrap()
         .total_with_provider(
@@ -645,7 +648,7 @@ fn assert_tr(
     zdt: &ZonedDateTime,
     direction: TransitionDirection,
     s: &str,
-    provider: &impl TimeZoneProvider,
+    provider: &(impl TimeZoneProvider + ?Sized),
 ) {
     assert_eq!(
         zdt.get_time_zone_transition_with_provider(direction, provider)
@@ -1141,5 +1144,66 @@ fn test_round_to_start_of_day() {
             rounded.to_string_with_provider(provider).unwrap()
         );
         assert_eq!(rounded.get_iso_datetime(), known_rounded.get_iso_datetime());
+    })
+}
+
+#[test]
+fn test_same_date_reverse_wallclock() {
+    // intl402/Temporal/ZonedDateTime/prototype/since/same-date-reverse-wallclock
+    test_all_providers!(provider: {
+        let later =
+            parse_zdt_with_reject("2025-11-02T01:00:00-08:00[America/Vancouver]", provider).unwrap();
+        let earlier =
+            parse_zdt_with_reject("2025-11-02T01:01:00-07:00[America/Vancouver]", provider).unwrap();
+
+        let diff = DifferenceSettings {
+            largest_unit: Some(Unit::Year),
+            smallest_unit: Some(Unit::Millisecond),
+            ..Default::default()
+        };
+        let duration = later.since_with_provider(&earlier, diff, provider).unwrap();
+        assert_eq!(duration.minutes(), 59);
+
+    })
+}
+
+#[test]
+fn test_relativeto_back_transition() {
+    // intl402/Temporal/Duration/prototype/round/relativeto-dst-back-transition
+    test_all_providers!(provider: {
+        let origin =
+            parse_zdt_with_reject("2025-11-02T01:00:00-08:00[America/Vancouver]", provider).unwrap();
+        let duration = Duration::new(0, 0, 0, 0, 11, 39, 0, 0, 0, 0).unwrap();
+
+        let opts = RoundingOptions {
+            largest_unit: Some(Unit::Day),
+            smallest_unit: Some(Unit::Day),
+            rounding_mode: Some(RoundingMode::HalfExpand),
+            ..Default::default()
+        };
+        let rounded = duration.round_with_provider(opts, Some(origin.into()), provider).unwrap();
+        assert_eq!(rounded.days(), 0);
+
+    })
+}
+
+#[test]
+fn test_canonical_equals() {
+    // intl402/Temporal/ZonedDateTime/prototype/equals/canonical-not-equal
+    test_all_providers!(provider: {
+        let one = parse_zdt_with_compatible("2025-01-01T01:00:00[Africa/Accra]", provider).unwrap();
+        let two = parse_zdt_with_compatible("2025-01-01T01:00:00[Africa/Abidjan]", provider).unwrap();
+        assert!(!one.equals_with_provider(&two, provider).unwrap());
+
+        // Spec explicitly lists this case https://tc39.es/ecma402/#sec-use-of-iana-time-zone-database
+        let one = parse_zdt_with_compatible("2025-01-01T01:00:00[Europe/Prague]", provider).unwrap();
+        let two = parse_zdt_with_compatible("2025-01-01T01:00:00[Europe/Bratislava]", provider).unwrap();
+        assert!(!one.equals_with_provider(&two, provider).unwrap());
+
+
+        // This should work, though
+        let one = parse_zdt_with_compatible("2025-01-01T01:00:00[Asia/Kolkata]", provider).unwrap();
+        let two = parse_zdt_with_compatible("2025-01-01T01:00:00[Asia/Calcutta]", provider).unwrap();
+        assert!(one.equals_with_provider(&two, provider).unwrap());
     })
 }

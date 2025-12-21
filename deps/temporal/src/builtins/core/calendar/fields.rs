@@ -1,9 +1,8 @@
 use tinystr::TinyAsciiStr;
 
-use super::types::month_to_month_code;
 use crate::{
-    error::ErrorMessage, options::Overflow, Calendar, MonthCode, PlainDate, PlainDateTime,
-    PlainMonthDay, PlainYearMonth, TemporalError, TemporalResult,
+    error::ErrorMessage, Calendar, MonthCode, PlainDate, PlainDateTime, PlainMonthDay,
+    PlainYearMonth, TemporalError, TemporalResult,
 };
 use core::ops::Range;
 
@@ -286,7 +285,7 @@ impl YearMonthCalendarFields {
 #[macro_export]
 macro_rules! impl_with_fallback_method {
     ($method_name:ident, $fields_type:ident, ( $(with_day: $day:ident)? ) $component_type:ty) => {
-        pub(crate) fn $method_name(&self, fallback: &$component_type, calendar: icu_calendar::AnyCalendarKind, overflow: Overflow) -> TemporalResult<Self> {
+        pub(crate) fn $method_name(&self, fallback: &$component_type, calendar: icu_calendar::AnyCalendarKind) -> TemporalResult<Self> {
             let keys_to_ignore = self.field_keys_to_ignore(calendar);
             let mut era = self.era;
 
@@ -312,28 +311,15 @@ macro_rules! impl_with_fallback_method {
                 }
             }
 
-            let (month, month_code) = match (self.month, self.month_code) {
-                (Some(month), Some(mc)) => (Some(month), Some(mc)),
-                (Some(month), None) => {
-                    let month_maybe_clamped = if overflow == Overflow::Constrain {
-                        // TODO (manishearth) this should be managed by ICU4X
-                        // https://github.com/unicode-org/icu4x/issues/6790
-                        month.clamp(1, 12)
-                    } else {
-                        month
-                    };
+            let month = self.month;
+            let mut month_code = self.month_code;
 
-                    (Some(month_maybe_clamped), Some(month_to_month_code(month_maybe_clamped)?))
-                }
-                (None, Some(mc)) => (Some(mc.to_month_integer()).map(Into::into), Some(mc)),
-                (None, None) if !keys_to_ignore.month => (
-                    Some(fallback.month()).map(Into::into),
-                    Some(fallback.month_code()),
-                ),
-                // This should currently be unreachable, but it may change as CalendarFieldKeysToIgnore
-                // changes
-                (None, None) => (None, None)
-            };
+            // We only want to fall back if neither a month nor a month code were specified
+            // and then we only want to fall back with the month code (in case the year is being replaced!)
+            if month.is_none() && month_code.is_none() && !keys_to_ignore.month {
+                month_code = Some(fallback.month_code());
+            }
+
             #[allow(clippy::needless_update)] {
                 Ok(Self {
                     year,

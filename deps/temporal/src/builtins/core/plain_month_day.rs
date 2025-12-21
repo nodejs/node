@@ -353,7 +353,7 @@ impl PlainMonthDay {
     pub fn epoch_ns_for_with_provider(
         &self,
         time_zone: TimeZone,
-        provider: &impl TimeZoneProvider,
+        provider: &(impl TimeZoneProvider + ?Sized),
     ) -> TemporalResult<EpochNanoseconds> {
         // 2. Let isoDateTime be CombineISODateAndTimeRecord(temporalYearMonth.[[ISODate]], NoonTimeRecord()).
         let iso = IsoDateTime::new(self.iso, IsoTime::noon())?;
@@ -528,34 +528,30 @@ mod tests {
 
     #[test]
     /// This test is for calendars where we don't wish to hardcode dates; but we do wish to know
-    /// that monthcodes can be constructed without issue
-    fn automated_reference_year() {
+    /// that monthcodes can be constructed without issue (currently only UAQ)
+    fn automated_uaq_reference_year() {
         let reference_iso = IsoDate::new_unchecked(1972, 12, 31);
-        for cal in [
-            AnyCalendarKind::HijriSimulatedMecca,
-            AnyCalendarKind::HijriUmmAlQura,
-        ] {
-            let calendar = Calendar::new(cal);
-            for month in 1..=12 {
-                for day in [29, 30] {
-                    let month_code = crate::builtins::calendar::month_to_month_code(month).unwrap();
 
-                    let calendar_fields = CalendarFields {
-                        month_code: Some(month_code),
-                        day: Some(day),
-                        ..Default::default()
-                    };
+        let calendar = Calendar::new(AnyCalendarKind::HijriUmmAlQura);
+        for month in 1..=12 {
+            for day in [29, 30] {
+                let month_code = crate::builtins::calendar::month_to_month_code(month).unwrap();
 
-                    let md = calendar
-                        .month_day_from_fields(calendar_fields, Overflow::Reject)
-                        .unwrap();
+                let calendar_fields = CalendarFields {
+                    month_code: Some(month_code),
+                    day: Some(day),
+                    ..Default::default()
+                };
 
-                    assert!(
-                        md.iso <= reference_iso,
-                        "Reference ISO for {month}-{day} must be before 1972-12-31, found, {:?}",
-                        md.iso,
-                    );
-                }
+                let md = calendar
+                    .month_day_from_fields(calendar_fields, Overflow::Reject)
+                    .unwrap();
+
+                assert!(
+                    md.iso <= reference_iso,
+                    "Reference ISO for {month}-{day} must be before 1972-12-31, found, {:?}",
+                    md.iso,
+                );
             }
         }
     }

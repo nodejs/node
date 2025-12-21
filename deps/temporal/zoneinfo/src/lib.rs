@@ -36,6 +36,7 @@
 extern crate alloc;
 
 use alloc::string::String;
+use alloc::vec::Vec;
 use parser::ZoneInfoParseError;
 
 use hashbrown::HashMap;
@@ -108,6 +109,21 @@ pub struct ZoneInfoData {
     pub links: HashMap<String, String>,
     /// Data parsed from `#PACKRATLIST` lines
     pub pack_rat: HashMap<String, String>,
+    /// Data from zone.tab
+    ///
+    /// Will only be parsed if zone.tab is parsed
+    pub zone_tab: Vec<ZoneTabEntry>,
+}
+
+#[non_exhaustive]
+#[derive(Debug, Clone, Default)]
+pub struct ZoneTabEntry {
+    /// The country code, e.g. "AU"
+    pub country_code: String,
+    /// The (unparsed) coordinates, e.g. +5630+08458
+    pub coordinates_raw: String,
+    /// The timezone, e.g. Asia/Tomsk
+    pub tz: String,
 }
 
 // ==== ZoneInfoData parsing methods ====
@@ -125,6 +141,8 @@ impl ZoneInfoData {
             let parsed = Self::from_filepath(file_path)?;
             zoneinfo.extend(parsed);
         }
+        let zonetab = Self::zonetab_from_filepath(dir.as_ref().join("zone.tab"))?;
+        zoneinfo.extend(zonetab);
         Ok(zoneinfo)
     }
 
@@ -136,10 +154,25 @@ impl ZoneInfoData {
         Self::from_zoneinfo_file(&std::fs::read_to_string(path)?)
     }
 
+    /// Parse a zone.tab file from a filepath to a zoneinfo file.
+    #[cfg(feature = "std")]
+    pub fn zonetab_from_filepath<P: AsRef<Path> + core::fmt::Debug>(
+        path: P,
+    ) -> Result<Self, ZoneInfoError> {
+        Self::from_zonetab_file(&std::fs::read_to_string(path)?)
+    }
+
     /// Parses data from a zoneinfo file as a string slice.
     pub fn from_zoneinfo_file(src: &str) -> Result<Self, ZoneInfoError> {
         ZoneInfoParser::from_zoneinfo_str(src)
             .parse()
+            .map_err(ZoneInfoError::Parse)
+    }
+
+    /// Parses data from a zoneinfo file as a string slice.
+    pub fn from_zonetab_file(src: &str) -> Result<Self, ZoneInfoError> {
+        ZoneInfoParser::from_zoneinfo_str(src)
+            .parse_zonetab()
             .map_err(ZoneInfoError::Parse)
     }
 
@@ -149,5 +182,6 @@ impl ZoneInfoData {
         self.zones.extend(other.zones);
         self.links.extend(other.links);
         self.pack_rat.extend(other.pack_rat);
+        self.zone_tab.extend(other.zone_tab);
     }
 }

@@ -19,24 +19,23 @@ class AnyCalendarKind;
 namespace temporal_rs {
 namespace capi {
     enum AnyCalendarKind {
-      AnyCalendarKind_Buddhist = 0,
-      AnyCalendarKind_Chinese = 1,
-      AnyCalendarKind_Coptic = 2,
-      AnyCalendarKind_Dangi = 3,
-      AnyCalendarKind_Ethiopian = 4,
-      AnyCalendarKind_EthiopianAmeteAlem = 5,
-      AnyCalendarKind_Gregorian = 6,
-      AnyCalendarKind_Hebrew = 7,
-      AnyCalendarKind_Indian = 8,
-      AnyCalendarKind_HijriTabularTypeIIFriday = 9,
-      AnyCalendarKind_HijriSimulatedMecca = 10,
+      AnyCalendarKind_Iso = 0,
+      AnyCalendarKind_Buddhist = 1,
+      AnyCalendarKind_Chinese = 2,
+      AnyCalendarKind_Coptic = 3,
+      AnyCalendarKind_Dangi = 4,
+      AnyCalendarKind_Ethiopian = 5,
+      AnyCalendarKind_EthiopianAmeteAlem = 6,
+      AnyCalendarKind_Gregorian = 7,
+      AnyCalendarKind_Hebrew = 8,
+      AnyCalendarKind_Indian = 9,
+      AnyCalendarKind_HijriTabularTypeIIFriday = 10,
       AnyCalendarKind_HijriTabularTypeIIThursday = 11,
       AnyCalendarKind_HijriUmmAlQura = 12,
-      AnyCalendarKind_Iso = 13,
-      AnyCalendarKind_Japanese = 14,
-      AnyCalendarKind_JapaneseExtended = 15,
-      AnyCalendarKind_Persian = 16,
-      AnyCalendarKind_Roc = 17,
+      AnyCalendarKind_Japanese = 13,
+      AnyCalendarKind_JapaneseExtended = 14,
+      AnyCalendarKind_Persian = 15,
+      AnyCalendarKind_Roc = 16,
     };
 
     typedef struct AnyCalendarKind_option {union { AnyCalendarKind ok; }; bool is_ok; } AnyCalendarKind_option;
@@ -47,27 +46,26 @@ namespace temporal_rs {
 class AnyCalendarKind {
 public:
     enum Value {
-        Buddhist = 0,
-        Chinese = 1,
-        Coptic = 2,
-        Dangi = 3,
-        Ethiopian = 4,
-        EthiopianAmeteAlem = 5,
-        Gregorian = 6,
-        Hebrew = 7,
-        Indian = 8,
-        HijriTabularTypeIIFriday = 9,
-        HijriSimulatedMecca = 10,
+        Iso = 0,
+        Buddhist = 1,
+        Chinese = 2,
+        Coptic = 3,
+        Dangi = 4,
+        Ethiopian = 5,
+        EthiopianAmeteAlem = 6,
+        Gregorian = 7,
+        Hebrew = 8,
+        Indian = 9,
+        HijriTabularTypeIIFriday = 10,
         HijriTabularTypeIIThursday = 11,
         HijriUmmAlQura = 12,
-        Iso = 13,
-        Japanese = 14,
-        JapaneseExtended = 15,
-        Persian = 16,
-        Roc = 17,
+        Japanese = 13,
+        JapaneseExtended = 14,
+        Persian = 15,
+        Roc = 16,
     };
 
-    AnyCalendarKind(): value(Value::Buddhist) {}
+    AnyCalendarKind(): value(Value::Iso) {}
 
     // Implicit conversions between enum and ::Value
     constexpr AnyCalendarKind(Value v) : value(v) {}

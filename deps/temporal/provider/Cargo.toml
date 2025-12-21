@@ -52,7 +52,7 @@ zoneinfo64 = ["dep:zoneinfo64"]
 [dependencies]
 
 # Provider dependency
-zerotrie = "0.2.2"
+zerotrie.workspace = true
 zerovec = { workspace = true, features = ["derive", "alloc"] }
 tinystr = { workspace = true, features = ["zerovec"] }
 
@@ -69,7 +69,7 @@ zoneinfo64 = { workspace = true, optional = true }
 
 # Databake dependencies
 serde = { version = "1.0.225", features = ["derive"], optional = true }
-databake = { version = "0.2.0", features = ["derive"], optional = true }
+databake = { workspace = true, optional = true, features = ["derive"]}
 yoke = { version = "0.8.0", features = ["derive"], optional = true }
 serde_json = { version = "1.0.145", optional = true }
 

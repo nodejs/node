@@ -11,7 +11,7 @@ exclude.workspace = true
 publish = false
 
 [dependencies]
-databake = "0.2.0"
+databake.workspace = true
 prettyplease = "0.2.37"
 serde_json = "1.0.145"
 syn = "2.0.106"

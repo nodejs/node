@@ -329,6 +329,7 @@ impl PlainYearMonth {
             let dest_epoch_ns = target_iso_date_time.as_nanoseconds();
             // d. Set duration to ? RoundRelativeDuration(duration, destEpochNs, isoDateTime, unset, calendar, resolved.[[LargestUnit]], resolved.[[RoundingIncrement]], resolved.[[SmallestUnit]], resolved.[[RoundingMode]]).
             duration = duration.round_relative_duration(
+                iso_date_time.as_nanoseconds(),
                 dest_epoch_ns.as_i128(),
                 &PlainDateTime::new_unchecked(iso_date_time, self.calendar.clone()),
                 Option::<(&TimeZone, &NeverProvider)>::None,
@@ -548,7 +549,7 @@ impl PlainYearMonth {
         // 11. Return ! CreateTemporalYearMonth(isoDate, calendar).
         let overflow = overflow.unwrap_or(Overflow::Constrain);
         self.calendar.year_month_from_fields(
-            fields.with_fallback_year_month(self, self.calendar.kind(), overflow)?,
+            fields.with_fallback_year_month(self, self.calendar.kind())?,
             overflow,
         )
     }
@@ -615,7 +616,7 @@ impl PlainYearMonth {
     pub fn epoch_ns_for_with_provider(
         &self,
         time_zone: TimeZone,
-        provider: &impl TimeZoneProvider,
+        provider: &(impl TimeZoneProvider + ?Sized),
     ) -> TemporalResult<EpochNanoseconds> {
         // 2. Let isoDateTime be CombineISODateAndTimeRecord(temporalYearMonth.[[ISODate]], NoonTimeRecord()).
         let iso = IsoDateTime::new(self.iso, IsoTime::noon())?;
@@ -1079,18 +1080,20 @@ mod tests {
 
     #[test]
     fn test_reference_day() {
+        // Note: Japanese reference days are also day 1 even at era boundaries
+        // https://github.com/tc39/proposal-temporal/issues/3150
         assert_eq!(
             PlainYearMonth::from_str("1868-10-30[u-ca=japanese]")
                 .unwrap()
                 .reference_day(),
-            23
+            1
         );
         // Still happens for dates that are in the previous era but same month
         assert_eq!(
             PlainYearMonth::from_str("1868-10-20[u-ca=japanese]")
                 .unwrap()
                 .reference_day(),
-            23
+            1
         );
         // Won't happen for dates in other months
         assert_eq!(

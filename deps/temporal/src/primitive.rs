@@ -235,6 +235,50 @@ impl Ord for FiniteF64 {
     }
 }
 
+/// An intermediate primitive type for calculating
+/// double64 results.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct DoubleDouble {
+    pub(crate) hi: f64,
+    pub(crate) lo: f64,
+}
+
+impl DoubleDouble {
+    /// Creates a `DoubleDouble` from the product of two `f64` values.
+    pub(crate) fn mul(a: f64, b: f64) -> Self {
+        // Mul
+        let product = a * b;
+        let error = core_maths::CoreFloat::mul_add(a, b, -product);
+        Self {
+            hi: product,
+            lo: error,
+        }
+    }
+
+    /// Creates a `DoubleDouble` from the sum of two `f64` values.
+    pub(crate) fn sum(one: f64, two: f64) -> Self {
+        // Sum
+        let sum = one + two;
+
+        // Calculate error
+        let calc_one = sum - one;
+        let calc_two = sum - two;
+        let two_roundoff = two - calc_one;
+        let one_roundoff = one - calc_two;
+        let error = one_roundoff + two_roundoff;
+
+        Self { hi: sum, lo: error }
+    }
+}
+
+impl From<i128> for DoubleDouble {
+    fn from(value: i128) -> Self {
+        let hi = value as f64;
+        let lo = (value - hi as i128) as f64;
+        Self { hi, lo }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::FiniteF64;

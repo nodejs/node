@@ -24,7 +24,7 @@ impl<H: HostHooks> Now<H> {
     pub(crate) fn system_datetime_with_provider(
         self,
         time_zone: Option<TimeZone>,
-        provider: &impl TimeZoneProvider,
+        provider: &(impl TimeZoneProvider + ?Sized),
     ) -> TemporalResult<IsoDateTime> {
         let system_nanoseconds = self.host_hooks.get_system_epoch_nanoseconds()?;
         let time_zone = time_zone.unwrap_or(self.host_hooks.get_system_time_zone(provider)?);
@@ -34,7 +34,7 @@ impl<H: HostHooks> Now<H> {
     /// Converts the current [`Now`] into a [`TimeZone`].
     pub fn time_zone_with_provider(
         self,
-        provider: &impl TimeZoneProvider,
+        provider: &(impl TimeZoneProvider + ?Sized),
     ) -> TemporalResult<TimeZone> {
         self.host_hooks.get_system_time_zone(provider)
     }
@@ -50,7 +50,7 @@ impl<H: HostHooks> Now<H> {
     pub fn zoned_date_time_iso_with_provider(
         self,
         time_zone: Option<TimeZone>,
-        provider: &impl TimeZoneProvider,
+        provider: &(impl TimeZoneProvider + ?Sized),
     ) -> TemporalResult<ZonedDateTime> {
         let system_nanoseconds = self.host_hooks.get_system_epoch_nanoseconds()?;
         let time_zone = time_zone.unwrap_or(self.host_hooks.get_system_time_zone(provider)?);
@@ -67,7 +67,7 @@ impl<H: HostHooks> Now<H> {
     pub fn plain_date_time_iso_with_provider(
         self,
         time_zone: Option<TimeZone>,
-        provider: &impl TimeZoneProvider,
+        provider: &(impl TimeZoneProvider + ?Sized),
     ) -> TemporalResult<PlainDateTime> {
         let iso = self.system_datetime_with_provider(time_zone, provider)?;
         Ok(PlainDateTime::new_unchecked(iso, Calendar::ISO))
@@ -80,7 +80,7 @@ impl<H: HostHooks> Now<H> {
     pub fn plain_date_iso_with_provider(
         self,
         time_zone: Option<TimeZone>,
-        provider: &impl TimeZoneProvider,
+        provider: &(impl TimeZoneProvider + ?Sized),
     ) -> TemporalResult<PlainDate> {
         let iso = self.system_datetime_with_provider(time_zone, provider)?;
         Ok(PlainDate::new_unchecked(iso.date, Calendar::ISO))
@@ -93,7 +93,7 @@ impl<H: HostHooks> Now<H> {
     pub fn plain_time_with_provider(
         self,
         time_zone: Option<TimeZone>,
-        provider: &impl TimeZoneProvider,
+        provider: &(impl TimeZoneProvider + ?Sized),
     ) -> TemporalResult<PlainTime> {
         let iso = self.system_datetime_with_provider(time_zone, provider)?;
         Ok(PlainTime::new_unchecked(iso.time))
@@ -148,7 +148,10 @@ mod tests {
         }
 
         impl HostTimeZone for TestHooks {
-            fn get_host_time_zone(&self, _: &impl TimeZoneProvider) -> TemporalResult<TimeZone> {
+            fn get_host_time_zone(
+                &self,
+                _: &(impl TimeZoneProvider + ?Sized),
+            ) -> TemporalResult<TimeZone> {
                 Ok(self.time_zone)
             }
         }

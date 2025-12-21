@@ -69,6 +69,13 @@ impl IanaIdentifierNormalizer<'_> {
     pub fn build(tzdata_path: &Path) -> Result<Self, IanaDataError> {
         let provider = TzdbDataSource::try_from_zoneinfo_directory(tzdata_path)
             .map_err(IanaDataError::Provider)?;
+
+        let zonetab_tzs: BTreeSet<_> = provider
+            .data
+            .zone_tab
+            .iter()
+            .map(|zt| zt.tz.clone())
+            .collect();
         let mut all_identifiers = BTreeSet::default();
         for zone_id in provider.data.zones.keys() {
             // Add canonical identifiers.
@@ -92,14 +99,24 @@ impl IanaIdentifierNormalizer<'_> {
             })
             .collect();
 
-        let mut primary_id_map: BTreeMap<usize, usize> = BTreeMap::new();
+        // A map from noncanonical identifiers to their canonicalized id
+        let mut to_primary_id_map: BTreeMap<usize, usize> = BTreeMap::new();
         // ECMAScript implementations must support an available named time zone with the identifier "UTC", which must be
         // the primary time zone identifier for the UTC time zone. In addition, implementations may support any number of other available named time zones.
         let utc_index = norm_vec.binary_search(&"UTC").unwrap();
-        primary_id_map.insert(norm_vec.binary_search(&"Etc/UTC").unwrap(), utc_index);
-        primary_id_map.insert(norm_vec.binary_search(&"Etc/GMT").unwrap(), utc_index);
+        to_primary_id_map.insert(norm_vec.binary_search(&"Etc/UTC").unwrap(), utc_index);
+        to_primary_id_map.insert(norm_vec.binary_search(&"Etc/GMT").unwrap(), utc_index);
 
         for (link_from, link_to) in &provider.data.links {
+            if zonetab_tzs.contains(link_from) {
+                // https://tc39.es/ecma402/#sec-use-of-iana-time-zone-database
+                // > Any Link name that is present in the “TZ” column of file zone.tab
+                // > must be a primary time zone identifier.
+                //
+                // So we ignore links entries that link from these timezones
+                // which results in those timezones considered as primary.
+                continue;
+            }
             if link_from == "UTC" {
                 continue;
             }
@@ -109,7 +126,7 @@ impl IanaIdentifierNormalizer<'_> {
             } else {
                 norm_vec.binary_search(&&**link_to).unwrap()
             };
-            primary_id_map.insert(link_from, index);
+            to_primary_id_map.insert(link_from, index);
         }
 
         Ok(IanaIdentifierNormalizer {
@@ -117,7 +134,7 @@ impl IanaIdentifierNormalizer<'_> {
             available_id_index: ZeroAsciiIgnoreCaseTrie::try_from(&identifier_map)
                 .map_err(IanaDataError::Build)?
                 .convert_store(),
-            non_canonical_identifiers: primary_id_map
+            non_canonical_identifiers: to_primary_id_map
                 .iter()
                 .map(|(x, y)| (u32::try_from(*x).unwrap(), u32::try_from(*y).unwrap()))
                 .collect(),
