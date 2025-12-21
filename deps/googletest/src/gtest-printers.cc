@@ -50,7 +50,7 @@
 #include <iomanip>
 #include <ios>
 #include <ostream>  // NOLINT
-#include <string>
+#include <string_view>
 #include <type_traits>
 
 #include "gtest/internal/gtest-port.h"
@@ -333,14 +333,14 @@ void PrintTo(__int128_t v, ::std::ostream* os) {
 
 // Prints the given array of characters to the ostream.  CharType must be either
 // char, char8_t, char16_t, char32_t, or wchar_t.
-// The array starts at begin, the length is len, it may include '\0' characters
-// and may not be NUL-terminated.
+// The array starts at begin (which may be nullptr) and contains len characters.
+// The array may include '\0' characters and may not be NUL-terminated.
 template <typename CharType>
 GTEST_ATTRIBUTE_NO_SANITIZE_MEMORY_ GTEST_ATTRIBUTE_NO_SANITIZE_ADDRESS_
     GTEST_ATTRIBUTE_NO_SANITIZE_HWADDRESS_
         GTEST_ATTRIBUTE_NO_SANITIZE_THREAD_ static CharFormat
         PrintCharsAsStringTo(const CharType* begin, size_t len, ostream* os) {
-  const char* const quote_prefix = GetCharWidthPrefix(*begin);
+  const char* const quote_prefix = GetCharWidthPrefix(CharType());
   *os << quote_prefix << "\"";
   bool is_previous_hex = false;
   CharFormat print_format = kAsIs;
@@ -516,13 +516,13 @@ bool IsValidUTF8(const char* str, size_t length) {
 void ConditionalPrintAsText(const char* str, size_t length, ostream* os) {
   if (!ContainsUnprintableControlCodes(str, length) &&
       IsValidUTF8(str, length)) {
-    *os << "\n    As Text: \"" << str << "\"";
+    *os << "\n    As Text: \"" << ::std::string_view(str, length) << "\"";
   }
 }
 
 }  // anonymous namespace
 
-void PrintStringTo(const ::std::string& s, ostream* os) {
+void PrintStringTo(::std::string_view s, ostream* os) {
   if (PrintCharsAsStringTo(s.data(), s.size(), os) == kHexEscape) {
     if (GTEST_FLAG_GET(print_utf8)) {
       ConditionalPrintAsText(s.data(), s.size(), os);
@@ -531,21 +531,21 @@ void PrintStringTo(const ::std::string& s, ostream* os) {
 }
 
 #ifdef __cpp_lib_char8_t
-void PrintU8StringTo(const ::std::u8string& s, ostream* os) {
+void PrintU8StringTo(::std::u8string_view s, ostream* os) {
   PrintCharsAsStringTo(s.data(), s.size(), os);
 }
 #endif
 
-void PrintU16StringTo(const ::std::u16string& s, ostream* os) {
+void PrintU16StringTo(::std::u16string_view s, ostream* os) {
   PrintCharsAsStringTo(s.data(), s.size(), os);
 }
 
-void PrintU32StringTo(const ::std::u32string& s, ostream* os) {
+void PrintU32StringTo(::std::u32string_view s, ostream* os) {
   PrintCharsAsStringTo(s.data(), s.size(), os);
 }
 
 #if GTEST_HAS_STD_WSTRING
-void PrintWideStringTo(const ::std::wstring& s, ostream* os) {
+void PrintWideStringTo(::std::wstring_view s, ostream* os) {
   PrintCharsAsStringTo(s.data(), s.size(), os);
 }
 #endif  // GTEST_HAS_STD_WSTRING

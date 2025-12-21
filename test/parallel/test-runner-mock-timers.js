@@ -4,6 +4,7 @@ process.env.NODE_TEST_KNOWN_GLOBALS = 0;
 const common = require('../common');
 
 const assert = require('node:assert');
+const { listenerCount } = require('node:events');
 const { it, mock, describe } = require('node:test');
 const nodeTimers = require('node:timers');
 const nodeTimersPromises = require('node:timers/promises');
@@ -199,6 +200,27 @@ describe('Mock Timers Test Suite', () => {
         t.mock.timers.runAll();
         // Should not throw
       });
+    });
+
+    it('interval cleared inside callback should only fire once', (t) => {
+      t.mock.timers.enable();
+      const calls = [];
+
+      setInterval(() => {
+        calls.push('foo');
+      }, 10);
+      const timerId = setInterval(() => {
+        calls.push('bar');
+        clearInterval(timerId);
+      }, 10);
+
+      t.mock.timers.tick(10);
+      t.mock.timers.tick(10);
+
+      assert.deepStrictEqual(
+        calls,
+        ['foo', 'bar', 'foo'],
+      );
     });
   });
 
@@ -515,6 +537,22 @@ describe('Mock Timers Test Suite', () => {
           });
         });
 
+        it('should clear the abort listener when the timer resolves', async (t) => {
+          t.mock.timers.enable({ apis: ['setTimeout'] });
+          const expectedResult = 'result';
+          const controller = new AbortController();
+          const p = nodeTimersPromises.setTimeout(500, expectedResult, {
+            ref: true,
+            signal: controller.signal,
+          });
+
+          assert.strictEqual(listenerCount(controller.signal, 'abort'), 1);
+
+          t.mock.timers.tick(500);
+          await p;
+          assert.strictEqual(listenerCount(controller.signal, 'abort'), 0);
+        });
+
         it('should reject given an an invalid signal instance', async (t) => {
           t.mock.timers.enable({ apis: ['setTimeout'] });
           const expectedResult = 'result';
@@ -537,9 +575,9 @@ describe('Mock Timers Test Suite', () => {
           const ac = new AbortController();
 
           // id 1 & pos 1 in priority queue
-          nodeTimersPromises.setTimeout(100, undefined, { signal: ac.signal }).then(f1, f1);
+          nodeTimersPromises.setTimeout(100, undefined, { signal: ac.signal }).then(f1, f1).then(common.mustCall());
           // id 2 & pos 1 in priority queue (id 1 is moved to pos 2)
-          nodeTimersPromises.setTimeout(50).then(f2, f2);
+          nodeTimersPromises.setTimeout(50).then(f2, f2).then(common.mustCall());
 
           ac.abort(); // BUG: will remove timer at pos 1 not timer with id 1!
 
@@ -562,9 +600,9 @@ describe('Mock Timers Test Suite', () => {
           const ac = new AbortController();
 
           // id 1 & pos 1 in priority queue
-          nodeTimersPromises.setTimeout(50, true, { signal: ac.signal }).then(f1, f1);
+          nodeTimersPromises.setTimeout(50, true, { signal: ac.signal }).then(f1, f1).then(common.mustCall());
           // id 2 & pos 2 in priority queue
-          nodeTimersPromises.setTimeout(100).then(f2, f2);
+          nodeTimersPromises.setTimeout(100).then(f2, f2).then(common.mustCall());
 
           // First setTimeout resolves
           t.mock.timers.tick(50);
@@ -726,6 +764,23 @@ describe('Mock Timers Test Suite', () => {
           await assert.rejects(() => first, {
             name: 'AbortError',
           });
+        });
+
+        it('should clear the abort listener when the interval returns', async (t) => {
+          t.mock.timers.enable({ apis: ['setInterval'] });
+
+          const abortController = new AbortController();
+          const intervalIterator = nodeTimersPromises.setInterval(1, Date.now(), {
+            signal: abortController.signal,
+          });
+
+          const first = intervalIterator.next();
+          t.mock.timers.tick();
+
+          await first;
+          assert.strictEqual(listenerCount(abortController.signal, 'abort'), 1);
+          await intervalIterator.return();
+          assert.strictEqual(listenerCount(abortController.signal, 'abort'), 0);
         });
 
         it('should abort operation given an abort controller signal on a real use case', async (t) => {

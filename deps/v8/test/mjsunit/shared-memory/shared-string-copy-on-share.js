@@ -7,7 +7,7 @@
 
 if (this.Worker) {
 
-(function TestSharedStringPostMessage() {
+(async function TestSharedStringPostMessage() {
   function workerCode() {
     let Box = new SharedStructType(['payload']);
     let b1 = new Box();
@@ -43,9 +43,8 @@ if (this.Worker) {
   for (let i = 0; i < 1024 * 32; i++) {
     trash.push('a'.repeat(8));
   }
-  // Trigger two GCs to move the object to old space.
-  gc({type: 'minor'});
-  gc({type: 'minor'});
+  // Trigger an async GC to move the object to old space.
+  await gc({ type: 'major', execution: 'async' });
   assertFalse(%InLargeObjectSpace(payload));
   assertFalse(%InYoungGeneration(payload));
   box_to_send.payload = payload;

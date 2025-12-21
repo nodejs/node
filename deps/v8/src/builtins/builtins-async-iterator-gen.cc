@@ -65,7 +65,7 @@ class AsyncFromSyncBuiltinsAssembler : public AsyncBuiltinsAssembler {
   // converted to a Boolean if needed.
   std::pair<TNode<Object>, TNode<Boolean>> LoadIteratorResult(
       const TNode<Context> context, const TNode<NativeContext> native_context,
-      const TNode<Object> iter_result, Label* if_exception,
+      const TNode<JSAny> iter_result, Label* if_exception,
       TVariable<Object>* var_exception);
 
   // Synthetic Context for the AsyncFromSyncIterator rejection closure that
@@ -123,7 +123,7 @@ void AsyncFromSyncBuiltinsAssembler::Generate_AsyncFromSyncIteratorMethod(
     BIND(&if_isnotundefined);
   }
 
-  TVARIABLE(Object, iter_result);
+  TVARIABLE(JSAny, iter_result);
   {
     Label has_sent_value(this), no_sent_value(this), merge(this);
     ScopedExceptionHandler handler(this, &maybe_close_sync_then_reject_promise,
@@ -150,8 +150,8 @@ void AsyncFromSyncBuiltinsAssembler::Generate_AsyncFromSyncIteratorMethod(
       LoadIteratorResult(context, native_context, iter_result.value(),
                          &maybe_close_sync_then_reject_promise, &var_exception);
 
-  const TNode<JSFunction> promise_fun =
-      CAST(LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX));
+  const TNode<JSFunction> promise_fun = CAST(LoadContextElementNoCell(
+      native_context, Context::PROMISE_FUNCTION_INDEX));
   CSA_DCHECK(this, IsConstructor(promise_fun));
 
   // 6. Let valueWrapper be PromiseResolve(%Promise%, « value »).
@@ -188,9 +188,9 @@ void AsyncFromSyncBuiltinsAssembler::Generate_AsyncFromSyncIteratorMethod(
 
   // 14. Perform ! PerformPromiseThen(valueWrapper,
   //     onFulfilled, onRejected, promiseCapability).
-  args->PopAndReturn(CallBuiltin(Builtin::kPerformPromiseThen, context,
-                                 value_wrapper, on_fulfilled, on_rejected,
-                                 promise));
+  args->PopAndReturn(CallBuiltin<JSAny>(Builtin::kPerformPromiseThen, context,
+                                        value_wrapper, on_fulfilled,
+                                        on_rejected, promise));
 
   Label reject_promise(this);
   BIND(&maybe_close_sync_if_not_done_then_reject_promise);
@@ -208,7 +208,7 @@ void AsyncFromSyncBuiltinsAssembler::Generate_AsyncFromSyncIteratorMethod(
       //   a. Set valueWrapper to Completion(IteratorClose(syncIteratorRecord,
       //      valueWrapper)).
       TorqueStructIteratorRecord sync_iterator_record = {sync_iterator, {}};
-      IteratorCloseOnException(context, sync_iterator_record);
+      IteratorCloseOnException(context, sync_iterator_record.object);
     }
     Goto(&reject_promise);
   }
@@ -224,7 +224,7 @@ void AsyncFromSyncBuiltinsAssembler::Generate_AsyncFromSyncIteratorMethod(
 std::pair<TNode<Object>, TNode<Boolean>>
 AsyncFromSyncBuiltinsAssembler::LoadIteratorResult(
     const TNode<Context> context, const TNode<NativeContext> native_context,
-    const TNode<Object> iter_result, Label* if_exception,
+    const TNode<JSAny> iter_result, Label* if_exception,
     TVariable<Object>* var_exception) {
   Label if_fastpath(this), if_slowpath(this), merge(this), to_boolean(this),
       done(this), if_notanobject(this, Label::kDeferred);
@@ -233,8 +233,8 @@ AsyncFromSyncBuiltinsAssembler::LoadIteratorResult(
   const TNode<Map> iter_result_map = LoadMap(CAST(iter_result));
   GotoIfNot(JSAnyIsNotPrimitiveMap(iter_result_map), &if_notanobject);
 
-  const TNode<Object> fast_iter_result_map =
-      LoadContextElement(native_context, Context::ITERATOR_RESULT_MAP_INDEX);
+  const TNode<Object> fast_iter_result_map = LoadContextElementNoCell(
+      native_context, Context::ITERATOR_RESULT_MAP_INDEX);
 
   TVARIABLE(Object, var_value);
   TVARIABLE(Object, var_done);
@@ -442,11 +442,11 @@ TF_BUILTIN(AsyncFromSyncIteratorCloseSyncAndRethrow,
   auto error = Parameter<Object>(Descriptor::kError);
   auto context = Parameter<Context>(Descriptor::kContext);
 
-  const TNode<JSReceiver> sync_iterator = CAST(LoadContextElement(
+  const TNode<JSReceiver> sync_iterator = CAST(LoadContextElementNoCell(
       context, AsyncFromSyncIteratorCloseSyncAndRethrowContext::kSyncIterator));
   // iterator.next field is not used by IteratorCloseOnException.
   TorqueStructIteratorRecord sync_iterator_record = {sync_iterator, {}};
-  IteratorCloseOnException(context, sync_iterator_record);
+  IteratorCloseOnException(context, sync_iterator_record.object);
   Return(CallRuntime(Runtime::kReThrow, context, error));
 }
 

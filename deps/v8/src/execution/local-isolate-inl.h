@@ -5,8 +5,10 @@
 #ifndef V8_EXECUTION_LOCAL_ISOLATE_INL_H_
 #define V8_EXECUTION_LOCAL_ISOLATE_INL_H_
 
-#include "src/execution/isolate.h"
 #include "src/execution/local-isolate.h"
+// Include the non-inl header before the rest of the headers.
+
+#include "src/execution/isolate.h"
 #include "src/roots/roots-inl.h"
 
 namespace v8 {
@@ -20,6 +22,11 @@ Address LocalIsolate::code_cage_base() const {
 
 ReadOnlyHeap* LocalIsolate::read_only_heap() const {
   return isolate_->read_only_heap();
+}
+
+RootsTable& LocalIsolate::roots_table() { return isolate_->roots_table(); }
+const RootsTable& LocalIsolate::roots_table() const {
+  return isolate_->roots_table();
 }
 
 Tagged<Object> LocalIsolate::root(RootIndex index) const {

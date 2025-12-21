@@ -8,7 +8,7 @@
 #include <optional>
 
 #include "include/v8-internal.h"
-#include "src/base/functional.h"
+#include "src/base/hashing.h"
 #include "src/common/globals.h"
 #include "src/heap/mark-compact.h"
 #include "src/heap/marking-worklist.h"
@@ -44,7 +44,7 @@ class MarkingBarrier {
   static void DeactivateYoung(Heap* heap);
   V8_EXPORT_PRIVATE static void PublishYoung(Heap* heap);
 
-  template <typename TSlot>
+  template <typename TSlot, RecordYoungSlot kRecordYoung = RecordYoungSlot::kNo>
   void Write(Tagged<HeapObject> host, TSlot slot, Tagged<HeapObject> value);
   void Write(Tagged<HeapObject> host, IndirectPointerSlot slot);
   void Write(Tagged<InstructionStream> host, RelocInfo*,
@@ -59,12 +59,26 @@ class MarkingBarrier {
 
   bool is_minor() const { return marking_mode_ == MarkingMode::kMinorMarking; }
 
+  bool is_not_major() const {
+    switch (marking_mode_) {
+      case MarkingMode::kMajorMarking:
+        return false;
+      case MarkingMode::kNoMarking:
+      case MarkingMode::kMinorMarking:
+        return true;
+    }
+  }
+
   Heap* heap() const { return heap_; }
 
 #if DEBUG
   void AssertMarkingIsActivated() const;
   void AssertSharedMarkingIsActivated() const;
 #endif  // DEBUG
+
+#if V8_VERIFY_WRITE_BARRIERS
+  bool IsMarked(const Tagged<HeapObject> value) const;
+#endif  // V8_VERIFY_WRITE_BARRIERS
 
  private:
   inline void MarkValueShared(Tagged<HeapObject> value);

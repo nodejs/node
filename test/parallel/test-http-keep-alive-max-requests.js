@@ -36,21 +36,21 @@ function writeRequest(socket, withBody) {
   }
 }
 
-const server = http.createServer((req, res) => {
+const server = http.createServer(common.mustCallAtLeast((req, res) => {
   let body = '';
   req.on('data', (data) => {
     body += data;
   });
 
-  req.on('end', () => {
+  req.on('end', common.mustCall(() => {
     if (req.method === 'POST') {
       assert.strictEqual(bodySent, body);
     }
     res.writeHead(200, { 'Content-Type': 'text/plain' });
     res.write('Hello World!');
     res.end();
-  });
-});
+  }));
+}));
 
 function initialRequests(socket, numberOfRequests, cb) {
   let buffer = '';

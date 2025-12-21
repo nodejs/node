@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/base/logging.h"
+#include "src/codegen/assembler.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/common/globals.h"
 #include "src/compiler/backend/instruction.h"
@@ -13,6 +14,7 @@
 #include "src/maglev/maglev-ir.h"
 #include "src/objects/heap-number.h"
 #include "src/objects/instance-type-inl.h"
+#include "src/objects/instance-type.h"
 
 namespace v8 {
 namespace internal {
@@ -43,8 +45,8 @@ void AllocateRaw(MaglevAssembler* masm, Isolate* isolate,
   if (v8_flags.single_generation) {
     alloc_type = AllocationType::kOld;
   }
-  ExternalReference top = SpaceAllocationTopAddress(isolate, alloc_type);
-  ExternalReference limit = SpaceAllocationLimitAddress(isolate, alloc_type);
+  IsolateFieldId top = SpaceAllocationTopAddress(alloc_type);
+  IsolateFieldId limit = SpaceAllocationLimitAddress(alloc_type);
   ZoneLabelRef done(masm);
   Register new_top = kScratchRegister;
   // Check if there is enough space.
@@ -57,6 +59,19 @@ void AllocateRaw(MaglevAssembler* masm, Isolate* isolate,
                       size_in_bytes, done);
   // Store new top and tag object.
   __ movq(__ ExternalReferenceAsOperand(top), new_top);
+#if V8_VERIFY_WRITE_BARRIERS
+  if (v8_flags.verify_write_barriers) {
+    ExternalReference last_young_allocation =
+        ExternalReference::last_young_allocation_address(isolate);
+
+    if (alloc_type == AllocationType::kYoung) {
+      __ movq(__ ExternalReferenceAsOperand(last_young_allocation), object);
+    } else {
+      __ movq(__ ExternalReferenceAsOperand(last_young_allocation),
+              Immediate(0));
+    }
+  }
+#endif  // V8_VERIFY_WRITE_BARRIERS
   __ addq(object, Immediate(kHeapObjectTag));
   __ bind(*done);
 }
@@ -87,10 +102,9 @@ void MaglevAssembler::LoadSingleCharacterString(Register result,
     Assert(below_equal, AbortReason::kUnexpectedValue);
   }
   DCHECK_NE(char_code, scratch);
-  Register table = scratch;
-  LoadRoot(table, RootIndex::kSingleCharacterStringTable);
-  LoadTaggedFieldByIndex(result, table, char_code, kTaggedSize,
-                         FixedArray::kHeaderSize);
+  movq(result, MemOperand(kRootRegister, char_code, times_system_pointer_size,
+                          RootRegisterOffsetForRootIndex(
+                              RootIndex::kFirstSingleCharacterString)));
 }
 
 void MaglevAssembler::StringFromCharCode(RegisterSnapshot register_snapshot,
@@ -141,6 +155,8 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
     RegisterSnapshot& register_snapshot, Register result, Register string,
     Register index, Register scratch1, Register scratch2,
     Label* result_fits_one_byte) {
+  ASM_CODE_COMMENT(this);
+
   ZoneLabelRef done(this);
   Label seq_string;
   Label cons_string;
@@ -297,8 +313,7 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
     // The result of one-byte string will be the same for both modes
     // (CharCodeAt/CodePointAt), since it cannot be the first half of a
     // surrogate pair.
-    movzxbl(result, FieldOperand(string, index, times_1,
-                                 OFFSET_OF_DATA_START(SeqOneByteString)));
+    SeqOneByteStringCharCodeAt(result, string, index);
     jmp(result_fits_one_byte);
     bind(&two_byte_string);
 
@@ -360,6 +375,39 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
   }
 }
 
+void MaglevAssembler::SeqOneByteStringCharCodeAt(Register result,
+                                                 Register string,
+                                                 Register index) {
+  ASM_CODE_COMMENT(this);
+  if (v8_flags.debug_code) {
+    TemporaryRegisterScope scope(this);
+    Register scratch = scope.AcquireScratch();
+
+    // Check if {string} is a string.
+    AssertNotSmi(string);
+    LoadMap(scratch, string);
+    CompareInstanceTypeRange(scratch, scratch, FIRST_STRING_TYPE,
+                             LAST_STRING_TYPE);
+    Check(kUnsignedLessThanEqual, AbortReason::kUnexpectedValue);
+
+    // Check if {string} is a sequential one-byte string.
+    AndInt32(scratch, kStringRepresentationAndEncodingMask);
+    CompareInt32AndAssert(scratch, kSeqOneByteStringTag, kEqual,
+                          AbortReason::kUnexpectedValue);
+
+    LoadInt32(scratch, FieldMemOperand(string, offsetof(String, length_)));
+    CompareInt32AndAssert(index, scratch, kUnsignedLessThan,
+                          AbortReason::kUnexpectedValue);
+  }
+
+  movzxbl(result, FieldOperand(string, index, times_1,
+                               OFFSET_OF_DATA_START(SeqOneByteString)));
+}
+
+void MaglevAssembler::CountLeadingZerosInt32(Register dst, Register src) {
+  Lzcntl(dst, src);
+}
+
 void MaglevAssembler::TruncateDoubleToInt32(Register dst, DoubleRegister src) {
   ZoneLabelRef done(this);
 
@@ -388,6 +436,7 @@ void MaglevAssembler::TruncateDoubleToInt32(Register dst, DoubleRegister src) {
 
 void MaglevAssembler::TryTruncateDoubleToInt32(Register dst, DoubleRegister src,
                                                Label* fail) {
+  DCHECK_NE(src, kScratchDoubleReg);
   // Truncating conversion of the input float64 value to an int32.
   Cvttpd2dq(kScratchDoubleReg, src);
   // Convert that int32 value back to float64.
@@ -471,13 +520,13 @@ void MaglevAssembler::OSRPrologue(Graph* graph) {
   uint32_t source_frame_size =
       graph->min_maglev_stackslots_for_unoptimized_frame_size();
 
-  if (v8_flags.maglev_assert_stack_size && v8_flags.debug_code) {
+  if (V8_ENABLE_SANDBOX_BOOL || v8_flags.debug_code) {
     movq(kScratchRegister, rbp);
     subq(kScratchRegister, rsp);
     cmpq(kScratchRegister,
          Immediate(source_frame_size * kSystemPointerSize +
                    StandardFrameConstants::kFixedFrameSizeFromFp));
-    Assert(equal, AbortReason::kOsrUnexpectedStackSize);
+    SbxCheck(equal, AbortReason::kOsrUnexpectedStackSize);
   }
 
   uint32_t target_frame_size =
@@ -508,25 +557,32 @@ void MaglevAssembler::Prologue(Graph* graph) {
 
   CodeEntry();
 
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+  AssertInSandboxedExecutionMode();
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+
   BailoutIfDeoptimized(rbx);
 
   if (graph->has_recursive_calls()) {
     BindJumpTarget(code_gen_state()->entry_label());
   }
 
+#ifndef V8_ENABLE_LEAPTIERING
   // Tiering support.
   if (v8_flags.turbofan) {
     using D = MaglevOptimizeCodeOrTailCallOptimizedCodeSlotDescriptor;
     Register feedback_vector = D::GetRegisterParameter(D::kFeedbackVector);
     DCHECK(!AreAliased(feedback_vector, kJavaScriptCallArgCountRegister,
                        kJSFunctionRegister, kContextRegister,
-                       kJavaScriptCallNewTargetRegister));
+                       kJavaScriptCallNewTargetRegister,
+                       kJavaScriptCallDispatchHandleRegister));
     Move(feedback_vector,
          compilation_info()->toplevel_compilation_unit()->feedback().object());
     TailCallBuiltin(Builtin::kMaglevOptimizeCodeOrTailCallOptimizedCodeSlot,
                     CheckFeedbackVectorFlagsNeedsProcessing(feedback_vector,
                                                             CodeKind::MAGLEV));
   }
+#endif  // !V8_ENABLE_LEAPTIERING
 
   EnterFrame(StackFrame::MAGLEV);
   // Save arguments in frame.
@@ -582,6 +638,12 @@ void MaglevAssembler::MaybeEmitDeoptBuiltinsCall(size_t eager_deopt_count,
                                                  Label* eager_deopt_entry,
                                                  size_t lazy_deopt_count,
                                                  Label* lazy_deopt_entry) {}
+
+void MaglevAssembler::Move(ExternalReference dst, int32_t imm) {
+  TemporaryRegisterScope temps(this);
+  Register scratch = temps.AcquireScratch();
+  movq(ExternalReferenceAsOperand(dst, scratch), Immediate(imm));
+}
 
 }  // namespace maglev
 }  // namespace internal

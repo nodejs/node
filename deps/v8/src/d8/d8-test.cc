@@ -26,7 +26,7 @@ namespace {
 
 #define CHECK_SELF_OR_THROW_FAST(return_value)                              \
   if (!self) {                                                              \
-    receiver->GetIsolate()->ThrowError(                                     \
+    v8::Isolate::GetCurrent()->ThrowError(                                  \
         "This method is not defined on objects inheriting from FastCAPI."); \
     return return_value;                                                    \
   }
@@ -37,6 +37,8 @@ namespace {
         "This method is not defined on objects inheriting from FastCAPI."); \
     return;                                                                 \
   }
+
+constexpr v8::EmbedderDataTypeTag kFastCApiTag = 1;
 
 class FastCApiObject {
  public:
@@ -57,7 +59,7 @@ class FastCApiObject {
       self = &FastCApiObject::instance();
     }
     self->fast_call_count_++;
-    v8::Isolate* isolate = receiver->GetIsolate();
+    v8::Isolate* isolate = v8::Isolate::GetCurrent();
     v8::HandleScope scope(isolate);
     v8::Local<v8::Context> context = isolate->GetCurrentContext();
     v8::Context::Scope context_scope(context);
@@ -94,6 +96,17 @@ class FastCApiObject {
     self->fast_call_count_++;
 
     HandleScope handle_scope(options.isolate);
+    if (!out->IsUint8Array()) {
+      options.isolate->ThrowError(
+          "Invalid parameter, the second parameter has to be a a Uint8Array.");
+      return;
+    }
+    Local<Uint8Array> array = out.As<Uint8Array>();
+    if (array->Length() < source.length) {
+      options.isolate->ThrowError(
+          "Invalid parameter, destination array is too small.");
+      return;
+    }
     uint8_t* memory =
         reinterpret_cast<uint8_t*>(out.As<Uint8Array>()->Buffer()->Data());
     memcpy(memory, source.data, source.length);
@@ -219,6 +232,12 @@ class FastCApiObject {
 
   static Type AddAllSequenceJSArrayHelper(v8::Isolate* isolate,
                                           Local<Array> seq_arg) {
+    if (i::v8_flags.fuzzing) {
+      // TODO(418936518): The code below may trigger deopt. Once deopt support
+      // for fast API calls with return values is supported, remove this early
+      // return here again.
+      return 0;
+    }
     Type sum = 0;
     uint32_t length = seq_arg->Length();
     if (length > 1024) {
@@ -269,7 +288,7 @@ class FastCApiObject {
     Local<Array> array = seq_arg.As<Array>();
     uint32_t length = array->Length();
     if (length > 1024) {
-      receiver->GetIsolate()->ThrowError(
+      options.isolate->ThrowError(
           "Invalid length of array, must be between 0 and 1024.");
       return 0;
     }
@@ -278,7 +297,7 @@ class FastCApiObject {
     bool result = TryToCopyAndConvertArrayToCppBuffer<
         CTypeInfoBuilder<Type>::Build().GetId(), Type>(array, buffer, 1024);
     if (!result) {
-      return AddAllSequenceJSArrayHelper(receiver->GetIsolate(), array);
+      return AddAllSequenceJSArrayHelper(options.isolate, array);
     }
     DCHECK_EQ(array->Length(), length);
 
@@ -364,9 +383,9 @@ class FastCApiObject {
     T* memory = reinterpret_cast<T*>(
         typed_array_arg.As<TypedArray>()->Buffer()->Data());
     size_t length = typed_array_arg.As<TypedArray>()->ByteLength() / sizeof(T);
-    T sum = 0;
+    double sum = 0;
     for (size_t i = 0; i < length; ++i) {
-      sum += memory[i];
+      sum += static_cast<double>(memory[i]);
     }
     return static_cast<Type>(sum);
   }
@@ -430,20 +449,6 @@ class FastCApiObject {
       isolate->ThrowError("TypedArray type is not supported.");
       return;
     }
-  }
-
-  static int32_t AddAllIntInvalidCallback(Local<Object> receiver,
-                                          int32_t arg_i32,
-                                          FastApiCallbackOptions& options) {
-    // This should never be called
-    UNREACHABLE();
-  }
-
-  static int32_t AddAllIntInvalidOverloadCallback(
-      Local<Object> receiver, Local<Object> seq_arg,
-      FastApiCallbackOptions& options) {
-    // This should never be called
-    UNREACHABLE();
   }
 
 #ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
@@ -554,6 +559,7 @@ class FastCApiObject {
     if (result < INT_MIN) return INT_MIN;
     return static_cast<int>(result);
   }
+
   static int AddAll32BitIntFastCallback_5Args(
       Local<Object> receiver, int32_t arg1_i32, int32_t arg2_i32,
       int32_t arg3_i32, uint32_t arg4_u32, uint32_t arg5_u32,
@@ -659,67 +665,59 @@ class FastCApiObject {
 
 #ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
   static AnyCType EnforceRangeCompareI32Patch(AnyCType receiver,
-                                              AnyCType in_range,
                                               AnyCType real_arg,
                                               AnyCType checked_arg,
                                               AnyCType options) {
     AnyCType ret;
     ret.bool_value = EnforceRangeCompare<int32_t>(
-        receiver.object_value, in_range.bool_value, real_arg.double_value,
-        checked_arg.int32_value, *options.options_value);
+        receiver.object_value, real_arg.double_value, checked_arg.int32_value,
+        *options.options_value);
     return ret;
   }
   static AnyCType EnforceRangeCompareU32Patch(AnyCType receiver,
-                                              AnyCType in_range,
                                               AnyCType real_arg,
                                               AnyCType checked_arg,
                                               AnyCType options) {
     AnyCType ret;
     ret.bool_value = EnforceRangeCompare<uint32_t>(
-        receiver.object_value, in_range.bool_value, real_arg.double_value,
-        checked_arg.uint32_value, *options.options_value);
+        receiver.object_value, real_arg.double_value, checked_arg.uint32_value,
+        *options.options_value);
     return ret;
   }
   static AnyCType EnforceRangeCompareI64Patch(AnyCType receiver,
-                                              AnyCType in_range,
                                               AnyCType real_arg,
                                               AnyCType checked_arg,
                                               AnyCType options) {
     AnyCType ret;
     ret.bool_value = EnforceRangeCompare<int64_t>(
-        receiver.object_value, in_range.bool_value, real_arg.double_value,
-        checked_arg.int64_value, *options.options_value);
+        receiver.object_value, real_arg.double_value, checked_arg.int64_value,
+        *options.options_value);
     return ret;
   }
   static AnyCType EnforceRangeCompareU64Patch(AnyCType receiver,
-                                              AnyCType in_range,
                                               AnyCType real_arg,
                                               AnyCType checked_arg,
                                               AnyCType options) {
     AnyCType ret;
     ret.bool_value = EnforceRangeCompare<uint64_t>(
-        receiver.object_value, in_range.bool_value, real_arg.double_value,
-        checked_arg.uint64_value, *options.options_value);
+        receiver.object_value, real_arg.double_value, checked_arg.uint64_value,
+        *options.options_value);
     return ret;
   }
 #endif  //  V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
 
   template <typename IntegerT>
-  static bool EnforceRangeCompare(Local<Object> receiver, bool in_range,
-                                  double real_arg, IntegerT checked_arg,
+  static bool EnforceRangeCompare(Local<Object> receiver, double real_arg,
+                                  IntegerT checked_arg,
                                   FastApiCallbackOptions& options) {
     FastCApiObject* self = UnwrapObject(receiver);
     CHECK_NOT_NULL(self);
     self->fast_call_count_++;
 
-    if (!i::v8_flags.fuzzing) {
-      // Number is in range.
-      CHECK(in_range && "Number range should have been enforced");
-      if (!std::isnan(real_arg)) {
-        CHECK_EQ(static_cast<IntegerT>(real_arg), checked_arg);
-      }
+    if (!base::IsValueInRangeForNumericType<IntegerT>(real_arg)) {
+      return false;
     }
-    return true;
+    return static_cast<IntegerT>(real_arg) == checked_arg;
   }
 
   template <typename IntegerT>
@@ -734,27 +732,25 @@ class FastCApiObject {
 
     HandleScope handle_scope(isolate);
 
-    if (i::v8_flags.fuzzing) {
-      info.GetReturnValue().Set(false);
-      return;
-    }
     double real_arg = 0;
-    if (info.Length() > 1 && info[1]->IsNumber()) {
-      real_arg = info[1]->NumberValue(isolate->GetCurrentContext()).FromJust();
+    if (info.Length() > 0 && info[0]->IsNumber()) {
+      real_arg = info[0]->NumberValue(isolate->GetCurrentContext()).FromJust();
     }
-    bool in_range =
-        info[0]->IsBoolean() && info[0]->BooleanValue(isolate) &&
-        !std::isnan(real_arg) &&
-        real_arg <= static_cast<double>(std::numeric_limits<IntegerT>::max()) &&
-        real_arg >= static_cast<double>(std::numeric_limits<IntegerT>::min());
+    // Special range checks for int64 and uint64. uint64_max rounds to 2^64 when
+    // converted to double, so 2^64 would be considered within uint64 range even
+    // though it's not. For int64 the same happens with 2^63.
+    bool in_range = base::IsValueInRangeForNumericType<IntegerT>(real_arg);
     if (in_range) {
-      IntegerT checked_arg = std::numeric_limits<IntegerT>::max();
-      if (info.Length() > 2 && info[2]->IsNumber()) {
-        checked_arg =
-            info[2]->NumberValue(isolate->GetCurrentContext()).FromJust();
+      IntegerT checked_arg = 0;
+      if (info.Length() > 1 && info[1]->IsNumber()) {
+        double checked_arg_as_double =
+            info[1]->NumberValue(isolate->GetCurrentContext()).FromJust();
+        if (base::IsValueInRangeForNumericType<IntegerT>(
+                checked_arg_as_double)) {
+          checked_arg = static_cast<IntegerT>(checked_arg_as_double);
+        }
       }
-      CHECK_EQ(static_cast<IntegerT>(real_arg), checked_arg);
-      info.GetReturnValue().Set(false);
+      info.GetReturnValue().Set(static_cast<IntegerT>(real_arg) == checked_arg);
     } else {
       info.GetIsolate()->ThrowError("Argument out of range.");
     }
@@ -855,13 +851,6 @@ class FastCApiObject {
   }
 
   template <typename IntegerT>
-  static bool IsInRange(double arg) {
-    return !std::isnan(arg) &&
-           arg <= static_cast<double>(std::numeric_limits<IntegerT>::max()) &&
-           arg >= static_cast<double>(std::numeric_limits<IntegerT>::min());
-  }
-
-  template <typename IntegerT>
   static void ClampCompareSlowCallback(
       const FunctionCallbackInfo<Value>& info) {
     DCHECK(i::ValidateCallbackInfo(info));
@@ -879,9 +868,10 @@ class FastCApiObject {
     if (info.Length() > 2 && info[2]->IsNumber()) {
       checked_arg_dbl = info[2].As<Number>()->Value();
     }
-    bool in_range = info[0]->IsBoolean() && info[0]->BooleanValue(isolate) &&
-                    IsInRange<IntegerT>(real_arg) &&
-                    IsInRange<IntegerT>(checked_arg_dbl);
+    bool in_range =
+        info[0]->IsBoolean() && info[0]->BooleanValue(isolate) &&
+        base::IsValueInRangeForNumericType<IntegerT>(real_arg) &&
+        base::IsValueInRangeForNumericType<IntegerT>(checked_arg_dbl);
 
     IntegerT checked_arg = std::numeric_limits<IntegerT>::max();
     if (in_range) {
@@ -963,6 +953,36 @@ class FastCApiObject {
     info.GetReturnValue().Set(result);
   }
 
+  static void CallToNumberFastCallback(Local<Object> receiver,
+                                       Local<Object> arg,
+                                       FastApiCallbackOptions& options) {
+    FastCApiObject* self = UnwrapObject(receiver);
+    CHECK_SELF_OR_THROW_FAST_OPTIONS();
+    self->fast_call_count_++;
+
+    HandleScope handle_scope(options.isolate);
+    USE(arg->ToNumber(options.isolate->GetCurrentContext()));
+  }
+
+  static void CallToNumberSlowCallback(
+      const FunctionCallbackInfo<Value>& info) {
+    DCHECK(i::ValidateCallbackInfo(info));
+    Isolate* isolate = info.GetIsolate();
+
+    FastCApiObject* self = UnwrapObject(info.This());
+    CHECK_SELF_OR_THROW_SLOW();
+    self->slow_call_count_++;
+
+    HandleScope handle_scope(isolate);
+
+    if (info.Length() < 1) {
+      info.GetIsolate()->ThrowError(
+          "is_valid_api_object should be called with an argument");
+      return;
+    }
+    USE(info[0]->ToNumber(info.GetIsolate()->GetCurrentContext()));
+  }
+
   static bool TestWasmMemoryFastCallback(Local<Object> receiver,
                                          uint32_t address,
                                          FastApiCallbackOptions& options) {
@@ -973,7 +993,7 @@ class FastCApiObject {
     if (i::v8_flags.fuzzing) {
       return true;
     }
-    v8::Isolate* isolate = receiver->GetIsolate();
+    v8::Isolate* isolate = v8::Isolate::GetCurrent();
     v8::HandleScope handle_scope(isolate);
     v8::Local<v8::Context> context = isolate->GetCurrentContext();
     v8::Local<v8::String> mem_string =
@@ -1020,6 +1040,9 @@ class FastCApiObject {
     CHECK_SELF_OR_THROW_FAST_OPTIONS(nullptr);
     self->fast_call_count_++;
 
+    if (i::v8_flags.fuzzing) {
+      return nullptr;
+    }
     return static_cast<void*>(self);
   }
 
@@ -1030,7 +1053,12 @@ class FastCApiObject {
     CHECK_SELF_OR_THROW_SLOW();
     self->slow_call_count_++;
 
-    info.GetReturnValue().Set(External::New(isolate, static_cast<void*>(self)));
+    if (i::v8_flags.fuzzing) {
+      info.GetReturnValue().Set(v8::Null(isolate));
+      return;
+    }
+    info.GetReturnValue().Set(External::New(isolate, static_cast<void*>(self),
+                                            v8::kFastAPIPointerTag));
   }
 
   static void* GetNullPointerFastCallback(Local<Object> receiver,
@@ -1120,7 +1148,7 @@ class FastCApiObject {
     if (value_a->IsNull()) {
       pointer_a = nullptr;
     } else if (value_a->IsExternal()) {
-      pointer_a = value_a.As<External>()->Value();
+      pointer_a = value_a.As<External>()->Value(v8::kFastAPIPointerTag);
     } else {
       info.GetIsolate()->ThrowError(
           "Did not get an external as first parameter.");
@@ -1131,7 +1159,7 @@ class FastCApiObject {
     if (value_b->IsNull()) {
       pointer_b = nullptr;
     } else if (value_b->IsExternal()) {
-      pointer_b = value_b.As<External>()->Value();
+      pointer_b = value_b.As<External>()->Value(v8::kFastAPIPointerTag);
     } else {
       info.GetIsolate()->ThrowError(
           "Did not get an external as second parameter.");
@@ -1153,7 +1181,7 @@ class FastCApiObject {
 
   template <typename T>
   static bool Convert(double value, T* out_result) {
-    if (!IsInRange<T>(value)) return false;
+    if (!base::IsValueInRangeForNumericType<T>(value)) return false;
     *out_result = static_cast<T>(value);
     return true;
   }
@@ -1324,6 +1352,67 @@ class FastCApiObject {
     info.GetReturnValue().Set(BigInt::NewFromUnsigned(isolate, a + b));
   }
 
+  static void AttributeGetterSlowCallback(
+      const FunctionCallbackInfo<Value>& info) {
+    FastCApiObject* self = UnwrapObject(info.This());
+    self->slow_call_count_++;
+    info.GetReturnValue().Set(self->attribute_value_);
+  }
+
+  static int AttributeGetterFastCallback(Local<Object> receiver,
+                                         FastApiCallbackOptions& options) {
+    FastCApiObject* self = UnwrapObject(receiver);
+    CHECK_SELF_OR_THROW_FAST_OPTIONS(0);
+    self->fast_call_count_++;
+    return self->attribute_value_;
+  }
+
+#ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+  static AnyCType AttributeGetterFastCallbackPatch(AnyCType receiver,
+                                                   AnyCType options) {
+    AnyCType ret;
+    ret.int32_value = AttributeGetterFastCallback(receiver.object_value,
+                                                  *options.options_value);
+    return ret;
+  }
+#endif  //  V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+
+  static void AttributeSetterSlowCallback(
+      const FunctionCallbackInfo<Value>& info) {
+    FastCApiObject* self = UnwrapObject(info.This());
+    self->slow_call_count_++;
+    if (info.Length() < 1 || !info[0]->IsNumber()) {
+      info.GetIsolate()->ThrowError(
+          "The attribute requires a number as a new value");
+      return;
+    }
+    double double_val =
+        info[0]->NumberValue(info.GetIsolate()->GetCurrentContext()).FromJust();
+    if (!base::IsValueInRangeForNumericType<int>(double_val)) {
+      info.GetIsolate()->ThrowError(
+          "New value of attribute is not within int32 range");
+      return;
+    }
+    self->attribute_value_ = static_cast<int>(double_val);
+  }
+
+  static void AttributeSetterFastCallback(Local<Object> receiver, int32_t value,
+                                          FastApiCallbackOptions& options) {
+    FastCApiObject* self = UnwrapObject(receiver);
+    CHECK_SELF_OR_THROW_FAST_OPTIONS();
+    self->fast_call_count_++;
+    self->attribute_value_ = value;
+  }
+
+#ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+  static void AttributeSetterFastCallbackPatch(AnyCType receiver,
+                                               AnyCType value,
+                                               AnyCType options) {
+    AttributeSetterFastCallback(receiver.object_value, value.int32_value,
+                                *options.options_value);
+  }
+#endif  //  V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+
   static void FastCallCount(const FunctionCallbackInfo<Value>& info) {
     FastCApiObject* self = UnwrapObject(info.This());
     CHECK_SELF_OR_THROW_SLOW();
@@ -1362,6 +1451,7 @@ class FastCApiObject {
 
  private:
   static bool IsValidApiObject(Local<Object> object) {
+    if (object->IsInt32()) return false;
     auto instance_type = i::Internals::GetInstanceType(
         internal::ValueHelper::ValueAsAddress(*object));
     return (base::IsInRange(instance_type, i::Internals::kFirstJSApiObjectType,
@@ -1372,13 +1462,18 @@ class FastCApiObject {
     if (!IsValidApiObject(object)) {
       return nullptr;
     }
+    if (object->InternalFieldCount() <= kV8WrapperObjectIndex) {
+      return nullptr;
+    }
     FastCApiObject* wrapped = reinterpret_cast<FastCApiObject*>(
-        object->GetAlignedPointerFromInternalField(kV8WrapperObjectIndex));
+        object->GetAlignedPointerFromInternalField(kV8WrapperObjectIndex,
+                                                   kFastCApiTag));
     CHECK_NOT_NULL(wrapped);
     return wrapped;
   }
 
   int fast_call_count_ = 0, slow_call_count_ = 0;
+  int attribute_value_ = 0;
 #ifdef V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
   bool supports_fp_params_ = true;
 #else   // V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
@@ -1408,11 +1503,12 @@ void CreateFastCAPIObject(const FunctionCallbackInfo<Value>& info) {
   Local<Object> api_object = info.This();
   api_object->SetAlignedPointerInInternalField(
       FastCApiObject::kV8WrapperObjectIndex,
-      reinterpret_cast<void*>(&kFastCApiObject));
+      reinterpret_cast<void*>(&kFastCApiObject), kFastCApiTag);
   api_object->SetAccessorProperty(
       String::NewFromUtf8Literal(info.GetIsolate(), "supports_fp_params"),
       FunctionTemplate::New(info.GetIsolate(), FastCApiObject::SupportsFPParams)
-          ->GetFunction(api_object->GetCreationContext().ToLocalChecked())
+          ->GetFunction(api_object->GetCreationContext(info.GetIsolate())
+                            .ToLocalChecked())
           .ToLocalChecked());
 }
 
@@ -1451,6 +1547,25 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
                               Local<Value>(), signature, 1,
                               ConstructorBehavior::kThrow,
                               SideEffectType::kHasSideEffect, &add_all_c_func));
+
+    CFunction fast_setter = CFunction::Make(
+        FastCApiObject::AttributeSetterFastCallback V8_IF_USE_SIMULATOR(
+            FastCApiObject::AttributeSetterFastCallback));
+    CFunction fast_getter = CFunction::Make(
+        FastCApiObject::AttributeGetterFastCallback V8_IF_USE_SIMULATOR(
+            FastCApiObject::AttributeGetterFastCallback));
+
+    api_obj_ctor->PrototypeTemplate()->SetAccessorProperty(
+        String::NewFromUtf8(isolate, "fast_attribute").ToLocalChecked(),
+        FunctionTemplate::New(
+            isolate, FastCApiObject::AttributeGetterSlowCallback,
+            Local<Value>(), signature, 1, ConstructorBehavior::kThrow,
+            SideEffectType::kHasSideEffect, &fast_getter),
+        FunctionTemplate::New(
+            isolate, FastCApiObject::AttributeSetterSlowCallback,
+            Local<Value>(), signature, 1, ConstructorBehavior::kThrow,
+            SideEffectType::kHasSideEffect, &fast_setter),
+        v8::PropertyAttribute::None);
 
     CFunction add_all_seq_c_func = CFunction::Make(
         FastCApiObject::AddAllSequenceFastCallback V8_IF_USE_SIMULATOR(
@@ -1566,22 +1681,6 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
             signature, 1, ConstructorBehavior::kThrow,
             SideEffectType::kHasSideEffect, {add_all_overloads, 2}));
 
-    CFunction add_all_int_invalid_func =
-        CFunction::Make(FastCApiObject::AddAllIntInvalidCallback);
-    CFunction add_all_int_invalid_overload =
-        CFunction::Make(FastCApiObject::AddAllIntInvalidOverloadCallback);
-
-    const CFunction add_all_invalid_overloads[] = {
-        add_all_int_invalid_func,
-        add_all_int_invalid_overload,
-    };
-    api_obj_ctor->PrototypeTemplate()->Set(
-        isolate, "add_all_invalid_overload",
-        FunctionTemplate::NewWithCFunctionOverloads(
-            isolate, FastCApiObject::AddAllSequenceSlowCallback, Local<Value>(),
-            signature, 1, ConstructorBehavior::kThrow,
-            SideEffectType::kHasSideEffect, {add_all_invalid_overloads, 2}));
-
     CFunction add_all_32bit_int_8args_c_func = CFunction::Make(
         FastCApiObject::AddAll32BitIntFastCallback_8Args V8_IF_USE_SIMULATOR(
             FastCApiObject::AddAll32BitIntFastCallback_8ArgsPatch));
@@ -1642,7 +1741,7 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
     CFunction enforce_range_compare_i32_c_func =
         CFunctionBuilder()
             .Fn(FastCApiObject::EnforceRangeCompare<int32_t>)
-            .Arg<3, v8::CTypeInfo::Flags::kEnforceRangeBit>()
+            .Arg<2, v8::CTypeInfo::Flags::kEnforceRangeBit>()
 #ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
             .Patch(FastCApiObject::EnforceRangeCompareI32Patch)
 #endif  // V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
@@ -1657,7 +1756,7 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
     CFunction enforce_range_compare_u32_c_func =
         CFunctionBuilder()
             .Fn(FastCApiObject::EnforceRangeCompare<uint32_t>)
-            .Arg<3, v8::CTypeInfo::Flags::kEnforceRangeBit>()
+            .Arg<2, v8::CTypeInfo::Flags::kEnforceRangeBit>()
 #ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
             .Patch(FastCApiObject::EnforceRangeCompareU32Patch)
 #endif  // V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
@@ -1672,7 +1771,7 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
     CFunction enforce_range_compare_i64_c_func =
         CFunctionBuilder()
             .Fn(FastCApiObject::EnforceRangeCompare<int64_t>)
-            .Arg<3, v8::CTypeInfo::Flags::kEnforceRangeBit>()
+            .Arg<2, v8::CTypeInfo::Flags::kEnforceRangeBit>()
 #ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
             .Patch(FastCApiObject::EnforceRangeCompareI64Patch)
 #endif  // V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
@@ -1687,7 +1786,7 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
     CFunction enforce_range_compare_u64_c_func =
         CFunctionBuilder()
             .Fn(FastCApiObject::EnforceRangeCompare<uint64_t>)
-            .Arg<3, v8::CTypeInfo::Flags::kEnforceRangeBit>()
+            .Arg<2, v8::CTypeInfo::Flags::kEnforceRangeBit>()
 #ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
             .Patch(FastCApiObject::EnforceRangeCompareU64Patch)
 #endif  // V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
@@ -1769,6 +1868,15 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
             isolate, FastCApiObject::IsFastCApiObjectSlowCallback,
             Local<Value>(), signature, 1, ConstructorBehavior::kThrow,
             SideEffectType::kHasSideEffect, &is_valid_api_object_c_func));
+
+    CFunction call_to_number_c_func =
+        CFunction::Make(FastCApiObject::CallToNumberFastCallback);
+    api_obj_ctor->PrototypeTemplate()->Set(
+        isolate, "call_to_number",
+        FunctionTemplate::New(
+            isolate, FastCApiObject::CallToNumberSlowCallback, Local<Value>(),
+            signature, 1, ConstructorBehavior::kThrow,
+            SideEffectType::kHasSideEffect, &call_to_number_c_func));
 
     CFunction test_wasm_memory_c_func =
         CFunction::Make(FastCApiObject::TestWasmMemoryFastCallback);

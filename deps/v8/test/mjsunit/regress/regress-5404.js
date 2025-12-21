@@ -20,4 +20,6 @@ assertThrows(function() { foo(a); }, RangeError);
 %PrepareFunctionForOptimization(foo);
 %OptimizeFunctionOnNextCall(foo);
 assertThrows(function() { foo(a); }, RangeError);
-assertOptimized(foo);
+
+// Maglev deoptimizes on max string length
+// assertOptimized(foo);

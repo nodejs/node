@@ -1,211 +1,211 @@
 // Flags: --expose-internals
 
 import '../common/index.mjs';
-import { strictEqual } from 'node:assert';
+import assert from 'node:assert';
 import errorsModule from 'internal/errors';
 
 
 const { determineSpecificType } = errorsModule;
 
-strictEqual(
+assert.strictEqual(
   determineSpecificType(1n),
   'type bigint (1n)',
 );
 
-strictEqual(
+assert.strictEqual(
   determineSpecificType(true),
   'type boolean (true)',
 );
-strictEqual(
+assert.strictEqual(
   determineSpecificType(false),
   'type boolean (false)',
 );
 
-strictEqual(
+assert.strictEqual(
   determineSpecificType(2),
   'type number (2)',
 );
 
-strictEqual(
+assert.strictEqual(
   determineSpecificType(NaN),
   'type number (NaN)',
 );
 
-strictEqual(
+assert.strictEqual(
   determineSpecificType(Infinity),
   'type number (Infinity)',
 );
 
-strictEqual(
+assert.strictEqual(
   determineSpecificType({ __proto__: null }),
   '[Object: null prototype] {}',
 );
 
-strictEqual(
+assert.strictEqual(
   determineSpecificType(''),
   "type string ('')",
 );
 
-strictEqual(
+assert.strictEqual(
   determineSpecificType(''),
   "type string ('')",
 );
-strictEqual(
+assert.strictEqual(
   determineSpecificType("''"),
   "type string (\"''\")",
 );
-strictEqual(
+assert.strictEqual(
   determineSpecificType('Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor'),
   "type string ('Lorem ipsum dolor sit ame...')",
 );
-strictEqual(
+assert.strictEqual(
   determineSpecificType("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor'"),
   "type string ('Lorem ipsum dolor sit ame...')",
 );
-strictEqual(
+assert.strictEqual(
   determineSpecificType("Lorem' ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor"),
   "type string (\"Lorem' ipsum dolor sit am...\")",
 );
 
-strictEqual(
+assert.strictEqual(
   determineSpecificType(Symbol('foo')),
   'type symbol (Symbol(foo))',
 );
 
-strictEqual(
+assert.strictEqual(
   determineSpecificType(function foo() {}),
   'function foo',
 );
 
 const implicitlyNamed = function() {}; // eslint-disable-line func-style
-strictEqual(
+assert.strictEqual(
   determineSpecificType(implicitlyNamed),
   'function implicitlyNamed',
 );
-strictEqual(
+assert.strictEqual(
   determineSpecificType(() => {}),
   'function ',
 );
 function noName() {}
 delete noName.name;
-strictEqual(
+assert.strictEqual(
   noName.name,
   '',
 );
-strictEqual(
+assert.strictEqual(
   determineSpecificType(noName),
   'function ',
 );
 
 function * generatorFn() {}
-strictEqual(
+assert.strictEqual(
   determineSpecificType(generatorFn),
   'function generatorFn',
 );
 
 async function asyncFn() {}
-strictEqual(
+assert.strictEqual(
   determineSpecificType(asyncFn),
   'function asyncFn',
 );
 
-strictEqual(
+assert.strictEqual(
   determineSpecificType(null),
   'null',
 );
 
-strictEqual(
+assert.strictEqual(
   determineSpecificType(undefined),
   'undefined',
 );
 
-strictEqual(
+assert.strictEqual(
   determineSpecificType([]),
   'an instance of Array',
 );
 
-strictEqual(
+assert.strictEqual(
   determineSpecificType(new Array()),
   'an instance of Array',
 );
-strictEqual(
+assert.strictEqual(
   determineSpecificType(new BigInt64Array()),
   'an instance of BigInt64Array',
 );
-strictEqual(
+assert.strictEqual(
   determineSpecificType(new BigUint64Array()),
   'an instance of BigUint64Array',
 );
-strictEqual(
+assert.strictEqual(
   determineSpecificType(new Int8Array()),
   'an instance of Int8Array',
 );
-strictEqual(
+assert.strictEqual(
   determineSpecificType(new Int16Array()),
   'an instance of Int16Array',
 );
-strictEqual(
+assert.strictEqual(
   determineSpecificType(new Int32Array()),
   'an instance of Int32Array',
 );
-strictEqual(
+assert.strictEqual(
   determineSpecificType(new Float32Array()),
   'an instance of Float32Array',
 );
-strictEqual(
+assert.strictEqual(
   determineSpecificType(new Float64Array()),
   'an instance of Float64Array',
 );
-strictEqual(
+assert.strictEqual(
   determineSpecificType(new Uint8Array()),
   'an instance of Uint8Array',
 );
-strictEqual(
+assert.strictEqual(
   determineSpecificType(new Uint8ClampedArray()),
   'an instance of Uint8ClampedArray',
 );
-strictEqual(
+assert.strictEqual(
   determineSpecificType(new Uint16Array()),
   'an instance of Uint16Array',
 );
-strictEqual(
+assert.strictEqual(
   determineSpecificType(new Uint32Array()),
   'an instance of Uint32Array',
 );
 
-strictEqual(
+assert.strictEqual(
   determineSpecificType(new Date()),
   'an instance of Date',
 );
 
-strictEqual(
+assert.strictEqual(
   determineSpecificType(new Map()),
   'an instance of Map',
 );
-strictEqual(
+assert.strictEqual(
   determineSpecificType(new WeakMap()),
   'an instance of WeakMap',
 );
 
-strictEqual(
+assert.strictEqual(
   determineSpecificType({}),
   'an instance of Object',
 );
-strictEqual(
+assert.strictEqual(
   determineSpecificType(new Object()),
   'an instance of Object',
 );
 
-strictEqual(
+assert.strictEqual(
   determineSpecificType(Promise.resolve('foo')),
   'an instance of Promise',
 );
 
-strictEqual(
+assert.strictEqual(
   determineSpecificType(new Set()),
   'an instance of Set',
 );
-strictEqual(
+assert.strictEqual(
   determineSpecificType(new WeakSet()),
   'an instance of WeakSet',
 );

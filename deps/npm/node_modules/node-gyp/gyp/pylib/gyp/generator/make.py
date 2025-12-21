@@ -22,16 +22,16 @@
 # the side to keep the files readable.
 
 
+import hashlib
 import os
 import re
 import subprocess
 import sys
+
 import gyp
 import gyp.common
 import gyp.xcode_emulation
 from gyp.common import GetEnvironFallback
-
-import hashlib
 
 generator_default_variables = {
     "EXECUTABLE_PREFIX": "",
@@ -78,7 +78,7 @@ def CalculateVariables(default_variables, params):
 
         # Copy additional generator configuration data from Xcode, which is shared
         # by the Mac Make generator.
-        import gyp.generator.xcode as xcode_generator
+        import gyp.generator.xcode as xcode_generator  # noqa: PLC0415
 
         global generator_additional_non_configuration_keys
         generator_additional_non_configuration_keys = getattr(
@@ -218,7 +218,7 @@ cmd_solink = $(LINK.$(TOOLSET)) -shared $(GYP_LDFLAGS) $(LDFLAGS.$(TOOLSET)) -o 
 
 quiet_cmd_solink_module = SOLINK_MODULE($(TOOLSET)) $@
 cmd_solink_module = $(LINK.$(TOOLSET)) -bundle $(GYP_LDFLAGS) $(LDFLAGS.$(TOOLSET)) -o $@ $(filter-out FORCE_DO_CMD, $^) $(LIBS)
-""" % {'python': sys.executable}  # noqa: E501
+""" % {"python": sys.executable}  # noqa: E501
 
 LINK_COMMANDS_ANDROID = """\
 quiet_cmd_alink = AR($(TOOLSET)) $@
@@ -443,21 +443,27 @@ DEPFLAGS = %(makedep_args)s -MF $(depfile).raw
 define fixup_dep
 # The depfile may not exist if the input file didn't have any #includes.
 touch $(depfile).raw
-# Fixup path as in (1).""" +
-    (r"""
+# Fixup path as in (1)."""
+    + (
+        r"""
 sed -e "s|^$(notdir $@)|$@|" -re 's/\\\\([^$$])/\/\1/g' $(depfile).raw >> $(depfile)"""
-    if sys.platform == 'win32' else r"""
-sed -e "s|^$(notdir $@)|$@|" $(depfile).raw >> $(depfile)""") +
-    r"""
+        if sys.platform == "win32"
+        else r"""
+sed -e "s|^$(notdir $@)|$@|" $(depfile).raw >> $(depfile)"""
+    )
+    + r"""
 # Add extra rules as in (2).
 # We remove slashes and replace spaces with new lines;
 # remove blank lines;
-# delete the first line and append a colon to the remaining lines.""" +
-    ("""
+# delete the first line and append a colon to the remaining lines."""
+    + (
+        """
 sed -e 's/\\\\\\\\$$//' -e 's/\\\\\\\\/\\//g' -e 'y| |\\n|' $(depfile).raw |\\"""
-    if sys.platform == 'win32' else """
-sed -e 's|\\\\||' -e 'y| |\\n|' $(depfile).raw |\\""") +
-    r"""
+        if sys.platform == "win32"
+        else """
+sed -e 's|\\\\||' -e 'y| |\\n|' $(depfile).raw |\\"""
+    )
+    + r"""
   grep -v '^$$'                             |\
   sed -e 1d -e 's|$$|:|'                     \
     >> $(depfile)
@@ -616,7 +622,7 @@ cmd_mac_package_framework = %(python)s gyp-mac-tool package-framework "$@" $(4)
 
 quiet_cmd_infoplist = INFOPLIST $@
 cmd_infoplist = $(CC.$(TOOLSET)) -E -P -Wno-trigraphs -x c $(INFOPLIST_DEFINES) "$<" -o "$@"
-""" % {'python': sys.executable}  # noqa: E501
+""" % {"python": sys.executable}  # noqa: E501
 
 
 def WriteRootHeaderSuffixRules(writer):
@@ -733,10 +739,12 @@ def QuoteIfNecessary(string):
         string = '"' + string.replace('"', '\\"') + '"'
     return string
 
+
 def replace_sep(string):
-    if sys.platform == 'win32':
-        string = string.replace('\\\\', '/').replace('\\', '/')
+    if sys.platform == "win32":
+        string = string.replace("\\\\", "/").replace("\\", "/")
     return string
+
 
 def StringToMakefileVariable(string):
     """Convert a string to a value that is acceptable as a make variable name."""
@@ -1161,7 +1169,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
             for rule_source in rule.get("rule_sources", []):
                 dirs = set()
                 (rule_source_dirname, rule_source_basename) = os.path.split(rule_source)
-                (rule_source_root, rule_source_ext) = os.path.splitext(
+                (rule_source_root, _rule_source_ext) = os.path.splitext(
                     rule_source_basename
                 )
 
@@ -1439,9 +1447,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
 
         for obj in objs:
             assert " " not in obj, "Spaces in object filenames not supported (%s)" % obj
-        self.WriteLn(
-            "# Add to the list of files we specially track " "dependencies for."
-        )
+        self.WriteLn("# Add to the list of files we specially track dependencies for.")
         self.WriteLn("all_deps += $(OBJS)")
         self.WriteLn()
 
@@ -1450,7 +1456,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
             self.WriteMakeRule(
                 ["$(OBJS)"],
                 deps,
-                comment="Make sure our dependencies are built " "before any of us.",
+                comment="Make sure our dependencies are built before any of us.",
                 order_only=True,
             )
 
@@ -1461,12 +1467,11 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
             self.WriteMakeRule(
                 ["$(OBJS)"],
                 extra_outputs,
-                comment="Make sure our actions/rules run " "before any of us.",
+                comment="Make sure our actions/rules run before any of us.",
                 order_only=True,
             )
 
-        pchdeps = precompiled_header.GetObjDependencies(compilable, objs)
-        if pchdeps:
+        if pchdeps := precompiled_header.GetObjDependencies(compilable, objs):
             self.WriteLn("# Dependencies from obj files to their precompiled headers")
             for source, obj, gch in pchdeps:
                 self.WriteLn(f"{obj}: {gch}")
@@ -1499,7 +1504,8 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
                     "$(OBJS): GYP_OBJCFLAGS := "
                     "$(DEFS_$(BUILDTYPE)) "
                     "$(INCS_$(BUILDTYPE)) "
-                    "%s " % precompiled_header.GetInclude("m")
+                    "%s "
+                    % precompiled_header.GetInclude("m")
                     + "$(CFLAGS_$(BUILDTYPE)) "
                     "$(CFLAGS_C_$(BUILDTYPE)) "
                     "$(CFLAGS_OBJC_$(BUILDTYPE))"
@@ -1508,7 +1514,8 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
                     "$(OBJS): GYP_OBJCXXFLAGS := "
                     "$(DEFS_$(BUILDTYPE)) "
                     "$(INCS_$(BUILDTYPE)) "
-                    "%s " % precompiled_header.GetInclude("mm")
+                    "%s "
+                    % precompiled_header.GetInclude("mm")
                     + "$(CFLAGS_$(BUILDTYPE)) "
                     "$(CFLAGS_CC_$(BUILDTYPE)) "
                     "$(CFLAGS_OBJCC_$(BUILDTYPE))"
@@ -1600,8 +1607,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
 
         target_prefix = spec.get("product_prefix", target_prefix)
         target = spec.get("product_name", target)
-        product_ext = spec.get("product_extension")
-        if product_ext:
+        if product_ext := spec.get("product_extension"):
             target_ext = "." + product_ext
 
         return target_prefix + target + target_ext
@@ -1699,7 +1705,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
             self.WriteMakeRule(
                 extra_outputs,
                 deps,
-                comment=("Preserve order dependency of " "special output on deps."),
+                comment=("Preserve order dependency of special output on deps."),
                 order_only=True,
             )
 
@@ -1738,7 +1744,8 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
                         # into the link command, so we need lots of escaping.
                         ldflags.append(r"-Wl,-rpath=\$$ORIGIN/")
                         ldflags.append(r"-Wl,-rpath-link=\$(builddir)/")
-                library_dirs = config.get("library_dirs", [])
+                if library_dirs := config.get("library_dirs", []):
+                    library_dirs = [Sourceify(self.Absolutify(i)) for i in library_dirs]
                 ldflags += [("-L%s" % library_dir) for library_dir in library_dirs]
                 self.WriteList(ldflags, "LDFLAGS_%s" % configname)
                 if self.flavor == "mac":
@@ -1844,7 +1851,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
                 "on the bundle, not the binary (target '%s')" % self.target
             )
             assert "product_dir" not in spec, (
-                "Postbuilds do not work with " "custom product_dir"
+                "Postbuilds do not work with custom product_dir"
             )
 
         if self.type == "executable":
@@ -1881,7 +1888,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
                 self.flavor not in ("mac", "openbsd", "netbsd", "win")
                 and not self.is_standalone_static_library
             ):
-                if self.flavor in ("linux", "android"):
+                if self.flavor in ("linux", "android", "openharmony"):
                     self.WriteMakeRule(
                         [self.output_binary],
                         link_deps,
@@ -1895,21 +1902,20 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
                         part_of_all,
                         postbuilds=postbuilds,
                     )
+            elif self.flavor in ("linux", "android", "openharmony"):
+                self.WriteMakeRule(
+                    [self.output_binary],
+                    link_deps,
+                    actions=["$(call create_archive,$@,$^)"],
+                )
             else:
-                if self.flavor in ("linux", "android"):
-                    self.WriteMakeRule(
-                        [self.output_binary],
-                        link_deps,
-                        actions=["$(call create_archive,$@,$^)"],
-                    )
-                else:
-                    self.WriteDoCmd(
-                        [self.output_binary],
-                        link_deps,
-                        "alink",
-                        part_of_all,
-                        postbuilds=postbuilds,
-                    )
+                self.WriteDoCmd(
+                    [self.output_binary],
+                    link_deps,
+                    "alink",
+                    part_of_all,
+                    postbuilds=postbuilds,
+                )
         elif self.type == "shared_library":
             self.WriteLn(
                 "%s: LD_INPUTS := %s"
@@ -2383,11 +2389,15 @@ def WriteAutoRegenerationRule(params, root_makefile, makefile_name, build_files)
         % {
             "makefile_name": makefile_name,
             "deps": replace_sep(
-                " ".join(SourceifyAndQuoteSpaces(bf) for bf in build_files)
+                " ".join(sorted(SourceifyAndQuoteSpaces(bf) for bf in build_files))
             ),
-            "cmd": replace_sep(gyp.common.EncodePOSIXShellList(
-                [gyp_binary, "-fmake"] + gyp.RegenerateFlags(options) + build_files_args
-            )),
+            "cmd": replace_sep(
+                gyp.common.EncodePOSIXShellList(
+                    [gyp_binary, "-fmake"]
+                    + gyp.RegenerateFlags(options)
+                    + build_files_args
+                )
+            ),
         }
     )
 
@@ -2460,8 +2470,8 @@ def GenerateOutput(target_list, target_dicts, data, params):
     # wasm-ld doesn't support --start-group/--end-group
     link_commands = LINK_COMMANDS_LINUX
     if flavor in ["wasi", "wasm"]:
-        link_commands = link_commands.replace(' -Wl,--start-group', '').replace(
-            ' -Wl,--end-group', ''
+        link_commands = link_commands.replace(" -Wl,--start-group", "").replace(
+            " -Wl,--end-group", ""
         )
 
     CC_target = replace_sep(GetEnvironFallback(("CC_target", "CC"), "$(CC)"))

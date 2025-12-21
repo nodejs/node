@@ -62,7 +62,7 @@ function createSets(length, extraProps, depth = 0) {
       number: i,
     },
     ['array', 'with', 'values'],
-    !depth ? new Set([1, 2, { nested: i }]) : new Set(),
+    !depth ? new Set([1, { nested: i }]) : new Set(),
     !depth ? createSets(2, extraProps, depth + 1) : null,
   ]));
 }

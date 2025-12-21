@@ -6,9 +6,8 @@
 
 const set = new WeakSet()
 const obj = {};
-// Two GCs to promote {set} and {obj} to old-space.
-gc();
-gc();
+// a major GC to promote {set} and {obj} to old-space.
+gc({ type: 'major' });
 // Allocate a large array so {obj} will become an evacuation candidate.
 const foo = new Int8Array(0x0F000000);
 // Trigger ephemeron key write barrier.

@@ -13,6 +13,7 @@ using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::Isolate;
 using v8::Local;
+using v8::LocalVector;
 using v8::Object;
 using v8::String;
 using v8::Value;
@@ -26,7 +27,7 @@ int collectProviders(OSSL_PROVIDER* provider, void* cbdata) {
 
 inline void GetProviders(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
-  std::vector<Local<Value>> arr = {};
+  LocalVector<Value> arr(isolate, 0);
 #if OPENSSL_VERSION_MAJOR >= 3
   std::vector<OSSL_PROVIDER*> providers;
   OSSL_PROVIDER_do_all(nullptr, &collectProviders, &providers);

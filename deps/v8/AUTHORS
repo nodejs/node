@@ -57,8 +57,10 @@ Alexander Botero-Lowry <alexbl@FreeBSD.org>
 Alexander Karpinsky <homm86@gmail.com>
 Alexander Neville <dark@volatile.bz>
 Alexandre Vassalotti <avassalotti@gmail.com>
-Alexey Pavlyutkin <alexey.pavlyutkin.community@gmail.com>
+Albert Slepak <aslepak@netflix.com>
+Alexey Pavlyutkin <alexey.pavlyutkin@syntacore.com>
 Alexis Campailla <alexis@janeasystems.com>
+Aliya Minimullina <a.minimullina@syntacore.com>
 Allan Sandfeld Jensen <allan.jensen@qt.io>
 Amos Lim <eui-sang.lim@samsung.com>
 Andreas Anyuru <andreas.anyuru@gmail.com>
@@ -120,6 +122,7 @@ Dominic Farolini <domfarolino@gmail.com>
 Douglas Crosher <dtc-v8@scieneer.com>
 Dusan Milosavljevic <dusan.m.milosavljevic@gmail.com>
 Eden Wang <nedenwang@tencent.com>
+Edoardo Marangoni <edoardo@wasmer.io>
 Elisha Hollander <just4now666666@gmail.com>
 Eric Rannaud <eric.rannaud@gmail.com>
 Erich Ocean <erich.ocean@me.com>
@@ -128,6 +131,7 @@ Fedor Indutny <fedor@indutny.com>
 Felix Geisendörfer <haimuiba@gmail.com>
 Feng Yu <f3n67u@gmail.com>
 Filipe David Manana <fdmanana@gmail.com>
+Florian Loitsch <floitsch@rivosinc.com>
 Frank Lemanschik <frank@dspeed.eu>
 Franziska Hinkelmann <franziska.hinkelmann@gmail.com>
 Gao Sheng <gaosheng08@meituan.com>
@@ -146,6 +150,7 @@ Helmut Januschka <helmut@januschka.com>
 Hirofumi Mako <mkhrfm@gmail.com>
 Hisham Muhammad <hisham@gobolinux.org>
 Honggyu Kim <honggyu.kp@gmail.com>
+Hood Chatham <robert.hood.chatham@gmail.com>
 Huáng Jùnliàng <jlhwung@gmail.com>
 HyeockJin Kim <kherootz@gmail.com>
 Iain Ireland <iireland@mozilla.com>
@@ -181,12 +186,17 @@ Junha Park <jpark3@scu.edu>
 Junming Huang <kiminghjm@gmail.com>
 Kang-Hao (Kenny) Lu <kennyluck@csail.mit.edu>
 Karl Skomski <karl@skomski.com>
+Kasper Lund <kasperl@rivosinc.com>
 Keith Smiley <keithbsmiley@gmail.com>
+Kenta Moriuchi <moriken@kimamass.com>
 Kevin Gibbons <bakkot@gmail.com>
+Kevin Wang <wangpengqiang@bytedance.com>
 Keyhan Vakil <kvakil@googlecontrib.kvakil.me>
 Kris Selden <kris.selden@gmail.com>
+Krishna Ravishankar <krishna.ravi732@gmail.com>
 Kyounga Ra <kyounga@alticast.com>
 Levi Zim <rsworktech@outlook.com>
+LN Liberda <lauren@selfisekai.rocks>
 Loo Rong Jie <loorongjie@gmail.com>
 Lu Yahan <yahan@iscas.ac.cn>
 Ludovic Mermod <ludovic.mermod@gmail.com>
@@ -210,11 +220,13 @@ Maxim Mazurok <maxim@mazurok.com>
 Maxim Mossienko <maxim.mossienko@gmail.com>
 Md Hasibul Hasan <hasibulhasan873@gmail.com>
 Meir Shpilraien <meir@redis.com>
+Meng Tan <tannal2409@gmail.com>
 Michael Lutz <michi@icosahedron.de>
 Michael Mclaughlin <m8ch88l@gmail.com>
 Michael Smith <mike@w3.org>
 Michaël Zasso <mic.besace@gmail.com>
 Mihir Shah <mihirshah.11204@gmail.com>
+Mika Fischer <mika.fischer@zoopnet.de>
 Mike Gilbert <floppymaster@gmail.com>
 Mike Pennisi <mike@mikepennisi.com>
 Mikhail Gusarov <dottedmag@dottedmag.net>
@@ -250,6 +262,7 @@ Refael Ackermann <refack@gmail.com>
 Rene Rebe <rene@exactcode.de>
 Reza Yazdani <ryazdani@futurewei.com>
 Rick Waldron <waldron.rick@gmail.com>
+Riya Amemiya <riyaamemiya@gmail.com>
 Rob Wu <rob@robwu.nl>
 Robert Meijer <robert.s.meijer@gmail.com>
 Robert Mustacchi <rm@fingolfin.org>
@@ -266,8 +279,10 @@ Sanjoy Das <sanjoy@playingwithpointers.com>
 Sam James <sam@gentoo.org>
 Sébastien Doeraene <sjrdoeraene@gmail.com>
 Seo Sanghyeon <sanxiyn@gmail.com>
+Sergey Markelov <sergionso@gmail.com>
 Shawn Anastasio <shawnanastasio@gmail.com>
 Shawn Presser <shawnpresser@gmail.com>
+Sho Miyamoto <me@shqld.dev>
 Stefan Penner <stefan.penner@gmail.com>
 Stefan Stojanovic <stefko.stojanovic@gmail.com>
 Stephan Hartmann <stha09@googlemail.com>
@@ -284,18 +299,21 @@ Tianping Yang <yangtianping@oppo.com>
 Timo Teräs <timo.teras@iki.fi>
 Tobias Burnus <burnus@net-b.de>
 Tobias Nießen <tniessen@tnie.de>
+Tomasz Malinowski <tomasz.crowsoftware@gmail.com>
 Ujjwal Sharma <usharma1998@gmail.com>
 Vadim Gorbachev <bmsdave@gmail.com>
 Varun Varada <varuncvarada@gmail.com>
 Victor Costan <costan@gmail.com>
 Victor Polevoy <fx@thefx.co>
 Vlad Burlik <vladbph@gmail.com>
+Vladimir Kempik <vladimir.kempik@syntacore.com>
 Vladimir Krivosheev <develar@gmail.com>
 Vladimir Shutoff <vovan@shutoff.ru>
 Wael Almattar <waelsy123@gmail.com>
 Wang Chen <wangchen20@iscas.ac.cn>
 WANG Xuerui <git@xen0n.name>
 Wei Wu <lazyparser@gmail.com>
+Weicong Yu <yuweicong666@gmail.com>
 Wenlu Wang <kingwenlu@gmail.com>
 Wenming Yang <yangwenming@bytedance.com>
 Wenyu Zhao <wenyu.zhao@anu.edu.au>
@@ -303,6 +321,7 @@ Wiktor Garbacz <wiktor.garbacz@gmail.com>
 Wouter Vermeiren <wouter.vermeiren@essensium.com>
 Xiaofang Zou <zouxiaofang@iscas.ac.cn>
 Xiaoyin Liu <xiaoyin.l@outlook.com>
+Yagiz Nizipli <yagiz@nizipli.com>
 Yanbo Li <lybvinci@gmail.com>
 Yannic Bonenberger <contact@yannic-bonenberger.com>
 Yi Wang <wangyi8848@gmail.com>
@@ -317,6 +336,7 @@ Yuxiang Cao <caoyxsh@outlook.com>
 Zac Hansen <xaxxon@gmail.com>
 Zeynep Cankara <zeynepcankara402@gmail.com>
 Zhao Jiazhong <kyslie3100@gmail.com>
+Zhao Qin <qzmiss@gmail.com>
 Zhaojun Meng <zhaojun.meng@gmail.com>
 Zheng Liu <i6122f@gmail.com>
 Zhongping Wang <kewpie.w.zp@gmail.com>
@@ -325,3 +345,12 @@ Yang Xiang <xiangyangemail@gmail.com>
 Kotaro Ohsugi <dec4m4rk@gmail.com>
 Jing Peiyang <jingpeiyang@eswincomputing.com>
 magic-akari <akari.ccino@gmail.com>
+Ryuhei Shima <shimaryuhei@gmail.com>
+Domagoj Stolfa <domagoj.stolfa@gmail.com>
+Zhijin Zeng <zhijin.zeng@spacemit.com>
+王家睿 <wangjiarui79@gmail.com>
+Julian Gremminger <asdfju77@gmail.com>
+Liam Wachter <liam.g.wachter@gmail.com>
+Flavio Toffalini <flavio87@gmail.com>
+Mathias Payer <mathias.payer@gmail.com>
+Christian Wressnegger <intellisec.de@gmail.com>

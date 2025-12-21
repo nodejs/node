@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_WASM_WASM_EXTERNAL_REFS_H_
+#define V8_WASM_WASM_EXTERNAL_REFS_H_
+
 #if !V8_ENABLE_WEBASSEMBLY
 #error This header should only be included if WebAssembly is enabled.
 #endif  // !V8_ENABLE_WEBASSEMBLY
-
-#ifndef V8_WASM_WASM_EXTERNAL_REFS_H_
-#define V8_WASM_WASM_EXTERNAL_REFS_H_
 
 #include <stdint.h>
 
@@ -19,6 +19,8 @@ namespace internal {
 class Isolate;
 
 namespace wasm {
+
+class StackMemory;
 
 using Address = uintptr_t;
 
@@ -186,12 +188,22 @@ void array_fill_wrapper(Address raw_array, uint32_t index, uint32_t length,
 
 double flat_string_to_f64(Address string_address);
 
-// Update the stack limit after a stack switch,
-// and preserve pending interrupts.
-void sync_stack_limit(Isolate* isolate);
-// Return {continuation}'s stack memory to the stack pool after it has returned
-// and switched back to its parent, and update the stack limit.
-void return_switch(Isolate* isolate, Address continuation);
+// Called from the stack switching builtins to handle some of the
+// platform-independent stack switching logic: updating the stack limit,
+// validating the switch, debug traces, managing the stack memory, etc.
+void start_stack(Isolate* isolate, wasm::StackMemory* to, Address sp,
+                 Address fp, Address pc);
+int32_t suspender_has_js_frames(Isolate* isolate);
+void suspend_stack(Isolate* isolate, wasm::StackMemory* to, Address sp,
+                   Address fp, Address pc);
+void resume_jspi_stack(Isolate* isolate, wasm::StackMemory* to, Address sp,
+                       Address fp, Address pc, Address suspender);
+void resume_wasmfx_stack(Isolate* isolate, wasm::StackMemory* to, Address sp,
+                         Address fp, Address pc);
+Address suspend_wasmfx_stack(Isolate* isolate, Address sp, Address fp,
+                             Address pc, Address wanted_tag_raw,
+                             Address cont_raw);
+void return_stack(Isolate* isolate, wasm::StackMemory* to);
 
 intptr_t switch_to_the_central_stack(Isolate* isolate, uintptr_t sp);
 void switch_from_the_central_stack(Isolate* isolate);

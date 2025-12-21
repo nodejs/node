@@ -136,6 +136,7 @@ def _V8PresubmitChecks(input_api, output_api):
       input_api, output_api, bot_allowlist=[
         'v8-ci-autoroll-builder@chops-service-accounts.iam.gserviceaccount.com',
         'v8-ci-test262-import-export@chops-service-accounts.iam.gserviceaccount.com',
+        'chrome-cherry-picker@chops-service-accounts.iam.gserviceaccount.com',
       ]))
   return results
 
@@ -171,8 +172,15 @@ def _CheckUnwantedDependencies(input_api, output_api):
   # eval-ed and thus doesn't have __file__.
   original_sys_path = sys.path
   try:
-    sys.path = sys.path + [input_api.os_path.join(
-        input_api.PresubmitLocalPath(), 'buildtools', 'checkdeps')]
+    root = input_api.PresubmitLocalPath()
+    if not os.path.exists(os.path.join(root, 'buildtools')):
+      root = os.path.dirname(root)
+      if not os.path.exists(os.path.join(root, 'buildtools')):
+        raise RuntimeError(
+            "Failed to find //buildtools directory for checkdeps")
+    sys.path = sys.path + [
+        input_api.os_path.join(root, 'buildtools', 'checkdeps')
+    ]
     import checkdeps
     from cpp_checker import CppChecker
     from rules import Rule
@@ -361,6 +369,51 @@ def _CheckNoInlineHeaderIncludesInNormalHeaders(input_api, output_api):
     return []
 
 
+def _CheckInlineHeadersIncludeNonInlineHeadersFirst(input_api, output_api):
+  """Checks that the first include in each inline header ("*-inl.h") is the
+  non-inl counterpart of that header, if that file exists."""
+  file_inclusion_pattern = r'.+-inl\.h'
+  include_error = (
+      'The first include of an -inl.h header should be the non-inl counterpart.'
+  )
+
+  def FilterFile(affected_file):
+    files_to_skip = _EXCLUDED_PATHS + input_api.DEFAULT_FILES_TO_SKIP + (
+        # Exclude macro-assembler-<ARCH>-inl.h headers because they have special
+        # include rules (arch-specific macro assembler headers must be included
+        # via the general macro-assembler.h).
+        r'src[\\\/]codegen[\\\/].*[\\\/]macro-assembler-.*-inl\.h',)
+    return input_api.FilterSourceFile(
+        affected_file,
+        files_to_check=(file_inclusion_pattern,),
+        files_to_skip=files_to_skip)
+
+  to_non_inl = lambda filename: filename[:-len("-inl.h")] + ".h"
+  problems = []
+  for f in input_api.AffectedSourceFiles(FilterFile):
+    if not os.path.isfile(to_non_inl(f.AbsoluteLocalPath())):
+      continue
+    non_inl_header = to_non_inl(f.LocalPath()).replace(os.sep, '/')
+    first_include = None
+    for line in f.NewContents():
+      if line.startswith('#include '):
+        first_include = line
+        break
+    expected_include = f'#include "{non_inl_header}"'
+    if first_include is None:
+      problems.append(f'{f.LocalPath()}: should include {non_inl_header}\n'
+                      '    found no includes in the file.')
+    elif not first_include.startswith(expected_include):
+      problems.append(
+          f'{f.LocalPath()}: should include {non_inl_header} first\n'
+          f'    found: {first_include}')
+
+  if problems:
+    return [output_api.PresubmitError(include_error, problems)]
+  else:
+    return []
+
+
 def _CheckNoProductionCodeUsingTestOnlyFunctions(input_api, output_api):
   """Attempts to prevent use of functions intended only for testing in
   non-testing code. For now this is just a best-effort implementation
@@ -426,20 +479,22 @@ def _CommonChecks(input_api, output_api):
   # with the canned PanProjectChecks. Need to make sure that the checks all
   # pass on all existing files.
   checks = [
-    input_api.canned_checks.CheckOwnersFormat,
-    input_api.canned_checks.CheckOwners,
-    _CheckCommitMessageBugEntry,
-    input_api.canned_checks.CheckPatchFormatted,
-    _CheckGenderNeutralInLicenses,
-    _V8PresubmitChecks,
-    _CheckUnwantedDependencies,
-    _CheckNoProductionCodeUsingTestOnlyFunctions,
-    _CheckHeadersHaveIncludeGuards,
-    _CheckNoInlineHeaderIncludesInNormalHeaders,
-    _CheckJSONFiles,
-    _CheckNoexceptAnnotations,
-    _RunTestsWithVPythonSpec,
-    _CheckPythonLiterals,
+      input_api.canned_checks.CheckOwnersFormat,
+      input_api.canned_checks.CheckOwners,
+      _CheckCommitMessageBugEntry,
+      input_api.canned_checks.CheckPatchFormatted,
+      _CheckGenderNeutralInLicenses,
+      _V8PresubmitChecks,
+      _CheckUnwantedDependencies,
+      _CheckNoProductionCodeUsingTestOnlyFunctions,
+      _CheckHeadersHaveIncludeGuards,
+      _CheckNoInlineHeaderIncludesInNormalHeaders,
+      _CheckInlineHeadersIncludeNonInlineHeadersFirst,
+      _CheckJSONFiles,
+      _CheckNoexceptAnnotations,
+      _CheckBannedCpp,
+      _RunTestsWithVPythonSpec,
+      _CheckPythonLiterals,
   ]
 
   return sum([check(input_api, output_api) for check in checks], [])
@@ -558,6 +613,48 @@ def _CheckNoexceptAnnotations(input_api, output_api):
         'Please report false positives on https://crbug.com/v8/8616.',
         errors)]
   return []
+
+
+def _CheckBannedCpp(input_api, output_api):
+  # We only check for a single pattern right now; feel free to add more, but
+  # potentially change the logic for files_to_skip then (and skip individual
+  # checks for individual files instead).
+  bad_cpp = [
+      ('std::bit_cast',
+       'Use base::bit_cast instead, which has additional checks'),
+  ]
+
+  def file_filter(x):
+    return input_api.FilterSourceFile(
+        x,
+        files_to_skip=[
+            # The implementation of base::bit_cast uses std::bit_cast.
+            r'src/base/macros\.h',
+            # src/base/numerics is a dependency-free header-only library, hence
+            # uses std::bit_cast directly.
+            r'src/base/numerics/.*'
+        ],
+        files_to_check=[r'.*\.h$', r'.*\.cc$'])
+
+  errors = []
+  for f in input_api.AffectedSourceFiles(file_filter):
+    for line_number, line in f.ChangedContents():
+      for pattern, message in bad_cpp:
+        if not pattern in line:
+          continue
+        # Skip if part of a comment.
+        if '//' in line and line.index('//') < line.index(pattern):
+          continue
+
+        # Make sure there are word separators around the pattern.
+        regex = r'\b%s\b' % pattern
+        if not input_api.re.search(regex, line):
+          continue
+
+        errors.append(
+            output_api.PresubmitError('Banned pattern ({}):\n  {}:{} {}'.format(
+                regex, f.LocalPath(), line_number, message)))
+  return errors
 
 
 def CheckChangeOnUpload(input_api, output_api):

@@ -59,6 +59,7 @@
   V(internal_only_v8)                                                          \
   V(js_stream)                                                                 \
   V(js_udp_wrap)                                                               \
+  V(locks)                                                                     \
   V(messaging)                                                                 \
   V(modules)                                                                   \
   V(module_wrap)                                                               \
@@ -75,7 +76,6 @@
   V(serdes)                                                                    \
   V(signal_wrap)                                                               \
   V(spawn_sync)                                                                \
-  V(sqlite)                                                                    \
   V(stream_pipe)                                                               \
   V(stream_wrap)                                                               \
   V(string_decoder)                                                            \
@@ -95,7 +95,6 @@
   V(wasi)                                                                      \
   V(wasm_web_api)                                                              \
   V(watchdog)                                                                  \
-  V(webstorage)                                                                \
   V(worker)                                                                    \
   V(zlib)
 
@@ -105,7 +104,8 @@
   NODE_BUILTIN_ICU_BINDINGS(V)                                                 \
   NODE_BUILTIN_PROFILER_BINDINGS(V)                                            \
   NODE_BUILTIN_DEBUG_BINDINGS(V)                                               \
-  NODE_BUILTIN_QUIC_BINDINGS(V)
+  NODE_BUILTIN_QUIC_BINDINGS(V)                                                \
+  NODE_BUILTIN_SQLITE_BINDINGS(V)
 
 // This is used to load built-in bindings. Instead of using
 // __attribute__((constructor)), we call the _register_<modname>
@@ -487,9 +487,9 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
       dlib->Close();
 #ifdef _WIN32
       // Windows needs to add the filename into the error message
-      errmsg += *filename;
+      errmsg += filename.ToStringView();
 #endif  // _WIN32
-      THROW_ERR_DLOPEN_FAILED(env, "%s", errmsg.c_str());
+      THROW_ERR_DLOPEN_FAILED(env, "%s", errmsg);
       return false;
     }
 
@@ -520,7 +520,7 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
         if (mp == nullptr || mp->nm_context_register_func == nullptr) {
           dlib->Close();
           THROW_ERR_DLOPEN_FAILED(
-              env, "Module did not self-register: '%s'.", *filename);
+              env, "Module did not self-register: '%s'.", filename);
           return false;
         }
       }
@@ -649,7 +649,7 @@ void GetInternalBinding(const FunctionCallbackInfo<Value>& args) {
     exports = InitInternalBinding(realm, mod);
     realm->internal_bindings.insert(mod);
   } else {
-    return THROW_ERR_INVALID_MODULE(isolate, "No such binding: %s", *module_v);
+    return THROW_ERR_INVALID_MODULE(isolate, "No such binding: %s", module_v);
   }
 
   args.GetReturnValue().Set(exports);
@@ -680,7 +680,7 @@ void GetLinkedBinding(const FunctionCallbackInfo<Value>& args) {
 
   if (mod == nullptr) {
     return THROW_ERR_INVALID_MODULE(
-        env, "No such binding was linked: %s", *module_name_v);
+        env, "No such binding was linked: %s", module_name_v);
   }
 
   Local<Object> module = Object::New(env->isolate());

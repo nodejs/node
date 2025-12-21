@@ -141,9 +141,9 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="----logging----1120">
+<h1 id="----logging----1170">
     <span>Logging</span>
-    <span class="version">@11.2.0</span>
+    <span class="version">@11.7.0</span>
 </h1>
 <span class="description">Why, What &amp; How We Log</span>
 </header>
@@ -157,9 +157,10 @@ npm command-line interface
 <p>The <code>npm</code> CLI has various mechanisms for showing different levels of information back to end-users for certain commands, configurations &amp; environments.</p>
 <h3 id="setting-log-file-location">Setting Log File Location</h3>
 <p>All logs are written to a debug log, with the path to that file printed if the execution of a command fails.</p>
-<p>The default location of the logs directory is a directory named <code>_logs</code> inside the npm cache. This can be changed with the <code>logs-dir</code> config option.</p>
-<p>For example, if you wanted to write all your logs to the current working directory, you could run: <code>npm install --logs-dir=.</code>.  This is especially helpful in debugging a specific <code>npm</code> issue as you can run
-a command multiple times with different config values and then diff all the log files.</p>
+<p>The default location of the logs directory is a directory named <code>_logs</code> inside the npm cache.
+This can be changed with the <code>logs-dir</code> config option.</p>
+<p>For example, if you wanted to write all your logs to the current working directory, you could run: <code>npm install --logs-dir=.</code>.
+This is especially helpful in debugging a specific <code>npm</code> issue as you can run a command multiple times with different config values and then diff all the log files.</p>
 <p>Log files will be removed from the <code>logs-dir</code> when the number of log files exceeds <code>logs-max</code>, with the oldest logs being deleted first.</p>
 <p>To turn off logs completely set <code>--logs-max=0</code>.</p>
 <h3 id="setting-log-levels">Setting Log Levels</h3>
@@ -176,7 +177,7 @@ a command multiple times with different config values and then diff all the log 
 <li><code>"verbose"</code></li>
 <li><code>"silly"</code></li>
 </ul>
-<p>All logs pertaining to a level proceeding the current setting will be shown.</p>
+<p>All logs pertaining to a level preceding the current setting will be shown.</p>
 <h5 id="aliases">Aliases</h5>
 <p>The log levels listed above have various corresponding aliases, including:</p>
 <ul>
@@ -190,24 +191,25 @@ a command multiple times with different config values and then diff all the log 
 <li><code>--silent</code>: <code>--loglevel silent</code></li>
 </ul>
 <h4 id="foreground-scripts"><code>foreground-scripts</code></h4>
-<p>The <code>npm</code> CLI began hiding the output of lifecycle scripts for <code>npm install</code> as of <code>v7</code>. Notably, this means you will not see logs/output from packages that may be using "install scripts" to display information back to you or from your own project's scripts defined in <code>package.json</code>. If you'd like to change this behavior &amp; log this output you can set <code>foreground-scripts</code> to <code>true</code>.</p>
+<p>The <code>npm</code> CLI began hiding the output of lifecycle scripts for <code>npm install</code> as of <code>v7</code>.
+Notably, this means you will not see logs/output from packages that may be using "install scripts" to display information back to you or from your own project's scripts defined in <code>package.json</code>.
+If you'd like to change this behavior &amp; log this output you can set <code>foreground-scripts</code> to <code>true</code>.</p>
 <h3 id="timing-information">Timing Information</h3>
-<p>The <a href="../using-npm/config#timing.html"><code>--timing</code> config</a> can be set which does a few
-things:</p>
+<p>The <a href="../using-npm/config#timing.html"><code>--timing</code> config</a> can be set which does a few things:</p>
 <ol>
 <li>Always shows the full path to the debug log regardless of command exit status</li>
 <li>Write timing information to a process specific timing file in the cache or <code>logs-dir</code></li>
 <li>Output timing information to the terminal</li>
 </ol>
-<p>This file contains a <code>timers</code> object where the keys are an identifier for the
-portion of the process being timed and the value is the number of milliseconds it took to complete.</p>
-<p>Sometimes it is helpful to get timing information without outputting anything to the terminal. For
-example, the performance might be affected by writing to the terminal. In this case you can use
-<code>--timing --silent</code> which will still write the timing file, but not output anything to the terminal
-while running.</p>
+<p>This file contains a <code>timers</code> object where the keys are an identifier for the portion of the process being timed and the value is the number of milliseconds it took to complete.</p>
+<p>Sometimes it is helpful to get timing information without outputting anything to the terminal.
+For example, the performance might be affected by writing to the terminal.
+In this case you can use
+<code>--timing --silent</code> which will still write the timing file, but not output anything to the terminal while running.</p>
 <h3 id="registry-response-headers">Registry Response Headers</h3>
 <h4 id="npm-notice"><code>npm-notice</code></h4>
-<p>The <code>npm</code> CLI reads from &amp; logs any <code>npm-notice</code> headers that are returned from the configured registry. This mechanism can be used by third-party registries to provide useful information when network-dependent requests occur.</p>
+<p>The <code>npm</code> CLI reads from &amp; logs any <code>npm-notice</code> headers that are returned from the configured registry.
+This mechanism can be used by third-party registries to provide useful information when network-dependent requests occur.</p>
 <p>This header is not cached, and will not be logged if the request is served from the cache.</p>
 <h3 id="logs-and-sensitive-information">Logs and Sensitive Information</h3>
 <p>The <code>npm</code> CLI makes a best effort to redact the following from terminal output and log files:</p>
@@ -215,14 +217,15 @@ while running.</p>
 <li>Passwords inside basic auth URLs</li>
 <li>npm tokens</li>
 </ul>
-<p>However, this behavior should not be relied on to keep all possible sensitive information redacted. If you are concerned about secrets in your log file or terminal output, you can use <code>--loglevel=silent</code> and <code>--logs-max=0</code> to ensure no logs are written to your terminal or filesystem.</p>
+<p>However, this behavior should not be relied on to keep all possible sensitive information redacted.
+If you are concerned about secrets in your log file or terminal output, you can use <code>--loglevel=silent</code> and <code>--logs-max=0</code> to ensure no logs are written to your terminal or filesystem.</p>
 <h3 id="see-also">See also</h3>
 <ul>
 <li><a href="../using-npm/config.html">config</a></li>
 </ul></div>
 
 <footer id="edit">
-<a href="https://github.com/npm/cli/edit/latest/docs/content/using-npm/logging.md">
+<a href="https://github.com/npm/cli/edit/latest/docs/lib/content/using-npm/logging.md">
 <svg role="img" viewBox="0 0 16 16" width="16" height="16" fill="currentcolor" style="vertical-align: text-bottom; margin-right: 0.3em;">
 <path fill-rule="evenodd" d="M11.013 1.427a1.75 1.75 0 012.474 0l1.086 1.086a1.75 1.75 0 010 2.474l-8.61 8.61c-.21.21-.47.364-.756.445l-3.251.93a.75.75 0 01-.927-.928l.929-3.25a1.75 1.75 0 01.445-.758l8.61-8.61zm1.414 1.06a.25.25 0 00-.354 0L10.811 3.75l1.439 1.44 1.263-1.263a.25.25 0 000-.354l-1.086-1.086zM11.189 6.25L9.75 4.81l-6.286 6.287a.25.25 0 00-.064.108l-.558 1.953 1.953-.558a.249.249 0 00.108-.064l6.286-6.286z"></path>
 </svg>

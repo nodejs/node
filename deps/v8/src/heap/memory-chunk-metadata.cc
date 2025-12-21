@@ -11,13 +11,13 @@
 #include "src/objects/heap-object.h"
 #include "src/utils/allocation.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 MemoryChunkMetadata::MemoryChunkMetadata(Heap* heap, BaseSpace* space,
                                          size_t chunk_size, Address area_start,
                                          Address area_end,
-                                         VirtualMemory reservation)
+                                         VirtualMemory reservation,
+                                         Executability executability)
     : reservation_(std::move(reservation)),
       allocated_bytes_(area_end - area_start),
       high_water_mark_(area_start -
@@ -26,20 +26,33 @@ MemoryChunkMetadata::MemoryChunkMetadata(Heap* heap, BaseSpace* space,
       area_end_(area_end),
       heap_(heap),
       area_start_(area_start),
-      owner_(space) {}
+      owner_(space) {
+  flags_ = IsExecutableField::update(
+      flags_, executability == Executability::EXECUTABLE);
+  // Executable chunks are also trusted as they contain machine code and live
+  // outside the sandbox (when it is enabled). While mostly symbolic, this is
+  // needed for two reasons:
+  // 1. We have the invariant that IsTrustedObject(obj) implies
+  //    IsTrustedSpaceObject(obj), where IsTrustedSpaceObject checks the
+  //   MemoryChunk::IS_TRUSTED flag on the host chunk. As InstructionStream
+  //   objects are trusted, their host chunks must also be marked as such.
+  // 2. References between trusted objects must use the TRUSTED_TO_TRUSTED
+  //    remembered set. However, that will only be used if both the host
+  //    and the value chunk are marked as IS_TRUSTED.
+  flags_ = IsTrustedField::update(
+      flags_, IsAnyTrustedSpace(owner()->identity()) ||
+                  executability == Executability::EXECUTABLE);
+  // "Trusted" chunks should never be located inside the sandbox as they
+  // couldn't be trusted in that case.
+  DCHECK_IMPLIES(is_trusted(), OutsideSandbox(ChunkAddress()));
+  flags_ = IsWritableSharedSpaceField::update(
+      flags_, IsAnyWritableSharedSpace(owner()->identity()));
+}
 
 MemoryChunkMetadata::~MemoryChunkMetadata() {
 #ifdef V8_ENABLE_SANDBOX
   MemoryChunk::ClearMetadataPointer(this);
-#endif
-}
-
-bool MemoryChunkMetadata::InSharedSpace() const {
-  return IsAnySharedSpace(owner()->identity());
-}
-
-bool MemoryChunkMetadata::InTrustedSpace() const {
-  return IsAnyTrustedSpace(owner()->identity());
+#endif  // V8_ENABLE_SANDBOX
 }
 
 #ifdef THREAD_SANITIZER
@@ -60,41 +73,16 @@ void MemoryChunkMetadata::SynchronizedHeapStore() {
 }
 #endif
 
-class MemoryChunkValidator {
-  // Computed offsets should match the compiler generated ones.
-  static_assert(MemoryChunkLayout::kFlagsOffset ==
-                offsetof(MemoryChunk, main_thread_flags_));
-#ifdef V8_ENABLE_SANDBOX
-  static_assert(MemoryChunkLayout::kMetadataIndexOffset ==
-                offsetof(MemoryChunk, metadata_index_));
-#else
-  static_assert(MemoryChunkLayout::kMetadataOffset ==
-                offsetof(MemoryChunk, metadata_));
-#endif
+#ifdef DEBUG
+bool MemoryChunkMetadata::is_trusted() const {
+  const bool is_trusted = IsTrustedField::decode(flags_);
+  const bool is_trusted_owner = owner()
+                                    ? IsAnyTrustedSpace(owner()->identity()) ||
+                                          IsAnyCodeSpace(owner()->identity())
+                                    : false;
+  DCHECK_EQ(is_trusted, is_trusted_owner);
+  return is_trusted;
+}
+#endif  // DEBUG
 
-  static_assert(MemoryChunkLayout::kSizeOffset ==
-                offsetof(MemoryChunkMetadata, size_));
-  static_assert(MemoryChunkLayout::kHeapOffset ==
-                offsetof(MemoryChunkMetadata, heap_));
-  static_assert(offsetof(MemoryChunkMetadata, size_) ==
-                MemoryChunkLayout::kSizeOffset);
-  static_assert(offsetof(MemoryChunkMetadata, heap_) ==
-                MemoryChunkLayout::kHeapOffset);
-  static_assert(offsetof(MemoryChunkMetadata, area_start_) ==
-                MemoryChunkLayout::kAreaStartOffset);
-  static_assert(offsetof(MemoryChunkMetadata, area_end_) ==
-                MemoryChunkLayout::kAreaEndOffset);
-  static_assert(offsetof(MemoryChunkMetadata, allocated_bytes_) ==
-                MemoryChunkLayout::kAllocatedBytesOffset);
-  static_assert(offsetof(MemoryChunkMetadata, wasted_memory_) ==
-                MemoryChunkLayout::kWastedMemoryOffset);
-  static_assert(offsetof(MemoryChunkMetadata, high_water_mark_) ==
-                MemoryChunkLayout::kHighWaterMarkOffset);
-  static_assert(offsetof(MemoryChunkMetadata, owner_) ==
-                MemoryChunkLayout::kOwnerOffset);
-  static_assert(offsetof(MemoryChunkMetadata, reservation_) ==
-                MemoryChunkLayout::kReservationOffset);
-};
-
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal

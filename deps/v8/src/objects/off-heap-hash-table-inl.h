@@ -5,8 +5,10 @@
 #ifndef V8_OBJECTS_OFF_HEAP_HASH_TABLE_INL_H_
 #define V8_OBJECTS_OFF_HEAP_HASH_TABLE_INL_H_
 
-#include "src/objects/compressed-slots-inl.h"
 #include "src/objects/off-heap-hash-table.h"
+// Include the non-inl header before the rest of the headers.
+
+#include "src/objects/compressed-slots-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -115,7 +117,7 @@ void OffHeapHashTableBase<Derived>::IterateElements(Root root,
                                                     RootVisitor* visitor) {
   OffHeapObjectSlot first_slot = slot(InternalIndex(0));
   OffHeapObjectSlot end_slot = slot(InternalIndex(capacity_));
-  visitor->VisitRootPointers(root, nullptr, first_slot, end_slot);
+  visitor->VisitCompressedRootPointers(root, nullptr, first_slot, end_slot);
 }
 
 template <typename Derived>

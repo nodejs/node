@@ -5,8 +5,10 @@
 #ifndef V8_OBJECTS_JS_ARRAY_BUFFER_INL_H_
 #define V8_OBJECTS_JS_ARRAY_BUFFER_INL_H_
 
-#include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/js-array-buffer.h"
+// Include the non-inl header before the rest of the headers.
+
+#include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/js-objects-inl.h"
 #include "src/objects/objects-inl.h"
 
@@ -30,6 +32,12 @@ RELEASE_ACQUIRE_ACCESSORS(JSTypedArray, base_pointer, Tagged<Object>,
                           kBasePointerOffset)
 
 size_t JSArrayBuffer::byte_length() const {
+  // Use GetByteLength() for growable SharedArrayBuffers.
+  DCHECK(!is_shared() || !is_resizable_by_js());
+  return byte_length_unchecked();
+}
+
+size_t JSArrayBuffer::byte_length_unchecked() const {
   return ReadBoundedSizeField(kRawByteLengthOffset);
 }
 
@@ -63,8 +71,9 @@ std::shared_ptr<BackingStore> JSArrayBuffer::GetBackingStore() const {
 size_t JSArrayBuffer::GetByteLength() const {
   if (V8_UNLIKELY(is_shared() && is_resizable_by_js())) {
     // Invariant: byte_length for GSAB is 0 (it needs to be read from the
-    // BackingStore).
-    DCHECK_EQ(0, byte_length());
+    // BackingStore). Don't use the byte_length getter, which DCHECKs that it's
+    // not used on growable SharedArrayBuffers.
+    DCHECK_EQ(0, byte_length_unchecked());
 
     // If the byte length is read after the JSArrayBuffer object is allocated
     // but before it's attached to the backing store, GetBackingStore returns
@@ -103,7 +112,7 @@ ArrayBufferExtension* JSArrayBuffer::extension() const {
   // We need Acquire semantics here when loading the entry, see below.
   // Consider adding respective external pointer accessors if non-relaxed
   // ordering semantics are ever needed in other places as well.
-  Isolate* isolate = GetIsolateFromWritableObject(*this);
+  Isolate* isolate = Isolate::Current();
   ExternalPointerHandle handle =
       base::AsAtomic32::Acquire_Load(extension_handle_location());
   return reinterpret_cast<ArrayBufferExtension*>(
@@ -118,7 +127,7 @@ void JSArrayBuffer::set_extension(ArrayBufferExtension* extension) {
   // TODO(saelo): if we ever use the external pointer table for all external
   // pointer fields in the no-sandbox-ptr-compression config, replace this code
   // here and above with the respective external pointer accessors.
-  IsolateForPointerCompression isolate = GetIsolateFromWritableObject(*this);
+  IsolateForPointerCompression isolate = Isolate::Current();
   const ExternalPointerTag tag = kArrayBufferExtensionTag;
   Address value = reinterpret_cast<Address>(extension);
   ExternalPointerTable& table = isolate.GetExternalPointerTableFor(tag);
@@ -130,6 +139,7 @@ void JSArrayBuffer::set_extension(ArrayBufferExtension* extension) {
     ExternalPointerHandle handle = table.AllocateAndInitializeEntry(
         isolate.GetExternalPointerTableSpaceFor(tag, address()), value, tag);
     base::AsAtomic32::Release_Store(extension_handle_location(), handle);
+    EXTERNAL_POINTER_WRITE_BARRIER(*this, kExtensionOffset, tag);
   } else {
     table.Set(current_handle, value, tag);
   }
@@ -208,10 +218,45 @@ bool JSArrayBufferView::WasDetached() const {
   return Cast<JSArrayBuffer>(buffer())->was_detached();
 }
 
+bool JSArrayBufferView::IsDetachedOrOutOfBounds() const {
+  auto backing_buffer = Cast<JSArrayBuffer>(buffer());
+  if (backing_buffer->was_detached()) {
+    return true;
+  }
+  if (!is_backed_by_rab()) {
+    // TypedArrays backed by GSABs or regular AB/SABs are never out of bounds.
+    // This shortcut is load-bearing; this enables determining
+    // IsDetachedOrOutOfBounds without consulting the BackingStore.
+    return false;
+  }
+  size_t buffer_byte_length =
+      backing_buffer->GetBackingStore()->byte_length();
+  // Length-tracking ArrayBufferViews have byte_length() == 0, so this math
+  // works.
+  return byte_offset() + byte_length() > buffer_byte_length;
+}
+
 BIT_FIELD_ACCESSORS(JSArrayBufferView, bit_field, is_length_tracking,
                     JSArrayBufferView::IsLengthTrackingBit)
 BIT_FIELD_ACCESSORS(JSArrayBufferView, bit_field, is_backed_by_rab,
                     JSArrayBufferView::IsBackedByRabBit)
+
+// static
+constexpr std::pair<ExternalArrayType, size_t>
+JSTypedArray::TypeAndElementSizeFor(ElementsKind kind) {
+  switch (kind) {
+#define ELEMENTS_KIND_TO_ARRAY_TYPE(Type, type, TYPE, ctype) \
+  case TYPE##_ELEMENTS:                                      \
+    return {kExternal##Type##Array, sizeof(ctype)};
+
+    TYPED_ARRAYS(ELEMENTS_KIND_TO_ARRAY_TYPE)
+    RAB_GSAB_TYPED_ARRAYS_WITH_TYPED_ARRAY_TYPE(ELEMENTS_KIND_TO_ARRAY_TYPE)
+#undef ELEMENTS_KIND_TO_ARRAY_TYPE
+
+    default:
+      UNREACHABLE();
+  }
+}
 
 bool JSArrayBufferView::IsVariableLength() const {
   return is_length_tracking() || is_backed_by_rab();
@@ -223,7 +268,7 @@ size_t JSTypedArray::GetLengthOrOutOfBounds(bool& out_of_bounds) const {
   if (IsVariableLength()) {
     return GetVariableLengthOrOutOfBounds(out_of_bounds);
   }
-  return LengthUnchecked();
+  return byte_length() / element_size();
 }
 
 size_t JSTypedArray::GetLength() const {
@@ -232,26 +277,18 @@ size_t JSTypedArray::GetLength() const {
 }
 
 size_t JSTypedArray::GetByteLength() const {
-  return GetLength() * element_size();
+  if (WasDetached()) return 0;
+  if (IsVariableLength()) {
+    bool out_of_bounds = false;
+    return GetVariableByteLengthOrOutOfBounds(out_of_bounds);
+  }
+  return byte_length();
 }
 
 bool JSTypedArray::IsOutOfBounds() const {
   bool out_of_bounds = false;
   GetLengthOrOutOfBounds(out_of_bounds);
   return out_of_bounds;
-}
-
-bool JSTypedArray::IsDetachedOrOutOfBounds() const {
-  if (WasDetached()) {
-    return true;
-  }
-  if (!is_backed_by_rab()) {
-    // TypedArrays backed by GSABs or regular AB/SABs are never out of bounds.
-    // This shortcut is load-bearing; this enables determining
-    // IsDetachedOrOutOfBounds without consulting the BackingStore.
-    return false;
-  }
-  return IsOutOfBounds();
 }
 
 // static
@@ -269,20 +306,6 @@ inline void JSTypedArray::ForFixedTypedArray(ExternalArrayType array_type,
 #undef TYPED_ARRAY_CASE
   }
   UNREACHABLE();
-}
-
-size_t JSTypedArray::length() const {
-  DCHECK(!is_length_tracking());
-  DCHECK(!is_backed_by_rab());
-  return ReadBoundedSizeField(kRawLengthOffset);
-}
-
-size_t JSTypedArray::LengthUnchecked() const {
-  return ReadBoundedSizeField(kRawLengthOffset);
-}
-
-void JSTypedArray::set_length(size_t value) {
-  WriteBoundedSizeField(kRawLengthOffset, value);
 }
 
 DEF_GETTER(JSTypedArray, external_pointer, Address) {
@@ -367,25 +390,24 @@ bool JSTypedArray::is_on_heap(AcquireLoadTag tag) const {
 }
 
 // static
-MaybeHandle<JSTypedArray> JSTypedArray::Validate(Isolate* isolate,
-                                                 Handle<Object> receiver,
-                                                 const char* method_name) {
+MaybeDirectHandle<JSTypedArray> JSTypedArray::Validate(
+    Isolate* isolate, DirectHandle<Object> receiver, const char* method_name) {
   if (V8_UNLIKELY(!IsJSTypedArray(*receiver))) {
     const MessageTemplate message = MessageTemplate::kNotTypedArray;
     THROW_NEW_ERROR(isolate, NewTypeError(message));
   }
 
-  Handle<JSTypedArray> array = Cast<JSTypedArray>(receiver);
+  DirectHandle<JSTypedArray> array = Cast<JSTypedArray>(receiver);
   if (V8_UNLIKELY(array->WasDetached())) {
     const MessageTemplate message = MessageTemplate::kDetachedOperation;
-    Handle<String> operation =
+    DirectHandle<String> operation =
         isolate->factory()->NewStringFromAsciiChecked(method_name);
     THROW_NEW_ERROR(isolate, NewTypeError(message, operation));
   }
 
   if (V8_UNLIKELY(array->IsVariableLength() && array->IsOutOfBounds())) {
     const MessageTemplate message = MessageTemplate::kDetachedOperation;
-    Handle<String> operation =
+    DirectHandle<String> operation =
         isolate->factory()->NewStringFromAsciiChecked(method_name);
     THROW_NEW_ERROR(isolate, NewTypeError(message, operation));
   }

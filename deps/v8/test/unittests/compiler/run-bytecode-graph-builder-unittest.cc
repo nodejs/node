@@ -41,19 +41,19 @@ static const int SMI_MAX = (1 << 30) - 1;
 static const int SMI_MIN = -(1 << 30);
 
 static MaybeHandle<Object> CallFunction(Isolate* isolate,
-                                        Handle<JSFunction> function) {
+                                        DirectHandle<JSFunction> function) {
   return Execution::Call(isolate, function,
-                         isolate->factory()->undefined_value(), 0, nullptr);
+                         isolate->factory()->undefined_value(), {});
 }
 
 template <class... A>
 static MaybeHandle<Object> CallFunction(Isolate* isolate,
-                                        Handle<JSFunction> function,
+                                        DirectHandle<JSFunction> function,
                                         A... args) {
-  Handle<Object> argv[] = {args...};
+  DirectHandle<Object> arguments[] = {args...};
   return Execution::Call(isolate, function,
-                         isolate->factory()->undefined_value(), sizeof...(args),
-                         argv);
+                         isolate->factory()->undefined_value(),
+                         {arguments, sizeof...(args)});
 }
 
 static v8::Local<v8::Value> CompileRun(v8::Isolate* isolate,
@@ -93,7 +93,6 @@ class BytecodeGraphTester {
   BytecodeGraphTester(Isolate* isolate, const char* script,
                       const char* filter = kFunctionName)
       : isolate_(isolate), script_(script) {
-    i::v8_flags.always_turbofan = false;
     i::v8_flags.allow_natives_syntax = true;
   }
   virtual ~BytecodeGraphTester() = default;
@@ -109,7 +108,7 @@ class BytecodeGraphTester {
   Local<Message> CheckThrowsReturnMessage() {
     TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate_));
     auto callable = GetCallable<>();
-    MaybeHandle<Object> no_result = callable();
+    MaybeDirectHandle<Object> no_result = callable();
     CHECK(isolate_->has_exception());
     CHECK(try_catch.HasCaught());
     CHECK(no_result.is_null());
@@ -142,12 +141,12 @@ class BytecodeGraphTester {
     Zone zone(isolate_->allocator(), ZONE_NAME);
     Handle<SharedFunctionInfo> shared(function->shared(), isolate_);
     OptimizedCompilationInfo compilation_info(&zone, isolate_, shared, function,
-                                              CodeKind::TURBOFAN);
+                                              CodeKind::TURBOFAN_JS);
 
     DirectHandle<Code> code =
         Pipeline::GenerateCodeForTesting(&compilation_info, isolate_)
             .ToHandleChecked();
-    function->UpdateCode(*code);
+    function->UpdateOptimizedCode(isolate_, *code);
 
     return function;
   }
@@ -1290,7 +1289,8 @@ TEST_F(RunBytecodeGraphBuilderTest, BytecodeGraphBuilderEvalGlobal) {
 }
 
 bool get_compare_result(Isolate* isolate, Token::Value opcode,
-                        Handle<Object> lhs_value, Handle<Object> rhs_value) {
+                        DirectHandle<Object> lhs_value,
+                        DirectHandle<Object> rhs_value) {
   switch (opcode) {
     case Token::kEq:
       return Object::Equals(isolate, lhs_value, rhs_value).FromJust();
@@ -1606,7 +1606,7 @@ TEST_F(RunBytecodeGraphBuilderTest, BytecodeGraphBuilderContext) {
   }
 }
 
-TEST_F(RunBytecodeGraphBuilderTest, BytecodeGraphBuilderLoadContext) {
+TEST_F(RunBytecodeGraphBuilderTest, BytecodeGraphBuilderLoadContextNoCell) {
   Isolate* isolate = i_isolate();
   Factory* factory = isolate->factory();
 
@@ -2822,7 +2822,7 @@ TEST_F(RunBytecodeGraphBuilderTest, BytecodeGraphBuilderDebuggerStatement) {
 
   BytecodeGraphTester tester(isolate, snippet.code_snippet);
   auto callable = tester.GetCallable<>();
-  Handle<Object> return_value = callable().ToHandleChecked();
+  DirectHandle<Object> return_value = callable().ToHandleChecked();
 
   v8::debug::SetDebugDelegate(v8_isolate(), nullptr);
   CHECK(return_value.is_identical_to(snippet.return_value()));

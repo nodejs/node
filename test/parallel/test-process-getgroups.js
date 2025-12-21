@@ -34,13 +34,12 @@ if (typeof process.getgroups === 'function') {
   const groups = unique(process.getgroups());
   assert(Array.isArray(groups));
   assert(groups.length > 0);
-  exec('id -G', function(err, stdout) {
-    assert.ifError(err);
+  exec('id -G', common.mustSucceed((stdout) => {
     const real_groups = unique(stdout.match(/\d+/g).map(Number));
     assert.deepStrictEqual(groups, real_groups);
     check(groups, real_groups);
     check(real_groups, groups);
-  });
+  }));
 }
 
 function check(a, b) {

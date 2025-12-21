@@ -4,13 +4,13 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-""" Unit tests for the ninja.py file. """
+"""Unit tests for the ninja.py file."""
 
-from pathlib import Path
 import sys
 import unittest
+from pathlib import Path
 
-import gyp.generator.ninja as ninja
+from gyp.generator import ninja
 
 
 class TestPrefixesAndSuffixes(unittest.TestCase):

@@ -68,10 +68,10 @@ stream.on('error', common.mustCall(function(err_) {
 }));
 
 
-stream.write(Buffer.allocUnsafe(256), function() {
+stream.write(Buffer.allocUnsafe(256), common.mustCall(() => {
   console.error('first cb');
   stream.write(Buffer.allocUnsafe(256), common.mustCall(function(err_) {
     console.error('second cb');
     assert.strictEqual(err_, err);
   }));
-});
+}));

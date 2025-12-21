@@ -9,7 +9,6 @@ absl_source_set("check_impl") {
   deps = [
     ":check_op",
     ":conditions",
-    ":log_message",
     ":strip",
     "//third_party/abseil-cpp/absl/base:core_headers",
   ]
@@ -22,10 +21,13 @@ absl_source_set("check_op") {
     ":nullguard",
     ":nullstream",
     ":strip",
+    "//third_party/abseil-cpp/absl/base",
     "//third_party/abseil-cpp/absl/base:config",
     "//third_party/abseil-cpp/absl/base:core_headers",
     "//third_party/abseil-cpp/absl/base:nullability",
+    "//third_party/abseil-cpp/absl/debugging:leak_check",
     "//third_party/abseil-cpp/absl/strings",
+    "//third_party/abseil-cpp/absl/strings:has_ostream_operator",
   ]
 }
 
@@ -105,11 +107,13 @@ absl_source_set("log_message") {
     ":log_sink_set",
     ":nullguard",
     ":proto",
+    ":structured_proto",
     "//third_party/abseil-cpp/absl/base",
     "//third_party/abseil-cpp/absl/base:config",
     "//third_party/abseil-cpp/absl/base:core_headers",
     "//third_party/abseil-cpp/absl/base:errno_saver",
     "//third_party/abseil-cpp/absl/base:log_severity",
+    "//third_party/abseil-cpp/absl/base:nullability",
     "//third_party/abseil-cpp/absl/base:raw_logging_internal",
     "//third_party/abseil-cpp/absl/base:strerror",
     "//third_party/abseil-cpp/absl/container:inlined_vector",
@@ -120,6 +124,7 @@ absl_source_set("log_message") {
     "//third_party/abseil-cpp/absl/log:log_sink_registry",
     "//third_party/abseil-cpp/absl/memory",
     "//third_party/abseil-cpp/absl/strings",
+    "//third_party/abseil-cpp/absl/strings:internal",
     "//third_party/abseil-cpp/absl/strings:string_view",
     "//third_party/abseil-cpp/absl/time",
     "//third_party/abseil-cpp/absl/types:span",
@@ -130,6 +135,7 @@ absl_source_set("append_truncated") {
   public = [ "append_truncated.h" ]
   deps = [
     "//third_party/abseil-cpp/absl/base:config",
+    "//third_party/abseil-cpp/absl/strings:internal",
     "//third_party/abseil-cpp/absl/strings:string_view",
     "//third_party/abseil-cpp/absl/types:span",
   ]
@@ -193,8 +199,36 @@ absl_source_set("structured") {
   public = [ "structured.h" ]
   deps = [
     ":log_message",
+    ":structured_proto",
+    "//third_party/abseil-cpp/absl/base:config",
+    "//third_party/abseil-cpp/absl/base:core_headers",
+    "//third_party/abseil-cpp/absl/functional:any_invocable",
+    "//third_party/abseil-cpp/absl/strings",
+    "//third_party/abseil-cpp/absl/strings:string_view",
+  ]
+}
+
+absl_source_set("structured_proto") {
+  sources = [ "structured_proto.cc" ]
+  public = [ "structured_proto.h" ]
+  visibility = [ "//third_party/abseil-cpp/absl/log/*" ]
+  deps = [
+    ":proto",
+    "//third_party/abseil-cpp/absl/base:config",
+    "//third_party/abseil-cpp/absl/strings",
+    "//third_party/abseil-cpp/absl/types:span",
+    "//third_party/abseil-cpp/absl/types:variant",
+  ]
+}
+
+absl_test("structured_proto_test") {
+  sources = [ "structured_proto_test.cc" ]
+  deps = [
+    ":structured_proto",
     "//third_party/abseil-cpp/absl/base:config",
     "//third_party/abseil-cpp/absl/strings:string_view",
+    "//third_party/abseil-cpp/absl/types:span",
+    "//third_party/abseil-cpp/absl/utility",
   ]
 }
 
@@ -246,7 +280,10 @@ absl_source_set("test_matchers") {
 
 absl_source_set("voidify") {
   public = [ "voidify.h" ]
-  deps = [ "//third_party/abseil-cpp/absl/base:config" ]
+  deps = [
+    "//third_party/abseil-cpp/absl/base:config",
+    "//third_party/abseil-cpp/absl/base:core_headers",
+  ]
 }
 
 absl_source_set("proto") {
@@ -275,11 +312,12 @@ absl_source_set("vlog_config") {
   public = [ "vlog_config.h" ]
   visibility = [ "//third_party/abseil-cpp/absl/log/*" ]
   deps = [
+    ":fnmatch",
     "//third_party/abseil-cpp/absl/base",
     "//third_party/abseil-cpp/absl/base:config",
     "//third_party/abseil-cpp/absl/base:core_headers",
     "//third_party/abseil-cpp/absl/base:no_destructor",
-    "//third_party/abseil-cpp/absl/log/internal:fnmatch",
+    "//third_party/abseil-cpp/absl/base:nullability",
     "//third_party/abseil-cpp/absl/memory",
     "//third_party/abseil-cpp/absl/strings",
     "//third_party/abseil-cpp/absl/synchronization",

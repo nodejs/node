@@ -3,8 +3,7 @@
 // found in the LICENSE file.
 
 // Force TurboFan code for serialization.
-// Flags: --expose-wasm --allow-natives-syntax --expose-gc --no-liftoff
-// Flags: --no-wasm-lazy-compilation
+// Flags: --expose-gc --no-liftoff --no-wasm-lazy-compilation
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
@@ -52,10 +51,10 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(43, i1.exports.main(0));
 
   assertEquals(42, outval_1);
-  var buff = %SerializeWasmModule(module);
+  var buff = d8.wasm.serializeModule(module);
   module = null;
   gc();
-  module = %DeserializeWasmModule(buff, wire_bytes);
+  module = d8.wasm.deserializeModule(buff, wire_bytes);
 
   var mem_2 = new WebAssembly.Memory({initial: 2});
   var view_2 = new Int32Array(mem_2.buffer);
@@ -81,8 +80,9 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   const invalid_buffer = new ArrayBuffer(10);
   const invalid_buffer_view = new Uint8Array(10);
 
-  module = %DeserializeWasmModule(invalid_buffer, invalid_buffer_view);
-  assertEquals(module, undefined);
+  assertThrows(
+      () => d8.wasm.deserializeModule(invalid_buffer, invalid_buffer_view),
+      Error, /Trying to deserialize manipulated bytes/);
 })();
 
 (function RelationBetweenModuleAndClone() {
@@ -94,8 +94,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   var wire_bytes = builder.toBuffer();
   var compiled_module = new WebAssembly.Module(wire_bytes);
-  var serialized = %SerializeWasmModule(compiled_module);
-  var clone = %DeserializeWasmModule(serialized, wire_bytes);
+  var serialized = d8.wasm.serializeModule(compiled_module);
+  var clone = d8.wasm.deserializeModule(serialized, wire_bytes);
 
   assertNotNull(clone);
   assertFalse(clone == undefined);
@@ -115,8 +115,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   var wire_bytes = builder.toBuffer();
   var compiled_module = new WebAssembly.Module(wire_bytes);
-  var serialized = %SerializeWasmModule(compiled_module);
-  var clone = %DeserializeWasmModule(serialized, wire_bytes);
+  var serialized = d8.wasm.serializeModule(compiled_module);
+  var clone = d8.wasm.deserializeModule(serialized, wire_bytes);
 
   assertNotNull(clone);
   assertFalse(clone == undefined);
@@ -135,8 +135,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   var compiled_module = new WebAssembly.Module(wire_bytes);
   var instance1 = new WebAssembly.Instance(compiled_module);
   var instance2 = new WebAssembly.Instance(compiled_module);
-  var serialized = %SerializeWasmModule(compiled_module);
-  var clone = %DeserializeWasmModule(serialized, wire_bytes);
+  var serialized = d8.wasm.serializeModule(compiled_module);
+  var clone = d8.wasm.deserializeModule(serialized, wire_bytes);
 
   assertNotNull(clone);
   assertFalse(clone == undefined);
@@ -160,8 +160,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   var mem_1 = new WebAssembly.Memory({initial: 1});
   var ffi =  {"":{memory:mem_1}};
   var instance1 = new WebAssembly.Instance(compiled_module, ffi);
-  var serialized = %SerializeWasmModule(compiled_module);
-  var clone = %DeserializeWasmModule(serialized, wire_bytes);
+  var serialized = d8.wasm.serializeModule(compiled_module);
+  var clone = d8.wasm.deserializeModule(serialized, wire_bytes);
 
   assertNotNull(clone);
   assertFalse(clone == undefined);
@@ -190,8 +190,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   var module = new WebAssembly.Module(wire_bytes);
   var i1 = new WebAssembly.Instance(module);
   // serialize and replace module
-  var buff = %SerializeWasmModule(module);
-  var module_clone = %DeserializeWasmModule(buff, wire_bytes);
+  var buff = d8.wasm.serializeModule(module);
+  var module_clone = d8.wasm.deserializeModule(buff, wire_bytes);
   var i2 = new WebAssembly.Instance(module_clone);
   i1.exports.write(1);
   i2.exports.write(2);
@@ -250,8 +250,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   var i1 = new WebAssembly.Instance(m1);
   var i2 = new WebAssembly.Instance(m2, {z: {table: i1.exports.table}});
 
-  var serialized_m2 = %SerializeWasmModule(m2);
-  var m2_clone = %DeserializeWasmModule(serialized_m2, m2_bytes);
+  var serialized_m2 = d8.wasm.serializeModule(m2);
+  var m2_clone = d8.wasm.deserializeModule(serialized_m2, m2_bytes);
 
   var m3 = MakeTableExportingModule(33);
   var i3 = new WebAssembly.Instance(m3);
@@ -282,8 +282,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   var wire_bytes = builder.toBuffer();
   var module = new WebAssembly.Module(wire_bytes);
-  var buffer = %SerializeWasmModule(module);
-  module = %DeserializeWasmModule(buffer, wire_bytes);
+  var buffer = d8.wasm.serializeModule(module);
+  module = d8.wasm.deserializeModule(buffer, wire_bytes);
   var instance = new WebAssembly.Instance(module);
 
   assertThrows(instance.exports.main, RangeError);
@@ -299,11 +299,11 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
         .exportFunc();
     const wire_bytes = builder.toBuffer();
     const module = new WebAssembly.Module(wire_bytes);
-    const buffer = %SerializeWasmModule(module);
+    const buffer = d8.wasm.serializeModule(module);
     return [wire_bytes, buffer];
   }
   const [wire_bytes, buffer] = GenerateSerializedModule();
-  module = %DeserializeWasmModule(buffer, wire_bytes);
+  module = d8.wasm.deserializeModule(buffer, wire_bytes);
   const instance = new WebAssembly.Instance(module);
 
   assertEquals(0, instance.exports.main(0));
@@ -327,8 +327,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   var wire_bytes = builder.toBuffer();
   var module = new WebAssembly.Module(wire_bytes);
-  var buffer = %SerializeWasmModule(module);
-  module = %DeserializeWasmModule(buffer, wire_bytes);
+  var buffer = d8.wasm.serializeModule(module);
+  module = d8.wasm.deserializeModule(buffer, wire_bytes);
   var instance = new WebAssembly.Instance(module);
 
   assertEquals(65, instance.exports.main());
@@ -348,8 +348,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   var wire_bytes = builder.toBuffer();
   var module = new WebAssembly.Module(wire_bytes);
-  var buffer = %SerializeWasmModule(module);
-  module = %DeserializeWasmModule(buffer, wire_bytes);
+  var buffer = d8.wasm.serializeModule(module);
+  module = d8.wasm.deserializeModule(buffer, wire_bytes);
   var instance = new WebAssembly.Instance(module, {"": {my_import: () => 42 }});
 
   assertEquals(65, instance.exports.main());
@@ -393,8 +393,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   var wire_bytes = builder.toBuffer();
   var module = new WebAssembly.Module(wire_bytes);
-  var buffer = %SerializeWasmModule(module);
-  module = %DeserializeWasmModule(buffer, wire_bytes);
+  var buffer = d8.wasm.serializeModule(module);
+  module = d8.wasm.deserializeModule(buffer, wire_bytes);
   var instance = new WebAssembly.Instance(module);
 
   assertEquals(3, instance.exports.main(0));
@@ -405,4 +405,46 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(35, instance.exports.main(5));
   assertEquals(42, instance.exports.main(6));
   assertEquals(42, instance.exports.main(9));
+})();
+
+(function MismatchedCompileTimeImports() {
+  print(arguments.callee.name);
+  const builder = new WasmModuleBuilder();
+  builder.addFunction('f', kSig_i_v).addBody(wasmI32Const(0)).exportFunc();
+  const wire_bytes = builder.toBuffer();
+
+  // Serialize the module with *no* builtins.
+  const serialized_bytes_no_builtins =
+      d8.wasm.serializeModule(new WebAssembly.Module(wire_bytes));
+
+  // Serialize the module *with* builtins.
+  const kStringBuiltins = {builtins: ['js-string']};
+  let serialized_bytes_string_builtins = d8.wasm.serializeModule(
+      new WebAssembly.Module(wire_bytes, kStringBuiltins));
+
+  assertNotEquals(
+      new Uint8Array(serialized_bytes_no_builtins),
+      new Uint8Array(serialized_bytes_string_builtins));
+
+  // GC old modules, so we actually try deserialization below.
+  gc();
+
+  // Deserialization fails on mismatched builtins.
+  assertThrows(
+      () => d8.wasm.deserializeModule(
+          serialized_bytes_string_builtins, wire_bytes),
+      Error, /Deserialization failed/);
+  assertThrows(
+      () => d8.wasm.deserializeModule(
+          serialized_bytes_no_builtins, wire_bytes, kStringBuiltins),
+      Error, /Deserialization failed/);
+
+  // Deserialization succeeds on matching builtins.
+  assertInstanceof(
+      d8.wasm.deserializeModule(serialized_bytes_no_builtins, wire_bytes),
+      WebAssembly.Module);
+  assertInstanceof(
+      d8.wasm.deserializeModule(
+          serialized_bytes_string_builtins, wire_bytes, kStringBuiltins),
+      WebAssembly.Module);
 })();

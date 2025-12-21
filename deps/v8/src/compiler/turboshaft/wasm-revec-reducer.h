@@ -2,16 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_COMPILER_TURBOSHAFT_WASM_REVEC_REDUCER_H_
+#define V8_COMPILER_TURBOSHAFT_WASM_REVEC_REDUCER_H_
+
 #if !V8_ENABLE_WEBASSEMBLY
 #error This header should only be included if WebAssembly is enabled.
 #endif  // !V8_ENABLE_WEBASSEMBLY
 
-#ifndef V8_COMPILER_TURBOSHAFT_WASM_REVEC_REDUCER_H_
-#define V8_COMPILER_TURBOSHAFT_WASM_REVEC_REDUCER_H_
-
 #include <algorithm>
 
-#include "src/base/safe_conversions.h"
+#include "src/base/numerics/safe_conversions.h"
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/phase.h"
@@ -47,11 +47,15 @@ namespace v8::internal::compiler::turboshaft {
   V(F32x4Abs, F32x8Abs)                                    \
   V(F32x4Neg, F32x8Neg)                                    \
   V(F32x4Sqrt, F32x8Sqrt)                                  \
+  V(F64x2Abs, F64x4Abs)                                    \
+  V(F64x2Neg, F64x4Neg)                                    \
   V(F64x2Sqrt, F64x4Sqrt)                                  \
   V(I32x4UConvertF32x4, I32x8UConvertF32x8)                \
   V(I32x4SConvertF32x4, I32x8SConvertF32x8)                \
   V(F32x4UConvertI32x4, F32x8UConvertI32x8)                \
-  V(F32x4SConvertI32x4, F32x8SConvertI32x8)
+  V(F32x4SConvertI32x4, F32x8SConvertI32x8)                \
+  V(I32x4RelaxedTruncF32x4S, I32x8RelaxedTruncF32x8S)      \
+  V(I32x4RelaxedTruncF32x4U, I32x8RelaxedTruncF32x8U)
 
 #define SIMD256_UNARY_SIGN_EXTENSION_OP(V)                              \
   V(I64x2SConvertI32x4Low, I64x4SConvertI32x4, I64x2SConvertI32x4High)  \
@@ -211,14 +215,14 @@ namespace v8::internal::compiler::turboshaft {
 
 class NodeGroup {
  public:
-  // Current only support merge 2 Simd128 into Simd256
+  // We currently only support merging two Simd128 into one Simd256.
   static constexpr int kSize = kSimd256Size / kSimd128Size;
   NodeGroup(OpIndex a, OpIndex b) {
     indexes_[0] = a;
     indexes_[1] = b;
   }
   size_t size() const { return kSize; }
-  OpIndex operator[](int i) const { return indexes_[i]; }
+  OpIndex operator[](size_t i) const { return indexes_[i]; }
 
   bool operator==(const NodeGroup& other) const {
     return indexes_[0] == other.indexes_[0] && indexes_[1] == other.indexes_[1];
@@ -234,21 +238,32 @@ class NodeGroup {
   OpIndex indexes_[kSize];
 };
 
+class ForcePackNode;
+class ShufflePackNode;
+class BundlePackNode;
+
 // A PackNode consists of a fixed number of isomorphic simd128 nodes which can
 // execute in parallel and convert to a 256-bit simd node later. The nodes in a
 // PackNode must satisfy that they can be scheduled in the same basic block and
 // are mutually independent.
 class PackNode : public NON_EXPORTED_BASE(ZoneObject) {
  public:
-  enum class ForcePackType {
-    kNone,     // natural packing, not force.
-    kSplat,    // force pack 2 identical nodes or 2 loads at the same address
-    kGeneral,  // force pack 2 different nodes
+  enum NodeType : uint8_t {
+    kDefault,        // Nodes are naturally packed without special attributes.
+    kForcePackNode,  // Nodes do not satisfy some packing rule, but can be
+                     // forcely coalesced with a Pack128To256 operation. E.g.
+                     // inconsecutive loads. In x64, we can use the vinsertf128
+                     // instruction to forcely coalescing two 128-bit values.
+    kShufflePackNode,  // Nodes are Simd128Shuffle operations with specific
+                       // info.
+    kBundlePackNode,   // Nodes representing a i8x16/i16x8 to f32x4 conversion.
+    kIntersectPackNode,  // One or more nodes already packed by an existing
+                         // PackNode.
   };
-  explicit PackNode(Zone* zone, const NodeGroup& node_group)
-      : nodes_(node_group),
-        revectorized_node_(),
-        force_pack_right_inputs_(zone) {}
+
+  PackNode(Zone* zone, const NodeGroup& node_group, NodeType node_type)
+      : nodes_(node_group), operands_(zone), node_type_(node_type) {}
+
   const NodeGroup& nodes() const { return nodes_; }
   bool IsSame(const NodeGroup& node_group) const {
     return nodes_ == node_group;
@@ -257,41 +272,56 @@ class PackNode : public NON_EXPORTED_BASE(ZoneObject) {
   V<Simd256> RevectorizedNode() const { return revectorized_node_; }
   void SetRevectorizedNode(V<Simd256> node) { revectorized_node_ = node; }
 
-  bool is_force_pack() const {
-    return force_pack_type_ != ForcePackType::kNone;
-  }
-  void set_force_pack_type(ForcePackType type) { force_pack_type_ = type; }
-  ForcePackType force_pack_type() { return force_pack_type_; }
-
-  void set_force_packed_pair(OpIndex left, OpIndex right) {
-    force_packed_pair_ = {left, right};
-  }
-
-  OpIndex force_packed_left() const {
-    DCHECK(force_packed_pair_.first.valid());
-    return force_packed_pair_.first;
-  }
-  OpIndex force_packed_right() const {
-    DCHECK(force_packed_pair_.second.valid());
-    return force_packed_pair_.second;
+  bool IsDefaultPackNode() const { return node_type_ == kDefault; }
+  bool IsForcePackNode() const { return node_type_ == kForcePackNode; }
+  bool IsShufflePackNode() const { return node_type_ == kShufflePackNode; }
+  bool IsBundlePackNode() const { return node_type_ == kBundlePackNode; }
+  // We will force-pack nodes for both ForcePackNode and IntersectPackNode.
+  bool is_force_packing() const {
+    return node_type_ == kForcePackNode || node_type_ == kIntersectPackNode;
   }
 
-  ZoneSet<OpIndex>& force_pack_right_inputs() {
-    return force_pack_right_inputs_;
+  inline ForcePackNode* AsForcePackNode();
+  inline ShufflePackNode* AsShufflePackNode();
+  inline BundlePackNode* AsBundlePackNode();
+
+  PackNode* GetOperand(size_t index) const {
+    DCHECK_LT(index, operands_.size());
+    DCHECK_NOT_NULL(operands_[index]);
+    return operands_[index];
   }
+
+  void SetOperand(size_t index, PackNode* pnode) {
+    if (operands_.size() < index + 1) {
+      operands_.resize(index + 1);
+    }
+    operands_[index] = pnode;
+  }
+
+  size_t GetOperandsSize() const { return operands_.size(); }
 
   void Print(Graph* graph) const;
 
  private:
   NodeGroup nodes_;
-  V<Simd256> revectorized_node_;
-  ForcePackType force_pack_type_ = ForcePackType::kNone;
-  // og_index of the force packed nodes.
-  std::pair<OpIndex, OpIndex> force_packed_pair_ = {OpIndex::Invalid(),
-                                                    OpIndex::Invalid()};
-  // When we emit the force packed node, before we emit the right node, we need
-  // to make sure all it's input chains are emitted.
-  ZoneSet<OpIndex> force_pack_right_inputs_;
+  ZoneVector<PackNode*> operands_;
+  V<Simd256> revectorized_node_{};
+  const NodeType node_type_;
+};
+
+class ForcePackNode : public PackNode {
+ public:
+  enum ForcePackType : uint8_t {
+    kSplat,    // Force pack 2 identical nodes or 2 loads at the same address.
+    kGeneral,  // Force pack 2 different nodes.
+  };
+  ForcePackNode(Zone* zone, const NodeGroup& node_group, ForcePackType type)
+      : PackNode(zone, node_group, kForcePackNode), force_pack_type_(type) {}
+
+  ForcePackType force_pack_type() const { return force_pack_type_; }
+
+ private:
+  ForcePackType force_pack_type_;
 };
 
 class ShufflePackNode : public PackNode {
@@ -301,6 +331,7 @@ class ShufflePackNode : public PackNode {
     enum class Kind {
       kS256Load32Transform,
       kS256Load64Transform,
+      kS256Load8x8U,
 #ifdef V8_TARGET_ARCH_X64
       kShufd,
       kShufps,
@@ -357,7 +388,7 @@ class ShufflePackNode : public PackNode {
 
   ShufflePackNode(Zone* zone, const NodeGroup& node_group,
                   SpecificInfo::Kind kind)
-      : PackNode(zone, node_group) {
+      : PackNode(zone, node_group, kShufflePackNode) {
     info_.set_kind(kind);
   }
 
@@ -367,21 +398,104 @@ class ShufflePackNode : public PackNode {
   SpecificInfo info_;
 };
 
+// BundlePackNode is used to represent an i8x16/i16x8 to f32x4 conversion.
+// The conversion extracts 4 lanes of i8x16/i16x8 input {base}, starting from
+// lane {offset}, sign/zero extends (is_sign_extract) the extracted lanes to
+// i32x4, then converts i32x4/u32x4 (is_sign_convert) to f32x4.
+class BundlePackNode : public PackNode {
+ public:
+  BundlePackNode(Zone* zone, const NodeGroup& node_group, OpIndex base,
+                 int8_t offset, uint8_t lane_size, bool is_sign_extract,
+                 bool is_sign_convert)
+      : PackNode(zone, node_group, kBundlePackNode) {
+    base_ = base;
+    offset_ = offset;
+    lane_size_ = lane_size;
+    is_sign_extract_ = is_sign_extract;
+    is_sign_convert_ = is_sign_convert;
+  }
+
+  OpIndex base() const { return base_; }
+  uint8_t offset() const { return offset_; }
+  uint8_t lane_size() const { return lane_size_; }
+  bool is_sign_extract() const { return is_sign_extract_; }
+  bool is_sign_convert() const { return is_sign_convert_; }
+
+ private:
+  OpIndex base_;
+  uint8_t offset_;
+  uint8_t lane_size_;
+  bool is_sign_extract_;
+  bool is_sign_convert_;
+};
+
+ForcePackNode* PackNode::AsForcePackNode() {
+  DCHECK(IsForcePackNode());
+  return static_cast<ForcePackNode*>(this);
+}
+
+ShufflePackNode* PackNode::AsShufflePackNode() {
+  DCHECK(IsShufflePackNode());
+  return static_cast<ShufflePackNode*>(this);
+}
+
+BundlePackNode* PackNode::AsBundlePackNode() {
+  DCHECK(IsBundlePackNode());
+  return static_cast<BundlePackNode*>(this);
+}
+
+// An auxiliary tree structure with a set of PackNodes based on the Superword
+// Level Parallelism (SLP) vectorization technique. The BuildTree method will
+// start from a selected root, e.g. a group of consecutive stores, and extend
+// through value inputs to create new PackNodes if the inputs are valid, or
+// conclude that the current PackNode is a leaf and terminate the tree.
+// Below is an example of SLPTree where loads and stores in each PackNode are
+// all consecutive.
+// [Load0, Load1]  [Load2, Load3]
+//           \       /
+//          [Add0, Add1]
+//                |
+//         [Store0, Store1]
 class SLPTree : public NON_EXPORTED_BASE(ZoneObject) {
  public:
-  explicit SLPTree(Graph& graph, Zone* zone)
+  SLPTree(Graph& graph, WasmRevecAnalyzer* analyzer, Zone* zone)
       : graph_(graph),
+        analyzer_(analyzer),
         phase_zone_(zone),
         root_(nullptr),
-        node_to_packnode_(zone) {}
+        node_to_packnode_(zone),
+        node_to_intersect_packnodes_(zone) {}
+
+  // Information for extending i8x16/i16x8 to f32x4.
+  struct ExtendIntToF32x4Info {
+    OpIndex extend_from;
+    uint8_t start_lane;    // 0 or 8
+    uint8_t lane_size;     // 1(i8) or 2(i16)
+    bool is_sign_extract;  // extract_lane_s or extract_lane_u
+    bool is_sign_convert;  // f32x4.convert_i32x4_s or f32x4.convert_i32x4_u
+  };
+
+  // Per-lane information for extending i8x16/i16x8 to f32x4.
+  struct LaneExtendInfo {
+    OpIndex extract_from;
+    Simd128ExtractLaneOp::Kind extract_kind;
+    int extract_lane_index;
+    ChangeOp::Kind change_kind;
+    int replace_lane_index;
+  };
 
   PackNode* BuildTree(const NodeGroup& roots);
   void DeleteTree();
 
   PackNode* GetPackNode(OpIndex node);
+  ZoneVector<PackNode*>* GetIntersectPackNodes(OpIndex node);
   ZoneUnorderedMap<OpIndex, PackNode*>& GetNodeMapping() {
     return node_to_packnode_;
   }
+  ZoneUnorderedMap<OpIndex, ZoneVector<PackNode*>>& GetIntersectNodeMapping() {
+    return node_to_intersect_packnodes_;
+  }
+  ZoneUnorderedSet<OpIndex>& GetReorderInputs() { return reorder_inputs_; }
 
   void Print(const char* info);
 
@@ -392,88 +506,116 @@ class SLPTree : public NON_EXPORTED_BASE(ZoneObject) {
   // Baseline: create a new PackNode, and return.
   PackNode* NewPackNode(const NodeGroup& node_group);
 
-  PackNode* NewForcePackNode(const NodeGroup& node_group,
-                             PackNode::ForcePackType type, const Graph& graph);
+  // Baseline: create a new IntersectPackNode that contains nodes existing in
+  // another PackNode, and return.
+  PackNode* NewIntersectPackNode(const NodeGroup& node_group);
+
+  ForcePackNode* NewForcePackNode(const NodeGroup& node_group,
+                                  ForcePackNode::ForcePackType type,
+                                  unsigned recursion_depth);
+  BundlePackNode* NewBundlePackNode(const NodeGroup& node_group, OpIndex base,
+                                    int8_t offset, uint8_t lane_size,
+                                    bool is_sign_extract, bool is_sign_convert);
 
   // Recursion: create a new PackNode and call BuildTreeRec recursively
-  PackNode* NewPackNodeAndRecurs(const NodeGroup& node_group, int start_index,
-                                 int count, unsigned depth);
+  PackNode* NewPackNodeAndRecurse(const NodeGroup& node_group,
+                                  size_t start_index, size_t count,
+                                  unsigned depth);
 
-  PackNode* NewCommutativePackNodeAndRecurs(const NodeGroup& node_group,
-                                            unsigned depth);
+  PackNode* NewCommutativePackNodeAndRecurse(const NodeGroup& node_group,
+                                             unsigned depth);
 
   ShufflePackNode* NewShufflePackNode(const NodeGroup& node_group,
                                       ShufflePackNode::SpecificInfo::Kind kind);
 
+  // Try match the following pattern:
+  //   1. simd128_load64zero(memargs)
+  //   2. simd128_const[0,0,0,0]
+  //   3. simd128_shuffle(1, 2, shuffle_arg0)
+  //   4. simd128_shuffle(1, 2, shuffle_arg1)
+  // To:
+  //   1. simd256_load8x8u(memargs)
+  ShufflePackNode* Try256ShuffleMatchLoad8x8U(const NodeGroup& node_group,
+                                              const uint8_t* shuffle0,
+                                              const uint8_t* shuffle1);
+
 #ifdef V8_TARGET_ARCH_X64
-  // The Simd Shuffle in wasm is a high level representation, and it can map to
-  // different x64 intructions base on its shuffle array. And the performance of
-  // different intructions are varies greatly.
-  // For example, if the shuffle array are totally random, there is a high
-  // probability to use a general shuffle. Under x64, the general shuffle may
-  // consists of a series mov, a vpinsrq and a vpshufb. It's performance cost is
-  // high. However, if the shuffle array is in an particular pattern, for
-  // example: [0,  1,  2,  3,  32, 33, 34, 35, 4,  5,  6,  7,  36, 37, 38, 39,
-  //      16, 17, 18, 19, 48, 49, 50, 51, 20, 21, 22, 23, 52, 53, 54, 55]
-  // we can use a single vpunpckldq instruction. It's performance cost is much
-  // more lower than a general one.
+  // The Simd Shuffle in Wasm is a high level representation. It can map to
+  // different x64 instructions depending on its shuffle array, and the
+  // performance of these intructions varies greatly.
+  // For example, if the shuffle array is totally random, there is a high
+  // probability to use a general shuffle. The general shuffle may consist
+  // of a sequence mov, vpinsrq, vpshufb. Its performance cost is high.
+  // However, if the shuffle array has a particular pattern, for example:
+  //   [0,  1,  2,  3,  32, 33, 34, 35, 4,  5,  6,  7,  36, 37, 38, 39,
+  //    16, 17, 18, 19, 48, 49, 50, 51, 20, 21, 22, 23, 52, 53, 54, 55]
+  // we can use a single vpunpckldq instruction, which is much faster.
   //
   // This function is used to try to match the shuffle array to the
-  // x64 instructions which has the best performance.
+  // x64 instruction sequence with the best performance.
   ShufflePackNode* X64TryMatch256Shuffle(const NodeGroup& node_group,
                                          const uint8_t* shuffle0,
                                          const uint8_t* shuffle1);
 #endif  // V8_TARGET_ARCH_X64
 
-  bool IsSideEffectFree(OpIndex first, OpIndex second);
-  bool CanBePacked(const NodeGroup& node_group);
+  bool TryMatchExtendIntToF32x4(const NodeGroup& node_group,
+                                ExtendIntToF32x4Info* info);
+  std::optional<ExtendIntToF32x4Info> TryGetExtendIntToF32x4Info(OpIndex index);
+
+  bool IsSideEffectFreeRange(OpIndex first, OpIndex second);
   bool IsEqual(const OpIndex node0, const OpIndex node1);
+  // Check if the nodes in the node_group depend on the result of each other.
+  bool HasInputDependencies(const NodeGroup& node_group);
+  bool HasReorderInput(const NodeGroup& node_group);
 
   Graph& graph() const { return graph_; }
-  Zone* zone() const { return phase_zone_; }
+
+  static constexpr size_t kMaxRecursionDepth = 1000;
 
   Graph& graph_;
+  WasmRevecAnalyzer* analyzer_;
   Zone* phase_zone_;
   PackNode* root_;
   // Maps a specific node to PackNode.
   ZoneUnorderedMap<OpIndex, PackNode*> node_to_packnode_;
-  static constexpr size_t RecursionMaxDepth = 1000;
+  // Maps a node to multiple IntersectPackNodes.
+  ZoneUnorderedMap<OpIndex, ZoneVector<PackNode*>> node_to_intersect_packnodes_;
+  ZoneUnorderedSet<OpIndex> reorder_inputs_{phase_zone_};
 };
 
 class WasmRevecAnalyzer {
  public:
   WasmRevecAnalyzer(PipelineData* data, Zone* zone, Graph& graph)
-      : data_(data),
-        graph_(graph),
-        phase_zone_(zone),
-        store_seeds_(zone),
-        reduce_seeds_(zone),
-        slp_tree_(nullptr),
-        revectorizable_node_(zone),
-        should_reduce_(false),
-        use_map_(nullptr) {
+      : data_(data), graph_(graph), phase_zone_(zone) {
     Run();
   }
 
   void Run();
 
-  bool CanMergeSLPTrees();
+  void MergeSLPTree(SLPTree& slp_tree);
   bool ShouldReduce() const { return should_reduce_; }
 
   PackNode* GetPackNode(const OpIndex ig_index) {
-    auto itr = revectorizable_node_.find(ig_index);
-    if (itr != revectorizable_node_.end()) {
-      return itr->second;
+    auto it = revectorizable_node_.find(ig_index);
+    if (it != revectorizable_node_.end()) {
+      return it->second;
     }
     return nullptr;
   }
 
-  const OpIndex GetReduced(const OpIndex node) {
-    auto pnode = GetPackNode(node);
-    if (!pnode) {
+  ZoneVector<PackNode*>* GetIntersectPackNodes(const OpIndex node) {
+    auto it = revectorizable_intersect_node_.find(node);
+    if (it != revectorizable_intersect_node_.end()) {
+      return &(it->second);
+    }
+    return nullptr;
+  }
+
+  const OpIndex GetReducedInput(const PackNode* pnode, size_t index = 0) {
+    if (index >= pnode->GetOperandsSize()) {
       return OpIndex::Invalid();
     }
-    return pnode->RevectorizedNode();
+    return pnode->GetOperand(index)->RevectorizedNode();
   }
 
   const Operation& GetStartOperation(const PackNode* pnode, const OpIndex node,
@@ -487,22 +629,33 @@ class WasmRevecAnalyzer {
     return use_map_->uses(node);
   }
 
+  bool HasReorderInput(OpIndex node) { return reorder_inputs_.contains(node); }
+
+  ZoneUnorderedSet<OpIndex>& GetSharedOpIndexSet() { return shared_set_; }
+  ZoneDeque<OpIndex>& GetSharedOpIndexDeque() { return shared_deque_; }
+
  private:
   bool IsSupportedReduceSeed(const Operation& op);
   void ProcessBlock(const Block& block);
   bool DecideVectorize();
+  void Print(const char* info);
 
   PipelineData* data_;
   Graph& graph_;
   Zone* phase_zone_;
-  ZoneVector<std::pair<OpIndex, OpIndex>> store_seeds_;
-  ZoneVector<std::pair<OpIndex, OpIndex>> reduce_seeds_;
-  const wasm::WasmModule* module_ = data_->wasm_module();
-  const wasm::FunctionSig* signature_ = data_->wasm_sig();
-  SLPTree* slp_tree_;
-  ZoneUnorderedMap<OpIndex, PackNode*> revectorizable_node_;
-  bool should_reduce_;
-  SimdUseMap* use_map_;
+  ZoneVector<std::pair<OpIndex, OpIndex>> store_seeds_{phase_zone_};
+  ZoneVector<std::pair<OpIndex, OpIndex>> reduce_seeds_{phase_zone_};
+  const wasm::WasmModule* module_{data_->wasm_module()};
+  ZoneUnorderedMap<OpIndex, PackNode*> revectorizable_node_{phase_zone_};
+  ZoneUnorderedMap<OpIndex, ZoneVector<PackNode*>>
+      revectorizable_intersect_node_{phase_zone_};
+  bool should_reduce_{false};
+  Simd128UseMap* use_map_{nullptr};
+  ZoneUnorderedSet<OpIndex> reorder_inputs_{phase_zone_};
+  // Used as a local hash-set, always clear after use.
+  ZoneUnorderedSet<OpIndex> shared_set_{phase_zone_};
+  // Used as a local deque, always clear after use.
+  ZoneDeque<OpIndex> shared_deque_{phase_zone_};
 };
 
 template <class Next>
@@ -511,156 +664,172 @@ class WasmRevecReducer : public UniformReducerAdapter<WasmRevecReducer, Next> {
   TURBOSHAFT_REDUCER_BOILERPLATE(WasmRevec)
   using Adapter = UniformReducerAdapter<WasmRevecReducer, Next>;
 
-  OpIndex GetExtractOpIfNeeded(PackNode* pnode, OpIndex ig_index,
+  OpIndex GetExtractOpIfNeeded(const PackNode* pnode, OpIndex ig_index,
                                OpIndex og_index) {
-    const auto lane = base::checked_cast<uint8_t>(
+    if (__ template MapToNewGraph<true>(ig_index).valid()) {
+      // The op is already emitted while emitting ForcePackNode input trees.
+      return OpIndex::Invalid();
+    }
+    const uint8_t lane = base::checked_cast<uint8_t>(
         std::find(pnode->nodes().begin(), pnode->nodes().end(), ig_index) -
         pnode->nodes().begin());
 
-    for (auto use : analyzer_.uses(ig_index)) {
-      if (!analyzer_.GetPackNode(use)) {
-        if (pnode->is_force_pack()) {
-          return lane == 0 ? pnode->force_packed_left()
-                           : pnode->force_packed_right();
-        } else {
-          return __ Simd256Extract128Lane(og_index, lane);
+    // We dont need to extract node for ForcePackNode.
+    DCHECK(!pnode->is_force_packing());
+
+    for (OpIndex use : analyzer_.uses(ig_index)) {
+      // Extract128 is needed for the additional Simd128 store before
+      // Simd256 store in case of OOB trap at the higher 128-bit
+      // address.
+      PackNode* use_pnode = analyzer_.GetPackNode(use);
+      if (use_pnode != nullptr && !use_pnode->is_force_packing()) {
+        DCHECK_GE(use_pnode->nodes().size(), 2);
+        if (__ input_graph().Get(use).opcode != Opcode::kStore ||
+            use_pnode->nodes()[0] != use ||
+            use_pnode->nodes()[0] > use_pnode->nodes()[1]) {
+          continue;
         }
       }
+
+      return __ Simd256Extract128Lane(og_index, lane);
     }
 
+    // We return Invalid() to indicate that this node can be dropped, because
+    // it has already been covered by some other replacement (as revectorization
+    // typically converts two nodes to one).
     return OpIndex::Invalid();
   }
 
   V<Simd128> REDUCE_INPUT_GRAPH(Simd128Constant)(
       V<Simd128> ig_index, const Simd128ConstantOp& constant_op) {
-    if (auto pnode = analyzer_.GetPackNode(ig_index)) {
-      V<Simd256> og_index = pnode->RevectorizedNode();
-      // Skip revectorized node.
-      if (!og_index.valid()) {
-        NodeGroup inputs = pnode->nodes();
-        const Simd128ConstantOp& op0 =
-            __ input_graph().Get(inputs[0]).template Cast<Simd128ConstantOp>();
-        const Simd128ConstantOp& op1 =
-            __ input_graph().Get(inputs[1]).template Cast<Simd128ConstantOp>();
-        uint8_t value[kSimd256Size] = {};
-        memcpy(value, op0.value, kSimd128Size);
-        memcpy(value + kSimd128Size, op1.value, kSimd128Size);
-
-        og_index = __ Simd256Constant(value);
-
-        pnode->SetRevectorizedNode(og_index);
-      }
-      return GetExtractOpIfNeeded(pnode, ig_index, og_index);
+    PackNode* pnode = analyzer_.GetPackNode(ig_index);
+    if (!pnode) {
+      return Adapter::ReduceInputGraphSimd128Constant(ig_index, constant_op);
     }
-    return Adapter::ReduceInputGraphSimd128Constant(ig_index, constant_op);
+
+    V<Simd256> og_index = pnode->RevectorizedNode();
+    // Skip revectorized node.
+    if (!og_index.valid()) {
+      NodeGroup inputs = pnode->nodes();
+      const Simd128ConstantOp& op0 =
+          __ input_graph().Get(inputs[0]).template Cast<Simd128ConstantOp>();
+      const Simd128ConstantOp& op1 =
+          __ input_graph().Get(inputs[1]).template Cast<Simd128ConstantOp>();
+      uint8_t value[kSimd256Size];
+      memcpy(value, op0.value, kSimd128Size);
+      memcpy(value + kSimd128Size, op1.value, kSimd128Size);
+
+      og_index = __ Simd256Constant(value);
+
+      pnode->SetRevectorizedNode(og_index);
+    }
+    return GetExtractOpIfNeeded(pnode, ig_index, og_index);
   }
 
   V<Simd128> REDUCE_INPUT_GRAPH(Simd128LoadTransform)(
       V<Simd128> ig_index, const Simd128LoadTransformOp& load_transform) {
-    if (auto pnode = analyzer_.GetPackNode(ig_index)) {
-      if (pnode->is_force_pack()) {
-        return Adapter::ReduceInputGraphSimd128LoadTransform(ig_index,
-                                                             load_transform);
-      }
-      V<Simd256> og_index = pnode->RevectorizedNode();
-      // Skip revectorized node.
-      if (!og_index.valid()) {
-        auto base = __ MapToNewGraph(load_transform.base());
-        auto index = __ MapToNewGraph(load_transform.index());
-        auto offset = load_transform.offset;
-        DCHECK_EQ(load_transform.offset, 0);
-
-        og_index = __ Simd256LoadTransform(
-            base, index, load_transform.load_kind,
-            Get256LoadTransformKindFrom128(load_transform.transform_kind),
-            offset);
-        pnode->SetRevectorizedNode(og_index);
-      }
-      return GetExtractOpIfNeeded(pnode, ig_index, og_index);
+    PackNode* pnode = analyzer_.GetPackNode(ig_index);
+    if (!pnode || !pnode->IsDefaultPackNode()) {
+      return Adapter::ReduceInputGraphSimd128LoadTransform(ig_index,
+                                                           load_transform);
     }
 
-    return Adapter::ReduceInputGraphSimd128LoadTransform(ig_index,
-                                                         load_transform);
+    V<Simd256> og_index = pnode->RevectorizedNode();
+    // Skip revectorized node.
+    if (!og_index.valid()) {
+      V<WordPtr> base = __ MapToNewGraph(load_transform.base());
+      V<WordPtr> index = __ MapToNewGraph(load_transform.index());
+      int offset = load_transform.offset;
+      DCHECK_EQ(load_transform.offset, 0);
+
+      og_index = __ Simd256LoadTransform(
+          base, index, load_transform.load_kind,
+          Get256LoadTransformKindFrom128(load_transform.transform_kind),
+          offset);
+      pnode->SetRevectorizedNode(og_index);
+    }
+    return GetExtractOpIfNeeded(pnode, ig_index, og_index);
   }
 
   OpIndex REDUCE_INPUT_GRAPH(Load)(OpIndex ig_index, const LoadOp& load) {
-    if (auto pnode = analyzer_.GetPackNode(ig_index)) {
-      if (pnode->is_force_pack()) {
-        return Adapter::ReduceInputGraphLoad(ig_index, load);
-      }
-      OpIndex og_index = pnode->RevectorizedNode();
-
-      // Emit revectorized op.
-      if (!og_index.valid()) {
-        const LoadOp* start = analyzer_.GetStartOperation(pnode, ig_index, load)
-                                  .TryCast<LoadOp>();
-        DCHECK_EQ(start->base(), load.base());
-
-        auto base = __ MapToNewGraph(load.base());
-        // We need to use load's index here due to there would be different
-        // ChangeOps from the same index. If start is not load, it's possible
-        // that the ChangeOp of start index is not visited yet.
-        auto index = __ MapToNewGraph(load.index());
-        og_index = __ Load(base, index, load.kind,
-                           MemoryRepresentation::Simd256(), start->offset);
-        pnode->SetRevectorizedNode(og_index);
-      }
-
-      // Emit extract op if needed.
-      return GetExtractOpIfNeeded(pnode, ig_index, og_index);
+    PackNode* pnode = analyzer_.GetPackNode(ig_index);
+    if (!pnode || !pnode->IsDefaultPackNode()) {
+      return Adapter::ReduceInputGraphLoad(ig_index, load);
     }
 
-    // no_change
-    return Adapter::ReduceInputGraphLoad(ig_index, load);
+    OpIndex og_index = pnode->RevectorizedNode();
+    // Skip revectorized node.
+    if (!og_index.valid()) {
+      const LoadOp& start = analyzer_.GetStartOperation(pnode, ig_index, load)
+                                .template Cast<LoadOp>();
+      DCHECK_EQ(start.base(), load.base());
+
+      OpIndex base = __ MapToNewGraph(load.base());
+      // We need to use {load}'s index here because there could be different
+      // ChangeOps from the same index. If {start} != {load}, it's possible
+      // that the ChangeOp of {start} has not been visited yet.
+      OptionalOpIndex index = __ MapToNewGraph(load.index());
+      og_index = __ Load(base, index, load.kind,
+                         MemoryRepresentation::Simd256(), start.offset);
+      pnode->SetRevectorizedNode(og_index);
+    }
+
+    // Emit extract op if needed.
+    return GetExtractOpIfNeeded(pnode, ig_index, og_index);
   }
 
   OpIndex REDUCE_INPUT_GRAPH(Store)(OpIndex ig_index, const StoreOp& store) {
-    if (auto pnode = analyzer_.GetPackNode(ig_index)) {
-      OpIndex og_index = pnode->RevectorizedNode();
-
-      // Emit revectorized op.
-      if (!og_index.valid()) {
-        const StoreOp* start =
-            (analyzer_.GetStartOperation(pnode, ig_index, store))
-                .TryCast<StoreOp>();
-        DCHECK_EQ(start->base(), store.base());
-
-        auto base = __ MapToNewGraph(store.base());
-        // We need to use store's index here due to there would be different
-        // ChangeOps from the same index. If start is not store, it's possible
-        // that the ChangeOp of start index is not visited yet.
-        auto index = __ MapToNewGraph(store.index());
-        OpIndex value = analyzer_.GetReduced(start->value());
-        DCHECK(value.valid());
-
-        __ Store(base, index, value, store.kind,
-                 MemoryRepresentation::Simd256(), store.write_barrier,
-                 start->offset);
-
-        // Set an arbitrary valid opindex here to skip reduce later.
-        pnode->SetRevectorizedNode(ig_index);
-      }
-
-      // No extract op needed for Store.
-      return OpIndex::Invalid();
+    PackNode* pnode = analyzer_.GetPackNode(ig_index);
+    if (!pnode) {
+      return Adapter::ReduceInputGraphStore(ig_index, store);
     }
 
-    // no_change
-    return Adapter::ReduceInputGraphStore(ig_index, store);
+    OpIndex og_index = pnode->RevectorizedNode();
+    // Skip revectorized node.
+    if (!og_index.valid()) {
+      const StoreOp& start =
+          (analyzer_.GetStartOperation(pnode, ig_index, store))
+              .template Cast<StoreOp>();
+      DCHECK_EQ(start.base(), store.base());
+
+      // It's possible that an OOB is trapped at the higher 128-bit address
+      // after the lower 128-bit store is executed. To ensure a consistent
+      // memory state before and after revectorization, emit the first 128-bit
+      // store before the 256-bit revectorized store.
+      if (ig_index == pnode->nodes()[0]) {
+        Adapter::ReduceInputGraphStore(ig_index, store);
+      }
+
+      OpIndex base = __ MapToNewGraph(store.base());
+      // We need to use {store}'s index here because there could be different
+      // ChangeOps from the same index. If {start} != {store}, it's possible
+      // that the ChangeOp of {start} has not been visited yet.
+      OptionalOpIndex index = __ MapToNewGraph(store.index());
+      V<Simd256> value = analyzer_.GetReducedInput(pnode);
+      DCHECK(value.valid());
+
+      __ Store(base, index, value, store.kind, MemoryRepresentation::Simd256(),
+               store.write_barrier, start.offset);
+
+      // Set an arbitrary valid OpIndex here to skip reduce later.
+      pnode->SetRevectorizedNode(ig_index);
+    }
+
+    // No extract op needed for Store.
+    return OpIndex::Invalid();
   }
 
   OpIndex REDUCE_INPUT_GRAPH(Phi)(OpIndex ig_index, const PhiOp& phi) {
     if (phi.rep == RegisterRepresentation::Simd128()) {
-      if (auto pnode = analyzer_.GetPackNode(ig_index)) {
+      if (PackNode* pnode = analyzer_.GetPackNode(ig_index)) {
         OpIndex og_index = pnode->RevectorizedNode();
 
         // Don't reduce revectorized node.
         if (!og_index.valid()) {
-          base::SmallVector<OpIndex, 16> elements;
           og_index = __ ResolvePhi(
               phi,
-              [&](OpIndex ind, int block_id) {
-                return analyzer_.GetReduced(ind);
+              [&](OpIndex ind, int block_id, int old_block_id = 0) {
+                return analyzer_.GetReducedInput(pnode, old_block_id);
               },
               RegisterRepresentation::Simd256());
           pnode->SetRevectorizedNode(og_index);
@@ -670,7 +839,7 @@ class WasmRevecReducer : public UniformReducerAdapter<WasmRevecReducer, Next> {
             GetExtractOpIfNeeded(pnode, ig_index, og_index);
         // If phis are not be mapped to anything in the new graph,
         // they will be skipped in FixLoopPhis in copying-phase.
-        // return og_index to create the mapping.
+        // Return og_index to create the mapping.
         if (extract_op_index == OpIndex::Invalid()) {
           return og_index;
         } else {
@@ -679,7 +848,6 @@ class WasmRevecReducer : public UniformReducerAdapter<WasmRevecReducer, Next> {
       }
     }
 
-    // no_change
     return Adapter::ReduceInputGraphPhi(ig_index, phi);
   }
 
@@ -688,19 +856,19 @@ class WasmRevecReducer : public UniformReducerAdapter<WasmRevecReducer, Next> {
     if (input_phi.rep == RegisterRepresentation::Simd128()) {
       OpIndex phi_index = __ input_graph().Index(input_phi);
       DCHECK(phi_index.valid());
-      if (auto* pnode = analyzer_.GetPackNode(phi_index)) {
-        auto pending_index = pnode->RevectorizedNode();
+      if (PackNode* pnode = analyzer_.GetPackNode(phi_index)) {
+        V<Simd256> pending_index = pnode->RevectorizedNode();
         DCHECK(pending_index.valid());
-        if (pending_index.valid() &&
-            output_graph_loop->Contains(pending_index)) {
-          // Need skip replaced op
-          if (auto* pending_phi = __ output_graph()
-                                      .Get(pending_index)
-                                      .template TryCast<PendingLoopPhiOp>()) {
+        if (output_graph_loop->Contains(pending_index)) {
+          // Need to skip any replaced op.
+          if (PendingLoopPhiOp* pending_phi =
+                  __ output_graph()
+                      .Get(pending_index)
+                      .template TryCast<PendingLoopPhiOp>()) {
             __ output_graph().template Replace<PhiOp>(
                 pending_index,
                 base::VectorOf({pending_phi -> first(),
-                                analyzer_.GetReduced(input_phi.input(1))}),
+                                analyzer_.GetReducedInput(pnode, 1)}),
                 RegisterRepresentation::Simd256());
             return;
           }
@@ -713,241 +881,400 @@ class WasmRevecReducer : public UniformReducerAdapter<WasmRevecReducer, Next> {
 
   V<Simd128> REDUCE_INPUT_GRAPH(Simd128Unary)(V<Simd128> ig_index,
                                               const Simd128UnaryOp& unary) {
-    if (auto pnode = analyzer_.GetPackNode(ig_index)) {
-      if (pnode->is_force_pack()) {
-        return Adapter::ReduceInputGraphSimd128Unary(ig_index, unary);
-      }
-      V<Simd256> og_index = pnode->RevectorizedNode();
-      // Skip revectorized node.
-      if (!og_index.valid()) {
-        V<Simd256> input = analyzer_.GetReduced(unary.input());
-        if (!input.valid()) {
-          V<Simd128> input = __ MapToNewGraph(unary.input());
-          og_index = __ Simd256Unary(input, GetSimd256UnaryKind(unary.kind));
-        } else {
-          og_index = __ Simd256Unary(input, GetSimd256UnaryKind(unary.kind));
-        }
-        pnode->SetRevectorizedNode(og_index);
-      }
-      return GetExtractOpIfNeeded(pnode, ig_index, og_index);
+    PackNode* pnode = analyzer_.GetPackNode(ig_index);
+    if (!pnode || !pnode->IsDefaultPackNode()) {
+      return Adapter::ReduceInputGraphSimd128Unary(ig_index, unary);
     }
-    return Adapter::ReduceInputGraphSimd128Unary(ig_index, unary);
+
+    V<Simd256> og_index = pnode->RevectorizedNode();
+    // Skip revectorized node.
+    if (!og_index.valid()) {
+      V<Simd256> input = analyzer_.GetReducedInput(pnode);
+      if (!input.valid()) {
+        V<Simd128> input_128 = __ MapToNewGraph(unary.input());
+        og_index = __ Simd256Unary(input_128, GetSimd256UnaryKind(unary.kind));
+      } else {
+        og_index = __ Simd256Unary(input, GetSimd256UnaryKind(unary.kind));
+      }
+      pnode->SetRevectorizedNode(og_index);
+    }
+    return GetExtractOpIfNeeded(pnode, ig_index, og_index);
   }
 
   V<Simd128> REDUCE_INPUT_GRAPH(Simd128Binop)(V<Simd128> ig_index,
                                               const Simd128BinopOp& op) {
-    if (auto pnode = analyzer_.GetPackNode(ig_index)) {
-      if (pnode->is_force_pack()) {
-        return Adapter::ReduceInputGraphSimd128Binop(ig_index, op);
-      }
-      V<Simd256> og_index = pnode->RevectorizedNode();
-      // Skip revectorized node.
-      if (!og_index.valid()) {
-        V<Simd256> left = analyzer_.GetReduced(op.left());
-        V<Simd256> right = analyzer_.GetReduced(op.right());
-        if (!left.valid() || !right.valid()) {
-          V<Simd128> left = __ MapToNewGraph(op.left());
-          V<Simd128> right = __ MapToNewGraph(op.right());
-          og_index = __ Simd256Binop(left, right, GetSimd256BinOpKind(op.kind));
-        } else {
-          og_index = __ Simd256Binop(left, right, GetSimd256BinOpKind(op.kind));
-        }
-        pnode->SetRevectorizedNode(og_index);
-      }
-      return GetExtractOpIfNeeded(pnode, ig_index, og_index);
+    PackNode* pnode = analyzer_.GetPackNode(ig_index);
+    if (!pnode || !pnode->IsDefaultPackNode()) {
+      return Adapter::ReduceInputGraphSimd128Binop(ig_index, op);
     }
 
-    // no_change
-    return Adapter::ReduceInputGraphSimd128Binop(ig_index, op);
+    V<Simd256> og_index = pnode->RevectorizedNode();
+    // Skip revectorized node.
+    if (!og_index.valid()) {
+      if (pnode->GetOperandsSize() < 2) {
+        V<Simd128> left = __ MapToNewGraph(op.left());
+        V<Simd128> right = __ MapToNewGraph(op.right());
+        og_index = __ Simd256Binop(left, right, GetSimd256BinOpKind(op.kind));
+      } else {
+        V<Simd256> left = analyzer_.GetReducedInput(pnode, 0);
+        V<Simd256> right = analyzer_.GetReducedInput(pnode, 1);
+        og_index = __ Simd256Binop(left, right, GetSimd256BinOpKind(op.kind));
+      }
+      pnode->SetRevectorizedNode(og_index);
+    }
+    return GetExtractOpIfNeeded(pnode, ig_index, og_index);
   }
 
   V<Simd128> REDUCE_INPUT_GRAPH(Simd128Shift)(V<Simd128> ig_index,
                                               const Simd128ShiftOp& op) {
-    if (auto pnode = analyzer_.GetPackNode(ig_index)) {
-      V<Simd256> og_index = pnode->RevectorizedNode();
-      // Skip revectorized node.
-      if (!og_index.valid()) {
-        V<Simd256> input = analyzer_.GetReduced(op.input());
-        DCHECK(input.valid());
-        V<Word32> shift = __ MapToNewGraph(op.shift());
-        og_index =
-            __ Simd256Shift(input, shift, GetSimd256ShiftOpKind(op.kind));
-        pnode->SetRevectorizedNode(og_index);
-      }
-      return GetExtractOpIfNeeded(pnode, ig_index, og_index);
+    PackNode* pnode = analyzer_.GetPackNode(ig_index);
+    if (!pnode) {
+      return Adapter::ReduceInputGraphSimd128Shift(ig_index, op);
     }
 
-    // no_change
-    return Adapter::ReduceInputGraphSimd128Shift(ig_index, op);
+    V<Simd256> og_index = pnode->RevectorizedNode();
+    // Skip revectorized node.
+    if (!og_index.valid()) {
+      V<Simd256> input = analyzer_.GetReducedInput(pnode);
+      DCHECK(input.valid());
+      V<Word32> shift = __ MapToNewGraph(op.shift());
+      og_index = __ Simd256Shift(input, shift, GetSimd256ShiftOpKind(op.kind));
+      pnode->SetRevectorizedNode(og_index);
+    }
+    return GetExtractOpIfNeeded(pnode, ig_index, og_index);
   }
 
   V<Simd128> REDUCE_INPUT_GRAPH(Simd128Ternary)(
       V<Simd128> ig_index, const Simd128TernaryOp& ternary) {
-    if (auto pnode = analyzer_.GetPackNode(ig_index)) {
-      V<Simd256> og_index = pnode->RevectorizedNode();
-      // Skip revectorized node.
-      if (!og_index.valid()) {
-        V<Simd256> first = analyzer_.GetReduced(ternary.first());
-        V<Simd256> second = analyzer_.GetReduced(ternary.second());
-        V<Simd256> third = analyzer_.GetReduced(ternary.third());
-
-        og_index = __ Simd256Ternary(first, second, third,
-                                     GetSimd256TernaryKind(ternary.kind));
-
-        pnode->SetRevectorizedNode(og_index);
-      }
-
-      return GetExtractOpIfNeeded(pnode, ig_index, og_index);
+    PackNode* pnode = analyzer_.GetPackNode(ig_index);
+    if (!pnode) {
+      return Adapter::ReduceInputGraphSimd128Ternary(ig_index, ternary);
     }
-    return Adapter::ReduceInputGraphSimd128Ternary(ig_index, ternary);
+
+    V<Simd256> og_index = pnode->RevectorizedNode();
+    // Skip revectorized node.
+    if (!og_index.valid()) {
+      V<Simd256> first = analyzer_.GetReducedInput(pnode, 0);
+      V<Simd256> second = analyzer_.GetReducedInput(pnode, 1);
+      V<Simd256> third = analyzer_.GetReducedInput(pnode, 2);
+
+      og_index = __ Simd256Ternary(first, second, third,
+                                   GetSimd256TernaryKind(ternary.kind));
+
+      pnode->SetRevectorizedNode(og_index);
+    }
+    return GetExtractOpIfNeeded(pnode, ig_index, og_index);
   }
 
   V<Simd128> REDUCE_INPUT_GRAPH(Simd128Splat)(V<Simd128> ig_index,
                                               const Simd128SplatOp& op) {
-    if (auto pnode = analyzer_.GetPackNode(ig_index)) {
-      V<Simd256> og_index = pnode->RevectorizedNode();
-      // Skip revectorized node.
-      if (!og_index.valid()) {
-        og_index = __ Simd256Splat(__ MapToNewGraph(op.input()),
-                                   Get256SplatOpKindFrom128(op.kind));
-
-        pnode->SetRevectorizedNode(og_index);
-      }
-      return GetExtractOpIfNeeded(pnode, ig_index, og_index);
+    PackNode* pnode = analyzer_.GetPackNode(ig_index);
+    if (!pnode) {
+      return Adapter::ReduceInputGraphSimd128Splat(ig_index, op);
     }
 
-    return Adapter::ReduceInputGraphSimd128Splat(ig_index, op);
+    V<Simd256> og_index = pnode->RevectorizedNode();
+    // Skip revectorized node.
+    if (!og_index.valid()) {
+      og_index = __ Simd256Splat(__ MapToNewGraph(op.input()),
+                                 Get256SplatOpKindFrom128(op.kind));
+
+      pnode->SetRevectorizedNode(og_index);
+    }
+    return GetExtractOpIfNeeded(pnode, ig_index, og_index);
   }
 
   V<Simd128> REDUCE_INPUT_GRAPH(Simd128Shuffle)(V<Simd128> ig_index,
                                                 const Simd128ShuffleOp& op) {
-    if (ShufflePackNode* pnode =
-            static_cast<ShufflePackNode*>(analyzer_.GetPackNode(ig_index))) {
-      V<Simd256> og_index = pnode->RevectorizedNode();
-      // Skip revectorized node.
-      if (!og_index.valid()) {
-        const ShufflePackNode::SpecificInfo::Kind kind = pnode->info().kind();
-        switch (kind) {
-          case ShufflePackNode::SpecificInfo::Kind::kS256Load32Transform:
-          case ShufflePackNode::SpecificInfo::Kind::kS256Load64Transform: {
-            const bool is_32 =
-                kind ==
-                ShufflePackNode::SpecificInfo::Kind::kS256Load32Transform;
+    PackNode* p = analyzer_.GetPackNode(ig_index);
+    if (!p) {
+      return Adapter::ReduceInputGraphSimd128Shuffle(ig_index, op);
+    }
+    DCHECK_EQ(op.kind, Simd128ShuffleOp::Kind::kI8x16);
 
-            const OpIndex load_index =
-                op.input(pnode->info().splat_index() >> (is_32 ? 2 : 1));
-            const LoadOp& load =
-                __ input_graph().Get(load_index).template Cast<LoadOp>();
+    ShufflePackNode* pnode = p->AsShufflePackNode();
+    V<Simd256> og_index = pnode->RevectorizedNode();
+    // Skip revectorized node.
+    if (!og_index.valid()) {
+      const ShufflePackNode::SpecificInfo::Kind kind = pnode->info().kind();
+      switch (kind) {
+        case ShufflePackNode::SpecificInfo::Kind::kS256Load32Transform:
+        case ShufflePackNode::SpecificInfo::Kind::kS256Load64Transform: {
+          const bool is_32 =
+              kind == ShufflePackNode::SpecificInfo::Kind::kS256Load32Transform;
 
-            const int bytes_per_lane = is_32 ? 4 : 8;
-            const int splat_index =
-                pnode->info().splat_index() * bytes_per_lane;
-            const int offset = splat_index + load.offset;
+          const OpIndex load_index =
+              op.input(pnode->info().splat_index() >> (is_32 ? 2 : 1));
+          const LoadOp& load =
+              __ input_graph().Get(load_index).template Cast<LoadOp>();
 
-            V<WordPtr> base = __ WordPtrAdd(__ MapToNewGraph(load.base()),
-                                            __ IntPtrConstant(offset));
+          const int bytes_per_lane = is_32 ? 4 : 8;
+          const int splat_index = pnode->info().splat_index() * bytes_per_lane;
+          const int offset = splat_index + load.offset;
 
-            V<WordPtr> index = load.index().has_value()
-                                   ? __ MapToNewGraph(load.index().value())
-                                   : __ IntPtrConstant(0);
+          V<WordPtr> base = __ WordPtrAdd(__ MapToNewGraph(load.base()),
+                                          __ IntPtrConstant(offset));
 
-            const Simd256LoadTransformOp::TransformKind transform_kind =
-                is_32 ? Simd256LoadTransformOp::TransformKind::k32Splat
-                      : Simd256LoadTransformOp::TransformKind::k64Splat;
-            og_index = __ Simd256LoadTransform(base, index, load.kind,
-                                               transform_kind, 0);
-            pnode->SetRevectorizedNode(og_index);
-            break;
-          }
-#ifdef V8_TARGET_ARCH_X64
-          case ShufflePackNode::SpecificInfo::Kind::kShufd: {
-            V<Simd256> og_left = analyzer_.GetReduced(op.left());
-            DCHECK_EQ(og_left, analyzer_.GetReduced(op.right()));
-            og_index = __ Simd256Shufd(og_left, pnode->info().shufd_control());
-            pnode->SetRevectorizedNode(og_index);
-            break;
-          }
-          case ShufflePackNode::SpecificInfo::Kind::kShufps: {
-            V<Simd256> og_left = analyzer_.GetReduced(op.left());
-            V<Simd256> og_right = analyzer_.GetReduced(op.right());
-            og_index = __ Simd256Shufps(og_left, og_right,
-                                        pnode->info().shufps_control());
-            pnode->SetRevectorizedNode(og_index);
-            break;
-          }
-          case ShufflePackNode::SpecificInfo::Kind::kS32x8UnpackLow: {
-            V<Simd256> og_left = analyzer_.GetReduced(op.left());
-            V<Simd256> og_right = analyzer_.GetReduced(op.right());
-            og_index = __ Simd256Unpack(og_left, og_right,
-                                        Simd256UnpackOp::Kind::k32x8Low);
-            pnode->SetRevectorizedNode(og_index);
-            break;
-          }
-          case ShufflePackNode::SpecificInfo::Kind::kS32x8UnpackHigh: {
-            V<Simd256> og_left = analyzer_.GetReduced(op.left());
-            V<Simd256> og_right = analyzer_.GetReduced(op.right());
-            og_index = __ Simd256Unpack(og_left, og_right,
-                                        Simd256UnpackOp::Kind::k32x8High);
-            pnode->SetRevectorizedNode(og_index);
-            break;
-          }
-#endif  // V8_TARGET_ARCH_X64
-          default:
-            UNREACHABLE();
+          V<WordPtr> index = load.index().has_value()
+                                 ? __ MapToNewGraph(load.index().value())
+                                 : __ IntPtrConstant(0);
+
+          const Simd256LoadTransformOp::TransformKind transform_kind =
+              is_32 ? Simd256LoadTransformOp::TransformKind::k32Splat
+                    : Simd256LoadTransformOp::TransformKind::k64Splat;
+          og_index = __ Simd256LoadTransform(base, index, load.kind,
+                                             transform_kind, 0);
+          pnode->SetRevectorizedNode(og_index);
+          break;
         }
+        case ShufflePackNode::SpecificInfo::Kind::kS256Load8x8U: {
+          const Simd128ShuffleOp& op0 = __ input_graph()
+                                            .Get(pnode -> nodes()[0])
+                                            .template Cast<Simd128ShuffleOp>();
+
+          V<Simd128> load_transform_idx =
+              __ input_graph()
+                      .Get(op0.left())
+                      .template Is<Simd128LoadTransformOp>()
+                  ? op0.left()
+                  : op0.right();
+          const Simd128LoadTransformOp& load_transform =
+              __ input_graph()
+                  .Get(load_transform_idx)
+                  .template Cast<Simd128LoadTransformOp>();
+          DCHECK_EQ(load_transform.transform_kind,
+                    Simd128LoadTransformOp::TransformKind::k64Zero);
+          V<WordPtr> base = __ MapToNewGraph(load_transform.base());
+          V<WordPtr> index = __ MapToNewGraph(load_transform.index());
+          og_index = __ Simd256LoadTransform(
+              base, index, load_transform.load_kind,
+              Simd256LoadTransformOp::TransformKind::k8x8U,
+              load_transform.offset);
+          pnode->SetRevectorizedNode(og_index);
+          break;
+        }
+#ifdef V8_TARGET_ARCH_X64
+        case ShufflePackNode::SpecificInfo::Kind::kShufd: {
+          V<Simd256> og_left = analyzer_.GetReducedInput(pnode, 0);
+          DCHECK_EQ(og_left, analyzer_.GetReducedInput(pnode, 1));
+          og_index = __ Simd256Shufd(og_left, pnode->info().shufd_control());
+          pnode->SetRevectorizedNode(og_index);
+          break;
+        }
+        case ShufflePackNode::SpecificInfo::Kind::kShufps: {
+          V<Simd256> og_left = analyzer_.GetReducedInput(pnode, 0);
+          V<Simd256> og_right = analyzer_.GetReducedInput(pnode, 1);
+          og_index = __ Simd256Shufps(og_left, og_right,
+                                      pnode->info().shufps_control());
+          pnode->SetRevectorizedNode(og_index);
+          break;
+        }
+        case ShufflePackNode::SpecificInfo::Kind::kS32x8UnpackLow: {
+          V<Simd256> og_left = analyzer_.GetReducedInput(pnode, 0);
+          V<Simd256> og_right = analyzer_.GetReducedInput(pnode, 1);
+          og_index = __ Simd256Unpack(og_left, og_right,
+                                      Simd256UnpackOp::Kind::k32x8Low);
+          pnode->SetRevectorizedNode(og_index);
+          break;
+        }
+        case ShufflePackNode::SpecificInfo::Kind::kS32x8UnpackHigh: {
+          V<Simd256> og_left = analyzer_.GetReducedInput(pnode, 0);
+          V<Simd256> og_right = analyzer_.GetReducedInput(pnode, 1);
+          og_index = __ Simd256Unpack(og_left, og_right,
+                                      Simd256UnpackOp::Kind::k32x8High);
+          pnode->SetRevectorizedNode(og_index);
+          break;
+        }
+#endif  // V8_TARGET_ARCH_X64
       }
-      return GetExtractOpIfNeeded(pnode, ig_index, og_index);
+    }
+    return GetExtractOpIfNeeded(pnode, ig_index, og_index);
+  }
+
+  OpIndex REDUCE_INPUT_GRAPH(Simd128ReplaceLane)(
+      OpIndex ig_index, const Simd128ReplaceLaneOp& replace) {
+    PackNode* pnode = analyzer_.GetPackNode(ig_index);
+    if (!pnode || !pnode->IsBundlePackNode()) {
+      return Adapter::ReduceInputGraphSimd128ReplaceLane(ig_index, replace);
     }
 
-    return Adapter::ReduceInputGraphSimd128Shuffle(ig_index, op);
+    V<Simd256> og_index = pnode->RevectorizedNode();
+    // Don't reduce revectorized node.
+    if (!og_index.valid()) {
+      const BundlePackNode* bundle_pnode = pnode->AsBundlePackNode();
+      V<Simd128> base_index = __ MapToNewGraph(bundle_pnode->base());
+      V<Simd128> i16x8_index = base_index;
+      V<Simd256> i32x8_index;
+      if (bundle_pnode->is_sign_extract()) {
+        if (bundle_pnode->lane_size() == 1) {
+          if (bundle_pnode->offset() == 0) {
+            i16x8_index = __ Simd128Unary(
+                base_index, Simd128UnaryOp::Kind::kI16x8SConvertI8x16Low);
+          } else {
+            DCHECK_EQ(bundle_pnode->offset(), 8);
+            i16x8_index = __ Simd128Unary(
+                base_index, Simd128UnaryOp::Kind::kI16x8SConvertI8x16High);
+          }
+        }
+        i32x8_index = __ Simd256Unary(
+            i16x8_index, Simd256UnaryOp::Kind::kI32x8SConvertI16x8);
+      } else {
+        if (bundle_pnode->lane_size() == 1) {
+          if (bundle_pnode->offset() == 0) {
+            i16x8_index = __ Simd128Unary(
+                base_index, Simd128UnaryOp::Kind::kI16x8UConvertI8x16Low);
+          } else {
+            DCHECK_EQ(bundle_pnode->offset(), 8);
+            i16x8_index = __ Simd128Unary(
+                base_index, Simd128UnaryOp::Kind::kI16x8UConvertI8x16High);
+          }
+        }
+        i32x8_index = __ Simd256Unary(
+            i16x8_index, Simd256UnaryOp::Kind::kI32x8UConvertI16x8);
+      }
+
+      if (bundle_pnode->is_sign_convert()) {
+        og_index = __ Simd256Unary(i32x8_index,
+                                   Simd256UnaryOp::Kind::kF32x8SConvertI32x8);
+      } else {
+        og_index = __ Simd256Unary(i32x8_index,
+                                   Simd256UnaryOp::Kind::kF32x8UConvertI32x8);
+      }
+
+      pnode->SetRevectorizedNode(og_index);
+    }
+    return GetExtractOpIfNeeded(pnode, ig_index, og_index);
+  }
+
+  void ReduceInputsOfOp(OpIndex start_marker, OpIndex op_index) {
+    // Reduce all the operations of op_index's input tree which are
+    // bigger than the start_marker. The traversal is done in a DFS manner
+    // to make sure all inputs are emitted before the use.
+    const Block* current_input_block = __ current_input_block();
+    std::stack<OpIndex, base::SmallVector<OpIndex, 8>> inputs;
+    ZoneUnorderedSet<OpIndex>& visited = analyzer_.GetSharedOpIndexSet();
+    DCHECK(visited.empty());
+
+    inputs.push(op_index);
+    while (!inputs.empty()) {
+      OpIndex idx = inputs.top();
+      if (visited.contains(idx)) {
+        inputs.pop();
+        continue;
+      }
+
+      const Operation& op = __ input_graph().Get(idx);
+      bool has_unvisited_inputs = false;
+      for (OpIndex input : op.inputs()) {
+        if (input > start_marker && !visited.contains(input)) {
+          inputs.push(input);
+          has_unvisited_inputs = true;
+        }
+      }
+
+      if (!has_unvisited_inputs) {
+        inputs.pop();
+        visited.insert(idx);
+
+        // op_index will be reduced later.
+        if (idx == op_index) continue;
+
+        DCHECK(!__ input_graph().Get(idx).template Is<PhiOp>());
+        __ template VisitOpAndUpdateMapping<false>(idx, current_input_block);
+      }
+    }
+
+    visited.clear();
+  }
+
+  template <typename Op, typename Continuation>
+  void ReduceForceOrIntersectPackNode(PackNode* pnode, const OpIndex ig_index,
+                                      OpIndex* og_index) {
+    std::array<OpIndex, 2> og_inputs;
+    DCHECK_EQ(pnode->nodes().size(), 2);
+    // The operation order in pnode is determined by the store or reduce
+    // seed when building the SLPTree. It is not guaranteed to align with
+    // the visiting order in each basic block from the input graph. E.g. we
+    // can have a block including operations {a1, a2, b1, b2}, and the
+    // SLPTree can be pnode1: (a2, a1), pnode2: (b1, b2) if a2 is input
+    // of b1, and a1 is input of b2.
+    for (size_t i = 0; i < pnode->nodes().size(); i++) {
+      OpIndex cur_index = pnode->nodes()[i];
+      if ((*og_index).valid() && cur_index == ig_index) {
+        og_inputs[i] = *og_index;
+      } else {
+        // The current index may already be reduced by the IntersectPackNode.
+        og_inputs[i] = __ template MapToNewGraph<true>(cur_index);
+      }
+
+      if (og_inputs[i].valid()) continue;
+
+      if (cur_index != ig_index) {
+        ReduceInputsOfOp(ig_index, cur_index);
+      }
+      const Op& op = __ input_graph().Get(cur_index).template Cast<Op>();
+      og_inputs[i] = Continuation{this}.ReduceInputGraph(cur_index, op);
+
+      if (cur_index == ig_index) {
+        *og_index = og_inputs[i];
+      } else {
+        // We have to create the mapping as cur_index may exist in other
+        // IntersectPackNode and reduce again.
+        __ CreateOldToNewMapping(cur_index, og_inputs[i]);
+      }
+    }
+
+    OpIndex revec_index = __ SimdPack128To256(og_inputs[0], og_inputs[1]);
+    pnode->SetRevectorizedNode(revec_index);
   }
 
   template <typename Op, typename Continuation>
   OpIndex ReduceInputGraphOperation(OpIndex ig_index, const Op& op) {
-    if (PackNode* pnode = analyzer_.GetPackNode(ig_index);
-        pnode && pnode->is_force_pack()) {
-      // Handle force packing nodes.
-      OpIndex og_index = pnode->RevectorizedNode();
-      if (!og_index.valid()) {
+    OpIndex og_index;
+    // Reduce ForcePackNode.
+    if (PackNode* p = analyzer_.GetPackNode(ig_index);
+        p && p->IsForcePackNode()) {
+      ForcePackNode* pnode = p->AsForcePackNode();
+      if (!pnode->RevectorizedNode().valid()) {
         switch (pnode->force_pack_type()) {
-          case PackNode::ForcePackType::kSplat: {
-            OpIndex og_left = Continuation{this}.ReduceInputGraph(ig_index, op);
-            og_index = __ SimdPack128To256(og_left, og_left);
-            pnode->set_force_packed_pair(og_left, og_left);
-            pnode->SetRevectorizedNode(og_index);
-            break;
-          }
-          case PackNode::ForcePackType::kGeneral: {
-            OpIndex og_left = Continuation{this}.ReduceInputGraph(ig_index, op);
-            // Emit right node's input tree.
-
-            const Block* current_input_block = Asm().current_input_block();
-            for (OpIndex idx : pnode->force_pack_right_inputs()) {
-              DCHECK(!Asm().input_graph().Get(idx).template Is<PhiOp>());
-              Asm().template VisitOpAndUpdateMapping<false>(
-                  idx, current_input_block);
+          case ForcePackNode::kSplat: {
+            // The og_index may already be reduced by an IntersectPackNode.
+            OpIndex reduced_index = __ template MapToNewGraph<true>(ig_index);
+            if (!reduced_index.valid()) {
+              og_index = reduced_index =
+                  Continuation{this}.ReduceInputGraph(ig_index, op);
             }
-
-            OpIndex right_ig_index = pnode->nodes()[1];
-            const Op& right_ig_op =
-                Asm().input_graph().Get(right_ig_index).template Cast<Op>();
-            OpIndex og_right = Continuation{this}.ReduceInputGraph(
-                right_ig_index, right_ig_op);
-            og_index = __ SimdPack128To256(og_left, og_right);
-            pnode->set_force_packed_pair(og_left, og_right);
-            pnode->SetRevectorizedNode(og_index);
+            OpIndex revec_index =
+                __ SimdPack128To256(reduced_index, reduced_index);
+            pnode->SetRevectorizedNode(revec_index);
             break;
           }
-          default:
-            UNIMPLEMENTED();
+          case ForcePackNode::kGeneral: {
+            ReduceForceOrIntersectPackNode<Op, Continuation>(pnode, ig_index,
+                                                             &og_index);
+            break;
+          }
         }
       }
-      return GetExtractOpIfNeeded(pnode, ig_index, og_index);
     }
 
-    if (__ op_mapping_[ig_index].valid()) {
-      // The op is already emitted during emitting force pack right node input
-      // trees.
+    // Reduce IntersectPackNode.
+    if (ZoneVector<PackNode*>* intersect_packnodes =
+            analyzer_.GetIntersectPackNodes(ig_index)) {
+      for (PackNode* pnode : *intersect_packnodes) {
+        if (!pnode->RevectorizedNode().valid()) {
+          ReduceForceOrIntersectPackNode<Op, Continuation>(pnode, ig_index,
+                                                           &og_index);
+        }
+      }
+    }
+
+    if (og_index.valid()) {
+      return og_index;
+    }
+
+    if (__ template MapToNewGraph<true>(ig_index).valid()) {
+      // The op is already emitted while emitting ForcePackNode input trees.
       return OpIndex::Invalid();
     }
 
@@ -966,7 +1293,6 @@ class WasmRevecReducer : public UniformReducerAdapter<WasmRevecReducer, Next> {
 
 #define SIGN_EXTENSION_UNOP_KIND_MAPPING(from_1, to, from_2) \
   case Simd128UnaryOp::Kind::k##from_1:                      \
-    return Simd256UnaryOp::Kind::k##to;                      \
   case Simd128UnaryOp::Kind::k##from_2:                      \
     return Simd256UnaryOp::Kind::k##to;
       SIMD256_UNARY_SIGN_EXTENSION_OP(SIGN_EXTENSION_UNOP_KIND_MAPPING)
@@ -986,11 +1312,10 @@ class WasmRevecReducer : public UniformReducerAdapter<WasmRevecReducer, Next> {
 
 #define SIGN_EXTENSION_BINOP_KIND_MAPPING(from_1, to, from_2) \
   case Simd128BinopOp::Kind::k##from_1:                       \
-    return Simd256BinopOp::Kind::k##to;                       \
   case Simd128BinopOp::Kind::k##from_2:                       \
     return Simd256BinopOp::Kind::k##to;
       SIMD256_BINOP_SIGN_EXTENSION_OP(SIGN_EXTENSION_BINOP_KIND_MAPPING)
-#undef SIGN_EXTENSION_UNOP_KIND_MAPPING
+#undef SIGN_EXTENSION_BINOP_KIND_MAPPING
       default:
         UNIMPLEMENTED();
     }
@@ -1046,8 +1371,8 @@ class WasmRevecReducer : public UniformReducerAdapter<WasmRevecReducer, Next> {
     }
   }
 
-  const wasm::WasmModule* module_ = __ data() -> wasm_module();
-  WasmRevecAnalyzer analyzer_ = *__ data() -> wasm_revec_analyzer();
+  const wasm::WasmModule* module_{__ data()->wasm_module()};
+  WasmRevecAnalyzer& analyzer_{*__ data()->wasm_revec_analyzer()};
 };
 
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"

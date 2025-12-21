@@ -35,9 +35,6 @@ void EncodeRawVarint(uint64_t value, size_t size, absl::Span<char> *buf) {
   }
   buf->remove_prefix(size);
 }
-constexpr uint64_t MakeTagType(uint64_t tag, WireType type) {
-  return tag << 3 | static_cast<uint64_t>(type);
-}
 }  // namespace
 
 bool EncodeVarint(uint64_t tag, uint64_t value, absl::Span<char> *buf) {
@@ -126,8 +123,9 @@ bool EncodeBytesTruncate(uint64_t tag, absl::Span<const char> value,
   return true;
 }
 
-ABSL_MUST_USE_RESULT absl::Span<char> EncodeMessageStart(
-    uint64_t tag, uint64_t max_size, absl::Span<char> *buf) {
+[[nodiscard]] absl::Span<char> EncodeMessageStart(uint64_t tag,
+                                                  uint64_t max_size,
+                                                  absl::Span<char> *buf) {
   const uint64_t tag_type = MakeTagType(tag, WireType::kLengthDelimited);
   const size_t tag_type_size = VarintSize(tag_type);
   max_size = std::min<uint64_t>(max_size, buf->size());

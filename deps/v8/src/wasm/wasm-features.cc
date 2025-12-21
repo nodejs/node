@@ -18,8 +18,7 @@ WasmEnabledFeatures WasmEnabledFeatures::FromFlags() {
   WasmEnabledFeatures features = WasmEnabledFeatures::None();
 
 #if V8_ENABLE_DRUMBRAKE
-  // The only Wasm experimental features supported by DrumBrake is the legacy
-  // exception handling.
+  // DrumBrake supports only a subset or older versions of some Wasm features.
   if (v8_flags.wasm_jitless) {
     features.Add(WasmEnabledFeature::legacy_eh);
   }
@@ -40,22 +39,13 @@ WasmEnabledFeatures WasmEnabledFeatures::FromIsolate(Isolate* isolate) {
 
 // static
 WasmEnabledFeatures WasmEnabledFeatures::FromContext(
-    Isolate* isolate, Handle<NativeContext> context) {
+    Isolate* isolate, DirectHandle<NativeContext> context) {
   WasmEnabledFeatures features = WasmEnabledFeatures::FromFlags();
-  if (!v8_flags.wasm_jitless) {
-    if (isolate->IsWasmStringRefEnabled(context)) {
-      features.Add(WasmEnabledFeature::stringref);
-    }
-    if (isolate->IsWasmInliningEnabled(context)) {
-      features.Add(WasmEnabledFeature::inlining);
-    }
-    if (isolate->IsWasmImportedStringsEnabled(context)) {
-      features.Add(WasmEnabledFeature::imported_strings);
-    }
-    if (isolate->IsWasmJSPIEnabled(context)) {
-      features.Add(WasmEnabledFeature::jspi);
-    }
+
+  if (isolate->IsWasmCustomDescriptorsEnabled(context)) {
+    features.Add(WasmEnabledFeature::custom_descriptors);
   }
+
   // This space intentionally left blank for future Wasm origin trials.
   return features;
 }

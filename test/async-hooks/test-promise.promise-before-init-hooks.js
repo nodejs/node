@@ -16,18 +16,18 @@ hooks.enable();
 p.then(function afterResolution(val) {
   assert.strictEqual(val, 5);
   const as = hooks.activitiesOfTypes('PROMISE');
-  assert.strictEqual(as.length, 1);
+  assert.strictEqual(as.length, 2);
   checkInvocations(as[0], { init: 1, before: 1 },
                    'after resolution child promise');
   return val;
-});
+}).then(common.mustCall());
 
 process.on('exit', function onexit() {
   hooks.disable();
   hooks.sanityCheck('PROMISE');
 
   const as = hooks.activitiesOfTypes('PROMISE');
-  assert.strictEqual(as.length, 1);
+  assert.strictEqual(as.length, 2);
 
   const a0 = as[0];
   assert.strictEqual(a0.type, 'PROMISE');

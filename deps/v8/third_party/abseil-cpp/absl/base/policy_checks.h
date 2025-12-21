@@ -21,6 +21,8 @@
 // reported with `#error`. This enforcement is best effort, so successfully
 // compiling this header does not guarantee a supported configuration.
 
+// SKIP_ABSL_INLINE_NAMESPACE_CHECK
+
 #ifndef ABSL_BASE_POLICY_CHECKS_H_
 #define ABSL_BASE_POLICY_CHECKS_H_
 
@@ -69,15 +71,15 @@
 // C++ Version Check
 // -----------------------------------------------------------------------------
 
-// Enforce C++14 as the minimum.
+// Enforce C++17 as the minimum.
 #if defined(_MSVC_LANG)
-#if _MSVC_LANG < 201402L
-#error "C++ versions less than C++14 are not supported."
-#endif  // _MSVC_LANG < 201402L
+#if _MSVC_LANG < 201703L
+#error "C++ versions less than C++17 are not supported."
+#endif  // _MSVC_LANG < 201703L
 #elif defined(__cplusplus)
-#if __cplusplus < 201402L
-#error "C++ versions less than C++14 are not supported."
-#endif  // __cplusplus < 201402L
+#if __cplusplus < 201703L
+#error "C++ versions less than C++17 are not supported."
+#endif  // __cplusplus < 201703L
 #endif
 
 // -----------------------------------------------------------------------------

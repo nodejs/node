@@ -91,16 +91,12 @@ std::ostream& operator<<(std::ostream& os, StatusCode code) {
   return os << StatusCodeToString(code);
 }
 
-absl::Nonnull<const std::string*> Status::EmptyString() {
+const std::string* absl_nonnull Status::EmptyString() {
   static const absl::NoDestructor<std::string> kEmpty;
   return kEmpty.get();
 }
 
-#ifdef ABSL_INTERNAL_NEED_REDUNDANT_CONSTEXPR_DECL
-constexpr const char Status::kMovedFromString[];
-#endif
-
-absl::Nonnull<const std::string*> Status::MovedFromString() {
+const std::string* absl_nonnull Status::MovedFromString() {
   static const absl::NoDestructor<std::string> kMovedFrom(kMovedFromString);
   return kMovedFrom.get();
 }
@@ -112,7 +108,7 @@ Status::Status(absl::StatusCode code, absl::string_view msg)
   }
 }
 
-absl::Nonnull<status_internal::StatusRep*> Status::PrepareToModify(
+status_internal::StatusRep* absl_nonnull Status::PrepareToModify(
     uintptr_t rep) {
   if (IsInlined(rep)) {
     return new status_internal::StatusRep(InlinedRepToCode(rep),
@@ -410,7 +406,7 @@ Status ErrnoToStatus(int error_number, absl::string_view message) {
                 MessageForErrnoToStatus(error_number, message));
 }
 
-absl::Nonnull<const char*> StatusMessageAsCStr(const Status& status) {
+const char* absl_nonnull StatusMessageAsCStr(const Status& status) {
   // As an internal implementation detail, we guarantee that if status.message()
   // is non-empty, then the resulting string_view is null terminated.
   auto sv_message = status.message();

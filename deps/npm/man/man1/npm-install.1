@@ -1,4 +1,4 @@
-.TH "NPM-INSTALL" "1" "March 2025" "NPM@11.2.0" ""
+.TH "NPM-INSTALL" "1" "December 2025" "NPM@11.7.0" ""
 .SH "NAME"
 \fBnpm-install\fR - Install a package
 .SS "Synopsis"
@@ -28,7 +28,7 @@ See \fBpackage-lock.json\fR \fI\(la/configuring-npm/package-lock-json\(ra\fR and
 A \fBpackage\fR is:
 .RS 0
 .IP \(bu 4
-a) a folder containing a program described by a \fB\fBpackage.json\fR\fR \fI\(la/configuring-npm/package-json\(ra\fR file
+a) a folder containing a program described by a \fB\[rs]fBpackage.json\[rs]fR\fR \fI\(la/configuring-npm/package-json\(ra\fR file
 .IP \(bu 4
 b) a gzipped tarball containing (a)
 .IP \(bu 4
@@ -53,7 +53,7 @@ Install the dependencies to the local \fBnode_modules\fR folder.
 .P
 In global mode (ie, with \fB-g\fR or \fB--global\fR appended to the command), it installs the current package context (ie, the current working directory) as a global package.
 .P
-By default, \fBnpm install\fR will install all modules listed as dependencies in \fB\fBpackage.json\fR\fR \fI\(la/configuring-npm/package-json\(ra\fR.
+By default, \fBnpm install\fR will install all modules listed as dependencies in \fB\[rs]fBpackage.json\[rs]fR\fR \fI\(la/configuring-npm/package-json\(ra\fR.
 .P
 With the \fB--production\fR flag (or when the \fBNODE_ENV\fR environment variable is set to \fBproduction\fR), npm will not install modules listed in \fBdevDependencies\fR. To install all modules listed in both \fBdependencies\fR and \fBdevDependencies\fR when \fBNODE_ENV\fR environment variable is set to \fBproduction\fR, you can use \fB--production=false\fR.
 .RS 4
@@ -89,8 +89,7 @@ Tarball requirements:
 .IP \(bu 4
 The filename \fImust\fR use \fB.tar\fR, \fB.tar.gz\fR, or \fB.tgz\fR as the extension.
 .IP \(bu 4
-The package contents should reside in a subfolder inside the tarball (usually it is called \fBpackage/\fR). npm strips one directory layer when installing the package (an equivalent of \fBtar x
---strip-components=1\fR is run).
+The package contents should reside in a subfolder inside the tarball (usually it is called \fBpackage/\fR). npm strips one directory layer when installing the package (an equivalent of \fBtar x --strip-components=1\fR is run).
 .IP \(bu 4
 The package must contain a \fBpackage.json\fR file with \fBname\fR and \fBversion\fR properties.
 .RE 0
@@ -118,9 +117,11 @@ npm install https://github.com/indexzero/forever/tarball/v0.5.6
 .IP \(bu 4
 \fBnpm install \[lB]<@scope>/\[rB]<name>\fR:
 .P
-Do a \fB<name>@<tag>\fR install, where \fB<tag>\fR is the "tag" config. (See \fB\fBconfig\fR\fR \fI\(la/using-npm/config#tag\(ra\fR. The config's default value is \fBlatest\fR.)
+Do a \fB<name>@<tag>\fR install, where \fB<tag>\fR is the "tag" config. (See \fB\[rs]fBconfig\[rs]fR\fR \fI\(la/using-npm/config#tag\(ra\fR. The config's default value is \fBlatest\fR.)
 .P
 In most cases, this will install the version of the modules tagged as \fBlatest\fR on the npm registry.
+.P
+\fBNote:\fR When installing by name without specifying a version or tag, npm prioritizes versions that match the current Node.js version based on the package's \fBengines\fR field. If the \fBlatest\fR tag points to a version incompatible with your current Node.js version, npm will install the newest compatible version instead. To install a specific version regardless of \fBengines\fR compatibility, explicitly specify the version or tag: \fBnpm install <name>@latest\fR.
 .P
 Example:
 .P
@@ -176,7 +177,7 @@ npm install ansi-regex --save-bundle
 .IP \(bu 4
 \fBnpm install <alias>@npm:<name>\fR:
 .P
-Install a package under a custom alias. Allows multiple versions of a same-name package side-by-side, more convenient import names for packages with otherwise long ones, and using git forks replacements or forked npm packages as replacements. Aliasing works only on your project and does not rename packages in transitive dependencies. Aliases should follow the naming conventions stated in \fB\fBvalidate-npm-package-name\fR\fR \fI\(lahttps://www.npmjs.com/package/validate-npm-package-name#naming-rules\(ra\fR.
+Install a package under a custom alias. Allows multiple versions of a same-name package side-by-side, more convenient import names for packages with otherwise long ones, and using git forks replacements or forked npm packages as replacements. Aliasing works only on your project and does not rename packages in transitive dependencies. Aliases should follow the naming conventions stated in \fB\[rs]fBvalidate-npm-package-name\[rs]fR\fR \fI\(lahttps://www.npmjs.com/package/validate-npm-package-name#naming-rules\(ra\fR.
 .P
 Examples:
 .P
@@ -217,7 +218,7 @@ npm install @myorg/privatepackage@1.5.0
 .IP \(bu 4
 \fBnpm install \[lB]<@scope>/\[rB]<name>@<version range>\fR:
 .P
-Install a version of the package matching the specified version range. This will follow the same rules for resolving dependencies described in \fB\fBpackage.json\fR\fR \fI\(la/configuring-npm/package-json\(ra\fR.
+Install a version of the package matching the specified version range. This will follow the same rules for resolving dependencies described in \fB\[rs]fBpackage.json\[rs]fR\fR \fI\(la/configuring-npm/package-json\(ra\fR.
 .P
 Note that most version ranges must be put in quotes so that your shell will treat it as a single argument.
 .P
@@ -227,6 +228,17 @@ Example:
 .nf
 npm install sax@">=0.1.0 <0.2.0"
 npm install @myorg/privatepackage@"16 - 17"
+.fi
+.RE
+.P
+\fBPrerelease versions:\fR By default, version ranges only match stable versions. To include prerelease versions, they must be explicitly specified in the range. Prerelease versions are tied to a specific version triple (major.minor.patch). For example, \fB^1.2.3-beta.1\fR will only match prereleases for \fB1.2.x\fR, not \fB1.3.x\fR. To match all prereleases for a major version, use a range like \fB^1.0.0-0\fR, which will include all \fB1.x.x\fR prereleases.
+.P
+Example:
+.P
+.RS 2
+.nf
+npm install package@^1.2.3-beta.1  # Matches 1.2.3-beta.1, 1.2.3-beta.2, 1.2.4-beta.1, etc.
+npm install package@^1.0.0-0       # Matches all 1.x.x prereleases and stable versions
 .fi
 .RE
 .IP \(bu 4
@@ -360,6 +372,8 @@ npm install sax@">=0.1.0 <0.2.0" bench supervisor
 .P
 The \fB--tag\fR argument will apply to all of the specified install targets. If a tag with the given name exists, the tagged version is preferred over newer versions.
 .P
+\fBNote:\fR The \fB--tag\fR option only affects packages specified on the command line. It does not override version ranges specified in \fBpackage.json\fR. For example, if \fBpackage.json\fR specifies \fB"foo": "^1.0.0"\fR and you run \fBnpm install --tag beta\fR, npm will still install a version matching \fB^1.0.0\fR even if the \fBbeta\fR tag points to a different version. To install a tagged version, specify the package explicitly: \fBnpm install foo@beta\fR.
+.P
 The \fB--dry-run\fR argument will report in the usual way what the install would have done without actually installing anything.
 .P
 The \fB--package-lock-only\fR argument will only update the \fBpackage-lock.json\fR, instead of checking \fBnode_modules\fR and downloading dependencies.
@@ -456,7 +470,7 @@ Only install direct dependencies in the top level \fBnode_modules\fR, but hoist 
 .SS "\fBomit\fR"
 .RS 0
 .IP \(bu 4
-Default: 'dev' if the \fBNODE_ENV\fR environment variable is set to 'production', otherwise empty.
+Default: 'dev' if the \fBNODE_ENV\fR environment variable is set to 'production'; otherwise, empty.
 .IP \(bu 4
 Type: "dev", "optional", or "peer" (can be set multiple times)
 .RE 0
@@ -554,7 +568,7 @@ Type: Boolean
 .P
 If true, npm does not run scripts specified in package.json files.
 .P
-Note that commands explicitly intended to run a particular script, such as \fBnpm start\fR, \fBnpm stop\fR, \fBnpm restart\fR, \fBnpm test\fR, and \fBnpm run-script\fR will still run their intended script if \fBignore-scripts\fR is set, but they will \fInot\fR run any pre- or post-scripts.
+Note that commands explicitly intended to run a particular script, such as \fBnpm start\fR, \fBnpm stop\fR, \fBnpm restart\fR, \fBnpm test\fR, and \fBnpm run\fR will still run their intended script if \fBignore-scripts\fR is set, but they will \fInot\fR run any pre- or post-scripts.
 .SS "\fBaudit\fR"
 .RS 0
 .IP \(bu 4
@@ -565,6 +579,18 @@ Type: Boolean
 
 .P
 When "true" submit audit reports alongside the current npm command to the default registry and all registries configured for scopes. See the documentation for npm help audit for details on what is submitted.
+.SS "\fBbefore\fR"
+.RS 0
+.IP \(bu 4
+Default: null
+.IP \(bu 4
+Type: null or Date
+.RE 0
+
+.P
+If passed to \fBnpm install\fR, will rebuild the npm tree such that only versions that were available \fBon or before\fR the given date are installed. If there are no versions available for the current set of dependencies, the command will error.
+.P
+If the requested version is a \fBdist-tag\fR and the given tag does not pass the \fB--before\fR filter, the most recent version less than or equal to that tag will be used. For example, \fBfoo@latest\fR might install \fBfoo@1.2\fR even though \fBlatest\fR is \fB2.0\fR.
 .SS "\fBbin-links\fR"
 .RS 0
 .IP \(bu 4

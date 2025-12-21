@@ -1,30 +1,30 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const tmpdir = require('../common/tmpdir');
-const { strictEqual } = require('node:assert');
+const assert = require('node:assert');
 const { writeFileSync } = require('node:fs');
 const { suite, test } = require('node:test');
 
 tmpdir.refresh();
 
-suite('suite', (t) => {
-  strictEqual(t.filePath, __filename);
+suite('suite', common.mustCall((t) => {
+  assert.strictEqual(t.filePath, __filename);
 
   test('test', (t) => {
-    strictEqual(t.filePath, __filename);
+    assert.strictEqual(t.filePath, __filename);
 
     t.test('subtest', (t) => {
-      strictEqual(t.filePath, __filename);
+      assert.strictEqual(t.filePath, __filename);
 
       t.test('subsubtest', (t) => {
-        strictEqual(t.filePath, __filename);
+        assert.strictEqual(t.filePath, __filename);
       });
     });
   });
-});
+}));
 
 test((t) => {
-  strictEqual(t.filePath, __filename);
+  assert.strictEqual(t.filePath, __filename);
 });
 
 const importedTestFile = tmpdir.resolve('temp.js');

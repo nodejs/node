@@ -114,8 +114,8 @@ TEST(SleepFor, Bounded) {
   EXPECT_TRUE(AssertSleepForBounded(d, early, late, timeout,
                                     AlarmPolicy::kWithoutAlarm));
 #if defined(ABSL_HAVE_ALARM)
-  EXPECT_TRUE(AssertSleepForBounded(d, early, late, timeout,
-                                    AlarmPolicy::kWithAlarm));
+  EXPECT_TRUE(
+      AssertSleepForBounded(d, early, late, timeout, AlarmPolicy::kWithAlarm));
 #endif
 }
 

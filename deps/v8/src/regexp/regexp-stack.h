@@ -33,23 +33,38 @@ class V8_NODISCARD RegExpStackScope final {
   const ptrdiff_t old_sp_top_delta_;
 };
 
+// TODO(426514762): Currently this entire object is sandbox-accessible as some
+// fields of it are being written to. This is unsafe though and we'll need to
+// fix this. See the addition TODOs related to https://crbug.com/426514762.
 class RegExpStack final {
  public:
-  RegExpStack();
-  ~RegExpStack();
   RegExpStack(const RegExpStack&) = delete;
   RegExpStack& operator=(const RegExpStack&) = delete;
 
+  static RegExpStack* New();
+  static void Delete(RegExpStack* instance);
+
+#if defined(V8_TARGET_ARCH_PPC64) || defined(V8_TARGET_ARCH_S390X)
+  static constexpr int kSlotSize = kSystemPointerSize;
+#else
+  static constexpr int kSlotSize = kInt32Size;
+#endif
   // Number of allocated locations on the stack below the limit. No sequence of
   // pushes must be longer than this without doing a stack-limit check.
-  static constexpr int kStackLimitSlack = 32;
+  static constexpr int kStackLimitSlackSlotCount = 32;
+  static constexpr int kStackLimitSlackSize =
+      kStackLimitSlackSlotCount * kSlotSize;
 
-  Address memory_top() const {
+  Address begin() const {
+    return reinterpret_cast<Address>(thread_local_.memory_);
+  }
+  Address end() const {
     DCHECK_NE(0, thread_local_.memory_size_);
     DCHECK_EQ(thread_local_.memory_top_,
               thread_local_.memory_ + thread_local_.memory_size_);
     return reinterpret_cast<Address>(thread_local_.memory_top_);
   }
+  Address memory_top() const { return end(); }
 
   Address stack_pointer() const {
     return reinterpret_cast<Address>(thread_local_.stack_pointer_);
@@ -80,24 +95,33 @@ class RegExpStack final {
   static constexpr size_t kMaximumStackSize = 64 * MB;
 
  private:
+  // Currently private as we need to use New/Delete instead.
+  // TODO(426514762): revert this change once its no longer needed.
+  RegExpStack();
+  ~RegExpStack();
+
   // Artificial limit used when the thread-local state has been destroyed.
   static const Address kMemoryTop =
       static_cast<Address>(static_cast<uintptr_t>(-1));
-
-  // Minimal size of dynamically-allocated stack area.
-  static constexpr size_t kMinimumDynamicStackSize = 1 * KB;
 
   // In addition to dynamically-allocated, variable-sized stacks, we also have
   // a statically allocated and sized area that is used whenever no dynamic
   // stack is allocated. This guarantees that a stack is always available and
   // we can skip availability-checks later on.
-  // It's double the slack size to ensure that we have a bit of breathing room
-  // before NativeRegExpMacroAssembler::GrowStack must be called.
-  static constexpr size_t kStaticStackSize =
-      2 * kStackLimitSlack * kSystemPointerSize;
+  static constexpr size_t kStaticStackSize = 1 * KB;
+  // It's at least double the slack size to ensure that we have a bit of
+  // breathing room before NativeRegExpMacroAssembler::GrowStack must be
+  // called.
+  static_assert(kStaticStackSize >= 2 * kStackLimitSlackSize);
+  static_assert(kStaticStackSize <= kMaximumStackSize);
+  // TODO(426514762): this buffer is being written to from generated code.
+  // We could probably just allocate dedicated OS pages for it like we do for
+  // dynamically-sized stack buffers though (see EnsureCapacity).
   uint8_t static_stack_[kStaticStackSize] = {0};
 
-  static_assert(kStaticStackSize <= kMaximumStackSize);
+  // Minimal size of dynamically-allocated stack area.
+  static constexpr size_t kMinimumDynamicStackSize = 2 * KB;
+  static_assert(kMinimumDynamicStackSize == 2 * kStaticStackSize);
 
   // Structure holding the allocated memory, size and limit. Thread switching
   // archives and restores this struct.
@@ -113,6 +137,9 @@ class RegExpStack final {
     uint8_t* memory_ = nullptr;
     uint8_t* memory_top_ = nullptr;
     size_t memory_size_ = 0;
+    // TODO(426514762): this field is currently written to from generated code.
+    // Either we find a way to avoid that, or we have to move this field to
+    // it's own sandbox-accessible memory page.
     uint8_t* stack_pointer_ = nullptr;
     Address limit_ = kNullAddress;
     bool owns_memory_ = false;  // Whether memory_ is owned and must be freed.
@@ -122,6 +149,11 @@ class RegExpStack final {
       if (stack_pointer_ == memory_top_) ResetToStaticStack(regexp_stack);
     }
     void FreeAndInvalidate();
+
+    // Allocates and returns new memory for a dynamic stack.
+    static uint8_t* NewDynamicStack(size_t size);
+    // If a dynamic stack is used, delete its memory.
+    void DeleteDynamicStack();
   };
   static constexpr size_t kThreadLocalSize = sizeof(ThreadLocal);
 

@@ -20,7 +20,7 @@ struct GCed final : GarbageCollected<GCed> {
   static size_t destructor_call_count;
   GCed() { destructor_call_count = 0; }
   ~GCed() { destructor_call_count++; }
-  virtual void Trace(cppgc::Visitor*) const {}
+  void Trace(cppgc::Visitor*) const {}
   int a = 0;
 };
 size_t GCed::destructor_call_count = 0;

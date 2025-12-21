@@ -24,7 +24,7 @@ void FinalizationRegistryCleanupTask::SlowAssertNoActiveJavaScript() {
    public:
     void VisitThread(Isolate* isolate, ThreadLocalTop* top) override {
       for (StackFrameIterator it(isolate, top); !it.done(); it.Advance()) {
-        DCHECK(!it.frame()->is_java_script());
+        DCHECK(!it.frame()->is_javascript());
       }
     }
   };
@@ -42,8 +42,11 @@ void FinalizationRegistryCleanupTask::RunInternal() {
   TRACE_EVENT_CALL_STATS_SCOPED(isolate, "v8",
                                 "V8.FinalizationRegistryCleanupTask");
 
+  // First clear that the task is posted in case of early returns below.
+  heap_->set_is_finalization_registry_cleanup_task_posted(false);
+
   HandleScope handle_scope(isolate);
-  Handle<JSFinalizationRegistry> finalization_registry;
+  DirectHandle<JSFinalizationRegistry> finalization_registry;
   // There could be no dirty FinalizationRegistries. When a context is disposed
   // by the embedder, its FinalizationRegistries are removed from the dirty
   // list.
@@ -55,9 +58,8 @@ void FinalizationRegistryCleanupTask::RunInternal() {
 
   // Since FinalizationRegistry cleanup callbacks are scheduled by V8, enter the
   // FinalizationRegistry's context.
-  Handle<NativeContext> native_context(finalization_registry->native_context(),
-                                       isolate);
-  Handle<Object> callback(finalization_registry->cleanup(), isolate);
+  DirectHandle<NativeContext> native_context(
+      finalization_registry->native_context(), isolate);
   v8::Context::Scope context_scope(v8::Utils::ToLocal(native_context));
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
   v8::TryCatch catcher(v8_isolate);
@@ -86,7 +88,7 @@ void FinalizationRegistryCleanupTask::RunInternal() {
   //
   // TODO(syg): Implement better scheduling for finalizers.
   InvokeFinalizationRegistryCleanupFromTask(native_context,
-                                            finalization_registry, callback);
+                                            finalization_registry);
   if (finalization_registry->NeedsCleanup() &&
       !finalization_registry->scheduled_for_cleanup()) {
     auto nop = [](Tagged<HeapObject>, ObjectSlot, Tagged<Object>) {};
@@ -94,7 +96,6 @@ void FinalizationRegistryCleanupTask::RunInternal() {
   }
 
   // Repost if there are remaining dirty FinalizationRegistries.
-  heap_->set_is_finalization_registry_cleanup_task_posted(false);
   heap_->PostFinalizationRegistryCleanupTaskIfNeeded();
 }
 

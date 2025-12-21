@@ -28,10 +28,6 @@ namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace synchronization_internal {
 
-#ifdef ABSL_INTERNAL_NEED_REDUNDANT_CONSTEXPR_DECL
-constexpr char Win32Waiter::kName[];
-#endif
-
 class Win32Waiter::WinHelper {
  public:
   static SRWLOCK *GetLock(Win32Waiter *w) {

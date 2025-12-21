@@ -7,12 +7,13 @@
 namespace node {
 
 using v8::Context;
-using v8::EscapableHandleScope;
 using v8::Function;
+using v8::Global;
 using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
 using v8::MaybeLocal;
+using v8::Number;
 using v8::Object;
 using v8::String;
 using v8::Undefined;
@@ -26,11 +27,28 @@ CallbackScope::CallbackScope(Isolate* isolate,
 CallbackScope::CallbackScope(Environment* env,
                              Local<Object> object,
                              async_context asyncContext)
-  : private_(new InternalCallbackScope(env,
-                                       object,
-                                       asyncContext)),
-    try_catch_(env->isolate()) {
+    : resource_storage_({.local = object}),
+      private_(new InternalCallbackScope(
+          env, &resource_storage_.local, asyncContext)),
+      try_catch_(env->isolate()) {
   try_catch_.SetVerbose(true);
+}
+
+CallbackScope::CallbackScope(Environment* env,
+                             Global<Object>* object,
+                             async_context asyncContext)
+    : resource_storage_({.global_ptr = object}),
+      private_(new InternalCallbackScope(
+          env, resource_storage_.global_ptr, asyncContext)),
+      try_catch_(env->isolate()) {
+  try_catch_.SetVerbose(true);
+  // These checks can be removed in a future major version -- they ensure
+  // ABI compatibility with previous Node.js versions.
+  static_assert(sizeof(resource_storage_) == sizeof(Global<Object>*));
+  static_assert(sizeof(resource_storage_) == sizeof(Local<Object>));
+  static_assert(alignof(decltype(resource_storage_)) ==
+                alignof(Global<Object>*));
+  static_assert(alignof(decltype(resource_storage_)) == alignof(Local<Object>));
 }
 
 CallbackScope::~CallbackScope() {
@@ -47,17 +65,29 @@ InternalCallbackScope::InternalCallbackScope(AsyncWrap* async_wrap, int flags)
           flags,
           async_wrap->context_frame()) {}
 
-InternalCallbackScope::InternalCallbackScope(Environment* env,
-                                             Local<Object> object,
-                                             const async_context& asyncContext,
-                                             int flags,
-                                             v8::Local<v8::Value> context_frame)
+InternalCallbackScope::InternalCallbackScope(
+    Environment* env,
+    std::variant<Local<Object>, Local<Object>*, Global<Object>*> object_arg,
+    const async_context& asyncContext,
+    int flags,
+    Local<Value> context_frame)
     : env_(env),
       async_context_(asyncContext),
-      object_(object),
       skip_hooks_(flags & kSkipAsyncHooks),
       skip_task_queues_(flags & kSkipTaskQueues) {
   CHECK_NOT_NULL(env);
+
+  std::variant<v8::Local<v8::Object>*, v8::Global<v8::Object>*> object;
+  if (std::holds_alternative<Local<Object>>(object_arg)) {
+    object_storage_ = std::get<Local<Object>>(object_arg);
+    object = &object_storage_;
+  } else if (std::holds_alternative<Local<Object>*>(object_arg)) {
+    object = std::get<Local<Object>*>(object_arg);
+  } else {
+    object = std::get<Global<Object>*>(object_arg);
+  }
+  std::visit([](auto* ptr) { CHECK_NOT_NULL(ptr); }, object);
+
   env->PushAsyncCallbackScope();
 
   if (!env->can_call_into_js()) {
@@ -84,7 +114,7 @@ InternalCallbackScope::InternalCallbackScope(Environment* env,
       isolate, async_context_frame::exchange(isolate, context_frame));
 
   env->async_hooks()->push_async_context(
-    async_context_.async_id, async_context_.trigger_async_id, object);
+      async_context_.async_id, async_context_.trigger_async_id, object);
 
   pushed_ids_ = true;
 
@@ -216,7 +246,7 @@ MaybeLocal<Value> InternalMakeCallback(Environment* env,
   Local<Context> context = env->context();
   if (use_async_hooks_trampoline) {
     MaybeStackBuffer<Local<Value>, 16> args(3 + argc);
-    args[0] = v8::Number::New(env->isolate(), asyncContext.async_id);
+    args[0] = Number::New(env->isolate(), asyncContext.async_id);
     args[1] = resource;
     args[2] = callback;
     for (int i = 0; i < argc; i++) {
@@ -248,8 +278,10 @@ MaybeLocal<Value> MakeCallback(Isolate* isolate,
                                int argc,
                                Local<Value> argv[],
                                async_context asyncContext) {
-  Local<String> method_string =
-      String::NewFromUtf8(isolate, method).ToLocalChecked();
+  Local<String> method_string;
+  if (!String::NewFromUtf8(isolate, method).ToLocal(&method_string)) {
+    return {};
+  }
   return MakeCallback(isolate, recv, method_string, argc, argv, asyncContext);
 }
 
@@ -260,13 +292,18 @@ MaybeLocal<Value> MakeCallback(Isolate* isolate,
                                Local<Value> argv[],
                                async_context asyncContext) {
   // Check can_call_into_js() first because calling Get() might do so.
-  Environment* env = Environment::GetCurrent(recv->GetCreationContextChecked());
+  Local<Context> context;
+  if (!recv->GetCreationContext().ToLocal(&context)) {
+    return {};
+  }
+  Environment* env = Environment::GetCurrent(context);
   CHECK_NOT_NULL(env);
-  if (!env->can_call_into_js()) return Local<Value>();
+  if (!env->can_call_into_js()) return {};
 
   Local<Value> callback_v;
-  if (!recv->Get(isolate->GetCurrentContext(), symbol).ToLocal(&callback_v))
-    return Local<Value>();
+  if (!recv->Get(isolate->GetCurrentContext(), symbol).ToLocal(&callback_v)) {
+    return {};
+  }
   if (!callback_v->IsFunction()) {
     // This used to return an empty value, but Undefined() makes more sense
     // since no exception is pending here.
@@ -300,8 +337,11 @@ MaybeLocal<Value> InternalMakeCallback(Isolate* isolate,
   //
   // Because of the AssignToContext() call in src/node_contextify.cc,
   // the two contexts need not be the same.
-  Environment* env =
-      Environment::GetCurrent(callback->GetCreationContextChecked());
+  Local<Context> context;
+  if (!callback->GetCreationContext().ToLocal(&context)) {
+    return {};
+  }
+  Environment* env = Environment::GetCurrent(context);
   CHECK_NOT_NULL(env);
   Context::Scope context_scope(env->context());
   MaybeLocal<Value> ret = InternalMakeCallback(
@@ -323,12 +363,14 @@ MaybeLocal<Value> MakeSyncCallback(Isolate* isolate,
                                    Local<Function> callback,
                                    int argc,
                                    Local<Value> argv[]) {
-  Environment* env =
-      Environment::GetCurrent(callback->GetCreationContextChecked());
+  Local<Context> context;
+  if (!callback->GetCreationContext().ToLocal(&context)) {
+    return {};
+  }
+  Environment* env = Environment::GetCurrent(context);
   CHECK_NOT_NULL(env);
-  if (!env->can_call_into_js()) return Local<Value>();
+  if (!env->can_call_into_js()) return {};
 
-  Local<Context> context = env->context();
   Context::Scope context_scope(context);
   if (env->async_callback_scope_depth()) {
     // There's another MakeCallback() on the stack, piggy back on it.
@@ -345,43 +387,8 @@ MaybeLocal<Value> MakeSyncCallback(Isolate* isolate,
                                                argc,
                                                argv,
                                                async_context{0, 0},
-                                               v8::Undefined(isolate));
+                                               Undefined(isolate));
   return ret;
-}
-
-// Legacy MakeCallback()s
-
-Local<Value> MakeCallback(Isolate* isolate,
-                          Local<Object> recv,
-                          const char* method,
-                          int argc,
-                          Local<Value>* argv) {
-  EscapableHandleScope handle_scope(isolate);
-  return handle_scope.Escape(
-      MakeCallback(isolate, recv, method, argc, argv, {0, 0})
-          .FromMaybe(Local<Value>()));
-}
-
-Local<Value> MakeCallback(Isolate* isolate,
-                          Local<Object> recv,
-                          Local<String> symbol,
-                          int argc,
-                          Local<Value>* argv) {
-  EscapableHandleScope handle_scope(isolate);
-  return handle_scope.Escape(
-      MakeCallback(isolate, recv, symbol, argc, argv, {0, 0})
-          .FromMaybe(Local<Value>()));
-}
-
-Local<Value> MakeCallback(Isolate* isolate,
-                          Local<Object> recv,
-                          Local<Function> callback,
-                          int argc,
-                          Local<Value>* argv) {
-  EscapableHandleScope handle_scope(isolate);
-  return handle_scope.Escape(
-      MakeCallback(isolate, recv, callback, argc, argv, {0, 0})
-          .FromMaybe(Local<Value>()));
 }
 
 }  // namespace node

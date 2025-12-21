@@ -1,5 +1,5 @@
 'use strict';
-const SlowBuffer = require('buffer').SlowBuffer;
+const { Buffer } = require('buffer');
 const common = require('../common.js');
 const assert = require('assert');
 
@@ -19,7 +19,7 @@ const methods = {
 function main({ size, type, method, n }) {
   const buffer = type === 'fast' ?
     Buffer.alloc(size) :
-    SlowBuffer(size).fill(0);
+    Buffer.allocUnsafeSlow(size).fill(0);
 
   const fn = methods[method];
 

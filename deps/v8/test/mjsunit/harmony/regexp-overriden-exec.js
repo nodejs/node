@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --no-always-turbofan --turbofan
+// Flags: --allow-natives-syntax --turbofan
 
 const r = RegExp('bla');
 
@@ -22,5 +22,5 @@ r.__proto__.exec = function() {
 }
 Object.freeze(r.__proto__);
 
-foo();
 assertUnoptimized(foo);
+foo();

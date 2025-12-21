@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --maglev --no-always-turbofan
+// Flags: --allow-natives-syntax --maglev
 
 var x = 1;
 
@@ -19,6 +19,6 @@ assertTrue(isMaglevved(f));
 
 // Trigger a lazy deopt now, so that f() deopts on its next call.
 x = 2;
-assertEquals(2, f());
 assertFalse(isMaglevved(f));
 assertUnoptimized(f);
+assertEquals(2, f());

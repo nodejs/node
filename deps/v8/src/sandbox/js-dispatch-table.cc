@@ -10,7 +10,7 @@
 #include "src/objects/code-inl.h"
 #include "src/sandbox/js-dispatch-table-inl.h"
 
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_ENABLE_LEAPTIERING
 
 namespace v8 {
 namespace internal {
@@ -20,12 +20,36 @@ void JSDispatchEntry::CheckFieldOffsets() {
                 offsetof(JSDispatchEntry, entrypoint_));
   static_assert(JSDispatchEntry::kCodeObjectOffset ==
                 offsetof(JSDispatchEntry, encoded_word_));
+#if defined(V8_TARGET_ARCH_64_BIT)
+#ifdef V8_TARGET_BIG_ENDIAN
+  // 2-byte parameter count is on the least significant side of encoded_word_.
+  constexpr int kBigEndianParamCountOffset = sizeof(Address) - sizeof(uint16_t);
+  static_assert(sizeof(encoded_word_) == sizeof(Address));
+  static_assert(JSDispatchEntry::kParameterCountOffset ==
+                offsetof(JSDispatchEntry, encoded_word_) +
+                    kBigEndianParamCountOffset);
+#else
+  static_assert(JSDispatchEntry::kParameterCountOffset ==
+                offsetof(JSDispatchEntry, encoded_word_));
+#endif  // V8_TARGET_BIG_ENDIAN
+  static_assert(kParameterCountMask == 0xffff);
+  static_assert(kParameterCountSize == 2);
+#elif defined(V8_TARGET_ARCH_32_BIT)
+  static_assert(JSDispatchEntry::kParameterCountOffset ==
+                offsetof(JSDispatchEntry, parameter_count_));
+  static_assert(kParameterCountSize ==
+                sizeof(JSDispatchEntry::parameter_count_));
+#else
+#error "Unsupported Architecture"
+#endif
 }
 
-JSDispatchHandle JSDispatchTable::PreAllocateEntries(
-    Space* space, int count, bool ensure_static_handles) {
+void JSDispatchTable::PreAllocateEntries(Space* space, int count) {
+#if !V8_STATIC_DISPATCH_HANDLES_BOOL
+  UNREACHABLE();
+#else
   DCHECK(space->BelongsTo(this));
-  DCHECK_IMPLIES(ensure_static_handles, space->is_internal_read_only_space());
+  DCHECK(space->is_internal_read_only_space());
   JSDispatchHandle first;
   for (int i = 0; i < count; ++i) {
     uint32_t idx = AllocateEntry(space);
@@ -35,11 +59,9 @@ JSDispatchHandle JSDispatchTable::PreAllocateEntries(
       // Pre-allocated entries should be consecutive.
       DCHECK_EQ(IndexToHandle(idx), IndexToHandle(HandleToIndex(first) + i));
     }
-    if (ensure_static_handles) {
       CHECK_EQ(IndexToHandle(idx), GetStaticHandleForReadOnlySegmentEntry(i));
-    }
   }
-  return first;
+#endif
 }
 
 bool JSDispatchTable::PreAllocatedEntryNeedsInitialization(
@@ -63,21 +85,28 @@ void JSDispatchTable::InitializePreAllocatedEntry(Space* space,
                                 parameter_count, space->allocate_black());
 }
 
-uint32_t JSDispatchTable::Sweep(Space* space, Counters* counters) {
-  uint32_t num_live_entries = GenericSweep(space);
-  counters->js_dispatch_table_entries_count()->AddSample(num_live_entries);
-  return num_live_entries;
+void JSDispatchTable::PrintEntry(JSDispatchHandle handle) {
+  uint32_t index = HandleToIndex(handle);
+  i::PrintF("JSDispatchEntry (handle: %u) @ %p\n", handle.value(), &at(index));
+  i::PrintF("* code %p\n", reinterpret_cast<void*>(GetCode(handle).address()));
+  i::PrintF("* params %d\n", at(HandleToIndex(handle)).GetParameterCount());
+  i::PrintF("* entrypoint %p\n",
+            reinterpret_cast<void*>(GetEntrypoint(handle)));
 }
 
-#ifdef DEBUG
-// Static
-std::atomic<bool> JSDispatchTable::initialized_ = false;
-#endif  // DEBUG
-
-// Static
-base::LeakyObject<JSDispatchTable> JSDispatchTable::instance_;
+void JSDispatchTable::PrintCurrentTieringRequest(JSDispatchHandle handle,
+                                                 Isolate* isolate,
+                                                 std::ostream& os) {
+#define CASE(name, ...)                                               \
+  if (IsTieringRequested(handle, TieringBuiltin::k##name, isolate)) { \
+    os << #name;                                                      \
+    return;                                                           \
+  }
+  BUILTIN_LIST_BASE_TIERING(CASE)
+#undef CASE
+}
 
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_ENABLE_LEAPTIERING

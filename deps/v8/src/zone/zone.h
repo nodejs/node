@@ -38,16 +38,12 @@ namespace internal {
 // Note: The implementation is inherently not thread safe. Do not use
 // from multi-threaded code.
 
+class ZoneSnapshot;
+
 class V8_EXPORT_PRIVATE Zone final {
  public:
-  Zone(AccountingAllocator* allocator, const char* name,
-       bool support_compression = false);
+  Zone(AccountingAllocator* allocator, const char* name);
   ~Zone();
-
-  // Returns true if the zone supports zone pointer compression.
-  bool supports_compression() const {
-    return COMPRESS_ZONES_BOOL && supports_compression_;
-  }
 
   // Allocate 'size' bytes of uninitialized memory in the Zone; expands the Zone
   // by allocating new segments of memory on demand using AccountingAllocator
@@ -124,8 +120,10 @@ class V8_EXPORT_PRIVATE Zone final {
   template <typename T, typename TypeTag = T[]>
   T* AllocateArray(size_t length) {
     static_assert(alignof(T) <= kAlignmentInBytes);
-    DCHECK_IMPLIES(is_compressed_pointer<T>::value, supports_compression());
-    DCHECK_LT(length, std::numeric_limits<size_t>::max() / sizeof(T));
+    // Defense-in-depth: ensure that the multiplication does not overflow as
+    // that would result in a too-small allocation and (likely) memory
+    // corruption afterwards.
+    CHECK_LT(length, std::numeric_limits<size_t>::max() / sizeof(T));
     return static_cast<T*>(Allocate<TypeTag>(length * sizeof(T)));
   }
 
@@ -218,8 +216,10 @@ class V8_EXPORT_PRIVATE Zone final {
 #endif
 
 #ifdef DEBUG
-  bool Contains(void* ptr);
+  bool Contains(const void* ptr) const;
 #endif
+
+  V8_WARN_UNUSED_RESULT ZoneSnapshot Snapshot() const;
 
  private:
   void* AsanNew(size_t size);
@@ -263,7 +263,6 @@ class V8_EXPORT_PRIVATE Zone final {
 
   Segment* segment_head_ = nullptr;
   const char* name_;
-  const bool supports_compression_;
   bool sealed_ = false;
 
 #ifdef V8_ENABLE_PRECISE_ZONE_STATS
@@ -274,20 +273,23 @@ class V8_EXPORT_PRIVATE Zone final {
   std::atomic<size_t> freed_size_for_tracing_ = {0};
 #endif
 
-  friend class ZoneScope;
+  friend class ZoneSnapshot;
 };
 
-// Similar to the HandleScope, the ZoneScope defines a region of validity for
-// zone memory. All memory allocated in the given Zone during the scope's
-// lifetime is freed when the scope is destructed, i.e. the Zone is reset to
-// the state it was in when the scope was created.
-class ZoneScope final {
+// A `ZoneSnapshot` stores the allocation state of a zone. The zone can later be
+// reset to that state, effectively deleting all memory which was allocated in
+// the zone after taking the snapshot.
+// See `ZoneScope` for an example usage of `ZoneSnapshot`.
+class ZoneSnapshot final {
  public:
-  explicit ZoneScope(Zone* zone);
-  ~ZoneScope();
+  // Reset the `Zone` from which this snapshot was taken to the state stored in
+  // this snapshot.
+  void Restore(Zone* zone) const;
 
  private:
-  Zone* const zone_;
+  explicit ZoneSnapshot(const Zone* zone);
+  friend class Zone;
+
 #ifdef V8_ENABLE_PRECISE_ZONE_STATS
   const size_t allocation_size_for_tracing_;
   const size_t freed_size_for_tracing_;
@@ -297,6 +299,21 @@ class ZoneScope final {
   const Address position_;
   const Address limit_;
   Segment* const segment_head_;
+};
+
+// Similar to the HandleScope, the ZoneScope defines a region of validity for
+// zone memory. All memory allocated in the given Zone during the scope's
+// lifetime is freed when the scope is destructed, i.e. the Zone is reset to
+// the state it was in when the scope was created.
+class ZoneScope final {
+ public:
+  explicit ZoneScope(Zone* zone) : zone_(zone), snapshot_(zone->Snapshot()) {}
+
+  ~ZoneScope() { snapshot_.Restore(zone_); }
+
+ private:
+  Zone* const zone_;
+  const ZoneSnapshot snapshot_;
 };
 
 // ZoneObject is an abstraction that helps define classes of objects

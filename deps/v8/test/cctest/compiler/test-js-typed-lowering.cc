@@ -12,7 +12,7 @@
 #include "src/compiler/opcodes.h"
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/simplified-operator.h"
-#include "src/compiler/typer.h"
+#include "src/compiler/turbofan-typer.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory-inl.h"
 #include "src/objects/objects.h"
@@ -27,8 +27,7 @@ class JSTypedLoweringTester : public HandleAndZoneScope,
                               public JSHeapBrokerTestBase {
  public:
   explicit JSTypedLoweringTester(int num_parameters = 0)
-      : HandleAndZoneScope(kCompressGraphZone),
-        JSHeapBrokerTestBase(main_isolate(), main_zone()),
+      : JSHeapBrokerTestBase(main_isolate(), main_zone()),
         isolate(main_isolate()),
         binop(nullptr),
         unop(nullptr),
@@ -53,7 +52,7 @@ class JSTypedLoweringTester : public HandleAndZoneScope,
   MachineOperatorBuilder machine;
   SimplifiedOperatorBuilder simplified;
   CommonOperatorBuilder common;
-  Graph graph;
+  TFGraph graph;
   Typer typer;
   Node* context_node;
   CompilationDependencies deps;

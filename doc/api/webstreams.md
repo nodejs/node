@@ -807,7 +807,7 @@ queue.
 added: v16.5.0
 -->
 
-* `chunk`: {Buffer|TypedArray|DataView}
+* `chunk` {Buffer|TypedArray|DataView}
 
 Appends a new chunk of data to the {ReadableStream}'s queue.
 
@@ -1077,7 +1077,7 @@ Releases this writer's lock on the underlying {ReadableStream}.
 added: v16.5.0
 -->
 
-* `chunk`: {any}
+* `chunk` {any}
 * Returns: A promise fulfilled with `undefined`.
 
 Appends a new chunk of data to the {WritableStream}'s queue.
@@ -1481,13 +1481,18 @@ changes:
 added: v17.0.0
 changes:
   - version:
+    - v24.7.0
+    - v22.20.0
+    pr-url: https://github.com/nodejs/node/pull/59464
+    description: format now accepts `brotli` value.
+  - version:
     - v21.2.0
     - v20.12.0
     pr-url: https://github.com/nodejs/node/pull/50097
     description: format now accepts `deflate-raw` value.
 -->
 
-* `format` {string} One of `'deflate'`, `'deflate-raw'`, or `'gzip'`.
+* `format` {string} One of `'deflate'`, `'deflate-raw'`, `'gzip'`, or `'brotli'`.
 
 #### `compressionStream.readable`
 
@@ -1521,13 +1526,18 @@ changes:
 added: v17.0.0
 changes:
   - version:
+    - v24.7.0
+    - v22.20.0
+    pr-url: https://github.com/nodejs/node/pull/59464
+    description: format now accepts `brotli` value.
+  - version:
     - v21.2.0
     - v20.12.0
     pr-url: https://github.com/nodejs/node/pull/50097
     description: format now accepts `deflate-raw` value.
 -->
 
-* `format` {string} One of `'deflate'`, `'deflate-raw'`, or `'gzip'`.
+* `format` {string} One of `'deflate'`, `'deflate-raw'`, `'gzip'`, or `'brotli'`.
 
 #### `decompressionStream.readable`
 
@@ -1767,7 +1777,7 @@ text(readable).then((data) => {
 [Streams]: stream.md
 [WHATWG Streams Standard]: https://streams.spec.whatwg.org/
 [`stream.Duplex.fromWeb`]: stream.md#streamduplexfromwebpair-options
-[`stream.Duplex.toWeb`]: stream.md#streamduplextowebstreamduplex
+[`stream.Duplex.toWeb`]: stream.md#streamduplextowebstreamduplex-options
 [`stream.Duplex`]: stream.md#class-streamduplex
 [`stream.Readable.fromWeb`]: stream.md#streamreadablefromwebreadablestream-options
 [`stream.Readable.toWeb`]: stream.md#streamreadabletowebstreamreadable-options

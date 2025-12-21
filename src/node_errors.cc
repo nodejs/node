@@ -553,7 +553,7 @@ static void ReportFatalException(Environment* env,
   }
 
   if (env->isolate_data()->options()->report_uncaught_exception) {
-    TriggerNodeReport(env, report_message.c_str(), "Exception", "", error);
+    TriggerNodeReport(env, report_message, "Exception", "", error);
   }
 
   if (env->options()->trace_uncaught) {
@@ -633,7 +633,7 @@ v8::ModifyCodeGenerationFromStringsResult ModifyCodeGenerationFromStrings(
     v8::Local<v8::Context> context,
     v8::Local<v8::Value> source,
     bool is_code_like) {
-  HandleScope scope(context->GetIsolate());
+  HandleScope scope(Isolate::GetCurrent());
 
   if (context->GetNumberOfEmbedderDataFields() <=
       ContextEmbedderIndex::kAllowCodeGenerationFromStrings) {
@@ -1016,7 +1016,7 @@ const char* errno_string(int errorno) {
 }
 
 void PerIsolateMessageListener(Local<Message> message, Local<Value> error) {
-  Isolate* isolate = message->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   switch (message->ErrorLevel()) {
     case Isolate::MessageErrorLevel::kMessageWarning: {
       Environment* env = Environment::GetCurrent(isolate);
@@ -1024,21 +1024,60 @@ void PerIsolateMessageListener(Local<Message> message, Local<Value> error) {
         break;
       }
       Utf8Value filename(isolate, message->GetScriptOrigin().ResourceName());
+      Utf8Value msg(isolate, message->Get());
       // (filename):(line) (message)
-      std::stringstream warning;
-      warning << *filename;
-      warning << ":";
-      warning << message->GetLineNumber(env->context()).FromMaybe(-1);
-      warning << " ";
-      v8::String::Utf8Value msg(isolate, message->Get());
-      warning << *msg;
-      USE(ProcessEmitWarningGeneric(env, warning.str().c_str(), "V8"));
+      std::string warning =
+          SPrintF("%s:%s %s",
+                  filename,
+                  message->GetLineNumber(env->context()).FromMaybe(-1),
+                  msg);
+      USE(ProcessEmitWarningGeneric(env, warning, "V8"));
       break;
     }
     case Isolate::MessageErrorLevel::kMessageError:
       TriggerUncaughtException(isolate, error, message);
       break;
   }
+}
+
+void GetErrorSourcePositions(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  HandleScope scope(isolate);
+  Realm* realm = Realm::GetCurrent(args);
+  Local<Context> context = realm->context();
+
+  CHECK(args[0]->IsObject());
+
+  Local<Message> msg = Exception::CreateMessage(isolate, args[0]);
+
+  // Message::GetEndColumn may not reflect the actual end column in all cases.
+  // So only expose startColumn to JS land.
+  Local<v8::Name> names[] = {
+      OneByteString(isolate, "sourceLine"),
+      OneByteString(isolate, "scriptResourceName"),
+      OneByteString(isolate, "lineNumber"),
+      OneByteString(isolate, "startColumn"),
+  };
+
+  Local<String> source_line;
+  if (!msg->GetSourceLine(context).ToLocal(&source_line)) {
+    return;
+  }
+  int line_number;
+  if (!msg->GetLineNumber(context).To(&line_number)) {
+    return;
+  }
+
+  Local<Value> values[] = {
+      source_line,
+      msg->GetScriptOrigin().ResourceName(),
+      v8::Integer::New(isolate, line_number),
+      v8::Integer::New(isolate, msg->GetStartColumn()),
+  };
+  Local<Object> info =
+      Object::New(isolate, v8::Null(isolate), names, values, arraysize(names));
+
+  args.GetReturnValue().Set(info);
 }
 
 void SetPrepareStackTraceCallback(const FunctionCallbackInfo<Value>& args) {
@@ -1106,6 +1145,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(SetEnhanceStackForFatalException);
   registry->Register(NoSideEffectsToString);
   registry->Register(TriggerUncaughtException);
+  registry->Register(GetErrorSourcePositions);
 }
 
 void Initialize(Local<Object> target,
@@ -1133,8 +1173,10 @@ void Initialize(Local<Object> target,
       context, target, "noSideEffectsToString", NoSideEffectsToString);
   SetMethod(
       context, target, "triggerUncaughtException", TriggerUncaughtException);
+  SetMethod(
+      context, target, "getErrorSourcePositions", GetErrorSourcePositions);
 
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   Local<Object> exit_codes = Object::New(isolate);
   READONLY_PROPERTY(target, "exitCodes", exit_codes);
 

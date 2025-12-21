@@ -231,24 +231,119 @@ uint32_t InstructionGetters<T>::Rvvuimm() const {
 }
 
 template <class T>
+uint32_t InstructionGetters<T>::MopNumber() {
+  if ((this->InstructionBits() & kMopMask) == RO_MOP_R_N) {
+    return this->Bits(21, 20) | this->Bits(27, 26) << 2 |
+           this->Bits(30, 30) << 4;
+  } else {
+    DCHECK_EQ((this->InstructionBits() & kMopMask), RO_MOP_RR_N);
+    return this->Bits(27, 26) | this->Bits(30, 30) << 2;
+  }
+}
+
+template <class T>
 bool InstructionGetters<T>::IsLoad() {
-  return OperandFunct3() == RO_LB || OperandFunct3() == RO_LBU ||
-         OperandFunct3() == RO_LH || OperandFunct3() == RO_LHU ||
-         OperandFunct3() == RO_LW ||
+  switch (OperandFunct3()) {
+    case RO_LB:
+    case RO_LBU:
+    case RO_LH:
+    case RO_LHU:
+    case RO_LW:
 #ifdef V8_TARGET_ARCH_RISCV64
-         OperandFunct3() == RO_LD || OperandFunct3() == RO_LWU ||
+    case RO_LD:
+    case RO_LWU:
 #endif
-         BaseOpcode() == LOAD_FP;
+      return true;
+    case RO_C_LW:
+    case RO_C_LWSP:
+#ifdef V8_TARGET_ARCH_RISCV64
+    case RO_C_LD:
+    case RO_C_LDSP:
+#endif
+      return v8_flags.riscv_c_extension && this->IsShortInstruction();
+    default:
+      break;
+  }
+  if (BaseOpcode() == LOAD_FP) return true;
+  // Atomic instructions.
+  switch (this->InstructionBits() &
+          (kBaseOpcodeMask | kFunct3Mask | kFunct5Mask)) {
+    case RO_LR_W:
+    case RO_AMOSWAP_W:
+    case RO_AMOADD_W:
+    case RO_AMOXOR_W:
+    case RO_AMOAND_W:
+    case RO_AMOOR_W:
+    case RO_AMOMIN_W:
+    case RO_AMOMAX_W:
+    case RO_AMOMINU_W:
+    case RO_AMOMAXU_W:
+#ifdef V8_TARGET_ARCH_RISCV64
+    case RO_LR_D:
+    case RO_AMOSWAP_D:
+    case RO_AMOADD_D:
+    case RO_AMOXOR_D:
+    case RO_AMOAND_D:
+    case RO_AMOOR_D:
+    case RO_AMOMIN_D:
+    case RO_AMOMAX_D:
+    case RO_AMOMINU_D:
+    case RO_AMOMAXU_D:
+#endif
+      return true;
+  }
+  return false;
 }
 
 template <class T>
 bool InstructionGetters<T>::IsStore() {
-  return OperandFunct3() == RO_SB || OperandFunct3() == RO_SH ||
-         OperandFunct3() == RO_SW ||
+  switch (OperandFunct3()) {
+    case RO_SB:
+    case RO_SH:
+    case RO_SW:
 #ifdef V8_TARGET_ARCH_RISCV64
-         OperandFunct3() == RO_SD ||
+    case RO_SD:
 #endif
-         BaseOpcode() == STORE_FP;
+      return true;
+    case RO_C_SW:
+    case RO_C_SWSP:
+#ifdef V8_TARGET_ARCH_RISCV64
+    case RO_C_SD:
+    case RO_C_SDSP:
+#endif
+      return v8_flags.riscv_c_extension && this->IsShortInstruction();
+    default:
+      break;
+  }
+  if (BaseOpcode() == STORE_FP) return true;
+  // Atomic instructions.
+  switch (this->InstructionBits() &
+          (kBaseOpcodeMask | kFunct3Mask | kFunct5Mask)) {
+    case RO_SC_W:
+    case RO_AMOSWAP_W:
+    case RO_AMOADD_W:
+    case RO_AMOXOR_W:
+    case RO_AMOAND_W:
+    case RO_AMOOR_W:
+    case RO_AMOMIN_W:
+    case RO_AMOMAX_W:
+    case RO_AMOMINU_W:
+    case RO_AMOMAXU_W:
+#ifdef V8_TARGET_ARCH_RISCV64
+    case RO_SC_D:
+    case RO_AMOSWAP_D:
+    case RO_AMOADD_D:
+    case RO_AMOXOR_D:
+    case RO_AMOAND_D:
+    case RO_AMOOR_D:
+    case RO_AMOMIN_D:
+    case RO_AMOMAX_D:
+    case RO_AMOMINU_D:
+    case RO_AMOMAXU_D:
+#endif
+      return true;
+  }
+  return false;
 }
 
 template class InstructionGetters<InstructionBase>;

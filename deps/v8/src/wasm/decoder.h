@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_WASM_DECODER_H_
+#define V8_WASM_DECODER_H_
+
 #if !V8_ENABLE_WEBASSEMBLY
 #error This header should only be included if WebAssembly is enabled.
 #endif  // !V8_ENABLE_WEBASSEMBLY
-
-#ifndef V8_WASM_DECODER_H_
-#define V8_WASM_DECODER_H_
 
 #include <cinttypes>
 #include <cstdarg>
@@ -64,6 +64,7 @@ class ITracer {
   virtual void Description(const char* desc) = 0;
   virtual void Description(const char* desc, size_t length) = 0;
   virtual void Description(uint32_t number) = 0;
+  virtual void Description(uint64_t number) = 0;
   virtual void Description(ValueType type) = 0;
   virtual void Description(HeapType type) = 0;
   virtual void Description(const FunctionSig* sig) = 0;
@@ -96,7 +97,7 @@ class Decoder {
   } kFullValidation = {};
 
   struct NoName {
-    constexpr NoName(const char*) {}
+    constexpr NoName(const char*) {}  // NOLINT(runtime/explicit)
     operator const char*() const { UNREACHABLE(); }
   };
   // Pass a {NoName} if we know statically that we do not use it anyway (we are
@@ -498,7 +499,7 @@ class Decoder {
     if (V8_LIKELY((!ValidationTag::validate || pc < end_) && !(*pc & 0x80))) {
       TRACE_IF(trace, "%02x ", *pc);
       IntType result = *pc;
-      if (std::is_signed<IntType>::value) {
+      if (std::is_signed_v<IntType>) {
         // Perform sign extension.
         constexpr int sign_ext_shift = int{8 * sizeof(IntType)} - 7;
         result = (result << sign_ext_shift) >> sign_ext_shift;
@@ -530,7 +531,7 @@ class Decoder {
   V8_INLINE std::pair<IntType, uint32_t> read_leb_tail(
       const uint8_t* pc, Name<ValidationTag> name,
       IntType intermediate_result) {
-    constexpr bool is_signed = std::is_signed<IntType>::value;
+    constexpr bool is_signed = std::is_signed_v<IntType>;
     constexpr int kMaxLength = (size_in_bits + 6) / 7;
     static_assert(byte_index < kMaxLength, "invalid template instantiation");
     constexpr int shift = byte_index * 7;
@@ -541,7 +542,7 @@ class Decoder {
       DCHECK_LT(pc, end_);
       b = *pc;
       TRACE_IF(trace, "%02x ", b);
-      using Unsigned = typename std::make_unsigned<IntType>::type;
+      using Unsigned = std::make_unsigned_t<IntType>;
       intermediate_result |=
           (static_cast<Unsigned>(static_cast<IntType>(b) & 0x7f) << shift);
     }

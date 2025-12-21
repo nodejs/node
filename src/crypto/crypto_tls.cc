@@ -431,7 +431,7 @@ TLSWrap::TLSWrap(Environment* env,
   StreamBase::AttachToObject(GetObject());
   stream->PushStreamListener(this);
 
-  env_->isolate()->AdjustAmountOfExternalAllocatedMemory(kExternalSize);
+  env_->external_memory_accounter()->Increase(env_->isolate(), kExternalSize);
 
   InitSSL();
   Debug(this, "Created new TLSWrap");
@@ -1317,7 +1317,7 @@ void TLSWrap::Destroy() {
   // And destroy
   InvokeQueued(UV_ECANCELED, "Canceled because of SSL destruction");
 
-  env()->isolate()->AdjustAmountOfExternalAllocatedMemory(-kExternalSize);
+  env()->external_memory_accounter()->Decrease(env()->isolate(), kExternalSize);
   ssl_.reset();
 
   enc_in_ = nullptr;
@@ -1357,8 +1357,6 @@ void TLSWrap::EnableALPNCb(const FunctionCallbackInfo<Value>& args) {
 }
 
 void TLSWrap::GetServername(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
   TLSWrap* wrap;
   ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
 
@@ -1368,15 +1366,13 @@ void TLSWrap::GetServername(const FunctionCallbackInfo<Value>& args) {
   if (servername.has_value()) {
     auto& sn = servername.value();
     args.GetReturnValue().Set(
-        OneByteString(env->isolate(), sn.data(), sn.length()));
+        OneByteString(args.GetIsolate(), sn.data(), sn.length()));
   } else {
     args.GetReturnValue().Set(false);
   }
 }
 
 void TLSWrap::SetServername(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
   TLSWrap* wrap;
   ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
 
@@ -1387,7 +1383,7 @@ void TLSWrap::SetServername(const FunctionCallbackInfo<Value>& args) {
 
   CHECK(wrap->ssl_);
 
-  Utf8Value servername(env->isolate(), args[0].As<String>());
+  Utf8Value servername(args.GetIsolate(), args[0].As<String>());
   SSL_set_tlsext_host_name(wrap->ssl_.get(), *servername);
 }
 
@@ -1868,7 +1864,7 @@ void TLSWrap::VerifyError(const FunctionCallbackInfo<Value>& args) {
                             .FromMaybe(Local<Object>());
 
   auto code = X509Pointer::ErrorCode(x509_verify_error);
-  if (Set(env, error, env->code_string(), code.data()))
+  if (Set(env, error, env->code_string(), code))
     args.GetReturnValue().Set(error);
 }
 
@@ -2095,11 +2091,10 @@ void TLSWrap::GetEphemeralKeyInfo(const FunctionCallbackInfo<Value>& args) {
 }
 
 void TLSWrap::GetProtocol(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
   TLSWrap* w;
   ASSIGN_OR_RETURN_UNWRAP(&w, args.This());
   args.GetReturnValue().Set(
-      OneByteString(env->isolate(), SSL_get_version(w->ssl_.get())));
+      OneByteString(args.GetIsolate(), SSL_get_version(w->ssl_.get())));
 }
 
 void TLSWrap::GetALPNNegotiatedProto(const FunctionCallbackInfo<Value>& args) {

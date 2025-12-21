@@ -64,7 +64,7 @@ command.
 added: v8.0.0
 -->
 
-* {Object} The notification message object
+* Type: {Object} The notification message object
 
 Emitted when any notification from the V8 Inspector is received.
 
@@ -79,13 +79,13 @@ session.on('inspectorNotification', (message) => console.log(message.method));
 
 It is also possible to subscribe only to notifications with specific method:
 
-#### Event: `<inspector-protocol-method>`;
+#### Event: `<inspector-protocol-method>`
 
 <!-- YAML
 added: v8.0.0
 -->
 
-* {Object} The notification message object
+* Type: {Object} The notification message object
 
 Emitted when an inspector notification is received that has its method field set
 to the `<inspector-protocol-method>` value.
@@ -243,7 +243,7 @@ command.
 added: v8.0.0
 -->
 
-* {Object} The notification message object
+* Type: {Object} The notification message object
 
 Emitted when any notification from the V8 Inspector is received.
 
@@ -264,7 +264,7 @@ It is also possible to subscribe only to notifications with specific method:
 added: v8.0.0
 -->
 
-* {Object} The notification message object
+* Type: {Object} The notification message object
 
 Emitted when an inspector notification is received that has its method field set
 to the `<inspector-protocol-method>` value.
@@ -420,7 +420,7 @@ are closed. Once all connections are closed, deactivates the inspector.
 
 ### `inspector.console`
 
-* {Object} An object to send messages to the remote inspector console.
+* Type: {Object} An object to send messages to the remote inspector console.
 
 ```js
 require('node:inspector').console.log('a message');
@@ -490,6 +490,8 @@ An exception will be thrown if there is no active inspector.
 
 ## Integration with DevTools
 
+> Stability: 1.1 - Active development
+
 The `node:inspector` module provides an API for integrating with devtools that support Chrome DevTools Protocol.
 DevTools frontends connected to a running Node.js instance can capture protocol events emitted from the instance
 and display them accordingly to facilitate debugging.
@@ -509,6 +511,37 @@ inspector.Network.requestWillBeSent({
 });
 ```
 
+### `inspector.Network.dataReceived([params])`
+
+<!-- YAML
+added:
+ - v24.2.0
+ - v22.17.0
+-->
+
+* `params` {Object}
+
+This feature is only available with the `--experimental-network-inspection` flag enabled.
+
+Broadcasts the `Network.dataReceived` event to connected frontends, or buffers the data if
+`Network.streamResourceContent` command was not invoked for the given request yet.
+
+Also enables `Network.getResponseBody` command to retrieve the response data.
+
+### `inspector.Network.dataSent([params])`
+
+<!-- YAML
+added:
+  - v24.3.0
+  - v22.18.0
+-->
+
+* `params` {Object}
+
+This feature is only available with the `--experimental-network-inspection` flag enabled.
+
+Enables `Network.getRequestPostData` command to retrieve the request data.
+
 ### `inspector.Network.requestWillBeSent([params])`
 
 <!-- YAML
@@ -516,8 +549,6 @@ added:
  - v22.6.0
  - v20.18.0
 -->
-
-> Stability: 1 - Experimental
 
 * `params` {Object}
 
@@ -534,8 +565,6 @@ added:
  - v20.18.0
 -->
 
-> Stability: 1 - Experimental
-
 * `params` {Object}
 
 This feature is only available with the `--experimental-network-inspection` flag enabled.
@@ -550,8 +579,6 @@ added:
  - v22.6.0
  - v20.18.0
 -->
-
-> Stability: 1 - Experimental
 
 * `params` {Object}
 
@@ -568,14 +595,92 @@ added:
  - v20.18.0
 -->
 
-> Stability: 1 - Experimental
-
 * `params` {Object}
 
 This feature is only available with the `--experimental-network-inspection` flag enabled.
 
 Broadcasts the `Network.loadingFailed` event to connected frontends. This event indicates that
 HTTP request has failed to load.
+
+### `inspector.Network.webSocketCreated([params])`
+
+<!-- YAML
+added:
+  - v24.7.0
+-->
+
+* `params` {Object}
+
+This feature is only available with the `--experimental-network-inspection` flag enabled.
+
+Broadcasts the `Network.webSocketCreated` event to connected frontends. This event indicates that
+a WebSocket connection has been initiated.
+
+### `inspector.Network.webSocketHandshakeResponseReceived([params])`
+
+<!-- YAML
+added:
+  - v24.7.0
+-->
+
+* `params` {Object}
+
+This feature is only available with the `--experimental-network-inspection` flag enabled.
+
+Broadcasts the `Network.webSocketHandshakeResponseReceived` event to connected frontends.
+This event indicates that the WebSocket handshake response has been received.
+
+### `inspector.Network.webSocketClosed([params])`
+
+<!-- YAML
+added:
+  - v24.7.0
+-->
+
+* `params` {Object}
+
+This feature is only available with the `--experimental-network-inspection` flag enabled.
+
+Broadcasts the `Network.webSocketClosed` event to connected frontends.
+This event indicates that a WebSocket connection has been closed.
+
+### `inspector.NetworkResources.put`
+
+<!-- YAML
+added:
+  - v24.5.0
+  - v22.19.0
+-->
+
+> Stability: 1.1 - Active Development
+
+This feature is only available with the `--experimental-inspector-network-resource` flag enabled.
+
+The inspector.NetworkResources.put method is used to provide a response for a loadNetworkResource
+request issued via the Chrome DevTools Protocol (CDP).
+This is typically triggered when a source map is specified by URL, and a DevTools frontend—such as
+Chrome—requests the resource to retrieve the source map.
+
+This method allows developers to predefine the resource content to be served in response to such CDP requests.
+
+```js
+const inspector = require('node:inspector');
+// By preemptively calling put to register the resource, a source map can be resolved when
+// a loadNetworkResource request is made from the frontend.
+async function setNetworkResources() {
+  const mapUrl = 'http://localhost:3000/dist/app.js.map';
+  const tsUrl = 'http://localhost:3000/src/app.ts';
+  const distAppJsMap = await fetch(mapUrl).then((res) => res.text());
+  const srcAppTs = await fetch(tsUrl).then((res) => res.text());
+  inspector.NetworkResources.put(mapUrl, distAppJsMap);
+  inspector.NetworkResources.put(tsUrl, srcAppTs);
+};
+setNetworkResources().then(() => {
+  require('./dist/app');
+});
+```
+
+For more details, see the official CDP documentation: [Network.loadNetworkResource](https://chromedevtools.github.io/devtools-protocol/tot/Network/#method-loadNetworkResource)
 
 ## Support of breakpoints
 

@@ -6,6 +6,7 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const assert = require('assert');
+const { hasOpenSSL } = require('../common/crypto');
 const { subtle } = globalThis.crypto;
 
 function getDeriveKeyInfo(name, length, hash, ...usages) {
@@ -19,13 +20,32 @@ const kDerivedKeyTypes = [
   ['AES-CTR', 256, undefined, 'encrypt', 'decrypt'],
   ['AES-GCM', 128, undefined, 'encrypt', 'decrypt'],
   ['AES-GCM', 256, undefined, 'encrypt', 'decrypt'],
-  ['AES-KW', 128, undefined, 'wrapKey', 'unwrapKey'],
-  ['AES-KW', 256, undefined, 'wrapKey', 'unwrapKey'],
   ['HMAC', 256, 'SHA-1', 'sign', 'verify'],
   ['HMAC', 256, 'SHA-256', 'sign', 'verify'],
   ['HMAC', 256, 'SHA-384', 'sign', 'verify'],
   ['HMAC', 256, 'SHA-512', 'sign', 'verify'],
 ];
+
+if (!process.features.openssl_is_boringssl) {
+  kDerivedKeyTypes.push(
+    ['AES-KW', 128, undefined, 'wrapKey', 'unwrapKey'],
+    ['AES-KW', 256, undefined, 'wrapKey', 'unwrapKey'],
+    ['HMAC', 256, 'SHA3-256', 'sign', 'verify'],
+    ['HMAC', 256, 'SHA3-384', 'sign', 'verify'],
+    ['HMAC', 256, 'SHA3-512', 'sign', 'verify'],
+  );
+} else {
+  common.printSkipMessage('Skipping unsupported test cases');
+}
+
+if (hasOpenSSL(3)) {
+  kDerivedKeyTypes.push(
+    ['AES-OCB', 128, undefined, 'encrypt', 'decrypt'],
+    ['AES-OCB', 256, undefined, 'encrypt', 'decrypt'],
+  );
+} else {
+  common.printSkipMessage('Skipping unsupported test cases');
+}
 
 const kDerivedKeys = {
   short: '5040737377307264',
@@ -70,7 +90,21 @@ const kDerivations = {
                 'b127e92631c1c051482d6690941772b4',
         empty: '9e4b719033742101e90f1ad61e2ff3b4' +
                '256863667296d74389f1f02af2c4e6a6'
-      }
+      },
+      ...(!process.features.openssl_is_boringssl ? {
+        'SHA3-256': {
+          normal: '386b0693d7a58c4ddf01b49bfbbd2fa87c6f911991543995170ba20ed28df599',
+          empty: 'd029bc828b6c6c8bb16ce3d25f5058f19c7d2517745e11c5d65c6d242e82e47f',
+        },
+        'SHA3-384': {
+          normal: '8c3b72e659bad40bcd14bdc1f7c3836059d24253795ab046a272973fd0456508',
+          empty: '3211ff4c676f761494c1ca2683d2d4662fe1d770ae5c58ebf6af6acb181c7d71',
+        },
+        'SHA3-512': {
+          normal: '5588c5c70cb3dd2f95323da2e9d5f299ca99c301d920a499330c449d21c645cd',
+          empty: '2c944b916c2751a71a1b5e57fcb487939c624335683995770b9f7cc7cbbb21f0',
+        },
+      } : {}),
     },
     empty: {
       'SHA-384': {
@@ -96,7 +130,21 @@ const kDerivations = {
                 '0acea6f165476eb83460b9353ed41dfe',
         empty: 'c8e12774135305c9147f2cc4766e5ead' +
                '25d8f457b9a1953d52677361ced558fb'
-      }
+      },
+      ...(!process.features.openssl_is_boringssl ? {
+        'SHA3-256': {
+          normal: '9befc557f5baf4075b5fb38c014b41b92ab7534150baf64201069e8807d0e83d',
+          empty: '54d1fa1aa7cad99dab0622b772170e775c103756183bac36a228fd817a98a3f6',
+        },
+        'SHA3-384': {
+          normal: '46b54c015e368677edf7ac16963bccd9d2ba8246eef0e8beb04d8d188774b91b',
+          empty: '46eb0b2649bb0f605d70e4818ffc8176ee1be9782396e69fb4d0fd7cfe902b55',
+        },
+        'SHA3-512': {
+          normal: 'aa4375c82b5d7a3cac88a0423250b3882f140c253e98e8e7a0f6055b0908e4c2',
+          empty: '6613003f98602ddb53ac35f5aa256c9f5279d50ee65bb08fdf2ecf65cc5df27f',
+        },
+      } : {}),
     }
   },
   long: {
@@ -124,7 +172,21 @@ const kDerivations = {
                 '50b3dd9a29f30606e2cad199bec14d13',
         empty: 'e579d1f9e7f08e6f990ffcfcce1ed201' +
                'c5e37e62cdf606f0ba4aca80427fbc44'
-      }
+      },
+      ...(!process.features.openssl_is_boringssl ? {
+        'SHA3-256': {
+          normal: '24f38fd1905554b7cbf8395cc3976292d11ce24a0b3131da0fd4b109832d27e3',
+          empty: '33d0a5151c0f52e4bb7fb67cf7a17063127624dc3e685903f49ebb07872084d1',
+        },
+        'SHA3-384': {
+          normal: '15777581a1ea81ad0baac8a97d954df4142f7260d9e8351aa7f6ef6de2d04632',
+          empty: 'ada4da4e28dc971633a8760b265b3019db57baf17e7bf7e13cf78b1a676f6d44',
+        },
+        'SHA3-512': {
+          normal: '621e4602b07fcba55ed6b976a8bef513b0f7c4ad0c546e0f852993051d887408',
+          empty: 'f1292af65b05c86cf7146b739bc65785c707450316f3207ee54a3f596a7d0f7b',
+        },
+      } : {}),
     },
     empty: {
       'SHA-384': {
@@ -150,7 +212,21 @@ const kDerivations = {
                 '851cc5baadb42cad024b6290fe213436',
         empty: 'b4f7e7557674d501cbfbc0148ad800c0' +
                '750189fe295a2aca5e1bf4122c85edf9'
-      }
+      },
+      ...(!process.features.openssl_is_boringssl ? {
+        'SHA3-256': {
+          normal: 'fe32459f7339dd2e8df6c6fc874ed9e81e3b7aad669edad9b71196f53ed95b12',
+          empty: '04519be1eb94079c91306cc5b21946b3de6a78ad35ec83d4f4a37bafbda678d7',
+        },
+        'SHA3-384': {
+          normal: 'a474e8289cb4a0511e90b87eaf9ec29cadd74d4c1f2ee1fb8cb5f7d08f91a379',
+          empty: '726c8c4b39083a7d5755604d3a67e9aa6139db00c08028ac9e69f7fb1525bf1d',
+        },
+        'SHA3-512': {
+          normal: 'c7a7f5004d1d595c6896498c169642ac24b946e13296ff53e12b534962a88675',
+          empty: '7b543480b5696932551abb3100d72e05c18f57fbb63aa44fe020bef1eec3555c',
+        },
+      } : {}),
     }
   },
 };
@@ -294,7 +370,7 @@ async function testDeriveBitsBadHash(
       subtle.deriveBits(
         {
           ...algorithm,
-          hash: hash.substring(0, 3) + hash.substring(4)
+          hash: hash.replace('-', '')
         }, baseKeys[size], 256), {
         message: /Unrecognized algorithm name/,
         name: 'NotSupportedError',
@@ -306,7 +382,6 @@ async function testDeriveBitsBadHash(
           hash: 'PBKDF2'
         },
         baseKeys[size], 256), {
-        message: /Unrecognized algorithm name/,
         name: 'NotSupportedError',
       }),
   ]);
@@ -407,7 +482,7 @@ async function testDeriveKey(
     true,
     usages);
 
-  const bits = await subtle.exportKey('raw', key);
+  const bits = await subtle.exportKey(key.algorithm.name === 'AES-OCB' ? 'raw-secret' : 'raw', key);
 
   assert.strictEqual(
     Buffer.from(bits).toString('hex'),
@@ -431,16 +506,13 @@ async function testDeriveKeyBadHash(
       subtle.deriveKey(
         {
           ...algorithm,
-          hash: hash.substring(0, 3) + hash.substring(4)
+          hash: hash.replace('-', '')
         },
         baseKeys[size],
         keyType,
         true,
         usages),
-      {
-        message: /Unrecognized algorithm name/,
-        name: 'NotSupportedError',
-      }),
+      { name: 'NotSupportedError' }),
     assert.rejects(
       subtle.deriveKey(
         {
@@ -451,10 +523,7 @@ async function testDeriveKeyBadHash(
         keyType,
         true,
         usages),
-      {
-        message: /Unrecognized algorithm name/,
-        name: 'NotSupportedError',
-      }),
+      { name: 'NotSupportedError' }),
   ]);
 }
 

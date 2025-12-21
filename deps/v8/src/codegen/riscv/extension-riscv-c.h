@@ -1,12 +1,14 @@
 // Copyright 2022 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+
+#ifndef V8_CODEGEN_RISCV_EXTENSION_RISCV_C_H_
+#define V8_CODEGEN_RISCV_EXTENSION_RISCV_C_H_
+
 #include "src/codegen/assembler.h"
 #include "src/codegen/riscv/base-assembler-riscv.h"
 #include "src/codegen/riscv/constant-riscv-c.h"
 #include "src/codegen/riscv/register-riscv.h"
-#ifndef V8_CODEGEN_RISCV_EXTENSION_RISCV_C_H_
-#define V8_CODEGEN_RISCV_EXTENSION_RISCV_C_H_
 
 namespace v8 {
 namespace internal {
@@ -61,7 +63,7 @@ class AssemblerRISCVC : public AssemblerRiscvBase {
   static bool IsCJal(Instr instr);
 
   inline int16_t cjump_offset(Label* L) {
-    return (int16_t)branch_offset_helper(L, OffsetSize::kOffset11);
+    return static_cast<int16_t>(branch_offset_helper(L, OffsetSize::kOffset11));
   }
   inline int32_t cbranch_offset(Label* L) {
     return branch_offset_helper(L, OffsetSize::kOffset9);

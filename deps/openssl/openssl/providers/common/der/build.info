@@ -57,7 +57,7 @@ IF[{- !$disabled{ec} -}]
 ENDIF
 
 #----- ECX
-IF[{- !$disabled{ec} -}]
+IF[{- !$disabled{ecx} -}]
   $DER_ECX_H=$INCDIR/der_ecx.h
   $DER_ECX_GEN=der_ecx_gen.c
   $DER_ECX_AUX=der_ecx_key.c
@@ -69,6 +69,21 @@ IF[{- !$disabled{ec} -}]
   DEPEND[${DER_ECX_GEN/.c/.o}]=$DER_ECX_H
   GENERATE[$DER_ECX_H]=$INCDIR/der_ecx.h.in
   DEPEND[$DER_ECX_H]=oids_to_c.pm ECX.asn1
+ENDIF
+
+#----- ML-DSA
+IF[{- !$disabled{'ml-dsa'} -}]
+  $DER_ML_DSA_H=$INCDIR/der_ml_dsa.h
+  $DER_ML_DSA_GEN=der_ml_dsa_gen.c
+  $DER_ML_DSA_AUX=der_ml_dsa_key.c
+
+  GENERATE[$DER_ML_DSA_GEN]=der_ml_dsa_gen.c.in
+  DEPEND[$DER_ML_DSA_GEN]=oids_to_c.pm ML_DSA.asn1
+
+  DEPEND[${DER_ML_DSA_GEN/.c/.o}]=$DER_ML_DSA_H
+  DEPEND[${DER_ML_DSA_AUX/.c/.o}]=$DER_ML_DSA_H
+  GENERATE[$DER_ML_DSA_H]=$INCDIR/der_ml_dsa.h.in
+  DEPEND[$DER_ML_DSA_H]=oids_to_c.pm ML_DSA.asn1
 ENDIF
 
 #----- KEY WRAP
@@ -97,6 +112,21 @@ IF[{- !$disabled{sm2} -}]
   DEPEND[$DER_SM2_H]=oids_to_c.pm SM2.asn1
 ENDIF
 
+#----- SLH-DSA
+IF[{- !$disabled{'slh-dsa'} -}]
+  $DER_SLH_DSA_H=$INCDIR/der_slh_dsa.h
+  $DER_SLH_DSA_GEN=der_slh_dsa_gen.c
+  $DER_SLH_DSA_AUX=der_slh_dsa_key.c
+
+  GENERATE[$DER_SLH_DSA_GEN]=der_slh_dsa_gen.c.in
+  DEPEND[$DER_SLH_DSA_GEN]=oids_to_c.pm SLH_DSA.asn1
+
+  DEPEND[${DER_SLH_DSA_GEN/.c/.o}]=$DER_SLH_DSA_H
+  DEPEND[${DER_SLH_DSA_AUX/.c/.o}]=$DER_SLH_DSA_H
+  GENERATE[$DER_SLH_DSA_H]=$INCDIR/der_slh_dsa.h.in
+  DEPEND[$DER_SLH_DSA_H]=oids_to_c.pm SLH_DSA.asn1
+ENDIF
+
 #----- Conclusion
 
 $COMMON= $DER_RSA_COMMON $DER_DIGESTS_GEN $DER_WRAP_GEN
@@ -107,11 +137,21 @@ ENDIF
 
 IF[{- !$disabled{ec} -}]
   $COMMON = $COMMON $DER_EC_GEN $DER_EC_AUX
-  $COMMON = $COMMON $DER_ECX_GEN $DER_ECX_AUX
+  IF[{- !$disabled{ecx} -}]
+    $COMMON = $COMMON $DER_ECX_GEN $DER_ECX_AUX
+  ENDIF
+ENDIF
+
+IF[{- !$disabled{'ml-dsa'} -}]
+  $COMMON = $COMMON $DER_ML_DSA_GEN $DER_ML_DSA_AUX
 ENDIF
 
 IF[{- !$disabled{sm2} -}]
   $NONFIPS = $NONFIPS $DER_SM2_GEN $DER_SM2_AUX
+ENDIF
+
+IF[{- !$disabled{'slh-dsa'} -}]
+  $COMMON = $COMMON $DER_SLH_DSA_GEN $DER_SLH_DSA_AUX
 ENDIF
 
 SOURCE[../../libcommon.a]= $COMMON

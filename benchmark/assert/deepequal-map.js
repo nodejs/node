@@ -31,7 +31,7 @@ function benchmark(method, n, values, values2) {
 }
 
 function main({ n, len, method, strict }) {
-  const array = Array(len).fill(1);
+  const array = Array.from({ length: len }, () => '');
 
   switch (method) {
     case 'deepEqual_primitiveOnly': {

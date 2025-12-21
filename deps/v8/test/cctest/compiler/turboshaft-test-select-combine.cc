@@ -392,7 +392,6 @@ constexpr TurboshaftComparison int64_cmp_opcodes[] = {
     TurboshaftComparison::kUint64LessThanOrEqual};
 
 TEST(Word32SelectCombineInt64CompareZero) {
-  RawMachineAssemblerTester<int32_t> features(MachineType::Int32());
   if (!SelectIsSupported(SelectOperator::kWord32Select)) {
     return;
   }
@@ -423,7 +422,6 @@ TEST(Word32SelectCombineInt64CompareZero) {
 }
 
 TEST(Word64SelectCombineInt64CompareZero) {
-  RawMachineAssemblerTester<uint32_t> features(MachineType::Uint32());
   if (!SelectIsSupported(SelectOperator::kWord64Select)) {
     return;
   }
@@ -456,7 +454,6 @@ TEST(Word64SelectCombineInt64CompareZero) {
 }
 
 TEST(Float32SelectCombineInt64CompareZero) {
-  RawMachineAssemblerTester<uint32_t> features(MachineType::Uint32());
   if (!SelectIsSupported(SelectOperator::kFloat32Select)) {
     return;
   }
@@ -487,7 +484,6 @@ TEST(Float32SelectCombineInt64CompareZero) {
 }
 
 TEST(Float64SelectCombineInt64CompareZero) {
-  RawMachineAssemblerTester<uint32_t> features(MachineType::Uint32());
   if (!SelectIsSupported(SelectOperator::kFloat64Select)) {
     return;
   }

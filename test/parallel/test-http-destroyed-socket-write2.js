@@ -30,14 +30,14 @@ const http = require('http');
 
 const kResponseDestroyed = Symbol('kResponseDestroyed');
 
-const server = http.createServer(function(req, res) {
+const server = http.createServer(common.mustCallAtLeast((req, res) => {
   req.on('data', common.mustCall(function() {
     res.destroy();
     server.emit(kResponseDestroyed);
   }));
-});
+}));
 
-server.listen(0, function() {
+server.listen(0, common.mustCall(function() {
   const req = http.request({
     port: this.address().port,
     path: '/',
@@ -76,4 +76,4 @@ server.listen(0, function() {
 
   req.on('response', common.mustNotCall());
   req.write('hello', common.mustSucceed());
-});
+}));

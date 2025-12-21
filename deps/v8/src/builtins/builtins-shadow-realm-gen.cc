@@ -48,8 +48,8 @@ class ShadowRealmBuiltinsAssembler : public CodeStubAssembler {
 TNode<JSObject> ShadowRealmBuiltinsAssembler::AllocateJSWrappedFunction(
     TNode<Context> context, TNode<Object> target) {
   TNode<NativeContext> native_context = LoadNativeContext(context);
-  TNode<Map> map = CAST(
-      LoadContextElement(native_context, Context::WRAPPED_FUNCTION_MAP_INDEX));
+  TNode<Map> map = CAST(LoadContextElementNoCell(
+      native_context, Context::WRAPPED_FUNCTION_MAP_INDEX));
   TNode<JSObject> wrapped = AllocateJSObjectFromMap(map);
   StoreObjectFieldNoWriteBarrier(
       wrapped, JSWrappedFunction::kWrappedTargetFunctionOffset, target);
@@ -164,7 +164,11 @@ TF_BUILTIN(ShadowRealmGetWrappedValue, ShadowRealmBuiltinsAssembler) {
   // We don't need to check the exact accessor here because the only case
   // custom accessor arise is with function templates via API, and in that
   // case the object is in dictionary mode
+#if V8_ENABLE_WEBASSEMBLY
+  TNode<DescriptorArray> descriptors = CAST(LoadMapInstanceDescriptors(map));
+#else
   TNode<DescriptorArray> descriptors = LoadMapInstanceDescriptors(map);
+#endif  // V8_ENABLE_WEBASSEMBLY
   CheckAccessor(
       descriptors,
       IntPtrConstant(
@@ -179,8 +183,8 @@ TF_BUILTIN(ShadowRealmGetWrappedValue, ShadowRealmBuiltinsAssembler) {
   // Verify that prototype matches the function prototype of the target
   // context.
   TNode<Object> prototype = LoadMapPrototype(map);
-  TNode<Object> function_map =
-      LoadContextElement(target_context, Context::WRAPPED_FUNCTION_MAP_INDEX);
+  TNode<Object> function_map = LoadContextElementNoCell(
+      target_context, Context::WRAPPED_FUNCTION_MAP_INDEX);
   TNode<Object> function_prototype = LoadMapPrototype(CAST(function_map));
   GotoIf(TaggedNotEqual(prototype, function_prototype), &slow_wrap);
 
@@ -285,9 +289,9 @@ TF_BUILTIN(CallWrappedFunction, ShadowRealmBuiltinsAssembler) {
 
   // 10. If result.[[Type]] is normal or result.[[Type]] is return, then
   // 10a. Return ? GetWrappedValue(callerRealm, result.[[Value]]).
-  TNode<Object> wrapped_result =
-      CallBuiltin(Builtin::kShadowRealmGetWrappedValue, caller_context,
-                  caller_context, target_context, result);
+  TNode<JSAny> wrapped_result =
+      CallBuiltin<JSAny>(Builtin::kShadowRealmGetWrappedValue, caller_context,
+                         caller_context, target_context, result);
   args.PopAndReturn(wrapped_result);
 
   // 11. Else,
@@ -355,7 +359,7 @@ TNode<Object> ShadowRealmBuiltinsAssembler::ImportValue(
   TNode<JSFunction> on_fulfilled = AllocateImportValueFulfilledFunction(
       caller_context, eval_context, specifier, export_name);
 
-  TNode<JSFunction> on_rejected = CAST(LoadContextElement(
+  TNode<JSFunction> on_rejected = CAST(LoadContextElementNoCell(
       caller_context, Context::SHADOW_REALM_IMPORT_VALUE_REJECTED_INDEX));
   // 12. Let promiseCapability be ! NewPromiseCapability(%Promise%).
   TNode<JSPromise> promise = NewJSPromise(caller_context);
@@ -373,7 +377,7 @@ TF_BUILTIN(ShadowRealmImportValueFulfilled, ShadowRealmBuiltinsAssembler) {
   // with argument exports, it performs the following steps:
   // 8. Let realm be f.[[Realm]].
   TNode<Context> context = Parameter<Context>(Descriptor::kContext);
-  TNode<Context> eval_context = CAST(LoadContextElement(
+  TNode<Context> eval_context = CAST(LoadContextElementNoCell(
       context, ImportValueFulfilledFunctionContextSlot::kEvalContextSlot));
 
   Label get_export_exception(this, Label::kDeferred);
@@ -381,7 +385,7 @@ TF_BUILTIN(ShadowRealmImportValueFulfilled, ShadowRealmBuiltinsAssembler) {
   // 2. Let f be the active function object.
   // 3. Let string be f.[[ExportNameString]].
   // 4. Assert: Type(string) is String.
-  TNode<String> export_name_string = CAST(LoadContextElement(
+  TNode<String> export_name_string = CAST(LoadContextElementNoCell(
       context, ImportValueFulfilledFunctionContextSlot::kExportNameSlot));
 
   // 1. Assert: exports is a module namespace exotic object.
@@ -412,7 +416,7 @@ TF_BUILTIN(ShadowRealmImportValueFulfilled, ShadowRealmBuiltinsAssembler) {
 
   BIND(&get_export_exception);
   {
-    TNode<String> specifier_string = CAST(LoadContextElement(
+    TNode<String> specifier_string = CAST(LoadContextElementNoCell(
         context, ImportValueFulfilledFunctionContextSlot::kSpecifierSlot));
     ThrowTypeError(context, MessageTemplate::kUnresolvableExport,
                    specifier_string, export_name_string);

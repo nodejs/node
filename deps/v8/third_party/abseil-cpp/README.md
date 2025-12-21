@@ -1,7 +1,7 @@
 # Abseil - C++ Common Libraries
 
 The repository contains the Abseil C++ library code. Abseil is an open-source
-collection of C++ code (compliant to C++14) designed to augment the C++
+collection of C++ code (compliant to C++17) designed to augment the C++
 standard library.
 
 ## Table of Contents
@@ -99,8 +99,8 @@ Abseil contains the following C++ library components:
   <br /> The `memory` library contains memory management facilities that augment
   C++'s `<memory>` library.
 * [`meta`](absl/meta/)
-  <br /> The `meta` library contains compatible versions of type checks
-  available within C++14 and C++17 versions of the C++ `<type_traits>` library.
+  <br /> The `meta` library contains type checks
+  similar to those available in the C++ `<type_traits>` library.
 * [`numeric`](absl/numeric/)
   <br /> The `numeric` library contains 128-bit integer types as well as
   implementations of C++20's bitwise math functions.
@@ -108,15 +108,14 @@ Abseil contains the following C++ library components:
   <br /> The `profiling` library contains utility code for profiling C++
   entities.  It is currently a private dependency of other Abseil libraries.
 * [`random`](absl/random/)
-  <br /> The `random` library contains functions for generating psuedorandom
+  <br /> The `random` library contains functions for generating pseudorandom
   values.
 * [`status`](absl/status/)
   <br /> The `status` library contains abstractions for error handling,
   specifically `absl::Status` and `absl::StatusOr<T>`.
 * [`strings`](absl/strings/)
   <br /> The `strings` library contains a variety of strings routines and
-  utilities, including a C++14-compatible version of the C++17
-  `std::string_view` type.
+  utilities.
 * [`synchronization`](absl/synchronization/)
   <br /> The `synchronization` library contains concurrency primitives (Abseil's
   `absl::Mutex` class, an alternative to `std::mutex`) and a variety of
@@ -126,8 +125,7 @@ Abseil contains the following C++ library components:
   points in time, durations of time, and formatting and parsing time within
   time zones.
 * [`types`](absl/types/)
-  <br /> The `types` library contains non-container utility types, like a
-  C++14-compatible version of the C++17 `std::optional` type.
+  <br /> The `types` library contains non-container utility types.
 * [`utility`](absl/utility/)
   <br /> The `utility` library contains utility and helper code.
 

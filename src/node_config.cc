@@ -7,6 +7,10 @@
 #include "node_options.h"
 #include "util-inl.h"
 
+#if HAVE_OPENSSL
+#include "ncrypto.h"  // Ensure OPENSSL_IS_BORINGSSL is defined if applicable
+#endif
+
 namespace node {
 
 using v8::Context;
@@ -47,6 +51,12 @@ static void InitConfig(Local<Object> target,
 #else
   READONLY_FALSE_PROPERTY(target, "isDebugBuild");
 #endif  // defined(DEBUG) && DEBUG
+
+#ifdef OPENSSL_IS_BORINGSSL
+  READONLY_TRUE_PROPERTY(target, "openSSLIsBoringSSL");
+#else
+  READONLY_FALSE_PROPERTY(target, "openSSLIsBoringSSL");
+#endif  // OPENSSL_IS_BORINGSSL
 
 #if HAVE_OPENSSL
   READONLY_TRUE_PROPERTY(target, "hasOpenSSL");

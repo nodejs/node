@@ -7,6 +7,7 @@
 #include "src/base/logging.h"
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
+#include "src/strings/unicode.h"
 #include "src/utils/utils.h"
 
 namespace v8 {
@@ -15,28 +16,26 @@ namespace internal {
 // FastAsciiConvert tries to do character processing on a word_t basis if
 // source and destination strings are properly aligned. Natural alignment of
 // string data depends on kTaggedSize so we define word_t via Tagged_t.
-using word_t = std::make_unsigned<Tagged_t>::type;
+using word_t = std::make_unsigned_t<Tagged_t>;
 
-const word_t kWordTAllBitsSet = std::numeric_limits<word_t>::max();
-const word_t kOneInEveryByte = kWordTAllBitsSet / 0xFF;
-const word_t kAsciiMask = kOneInEveryByte << 7;
+constexpr word_t kWordTAllBitsSet = std::numeric_limits<word_t>::max();
+constexpr word_t kOneInEveryByte = kWordTAllBitsSet / 0xFF;
+constexpr word_t kAsciiMask = kOneInEveryByte << 7;
 
 #ifdef DEBUG
-bool CheckFastAsciiConvert(char* dst, const char* src, int length, bool changed,
-                           bool is_to_lower) {
-  bool expected_changed = false;
-  for (int i = 0; i < length; i++) {
-    if (dst[i] == src[i]) continue;
-    expected_changed = true;
-    if (is_to_lower) {
-      DCHECK('A' <= src[i] && src[i] <= 'Z');
-      DCHECK(dst[i] == src[i] + ('a' - 'A'));
+template <class CaseMapping>
+void CheckFastAsciiConvert(char* dst, const char* src, uint32_t length) {
+  constexpr bool is_to_lower = CaseMapping::kIsToLower;
+  constexpr char lo = is_to_lower ? 'A' : 'a';
+  constexpr char hi = is_to_lower ? 'Z' : 'z';
+  constexpr int diff = is_to_lower ? ('a' - 'A') : ('A' - 'a');
+  for (uint32_t i = 0; i < length; i++) {
+    if (lo <= src[i] && src[i] <= hi) {
+      DCHECK_EQ(dst[i], src[i] + diff);
     } else {
-      DCHECK('a' <= src[i] && src[i] <= 'z');
-      DCHECK(dst[i] == src[i] - ('a' - 'A'));
+      DCHECK_EQ(src[i], dst[i]);
     }
   }
-  return (expected_changed == changed);
 }
 #endif
 
@@ -47,20 +46,63 @@ bool CheckFastAsciiConvert(char* dst, const char* src, int length, bool changed,
 // boundaries are statically known.
 // Requires: all bytes in the input word and the boundaries must be
 // ASCII (less than 0x7F).
-static inline word_t AsciiRangeMask(word_t w, char m, char n) {
+template <char low, char high>
+static inline word_t AsciiRangeMask(word_t w) {
   // Use strict inequalities since in edge cases the function could be
   // further simplified.
-  DCHECK(0 < m && m < n);
+  DCHECK_LT(0, low);
+  DCHECK_LT(low, high);
   // Has high bit set in every w byte less than n.
-  word_t tmp1 = kOneInEveryByte * (0x7F + n) - w;
+  word_t tmp1 = kOneInEveryByte * (0x7F + high) - w;
   // Has high bit set in every w byte greater than m.
-  word_t tmp2 = w + kOneInEveryByte * (0x7F - m);
+  word_t tmp2 = w + kOneInEveryByte * (0x7F - low);
   return (tmp1 & tmp2 & (kOneInEveryByte * 0x80));
 }
 
-template <bool is_lower>
-int FastAsciiConvert(char* dst, const char* src, int length,
-                     bool* changed_out) {
+template <class CaseMapping>
+uint32_t FastAsciiCasePrefixLength(const char* src, uint32_t length) {
+  const char* saved_src = src;
+  DisallowGarbageCollection no_gc;
+  // We rely on the distance between upper and lower case letters
+  // being a known power of 2.
+  DCHECK_EQ('a' - 'A', 1 << 5);
+  // Boundaries for the range of input characters that require conversion.
+  constexpr bool is_lower = CaseMapping::kIsToLower;
+  constexpr char lo = is_lower ? 'A' - 1 : 'a' - 1;
+  constexpr char hi = is_lower ? 'Z' + 1 : 'z' + 1;
+  const char* const limit = src + length;
+
+  // Only attempt processing one word at a time if src is also aligned.
+  if (IsAligned(reinterpret_cast<Address>(src), sizeof(word_t))) {
+    // Process the prefix of the input that requires no conversion one aligned
+    // (machine) word at a time.
+    while (src <= limit - sizeof(word_t)) {
+      const word_t w = *reinterpret_cast<const word_t*>(src);
+      if ((w & kAsciiMask) != 0) return static_cast<int>(src - saved_src);
+      if (AsciiRangeMask<lo, hi>(w) != 0) {
+        return static_cast<int>(src - saved_src);
+      }
+      src += sizeof(word_t);
+    }
+  }
+  // Process the last few bytes of the input (or the whole input if
+  // unaligned access is not supported).
+  for (; src < limit; ++src) {
+    char c = *src;
+    if ((c & kAsciiMask) != 0 || (lo < c && c < hi)) {
+      return static_cast<int>(src - saved_src);
+    }
+  }
+  return length;
+}
+
+template uint32_t FastAsciiCasePrefixLength<unibrow::ToLowercase>(
+    const char* src, uint32_t length);
+template uint32_t FastAsciiCasePrefixLength<unibrow::ToUppercase>(
+    const char* src, uint32_t length);
+
+template <class CaseMapping>
+uint32_t FastAsciiConvert(char* dst, const char* src, uint32_t length) {
 #ifdef DEBUG
   char* saved_dst = dst;
 #endif
@@ -69,25 +111,23 @@ int FastAsciiConvert(char* dst, const char* src, int length,
   // We rely on the distance between upper and lower case letters
   // being a known power of 2.
   DCHECK_EQ('a' - 'A', 1 << 5);
-  // Boundaries for the range of input characters than require conversion.
-  static const char lo = is_lower ? 'A' - 1 : 'a' - 1;
-  static const char hi = is_lower ? 'Z' + 1 : 'z' + 1;
-  bool changed = false;
+  // Boundaries for the range of input characters that require conversion.
+  constexpr bool is_lower = CaseMapping::kIsToLower;
+  constexpr char lo = is_lower ? 'A' - 1 : 'a' - 1;
+  constexpr char hi = is_lower ? 'Z' + 1 : 'z' + 1;
   const char* const limit = src + length;
 
   // dst is newly allocated and always aligned.
-  DCHECK(IsAligned(reinterpret_cast<Address>(dst), sizeof(word_t)));
-  // Only attempt processing one word at a time if src is also aligned.
-  if (IsAligned(reinterpret_cast<Address>(src), sizeof(word_t))) {
+  // Only attempt processing one word at a time if src and dst are aligned.
+
+  if (IsAligned(reinterpret_cast<Address>(dst), sizeof(word_t)) &&
+      IsAligned(reinterpret_cast<Address>(src), sizeof(word_t))) {
     // Process the prefix of the input that requires no conversion one aligned
     // (machine) word at a time.
     while (src <= limit - sizeof(word_t)) {
       const word_t w = *reinterpret_cast<const word_t*>(src);
       if ((w & kAsciiMask) != 0) return static_cast<int>(src - saved_src);
-      if (AsciiRangeMask(w, lo, hi) != 0) {
-        changed = true;
-        break;
-      }
+      if (AsciiRangeMask<lo, hi>(w) != 0) break;
       *reinterpret_cast<word_t*>(dst) = w;
       src += sizeof(word_t);
       dst += sizeof(word_t);
@@ -97,7 +137,7 @@ int FastAsciiConvert(char* dst, const char* src, int length,
     while (src <= limit - sizeof(word_t)) {
       const word_t w = *reinterpret_cast<const word_t*>(src);
       if ((w & kAsciiMask) != 0) return static_cast<int>(src - saved_src);
-      word_t m = AsciiRangeMask(w, lo, hi);
+      word_t m = AsciiRangeMask<lo, hi>(w);
       // The mask has high (7th) bit set in every byte that needs
       // conversion and we know that the distance between cases is
       // 1 << 5.
@@ -113,24 +153,25 @@ int FastAsciiConvert(char* dst, const char* src, int length,
     if ((c & kAsciiMask) != 0) return static_cast<int>(src - saved_src);
     if (lo < c && c < hi) {
       c ^= (1 << 5);
-      changed = true;
     }
     *dst = c;
     ++src;
     ++dst;
   }
 
-  DCHECK(
-      CheckFastAsciiConvert(saved_dst, saved_src, length, changed, is_lower));
+#ifdef DEBUG
+  CheckFastAsciiConvert<CaseMapping>(saved_dst, saved_src, length);
+#endif
 
-  *changed_out = changed;
   return length;
 }
 
-template int FastAsciiConvert<false>(char* dst, const char* src, int length,
-                                     bool* changed_out);
-template int FastAsciiConvert<true>(char* dst, const char* src, int length,
-                                    bool* changed_out);
+template uint32_t FastAsciiConvert<unibrow::ToLowercase>(char* dst,
+                                                         const char* src,
+                                                         uint32_t length);
+template uint32_t FastAsciiConvert<unibrow::ToUppercase>(char* dst,
+                                                         const char* src,
+                                                         uint32_t length);
 
 }  // namespace internal
 }  // namespace v8

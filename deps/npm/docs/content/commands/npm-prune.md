@@ -12,32 +12,26 @@ npm prune [[<@scope>/]<pkg>...]
 
 ### Description
 
-This command removes "extraneous" packages.  If a package name is provided,
-then only packages matching one of the supplied names are removed.
+This command removes "extraneous" packages.
+If a package name is provided, then only packages matching one of the supplied names are removed.
 
-Extraneous packages are those present in the `node_modules` folder that are
-not listed as any package's dependency list.
+Extraneous packages are those present in the `node_modules` folder that are not listed as any package's dependency list.
 
-If the `--omit=dev` flag is specified or the `NODE_ENV` environment
-variable is set to `production`, this command will remove the packages
-specified in your `devDependencies`.
+If the `--omit=dev` flag is specified or the `NODE_ENV` environment variable is set to `production`, this command will remove the packages specified in your `devDependencies`.
 
 If the `--dry-run` flag is used then no changes will actually be made.
 
-If the `--json` flag is used, then the changes `npm prune` made (or would
-have made with `--dry-run`) are printed as a JSON object.
+If the `--json` flag is used, then the changes `npm prune` made (or would have made with `--dry-run`) are printed as a JSON object.
 
-In normal operation, extraneous modules are pruned automatically, so you'll
-only need this command with the `--production` flag.  However, in the real
-world, operation is not always "normal".  When crashes or mistakes happen,
-this command can help clean up any resulting garbage.
+In normal operation, extraneous modules are pruned automatically, so you'll only need this command with the `--production` flag.
+However, in the real world, operation is not always "normal".  When crashes or mistakes happen, this command can help clean up any resulting garbage.
 
 ### Configuration
 
 #### `omit`
 
 * Default: 'dev' if the `NODE_ENV` environment variable is set to
-  'production', otherwise empty.
+  'production'; otherwise, empty.
 * Type: "dev", "optional", or "peer" (can be set multiple times)
 
 Dependency types to omit from the installation tree on disk.
@@ -120,9 +114,9 @@ but can be useful for debugging.
 If true, npm does not run scripts specified in package.json files.
 
 Note that commands explicitly intended to run a particular script, such as
-`npm start`, `npm stop`, `npm restart`, `npm test`, and `npm run-script`
-will still run their intended script if `ignore-scripts` is set, but they
-will *not* run any pre- or post-scripts.
+`npm start`, `npm stop`, `npm restart`, `npm test`, and `npm run` will still
+run their intended script if `ignore-scripts` is set, but they will *not*
+run any pre- or post-scripts.
 
 
 

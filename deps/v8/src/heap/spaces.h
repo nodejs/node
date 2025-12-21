@@ -48,10 +48,10 @@ class SemiSpace;
 
 // Some assertion macros used in the debugging mode.
 
-#define DCHECK_OBJECT_SIZE(size) \
+#define DCHECK_VALID_REGULAR_OBJECT_SIZE(size) \
   DCHECK((0 < size) && (size <= kMaxRegularHeapObjectSize))
 
-#define DCHECK_CODEOBJECT_SIZE(size) \
+#define DCHECK_VALID_REGULAR_CODEOBJECT_SIZE(size) \
   DCHECK((0 < size) && (size <= MemoryChunkLayout::MaxRegularCodeObjectSize()))
 
 template <typename Enum, typename Callback>

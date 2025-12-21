@@ -186,4 +186,46 @@ exports.assertIsCAArray = function assertIsCAArray(certs) {
   }
 };
 
+function extractMetadata(cert) {
+  const x509 = new crypto.X509Certificate(cert);
+  return {
+    serialNumber: x509.serialNumber,
+    issuer: x509.issuer,
+    subject: x509.subject,
+  };
+}
+exports.extractMetadata = extractMetadata;
+
+// To compare two certificates, we can just compare serialNumber, issuer,
+// and subject like X509_comp(). We can't just compare two strings because
+// the line endings or order of the fields may differ after PEM serdes by
+// OpenSSL.
+exports.assertEqualCerts = function assertEqualCerts(a, b) {
+  const setA = new Set(a.map(extractMetadata));
+  const setB = new Set(b.map(extractMetadata));
+  assert.deepStrictEqual(setA, setB);
+};
+
+exports.includesCert = function includesCert(certs, cert) {
+  const metadata = extractMetadata(cert);
+  for (const c of certs) {
+    const cMetadata = extractMetadata(c);
+    if (cMetadata.serialNumber === metadata.serialNumber &&
+        cMetadata.issuer === metadata.issuer &&
+        cMetadata.subject === metadata.subject) {
+      return true;
+    }
+  }
+  return false;
+};
+
 exports.TestTLSSocket = TestTLSSocket;
+
+// Dumps certs into a file to pass safely into test/fixtures/list-certs.js
+exports.writeCerts = function writeCerts(certs, filename) {
+  const fs = require('fs');
+  for (const cert of certs) {
+    const x509 = new crypto.X509Certificate(cert);
+    fs.appendFileSync(filename, x509.toString());
+  }
+};

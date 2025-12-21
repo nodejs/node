@@ -18,7 +18,7 @@ class BitVector;
 
 namespace compiler {
 
-class Graph;
+class TFGraph;
 class BytecodeLivenessState;
 
 class V8_EXPORT_PRIVATE StateValuesCache {
@@ -68,7 +68,7 @@ class V8_EXPORT_PRIVATE StateValuesCache {
   Node* GetValuesNodeFromCache(Node** nodes, size_t count,
                                SparseInputMask mask);
 
-  Graph* graph() { return js_graph_->graph(); }
+  TFGraph* graph() { return js_graph_->graph(); }
   CommonOperatorBuilder* common() { return js_graph_->common(); }
 
   Zone* zone() { return graph()->zone(); }

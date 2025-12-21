@@ -26,7 +26,6 @@
 #include <vector>
 
 #include "absl/base/macros.h"
-#include "absl/meta/type_traits.h"
 #include "absl/random/bernoulli_distribution.h"
 #include "absl/random/beta_distribution.h"
 #include "absl/random/exponential_distribution.h"
@@ -65,10 +64,10 @@ class PrecompiledSeedSeq {
   PrecompiledSeedSeq() = default;
 
   template <typename Iterator>
-  PrecompiledSeedSeq(Iterator begin, Iterator end) {}
+  PrecompiledSeedSeq(Iterator, Iterator) {}
 
   template <typename T>
-  PrecompiledSeedSeq(std::initializer_list<T> il) {}
+  PrecompiledSeedSeq(std::initializer_list<T>) {}
 
   template <typename OutIterator>
   void generate(OutIterator begin, OutIterator end) {
@@ -89,30 +88,23 @@ class PrecompiledSeedSeq {
   }
 };
 
-// use_default_initialization<T> indicates whether the random engine
-// T must be default initialized, or whether we may initialize it using
-// a seed sequence. This is used because some engines do not accept seed
-// sequence-based initialization.
-template <typename E>
-using use_default_initialization = std::false_type;
+// Triggers default constructor initialization.
+class DefaultConstructorSeedSeq {};
 
 // make_engine<T, SSeq> returns a random_engine which is initialized,
 // either via the default constructor, when use_default_initialization<T>
 // is true, or via the indicated seed sequence, SSeq.
-template <typename Engine, typename SSeq = PrecompiledSeedSeq>
-typename absl::enable_if_t<!use_default_initialization<Engine>::value, Engine>
-make_engine() {
-  // Initialize the random engine using the seed sequence SSeq, which
-  // is constructed from the precompiled seed data.
-  SSeq seq(std::begin(kSeedData), std::end(kSeedData));
-  return Engine(seq);
-}
-
-template <typename Engine, typename SSeq = PrecompiledSeedSeq>
-typename absl::enable_if_t<use_default_initialization<Engine>::value, Engine>
-make_engine() {
-  // Initialize the random engine using the default constructor.
-  return Engine();
+template <typename Engine, typename SSeq = DefaultConstructorSeedSeq>
+Engine make_engine() {
+  constexpr bool use_default_initialization =
+    std::is_same_v<SSeq, DefaultConstructorSeedSeq>;
+  if constexpr (use_default_initialization) {
+    return Engine();
+  } else {
+    // Otherwise, use the provided seed sequence.
+    SSeq seq(std::begin(kSeedData), std::end(kSeedData));
+    return Engine(seq);
+  }
 }
 
 template <typename Engine, typename SSeq>
@@ -248,6 +240,7 @@ void BM_Thread(benchmark::State& state) {
 
 // Normal benchmark suite
 #define BM_BASIC(Engine)                                                       \
+  BENCHMARK_TEMPLATE(BM_Construct, Engine, DefaultConstructorSeedSeq);         \
   BENCHMARK_TEMPLATE(BM_Construct, Engine, PrecompiledSeedSeq);                \
   BENCHMARK_TEMPLATE(BM_Construct, Engine, std::seed_seq);                     \
   BENCHMARK_TEMPLATE(BM_Direct, Engine);                                       \
@@ -359,7 +352,7 @@ void BM_Thread(benchmark::State& state) {
 
 // ABSL Recommended interfaces.
 BM_BASIC(absl::InsecureBitGen);  // === pcg64_2018_engine
-BM_BASIC(absl::BitGen);    // === randen_engine<uint64_t>.
+BM_BASIC(absl::BitGen);          // === randen_engine<uint64_t>.
 BM_THREAD(absl::BitGen);
 BM_EXTENDED(absl::BitGen);
 

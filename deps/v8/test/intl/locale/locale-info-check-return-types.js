@@ -21,7 +21,7 @@ function checkLocale(locale) {
   assertEquals("string", typeof(l.getTextInfo().direction));
 
   assertEquals("object", typeof(l.getWeekInfo()));
-  assertEquals(3, Object.keys(l.getWeekInfo()).length);
+  assertEquals(2, Object.keys(l.getWeekInfo()).length);
   assertEquals("number", typeof(l.getWeekInfo().firstDay));
   assertTrue(l.getWeekInfo().firstDay >= 1);
   assertTrue(l.getWeekInfo().firstDay <= 7);
@@ -37,9 +37,8 @@ function checkLocale(locale) {
     last = we;
   });
 
-  assertEquals("number", typeof(l.getWeekInfo().minimalDays));
-  assertTrue(l.getWeekInfo().minimalDays >= 1);
-  assertTrue(l.getWeekInfo().minimalDays <= 7);
+  // The proposal removed minimalDays in PR99
+  assertEquals(undefined, l.getWeekInfo().minimalDays);
 }
 
 checkLocale("ar");

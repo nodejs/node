@@ -20,6 +20,8 @@ Extends: [`AgentOptions`](/docs/docs/api/Agent.md#parameter-agentoptions)
 
 * **ignoreTrailingSlash** `boolean` (optional) - Default: `false` - set the default value for `ignoreTrailingSlash` for interceptors.
 
+* **acceptNonStandardSearchParameters** `boolean` (optional) - Default: `false` - set to `true` if the matcher should also accept non standard search parameters such as multi-value items specified with `[]` (e.g. `param[]=1&param[]=2&param[]=3`) and multi-value items which values are comma separated (e.g. `param=1,2,3`).
+
 ### Example - Basic MockAgent instantiation
 
 This will instantiate the MockAgent. It will not do anything until registered as the agent to use with requests and mock interceptions are added.
@@ -477,7 +479,7 @@ This method returns any pending interceptors registered on a mock agent. A pendi
 
 Returns: `PendingInterceptor[]` (where `PendingInterceptor` is a `MockDispatch` with an additional `origin: string`)
 
-#### Example - List all pending inteceptors
+#### Example - List all pending interceptors
 
 ```js
 const agent = new MockAgent()

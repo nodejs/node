@@ -14,7 +14,7 @@ if (isSunOS) {
   skip('Operation not supported yet on SmartOS');
 }
 
-const { ok } = require('assert');
+const assert = require('assert');
 const { randomBytes, createHash } = require('crypto');
 const { once } = require('events');
 const { Worker, parentPort, workerData } = require('worker_threads');
@@ -40,17 +40,17 @@ function validateResults(results) {
   // Unfortunately, the real values are not really predictable on the CI so we
   // just check that all the values are positive numbers.
   for (let i = 0; i < 3; i++) {
-    ok(typeof results[i].process.user === 'number');
-    ok(results[i].process.user >= 0);
+    assert.ok(typeof results[i].process.user === 'number');
+    assert.ok(results[i].process.user >= 0);
 
-    ok(typeof results[i].process.system === 'number');
-    ok(results[i].process.system >= 0);
+    assert.ok(typeof results[i].process.system === 'number');
+    assert.ok(results[i].process.system >= 0);
 
-    ok(typeof results[i].thread.user === 'number');
-    ok(results[i].thread.user >= 0);
+    assert.ok(typeof results[i].thread.user === 'number');
+    assert.ok(results[i].thread.user >= 0);
 
-    ok(typeof results[i].thread.system === 'number');
-    ok(results[i].thread.system >= 0);
+    assert.ok(typeof results[i].thread.system === 'number');
+    assert.ok(results[i].thread.system >= 0);
   }
 }
 

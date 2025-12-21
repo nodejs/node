@@ -48,7 +48,7 @@ class OutProc(base.ExpectedOutProc):
         expected_lines, actual_lines, fillvalue=''):
       pattern = re.escape(expected.rstrip() % env)
       pattern = pattern.replace('\\*', '.*')
-      pattern = pattern.replace('\\{NUMBER\\}', r'\d+(?:\.\d*)?')
+      pattern = pattern.replace('\\{NUMBER\\}', r'-?\d+(?:\.\d*)?')
       # Note: The character sequence for printing an address in C++ is
       # implementation defined.
       pattern = pattern.replace('\\{ADDRESS\\}', r'(0x)?[0-9A-Fa-f]+')

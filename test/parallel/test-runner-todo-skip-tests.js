@@ -1,6 +1,6 @@
 'use strict';
 const common = require('../common');
-const { strictEqual } = require('node:assert');
+const assert = require('node:assert');
 const { run, suite, test } = require('node:test');
 
 if (!process.env.NODE_TEST_CONTEXT) {
@@ -8,8 +8,8 @@ if (!process.env.NODE_TEST_CONTEXT) {
 
   stream.on('test:fail', common.mustNotCall());
   stream.on('test:pass', common.mustCall((event) => {
-    strictEqual(event.skip, true);
-    strictEqual(event.todo, undefined);
+    assert.strictEqual(event.skip, true);
+    assert.strictEqual(event.todo, undefined);
   }, 4));
 } else {
   test('test options only', { skip: true, todo: true }, common.mustNotCall());

@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "src/base/macros.h"
+#include "src/base/platform/mutex.h"
 #include "src/base/platform/platform.h"
 
 namespace heap::base {
@@ -19,11 +20,7 @@ class StackVisitor {
   virtual void VisitPointer(const void* address) = 0;
 };
 
-#if defined(__has_feature)
-#if __has_feature(safe_stack)
-#define V8_USE_SAFE_STACK 1
-#endif  // __has_feature(safe_stack)
-#endif  // defined(__has_feature)
+using StackVisitorCallback = void (*)(StackVisitor*);
 
 // Abstraction over the stack. Supports handling of:
 // - native stack;
@@ -53,17 +50,14 @@ class V8_EXPORT_PRIVATE Stack final {
   // considers the ASAN stack and SafeStack.
   static bool IsOnStack(const void* slot);
 
-  void IteratePointers(StackVisitor* visitor) const {
-    IteratePointersUntilMarker(visitor);
-    IterateBackgroundStacks(visitor);
-  }
-
   // Word-aligned iteration of the stack, starting at the `stack_marker_`
   // and going to the stack start. Slot values are passed on to `visitor`.
   void IteratePointersUntilMarker(StackVisitor* visitor) const;
 
-  void AddStackSegment(const void* start, const void* top);
-  void ClearStackSegments();
+  // Word-aligned iteration of the stack, starting at the `stack_marker_`
+  // and going to the given address. Slot values are passed on to `visitor`.
+  void IteratePointersFromAddressUntilMarker(StackVisitor* visitor,
+                                             const void* address) const;
 
   // Iterate just the background stacks, if any.
   void IterateBackgroundStacks(StackVisitor* visitor) const;
@@ -100,10 +94,10 @@ class V8_EXPORT_PRIVATE Stack final {
 
   using IterateStackCallback = void (*)(Stack*, void*, const void*);
 
-  // This method combines SetMarkerAndCallback with IteratePointers.
-  // Callee-saved registers are pushed to the stack and then a word-aligned
-  // iteration of the stack is performed. Slot values are passed on to
-  // `visitor`. To be used for testing.
+  // This method combines SetMarkerAndCallback with pointer iteration, including
+  // background stacks. Callee-saved registers are pushed to the stack and then
+  // a word-aligned iteration of the stack is performed. Slot values are passed
+  // on to `visitor`. To be used for testing.
   void IteratePointersForTesting(StackVisitor* visitor);
 
   bool IsMarkerSet() const { return current_segment_.top != nullptr; }
@@ -118,6 +112,10 @@ class V8_EXPORT_PRIVATE Stack final {
   // This method is only safe to use in a safepoint, as it does not take the
   // mutex for background_stacks_.
   bool HasBackgroundStacks() const { return !background_stacks_.empty(); }
+
+  void SetScanSimulatorCallback(StackVisitorCallback callback) {
+    scan_simulator_callback_ = callback;
+  }
 
   // Stack segments that may contain pointers and should be scanned.
   struct Segment {
@@ -153,13 +151,19 @@ class V8_EXPORT_PRIVATE Stack final {
       unsafe_stack_top = __builtin___get_unsafe_stack_ptr();
 #endif  // V8_USE_SAFE_STACK
     }
+
+#ifdef DEBUG
+    bool Contains(const void* address) const {
+      return (start >= address) && (address >= top);
+    }
+#endif
   };
 
- private:
 #ifdef DEBUG
   static bool IsOnCurrentStack(const void* ptr);
 #endif
 
+ private:
   V8_NOINLINE void TrampolineCallbackHelper(void* argument,
                                             IterateStackCallback callback);
 
@@ -211,13 +215,14 @@ class V8_EXPORT_PRIVATE Stack final {
     }
   }
 
-  Segment current_segment_;
+  void IteratePointersInSegment(StackVisitor* visitor, Segment segment) const;
 
-  // TODO(v8:13493): If inactive stacks are not used anymore, clean this up.
-  std::vector<Segment> inactive_stacks_;
+  Segment current_segment_;
 
   mutable v8::base::Mutex lock_;
   std::map<ThreadId, Segment> background_stacks_;
+
+  StackVisitorCallback scan_simulator_callback_ = nullptr;
 };
 
 }  // namespace heap::base

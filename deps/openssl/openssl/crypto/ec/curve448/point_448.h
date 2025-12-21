@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2017-2023 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright 2015-2016 Cryptography Research, Inc.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -271,7 +271,7 @@ ossl_x448_derive_public_key(uint8_t out[X448_PUBLIC_BYTES],
  */
 void
 ossl_curve448_precomputed_scalarmul(curve448_point_t scaled,
-                                    const curve448_precomputed_s * base,
+                                    const curve448_precomputed_s *base,
                                     const curve448_scalar_t scalar);
 
 /*

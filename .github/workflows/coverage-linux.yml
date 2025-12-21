@@ -34,10 +34,11 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  PYTHON_VERSION: '3.12'
+  PYTHON_VERSION: '3.14'
   FLAKY_TESTS: keep_retrying
-  CC: sccache clang
-  CXX: sccache clang++
+  CLANG_VERSION: '19'
+  CC: sccache clang-19
+  CXX: sccache clang++-19
   SCCACHE_GHA_ENABLED: 'true'
 
 permissions:
@@ -48,17 +49,22 @@ jobs:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3  # v6.0.0
         with:
           persist-credentials: false
+      - name: Install Clang ${{ env.CLANG_VERSION }}
+        uses: ./.github/actions/install-clang
+        with:
+          clang-version: ${{ env.CLANG_VERSION }}
       - name: Set up Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38  # v5.4.0
+        uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548  # v6.1.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
+          allow-prereleases: true
       - name: Set up sccache
-        uses: Mozilla-Actions/sccache-action@65101d47ea8028ed0c98a1cdea8dd9182e9b5133  # v0.0.8
+        uses: Mozilla-Actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad  # v0.0.9
         with:
-          version: v0.10.0
+          version: v0.12.0
       - name: Environment Information
         run: npx envinfo
       - name: Install gcovr
@@ -79,6 +85,6 @@ jobs:
       - name: Clean tmp
         run: rm -rf coverage/tmp && rm -rf out
       - name: Upload
-        uses: codecov/codecov-action@0565863a31f2c772f9f0395002a31e3f06189574  # v5.4.0
+        uses: codecov/codecov-action@5a1091511ad55cbe89839c7260b706298ca349f7  # v5.5.1
         with:
           directory: ./coverage

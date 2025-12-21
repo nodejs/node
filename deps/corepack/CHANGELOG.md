@@ -1,5 +1,75 @@
 # Changelog
 
+## [0.34.5](https://github.com/nodejs/corepack/compare/v0.34.4...v0.34.5) (2025-11-24)
+
+
+### Bug Fixes
+
+* **pnpm:** fix bin path for v11 ([#776](https://github.com/nodejs/corepack/issues/776)) ([0c8048a](https://github.com/nodejs/corepack/commit/0c8048adc61651f6eb798448675d3ecc4a7e26a9))
+* update package manager versions ([#773](https://github.com/nodejs/corepack/issues/773)) ([06c286b](https://github.com/nodejs/corepack/commit/06c286b5fc171e43090b5eed5cd501bc9580927f))
+
+## [0.34.4](https://github.com/nodejs/corepack/compare/v0.34.3...v0.34.4) (2025-11-14)
+
+
+### Bug Fixes
+
+* bump pnpm version in `config.json` ([#768](https://github.com/nodejs/corepack/issues/768)) ([99a9a6e](https://github.com/nodejs/corepack/commit/99a9a6eb1b6e918ceb896b3d558bb5ed583bdc70))
+* ignore devEngines version range when CLI provides a version ([#762](https://github.com/nodejs/corepack/issues/762)) ([ac518c4](https://github.com/nodejs/corepack/commit/ac518c4106f8d9ceb4e85e6c3614b1eba5d03fcb))
+* use `lstatSync` in `generatePosixLink` ([#767](https://github.com/nodejs/corepack/issues/767)) ([a02bea0](https://github.com/nodejs/corepack/commit/a02bea078eb584ed7492ec561626987e35386bae))
+
+## [0.34.3](https://github.com/nodejs/corepack/compare/v0.34.2...v0.34.3) (2025-11-07)
+
+
+### Bug Fixes
+
+* update package manager versions ([#765](https://github.com/nodejs/corepack/issues/765)) ([13a2e98](https://github.com/nodejs/corepack/commit/13a2e989ee37694a7ec1b1d60acdaa28f90642d1))
+* Yarn switch install support and tests ([#761](https://github.com/nodejs/corepack/issues/761)) ([d04d483](https://github.com/nodejs/corepack/commit/d04d4839aeecaf4fca989c577f6c000dc90be933))
+
+## [0.34.2](https://github.com/nodejs/corepack/compare/v0.34.1...v0.34.2) (2025-10-31)
+
+
+### Bug Fixes
+
+* bump package manager versions ([#754](https://github.com/nodejs/corepack/issues/754)) ([35e3869](https://github.com/nodejs/corepack/commit/35e3869f3f4d21bbfccdf78ea564ab0723d6f36f))
+* fix potential race condition in `node-tar` ([#757](https://github.com/nodejs/corepack/pull/757)) ([78808a7](78808a72691655fe5140c02ae41d4baef88cd9fa))
+
+## [0.34.1](https://github.com/nodejs/corepack/compare/v0.34.0...v0.34.1) (2025-10-17)
+
+
+### Bug Fixes
+
+* incorrect registry origin check ([#743](https://github.com/nodejs/corepack/issues/743)) ([cc840b2](https://github.com/nodejs/corepack/commit/cc840b2d232a29c225d2436d350640f0035ed28b))
+* update package manager versions ([#728](https://github.com/nodejs/corepack/issues/728)) ([78ce029](https://github.com/nodejs/corepack/commit/78ce0297a9152bb5c68f724821a9a0095b408334))
+
+## [0.34.0](https://github.com/nodejs/corepack/compare/v0.33.0...v0.34.0) (2025-07-19)
+
+
+### ⚠ BREAKING CHANGES
+
+* drop Node.js 18.x and 23.x support
+
+### Features
+
+* update package manager versions ([#719](https://github.com/nodejs/corepack/issues/719)) ([7707ea7](https://github.com/nodejs/corepack/commit/7707ea7350c129ad3aae8ca08e9e80fcf164dcb6))
+
+
+### Miscellaneous Chores
+
+* remove Node.js 18.x and 23.x usage, add 24.x ([#718](https://github.com/nodejs/corepack/issues/718)) ([783a42f](https://github.com/nodejs/corepack/commit/783a42fbe35371964e9dde75e2263b179f53bc0c))
+
+## [0.33.0](https://github.com/nodejs/corepack/compare/v0.32.0...v0.33.0) (2025-06-02)
+
+
+### Features
+
+* Adds guard to avoid stepping on Yarn's feet ([#714](https://github.com/nodejs/corepack/issues/714)) ([5fc3691](https://github.com/nodejs/corepack/commit/5fc3691354eb5bdeca17a9495b234584353f0151))
+* update package manager versions ([#671](https://github.com/nodejs/corepack/issues/671)) ([b45b3a3](https://github.com/nodejs/corepack/commit/b45b3a3244bacfbaf65188ae8c04209a1e98307d))
+
+
+### Bug Fixes
+
+* debug text typo ([#698](https://github.com/nodejs/corepack/issues/698)) ([0b94797](https://github.com/nodejs/corepack/commit/0b94797f96e30e46e466873fe7d437d0471cd92c))
+
 ## [0.32.0](https://github.com/nodejs/corepack/compare/v0.31.0...v0.32.0) (2025-02-28)
 
 

@@ -19,6 +19,7 @@
 
 #include <atomic>
 #include <string>
+#include <utility>
 
 #include "absl/base/config.h"
 #include "absl/base/no_destructor.h"
@@ -53,8 +54,11 @@ class FlagRegistry {
   // Store a flag in this registry. Takes ownership of *flag.
   void RegisterFlag(CommandLineFlag& flag, const char* filename);
 
-  void Lock() ABSL_EXCLUSIVE_LOCK_FUNCTION(lock_) { lock_.Lock(); }
-  void Unlock() ABSL_UNLOCK_FUNCTION(lock_) { lock_.Unlock(); }
+  void lock() ABSL_EXCLUSIVE_LOCK_FUNCTION(lock_) { lock_.lock(); }
+  inline void Lock() ABSL_EXCLUSIVE_LOCK_FUNCTION(lock_) { lock(); }
+
+  void unlock() ABSL_UNLOCK_FUNCTION(lock_) { lock_.unlock(); }
+  inline void Unlock() ABSL_UNLOCK_FUNCTION(lock_) { unlock(); }
 
   // Returns the flag object for the specified name, or nullptr if not found.
   // Will emit a warning if a 'retired' flag is specified.
@@ -87,8 +91,8 @@ namespace {
 
 class FlagRegistryLock {
  public:
-  explicit FlagRegistryLock(FlagRegistry& fr) : fr_(fr) { fr_.Lock(); }
-  ~FlagRegistryLock() { fr_.Unlock(); }
+  explicit FlagRegistryLock(FlagRegistry& fr) : fr_(fr) { fr_.lock(); }
+  ~FlagRegistryLock() { fr_.unlock(); }
 
  private:
   FlagRegistry& fr_;
@@ -289,11 +293,10 @@ class RetiredFlagObj final : public CommandLineFlag {
 
 }  // namespace
 
-void Retire(const char* name, FlagFastTypeId type_id, char* buf) {
+void Retire(const char* name, FlagFastTypeId type_id, unsigned char* buf) {
   static_assert(sizeof(RetiredFlagObj) == kRetiredFlagObjSize, "");
   static_assert(alignof(RetiredFlagObj) == kRetiredFlagObjAlignment, "");
-  auto* flag = ::new (static_cast<void*>(buf))
-      flags_internal::RetiredFlagObj(name, type_id);
+  auto* flag = ::new (buf) flags_internal::RetiredFlagObj(name, type_id);
   FlagRegistry::GlobalRegistry().RegisterFlag(*flag, nullptr);
 }
 
@@ -318,9 +321,9 @@ class FlagSaverImpl {
   }
 
   // Restores the saved flag states into the flag registry.
-  void RestoreToRegistry() {
+  void RestoreToRegistry() && {
     for (const auto& flag_state : backup_registry_) {
-      flag_state->Restore();
+      std::move(*flag_state).Restore();
     }
   }
 
@@ -338,7 +341,7 @@ FlagSaver::FlagSaver() : impl_(new flags_internal::FlagSaverImpl) {
 FlagSaver::~FlagSaver() {
   if (!impl_) return;
 
-  impl_->RestoreToRegistry();
+  std::move(*impl_).RestoreToRegistry();
   delete impl_;
 }
 

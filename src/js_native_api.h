@@ -5,22 +5,6 @@
 #include <stdbool.h>  // NOLINT(modernize-deprecated-headers)
 #include <stddef.h>   // NOLINT(modernize-deprecated-headers)
 
-// Use INT_MAX, this should only be consumed by the pre-processor anyway.
-#define NAPI_VERSION_EXPERIMENTAL 2147483647
-#ifndef NAPI_VERSION
-#ifdef NAPI_EXPERIMENTAL
-#define NAPI_VERSION NAPI_VERSION_EXPERIMENTAL
-#else
-// The baseline version for N-API.
-// The NAPI_VERSION controls which version will be used by default when
-// compilling a native addon. If the addon developer specifically wants to use
-// functions available in a new version of N-API that is not yet ported in all
-// LTS versions, they can set NAPI_VERSION knowing that they have specifically
-// depended on that version.
-#define NAPI_VERSION 8
-#endif
-#endif
-
 #include "js_native_api_types.h"
 
 // If you need __declspec(dllimport), either include <node_api.h> instead, or
@@ -66,6 +50,17 @@ NAPI_EXTERN napi_status NAPI_CDECL napi_get_boolean(napi_env env,
 // Methods to create Primitive types/Objects
 NAPI_EXTERN napi_status NAPI_CDECL napi_create_object(napi_env env,
                                                       napi_value* result);
+#ifdef NAPI_EXPERIMENTAL
+#define NODE_API_EXPERIMENTAL_HAS_CREATE_OBJECT_WITH_PROPERTIES
+NAPI_EXTERN napi_status NAPI_CDECL
+napi_create_object_with_properties(napi_env env,
+                                   napi_value prototype_or_null,
+                                   napi_value* property_names,
+                                   napi_value* property_values,
+                                   size_t property_count,
+                                   napi_value* result);
+#endif  // NAPI_EXPERIMENTAL
+
 NAPI_EXTERN napi_status NAPI_CDECL napi_create_array(napi_env env,
                                                      napi_value* result);
 NAPI_EXTERN napi_status NAPI_CDECL
@@ -352,7 +347,7 @@ napi_create_reference(napi_env env,
 
 // Deletes a reference. The referenced value is released, and may
 // be GC'd unless there are other references to it.
-NAPI_EXTERN napi_status NAPI_CDECL napi_delete_reference(napi_env env,
+NAPI_EXTERN napi_status NAPI_CDECL napi_delete_reference(node_api_basic_env env,
                                                          napi_ref ref);
 
 // Increments the reference count, optionally returning the resulting count.
@@ -473,6 +468,14 @@ napi_get_dataview_info(napi_env env,
                        void** data,
                        napi_value* arraybuffer,
                        size_t* byte_offset);
+
+#ifdef NAPI_EXPERIMENTAL
+#define NODE_API_EXPERIMENTAL_HAS_SHAREDARRAYBUFFER
+NAPI_EXTERN napi_status NAPI_CDECL
+node_api_is_sharedarraybuffer(napi_env env, napi_value value, bool* result);
+NAPI_EXTERN napi_status NAPI_CDECL node_api_create_sharedarraybuffer(
+    napi_env env, size_t byte_length, void** data, napi_value* result);
+#endif  // NAPI_EXPERIMENTAL
 
 // version management
 NAPI_EXTERN napi_status NAPI_CDECL napi_get_version(node_api_basic_env env,

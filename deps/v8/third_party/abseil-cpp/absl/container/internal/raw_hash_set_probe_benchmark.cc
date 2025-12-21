@@ -15,8 +15,14 @@
 // Generates probe length statistics for many combinations of key types and key
 // distributions, all using the default hash function for swisstable.
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <limits>
 #include <memory>
 #include <regex>  // NOLINT
+#include <string>
+#include <utility>
 #include <vector>
 
 #include "absl/base/no_destructor.h"
@@ -71,7 +77,7 @@ struct Policy {
     return std::forward<F>(f)(arg, arg);
   }
 
-  template <class Hash>
+  template <class Hash, bool kIsDefault>
   static constexpr auto get_hash_slot_fn() {
     return nullptr;
   }
@@ -227,46 +233,29 @@ Ptr<Align>* MakePtr(uintptr_t v) {
   return reinterpret_cast<Ptr<Align>*>(v);
 }
 
-struct IntIdentity {
-  uint64_t i;
-  friend bool operator==(IntIdentity a, IntIdentity b) { return a.i == b.i; }
-  IntIdentity operator++(int) { return IntIdentity{i++}; }
-};
+enum class StringSize { kSmall, kMedium, kLarge, kExtraLarge };
+constexpr char kStringFormat[] = "%s/name-%07d-of-9999999.txt";
 
-template <int Align>
-struct PtrIdentity {
-  explicit PtrIdentity(uintptr_t val = PointerForAlignment<Align>()) : i(val) {}
-  uintptr_t i;
-  friend bool operator==(PtrIdentity a, PtrIdentity b) { return a.i == b.i; }
-  PtrIdentity operator++(int) {
-    PtrIdentity p(i);
-    i += Align;
-    return p;
-  }
-};
-
-constexpr char kStringFormat[] = "/path/to/file/name-%07d-of-9999999.txt";
-
-template <bool small>
+template <StringSize size>
 struct String {
   std::string value;
   static std::string Make(uint32_t v) {
-    return {small ? absl::StrCat(v) : absl::StrFormat(kStringFormat, v)};
+    switch (size) {
+      case StringSize::kSmall:
+        return absl::StrCat(v);
+      case StringSize::kMedium:  // < 32 bytes
+        return absl::StrFormat(kStringFormat, "/path", v);
+      case StringSize::kLarge:  // 33-64 bytes
+        return absl::StrFormat(kStringFormat, "/path/to/file", v);
+      case StringSize::kExtraLarge:  // > 64 bytes
+        return absl::StrFormat(kStringFormat,
+                               "/path/to/a/very/long/file/name/so/that/total/"
+                               "length/is/larger/than/64/bytes",
+                               v);
+      default:
+        return "";
+    }
   }
-};
-
-template <>
-struct DefaultHash<IntIdentity> {
-  struct type {
-    size_t operator()(IntIdentity t) const { return t.i; }
-  };
-};
-
-template <int Align>
-struct DefaultHash<PtrIdentity<Align>> {
-  struct type {
-    size_t operator()(PtrIdentity<Align> t) const { return t.i; }
-  };
 };
 
 template <class T>
@@ -285,10 +274,9 @@ struct Sequential<Ptr<Align>*> {
   mutable uintptr_t current = PointerForAlignment<Align>();
 };
 
-
-template <bool small>
-struct Sequential<String<small>> {
-  std::string operator()() const { return String<small>::Make(current++); }
+template <StringSize size>
+struct Sequential<String<size>> {
+  std::string operator()() const { return String<size>::Make(current++); }
   mutable uint32_t current = 0;
 };
 
@@ -375,24 +363,10 @@ struct Random<Ptr<Align>*, Dist> {
   }
 };
 
-template <class Dist>
-struct Random<IntIdentity, Dist> {
-  IntIdentity operator()() const {
-    return IntIdentity{Random<uint64_t, Dist>{}()};
-  }
-};
-
-template <class Dist, int Align>
-struct Random<PtrIdentity<Align>, Dist> {
-  PtrIdentity<Align> operator()() const {
-    return PtrIdentity<Align>{Random<uintptr_t, Dist>{}() * Align};
-  }
-};
-
-template <class Dist, bool small>
-struct Random<String<small>, Dist> {
+template <class Dist, StringSize size>
+struct Random<String<size>, Dist> {
   std::string operator()() const {
-    return String<small>::Make(Random<uint32_t, Dist>{}());
+    return String<size>::Make(Random<uint32_t, Dist>{}());
   }
 };
 
@@ -409,21 +383,26 @@ std::string Name();
 
 std::string Name(uint32_t*) { return "u32"; }
 std::string Name(uint64_t*) { return "u64"; }
-std::string Name(IntIdentity*) { return "IntIdentity"; }
 
 template <int Align>
 std::string Name(Ptr<Align>**) {
   return absl::StrCat("Ptr", Align);
 }
 
-template <int Align>
-std::string Name(PtrIdentity<Align>*) {
-  return absl::StrCat("PtrIdentity", Align);
-}
-
-template <bool small>
-std::string Name(String<small>*) {
-  return small ? "StrS" : "StrL";
+template <StringSize size>
+std::string Name(String<size>*) {
+  switch (size) {
+    case StringSize::kSmall:
+      return "StrS";
+    case StringSize::kMedium:
+      return "StrM";
+    case StringSize::kLarge:
+      return "StrL";
+    case StringSize::kExtraLarge:
+      return "StrXL";
+    default:
+      return "";
+  }
 }
 
 template <class T, class U>
@@ -533,22 +512,23 @@ int main(int argc, char** argv) {
 
   std::vector<Result> results;
   RunForType<uint64_t>(results);
-  RunForType<IntIdentity>(results);
   RunForType<Ptr<8>*>(results);
   RunForType<Ptr<16>*>(results);
   RunForType<Ptr<32>*>(results);
   RunForType<Ptr<64>*>(results);
-  RunForType<PtrIdentity<8>>(results);
-  RunForType<PtrIdentity<16>>(results);
-  RunForType<PtrIdentity<32>>(results);
-  RunForType<PtrIdentity<64>>(results);
   RunForType<std::pair<uint32_t, uint32_t>>(results);
-  RunForType<String<true>>(results);
-  RunForType<String<false>>(results);
-  RunForType<std::pair<uint64_t, String<true>>>(results);
-  RunForType<std::pair<String<true>, uint64_t>>(results);
-  RunForType<std::pair<uint64_t, String<false>>>(results);
-  RunForType<std::pair<String<false>, uint64_t>>(results);
+  RunForType<String<StringSize::kSmall>>(results);
+  RunForType<String<StringSize::kMedium>>(results);
+  RunForType<String<StringSize::kLarge>>(results);
+  RunForType<String<StringSize::kExtraLarge>>(results);
+  RunForType<std::pair<uint64_t, String<StringSize::kSmall>>>(results);
+  RunForType<std::pair<String<StringSize::kSmall>, uint64_t>>(results);
+  RunForType<std::pair<uint64_t, String<StringSize::kMedium>>>(results);
+  RunForType<std::pair<String<StringSize::kMedium>, uint64_t>>(results);
+  RunForType<std::pair<uint64_t, String<StringSize::kLarge>>>(results);
+  RunForType<std::pair<String<StringSize::kLarge>, uint64_t>>(results);
+  RunForType<std::pair<uint64_t, String<StringSize::kExtraLarge>>>(results);
+  RunForType<std::pair<String<StringSize::kExtraLarge>, uint64_t>>(results);
 
   switch (output()) {
     case OutputStyle::kRegular:

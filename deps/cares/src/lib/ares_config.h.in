@@ -87,6 +87,9 @@
 /* define if the compiler supports basic C++14 syntax */
 #undef HAVE_CXX14
 
+/* define if the compiler supports basic C++17 syntax */
+#undef HAVE_CXX17
+
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #undef HAVE_DLFCN_H
 
@@ -104,6 +107,9 @@
 
 /* fcntl() with O_NONBLOCK support */
 #undef HAVE_FCNTL_O_NONBLOCK
+
+/* Define to 1 if you have `GetBestRoute2` */
+#undef HAVE_GETBESTROUTE2
 
 /* Define to 1 if you have `getenv` */
 #undef HAVE_GETENV

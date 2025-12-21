@@ -94,10 +94,15 @@ void Agent::Start() {
   // This thread should be created *after* async handles are created
   // (within NodeTraceWriter and NodeTraceBuffer constructors).
   // Otherwise the thread could shut down prematurely.
-  CHECK_EQ(0, uv_thread_create(&thread_, [](void* arg) {
-    Agent* agent = static_cast<Agent*>(arg);
-    uv_run(&agent->tracing_loop_, UV_RUN_DEFAULT);
-  }, this));
+  CHECK_EQ(0,
+           uv_thread_create(
+               &thread_,
+               [](void* arg) {
+                 uv_thread_setname("TraceEventWorker");
+                 Agent* agent = static_cast<Agent*>(arg);
+                 uv_run(&agent->tracing_loop_, UV_RUN_DEFAULT);
+               },
+               this));
   started_ = true;
 }
 

@@ -99,7 +99,7 @@ TEST_F(DisasmPpcTest, DisasmPPC) {
   COMPARE(addc(r9, r7, r9), "7d274814       addc    r9, r7, r9");
   COMPARE(addic(r3, r5, Operand(20)), "30650014       addic   r3, r5, 20");
   COMPARE(addi(r0, ip, Operand(63)), "380c003f       addi    r0, ip, 63");
-  COMPARE(add(r5, r7, r0), "7ca70214       add     r5, r7, r0");
+  COMPARE(add(r5, r7, r0), "7ca70214       add      r5, r7, r0");
   COMPARE(addze(r0, r0, LeaveOE, SetRC), "7c000195       addze.   r0, r0");
   COMPARE(andi(r0, r3, Operand(4)), "70600004       andi.   r0, r3, 4");
   COMPARE(and_(r3, r6, r5), "7cc32838       and     r3, r6, r5");
@@ -110,17 +110,17 @@ TEST_F(DisasmPpcTest, DisasmPPC) {
   COMPARE(blr(), "4e800020       blr");
 // skipping call - only used in simulator
 #if V8_TARGET_ARCH_PPC64
-  COMPARE(cmpi(r0, Operand(5)), "2fa00005       cmpi    r0, 5");
+  COMPARE(cmpi(r0, Operand(5)), "2c200005       cmpi    r0, 5");
 #else
   COMPARE(cmpi(r0, Operand(5)), "2f800005       cmpi    r0, 5");
 #endif
 #if V8_TARGET_ARCH_PPC64
-  COMPARE(cmpl(r6, r7), "7fa63840       cmpl    r6, r7");
+  COMPARE(cmpl(r6, r7), "7c263840       cmpl    r6, r7");
 #else
   COMPARE(cmpl(r6, r7), "7f863840       cmpl    r6, r7");
 #endif
 #if V8_TARGET_ARCH_PPC64
-  COMPARE(cmp(r5, r11), "7fa55800       cmp     r5, r11");
+  COMPARE(cmp(r5, r11), "7c255800       cmp     r5, r11");
 #else
   COMPARE(cmp(r5, r11), "7f855800       cmp     r5, r11");
 #endif

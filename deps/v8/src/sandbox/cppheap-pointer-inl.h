@@ -5,15 +5,16 @@
 #ifndef V8_SANDBOX_CPPHEAP_POINTER_INL_H_
 #define V8_SANDBOX_CPPHEAP_POINTER_INL_H_
 
+#include "src/sandbox/cppheap-pointer.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "include/v8-internal.h"
 #include "src/base/atomic-utils.h"
 #include "src/objects/slots-inl.h"
 #include "src/sandbox/cppheap-pointer-table-inl.h"
-#include "src/sandbox/isolate-inl.h"
 #include "src/sandbox/isolate.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 // TODO(saelo): consider passing a CppHeapPointerTagRange as template parameter
 // once C++20 is supported everywhere.
@@ -52,29 +53,6 @@ V8_INLINE Address ReadCppHeapPointerField(Address field_address,
 #endif  // !V8_COMPRESS_POINTERS
 }
 
-template <CppHeapPointerTag tag>
-V8_INLINE void WriteLazilyInitializedCppHeapPointerField(
-    Address field_address, IsolateForPointerCompression isolate,
-    Address value) {
-  CppHeapPointerSlot slot(field_address);
-#ifdef V8_COMPRESS_POINTERS
-  static_assert(tag != CppHeapPointerTag::kNullTag);
-  // See comment above for why this uses a Relaxed_Load and Release_Store.
-  CppHeapPointerTable& table = isolate.GetCppHeapPointerTable();
-  const CppHeapPointerHandle handle = slot.Relaxed_LoadHandle();
-  if (handle == kNullCppHeapPointerHandle) {
-    // Field has not been initialized yet.
-    const CppHeapPointerHandle new_handle = table.AllocateAndInitializeEntry(
-        isolate.GetCppHeapPointerTableSpace(), value, tag);
-    slot.Release_StoreHandle(new_handle);
-  } else {
-    table.Set(handle, value, tag);
-  }
-#else   // !V8_COMPRESS_POINTERS
-  slot.store(isolate, value, tag);
-#endif  // !V8_COMPRESS_POINTERS
-}
-
 V8_INLINE void WriteLazilyInitializedCppHeapPointerField(
     Address field_address, IsolateForPointerCompression isolate, Address value,
     CppHeapPointerTag tag) {
@@ -97,7 +75,6 @@ V8_INLINE void WriteLazilyInitializedCppHeapPointerField(
 #endif  // !V8_COMPRESS_POINTERS
 }
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
 
 #endif  // V8_SANDBOX_CPPHEAP_POINTER_INL_H_

@@ -47,11 +47,11 @@ BUILTIN(AtomicsIsLockFree) {
 }
 
 // https://tc39.es/ecma262/#sec-validatesharedintegertypedarray
-V8_WARN_UNUSED_RESULT MaybeHandle<JSTypedArray> ValidateIntegerTypedArray(
+V8_WARN_UNUSED_RESULT MaybeDirectHandle<JSTypedArray> ValidateIntegerTypedArray(
     Isolate* isolate, Handle<Object> object, const char* method_name,
     bool only_int32_and_big_int64 = false) {
   if (IsJSTypedArray(*object)) {
-    Handle<JSTypedArray> typed_array = Cast<JSTypedArray>(object);
+    DirectHandle<JSTypedArray> typed_array = Cast<JSTypedArray>(object);
 
     if (typed_array->IsDetachedOrOutOfBounds()) {
       THROW_NEW_ERROR(
@@ -85,12 +85,11 @@ V8_WARN_UNUSED_RESULT MaybeHandle<JSTypedArray> ValidateIntegerTypedArray(
 V8_WARN_UNUSED_RESULT Maybe<size_t> ValidateAtomicAccess(
     Isolate* isolate, DirectHandle<JSTypedArray> typed_array,
     Handle<Object> request_index) {
-  Handle<Object> access_index_obj;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  DirectHandle<Object> access_index_obj;
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, access_index_obj,
       Object::ToIndex(isolate, request_index,
-                      MessageTemplate::kInvalidAtomicAccessIndex),
-      Nothing<size_t>());
+                      MessageTemplate::kInvalidAtomicAccessIndex));
 
   size_t access_index;
   size_t typed_array_length = typed_array->GetLength();
@@ -126,7 +125,7 @@ BUILTIN(AtomicsNotify) {
   Handle<Object> index = args.atOrUndefined(isolate, 2);
   Handle<Object> count = args.atOrUndefined(isolate, 3);
 
-  Handle<JSTypedArray> sta;
+  DirectHandle<JSTypedArray> sta;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, sta,
       ValidateIntegerTypedArray(isolate, array, "Atomics.notify", true));
@@ -144,9 +143,9 @@ BUILTIN(AtomicsNotify) {
   if (IsUndefined(*count, isolate)) {
     c = kMaxUInt32;
   } else {
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, count,
-                                       Object::ToInteger(isolate, count));
-    double count_double = Object::NumberValue(*count);
+    double count_double;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, count_double,
+                                       Object::IntegerValue(isolate, count));
     if (count_double < 0) {
       count_double = 0;
     } else if (count_double > kMaxUInt32) {
@@ -158,7 +157,7 @@ BUILTIN(AtomicsNotify) {
   // Steps 5-9 performed in FutexEmulation::Wake.
 
   // 10. If IsSharedArrayBuffer(buffer) is false, return 0.
-  DirectHandle<JSArrayBuffer> array_buffer = sta->GetBuffer();
+  DirectHandle<JSArrayBuffer> array_buffer = sta->GetBuffer(isolate);
 
   if (V8_UNLIKELY(!array_buffer->is_shared())) {
     return Smi::zero();
@@ -180,13 +179,13 @@ Tagged<Object> DoWait(Isolate* isolate, FutexEmulation::WaitMode mode,
                       Handle<Object> array, Handle<Object> index,
                       Handle<Object> value, Handle<Object> timeout) {
   // 1. Let buffer be ? ValidateIntegerTypedArray(typedArray, true).
-  Handle<JSTypedArray> sta;
+  DirectHandle<JSTypedArray> sta;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, sta,
       ValidateIntegerTypedArray(isolate, array, "Atomics.wait", true));
 
   // 2. If IsSharedArrayBuffer(buffer) is false, throw a TypeError exception.
-  if (V8_UNLIKELY(!sta->GetBuffer()->is_shared())) {
+  if (V8_UNLIKELY(!sta->GetBuffer(isolate)->is_shared())) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kNotSharedTypedArray, array));
   }
@@ -236,7 +235,7 @@ Tagged<Object> DoWait(Isolate* isolate, FutexEmulation::WaitMode mode,
                                   "Atomics.wait")));
   }
 
-  Handle<JSArrayBuffer> array_buffer = sta->GetBuffer();
+  DirectHandle<JSArrayBuffer> array_buffer = sta->GetBuffer(isolate);
 
   if (sta->type() == kExternalBigInt64Array) {
     return FutexEmulation::WaitJs64(
@@ -269,6 +268,7 @@ BUILTIN(AtomicsWaitAsync) {
   Handle<Object> index = args.atOrUndefined(isolate, 2);
   Handle<Object> value = args.atOrUndefined(isolate, 3);
   Handle<Object> timeout = args.atOrUndefined(isolate, 4);
+  isolate->CountUsage(v8::Isolate::kAtomicsWaitAsync);
 
   return DoWait(isolate, FutexEmulation::WaitMode::kAsync, array, index, value,
                 timeout);
@@ -279,32 +279,20 @@ V8_NOINLINE Maybe<bool> CheckAtomicsPauseIterationNumber(
     Isolate* isolate, DirectHandle<Object> iteration_number) {
   constexpr char method_name[] = "Atomics.pause";
 
-  enum { None, BadType, Negative } error_type = None;
+  // 1. If N is neither undefined nor an integral Number, throw a TypeError
+  // exception.
   if (IsNumber(*iteration_number)) {
-    // a. If iterationNumber is not an integral Number, throw a TypeError
-    // exception.
-    // b. If ℝ(iterationNumber) < 0, throw a RangeError exception.
     double iter = Object::NumberValue(*iteration_number);
-    if (!std::isfinite(iter) || nearbyint(iter) != iter) {
-      error_type = BadType;
-    } else if (iter < 0) {
-      error_type = Negative;
+    if (std::isfinite(iter) && nearbyint(iter) == iter) {
+      return Just(true);
     }
-  } else {
-    error_type = BadType;
   }
 
-  if (error_type != None) {
-    THROW_NEW_ERROR_RETURN_VALUE(
-        isolate,
-        NewError(error_type == BadType ? isolate->type_error_function()
-                                       : isolate->range_error_function(),
-                 MessageTemplate::kArgumentIsNotUndefinedOrNonNegativeInteger,
-                 isolate->factory()->NewStringFromAsciiChecked(method_name)),
-        Nothing<bool>());
-  }
-
-  return Just(true);
+  THROW_NEW_ERROR(
+      isolate,
+      NewError(isolate->type_error_function(),
+               MessageTemplate::kArgumentIsNotUndefinedOrInteger,
+               isolate->factory()->NewStringFromAsciiChecked(method_name)));
 }
 }  // namespace
 
@@ -313,21 +301,24 @@ BUILTIN(AtomicsPause) {
   HandleScope scope(isolate);
   DirectHandle<Object> iteration_number = args.atOrUndefined(isolate, 1);
 
-  // 1. If iterationNumber is not undefined, then
-  if (V8_UNLIKELY(
-          !IsUndefined(*iteration_number, isolate) &&
-          !(IsSmi(*iteration_number) && Smi::ToInt(*iteration_number) >= 0))) {
-    MAYBE_RETURN_ON_EXCEPTION_VALUE(
+  isolate->CountUsage(v8::Isolate::kAtomicsPause);
+
+  // 1. If N is neither undefined nor an integral Number, throw a TypeError
+  // exception.
+  if (V8_UNLIKELY(!IsUndefined(*iteration_number, isolate) &&
+                  !IsSmi(*iteration_number))) {
+    RETURN_ON_EXCEPTION_VALUE(
         isolate, CheckAtomicsPauseIterationNumber(isolate, iteration_number),
         ReadOnlyRoots(isolate).exception());
   }
 
-  // 2. If the execution environment of the ECMAScript implementation supports a
-  //    signal that the current executing code is in a spin-wait loop, send that
-  //    signal. An ECMAScript implementation may send that signal multiple
-  //    times, determined by iterationNumber when not undefined. The number of
-  //    times the signal is sent for an integral Number N is at most the number
-  //    of times it is sent for N + 1.
+  // 2. If the execution environment of the ECMAScript implementation supports
+  //    signaling to the operating system or CPU that the current executing code
+  //    is in a spin-wait loop, such as executing a pause CPU instruction, send
+  //    that signal. When N is not undefined, it determines the number of times
+  //    that signal is sent. The number of times the signal is sent for an
+  //    integral Number N is less than or equal to the number times it is sent
+  //    for N + 1 if both N and N + 1 have the same sign.
   //
   // In the non-inlined version, JS call overhead is sufficiently expensive that
   // iterationNumber is not used to determine how many times YIELD_PROCESSOR is

@@ -4,7 +4,7 @@ const common = require('../common');
 common.skipIfInspectorDisabled();
 
 (async function test() {
-  const { strictEqual } = require('assert');
+  const assert = require('assert');
   const { Session } = require('inspector');
   const { promisify } = require('util');
   const vm = require('vm');
@@ -35,6 +35,6 @@ common.skipIfInspectorDisabled();
       new Promise((resolve) => session.once('inspectorNotification', resolve));
     new vm.Script('42', { filename }).runInThisContext();
     const { params: { url } } = await promise;
-    strictEqual(url, expected);
+    assert.strictEqual(url, expected);
   }
 })().then(common.mustCall());

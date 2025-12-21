@@ -8,6 +8,7 @@
 #include "src/codegen/cpu-features.h"
 #include "src/codegen/ia32/assembler-ia32.h"
 #include "src/codegen/ia32/register-ia32.h"
+#include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/backend/code-generator-impl.h"
@@ -21,6 +22,7 @@
 #include "src/objects/smi.h"
 
 #if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/wasm-linkage.h"
 #include "src/wasm/wasm-objects.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -29,8 +31,6 @@ namespace internal {
 namespace compiler {
 
 #define __ masm()->
-
-#define kScratchDoubleReg xmm0
 
 // Adds IA-32 specific methods for decoding operands.
 class IA32OperandConverter : public InstructionOperandConverter {
@@ -293,43 +293,42 @@ class OutOfLineTruncateDoubleToI final : public OutOfLineCode {
 class OutOfLineRecordWrite final : public OutOfLineCode {
  public:
   OutOfLineRecordWrite(CodeGenerator* gen, Register object, Operand operand,
-                       Register value, Register scratch0, Register scratch1,
-                       RecordWriteMode mode, StubCallMode stub_mode)
+                       Register value, Register scratch, RecordWriteMode mode,
+                       StubCallMode stub_mode)
       : OutOfLineCode(gen),
         object_(object),
         operand_(operand),
         value_(value),
-        scratch0_(scratch0),
-        scratch1_(scratch1),
+        scratch_(scratch),
         mode_(mode),
 #if V8_ENABLE_WEBASSEMBLY
         stub_mode_(stub_mode),
 #endif  // V8_ENABLE_WEBASSEMBLY
         zone_(gen->zone()) {
-    DCHECK(!AreAliased(object, scratch0, scratch1));
-    DCHECK(!AreAliased(value, scratch0, scratch1));
+    DCHECK(!AreAliased(object, scratch));
+    DCHECK(!AreAliased(value, scratch));
   }
 
   void Generate() final {
-    __ CheckPageFlag(value_, scratch0_,
+    __ CheckPageFlag(value_, scratch_,
                      MemoryChunk::kPointersToHereAreInterestingMask, zero,
                      exit());
-    __ lea(scratch1_, operand_);
+    __ lea(scratch_, operand_);
     SaveFPRegsMode const save_fp_mode = frame()->DidAllocateDoubleRegisters()
                                             ? SaveFPRegsMode::kSave
                                             : SaveFPRegsMode::kIgnore;
     if (mode_ == RecordWriteMode::kValueIsEphemeronKey) {
-      __ CallEphemeronKeyBarrier(object_, scratch1_, save_fp_mode);
+      __ CallEphemeronKeyBarrier(object_, scratch_, save_fp_mode);
 #if V8_ENABLE_WEBASSEMBLY
     } else if (stub_mode_ == StubCallMode::kCallWasmRuntimeStub) {
       // A direct call to a wasm runtime stub defined in this module.
       // Just encode the stub index. This will be patched when the code
       // is added to the native module and copied into wasm code space.
-      __ CallRecordWriteStubSaveRegisters(object_, scratch1_, save_fp_mode,
+      __ CallRecordWriteStubSaveRegisters(object_, scratch_, save_fp_mode,
                                           StubCallMode::kCallWasmRuntimeStub);
 #endif  // V8_ENABLE_WEBASSEMBLY
     } else {
-      __ CallRecordWriteStubSaveRegisters(object_, scratch1_, save_fp_mode);
+      __ CallRecordWriteStubSaveRegisters(object_, scratch_, save_fp_mode);
     }
   }
 
@@ -337,12 +336,39 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
   Register const object_;
   Operand const operand_;
   Register const value_;
-  Register const scratch0_;
-  Register const scratch1_;
+  Register const scratch_;
   RecordWriteMode const mode_;
 #if V8_ENABLE_WEBASSEMBLY
   StubCallMode const stub_mode_;
 #endif  // V8_ENABLE_WEBASSEMBLY
+  Zone* zone_;
+};
+
+class OutOfLineVerifySkippedWriteBarrier final : public OutOfLineCode {
+ public:
+  OutOfLineVerifySkippedWriteBarrier(CodeGenerator* gen, Register object,
+                                     Register value, Register scratch)
+      : OutOfLineCode(gen),
+        object_(object),
+        value_(value),
+        scratch_(scratch),
+        zone_(gen->zone()) {}
+
+  void Generate() final {
+    __ PreCheckSkippedWriteBarrier(object_, value_, scratch_, exit());
+
+    SaveFPRegsMode const save_fp_mode = frame()->DidAllocateDoubleRegisters()
+                                            ? SaveFPRegsMode::kSave
+                                            : SaveFPRegsMode::kIgnore;
+
+    __ CallVerifySkippedWriteBarrierStubSaveRegisters(object_, value_,
+                                                      save_fp_mode);
+  }
+
+ private:
+  Register const object_;
+  Register const value_;
+  Register const scratch_;
   Zone* zone_;
 };
 
@@ -645,6 +671,12 @@ void CodeGenerator::AssembleCodeStartRegisterCheck() {
   __ pop(eax);  // Restore eax.
 }
 
+#ifdef V8_ENABLE_LEAPTIERING
+void CodeGenerator::AssembleDispatchHandleRegisterCheck() {
+  CHECK(!V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE_BOOL);
+}
+#endif  // V8_ENABLE_LEAPTIERING
+
 // Check if the code object is marked for deoptimization. If it is, then it
 // jumps to the CompileLazyDeoptimizedCode builtin. In order to do this we need
 // to:
@@ -652,18 +684,27 @@ void CodeGenerator::AssembleCodeStartRegisterCheck() {
 //       the flags in the referenced {Code} object;
 //    2. test kMarkedForDeoptimizationBit in those flags; and
 //    3. if it is not zero then it jumps to the builtin.
+//
+// Note: With leaptiering we simply assert the code is not deoptimized.
 void CodeGenerator::BailoutIfDeoptimized() {
   int offset = InstructionStream::kCodeOffset - InstructionStream::kHeaderSize;
-  __ push(eax);  // Push eax so we can use it as a scratch register.
-  __ mov(eax, Operand(kJavaScriptCallCodeStartRegister, offset));
-  __ test(FieldOperand(eax, Code::kFlagsOffset),
-          Immediate(1 << Code::kMarkedForDeoptimizationBit));
-  __ pop(eax);  // Restore eax.
-
+  if (v8_flags.debug_code || !V8_ENABLE_LEAPTIERING_BOOL) {
+    __ push(eax);  // Push eax so we can use it as a scratch register.
+    __ mov(eax, Operand(kJavaScriptCallCodeStartRegister, offset));
+    __ test(FieldOperand(eax, Code::kFlagsOffset),
+            Immediate(1 << Code::kMarkedForDeoptimizationBit));
+    __ pop(eax);  // Restore eax.
+  }
+#ifdef V8_ENABLE_LEAPTIERING
+  if (v8_flags.debug_code) {
+    __ Assert(zero, AbortReason::kInvalidDeoptimizedCode);
+  }
+#else
   Label skip;
   __ j(zero, &skip, Label::kNear);
   __ TailCallBuiltin(Builtin::kCompileLazyDeoptimizedCode);
   __ bind(&skip);
+#endif
 }
 
 // Assembles an instruction after register allocation, producing machine code.
@@ -702,8 +743,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
 #if V8_ENABLE_WEBASSEMBLY
-    case kArchCallWasmFunction: {
-      if (HasImmediateInput(instr, 0)) {
+    case kArchCallWasmFunction:
+    case kArchCallWasmFunctionIndirect: {
+      if (arch_opcode == kArchCallWasmFunction) {
+        // This should always use immediate inputs since we don't have a
+        // constant pool on this arch.
+        DCHECK(HasImmediateInput(instr, 0));
         Constant constant = i.ToConstant(instr->InputAt(0));
         Address wasm_code = static_cast<Address>(constant.ToInt32());
         if (DetermineStubCallMode() == StubCallMode::kCallWasmRuntimeStub) {
@@ -711,20 +756,24 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         } else {
           __ call(wasm_code, constant.rmode());
         }
-      } else {
-        __ call(i.InputRegister(0));
+      } else if (arch_opcode == kArchCallWasmFunctionIndirect) {
+        DCHECK(!HasImmediateInput(instr, 0));
+        __ CallWasmCodePointer(i.InputRegister(0));
       }
       RecordCallPosition(instr);
       frame_access_state()->ClearSPDelta();
       break;
     }
-    case kArchTailCallWasm: {
-      if (HasImmediateInput(instr, 0)) {
+    case kArchTailCallWasm:
+    case kArchTailCallWasmIndirect: {
+      if (arch_opcode == kArchTailCallWasm) {
+        DCHECK(HasImmediateInput(instr, 0));
         Constant constant = i.ToConstant(instr->InputAt(0));
         Address wasm_code = static_cast<Address>(constant.ToInt32());
         __ jmp(wasm_code, constant.rmode());
       } else {
-        __ jmp(i.InputRegister(0));
+        DCHECK(!HasImmediateInput(instr, 0));
+        __ CallWasmCodePointer(i.InputRegister(0), CallJumpMode::kTailCall);
       }
       frame_access_state()->ClearSPDelta();
       frame_access_state()->SetFrameAccessToDefault();
@@ -764,7 +813,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ cmp(esi, FieldOperand(func, JSFunction::kContextOffset));
         __ Assert(equal, AbortReason::kWrongFunctionContext);
       }
-      __ CallJSFunction(func);
+      uint32_t num_arguments =
+          i.InputUint32(instr->JSCallArgumentCountInputIndex());
+      __ CallJSFunction(func, num_arguments);
       RecordCallPosition(instr);
       frame_access_state()->ClearSPDelta();
       break;
@@ -772,10 +823,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchPrepareCallCFunction: {
       // Frame alignment requires using FP-relative frame addressing.
       frame_access_state()->SetFrameAccessToFP();
-      int const num_gp_parameters = ParamField::decode(instr->opcode());
-      int const num_fp_parameters = FPParamField::decode(instr->opcode());
-      __ PrepareCallCFunction(num_gp_parameters + num_fp_parameters,
-                              i.TempRegister(0));
+      int const num_parameters = MiscField::decode(instr->opcode());
+      __ PrepareCallCFunction(num_parameters, i.TempRegister(0));
       break;
     }
     case kArchSaveCallerRegisters: {
@@ -808,10 +857,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchPrepareTailCall:
       AssemblePrepareTailCall();
       break;
-    case kArchCallCFunctionWithFrameState:
     case kArchCallCFunction: {
-      int const num_parameters = ParamField::decode(instr->opcode()) +
-                                 FPParamField::decode(instr->opcode());
+      uint32_t param_counts = i.InputUint32(instr->InputCount() - 1);
+      int const num_gp_parameters = ParamField::decode(param_counts);
+      int const num_fp_parameters = FPParamField::decode(param_counts);
+      int const num_parameters = num_gp_parameters + num_fp_parameters;
 
       Label return_location;
       SetIsolateDataSlots set_isolate_data_slots = SetIsolateDataSlots::kYes;
@@ -839,9 +889,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       RecordSafepoint(instr->reference_map(), pc_offset);
 
-      bool const needs_frame_state =
-          (arch_opcode == kArchCallCFunctionWithFrameState);
-      if (needs_frame_state) {
+      if (instr->HasCallDescriptorFlag(CallDescriptor::kHasExceptionHandler)) {
+        handlers_.push_back({nullptr, pc_offset});
+      }
+      if (instr->HasCallDescriptorFlag(CallDescriptor::kNeedsFrameState)) {
         RecordDeoptInfo(instr, pc_offset);
       }
 
@@ -891,8 +942,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ DebugBreak();
       break;
     case kArchNop:
-    case kArchThrowTerminator:
       // don't emit code for nops.
+      break;
+    case kArchPause:
+      __ pause();
       break;
     case kArchDeoptimize: {
       DeoptimizationExit* exit =
@@ -912,6 +965,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       } else {
         __ mov(i.OutputRegister(), ebp);
       }
+      break;
+    case kArchRootPointer:
+      __ mov(i.OutputRegister(), kRootRegister);
       break;
 #if V8_ENABLE_WEBASSEMBLY
     case kArchStackPointer:
@@ -966,8 +1022,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       size_t index = 0;
       Operand operand = i.MemoryOperand(&index);
       Register value = i.InputRegister(index);
-      Register scratch0 = i.TempRegister(0);
-      Register scratch1 = i.TempRegister(1);
+      Register scratch = i.TempRegister(0);
 
       if (v8_flags.debug_code) {
         // Checking that |value| is not a cleared weakref: our write barrier
@@ -976,24 +1031,54 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ Check(not_equal, AbortReason::kOperandIsCleared);
       }
 
-      auto ool = zone()->New<OutOfLineRecordWrite>(this, object, operand, value,
-                                                   scratch0, scratch1, mode,
-                                                   DetermineStubCallMode());
+      auto ool = zone()->New<OutOfLineRecordWrite>(
+          this, object, operand, value, scratch, mode, DetermineStubCallMode());
       if (arch_opcode == kArchStoreWithWriteBarrier) {
         __ mov(operand, value);
       } else {
-        __ mov(scratch0, value);
-        __ xchg(scratch0, operand);
+        __ mov(scratch, value);
+        __ xchg(scratch, operand);
       }
       if (mode > RecordWriteMode::kValueIsPointer) {
         __ JumpIfSmi(value, ool->exit());
       }
-      __ CheckPageFlag(object, scratch0,
+      __ CheckPageFlag(object, scratch,
                        MemoryChunk::kPointersFromHereAreInterestingMask,
                        not_zero, ool->entry());
       __ bind(ool->exit());
       break;
     }
+    case kArchStoreSkippedWriteBarrier:  // Fall thrugh.
+    case kArchAtomicStoreSkippedWriteBarrier: {
+      Register object = i.InputRegister(0);
+      size_t index = 0;
+      Operand operand = i.MemoryOperand(&index);
+      Register value = i.InputRegister(index);
+      Register scratch = i.TempRegister(0);
+
+      if (v8_flags.debug_code) {
+        // Checking that |value| is not a cleared weakref: our write barrier
+        // does not support that for now.
+        __ cmp(value, Immediate(kClearedWeakHeapObjectLower32));
+        __ Check(not_equal, AbortReason::kOperandIsCleared);
+      }
+
+      DCHECK(v8_flags.verify_write_barriers);
+      auto ool = zone()->New<OutOfLineVerifySkippedWriteBarrier>(
+          this, object, value, scratch);
+      __ JumpIfNotSmi(value, ool->entry());
+      __ bind(ool->exit());
+
+      if (arch_opcode == kArchStoreSkippedWriteBarrier) {
+        __ mov(operand, value);
+      } else {
+        DCHECK_EQ(arch_opcode, kArchAtomicStoreSkippedWriteBarrier);
+        __ mov(scratch, value);
+        __ xchg(scratch, operand);
+      }
+      break;
+    }
+    case kArchStoreIndirectSkippedWriteBarrier:
     case kArchStoreIndirectWithWriteBarrier:
       UNREACHABLE();
     case kArchStackSlot: {
@@ -3556,6 +3641,31 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ xchg(i.InputRegister(0), i.MemoryOperand(1));
       break;
     }
+    case kAtomicExchangeWithWriteBarrier: {
+      Register scratch = i.TempRegister(0);
+      Register object = i.InputRegister(1);
+      Register written_value = i.TempRegister(1);
+      Operand operand = i.MemoryOperand(1);
+      __ mov(written_value, i.InputRegister(0));
+      __ xchg(i.InputRegister(0), operand);
+      if (v8_flags.disable_write_barriers) break;
+      // Emit write barrier.
+      if (v8_flags.debug_code) {
+        // Checking that |written_value| is not a cleared weakref: our write
+        // barrier does not support that for now.
+        __ cmp(written_value, Immediate(kClearedWeakHeapObjectLower32));
+        __ Check(not_equal, AbortReason::kOperandIsCleared);
+      }
+      auto ool = zone()->New<OutOfLineRecordWrite>(
+          this, object, operand, written_value, scratch,
+          RecordWriteMode::kValueIsAny, DetermineStubCallMode());
+      __ JumpIfSmi(written_value, ool->exit());
+      __ CheckPageFlag(object, scratch,
+                       MemoryChunk::kPointersFromHereAreInterestingMask,
+                       not_zero, ool->entry());
+      __ bind(ool->exit());
+      break;
+    }
     case kIA32Word32AtomicPairExchange: {
       DCHECK(VerifyOutputOfAtomicPairInstr(&i, instr));
       Label exchange;
@@ -3599,6 +3709,36 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kAtomicCompareExchangeWord32: {
       __ lock();
       __ cmpxchg(i.MemoryOperand(2), i.InputRegister(1));
+      break;
+    }
+    case kAtomicCompareExchangeWithWriteBarrier: {
+      Register written_value = i.TempRegister(0);
+      Register object = i.InputRegister(2);
+      Operand operand = i.MemoryOperand(2);
+      __ mov(written_value, i.InputRegister(1));
+      __ lock();
+      __ cmpxchg(operand, i.InputRegister(1));
+      if (v8_flags.disable_write_barriers) break;
+      // Emit write barrier.
+      if (v8_flags.debug_code) {
+        // Checking that |written_value| is not a cleared weakref: our write
+        // barrier does not support that for now.
+        __ cmp(written_value, Immediate(kClearedWeakHeapObjectLower32));
+        __ Check(not_equal, AbortReason::kOperandIsCleared);
+      }
+      // Reuse eax (the result register) as a scratch register for the write
+      // barrier.
+      __ Push(eax);
+      Register scratch = eax;
+      auto ool = zone()->New<OutOfLineRecordWrite>(
+          this, object, operand, written_value, scratch,
+          RecordWriteMode::kValueIsAny, DetermineStubCallMode());
+      __ JumpIfSmi(written_value, ool->exit());
+      __ CheckPageFlag(object, scratch,
+                       MemoryChunk::kPointersFromHereAreInterestingMask,
+                       not_zero, ool->entry());
+      __ bind(ool->exit());
+      __ Pop(eax);
       break;
     }
     case kIA32Word32AtomicPairCompareExchange: {
@@ -3837,9 +3977,12 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
   __ bind(&done);
 }
 
-void CodeGenerator::AssembleArchConditionalBoolean(Instruction* instr) {
+#if V8_ENABLE_WEBASSEMBLY
+void CodeGenerator::AssembleArchConditionalTrap(Instruction* instr,
+                                                FlagsCondition condition) {
   UNREACHABLE();
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 void CodeGenerator::AssembleArchConditionalBranch(Instruction* instr,
                                                   BranchInfo* branch) {
@@ -3861,11 +4004,11 @@ void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
   IA32OperandConverter i(this, instr);
   Register input = i.InputRegister(0);
   size_t const case_count = instr->InputCount() - 2;
-  Label** cases = zone()->AllocateArray<Label*>(case_count);
+  base::Vector<Label*> cases = zone()->AllocateVector<Label*>(case_count);
   for (size_t index = 0; index < case_count; ++index) {
     cases[index] = GetLabel(i.InputRpo(index + 2));
   }
-  Label* const table = AddJumpTable(cases, case_count);
+  Label* const table = AddJumpTable(cases);
   __ cmp(input, Immediate(case_count));
   __ j(above_equal, GetLabel(i.InputRpo(1)));
   __ jmp(Operand::JumpTable(input, times_system_pointer_size, table));
@@ -4029,7 +4172,7 @@ void CodeGenerator::AssembleConstructFrame() {
     } else {
       __ StubPrologue(info()->GetOutputStackFrameType());
 #if V8_ENABLE_WEBASSEMBLY
-      if (call_descriptor->IsWasmFunctionCall() ||
+      if (call_descriptor->IsAnyWasmFunctionCall() ||
           call_descriptor->IsWasmImportWrapper() ||
           call_descriptor->IsWasmCapiFunction()) {
         // For import wrappers and C-API functions, this stack slot is only used
@@ -4086,13 +4229,55 @@ void CodeGenerator::AssembleConstructFrame() {
         __ j(above_equal, &done, Label::kNear);
       }
 
-      __ wasm_call(static_cast<Address>(Builtin::kWasmStackOverflow),
-                   RelocInfo::WASM_STUB_CALL);
-      // The call does not return, hence we can ignore any references and just
-      // define an empty safepoint.
-      ReferenceMap* reference_map = zone()->New<ReferenceMap>(zone());
-      RecordSafepoint(reference_map);
-      __ AssertUnreachable(AbortReason::kUnexpectedReturnFromWasmTrap);
+      if (v8_flags.experimental_wasm_growable_stacks) {
+        RegList regs_to_save;
+        regs_to_save.set(WasmHandleStackOverflowDescriptor::GapRegister());
+        regs_to_save.set(
+            WasmHandleStackOverflowDescriptor::FrameBaseRegister());
+        for (auto reg : wasm::kGpParamRegisters) regs_to_save.set(reg);
+        for (Register reg : base::Reversed(regs_to_save)) {
+          __ push(reg);
+        }
+        __ sub(esp,
+               Immediate(arraysize(wasm::kFpParamRegisters) * kSimd128Size));
+        for (size_t i = 0; i < arraysize(wasm::kFpParamRegisters); i++) {
+          __ Movdqu(Operand(esp, kSimd128Size * i), wasm::kFpParamRegisters[i]);
+        }
+        __ mov(WasmHandleStackOverflowDescriptor::GapRegister(),
+               Immediate(required_slots * kSystemPointerSize));
+        __ mov(WasmHandleStackOverflowDescriptor::FrameBaseRegister(), ebp);
+        __ add(WasmHandleStackOverflowDescriptor::FrameBaseRegister(),
+               Immediate(static_cast<int32_t>(
+                   call_descriptor->ParameterSlotCount() * kSystemPointerSize +
+                   CommonFrameConstants::kFixedFrameSizeAboveFp)));
+        __ wasm_call(static_cast<Address>(Builtin::kWasmHandleStackOverflow),
+                     RelocInfo::WASM_STUB_CALL);
+        // If the call successfully grew the stack, we don't expect it to have
+        // allocated any heap objects or otherwise triggered any GC.
+        // If it was not able to grow the stack, it may have triggered a GC when
+        // allocating the stack overflow exception object, but the call did not
+        // return in this case.
+        // So either way, we can just ignore any references and record an empty
+        // safepoint here.
+        ReferenceMap* reference_map = zone()->New<ReferenceMap>(zone());
+        RecordSafepoint(reference_map);
+        for (size_t i = 0; i < arraysize(wasm::kFpParamRegisters); i++) {
+          __ Movdqu(wasm::kFpParamRegisters[i], Operand(esp, kSimd128Size * i));
+        }
+        __ add(esp,
+               Immediate(arraysize(wasm::kFpParamRegisters) * kSimd128Size));
+        for (Register reg : regs_to_save) {
+          __ pop(reg);
+        }
+      } else {
+        __ wasm_call(static_cast<Address>(Builtin::kWasmStackOverflow),
+                     RelocInfo::WASM_STUB_CALL);
+        // The call does not return, hence we can ignore any references and just
+        // define an empty safepoint.
+        ReferenceMap* reference_map = zone()->New<ReferenceMap>(zone());
+        RecordSafepoint(reference_map);
+        __ AssertUnreachable(AbortReason::kUnexpectedReturnFromWasmTrap);
+      }
       __ bind(&done);
     }
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -4152,6 +4337,38 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
       __ Assert(equal, AbortReason::kUnexpectedAdditionalPopValue);
     }
   }
+
+#if V8_ENABLE_WEBASSEMBLY
+  if (call_descriptor->IsAnyWasmFunctionCall() &&
+      v8_flags.experimental_wasm_growable_stacks) {
+    __ cmp(MemOperand(ebp, TypedFrameConstants::kFrameTypeOffset),
+           Immediate(StackFrame::TypeToMarker(StackFrame::WASM_SEGMENT_START)));
+    Label done;
+    __ j(not_equal, &done);
+    for (Register reg : base::Reversed(wasm::kGpReturnRegisters)) {
+      __ push(reg);
+    }
+    __ sub(esp, Immediate(arraysize(wasm::kFpReturnRegisters) * kSimd128Size));
+    for (size_t i = 0; i < arraysize(wasm::kFpReturnRegisters); i++) {
+      __ Movdqu(Operand(esp, kSimd128Size * i), wasm::kFpReturnRegisters[i]);
+    }
+    __ PrepareCallCFunction(1, kReturnRegister0);
+    __ Move(Operand(esp, 0 * kSystemPointerSize),
+            Immediate(ExternalReference::isolate_address()));
+    __ CallCFunction(ExternalReference::wasm_shrink_stack(), 1);
+    // Restore old ebp. We don't need to restore old esp explicitly, because
+    // it will be restored from ebp in LeaveFrame before return.
+    __ mov(ebp, kReturnRegister0);
+    for (size_t i = 0; i < arraysize(wasm::kFpReturnRegisters); i++) {
+      __ Movdqu(wasm::kFpReturnRegisters[i], Operand(esp, kSimd128Size * i));
+    }
+    __ add(esp, Immediate(arraysize(wasm::kFpReturnRegisters) * kSimd128Size));
+    for (Register reg : wasm::kGpReturnRegisters) {
+      __ pop(reg);
+    }
+    __ bind(&done);
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   Register argc_reg = ecx;
   // Functions with JS linkage have at least one parameter (the receiver).
@@ -4563,9 +4780,9 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
   }
 }
 
-void CodeGenerator::AssembleJumpTable(Label** targets, size_t target_count) {
-  for (size_t index = 0; index < target_count; ++index) {
-    __ dd(targets[index]);
+void CodeGenerator::AssembleJumpTable(base::Vector<Label*> targets) {
+  for (auto target : targets) {
+    __ dd(target);
   }
 }
 

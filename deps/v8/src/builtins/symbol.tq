@@ -3,8 +3,8 @@
 // found in the LICENSE file.
 
 namespace symbol {
-extern runtime SymbolDescriptiveString(implicit context: Context)(Symbol):
-    String;
+extern runtime SymbolDescriptiveString(implicit context: Context)(
+                                       Symbol): String;
 
 transitioning macro ThisSymbolValue(
     implicit context: Context)(receiver: JSAny,

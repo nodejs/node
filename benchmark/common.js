@@ -28,6 +28,7 @@ class Benchmark {
     const argv = process.argv.slice(2);
     const parsed_args = this._parseArgs(argv, configs, options);
 
+    this.originalOptions = options;
     this.options = parsed_args.cli;
     this.extra_options = parsed_args.extra;
     this.combinationFilter = typeof options.combinationFilter === 'function' ? options.combinationFilter : allow;
@@ -81,6 +82,9 @@ class Benchmark {
         if (typeof value === 'number') {
           if (key === 'dur' || key === 'duration') {
             value = 0.05;
+          } else if (key === 'memory') {
+            // minimum Argon2 memcost with 1 lane is 8
+            value = 8;
           } else if (value > 1) {
             value = 1;
           }
@@ -202,6 +206,12 @@ class Benchmark {
         name: this.name,
         queueLength: this.queue.length,
       });
+    }
+
+    if (this.originalOptions.setup) {
+      // Only do this from the root process. _run() is only ever called from the root,
+      // in child processes main is run directly.
+      this.originalOptions.setup(this.queue);
     }
 
     const recursive = (queueIndex) => {
@@ -386,7 +396,7 @@ function getUrlData(withBase) {
  * @param {number} e The repetition of the data, as exponent of 2
  * @param {boolean} withBase Whether to include a base URL
  * @param {boolean} asUrl Whether to return the results as URL objects
- * @return {string[] | string[][] | URL[]}
+ * @returns {string[] | string[][] | URL[]}
  */
 function bakeUrlData(type, e = 0, withBase = false, asUrl = false) {
   let result = [];

@@ -13,9 +13,10 @@ namespace internal {
 
 template <typename Trait>
 double MemoryController<Trait>::GrowingFactor(
-    Heap* heap, size_t max_heap_size, double gc_speed, double mutator_speed,
-    Heap::HeapGrowingMode growing_mode) {
-  const double max_factor = MaxGrowingFactor(max_heap_size);
+    Heap* heap, size_t max_heap_size, std::optional<double> gc_speed,
+    double mutator_speed, Heap::HeapGrowingMode growing_mode) {
+  const double max_factor =
+      MaxGrowingFactor(heap->physical_memory(), max_heap_size);
   double factor = DynamicGrowingFactor(gc_speed, mutator_speed, max_factor);
   switch (growing_mode) {
     case Heap::HeapGrowingMode::kConservative:
@@ -36,32 +37,37 @@ double MemoryController<Trait>::GrowingFactor(
         "[%s] factor %.1f based on mu=%.3f, speed_ratio=%.f "
         "(gc=%.f, mutator=%.f)\n",
         Trait::kName, factor, Trait::kTargetMutatorUtilization,
-        gc_speed / mutator_speed, gc_speed, mutator_speed);
+        gc_speed.value_or(0) / mutator_speed, gc_speed.value_or(0),
+        mutator_speed);
   }
   return factor;
 }
 
 template <typename Trait>
-double MemoryController<Trait>::MaxGrowingFactor(size_t max_heap_size) {
+double MemoryController<Trait>::MaxGrowingFactor(uint64_t physical_memory,
+                                                 size_t max_heap_size) {
   constexpr double kMinSmallFactor = 1.3;
   constexpr double kMaxSmallFactor = 2.0;
   constexpr double kHighFactor = 4.0;
 
   // If we are on a device with lots of memory, we allow a high heap
   // growing factor.
-  if (max_heap_size >= Trait::kMaxSize) {
+  if (max_heap_size >= Heap::DefaultMaxHeapSize(physical_memory)) {
     return kHighFactor;
   }
 
-  size_t max_size = std::max({max_heap_size, Trait::kMinSize});
+  size_t max_size =
+      std::max({max_heap_size, Heap::DefaultMinHeapSize(physical_memory)});
 
-  DCHECK_GE(max_size, Trait::kMinSize);
-  DCHECK_LT(max_size, Trait::kMaxSize);
+  DCHECK_GE(max_size, Heap::DefaultMinHeapSize(physical_memory));
+  DCHECK_LT(max_size, Heap::DefaultMaxHeapSize(physical_memory));
 
   // On smaller devices we linearly scale the factor: C+(D-C)*(X-A)/(B-A)
-  double factor = kMinSmallFactor + (kMaxSmallFactor - kMinSmallFactor) *
-                                        (max_size - Trait::kMinSize) /
-                                        (Trait::kMaxSize - Trait::kMinSize);
+  double factor = kMinSmallFactor +
+                  (kMaxSmallFactor - kMinSmallFactor) *
+                      (max_size - Heap::DefaultMinHeapSize(physical_memory)) /
+                      (Heap::DefaultMaxHeapSize(physical_memory) -
+                       Heap::DefaultMinHeapSize(physical_memory));
   return factor;
 }
 
@@ -105,14 +111,13 @@ double MemoryController<Trait>::MaxGrowingFactor(size_t max_heap_size) {
 //   F * (R * (1 - MU) - MU) / (R * (1 - MU)) = 1
 //   F = R * (1 - MU) / (R * (1 - MU) - MU)
 template <typename Trait>
-double MemoryController<Trait>::DynamicGrowingFactor(double gc_speed,
-                                                     double mutator_speed,
-                                                     double max_factor) {
+double MemoryController<Trait>::DynamicGrowingFactor(
+    std::optional<double> gc_speed, double mutator_speed, double max_factor) {
   DCHECK_LE(Trait::kMinGrowingFactor, max_factor);
   DCHECK_GE(Trait::kMaxGrowingFactor, max_factor);
-  if (gc_speed == 0 || mutator_speed == 0) return max_factor;
+  if (!gc_speed || mutator_speed == 0) return max_factor;
 
-  const double speed_ratio = gc_speed / mutator_speed;
+  const double speed_ratio = *gc_speed / mutator_speed;
 
   const double a = speed_ratio * (1 - Trait::kTargetMutatorUtilization);
   const double b = speed_ratio * (1 - Trait::kTargetMutatorUtilization) -
@@ -138,13 +143,12 @@ size_t MemoryController<Trait>::MinimumAllocationLimitGrowingStep(
 
 template <typename Trait>
 size_t MemoryController<Trait>::BoundAllocationLimit(
-    Heap* heap, size_t current_size, size_t limit, size_t min_size,
+    Heap* heap, size_t current_size, uint64_t limit, size_t min_size,
     size_t max_size, size_t new_space_capacity,
     Heap::HeapGrowingMode growing_mode) {
   CHECK_LT(0, current_size);
-  limit = std::max(static_cast<uint64_t>(limit),
-                   static_cast<uint64_t>(current_size) +
-                       MinimumAllocationLimitGrowingStep(growing_mode)) +
+  limit = std::max(limit, static_cast<uint64_t>(current_size) +
+                              MinimumAllocationLimitGrowingStep(growing_mode)) +
           new_space_capacity;
   const uint64_t halfway_to_the_max =
       (static_cast<uint64_t>(current_size) + max_size) / 2;

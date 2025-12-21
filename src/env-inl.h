@@ -107,7 +107,18 @@ v8::Local<v8::Array> AsyncHooks::js_execution_async_resources() {
 
 v8::Local<v8::Object> AsyncHooks::native_execution_async_resource(size_t i) {
   if (i >= native_execution_async_resources_.size()) return {};
-  return native_execution_async_resources_[i];
+  auto resource = native_execution_async_resources_[i];
+  if (std::holds_alternative<v8::Global<v8::Object>*>(resource)) [[unlikely]] {
+    auto* global = std::get<v8::Global<v8::Object>*>(resource);
+    if (global == nullptr) [[unlikely]]
+      return {};
+    return global->Get(env()->isolate());
+  } else {
+    auto* local = std::get<v8::Local<v8::Object>*>(resource);
+    if (local == nullptr) [[unlikely]]
+      return {};
+    return *local;
+  }
 }
 
 inline v8::Local<v8::String> AsyncHooks::provider_string(int idx) {
@@ -185,9 +196,8 @@ inline Environment* Environment::GetCurrent(v8::Local<v8::Context> context) {
   if (!ContextEmbedderTag::IsNodeContext(context)) [[unlikely]] {
     return nullptr;
   }
-  return static_cast<Environment*>(
-      context->GetAlignedPointerFromEmbedderData(
-          ContextEmbedderIndex::kEnvironment));
+  return static_cast<Environment*>(context->GetAlignedPointerFromEmbedderData(
+      ContextEmbedderIndex::kEnvironment, EmbedderDataTag::kPerContextData));
 }
 
 inline Environment* Environment::GetCurrent(
@@ -203,6 +213,15 @@ inline Environment* Environment::GetCurrent(
 
 inline v8::Isolate* Environment::isolate() const {
   return isolate_;
+}
+
+inline cppgc::AllocationHandle& Environment::cppgc_allocation_handle() const {
+  return isolate_->GetCppHeap()->GetAllocationHandle();
+}
+
+inline v8::ExternalMemoryAccounter* Environment::external_memory_accounter()
+    const {
+  return external_memory_accounter_;
 }
 
 inline Environment* Environment::from_timer_handle(uv_timer_t* handle) {
@@ -674,14 +693,6 @@ inline bool Environment::no_browser_globals() const {
 #endif
 }
 
-bool Environment::filehandle_close_warning() const {
-  return emit_filehandle_warning_;
-}
-
-void Environment::set_filehandle_close_warning(bool on) {
-  emit_filehandle_warning_ = on;
-}
-
 void Environment::set_source_maps_enabled(bool on) {
   source_maps_enabled_ = on;
 }
@@ -692,6 +703,10 @@ bool Environment::source_maps_enabled() const {
 
 inline uint64_t Environment::thread_id() const {
   return thread_id_;
+}
+
+inline std::string_view Environment::thread_name() const {
+  return thread_name_;
 }
 
 inline worker::Worker* Environment::worker_context() const {
@@ -770,6 +785,13 @@ inline void Environment::ThrowError(
   isolate()->ThrowException(fun(OneByteString(isolate(), errmsg), {}));
 }
 
+inline void Environment::ThrowStdErrException(std::error_code error_code,
+                                              const char* syscall,
+                                              const char* path) {
+  ThrowErrnoException(
+      error_code.value(), syscall, error_code.message().c_str(), path);
+}
+
 inline void Environment::ThrowErrnoException(int errorno,
                                              const char* syscall,
                                              const char* message,
@@ -825,6 +847,7 @@ void Environment::set_process_exit_handler(
     return PropertyName##_.Get(isolate_);                                      \
   }                                                                            \
   inline void IsolateData::set_##PropertyName(v8::Local<TypeName> value) {     \
+    CHECK(PropertyName##_.IsEmpty());                                          \
     PropertyName##_.Set(isolate_, value);                                      \
   }
   PER_ISOLATE_TEMPLATE_PROPERTIES(V)

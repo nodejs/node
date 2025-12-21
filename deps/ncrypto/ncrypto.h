@@ -28,6 +28,15 @@
 #include <openssl/fips.h>
 #endif  // OPENSSL_FIPS
 
+// Define OPENSSL_WITH_PQC for post-quantum cryptography support
+#if OPENSSL_VERSION_NUMBER >= 0x30500000L
+#define OPENSSL_WITH_PQC 1
+#define EVP_PKEY_ML_KEM_512 NID_ML_KEM_512
+#define EVP_PKEY_ML_KEM_768 NID_ML_KEM_768
+#define EVP_PKEY_ML_KEM_1024 NID_ML_KEM_1024
+#include <openssl/core_names.h>
+#endif
+
 #if OPENSSL_VERSION_MAJOR >= 3
 #define OSSL3_CONST const
 #else
@@ -57,7 +66,10 @@ namespace ncrypto {
 #define NCRYPTO_STR(x) #x
 #define NCRYPTO_REQUIRE(EXPR)                                                  \
   {                                                                            \
-    if (!(EXPR) { abort(); }) }
+    if (!(EXPR)) {                                                             \
+      abort();                                                                 \
+    }                                                                          \
+  }
 
 #define NCRYPTO_FAIL(MESSAGE)                                                  \
   do {                                                                         \
@@ -220,6 +232,8 @@ class DataPointer;
 class DHPointer;
 class ECKeyPointer;
 class EVPKeyPointer;
+class EVPMacCtxPointer;
+class EVPMacPointer;
 class EVPMDCtxPointer;
 class SSLCtxPointer;
 class SSLPointer;
@@ -272,19 +286,32 @@ class Digest final {
   static const Digest SHA384;
   static const Digest SHA512;
 
-  static const Digest FromName(std::string_view name);
+  static const Digest FromName(const char* name);
 
  private:
   const EVP_MD* md_ = nullptr;
 };
 
+// Computes a fixed-length digest.
 DataPointer hashDigest(const Buffer<const unsigned char>& data,
                        const EVP_MD* md);
+// Computes a variable-length digest for XOF algorithms (e.g. SHAKE128).
+DataPointer xofHashDigest(const Buffer<const unsigned char>& data,
+                          const EVP_MD* md,
+                          size_t length);
 
 class Cipher final {
  public:
   static constexpr size_t MAX_KEY_LENGTH = EVP_MAX_KEY_LENGTH;
   static constexpr size_t MAX_IV_LENGTH = EVP_MAX_IV_LENGTH;
+#ifdef EVP_MAX_AEAD_TAG_LENGTH
+  static constexpr size_t MAX_AUTH_TAG_LENGTH = EVP_MAX_AEAD_TAG_LENGTH;
+#else
+  static constexpr size_t MAX_AUTH_TAG_LENGTH = 16;
+#endif
+  static_assert(EVP_GCM_TLS_TAG_LEN <= MAX_AUTH_TAG_LENGTH &&
+                EVP_CCM_TLS_TAG_LEN <= MAX_AUTH_TAG_LENGTH &&
+                EVP_CHACHAPOLY_TLS_TAG_LEN <= MAX_AUTH_TAG_LENGTH);
 
   Cipher() = default;
   Cipher(const EVP_CIPHER* cipher) : cipher_(cipher) {}
@@ -306,7 +333,7 @@ class Cipher final {
   int getKeyLength() const;
   int getBlockSize() const;
   std::string_view getModeLabel() const;
-  std::string_view getName() const;
+  const char* getName() const;
 
   bool isGcmMode() const;
   bool isWrapMode() const;
@@ -323,11 +350,11 @@ class Cipher final {
                  unsigned char* key,
                  unsigned char* iv) const;
 
-  static const Cipher FromName(std::string_view name);
+  static const Cipher FromName(const char* name);
   static const Cipher FromNid(int nid);
   static const Cipher FromCtx(const CipherCtxPointer& ctx);
 
-  using CipherNameCallback = std::function<void(std::string_view name)>;
+  using CipherNameCallback = std::function<void(const char* name)>;
 
   // Iterates the known ciphers if the underlying implementation
   // is able to do so.
@@ -351,6 +378,10 @@ class Cipher final {
   static const Cipher AES_128_KW;
   static const Cipher AES_192_KW;
   static const Cipher AES_256_KW;
+  static const Cipher AES_128_OCB;
+  static const Cipher AES_192_OCB;
+  static const Cipher AES_256_OCB;
+  static const Cipher CHACHA20_POLY1305;
 
   struct CipherParams {
     int padding;
@@ -469,9 +500,9 @@ class Ec final {
   inline operator bool() const { return ec_ != nullptr; }
   inline operator OSSL3_CONST EC_KEY*() const { return ec_; }
 
-  static int GetCurveIdFromName(std::string_view name);
+  static int GetCurveIdFromName(const char* name);
 
-  using GetCurveCallback = std::function<bool(std::string_view)>;
+  using GetCurveCallback = std::function<bool(const char*)>;
   static bool GetCurves(GetCurveCallback callback);
 
  private:
@@ -560,7 +591,7 @@ class BIOPointer final {
   static BIOPointer New(const BIO_METHOD* method);
   static BIOPointer New(const void* data, size_t len);
   static BIOPointer New(const BIGNUM* bn);
-  static BIOPointer NewFile(std::string_view filename, std::string_view mode);
+  static BIOPointer NewFile(const char* filename, const char* mode);
   static BIOPointer NewFp(FILE* fd, int flags);
 
   template <typename T>
@@ -715,6 +746,7 @@ class CipherCtxPointer final {
   int getNid() const;
 
   bool isGcmMode() const;
+  bool isOcbMode() const;
   bool isCcmMode() const;
   bool isWrapMode() const;
   bool isChaCha20Poly1305() const;
@@ -804,6 +836,10 @@ class EVPKeyPointer final {
                                     const Buffer<const unsigned char>& data);
   static EVPKeyPointer NewRawPrivate(int id,
                                      const Buffer<const unsigned char>& data);
+#if OPENSSL_WITH_PQC
+  static EVPKeyPointer NewRawSeed(int id,
+                                  const Buffer<const unsigned char>& data);
+#endif
   static EVPKeyPointer NewDH(DHPointer&& dh);
   static EVPKeyPointer NewRSA(RSAPointer&& rsa);
 
@@ -897,6 +933,10 @@ class EVPKeyPointer final {
   DataPointer rawPrivateKey() const;
   BIOPointer derPublicKey() const;
 
+#if OPENSSL_WITH_PQC
+  DataPointer rawSeed() const;
+#endif
+
   Result<BIOPointer, bool> writePrivateKey(
       const PrivateKeyEncodingConfig& config) const;
   Result<BIOPointer, bool> writePublicKey(
@@ -933,9 +973,8 @@ class DHPointer final {
   static BignumPointer GetStandardGenerator();
 
   static BignumPointer FindGroup(
-      const std::string_view name,
-      FindGroupOption option = FindGroupOption::NONE);
-  static DHPointer FromGroup(const std::string_view name,
+      std::string_view name, FindGroupOption option = FindGroupOption::NONE);
+  static DHPointer FromGroup(std::string_view name,
                              FindGroupOption option = FindGroupOption::NONE);
 
   static DHPointer New(BignumPointer&& p, BignumPointer&& g);
@@ -1034,7 +1073,7 @@ class SSLCtxPointer final {
     SSL_CTX_set_tlsext_status_arg(get(), nullptr);
   }
 
-  bool setCipherSuites(std::string_view ciphers);
+  bool setCipherSuites(const char* ciphers);
 
   static SSLCtxPointer NewServer();
   static SSLCtxPointer NewClient();
@@ -1063,8 +1102,8 @@ class SSLPointer final {
   bool setSession(const SSLSessionPointer& session);
   bool setSniContext(const SSLCtxPointer& ctx) const;
 
-  const std::string_view getClientHelloAlpn() const;
-  const std::string_view getClientHelloServerName() const;
+  const char* getClientHelloAlpn() const;
+  const char* getClientHelloServerName() const;
 
   std::optional<const std::string_view> getServerName() const;
   X509View getCertificate() const;
@@ -1080,7 +1119,7 @@ class SSLPointer final {
 
   static std::optional<int> getSecurityLevel();
 
-  void getCiphers(std::function<void(const std::string_view)> cb) const;
+  void getCiphers(std::function<void(const char*)> cb) const;
 
   static SSLPointer New(const SSLCtxPointer& ctx);
   static std::optional<const std::string_view> GetServerName(const SSL* ssl);
@@ -1155,6 +1194,8 @@ class X509View final {
   BIOPointer getInfoAccess() const;
   BIOPointer getValidFrom() const;
   BIOPointer getValidTo() const;
+  std::optional<std::string_view> getSignatureAlgorithm() const;
+  std::optional<std::string> getSignatureAlgorithmOID() const;
   int64_t getValidFromTime() const;
   int64_t getValidToTime() const;
   DataPointer getSerialNumber() const;
@@ -1176,13 +1217,13 @@ class X509View final {
     INVALID_NAME,
     OPERATION_FAILED,
   };
-  CheckMatch checkHost(const std::string_view host,
+  CheckMatch checkHost(std::string_view host,
                        int flags,
                        DataPointer* peerName = nullptr) const;
-  CheckMatch checkEmail(const std::string_view email, int flags) const;
-  CheckMatch checkIp(const std::string_view ip, int flags) const;
+  CheckMatch checkEmail(std::string_view email, int flags) const;
+  CheckMatch checkIp(std::string_view ip, int flags) const;
 
-  using UsageCallback = std::function<void(std::string_view)>;
+  using UsageCallback = std::function<void(const char*)>;
   bool enumUsages(UsageCallback callback) const;
 
   template <typename T>
@@ -1219,8 +1260,8 @@ class X509Pointer final {
   X509View view() const;
   operator X509View() const { return view(); }
 
-  static std::string_view ErrorCode(int32_t err);
-  static std::optional<std::string_view> ErrorReason(int32_t err);
+  static const char* ErrorCode(int32_t err);
+  static std::optional<const char*> ErrorReason(int32_t err);
 
  private:
   DeleteFnPtr<X509, X509_free> cert_;
@@ -1373,6 +1414,15 @@ class EVPMDCtxPointer final {
   std::optional<EVP_PKEY_CTX*> verifyInit(const EVPKeyPointer& key,
                                           const Digest& digest);
 
+  std::optional<EVP_PKEY_CTX*> signInitWithContext(
+      const EVPKeyPointer& key,
+      const Digest& digest,
+      const Buffer<const unsigned char>& context_string);
+  std::optional<EVP_PKEY_CTX*> verifyInitWithContext(
+      const EVPKeyPointer& key,
+      const Digest& digest,
+      const Buffer<const unsigned char>& context_string);
+
   DataPointer signOneShot(const Buffer<const unsigned char>& buf) const;
   DataPointer sign(const Buffer<const unsigned char>& buf) const;
   bool verify(const Buffer<const unsigned char>& buf,
@@ -1417,6 +1467,56 @@ class HMACCtxPointer final {
   DeleteFnPtr<HMAC_CTX, HMAC_CTX_free> ctx_;
 };
 
+#if OPENSSL_VERSION_MAJOR >= 3
+class EVPMacPointer final {
+ public:
+  EVPMacPointer() = default;
+  explicit EVPMacPointer(EVP_MAC* mac);
+  EVPMacPointer(EVPMacPointer&& other) noexcept;
+  EVPMacPointer& operator=(EVPMacPointer&& other) noexcept;
+  NCRYPTO_DISALLOW_COPY(EVPMacPointer)
+  ~EVPMacPointer();
+
+  inline bool operator==(std::nullptr_t) noexcept { return mac_ == nullptr; }
+  inline operator bool() const { return mac_ != nullptr; }
+  inline EVP_MAC* get() const { return mac_.get(); }
+  inline operator EVP_MAC*() const { return mac_.get(); }
+  void reset(EVP_MAC* mac = nullptr);
+  EVP_MAC* release();
+
+  static EVPMacPointer Fetch(const char* algorithm);
+
+ private:
+  DeleteFnPtr<EVP_MAC, EVP_MAC_free> mac_;
+};
+
+class EVPMacCtxPointer final {
+ public:
+  EVPMacCtxPointer() = default;
+  explicit EVPMacCtxPointer(EVP_MAC_CTX* ctx);
+  EVPMacCtxPointer(EVPMacCtxPointer&& other) noexcept;
+  EVPMacCtxPointer& operator=(EVPMacCtxPointer&& other) noexcept;
+  NCRYPTO_DISALLOW_COPY(EVPMacCtxPointer)
+  ~EVPMacCtxPointer();
+
+  inline bool operator==(std::nullptr_t) noexcept { return ctx_ == nullptr; }
+  inline operator bool() const { return ctx_ != nullptr; }
+  inline EVP_MAC_CTX* get() const { return ctx_.get(); }
+  inline operator EVP_MAC_CTX*() const { return ctx_.get(); }
+  void reset(EVP_MAC_CTX* ctx = nullptr);
+  EVP_MAC_CTX* release();
+
+  bool init(const Buffer<const void>& key, const OSSL_PARAM* params = nullptr);
+  bool update(const Buffer<const void>& data);
+  DataPointer final(size_t length);
+
+  static EVPMacCtxPointer New(EVP_MAC* mac);
+
+ private:
+  DeleteFnPtr<EVP_MAC_CTX, EVP_MAC_CTX_free> ctx_;
+};
+#endif  // OPENSSL_VERSION_MAJOR >= 3
+
 #ifndef OPENSSL_NO_ENGINE
 class EnginePointer final {
  public:
@@ -1436,7 +1536,7 @@ class EnginePointer final {
 
   bool setAsDefault(uint32_t flags, CryptoErrorList* errors = nullptr);
   bool init(bool finish_on_exit = false);
-  EVPKeyPointer loadPrivateKey(const std::string_view key_name);
+  EVPKeyPointer loadPrivateKey(const char* key_name);
 
   // Release ownership of the ENGINE* pointer.
   ENGINE* release();
@@ -1444,7 +1544,7 @@ class EnginePointer final {
   // Retrieve an OpenSSL Engine instance by name. If the name does not
   // identify a valid named engine, the returned EnginePointer will be
   // empty.
-  static EnginePointer getEngineByName(const std::string_view name,
+  static EnginePointer getEngineByName(const char* name,
                                        CryptoErrorList* errors = nullptr);
 
   // Call once when initializing OpenSSL at startup for the process.
@@ -1493,8 +1593,8 @@ Buffer<char> ExportChallenge(const char* input, size_t length);
 // ============================================================================
 // KDF
 
-const EVP_MD* getDigestByName(const std::string_view name);
-const EVP_CIPHER* getCipherByName(const std::string_view name);
+const EVP_MD* getDigestByName(const char* name);
+const EVP_CIPHER* getCipherByName(const char* name);
 
 // Verify that the specified HKDF output length is valid for the given digest.
 // The maximum length for HKDF output for a given digest is 255 times the
@@ -1526,6 +1626,57 @@ DataPointer pbkdf2(const Digest& md,
                    const Buffer<const unsigned char>& salt,
                    uint32_t iterations,
                    size_t length);
+
+#if OPENSSL_VERSION_NUMBER >= 0x30200000L
+#ifndef OPENSSL_NO_ARGON2
+enum class Argon2Type { ARGON2D, ARGON2I, ARGON2ID };
+
+DataPointer argon2(const Buffer<const char>& pass,
+                   const Buffer<const unsigned char>& salt,
+                   uint32_t lanes,
+                   size_t length,
+                   uint32_t memcost,
+                   uint32_t iter,
+                   uint32_t version,
+                   const Buffer<const unsigned char>& secret,
+                   const Buffer<const unsigned char>& ad,
+                   Argon2Type type);
+#endif
+#endif
+
+// ============================================================================
+// KEM (Key Encapsulation Mechanism)
+#if OPENSSL_VERSION_MAJOR >= 3
+
+class KEM final {
+ public:
+  struct EncapsulateResult {
+    DataPointer ciphertext;
+    DataPointer shared_key;
+
+    EncapsulateResult() = default;
+    EncapsulateResult(DataPointer ct, DataPointer sk)
+        : ciphertext(std::move(ct)), shared_key(std::move(sk)) {}
+  };
+
+  // Encapsulate a shared secret using KEM with a public key.
+  // Returns both the ciphertext and shared secret.
+  static std::optional<EncapsulateResult> Encapsulate(
+      const EVPKeyPointer& public_key);
+
+  // Decapsulate a shared secret using KEM with a private key and ciphertext.
+  // Returns the shared secret.
+  static DataPointer Decapsulate(const EVPKeyPointer& private_key,
+                                 const Buffer<const void>& ciphertext);
+
+ private:
+#if !OPENSSL_VERSION_PREREQ(3, 5)
+  static bool SetOperationParameter(EVP_PKEY_CTX* ctx,
+                                    const EVPKeyPointer& key);
+#endif
+};
+
+#endif  // OPENSSL_VERSION_MAJOR >= 3
 
 // ============================================================================
 // Version metadata

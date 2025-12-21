@@ -1,4 +1,4 @@
-// Flags: --expose-internals --no-warnings --allow-natives-syntax
+// Flags: --no-warnings
 'use strict';
 const common = require('../common');
 if (!common.hasCrypto)
@@ -51,20 +51,20 @@ assert.strictEqual(
   test(new Float32Array([NaN]), new Float32Array([NaN]), {
     equal: false,
     sameValue: true,
-    timingSafeEqual: true
+    timingSafeEqual: true,
   });
 
   test(new Float64Array([0]), new Float64Array([-0]), {
     equal: true,
     sameValue: false,
-    timingSafeEqual: false
+    timingSafeEqual: false,
   });
 
   const x = new BigInt64Array([0x7ff0000000000001n, 0xfff0000000000001n]);
   test(new Float64Array(x.buffer), new Float64Array([NaN, NaN]), {
     equal: false,
     sameValue: true,
-    timingSafeEqual: false
+    timingSafeEqual: false,
   });
 }
 
@@ -73,7 +73,7 @@ assert.throws(
   {
     code: 'ERR_CRYPTO_TIMING_SAFE_EQUAL_LENGTH',
     name: 'RangeError',
-    message: 'Input buffers must have the same byte length'
+    message: 'Input buffers must have the same byte length',
   }
 );
 
@@ -92,28 +92,3 @@ assert.throws(
     name: 'TypeError',
   }
 );
-
-{
-  // V8 Fast API
-  const foo = Buffer.from('foo');
-  const bar = Buffer.from('bar');
-  const longer = Buffer.from('longer');
-  function testFastPath(buf1, buf2) {
-    return crypto.timingSafeEqual(buf1, buf2);
-  }
-  eval('%PrepareFunctionForOptimization(testFastPath)');
-  assert.strictEqual(testFastPath(foo, bar), false);
-  eval('%OptimizeFunctionOnNextCall(testFastPath)');
-  assert.strictEqual(testFastPath(foo, bar), false);
-  assert.strictEqual(testFastPath(foo, foo), true);
-  assert.throws(() => testFastPath(foo, longer), {
-    code: 'ERR_CRYPTO_TIMING_SAFE_EQUAL_LENGTH',
-  });
-
-  if (common.isDebug) {
-    const { internalBinding } = require('internal/test/binding');
-    const { getV8FastApiCallCount } = internalBinding('debug');
-    assert.strictEqual(getV8FastApiCallCount('crypto.timingSafeEqual.ok'), 2);
-    assert.strictEqual(getV8FastApiCallCount('crypto.timingSafeEqual.error'), 1);
-  }
-}

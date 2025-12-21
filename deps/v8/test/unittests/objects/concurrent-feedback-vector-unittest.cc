@@ -71,7 +71,7 @@ class FeedbackVectorExplorationThread final : public v8::base::Thread {
       auto state = nexus.ic_state();
       if (state == InlineCacheState::MONOMORPHIC ||
           state == InlineCacheState::POLYMORPHIC) {
-        MapHandles maps;
+        MapHandles maps(isolate);
         nexus.ExtractMaps(&maps);
         for (unsigned int j = 0; j < maps.size(); j++) {
           EXPECT_TRUE(IsMap(*maps[j]));
@@ -107,7 +107,7 @@ class FeedbackVectorExplorationThread final : public v8::base::Thread {
         FeedbackNexus nexus(feedback_vector_, slot, nexus_config);
         auto state = nexus.ic_state();
         EXPECT_EQ(state, InlineCacheState::MONOMORPHIC);
-        MapHandles maps;
+        MapHandles maps(isolate);
         nexus.ExtractMaps(&maps);
         EXPECT_TRUE(IsMap(*maps[0]));
       }
@@ -118,7 +118,7 @@ class FeedbackVectorExplorationThread final : public v8::base::Thread {
         FeedbackNexus nexus(feedback_vector_, slot, nexus_config);
         auto state = nexus.ic_state();
         EXPECT_EQ(state, InlineCacheState::POLYMORPHIC);
-        MapHandles maps;
+        MapHandles maps(isolate);
         nexus.ExtractMaps(&maps);
         for (unsigned int i = 0; i < maps.size(); i++) {
           EXPECT_TRUE(IsMap(*maps[i]));
@@ -207,8 +207,8 @@ TEST_F(ConcurrentFeedbackVectorTest, CheckLoadICStates) {
 
   // {dummy_handler} is just an arbitrary value to associate with a map in order
   // to fill in the feedback vector slots in a minimally acceptable way.
-  MaybeObjectHandle dummy_handler(Tagged<Object>(Smi::FromInt(10)),
-                                  i_isolate());
+  MaybeObjectDirectHandle dummy_handler(Tagged<Object>(Smi::FromInt(10)),
+                                        i_isolate());
   for (int i = 0; i < kCycles; i++) {
     if (all_states_seen.load(std::memory_order_acquire)) break;
 
@@ -220,8 +220,9 @@ TEST_F(ConcurrentFeedbackVectorTest, CheckLoadICStates) {
       CheckedWait(vector_consumed);
       fprintf(stderr, "Main thread configuring monomorphic\n");
     }
-    nexus.ConfigureMonomorphic(
-        Handle<Name>(), Handle<Map>(o1->map(), i_isolate()), dummy_handler);
+    nexus.ConfigureMonomorphic(DirectHandle<Name>(),
+                               DirectHandle<Map>(o1->map(), i_isolate()),
+                               dummy_handler);
     EXPECT_EQ(InlineCacheState::MONOMORPHIC, nexus.ic_state());
 
     if (i == (kCycles - 1)) {
@@ -231,16 +232,16 @@ TEST_F(ConcurrentFeedbackVectorTest, CheckLoadICStates) {
     }
 
     // Go polymorphic.
-    std::vector<MapAndHandler> map_and_handlers;
-    map_and_handlers.push_back(
-        MapAndHandler(Handle<Map>(o1->map(), i_isolate()), dummy_handler));
-    map_and_handlers.push_back(
-        MapAndHandler(Handle<Map>(o2->map(), i_isolate()), dummy_handler));
-    map_and_handlers.push_back(
-        MapAndHandler(Handle<Map>(o3->map(), i_isolate()), dummy_handler));
-    map_and_handlers.push_back(
-        MapAndHandler(Handle<Map>(o4->map(), i_isolate()), dummy_handler));
-    nexus.ConfigurePolymorphic(Handle<Name>(), map_and_handlers);
+    MapsAndHandlers map_and_handlers(i_isolate());
+    map_and_handlers.emplace_back(direct_handle(o1->map(), i_isolate()),
+                                  dummy_handler);
+    map_and_handlers.emplace_back(direct_handle(o2->map(), i_isolate()),
+                                  dummy_handler);
+    map_and_handlers.emplace_back(direct_handle(o3->map(), i_isolate()),
+                                  dummy_handler);
+    map_and_handlers.emplace_back(direct_handle(o4->map(), i_isolate()),
+                                  dummy_handler);
+    nexus.ConfigurePolymorphic(DirectHandle<Name>(), map_and_handlers);
     EXPECT_EQ(InlineCacheState::POLYMORPHIC, nexus.ic_state());
 
     if (i == (kCycles - 1)) {

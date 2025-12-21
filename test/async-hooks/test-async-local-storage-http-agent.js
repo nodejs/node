@@ -21,7 +21,7 @@ server.listen(0, common.mustCall(() => {
   const port = server.address().port;
 
   for (let i = 0; i < N; i++) {
-    asyncLocalStorage.run(i, () => {
+    asyncLocalStorage.run(i, common.mustCall(() => {
       http.get({ agent, port }, common.mustCall((res) => {
         assert.strictEqual(asyncLocalStorage.getStore(), i);
         if (++responses === N) {
@@ -30,6 +30,6 @@ server.listen(0, common.mustCall(() => {
         }
         res.resume();
       }));
-    });
+    }));
   }
 }));

@@ -76,7 +76,8 @@ class V8_EXPORT_PRIVATE BytecodeRegisterOptimizer final
     if (Bytecodes::IsJump(bytecode) || Bytecodes::IsSwitch(bytecode) ||
         bytecode == Bytecode::kDebugger ||
         bytecode == Bytecode::kSuspendGenerator ||
-        bytecode == Bytecode::kResumeGenerator) {
+        bytecode == Bytecode::kResumeGenerator ||
+        bytecode == Bytecode::kForOfNext) {
       // All state must be flushed before emitting
       // - a jump bytecode (as the register equivalents at the jump target
       //   aren't known)
@@ -85,6 +86,8 @@ class V8_EXPORT_PRIVATE BytecodeRegisterOptimizer final
       // - a call to the debugger (as it can manipulate locals and parameters),
       // - a generator suspend (as this involves saving all registers).
       // - a generator register restore.
+      // - forof optimization bytecode to make sure `done` register is
+      // initialized in every loop
       Flush();
     }
 

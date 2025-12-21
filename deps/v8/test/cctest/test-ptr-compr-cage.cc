@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/common/globals.h"
+#include "src/common/ptr-compr-inl.h"
 #include "src/execution/isolate-inl.h"
 #include "src/heap/heap-inl.h"
 #include "test/cctest/cctest.h"
@@ -23,15 +24,11 @@ UNINITIALIZED_TEST(PtrComprCageAndIsolateRoot) {
 
 #ifdef V8_COMPRESS_POINTERS
   CHECK_NE(i_isolate1->isolate_root(), i_isolate2->isolate_root());
-#ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
   CHECK_EQ(i_isolate1->cage_base(), i_isolate2->cage_base());
-#else
-  CHECK_NE(i_isolate1->cage_base(), i_isolate2->cage_base());
-#endif  // V8_COMPRESS_POINTERS_IN_SHARED_CAGE
 #endif  // V8_COMPRESS_POINTERS
 
-  isolate1->Dispose();
   isolate2->Dispose();
+  isolate1->Dispose();
 }
 
 UNINITIALIZED_TEST(PtrComprCageCodeRange) {
@@ -52,31 +49,29 @@ UNINITIALIZED_TEST(PtrComprCageCodeRange) {
 }
 
 #ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
+namespace {
+PtrComprCageBase GetPtrComprCageBase(v8::Isolate* isolate) {
+  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+  Factory* factory = i_isolate->factory();
+  v8::Isolate::Scope isolate_scope(isolate);
+  HandleScope scope(i_isolate);
+
+  DirectHandle<FixedArray> isolate_object = factory->NewFixedArray(100);
+  return GetPtrComprCageBase(*isolate_object);
+}
+}  // namespace
+
 UNINITIALIZED_TEST(SharedPtrComprCage) {
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
 
   v8::Isolate* isolate1 = v8::Isolate::New(create_params);
-  Isolate* i_isolate1 = reinterpret_cast<Isolate*>(isolate1);
   v8::Isolate* isolate2 = v8::Isolate::New(create_params);
-  Isolate* i_isolate2 = reinterpret_cast<Isolate*>(isolate2);
 
-  Factory* factory1 = i_isolate1->factory();
-  Factory* factory2 = i_isolate2->factory();
+  CHECK_EQ(GetPtrComprCageBase(isolate1), GetPtrComprCageBase(isolate2));
 
-  {
-    HandleScope scope1(i_isolate1);
-    HandleScope scope2(i_isolate2);
-
-    DirectHandle<FixedArray> isolate1_object = factory1->NewFixedArray(100);
-    DirectHandle<FixedArray> isolate2_object = factory2->NewFixedArray(100);
-
-    CHECK_EQ(GetPtrComprCageBase(*isolate1_object),
-             GetPtrComprCageBase(*isolate2_object));
-  }
-
-  isolate1->Dispose();
   isolate2->Dispose();
+  isolate1->Dispose();
 }
 
 UNINITIALIZED_TEST(SharedPtrComprCageCodeRange) {
@@ -93,8 +88,8 @@ UNINITIALIZED_TEST(SharedPtrComprCageCodeRange) {
              i_isolate2->heap()->code_region());
   }
 
-  isolate1->Dispose();
   isolate2->Dispose();
+  isolate1->Dispose();
 }
 
 namespace {
@@ -128,6 +123,10 @@ UNINITIALIZED_TEST(SharedPtrComprCageRace) {
   // Repeat twice to enforce multiple initializations of CodeRange instances.
   constexpr int kRepeats = 2;
   for (int repeat = 0; repeat < kRepeats; repeat++) {
+    v8::Isolate::CreateParams create_params;
+    create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+    auto main_isolate = v8::Isolate::New(create_params);
+
     std::vector<std::unique_ptr<IsolateAllocatingThread>> threads;
     constexpr int kThreads = 10;
 
@@ -140,6 +139,8 @@ UNINITIALIZED_TEST(SharedPtrComprCageRace) {
     for (auto& thread : threads) {
       thread->Join();
     }
+
+    main_isolate->Dispose();
   }
 }
 

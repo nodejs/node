@@ -10,8 +10,7 @@ const Countdown = require('../common/countdown');
 const server = http2.createServer();
 server.on('stream', common.mustCall((stream, headers, flags) => {
   if (headers[':path'] === '/') {
-    stream.pushStream({ ':path': '/foobar' }, (err, push, headers) => {
-      assert.ifError(err);
+    stream.pushStream({ ':path': '/foobar' }, common.mustSucceed((push, headers) => {
       push.respond({
         'content-type': 'text/html',
         'x-push-data': 'pushed by server',
@@ -19,7 +18,7 @@ server.on('stream', common.mustCall((stream, headers, flags) => {
       push.write('pushed by server ');
       setImmediate(() => push.end('data'));
       stream.end('st');
-    });
+    }));
   }
   stream.respond({ 'content-type': 'text/html' });
   stream.write('te');

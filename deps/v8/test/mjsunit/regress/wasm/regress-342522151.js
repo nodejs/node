@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
-d8.test.enableJSPI();
 let builder = new WasmModuleBuilder();
 let js_index = builder.addImport("m", "js", kSig_v_v)
 builder.addExport("main", js_index);

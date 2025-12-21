@@ -74,37 +74,6 @@ Maybe<void> DsaKeyGenTraits::AdditionalConfig(
   return JustVoid();
 }
 
-Maybe<void> DSAKeyExportTraits::AdditionalConfig(
-    const FunctionCallbackInfo<Value>& args,
-    unsigned int offset,
-    DSAKeyExportConfig* params) {
-  return JustVoid();
-}
-
-WebCryptoKeyExportStatus DSAKeyExportTraits::DoExport(
-    const KeyObjectData& key_data,
-    WebCryptoKeyFormat format,
-    const DSAKeyExportConfig& params,
-    ByteSource* out) {
-  CHECK_NE(key_data.GetKeyType(), kKeyTypeSecret);
-
-  switch (format) {
-    case kWebCryptoKeyFormatRaw:
-      // Not supported for RSA keys of either type
-      return WebCryptoKeyExportStatus::FAILED;
-    case kWebCryptoKeyFormatPKCS8:
-      if (key_data.GetKeyType() != kKeyTypePrivate)
-        return WebCryptoKeyExportStatus::INVALID_KEY_TYPE;
-      return PKEY_PKCS8_Export(key_data, out);
-    case kWebCryptoKeyFormatSPKI:
-      if (key_data.GetKeyType() != kKeyTypePublic)
-        return WebCryptoKeyExportStatus::INVALID_KEY_TYPE;
-      return PKEY_SPKI_Export(key_data, out);
-    default:
-      UNREACHABLE();
-  }
-}
-
 bool GetDsaKeyDetail(Environment* env,
                      const KeyObjectData& key,
                      Local<Object> target) {
@@ -132,12 +101,10 @@ bool GetDsaKeyDetail(Environment* env,
 namespace DSAAlg {
 void Initialize(Environment* env, Local<Object> target) {
   DsaKeyPairGenJob::Initialize(env, target);
-  DSAKeyExportJob::Initialize(env, target);
 }
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   DsaKeyPairGenJob::RegisterExternalReferences(registry);
-  DSAKeyExportJob::RegisterExternalReferences(registry);
 }
 }  // namespace DSAAlg
 }  // namespace crypto

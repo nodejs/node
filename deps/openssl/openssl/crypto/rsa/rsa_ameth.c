@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -154,14 +154,14 @@ static int rsa_priv_encode(PKCS8_PRIV_KEY_INFO *p8, const EVP_PKEY *pkey)
     rklen = i2d_RSAPrivateKey(pkey->pkey.rsa, &rk);
 
     if (rklen <= 0) {
-        ERR_raise(ERR_LIB_RSA, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_RSA, ERR_R_ASN1_LIB);
         ASN1_STRING_free(str);
         return 0;
     }
 
     if (!PKCS8_pkey_set0(p8, OBJ_nid2obj(pkey->ameth->pkey_id), 0,
                          strtype, str, rk, rklen)) {
-        ERR_raise(ERR_LIB_RSA, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_RSA, ERR_R_ASN1_LIB);
         ASN1_STRING_free(str);
         OPENSSL_clear_free(rk, rklen);
         return 0;
@@ -220,7 +220,7 @@ static int rsa_pss_param_print(BIO *bp, int pss_key, RSA_PSS_PARAMS *pss,
                 return 0;
         }
     } else if (pss == NULL) {
-        if (BIO_puts(bp,"(INVALID PSS PARAMETERS)\n") <= 0)
+        if (BIO_puts(bp, "(INVALID PSS PARAMETERS)\n") <= 0)
             return 0;
         return 1;
     }
@@ -453,21 +453,39 @@ static RSA_PSS_PARAMS *rsa_ctx_to_pss(EVP_PKEY_CTX *pkctx)
     const EVP_MD *sigmd, *mgf1md;
     EVP_PKEY *pk = EVP_PKEY_CTX_get0_pkey(pkctx);
     int saltlen;
+    int saltlenMax = -1;
+    int md_size;
 
     if (EVP_PKEY_CTX_get_signature_md(pkctx, &sigmd) <= 0)
+        return NULL;
+    md_size = EVP_MD_get_size(sigmd);
+    if (md_size <= 0)
         return NULL;
     if (EVP_PKEY_CTX_get_rsa_mgf1_md(pkctx, &mgf1md) <= 0)
         return NULL;
     if (EVP_PKEY_CTX_get_rsa_pss_saltlen(pkctx, &saltlen) <= 0)
         return NULL;
-    if (saltlen == -1) {
-        saltlen = EVP_MD_get_size(sigmd);
-    } else if (saltlen == -2 || saltlen == -3) {
-        saltlen = EVP_PKEY_get_size(pk) - EVP_MD_get_size(sigmd) - 2;
+    if (saltlen == RSA_PSS_SALTLEN_DIGEST) {
+        saltlen = md_size;
+    } else if (saltlen == RSA_PSS_SALTLEN_AUTO_DIGEST_MAX) {
+        /* FIPS 186-4 section 5 "The RSA Digital Signature Algorithm",
+         * subsection 5.5 "PKCS #1" says: "For RSASSA-PSS […] the length (in
+         * bytes) of the salt (sLen) shall satisfy 0 <= sLen <= hLen, where
+         * hLen is the length of the hash function output block (in bytes)."
+         *
+         * Provide a way to use at most the digest length, so that the default
+         * does not violate FIPS 186-4. */
+        saltlen = RSA_PSS_SALTLEN_MAX;
+        saltlenMax = md_size;
+    }
+    if (saltlen == RSA_PSS_SALTLEN_MAX || saltlen == RSA_PSS_SALTLEN_AUTO) {
+        saltlen = EVP_PKEY_get_size(pk) - md_size - 2;
         if ((EVP_PKEY_get_bits(pk) & 0x7) == 1)
             saltlen--;
         if (saltlen < 0)
             return NULL;
+        if (saltlenMax >= 0 && saltlen > saltlenMax)
+            saltlen = saltlenMax;
     }
 
     return ossl_rsa_pss_params_create(sigmd, mgf1md, saltlen);
@@ -705,7 +723,7 @@ static int rsa_sig_info_set(X509_SIG_INFO *siginf, const X509_ALGOR *sigalg,
                             const ASN1_STRING *sig)
 {
     int rv = 0;
-    int mdnid, saltlen;
+    int mdnid, saltlen, md_size;
     uint32_t flags;
     const EVP_MD *mgf1md = NULL, *md = NULL;
     RSA_PSS_PARAMS *pss;
@@ -718,6 +736,9 @@ static int rsa_sig_info_set(X509_SIG_INFO *siginf, const X509_ALGOR *sigalg,
     pss = ossl_rsa_pss_decode(sigalg);
     if (!ossl_rsa_pss_get_param(pss, &md, &mgf1md, &saltlen))
         goto err;
+    md_size = EVP_MD_get_size(md);
+    if (md_size <= 0)
+        goto err;
     mdnid = EVP_MD_get_type(md);
     /*
      * For TLS need SHA256, SHA384 or SHA512, digest and MGF1 digest must
@@ -725,12 +746,12 @@ static int rsa_sig_info_set(X509_SIG_INFO *siginf, const X509_ALGOR *sigalg,
      */
     if ((mdnid == NID_sha256 || mdnid == NID_sha384 || mdnid == NID_sha512)
             && mdnid == EVP_MD_get_type(mgf1md)
-            && saltlen == EVP_MD_get_size(md))
+            && saltlen == md_size)
         flags = X509_SIG_INFO_TLS;
     else
         flags = 0;
     /* Note: security bits half number of digest bits */
-    secbits = EVP_MD_get_size(md) * 4;
+    secbits = md_size * 4;
     /*
      * SHA1 and MD5 are known to be broken. Reduce security bits so that
      * they're no longer accepted at security level 1. The real values don't
@@ -836,7 +857,7 @@ static int rsa_int_import_from(const OSSL_PARAM params[], void *vpctx,
     int ok = 0;
 
     if (rsa == NULL) {
-        ERR_raise(ERR_LIB_DH, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_DH, ERR_R_RSA_LIB);
         return 0;
     }
 

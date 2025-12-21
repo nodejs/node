@@ -10,7 +10,7 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const {
   getAuthority,
-  mapToHeaders,
+  buildNgHeaderString,
   toHeaderObject
 } = require('internal/http2/util');
 const { sensitiveHeaders } = require('http2');
@@ -106,7 +106,7 @@ const {
   };
 
   assert.deepStrictEqual(
-    mapToHeaders(headers),
+    buildNgHeaderString(headers),
     [ [ ':path', 'abc\0', ':status', '200\0', 'abc', '1\0', 'xyz', '1\0',
         'xyz', '2\0', 'xyz', '3\0', 'xyz', '4\0', 'bar', '1\0', '' ].join('\0'),
       8 ]
@@ -123,7 +123,7 @@ const {
   };
 
   assert.deepStrictEqual(
-    mapToHeaders(headers),
+    buildNgHeaderString(headers),
     [ [ ':status', '200\0', ':path', 'abc\0', 'abc', '1\0', 'xyz', '1\0',
         'xyz', '2\0', 'xyz', '3\0', 'xyz', '4\0', '' ].join('\0'), 7 ]
   );
@@ -140,7 +140,7 @@ const {
   };
 
   assert.deepStrictEqual(
-    mapToHeaders(headers),
+    buildNgHeaderString(headers),
     [ [ ':status', '200\0', ':path', 'abc\0', 'abc', '1\0', 'xyz', '1\0',
         'xyz', '2\0', 'xyz', '3\0', 'xyz', '4\0', '' ].join('\0'), 7 ]
   );
@@ -156,7 +156,7 @@ const {
   headers[':path'] = 'abc';
 
   assert.deepStrictEqual(
-    mapToHeaders(headers),
+    buildNgHeaderString(headers),
     [ [ ':status', '200\0', ':path', 'abc\0', 'xyz', '1\0', 'xyz', '2\0',
         'xyz', '3\0', 'xyz', '4\0', '' ].join('\0'), 6 ]
   );
@@ -169,7 +169,7 @@ const {
     'set-cookie': ['foo=bar']
   };
   assert.deepStrictEqual(
-    mapToHeaders(headers),
+    buildNgHeaderString(headers),
     [ [ 'set-cookie', 'foo=bar\0', '' ].join('\0'), 1 ]
   );
 }
@@ -181,7 +181,7 @@ const {
     ':statuS': 204,
   };
 
-  assert.throws(() => mapToHeaders(headers), {
+  assert.throws(() => buildNgHeaderString(headers), {
     code: 'ERR_HTTP2_HEADER_SINGLE_VALUE',
     name: 'TypeError',
     message: 'Header field ":status" must only have a single value'
@@ -199,7 +199,7 @@ const {
   };
 
   assert.deepStrictEqual(
-    mapToHeaders(headers),
+    buildNgHeaderString(headers),
     [ ':status\x00200\x00\x00:path\x00abc\x00\x00abc\x001\x00\x00' +
       'xyz\x001\x00\x01xyz\x002\x00\x01xyz\x003\x00\x01xyz\x004\x00\x01', 7 ]
   );
@@ -248,7 +248,7 @@ const {
   HTTP2_HEADER_X_CONTENT_TYPE_OPTIONS,
 ].forEach((name) => {
   const msg = `Header field "${name}" must only have a single value`;
-  assert.throws(() => mapToHeaders({ [name]: [1, 2, 3] }), {
+  assert.throws(() => buildNgHeaderString({ [name]: [1, 2, 3] }), {
     code: 'ERR_HTTP2_HEADER_SINGLE_VALUE',
     message: msg
   });
@@ -285,7 +285,7 @@ const {
   HTTP2_HEADER_WWW_AUTHENTICATE,
   HTTP2_HEADER_X_FRAME_OPTIONS,
 ].forEach((name) => {
-  assert(!(mapToHeaders({ [name]: [1, 2, 3] }) instanceof Error), name);
+  assert(!(buildNgHeaderString({ [name]: [1, 2, 3] }) instanceof Error), name);
 });
 
 [
@@ -304,7 +304,7 @@ const {
   'Proxy-Connection',
   'Keep-Alive',
 ].forEach((name) => {
-  assert.throws(() => mapToHeaders({ [name]: 'abc' }), {
+  assert.throws(() => buildNgHeaderString({ [name]: 'abc' }), {
     code: 'ERR_HTTP2_INVALID_CONNECTION_HEADERS',
     name: 'TypeError',
     message: 'HTTP/1 Connection specific headers are forbidden: ' +
@@ -312,7 +312,7 @@ const {
   });
 });
 
-assert.throws(() => mapToHeaders({ [HTTP2_HEADER_TE]: ['abc'] }), {
+assert.throws(() => buildNgHeaderString({ [HTTP2_HEADER_TE]: ['abc'] }), {
   code: 'ERR_HTTP2_INVALID_CONNECTION_HEADERS',
   name: 'TypeError',
   message: 'HTTP/1 Connection specific headers are forbidden: ' +
@@ -320,7 +320,7 @@ assert.throws(() => mapToHeaders({ [HTTP2_HEADER_TE]: ['abc'] }), {
 });
 
 assert.throws(
-  () => mapToHeaders({ [HTTP2_HEADER_TE]: ['abc', 'trailers'] }), {
+  () => buildNgHeaderString({ [HTTP2_HEADER_TE]: ['abc', 'trailers'] }), {
     code: 'ERR_HTTP2_INVALID_CONNECTION_HEADERS',
     name: 'TypeError',
     message: 'HTTP/1 Connection specific headers are forbidden: ' +
@@ -328,13 +328,13 @@ assert.throws(
   });
 
 // These should not throw
-mapToHeaders({ te: 'trailers' });
-mapToHeaders({ te: ['trailers'] });
+buildNgHeaderString({ te: 'trailers' });
+buildNgHeaderString({ te: ['trailers'] });
 
 // HTTP/2 encourages use of Host instead of :authority when converting
 // from HTTP/1 to HTTP/2, so we no longer disallow it.
 // Refs: https://github.com/nodejs/node/issues/29858
-mapToHeaders({ [HTTP2_HEADER_HOST]: 'abc' });
+buildNgHeaderString({ [HTTP2_HEADER_HOST]: 'abc' });
 
 // If both are present, the latter has priority
 assert.strictEqual(getAuthority({

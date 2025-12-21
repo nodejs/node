@@ -22,6 +22,7 @@
 
 namespace v8::internal {
 namespace {
+const char kDefaultHeapSnapshotFileName[] = "heap.heapsnapshot";
 
 enum class GCType { kMinor, kMajor, kMajorWithSnapshot };
 enum class ExecutionType { kAsync, kSync };
@@ -29,12 +30,16 @@ enum class Flavor { kRegular, kLastResort };
 
 struct GCOptions {
   static GCOptions GetDefault() {
-    return {GCType::kMajor, ExecutionType::kSync, Flavor::kRegular,
-            "heap.heapsnapshot"};
+    const char* filename = v8_flags.heap_snapshot_path
+                               ? v8_flags.heap_snapshot_path
+                               : kDefaultHeapSnapshotFileName;
+    return {GCType::kMajor, ExecutionType::kSync, Flavor::kRegular, filename};
   }
   static GCOptions GetDefaultForTruthyWithoutOptionsBag() {
-    return {GCType::kMinor, ExecutionType::kSync, Flavor::kRegular,
-            "heap.heapsnapshot"};
+    const char* filename = v8_flags.heap_snapshot_path
+                               ? v8_flags.heap_snapshot_path
+                               : kDefaultHeapSnapshotFileName;
+    return {GCType::kMinor, ExecutionType::kSync, Flavor::kRegular, filename};
   }
 
   // Used with Nothing<GCOptions>.
@@ -162,9 +167,10 @@ Maybe<GCOptions> Parse(v8::Isolate* isolate,
       }
       Local<v8::String> filename;
       if (maybe_filename.ToLocal(&filename)) {
-        std::unique_ptr<char[]> buffer(
-            new char[filename->Utf8Length(isolate) + 1]);
-        filename->WriteUtf8(isolate, buffer.get());
+        size_t buffer_size = filename->Utf8LengthV2(isolate) + 1;
+        std::unique_ptr<char[]> buffer(new char[buffer_size]);
+        filename->WriteUtf8V2(isolate, buffer.get(), buffer_size,
+                              v8::String::WriteFlags::kNullTerminate);
         options.filename = std::string(buffer.get());
         // Not setting found_options_object as the option only makes sense with
         // properly set type anyways.
@@ -215,8 +221,7 @@ void InvokeGC(v8::Isolate* isolate, const GCOptions gc_options) {
       heap->PreciseCollectAllGarbage(i::GCFlag::kNoFlags,
                                      i::GarbageCollectionReason::kTesting,
                                      kGCCallbackFlagForced);
-      i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-      HeapProfiler* heap_profiler = i_isolate->heap_profiler();
+      HeapProfiler* heap_profiler = heap->heap_profiler();
       // Since this API is intended for V8 devs, we do not treat globals as
       // roots here on purpose.
       v8::HeapProfiler::HeapSnapshotOptions options;
@@ -231,8 +236,6 @@ void InvokeGC(v8::Isolate* isolate, const GCOptions gc_options) {
 
 class AsyncGC final : public CancelableTask {
  public:
-  ~AsyncGC() final = default;
-
   AsyncGC(v8::Isolate* isolate, v8::Local<v8::Promise::Resolver> resolver,
           GCOptions options)
       : CancelableTask(reinterpret_cast<Isolate*>(isolate)),
@@ -242,6 +245,20 @@ class AsyncGC final : public CancelableTask {
         options_(options) {}
   AsyncGC(const AsyncGC&) = delete;
   AsyncGC& operator=(const AsyncGC&) = delete;
+
+  ~AsyncGC() final {
+    // Check if the task was running and not cancelled.
+    Status previous;
+    if (TryRun(&previous) || previous == kRunning) {
+      ctx_.Reset();
+      resolver_.Reset();
+    } else {
+      DCHECK_EQ(previous, kCanceled);
+      // The task is never cancelled manually but only on Isolate tear down
+      // which destroyes the handles unconditionally. As such, this doesn't
+      // create leaks.
+    }
+  }
 
   void RunInternal() final {
     v8::HandleScope scope(isolate_);
@@ -255,8 +272,11 @@ class AsyncGC final : public CancelableTask {
 
  private:
   v8::Isolate* isolate_;
-  v8::Global<v8::Context> ctx_;
-  v8::Global<v8::Promise::Resolver> resolver_;
+  // We use Persistent and not Global here because d8 can terminate the main
+  // thread prematurely (with `d8.terminate()`) while an AsyncGC task is still
+  // scheduled. In such a case we must not destroy the Persistent below.
+  v8::Persistent<v8::Context> ctx_;
+  v8::Persistent<v8::Promise::Resolver> resolver_;
   GCOptions options_;
 };
 

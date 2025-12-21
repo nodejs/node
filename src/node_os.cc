@@ -20,6 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "env-inl.h"
+#include "node_debug.h"
 #include "node_external_reference.h"
 #include "string_bytes.h"
 
@@ -106,8 +107,7 @@ static void GetOSInformation(const FunctionCallbackInfo<Value>& args) {
 }
 
 static void GetCPUInfo(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  Isolate* isolate = env->isolate();
+  Isolate* isolate = args.GetIsolate();
 
   uv_cpu_info_t* cpu_infos;
   int count;
@@ -148,12 +148,26 @@ static void GetFreeMemory(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(amount);
 }
 
+static double FastGetFreeMemory(Local<Value> receiver) {
+  TRACK_V8_FAST_API_CALL("os.freemem");
+  return static_cast<double>(uv_get_free_memory());
+}
+
+static v8::CFunction fast_get_free_memory(
+    v8::CFunction::Make(FastGetFreeMemory));
 
 static void GetTotalMemory(const FunctionCallbackInfo<Value>& args) {
   double amount = static_cast<double>(uv_get_total_memory());
   args.GetReturnValue().Set(amount);
 }
 
+double FastGetTotalMemory(Local<Value> receiver) {
+  TRACK_V8_FAST_API_CALL("os.totalmem");
+  return static_cast<double>(uv_get_total_memory());
+}
+
+static v8::CFunction fast_get_total_memory(
+    v8::CFunction::Make(FastGetTotalMemory));
 
 static void GetUptime(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -199,6 +213,9 @@ static void GetInterfaceAddresses(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
+  auto cleanup =
+      OnScopeLeave([&]() { uv_free_interface_addresses(interfaces, count); });
+
   Local<Value> no_scope_id = Integer::New(isolate, -1);
   LocalVector<Value> result(isolate);
   result.reserve(count * 7);
@@ -242,7 +259,7 @@ static void GetInterfaceAddresses(const FunctionCallbackInfo<Value>& args) {
     result.emplace_back(OneByteString(isolate, ip));
     result.emplace_back(OneByteString(isolate, netmask));
     result.emplace_back(family);
-    result.emplace_back(FIXED_ONE_BYTE_STRING(isolate, mac));
+    result.emplace_back(OneByteString(isolate, mac.data(), mac.size() - 1));
     result.emplace_back(
         Boolean::New(env->isolate(), interfaces[i].is_internal));
     if (interfaces[i].address.address4.sin_family == AF_INET6) {
@@ -253,7 +270,6 @@ static void GetInterfaceAddresses(const FunctionCallbackInfo<Value>& args) {
     }
   }
 
-  uv_free_interface_addresses(interfaces, count);
   args.GetReturnValue().Set(Array::New(isolate, result.data(), result.size()));
 }
 
@@ -307,8 +323,6 @@ static void GetUserInfo(const FunctionCallbackInfo<Value>& args) {
 
   auto free_passwd = OnScopeLeave([&] { uv_os_free_passwd(&pwd); });
 
-  Local<Value> error;
-
 #ifdef _WIN32
   Local<Value> uid = Number::New(
       env->isolate(),
@@ -322,27 +336,21 @@ static void GetUserInfo(const FunctionCallbackInfo<Value>& args) {
 #endif
 
   Local<Value> username;
-  if (!StringBytes::Encode(env->isolate(), pwd.username, encoding, &error)
+  if (!StringBytes::Encode(env->isolate(), pwd.username, encoding)
            .ToLocal(&username)) {
-    CHECK(!error.IsEmpty());
-    env->isolate()->ThrowException(error);
     return;
   }
 
   Local<Value> homedir;
-  if (!StringBytes::Encode(env->isolate(), pwd.homedir, encoding, &error)
+  if (!StringBytes::Encode(env->isolate(), pwd.homedir, encoding)
            .ToLocal(&homedir)) {
-    CHECK(!error.IsEmpty());
-    env->isolate()->ThrowException(error);
     return;
   }
 
   Local<Value> shell = Null(env->isolate());
   if (pwd.shell != nullptr &&
-      !StringBytes::Encode(env->isolate(), pwd.shell, encoding, &error)
+      !StringBytes::Encode(env->isolate(), pwd.shell, encoding)
            .ToLocal(&shell)) {
-    CHECK(!error.IsEmpty());
-    env->isolate()->ThrowException(error);
     return;
   }
 
@@ -406,6 +414,14 @@ static void GetAvailableParallelism(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(parallelism);
 }
 
+uint32_t FastGetAvailableParallelism(v8::Local<v8::Value> receiver) {
+  TRACK_V8_FAST_API_CALL("os.availableParallelism");
+  return uv_available_parallelism();
+}
+
+static v8::CFunction fast_get_available_parallelism(
+    v8::CFunction::Make(FastGetAvailableParallelism));
+
 void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context,
@@ -414,16 +430,21 @@ void Initialize(Local<Object> target,
   SetMethod(context, target, "getHostname", GetHostname);
   SetMethod(context, target, "getLoadAvg", GetLoadAvg);
   SetMethod(context, target, "getUptime", GetUptime);
-  SetMethod(context, target, "getTotalMem", GetTotalMemory);
-  SetMethod(context, target, "getFreeMem", GetFreeMemory);
+  SetFastMethodNoSideEffect(
+      context, target, "getTotalMem", GetTotalMemory, &fast_get_total_memory);
+  SetFastMethodNoSideEffect(
+      context, target, "getFreeMem", GetFreeMemory, &fast_get_free_memory);
   SetMethod(context, target, "getCPUs", GetCPUInfo);
   SetMethod(context, target, "getInterfaceAddresses", GetInterfaceAddresses);
   SetMethod(context, target, "getHomeDirectory", GetHomeDirectory);
   SetMethod(context, target, "getUserInfo", GetUserInfo);
   SetMethod(context, target, "setPriority", SetPriority);
   SetMethod(context, target, "getPriority", GetPriority);
-  SetMethod(
-      context, target, "getAvailableParallelism", GetAvailableParallelism);
+  SetFastMethodNoSideEffect(context,
+                            target,
+                            "getAvailableParallelism",
+                            GetAvailableParallelism,
+                            &fast_get_available_parallelism);
   SetMethod(context, target, "getOSInformation", GetOSInformation);
   target
       ->Set(context,
@@ -437,7 +458,9 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(GetLoadAvg);
   registry->Register(GetUptime);
   registry->Register(GetTotalMemory);
+  registry->Register(fast_get_total_memory);
   registry->Register(GetFreeMemory);
+  registry->Register(fast_get_free_memory);
   registry->Register(GetCPUInfo);
   registry->Register(GetInterfaceAddresses);
   registry->Register(GetHomeDirectory);
@@ -445,6 +468,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(SetPriority);
   registry->Register(GetPriority);
   registry->Register(GetAvailableParallelism);
+  registry->Register(fast_get_available_parallelism);
   registry->Register(GetOSInformation);
 }
 

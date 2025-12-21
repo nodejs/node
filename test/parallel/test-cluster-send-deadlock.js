@@ -23,18 +23,18 @@
 // Testing mutual send of handles: from primary to worker, and from worker to
 // primary.
 
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const cluster = require('cluster');
 const net = require('net');
 
 if (cluster.isPrimary) {
   const worker = cluster.fork();
-  worker.on('exit', (code, signal) => {
+  worker.on('exit', common.mustCall((code, signal) => {
     assert.strictEqual(code, 0, `Worker exited with an error code: ${code}`);
     assert(!signal, `Worker exited by a signal: ${signal}`);
     server.close();
-  });
+  }));
 
   const server = net.createServer((socket) => {
     worker.send('handle', socket);
@@ -44,8 +44,8 @@ if (cluster.isPrimary) {
     worker.send({ message: 'listen', port: server.address().port });
   });
 } else {
-  process.on('message', (msg, handle) => {
-    if (msg.message && msg.message === 'listen') {
+  process.on('message', common.mustCallAtLeast((msg, handle) => {
+    if (msg.message === 'listen') {
       assert(msg.port);
       const client1 = net.connect({
         host: 'localhost',
@@ -69,5 +69,5 @@ if (cluster.isPrimary) {
     } else {
       process.send('reply', handle);
     }
-  });
+  }));
 }

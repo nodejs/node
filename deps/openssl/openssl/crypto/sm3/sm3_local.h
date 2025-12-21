@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2017-2024 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright 2017 Ribose Inc. All Rights Reserved.
  * Ported from Ribose contributions from Botan.
  *
@@ -32,15 +32,54 @@
         ll=(c)->G; (void)HOST_l2c(ll, (s)); \
         ll=(c)->H; (void)HOST_l2c(ll, (s)); \
       } while (0)
-#define HASH_BLOCK_DATA_ORDER   ossl_sm3_block_data_order
+
+#if defined(OPENSSL_SM3_ASM)
+# if defined(__aarch64__) || defined(_M_ARM64)
+#  include "crypto/arm_arch.h"
+#  define HWSM3_CAPABLE (OPENSSL_armcap_P & ARMV8_SM3)
+void ossl_hwsm3_block_data_order(SM3_CTX *c, const void *p, size_t num);
+# endif
+# if defined(OPENSSL_CPUID_OBJ) && defined(__riscv) && __riscv_xlen == 64
+#  include "crypto/riscv_arch.h"
+#  define HWSM3_CAPABLE 1
+void ossl_hwsm3_block_data_order(SM3_CTX *c, const void *p, size_t num);
+# endif
+#endif
+
+#if defined(HWSM3_CAPABLE)
+# define HASH_BLOCK_DATA_ORDER (HWSM3_CAPABLE ? ossl_hwsm3_block_data_order \
+                                              : ossl_sm3_block_data_order)
+#else
+# define HASH_BLOCK_DATA_ORDER   ossl_sm3_block_data_order
+#endif
 
 void ossl_sm3_block_data_order(SM3_CTX *c, const void *p, size_t num);
 void ossl_sm3_transform(SM3_CTX *c, const unsigned char *data);
 
 #include "crypto/md32_common.h"
 
-#define P0(X) (X ^ ROTATE(X, 9) ^ ROTATE(X, 17))
-#define P1(X) (X ^ ROTATE(X, 15) ^ ROTATE(X, 23))
+#ifndef PEDANTIC
+# if defined(__GNUC__) && __GNUC__>=2 && \
+     !defined(OPENSSL_NO_ASM) && !defined(OPENSSL_NO_INLINE_ASM)
+#  if defined(__riscv_zksh)
+#   define P0(x) ({ MD32_REG_T ret;        \
+                       asm ("sm3p0 %0, %1" \
+                       : "=r"(ret)         \
+                       : "r"(x)); ret;     })
+#   define P1(x) ({ MD32_REG_T ret;        \
+                       asm ("sm3p1 %0, %1" \
+                       : "=r"(ret)         \
+                       : "r"(x)); ret;     })
+#  endif
+# endif
+#endif
+
+#ifndef P0
+# define P0(X) (X ^ ROTATE(X, 9) ^ ROTATE(X, 17))
+#endif
+#ifndef P1
+# define P1(X) (X ^ ROTATE(X, 15) ^ ROTATE(X, 23))
+#endif
 
 #define FF0(X,Y,Z) (X ^ Y ^ Z)
 #define GG0(X,Y,Z) (X ^ Y ^ Z)

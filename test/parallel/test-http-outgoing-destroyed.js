@@ -42,7 +42,7 @@ const assert = require('assert');
     const err = new Error('Destroy test');
     res.destroy(err);
     assert.strictEqual(res.errored, err);
-  })).listen(0, () => {
+  })).listen(0, common.mustCall(() => {
     http
       .request({
         port: server.address().port,
@@ -50,7 +50,7 @@ const assert = require('assert');
       })
       .on('error', common.mustCall())
       .write('asd');
-  });
+  }));
 }
 
 {
@@ -61,7 +61,7 @@ const assert = require('assert');
     // Make sure not to emit 'error' after .destroy().
     res.end('asd');
     assert.strictEqual(res.errored, undefined);
-  })).listen(0, () => {
+  })).listen(0, common.mustCall(() => {
     http
       .request({
         port: server.address().port,
@@ -73,5 +73,5 @@ const assert = require('assert');
         }));
       }))
       .end();
-  });
+  }));
 }

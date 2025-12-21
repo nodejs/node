@@ -1,5 +1,64 @@
 # Changelog
 
+## [0.21.0](https://github.com/nodejs/gyp-next/compare/v0.20.5...v0.21.0) (2025-11-04)
+
+
+### Features
+
+* add support for Visual Studio 2026 ([#319](https://github.com/nodejs/gyp-next/issues/319)) ([cb13bbc](https://github.com/nodejs/gyp-next/commit/cb13bbc4ab7a7d86b51221b39ebee4281e1d3e19))
+
+## [0.20.5](https://github.com/nodejs/gyp-next/compare/v0.20.4...v0.20.5) (2025-10-13)
+
+
+### Bug Fixes
+
+* Fix ruff v0.13.0 adds ruff rule RUF059 ([bd4491a](https://github.com/nodejs/gyp-next/commit/bd4491a3ba641eeb040b785bbce367f72c3baf19))
+* handle `None` case in xcode_emulation regexes ([#311](https://github.com/nodejs/gyp-next/issues/311)) ([b21ee31](https://github.com/nodejs/gyp-next/commit/b21ee3150eea9fc1a8811e910e5ba64f42e1fb77))
+
+## [0.20.4](https://github.com/nodejs/gyp-next/compare/v0.20.3...v0.20.4) (2025-08-25)
+
+
+### Bug Fixes
+
+* **cli:** remove duplicate usage ([#308](https://github.com/nodejs/gyp-next/issues/308)) ([0996f60](https://github.com/nodejs/gyp-next/commit/0996f60e9bc83ec9d7b31e39bebd23f8dc990130))
+* **docs:** Add running gyp via uv ([#306](https://github.com/nodejs/gyp-next/issues/306)) ([0e43f61](https://github.com/nodejs/gyp-next/commit/0e43f61da8154f9b460ccba9ce4c0a25d2383ac4))
+
+## [0.20.3](https://github.com/nodejs/gyp-next/compare/v0.20.2...v0.20.3) (2025-08-20)
+
+
+### Bug Fixes
+
+* compilation failure on the OpenHarmony platform ([#301](https://github.com/nodejs/gyp-next/issues/301)) ([0cf7a14](https://github.com/nodejs/gyp-next/commit/0cf7a142be06f686b8b42849791de902f177cf9f))
+* make xcode_emulation handle `xcodebuild` not in the `PATH` ([#303](https://github.com/nodejs/gyp-next/issues/303)) ([8224dee](https://github.com/nodejs/gyp-next/commit/8224deef984add7e7afe846cfb82c9d3fa6da1fb))
+
+## [0.20.2](https://github.com/nodejs/gyp-next/compare/v0.20.1...v0.20.2) (2025-06-22)
+
+
+### Bug Fixes
+
+* Python lint import-outside-top-level ruff rule PLC0415 ([#298](https://github.com/nodejs/gyp-next/issues/298)) ([34f4df6](https://github.com/nodejs/gyp-next/commit/34f4df614936ee6a056e47406ebbe7e3c1cb6540))
+
+## [0.20.1](https://github.com/nodejs/gyp-next/compare/v0.20.0...v0.20.1) (2025-06-06)
+
+
+### Bug Fixes
+
+* Ensure Consistent Order of build_files in WriteAutoRegenerationRule ([#293](https://github.com/nodejs/gyp-next/issues/293)) ([59b5903](https://github.com/nodejs/gyp-next/commit/59b59035f4ae63419343ffdafe0f0ff511ada17d))
+* ignore failure of `GetCompilerPredefines` ([#295](https://github.com/nodejs/gyp-next/issues/295)) ([0eaea29](https://github.com/nodejs/gyp-next/commit/0eaea297f0fbb0869597aa162f66f78eb2468fad))
+
+## [0.20.0](https://github.com/nodejs/gyp-next/compare/v0.19.1...v0.20.0) (2025-03-27)
+
+
+### ⚠ BREAKING CHANGES
+
+* resolve issue with relative paths during linking ([#284](https://github.com/nodejs/gyp-next/issues/284))
+
+### Bug Fixes
+
+* python lint  more ruff rules ([#291](https://github.com/nodejs/gyp-next/issues/291)) ([fabc78c](https://github.com/nodejs/gyp-next/commit/fabc78caffcf988365d970ced5a151f40525077e))
+* remove explicit installation of setuptools ([#278](https://github.com/nodejs/gyp-next/issues/278)) ([e476778](https://github.com/nodejs/gyp-next/commit/e4767782c70ca8427184694589d9f0ded5eeed22))
+* resolve issue with relative paths during linking ([#284](https://github.com/nodejs/gyp-next/issues/284)) ([a2d7439](https://github.com/nodejs/gyp-next/commit/a2d7439fbd3c03f01e1149fdbe682f754bc6cc7f))
+
 ## [0.19.1](https://github.com/nodejs/gyp-next/compare/v0.19.0...v0.19.1) (2024-12-09)
 
 

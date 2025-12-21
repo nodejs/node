@@ -48,8 +48,12 @@ cd "$WORKSPACE"
 
 echo "Fetching nghttp3 source archive..."
 curl -sL -o "$ARCHIVE_BASENAME.tar.xz" "https://github.com/ngtcp2/nghttp3/releases/download/${NGHTTP3_REF}/${ARCHIVE_BASENAME}.tar.xz"
-SHA256="$(curl -sL "https://github.com/ngtcp2/nghttp3/releases/download/${NGHTTP3_REF}/checksums.txt" | grep 'tar.xz$')"
-log_and_verify_sha256sum "nghttp3" "$ARCHIVE_BASENAME.tar.xz" "$SHA256"
+
+echo "Verifying PGP signature..."
+curl -sL "https://github.com/ngtcp2/nghttp3/releases/download/${NGHTTP3_REF}/${ARCHIVE_BASENAME}.tar.xz.asc" \
+| gpgv --keyring "$BASE_DIR/tools/dep_updaters/nghttp.kbx" - "$ARCHIVE_BASENAME.tar.xz"
+
+echo "Unpacking archive..."
 tar -xJf "$ARCHIVE_BASENAME.tar.xz"
 rm "$ARCHIVE_BASENAME.tar.xz"
 mv "$ARCHIVE_BASENAME" nghttp3

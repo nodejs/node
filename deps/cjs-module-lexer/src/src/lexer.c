@@ -120,8 +120,10 @@ uint32_t parseCJS (uint16_t* _source, uint32_t _sourceLen, void (*_addExport)(co
               pos += 4;
             if (*pos == '(') {
               openTokenPosStack[openTokenDepth++] = lastTokenPos;
-              if (*(++pos) == 'r')
+              if (*(pos + 1) == 'r') {
+                pos++;
                 tryParseRequire(ExportStar);
+              }
             }
           }
           lastTokenPos = pos;

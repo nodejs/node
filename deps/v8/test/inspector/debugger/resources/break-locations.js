@@ -100,6 +100,13 @@ function testForOfLoop() {
   for (var k of a) {}
 }
 
+async function testPromiseForAwaitLoop() {
+  for await (var k of []) { }
+  for await (var k of [Promise.resolve(1)]) k;
+  var a = [];
+  for await (var k of a) {}
+}
+
 function testForInLoop() {
   var o = {};
   for (var k in o) {}

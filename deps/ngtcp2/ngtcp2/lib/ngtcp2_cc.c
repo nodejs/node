@@ -59,14 +59,16 @@ ngtcp2_cc_pkt *ngtcp2_cc_pkt_init(ngtcp2_cc_pkt *pkt, int64_t pkt_num,
 static void reno_cc_reset(ngtcp2_cc_reno *reno) { reno->pending_add = 0; }
 
 void ngtcp2_cc_reno_init(ngtcp2_cc_reno *reno, ngtcp2_log *log) {
-  memset(reno, 0, sizeof(*reno));
-
-  reno->cc.log = log;
-  reno->cc.on_pkt_acked = ngtcp2_cc_reno_cc_on_pkt_acked;
-  reno->cc.congestion_event = ngtcp2_cc_reno_cc_congestion_event;
-  reno->cc.on_persistent_congestion =
-    ngtcp2_cc_reno_cc_on_persistent_congestion;
-  reno->cc.reset = ngtcp2_cc_reno_cc_reset;
+  *reno = (ngtcp2_cc_reno){
+    .cc =
+      {
+        .log = log,
+        .on_pkt_acked = ngtcp2_cc_reno_cc_on_pkt_acked,
+        .congestion_event = ngtcp2_cc_reno_cc_congestion_event,
+        .on_persistent_congestion = ngtcp2_cc_reno_cc_on_persistent_congestion,
+        .reset = ngtcp2_cc_reno_cc_reset,
+      },
+  };
 
   reno_cc_reset(reno);
 }
@@ -148,11 +150,10 @@ void ngtcp2_cc_reno_cc_reset(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
 static void cubic_vars_reset(ngtcp2_cubic_vars *v) {
   v->cwnd_prior = 0;
   v->w_max = 0;
-  v->k = 0;
+  v->k_m = 0;
   v->epoch_start = UINT64_MAX;
   v->w_est = 0;
 
-  v->state = NGTCP2_CUBIC_STATE_INITIAL;
   v->app_limited_start_ts = UINT64_MAX;
   v->app_limited_duration = 0;
   v->pending_bytes_delivered = 0;
@@ -177,17 +178,18 @@ static void cubic_cc_reset(ngtcp2_cc_cubic *cubic) {
 
 void ngtcp2_cc_cubic_init(ngtcp2_cc_cubic *cubic, ngtcp2_log *log,
                           ngtcp2_rst *rst) {
-  memset(cubic, 0, sizeof(*cubic));
-
-  cubic->cc.log = log;
-  cubic->cc.on_ack_recv = ngtcp2_cc_cubic_cc_on_ack_recv;
-  cubic->cc.congestion_event = ngtcp2_cc_cubic_cc_congestion_event;
-  cubic->cc.on_spurious_congestion = ngtcp2_cc_cubic_cc_on_spurious_congestion;
-  cubic->cc.on_persistent_congestion =
-    ngtcp2_cc_cubic_cc_on_persistent_congestion;
-  cubic->cc.reset = ngtcp2_cc_cubic_cc_reset;
-
-  cubic->rst = rst;
+  *cubic = (ngtcp2_cc_cubic){
+    .cc =
+      {
+        .log = log,
+        .on_ack_recv = ngtcp2_cc_cubic_cc_on_ack_recv,
+        .congestion_event = ngtcp2_cc_cubic_cc_congestion_event,
+        .on_spurious_congestion = ngtcp2_cc_cubic_cc_on_spurious_congestion,
+        .on_persistent_congestion = ngtcp2_cc_cubic_cc_on_persistent_congestion,
+        .reset = ngtcp2_cc_cubic_cc_reset,
+      },
+    .rst = rst,
+  };
 
   cubic_cc_reset(cubic);
 }
@@ -228,28 +230,42 @@ static uint64_t cubic_cc_compute_w_cubic(ngtcp2_cc_cubic *cubic,
                                          const ngtcp2_conn_stat *cstat,
                                          ngtcp2_tstamp ts) {
   ngtcp2_duration t = ts - cubic->current.epoch_start;
+  uint64_t tx_m = (t << 10) / NGTCP2_SECONDS;
+  int neg = tx_m < cubic->current.k_m;
+  uint64_t time_delta_m;
   uint64_t delta;
-  uint64_t tx = (t << 10) / NGTCP2_SECONDS;
-  uint64_t kx = (cubic->current.k << 10) / NGTCP2_SECONDS;
-  uint64_t time_delta;
 
-  if (tx < kx) {
-    return UINT64_MAX;
+  /* Avoid signed bit-shift */
+  if (neg) {
+    time_delta_m = cubic->current.k_m - tx_m;
+  } else {
+    time_delta_m = tx_m - cubic->current.k_m;
   }
 
-  time_delta = tx - kx;
+  time_delta_m = ngtcp2_min_uint64(time_delta_m, 3600 << 10);
 
-  delta = cstat->max_tx_udp_payload_size *
-          ((((time_delta * time_delta) >> 10) * time_delta) >> 10) * 4 / 10;
+  delta = ((((time_delta_m * time_delta_m) >> 10) * time_delta_m) >> 10) *
+          cstat->max_tx_udp_payload_size * 4 / 10;
+  delta >>= 10;
 
-  return cubic->current.w_max + (delta >> 10);
+  if (neg) {
+    if (cubic->current.w_max < delta) {
+      /* Negative w_cubic is not interesting. */
+      return 0;
+    }
+
+    return cubic->current.w_max - delta;
+  }
+
+  return cubic->current.w_max + delta;
 }
 
 void ngtcp2_cc_cubic_cc_on_ack_recv(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
                                     const ngtcp2_cc_ack *ack,
                                     ngtcp2_tstamp ts) {
   ngtcp2_cc_cubic *cubic = ngtcp2_struct_of(cc, ngtcp2_cc_cubic, cc);
-  uint64_t w_cubic, w_cubic_next, target, m;
+  uint64_t w_cubic, w_cubic_next;
+  uint64_t target, m;
   ngtcp2_duration rtt_thresh;
   int round_start;
   int is_app_limited =
@@ -259,42 +275,26 @@ void ngtcp2_cc_cubic_cc_on_ack_recv(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
     return;
   }
 
-  if (cubic->current.state == NGTCP2_CUBIC_STATE_CONGESTION_AVOIDANCE) {
-    if (is_app_limited) {
-      if (cubic->current.app_limited_start_ts == UINT64_MAX) {
-        cubic->current.app_limited_start_ts = ts;
-      }
-
-      return;
-    }
-
-    if (cubic->current.app_limited_start_ts != UINT64_MAX) {
-      cubic->current.app_limited_duration +=
-        ts - cubic->current.app_limited_start_ts;
-      cubic->current.app_limited_start_ts = UINT64_MAX;
-    }
-  } else if (is_app_limited) {
-    return;
-  }
-
-  round_start = ack->pkt_delivered >= cubic->next_round_delivered;
-  if (round_start) {
-    cubic->next_round_delivered = cubic->rst->delivered;
-
-    cubic->rst->is_cwnd_limited = 0;
-  }
-
   if (cstat->cwnd < cstat->ssthresh) {
     /* slow-start */
-    if (cubic->hs.css_round) {
-      cstat->cwnd += ack->bytes_delivered / NGTCP2_HS_CSS_GROWTH_DIVISOR;
-    } else {
-      cstat->cwnd += ack->bytes_delivered;
+    round_start = ack->pkt_delivered >= cubic->next_round_delivered;
+    if (round_start) {
+      cubic->next_round_delivered = cubic->rst->delivered;
+
+      cubic->rst->is_cwnd_limited = 0;
     }
 
-    ngtcp2_log_info(cubic->cc.log, NGTCP2_LOG_EVENT_CCA,
-                    "%" PRIu64 " bytes acked, slow start cwnd=%" PRIu64,
-                    ack->bytes_delivered, cstat->cwnd);
+    if (!is_app_limited) {
+      if (cubic->hs.css_round) {
+        cstat->cwnd += ack->bytes_delivered / NGTCP2_HS_CSS_GROWTH_DIVISOR;
+      } else {
+        cstat->cwnd += ack->bytes_delivered;
+      }
+
+      ngtcp2_log_info(cubic->cc.log, NGTCP2_LOG_EVENT_CCA,
+                      "%" PRIu64 " bytes acked, slow start cwnd=%" PRIu64,
+                      ack->bytes_delivered, cstat->cwnd);
+    }
 
     if (round_start) {
       cubic->hs.last_round_min_rtt = cubic->hs.current_round_min_rtt;
@@ -321,7 +321,11 @@ void ngtcp2_cc_cubic_cc_on_ack_recv(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
         ngtcp2_log_info(cubic->cc.log, NGTCP2_LOG_EVENT_CCA,
                         "HyStart++ exit slow start");
 
+        cubic->current.epoch_start = ts;
+        cubic->current.w_max = cstat->cwnd;
         cstat->ssthresh = cstat->cwnd;
+        cubic->current.cwnd_prior = cstat->cwnd;
+        cubic->current.w_est = cstat->cwnd;
       }
 
       return;
@@ -347,20 +351,18 @@ void ngtcp2_cc_cubic_cc_on_ack_recv(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
   }
 
   /* congestion avoidance */
+  if (is_app_limited) {
+    if (cubic->current.app_limited_start_ts == UINT64_MAX) {
+      cubic->current.app_limited_start_ts = ts;
+    }
 
-  switch (cubic->current.state) {
-  case NGTCP2_CUBIC_STATE_INITIAL:
-    m = cstat->max_tx_udp_payload_size * ack->bytes_delivered +
-        cubic->current.pending_bytes_delivered;
-    cstat->cwnd += m / cstat->cwnd;
-    cubic->current.pending_bytes_delivered = m % cstat->cwnd;
     return;
-  case NGTCP2_CUBIC_STATE_RECOVERY:
-    cubic->current.state = NGTCP2_CUBIC_STATE_CONGESTION_AVOIDANCE;
-    cubic->current.epoch_start = ts;
-    break;
-  default:
-    break;
+  }
+
+  if (cubic->current.app_limited_start_ts != UINT64_MAX) {
+    cubic->current.app_limited_duration +=
+      ts - cubic->current.app_limited_start_ts;
+    cubic->current.app_limited_start_ts = UINT64_MAX;
   }
 
   w_cubic = cubic_cc_compute_w_cubic(cubic, cstat,
@@ -369,7 +371,7 @@ void ngtcp2_cc_cubic_cc_on_ack_recv(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
     cubic, cstat,
     ts - cubic->current.app_limited_duration + cstat->smoothed_rtt);
 
-  if (w_cubic_next == UINT64_MAX || w_cubic_next < cstat->cwnd) {
+  if (w_cubic_next < cstat->cwnd) {
     target = cstat->cwnd;
   } else if (2 * w_cubic_next > 3 * cstat->cwnd) {
     target = cstat->cwnd * 3 / 2;
@@ -387,19 +389,19 @@ void ngtcp2_cc_cubic_cc_on_ack_recv(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
     cubic->current.w_est += m / cstat->cwnd;
   }
 
-  if (w_cubic == UINT64_MAX || cubic->current.w_est > w_cubic) {
+  if (cubic->current.w_est > w_cubic) {
     cstat->cwnd = cubic->current.w_est;
   } else {
     m = (target - cstat->cwnd) * cstat->max_tx_udp_payload_size +
         cubic->current.pending_bytes_delivered;
-    cstat->cwnd += m / cstat->cwnd;
     cubic->current.pending_bytes_delivered = m % cstat->cwnd;
+    cstat->cwnd += m / cstat->cwnd;
   }
 
   ngtcp2_log_info(cubic->cc.log, NGTCP2_LOG_EVENT_CCA,
                   "%" PRIu64 " bytes acked, cubic-ca cwnd=%" PRIu64
-                  " k=%" PRIi64 " target=%" PRIu64 " w_est=%" PRIu64,
-                  ack->bytes_delivered, cstat->cwnd, cubic->current.k, target,
+                  " k_m=%" PRIu64 " target=%" PRIu64 " w_est=%" PRIu64,
+                  ack->bytes_delivered, cstat->cwnd, cubic->current.k_m, target,
                   cubic->current.w_est);
 }
 
@@ -409,6 +411,7 @@ void ngtcp2_cc_cubic_cc_congestion_event(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
                                          ngtcp2_tstamp ts) {
   ngtcp2_cc_cubic *cubic = ngtcp2_struct_of(cc, ngtcp2_cc_cubic, cc);
   uint64_t flight_size;
+  uint64_t cwnd_delta;
 
   if (in_congestion_recovery(cstat, sent_ts)) {
     return;
@@ -422,8 +425,7 @@ void ngtcp2_cc_cubic_cc_congestion_event(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
 
   cstat->congestion_recovery_start_ts = ts;
 
-  cubic->current.state = NGTCP2_CUBIC_STATE_RECOVERY;
-  cubic->current.epoch_start = UINT64_MAX;
+  cubic->current.epoch_start = ts;
   cubic->current.app_limited_start_ts = UINT64_MAX;
   cubic->current.app_limited_duration = 0;
   cubic->current.pending_bytes_delivered = 0;
@@ -435,13 +437,16 @@ void ngtcp2_cc_cubic_cc_congestion_event(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
     cubic->current.w_max = cstat->cwnd;
   }
 
+  cubic->current.w_max =
+    ngtcp2_max_uint64(cubic->current.w_max, 2 * cstat->max_tx_udp_payload_size);
+
   cstat->ssthresh = cstat->cwnd * 7 / 10;
 
   if (cubic->rst->rs.delivered * 2 < cstat->cwnd) {
     flight_size = cstat->bytes_in_flight + bytes_lost;
     cstat->ssthresh = ngtcp2_min_uint64(
       cstat->ssthresh,
-      ngtcp2_max_uint64(cubic->rst->rs.delivered, flight_size) * 7 / 10);
+      ngtcp2_max_uint64(cubic->rst->rs.delivered, flight_size));
   }
 
   cstat->ssthresh =
@@ -452,15 +457,12 @@ void ngtcp2_cc_cubic_cc_congestion_event(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
 
   cubic->current.w_est = cstat->cwnd;
 
-  if (cstat->cwnd < cubic->current.w_max) {
-    cubic->current.k =
-      ngtcp2_cbrt(((cubic->current.w_max - cstat->cwnd) << 10) * 10 / 4 /
-                  cstat->max_tx_udp_payload_size) *
-      NGTCP2_SECONDS;
-    cubic->current.k >>= 10;
-  } else {
-    cubic->current.k = 0;
-  }
+  assert(cubic->current.w_max >= cstat->cwnd);
+
+  cwnd_delta = cubic->current.w_max - cstat->cwnd;
+
+  cubic->current.k_m =
+    ngtcp2_cbrt((cwnd_delta << 30) * 10 / 4 / cstat->max_tx_udp_payload_size);
 
   ngtcp2_log_info(cubic->cc.log, NGTCP2_LOG_EVENT_CCA,
                   "reduce cwnd because of packet loss cwnd=%" PRIu64,

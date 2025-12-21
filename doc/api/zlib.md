@@ -12,7 +12,7 @@ Gzip, Deflate/Inflate, Brotli, and Zstd.
 To access it:
 
 ```mjs
-import os from 'node:zlib';
+import zlib from 'node:zlib';
 ```
 
 ```cjs
@@ -74,7 +74,6 @@ import {
   createReadStream,
   createWriteStream,
 } from 'node:fs';
-import process from 'node:process';
 import { createGzip } from 'node:zlib';
 import { pipeline } from 'node:stream/promises';
 
@@ -245,7 +244,7 @@ import { pipeline } from 'node:stream';
 const request = http.get({ host: 'example.com',
                            path: '/',
                            port: 80,
-                           headers: { 'Accept-Encoding': 'br,gzip,deflate' } });
+                           headers: { 'Accept-Encoding': 'br,gzip,deflate,zstd' } });
 request.on('response', (response) => {
   const output = fs.createWriteStream('example.com_index.html');
 
@@ -266,6 +265,9 @@ request.on('response', (response) => {
       break;
     case 'deflate':
       pipeline(response, zlib.createInflate(), output, onError);
+      break;
+    case 'zstd':
+      pipeline(response, zlib.createZstdDecompress(), output, onError);
       break;
     default:
       pipeline(response, output, onError);
@@ -354,6 +356,9 @@ http.createServer((request, response) => {
   } else if (/\bbr\b/.test(acceptEncoding)) {
     response.writeHead(200, { 'Content-Encoding': 'br' });
     pipeline(raw, zlib.createBrotliCompress(), response, onError);
+  } else if (/\bzstd\b/.test(acceptEncoding)) {
+    response.writeHead(200, { 'Content-Encoding': 'zstd' });
+    pipeline(raw, zlib.createZstdCompress(), response, onError);
   } else {
     response.writeHead(200, {});
     pipeline(raw, response, onError);
@@ -615,7 +620,6 @@ Allowed flush values.
 * `zlib.constants.Z_FULL_FLUSH`
 * `zlib.constants.Z_FINISH`
 * `zlib.constants.Z_BLOCK`
-* `zlib.constants.Z_TREES`
 
 Return codes for the compression/decompression functions. Negative
 values are errors, positive values are used for special but normal
@@ -725,7 +729,9 @@ These advanced options are available for controlling decompression:
 > Stability: 1 - Experimental
 
 <!-- YAML
-added: v23.8.0
+added:
+  - v23.8.0
+  - v22.15.0
 -->
 
 There are several options and other constants available for Zstd-based
@@ -750,6 +756,34 @@ The most important options are:
 * `ZSTD_c_compressionLevel`
   * Set compression parameters according to pre-defined cLevel table. Default
     level is ZSTD\_CLEVEL\_DEFAULT==3.
+* `ZSTD_c_strategy`
+  * Select the compression strategy.
+  * Possible values are listed in the strategy options section below.
+
+#### Strategy options
+
+The following constants can be used as values for the `ZSTD_c_strategy`
+parameter:
+
+* `zlib.constants.ZSTD_fast`
+* `zlib.constants.ZSTD_dfast`
+* `zlib.constants.ZSTD_greedy`
+* `zlib.constants.ZSTD_lazy`
+* `zlib.constants.ZSTD_lazy2`
+* `zlib.constants.ZSTD_btlazy2`
+* `zlib.constants.ZSTD_btopt`
+* `zlib.constants.ZSTD_btultra`
+* `zlib.constants.ZSTD_btultra2`
+
+Example:
+
+```js
+const stream = zlib.createZstdCompress({
+  params: {
+    [zlib.constants.ZSTD_c_strategy]: zlib.constants.ZSTD_btultra,
+  },
+});
+```
 
 #### Pledged Source Size
 
@@ -832,6 +866,7 @@ Each Brotli-based class takes an `options` object. All options are optional.
 * `params` {Object} Key-value object containing indexed [Brotli parameters][].
 * `maxOutputLength` {integer} Limits output size when using
   [convenience methods][]. **Default:** [`buffer.kMaxLength`][]
+* `info` {boolean} If `true`, returns an object with `buffer` and `engine`. **Default:** `false`
 
 For example:
 
@@ -854,6 +889,8 @@ added:
  - v10.16.0
 -->
 
+* Extends: [`ZlibBase`][]
+
 Compress data using the Brotli algorithm.
 
 ## Class: `zlib.BrotliDecompress`
@@ -864,6 +901,8 @@ added:
  - v10.16.0
 -->
 
+* Extends: [`ZlibBase`][]
+
 Decompress data using the Brotli algorithm.
 
 ## Class: `zlib.Deflate`
@@ -872,6 +911,8 @@ Decompress data using the Brotli algorithm.
 added: v0.5.8
 -->
 
+* Extends: [`ZlibBase`][]
+
 Compress data using deflate.
 
 ## Class: `zlib.DeflateRaw`
@@ -879,6 +920,8 @@ Compress data using deflate.
 <!-- YAML
 added: v0.5.8
 -->
+
+* Extends: [`ZlibBase`][]
 
 Compress data using deflate, and do not append a `zlib` header.
 
@@ -899,6 +942,8 @@ changes:
     description: A truncated input stream will now result in an `'error'` event.
 -->
 
+* Extends: [`ZlibBase`][]
+
 Decompress a gzip stream.
 
 ## Class: `zlib.Gzip`
@@ -906,6 +951,8 @@ Decompress a gzip stream.
 <!-- YAML
 added: v0.5.8
 -->
+
+* Extends: [`ZlibBase`][]
 
 Compress data using gzip.
 
@@ -918,6 +965,8 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/2595
     description: A truncated input stream will now result in an `'error'` event.
 -->
+
+* Extends: [`ZlibBase`][]
 
 Decompress a deflate stream.
 
@@ -934,6 +983,8 @@ changes:
     description: A truncated input stream will now result in an `'error'` event.
 -->
 
+* Extends: [`ZlibBase`][]
+
 Decompress a raw deflate stream.
 
 ## Class: `zlib.Unzip`
@@ -941,6 +992,8 @@ Decompress a raw deflate stream.
 <!-- YAML
 added: v0.5.8
 -->
+
+* Extends: [`ZlibBase`][]
 
 Decompress either a Gzip- or Deflate-compressed stream by auto-detecting
 the header.
@@ -957,6 +1010,8 @@ changes:
     description: This class was renamed from `Zlib` to `ZlibBase`.
 -->
 
+* Extends: [`stream.Transform`][]
+
 Not exported by the `node:zlib` module. It is documented here because it is the
 base class of the compressor/decompressor classes.
 
@@ -969,7 +1024,7 @@ be used in pipes and similar stream operations.
 added: v10.0.0
 -->
 
-* {number}
+* Type: {number}
 
 The `zlib.bytesWritten` property specifies the number of bytes written to
 the engine, before the bytes are processed (compressed or decompressed,
@@ -1032,7 +1087,9 @@ the inflate and deflate algorithms.
 > Stability: 1 - Experimental
 
 <!-- YAML
-added: v23.8.0
+added:
+  - v23.8.0
+  - v22.15.0
 -->
 
 <!--type=misc-->
@@ -1045,6 +1102,10 @@ Each Zstd-based class takes an `options` object. All options are optional.
 * `params` {Object} Key-value object containing indexed [Zstd parameters][].
 * `maxOutputLength` {integer} Limits output size when using
   [convenience methods][]. **Default:** [`buffer.kMaxLength`][]
+* `info` {boolean} If `true`, returns an object with `buffer` and `engine`. **Default:** `false`
+* `dictionary` {Buffer} Optional dictionary used to
+  improve compression efficiency when compressing or decompressing data that
+  shares common patterns with the dictionary.
 
 For example:
 
@@ -1063,7 +1124,9 @@ const stream = zlib.createZstdCompress({
 > Stability: 1 - Experimental
 
 <!-- YAML
-added: v23.8.0
+added:
+  - v23.8.0
+  - v22.15.0
 -->
 
 Compress data using the Zstd algorithm.
@@ -1073,7 +1136,9 @@ Compress data using the Zstd algorithm.
 > Stability: 1 - Experimental
 
 <!-- YAML
-added: v23.8.0
+added:
+  - v23.8.0
+  - v22.15.0
 -->
 
 Decompress data using the Zstd algorithm.
@@ -1256,7 +1321,9 @@ Creates and returns a new [`Unzip`][] object.
 > Stability: 1 - Experimental
 
 <!-- YAML
-added: v23.8.0
+added:
+  - v23.8.0
+  - v22.15.0
 -->
 
 * `options` {zstd options}
@@ -1268,7 +1335,9 @@ Creates and returns a new [`ZstdCompress`][] object.
 > Stability: 1 - Experimental
 
 <!-- YAML
-added: v23.8.0
+added:
+  - v23.8.0
+  - v22.15.0
 -->
 
 * `options` {zstd options}
@@ -1626,7 +1695,9 @@ Decompress a chunk of data with [`Unzip`][].
 > Stability: 1 - Experimental
 
 <!-- YAML
-added: v23.8.0
+added:
+  - v23.8.0
+  - v22.15.0
 -->
 
 * `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
@@ -1638,7 +1709,9 @@ added: v23.8.0
 > Stability: 1 - Experimental
 
 <!-- YAML
-added: v23.8.0
+added:
+  - v23.8.0
+  - v22.15.0
 -->
 
 * `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
@@ -1649,7 +1722,9 @@ Compress a chunk of data with [`ZstdCompress`][].
 ### `zlib.zstdDecompress(buffer[, options], callback)`
 
 <!-- YAML
-added: v23.8.0
+added:
+  - v23.8.0
+  - v22.15.0
 -->
 
 * `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
@@ -1661,7 +1736,9 @@ added: v23.8.0
 > Stability: 1 - Experimental
 
 <!-- YAML
-added: v23.8.0
+added:
+  - v23.8.0
+  - v22.15.0
 -->
 
 * `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
@@ -1687,6 +1764,7 @@ Decompress a chunk of data with [`ZstdDecompress`][].
 [`InflateRaw`]: #class-zlibinflateraw
 [`Inflate`]: #class-zlibinflate
 [`Unzip`]: #class-zlibunzip
+[`ZlibBase`]: #class-zlibzlibbase
 [`ZstdCompress`]: #class-zlibzstdcompress
 [`ZstdDecompress`]: #class-zlibzstddecompress
 [`buffer.kMaxLength`]: buffer.md#bufferkmaxlength

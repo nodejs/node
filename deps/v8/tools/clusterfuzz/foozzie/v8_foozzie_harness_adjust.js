@@ -85,8 +85,6 @@ try {
 
     isNeverOptimize = function isNeverOptimize() {}
 
-    isAlwaysOptimize = function isAlwaysOptimize() {}
-
     isInterpreted = function isInterpreted() {}
 
     isBaseline = function isBaseline() {}

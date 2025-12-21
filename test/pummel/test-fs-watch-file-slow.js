@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
 
@@ -38,7 +38,7 @@ try {
   // swallow
 }
 
-fs.watchFile(FILENAME, { interval: TIMEOUT - 250 }, function(curr, prev) {
+fs.watchFile(FILENAME, { interval: TIMEOUT - 250 }, common.mustCall((curr, prev) => {
   console.log([curr, prev]);
   switch (++nevents) {
     case 1:
@@ -53,9 +53,9 @@ fs.watchFile(FILENAME, { interval: TIMEOUT - 250 }, function(curr, prev) {
       fs.unwatchFile(FILENAME);
       break;
     default:
-      assert(0);
+      assert.fail();
   }
-});
+}, 4));
 
 process.on('exit', function() {
   assert.strictEqual(nevents, 4);

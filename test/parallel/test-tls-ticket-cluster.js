@@ -59,10 +59,10 @@ if (cluster.isPrimary) {
       } else {
         shoot();
       }
-    }).once('session', (session) => {
+    }).once('session', common.mustCallAtLeast((session) => {
       assert(!lastSession);
       lastSession = session;
-    });
+    }, 0));
 
     c.resume(); // See close_notify comment in server
   }

@@ -24,13 +24,19 @@ namespace {
 CounterMap* kCurrentCounterMap = nullptr;
 }  // namespace
 
-IsolateWrapper::IsolateWrapper(CountersMode counters_mode)
+std::unique_ptr<CppHeap> IsolateWrapper::cpp_heap_;
+
+IsolateWrapper::IsolateWrapper(CountersMode counters_mode,
+                               bool use_statically_set_cpp_heap)
     : array_buffer_allocator_(
           v8::ArrayBuffer::Allocator::NewDefaultAllocator()) {
   CHECK_NULL(kCurrentCounterMap);
 
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = array_buffer_allocator_.get();
+  if (use_statically_set_cpp_heap) {
+    create_params.cpp_heap = cpp_heap_.release();
+  }
 
   if (counters_mode == kEnableCounters) {
     counter_map_ = std::make_unique<CounterMap>();
@@ -68,25 +74,6 @@ IsolateWrapper::~IsolateWrapper() {
 }
 
 namespace internal {
-
-SaveFlags::SaveFlags() {
-  // For each flag, save the current flag value.
-#define FLAG_MODE_APPLY(ftype, ctype, nam, def, cmt) \
-  SAVED_##nam = v8_flags.nam.value();
-#include "src/flags/flag-definitions.h"
-#undef FLAG_MODE_APPLY
-}
-
-SaveFlags::~SaveFlags() {
-  // For each flag, set back the old flag value if it changed (don't write the
-  // flag if it didn't change, to keep TSAN happy).
-#define FLAG_MODE_APPLY(ftype, ctype, nam, def, cmt) \
-  if (SAVED_##nam != v8_flags.nam.value()) {         \
-    v8_flags.nam = SAVED_##nam;                      \
-  }
-#include "src/flags/flag-definitions.h"  // NOLINT
-#undef FLAG_MODE_APPLY
-}
 
 }  // namespace internal
 }  // namespace v8

@@ -59,7 +59,7 @@ static void pipe_client_connect_cb(uv_connect_t* req, int status) {
   ASSERT_OK(r);
 
   if (*buf == '\0') {  /* Linux abstract socket. */
-    const char expected[] = "\0" TEST_PIPENAME;
+    const char expected[] = "\0" TEST_PIPENAME "\0";
     ASSERT_EQ(len, sizeof(expected) - 1);
     ASSERT_MEM_EQ(buf, expected, len);
   } else {
@@ -223,7 +223,7 @@ TEST_IMPL(pipe_getsockname) {
 
 TEST_IMPL(pipe_getsockname_abstract) {
   /* TODO(bnoordhuis) Use unique name, susceptible to concurrent test runs. */
-  static const char name[] = "\0" TEST_PIPENAME;
+  static const char name[] = "\0" TEST_PIPENAME "\0";
 #if defined(__linux__)
   char buf[256];
   size_t buflen;

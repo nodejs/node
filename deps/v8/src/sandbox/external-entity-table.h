@@ -16,8 +16,6 @@
 #include "src/common/globals.h"
 #include "src/common/segmented-table.h"
 
-#ifdef V8_COMPRESS_POINTERS
-
 namespace v8 {
 namespace internal {
 
@@ -56,6 +54,7 @@ class V8_EXPORT_PRIVATE ExternalEntityTable
   static constexpr size_t kSegmentSize = Base::kSegmentSize;
   static constexpr size_t kEntriesPerSegment = Base::kEntriesPerSegment;
   static constexpr size_t kEntrySize = Base::kEntrySize;
+  static constexpr size_t kNumReadOnlySegments = Base::kNumReadOnlySegments;
 
   // A collection of segments in an external entity table.
   //
@@ -111,6 +110,18 @@ class V8_EXPORT_PRIVATE ExternalEntityTable
     bool BelongsTo(const void* table) const { return owning_table_ == table; }
 #endif  // DEBUG
 
+    // Similar to `num_segments()` but also locks the mutex.
+    uint32_t NumSegmentsForTesting() {
+      base::MutexGuard guard(&mutex_);
+      return num_segments();
+    }
+
+    bool allocate_black() { return allocate_black_; }
+
+    void set_allocate_black(bool allocate_black) {
+      allocate_black_ = allocate_black;
+    }
+
    protected:
     friend class ExternalEntityTable<Entry, size>;
 
@@ -140,16 +151,7 @@ class V8_EXPORT_PRIVATE ExternalEntityTable
 
     // Mutex guarding access to the segments_ set.
     base::Mutex mutex_;
-  };
 
-  // A Space that supports black allocations.
-  struct SpaceWithBlackAllocationSupport : public Space {
-    bool allocate_black() { return allocate_black_; }
-    void set_allocate_black(bool allocate_black) {
-      allocate_black_ = allocate_black;
-    }
-
-   private:
     bool allocate_black_ = false;
   };
 
@@ -163,6 +165,7 @@ class V8_EXPORT_PRIVATE ExternalEntityTable
   // allocating a new segment.
   // This method is atomic and can be called from background threads.
   uint32_t AllocateEntry(Space* space);
+  std::optional<uint32_t> TryAllocateEntry(Space* space);
 
   // Attempts to allocate an entry in the given space below the specified index.
   //
@@ -178,12 +181,12 @@ class V8_EXPORT_PRIVATE ExternalEntityTable
   // thereby allocating the entry at the start of the freelist.
   bool TryAllocateEntryFromFreelist(Space* space, FreelistHead freelist);
 
-  // Allocate a new segment and add it to the given space.
+  // Trey to allocate a new segment and add it to the given space.
   //
   // This should only be called when the freelist of the space is currently
   // empty. It will then refill the freelist with all entries in the newly
-  // allocated segment.
-  FreelistHead Extend(Space* space);
+  // allocated segment. Fails if there is no space left.
+  std::optional<FreelistHead> TryExtend(Space* space);
 
   // Sweeps the given space.
   //
@@ -198,6 +201,10 @@ class V8_EXPORT_PRIVATE ExternalEntityTable
   //
   // Returns the number of live entries after sweeping.
   uint32_t GenericSweep(Space* space);
+
+  // Variant of the above that invokes a callback for every live entry.
+  template <typename Callback>
+  uint32_t GenericSweep(Space* space, Callback marked);
 
   // Iterate over all entries in the given space.
   //
@@ -236,8 +243,9 @@ class V8_EXPORT_PRIVATE ExternalEntityTable
 
   // Attaches/detaches the given space to the internal read-only segment. Note
   // the lifetime of the underlying segment itself is managed by the table.
-  void AttachSpaceToReadOnlySegment(Space* space);
-  void DetachSpaceFromReadOnlySegment(Space* space);
+  void AttachSpaceToReadOnlySegments(Space* space);
+  void DetachSpaceFromReadOnlySegments(Space* space);
+  void ZeroInternalNullEntry();
 
   // Use this scope to temporarily unseal the read-only segment (i.e. change
   // permissions to RW).
@@ -245,19 +253,20 @@ class V8_EXPORT_PRIVATE ExternalEntityTable
    public:
     explicit UnsealReadOnlySegmentScope(ExternalEntityTable<Entry, size>* table)
         : table_(table) {
-      table_->UnsealReadOnlySegment();
+      table_->UnsealReadOnlySegments();
     }
 
-    ~UnsealReadOnlySegmentScope() { table_->SealReadOnlySegment(); }
+    ~UnsealReadOnlySegmentScope() { table_->SealReadOnlySegments(); }
 
    private:
     ExternalEntityTable<Entry, size>* const table_;
   };
 
  protected:
-  static constexpr uint32_t kInternalReadOnlySegmentOffset = 0;
+  static constexpr uint32_t kInternalReadOnlySegmentsOffset = 0;
   static constexpr uint32_t kInternalNullEntryIndex = 0;
-  static constexpr uint32_t kEndOfInternalReadOnlySegment = kEntriesPerSegment;
+  static constexpr uint32_t kEndOfReadOnlyIndex =
+      kEntriesPerSegment * kNumReadOnlySegments;
 
  private:
   // Required for Isolate::CheckIsolateLayout().
@@ -265,8 +274,8 @@ class V8_EXPORT_PRIVATE ExternalEntityTable
 
   // Helpers to toggle the first segment's permissions between kRead (sealed)
   // and kReadWrite (unsealed).
-  void UnsealReadOnlySegment();
-  void SealReadOnlySegment();
+  void UnsealReadOnlySegments();
+  void SealReadOnlySegments();
 
   // Extends the given space with the given segment.
   void Extend(Space* space, Segment segment, FreelistHead freelist);
@@ -274,7 +283,5 @@ class V8_EXPORT_PRIVATE ExternalEntityTable
 
 }  // namespace internal
 }  // namespace v8
-
-#endif  // V8_COMPRESS_POINTERS
 
 #endif  // V8_SANDBOX_EXTERNAL_ENTITY_TABLE_H_

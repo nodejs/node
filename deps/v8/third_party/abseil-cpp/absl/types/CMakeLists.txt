@@ -21,86 +21,10 @@ absl_cc_library(
   COPTS
     ${ABSL_DEFAULT_COPTS}
   DEPS
-    absl::bad_any_cast
     absl::config
     absl::core_headers
-    absl::fast_type_id
-    absl::type_traits
     absl::utility
   PUBLIC
-)
-
-absl_cc_library(
-  NAME
-    bad_any_cast
-  HDRS
-   "bad_any_cast.h"
-  COPTS
-    ${ABSL_DEFAULT_COPTS}
-  DEPS
-    absl::bad_any_cast_impl
-    absl::config
-  PUBLIC
-)
-
-# Internal-only target, do not depend on directly.
-absl_cc_library(
-  NAME
-    bad_any_cast_impl
-  SRCS
-   "bad_any_cast.h"
-   "bad_any_cast.cc"
-  COPTS
-    ${ABSL_DEFAULT_COPTS}
-  DEPS
-    absl::config
-    absl::raw_logging_internal
-)
-
-absl_cc_test(
-  NAME
-    any_test
-  SRCS
-    "any_test.cc"
-  COPTS
-    ${ABSL_TEST_COPTS}
-  DEPS
-    absl::any
-    absl::config
-    absl::exception_testing
-    absl::log
-    absl::test_instance_tracker
-    GTest::gmock_main
-)
-
-absl_cc_test(
-  NAME
-    any_test_noexceptions
-  SRCS
-    "any_test.cc"
-  COPTS
-    ${ABSL_TEST_COPTS}
-  DEPS
-    absl::any
-    absl::config
-    absl::exception_testing
-    absl::raw_logging_internal
-    absl::test_instance_tracker
-    GTest::gmock_main
-)
-
-absl_cc_test(
-  NAME
-    any_exception_safety_test
-  SRCS
-    "any_exception_safety_test.cc"
-  COPTS
-    ${ABSL_TEST_COPTS}
-  DEPS
-    absl::any
-    absl::config
-    absl::exception_safety_testing
-    GTest::gmock_main
 )
 
 absl_cc_library(
@@ -114,10 +38,12 @@ absl_cc_library(
     ${ABSL_DEFAULT_COPTS}
   DEPS
     absl::algorithm
+    absl::config
     absl::core_headers
     absl::nullability
     absl::throw_delegate
     absl::type_traits
+    absl::weakly_mixed_integer
   PUBLIC
 )
 
@@ -135,6 +61,7 @@ absl_cc_test(
     absl::core_headers
     absl::exception_testing
     absl::fixed_array
+    absl::hash
     absl::inlined_vector
     absl::hash_testing
     absl::strings
@@ -167,80 +94,12 @@ absl_cc_library(
     optional
   HDRS
     "optional.h"
-  SRCS
-    "internal/optional.h"
   COPTS
     ${ABSL_DEFAULT_COPTS}
   DEPS
-    absl::bad_optional_access
-    absl::base_internal
     absl::config
-    absl::core_headers
-    absl::memory
-    absl::nullability
-    absl::type_traits
     absl::utility
   PUBLIC
-)
-
-absl_cc_library(
-  NAME
-    bad_optional_access
-  HDRS
-    "bad_optional_access.h"
-  SRCS
-    "bad_optional_access.cc"
-  COPTS
-    ${ABSL_DEFAULT_COPTS}
-  DEPS
-    absl::config
-    absl::raw_logging_internal
-  PUBLIC
-)
-
-absl_cc_library(
-  NAME
-    bad_variant_access
-  HDRS
-    "bad_variant_access.h"
-  SRCS
-    "bad_variant_access.cc"
-  COPTS
-    ${ABSL_DEFAULT_COPTS}
-  DEPS
-    absl::config
-    absl::raw_logging_internal
-  PUBLIC
-)
-
-absl_cc_test(
-  NAME
-    optional_test
-  SRCS
-    "optional_test.cc"
-  COPTS
-    ${ABSL_TEST_COPTS}
-  DEPS
-    absl::optional
-    absl::config
-    absl::log
-    absl::strings
-    absl::type_traits
-    GTest::gmock_main
-)
-
-absl_cc_test(
-  NAME
-    optional_exception_safety_test
-  SRCS
-    "optional_exception_safety_test.cc"
-  COPTS
-    ${ABSL_TEST_COPTS}
-  DEPS
-    absl::optional
-    absl::config
-    absl::exception_safety_testing
-    GTest::gmock_main
 )
 
 absl_cc_library(
@@ -248,16 +107,10 @@ absl_cc_library(
     variant
   HDRS
     "variant.h"
-  SRCS
-    "internal/variant.h"
   COPTS
     ${ABSL_DEFAULT_COPTS}
   DEPS
-    absl::bad_variant_access
-    absl::base_internal
     absl::config
-    absl::core_headers
-    absl::type_traits
     absl::utility
   PUBLIC
 )
@@ -271,11 +124,6 @@ absl_cc_test(
     ${ABSL_TEST_COPTS}
   DEPS
     absl::variant
-    absl::config
-    absl::core_headers
-    absl::memory
-    absl::type_traits
-    absl::strings
     GTest::gmock_main
 )
 
@@ -306,17 +154,26 @@ absl_cc_test(
     GTest::gmock_main
 )
 
-absl_cc_test(
+# Deprecated empty library.
+# Clients should remove this dependency.
+absl_cc_library(
   NAME
-    variant_exception_safety_test
-  SRCS
-    "variant_exception_safety_test.cc"
-  COPTS
-    ${ABSL_TEST_COPTS}
-  DEPS
-    absl::variant
-    absl::config
-    absl::exception_safety_testing
-    absl::memory
-    GTest::gmock_main
+    bad_any_cast
+  PUBLIC
+)
+
+# Deprecated empty library.
+# Clients should remove this dependency.
+absl_cc_library(
+  NAME
+    bad_optional_access
+  PUBLIC
+)
+
+# Deprecated empty library.
+# Clients should remove this dependency.
+absl_cc_library(
+  NAME
+    bad_variant_access
+  PUBLIC
 )

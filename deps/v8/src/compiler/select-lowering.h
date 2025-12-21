@@ -17,7 +17,7 @@ class JSGraphAssembler;
 // Lowers Select nodes to diamonds.
 class SelectLowering final : public Reducer {
  public:
-  SelectLowering(JSGraphAssembler* graph_assembler, Graph* graph);
+  SelectLowering(JSGraphAssembler* graph_assembler, TFGraph* graph);
   ~SelectLowering() override;
 
   const char* reducer_name() const override { return "SelectLowering"; }

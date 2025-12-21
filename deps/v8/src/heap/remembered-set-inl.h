@@ -5,9 +5,11 @@
 #ifndef V8_HEAP_REMEMBERED_SET_INL_H_
 #define V8_HEAP_REMEMBERED_SET_INL_H_
 
+#include "src/heap/remembered-set.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/codegen/assembler-inl.h"
 #include "src/common/ptr-compr-inl.h"
-#include "src/heap/remembered-set.h"
 #include "src/objects/heap-object.h"
 
 namespace v8 {
@@ -38,18 +40,25 @@ SlotCallbackResult UpdateTypedSlotHelper::UpdateTypedSlot(
     case SlotType::kConstPoolEmbeddedObjectCompressed: {
       Tagged<HeapObject> old_target = Cast<HeapObject>(
           Tagged<Object>(V8HeapCompressionScheme::DecompressTagged(
-              heap->isolate(), base::Memory<Tagged_t>(addr))));
+              base::Memory<Tagged_t>(addr))));
       Tagged<HeapObject> new_target = old_target;
       SlotCallbackResult result = callback(FullMaybeObjectSlot(&new_target));
       DCHECK(!HasWeakHeapObjectTag(new_target));
       if (new_target != old_target) {
-        base::Memory<Tagged_t>(addr) =
-            V8HeapCompressionScheme::CompressObject(new_target.ptr());
+        jit_allocation.WriteValue<Tagged_t>(
+            addr, V8HeapCompressionScheme::CompressObject(new_target.ptr()));
       }
       return result;
     }
     case SlotType::kConstPoolEmbeddedObjectFull: {
-      return callback(FullMaybeObjectSlot(addr));
+      Tagged<HeapObject> old_target =
+          Cast<HeapObject>(Tagged<Object>(base::Memory<Address>(addr)));
+      Tagged<HeapObject> new_target = old_target;
+      SlotCallbackResult result = callback(FullMaybeObjectSlot(&new_target));
+      if (new_target != old_target) {
+        jit_allocation.WriteValue(addr, new_target.ptr());
+      }
+      return result;
     }
     case SlotType::kCleared:
       break;
@@ -78,7 +87,7 @@ Tagged<HeapObject> UpdateTypedSlotHelper::GetTargetObject(Heap* heap,
     }
     case SlotType::kConstPoolEmbeddedObjectCompressed: {
       Address full = V8HeapCompressionScheme::DecompressTagged(
-          heap->isolate(), base::Memory<Tagged_t>(addr));
+          base::Memory<Tagged_t>(addr));
       return Cast<HeapObject>(Tagged<Object>(full));
     }
     case SlotType::kConstPoolEmbeddedObjectFull: {

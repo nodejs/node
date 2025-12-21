@@ -39,10 +39,6 @@
 #  define ZSTD_TRACE 0
 #endif
 
-#if defined (__cplusplus)
-extern "C" {
-#endif
-
 /* ---- static assert (debug) --- */
 #define ZSTD_STATIC_ASSERT(c) DEBUG_STATIC_ASSERT(c)
 #define ZSTD_isError ERR_isError   /* for inlining */
@@ -95,7 +91,7 @@ typedef enum { bt_raw, bt_rle, bt_compressed, bt_reserved } blockType_e;
 #define MIN_CBLOCK_SIZE (1 /*litCSize*/ + 1 /* RLE or RAW */)   /* for a non-null block */
 #define MIN_LITERALS_FOR_4_STREAMS 6
 
-typedef enum { set_basic, set_rle, set_compressed, set_repeat } symbolEncodingType_e;
+typedef enum { set_basic, set_rle, set_compressed, set_repeat } SymbolEncodingType_e;
 
 #define LONGNBSEQ 0x7F00
 
@@ -278,62 +274,6 @@ typedef enum {
 /*-*******************************************
 *  Private declarations
 *********************************************/
-typedef struct seqDef_s {
-    U32 offBase;   /* offBase == Offset + ZSTD_REP_NUM, or repcode 1,2,3 */
-    U16 litLength;
-    U16 mlBase;    /* mlBase == matchLength - MINMATCH */
-} seqDef;
-
-/* Controls whether seqStore has a single "long" litLength or matchLength. See seqStore_t. */
-typedef enum {
-    ZSTD_llt_none = 0,             /* no longLengthType */
-    ZSTD_llt_literalLength = 1,    /* represents a long literal */
-    ZSTD_llt_matchLength = 2       /* represents a long match */
-} ZSTD_longLengthType_e;
-
-typedef struct {
-    seqDef* sequencesStart;
-    seqDef* sequences;      /* ptr to end of sequences */
-    BYTE*  litStart;
-    BYTE*  lit;             /* ptr to end of literals */
-    BYTE*  llCode;
-    BYTE*  mlCode;
-    BYTE*  ofCode;
-    size_t maxNbSeq;
-    size_t maxNbLit;
-
-    /* longLengthPos and longLengthType to allow us to represent either a single litLength or matchLength
-     * in the seqStore that has a value larger than U16 (if it exists). To do so, we increment
-     * the existing value of the litLength or matchLength by 0x10000.
-     */
-    ZSTD_longLengthType_e longLengthType;
-    U32                   longLengthPos;  /* Index of the sequence to apply long length modification to */
-} seqStore_t;
-
-typedef struct {
-    U32 litLength;
-    U32 matchLength;
-} ZSTD_sequenceLength;
-
-/**
- * Returns the ZSTD_sequenceLength for the given sequences. It handles the decoding of long sequences
- * indicated by longLengthPos and longLengthType, and adds MINMATCH back to matchLength.
- */
-MEM_STATIC ZSTD_sequenceLength ZSTD_getSequenceLength(seqStore_t const* seqStore, seqDef const* seq)
-{
-    ZSTD_sequenceLength seqLen;
-    seqLen.litLength = seq->litLength;
-    seqLen.matchLength = seq->mlBase + MINMATCH;
-    if (seqStore->longLengthPos == (U32)(seq - seqStore->sequencesStart)) {
-        if (seqStore->longLengthType == ZSTD_llt_literalLength) {
-            seqLen.litLength += 0x10000;
-        }
-        if (seqStore->longLengthType == ZSTD_llt_matchLength) {
-            seqLen.matchLength += 0x10000;
-        }
-    }
-    return seqLen;
-}
 
 /**
  * Contains the compressed frame size and an upper-bound for the decompressed frame size.
@@ -346,10 +286,6 @@ typedef struct {
     size_t compressedSize;
     unsigned long long decompressedBound;
 } ZSTD_frameSizeInfo;   /* decompress & legacy */
-
-const seqStore_t* ZSTD_getSeqStore(const ZSTD_CCtx* ctx);   /* compress & dictBuilder */
-int ZSTD_seqToCodes(const seqStore_t* seqStorePtr);   /* compress, dictBuilder, decodeCorpus (shouldn't get its definition from here) */
-
 
 /* ZSTD_invalidateRepCodes() :
  * ensures next compression will not use repcodes from previous block.
@@ -384,9 +320,5 @@ MEM_STATIC int ZSTD_cpuSupportsBmi2(void)
     ZSTD_cpuid_t cpuid = ZSTD_cpuid();
     return ZSTD_cpuid_bmi1(cpuid) && ZSTD_cpuid_bmi2(cpuid);
 }
-
-#if defined (__cplusplus)
-}
-#endif
 
 #endif   /* ZSTD_CCOMMON_H_MODULE */

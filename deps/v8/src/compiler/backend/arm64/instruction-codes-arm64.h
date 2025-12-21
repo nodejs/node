@@ -36,6 +36,7 @@ namespace compiler {
   IF_WASM(V, Arm64S128Load8x8S)                            \
   IF_WASM(V, Arm64S128Load8x8U)                            \
   IF_WASM(V, Arm64StoreLane)                               \
+  IF_WASM(V, Arm64S128LoadPairDeinterleave)                \
   V(Arm64Str)                                              \
   V(Arm64StrPair)                                          \
   V(Arm64Strb)                                             \
@@ -101,38 +102,35 @@ namespace compiler {
   V(Arm64S128Not)                       \
   V(Arm64S128Select)                    \
   V(Arm64S128AndNot)                    \
+  V(Arm64S128Rev16)                     \
+  V(Arm64S128Rev32)                     \
+  V(Arm64S128Rev64)                     \
+  V(Arm64S128ZipLeft)                   \
+  V(Arm64S128ZipRight)                  \
+  V(Arm64S128UnzipLeft)                 \
+  V(Arm64S128UnzipRight)                \
+  V(Arm64S128TransposeLeft)             \
+  V(Arm64S128TransposeRight)            \
+  V(Arm64S128LowZipRight)               \
+  V(Arm64S128LowUnzipLeft)              \
+  V(Arm64S128LowUnzipRight)             \
   V(Arm64Ssra)                          \
   V(Arm64Usra)                          \
-  V(Arm64S32x4ZipLeft)                  \
-  V(Arm64S32x4ZipRight)                 \
-  V(Arm64S32x4UnzipLeft)                \
-  V(Arm64S32x4UnzipRight)               \
-  V(Arm64S32x4TransposeLeft)            \
-  V(Arm64S32x4TransposeRight)           \
+  V(Arm64S64x2Reverse)                  \
+  V(Arm64S64x2Shuffle)                  \
+  V(Arm64S64x1Shuffle)                  \
   V(Arm64S32x4Shuffle)                  \
-  V(Arm64S16x8ZipLeft)                  \
-  V(Arm64S16x8ZipRight)                 \
-  V(Arm64S16x8UnzipLeft)                \
-  V(Arm64S16x8UnzipRight)               \
-  V(Arm64S16x8TransposeLeft)            \
-  V(Arm64S16x8TransposeRight)           \
-  V(Arm64S8x16ZipLeft)                  \
-  V(Arm64S8x16ZipRight)                 \
-  V(Arm64S8x16UnzipLeft)                \
-  V(Arm64S8x16UnzipRight)               \
-  V(Arm64S8x16TransposeLeft)            \
-  V(Arm64S8x16TransposeRight)           \
+  V(Arm64S32x2Shuffle)                  \
+  V(Arm64S32x1Shuffle)                  \
+  V(Arm64S16x2Shuffle)                  \
+  V(Arm64S16x1Shuffle)                  \
+  V(Arm64S8x2Shuffle)                   \
   V(Arm64S8x16Concat)                   \
   V(Arm64I8x16Swizzle)                  \
   V(Arm64I8x16Shuffle)                  \
   V(Arm64S32x4Reverse)                  \
   V(Arm64S32x4OneLaneSwizzle)           \
-  V(Arm64S32x2Reverse)                  \
-  V(Arm64S16x4Reverse)                  \
-  V(Arm64S16x2Reverse)                  \
-  V(Arm64S8x8Reverse)                   \
-  V(Arm64S8x4Reverse)                   \
-  V(Arm64S8x2Reverse)                   \
+  V(Arm64S128MoveLane)                  \
   V(Arm64V128AnyTrue)                   \
   V(Arm64I64x2AllTrue)                  \
   V(Arm64I32x4AllTrue)                  \
@@ -216,6 +214,8 @@ namespace compiler {
   V(Arm64Smlal2)                        \
   V(Arm64Sadalp)                        \
   V(Arm64Saddlp)                        \
+  V(Arm64Bcax)                          \
+  V(Arm64Eor3)                          \
   V(Arm64Uadalp)                        \
   V(Arm64Uaddlp)                        \
   V(Arm64Umlal)                         \
@@ -238,6 +238,8 @@ namespace compiler {
   V(Arm64Cnt)                                        \
   V(Arm64Cnt32)                                      \
   V(Arm64Cnt64)                                      \
+  V(Arm64Ctz)                                        \
+  V(Arm64Ctz32)                                      \
   V(Arm64Tst)                                        \
   V(Arm64Tst32)                                      \
   V(Arm64Or)                                         \
@@ -299,6 +301,14 @@ namespace compiler {
   V(Arm64Rbit32)                                     \
   V(Arm64Rev)                                        \
   V(Arm64Rev32)                                      \
+  V(Arm64Smax32)                                     \
+  V(Arm64Smax64)                                     \
+  V(Arm64Smin32)                                     \
+  V(Arm64Smin64)                                     \
+  V(Arm64Umax32)                                     \
+  V(Arm64Umax64)                                     \
+  V(Arm64Umin32)                                     \
+  V(Arm64Umin64)                                     \
   V(Arm64TestAndBranch32)                            \
   V(Arm64TestAndBranch)                              \
   V(Arm64CompareAndBranch32)                         \
@@ -348,6 +358,8 @@ namespace compiler {
   V(Arm64Float64SilenceNaN)                          \
   V(Arm64Float32ToFloat64)                           \
   V(Arm64Float64ToFloat32)                           \
+  V(Arm64Float64ToFloat16RawBits)                    \
+  V(Arm64Float16RawBitsToFloat64)                    \
   V(Arm64Float32ToInt32)                             \
   V(Arm64Float64ToInt32)                             \
   V(Arm64Float32ToUint32)                            \
@@ -385,7 +397,9 @@ namespace compiler {
   V(Arm64Word64AtomicXorUint64)                      \
   V(Arm64Word64AtomicExchangeUint64)                 \
   V(Arm64Word64AtomicCompareExchangeUint64)          \
-  IF_WASM(TARGET_ARCH_SIMD_OPCODE_LIST, V)
+  IF_WASM(TARGET_ARCH_SIMD_OPCODE_LIST, V)           \
+  IF_WASM(V, Arm64Cpy)                               \
+  IF_WASM(V, Arm64Set)
 
 // Addressing modes represent the "shape" of inputs to an instruction.
 // Many instructions support multiple addressing modes. Addressing modes

@@ -8,6 +8,7 @@
 #include "src/heap/heap-inl.h"
 #include "src/heap/local-factory-inl.h"
 #include "src/objects/allocation-site-inl.h"
+#include "src/objects/allocation-site.h"
 #include "src/objects/objects.h"
 #include "src/snapshot/code-serializer.h"
 
@@ -19,22 +20,24 @@ ObjectDeserializer::ObjectDeserializer(Isolate* isolate,
     : Deserializer(isolate, data->Payload(), data->GetMagicNumber(), true,
                    false) {}
 
-MaybeHandle<SharedFunctionInfo>
+MaybeDirectHandle<SharedFunctionInfo>
 ObjectDeserializer::DeserializeSharedFunctionInfo(
-    Isolate* isolate, const SerializedCodeData* data, Handle<String> source) {
+    Isolate* isolate, const SerializedCodeData* data,
+    DirectHandle<String> source) {
   ObjectDeserializer d(isolate, data);
 
   d.AddAttachedObject(source);
 
-  Handle<HeapObject> result;
-  return d.Deserialize().ToHandle(&result) ? Cast<SharedFunctionInfo>(result)
-                                           : MaybeHandle<SharedFunctionInfo>();
+  DirectHandle<HeapObject> result;
+  return d.Deserialize().ToHandle(&result)
+             ? Cast<SharedFunctionInfo>(result)
+             : MaybeDirectHandle<SharedFunctionInfo>();
 }
 
-MaybeHandle<HeapObject> ObjectDeserializer::Deserialize() {
+MaybeDirectHandle<HeapObject> ObjectDeserializer::Deserialize() {
   DCHECK(deserializing_user_code());
   HandleScope scope(isolate());
-  Handle<HeapObject> result;
+  DirectHandle<HeapObject> result;
   {
     result = ReadObject();
     DeserializeDeferredObjects();
@@ -50,14 +53,14 @@ MaybeHandle<HeapObject> ObjectDeserializer::Deserialize() {
 }
 
 void ObjectDeserializer::CommitPostProcessedObjects() {
-  for (Handle<Script> script : new_scripts()) {
+  for (DirectHandle<Script> script : new_scripts()) {
     // Assign a new script id to avoid collision.
     script->set_id(isolate()->GetNextScriptId());
     LogScriptEvents(*script);
     // Add script to list.
     Handle<WeakArrayList> list = isolate()->factory()->script_list();
     list = WeakArrayList::AddToEnd(isolate(), list,
-                                   MaybeObjectHandle::Weak(script));
+                                   MaybeObjectDirectHandle::Weak(script));
     isolate()->heap()->SetRootScriptList(*list);
   }
 }
@@ -69,15 +72,19 @@ void ObjectDeserializer::LinkAllocationSites() {
   // a list at deserialization time.
   for (DirectHandle<AllocationSite> site : new_allocation_sites()) {
     if (!site->HasWeakNext()) continue;
+    DirectHandle<AllocationSiteWithWeakNext> site_with_next =
+        Cast<AllocationSiteWithWeakNext>(site);
     // TODO(mvstanton): consider treating the heap()->allocation_sites_list()
     // as a (weak) root. If this root is relocated correctly, this becomes
     // unnecessary.
     if (heap->allocation_sites_list() == Smi::zero()) {
-      site->set_weak_next(ReadOnlyRoots(heap).undefined_value());
+      site_with_next->set_weak_next(ReadOnlyRoots(heap).undefined_value());
     } else {
-      site->set_weak_next(heap->allocation_sites_list());
+      site_with_next->set_weak_next(
+          Cast<UnionOf<Undefined, AllocationSiteWithWeakNext>>(
+              heap->allocation_sites_list()));
     }
-    heap->set_allocation_sites_list(*site);
+    heap->set_allocation_sites_list(*site_with_next);
   }
 }
 
@@ -86,27 +93,27 @@ OffThreadObjectDeserializer::OffThreadObjectDeserializer(
     : Deserializer(isolate, data->Payload(), data->GetMagicNumber(), true,
                    false) {}
 
-MaybeHandle<SharedFunctionInfo>
+MaybeDirectHandle<SharedFunctionInfo>
 OffThreadObjectDeserializer::DeserializeSharedFunctionInfo(
     LocalIsolate* isolate, const SerializedCodeData* data,
-    std::vector<Handle<Script>>* deserialized_scripts) {
+    std::vector<IndirectHandle<Script>>* deserialized_scripts) {
   OffThreadObjectDeserializer d(isolate, data);
 
   // Attach the empty string as the source.
   d.AddAttachedObject(isolate->factory()->empty_string());
 
-  Handle<HeapObject> result;
+  DirectHandle<HeapObject> result;
   if (!d.Deserialize(deserialized_scripts).ToHandle(&result)) {
-    return MaybeHandle<SharedFunctionInfo>();
+    return MaybeDirectHandle<SharedFunctionInfo>();
   }
   return Cast<SharedFunctionInfo>(result);
 }
 
-MaybeHandle<HeapObject> OffThreadObjectDeserializer::Deserialize(
-    std::vector<Handle<Script>>* deserialized_scripts) {
+MaybeDirectHandle<HeapObject> OffThreadObjectDeserializer::Deserialize(
+    std::vector<IndirectHandle<Script>>* deserialized_scripts) {
   DCHECK(deserializing_user_code());
   LocalHandleScope scope(isolate());
-  Handle<HeapObject> result;
+  DirectHandle<HeapObject> result;
   {
     result = ReadObject();
     DeserializeDeferredObjects();
@@ -120,7 +127,7 @@ MaybeHandle<HeapObject> OffThreadObjectDeserializer::Deserialize(
 
   // TODO(leszeks): Figure out a better way of dealing with scripts.
   CHECK_EQ(new_scripts().size(), 1);
-  for (Handle<Script> script : new_scripts()) {
+  for (DirectHandle<Script> script : new_scripts()) {
     // Assign a new script id to avoid collision.
     script->set_id(isolate()->GetNextScriptId());
     LogScriptEvents(*script);

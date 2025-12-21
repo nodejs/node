@@ -2,15 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_WASM_WASM_SERIALIZATION_H_
+#define V8_WASM_WASM_SERIALIZATION_H_
+
 #if !V8_ENABLE_WEBASSEMBLY
 #error This header should only be included if WebAssembly is enabled.
 #endif  // !V8_ENABLE_WEBASSEMBLY
 
-#ifndef V8_WASM_WASM_SERIALIZATION_H_
-#define V8_WASM_WASM_SERIALIZATION_H_
-
 #include "src/wasm/wasm-code-manager.h"
-#include "src/wasm/wasm-objects.h"
 
 namespace v8::internal::wasm {
 
@@ -58,8 +57,8 @@ bool IsSupportedVersion(base::Vector<const uint8_t> data,
                         WasmEnabledFeatures enabled_features);
 
 // Deserializes the given data to create a Wasm module object.
-V8_EXPORT_PRIVATE MaybeHandle<WasmModuleObject> DeserializeNativeModule(
-    Isolate*, base::Vector<const uint8_t> data,
+V8_EXPORT_PRIVATE MaybeDirectHandle<WasmModuleObject> DeserializeNativeModule(
+    Isolate*, WasmEnabledFeatures, base::Vector<const uint8_t> data,
     base::Vector<const uint8_t> wire_bytes,
     const CompileTimeImports& compile_imports,
     base::Vector<const char> source_url);

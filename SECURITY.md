@@ -15,6 +15,13 @@ you informed of the progress being made towards a fix and full announcement,
 and may ask for additional information or guidance surrounding the reported
 issue.
 
+If you do not receive an acknowledgement of your report within 6 business
+days, or if you cannot find a private security contact for the project, you
+may escalate to the OpenJS Foundation CNA at `security@lists.openjsf.org`.
+
+If the project acknowledges your report but does not provide any further
+response or engagement within 14 days, escalation is also appropriate.
+
 ### Node.js bug bounty program
 
 The Node.js project engages in an official bug bounty program for security
@@ -72,7 +79,9 @@ When reporting security vulnerabilities, reporters must adhere to the following 
 
 3. **Responsible Testing**: When testing potential vulnerabilities:
    * Use isolated, controlled environments.
-   * Do not test on production systems.
+   * Do not test on production systems without prior authorization. Contact
+     the Node.js Technical Steering Committee (<tsc@iojs.org>) for permission or open
+     a HackerOne report.
    * Do not attempt to access or modify other users' data.
    * Immediately stop testing if unauthorized access is gained accidentally.
 
@@ -100,6 +109,42 @@ vulnerability in the context of the Node.js threat model. In other
 words, it cannot assume that a trusted element (such as the operating
 system) has been compromised.
 
+### Experimental platforms
+
+Node.js maintains a tier-based support system for operating systems and
+hardware combinations (Tier 1, Tier 2, and Experimental). For platforms
+classified as "Experimental" in the [supported platforms](BUILDING.md#supported-platforms)
+documentation:
+
+* Security vulnerabilities that only affect experimental platforms will **not** be accepted as valid security issues.
+* Any issues on experimental platforms will be treated as normal bugs.
+* No CVEs will be issued for issues that only affect experimental platforms
+* Bug bounty rewards are not available for experimental platform-specific issues
+
+This policy recognizes that experimental platforms may not compile, may not
+pass the test suite, and do not have the same level of testing and support
+infrastructure as Tier 1 and Tier 2 platforms.
+
+### Experimental features behind compile-time flags
+
+Node.js includes certain experimental features that are only available when
+Node.js is compiled with specific flags. These features are intended for
+development, debugging, or testing purposes and are not enabled in official
+releases.
+
+* Security vulnerabilities that only affect features behind compile-time flags
+  will **not** be accepted as valid security issues.
+* Any issues with these features will be treated as normal bugs.
+* No CVEs will be issued for issues that only affect compile-time flag features.
+* Bug bounty rewards are not available for compile-time flag feature issues.
+
+This policy recognizes that experimental features behind compile-time flags
+are not ready for public consumption and may have incomplete implementations,
+missing security hardening, or other limitations that make them unsuitable
+for production use.
+
+### What constitutes a vulnerability
+
 Being able to cause the following through control of the elements that Node.js
 does not trust is considered a vulnerability:
 
@@ -107,6 +152,22 @@ does not trust is considered a vulnerability:
   the correct use of Node.js APIs.
 * The unavailability of the runtime, including the unbounded degradation of its
   performance.
+* Memory leaks qualify as vulnerabilities when all of the following criteria are met:
+  * The API is being correctly used.
+  * The API doesn't have a warning against its usage in a production environment.
+  * The API is public and documented.
+  * The API is on stable (2.0) status.
+  * The memory leak is significant enough to cause a denial of service quickly
+    or in a context not controlled by the user (for example, HTTP parsing).
+  * The memory leak is directly exploitable by an untrusted source without requiring application mistakes.
+  * The leak cannot be reasonably mitigated through standard operational practices (like process recycling).
+  * The leak occurs deterministically under normal usage patterns rather than edge cases.
+  * The leak occurs at a rate that would cause practical resource exhaustion within a practical timeframe under
+    typical workloads.
+  * The attack demonstrates [asymmetric resource consumption](https://cwe.mitre.org/data/definitions/405.html),
+    where the attacker expends significantly fewer resources than what's required by the server to process the
+    attack. Attacks requiring comparable resources on the attacker's side (which can be mitigated through common
+    practices like rate limiting) may not qualify.
 
 If Node.js loads configuration files or runs code by default (without a
 specific request from the user), and this is not documented, it is considered a
@@ -123,7 +184,7 @@ Vulnerabilities related to this case may be fixed by a documentation update.
 * The data received from the remote end of outbound network connections
   that are created through the use of Node.js APIs and
   which is transformed/validated by Node.js before being passed
-  to the application EXCEPT with respect to payload length. Node.js trusts
+  to the application **except** with respect to payload length. Node.js trusts
   that applications make connections/requests which will avoid payload
   sizes that will result in a Denial of Service.
   * HTTP APIs (all flavors) client APIs.
@@ -144,9 +205,9 @@ then untrusted input must not lead to arbitrary JavaScript code execution.
 
 **Node.js trusts everything else**. Examples include:
 
-* The developers and infrastructure that runs it.
+* The developers and infrastructure that run it.
 * The operating system that Node.js is running under and its configuration,
-  along with anything under control of the operating system.
+  along with anything under the control of the operating system.
 * The code it is asked to run, including JavaScript, WASM and native code, even
   if said code is dynamically loaded, e.g., all dependencies installed from the
   npm registry.
@@ -161,6 +222,11 @@ then untrusted input must not lead to arbitrary JavaScript code execution.
   See <https://nodejs.org/api/modules.html#all-together>.
 * The `node:wasi` module does not currently provide the comprehensive file
   system security properties provided by some WASI runtimes.
+* The execution path is trusted. Additionally, Node.js path manipulation functions
+  such as `path.join()` and `path.normalize()` trust their input. Reports about issues
+  related to these functions that rely on unsanitized input are not considered vulnerabilities
+  requiring CVEs, as it's the user's responsibility to sanitize path inputs according to
+  their security requirements.
 
 Any unexpected behavior from the data manipulation from Node.js Internal
 functions may be considered a vulnerability if they are exploitable via
@@ -182,12 +248,12 @@ the community they pose.
 
 * Node.js provides APIs to validate handling of Subject Alternative Names (SANs)
   in certificates used to connect to a TLS/SSL endpoint. If certificates can be
-  crafted which result in incorrect validation by the Node.js APIs that is
+  crafted that result in incorrect validation by the Node.js APIs that is
   considered a vulnerability.
 
 #### Inconsistent Interpretation of HTTP Requests (CWE-444)
 
-* Node.js provides APIs to accept http connections. Those APIs parse the
+* Node.js provides APIs to accept HTTP connections. Those APIs parse the
   headers received for a connection and pass them on to the application.
   Bugs in parsing those headers which can result in request smuggling are
   considered vulnerabilities.
@@ -200,9 +266,9 @@ the community they pose.
 
 #### External Control of System or Configuration Setting (CWE-15)
 
-* If Node.js automatically loads a configuration file which is not documented
+* If Node.js automatically loads a configuration file that is not documented
   and modification of that configuration can affect the confidentiality of
-  data protected using the Node.js APIs this is considered a vulnerability.
+  data protected using the Node.js APIs, then this is considered a vulnerability.
 
 ### Examples of non-vulnerabilities
 
@@ -225,7 +291,7 @@ the community they pose.
 
 #### External Control of System or Configuration Setting (CWE-15)
 
-* If Node.js automatically loads a configuration file which is documented
+* If Node.js automatically loads a configuration file that is documented,
   no scenario that requires modification of that configuration file is
   considered a vulnerability.
 
@@ -245,9 +311,9 @@ the community they pose.
 
 ## Assessing experimental features reports
 
-Experimental features are eligible to reports as any other stable feature of
-Node.js. They will also be susceptible to receiving the same severity score
-as any other stable feature.
+Experimental features are eligible for security reports just like any other
+stable feature of Node.js. They may also receive the same severity score that a
+stable feature would.
 
 ## Receiving security updates
 
@@ -261,3 +327,8 @@ Security notifications will be distributed via the following methods.
 If you have suggestions on how this process could be improved, please visit
 the [nodejs/security-wg](https://github.com/nodejs/security-wg)
 repository.
+
+## Incident Response Plan
+
+In the event of a security incident, please refer to the
+[Security Incident Response Plan](https://github.com/nodejs/security-wg/blob/main/INCIDENT_RESPONSE_PLAN.md).

@@ -2,9 +2,7 @@
 'use strict';
 require('../common');
 
-const {
-  strictEqual,
-} = require('assert');
+const assert = require('assert');
 
 const {
   test,
@@ -30,5 +28,5 @@ test('A weak event listener should not prevent gc', async () => {
 
   await sleep(10);
   globalThis.gc();
-  strictEqual(ref.deref(), undefined);
+  assert.strictEqual(ref.deref(), undefined);
 });

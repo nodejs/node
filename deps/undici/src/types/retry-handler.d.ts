@@ -36,6 +36,15 @@ declare namespace RetryHandler {
 
   export interface RetryOptions {
     /**
+     * If true, the retry handler will throw an error if the request fails,
+     * this will prevent the folling handlers from being called, and will destroy the socket.
+     *
+     * @type {boolean}
+     * @memberof RetryOptions
+     * @default true
+     */
+    throwOnError?: boolean;
+    /**
      * Callback to be invoked on every retry iteration.
      * It receives the error, current state of the retry object and the options object
      * passed when instantiating the retry handler.

@@ -75,6 +75,8 @@ class AssertTypesReducer
 
   void InsertTypeAssert(RegisterRepresentation rep, OpIndex value,
                         const Type& type) {
+    if (!type_assertions_allowed_) return;
+
     DCHECK(!type.IsInvalid());
     if (type.IsNone()) {
       __ Unreachable();
@@ -155,6 +157,13 @@ class AssertTypesReducer
  private:
   Factory* factory() { return isolate_->factory(); }
   Isolate* isolate_ = __ data() -> isolate();
+  // We cannot emit type assertions in graphs that have lowered fast api
+  // calls that can throw, because a call to the type assertion builtin could
+  // be emitted between the throwing call and the branch to the handler. This
+  // will violate checks that we are not crossing runtime boundaries while an
+  // exception is still pending.
+  const bool type_assertions_allowed_ =
+      !__ data() -> graph_has_lowered_fast_api_calls();
 };
 
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"

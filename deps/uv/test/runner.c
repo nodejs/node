@@ -426,13 +426,17 @@ void print_tests(FILE* stream) {
 }
 
 
-void print_lines(const char* buffer, size_t size, FILE* stream) {
+int print_lines(const char* buffer, size_t size, FILE* stream, int partial) {
   const char* start;
   const char* end;
 
   start = buffer;
   while ((end = memchr(start, '\n', &buffer[size] - start))) {
-    fputs("# ", stream);
+    if (partial == 0)
+      fputs("# ", stream);
+    else
+      partial = 0;
+
     fwrite(start, 1, (int)(end - start), stream);
     fputs("\n", stream);
     fflush(stream);
@@ -441,9 +445,13 @@ void print_lines(const char* buffer, size_t size, FILE* stream) {
 
   end = &buffer[size];
   if (start < end) {
-    fputs("# ", stream);
+    if (partial == 0)
+      fputs("# ", stream);
+
     fwrite(start, 1, (int)(end - start), stream);
-    fputs("\n", stream);
     fflush(stream);
+    return 1;
   }
+
+  return 0;
 }

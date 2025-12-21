@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -75,7 +75,7 @@ static int set_dist_point_name(DIST_POINT_NAME **pdp, X509V3_CTX *ctx,
         goto err;
     }
 
-    if (strncmp(cnf->name, "fullname", 9) == 0) {
+    if (HAS_PREFIX(cnf->name, "fullname")) {
         fnm = gnames_from_sectname(ctx, cnf->value);
         if (!fnm)
             goto err;
@@ -249,8 +249,10 @@ static void *v2i_crld(const X509V3_EXT_METHOD *method,
     int i;
 
     crld = sk_DIST_POINT_new_reserve(NULL, num);
-    if (crld == NULL)
-        goto merr;
+    if (crld == NULL) {
+        ERR_raise(ERR_LIB_X509V3, ERR_R_CRYPTO_LIB);
+        goto err;
+    }
     for (i = 0; i < num; i++) {
         DIST_POINT *point;
 
@@ -268,16 +270,24 @@ static void *v2i_crld(const X509V3_EXT_METHOD *method,
         } else {
             if ((gen = v2i_GENERAL_NAME(method, ctx, cnf)) == NULL)
                 goto err;
-            if ((gens = GENERAL_NAMES_new()) == NULL)
-                goto merr;
-            if (!sk_GENERAL_NAME_push(gens, gen))
-                goto merr;
+            if ((gens = GENERAL_NAMES_new()) == NULL) {
+                ERR_raise(ERR_LIB_X509V3, ERR_R_ASN1_LIB);
+                goto err;
+            }
+            if (!sk_GENERAL_NAME_push(gens, gen)) {
+                ERR_raise(ERR_LIB_X509V3, ERR_R_CRYPTO_LIB);
+                goto err;
+            }
             gen = NULL;
-            if ((point = DIST_POINT_new()) == NULL)
-                goto merr;
+            if ((point = DIST_POINT_new()) == NULL) {
+                ERR_raise(ERR_LIB_X509V3, ERR_R_ASN1_LIB);
+                goto err;
+            }
             sk_DIST_POINT_push(crld, point); /* no failure as it was reserved */
-            if ((point->distpoint = DIST_POINT_NAME_new()) == NULL)
-                goto merr;
+            if ((point->distpoint = DIST_POINT_NAME_new()) == NULL) {
+                ERR_raise(ERR_LIB_X509V3, ERR_R_ASN1_LIB);
+                goto err;
+            }
             point->distpoint->name.fullname = gens;
             point->distpoint->type = 0;
             gens = NULL;
@@ -285,8 +295,6 @@ static void *v2i_crld(const X509V3_EXT_METHOD *method,
     }
     return crld;
 
- merr:
-    ERR_raise(ERR_LIB_X509V3, ERR_R_MALLOC_FAILURE);
  err:
     GENERAL_NAME_free(gen);
     GENERAL_NAMES_free(gens);
@@ -319,6 +327,7 @@ ASN1_CHOICE_cb(DIST_POINT_NAME, dpn_cb) = {
 
 
 IMPLEMENT_ASN1_FUNCTIONS(DIST_POINT_NAME)
+IMPLEMENT_ASN1_DUP_FUNCTION(DIST_POINT_NAME)
 
 ASN1_SEQUENCE(DIST_POINT) = {
         ASN1_EXP_OPT(DIST_POINT, distpoint, DIST_POINT_NAME, 0),
@@ -369,8 +378,10 @@ static void *v2i_idp(const X509V3_EXT_METHOD *method, X509V3_CTX *ctx,
     char *name, *val;
     int i, ret;
     idp = ISSUING_DIST_POINT_new();
-    if (idp == NULL)
-        goto merr;
+    if (idp == NULL) {
+        ERR_raise(ERR_LIB_X509V3, ERR_R_ASN1_LIB);
+        goto err;
+    }
     for (i = 0; i < sk_CONF_VALUE_num(nval); i++) {
         cnf = sk_CONF_VALUE_value(nval, i);
         name = cnf->name;
@@ -403,30 +414,17 @@ static void *v2i_idp(const X509V3_EXT_METHOD *method, X509V3_CTX *ctx,
     }
     return idp;
 
- merr:
-    ERR_raise(ERR_LIB_X509V3, ERR_R_MALLOC_FAILURE);
  err:
     ISSUING_DIST_POINT_free(idp);
     return NULL;
-}
-
-static int print_gens(BIO *out, STACK_OF(GENERAL_NAME) *gens, int indent)
-{
-    int i;
-    for (i = 0; i < sk_GENERAL_NAME_num(gens); i++) {
-        if (i > 0)
-            BIO_puts(out, "\n");
-        BIO_printf(out, "%*s", indent + 2, "");
-        GENERAL_NAME_print(out, sk_GENERAL_NAME_value(gens, i));
-    }
-    return 1;
 }
 
 static int print_distpoint(BIO *out, DIST_POINT_NAME *dpn, int indent)
 {
     if (dpn->type == 0) {
         BIO_printf(out, "%*sFull Name:\n", indent, "");
-        print_gens(out, dpn->name.fullname, indent);
+        OSSL_GENERAL_NAMES_print(out, dpn->name.fullname, indent);
+        BIO_puts(out, "\n");
     } else {
         X509_NAME ntmp;
         ntmp.entries = dpn->name.relativename;
@@ -477,7 +475,7 @@ static int i2r_crldp(const X509V3_EXT_METHOD *method, void *pcrldp, BIO *out,
             print_reasons(out, "Reasons", point->reasons, indent);
         if (point->CRLissuer) {
             BIO_printf(out, "%*sCRL Issuer:\n", indent, "");
-            print_gens(out, point->CRLissuer, indent);
+            OSSL_GENERAL_NAMES_print(out, point->CRLissuer, indent);
         }
     }
     return 1;
@@ -511,3 +509,173 @@ int DIST_POINT_set_dpname(DIST_POINT_NAME *dpn, const X509_NAME *iname)
     dpn->dpname = NULL;
     return 0;
 }
+
+ASN1_SEQUENCE(OSSL_AA_DIST_POINT) = {
+    ASN1_EXP_OPT(OSSL_AA_DIST_POINT, distpoint, DIST_POINT_NAME, 0),
+    ASN1_IMP_OPT(OSSL_AA_DIST_POINT, reasons, ASN1_BIT_STRING, 1),
+    ASN1_IMP_OPT(OSSL_AA_DIST_POINT, indirectCRL, ASN1_FBOOLEAN, 2),
+    ASN1_IMP_OPT(OSSL_AA_DIST_POINT, containsUserAttributeCerts, ASN1_TBOOLEAN, 3),
+    ASN1_IMP_OPT(OSSL_AA_DIST_POINT, containsAACerts, ASN1_TBOOLEAN, 4),
+    ASN1_IMP_OPT(OSSL_AA_DIST_POINT, containsSOAPublicKeyCerts, ASN1_TBOOLEAN, 5)
+} ASN1_SEQUENCE_END(OSSL_AA_DIST_POINT)
+
+IMPLEMENT_ASN1_FUNCTIONS(OSSL_AA_DIST_POINT)
+
+static int print_boolean(BIO *out, ASN1_BOOLEAN b)
+{
+    return BIO_puts(out, b ? "TRUE" : "FALSE");
+}
+
+static OSSL_AA_DIST_POINT *aaidp_from_section(X509V3_CTX *ctx,
+                                              STACK_OF(CONF_VALUE) *nval)
+{
+    int i, ret;
+    CONF_VALUE *cnf;
+    OSSL_AA_DIST_POINT *point = OSSL_AA_DIST_POINT_new();
+
+    if (point == NULL)
+        goto err;
+    for (i = 0; i < sk_CONF_VALUE_num(nval); i++) {
+        cnf = sk_CONF_VALUE_value(nval, i);
+        ret = set_dist_point_name(&point->distpoint, ctx, cnf);
+        if (ret > 0)
+            continue;
+        if (ret < 0)
+            goto err;
+        if (strcmp(cnf->name, "reasons") == 0) {
+            if (!set_reasons(&point->reasons, cnf->value))
+                goto err;
+        } else if (strcmp(cnf->name, "indirectCRL") == 0) {
+            if (!X509V3_get_value_bool(cnf, &point->indirectCRL))
+                goto err;
+        } else if (strcmp(cnf->name, "containsUserAttributeCerts") == 0) {
+            if (!X509V3_get_value_bool(cnf, &point->containsUserAttributeCerts))
+                goto err;
+        } else if (strcmp(cnf->name, "containsAACerts") == 0) {
+            if (!X509V3_get_value_bool(cnf, &point->containsAACerts))
+                goto err;
+        } else if (strcmp(cnf->name, "containsSOAPublicKeyCerts") == 0) {
+            if (!X509V3_get_value_bool(cnf, &point->containsSOAPublicKeyCerts))
+                goto err;
+        }
+    }
+
+    return point;
+
+ err:
+    OSSL_AA_DIST_POINT_free(point);
+    return NULL;
+}
+
+static void *v2i_aaidp(const X509V3_EXT_METHOD *method,
+                       X509V3_CTX *ctx, STACK_OF(CONF_VALUE) *nval)
+{
+    GENERAL_NAMES *gens = NULL;
+    GENERAL_NAME *gen = NULL;
+    CONF_VALUE *cnf;
+    OSSL_AA_DIST_POINT *point = NULL;
+    STACK_OF(CONF_VALUE) *dpsect;
+
+    cnf = sk_CONF_VALUE_value(nval, 0);
+    if (cnf == NULL)
+        return NULL;
+    if (cnf->value == NULL) {
+        dpsect = X509V3_get_section(ctx, cnf->name);
+        if (dpsect == NULL)
+            goto err;
+        point = aaidp_from_section(ctx, dpsect);
+        X509V3_section_free(ctx, dpsect);
+        if (point == NULL)
+            goto err;
+    } else {
+        if ((gen = v2i_GENERAL_NAME(method, ctx, cnf)) == NULL)
+            goto err;
+        if ((gens = GENERAL_NAMES_new()) == NULL) {
+            ERR_raise(ERR_LIB_X509V3, ERR_R_ASN1_LIB);
+            goto err;
+        }
+        if (!sk_GENERAL_NAME_push(gens, gen)) {
+            ERR_raise(ERR_LIB_X509V3, ERR_R_CRYPTO_LIB);
+            goto err;
+        }
+        gen = NULL;
+        if ((point = OSSL_AA_DIST_POINT_new()) == NULL) {
+            ERR_raise(ERR_LIB_X509V3, ERR_R_ASN1_LIB);
+            goto err;
+        }
+        if ((point->distpoint = DIST_POINT_NAME_new()) == NULL) {
+            ERR_raise(ERR_LIB_X509V3, ERR_R_ASN1_LIB);
+            goto err;
+        }
+        point->distpoint->name.fullname = gens;
+        point->distpoint->type = 0;
+        gens = NULL;
+    }
+    return point;
+
+ err:
+    OSSL_AA_DIST_POINT_free(point);
+    GENERAL_NAME_free(gen);
+    GENERAL_NAMES_free(gens);
+    return NULL;
+}
+
+static int i2r_aaidp(const X509V3_EXT_METHOD *method, void *dp, BIO *out,
+                     int indent)
+{
+    OSSL_AA_DIST_POINT *pdp = dp;
+
+    if (pdp->distpoint)
+        if (print_distpoint(out, pdp->distpoint, indent) <= 0)
+            return 0;
+    if (pdp->reasons)
+        if (print_reasons(out, "Reasons", pdp->reasons, indent) <= 0)
+            return 0;
+    if (pdp->indirectCRL) {
+        if (BIO_printf(out, "%*sIndirect CRL: ", indent, "") <= 0)
+            return 0;
+        if (print_boolean(out, pdp->indirectCRL) <= 0)
+            return 0;
+        if (BIO_puts(out, "\n") <= 0)
+            return 0;
+    }
+    if (pdp->containsUserAttributeCerts) {
+        if (BIO_printf(out, "%*sContains User Attribute Certificates: ", indent, "") <= 0)
+            return 0;
+        if (print_boolean(out, pdp->containsUserAttributeCerts) <= 0)
+            return 0;
+        if (BIO_puts(out, "\n") <= 0)
+            return 0;
+    }
+    if (pdp->containsAACerts) {
+        if (BIO_printf(out, "%*sContains Attribute Authority (AA) Certificates: ",
+                       indent, "") <= 0)
+            return 0;
+        if (print_boolean(out, pdp->containsAACerts) <= 0)
+            return 0;
+        if (BIO_puts(out, "\n") <= 0)
+            return 0;
+    }
+    if (pdp->containsSOAPublicKeyCerts) {
+        if (BIO_printf(out,
+                       "%*sContains Source Of Authority (SOA) Public Key Certificates: ",
+                       indent, "") <= 0)
+            return 0;
+        if (print_boolean(out, pdp->containsSOAPublicKeyCerts) <= 0)
+            return 0;
+        if (BIO_puts(out, "\n") <= 0)
+            return 0;
+    }
+    return 1;
+}
+
+const X509V3_EXT_METHOD ossl_v3_aa_issuing_dist_point = {
+    NID_id_aa_issuing_distribution_point, 0,
+    ASN1_ITEM_ref(OSSL_AA_DIST_POINT),
+    0, 0, 0, 0,
+    0, 0,
+    0,
+    v2i_aaidp,
+    i2r_aaidp, 0,
+    NULL
+};

@@ -27,6 +27,7 @@
 #include <set>
 #include <sstream>
 #include <string>
+#include <string_view>
 #include <thread>  // NOLINT
 #include <type_traits>
 #include <vector>
@@ -45,10 +46,6 @@
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
 #include "absl/types/span.h"
-
-#if defined(ABSL_HAVE_STD_STRING_VIEW)
-#include <string_view>
-#endif
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
@@ -322,10 +319,8 @@ TEST_F(FormatConvertTest, BasicString) {
   TestStringConvert(std::string("hello"));
   TestStringConvert(std::wstring(L"hello"));
   TestStringConvert(string_view("hello"));
-#if defined(ABSL_HAVE_STD_STRING_VIEW)
   TestStringConvert(std::string_view("hello"));
   TestStringConvert(std::wstring_view(L"hello"));
-#endif  // ABSL_HAVE_STD_STRING_VIEW
 }
 
 TEST_F(FormatConvertTest, NullString) {

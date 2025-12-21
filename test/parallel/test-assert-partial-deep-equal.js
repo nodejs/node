@@ -495,6 +495,11 @@ describe('Object Comparison Tests', () => {
           expected: { dataView: new DataView(new ArrayBuffer(3)) },
         },
         {
+          description: 'throws when comparing Float16Array([+0.0]) with Float16Array([-0.0])',
+          actual: new Float16Array([+0.0]),
+          expected: new Float16Array([-0.0]),
+        },
+        {
           description: 'throws when comparing Float32Array([+0.0]) with Float32Array([-0.0])',
           actual: new Float32Array([+0.0]),
           expected: new Float32Array([-0.0]),

@@ -17,11 +17,13 @@
 #include <algorithm>
 #include <limits>
 #include <random>
+#include <tuple>
 #include <type_traits>
 #include <utility>
 #include <vector>
 
 #include "gtest/gtest.h"
+#include "absl/base/casts.h"
 #include "absl/base/internal/cycleclock.h"
 #include "absl/hash/hash_testing.h"
 #include "absl/meta/type_traits.h"
@@ -348,7 +350,7 @@ TEST(Uint128, Multiply) {
   c = a * b;
   EXPECT_EQ(absl::MakeUint128(0x530EDA741C71D4C3, 0xBF25975319080000), c);
   EXPECT_EQ(0, c - b * a);
-  EXPECT_EQ(a*a - b*b, (a+b) * (a-b));
+  EXPECT_EQ(a * a - b * b, (a + b) * (a - b));
 
   // Verified with dc.
   a = absl::MakeUint128(0x0123456789abcdef, 0xfedcba9876543210);
@@ -356,7 +358,7 @@ TEST(Uint128, Multiply) {
   c = a * b;
   EXPECT_EQ(absl::MakeUint128(0x97a87f4f261ba3f2, 0x342d0bbf48948200), c);
   EXPECT_EQ(0, c - b * a);
-  EXPECT_EQ(a*a - b*b, (a+b) * (a-b));
+  EXPECT_EQ(a * a - b * b, (a + b) * (a - b));
 }
 
 TEST(Uint128, AliasTests) {
@@ -460,6 +462,26 @@ TEST(Uint128, ConstexprTest) {
   EXPECT_EQ(zero, absl::uint128(0));
   EXPECT_EQ(one, absl::uint128(1));
   EXPECT_EQ(minus_two, absl::MakeUint128(-1, -2));
+
+  constexpr double f = static_cast<float>(absl::uint128(123));
+  EXPECT_EQ(f, 123.0f);
+
+  constexpr double d = static_cast<double>(absl::uint128(123));
+  EXPECT_EQ(d, 123.0);
+
+  constexpr long double ld = static_cast<long double>(absl::uint128(123));
+  EXPECT_EQ(ld, 123.0);
+
+#ifdef ABSL_HAVE_INTRINSIC_INT128
+  constexpr absl::uint128 division = absl::uint128(10) / absl::uint128(2);
+  EXPECT_EQ(division, absl::uint128(5));
+
+  constexpr absl::uint128 modulus = absl::int128(10) % absl::int128(3);
+  EXPECT_EQ(modulus, absl::uint128(1));
+
+  constexpr absl::uint128 multiplication = absl::uint128(10) * absl::uint128(3);
+  EXPECT_EQ(multiplication, absl::uint128(30));
+#endif  // ABSL_HAVE_INTRINSIC_INT128
 }
 
 TEST(Uint128, NumericLimitsTest) {
@@ -473,31 +495,52 @@ TEST(Uint128, NumericLimitsTest) {
   EXPECT_EQ(absl::Uint128Max(), std::numeric_limits<absl::uint128>::max());
 }
 
+// Some arbitrary constant to test hashing. The first hex digits of pi.
+constexpr absl::uint128 kPi = (absl::uint128(0x3243f6a8885a308d) << 64) |
+                              absl::uint128(0x313198a2e0370734);
+
 TEST(Uint128, Hash) {
-  EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly({
+#if defined(ABSL_HAVE_INTRINSIC_INT128)
+  using Ext128 = unsigned __int128;
+#endif
+  // Make the tuple outside the EXPECT_TRUE because putting the #if inside the
+  // macro argument is not ok.
+  const auto values = std::make_tuple(
       // Some simple values
-      absl::uint128{0},
-      absl::uint128{1},
-      ~absl::uint128{},
+      absl::uint128{0}, absl::uint128{1}, ~absl::uint128{},
       // 64 bit limits
       absl::uint128{std::numeric_limits<int64_t>::max()},
       absl::uint128{std::numeric_limits<uint64_t>::max()} + 0,
       absl::uint128{std::numeric_limits<uint64_t>::max()} + 1,
       absl::uint128{std::numeric_limits<uint64_t>::max()} + 2,
       // Keeping high same
-      absl::uint128{1} << 62,
-      absl::uint128{1} << 63,
+      absl::uint128{1} << 62, absl::uint128{1} << 63,
       // Keeping low same
-      absl::uint128{1} << 64,
-      absl::uint128{1} << 65,
+      absl::uint128{1} << 64, absl::uint128{1} << 65,
       // 128 bit limits
       std::numeric_limits<absl::uint128>::max(),
       std::numeric_limits<absl::uint128>::max() - 1,
       std::numeric_limits<absl::uint128>::min() + 1,
       std::numeric_limits<absl::uint128>::min(),
-  }));
+      // arbitrary constant
+      kPi
+#if defined(ABSL_HAVE_INTRINSIC_INT128)
+      // Same but with the intrinsic to verify that they match
+      ,
+      Ext128{0}, Ext128{1}, ~Ext128{},
+      Ext128{std::numeric_limits<int64_t>::max()},
+      Ext128{std::numeric_limits<uint64_t>::max()} + 0,
+      Ext128{std::numeric_limits<uint64_t>::max()} + 1,
+      Ext128{std::numeric_limits<uint64_t>::max()} + 2, Ext128{1} << 62,
+      Ext128{1} << 63, Ext128{1} << 64, Ext128{1} << 65,
+      std::numeric_limits<Ext128>::max(),
+      std::numeric_limits<Ext128>::max() - 1,
+      std::numeric_limits<Ext128>::min() + 1,
+      std::numeric_limits<Ext128>::min(), static_cast<Ext128>(kPi)
+#endif
+  );
+  EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly(values));
 }
-
 
 TEST(Int128Uint128, ConversionTest) {
   absl::int128 nonnegative_signed_values[] = {
@@ -516,8 +559,7 @@ TEST(Int128Uint128, ConversionTest) {
   }
 
   absl::int128 negative_values[] = {
-      -1, -0x1234567890abcdef,
-      absl::MakeInt128(-0x5544332211ffeedd, 0),
+      -1, -0x1234567890abcdef, absl::MakeInt128(-0x5544332211ffeedd, 0),
       -absl::MakeInt128(0x76543210fedcba98, 0xabcdef0123456789)};
   for (absl::int128 value : negative_values) {
     EXPECT_EQ(absl::uint128(-value), -absl::uint128(value));
@@ -745,6 +787,35 @@ TEST(Int128, ConstexprTest) {
   EXPECT_EQ(minus_two, absl::MakeInt128(-1, -2));
   EXPECT_GT(max, one);
   EXPECT_LT(min, minus_two);
+
+  constexpr double f = static_cast<float>(absl::int128(123));
+  EXPECT_EQ(f, 123.0f);
+
+  constexpr double d = static_cast<double>(absl::int128(123));
+  EXPECT_EQ(d, 123.0);
+
+  constexpr long double ld = static_cast<long double>(absl::int128(123));
+  EXPECT_EQ(ld, 123.0);
+
+#ifdef ABSL_HAVE_INTRINSIC_INT128
+  constexpr absl::int128 f_int128(static_cast<float>(123.0));
+  EXPECT_EQ(f_int128, absl::int128(123));
+
+  constexpr absl::int128 d_int128(static_cast<double>(123.0));
+  EXPECT_EQ(d_int128, absl::int128(123));
+
+  constexpr absl::int128 ld_int128(static_cast<long double>(123.0));
+  EXPECT_EQ(ld_int128, absl::int128(123));
+
+  constexpr absl::int128 division = absl::int128(10) / absl::int128(2);
+  EXPECT_EQ(division, absl::int128(5));
+
+  constexpr absl::int128 modulus = absl::int128(10) % absl::int128(3);
+  EXPECT_EQ(modulus, absl::int128(1));
+
+  constexpr absl::int128 multiplication = absl::int128(10) * absl::int128(3);
+  EXPECT_EQ(multiplication, absl::int128(30));
+#endif  // ABSL_HAVE_INTRINSIC_INT128
 }
 
 TEST(Int128, ComparisonTest) {
@@ -1249,18 +1320,23 @@ TEST(Int128, BitwiseShiftTest) {
     }
   }
 
+  // Signed integer overflow is undefined behavior, so in these cases enough
+  // high bits must be zero to avoid over-shifting.
+  EXPECT_EQ(MAKE_INT128(0x0, 0x123456789abcdef0) << 63,
+            MAKE_INT128(0x91a2b3c4d5e6f78, 0x0));
+  EXPECT_EQ(MAKE_INT128(0x0, 0x123456789abcdef0) << 64,
+            MAKE_INT128(0x123456789abcdef0, 0x0));
+  EXPECT_EQ(MAKE_INT128(0x1, 0xfedcba0987654321) << 63,
+            MAKE_INT128(0xff6e5d04c3b2a190, 0x8000000000000000));
+  EXPECT_EQ(MAKE_INT128(0x0, 0xfedcba0987654321) << 64,
+            MAKE_INT128(0xfedcba0987654321, 0x0));
+  EXPECT_EQ(MAKE_INT128(0x0, 0x0) << 126, MAKE_INT128(0x0, 0x0));
+  EXPECT_EQ(MAKE_INT128(0x0, 0x1) << 126, MAKE_INT128(0x4000000000000000, 0x0));
+
   // Manually calculated cases with shift count for positive (val1) and negative
   // (val2) values
   absl::int128 val1 = MAKE_INT128(0x123456789abcdef0, 0x123456789abcdef0);
   absl::int128 val2 = MAKE_INT128(0xfedcba0987654321, 0xfedcba0987654321);
-
-  EXPECT_EQ(val1 << 63, MAKE_INT128(0x91a2b3c4d5e6f78, 0x0));
-  EXPECT_EQ(val1 << 64, MAKE_INT128(0x123456789abcdef0, 0x0));
-  EXPECT_EQ(val2 << 63, MAKE_INT128(0xff6e5d04c3b2a190, 0x8000000000000000));
-  EXPECT_EQ(val2 << 64, MAKE_INT128(0xfedcba0987654321, 0x0));
-
-  EXPECT_EQ(val1 << 126, MAKE_INT128(0x0, 0x0));
-  EXPECT_EQ(val2 << 126, MAKE_INT128(0x4000000000000000, 0x0));
 
   EXPECT_EQ(val1 >> 63, MAKE_INT128(0x0, 0x2468acf13579bde0));
   EXPECT_EQ(val1 >> 64, MAKE_INT128(0x0, 0x123456789abcdef0));
@@ -1280,6 +1356,52 @@ TEST(Int128, NumericLimitsTest) {
   EXPECT_EQ(absl::Int128Min(), std::numeric_limits<absl::int128>::min());
   EXPECT_EQ(absl::Int128Min(), std::numeric_limits<absl::int128>::lowest());
   EXPECT_EQ(absl::Int128Max(), std::numeric_limits<absl::int128>::max());
+}
+
+TEST(Int128, BitCastable) {
+  // NOTE: This test is not intended to be an example that demonstrate usages of
+  // `static_cast` and `std::bit_cast`, rather it is here simply to verify
+  // behavior. When deciding whether you should use `static_cast` or
+  // `std::bit_cast` when converting between `absl::int128` and `absl::uint128`,
+  // use your best judgement. As a rule of thumb, use the same cast that you
+  // would use when converting between the signed and unsigned counterparts of a
+  // builtin integral type.
+
+  // Verify bit casting between signed and unsigned works with regards to two's
+  // complement. This verifies we exhibit the same behavior as a theoretical
+  // builtin int128_t and uint128_t in C++20 onwards.
+  EXPECT_EQ(absl::bit_cast<absl::uint128>(absl::int128(-1)),
+            std::numeric_limits<absl::uint128>::max());
+  EXPECT_EQ(
+      absl::bit_cast<absl::int128>(std::numeric_limits<absl::uint128>::max()),
+      absl::int128(-1));
+  EXPECT_EQ(
+      absl::bit_cast<absl::uint128>(std::numeric_limits<absl::int128>::min()),
+      absl::uint128(1) << 127);
+  EXPECT_EQ(absl::bit_cast<absl::int128>(absl::uint128(1) << 127),
+            std::numeric_limits<absl::int128>::min());
+  EXPECT_EQ(
+      absl::bit_cast<absl::uint128>(std::numeric_limits<absl::int128>::max()),
+      (absl::uint128(1) << 127) - 1);
+  EXPECT_EQ(absl::bit_cast<absl::int128>((absl::uint128(1) << 127) - 1),
+            std::numeric_limits<absl::int128>::max());
+
+  // Also verify static casting has the same behavior as bit casting.
+  EXPECT_EQ(static_cast<absl::uint128>(absl::int128(-1)),
+            std::numeric_limits<absl::uint128>::max());
+  EXPECT_EQ(
+      static_cast<absl::int128>(std::numeric_limits<absl::uint128>::max()),
+      absl::int128(-1));
+  EXPECT_EQ(
+      static_cast<absl::uint128>(std::numeric_limits<absl::int128>::min()),
+      absl::uint128(1) << 127);
+  EXPECT_EQ(static_cast<absl::int128>(absl::uint128(1) << 127),
+            std::numeric_limits<absl::int128>::min());
+  EXPECT_EQ(
+      static_cast<absl::uint128>(std::numeric_limits<absl::int128>::max()),
+      (absl::uint128(1) << 127) - 1);
+  EXPECT_EQ(static_cast<absl::int128>((absl::uint128(1) << 127) - 1),
+            std::numeric_limits<absl::int128>::max());
 }
 
 }  // namespace

@@ -21,5 +21,6 @@
     code: [32m'ERR_ASSERTION'[39m,
     actual: [32m'!Hello World'[39m,
     expected: [32m'Hello World!'[39m,
-    operator: [32m'strictEqual'[39m
+    operator: [32m'strictEqual'[39m,
+    diff: [32m'simple'[39m
   }

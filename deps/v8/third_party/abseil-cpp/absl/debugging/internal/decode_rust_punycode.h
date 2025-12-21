@@ -23,10 +23,10 @@ ABSL_NAMESPACE_BEGIN
 namespace debugging_internal {
 
 struct DecodeRustPunycodeOptions {
-  const char* punycode_begin;
-  const char* punycode_end;
-  char* out_begin;
-  char* out_end;
+  const char* absl_nonnull punycode_begin;
+  const char* absl_nonnull punycode_end;
+  char* absl_nonnull out_begin;
+  char* absl_nonnull out_end;
 };
 
 // Given Rust Punycode in `punycode_begin .. punycode_end`, writes the
@@ -46,7 +46,7 @@ struct DecodeRustPunycodeOptions {
 // DecodeRustPunycode is async-signal-safe with bounded runtime and a small
 // stack footprint, making it suitable for use in demangling Rust symbol names
 // from a signal handler.
-absl::Nullable<char*> DecodeRustPunycode(DecodeRustPunycodeOptions options);
+char* absl_nullable DecodeRustPunycode(DecodeRustPunycodeOptions options);
 
 }  // namespace debugging_internal
 ABSL_NAMESPACE_END

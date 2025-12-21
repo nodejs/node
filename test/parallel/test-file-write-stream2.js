@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 
 const fs = require('fs');
@@ -68,13 +68,13 @@ const file = fs.createWriteStream(filepath, {
   highWaterMark: 11
 });
 
-file.on('open', function(fd) {
+file.on('open', common.mustCall((fd) => {
   console.error('open');
   cb_occurred += 'open ';
   assert.strictEqual(typeof fd, 'number');
-});
+}));
 
-file.on('drain', function() {
+file.on('drain', common.mustCallAtLeast(() => {
   console.error('drain');
   cb_occurred += 'drain ';
   ++countDrains;
@@ -88,15 +88,15 @@ file.on('drain', function() {
     assert.strictEqual(fs.readFileSync(filepath, 'utf8'), EXPECTED + EXPECTED);
     file.end();
   }
-});
+}));
 
-file.on('close', function() {
+file.on('close', common.mustCall(() => {
   cb_occurred += 'close ';
   assert.strictEqual(file.bytesWritten, EXPECTED.length * 2);
-  file.write('should not work anymore', (err) => {
+  file.write('should not work anymore', common.mustCall((err) => {
     assert.ok(err.message.includes('write after end'));
-  });
-});
+  }));
+}));
 
 for (let i = 0; i < 11; i++) {
   const ret = file.write(String(i));

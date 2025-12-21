@@ -105,15 +105,17 @@ expected.beforePreExec = new Set([
   'Internal Binding wasm_web_api',
   'NativeModule internal/events/abort_listener',
   'NativeModule internal/modules/typescript',
-]);
-
-expected.atRunTime = new Set([
+  'NativeModule internal/data_url',
+  'NativeModule internal/mime',
+  'NativeModule internal/modules/esm/utils',
   'Internal Binding worker',
   'NativeModule internal/modules/run_main',
   'NativeModule internal/net',
   'NativeModule internal/dns/utils',
+]);
+
+expected.atRunTime = new Set([
   'NativeModule internal/process/pre_execution',
-  'NativeModule internal/modules/esm/utils',
 ]);
 
 const { isMainThread } = require('worker_threads');
@@ -124,9 +126,11 @@ if (isMainThread) {
   ].forEach(expected.beforePreExec.add.bind(expected.beforePreExec));
 } else {  // Worker.
   [
+    'Internal Binding locks',
     'NativeModule diagnostics_channel',
     'NativeModule internal/abort_controller',
     'NativeModule internal/error_serdes',
+    'NativeModule internal/locks',
     'NativeModule internal/perf/event_loop_utilization',
     'NativeModule internal/process/worker_thread_only',
     'NativeModule internal/streams/add-abort-signal',
@@ -169,7 +173,7 @@ if (common.hasIntl) {
 if (process.features.inspector) {
   expected.beforePreExec.add('Internal Binding inspector');
   expected.beforePreExec.add('NativeModule internal/util/inspector');
-  expected.atRunTime.add('NativeModule internal/inspector_async_hook');
+  expected.beforePreExec.add('NativeModule internal/inspector_async_hook');
 }
 
 // This is loaded if the test is run with NODE_V8_COVERAGE.

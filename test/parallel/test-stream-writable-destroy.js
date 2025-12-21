@@ -52,10 +52,10 @@ const assert = require('assert');
     write(chunk, enc, cb) { cb(); }
   });
 
-  write._destroy = function(err, cb) {
+  write._destroy = common.mustCall(function(err, cb) {
     assert.strictEqual(err, expected);
     cb(err);
-  };
+  });
 
   const expected = new Error('kaboom');
 
@@ -499,3 +499,17 @@ const assert = require('assert');
   }));
   write[Symbol.asyncDispose]().then(common.mustCall());
 }
+
+(async () => {
+  await using write = new Writable({
+    write(chunk, enc, cb) { cb(); }
+  });
+
+  write.on('error', common.mustCall(function(e) {
+    assert.strictEqual(e.name, 'AbortError');
+    assert.strictEqual(this.destroyed, true);
+    assert.strictEqual(this.errored.name, 'AbortError');
+  }));
+  write.on('close', common.mustCall());
+  write.on('finish', common.mustNotCall('no finish event'));
+})().then(common.mustCall());

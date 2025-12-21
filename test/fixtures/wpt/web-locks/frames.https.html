@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<meta charset=utf-8>
+<title>Web Locks API: Frames</title>
+<link rel=help href="https://w3c.github.io/web-locks/">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/helpers.js"></script>
+<style>iframe { display: none; }</style>
+<script>
+'use strict';
+
+promise_test(async t => {
+  assert_implements(navigator.locks);
+  const res = uniqueName(t);
+
+  const frame = await iframe('resources/iframe.html');
+  t.add_cleanup(() => { frame.remove(); });
+
+  const lock_id = (await postToFrameAndWait(
+    frame, {op: 'request', name: res, mode: 'shared'})).lock_id;
+
+  await navigator.locks.request(res, {mode: 'shared'}, async lock => {
+    await postToFrameAndWait(frame, {op: 'release', lock_id});
+  });
+
+}, 'Window and Frame - shared mode');
+
+promise_test(async t => {
+  assert_implements(navigator.locks);
+  const res = uniqueName(t);
+
+  const frame = await iframe('resources/iframe.html');
+  t.add_cleanup(() => { frame.remove(); });
+
+  // frame acquires the lock.
+  const lock_id = (await postToFrameAndWait(
+    frame, {op: 'request', name: res})).lock_id;
+
+  // This request should be blocked.
+  let lock_granted = false;
+  const blocked = navigator.locks.request(res, lock => { lock_granted = true; });
+
+  // Verify that we can't get it.
+  let available = undefined;
+  await navigator.locks.request(
+    res, {ifAvailable: true}, lock => { available = lock !== null; });
+  assert_false(available);
+  assert_false(lock_granted);
+
+  // Ask the frame to release it.
+  await postToFrameAndWait(frame, {op: 'release', lock_id});
+
+  await blocked;
+  // Now we've got it.
+  assert_true(lock_granted);
+}, 'Window and Frame - exclusive mode');
+
+promise_test(async t => {
+  assert_implements(navigator.locks);
+  const res = uniqueName(t);
+
+  const frame1 = await iframe('resources/iframe.html');
+  const frame2 = await iframe('resources/iframe.html');
+
+  // frame1 acquires the lock.
+  const lock_id = (await postToFrameAndWait(
+    frame1, {op: 'request', name: res})).lock_id;
+
+  // frame2's request should be blocked.
+  let lock_granted = false;
+  const blocked = postToFrameAndWait(
+    frame2, {op: 'request', name: res});
+  blocked.then(f => { lock_granted = true; });
+
+  // Verify that frame2 can't get it.
+  assert_true((await postToFrameAndWait(frame2, {
+    op: 'request', name: res, ifAvailable: true
+  })).failed, 'Lock request should have failed');
+  assert_false(lock_granted);
+
+  // Ask frame1 to release it.
+  await postToFrameAndWait(frame1, {op: 'release', lock_id});
+
+  await blocked;
+  // Now frame2 can get it.
+  assert_true(lock_granted);
+  frame1.parentElement.removeChild(frame1);
+  frame2.parentElement.removeChild(frame2);
+}, 'Frame and Frame - exclusive mode');
+
+promise_test(async t => {
+  assert_implements(navigator.locks);
+  const res = uniqueName(t);
+
+  const frame = await iframe('resources/iframe.html');
+
+  // Frame acquires the lock.
+  await postToFrameAndWait(frame, {op: 'request', name: res});
+
+  // This request should be blocked.
+  let lock_granted = false;
+  const blocked = navigator.locks.request(
+    res, lock => { lock_granted = true; });
+
+  // Verify that we can't get it.
+  let available = undefined;
+  await navigator.locks.request(
+    res, {ifAvailable: true}, lock => { available = lock !== null; });
+  assert_false(available);
+  assert_false(lock_granted);
+
+  // Implicitly release it by terminating the frame.
+  frame.remove();
+  await blocked;
+  // Now we've got it.
+  assert_true(lock_granted);
+
+}, 'Terminated Frame with held lock');
+
+promise_test(async t => {
+  assert_implements(navigator.locks);
+  const res = uniqueName(t);
+
+  const frame = await iframe('resources/iframe.html');
+
+  // Frame acquires the lock.
+  await postToFrameAndWait(frame, {op: 'request', name: res});
+
+  // This request should be blocked.
+  let lock_granted = false;
+  const blocked = navigator.locks.request(
+    res, lock => { lock_granted = true; });
+
+  // Verify that we can't get it.
+  let available = undefined;
+  await navigator.locks.request(
+    res, {ifAvailable: true}, lock => { available = lock !== null; });
+  assert_false(available);
+  assert_false(lock_granted);
+
+  // Implicitly release it by navigating the frame.
+  frame.src = 'about:blank';
+  await blocked;
+  // Now we've got it.
+  assert_true(lock_granted);
+
+}, 'Navigated Frame with held lock');
+
+promise_test(async t => {
+  assert_implements(navigator.locks);
+  const res = uniqueName(t);
+
+  // frame1 requests and holds res - should be granted immediately.
+  // frame2 requests res - should be blocked.
+  // frame3 requests res - should be blocked.
+  // frame2 is navigated.
+  // frame1 releases res.
+  // frame3's request should be granted.
+
+  const frame1 = await iframe('resources/iframe.html');
+  const frame2 = await iframe('resources/iframe.html');
+  const frame3 = await iframe('resources/iframe.html');
+  t.add_cleanup(() => { frame1.remove(); });
+  t.add_cleanup(() => { frame2.remove(); });
+  t.add_cleanup(() => { frame3.remove(); });
+
+  // frame1 requests and holds res - should be granted immediately.
+  const lock_id = (await postToFrameAndWait(
+    frame1, {op: 'request', name: res})).lock_id;
+
+  // frame2 requests res - should be blocked.
+  // (don't attach listeners as they will keep the frame alive)
+  frame2.contentWindow.postMessage({op: 'request', name: res}, '*');
+
+  // frame3 requests res - should be blocked.
+  let lock_granted = false;
+  const blocked = postToFrameAndWait(frame3, {op: 'request', name: res});
+  blocked.then(f => { lock_granted = true; });
+
+  // Verify that frame3 can't get it.
+  assert_true((await postToFrameAndWait(frame3, {
+    op: 'request', name: res, ifAvailable: true
+  })).failed, 'Lock request should have failed');
+  assert_false(lock_granted);
+
+  // Navigate frame2.
+  frame2.src = 'about:blank';
+
+  // frame1 releases lock
+  await postToFrameAndWait(frame1, {op: 'release', lock_id});
+
+  // frame3's request should be granted.
+  await blocked;
+  assert_true(lock_granted);
+
+}, 'Navigated Frame with pending request');
+
+promise_test(async t => {
+  assert_implements(navigator.locks);
+  const res = uniqueName(t);
+
+  // frame1 requests and holds res - should be granted immediately.
+  // frame2 requests res - should be blocked.
+  // frame3 requests res - should be blocked.
+  // frame2 is removed.
+  // frame1 drops lock.
+  // frame3's request should be granted.
+
+  const frame1 = await iframe('resources/iframe.html');
+  const frame2 = await iframe('resources/iframe.html');
+  const frame3 = await iframe('resources/iframe.html');
+  t.add_cleanup(() => { frame1.remove(); });
+  t.add_cleanup(() => { frame3.remove(); });
+
+  // frame1 requests and holds res - should be granted immediately.
+  const lock_id = (await postToFrameAndWait(
+    frame1, {op: 'request', name: res})).lock_id;
+
+  // frame2 requests res - should be blocked.
+  // (don't attach listeners as they will keep the frame alive)
+  frame2.contentWindow.postMessage({op: 'request', name: res}, '*');
+
+  // frame3 requests res - should be blocked.
+  let lock_granted = false;
+  const blocked = postToFrameAndWait(frame3, {op: 'request', name: res});
+  blocked.then(f => { lock_granted = true; });
+
+  // So frame3 can't get it
+  assert_true((await postToFrameAndWait(frame3, {
+    op: 'request', name: res, ifAvailable: true
+  })).failed, 'Lock request should have failed');
+  assert_false(lock_granted);
+
+  // Remove frame2.
+  frame2.remove();
+
+  // frame1 releases lock
+  await postToFrameAndWait(frame1, {op: 'release', lock_id});
+
+  // frame3's request should be granted.
+  await blocked;
+  assert_true(lock_granted);
+
+}, 'Removed Frame with pending request');
+
+promise_test(async t => {
+  assert_implements(navigator.locks);
+  const res = uniqueName(t);
+
+  const frame = await iframe('about:blank');
+
+  // Remove a frame while it is in the process of requesting a lock.
+  // The promise returned by `request` will never resolve since its frame no
+  // longer exists, but the lock should still be released.
+  await new Promise(resolve => {
+    frame.contentWindow.navigator.locks.request(res, () => {
+      frame.remove();
+      resolve();
+    });
+  });
+
+  assert_false((await navigator.locks.query()).held.includes(res));
+}, 'Removed Frame as lock is granted');
+
+</script>

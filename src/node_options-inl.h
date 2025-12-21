@@ -3,7 +3,9 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include <algorithm>
 #include <cstdlib>
+#include <ranges>
 #include "node_options.h"
 #include "util.h"
 
@@ -29,98 +31,128 @@ namespace options_parser {
 template <typename Options>
 void OptionsParser<Options>::AddOption(const char* name,
                                        const char* help_text,
-                                       bool Options::* field,
+                                       bool Options::*field,
                                        OptionEnvvarSettings env_setting,
-                                       bool default_is_true) {
+                                       bool default_is_true,
+                                       OptionNamespaces namespace_id) {
   options_.emplace(name,
                    OptionInfo{kBoolean,
                               std::make_shared<SimpleOptionField<bool>>(field),
                               env_setting,
                               help_text,
-                              default_is_true});
+                              default_is_true,
+                              NamespaceEnumToString(namespace_id)});
 }
 
 template <typename Options>
 void OptionsParser<Options>::AddOption(const char* name,
                                        const char* help_text,
-                                       uint64_t Options::* field,
-                                       OptionEnvvarSettings env_setting) {
+                                       uint64_t Options::*field,
+                                       OptionEnvvarSettings env_setting,
+                                       OptionNamespaces namespace_id) {
   options_.emplace(
       name,
       OptionInfo{kUInteger,
                  std::make_shared<SimpleOptionField<uint64_t>>(field),
                  env_setting,
-                 help_text});
+                 help_text,
+                 false,
+                 NamespaceEnumToString(namespace_id)});
 }
 
 template <typename Options>
 void OptionsParser<Options>::AddOption(const char* name,
                                        const char* help_text,
-                                       int64_t Options::* field,
-                                       OptionEnvvarSettings env_setting) {
+                                       int64_t Options::*field,
+                                       OptionEnvvarSettings env_setting,
+                                       OptionNamespaces namespace_id) {
   options_.emplace(
       name,
       OptionInfo{kInteger,
                  std::make_shared<SimpleOptionField<int64_t>>(field),
                  env_setting,
-                 help_text});
+                 help_text,
+                 false,
+                 NamespaceEnumToString(namespace_id)});
 }
 
 template <typename Options>
 void OptionsParser<Options>::AddOption(const char* name,
                                        const char* help_text,
-                                       std::string Options::* field,
-                                       OptionEnvvarSettings env_setting) {
+                                       std::string Options::*field,
+                                       OptionEnvvarSettings env_setting,
+                                       OptionNamespaces namespace_id) {
   options_.emplace(
       name,
       OptionInfo{kString,
                  std::make_shared<SimpleOptionField<std::string>>(field),
                  env_setting,
-                 help_text});
-}
-
-template <typename Options>
-void OptionsParser<Options>::AddOption(
-    const char* name,
-    const char* help_text,
-    std::vector<std::string> Options::* field,
-    OptionEnvvarSettings env_setting) {
-  options_.emplace(name, OptionInfo {
-    kStringList,
-    std::make_shared<SimpleOptionField<std::vector<std::string>>>(field),
-    env_setting,
-    help_text
-  });
+                 help_text,
+                 false,
+                 NamespaceEnumToString(namespace_id)});
 }
 
 template <typename Options>
 void OptionsParser<Options>::AddOption(const char* name,
                                        const char* help_text,
-                                       HostPort Options::* field,
-                                       OptionEnvvarSettings env_setting) {
+                                       std::vector<std::string> Options::*field,
+                                       OptionEnvvarSettings env_setting,
+                                       OptionNamespaces namespace_id) {
+  options_.emplace(
+      name,
+      OptionInfo{
+          kStringList,
+          std::make_shared<SimpleOptionField<std::vector<std::string>>>(field),
+          env_setting,
+          help_text,
+          false,
+          NamespaceEnumToString(namespace_id)});
+}
+
+template <typename Options>
+void OptionsParser<Options>::AddOption(const char* name,
+                                       const char* help_text,
+                                       HostPort Options::*field,
+                                       OptionEnvvarSettings env_setting,
+                                       OptionNamespaces namespace_id) {
   options_.emplace(
       name,
       OptionInfo{kHostPort,
                  std::make_shared<SimpleOptionField<HostPort>>(field),
                  env_setting,
-                 help_text});
+                 help_text,
+                 false,
+                 NamespaceEnumToString(namespace_id)});
 }
 
 template <typename Options>
 void OptionsParser<Options>::AddOption(const char* name,
                                        const char* help_text,
                                        NoOp no_op_tag,
-                                       OptionEnvvarSettings env_setting) {
-  options_.emplace(name, OptionInfo{kNoOp, nullptr, env_setting, help_text});
+                                       OptionEnvvarSettings env_setting,
+                                       OptionNamespaces namespace_id) {
+  options_.emplace(name,
+                   OptionInfo{kNoOp,
+                              nullptr,
+                              env_setting,
+                              help_text,
+                              false,
+                              NamespaceEnumToString(namespace_id)});
 }
 
 template <typename Options>
 void OptionsParser<Options>::AddOption(const char* name,
                                        const char* help_text,
                                        V8Option v8_option_tag,
-                                       OptionEnvvarSettings env_setting) {
+                                       OptionEnvvarSettings env_setting,
+                                       OptionNamespaces namespace_id) {
   options_.emplace(name,
-                   OptionInfo{kV8Option, nullptr, env_setting, help_text});
+                   OptionInfo{kV8Option,
+                              nullptr,
+                              env_setting,
+                              help_text,
+                              false,
+                              NamespaceEnumToString(namespace_id)});
 }
 
 template <typename Options>
@@ -196,7 +228,8 @@ auto OptionsParser<Options>::Convert(
                     Convert(original.field, get_child),
                     original.env_setting,
                     original.help_text,
-                    original.default_is_true};
+                    original.default_is_true,
+                    original.namespace_id};
 }
 
 template <typename Options>
@@ -393,15 +426,16 @@ void OptionsParser<Options>::Parse(
         // Implications for negated options are defined with "--no-".
         implied_name.insert(2, "no-");
       }
-      auto implications = implications_.equal_range(implied_name);
-      for (auto imp = implications.first; imp != implications.second; ++imp) {
-        if (imp->second.type == kV8Option) {
-          v8_args->push_back(imp->second.name);
-        } else {
-          *imp->second.target_field->template Lookup<bool>(options) =
-              imp->second.target_value;
-        }
-      }
+      auto [f, l] = implications_.equal_range(implied_name);
+      std::ranges::for_each(std::ranges::subrange(f, l) | std::views::values,
+                            [&](const auto& value) {
+                              if (value.type == kV8Option) {
+                                v8_args->push_back(value.name);
+                              } else {
+                                *value.target_field->template Lookup<bool>(
+                                    options) = value.target_value;
+                              }
+                            });
     }
 
     if (it == options_.end()) {

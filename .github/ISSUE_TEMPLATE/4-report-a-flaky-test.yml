@@ -28,7 +28,6 @@ body:
         - AIX
         - FreeBSD
         - Linux ARM64
-        - Linux ARMv7
         - Linux PPC64LE
         - Linux s390x
         - Linux x64

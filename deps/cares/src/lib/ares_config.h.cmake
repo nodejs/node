@@ -145,6 +145,9 @@
 /* Define to 1 if you have the `if_nametoindex' function. */
 #cmakedefine HAVE_IF_NAMETOINDEX 1
 
+/* Define to 1 if you have the `GetBestRoute2' function. */
+#cmakedefine HAVE_GETBESTROUTE2 1
+
 /* Define to 1 if you have the `ConvertInterfaceIndexToLuid' function. */
 #cmakedefine HAVE_CONVERTINTERFACEINDEXTOLUID 1
 

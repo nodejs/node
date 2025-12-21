@@ -65,8 +65,9 @@ class AccessorInfo
 
   // Append all descriptors to the array that are not already there.
   // Return number added.
-  static int AppendUnique(Isolate* isolate, Handle<Object> descriptors,
-                          Handle<FixedArray> array, int valid_descriptors);
+  static int AppendUnique(Isolate* isolate, DirectHandle<Object> descriptors,
+                          DirectHandle<FixedArray> array,
+                          int valid_descriptors);
 
   DECL_PRINTER(AccessorInfo)
 
@@ -101,9 +102,59 @@ class AccessCheckInfo
   TQ_OBJECT_CONSTRUCTORS(AccessCheckInfo)
 };
 
+#define INTERCEPTOR_INFO_CALLBACK_LIST(V) \
+  V(Getter, getter)                       \
+  V(Setter, setter)                       \
+  V(Query, query)                         \
+  V(Descriptor, descriptor)               \
+  V(Deleter, deleter)                     \
+  V(Enumerator, enumerator)               \
+  V(Definer, definer)
+
 class InterceptorInfo
-    : public TorqueGeneratedInterceptorInfo<InterceptorInfo, Struct> {
+    : public TorqueGeneratedInterceptorInfo<InterceptorInfo, HeapObject> {
  public:
+  // Convenient predicates without named/indexed prefix.
+  inline bool has_getter() const;
+  inline bool has_setter() const;
+  inline bool has_query() const;
+  inline bool has_descriptor() const;
+  inline bool has_deleter() const;
+  inline bool has_enumerator() const;
+  inline bool has_definer() const;
+
+  // Accessor callbacks for named interceptors.
+  DECL_LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST(named_getter,
+                                                            Address)
+  DECL_LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST(named_setter,
+                                                            Address)
+  DECL_LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST(named_query,
+                                                            Address)
+  DECL_LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST(named_descriptor,
+                                                            Address)
+  DECL_LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST(named_deleter,
+                                                            Address)
+  DECL_LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST(named_enumerator,
+                                                            Address)
+  DECL_LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST(named_definer,
+                                                            Address)
+
+  // Accessor callbacks for indexed interceptors.
+  DECL_LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST(indexed_getter,
+                                                            Address)
+  DECL_LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST(indexed_setter,
+                                                            Address)
+  DECL_LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST(indexed_query,
+                                                            Address)
+  DECL_LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST(indexed_descriptor,
+                                                            Address)
+  DECL_LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST(indexed_deleter,
+                                                            Address)
+  DECL_LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST(indexed_enumerator,
+                                                            Address)
+  DECL_LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST(indexed_definer,
+                                                            Address)
+
   DECL_BOOLEAN_ACCESSORS(can_intercept_symbols)
   DECL_BOOLEAN_ACCESSORS(non_masking)
   DECL_BOOLEAN_ACCESSORS(is_named)
@@ -114,7 +165,16 @@ class InterceptorInfo
 
   DEFINE_TORQUE_GENERATED_INTERCEPTOR_INFO_FLAGS()
 
-  using BodyDescriptor = StructBodyDescriptor;
+  DECL_PRINTER(InterceptorInfo)
+
+  inline void clear_padding();
+
+  class BodyDescriptor;
+
+ private:
+  friend class Factory;
+
+  inline void AllocateExternalPointerEntries(Isolate* isolate);
 
   TQ_OBJECT_CONSTRUCTORS(InterceptorInfo)
 };

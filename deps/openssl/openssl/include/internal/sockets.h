@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -12,6 +12,7 @@
 # pragma once
 
 # include <openssl/opensslconf.h>
+# include "internal/common.h"
 
 # if defined(OPENSSL_SYS_VXWORKS) || defined(OPENSSL_SYS_UEFI)
 #  define NO_SYS_PARAM_H
@@ -41,7 +42,7 @@
 #  endif
 #  if !defined(IPPROTO_IP)
     /* winsock[2].h was included already? */
-#   include <winsock.h>
+#   include "internal/e_winsock.h"
 #  endif
 #  ifdef getservbyname
      /* this is used to be wcecompat/include/winsock_extras.h */
@@ -54,14 +55,32 @@ struct servent *PASCAL getservbyname(const char *, const char *);
  * Even though sizeof(SOCKET) is 8, it's safe to cast it to int, because
  * the value constitutes an index in per-process table of limited size
  * and not a real pointer. And we also depend on fact that all processors
- * Windows run on happen to be two's-complement, which allows to
+ * Windows run on happen to be two's complement, which allows to
  * interchange INVALID_SOCKET and -1.
  */
 #   define socket(d,t,p)   ((int)socket(d,t,p))
 #   define accept(s,f,l)   ((int)accept(s,f,l))
 #  endif
 
+/* Windows have other names for shutdown() reasons */
+#  ifndef SHUT_RD
+#   define SHUT_RD SD_RECEIVE
+#  endif
+#  ifndef SHUT_WR
+#   define SHUT_WR SD_SEND
+#  endif
+#  ifndef SHUT_RDWR
+#   define SHUT_RDWR SD_BOTH
+#  endif
+
 # else
+#  if defined(__APPLE__)
+    /*
+     * This must be defined before including <netinet/in6.h> to get
+     * IPV6_RECVPKTINFO
+     */
+#   define __APPLE_USE_RFC_3542
+#  endif
 
 #  ifndef NO_SYS_PARAM_H
 #   include <sys/param.h>
@@ -71,13 +90,16 @@ struct servent *PASCAL getservbyname(const char *, const char *);
 #  endif
 
 #  include <netdb.h>
+#  if defined(OPENSSL_SYS_VMS)
+typedef size_t socklen_t;        /* Currently appears to be missing on VMS */
+#  endif
 #  if defined(OPENSSL_SYS_VMS_NODECC)
 #   include <socket.h>
 #   include <in.h>
 #   include <inet.h>
 #  else
 #   include <sys/socket.h>
-#   ifndef NO_SYS_UN_H
+#   if !defined(NO_SYS_UN_H) && defined(AF_UNIX) && !defined(OPENSSL_NO_UNIX_SOCK)
 #    include <sys/un.h>
 #    ifndef UNIX_PATH_MAX
 #     define UNIX_PATH_MAX sizeof(((struct sockaddr_un *)NULL)->sun_path)
@@ -93,6 +115,13 @@ struct servent *PASCAL getservbyname(const char *, const char *);
 
 #  ifdef OPENSSL_SYS_AIX
 #   include <sys/select.h>
+#  endif
+
+#  ifdef OPENSSL_SYS_UNIX
+#    ifndef OPENSSL_SYS_TANDEM
+#     include <poll.h>
+#    endif
+#    include <errno.h>
 #  endif
 
 #  ifndef VMS
@@ -125,14 +154,26 @@ struct servent *PASCAL getservbyname(const char *, const char *);
 #  endif
 # endif
 
+/*
+ * Some platforms define AF_UNIX, but don't support it
+ */
+# if !defined(OPENSSL_NO_UNIX_SOCK)
+#  if !defined(AF_UNIX) || defined(NO_SYS_UN_H)
+#   define OPENSSL_NO_UNIX_SOCK
+#  endif
+# endif
+
 # define get_last_socket_error() errno
 # define clear_socket_error()    errno=0
+# define get_last_socket_error_is_eintr() (get_last_socket_error() == EINTR)
 
 # if defined(OPENSSL_SYS_WINDOWS)
 #  undef get_last_socket_error
 #  undef clear_socket_error
+#  undef get_last_socket_error_is_eintr
 #  define get_last_socket_error() WSAGetLastError()
 #  define clear_socket_error()    WSASetLastError(0)
+#  define get_last_socket_error_is_eintr() (get_last_socket_error() == WSAEINTR)
 #  define readsocket(s,b,n)       recv((s),(b),(n),0)
 #  define writesocket(s,b,n)      send((s),(b),(n),0)
 # elif defined(__DJGPP__)
@@ -150,14 +191,8 @@ struct servent *PASCAL getservbyname(const char *, const char *);
 #  define readsocket(s,b,n)           read((s),(b),(n))
 #  define writesocket(s,b,n)          write((s),(char *)(b),(n))
 # elif defined(OPENSSL_SYS_TANDEM)
-#  if defined(OPENSSL_TANDEM_FLOSS)
-#   include <floss.h(floss_read, floss_write)>
-#   define readsocket(s,b,n)       floss_read((s),(b),(n))
-#   define writesocket(s,b,n)      floss_write((s),(b),(n))
-#  else
-#   define readsocket(s,b,n)       read((s),(b),(n))
-#   define writesocket(s,b,n)      write((s),(b),(n))
-#  endif
+#  define readsocket(s,b,n)       read((s),(b),(n))
+#  define writesocket(s,b,n)      write((s),(b),(n))
 #  define ioctlsocket(a,b,c)      ioctl(a,b,c)
 #  define closesocket(s)          close(s)
 # else

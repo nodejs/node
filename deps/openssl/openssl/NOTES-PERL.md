@@ -33,12 +33,12 @@ Perl on Windows
 ---------------
 
 There are a number of build targets that can be viewed as "Windows".
-Indeed, there are `VC-*` configs targeting VisualStudio C, as well as
+Indeed, there are `VC-*` configs targeting Visual Studio C, as well as
 MinGW and Cygwin. The key recommendation is to use a Perl installation
 that matches the build environment. For example, if you will build
 on Cygwin be sure to use the Cygwin package manager to install Perl.
 For MSYS builds use the MSYS provided Perl.
-For VC-* builds we recommend Strawberry Perl, from <http://strawberryperl.com>.
+For VC-* builds, we recommend Strawberry Perl, from <http://strawberryperl.com>.
 An alternative is ActiveState Perl, from <http://www.activestate.com/ActivePerl>
 for which you may need to explicitly select the Perl module Win32/Console.pm
 available via <https://platform.activestate.com/ActiveState>.
@@ -117,7 +117,7 @@ descriptions below, `Text::Template` will serve as an example.
 
        $ cpan -f -i Text::Template
 
-   Note: on VMS, you must quote any argument that contains upper case
+   Note: on VMS, you must quote any argument that contains uppercase
    characters, so the lines above would be:
 
        $ cpan -i "Text::Template"

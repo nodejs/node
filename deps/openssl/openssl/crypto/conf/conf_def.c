@@ -11,7 +11,7 @@
 
 #include <stdio.h>
 #include <string.h>
-#include "e_os.h" /* struct stat */
+#include "internal/e_os.h" /* struct stat */
 #ifdef __TANDEM
 # include <sys/types.h> /* needed for stat.h */
 # include <sys/stat.h> /* struct stat */
@@ -193,10 +193,10 @@ static int def_load(CONF *conf, const char *name, long *line)
 static int parsebool(const char *pval, int *flag)
 {
     if (OPENSSL_strcasecmp(pval, "on") == 0
-            || OPENSSL_strcasecmp(pval, "true") == 0) {
+        || OPENSSL_strcasecmp(pval, "true") == 0) {
         *flag = 1;
     } else if (OPENSSL_strcasecmp(pval, "off") == 0
-            || OPENSSL_strcasecmp(pval, "false") == 0) {
+               || OPENSSL_strcasecmp(pval, "false") == 0) {
         *flag = 0;
     } else {
         ERR_raise(ERR_LIB_CONF, CONF_R_INVALID_PRAGMA);
@@ -236,13 +236,11 @@ static int def_load_bio(CONF *conf, BIO *in, long *line)
     }
 
     section = OPENSSL_strdup("default");
-    if (section == NULL) {
-        ERR_raise(ERR_LIB_CONF, ERR_R_MALLOC_FAILURE);
+    if (section == NULL)
         goto err;
-    }
 
     if (_CONF_new_data(conf) == 0) {
-        ERR_raise(ERR_LIB_CONF, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_CONF, ERR_R_CONF_LIB);
         goto err;
     }
 
@@ -392,8 +390,8 @@ static int def_load_bio(CONF *conf, BIO *in, long *line)
                 psection = section;
             }
             p = eat_ws(conf, end);
-            if (strncmp(pname, ".pragma", 7) == 0
-                && (p != pname + 7 || *p == '=')) {
+            if (CHECK_AND_SKIP_PREFIX(pname, ".pragma")
+                && (p != pname || *p == '=')) {
                 char *pval;
 
                 if (*p == '=') {
@@ -428,18 +426,16 @@ static int def_load_bio(CONF *conf, BIO *in, long *line)
                         goto err;
                 } else if (strcmp(p, "includedir") == 0) {
                     OPENSSL_free(conf->includedir);
-                    if ((conf->includedir = OPENSSL_strdup(pval)) == NULL) {
-                        ERR_raise(ERR_LIB_CONF, ERR_R_MALLOC_FAILURE);
+                    if ((conf->includedir = OPENSSL_strdup(pval)) == NULL)
                         goto err;
-                    }
                 }
 
                 /*
                  * We *ignore* any unknown pragma.
                  */
                 continue;
-            } else if (strncmp(pname, ".include", 8) == 0
-                && (p != pname + 8 || *p == '=')) {
+            } else if (CHECK_AND_SKIP_PREFIX(pname, ".include")
+                && (p != pname || *p == '=')) {
                 char *include = NULL;
                 BIO *next;
                 const char *include_dir = ossl_safe_getenv("OPENSSL_CONF_INCLUDE");
@@ -475,7 +471,6 @@ static int def_load_bio(CONF *conf, BIO *in, long *line)
 
                     include_path = OPENSSL_malloc(newlen);
                     if (include_path == NULL) {
-                        ERR_raise(ERR_LIB_CONF, ERR_R_MALLOC_FAILURE);
                         OPENSSL_free(include);
                         goto err;
                     }
@@ -512,13 +507,13 @@ static int def_load_bio(CONF *conf, BIO *in, long *line)
                     /* push the currently processing BIO onto stack */
                     if (biosk == NULL) {
                         if ((biosk = sk_BIO_new_null()) == NULL) {
-                            ERR_raise(ERR_LIB_CONF, ERR_R_MALLOC_FAILURE);
+                            ERR_raise(ERR_LIB_CONF, ERR_R_CRYPTO_LIB);
                             BIO_free(next);
                             goto err;
                         }
                     }
                     if (!sk_BIO_push(biosk, in)) {
-                        ERR_raise(ERR_LIB_CONF, ERR_R_MALLOC_FAILURE);
+                        ERR_raise(ERR_LIB_CONF, ERR_R_CRYPTO_LIB);
                         BIO_free(next);
                         goto err;
                     }
@@ -536,16 +531,12 @@ static int def_load_bio(CONF *conf, BIO *in, long *line)
             start = eat_ws(conf, p);
             trim_ws(conf, start);
 
-            if ((v = OPENSSL_malloc(sizeof(*v))) == NULL) {
-                ERR_raise(ERR_LIB_CONF, ERR_R_MALLOC_FAILURE);
+            if ((v = OPENSSL_malloc(sizeof(*v))) == NULL)
                 goto err;
-            }
             v->name = OPENSSL_strdup(pname);
             v->value = NULL;
-            if (v->name == NULL) {
-                ERR_raise(ERR_LIB_CONF, ERR_R_MALLOC_FAILURE);
+            if (v->name == NULL)
                 goto err;
-            }
             if (!str_copy(conf, psection, &(v->value), start))
                 goto err;
 
@@ -561,7 +552,7 @@ static int def_load_bio(CONF *conf, BIO *in, long *line)
             } else
                 tv = sv;
             if (_CONF_add_string(conf, tv, v) == 0) {
-                ERR_raise(ERR_LIB_CONF, ERR_R_MALLOC_FAILURE);
+                ERR_raise(ERR_LIB_CONF, ERR_R_CONF_LIB);
                 goto err;
             }
             v = NULL;
@@ -774,7 +765,7 @@ static int str_copy(CONF *conf, char *section, char **pto, char *from)
                 goto err;
             }
             if (!BUF_MEM_grow_clean(buf, newsize)) {
-                ERR_raise(ERR_LIB_CONF, ERR_R_MALLOC_FAILURE);
+                ERR_raise(ERR_LIB_CONF, ERR_R_BUF_LIB);
                 goto err;
             }
             while (*p)
@@ -858,18 +849,16 @@ static BIO *get_next_file(const char *path, OPENSSL_DIR_CTX **dirctx)
 
         if ((namelen > 5
              && OPENSSL_strcasecmp(filename + namelen - 5, ".conf") == 0)
-             || (namelen > 4
-                 && OPENSSL_strcasecmp(filename + namelen - 4, ".cnf") == 0)) {
+            || (namelen > 4
+                && OPENSSL_strcasecmp(filename + namelen - 4, ".cnf") == 0)) {
             size_t newlen;
             char *newpath;
             BIO *bio;
 
             newlen = pathlen + namelen + 2;
             newpath = OPENSSL_zalloc(newlen);
-            if (newpath == NULL) {
-                ERR_raise(ERR_LIB_CONF, ERR_R_MALLOC_FAILURE);
+            if (newpath == NULL)
                 break;
-            }
 #ifdef OPENSSL_SYS_VMS
             /*
              * If the given path isn't clear VMS syntax,
@@ -903,7 +892,7 @@ static BIO *get_next_file(const char *path, OPENSSL_DIR_CTX **dirctx)
 
 static int is_keytype(const CONF *conf, char c, unsigned short type)
 {
-    const unsigned short * keytypes = (const unsigned short *) conf->meth_data;
+    const unsigned short *keytypes = (const unsigned short *) conf->meth_data;
     unsigned char key = (unsigned char)c;
 
 #ifdef CHARSET_EBCDIC

@@ -8,9 +8,9 @@
 #include <memory>
 
 #include "src/compiler/common-operator.h"
-#include "src/compiler/graph.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/simplified-operator.h"
+#include "src/compiler/turbofan-graph.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
@@ -24,7 +24,7 @@ namespace compiler {
 #if !V8_TARGET_ARCH_32_BIT
 class Int64Lowering {
  public:
-  Int64Lowering(Graph* graph, MachineOperatorBuilder* machine,
+  Int64Lowering(TFGraph* graph, MachineOperatorBuilder* machine,
                 CommonOperatorBuilder* common,
                 SimplifiedOperatorBuilder* simplified_, Zone* zone,
                 Signature<MachineRepresentation>* signature) {}
@@ -35,7 +35,7 @@ class Int64Lowering {
 
 class V8_EXPORT_PRIVATE Int64Lowering {
  public:
-  Int64Lowering(Graph* graph, MachineOperatorBuilder* machine,
+  Int64Lowering(TFGraph* graph, MachineOperatorBuilder* machine,
                 CommonOperatorBuilder* common,
                 SimplifiedOperatorBuilder* simplified_, Zone* zone,
                 Signature<MachineRepresentation>* signature);
@@ -54,7 +54,7 @@ class V8_EXPORT_PRIVATE Int64Lowering {
   };
 
   Zone* zone() const { return zone_; }
-  Graph* graph() const { return graph_; }
+  TFGraph* graph() const { return graph_; }
   MachineOperatorBuilder* machine() const { return machine_; }
   CommonOperatorBuilder* common() const { return common_; }
   SimplifiedOperatorBuilder* simplified() const { return simplified_; }
@@ -90,7 +90,7 @@ class V8_EXPORT_PRIVATE Int64Lowering {
     int input_index;
   };
 
-  Graph* const graph_;
+  TFGraph* const graph_;
   MachineOperatorBuilder* machine_;
   CommonOperatorBuilder* common_;
   SimplifiedOperatorBuilder* simplified_;

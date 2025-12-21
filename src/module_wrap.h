@@ -38,14 +38,69 @@ enum ModulePhase : int {
   kEvaluationPhase = 2,
 };
 
+/**
+ * ModuleCacheKey is used to uniquely identify a module request
+ * in the module cache. It is a composition of the module specifier
+ * and the import attributes. ModuleImportPhase is not included
+ * in the key.
+ */
+struct ModuleCacheKey : public MemoryRetainer {
+  using ImportAttributeVector =
+      std::vector<std::pair<std::string, std::string>>;
+
+  std::string specifier;
+  ImportAttributeVector import_attributes;
+  // A hash of the specifier, and import attributes.
+  // This does not guarantee uniqueness, but is used to reduce
+  // the number of comparisons needed when checking for equality.
+  std::size_t hash;
+
+  SET_MEMORY_INFO_NAME(ModuleCacheKey)
+  SET_SELF_SIZE(ModuleCacheKey)
+  void MemoryInfo(MemoryTracker* tracker) const override;
+
+  // Returns a string representation of the ModuleCacheKey.
+  std::string ToString() const;
+
+  template <int elements_per_attribute = 3>
+  static ModuleCacheKey From(v8::Local<v8::Context> context,
+                             v8::Local<v8::String> specifier,
+                             v8::Local<v8::FixedArray> import_attributes);
+  static ModuleCacheKey From(v8::Local<v8::Context> context,
+                             v8::Local<v8::ModuleRequest> v8_request);
+
+  struct Hash {
+    std::size_t operator()(const ModuleCacheKey& request) const {
+      return request.hash;
+    }
+  };
+
+  // Equality operator for ModuleCacheKey.
+  bool operator==(const ModuleCacheKey& other) const {
+    // Hash does not provide uniqueness guarantee, so ignore it.
+    return specifier == other.specifier &&
+           import_attributes == other.import_attributes;
+  }
+
+ private:
+  // Use public ModuleCacheKey::From to create instances.
+  ModuleCacheKey(std::string specifier,
+                 ImportAttributeVector import_attributes,
+                 std::size_t hash)
+      : specifier(specifier),
+        import_attributes(import_attributes),
+        hash(hash) {}
+};
+
 class ModuleWrap : public BaseObject {
  public:
   enum InternalFields {
     kModuleSlot = BaseObject::kInternalFieldCount,
-    kURLSlot,
     kModuleSourceObjectSlot,
     kSyntheticEvaluationStepsSlot,
-    kContextObjectSlot,  // Object whose creation context is the target Context
+    kContextObjectSlot,   // Object whose creation context is the target Context
+    kLinkedRequestsSlot,  // Array of linked requests, each is a ModuleWrap JS
+                          // wrapper object.
     kInternalFieldCount
   };
 
@@ -61,21 +116,21 @@ class ModuleWrap : public BaseObject {
       v8::Local<v8::Module> module,
       v8::Local<v8::Object> meta);
 
-  void MemoryInfo(MemoryTracker* tracker) const override {
-    tracker->TrackField("resolve_cache", resolve_cache_);
-  }
-
   v8::Local<v8::Context> context() const;
   v8::Maybe<bool> CheckUnsettledTopLevelAwait();
+  bool HasAsyncGraph();
 
   SET_MEMORY_INFO_NAME(ModuleWrap)
   SET_SELF_SIZE(ModuleWrap)
+  SET_NO_MEMORY_INFO()
 
   bool IsNotIndicativeOfMemoryLeakAtExit() const override {
     // XXX: The garbage collection rules for ModuleWrap are *super* unclear.
     // Do these objects ever get GC'd? Are we just okay with leaking them?
     return true;
   }
+
+  bool IsLinked() const { return linked_; }
 
   static v8::Local<v8::PrimitiveArray> GetHostDefinedOptions(
       v8::Isolate* isolate, v8::Local<v8::Symbol> symbol);
@@ -109,9 +164,6 @@ class ModuleWrap : public BaseObject {
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetModuleRequests(
       const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void InstantiateSync(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void EvaluateSync(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void GetNamespaceSync(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetModuleSourceObject(
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetModuleSourceObject(
@@ -120,11 +172,17 @@ class ModuleWrap : public BaseObject {
   static void Link(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Instantiate(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Evaluate(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void EvaluateSync(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetNamespace(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetStatus(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetError(const v8::FunctionCallbackInfo<v8::Value>& args);
 
+  static void HasAsyncGraph(v8::Local<v8::Name> property,
+                            const v8::PropertyCallbackInfo<v8::Value>& args);
+
   static void SetImportModuleDynamicallyCallback(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetImportMetaResolveInitializer(
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetInitializeImportMetaObjectCallback(
       const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -136,21 +194,34 @@ class ModuleWrap : public BaseObject {
 
   static v8::MaybeLocal<v8::Module> ResolveModuleCallback(
       v8::Local<v8::Context> context,
-      v8::Local<v8::String> specifier,
-      v8::Local<v8::FixedArray> import_attributes,
+      size_t module_request_index,
       v8::Local<v8::Module> referrer);
   static v8::MaybeLocal<v8::Object> ResolveSourceCallback(
       v8::Local<v8::Context> context,
-      v8::Local<v8::String> specifier,
-      v8::Local<v8::FixedArray> import_attributes,
+      size_t module_request_index,
       v8::Local<v8::Module> referrer);
   static ModuleWrap* GetFromModule(node::Environment*, v8::Local<v8::Module>);
 
+  // This method may throw a JavaScript exception, so the return type is
+  // wrapped in a Maybe.
+  static v8::Maybe<ModuleWrap*> ResolveModule(v8::Local<v8::Context> context,
+                                              size_t module_request_index,
+                                              v8::Local<v8::Module> referrer);
+
+  std::string url_;
   v8::Global<v8::Module> module_;
-  std::unordered_map<std::string, v8::Global<v8::Object>> resolve_cache_;
   contextify::ContextifyContext* contextify_context_ = nullptr;
   bool synthetic_ = false;
+  bool linked_ = false;
+  // This depends on the module to be instantiated so it begins with a
+  // nullopt value.
+  std::optional<bool> has_async_graph_ = std::nullopt;
   int module_hash_;
+  // Corresponds to the ModuleWrap* of the wrappers in kLinkedRequestsSlot.
+  // These are populated during Link(), and are only valid after that as
+  // convenient shortcuts, but do not hold the ModuleWraps alive. The actual
+  // strong references come from the array in kLinkedRequestsSlot.
+  std::vector<ModuleWrap*> linked_module_wraps_;
 };
 
 }  // namespace loader

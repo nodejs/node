@@ -6,6 +6,8 @@
 #define V8_OBJECTS_MODULE_INL_H_
 
 #include "src/objects/module.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/objects/objects-inl.h"  // Needed for write barriers
 #include "src/objects/scope-info.h"
 #include "src/objects/source-text-module.h"
@@ -24,11 +26,6 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(Module)
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSModuleNamespace)
 TQ_OBJECT_CONSTRUCTORS_IMPL(ScriptOrModule)
 
-NEVER_READ_ONLY_SPACE_IMPL(Module)
-NEVER_READ_ONLY_SPACE_IMPL(ModuleRequest)
-NEVER_READ_ONLY_SPACE_IMPL(SourceTextModule)
-NEVER_READ_ONLY_SPACE_IMPL(SyntheticModule)
-
 BOOL_ACCESSORS(SourceTextModule, flags, has_toplevel_await,
                HasToplevelAwaitBit::kShift)
 BIT_FIELD_ACCESSORS(SourceTextModule, flags, async_evaluation_ordinal,
@@ -39,14 +36,16 @@ ACCESSORS(SourceTextModule, async_parent_modules, Tagged<ArrayList>,
 BIT_FIELD_ACCESSORS(ModuleRequest, flags, position, ModuleRequest::PositionBits)
 
 inline void ModuleRequest::set_phase(ModuleImportPhase phase) {
-  DCHECK(PhaseBit::is_valid(phase));
+  DCHECK(PhaseBits::is_valid(phase));
   int hints = flags();
-  hints = PhaseBit::update(hints, phase);
+  hints = PhaseBits::update(hints, phase);
   set_flags(hints);
 }
 
 inline ModuleImportPhase ModuleRequest::phase() const {
-  return PhaseBit::decode(flags());
+  int value = flags() & PhaseBits::kMask;
+  DCHECK(value == 0 || value == 1 || value == 2);
+  return static_cast<ModuleImportPhase>(value);
 }
 
 struct Module::Hash {
@@ -58,8 +57,6 @@ struct Module::Hash {
 Tagged<SourceTextModuleInfo> SourceTextModule::info() const {
   return GetSharedFunctionInfo()->scope_info()->ModuleDescriptorInfo();
 }
-
-OBJECT_CONSTRUCTORS_IMPL(SourceTextModuleInfo, FixedArray)
 
 Tagged<FixedArray> SourceTextModuleInfo::module_requests() const {
   return Cast<FixedArray>(get(kModuleRequestsIndex));
@@ -81,7 +78,7 @@ Tagged<FixedArray> SourceTextModuleInfo::namespace_imports() const {
   return Cast<FixedArray>(get(kNamespaceImportsIndex));
 }
 
-#ifdef DEBUG
+// TODO(crbug.com/401059828): make it DEBUG only, once investigation is over.
 bool SourceTextModuleInfo::Equals(Tagged<SourceTextModuleInfo> other) const {
   return regular_exports() == other->regular_exports() &&
          regular_imports() == other->regular_imports() &&
@@ -89,7 +86,6 @@ bool SourceTextModuleInfo::Equals(Tagged<SourceTextModuleInfo> other) const {
          namespace_imports() == other->namespace_imports() &&
          module_requests() == other->module_requests();
 }
-#endif
 
 struct ModuleHandleHash {
   V8_INLINE size_t operator()(DirectHandle<Module> module) const {
@@ -127,8 +123,8 @@ Handle<SourceTextModule> SourceTextModule::GetCycleRoot(
 void SourceTextModule::AddAsyncParentModule(
     Isolate* isolate, DirectHandle<SourceTextModule> module,
     DirectHandle<SourceTextModule> parent) {
-  Handle<ArrayList> async_parent_modules(module->async_parent_modules(),
-                                         isolate);
+  DirectHandle<ArrayList> async_parent_modules(module->async_parent_modules(),
+                                               isolate);
   DirectHandle<ArrayList> new_array_list =
       ArrayList::Add(isolate, async_parent_modules, parent);
   module->set_async_parent_modules(*new_array_list);

@@ -5,7 +5,7 @@
 #include "src/common/assert-scope.h"
 
 #include "src/base/enum-set.h"
-#include "src/execution/isolate.h"
+#include "src/execution/isolate-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -15,7 +15,7 @@ namespace {
 // All asserts are allowed by default except for one, and the cleared bit is not
 // set.
 constexpr PerThreadAsserts kInitialValue =
-    ~PerThreadAsserts{HANDLE_DEREFERENCE_ALL_THREADS_ASSERT};
+    ~PerThreadAsserts{HANDLE_USAGE_ON_ALL_THREADS_ASSERT};
 static_assert(kInitialValue.contains(ASSERT_TYPE_IS_VALID_MARKER));
 
 // The cleared value is the only one where ASSERT_TYPE_IS_VALID_MARKER is not
@@ -61,6 +61,8 @@ bool PerThreadAssertScope<kAllow, kTypes...>::IsAllowed() {
 }
 
 #define PER_ISOLATE_ASSERT_SCOPE_DEFINITION(ScopeType, field, enable)      \
+  ScopeType::ScopeType() : ScopeType(Isolate::Current()) {}                \
+                                                                           \
   ScopeType::ScopeType(Isolate* isolate)                                   \
       : isolate_(isolate), old_data_(isolate->field()) {                   \
     DCHECK_NOT_NULL(isolate);                                              \
@@ -109,8 +111,7 @@ template class PerThreadAssertScope<false, HANDLE_ALLOCATION_ASSERT>;
 template class PerThreadAssertScope<true, HANDLE_ALLOCATION_ASSERT>;
 template class PerThreadAssertScope<false, HANDLE_DEREFERENCE_ASSERT>;
 template class PerThreadAssertScope<true, HANDLE_DEREFERENCE_ASSERT>;
-template class PerThreadAssertScope<true,
-                                    HANDLE_DEREFERENCE_ALL_THREADS_ASSERT>;
+template class PerThreadAssertScope<true, HANDLE_USAGE_ON_ALL_THREADS_ASSERT>;
 template class PerThreadAssertScope<false, CODE_DEPENDENCY_CHANGE_ASSERT>;
 template class PerThreadAssertScope<true, CODE_DEPENDENCY_CHANGE_ASSERT>;
 template class PerThreadAssertScope<false, CODE_ALLOCATION_ASSERT>;

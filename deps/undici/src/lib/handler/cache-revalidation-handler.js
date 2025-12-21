@@ -9,7 +9,7 @@ const assert = require('node:assert')
  *  here, which we then just pass on to the next handler (most likely a
  *  CacheHandler). Note that this assumes the proper headers were already
  *  included in the request to tell the origin that we want to revalidate the
- *  response (i.e. if-modified-since).
+ *  response (i.e. if-modified-since or if-none-match).
  *
  * @see https://www.rfc-editor.org/rfc/rfc9111.html#name-validation
  *

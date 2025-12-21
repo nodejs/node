@@ -18,15 +18,11 @@
 #include <string>
 #include <type_traits>
 
+#include "gtest/gtest.h"
 #include "absl/base/config.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/variant.h"
-
-#if defined(ABSL_INTERNAL_CPLUSPLUS_LANG) && \
-    ABSL_INTERNAL_CPLUSPLUS_LANG >= 201703L
-
-#include "gtest/gtest.h"
 
 namespace {
 
@@ -209,5 +205,3 @@ TEST(OverloadTest, HasConstexprConstructor) {
 }
 
 }  // namespace
-
-#endif

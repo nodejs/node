@@ -112,7 +112,7 @@ void MarkingStateBase::PushMarked(HeapObjectHeader& header,
 class BasicMarkingState : public MarkingStateBase {
  public:
   BasicMarkingState(HeapBase& heap, MarkingWorklists&, CompactionWorklists*);
-  ~BasicMarkingState() override = default;
+  ~BasicMarkingState() override;
 
   BasicMarkingState(const BasicMarkingState&) = delete;
   BasicMarkingState& operator=(const BasicMarkingState&) = delete;
@@ -146,6 +146,11 @@ class BasicMarkingState : public MarkingStateBase {
   inline void AccountMarkedBytes(const HeapObjectHeader&);
   inline void AccountMarkedBytes(BasePage*, size_t);
   size_t marked_bytes() const { return marked_bytes_; }
+  // Returns marked_bytes() and resets the counter internally, basically
+  // consuming the value of the marked bytes.
+  size_t RecentlyMarkedBytes() {
+    return marked_bytes_ - std::exchange(last_marked_bytes_, marked_bytes_);
+  }
 
   V8_EXPORT_PRIVATE void Publish() override;
 
@@ -224,6 +229,7 @@ class BasicMarkingState : public MarkingStateBase {
       movable_slots_worklist_;
 
   size_t marked_bytes_ = 0;
+  size_t last_marked_bytes_ = 0;
   bool in_ephemeron_processing_ = false;
   bool discovered_new_ephemeron_pairs_ = false;
   bool in_atomic_pause_ = false;
@@ -470,13 +476,7 @@ class ConcurrentMarkingState final : public BasicMarkingState {
                          CompactionWorklists* compaction_worklists)
       : BasicMarkingState(heap, marking_worklists, compaction_worklists) {}
 
-  ~ConcurrentMarkingState() override {
-    DCHECK_EQ(last_marked_bytes_, marked_bytes_);
-  }
-
-  size_t RecentlyMarkedBytes() {
-    return marked_bytes_ - std::exchange(last_marked_bytes_, marked_bytes_);
-  }
+  ~ConcurrentMarkingState() override = default;
 
   inline void AccountDeferredMarkedBytes(BasePage* base_page,
                                          size_t deferred_bytes) {
@@ -486,28 +486,31 @@ class ConcurrentMarkingState final : public BasicMarkingState {
     marked_bytes_ -= deferred_bytes;
     marked_bytes_map_[base_page] -= static_cast<int64_t>(deferred_bytes);
   }
-
- private:
-  size_t last_marked_bytes_ = 0;
 };
 
-template <size_t deadline_check_interval, typename WorklistLocal,
-          typename Callback, typename Predicate>
-bool DrainWorklistWithPredicate(Predicate should_yield,
-                                WorklistLocal& worklist_local,
-                                Callback callback) {
-  if (worklist_local.IsLocalAndGlobalEmpty()) return true;
-  // For concurrent markers, should_yield also reports marked bytes.
-  if (should_yield()) return false;
-  size_t processed_callback_count = deadline_check_interval;
+template <size_t kDeadlineCheckInterval, typename Predicate,
+          typename CreateStatsScopeCallback, typename WorklistLocal,
+          typename ProcessWorklistItemCallback>
+bool DrainWorklistWithPredicate(
+    Predicate ShouldYield, CreateStatsScopeCallback CreateStatsScope,
+    WorklistLocal& worklist_local,
+    ProcessWorklistItemCallback ProcessWorklistItem) {
+  if (worklist_local.IsLocalAndGlobalEmpty()) {
+    return true;
+  }
+  if (ShouldYield()) {
+    return false;
+  }
+  const auto stats_scope = CreateStatsScope();
+  size_t processed_callback_count = kDeadlineCheckInterval;
   typename WorklistLocal::ItemType item;
   while (worklist_local.Pop(&item)) {
-    callback(item);
-    if (--processed_callback_count == 0) {
-      if (should_yield()) {
+    ProcessWorklistItem(item);
+    if (V8_UNLIKELY(--processed_callback_count == 0)) {
+      if (ShouldYield()) {
         return false;
       }
-      processed_callback_count = deadline_check_interval;
+      processed_callback_count = kDeadlineCheckInterval;
     }
   }
   return true;
@@ -518,7 +521,7 @@ void DynamicallyTraceMarkedObject(Visitor& visitor,
                                   const HeapObjectHeader& header) {
   DCHECK(!header.IsInConstruction<mode>());
   DCHECK(header.IsMarked<AccessMode::kAtomic>());
-  header.Trace<mode>(&visitor);
+  header.TraceImpl<mode>(&visitor);
 }
 
 }  // namespace internal

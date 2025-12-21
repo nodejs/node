@@ -52,15 +52,11 @@ index v1.1.0..v1.1.1 100644
 ### Contributing
 
 The npm team enthusiastically welcomes contributions and project participation!
-There's a bunch of things you can do if you want to contribute! The
-[Contributor Guide](https://github.com/npm/cli/blob/latest/CONTRIBUTING.md)
-outlines the process for community interaction and contribution. Please don't
-hesitate to jump in if you'd like to, or even ask us questions if something
-isn't clear.
+There's a bunch of things you can do if you want to contribute!
+The [Contributor Guide](https://github.com/npm/cli/blob/latest/CONTRIBUTING.md) outlines the process for community interaction and contribution.
+Please don't hesitate to jump in if you'd like to, or even ask us questions if something isn't clear.
 
-All participants and maintainers in this project are expected to follow the
-[npm Code of Conduct](https://docs.npmjs.com/policies/conduct), and just
-generally be excellent to each other.
+All participants and maintainers in this project are expected to follow the [npm Code of Conduct](https://docs.npmjs.com/policies/conduct), and just generally be excellent to each other.
 
 Please refer to the [Changelog](CHANGELOG.md) for project history details, too.
 
@@ -70,23 +66,34 @@ Happy hacking!
 
 #### `> libnpmdif([ a, b ], [opts]) -> Promise<String>`
 
-Fetches the registry tarballs and compare files between a spec `a` and spec `b`. **npm** spec types are usually described in `<pkg-name>@<version>` form but multiple other types are alsos supported, for more info on valid specs take a look at [`npm-package-arg`](https://github.com/npm/npm-package-arg).
+Fetches the registry tarballs and compare files between a spec `a` and spec `b`.
+**npm** spec types are usually described in `<pkg-name>@<version>` form but multiple other types are also supported, for more info on valid specs take a look at [`npm-package-arg`](https://github.com/npm/npm-package-arg).
 
 **Options**:
 
-- `color <Boolean>`: Should add ANSI colors to string output? Defaults to `false`.
-- `tagVersionPrefix <Sring>`: What prefix should be used to define version numbers. Defaults to `v`
-- `diffUnified <Number>`: How many lines of code to print before/after each diff. Defaults to `3`.
-- `diffFiles <Array<String>>`: If set only prints patches for the files listed in this array (also accepts globs). Defaults to `undefined`.
-- `diffIgnoreAllSpace <Boolean>`: Whether or not should ignore changes in whitespace (very useful to avoid indentation changes extra diff lines). Defaults to `false`.
-- `diffNameOnly <Boolean>`: Prints only file names and no patch diffs. Defaults to `false`.
-- `diffNoPrefix <Boolean>`: If true then skips printing any prefixes in filenames. Defaults to `false`.
-- `diffSrcPrefix <String>`: Prefix to be used in the filenames from `a`. Defaults to `a/`.
-- `diffDstPrefix <String>`: Prefix to be used in the filenames from `b`. Defaults to `b/`.
-- `diffText <Boolean>`: Should treat all files as text and try to print diff for binary files. Defaults to `false`.
+- `color <Boolean>`: Should add ANSI colors to string output?
+  Defaults to `false`.
+- `tagVersionPrefix <String>`: What prefix should be used to define version numbers.
+  Defaults to `v`
+- `diffUnified <Number>`: How many lines of code to print before/after each diff.
+  Defaults to `3`.
+- `diffFiles <Array<String>>`: If set only prints patches for the files listed in this array (also accepts globs).
+  Defaults to `undefined`.
+- `diffIgnoreAllSpace <Boolean>`: Whether or not should ignore changes in whitespace (very useful to avoid indentation changes extra diff lines).
+  Defaults to `false`.
+- `diffNameOnly <Boolean>`: Prints only file names and no patch diffs.
+  Defaults to `false`.
+- `diffNoPrefix <Boolean>`: If true then skips printing any prefixes in filenames.
+  Defaults to `false`.
+- `diffSrcPrefix <String>`: Prefix to be used in the filenames from `a`.
+  Defaults to `a/`.
+- `diffDstPrefix <String>`: Prefix to be used in the filenames from `b`.
+  Defaults to `b/`.
+- `diffText <Boolean>`: Should treat all files as text and try to print diff for binary files.
+  Defaults to `false`.
 - ...`cache`, `registry`, `where` and other common options accepted by [pacote](https://github.com/npm/pacote#options)
 
-Returns a `Promise` that fullfils with a `String` containing the resulting patch diffs.
+Returns a `Promise` that fulfills with a `String` containing the resulting patch diffs.
 
 Throws an error if either `a` or `b` are missing or if trying to diff more than two specs.
 

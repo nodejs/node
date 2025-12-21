@@ -31,6 +31,8 @@ using ::v8::Value;
 
 namespace {
 
+constexpr v8::EmbedderDataTypeTag kApiInterceptorTag = 1;
+
 void Returns42(const v8::FunctionCallbackInfo<v8::Value>& info) {
   info.GetReturnValue().Set(42);
 }
@@ -873,7 +875,7 @@ THREADED_TEST(InObjectLiteralDefinitionWithInterceptor) {
 
 THREADED_TEST(InterceptorHasOwnProperty) {
   LocalContext context;
-  v8::Isolate* isolate = context->GetIsolate();
+  v8::Isolate* isolate = context.isolate();
   v8::HandleScope scope(isolate);
   Local<v8::FunctionTemplate> fun_templ = v8::FunctionTemplate::New(isolate);
   Local<v8::ObjectTemplate> instance_templ = fun_templ->InstanceTemplate();
@@ -901,7 +903,7 @@ THREADED_TEST(InterceptorHasOwnProperty) {
 
 THREADED_TEST(InterceptorHasOwnPropertyCausingGC) {
   LocalContext context;
-  v8::Isolate* isolate = context->GetIsolate();
+  v8::Isolate* isolate = context.isolate();
   v8::HandleScope scope(isolate);
   Local<v8::FunctionTemplate> fun_templ = v8::FunctionTemplate::New(isolate);
   Local<v8::ObjectTemplate> instance_templ = fun_templ->InstanceTemplate();
@@ -1434,7 +1436,7 @@ THREADED_TEST(InterceptorLoadGlobalICGlobalWithInterceptor) {
   CHECK(IsJSGlobalProxy(*global_proxy));
   i::DirectHandle<i::JSGlobalObject> global(
       i::Cast<i::JSGlobalObject>(global_proxy->map()->prototype()),
-      global_proxy->GetIsolate());
+      CcTest::i_isolate());
   CHECK(global->map()->has_named_interceptor());
 
   v8::Local<Value> value = CompileRun(
@@ -1498,7 +1500,7 @@ THREADED_TEST(InterceptorLoadICGlobalWithInterceptor) {
   CHECK(IsJSGlobalProxy(*global_proxy));
   i::DirectHandle<i::JSGlobalObject> global(
       i::Cast<i::JSGlobalObject>(global_proxy->map()->prototype()),
-      global_proxy->GetIsolate());
+      CcTest::i_isolate());
   CHECK(global->map()->has_named_interceptor());
 
   ExpectInt32(
@@ -2626,13 +2628,13 @@ void CheckPropertyDefinerCallbackInDefineNamedOwnIC(Local<Context> context,
 THREADED_TEST(PropertyDefinerCallbackInDefineNamedOwnIC) {
   {
     LocalContext env;
-    v8::HandleScope scope(env->GetIsolate());
+    v8::HandleScope scope(env.isolate());
     CheckPropertyDefinerCallbackInDefineNamedOwnIC(env.local(), true);
   }
 
   {
     LocalContext env;
-    v8::HandleScope scope(env->GetIsolate());
+    v8::HandleScope scope(env.isolate());
     CheckPropertyDefinerCallbackInDefineNamedOwnIC(env.local(), false);
   }
 
@@ -2640,7 +2642,7 @@ THREADED_TEST(PropertyDefinerCallbackInDefineNamedOwnIC) {
     i::v8_flags.lazy_feedback_allocation = false;
     i::FlagList::EnforceFlagImplications();
     LocalContext env;
-    v8::HandleScope scope(env->GetIsolate());
+    v8::HandleScope scope(env.isolate());
     CheckPropertyDefinerCallbackInDefineNamedOwnIC(env.local(), true);
   }
 
@@ -2648,7 +2650,7 @@ THREADED_TEST(PropertyDefinerCallbackInDefineNamedOwnIC) {
     i::v8_flags.lazy_feedback_allocation = false;
     i::FlagList::EnforceFlagImplications();
     LocalContext env;
-    v8::HandleScope scope(env->GetIsolate());
+    v8::HandleScope scope(env.isolate());
     CheckPropertyDefinerCallbackInDefineNamedOwnIC(env.local(), false);
   }
 }
@@ -2762,7 +2764,7 @@ THREADED_TEST(IndexedPropertyHandlerGetter) {
 
 THREADED_TEST(PropertyHandlerInPrototype) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
 
   v8::Local<v8::FunctionTemplate> templ = v8::FunctionTemplate::New(isolate);
@@ -2818,7 +2820,7 @@ THREADED_TEST(PropertyHandlerInPrototype) {
 
 TEST(PropertyHandlerInPrototypeWithDefine) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
 
   v8::Local<v8::FunctionTemplate> templ = v8::FunctionTemplate::New(isolate);
@@ -3302,7 +3304,7 @@ THREADED_TEST(NoSideEffectPropertyHandler) {
 
 THREADED_TEST(HiddenPropertiesWithInterceptors) {
   LocalContext context;
-  v8::Isolate* isolate = context->GetIsolate();
+  v8::Isolate* isolate = context.isolate();
   v8::HandleScope scope(isolate);
 
   interceptor_for_hidden_properties_called = false;
@@ -3612,8 +3614,9 @@ void SloppyArgsIndexedPropertyEnumerator(
   // Have to populate the handle manually, as it's not Cast-able.
   i::DirectHandle<i::JSReceiver> o =
       v8::Utils::OpenDirectHandle<Object, i::JSReceiver>(result);
-  i::Handle<i::JSArray> array(i::UncheckedCast<i::JSArray>(*o),
-                              o->GetIsolate());
+  i::DirectHandle<i::JSArray> array(
+      i::UncheckedCast<i::JSArray>(*o),
+      reinterpret_cast<i::Isolate*>(info.GetIsolate()));
   info.GetReturnValue().Set(v8::Utils::ToLocal(array));
 }
 
@@ -5106,8 +5109,8 @@ THREADED_TEST(Regress256330) {
   if (!i::v8_flags.turbofan) return;
   i::v8_flags.allow_natives_syntax = true;
   LocalContext context;
-  v8::HandleScope scope(context->GetIsolate());
-  Local<FunctionTemplate> templ = FunctionTemplate::New(context->GetIsolate());
+  v8::HandleScope scope(context.isolate());
+  Local<FunctionTemplate> templ = FunctionTemplate::New(context.isolate());
   AddInterceptor(templ, InterceptorGetter, InterceptorSetter);
   context->Global()
       ->Set(context.local(), v8_str("Bug"),
@@ -5234,8 +5237,8 @@ THREADED_TEST(OptimizedInterceptorFieldWrite) {
 
 THREADED_TEST(Regress149912) {
   LocalContext context;
-  v8::HandleScope scope(context->GetIsolate());
-  Local<FunctionTemplate> templ = FunctionTemplate::New(context->GetIsolate());
+  v8::HandleScope scope(context.isolate());
+  Local<FunctionTemplate> templ = FunctionTemplate::New(context.isolate());
   AddInterceptor(templ, EmptyInterceptorGetter, EmptyInterceptorSetter);
   context->Global()
       ->Set(context.local(), v8_str("Bug"),
@@ -5246,8 +5249,8 @@ THREADED_TEST(Regress149912) {
 
 THREADED_TEST(Regress625155) {
   LocalContext context;
-  v8::HandleScope scope(context->GetIsolate());
-  Local<FunctionTemplate> templ = FunctionTemplate::New(context->GetIsolate());
+  v8::HandleScope scope(context.isolate());
+  Local<FunctionTemplate> templ = FunctionTemplate::New(context.isolate());
   AddInterceptor(templ, EmptyInterceptorGetter, EmptyInterceptorSetter);
   context->Global()
       ->Set(context.local(), v8_str("Bug"),
@@ -5476,11 +5479,15 @@ struct PreprocessExceptionTestConfig {
   bool descriptor_should_throw : 1 = false;
 };
 
+// This tag value has been picked arbitrarily between 0 and
+// V8_EXTERNAL_POINTER_TAG_COUNT.
+constexpr v8::ExternalPointerTypeTag kTestConfigTag = 14;
+
 template <typename T>
 PreprocessExceptionTestConfig* GetPETConfig(
     const v8::PropertyCallbackInfo<T>& info) {
   return reinterpret_cast<PreprocessExceptionTestConfig*>(
-      v8::External::Cast(*info.Data())->Value());
+      v8::External::Cast(*info.Data())->Value(kTestConfigTag));
 }
 
 const char* ToString(v8::ExceptionContext kind) {
@@ -5570,7 +5577,7 @@ void CheckMessage(v8::TryCatch& try_catch, const char* expected_message) {
 v8::Intercepted PETNamedQuery(
     Local<Name> name, const v8::PropertyCallbackInfo<v8::Integer>& info) {
   if (GetPETConfig(info)->query_should_throw) {
-    info.GetIsolate()->ThrowError(v8_str("Named query failed."));
+    info.GetIsolate()->ThrowError("Named query failed.");
   } else {
     info.GetReturnValue().Set(v8::None);
   }
@@ -5579,7 +5586,7 @@ v8::Intercepted PETNamedQuery(
 v8::Intercepted PETNamedGetter(Local<Name> name,
                                const v8::PropertyCallbackInfo<Value>& info) {
   if (GetPETConfig(info)->getter_should_throw) {
-    info.GetIsolate()->ThrowError(v8_str("Named getter failed."));
+    info.GetIsolate()->ThrowError("Named getter failed.");
   } else {
     info.GetReturnValue().Set(153);
   }
@@ -5587,24 +5594,24 @@ v8::Intercepted PETNamedGetter(Local<Name> name,
 }
 v8::Intercepted PETNamedSetter(Local<Name> name, Local<Value> value,
                                const v8::PropertyCallbackInfo<void>& info) {
-  info.GetIsolate()->ThrowError(v8_str("Named setter failed."));
+  info.GetIsolate()->ThrowError("Named setter failed.");
   return v8::Intercepted::kYes;
 }
 v8::Intercepted PETNamedDeleter(
     Local<Name> name, const v8::PropertyCallbackInfo<v8::Boolean>& info) {
-  info.GetIsolate()->ThrowError(v8_str("Named deleter failed."));
+  info.GetIsolate()->ThrowError("Named deleter failed.");
   return v8::Intercepted::kYes;
 }
 v8::Intercepted PETNamedDefiner(Local<Name> name,
                                 const v8::PropertyDescriptor& desc,
                                 const v8::PropertyCallbackInfo<void>& info) {
-  info.GetIsolate()->ThrowError(v8_str("Named definer failed."));
+  info.GetIsolate()->ThrowError("Named definer failed.");
   return v8::Intercepted::kYes;
 }
 v8::Intercepted PETNamedDescriptor(
     Local<Name> property, const v8::PropertyCallbackInfo<Value>& info) {
   if (GetPETConfig(info)->descriptor_should_throw) {
-    info.GetIsolate()->ThrowError(v8_str("Named descriptor failed."));
+    info.GetIsolate()->ThrowError("Named descriptor failed.");
   } else {
     v8::Isolate* isolate = info.GetIsolate();
     v8::Local<v8::Object> descriptor = v8::Object::New(isolate);
@@ -5626,7 +5633,7 @@ v8::Intercepted PETNamedDescriptor(
 v8::Intercepted PETIndexedQuery(
     uint32_t index, const v8::PropertyCallbackInfo<v8::Integer>& info) {
   if (GetPETConfig(info)->query_should_throw) {
-    info.GetIsolate()->ThrowError(v8_str("Indexed query failed."));
+    info.GetIsolate()->ThrowError("Indexed query failed.");
   } else {
     info.GetReturnValue().Set(v8::None);
   }
@@ -5635,7 +5642,7 @@ v8::Intercepted PETIndexedQuery(
 v8::Intercepted PETIndexedGetter(uint32_t index,
                                  const v8::PropertyCallbackInfo<Value>& info) {
   if (GetPETConfig(info)->getter_should_throw) {
-    info.GetIsolate()->ThrowError(v8_str("Indexed getter failed."));
+    info.GetIsolate()->ThrowError("Indexed getter failed.");
   } else {
     info.GetReturnValue().Set(153);
   }
@@ -5643,24 +5650,24 @@ v8::Intercepted PETIndexedGetter(uint32_t index,
 }
 v8::Intercepted PETIndexedSetter(uint32_t index, Local<Value> value,
                                  const v8::PropertyCallbackInfo<void>& info) {
-  info.GetIsolate()->ThrowError(v8_str("Indexed setter failed."));
+  info.GetIsolate()->ThrowError("Indexed setter failed.");
   return v8::Intercepted::kYes;
 }
 v8::Intercepted PETIndexedDeleter(
     uint32_t index, const v8::PropertyCallbackInfo<v8::Boolean>& info) {
-  info.GetIsolate()->ThrowError(v8_str("Indexed deleter failed."));
+  info.GetIsolate()->ThrowError("Indexed deleter failed.");
   return v8::Intercepted::kYes;
 }
 v8::Intercepted PETIndexedDefiner(uint32_t index,
                                   const v8::PropertyDescriptor& desc,
                                   const v8::PropertyCallbackInfo<void>& info) {
-  info.GetIsolate()->ThrowError(v8_str("Indexed definer failed."));
+  info.GetIsolate()->ThrowError("Indexed definer failed.");
   return v8::Intercepted::kYes;
 }
 v8::Intercepted PETIndexedDescriptor(
     uint32_t index, const v8::PropertyCallbackInfo<Value>& info) {
   if (GetPETConfig(info)->descriptor_should_throw) {
-    info.GetIsolate()->ThrowError(v8_str("Indexed descriptor failed."));
+    info.GetIsolate()->ThrowError("Indexed descriptor failed.");
   } else {
     v8::Isolate* isolate = info.GetIsolate();
     v8::Local<v8::Object> descriptor = v8::Object::New(isolate);
@@ -5929,13 +5936,13 @@ TEST(PreprocessExceptionFromInterceptorsWithoutDescriptorCallback) {
       nullptr,  // enumerator
       PETNamedDefiner,
       nullptr,  // descriptor
-      v8::External::New(isolate, &config)));
+      v8::External::New(isolate, &config, kTestConfigTag)));
   obj_template->SetHandler(v8::IndexedPropertyHandlerConfiguration(
       PETIndexedGetter, PETIndexedSetter, PETIndexedQuery, PETIndexedDeleter,
       nullptr,  // enumerator
       PETIndexedDefiner,
       nullptr,  // descriptor
-      v8::External::New(isolate, &config)));
+      v8::External::New(isolate, &config, kTestConfigTag)));
 
   LocalContext env;
   Local<Context> ctx = env.local();
@@ -5968,12 +5975,12 @@ TEST(PreprocessExceptionFromInterceptorsWithDescriptorCallback) {
       PETNamedGetter, PETNamedSetter, PETNamedQuery, PETNamedDeleter,
       nullptr,  // enumerator
       PETNamedDefiner, PETNamedDescriptor,
-      v8::External::New(isolate, &config)));
+      v8::External::New(isolate, &config, kTestConfigTag)));
   obj_template->SetHandler(v8::IndexedPropertyHandlerConfiguration(
       PETIndexedGetter, PETIndexedSetter, PETIndexedQuery, PETIndexedDeleter,
       nullptr,  // enumerator
       PETIndexedDefiner, PETIndexedDescriptor,
-      v8::External::New(isolate, &config)));
+      v8::External::New(isolate, &config, kTestConfigTag)));
 
   LocalContext env;
   Local<Context> ctx = env.local();
@@ -5995,17 +6002,16 @@ Local<Object> BuildWrappedObject(v8::Isolate* isolate, T* data) {
   templ->SetInternalFieldCount(1);
   auto instance =
       templ->NewInstance(isolate->GetCurrentContext()).ToLocalChecked();
-  instance->SetAlignedPointerInInternalField(0, data);
+  instance->SetAlignedPointerInInternalField(0, data, kApiInterceptorTag);
   return instance;
 }
-
 
 template <typename T>
 T* GetWrappedObject(Local<Value> data) {
   return reinterpret_cast<T*>(
-      Object::Cast(*data)->GetAlignedPointerFromInternalField(0));
+      Object::Cast(*data)->GetAlignedPointerFromInternalField(
+          0, kApiInterceptorTag));
 }
-
 
 struct AccessCheckData {
   int count;
@@ -6020,17 +6026,6 @@ struct ShouldInterceptData {
 v8::Intercepted ShouldNamedInterceptor(
     Local<Name> name, const v8::PropertyCallbackInfo<Value>& info) {
   CheckReturnValue(info, FUNCTION_ADDR(ShouldNamedInterceptor));
-  auto data = GetWrappedObject<ShouldInterceptData>(info.Data());
-  if (!data->should_intercept) return v8::Intercepted::kNo;
-  // Side effects are allowed only when the property is present or throws.
-  ApiTestFuzzer::Fuzz();
-  info.GetReturnValue().Set(v8_num(data->value));
-  return v8::Intercepted::kYes;
-}
-
-v8::Intercepted ShouldIndexedInterceptor(
-    uint32_t, const v8::PropertyCallbackInfo<Value>& info) {
-  CheckReturnValue(info, FUNCTION_ADDR(ShouldIndexedInterceptor));
   auto data = GetWrappedObject<ShouldInterceptData>(info.Data());
   if (!data->should_intercept) return v8::Intercepted::kNo;
   // Side effects are allowed only when the property is present or throws.
@@ -6524,7 +6519,7 @@ v8::Intercepted CheckReceiver(Local<Name> name,
 
 TEST(Regress609134Interceptor) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
   auto fun_templ = v8::FunctionTemplate::New(isolate);
   fun_templ->InstanceTemplate()->SetHandler(
@@ -6544,10 +6539,12 @@ TEST(Regress609134Interceptor) {
 
 namespace {
 
+constexpr v8::ExternalPointerTypeTag kCallsTag = 15;
+
 v8::Intercepted Regress42204611_Getter(
     Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
   std::vector<std::string>* calls = reinterpret_cast<std::vector<std::string>*>(
-      info.Data().As<v8::External>()->Value());
+      info.Data().As<v8::External>()->Value(kCallsTag));
 
   calls->push_back("getter");
   return v8::Intercepted::kNo;
@@ -6556,7 +6553,7 @@ v8::Intercepted Regress42204611_Setter(
     Local<Name> name, Local<Value> value,
     const v8::PropertyCallbackInfo<void>& info) {
   std::vector<std::string>* calls = reinterpret_cast<std::vector<std::string>*>(
-      info.Data().As<v8::External>()->Value());
+      info.Data().As<v8::External>()->Value(kCallsTag));
 
   calls->push_back("setter");
   return v8::Intercepted::kNo;
@@ -6565,7 +6562,7 @@ v8::Intercepted Regress42204611_Definer(
     Local<Name> name, const v8::PropertyDescriptor& descriptor,
     const v8::PropertyCallbackInfo<void>& info) {
   std::vector<std::string>* calls = reinterpret_cast<std::vector<std::string>*>(
-      info.Data().As<v8::External>()->Value());
+      info.Data().As<v8::External>()->Value(kCallsTag));
 
   calls->push_back("definer");
   return v8::Intercepted::kNo;
@@ -6576,11 +6573,12 @@ v8::Intercepted Regress42204611_Definer(
 // Regression test for crbug.com/42204611
 THREADED_TEST(Regress42204611) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
-  v8::HandleScope scope(isolate);
+  v8::Isolate* isolate = env.isolate();
+  v8::HandleScope handle_scope(isolate);
 
   std::vector<std::string> calls;
-  Local<v8::External> calls_ext = v8::External::New(CcTest::isolate(), &calls);
+  Local<v8::External> calls_ext =
+      v8::External::New(CcTest::isolate(), &calls, kCallsTag);
 
   v8::Local<v8::ObjectTemplate> object_template =
       v8::ObjectTemplate::New(isolate);

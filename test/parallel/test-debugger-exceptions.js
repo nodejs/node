@@ -13,7 +13,7 @@ const path = require('path');
 {
   const scriptFullPath = fixtures.path('debugger', 'exceptions.js');
   const script = path.relative(process.cwd(), scriptFullPath);
-  const cli = startCLI(['--port=0', script]);
+  const cli = startCLI([script]);
 
   (async () => {
     try {

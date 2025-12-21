@@ -101,7 +101,7 @@ const getter = ({ data, key }, { unwrapSingleItemArrays = true } = {}) => {
 
     // extra logic to take into account printing array, along with its
     // special syntax in which using a dot-sep property name after an
-    // arry will expand it's results, e.g:
+    // array will expand it's results, e.g:
     // arr.name -> arr[0].name=value, arr[1].name=value, ...
     const maybeIndex = Number(k)
     if (Array.isArray(_data) && !Number.isInteger(maybeIndex)) {
@@ -206,7 +206,7 @@ const setter = ({ data, key, value, force }) => {
     }
 
     // sets items from the parsed array of keys as objects, recurses to
-    // setKeys in case there are still items to be handled, otherwise it
+    // setKeys in case there are still items to be handled; otherwise, it
     // just sets the original value set by the user
     if (keys.length) {
       _data[_key] = setKeys(next(), keys.shift())
@@ -270,7 +270,7 @@ class Queryable {
     }
   }
 
-  // return the value for a single query if found, otherwise returns undefined
+  // return the value for a single query if found; otherwise, returns undefined
   get (query) {
     const obj = this.query(query)
     if (obj) {

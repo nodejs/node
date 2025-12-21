@@ -125,7 +125,7 @@ const mockExitHandler = async (t, {
       ...errors,
     ],
     npm,
-    // Make it async to make testing ergonomics a little easier so we dont need
+    // Make it async to make testing ergonomics a little easier so we don't need
     // to t.plan() every test to make sure we get process.exit called.
     exitHandler: (argErr) => new Promise(res => {
       process.once('exit', res)

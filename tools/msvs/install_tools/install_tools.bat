@@ -13,7 +13,7 @@ echo This script will install Python and the Visual Studio Build Tools, necessar
 echo to compile Node.js native modules. Note that Chocolatey and required Windows
 echo updates will also be installed.
 echo.
-echo This will require about 3 GiB of free disk space, plus any space necessary to
+echo This will require about 7 GiB of free disk space, plus any space necessary to
 echo install Windows updates. This will take a while to run.
 echo.
 echo Please close all open programs for the duration of the installation. If the
@@ -39,7 +39,7 @@ echo license terms or not. Read and understand the license terms of the packages
 echo being installed and their dependencies prior to installation:
 echo - https://chocolatey.org/packages/chocolatey
 echo - https://chocolatey.org/packages/python
-echo - https://chocolatey.org/packages/visualstudio2019-workload-vctools
+echo - https://chocolatey.org/packages/visualstudio2022-workload-vctools
 echo.
 echo This script is provided AS-IS without any warranties of any kind
 echo ----------------------------------------------------------------
@@ -61,6 +61,6 @@ cls
     -ArgumentList '-NoProfile -InputFormat None -ExecutionPolicy Bypass -Command ^
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; ^
     iex ((New-Object System.Net.WebClient).DownloadString(''https://chocolatey.org/install.ps1'')); ^
-    choco upgrade -y python visualstudio2019-workload-vctools; ^
+    choco upgrade -y python visualstudio2022-workload-vctools; ^
     Read-Host ''Type ENTER to exit'' ' ^
     -Verb RunAs

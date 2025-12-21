@@ -19,7 +19,8 @@ AssertionError [ERR_ASSERTION]: ifError got unwanted exception: test error
       at a (*if-error-has-good-stack.js:*:*)
       at Object.<anonymous> (*if-error-has-good-stack.js:*:*),
   expected: null,
-  operator: 'ifError'
+  operator: 'ifError',
+  diff: 'simple'
 }
 
 Node.js *

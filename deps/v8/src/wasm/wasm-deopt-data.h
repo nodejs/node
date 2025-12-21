@@ -20,11 +20,11 @@ class DeoptimizationLiteral;
 namespace v8::internal::wasm {
 
 // The "header" of the full deopt data for an optimized wasm function containing
-// overall counts used to access the unerlying translated values, literals etc.
+// overall counts used to access the underlying translated values, literals etc.
 struct WasmDeoptData {
   uint32_t entry_count = 0;  // Count of deopt points.
   uint32_t translation_array_size = 0;
-  uint32_t deopt_literals_size = 0;
+  uint32_t num_deopt_literals = 0;
   // The offset inside the code to the first deopt builtin call instruction.
   // This is used to map a pc back to a the "deopt index".
   int deopt_exit_start_offset = 0;
@@ -97,6 +97,9 @@ class WasmDeoptDataProcessor {
 struct LiftoffFrameDescriptionForDeopt {
   uint32_t wire_bytes_offset = 0;
   uint32_t pc_offset = 0;
+#ifdef V8_ENABLE_CET_SHADOW_STACK
+  uint32_t adapt_shadow_stack_pc_offset = 0;
+#endif  // V8_ENABLE_CET_SHADOW_STACK
   std::vector<LiftoffVarState> var_state = {};
   // If the trusted_instance is cached in a register additionally to the stack
   // slot, this register needs to be updated as well.

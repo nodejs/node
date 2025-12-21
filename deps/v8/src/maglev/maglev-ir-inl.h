@@ -5,232 +5,28 @@
 #ifndef V8_MAGLEV_MAGLEV_IR_INL_H_
 #define V8_MAGLEV_MAGLEV_IR_INL_H_
 
-#include "src/interpreter/bytecode-register.h"
 #include "src/maglev/maglev-ir.h"
+// Include the non-inl header before the rest of the headers.
+
+#include "src/interpreter/bytecode-register.h"
+#include "src/maglev/maglev-deopt-frame-visitor.h"
+#include "src/sandbox/js-dispatch-table-inl.h"
 
 namespace v8 {
 namespace internal {
 namespace maglev {
 
-inline const VirtualObject::List& GetVirtualObjects(
-    const DeoptFrame& deopt_frame) {
-  if (deopt_frame.type() == DeoptFrame::FrameType::kInterpretedFrame) {
-    return deopt_frame.as_interpreted().frame_state()->virtual_objects();
-  }
-  DCHECK_NOT_NULL(deopt_frame.parent());
-  return GetVirtualObjects(*deopt_frame.parent());
-}
-
-namespace detail {
-
-enum class DeoptFrameVisitMode {
-  kDefault,
-  kRemoveIdentities,
-};
-
-template <DeoptFrameVisitMode mode, typename T>
-using const_if_default =
-    std::conditional_t<mode == DeoptFrameVisitMode::kDefault, const T, T>;
-
-template <DeoptFrameVisitMode mode>
-using ValueNodeT =
-    std::conditional_t<mode == DeoptFrameVisitMode::kDefault, ValueNode*,
-                       ValueNode*&>;
-
-template <DeoptFrameVisitMode mode, typename Function>
-void DeepForEachInputSingleFrameImpl(
-    const_if_default<mode, DeoptFrame>& frame, InputLocation*& input_location,
-    Function&& f,
-    std::function<bool(interpreter::Register)> is_result_register) {
-  switch (frame.type()) {
-    case DeoptFrame::FrameType::kInterpretedFrame:
-      f(frame.as_interpreted().closure(), input_location);
-      frame.as_interpreted().frame_state()->ForEachValue(
-          frame.as_interpreted().unit(),
-          [&](ValueNodeT<mode> node, interpreter::Register reg) {
-            // Skip over the result location for lazy deopts, since it is
-            // irrelevant for lazy deopts (unoptimized code will recreate the
-            // result).
-            if (is_result_register(reg)) return;
-            f(node, input_location);
-          });
-      break;
-    case DeoptFrame::FrameType::kInlinedArgumentsFrame: {
-      // The inlined arguments frame can never be the top frame.
-      f(frame.as_inlined_arguments().closure(), input_location);
-      for (ValueNodeT<mode> node : frame.as_inlined_arguments().arguments()) {
-        f(node, input_location);
-      }
-      break;
-    }
-    case DeoptFrame::FrameType::kConstructInvokeStubFrame: {
-      f(frame.as_construct_stub().receiver(), input_location);
-      f(frame.as_construct_stub().context(), input_location);
-      break;
-    }
-    case DeoptFrame::FrameType::kBuiltinContinuationFrame:
-      for (ValueNodeT<mode> node :
-           frame.as_builtin_continuation().parameters()) {
-        f(node, input_location);
-      }
-      f(frame.as_builtin_continuation().context(), input_location);
-      break;
-  }
-}
-
-template <DeoptFrameVisitMode mode, typename Function>
-void DeepForVirtualObject(VirtualObject* vobject,
-                          InputLocation*& input_location,
-                          const VirtualObject::List& virtual_objects,
-                          Function&& f) {
-  if (vobject->type() != VirtualObject::kDefault) return;
-  for (uint32_t i = 0; i < vobject->slot_count(); i++) {
-    ValueNode* value = vobject->get_by_index(i);
-    if (IsConstantNode(value->opcode())) {
-      // No location assigned to constants.
-      continue;
-    }
-    if constexpr (mode == DeoptFrameVisitMode::kRemoveIdentities) {
-      if (value->Is<Identity>()) {
-        value = value->input(0).node();
-        vobject->set_by_index(i, value);
-      }
-    }
-    // Special nodes.
-    switch (value->opcode()) {
-      case Opcode::kArgumentsElements:
-      case Opcode::kArgumentsLength:
-      case Opcode::kRestLength:
-        // No location assigned to these opcodes.
-        break;
-      case Opcode::kVirtualObject:
-        UNREACHABLE();
-      case Opcode::kInlinedAllocation: {
-        InlinedAllocation* alloc = value->Cast<InlinedAllocation>();
-        VirtualObject* vobject = virtual_objects.FindAllocatedWith(alloc);
-        CHECK_NOT_NULL(vobject);
-        // Check if it has escaped.
-        if (alloc->HasBeenAnalysed() && alloc->HasBeenElided()) {
-          input_location++;  // Reserved for the inlined allocation.
-          DeepForVirtualObject<mode>(vobject, input_location, virtual_objects,
-                                     f);
-        } else {
-          f(alloc, input_location);
-          input_location +=
-              vobject->InputLocationSizeNeeded(virtual_objects) + 1;
-        }
-        break;
-      }
-      default:
-        f(value, input_location);
-        input_location++;
-        break;
-    }
-  }
-}
-
-template <DeoptFrameVisitMode mode, typename Function>
-void DeepForEachInputAndVirtualObject(
-    const_if_default<mode, DeoptFrame>& frame, InputLocation*& input_location,
-    Function&& f,
-    std::function<bool(interpreter::Register)> is_result_register =
-        [](interpreter::Register) { return false; }) {
-  const VirtualObject::List& virtual_objects = GetVirtualObjects(frame);
-  auto update_node = [&f, &virtual_objects](ValueNodeT<mode> node,
-                                            InputLocation*& input_location) {
-    DCHECK(!node->template Is<VirtualObject>());
-    if constexpr (mode == DeoptFrameVisitMode::kRemoveIdentities) {
-      if (node->template Is<Identity>()) {
-        node = node->input(0).node();
-      }
-    }
-    if (auto alloc = node->template TryCast<InlinedAllocation>()) {
-      VirtualObject* vobject = virtual_objects.FindAllocatedWith(alloc);
-      CHECK_NOT_NULL(vobject);
-      if (alloc->HasBeenAnalysed() && alloc->HasBeenElided()) {
-        input_location++;  // Reserved for the inlined allocation.
-        return DeepForVirtualObject<mode>(vobject, input_location,
-                                          virtual_objects, f);
-      } else {
-        f(alloc, input_location);
-        input_location += vobject->InputLocationSizeNeeded(virtual_objects) + 1;
-      }
-    } else {
-      f(node, input_location);
-      input_location++;
-    }
-  };
-  DeepForEachInputSingleFrameImpl<mode>(frame, input_location, update_node,
-                                        is_result_register);
-}
-
-template <DeoptFrameVisitMode mode, typename Function>
-void DeepForEachInputImpl(const_if_default<mode, DeoptFrame>& frame,
-                          InputLocation*& input_location, Function&& f) {
-  if (frame.parent()) {
-    DeepForEachInputImpl<mode>(*frame.parent(), input_location, f);
-  }
-  DeepForEachInputAndVirtualObject<mode>(frame, input_location, f);
-}
-
-template <DeoptFrameVisitMode mode, typename Function>
-void DeepForEachInputForEager(
-    const_if_default<mode, EagerDeoptInfo>* deopt_info, Function&& f) {
-  InputLocation* input_location = deopt_info->input_locations();
-  DeepForEachInputImpl<mode>(deopt_info->top_frame(), input_location,
-                             std::forward<Function>(f));
-}
-
-template <DeoptFrameVisitMode mode, typename Function>
-void DeepForEachInputForLazy(const_if_default<mode, LazyDeoptInfo>* deopt_info,
-                             Function&& f) {
-  InputLocation* input_location = deopt_info->input_locations();
-  auto& top_frame = deopt_info->top_frame();
-  if (top_frame.parent()) {
-    DeepForEachInputImpl<mode>(*top_frame.parent(), input_location, f);
-  }
-  DeepForEachInputAndVirtualObject<mode>(
-      top_frame, input_location, f, [deopt_info](interpreter::Register reg) {
-        return deopt_info->IsResultRegister(reg);
-      });
-}
-
-template <typename Function>
-void DeepForEachInput(const EagerDeoptInfo* deopt_info, Function&& f) {
-  return DeepForEachInputForEager<DeoptFrameVisitMode::kDefault>(deopt_info, f);
-}
-
-template <typename Function>
-void DeepForEachInput(const LazyDeoptInfo* deopt_info, Function&& f) {
-  return DeepForEachInputForLazy<DeoptFrameVisitMode::kDefault>(deopt_info, f);
-}
-
-template <typename Function>
-void DeepForEachInputRemovingIdentities(EagerDeoptInfo* deopt_info,
-                                        Function&& f) {
-  return DeepForEachInputForEager<DeoptFrameVisitMode::kRemoveIdentities>(
-      deopt_info, f);
-}
-
-template <typename Function>
-void DeepForEachInputRemovingIdentities(LazyDeoptInfo* deopt_info,
-                                        Function&& f) {
-  return DeepForEachInputForLazy<DeoptFrameVisitMode::kRemoveIdentities>(
-      deopt_info, f);
-}
-
-}  // namespace detail
-
 #ifdef DEBUG
 inline RegList GetGeneralRegistersUsedAsInputs(
     const EagerDeoptInfo* deopt_info) {
   RegList regs;
-  detail::DeepForEachInput(deopt_info,
-                           [&regs](ValueNode* value, InputLocation* input) {
-                             if (input->IsGeneralRegister()) {
-                               regs.set(input->AssignedGeneralRegister());
-                             }
-                           });
+  InputLocation* input = deopt_info->input_locations();
+  deopt_info->ForEachInput([&regs, &input](ValueNode* value) {
+    if (input->IsGeneralRegister()) {
+      regs.set(input->AssignedGeneralRegister());
+    }
+    input++;
+  });
   return regs;
 }
 #endif  // DEBUG
@@ -263,28 +59,150 @@ inline void DefineSameAsFirst(Node* node) {
   node->result().SetUnallocated(kNoVreg, 0);
 }
 
-inline void UseRegister(Input& input) {
-  input.SetUnallocated(compiler::UnallocatedOperand::MUST_HAVE_REGISTER,
-                       compiler::UnallocatedOperand::USED_AT_END, kNoVreg);
+inline void UseRegister(Input input) {
+  input.location()->SetUnallocated(
+      compiler::UnallocatedOperand::MUST_HAVE_REGISTER,
+      compiler::UnallocatedOperand::USED_AT_END, kNoVreg);
 }
-inline void UseAndClobberRegister(Input& input) {
-  input.SetUnallocated(compiler::UnallocatedOperand::MUST_HAVE_REGISTER,
-                       compiler::UnallocatedOperand::USED_AT_START, kNoVreg);
+inline void UseAndClobberRegister(Input input) {
+  input.location()->SetUnallocated(
+      compiler::UnallocatedOperand::MUST_HAVE_REGISTER,
+      compiler::UnallocatedOperand::USED_AT_START, kNoVreg);
 }
-inline void UseAny(Input& input) {
-  input.SetUnallocated(
+inline void UseAny(Input input) {
+  input.location()->SetUnallocated(
       compiler::UnallocatedOperand::REGISTER_OR_SLOT_OR_CONSTANT,
       compiler::UnallocatedOperand::USED_AT_END, kNoVreg);
 }
-inline void UseFixed(Input& input, Register reg) {
-  input.SetUnallocated(compiler::UnallocatedOperand::FIXED_REGISTER, reg.code(),
-                       kNoVreg);
+inline void UseFixed(Input input, Register reg) {
+  input.location()->SetUnallocated(compiler::UnallocatedOperand::FIXED_REGISTER,
+                                   reg.code(), kNoVreg);
   input.node()->SetHint(input.operand());
 }
-inline void UseFixed(Input& input, DoubleRegister reg) {
-  input.SetUnallocated(compiler::UnallocatedOperand::FIXED_FP_REGISTER,
-                       reg.code(), kNoVreg);
+inline void UseFixed(Input input, DoubleRegister reg) {
+  input.location()->SetUnallocated(
+      compiler::UnallocatedOperand::FIXED_FP_REGISTER, reg.code(), kNoVreg);
   input.node()->SetHint(input.operand());
+}
+
+CallKnownJSFunction::CallKnownJSFunction(
+    uint64_t bitfield,
+#ifdef V8_ENABLE_LEAPTIERING
+    JSDispatchHandle dispatch_handle,
+#endif
+    compiler::SharedFunctionInfoRef shared_function_info, ValueNode* closure,
+    ValueNode* context, ValueNode* receiver, ValueNode* new_target,
+    const compiler::FeedbackSource& feedback_source)
+    : Base(bitfield),
+#ifdef V8_ENABLE_LEAPTIERING
+      dispatch_handle_(dispatch_handle),
+#endif
+      shared_function_info_(shared_function_info),
+      expected_parameter_count_(
+#ifdef V8_ENABLE_LEAPTIERING
+          IsolateGroup::current()->js_dispatch_table()->GetParameterCount(
+              dispatch_handle)
+#else
+          shared_function_info
+              .internal_formal_parameter_count_with_receiver_deprecated()
+#endif
+              ),
+      feedback_source_(feedback_source) {
+  set_input(kClosureIndex, closure);
+  set_input(kContextIndex, context);
+  set_input(kReceiverIndex, receiver);
+  set_input(kNewTargetIndex, new_target);
+}
+
+void NodeBase::UnwrapDeoptFrames() {
+  // Unwrap (and remove uses of its inputs) of Identity and ReturnedValue.
+  if (properties().can_eager_deopt() || properties().is_deopt_checkpoint()) {
+    eager_deopt_info()->Unwrap();
+  }
+  if (properties().can_lazy_deopt()) {
+    lazy_deopt_info()->Unwrap();
+  }
+}
+
+void NodeBase::ClearInputs() {
+  for (Input input : inputs()) {
+    input.clear();
+  }
+}
+
+void NodeBase::OverwriteWith(Opcode new_opcode,
+                             std::optional<OpProperties> maybe_new_properties) {
+  OpProperties new_properties = maybe_new_properties.has_value()
+                                    ? maybe_new_properties.value()
+                                    : StaticPropertiesForOpcode(new_opcode);
+#ifdef DEBUG
+  CheckCanOverwriteWith(new_opcode, new_properties);
+#endif
+  set_opcode(new_opcode);
+  set_properties(new_properties);
+  if (new_opcode == Opcode::kDead) return;
+  int new_input_count = StaticInputCountForOpcode(new_opcode);
+  if (input_count() != new_input_count) {
+    bitfield_ = InputCountField::update(bitfield_, new_input_count);
+  }
+}
+
+template <typename NodeT, typename... Args>
+NodeT* NodeBase::OverwriteWith(Args&&... args) {
+#ifdef DEBUG
+  CheckCanOverwriteWith(opcode_of<NodeT>, NodeT::kProperties);
+#endif
+  uint64_t bitfield = OpcodeField::encode(opcode_of<NodeT>) |
+                      OpPropertiesField::encode(NodeT::kProperties) |
+                      InputCountField::encode(NodeT::kInputCount);
+  return new (this) NodeT(bitfield, std::forward<Args>(args)...);
+}
+
+void NodeBase::OverwriteWithIdentityTo(ValueNode* node) {
+  // OverwriteWith() checks if the node we're overwriting to has the same
+  // input count and the same properties. Here we don't need to do that, since
+  // overwriting with a node with property pure, we only need to check if
+  // there is at least 1 input. Since the first input is always the one
+  // closest to the input_base().
+  DCHECK_GE(input_count(), 1);
+  // Remove use of all inputs first.
+  ClearInputs();
+  // Unfortunately we cannot remove uses from deopt frames, since these could be
+  // shared with other nodes. But we can remove uses from Identity and
+  // ReturnedValue nodes.
+  UnwrapDeoptFrames();
+
+  set_opcode(Opcode::kIdentity);
+  set_properties(StaticPropertiesForOpcode(Opcode::kIdentity));
+  bitfield_ = InputCountField::update(bitfield_, 1);
+  set_input(0, node);
+}
+
+void NodeBase::OverwriteWithReturnValue(ValueNode* node) {
+  DCHECK_EQ(opcode(), Opcode::kCallKnownJSFunction);
+  // This node might eventually be overwritten by conversion nodes which need
+  // a register snapshot.
+  DCHECK(properties().needs_register_snapshot());
+  if (node->is_tagged()) {
+    return OverwriteWithIdentityTo(node);
+  }
+
+  DCHECK_GE(input_count(), 1);
+  // Remove use of all inputs first.
+  ClearInputs();
+  // Unfortunately we cannot remove uses from deopt frames, since these could be
+  // shared with other nodes. But we can remove uses from Identity and
+  // ReturnedValue nodes.
+  UnwrapDeoptFrames();
+
+  RegisterSnapshot registers = register_snapshot();
+  set_opcode(Opcode::kReturnedValue);
+  set_properties(StaticPropertiesForOpcode(Opcode::kReturnedValue));
+  bitfield_ = InputCountField::update(bitfield_, 1);
+  // After updating the input count, the possition of the register snapshot is
+  // wrong. We simply write a copy to the new location.
+  set_register_snapshot(registers);
+  set_input(0, node);
 }
 
 }  // namespace maglev

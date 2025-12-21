@@ -15,10 +15,10 @@
 #include <cstdint>
 #include <vector>
 
-#include "benchmark/benchmark.h"
 #include "absl/base/optimization.h"
 #include "absl/numeric/bits.h"
 #include "absl/random/random.h"
+#include "benchmark/benchmark.h"
 
 namespace absl {
 namespace {

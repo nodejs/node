@@ -141,16 +141,16 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="----npm-update----1120">
+<h1 id="----npm-update----1170">
     <span>npm-update</span>
-    <span class="version">@11.2.0</span>
+    <span class="version">@11.7.0</span>
 </h1>
 <span class="description">Update packages</span>
 </header>
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#example">Example</a></li><ul><li><a href="#caret-dependencies">Caret Dependencies</a></li><li><a href="#tilde-dependencies">Tilde Dependencies</a></li><li><a href="#caret-dependencies-below-100">Caret Dependencies below 1.0.0</a></li><li><a href="#subdependencies">Subdependencies</a></li><li><a href="#updating-globally-installed-packages">Updating Globally-Installed Packages</a></li></ul><li><a href="#configuration">Configuration</a></li><ul><li><a href="#save"><code>save</code></a></li><li><a href="#global"><code>global</code></a></li><li><a href="#install-strategy"><code>install-strategy</code></a></li><li><a href="#legacy-bundling"><code>legacy-bundling</code></a></li><li><a href="#global-style"><code>global-style</code></a></li><li><a href="#omit"><code>omit</code></a></li><li><a href="#include"><code>include</code></a></li><li><a href="#strict-peer-deps"><code>strict-peer-deps</code></a></li><li><a href="#package-lock"><code>package-lock</code></a></li><li><a href="#foreground-scripts"><code>foreground-scripts</code></a></li><li><a href="#ignore-scripts"><code>ignore-scripts</code></a></li><li><a href="#audit"><code>audit</code></a></li><li><a href="#bin-links"><code>bin-links</code></a></li><li><a href="#fund"><code>fund</code></a></li><li><a href="#dry-run"><code>dry-run</code></a></li><li><a href="#workspace"><code>workspace</code></a></li><li><a href="#workspaces"><code>workspaces</code></a></li><li><a href="#include-workspace-root"><code>include-workspace-root</code></a></li><li><a href="#install-links"><code>install-links</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#example">Example</a></li><ul><li><a href="#caret-dependencies">Caret Dependencies</a></li><li><a href="#tilde-dependencies">Tilde Dependencies</a></li><li><a href="#caret-dependencies-below-100">Caret Dependencies below 1.0.0</a></li><li><a href="#subdependencies">Subdependencies</a></li><li><a href="#updating-globally-installed-packages">Updating Globally-Installed Packages</a></li></ul><li><a href="#configuration">Configuration</a></li><ul><li><a href="#save"><code>save</code></a></li><li><a href="#global"><code>global</code></a></li><li><a href="#install-strategy"><code>install-strategy</code></a></li><li><a href="#legacy-bundling"><code>legacy-bundling</code></a></li><li><a href="#global-style"><code>global-style</code></a></li><li><a href="#omit"><code>omit</code></a></li><li><a href="#include"><code>include</code></a></li><li><a href="#strict-peer-deps"><code>strict-peer-deps</code></a></li><li><a href="#package-lock"><code>package-lock</code></a></li><li><a href="#foreground-scripts"><code>foreground-scripts</code></a></li><li><a href="#ignore-scripts"><code>ignore-scripts</code></a></li><li><a href="#audit"><code>audit</code></a></li><li><a href="#before"><code>before</code></a></li><li><a href="#bin-links"><code>bin-links</code></a></li><li><a href="#fund"><code>fund</code></a></li><li><a href="#dry-run"><code>dry-run</code></a></li><li><a href="#workspace"><code>workspace</code></a></li><li><a href="#workspaces"><code>workspaces</code></a></li><li><a href="#include-workspace-root"><code>include-workspace-root</code></a></li><li><a href="#install-links"><code>install-links</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
@@ -159,24 +159,15 @@ npm command-line interface
 aliases: up, upgrade, udpate
 </code></pre>
 <h3 id="description">Description</h3>
-<p>This command will update all the packages listed to the latest version
-(specified by the <a href="../using-npm/config#tag.html"><code>tag</code> config</a>), respecting the semver
-constraints of both your package and its dependencies (if they also require the
-same package).</p>
+<p>This command will update all the packages listed to the latest version (specified by the <a href="../using-npm/config#tag.html"><code>tag</code> config</a>), respecting the semver constraints of both your package and its dependencies (if they also require the same package).</p>
 <p>It will also install missing packages.</p>
-<p>If the <code>-g</code> flag is specified, this command will update globally installed
-packages.</p>
-<p>If no package name is specified, all packages in the specified location (global
-or local) will be updated.</p>
-<p>Note that by default <code>npm update</code> will not update the semver values of direct
-dependencies in your project <code>package.json</code>. If you want to also update
-values in <code>package.json</code> you can run: <code>npm update --save</code> (or add the
-<code>save=true</code> option to a <a href="../configuring-npm/npmrc.html">configuration file</a>
-to make that the default behavior).</p>
+<p>If the <code>-g</code> flag is specified, this command will update globally installed packages.</p>
+<p>If no package name is specified, all packages in the specified location (global or local) will be updated.</p>
+<p>Note that by default <code>npm update</code> will not update the semver values of direct dependencies in your project <code>package.json</code>.
+If you want to also update values in <code>package.json</code> you can run: <code>npm update --save</code> (or add the <code>save=true</code> option to a <a href="../configuring-npm/npmrc.html">configuration file</a> to make that the default behavior).</p>
 <h3 id="example">Example</h3>
-<p>For the examples below, assume that the current package is <code>app</code> and it depends
-on dependencies, <code>dep1</code> (<code>dep2</code>, .. etc.).  The published versions of <code>dep1</code>
-are:</p>
+<p>For the examples below, assume that the current package is <code>app</code> and it depends on dependencies, <code>dep1</code> (<code>dep2</code>, .. etc.).
+The published versions of <code>dep1</code> are:</p>
 <pre><code class="language-json">{
   "dist-tags": { "latest": "1.2.2" },
   "versions": [
@@ -206,9 +197,9 @@ are:</p>
   "dep1": "~1.1.1"
 }
 </code></pre>
-<p>In this case, running <code>npm update</code> will install <code>dep1@1.1.2</code>.  Even though the
-<code>latest</code> tag points to <code>1.2.2</code>, this version does not satisfy <code>~1.1.1</code>, which is
-equivalent to <code>&gt;=1.1.1 &lt;1.2.0</code>.  So the highest-sorting version that satisfies
+<p>In this case, running <code>npm update</code> will install <code>dep1@1.1.2</code>.
+Even though the <code>latest</code> tag points to <code>1.2.2</code>, this version does not satisfy <code>~1.1.1</code>, which is equivalent to <code>&gt;=1.1.1 &lt;1.2.0</code>.
+So the highest-sorting version that satisfies
 <code>~1.1.1</code> is used, which is <code>1.1.2</code>.</p>
 <h4 id="caret-dependencies-below-100">Caret Dependencies below 1.0.0</h4>
 <p>Suppose <code>app</code> has a caret dependency on a version below <code>1.0.0</code>, for example:</p>
@@ -222,8 +213,7 @@ equivalent to <code>&gt;=1.1.1 &lt;1.2.0</code>.  So the highest-sorting version
   "dep1": "^0.4.0"
 }
 </code></pre>
-<p>Then <code>npm update</code> will install <code>dep1@0.4.1</code>, because that is the highest-sorting
-version that satisfies <code>^0.4.0</code> (<code>&gt;= 0.4.0 &lt;0.5.0</code>)</p>
+<p>Then <code>npm update</code> will install <code>dep1@0.4.1</code>, because that is the highest-sorting version that satisfies <code>^0.4.0</code> (<code>&gt;= 0.4.0 &lt;0.5.0</code>)</p>
 <h4 id="subdependencies">Subdependencies</h4>
 <p>Suppose your app now also has a dependency on <code>dep2</code></p>
 <pre><code class="language-json">{
@@ -242,21 +232,14 @@ version that satisfies <code>^0.4.0</code> (<code>&gt;= 0.4.0 &lt;0.5.0</code>)<
   }
 }
 </code></pre>
-<p>Then <code>npm update</code> will install <code>dep1@1.1.2</code> because that is the highest
-version that <code>dep2</code> allows.  npm will prioritize having a single version
-of <code>dep1</code> in your tree rather than two when that single version can
-satisfy the semver requirements of multiple dependencies in your tree.
-In this case if you really did need your package to use a newer version
-you would need to use <code>npm install</code>.</p>
+<p>Then <code>npm update</code> will install <code>dep1@1.1.2</code> because that is the highest version that <code>dep2</code> allows.
+npm will prioritize having a single version of <code>dep1</code> in your tree rather than two when that single version can satisfy the semver requirements of multiple dependencies in your tree.
+In this case if you really did need your package to use a newer version you would need to use <code>npm install</code>.</p>
 <h4 id="updating-globally-installed-packages">Updating Globally-Installed Packages</h4>
-<p><code>npm update -g</code> will apply the <code>update</code> action to each globally installed
-package that is <code>outdated</code> -- that is, has a version that is different from
-<code>wanted</code>.</p>
-<p>Note: Globally installed packages are treated as if they are installed with a
-caret semver range specified. So if you require to update to <code>latest</code> you may
-need to run <code>npm install -g [&lt;pkg&gt;...]</code></p>
-<p>NOTE: If a package has been upgraded to a version newer than <code>latest</code>, it will
-be <em>downgraded</em>.</p>
+<p><code>npm update -g</code> will apply the <code>update</code> action to each globally installed package that is <code>outdated</code> -- that is, has a version that is different from <code>wanted</code>.</p>
+<p>Note: Globally installed packages are treated as if they are installed with a caret semver range specified.
+So if you require to update to <code>latest</code> you may need to run <code>npm install -g [&lt;pkg&gt;...]</code></p>
+<p>NOTE: If a package has been upgraded to a version newer than <code>latest</code>, it will be <em>downgraded</em>.</p>
 <h3 id="configuration">Configuration</h3>
 <h4 id="save"><code>save</code></h4>
 <ul>
@@ -315,7 +298,7 @@ on deeper dependencies. Sets <code>--install-strategy=shallow</code>.</p>
 <h4 id="omit"><code>omit</code></h4>
 <ul>
 <li>Default: 'dev' if the <code>NODE_ENV</code> environment variable is set to
-'production', otherwise empty.</li>
+'production'; otherwise, empty.</li>
 <li>Type: "dev", "optional", or "peer" (can be set multiple times)</li>
 </ul>
 <p>Dependency types to omit from the installation tree on disk.</p>
@@ -376,9 +359,9 @@ but can be useful for debugging.</p>
 </ul>
 <p>If true, npm does not run scripts specified in package.json files.</p>
 <p>Note that commands explicitly intended to run a particular script, such as
-<code>npm start</code>, <code>npm stop</code>, <code>npm restart</code>, <code>npm test</code>, and <code>npm run-script</code>
-will still run their intended script if <code>ignore-scripts</code> is set, but they
-will <em>not</em> run any pre- or post-scripts.</p>
+<code>npm start</code>, <code>npm stop</code>, <code>npm restart</code>, <code>npm test</code>, and <code>npm run</code> will still
+run their intended script if <code>ignore-scripts</code> is set, but they will <em>not</em>
+run any pre- or post-scripts.</p>
 <h4 id="audit"><code>audit</code></h4>
 <ul>
 <li>Default: true</li>
@@ -388,6 +371,19 @@ will <em>not</em> run any pre- or post-scripts.</p>
 default registry and all registries configured for scopes. See the
 documentation for <a href="../commands/npm-audit.html"><code>npm audit</code></a> for details on what is
 submitted.</p>
+<h4 id="before"><code>before</code></h4>
+<ul>
+<li>Default: null</li>
+<li>Type: null or Date</li>
+</ul>
+<p>If passed to <code>npm install</code>, will rebuild the npm tree such that only
+versions that were available <strong>on or before</strong> the given date are installed.
+If there are no versions available for the current set of dependencies, the
+command will error.</p>
+<p>If the requested version is a <code>dist-tag</code> and the given tag does not pass the
+<code>--before</code> filter, the most recent version less than or equal to that tag
+will be used. For example, <code>foo@latest</code> might install <code>foo@1.2</code> even though
+<code>latest</code> is <code>2.0</code>.</p>
 <h4 id="bin-links"><code>bin-links</code></h4>
 <ul>
 <li>Default: true</li>
@@ -480,7 +476,7 @@ workspaces.</p>
 </ul></div>
 
 <footer id="edit">
-<a href="https://github.com/npm/cli/edit/latest/docs/content/commands/npm-update.md">
+<a href="https://github.com/npm/cli/edit/latest/docs/lib/content/commands/npm-update.md">
 <svg role="img" viewBox="0 0 16 16" width="16" height="16" fill="currentcolor" style="vertical-align: text-bottom; margin-right: 0.3em;">
 <path fill-rule="evenodd" d="M11.013 1.427a1.75 1.75 0 012.474 0l1.086 1.086a1.75 1.75 0 010 2.474l-8.61 8.61c-.21.21-.47.364-.756.445l-3.251.93a.75.75 0 01-.927-.928l.929-3.25a1.75 1.75 0 01.445-.758l8.61-8.61zm1.414 1.06a.25.25 0 00-.354 0L10.811 3.75l1.439 1.44 1.263-1.263a.25.25 0 000-.354l-1.086-1.086zM11.189 6.25L9.75 4.81l-6.286 6.287a.25.25 0 00-.064.108l-.558 1.953 1.953-.558a.249.249 0 00.108-.064l6.286-6.286z"></path>
 </svg>

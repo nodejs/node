@@ -21,19 +21,16 @@ const server = https.Server(options, (req, res) => {
 });
 
 
-server.listen(0, function() {
+server.listen(0, common.mustCall(function() {
   https.get({
     path: '/',
     port: this.address().port,
     rejectUnauthorized: true,
     servername: 'agent1',
     ca: options.ca
-  }, (res) => {
+  }, common.mustCall((res) => {
     res.resume();
     assert.strictEqual(res.statusCode, 200);
     server.close();
-  }).on('error', (e) => {
-    console.log(e.message);
-    process.exit(1);
-  });
-});
+  })).on('error', common.mustNotCall());
+}));

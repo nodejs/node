@@ -69,7 +69,6 @@ defineCustomElement('global-timeline', (templateText) =>
       {type: 'number', label: 'Tagged fields (excl. in-object Smis)'},
       {type: 'number', label: 'In-object Smi-only fields'},
       {type: 'number', label: 'Other raw fields'},
-      {type: 'number', label: 'Unboxed doubles'},
       {type: 'number', label: 'Boxed doubles'},
       {type: 'number', label: 'String data'}
     ];
@@ -87,7 +86,6 @@ defineCustomElement('global-timeline', (templateText) =>
                     data_set.inobject_smi_fields +
                     data_set.embedder_fields +
                     data_set.other_raw_fields +
-                    data_set.unboxed_double_fields +
                     data_set.boxed_double_fields +
                     data_set.string_data;
       const ptr_compr_benefit =
@@ -105,7 +103,6 @@ defineCustomElement('global-timeline', (templateText) =>
       data.push(data_set.tagged_fields / KB);
       data.push(data_set.inobject_smi_fields / KB);
       data.push(data_set.other_raw_fields / KB);
-      data.push(data_set.unboxed_double_fields / KB);
       data.push(data_set.boxed_double_fields / KB);
       data.push(data_set.string_data / KB);
       chart_data.push(data);

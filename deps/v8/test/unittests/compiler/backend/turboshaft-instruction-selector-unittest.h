@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_UNITTESTS_COMPILER_INSTRUCTION_SELECTOR_UNITTEST_H_
-#define V8_UNITTESTS_COMPILER_INSTRUCTION_SELECTOR_UNITTEST_H_
+#ifndef V8_UNITTESTS_C_BACKEND_TURBOSHAFT_INSTRUCTION_SELECTOR_UNITTEST_H_
+#define V8_UNITTESTS_C_BACKEND_TURBOSHAFT_INSTRUCTION_SELECTOR_UNITTEST_H_
 
 #include <deque>
 #include <set>
@@ -70,6 +70,8 @@ namespace v8::internal::compiler::turboshaft {
   V(Int64AddCheckOverflow)      \
   V(Int32SubCheckOverflow)      \
   V(Int64SubCheckOverflow)      \
+  V(Int32MulCheckOverflow)      \
+  V(Int64MulCheckOverflow)      \
   V(Word32Equal)                \
   V(Word64Equal)                \
   V(Word32NotEqual)             \
@@ -91,9 +93,13 @@ namespace v8::internal::compiler::turboshaft {
   V(Uint64GreaterThanOrEqual)   \
   V(Uint64GreaterThan)          \
   V(Float64Add)                 \
+  V(Float32Add)                 \
   V(Float64Sub)                 \
+  V(Float32Sub)                 \
   V(Float64Mul)                 \
+  V(Float32Mul)                 \
   V(Float64Div)                 \
+  V(Float32Div)                 \
   V(Float64Equal)               \
   V(Float64LessThan)            \
   V(Float64LessThanOrEqual)     \
@@ -244,10 +250,10 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
 
       return zone->New<CallDescriptor>(  // --
           CallDescriptor::kCallAddress,  // kind
-          kDefaultCodeEntrypointTag,     // tag
+          kCodeEntrypointTagForTesting,  // tag
           target_type,                   // target MachineType
           target_loc,                    // target location
-          locations.Build(),             // location_sig
+          locations.Get(),               // location_sig
           0,                             // stack_parameter_count
           Operator::kNoProperties,       // properties
           kCalleeSaveRegisters,          // callee-saved registers
@@ -360,6 +366,10 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
       return Load(base, index, LoadOp::Kind::RawAligned(), mem_rep,
                   mem_rep.ToRegisterRepresentation());
     }
+    OpIndex Load(MemoryRepresentation mem_rep, RegisterRepresentation reg_rep,
+                 OpIndex base, OpIndex index) {
+      return Load(base, index, LoadOp::Kind::RawAligned(), mem_rep, reg_rep);
+    }
     OpIndex Load(MachineType type, OpIndex base) {
       MemoryRepresentation mem_rep =
           MemoryRepresentation::FromMachineType(type);
@@ -371,6 +381,11 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
       return Load(base, index, LoadOp::Kind::RawAligned().Immutable(), mem_rep);
     }
     using Assembler::Store;
+    void Store(MemoryRepresentation mem_rep, OpIndex base, OpIndex index,
+               OpIndex value, WriteBarrierKind write_barrier) {
+      Store(base, index, value, StoreOp::Kind::RawAligned(), mem_rep,
+            write_barrier);
+    }
     void Store(MachineRepresentation rep, OpIndex base, OpIndex index,
                OpIndex value, WriteBarrierKind write_barrier) {
       MemoryRepresentation mem_rep =
@@ -381,7 +396,7 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
     using Assembler::Projection;
     OpIndex Projection(OpIndex input, int index) {
       const Operation& input_op = output_graph().Get(input);
-      if (const TupleOp* tuple = input_op.TryCast<TupleOp>()) {
+      if (const MakeTupleOp* tuple = input_op.TryCast<MakeTupleOp>()) {
         DCHECK_LT(index, tuple->input_count);
         return tuple->input(index);
       }
@@ -458,7 +473,7 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
       MachineSignature::Builder builder(zone, 1, sizeof...(ParamT));
       builder.AddReturn(return_type);
       (builder.AddParam(parameter_type), ...);
-      return MakeSimpleCallDescriptor(zone, builder.Build());
+      return MakeSimpleCallDescriptor(zone, builder.Get());
     }
 
     void Init() {
@@ -482,6 +497,10 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
     const Instruction* operator[](size_t index) const {
       EXPECT_LT(index, size());
       return instructions_[index];
+    }
+
+    const InstructionBlock* BlockAt(size_t index) {
+      return instruction_blocks_->at(index);
     }
 
     bool IsDouble(const InstructionOperand* operand) const {
@@ -518,7 +537,8 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
       return ToConstant(operand).ToInt64();
     }
 
-    Handle<HeapObject> ToHeapObject(const InstructionOperand* operand) const {
+    DirectHandle<HeapObject> ToHeapObject(
+        const InstructionOperand* operand) const {
       return ToConstant(operand).ToHeapObject();
     }
 
@@ -589,6 +609,7 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
     ConstantMap constants_;
     ConstantMap immediates_;
     std::deque<Instruction*> instructions_;
+    InstructionBlocks* instruction_blocks_;
     std::set<int> doubles_;
     std::set<int> references_;
     VirtualRegisters virtual_registers_;
@@ -611,4 +632,4 @@ class TurboshaftInstructionSelectorTestWithParam
 
 }  // namespace v8::internal::compiler::turboshaft
 
-#endif  // V8_UNITTESTS_COMPILER_INSTRUCTION_SELECTOR_UNITTEST_H_
+#endif  // V8_UNITTESTS_C_BACKEND_TURBOSHAFT_INSTRUCTION_SELECTOR_UNITTEST_H_

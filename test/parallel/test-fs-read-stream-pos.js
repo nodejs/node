@@ -27,7 +27,7 @@ let isLow = false;
 let cur = 0;
 let stream;
 
-const readInterval = setInterval(() => {
+const readInterval = setInterval(common.mustCallAtLeast(() => {
   if (stream) return;
 
   stream = fs.createReadStream(file, {
@@ -60,7 +60,7 @@ const readInterval = setInterval(() => {
     isLow = false;
     bufs = [];
   });
-}, 10);
+}), 10);
 
 // Time longer than 90 seconds to exit safely
 const endTimer = setTimeout(() => {

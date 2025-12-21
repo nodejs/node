@@ -73,7 +73,7 @@
 #endif
 
 #ifdef NODE_ENABLE_VTUNE_PROFILING
-#include "../deps/v8/src/third_party/vtune/v8-vtune.h"
+#include "../deps/v8/third_party/vtune/v8-vtune.h"
 #endif
 
 #include "large_pages/node_large_page.h"
@@ -118,6 +118,8 @@
 #include <termios.h>       // tcgetattr, tcsetattr
 #include <unistd.h>        // STDIN_FILENO, STDERR_FILENO
 #endif
+
+#include "absl/synchronization/mutex.h"
 
 // ========== global C++ headers ==========
 
@@ -710,9 +712,11 @@ void ResetStdio() {
       while (err == -1 && errno == EINTR);  // NOLINT
       CHECK_EQ(0, pthread_sigmask(SIG_UNBLOCK, &sa, nullptr));
 
-      // Normally we expect err == 0. But if macOS App Sandbox is enabled,
-      // tcsetattr will fail with err == -1 and errno == EPERM.
-      CHECK_IMPLIES(err != 0, err == -1 && errno == EPERM);
+      // We don't check the return value of tcsetattr() because it can fail
+      // for a number of reasons, none that we can do anything about. Examples:
+      // - if macOS App Sandbox is enabled, tcsetattr fails with EPERM
+      // - if the process group is orphaned, e.g. because the user logged out,
+      //   tcsetattr fails with EIO
     }
   }
 #endif  // __POSIX__
@@ -756,21 +760,28 @@ static ExitCode ProcessGlobalArgsInternal(std::vector<std::string>* args,
 
   // TODO(aduh95): remove this when the harmony-import-attributes flag
   // is removed in V8.
-  if (std::find(v8_args.begin(),
-                v8_args.end(),
-                "--no-harmony-import-attributes") == v8_args.end()) {
+  if (std::ranges::find(v8_args, "--no-harmony-import-attributes") ==
+      v8_args.end()) {
     v8_args.emplace_back("--harmony-import-attributes");
   }
 
+  if (!per_process::cli_options->per_isolate->max_old_space_size_percentage
+           .empty()) {
+    v8_args.emplace_back(
+        "--max_old_space_size=" +
+        per_process::cli_options->per_isolate->max_old_space_size);
+  }
+
   auto env_opts = per_process::cli_options->per_isolate->per_env;
-  if (std::find(v8_args.begin(), v8_args.end(),
-                "--abort-on-uncaught-exception") != v8_args.end() ||
-      std::find(v8_args.begin(), v8_args.end(),
-                "--abort_on_uncaught_exception") != v8_args.end()) {
+  if (std::ranges::find(v8_args, "--abort-on-uncaught-exception") !=
+          v8_args.end() ||
+      std::ranges::find(v8_args, "--abort_on_uncaught_exception") !=
+          v8_args.end()) {
     env_opts->abort_on_uncaught_exception = true;
   }
 
-  if (env_opts->experimental_wasm_modules) {
+  if (std::ranges::find(v8_args, "--no-js-source-phase-imports") ==
+      v8_args.end()) {
     v8_args.emplace_back("--js-source-phase-imports");
   }
 
@@ -778,7 +789,7 @@ static ExitCode ProcessGlobalArgsInternal(std::vector<std::string>* args,
   // Block SIGPROF signals when sleeping in epoll_wait/kevent/etc.  Avoids the
   // performance penalty of frequent EINTR wakeups when the profiler is running.
   // Only do this for v8.log profiling, as it breaks v8::CpuProfiler users.
-  if (std::find(v8_args.begin(), v8_args.end(), "--prof") != v8_args.end()) {
+  if (std::ranges::find(v8_args, "--prof") != v8_args.end()) {
     uv_loop_configure(uv_default_loop(), UV_LOOP_BLOCK_SIGNAL, SIGPROF);
   }
 #endif
@@ -819,7 +830,7 @@ static ExitCode InitializeNodeWithArgsInternal(
     std::vector<std::string>* exec_argv,
     std::vector<std::string>* errors,
     ProcessInitializationFlags::Flags flags) {
-  // Make sure InitializeNodeWithArgs() is called only once.
+  // Make sure InitializeNodeWithArgsInternal() is called only once.
   CHECK(!init_called.exchange(true));
 
   // Initialize node_start_time to get relative uptime.
@@ -860,6 +871,15 @@ static ExitCode InitializeNodeWithArgsInternal(
   // default value.
   V8::SetFlagsFromString("--rehash-snapshot");
 
+#if HAVE_OPENSSL
+  // TODO(joyeecheung): make this a per-env option and move the normalization
+  // into HandleEnvOptions.
+  std::string use_system_ca;
+  if (credentials::SafeGetenv("NODE_USE_SYSTEM_CA", &use_system_ca) &&
+      use_system_ca == "1") {
+    per_process::cli_options->use_system_ca = true;
+  }
+#endif  // HAVE_OPENSSL
   HandleEnvOptions(per_process::cli_options->per_isolate->per_env);
 
   std::string node_options;
@@ -906,7 +926,7 @@ static ExitCode InitializeNodeWithArgsInternal(
       default:
         UNREACHABLE();
     }
-    node_options_from_config = per_process::config_reader.AssignNodeOptions();
+    node_options_from_config = per_process::config_reader.GetNodeOptions();
     // (@marco-ippolito) Avoid reparsing the env options again
     std::vector<std::string> env_argv_from_config =
         ParseNodeOptionsEnvVar(node_options_from_config, errors);
@@ -923,7 +943,17 @@ static ExitCode InitializeNodeWithArgsInternal(
   }
 
 #if !defined(NODE_WITHOUT_NODE_OPTIONS)
-  if (!(flags & ProcessInitializationFlags::kDisableNodeOptionsEnv)) {
+  bool should_parse_node_options =
+      !(flags & ProcessInitializationFlags::kDisableNodeOptionsEnv);
+#ifndef DISABLE_SINGLE_EXECUTABLE_APPLICATION
+  if (sea::IsSingleExecutable()) {
+    sea::SeaResource sea_resource = sea::FindSingleExecutableResource();
+    if (sea_resource.exec_argv_extension != sea::SeaExecArgvExtension::kEnv) {
+      should_parse_node_options = false;
+    }
+  }
+#endif
+  if (should_parse_node_options) {
     // NODE_OPTIONS environment variable is preferred over the file one.
     if (credentials::SafeGetenv("NODE_OPTIONS", &node_options) ||
         !node_options.empty()) {
@@ -952,7 +982,19 @@ static ExitCode InitializeNodeWithArgsInternal(
 #endif
 
   if (!(flags & ProcessInitializationFlags::kDisableCLIOptions)) {
-    const ExitCode exit_code =
+    // Parse the options coming from the config file.
+    // This is done before parsing the command line options
+    // as the cli flags are expected to override the config file ones.
+    std::vector<std::string> extra_argv =
+        per_process::config_reader.GetNamespaceFlags();
+    // [0] is expected to be the program name, fill it in from the real argv.
+    extra_argv.insert(extra_argv.begin(), argv->at(0));
+    // Parse the extra argv coming from the config file
+    ExitCode exit_code = ProcessGlobalArgsInternal(
+        &extra_argv, nullptr, errors, kDisallowedInEnvvar);
+    if (exit_code != ExitCode::kNoFailure) return exit_code;
+    // Parse options coming from the command line.
+    exit_code =
         ProcessGlobalArgsInternal(argv, exec_argv, errors, kDisallowedInEnvvar);
     if (exit_code != ExitCode::kNoFailure) return exit_code;
   }
@@ -1015,14 +1057,6 @@ static ExitCode InitializeNodeWithArgsInternal(
   // able to set it and native addons will not load for them.
   node_is_initialized = true;
   return ExitCode::kNoFailure;
-}
-
-int InitializeNodeWithArgs(std::vector<std::string>* argv,
-                           std::vector<std::string>* exec_argv,
-                           std::vector<std::string>* errors,
-                           ProcessInitializationFlags::Flags flags) {
-  return static_cast<int>(
-      InitializeNodeWithArgsInternal(argv, exec_argv, errors, flags));
 }
 
 static std::shared_ptr<InitializationResultImpl>
@@ -1171,10 +1205,7 @@ InitializeOncePerProcessInternal(const std::vector<std::string>& args,
     }
 #endif
     if (!crypto::ProcessFipsOptions()) {
-      // XXX: ERR_GET_REASON does not return something that is
-      // useful as an exit code at all.
-      result->exit_code_ =
-          static_cast<ExitCode>(ERR_GET_REASON(ERR_peek_error()));
+      result->exit_code_ = ExitCode::kGenericUserError;
       result->early_return_ = true;
       result->errors_.emplace_back(
           "OpenSSL error when trying to enable FIPS:\n" +
@@ -1209,16 +1240,21 @@ InitializeOncePerProcessInternal(const std::vector<std::string>& args,
     result->platform_ = per_process::v8_platform.Platform();
   }
 
-  if (!(flags & ProcessInitializationFlags::kNoInitializeV8)) {
-    V8::Initialize();
-  }
-
   if (!(flags & ProcessInitializationFlags::kNoInitializeCppgc)) {
     v8::PageAllocator* allocator = nullptr;
     if (result->platform_ != nullptr) {
       allocator = result->platform_->GetPageAllocator();
     }
     cppgc::InitializeProcess(allocator);
+  }
+
+  if (!(flags & ProcessInitializationFlags::kNoInitializeV8)) {
+    V8::Initialize();
+
+    // Disable absl deadlock detection in V8 as it reports false-positive cases.
+    // TODO(legendecas): Replace this global disablement with case suppressions.
+    // https://github.com/nodejs/node-v8/issues/301
+    absl::SetMutexDeadlockDetectionMode(absl::OnDeadlockCycle::kIgnore);
   }
 
 #if NODE_USE_V8_WASM_TRAP_HANDLER

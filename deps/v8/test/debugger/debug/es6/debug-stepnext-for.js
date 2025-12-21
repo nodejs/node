@@ -12,10 +12,11 @@ var log = []
 var s = 0;
 var a = [1, 2, 3];
 var b = [1, 2, 3, 4];
+var c = [Promise.resolve(1), Promise.resolve(2), Promise.resolve(3)];
 var null_value = null;
 var i = 0;
 
-function f() {
+async function f() {
   "use strict";
   debugger;                      // Break a
   var j;                         // Break b
@@ -68,6 +69,14 @@ function f() {
 
   [1, ...a]                      // Break o
 
+  for await (let i of c) {       // Break p
+    s += i;                      // Break P
+  }
+
+  for await (j of c) {           // Break q
+    s += j;                      // Break Q
+  }
+
 }                                // Break y
 
 function listener(event, exec_state, event_data, data) {
@@ -75,7 +84,8 @@ function listener(event, exec_state, event_data, data) {
   try {
     var line = exec_state.frame(0).sourceLineText();
     var col = exec_state.frame(0).sourceColumn();
-    print(line);
+    var lineWithBreakMarker = line.substring(0, col) + '#' + line.substring(col);
+    print(lineWithBreakMarker);
     var match = line.match(/\/\/ Break (\w)$/);
     assertEquals(2, match.length);
     log.push(match[1] + col);
@@ -86,124 +96,137 @@ function listener(event, exec_state, event_data, data) {
   }
 }
 
-Debug.setListener(listener);
-f();
-Debug.setListener(null);         // Break z
+(async () => {
+  Debug.setListener(listener);
+  await f();
+  Debug.setListener(null);         // Break z
 
-print("log:\n"+ JSON.stringify(log));
-// The let declaration differs from var in that the loop variable
-// is declared in every iteration.
-// TODO(verwaest): For-of has hacky position numbers for Symbol.iterator and
-// .next. Restore to proper positions once the CallPrinter can disambiguate
-// based on other values.
-var expected = [
-  // Entry
-  'a2',
-  // Empty for-in-var: get enumerable
-  'c16',
-  // Empty for-in: get enumerable
-  'd12',
-  // For-in-var: get enumerable, assign, body, assign, body, ...
-  'e16',
-  'e11',
-  'E4',
-  'e11',
-  'E4',
-  'e11',
-  'E4',
-  'e11',
-  // For-in: get enumerable, assign, body, assign, body, ...
-  'f12',
-  'f7',
-  'F4',
-  'f7',
-  'F4',
-  'f7',
-  'F4',
-  'f7',
-  // For-in-let: get enumerable, next, body, next,  ...
-  'g16',
-  'g11',
-  'G4',
-  'g11',
-  'G4',
-  'g11',
-  'G4',
-  'g11',
-  // For-of-var: [Symbol.iterator](), next(), body, next(), body, ...
-  'h16',
-  'h11',
-  'H4',
-  'h11',
-  'H4',
-  'h11',
-  'H4',
-  'h11',
-  // For-of: [Symbol.iterator](), next(), body, next(), body, ...
-  'i12',
-  'i7',
-  'I4',
-  'i7',
-  'I4',
-  'i7',
-  'I4',
-  'i7',
-  // For-of-let: [Symbol.iterator](), next(), body, next(), ...
-  'j18',
-  'j11',
-  'J4',
-  'j11',
-  'J4',
-  'j11',
-  'J4',
-  'j11',
-  // For-var: init, condition, body, next, condition, body, ...
-  'k15',
-  'k20',
-  'K4',
-  'k26',
-  'k20',
-  'K4',
-  'k26',
-  'k20',
-  'K4',
-  'k26',
-  'k20',
-  // For: init, condition, body, next, condition, body, ...
-  'l7',
-  'l16',
-  'L4',
-  'l22',
-  'l16',
-  'L4',
-  'l22',
-  'l16',
-  'L4',
-  'l22',
-  'l16',
-  // For-let: init, condition, body, next, condition, body, ...
-  'm15',
-  'm20',
-  'M4',
-  'm26',
-  'm20',
-  'M4',
-  'm26',
-  'm20',
-  'M4',
-  'm26',
-  'm20',
-  // For-of, empty: [Symbol.iterator](), next() once
-  'n16',
-  'n11',
-  // Spread: expression statement
-  'o2',
-  // Exit.
-  'y0',
-  'z0',
-]
-print("expected:\n"+ JSON.stringify(expected));
+  print("log:\n" + JSON.stringify(log));
+  // The let declaration differs from var in that the loop variable
+  // is declared in every iteration.
+  // TODO(verwaest): For-of has hacky position numbers for Symbol.iterator and
+  // .next. Restore to proper positions once the CallPrinter can disambiguate
+  // based on other values.
+  var expected = [
+    // Entry
+    'a2',
+    // Empty for-in-var: get enumerable
+    'c16',
+    // Empty for-in: get enumerable
+    'd12',
+    // For-in-var: get enumerable, assign, body, assign, body, ...
+    'e16',
+    'e11',
+    'E4',
+    'e11',
+    'E4',
+    'e11',
+    'E4',
+    // For-in: get enumerable, assign, body, assign, body, ...
+    'f12',
+    'f7',
+    'F4',
+    'f7',
+    'F4',
+    'f7',
+    'F4',
+    // For-in-let: get enumerable, assign, body, assign,  ...
+    'g16',
+    'g11',
+    'G4',
+    'g11',
+    'G4',
+    'g11',
+    'G4',
+    // For-of-var: [Symbol.iterator](), assign, body, assign, body, ...
+    'h16',
+    'h11',
+    'H4',
+    'h11',
+    'H4',
+    'h11',
+    'H4',
+    // For-of: [Symbol.iterator](), assign, body, assign, body, ...
+    'i12',
+    'i7',
+    'I4',
+    'i7',
+    'I4',
+    'i7',
+    'I4',
+    // For-of-let: [Symbol.iterator](), assign, body, assign, ...
+    'j18',
+    'j11',
+    'J4',
+    'j11',
+    'J4',
+    'j11',
+    'J4',
+    // For-var: init, condition, body, next, condition, body, ...
+    'k15',
+    'k20',
+    'K4',
+    'k26',
+    'k20',
+    'K4',
+    'k26',
+    'k20',
+    'K4',
+    'k26',
+    'k20',
+    // For: init, condition, body, next, condition, body, ...
+    'l7',
+    'l16',
+    'L4',
+    'l22',
+    'l16',
+    'L4',
+    'l22',
+    'l16',
+    'L4',
+    'l22',
+    'l16',
+    // For-let: init, condition, body, next, condition, body, ...
+    'm15',
+    'm20',
+    'M4',
+    'm26',
+    'm20',
+    'M4',
+    'm26',
+    'm20',
+    'M4',
+    'm26',
+    'm20',
+    // For-of, empty: [Symbol.iterator](), assign once
+    'n16',
+    'n11',
+    // Spread: expression statement
+    'o2',
+    // For-await-of: [Symbol.iterator](), assign, body, assign, body, ...
+    'p22',
+    'p17',
+    'P4',
+    'p17',
+    'P4',
+    'p17',
+    'P4',
+    // For-await-of-let: [Symbol.iterator](), assign, body, assign, body, ...
+    'q18',
+    'q13',
+    'Q4',
+    'q13',
+    'Q4',
+    'q13',
+    'Q4',
+    // Exit.
+    'y0',
+    'z2',
+  ]
+  print("expected:\n" + JSON.stringify(expected));
 
-assertArrayEquals(expected, log);
-assertEquals(54, s);
-assertNull(exception);
+  assertArrayEquals(expected, log);
+  assertEquals(66, s);
+  assertNull(exception);
+
+})();

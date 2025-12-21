@@ -1,5 +1,6 @@
 'use strict';
-require('../common');
+const { skipIfSQLiteMissing } = require('../common');
+skipIfSQLiteMissing();
 const tmpdir = require('../common/tmpdir');
 const { existsSync } = require('node:fs');
 const { join } = require('node:path');
@@ -74,6 +75,15 @@ suite('DatabaseSync() constructor', () => {
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
       message: /The "options\.readOnly" argument must be a boolean/,
+    });
+  });
+
+  test('throws if options.timeout is provided but is not an integer', (t) => {
+    t.assert.throws(() => {
+      new DatabaseSync('foo', { timeout: .99 });
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: /The "options\.timeout" argument must be an integer/,
     });
   });
 
@@ -154,7 +164,7 @@ suite('DatabaseSync() constructor', () => {
       db.exec('SELECT "foo";');
     }, {
       code: 'ERR_SQLITE_ERROR',
-      message: /no such column: "foo"/,
+      message: /no such column: "?foo"?/,
     });
   });
 
@@ -163,6 +173,122 @@ suite('DatabaseSync() constructor', () => {
     const db = new DatabaseSync(dbPath, { enableDoubleQuotedStringLiterals: true });
     t.after(() => { db.close(); });
     db.exec('SELECT "foo";');
+  });
+
+  test('throws if options.readBigInts is provided but is not a boolean', (t) => {
+    t.assert.throws(() => {
+      new DatabaseSync('foo', { readBigInts: 42 });
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: 'The "options.readBigInts" argument must be a boolean.',
+    });
+  });
+
+  test('allows reading big integers', (t) => {
+    const dbPath = nextDb();
+    const db = new DatabaseSync(dbPath, { readBigInts: true });
+    t.after(() => { db.close(); });
+
+    const setup = db.exec(`
+      CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER) STRICT;
+      INSERT INTO data (key, val) VALUES (1, 42);
+    `);
+    t.assert.strictEqual(setup, undefined);
+
+    const query = db.prepare('SELECT val FROM data');
+    t.assert.deepStrictEqual(query.get(), { __proto__: null, val: 42n });
+
+    const insert = db.prepare('INSERT INTO data (key) VALUES (?)');
+    t.assert.deepStrictEqual(
+      insert.run(20),
+      { changes: 1n, lastInsertRowid: 20n },
+    );
+  });
+
+  test('throws if options.returnArrays is provided but is not a boolean', (t) => {
+    t.assert.throws(() => {
+      new DatabaseSync('foo', { returnArrays: 42 });
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: 'The "options.returnArrays" argument must be a boolean.',
+    });
+  });
+
+  test('allows returning arrays', (t) => {
+    const dbPath = nextDb();
+    const db = new DatabaseSync(dbPath, { returnArrays: true });
+    t.after(() => { db.close(); });
+    const setup = db.exec(`
+      CREATE TABLE data(key INTEGER PRIMARY KEY, val TEXT) STRICT;
+      INSERT INTO data (key, val) VALUES (1, 'one');
+      INSERT INTO data (key, val) VALUES (2, 'two');
+    `);
+    t.assert.strictEqual(setup, undefined);
+
+    const query = db.prepare('SELECT key, val FROM data WHERE key = 1');
+    t.assert.deepStrictEqual(query.get(), [1, 'one']);
+  });
+
+  test('throws if options.allowBareNamedParameters is provided but is not a boolean', (t) => {
+    t.assert.throws(() => {
+      new DatabaseSync('foo', { allowBareNamedParameters: 42 });
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: 'The "options.allowBareNamedParameters" argument must be a boolean.',
+    });
+  });
+
+  test('throws if bare named parameters are used when option is false', (t) => {
+    const dbPath = nextDb();
+    const db = new DatabaseSync(dbPath, { allowBareNamedParameters: false });
+    t.after(() => { db.close(); });
+    const setup = db.exec(
+      'CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER) STRICT;'
+    );
+    t.assert.strictEqual(setup, undefined);
+
+    const stmt = db.prepare('INSERT INTO data (key, val) VALUES ($k, $v)');
+    t.assert.throws(() => {
+      stmt.run({ k: 2, v: 4 });
+    }, {
+      code: 'ERR_INVALID_STATE',
+      message: /Unknown named parameter 'k'/,
+    });
+  });
+
+  test('throws if options.allowUnknownNamedParameters is provided but is not a boolean', (t) => {
+    t.assert.throws(() => {
+      new DatabaseSync('foo', { allowUnknownNamedParameters: 42 });
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: 'The "options.allowUnknownNamedParameters" argument must be a boolean.',
+    });
+  });
+
+  test('allows unknown named parameters', (t) => {
+    const dbPath = nextDb();
+    const db = new DatabaseSync(dbPath, { allowUnknownNamedParameters: true });
+    t.after(() => { db.close(); });
+    const setup = db.exec(
+      'CREATE TABLE data(key INTEGER, val INTEGER) STRICT;'
+    );
+    t.assert.strictEqual(setup, undefined);
+
+    const stmt = db.prepare('INSERT INTO data (key, val) VALUES ($k, $v)');
+    const params = { $a: 1, $b: 2, $k: 42, $y: 25, $v: 84, $z: 99 };
+    t.assert.deepStrictEqual(
+      stmt.run(params),
+      { changes: 1, lastInsertRowid: 1 },
+    );
+  });
+
+  test('has sqlite-type symbol property', (t) => {
+    const dbPath = nextDb();
+    const db = new DatabaseSync(dbPath);
+    t.after(() => { db.close(); });
+
+    const sqliteTypeSymbol = Symbol.for('sqlite-type');
+    t.assert.strictEqual(db[sqliteTypeSymbol], 'node:sqlite');
   });
 });
 
@@ -313,5 +439,94 @@ suite('DatabaseSync.prototype.exec()', () => {
       code: 'ERR_INVALID_ARG_TYPE',
       message: /The "sql" argument must be a string/,
     });
+  });
+});
+
+suite('DatabaseSync.prototype.isTransaction', () => {
+  test('correctly detects a committed transaction', (t) => {
+    const db = new DatabaseSync(':memory:');
+
+    t.assert.strictEqual(db.isTransaction, false);
+    db.exec('BEGIN');
+    t.assert.strictEqual(db.isTransaction, true);
+    db.exec('CREATE TABLE foo (id INTEGER PRIMARY KEY)');
+    t.assert.strictEqual(db.isTransaction, true);
+    db.exec('COMMIT');
+    t.assert.strictEqual(db.isTransaction, false);
+  });
+
+  test('correctly detects a rolled back transaction', (t) => {
+    const db = new DatabaseSync(':memory:');
+
+    t.assert.strictEqual(db.isTransaction, false);
+    db.exec('BEGIN');
+    t.assert.strictEqual(db.isTransaction, true);
+    db.exec('CREATE TABLE foo (id INTEGER PRIMARY KEY)');
+    t.assert.strictEqual(db.isTransaction, true);
+    db.exec('ROLLBACK');
+    t.assert.strictEqual(db.isTransaction, false);
+  });
+
+  test('throws if database is not open', (t) => {
+    const db = new DatabaseSync(nextDb(), { open: false });
+
+    t.assert.throws(() => {
+      return db.isTransaction;
+    }, {
+      code: 'ERR_INVALID_STATE',
+      message: /database is not open/,
+    });
+  });
+});
+
+suite('DatabaseSync.prototype.location()', () => {
+  test('throws if database is not open', (t) => {
+    const db = new DatabaseSync(nextDb(), { open: false });
+
+    t.assert.throws(() => {
+      db.location();
+    }, {
+      code: 'ERR_INVALID_STATE',
+      message: /database is not open/,
+    });
+  });
+
+  test('throws if provided dbName is not string', (t) => {
+    const db = new DatabaseSync(nextDb());
+    t.after(() => { db.close(); });
+
+    t.assert.throws(() => {
+      db.location(null);
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: /The "dbName" argument must be a string/,
+    });
+  });
+
+  test('returns null when connected to in-memory database', (t) => {
+    const db = new DatabaseSync(':memory:');
+    t.assert.strictEqual(db.location(), null);
+  });
+
+  test('returns db path when connected to a persistent database', (t) => {
+    const dbPath = nextDb();
+    const db = new DatabaseSync(dbPath);
+    t.after(() => { db.close(); });
+    t.assert.strictEqual(db.location(), dbPath);
+  });
+
+  test('returns that specific db path when attached', (t) => {
+    const dbPath = nextDb();
+    const otherPath = nextDb();
+    const db = new DatabaseSync(dbPath);
+    t.after(() => { db.close(); });
+    const other = new DatabaseSync(dbPath);
+    t.after(() => { other.close(); });
+
+    // Adding this escape because the test with unusual chars have a single quote which breaks the query
+    const escapedPath = otherPath.replace("'", "''");
+    db.exec(`ATTACH DATABASE '${escapedPath}' AS other`);
+
+    t.assert.strictEqual(db.location('other'), otherPath);
   });
 });

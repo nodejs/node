@@ -7,12 +7,12 @@
 #include <optional>
 
 #include "src/compiler/common-operator.h"
-#include "src/compiler/graph.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/map-inference.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/simplified-operator.h"
+#include "src/compiler/turbofan-graph.h"
 #include "src/compiler/verifier.h"
 
 namespace v8 {
@@ -149,15 +149,14 @@ void NodeProperties::RemoveValueInputs(Node* node) {
   }
 }
 
-
-void NodeProperties::MergeControlToEnd(Graph* graph,
+void NodeProperties::MergeControlToEnd(TFGraph* graph,
                                        CommonOperatorBuilder* common,
                                        Node* node) {
   graph->end()->AppendInput(graph->zone(), node);
   graph->end()->set_op(common->End(graph->end()->InputCount()));
 }
 
-void NodeProperties::RemoveControlFromEnd(Graph* graph,
+void NodeProperties::RemoveControlFromEnd(TFGraph* graph,
                                           CommonOperatorBuilder* common,
                                           Node* node) {
   int index_to_remove = -1;
@@ -365,11 +364,13 @@ MachineRepresentation NodeProperties::GetProjectionType(
 // static
 bool NodeProperties::IsSame(Node* a, Node* b) {
   for (;;) {
-    if (a->opcode() == IrOpcode::kCheckHeapObject) {
+    if (a->opcode() == IrOpcode::kCheckHeapObject ||
+        a->opcode() == IrOpcode::kTypeGuard) {
       a = GetValueInput(a, 0);
       continue;
     }
-    if (b->opcode() == IrOpcode::kCheckHeapObject) {
+    if (b->opcode() == IrOpcode::kCheckHeapObject ||
+        b->opcode() == IrOpcode::kTypeGuard) {
       b = GetValueInput(b, 0);
       continue;
     }
@@ -427,7 +428,23 @@ NodeProperties::InferMapsResult NodeProperties::InferMapsUnsafe(
   }
   InferMapsResult result = kReliableMaps;
   while (true) {
+#ifdef DEBUG
+    InferMapsResult prev_result = result;
+    bool write_might_change_aliasing_maps = true;
+#define WRITE_CANNOT_CHANGE_ALIASING_MAPS() \
+  write_might_change_aliasing_maps = false
+#else
+// Swallow the semicolon.
+#define WRITE_CANNOT_CHANGE_ALIASING_MAPS() ((void)0)
+#endif
+
     switch (effect->opcode()) {
+      case IrOpcode::kTypeGuard: {
+        DCHECK_EQ(1, effect->op()->EffectInputCount());
+        effect = NodeProperties::GetEffectInput(effect);
+        continue;
+      }
+
       case IrOpcode::kMapGuard: {
         Node* const object = GetValueInput(effect, 0);
         if (IsSame(receiver, object)) {
@@ -442,6 +459,28 @@ NodeProperties::InferMapsResult NodeProperties::InferMapsUnsafe(
           *maps_out = CheckMapsParametersOf(effect->op()).maps();
           return result;
         }
+        // This is subtle: CheckMaps with TryMigrateInstance _can_ write maps,
+        // but it can only transition away from deprecated maps, which should
+        // never be inferable maps, since we eagerly try to find the migration
+        // target of deprecated maps when we see them. It could be that a
+        // previous CheckMaps or other map inference node contains deprecated
+        // maps as of this check, because there could have been a concurrent
+        // deprecation, and this means that we can't CHECK this invariant here;
+        // but, then compilation would fail during finalization thanks to a
+        // CheckNoDeprecatedMaps check.
+        WRITE_CANNOT_CHANGE_ALIASING_MAPS();
+        break;
+      }
+      case IrOpcode::kTransitionElementsKindOrCheckMap: {
+        Node* const object = GetValueInput(effect, 0);
+        if (IsSame(receiver, object)) {
+          *maps_out = ZoneRefSet<Map>{
+              ElementsTransitionWithMultipleSourcesOf(effect->op()).target()};
+          return result;
+        }
+        // `receiver` and `object` might alias, so
+        // TransitionElementsKindOrCheckMaps might change receiver's map.
+        result = kUnreliableMaps;
         break;
       }
       case IrOpcode::kJSCreate: {
@@ -464,6 +503,7 @@ NodeProperties::InferMapsResult NodeProperties::InferMapsUnsafe(
                                           .initial_map(broker)};
           return result;
         }
+        WRITE_CANNOT_CHANGE_ALIASING_MAPS();
         break;
       }
       case IrOpcode::kStoreField: {
@@ -483,6 +523,8 @@ NodeProperties::InferMapsResult NodeProperties::InferMapsUnsafe(
           // Without alias analysis we cannot tell whether this
           // StoreField[map] affects {receiver} or not.
           result = kUnreliableMaps;
+        } else {
+          WRITE_CANNOT_CHANGE_ALIASING_MAPS();
         }
         break;
       }
@@ -491,6 +533,7 @@ NodeProperties::InferMapsResult NodeProperties::InferMapsUnsafe(
       case IrOpcode::kStoreElement:
       case IrOpcode::kStoreTypedElement: {
         // These never change the map of objects.
+        WRITE_CANNOT_CHANGE_ALIASING_MAPS();
         break;
       }
       case IrOpcode::kFinishRegion: {
@@ -498,6 +541,8 @@ NodeProperties::InferMapsResult NodeProperties::InferMapsUnsafe(
         // to update the {receiver} that we are looking for, if the
         // {receiver} matches the current {effect}.
         if (IsSame(receiver, effect)) receiver = GetValueInput(effect, 0);
+        // This never change the map of objects.
+        WRITE_CANNOT_CHANGE_ALIASING_MAPS();
         break;
       }
       case IrOpcode::kEffectPhi: {
@@ -528,6 +573,16 @@ NodeProperties::InferMapsResult NodeProperties::InferMapsUnsafe(
         break;
       }
     }
+
+#undef WRITE_CANNOT_CHANGE_ALIASING_MAPS
+#ifdef DEBUG
+    if (effect->op()->HasProperty(Operator::kNoWrite) ||
+        !write_might_change_aliasing_maps) {
+      DCHECK_EQ(result, prev_result);
+    } else {
+      DCHECK_EQ(result, kUnreliableMaps);
+    }
+#endif
 
     // Stop walking the effect chain once we hit the definition of
     // the {receiver} along the {effect}s.
@@ -585,6 +640,7 @@ bool NodeProperties::CanBeNullOrUndefined(JSHeapBroker* broker, Node* receiver,
     switch (receiver->opcode()) {
       case IrOpcode::kCheckInternalizedString:
       case IrOpcode::kCheckNumber:
+      case IrOpcode::kCheckNumberFitsInt32:
       case IrOpcode::kCheckSmi:
       case IrOpcode::kCheckString:
       case IrOpcode::kCheckSymbol:

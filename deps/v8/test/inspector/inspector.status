@@ -73,7 +73,7 @@
 }], # variant == jitless
 
 ##############################################################################
-['(arch == arm or arch == arm64) and simulator_run', {
+['(arch == arm or arch == arm64 or arch == loong64 or arch == mips64el) and simulator_run', {
   # Slow tests: https://crbug.com/v8/7783
   'runtime/console-messages-limits': [PASS, NO_VARIANTS, ['mode == debug', SKIP]],
 }],  # (arch == arm or arch == arm64) and simulator_run
@@ -257,9 +257,9 @@
 }],  # 'clang_coverage and mode == debug'
 
 ##############################################################################
-['((arch != x64 and arch != arm64 and arch != ia32 and arch != arm) or (simulator_run and conservative_stack_scanning))', {
+['((arch != x64 and arch != arm64 and arch != ia32 and arch != arm and arch != ppc64 and arch != s390x) or (simulator_run and direct_handle))', {
   # Stack switching is only supported on x64/arm64/ia32/arm.
   'debugger/wasm-jspi-async-stack': [SKIP],
-}],  # (arch != x64 and arch != arm64 and arch != ia32 and arch != arm)
+}],  # (arch != x64 and arch != arm64 and arch != ia32 and arch != arm and arch != ppc64 and arch != s390x)
 
 ]

@@ -4,20 +4,16 @@
 // See also test/parallel/test-handle-wrap-hasref.js
 
 const common = require('../common');
-const strictEqual = require('assert').strictEqual;
+const assert = require('assert');
 const ReadStream = require('tty').ReadStream;
 const tty = new ReadStream(0);
 const { internalBinding } = require('internal/test/binding');
 const isTTY = internalBinding('tty_wrap').isTTY;
-strictEqual(isTTY(0), true, 'tty_wrap: stdin is not a TTY');
-strictEqual(tty._handle.hasRef(),
-            true, 'tty_wrap: not initially refed');
+assert.ok(isTTY(0), 'tty_wrap: stdin is not a TTY');
+assert.ok(tty._handle.hasRef(), 'tty_wrap: not initially refed');
 tty.unref();
-strictEqual(tty._handle.hasRef(),
-            false, 'tty_wrap: unref() ineffective');
+assert.ok(!tty._handle.hasRef(), 'tty_wrap: unref() ineffective');
 tty.ref();
-strictEqual(tty._handle.hasRef(),
-            true, 'tty_wrap: ref() ineffective');
+assert.ok(tty._handle.hasRef(), 'tty_wrap: ref() ineffective');
 tty._handle.close(common.mustCall(() =>
-  strictEqual(tty._handle.hasRef(),
-              false, 'tty_wrap: not unrefed on close')));
+  assert.ok(!tty._handle.hasRef(), 'tty_wrap: not unrefed on close')));

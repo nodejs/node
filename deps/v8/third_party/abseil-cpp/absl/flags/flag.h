@@ -35,6 +35,7 @@
 
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
+#include "absl/base/nullability.h"
 #include "absl/base/optimization.h"
 #include "absl/flags/commandlineflag.h"
 #include "absl/flags/config.h"
@@ -94,7 +95,7 @@ using Flag = flags_internal::Flag<T>;
 //   // FLAGS_firstname is a Flag of type `std::string`
 //   std::string first_name = absl::GetFlag(FLAGS_firstname);
 template <typename T>
-ABSL_MUST_USE_RESULT T GetFlag(const absl::Flag<T>& flag) {
+[[nodiscard]] T GetFlag(const absl::Flag<T>& flag) {
   return flags_internal::FlagImplPeer::InvokeGet<T>(flag);
 }
 
@@ -106,7 +107,7 @@ ABSL_MUST_USE_RESULT T GetFlag(const absl::Flag<T>& flag) {
 // thread-safe, but is potentially expensive. Avoid setting flags in general,
 // but especially within performance-critical code.
 template <typename T>
-void SetFlag(absl::Flag<T>* flag, const T& v) {
+void SetFlag(absl::Flag<T>* absl_nonnull flag, const T& v) {
   flags_internal::FlagImplPeer::InvokeSet(*flag, v);
 }
 
@@ -114,7 +115,7 @@ void SetFlag(absl::Flag<T>* flag, const T& v) {
 // convertible to `T`. E.g., use this overload to pass a "const char*" when `T`
 // is `std::string`.
 template <typename T, typename V>
-void SetFlag(absl::Flag<T>* flag, const V& v) {
+void SetFlag(absl::Flag<T>* absl_nonnull flag, const V& v) {
   T value(v);
   flags_internal::FlagImplPeer::InvokeSet(*flag, value);
 }
@@ -204,12 +205,14 @@ ABSL_NAMESPACE_END
 
 #if ABSL_FLAGS_STRIP_NAMES
 #define ABSL_FLAG_IMPL_FLAGNAME(txt) ""
+#define ABSL_FLAG_IMPL_TYPENAME(txt) ""
 #define ABSL_FLAG_IMPL_FILENAME() ""
 #define ABSL_FLAG_IMPL_REGISTRAR(T, flag)                                      \
   absl::flags_internal::FlagRegistrar<T, false>(ABSL_FLAG_IMPL_FLAG_PTR(flag), \
                                                 nullptr)
 #else
 #define ABSL_FLAG_IMPL_FLAGNAME(txt) txt
+#define ABSL_FLAG_IMPL_TYPENAME(txt) txt
 #define ABSL_FLAG_IMPL_FILENAME() __FILE__
 #define ABSL_FLAG_IMPL_REGISTRAR(T, flag)                                     \
   absl::flags_internal::FlagRegistrar<T, true>(ABSL_FLAG_IMPL_FLAG_PTR(flag), \
@@ -261,16 +264,17 @@ ABSL_NAMESPACE_END
 // Note: Name of registrar object is not arbitrary. It is used to "grab"
 // global name for FLAGS_no<flag_name> symbol, thus preventing the possibility
 // of defining two flags with names foo and nofoo.
-#define ABSL_FLAG_IMPL(Type, name, default_value, help)                       \
-  extern ::absl::Flag<Type> FLAGS_##name;                                     \
-  namespace absl /* block flags in namespaces */ {}                           \
-  ABSL_FLAG_IMPL_DECLARE_DEF_VAL_WRAPPER(name, Type, default_value)           \
-  ABSL_FLAG_IMPL_DECLARE_HELP_WRAPPER(name, help)                             \
-  ABSL_CONST_INIT absl::Flag<Type> FLAGS_##name{                              \
-      ABSL_FLAG_IMPL_FLAGNAME(#name), ABSL_FLAG_IMPL_FILENAME(),              \
-      ABSL_FLAG_IMPL_HELP_ARG(name), ABSL_FLAG_IMPL_DEFAULT_ARG(Type, name)}; \
-  extern absl::flags_internal::FlagRegistrarEmpty FLAGS_no##name;             \
-  absl::flags_internal::FlagRegistrarEmpty FLAGS_no##name =                   \
+#define ABSL_FLAG_IMPL(Type, name, default_value, help)               \
+  extern ::absl::Flag<Type> FLAGS_##name;                             \
+  namespace absl /* block flags in namespaces */ {}                   \
+  ABSL_FLAG_IMPL_DECLARE_DEF_VAL_WRAPPER(name, Type, default_value)   \
+  ABSL_FLAG_IMPL_DECLARE_HELP_WRAPPER(name, help)                     \
+  ABSL_CONST_INIT absl::Flag<Type> FLAGS_##name{                      \
+      ABSL_FLAG_IMPL_FLAGNAME(#name), ABSL_FLAG_IMPL_TYPENAME(#Type), \
+      ABSL_FLAG_IMPL_FILENAME(), ABSL_FLAG_IMPL_HELP_ARG(name),       \
+      ABSL_FLAG_IMPL_DEFAULT_ARG(Type, name)};                        \
+  extern absl::flags_internal::FlagRegistrarEmpty FLAGS_no##name;     \
+  absl::flags_internal::FlagRegistrarEmpty FLAGS_no##name =           \
       ABSL_FLAG_IMPL_REGISTRAR(Type, FLAGS_##name)
 
 // ABSL_RETIRED_FLAG

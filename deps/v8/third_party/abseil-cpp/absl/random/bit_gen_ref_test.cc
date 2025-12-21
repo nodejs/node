@@ -15,9 +15,14 @@
 //
 #include "absl/random/bit_gen_ref.h"
 
+#include <cstdint>
+#include <random>
+#include <vector>
+
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "absl/base/internal/fast_type_id.h"
+#include "absl/base/config.h"
+#include "absl/base/fast_type_id.h"
 #include "absl/random/internal/sequence_urbg.h"
 #include "absl/random/random.h"
 
@@ -34,7 +39,7 @@ class ConstBitGen {
   result_type operator()() { return 1; }
 
   // InvokeMock method
-  bool InvokeMock(base_internal::FastTypeIdType index, void*, void* result) {
+  bool InvokeMock(FastTypeIdType, void*, void* result) {
     *static_cast<int*>(result) = 42;
     return true;
   }

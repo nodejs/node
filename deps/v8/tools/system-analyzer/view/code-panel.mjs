@@ -5,119 +5,122 @@
 import {SelectRelatedEvent} from './events.mjs';
 import {CollapsableElement, DOM, formatBytes, formatMicroSeconds} from './helper.mjs';
 
-DOM.defineCustomElement('view/code-panel',
-                        (templateText) =>
-                            class CodePanel extends CollapsableElement {
-  _timeline;
-  _selectedEntries;
-  _entry;
+DOM.defineCustomElement(
+    'view/code-panel',
+    (templateText) => class CodePanel extends CollapsableElement {
+      _timeline;
+      _selectedEntries;
+      _entry;
 
-  constructor() {
-    super(templateText);
-    this._propertiesNode = this.$('#properties');
-    this._codeSelectNode = this.$('#codeSelect');
-    this._disassemblyNode = this.$('#disassembly');
-    this._feedbackVectorNode = this.$('#feedbackVector');
-    this._selectionHandler = new SelectionHandler(this._disassemblyNode);
+      constructor() {
+        super(templateText);
+        this._propertiesNode = this.$('#properties');
+        this._codeSelectNode = this.$('#codeSelect');
+        this._disassemblyNode = this.$('#disassembly');
+        this._feedbackVectorNode = this.$('#feedbackVector');
+        this._selectionHandler = new SelectionHandler(this._disassemblyNode);
 
-    this._codeSelectNode.onchange = this._handleSelectCode.bind(this);
-    this.$('#selectedRelatedButton').onclick =
-        this._handleSelectRelated.bind(this)
-  }
+        this._codeSelectNode.onchange = this._handleSelectCode.bind(this);
+        this.$('#selectedRelatedButton').onclick =
+            this._handleSelectRelated.bind(this)
+      }
 
-  set timeline(timeline) {
-    this._timeline = timeline;
-    this.$('.panel').style.display = timeline.isEmpty() ? 'none' : 'inherit';
-    this.requestUpdate();
-  }
+      set timeline(timeline) {
+        this._timeline = timeline;
+        this.$('.panel').style.display =
+            timeline.isEmpty() ? 'none' : 'inherit';
+        this.requestUpdate();
+      }
 
-  set selectedEntries(entries) {
-    this._selectedEntries = entries;
-    this.entry = entries.first();
-  }
+      set selectedEntries(entries) {
+        this._selectedEntries = entries;
+        this.entry = entries.first();
+      }
 
-  set entry(entry) {
-    this._entry = entry;
-    if (!entry) {
-      this._propertiesNode.propertyDict = {};
-    } else {
-      this._propertiesNode.propertyDict = {
-        '__this__': entry,
-        functionName: entry.functionName,
-        size: formatBytes(entry.size),
-        creationTime: formatMicroSeconds(entry.time / 1000),
-        sourcePosition: entry.sourcePosition,
-        script: entry.script,
-        type: entry.type,
-        kind: entry.kindName,
-        variants: entry.variants.length > 1 ? [undefined, ...entry.variants] :
-                                              undefined,
-      };
-    }
-    this.requestUpdate();
-  }
+      set entry(entry) {
+        this._entry = entry;
+        if (!entry) {
+          this._propertiesNode.propertyDict = {};
+        } else {
+          this._propertiesNode.propertyDict = {
+            '__this__': entry,
+            functionName: entry.functionName,
+            size: formatBytes(entry.size),
+            creationTime: formatMicroSeconds(entry.time / 1000),
+            sourcePosition: entry.sourcePosition,
+            script: entry.script,
+            type: entry.type,
+            kind: entry.kindName,
+            variants: entry.variants.length > 1 ?
+                [undefined, ...entry.variants] :
+                undefined,
+          };
+        }
+        this.requestUpdate();
+      }
 
-  _update() {
-    this._updateSelect();
-    this._updateDisassembly();
-    this._updateFeedbackVector();
-  }
+      _update() {
+        this._updateSelect();
+        this._updateDisassembly();
+        this._updateFeedbackVector();
+      }
 
-  _updateFeedbackVector() {
-    if (!this._entry?.feedbackVector) {
-      this._feedbackVectorNode.propertyDict = {};
-    } else {
-      const dict = this._entry.feedbackVector.toolTipDict;
-      delete dict.title;
-      delete dict.code;
-      this._feedbackVectorNode.propertyDict = dict;
-    }
-  }
+      _updateFeedbackVector() {
+        if (!this._entry?.feedbackVector) {
+          this._feedbackVectorNode.propertyDict = {};
+        } else {
+          const dict = this._entry.feedbackVector.toolTipDict;
+          delete dict.title;
+          delete dict.code;
+          this._feedbackVectorNode.propertyDict = dict;
+        }
+      }
 
-  _updateDisassembly() {
-    this._disassemblyNode.innerText = '';
-    if (!this._entry?.code) return;
-    try {
-      this._disassemblyNode.appendChild(
-          new AssemblyFormatter(this._entry).fragment);
-    } catch (e) {
-      console.error(e);
-      this._disassemblyNode.innerText = this._entry.code;
-    }
-  }
+      _updateDisassembly() {
+        this._disassemblyNode.innerText = '';
+        if (!this._entry?.code) return;
+        try {
+          this._disassemblyNode.appendChild(
+              new AssemblyFormatter(this._entry).fragment);
+        } catch (e) {
+          console.error(e);
+          this._disassemblyNode.innerText = this._entry.code;
+        }
+      }
 
-  _updateSelect() {
-    const select = this._codeSelectNode;
-    if (select.data === this._selectedEntries) return;
-    select.data = this._selectedEntries;
-    select.options.length = 0;
-    const sorted =
-        this._selectedEntries.slice().sort((a, b) => a.time - b.time);
-    for (const code of this._selectedEntries) {
-      const option = DOM.element('option');
-      option.text = this._entrySummary(code);
-      option.data = code;
-      select.add(option);
-    }
-  }
-  _entrySummary(code) {
-    if (code.isBuiltinKind) {
-      return `${code.functionName}(...) t=${
-          formatMicroSeconds(code.time)} size=${formatBytes(code.size)}`;
-    }
-    return `${code.functionName}(...) t=${formatMicroSeconds(code.time)} size=${
-        formatBytes(code.size)} script=${code.script?.toString()}`;
-  }
+      _updateSelect() {
+        const select = this._codeSelectNode;
+        if (select.data === this._selectedEntries) return;
+        select.data = this._selectedEntries;
+        select.options.length = 0;
+        const sorted =
+            this._selectedEntries.slice().sort((a, b) => a.time - b.time);
+        for (const code of this._selectedEntries) {
+          const option = DOM.element('option');
+          option.text = this._entrySummary(code);
+          option.data = code;
+          select.add(option);
+        }
+      }
+      _entrySummary(code) {
+        if (code.isBuiltinKind) {
+          return `${code.functionName}(...) t=${
+              formatMicroSeconds(code.time)} size=${formatBytes(code.size)}`;
+        }
+        return `${code.functionName}(...) t=${
+            formatMicroSeconds(code.time)} size=${
+            formatBytes(code.size)} script=${code.script?.toString()}`;
+      }
 
-  _handleSelectCode() {
-    this.entry = this._codeSelectNode.selectedOptions[0].data;
-  }
+      _handleSelectCode() {
+        this.entry = this._codeSelectNode.selectedOptions[0].data;
+      }
 
-  _handleSelectRelated(e) {
-    if (!this._entry) return;
-    this.dispatchEvent(new SelectRelatedEvent(this._entry));
-  }
-});
+      _handleSelectRelated(e) {
+        if (!this._entry) return;
+        this.dispatchEvent(new SelectRelatedEvent(this._entry));
+      }
+    });
 
 const kRegisters = ['rsp', 'rbp', 'rax', 'rbx', 'rcx', 'rdx', 'rsi', 'rdi'];
 // Make sure we dont match register on bytecode: Star1 or Star2

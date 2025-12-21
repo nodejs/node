@@ -16,13 +16,13 @@ const nonUtf8ToLatin1 = Buffer.from(nonUtf8Header).toString('latin1');
   }));
 
   server.listen(0, common.mustCall(() => {
-    http.get({ port: server.address().port }, (res) => {
+    http.get({ port: server.address().port }, common.mustCall((res) => {
       assert.strictEqual(res.statusCode, 200);
       assert.strictEqual(res.headers['content-disposition'], nonUtf8ToLatin1);
       res.resume().on('end', common.mustCall(() => {
         server.close();
       }));
-    });
+    }));
   }));
 }
 
@@ -37,13 +37,13 @@ const nonUtf8ToLatin1 = Buffer.from(nonUtf8Header).toString('latin1');
   }));
 
   server.listen(0, common.mustCall(() => {
-    http.get({ port: server.address().port }, (res) => {
+    http.get({ port: server.address().port }, common.mustCall((res) => {
       assert.strictEqual(res.statusCode, 200);
       assert.strictEqual(res.headers['content-disposition'], nonUtf8ToLatin1);
       res.resume().on('end', common.mustCall(() => {
         server.close();
       }));
-    });
+    }));
   }));
 }
 
@@ -58,12 +58,12 @@ const nonUtf8ToLatin1 = Buffer.from(nonUtf8Header).toString('latin1');
   }));
 
   server.listen(0, common.mustCall(() => {
-    http.get({ port: server.address().port }, (res) => {
+    http.get({ port: server.address().port }, common.mustCall((res) => {
       assert.strictEqual(res.statusCode, 200);
       assert.strictEqual(res.headers['content-disposition'], nonUtf8ToLatin1);
       res.resume().on('end', common.mustCall(() => {
         server.close();
       }));
-    });
+    }));
   }));
 }

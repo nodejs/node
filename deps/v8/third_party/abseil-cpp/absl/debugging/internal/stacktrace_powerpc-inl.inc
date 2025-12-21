@@ -21,6 +21,7 @@
 #ifndef ABSL_DEBUGGING_INTERNAL_STACKTRACE_POWERPC_INL_H_
 #define ABSL_DEBUGGING_INTERNAL_STACKTRACE_POWERPC_INL_H_
 
+#include "absl/debugging/internal/addresses.h"
 #if defined(__linux__)
 #include <asm/ptrace.h>   // for PT_NIP.
 #include <ucontext.h>     // for ucontext_t
@@ -40,22 +41,22 @@
 
 // Given a stack pointer, return the saved link register value.
 // Note that this is the link register for a callee.
-static inline void *StacktracePowerPCGetLR(void **sp) {
+static inline void **StacktracePowerPCGetLRPtr(void **sp) {
   // PowerPC has 3 main ABIs, which say where in the stack the
   // Link Register is.  For DARWIN and AIX (used by apple and
   // linux ppc64), it's in sp[2].  For SYSV (used by linux ppc),
   // it's in sp[1].
 #if defined(_CALL_AIX) || defined(_CALL_DARWIN)
-  return *(sp+2);
+  return (sp + 2);
 #elif defined(_CALL_SYSV)
-  return *(sp+1);
+  return (sp + 1);
 #elif defined(__APPLE__) || defined(__FreeBSD__) || \
     (defined(__linux__) && defined(__PPC64__))
   // This check is in case the compiler doesn't define _CALL_AIX/etc.
-  return *(sp+2);
+  return (sp + 2);
 #elif defined(__linux)
   // This check is in case the compiler doesn't define _CALL_SYSV.
-  return *(sp+1);
+  return (sp + 1);
 #else
 #error Need to specify the PPC ABI for your architecture.
 #endif
@@ -68,6 +69,7 @@ static inline void *StacktracePowerPCGetLR(void **sp) {
 template<bool STRICT_UNWINDING, bool IS_WITH_CONTEXT>
 ABSL_ATTRIBUTE_NO_SANITIZE_ADDRESS  // May read random elements from stack.
 ABSL_ATTRIBUTE_NO_SANITIZE_MEMORY   // May read random elements from stack.
+ABSL_ATTRIBUTE_NO_SANITIZE_THREAD   // May read random elements from stack.
 static void **NextStackFrame(void **old_sp, const void *uc) {
   void **new_sp = (void **) *old_sp;
   enum { kStackAlignment = 16 };
@@ -125,9 +127,8 @@ static void **NextStackFrame(void **old_sp, const void *uc) {
       }
     }
 
-    if (new_sp != nullptr &&
-        kernel_symbol_status == kAddressValid &&
-        StacktracePowerPCGetLR(new_sp) == kernel_sigtramp_rt64_address) {
+    if (new_sp != nullptr && kernel_symbol_status == kAddressValid &&
+        *StacktracePowerPCGetLRPtr(new_sp) == kernel_sigtramp_rt64_address) {
       const ucontext_t* signal_context =
           reinterpret_cast<const ucontext_t*>(uc);
       void **const sp_before_signal =
@@ -164,8 +165,10 @@ ABSL_ATTRIBUTE_NOINLINE static void AbslStacktracePowerPCDummyFunction() {
 template <bool IS_STACK_FRAMES, bool IS_WITH_CONTEXT>
 ABSL_ATTRIBUTE_NO_SANITIZE_ADDRESS  // May read random elements from stack.
 ABSL_ATTRIBUTE_NO_SANITIZE_MEMORY   // May read random elements from stack.
-static int UnwindImpl(void** result, int* sizes, int max_depth, int skip_count,
-                      const void *ucp, int *min_dropped_frames) {
+ABSL_ATTRIBUTE_NO_SANITIZE_THREAD   // May read random elements from stack.
+static int UnwindImpl(void **result, uintptr_t *frames, int *sizes,
+                      int max_depth, int skip_count, const void *ucp,
+                      int *min_dropped_frames) {
   void **sp;
   // Apple macOS uses an old version of gnu as -- both Darwin 7.9.0 (Panther)
   // and Darwin 8.8.1 (Tiger) use as 1.38.  This means we have to use a
@@ -211,13 +214,21 @@ static int UnwindImpl(void** result, int* sizes, int max_depth, int skip_count,
     if (skip_count > 0) {
       skip_count--;
     } else {
-      result[n] = StacktracePowerPCGetLR(sp);
+      void **lr = StacktracePowerPCGetLRPtr(sp);
+      result[n] = *lr;
       if (IS_STACK_FRAMES) {
-        if (next_sp > sp) {
-          sizes[n] = (uintptr_t)next_sp - (uintptr_t)sp;
-        } else {
-          // A frame-size of 0 is used to indicate unknown frame size.
-          sizes[n] = 0;
+        if (frames != nullptr) {
+          frames[n] = absl::debugging_internal::StripPointerMetadata(lr) +
+                      1 * sizeof(void *) /* go past the return address */;
+        }
+        if (sizes != nullptr) {
+          if (next_sp > sp) {
+            sizes[n] = absl::debugging_internal::StripPointerMetadata(next_sp) -
+                       absl::debugging_internal::StripPointerMetadata(sp);
+          } else {
+            // A frame-size of 0 is used to indicate unknown frame size.
+            sizes[n] = 0;
+          }
         }
       }
       n++;

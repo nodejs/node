@@ -7,7 +7,6 @@ import("//third_party/abseil-cpp/absl.gni")
 absl_source_set("cleanup_internal") {
   public = [ "internal/cleanup.h" ]
   deps = [
-    "//third_party/abseil-cpp/absl/base:base_internal",
     "//third_party/abseil-cpp/absl/base:core_headers",
     "//third_party/abseil-cpp/absl/utility",
   ]

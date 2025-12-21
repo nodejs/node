@@ -22,6 +22,8 @@ server.listen(0, common.mustCall(() => {
   const client = h2.connect(`http://localhost:${server.address().port}`,
                             options);
 
+  client.on('error', () => {});
+
   const req = client.request();
   req.on('response', common.mustNotCall());
 

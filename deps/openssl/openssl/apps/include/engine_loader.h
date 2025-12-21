@@ -13,7 +13,7 @@
 
 /* this is a private URI scheme */
 # define ENGINE_SCHEME          "org.openssl.engine"
-# define ENGINE_SCHEME_COLON    (ENGINE_SCHEME ":")
+# define ENGINE_SCHEME_COLON    ENGINE_SCHEME ":"
 
 int setup_engine_loader(void);
 void destroy_engine_loader(void);

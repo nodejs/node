@@ -9,108 +9,120 @@
 #include "src/base/bounded-page-allocator.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
+#include "src/execution/isolate.h"
+#include "src/flags/flags.h"
+#include "src/heap/memory-pool.h"
 #include "src/utils/allocation.h"
-#include "src/zone/zone-compression.h"
 #include "src/zone/zone-segment.h"
 
 namespace v8 {
 namespace internal {
 
-// These definitions are here in order to please the linker, which in debug mode
-// sometimes requires static constants to be defined in .cc files.
-const size_t ZoneCompression::kReservationSize;
-const size_t ZoneCompression::kReservationAlignment;
-
 namespace {
 
-static constexpr size_t kZonePageSize = 256 * KB;
+class ManagedZones final {
+ public:
+  static std::optional<VirtualMemory> GetOrCreateMemoryForSegment(
+      Isolate* isolate, size_t bytes) {
+    DCHECK_EQ(0, bytes % kMinZonePageSize);
+    // Only consult the pool if we have an isolate and the size is exactly the
+    // zone page size. Larger sizes may be required and just bypass the pool.
+    if (isolate && bytes == kMinZonePageSize) {
+      auto maybe_reservation =
+          IsolateGroup::current()->memory_pool()->RemoveZoneReservation(
+              isolate);
+      if (maybe_reservation) {
+        return maybe_reservation;
+      }
+    }
 
-VirtualMemory ReserveAddressSpace(v8::PageAllocator* platform_allocator) {
-  DCHECK(IsAligned(ZoneCompression::kReservationSize,
-                   platform_allocator->AllocatePageSize()));
-
-  void* hint = reinterpret_cast<void*>(RoundDown(
-      reinterpret_cast<uintptr_t>(platform_allocator->GetRandomMmapAddr()),
-      ZoneCompression::kReservationAlignment));
-
-  VirtualMemory memory(platform_allocator, ZoneCompression::kReservationSize,
-                       hint, ZoneCompression::kReservationAlignment);
-  if (memory.IsReserved()) {
-    CHECK(IsAligned(memory.address(), ZoneCompression::kReservationAlignment));
+    v8::PageAllocator* platform_page_allocator = GetPlatformPageAllocator();
+    VirtualMemory memory(platform_page_allocator, bytes,
+                         v8::PageAllocator::AllocationHint(),
+                         kMinZonePageAlignment, v8::PageAllocator::kReadWrite);
+    if (V8_UNLIKELY(!memory.IsReserved())) {
+      return std::nullopt;
+    }
+    CHECK(IsAligned(memory.address(), kMinZonePageAlignment));
     return memory;
   }
 
-  base::FatalOOM(base::OOMType::kProcess,
-                 "Failed to reserve memory for compressed zones");
-  UNREACHABLE();
-}
+  static base::AllocationResult<void*> AllocateSegment(Isolate* isolate,
+                                                       size_t bytes) {
+    static constexpr size_t kMaxSize = size_t{2} * GB;
+    if (bytes >= kMaxSize) {
+      return {nullptr, bytes};
+    }
+    void* memory = nullptr;
+    bytes = RoundUp(bytes, ManagedZones::kMinZonePageSize);
+    std::optional<VirtualMemory> maybe_reservation =
+        ManagedZones::GetOrCreateMemoryForSegment(isolate, bytes);
+    if (V8_LIKELY(maybe_reservation)) {
+      VirtualMemory reservation = std::move(maybe_reservation.value());
+      DCHECK(reservation.IsReserved());
+      DCHECK_EQ(reservation.size(), bytes);
+      memory = reinterpret_cast<void*>(reservation.address());
+      // Don't let the reservation be freed by destructor. From now on the
+      // reservation will be managed via a pair {memory, bytes}.
+      reservation.Reset();
+    }
+    return {memory, bytes};
+  }
 
-std::unique_ptr<v8::base::BoundedPageAllocator> CreateBoundedAllocator(
-    v8::PageAllocator* platform_allocator, Address reservation_start) {
-  CHECK(reservation_start);
-  CHECK(IsAligned(reservation_start, ZoneCompression::kReservationAlignment));
+  static void ReturnSegment(Isolate* isolate, void* memory, size_t bytes) {
+    VirtualMemory reservation(GetPlatformPageAllocator(),
+                              reinterpret_cast<Address>(memory), bytes);
+    if (reservation.size() == ManagedZones::kMinZonePageSize) {
+      IsolateGroup::current()->memory_pool()->AddZoneReservation(
+          isolate, std::move(reservation));
+    }
+    // Reservation will be automatically freed here otherwise.
+  }
 
-  auto allocator = std::make_unique<v8::base::BoundedPageAllocator>(
-      platform_allocator, reservation_start, ZoneCompression::kReservationSize,
-      kZonePageSize,
-      base::PageInitializationMode::kAllocatedPagesCanBeUninitialized,
-      base::PageFreeingMode::kMakeInaccessible);
-
-  // Exclude first page from allocation to ensure that accesses through
-  // decompressed null pointer will seg-fault.
-  allocator->AllocatePagesAt(reservation_start, kZonePageSize,
-                             v8::PageAllocator::kNoAccess);
-  return allocator;
-}
+ private:
+  static constexpr size_t kMinZonePageSize = 512 * KB;
+  static constexpr size_t kMinZonePageAlignment = 16 * KB;
+};
 
 }  // namespace
 
-AccountingAllocator::AccountingAllocator() {
-  if (COMPRESS_ZONES_BOOL) {
-    v8::PageAllocator* platform_page_allocator = GetPlatformPageAllocator();
-    VirtualMemory memory = ReserveAddressSpace(platform_page_allocator);
-    reserved_area_ = std::make_unique<VirtualMemory>(std::move(memory));
-    bounded_page_allocator_ = CreateBoundedAllocator(platform_page_allocator,
-                                                     reserved_area_->address());
-  }
-}
+AccountingAllocator::AccountingAllocator() : AccountingAllocator(nullptr) {}
+
+AccountingAllocator::AccountingAllocator(Isolate* isolate)
+    : isolate_(isolate) {}
 
 AccountingAllocator::~AccountingAllocator() = default;
 
-Segment* AccountingAllocator::AllocateSegment(size_t bytes,
-                                              bool supports_compression) {
-  void* memory;
-  if (COMPRESS_ZONES_BOOL && supports_compression) {
-    bytes = RoundUp(bytes, kZonePageSize);
-    memory = AllocatePages(bounded_page_allocator_.get(), nullptr, bytes,
-                           kZonePageSize, PageAllocator::kReadWrite);
-
+Segment* AccountingAllocator::AllocateSegment(size_t requested_bytes) {
+  base::AllocationResult<void*> memory;
+  if (v8_flags.managed_zone_memory && isolate_) {
+    memory = ManagedZones::AllocateSegment(isolate_, requested_bytes);
   } else {
-    auto result = AllocAtLeastWithRetry(bytes);
-    memory = result.ptr;
-    bytes = result.count;
+    memory = AllocAtLeastWithRetry(requested_bytes);
   }
-  if (memory == nullptr) return nullptr;
+  if (V8_UNLIKELY(memory.ptr == nullptr)) {
+    return nullptr;
+  }
 
   size_t current =
-      current_memory_usage_.fetch_add(bytes, std::memory_order_relaxed) + bytes;
+      current_memory_usage_.fetch_add(memory.count, std::memory_order_relaxed) +
+      memory.count;
   size_t max = max_memory_usage_.load(std::memory_order_relaxed);
   while (current > max && !max_memory_usage_.compare_exchange_weak(
                               max, current, std::memory_order_relaxed)) {
     // {max} was updated by {compare_exchange_weak}; retry.
   }
-  DCHECK_LE(sizeof(Segment), bytes);
-  return new (memory) Segment(bytes);
+  DCHECK_LE(sizeof(Segment), memory.count);
+  return new (memory.ptr) Segment(memory.count);
 }
 
-void AccountingAllocator::ReturnSegment(Segment* segment,
-                                        bool supports_compression) {
+void AccountingAllocator::ReturnSegment(Segment* segment) {
   segment->ZapContents();
   size_t segment_size = segment->total_size();
   current_memory_usage_.fetch_sub(segment_size, std::memory_order_relaxed);
   segment->ZapHeader();
-  if (COMPRESS_ZONES_BOOL && supports_compression) {
-    FreePages(bounded_page_allocator_.get(), segment, segment_size);
+  if (isolate_ && v8_flags.managed_zone_memory) {
+    ManagedZones::ReturnSegment(isolate_, segment, segment_size);
   } else {
     free(segment);
   }

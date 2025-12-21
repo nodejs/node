@@ -6,6 +6,7 @@
 
 #include "src/api/api-inl.h"
 #include "src/builtins/builtins-descriptors.h"
+#include "src/builtins/builtins-inl.h"
 #include "src/builtins/data-view-ops.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/callable.h"
@@ -13,6 +14,7 @@
 #include "src/codegen/macro-assembler.h"
 #include "src/diagnostics/code-tracer.h"
 #include "src/execution/isolate.h"
+#include "src/heap/combined-heap.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/logging/code-events.h"  // For CodeCreateEvent.
 #include "src/logging/log.h"          // For V8FileLogger.
@@ -26,7 +28,7 @@ namespace v8 {
 namespace internal {
 
 // Forward declarations for C++ builtins.
-#define FORWARD_DECLARE(Name) \
+#define FORWARD_DECLARE(Name, Argc) \
   Address Builtin_##Name(int argc, Address* args, Isolate* isolate);
 BUILTIN_LIST_C(FORWARD_DECLARE)
 #undef FORWARD_DECLARE
@@ -68,26 +70,30 @@ struct BuiltinMetadata {
   } data;
 };
 
-#define DECL_CPP(Name, ...) \
+#define DECL_CPP(Name, Argc) \
   {#Name, Builtins::CPP, {FUNCTION_ADDR(Builtin_##Name)}},
-#define DECL_TSJ(Name, Count, ...) {#Name, Builtins::TSJ, {Count, 0}},
+#define DECL_TFJ_TSA(Name, Count, ...) {#Name, Builtins::TFJ_TSA, {Count, 0}},
 #define DECL_TFJ(Name, Count, ...) {#Name, Builtins::TFJ, {Count, 0}},
-#define DECL_TSC(Name, ...) {#Name, Builtins::TSC, {}},
+#define DECL_TFC_TSA(Name, ...) {#Name, Builtins::TFC_TSA, {}},
 #define DECL_TFC(Name, ...) {#Name, Builtins::TFC, {}},
 #define DECL_TFS(Name, ...) {#Name, Builtins::TFS, {}},
 #define DECL_TFH(Name, ...) {#Name, Builtins::TFH, {}},
+#define DECL_BCH_TSA(Name, OperandScale, Bytecode) \
+  {#Name, Builtins::BCH_TSA, {Bytecode, OperandScale}},
 #define DECL_BCH(Name, OperandScale, Bytecode) \
   {#Name, Builtins::BCH, {Bytecode, OperandScale}},
 #define DECL_ASM(Name, ...) {#Name, Builtins::ASM, {}},
 const BuiltinMetadata builtin_metadata[] = {
-    BUILTIN_LIST(DECL_CPP, DECL_TSJ, DECL_TFJ, DECL_TSC, DECL_TFC, DECL_TFS,
-                 DECL_TFH, DECL_BCH, DECL_ASM)};
+    BUILTIN_LIST(DECL_CPP, DECL_TFJ_TSA, DECL_TFJ, DECL_TFC_TSA, DECL_TFC,
+                 DECL_TFS, DECL_TFH, DECL_BCH_TSA, DECL_BCH, DECL_ASM)};
 #undef DECL_CPP
+#undef DECL_TFJ_TSA
 #undef DECL_TFJ
-#undef DECL_TSC
+#undef DECL_TFC_TSA
 #undef DECL_TFC
 #undef DECL_TFS
 #undef DECL_TFH
+#undef DECL_BCH_TSA
 #undef DECL_BCH
 #undef DECL_ASM
 
@@ -147,7 +153,7 @@ void Builtins::set_code(Builtin builtin, Tagged<Code> code) {
 
 Tagged<Code> Builtins::code(Builtin builtin) {
   Address ptr = isolate_->builtin_table()[Builtins::ToInt(builtin)];
-  return Cast<Code>(Tagged<Object>(ptr));
+  return TrustedCast<Code>(Tagged<Object>(ptr));
 }
 
 Handle<Code> Builtins::code_handle(Builtin builtin) {
@@ -157,8 +163,32 @@ Handle<Code> Builtins::code_handle(Builtin builtin) {
 
 // static
 int Builtins::GetStackParameterCount(Builtin builtin) {
-  DCHECK(Builtins::KindOf(builtin) == TSJ || Builtins::KindOf(builtin) == TFJ);
+  DCHECK(Builtins::KindOf(builtin) == TFJ_TSA ||
+         Builtins::KindOf(builtin) == TFJ);
   return builtin_metadata[ToInt(builtin)].data.parameter_count;
+}
+
+// static
+bool Builtins::CheckFormalParameterCount(
+    Builtin builtin, int function_length,
+    int formal_parameter_count_with_receiver) {
+  DCHECK_LE(0, function_length);
+  if (!Builtins::IsBuiltinId(builtin)) {
+    return true;
+  }
+
+  if (!HasJSLinkage(builtin)) {
+    return true;
+  }
+
+  // Some special builtins are allowed to be installed on functions with
+  // different parameter counts.
+  if (builtin == Builtin::kCompileLazy) {
+    return true;
+  }
+
+  int parameter_count = Builtins::GetFormalParameterCount(builtin);
+  return parameter_count == formal_parameter_count_with_receiver;
 }
 
 // static
@@ -173,13 +203,16 @@ CallInterfaceDescriptor Builtins::CallInterfaceDescriptorFor(Builtin builtin) {
     break;                                             \
   }
     BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, CASE_OTHER,
-                 CASE_OTHER, CASE_OTHER, CASE_OTHER, IGNORE_BUILTIN, CASE_OTHER)
+                 CASE_OTHER, CASE_OTHER, CASE_OTHER, IGNORE_BUILTIN,
+                 IGNORE_BUILTIN, CASE_OTHER)
 #undef CASE_OTHER
     default:
       Builtins::Kind kind = Builtins::KindOf(builtin);
-      DCHECK_NE(BCH, kind);
-      if (kind == TSJ || kind == TFJ || kind == CPP) {
+      if (kind == TFJ_TSA || kind == TFJ || kind == CPP) {
         return JSTrampolineDescriptor{};
+      }
+      if (kind == BCH || kind == BCH_TSA) {
+        return InterpreterDispatchDescriptor{};
       }
       UNREACHABLE();
   }
@@ -194,7 +227,6 @@ Callable Builtins::CallableFor(Isolate* isolate, Builtin builtin) {
 
 // static
 bool Builtins::HasJSLinkage(Builtin builtin) {
-  DCHECK_NE(BCH, Builtins::KindOf(builtin));
   return CallInterfaceDescriptorFor(builtin) == JSTrampolineDescriptor{};
 }
 
@@ -328,12 +360,17 @@ Address Builtins::CppEntryOf(Builtin builtin) {
   return builtin_metadata[ToInt(builtin)].data.cpp_entry;
 }
 
+Address Builtins::EmbeddedEntryOf(Builtin builtin) {
+  static_assert(Builtins::kAllBuiltinsAreIsolateIndependent);
+  return EmbeddedData::FromBlob().InstructionStartOf(builtin);
+}
+
 // static
 bool Builtins::IsBuiltin(const Tagged<Code> code) {
   return Builtins::IsBuiltinId(code->builtin_id());
 }
 
-bool Builtins::IsBuiltinHandle(Handle<HeapObject> maybe_code,
+bool Builtins::IsBuiltinHandle(IndirectHandle<HeapObject> maybe_code,
                                Builtin* builtin) const {
   Address* handle_location = maybe_code.location();
   Address* builtins_table = isolate_->builtin_table();
@@ -360,8 +397,12 @@ void Builtins::InitializeIsolateDataTables(Isolate* isolate) {
   for (Builtin i = Builtins::kFirst; i <= Builtins::kLast; ++i) {
     DCHECK(Builtins::IsBuiltinId(isolate->builtins()->code(i)->builtin_id()));
     DCHECK(!isolate->builtins()->code(i)->has_instruction_stream());
+    Builtin builtin_id = i;
+#if V8_ENABLE_GEARBOX
+    builtin_id = isolate->builtins()->code(i)->builtin_id();
+#endif  // V8_ENABLE_GEARBOX
     isolate_data->builtin_entry_table()[ToInt(i)] =
-        embedded_data.InstructionStartOf(i);
+        embedded_data.InstructionStartOf(builtin_id);
   }
 
   // T0 tables.
@@ -381,16 +422,16 @@ void Builtins::EmitCodeCreateEvents(Isolate* isolate) {
   int i = 0;
   HandleScope scope(isolate);
   for (; i < ToInt(Builtin::kFirstBytecodeHandler); i++) {
-    Handle<Code> builtin_code(&builtins[i]);
-    Handle<AbstractCode> code = Cast<AbstractCode>(builtin_code);
+    auto builtin_code = DirectHandle<Code>::FromSlot(&builtins[i]);
+    DirectHandle<AbstractCode> code = Cast<AbstractCode>(builtin_code);
     PROFILE(isolate, CodeCreateEvent(LogEventListener::CodeTag::kBuiltin, code,
                                      Builtins::name(FromInt(i))));
   }
 
   static_assert(kLastBytecodeHandlerPlusOne == kBuiltinCount);
   for (; i < kBuiltinCount; i++) {
-    Handle<Code> builtin_code(&builtins[i]);
-    Handle<AbstractCode> code = Cast<AbstractCode>(builtin_code);
+    auto builtin_code = DirectHandle<Code>::FromSlot(&builtins[i]);
+    DirectHandle<AbstractCode> code = Cast<AbstractCode>(builtin_code);
     interpreter::Bytecode bytecode =
         builtin_metadata[i].data.bytecode_and_scale.bytecode;
     interpreter::OperandScale scale =
@@ -403,7 +444,7 @@ void Builtins::EmitCodeCreateEvents(Isolate* isolate) {
 }
 
 // static
-Handle<Code> Builtins::CreateInterpreterEntryTrampolineForProfiling(
+DirectHandle<Code> Builtins::CreateInterpreterEntryTrampolineForProfiling(
     Isolate* isolate) {
   DCHECK_NOT_NULL(isolate->embedded_blob_code());
   DCHECK_NE(0, isolate->embedded_blob_code_size());
@@ -434,7 +475,7 @@ Handle<Code> Builtins::CreateInterpreterEntryTrampolineForProfiling(
   desc.handler_table_offset = instruction_size;
   desc.constant_pool_offset = instruction_size;
   desc.code_comments_offset = instruction_size;
-  desc.builtin_jump_table_info_offset = instruction_size;
+  desc.jump_table_info_offset = instruction_size;
 
   CodeDesc::Verify(&desc);
 
@@ -455,12 +496,13 @@ const char* Builtins::KindNameOf(Builtin builtin) {
   // clang-format off
   switch (kind) {
     case CPP: return "CPP";
-    case TSJ: return "TSJ";
+    case TFJ_TSA: return "TFJ_TSA";
     case TFJ: return "TFJ";
-    case TSC: return "TSC";
+    case TFC_TSA: return "TFC_TSA";
     case TFC: return "TFC";
     case TFS: return "TFS";
     case TFH: return "TFH";
+    case BCH_TSA: return "BCH_TSA";
     case BCH: return "BCH";
     case ASM: return "ASM";
   }
@@ -475,29 +517,17 @@ bool Builtins::IsCpp(Builtin builtin) {
 
 // static
 CodeEntrypointTag Builtins::EntrypointTagFor(Builtin builtin) {
-  if (builtin == Builtin::kNoBuiltinId) {
-    // Special case needed for example for tests.
-    return kDefaultCodeEntrypointTag;
-  }
-
-#if V8_ENABLE_DRUMBRAKE
-  if (builtin == Builtin::kGenericJSToWasmInterpreterWrapper) {
-    return kJSEntrypointTag;
-  } else if (builtin == Builtin::kGenericWasmToJSInterpreterWrapper) {
-    return kWasmEntrypointTag;
-  }
-#endif  // V8_ENABLE_DRUMBRAKE
-
   Kind kind = Builtins::KindOf(builtin);
   switch (kind) {
     case CPP:
-    case TSJ:
+    case TFJ_TSA:
     case TFJ:
       return kJSEntrypointTag;
+    case BCH_TSA:
     case BCH:
       return kBytecodeHandlerEntrypointTag;
     case TFC:
-    case TSC:
+    case TFC_TSA:
     case TFS:
     case TFH:
     case ASM:
@@ -507,12 +537,46 @@ CodeEntrypointTag Builtins::EntrypointTagFor(Builtin builtin) {
 }
 
 // static
-bool Builtins::AllowDynamicFunction(Isolate* isolate,
-                                    DirectHandle<JSFunction> target,
-                                    Handle<JSObject> target_global_proxy) {
+CodeSandboxingMode Builtins::SandboxingModeOf(Builtin builtin) {
+  Kind kind = Builtins::KindOf(builtin);
+  switch (kind) {
+    case CPP:
+      // CPP builtins are invoked in sandboxed execution mode, but the CEntry
+      // trampoline will exit sandboxed mode before calling the actual C++ code.
+      // TODO(422994386): investigate running the C++ code in sandboxed mode.
+      return CodeSandboxingMode::kSandboxed;
+    case TFJ_TSA:
+    case TFJ:
+      // All builtins with JS linkage run sandboxed.
+      return CodeSandboxingMode::kSandboxed;
+    case TFH:
+    case BCH_TSA:
+    case BCH:
+      // Bytecode handlers and inline caches run sandboxed.
+      return CodeSandboxingMode::kSandboxed;
+    case TFS:
+      switch (builtin) {
+        // Microtask-related builtins run in privileged mode as they need write
+        // access to the MicrotaskQueue object.
+        case Builtin::kEnqueueMicrotask:
+          return CodeSandboxingMode::kUnsandboxed;
+        default:
+          return CodeSandboxingMode::kSandboxed;
+      }
+    case TFC_TSA:
+    case TFC:
+    case ASM:
+      return CallInterfaceDescriptorFor(builtin).sandboxing_mode();
+  }
+}
+
+// static
+bool Builtins::AllowDynamicFunction(
+    Isolate* isolate, DirectHandle<JSFunction> target,
+    DirectHandle<JSObject> target_global_proxy) {
   if (v8_flags.allow_unsafe_function_constructor) return true;
   HandleScopeImplementer* impl = isolate->handle_scope_implementer();
-  Handle<NativeContext> responsible_context = impl->LastEnteredContext();
+  DirectHandle<NativeContext> responsible_context = impl->LastEnteredContext();
   // TODO(verwaest): Remove this.
   if (responsible_context.is_null()) {
     return true;
@@ -520,6 +584,496 @@ bool Builtins::AllowDynamicFunction(Isolate* isolate,
   if (*responsible_context == target->context()) return true;
   return isolate->MayAccess(responsible_context, target_global_proxy);
 }
+
+// static
+Builtins::JSBuiltinStateFlags Builtins::GetJSBuiltinState(Builtin builtin) {
+#ifdef DEBUG
+#define CHECK_FEATURE_FLAG_IS_CONSISTENT(IS_ENABLED) \
+  static bool is_feature_enabled = IS_ENABLED;       \
+  DCHECK_EQ(is_feature_enabled, IS_ENABLED);
+#else
+#define CHECK_FEATURE_FLAG_IS_CONSISTENT(IS_ENABLED)
+#endif  // DEBUG
+
+// Helper macro for returning optional builtin's state depending on whether
+// the respective feature is enabled or not.
+// In debug mode it also verifies that the state of the feature hasn't changed
+// since previous check. This might happen in unit tests if they flip feature
+// flags back and forth before Isolate deinitialization.
+#define RETURN_FLAG_DEPENDENT_BUILTIN_STATE(IS_FEATURE_ENABLED)               \
+  {                                                                           \
+    CHECK_FEATURE_FLAG_IS_CONSISTENT(IS_FEATURE_ENABLED);                     \
+    return (IS_FEATURE_ENABLED) ? JSBuiltinStateFlag::kEnabledFlagDependent   \
+                                : JSBuiltinStateFlag::kDisabledFlagDependent; \
+  }
+
+#define RETURN_FLAG_DEPENDENT_LAZY_BUILTIN_STATE(IS_FEATURE_ENABLED) \
+  {                                                                  \
+    CHECK_FEATURE_FLAG_IS_CONSISTENT(IS_FEATURE_ENABLED);            \
+    return (IS_FEATURE_ENABLED)                                      \
+               ? JSBuiltinStateFlag::kEnabledFlagDependentLazy       \
+               : JSBuiltinStateFlag::kDisabledFlagDependentLazy;     \
+  }
+
+  switch (builtin) {
+    // Helper builtins with JS calling convention which are not supposed to be
+    // called directly from user JS code.
+    case Builtin::kConstructFunction:
+    case Builtin::kConstructBoundFunction:
+    case Builtin::kConstructedNonConstructable:
+    case Builtin::kConstructProxy:
+    case Builtin::kHandleApiConstruct:
+    case Builtin::kArrayConcat:
+    case Builtin::kArrayPop:
+    case Builtin::kArrayPush:
+    case Builtin::kArrayShift:
+    case Builtin::kArrayUnshift:
+    case Builtin::kFunctionPrototypeBind:
+    case Builtin::kInterpreterEntryTrampolineForProfiling:
+    // Tiering builtins are set directly into the dispatch table and never
+    // via Code object.
+    case Builtin::kStartMaglevOptimizeJob:
+    case Builtin::kOptimizeMaglevEager:
+    case Builtin::kStartTurbofanOptimizeJob:
+    case Builtin::kOptimizeTurbofanEager:
+    case Builtin::kFunctionLogNextExecution:
+    case Builtin::kMarkReoptimizeLazyDeoptimized:
+    case Builtin::kMarkLazyDeoptimized:
+    // All *DeoptContinuation builtins.
+    case Builtin::kArrayEveryLoopEagerDeoptContinuation:
+    case Builtin::kArrayEveryLoopLazyDeoptContinuation:
+    case Builtin::kArrayFilterLoopEagerDeoptContinuation:
+    case Builtin::kArrayFilterLoopLazyDeoptContinuation:
+    case Builtin::kArrayFindLoopEagerDeoptContinuation:
+    case Builtin::kArrayFindLoopLazyDeoptContinuation:
+    case Builtin::kArrayFindLoopAfterCallbackLazyDeoptContinuation:
+    case Builtin::kArrayFindIndexLoopEagerDeoptContinuation:
+    case Builtin::kArrayFindIndexLoopLazyDeoptContinuation:
+    case Builtin::kArrayFindIndexLoopAfterCallbackLazyDeoptContinuation:
+    case Builtin::kArrayForEachLoopEagerDeoptContinuation:
+    case Builtin::kArrayForEachLoopLazyDeoptContinuation:
+    case Builtin::kArrayMapPreLoopLazyDeoptContinuation:
+    case Builtin::kArrayMapLoopEagerDeoptContinuation:
+    case Builtin::kArrayMapLoopLazyDeoptContinuation:
+    case Builtin::kArrayReduceRightPreLoopEagerDeoptContinuation:
+    case Builtin::kArrayReduceRightLoopEagerDeoptContinuation:
+    case Builtin::kArrayReduceRightLoopLazyDeoptContinuation:
+    case Builtin::kArrayReducePreLoopEagerDeoptContinuation:
+    case Builtin::kArrayReduceLoopEagerDeoptContinuation:
+    case Builtin::kArrayReduceLoopLazyDeoptContinuation:
+    case Builtin::kArraySomeLoopEagerDeoptContinuation:
+    case Builtin::kArraySomeLoopLazyDeoptContinuation:
+    case Builtin::kStringCreateLazyDeoptContinuation:
+    case Builtin::kGenericLazyDeoptContinuation:
+    case Builtin::kPromiseConstructorLazyDeoptContinuation:
+      return JSBuiltinStateFlag::kDisabledJSBuiltin;
+
+    // These builtins with JS calling convention are not JS language builtins
+    // but are allowed to be installed into JSFunctions.
+    case Builtin::kCompileLazy:
+    case Builtin::kDebugBreakTrampoline:
+    case Builtin::kHandleApiCallOrConstruct:
+    case Builtin::kInstantiateAsmJs:
+    case Builtin::kInterpreterEntryTrampoline:
+      return JSBuiltinStateFlag::kJSTrampoline;
+
+    // These are core JS builtins which are instantiated lazily.
+    case Builtin::kConsoleAssert:
+    case Builtin::kArrayFromAsyncIterableOnFulfilled:
+    case Builtin::kArrayFromAsyncIterableOnRejected:
+    case Builtin::kArrayFromAsyncArrayLikeOnFulfilled:
+    case Builtin::kArrayFromAsyncArrayLikeOnRejected:
+    case Builtin::kAsyncFromSyncIteratorCloseSyncAndRethrow:
+    case Builtin::kAsyncFunctionAwaitRejectClosure:
+    case Builtin::kAsyncFunctionAwaitResolveClosure:
+    case Builtin::kAsyncDisposableStackOnFulfilled:
+    case Builtin::kAsyncDisposableStackOnRejected:
+    case Builtin::kAsyncDisposeFromSyncDispose:
+    case Builtin::kAsyncGeneratorAwaitResolveClosure:
+    case Builtin::kAsyncGeneratorAwaitRejectClosure:
+    case Builtin::kAsyncGeneratorYieldWithAwaitResolveClosure:
+    case Builtin::kAsyncGeneratorReturnClosedResolveClosure:
+    case Builtin::kAsyncGeneratorReturnClosedRejectClosure:
+    case Builtin::kAsyncGeneratorReturnResolveClosure:
+    case Builtin::kAsyncIteratorPrototypeAsyncDisposeResolveClosure:
+    case Builtin::kAsyncIteratorValueUnwrap:
+    case Builtin::kCallAsyncModuleFulfilled:
+    case Builtin::kCallAsyncModuleRejected:
+    case Builtin::kPromiseCapabilityDefaultReject:
+    case Builtin::kPromiseCapabilityDefaultResolve:
+    case Builtin::kPromiseGetCapabilitiesExecutor:
+    case Builtin::kPromiseAllResolveElementClosure:
+    case Builtin::kPromiseAllSettledResolveElementClosure:
+    case Builtin::kPromiseAllSettledRejectElementClosure:
+    case Builtin::kPromiseAnyRejectElementClosure:
+    case Builtin::kPromiseValueThunkFinally:
+    case Builtin::kPromiseThrowerFinally:
+    case Builtin::kPromiseCatchFinally:
+    case Builtin::kPromiseThenFinally:
+    case Builtin::kProxyRevoke:
+      return JSBuiltinStateFlag::kCoreJSLazy;
+
+#if V8_ENABLE_WEBASSEMBLY
+    // These builtins with JS calling convention are not JS language builtins
+    // but are allowed to be installed into JSFunctions.
+    case Builtin::kJSToWasmWrapper:
+    case Builtin::kJSToJSWrapper:
+    case Builtin::kJSToJSWrapperInvalidSig:
+    case Builtin::kWasmPromising:
+#if V8_ENABLE_DRUMBRAKE
+    case Builtin::kGenericJSToWasmInterpreterWrapper:
+#endif
+    case Builtin::kWasmStressSwitch:
+      return JSBuiltinStateFlag::kJSTrampoline;
+
+    // These are core JS builtins which are instantiated lazily.
+    case Builtin::kWasmConstructorWrapper:
+    case Builtin::kWasmMethodWrapper:
+    case Builtin::kWasmResume:
+    case Builtin::kWasmReject:
+    // Well known import functions.
+    case Builtin::kWebAssemblyStringCast:
+    case Builtin::kWebAssemblyStringTest:
+    case Builtin::kWebAssemblyStringFromWtf16Array:
+    case Builtin::kWebAssemblyStringFromUtf8Array:
+    case Builtin::kWebAssemblyStringIntoUtf8Array:
+    case Builtin::kWebAssemblyStringToUtf8Array:
+    case Builtin::kWebAssemblyStringToWtf16Array:
+    case Builtin::kWebAssemblyStringFromCharCode:
+    case Builtin::kWebAssemblyStringFromCodePoint:
+    case Builtin::kWebAssemblyStringCodePointAt:
+    case Builtin::kWebAssemblyStringCharCodeAt:
+    case Builtin::kWebAssemblyStringLength:
+    case Builtin::kWebAssemblyStringMeasureUtf8:
+    case Builtin::kWebAssemblyStringConcat:
+    case Builtin::kWebAssemblyStringSubstring:
+    case Builtin::kWebAssemblyStringEquals:
+    case Builtin::kWebAssemblyStringCompare:
+    case Builtin::kWebAssemblyConfigureAllPrototypes:
+      return JSBuiltinStateFlag::kCoreJSLazy;
+#endif  // V8_ENABLE_WEBASSEMBLY
+
+#ifdef V8_INTL_SUPPORT
+    // Some Intl builtins are lazily instantiated.
+    case Builtin::kCollatorInternalCompare:
+    case Builtin::kDateTimeFormatInternalFormat:
+    case Builtin::kNumberFormatInternalFormatNumber:
+    case Builtin::kV8BreakIteratorInternalAdoptText:
+    case Builtin::kV8BreakIteratorInternalBreakType:
+    case Builtin::kV8BreakIteratorInternalCurrent:
+    case Builtin::kV8BreakIteratorInternalFirst:
+    case Builtin::kV8BreakIteratorInternalNext:
+      return JSBuiltinStateFlag::kCoreJSLazy;
+
+    // --harmony_remove_intl_locale_info_getters
+    case Builtin::kLocalePrototypeCalendars:
+    case Builtin::kLocalePrototypeCollations:
+    case Builtin::kLocalePrototypeHourCycles:
+    case Builtin::kLocalePrototypeNumberingSystems:
+    case Builtin::kLocalePrototypeTextInfo:
+    case Builtin::kLocalePrototypeTimeZones:
+    case Builtin::kLocalePrototypeWeekInfo:
+      RETURN_FLAG_DEPENDENT_BUILTIN_STATE(
+          !v8_flags.harmony_remove_intl_locale_info_getters);
+
+#endif  // V8_INTL_SUPPORT
+
+#ifdef V8_TEMPORAL_SUPPORT
+#define CASE(Name, ...) case Builtin::k##Name:
+      BUILTIN_LIST_TEMPORAL(CASE, CASE)  // CPP, TFJ
+#undef CASE
+      RETURN_FLAG_DEPENDENT_LAZY_BUILTIN_STATE(v8_flags.harmony_temporal);
+#endif  // V8_TEMPORAL_SUPPORT
+
+      //
+      // Various feature-dependent builtins.
+      //
+
+#if V8_ENABLE_WEBASSEMBLY
+    case Builtin::kWebAssemblyFunctionPrototypeBind:
+      RETURN_FLAG_DEPENDENT_BUILTIN_STATE(
+          wasm::WasmEnabledFeatures::FromFlags().has_type_reflection());
+#endif  // V8_ENABLE_WEBASSEMBLY
+
+    // --enable-experimental-regexp-engine
+    case Builtin::kRegExpPrototypeLinearGetter:
+      RETURN_FLAG_DEPENDENT_BUILTIN_STATE(
+          v8_flags.enable_experimental_regexp_engine);
+
+    // --js-source-phase-imports
+    case Builtin::kIllegalInvocationThrower:
+    case Builtin::kAbstractModuleSourceToStringTag:
+      RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.js_source_phase_imports);
+
+    // --harmony-shadow-realm
+    case Builtin::kShadowRealmConstructor:
+    case Builtin::kShadowRealmPrototypeEvaluate:
+    case Builtin::kShadowRealmPrototypeImportValue:
+    case Builtin::kShadowRealmImportValueRejected:
+      RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.harmony_shadow_realm);
+    case Builtin::kShadowRealmImportValueFulfilled:
+      RETURN_FLAG_DEPENDENT_LAZY_BUILTIN_STATE(v8_flags.harmony_shadow_realm);
+
+    // --harmony-struct
+    case Builtin::kSharedSpaceJSObjectHasInstance:
+    case Builtin::kSharedStructTypeConstructor:
+    case Builtin::kSharedStructTypeIsSharedStruct:
+    case Builtin::kSharedArrayConstructor:
+    case Builtin::kSharedArrayIsSharedArray:
+    case Builtin::kAtomicsMutexConstructor:
+    case Builtin::kAtomicsMutexLock:
+    case Builtin::kAtomicsMutexLockWithTimeout:
+    case Builtin::kAtomicsMutexTryLock:
+    case Builtin::kAtomicsMutexIsMutex:
+    case Builtin::kAtomicsMutexLockAsync:
+    case Builtin::kAtomicsConditionConstructor:
+    case Builtin::kAtomicsConditionWait:
+    case Builtin::kAtomicsConditionNotify:
+    case Builtin::kAtomicsConditionIsCondition:
+    case Builtin::kAtomicsConditionWaitAsync:
+      RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.harmony_struct);
+    case Builtin::kSharedStructConstructor:
+    case Builtin::kAtomicsMutexAsyncUnlockResolveHandler:
+    case Builtin::kAtomicsMutexAsyncUnlockRejectHandler:
+    case Builtin::kAtomicsConditionAcquireLock:
+      RETURN_FLAG_DEPENDENT_LAZY_BUILTIN_STATE(v8_flags.harmony_struct);
+
+    // --js-promise-try
+    case Builtin::kPromiseTry:
+      RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.js_promise_try);
+
+    // --js-atomics-pause
+    case Builtin::kAtomicsPause:
+      RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.js_atomics_pause);
+
+    // --js-error-iserror
+    case Builtin::kErrorIsError:
+      RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.js_error_iserror);
+
+    // --js-regexp-escape
+    case Builtin::kRegExpEscape:
+      RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.js_regexp_escape);
+
+    // --js-explicit-resource-management
+    case Builtin::kSuppressedErrorConstructor:
+    case Builtin::kDisposableStackConstructor:
+    case Builtin::kDisposableStackPrototypeUse:
+    case Builtin::kDisposableStackPrototypeDispose:
+    case Builtin::kDisposableStackPrototypeAdopt:
+    case Builtin::kDisposableStackPrototypeDefer:
+    case Builtin::kDisposableStackPrototypeMove:
+    case Builtin::kDisposableStackPrototypeGetDisposed:
+    case Builtin::kAsyncDisposableStackConstructor:
+    case Builtin::kAsyncDisposableStackPrototypeUse:
+    case Builtin::kAsyncDisposableStackPrototypeDisposeAsync:
+    case Builtin::kAsyncDisposableStackPrototypeAdopt:
+    case Builtin::kAsyncDisposableStackPrototypeDefer:
+    case Builtin::kAsyncDisposableStackPrototypeMove:
+    case Builtin::kAsyncDisposableStackPrototypeGetDisposed:
+    case Builtin::kIteratorPrototypeDispose:
+    case Builtin::kAsyncIteratorPrototypeAsyncDispose:
+      RETURN_FLAG_DEPENDENT_BUILTIN_STATE(
+          v8_flags.js_explicit_resource_management);
+
+    // --js-float16array
+    case Builtin::kMathF16round:
+    case Builtin::kDataViewPrototypeGetFloat16:
+    case Builtin::kDataViewPrototypeSetFloat16:
+      RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.js_float16array);
+
+    // --js-base-64
+    case Builtin::kUint8ArrayFromBase64:
+    case Builtin::kUint8ArrayFromHex:
+    case Builtin::kUint8ArrayPrototypeToBase64:
+    case Builtin::kUint8ArrayPrototypeSetFromBase64:
+    case Builtin::kUint8ArrayPrototypeToHex:
+    case Builtin::kUint8ArrayPrototypeSetFromHex:
+      RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.js_base_64);
+
+    // --js-upsert
+    case Builtin::kMapPrototypeGetOrInsert:
+    case Builtin::kMapPrototypeGetOrInsertComputed:
+    case Builtin::kWeakMapPrototypeGetOrInsert:
+    case Builtin::kWeakMapPrototypeGetOrInsertComputed:
+      RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.js_upsert);
+
+#ifdef V8_INTL_SUPPORT
+    // --js-intl-locale-variants
+    case Builtin::kLocalePrototypeVariants:
+      RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.js_intl_locale_variants);
+#endif  // V8_INTL_SUPPORT
+
+    default: {
+      // Treat all other JS builtins as mandatory core JS language builtins.
+      // This will allow us to detect optional builtins (because mandatory JS
+      // builtins must be installed somewhere by default) and we allowlist only
+      // them in this switch.
+      return HasJSLinkage(builtin) ? JSBuiltinStateFlag::kCoreJSMandatory
+                                   : JSBuiltinStateFlag::kDisabledNonJSBuiltin;
+    }
+  }
+  UNREACHABLE();
+
+#undef CHECK_FEATURE_FLAG_IS_CONSISTENT
+#undef RETURN_FLAG_DEPENDENT_BUILTIN_STATE
+#undef RETURN_FLAG_DEPENDENT_LAZY_BUILTIN_STATE
+}
+
+#ifdef DEBUG
+
+void Builtins::VerifyGetJSBuiltinState(bool allow_non_initial_state) {
+  CombinedHeapObjectIterator iterator(isolate_->heap());
+
+  // JS builtins installed in JSFunctions.
+  std::vector<bool> used_js_builtins(
+      static_cast<size_t>(Builtins::kBuiltinCount));
+  bool js_functions_exist = false;
+
+  // Step 1: iterate the heap and record builtins that are installed in
+  // JSFunctions.
+  for (Tagged<HeapObject> obj = iterator.Next(); !obj.is_null();
+       obj = iterator.Next()) {
+    if (IsAnyHole(obj)) continue;
+
+    Tagged<JSFunction> func;
+    if (!TryCast(obj, &func)) continue;
+    js_functions_exist = true;
+
+    Builtin builtin = func->code(isolate_)->builtin_id();
+    size_t builtin_id = static_cast<size_t>(builtin);
+    if (builtin_id < Builtins::kBuiltinCount) {
+      used_js_builtins[builtin_id] = true;
+    }
+  }
+  if (!js_functions_exist) {
+    // If there are no JSFunctions in the heap then the isolate instance
+    // must have not been initialized yet and thus checking builtins usages
+    // doesn't make sense.
+    return;
+  }
+
+  // Step 2: make sure the results match the GetJSBuiltinState() predicate.
+  size_t bad_builtins_count = 0;
+  for (Builtin i = Builtins::kFirst; i <= Builtins::kLast; ++i) {
+    JSBuiltinStateFlags state = GetJSBuiltinState(i);
+
+    bool is_enabled = state & JSBuiltinStateFlag::kEnabled;
+    bool is_flag_dependent = state & JSBuiltinStateFlag::kFlagDependent;
+    bool is_lazy = state & JSBuiltinStateFlag::kLazy;
+    bool is_core_JS = state & JSBuiltinStateFlag::kCoreJS;
+    bool has_JS_linkage = !(state & JSBuiltinStateFlag::kNonJSLinkage);
+
+    // Some sanity checks.
+    CHECK_IMPLIES(is_core_JS, is_enabled && !is_flag_dependent);
+
+    const char* error = nullptr;  // No errors yet.
+    bool used = used_js_builtins[static_cast<size_t>(i)];
+
+    if (has_JS_linkage != HasJSLinkage(i)) {
+      if (has_JS_linkage) {
+        error = "non-JS builtin doesn't have kNonJSLinkage flag";
+      } else {
+        // Incorrectly set kNonJSLinkage flag.
+        error = "JS builtin has kNonJSLinkage flag";
+      }
+
+    } else if (is_enabled && !has_JS_linkage) {
+      // Builtins with non-JS linkage are not allowed to be installed into
+      // JSFunctions. Maybe the builtin was incorrectly attributed?
+      error = "builtin with non-JS linkage must be disabled";
+
+    } else if (used) {
+      // The builtin is installed into some JSFunction.
+      if (!is_enabled) {
+        // Only enabled builtins are allowed to be used. Possible reasons:
+        //  - is this builtin belongs to a feature behind a flag?
+        //  - is this a core JS language builtin which is supposed to be
+        //    instantiated lazily?
+        error = "using disabled builtin";
+
+      } else if (is_lazy && !allow_non_initial_state) {
+        // This check is triggered by %VerifyGetJSBuiltinState(false); call
+        // and it expects and verifies that none of lazy functions are
+        // instantiated. Possible reasons it fails:
+        //  - is the builtin was marked as lazy by mistake?
+        //  - is %VerifyGetJSBuiltinState(false); called after instantiations
+        //    of lazy builtins was triggered by the user code?
+        error = "unexpected usage of lazy builtin";
+      }
+
+    } else if (is_enabled && !allow_non_initial_state) {
+      // If builtin is not used and the builtins state is expected to be in
+      // initial state (i.e. user code hasn't monkey-patched things) then
+      // we could perform some additional checks.
+
+      if (is_flag_dependent && !is_lazy) {
+        // This builtin might have been marked as enabled by mistake:
+        //  - is the feature flag used correct?
+        //  - is this builtin instantiated lazily?
+        error = "non-lazy optional builtin is not used while it was enabled";
+
+      } else if (is_core_JS && !is_lazy) {
+        // This builtin might have been marked as mandatory JS language feature
+        // by mistake:
+        //  - is this builtin instantiated lazily?
+        //  - is the builtin a new JS trampoline?
+        error = "mandatory JS builtin is not used while it was enabled";
+      }
+    }
+
+    if (error) {
+      if (bad_builtins_count == 0) {
+        PrintF(
+            "#\n# Builtins::GetJSBuiltinState() predicate is wrong for "
+            "the following builtins:\n#\n");
+      }
+      bad_builtins_count++;
+      PrintF("    case Builtin::k%s:  // %s\n", Builtins::name(i), error);
+    }
+  }
+  // If you see this check failing then you must have added a builtin with
+  // JS calling convention that's not installed into any JSFunction with
+  // the default set of V8 flags.
+  // The reasons might be:
+  //  a) the builtin has JS calling convention but it's not supposed to be
+  //     installed into any JSFunction (for example, ConstructFunction or
+  //     various continuation builtins),
+  //  b) the builtin is supposed to be installed into JSFunction but it belongs
+  //     to an experimental, incomplete or otherwise disabled feature
+  //     controlled by a certain runtime flag (for example,
+  //     ShadowRealmConstructor),
+  //  c) the builtin is supposed to be installed into JSFunction lazily and
+  //     it belongs to an experimental, incomplete or otherwise disabled feature
+  //     controlled by a certain runtime flag (for example,
+  //     SharedStructConstructor),
+  //  d) the builtin belongs to a JavaScript language feature but respective
+  //     JSFunction instances are created lazily (for example, Temporal
+  //     builtins).
+  //  e) the builtin belongs a core V8 machinery (such as CompileLazy,
+  //     HandleApiCallOrConstruct or similar).
+  //
+  // To fix this you should make Builtins::GetJSBuiltinState() return the
+  // following value for the builtin depending on the case mentioned above:
+  //  a) return JSBuiltinStateFlag::kDisabledJSBuiltin;
+  //  b) RETURN_FLAG_DEPENDENT_BUILTIN_STATE(v8_flags.the_feature_flag);
+  //  c) RETURN_FLAG_DEPENDENT_LAZY_BUILTIN_STATE(v8_flags.the_feature_flag);
+  //  d) return JSBuiltinStateFlag::kCoreJSLazy;
+  //  e) return JSBuiltinStateFlag::kJSTrampoline;
+  //
+  // If you are adding builtins for experimental or otherwise disabled feature
+  // make sure you add a regression test for that flag too.
+  // For example, see:
+  //  - test/mjsunit/harmony/shadowrealm-builtins.js
+  //  - test/mjsunit/shared-memory/builtins.js
+  //
+  // This check might also fail for mandatory builtins if the JS code deleted
+  // a mandatory builtin function. If that's what the test is expected to do
+  // then disable the verification: --no-verify-get-js-builtin-state.
+  CHECK_WITH_MSG(bad_builtins_count == 0,
+                 "Builtins::GetJSBuiltinState() predicate requires updating");
+}
+
+#endif  // DEBUG
 
 Builtin ExampleBuiltinForTorqueFunctionPointerType(
     size_t function_pointer_type_id) {

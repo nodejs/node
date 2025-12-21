@@ -201,3 +201,8 @@ void nghttp2_session_callbacks_set_error_callback2(
   nghttp2_session_callbacks *cbs, nghttp2_error_callback2 error_callback2) {
   cbs->error_callback2 = error_callback2;
 }
+
+void nghttp2_session_callbacks_set_rand_callback(
+  nghttp2_session_callbacks *cbs, nghttp2_rand_callback rand_callback) {
+  cbs->rand_callback = rand_callback;
+}

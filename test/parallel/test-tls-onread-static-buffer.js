@@ -20,7 +20,7 @@ const largeMessage = Buffer.alloc(64 * 1024).fill('hello world');
 tls.createServer(options, common.mustCall(function(socket) {
   this.close();
   socket.end(smallMessage);
-})).listen(0, function() {
+})).listen(0, common.mustCall(function() {
   let received = 0;
   const buffers = [];
   const sockBuf = Buffer.alloc(8);
@@ -29,23 +29,23 @@ tls.createServer(options, common.mustCall(function(socket) {
     rejectUnauthorized: false,
     onread: {
       buffer: sockBuf,
-      callback: function(nread, buf) {
+      callback: common.mustCallAtLeast((nread, buf) => {
         assert.strictEqual(buf, sockBuf);
         received += nread;
         buffers.push(Buffer.from(buf.slice(0, nread)));
-      }
+      })
     }
   }).on('data', common.mustNotCall()).on('end', common.mustCall(() => {
     assert.strictEqual(received, smallMessage.length);
     assert.deepStrictEqual(Buffer.concat(buffers), smallMessage);
   }));
-});
+}));
 
 // Test Uint8Array support
 tls.createServer(options, common.mustCall(function(socket) {
   this.close();
   socket.end(smallMessage);
-})).listen(0, function() {
+})).listen(0, common.mustCall(function() {
   let received = 0;
   let incoming = new Uint8Array(0);
   const sockBuf = new Uint8Array(8);
@@ -54,26 +54,26 @@ tls.createServer(options, common.mustCall(function(socket) {
     rejectUnauthorized: false,
     onread: {
       buffer: sockBuf,
-      callback: function(nread, buf) {
+      callback: common.mustCallAtLeast((nread, buf) => {
         assert.strictEqual(buf, sockBuf);
         received += nread;
         const newIncoming = new Uint8Array(incoming.length + nread);
         newIncoming.set(incoming);
         newIncoming.set(buf.slice(0, nread), incoming.length);
         incoming = newIncoming;
-      }
+      })
     }
   }).on('data', common.mustNotCall()).on('end', common.mustCall(() => {
     assert.strictEqual(received, smallMessage.length);
     assert.deepStrictEqual(incoming, new Uint8Array(smallMessage));
   }));
-});
+}));
 
 // Test Buffer callback usage
 tls.createServer(options, common.mustCall(function(socket) {
   this.close();
   socket.end(smallMessage);
-})).listen(0, function() {
+})).listen(0, common.mustCall(function() {
   let received = 0;
   const incoming = [];
   const bufPool = [ Buffer.alloc(2), Buffer.alloc(2), Buffer.alloc(2) ];
@@ -88,24 +88,24 @@ tls.createServer(options, common.mustCall(function(socket) {
         bufPoolIdx = (bufPoolIdx + 1) % bufPool.length;
         return bufPool[bufPoolIdx];
       },
-      callback: function(nread, buf) {
+      callback: common.mustCallAtLeast((nread, buf) => {
         assert.strictEqual(buf, bufPool[bufPoolIdx]);
         received += nread;
         incoming.push(Buffer.from(buf.slice(0, nread)));
-      }
+      })
     }
   }).on('data', common.mustNotCall()).on('end', common.mustCall(() => {
     assert.strictEqual(received, smallMessage.length);
     assert.deepStrictEqual(Buffer.concat(incoming), smallMessage);
     assert.strictEqual(bufPoolUsage, 7);
   }));
-});
+}));
 
 // Test Uint8Array callback support
 tls.createServer(options, common.mustCall(function(socket) {
   this.close();
   socket.end(smallMessage);
-})).listen(0, function() {
+})).listen(0, common.mustCall(function() {
   let received = 0;
   let incoming = new Uint8Array(0);
   const bufPool = [ new Uint8Array(2), new Uint8Array(2), new Uint8Array(2) ];
@@ -120,28 +120,28 @@ tls.createServer(options, common.mustCall(function(socket) {
         bufPoolIdx = (bufPoolIdx + 1) % bufPool.length;
         return bufPool[bufPoolIdx];
       },
-      callback: function(nread, buf) {
+      callback: common.mustCallAtLeast((nread, buf) => {
         assert.strictEqual(buf, bufPool[bufPoolIdx]);
         received += nread;
         const newIncoming = new Uint8Array(incoming.length + nread);
         newIncoming.set(incoming);
         newIncoming.set(buf.slice(0, nread), incoming.length);
         incoming = newIncoming;
-      }
+      }),
     }
   }).on('data', common.mustNotCall()).on('end', common.mustCall(() => {
     assert.strictEqual(received, smallMessage.length);
     assert.deepStrictEqual(incoming, new Uint8Array(smallMessage));
     assert.strictEqual(bufPoolUsage, 7);
   }));
-});
+}));
 
 // Test explicit socket pause
 tls.createServer(options, common.mustCall(function(socket) {
   this.close();
   // Need larger message here to observe the pause
   socket.end(largeMessage);
-})).listen(0, function() {
+})).listen(0, common.mustCall(function() {
   let received = 0;
   const buffers = [];
   const sockBuf = Buffer.alloc(64);
@@ -151,7 +151,7 @@ tls.createServer(options, common.mustCall(function(socket) {
     rejectUnauthorized: false,
     onread: {
       buffer: sockBuf,
-      callback: function(nread, buf) {
+      callback: common.mustCallAtLeast((nread, buf) => {
         assert.strictEqual(buf, sockBuf);
         received += nread;
         buffers.push(Buffer.from(buf.slice(0, nread)));
@@ -162,20 +162,20 @@ tls.createServer(options, common.mustCall(function(socket) {
             client.resume();
           }, 100);
         }
-      }
+      }),
     }
   }).on('data', common.mustNotCall()).on('end', common.mustCall(() => {
     assert.strictEqual(received, largeMessage.length);
     assert.deepStrictEqual(Buffer.concat(buffers), largeMessage);
   }));
-});
+}));
 
 // Test implicit socket pause
 tls.createServer(options, common.mustCall(function(socket) {
   this.close();
   // Need larger message here to observe the pause
   socket.end(largeMessage);
-})).listen(0, function() {
+})).listen(0, common.mustCall(function() {
   let received = 0;
   const buffers = [];
   const sockBuf = Buffer.alloc(64);
@@ -185,7 +185,7 @@ tls.createServer(options, common.mustCall(function(socket) {
     rejectUnauthorized: false,
     onread: {
       buffer: sockBuf,
-      callback: function(nread, buf) {
+      callback: common.mustCallAtLeast((nread, buf) => {
         assert.strictEqual(buf, sockBuf);
         received += nread;
         buffers.push(Buffer.from(buf.slice(0, nread)));
@@ -197,10 +197,10 @@ tls.createServer(options, common.mustCall(function(socket) {
           return false;
         }
         return true;
-      }
+      }),
     }
   }).on('data', common.mustNotCall()).on('end', common.mustCall(() => {
     assert.strictEqual(received, largeMessage.length);
     assert.deepStrictEqual(Buffer.concat(buffers), largeMessage);
   }));
-});
+}));

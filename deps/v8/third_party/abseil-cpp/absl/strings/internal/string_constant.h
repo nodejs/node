@@ -50,11 +50,6 @@ struct StringConstant {
                 "The input string_view must point to constant data.");
 };
 
-#ifdef ABSL_INTERNAL_NEED_REDUNDANT_CONSTEXPR_DECL
-template <typename T>
-constexpr absl::string_view StringConstant<T>::value;
-#endif
-
 // Factory function for `StringConstant` instances.
 // It supports callables that have a constexpr default constructor and a
 // constexpr operator().

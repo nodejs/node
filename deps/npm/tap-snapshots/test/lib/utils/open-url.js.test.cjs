@@ -22,10 +22,9 @@ npm home:
 https://www.npmjs.com
 `
 
-exports[`test/lib/utils/open-url.js TAP open url prompt does not error when opener can not find command > Outputs extra Browser unavailable message and url 1`] = `
+exports[`test/lib/utils/open-url.js TAP open url prompt does not error when opener cannot find command > Outputs extra Browser unavailable message and url 1`] = `
 npm home:
 https://www.npmjs.com
-
 Browser unavailable. Please open the URL manually:
 https://www.npmjs.com
 `

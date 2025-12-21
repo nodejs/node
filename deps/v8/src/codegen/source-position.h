@@ -116,6 +116,8 @@ class SourcePosition final {
     value_ = InliningIdField::update(value_, inlining_id + 1);
   }
 
+  static constexpr int MaxInliningId() { return InliningIdField::kMax; }
+
   static const int kNotInlined = -1;
   static_assert(kNoSourcePosition == -1);
 
@@ -182,11 +184,11 @@ struct WasmInliningPosition {
 
 struct SourcePositionInfo {
   SourcePositionInfo(Isolate* isolate, SourcePosition pos,
-                     Handle<SharedFunctionInfo> f);
+                     DirectHandle<SharedFunctionInfo> f);
 
   SourcePosition position;
-  Handle<SharedFunctionInfo> shared;
-  Handle<Script> script;
+  IndirectHandle<SharedFunctionInfo> shared;
+  IndirectHandle<Script> script;
   int line = -1;
   int column = -1;
 };

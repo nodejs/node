@@ -6,6 +6,7 @@
 #define V8_NUMBERS_INTEGER_LITERAL_INL_H_
 
 #include "src/numbers/integer-literal.h"
+// Include the non-inl header before the rest of the headers.
 
 namespace v8 {
 namespace internal {

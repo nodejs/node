@@ -1,6 +1,6 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const vm = require('vm');
 const { AsyncLocalStorage } = require('async_hooks');
@@ -26,10 +26,10 @@ vm.runInContext(`
 
 const storage = new AsyncLocalStorage();
 async function test() {
-  return storage.run({ test: 'main context' }, async () => {
+  return storage.run({ test: 'main context' }, common.mustCall(async () => {
     assert.strictEqual(storage.getStore().test, 'main context');
     await 42;
     assert.strictEqual(storage.getStore().test, 'main context');
-  });
+  }));
 }
 test();

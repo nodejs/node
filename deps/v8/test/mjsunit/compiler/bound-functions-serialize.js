@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// Flags: --allow-natives-syntax --turbofan --noalways-turbofan
-
+// Flags: --allow-natives-syntax --turbofan
 class C {};
 const c = new C;
 const getPrototypeOf = Object.getPrototypeOf;
@@ -27,5 +26,5 @@ c.prop = 42;
 // Assert that the call reducer optimized the call to Object.getPrototypeOf
 // by asserting that foo gets deopted when c's previous map becomes
 // unstable.
-foo();
 assertUnoptimized(foo);
+foo();

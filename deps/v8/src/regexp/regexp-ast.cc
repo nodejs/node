@@ -420,8 +420,8 @@ RegExpClassSetExpression::RegExpClassSetExpression(
     max_match_ = 2;
   } else {
     max_match_ = 0;
-    for (auto op : *operands) {
-      max_match_ = std::max(max_match_, op->max_match());
+    for (auto operand : *operands) {
+      max_match_ = std::max(max_match_, operand->max_match());
     }
   }
 }
@@ -440,6 +440,13 @@ RegExpClassSetExpression* RegExpClassSetExpression::Empty(Zone* zone,
       RegExpClassSetExpression::OperationType::kUnion, is_negated, false,
       operands);
 }
+
+bool RegExpText::StartsWithAtom() const {
+  if (elements_.length() == 0) return false;
+  return elements_.at(0).text_type() == TextElement::ATOM;
+}
+
+RegExpAtom* RegExpText::FirstAtom() const { return elements_.at(0).atom(); }
 
 }  // namespace internal
 }  // namespace v8

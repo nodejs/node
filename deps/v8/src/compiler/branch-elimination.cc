@@ -102,7 +102,7 @@ void BranchElimination::SimplifyBranchCondition(Node* branch) {
 
   Node* condition = branch->InputAt(0);
   BranchSemantics semantics = SemanticsOf(branch);
-  Graph* graph = jsgraph()->graph();
+  TFGraph* graph = jsgraph()->graph();
   base::SmallVector<Node*, 2> phi_inputs;
 
   Node::Inputs inputs = merge->inputs();
@@ -387,7 +387,7 @@ Reduction BranchElimination::ReduceOtherControl(Node* node) {
   return TakeStatesFromFirstControl(node);
 }
 
-Graph* BranchElimination::graph() const { return jsgraph()->graph(); }
+TFGraph* BranchElimination::graph() const { return jsgraph()->graph(); }
 
 Isolate* BranchElimination::isolate() const { return jsgraph()->isolate(); }
 

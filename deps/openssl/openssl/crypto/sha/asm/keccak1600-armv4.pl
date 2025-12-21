@@ -932,7 +932,15 @@ SHA3_absorb:
 .size	SHA3_absorb,.-SHA3_absorb
 ___
 }
-{ my ($out,$len,$A_flat,$bsz) = map("r$_", (4,5,10,12));
+
+{ my ($out,$len,$A_flat,$bsz,$next) = map("r$_", (4,5,10,12,0));
+
+
+# void SHA3_squeeze(uint64_t A[5][5],
+#                   unsigned char *out, size_t len, size_t r, int next)
+#
+# The first 4 parameters are passed in via r0..r3,
+# next is passed on the stack [sp, #0]
 
 $code.=<<___;
 .global	SHA3_squeeze
@@ -945,6 +953,7 @@ SHA3_squeeze:
 	mov	$out,r1
 	mov	$len,r2
 	mov	$bsz,r3
+	ldr	$next, [sp, #40]  @ next is after the 10 pushed registers (10*4)
 
 #ifdef	__thumb2__
 	mov	r9,#0x00ff00ff
@@ -966,6 +975,8 @@ SHA3_squeeze:
 	stmdb	sp!,{r6-r9}
 
 	mov	r14,$A_flat
+	cmp	$next, #1
+	beq	.Lnext_block
 	b	.Loop_squeeze
 
 .align	4
@@ -1037,7 +1048,7 @@ SHA3_squeeze:
 
 	subs	$bsz,$bsz,#8		@ bsz -= 8
 	bhi	.Loop_squeeze
-
+.Lnext_block:
 	mov	r0,r14			@ original $A_flat
 
 	bl	KeccakF1600

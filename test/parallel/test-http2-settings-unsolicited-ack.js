@@ -33,7 +33,7 @@ server.listen(0, common.mustCall(() => {
 
   // Ensures that the clients settings frames are not sent until the
   // servers are received, so that the first ack is actually expected.
-  client.once('data', (chunk) => {
+  client.once('data', common.mustCall((chunk) => {
     // The very first chunk of data we get from the server should
     // be a settings frame.
     assert.deepStrictEqual(chunk.slice(0, 9), kSettings.data);
@@ -41,7 +41,7 @@ server.listen(0, common.mustCall(() => {
     client.write(kSettingsAck.data, () => countdown.dec());
     // The second one is not and will be ignored.
     client.write(kSettingsAck.data, () => countdown.dec());
-  });
+  }));
 
   client.on('connect', common.mustCall(() => {
     client.write(http2util.kClientMagic);

@@ -1,7 +1,11 @@
 'use strict';
 
 const common = require('../common');
-const fs = require('fs');
+const {
+  glob,
+  globSync,
+  promises: { glob: globAsync },
+} = require('fs');
 const path = require('path');
 const assert = require('node:assert');
 
@@ -11,7 +15,7 @@ const configs = {
   n: [1e3],
   dir: ['lib'],
   pattern: ['**/*', '*.js', '**/**.js'],
-  mode: ['async', 'sync'],
+  mode: ['sync', 'promise', 'callback'],
   recursive: ['true', 'false'],
 };
 
@@ -20,15 +24,33 @@ const bench = common.createBenchmark(main, configs);
 async function main(config) {
   const fullPath = path.resolve(benchmarkDirectory, config.dir);
   const { pattern, recursive, mode } = config;
+  const options = { cwd: fullPath, recursive };
+  const callback = (resolve, reject) => {
+    glob(pattern, options, (err, matches) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(matches);
+      }
+    });
+  };
 
   let noDead;
   bench.start();
 
   for (let i = 0; i < config.n; i++) {
-    if (mode === 'async') {
-      noDead = await fs.promises.glob(pattern, { cwd: fullPath, recursive });
-    } else {
-      noDead = fs.globSync(pattern, { cwd: fullPath, recursive });
+    switch (mode) {
+      case 'sync':
+        noDead = globSync(pattern, options);
+        break;
+      case 'promise':
+        noDead = await globAsync(pattern, options);
+        break;
+      case 'callback':
+        noDead = await new Promise(callback);
+        break;
+      default:
+        throw new Error(`Unknown mode: ${mode}`);
     }
   }
 

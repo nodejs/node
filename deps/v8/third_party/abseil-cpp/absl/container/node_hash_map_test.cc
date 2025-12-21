@@ -322,8 +322,6 @@ TEST(NodeHashMap, CForEachMutate) {
   }
 }
 
-// This test requires std::launder for mutable key access in node handles.
-#if defined(__cpp_lib_launder) && __cpp_lib_launder >= 201606
 TEST(NodeHashMap, NodeHandleMutableKeyAccess) {
   node_hash_map<std::string, std::string> map;
 
@@ -335,7 +333,6 @@ TEST(NodeHashMap, NodeHandleMutableKeyAccess) {
 
   EXPECT_THAT(map, testing::ElementsAre(Pair("key", "mapped")));
 }
-#endif
 
 TEST(NodeHashMap, RecursiveTypeCompiles) {
   struct RecursiveType {

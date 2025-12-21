@@ -17,6 +17,6 @@ async_hooks.createHook({
   }),
 }).enable();
 
-runInCallbackScope({}, 1000, 1000, () => {
+runInCallbackScope({}, 1000, 1000, common.mustCallAtLeast(() => {
   assert(insideHook);
-});
+}));

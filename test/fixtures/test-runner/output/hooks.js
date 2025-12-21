@@ -7,7 +7,7 @@ const { setTimeout } = require('node:timers/promises');
 before((t) => t.diagnostic('before 1 called'));
 after((t) => t.diagnostic('after 1 called'));
 
-describe('describe hooks', () => {
+describe('describe hooks', common.mustCall(() => {
   const testArr = [];
   before(function() {
     testArr.push('before ' + this.name);
@@ -51,9 +51,9 @@ describe('describe hooks', () => {
     it('nested 1', () => testArr.push('nested 1'));
     test('nested 2', () => testArr.push('nested 2'));
   });
-});
+}));
 
-describe('describe hooks - no subtests', () => {
+describe('describe hooks - no subtests', common.mustCall(() => {
   const testArr = [];
   before(function() {
     testArr.push('before ' + this.name);
@@ -67,7 +67,7 @@ describe('describe hooks - no subtests', () => {
   }));
   beforeEach(common.mustNotCall());
   afterEach(common.mustNotCall());
-});
+}));
 
 describe('before throws', () => {
   before(() => { throw new Error('before'); });
@@ -75,10 +75,10 @@ describe('before throws', () => {
   test('2', () => {});
 });
 
-describe('before throws - no subtests', () => {
+describe('before throws - no subtests', common.mustCall(() => {
   before(() => { throw new Error('before'); });
   after(common.mustCall());
-});
+}));
 
 describe('after throws', () => {
   after(() => { throw new Error('after'); });
@@ -102,11 +102,11 @@ describe('afterEach throws', () => {
   test('2', () => {});
 });
 
-describe('afterEach when test fails', () => {
+describe('afterEach when test fails', common.mustCall(() => {
   afterEach(common.mustCall(2));
   it('1', () => { throw new Error('test'); });
   test('2', () => {});
-});
+}));
 
 describe('afterEach throws and test fails', () => {
   afterEach(() => { throw new Error('afterEach'); });
@@ -141,6 +141,7 @@ test('test hooks', async (t) => {
       'beforeEach nested',
       'nested before nested',
       'beforeEach nested 1', 'nested beforeEach nested 1', 'nested1', 'nested afterEach nested 1', 'afterEach nested 1',
+      // eslint-disable-next-line @stylistic/js/max-len
       'beforeEach nested 2', 'nested beforeEach nested 2', 'nested 2', 'nested afterEach nested 2', 'afterEach nested 2',
       'afterEach nested',
       'nested after nested',
@@ -228,7 +229,7 @@ test('afterEach context when test fails', async (t) => {
     assert.strictEqual(ctx.passed, false);
     assert.strictEqual(ctx.error, err);
   }));
-  await t.test('1', () => { throw err });
+  await t.test('1', () => { throw err; });
 });
 
 test('afterEach throws and test fails', async (t) => {
@@ -245,13 +246,13 @@ test('t.after() is called if test body throws', (t) => {
   throw new Error('bye');
 });
 
-describe('run after when before throws', () => {
+describe('run after when before throws', common.mustCall(() => {
   after(common.mustCall(() => {
-    console.log("- after() called")
+    console.log('- after() called');
   }));
-  before(() => { throw new Error('before')});
+  before(() => { throw new Error('before'); });
   it('1', () => {});
-});
+}));
 
 
 test('test hooks - async', async (t) => {

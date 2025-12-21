@@ -11,10 +11,6 @@ namespace v8 {
 namespace internal {
 namespace test_orderedhashtable {
 
-static Isolate* GetIsolateFrom(LocalContext* context) {
-  return reinterpret_cast<Isolate*>((*context)->GetIsolate());
-}
-
 void CopyHashCode(DirectHandle<JSReceiver> from, DirectHandle<JSReceiver> to) {
   int hash = Smi::ToInt(Object::GetHash(*from));
   to->SetIdentityHash(hash);
@@ -58,13 +54,16 @@ Handle<OrderedNameDictionary> Add(Isolate* isolate,
 
 // version for
 // OrderedHashMap, OrderedHashSet
-template <typename T>
-bool HasKey(Isolate* isolate, Handle<T> table, Tagged<Object> key) {
+template <typename T, template <typename> typename HandleType>
+  requires(std::is_convertible_v<HandleType<T>, DirectHandle<T>>)
+bool HasKey(Isolate* isolate, HandleType<T> table, Tagged<Object> key) {
   return T::HasKey(isolate, *table, key);
 }
 
-template <>
-bool HasKey(Isolate* isolate, Handle<OrderedNameDictionary> table,
+template <template <typename> typename HandleType>
+  requires(std::is_convertible_v<HandleType<OrderedNameDictionary>,
+                                 DirectHandle<OrderedNameDictionary>>)
+bool HasKey(Isolate* isolate, HandleType<OrderedNameDictionary> table,
             Tagged<Object> key) {
   return table->FindEntry(isolate, key).is_found();
 }
@@ -91,7 +90,7 @@ Handle<OrderedNameDictionary> Delete(Isolate* isolate,
 
 TEST(SmallOrderedHashSetInsertion) {
   LocalContext context;
-  Isolate* isolate = GetIsolateFrom(&context);
+  Isolate* isolate = context.i_isolate();
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
 
@@ -173,7 +172,7 @@ TEST(SmallOrderedHashSetInsertion) {
 
 TEST(SmallOrderedHashMapInsertion) {
   LocalContext context;
-  Isolate* isolate = GetIsolateFrom(&context);
+  Isolate* isolate = context.i_isolate();
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
 
@@ -257,7 +256,7 @@ TEST(SmallOrderedHashMapInsertion) {
 
 TEST(SmallOrderedHashSetDuplicateHashCode) {
   LocalContext context;
-  Isolate* isolate = GetIsolateFrom(&context);
+  Isolate* isolate = context.i_isolate();
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
 
@@ -282,7 +281,7 @@ TEST(SmallOrderedHashSetDuplicateHashCode) {
 
 TEST(SmallOrderedHashMapDuplicateHashCode) {
   LocalContext context;
-  Isolate* isolate = GetIsolateFrom(&context);
+  Isolate* isolate = context.i_isolate();
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
 
@@ -313,7 +312,7 @@ TEST(SmallOrderedHashMapDuplicateHashCode) {
 
 TEST(SmallOrderedHashSetGrow) {
   LocalContext context;
-  Isolate* isolate = GetIsolateFrom(&context);
+  Isolate* isolate = context.i_isolate();
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
 
@@ -432,7 +431,7 @@ TEST(SmallOrderedHashSetGrow) {
 
 TEST(SmallOrderedHashMapGrow) {
   LocalContext context;
-  Isolate* isolate = GetIsolateFrom(&context);
+  Isolate* isolate = context.i_isolate();
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
 
@@ -558,7 +557,7 @@ TEST(SmallOrderedHashMapGrow) {
 
 TEST(OrderedHashTableInsertion) {
   LocalContext context;
-  Isolate* isolate = GetIsolateFrom(&context);
+  Isolate* isolate = context.i_isolate();
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
 
@@ -642,7 +641,7 @@ TEST(OrderedHashTableInsertion) {
 
 TEST(OrderedHashMapDuplicateHashCode) {
   LocalContext context;
-  Isolate* isolate = GetIsolateFrom(&context);
+  Isolate* isolate = context.i_isolate();
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
 
@@ -668,7 +667,7 @@ TEST(OrderedHashMapDuplicateHashCode) {
 
 TEST(OrderedHashMapDeletion) {
   LocalContext context;
-  Isolate* isolate = GetIsolateFrom(&context);
+  Isolate* isolate = context.i_isolate();
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
   DirectHandle<Smi> value1(Smi::FromInt(1), isolate);
@@ -791,7 +790,7 @@ TEST(OrderedHashMapDeletion) {
 
 TEST(SmallOrderedHashMapDeletion) {
   LocalContext context;
-  Isolate* isolate = GetIsolateFrom(&context);
+  Isolate* isolate = context.i_isolate();
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
   DirectHandle<Smi> value1(Smi::FromInt(1), isolate);
@@ -913,7 +912,7 @@ TEST(SmallOrderedHashMapDeletion) {
 
 TEST(OrderedHashMapDuplicateHashCodeDeletion) {
   LocalContext context;
-  Isolate* isolate = GetIsolateFrom(&context);
+  Isolate* isolate = context.i_isolate();
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
 
@@ -942,7 +941,7 @@ TEST(OrderedHashMapDuplicateHashCodeDeletion) {
 
 TEST(SmallOrderedHashMapDuplicateHashCodeDeletion) {
   LocalContext context;
-  Isolate* isolate = GetIsolateFrom(&context);
+  Isolate* isolate = context.i_isolate();
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
 
@@ -971,7 +970,7 @@ TEST(SmallOrderedHashMapDuplicateHashCodeDeletion) {
 
 TEST(OrderedHashSetDeletion) {
   LocalContext context;
-  Isolate* isolate = GetIsolateFrom(&context);
+  Isolate* isolate = context.i_isolate();
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
 
@@ -1092,7 +1091,7 @@ TEST(OrderedHashSetDeletion) {
 
 TEST(SmallOrderedHashSetDeletion) {
   LocalContext context;
-  Isolate* isolate = GetIsolateFrom(&context);
+  Isolate* isolate = context.i_isolate();
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
 
@@ -1212,7 +1211,7 @@ TEST(SmallOrderedHashSetDeletion) {
 
 TEST(OrderedHashSetDuplicateHashCodeDeletion) {
   LocalContext context;
-  Isolate* isolate = GetIsolateFrom(&context);
+  Isolate* isolate = context.i_isolate();
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
 
@@ -1240,7 +1239,7 @@ TEST(OrderedHashSetDuplicateHashCodeDeletion) {
 
 TEST(SmallOrderedHashSetDuplicateHashCodeDeletion) {
   LocalContext context;
-  Isolate* isolate = GetIsolateFrom(&context);
+  Isolate* isolate = context.i_isolate();
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
 
@@ -1268,7 +1267,7 @@ TEST(SmallOrderedHashSetDuplicateHashCodeDeletion) {
 
 TEST(OrderedHashSetHandlerInsertion) {
   LocalContext context;
-  Isolate* isolate = GetIsolateFrom(&context);
+  Isolate* isolate = context.i_isolate();
   HandleScope scope(isolate);
 
   Handle<HeapObject> set =
@@ -1302,7 +1301,7 @@ TEST(OrderedHashSetHandlerInsertion) {
 
 TEST(OrderedHashMapHandlerInsertion) {
   LocalContext context;
-  Isolate* isolate = GetIsolateFrom(&context);
+  Isolate* isolate = context.i_isolate();
   HandleScope scope(isolate);
 
   Handle<HeapObject> map =
@@ -1341,7 +1340,7 @@ TEST(OrderedHashMapHandlerInsertion) {
 
 TEST(OrderedHashSetHandlerDeletion) {
   LocalContext context;
-  Isolate* isolate = GetIsolateFrom(&context);
+  Isolate* isolate = context.i_isolate();
   HandleScope scope(isolate);
 
   Handle<HeapObject> set =
@@ -1378,7 +1377,7 @@ TEST(OrderedHashSetHandlerDeletion) {
 
 TEST(OrderedHashMapHandlerDeletion) {
   LocalContext context;
-  Isolate* isolate = GetIsolateFrom(&context);
+  Isolate* isolate = context.i_isolate();
   HandleScope scope(isolate);
 
   Handle<HeapObject> map =
@@ -1418,7 +1417,7 @@ TEST(OrderedHashMapHandlerDeletion) {
 
 TEST(OrderedNameDictionaryInsertion) {
   LocalContext context;
-  Isolate* isolate = GetIsolateFrom(&context);
+  Isolate* isolate = context.i_isolate();
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
 
@@ -1453,7 +1452,7 @@ TEST(OrderedNameDictionaryInsertion) {
 
 TEST(OrderedNameDictionaryFindEntry) {
   LocalContext context;
-  Isolate* isolate = GetIsolateFrom(&context);
+  Isolate* isolate = context.i_isolate();
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
 
@@ -1494,7 +1493,7 @@ TEST(OrderedNameDictionaryFindEntry) {
 
 TEST(OrderedNameDictionaryValueAtAndValueAtPut) {
   LocalContext context;
-  Isolate* isolate = GetIsolateFrom(&context);
+  Isolate* isolate = context.i_isolate();
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
 
@@ -1556,7 +1555,7 @@ TEST(OrderedNameDictionaryValueAtAndValueAtPut) {
 
 TEST(OrderedNameDictionaryDetailsAtAndDetailsAtPut) {
   LocalContext context;
-  Isolate* isolate = GetIsolateFrom(&context);
+  Isolate* isolate = context.i_isolate();
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
 
@@ -1614,7 +1613,7 @@ TEST(OrderedNameDictionaryDetailsAtAndDetailsAtPut) {
 
 TEST(SmallOrderedNameDictionaryInsertion) {
   LocalContext context;
-  Isolate* isolate = GetIsolateFrom(&context);
+  Isolate* isolate = context.i_isolate();
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
 
@@ -1648,7 +1647,7 @@ TEST(SmallOrderedNameDictionaryInsertion) {
 
 TEST(SmallOrderedNameDictionaryInsertionMax) {
   LocalContext context;
-  Isolate* isolate = GetIsolateFrom(&context);
+  Isolate* isolate = context.i_isolate();
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
   Handle<SmallOrderedNameDictionary> dict =
@@ -1677,7 +1676,7 @@ TEST(SmallOrderedNameDictionaryInsertionMax) {
 
 TEST(SmallOrderedNameDictionaryFindEntry) {
   LocalContext context;
-  Isolate* isolate = GetIsolateFrom(&context);
+  Isolate* isolate = context.i_isolate();
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
 
@@ -1716,7 +1715,7 @@ TEST(SmallOrderedNameDictionaryFindEntry) {
 
 TEST(SmallOrderedNameDictionaryValueAtAndValueAtPut) {
   LocalContext context;
-  Isolate* isolate = GetIsolateFrom(&context);
+  Isolate* isolate = context.i_isolate();
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
 
@@ -1778,7 +1777,7 @@ TEST(SmallOrderedNameDictionaryValueAtAndValueAtPut) {
 
 TEST(SmallOrderedNameDictionaryDetailsAtAndDetailsAtPut) {
   LocalContext context;
-  Isolate* isolate = GetIsolateFrom(&context);
+  Isolate* isolate = context.i_isolate();
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
 
@@ -1836,7 +1835,7 @@ TEST(SmallOrderedNameDictionaryDetailsAtAndDetailsAtPut) {
 
 TEST(SmallOrderedNameDictionarySetAndMigrateHash) {
   LocalContext context;
-  Isolate* isolate = GetIsolateFrom(&context);
+  Isolate* isolate = context.i_isolate();
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
   Handle<SmallOrderedNameDictionary> dict =
@@ -1861,7 +1860,7 @@ TEST(SmallOrderedNameDictionarySetAndMigrateHash) {
 
 TEST(OrderedNameDictionarySetAndMigrateHash) {
   LocalContext context;
-  Isolate* isolate = GetIsolateFrom(&context);
+  Isolate* isolate = context.i_isolate();
   HandleScope scope(isolate);
   Handle<OrderedNameDictionary> dict =
       OrderedNameDictionary::Allocate(isolate, 2).ToHandleChecked();
@@ -1885,7 +1884,7 @@ TEST(OrderedNameDictionarySetAndMigrateHash) {
 
 TEST(OrderedNameDictionaryHandlerInsertion) {
   LocalContext context;
-  Isolate* isolate = GetIsolateFrom(&context);
+  Isolate* isolate = context.i_isolate();
   HandleScope scope(isolate);
 
   Handle<HeapObject> table =
@@ -1936,7 +1935,7 @@ TEST(OrderedNameDictionaryHandlerInsertion) {
 
 TEST(OrderedNameDictionaryHandlerDeletion) {
   LocalContext context;
-  Isolate* isolate = GetIsolateFrom(&context);
+  Isolate* isolate = context.i_isolate();
   HandleScope scope(isolate);
 
   Handle<HeapObject> table =
@@ -1979,7 +1978,7 @@ TEST(OrderedNameDictionaryHandlerDeletion) {
 
 TEST(OrderedNameDictionarySetEntry) {
   LocalContext context;
-  Isolate* isolate = GetIsolateFrom(&context);
+  Isolate* isolate = context.i_isolate();
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
 
@@ -2024,7 +2023,7 @@ TEST(OrderedNameDictionarySetEntry) {
 
 TEST(SmallOrderedNameDictionarySetEntry) {
   LocalContext context;
-  Isolate* isolate = GetIsolateFrom(&context);
+  Isolate* isolate = context.i_isolate();
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
 
@@ -2068,7 +2067,7 @@ TEST(SmallOrderedNameDictionarySetEntry) {
 
 TEST(OrderedNameDictionaryDeleteEntry) {
   LocalContext context;
-  Isolate* isolate = GetIsolateFrom(&context);
+  Isolate* isolate = context.i_isolate();
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
 
@@ -2130,7 +2129,7 @@ TEST(OrderedNameDictionaryDeleteEntry) {
 
 TEST(SmallOrderedNameDictionaryDeleteEntry) {
   LocalContext context;
-  Isolate* isolate = GetIsolateFrom(&context);
+  Isolate* isolate = context.i_isolate();
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
 
@@ -2249,7 +2248,7 @@ void TestEmptyOrderedHashTable(Isolate* isolate, Factory* factory,
 
 TEST(ZeroSizeOrderedHashMap) {
   LocalContext context;
-  Isolate* isolate = GetIsolateFrom(&context);
+  Isolate* isolate = context.i_isolate();
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
   ReadOnlyRoots ro_roots(isolate);
@@ -2324,7 +2323,7 @@ TEST(ZeroSizeOrderedHashMap) {
 
 TEST(ZeroSizeOrderedHashSet) {
   LocalContext context;
-  Isolate* isolate = GetIsolateFrom(&context);
+  Isolate* isolate = context.i_isolate();
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
   ReadOnlyRoots ro_roots(isolate);
@@ -2400,7 +2399,7 @@ TEST(ZeroSizeOrderedHashSet) {
 
 TEST(ZeroSizeOrderedNameDictionary) {
   LocalContext context;
-  Isolate* isolate = GetIsolateFrom(&context);
+  Isolate* isolate = context.i_isolate();
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
   ReadOnlyRoots ro_roots(isolate);

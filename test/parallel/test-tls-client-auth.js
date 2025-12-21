@@ -47,10 +47,9 @@ connect({
     ca: client.ca,
     requestCert: true,
   },
-}, function(err, pair, cleanup) {
-  assert.ifError(err);
+}, common.mustSucceed((pair, cleanup) => {
   return cleanup();
-});
+}));
 
 // As above, but without requesting client's cert.
 connect({
@@ -63,10 +62,9 @@ connect({
     cert: server.cert,
     ca: client.ca,
   },
-}, function(err, pair, cleanup) {
-  assert.ifError(err);
+}, common.mustSucceed((pair, cleanup) => {
   return cleanup();
-});
+}));
 
 // Request cert from TLS1.2 client that doesn't have one.
 connect({
@@ -81,7 +79,7 @@ connect({
     ca: client.ca,
     requestCert: true,
   },
-}, function(err, pair, cleanup) {
+}, common.mustCall((err, pair, cleanup) => {
   assert.strictEqual(pair.server.err.code,
                      'ERR_SSL_PEER_DID_NOT_RETURN_A_CERTIFICATE');
   const expectedErr = hasOpenSSL(3, 2) ?
@@ -89,7 +87,7 @@ connect({
   assert.strictEqual(pair.client.err.code,
                      expectedErr);
   return cleanup();
-});
+}));
 
 // Request cert from TLS1.3 client that doesn't have one.
 if (tls.DEFAULT_MAX_VERSION === 'TLSv1.3') connect({
@@ -103,7 +101,7 @@ if (tls.DEFAULT_MAX_VERSION === 'TLSv1.3') connect({
     ca: client.ca,
     requestCert: true,
   },
-}, function(err, pair, cleanup) {
+}, common.mustCall((err, pair, cleanup) => {
   assert.strictEqual(pair.server.err.code,
                      'ERR_SSL_PEER_DID_NOT_RETURN_A_CERTIFICATE');
 
@@ -115,7 +113,7 @@ if (tls.DEFAULT_MAX_VERSION === 'TLSv1.3') connect({
     assert.strictEqual(err.code, 'ERR_SSL_TLSV13_ALERT_CERTIFICATE_REQUIRED');
     cleanup();
   }));
-});
+}));
 
 // Typical configuration error, incomplete cert chains sent, we have to know the
 // peer's subordinate CAs in order to verify the peer.
@@ -132,10 +130,9 @@ connect({
     ca: [client.ca, client.subca],
     requestCert: true,
   },
-}, function(err, pair, cleanup) {
-  assert.ifError(err);
+}, common.mustSucceed((pair, cleanup) => {
   return cleanup();
-});
+}));
 
 // Like above, but provide root CA and subordinate CA as multi-PEM.
 connect({
@@ -151,10 +148,9 @@ connect({
     ca: client.ca + '\n' + client.subca,
     requestCert: true,
   },
-}, function(err, pair, cleanup) {
-  assert.ifError(err);
+}, common.mustSucceed((pair, cleanup) => {
   return cleanup();
-});
+}));
 
 // Like above, but provide multi-PEM in an array.
 connect({
@@ -170,10 +166,9 @@ connect({
     ca: [client.ca + '\n' + client.subca],
     requestCert: true,
   },
-}, function(err, pair, cleanup) {
-  assert.ifError(err);
+}, common.mustSucceed((pair, cleanup) => {
   return cleanup();
-});
+}));
 
 // Fail to complete server's chain
 connect({
@@ -185,10 +180,10 @@ connect({
     key: server.key,
     cert: server.single,
   },
-}, function(err, pair, cleanup) {
+}, common.mustCall((err, pair, cleanup) => {
   assert.strictEqual(err.code, 'UNABLE_TO_VERIFY_LEAF_SIGNATURE');
   return cleanup();
-});
+}));
 
 // Fail to complete client's chain.
 connect({
@@ -204,12 +199,12 @@ connect({
     ca: client.ca,
     requestCert: true,
   },
-}, function(err, pair, cleanup) {
+}, common.mustCall((err, pair, cleanup) => {
   assert.ifError(pair.client.error);
   assert.ifError(pair.server.error);
   assert.strictEqual(err.code, 'ECONNRESET');
   return cleanup();
-});
+}));
 
 // Fail to find CA for server.
 connect({
@@ -220,10 +215,10 @@ connect({
     key: server.key,
     cert: server.cert,
   },
-}, function(err, pair, cleanup) {
+}, common.mustCall((err, pair, cleanup) => {
   assert.strictEqual(err.code, 'UNABLE_TO_GET_ISSUER_CERT_LOCALLY');
   return cleanup();
-});
+}));
 
 // Server sent their CA, but CA cannot be trusted if it is not locally known.
 connect({
@@ -234,10 +229,10 @@ connect({
     key: server.key,
     cert: server.cert + '\n' + server.ca,
   },
-}, function(err, pair, cleanup) {
+}, common.mustCall((err, pair, cleanup) => {
   assert.strictEqual(err.code, 'SELF_SIGNED_CERT_IN_CHAIN');
   return cleanup();
-});
+}));
 
 // Server sent their CA, wrongly, but its OK since we know the CA locally.
 connect({
@@ -249,10 +244,9 @@ connect({
     key: server.key,
     cert: server.cert + '\n' + server.ca,
   },
-}, function(err, pair, cleanup) {
-  assert.ifError(err);
+}, common.mustSucceed((pair, cleanup) => {
   return cleanup();
-});
+}));
 
 // Fail to complete client's chain.
 connect({
@@ -268,10 +262,10 @@ connect({
     ca: client.ca,
     requestCert: true,
   },
-}, function(err, pair, cleanup) {
+}, common.mustCall((err, pair, cleanup) => {
   assert.strictEqual(err.code, 'ECONNRESET');
   return cleanup();
-});
+}));
 
 // Fail to find CA for client.
 connect({
@@ -286,10 +280,10 @@ connect({
     cert: server.cert,
     requestCert: true,
   },
-}, function(err, pair, cleanup) {
+}, common.mustCall((err, pair, cleanup) => {
   assert.strictEqual(err.code, 'ECONNRESET');
   return cleanup();
-});
+}));
 
 // Confirm support for "BEGIN TRUSTED CERTIFICATE".
 connect({
@@ -305,10 +299,9 @@ connect({
     ca: client.ca,
     requestCert: true,
   },
-}, function(err, pair, cleanup) {
-  assert.ifError(err);
+}, common.mustSucceed((pair, cleanup) => {
   return cleanup();
-});
+}));
 
 // Confirm support for "BEGIN TRUSTED CERTIFICATE".
 connect({
@@ -324,10 +317,9 @@ connect({
     ca: client.ca.replace(/CERTIFICATE/g, 'TRUSTED CERTIFICATE'),
     requestCert: true,
   },
-}, function(err, pair, cleanup) {
-  assert.ifError(err);
+}, common.mustSucceed((pair, cleanup) => {
   return cleanup();
-});
+}));
 
 // Confirm support for "BEGIN X509 CERTIFICATE".
 connect({
@@ -343,10 +335,9 @@ connect({
     ca: client.ca,
     requestCert: true,
   },
-}, function(err, pair, cleanup) {
-  assert.ifError(err);
+}, common.mustSucceed((pair, cleanup) => {
   return cleanup();
-});
+}));
 
 // Confirm support for "BEGIN X509 CERTIFICATE".
 connect({
@@ -362,7 +353,6 @@ connect({
     ca: client.ca.replace(/CERTIFICATE/g, 'X509 CERTIFICATE'),
     requestCert: true,
   },
-}, function(err, pair, cleanup) {
-  assert.ifError(err);
+}, common.mustSucceed((pair, cleanup) => {
   return cleanup();
-});
+}));

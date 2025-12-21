@@ -12,16 +12,34 @@
 #include "src/common/globals.h"
 #include "src/heap/base/active-system-pages.h"
 #include "src/heap/list.h"
+#include "src/heap/marking-progress-tracker.h"
 #include "src/heap/marking.h"
-#include "src/heap/memory-chunk-layout.h"
 #include "src/heap/memory-chunk-metadata.h"
 #include "src/heap/slot-set.h"
+#include "src/sandbox/check.h"
 
 namespace v8 {
 namespace internal {
 
 class FreeListCategory;
+class SlotSet;
 class Space;
+
+using ActiveSystemPages = ::heap::base::ActiveSystemPages;
+
+enum class MarkingMode { kNoMarking, kMinorMarking, kMajorMarking };
+
+enum RememberedSetType {
+  OLD_TO_NEW,
+  OLD_TO_NEW_BACKGROUND,
+  OLD_TO_OLD,
+  OLD_TO_SHARED,
+  TRUSTED_TO_CODE,
+  TRUSTED_TO_TRUSTED,
+  TRUSTED_TO_SHARED_TRUSTED,
+  SURVIVOR_TO_EXTERNAL_POINTER,
+  NUMBER_OF_REMEMBERED_SET_TYPES
+};
 
 // MutablePageMetadata represents a memory region owned by a specific space.
 // It is divided into the header and the body. Chunk start is always
@@ -42,51 +60,65 @@ class MutablePageMetadata : public MemoryChunkMetadata {
     kInProgress,
   };
 
-  static const size_t kHeaderSize = MemoryChunkLayout::kMemoryChunkHeaderSize;
-
-  static const intptr_t kOldToNewSlotSetOffset =
-      MemoryChunkLayout::kSlotSetOffset;
-
   // Page size in bytes.  This must be a multiple of the OS page size.
   static const int kPageSize = kRegularPageSize;
 
-  MutablePageMetadata(Heap* heap, BaseSpace* space, size_t size,
-                      Address area_start, Address area_end,
-                      VirtualMemory reservation, PageSize page_size);
-
-  MemoryChunk::MainThreadFlags InitialFlags(Executability executable) const;
-
-  // Only works if the pointer is in the first kPageSize of the MemoryChunk.
-  V8_INLINE static MutablePageMetadata* FromAddress(Address a);
-
-  // Only works if the object is in the first kPageSize of the MemoryChunk.
-  V8_INLINE static MutablePageMetadata* FromHeapObject(Tagged<HeapObject> o);
-
-  static MutablePageMetadata* cast(MemoryChunkMetadata* metadata) {
-    SLOW_DCHECK(!metadata || !metadata->Chunk()->InReadOnlySpace());
-    return static_cast<MutablePageMetadata*>(metadata);
-  }
-
-  static const MutablePageMetadata* cast(const MemoryChunkMetadata* metadata) {
-    SLOW_DCHECK(!metadata->Chunk()->InReadOnlySpace());
-    return static_cast<const MutablePageMetadata*>(metadata);
-  }
-
-  size_t buckets() const { return SlotSet::BucketsForSize(size()); }
-
-  V8_INLINE void SetOldGenerationPageFlags(MarkingMode marking_mode);
-  void SetYoungGenerationPageFlags(MarkingMode marking_mode) {
-    return Chunk()->SetYoungGenerationPageFlags(marking_mode);
+  static PageAllocator::Permission GetCodeModificationPermission() {
+    return v8_flags.jitless ? PageAllocator::kReadWrite
+                            : PageAllocator::kReadWriteExecute;
   }
 
   static inline void MoveExternalBackingStoreBytes(
       ExternalBackingStoreType type, MutablePageMetadata* from,
       MutablePageMetadata* to, size_t amount);
 
-  void DiscardUnusedMemory(Address addr, size_t size);
+  // Only works if the pointer is in the first kPageSize of the MemoryChunk.
+  V8_INLINE static MutablePageMetadata* FromAddress(const Isolate* i,
+                                                    Address a);
 
-  base::Mutex* mutex() const { return mutex_; }
-  base::SharedMutex* shared_mutex() const { return shared_mutex_; }
+  // Only works if the object is in the first kPageSize of the MemoryChunk.
+  V8_INLINE static MutablePageMetadata* FromHeapObject(const Isolate* i,
+                                                       Tagged<HeapObject> o);
+
+  static MutablePageMetadata* cast(MemoryChunkMetadata* metadata) {
+    SBXCHECK(metadata->IsMutablePageMetadata());
+    return static_cast<MutablePageMetadata*>(metadata);
+  }
+
+  static const MutablePageMetadata* cast(const MemoryChunkMetadata* metadata) {
+    SBXCHECK(metadata->IsMutablePageMetadata());
+    return static_cast<const MutablePageMetadata*>(metadata);
+  }
+
+  static MemoryChunk::MainThreadFlags OldGenerationPageFlags(
+      MarkingMode marking_mode, AllocationSpace space);
+  static MemoryChunk::MainThreadFlags YoungGenerationPageFlags(
+      MarkingMode marking_mode);
+
+  void SetOldGenerationPageFlags(MarkingMode marking_mode);
+  void SetYoungGenerationPageFlags(MarkingMode marking_mode);
+  V8_INLINE void SetMajorGCInProgress();
+  V8_INLINE void ResetMajorGCInProgress();
+  V8_INLINE void ClearFlagsNonExecutable(MemoryChunk::MainThreadFlags flags);
+  V8_INLINE void SetFlagsNonExecutable(
+      MemoryChunk::MainThreadFlags flags,
+      MemoryChunk::MainThreadFlags mask = MemoryChunk::kAllFlagsMask);
+  V8_INLINE void ClearFlagNonExecutable(MemoryChunk::Flag flag);
+  V8_INLINE void SetFlagNonExecutable(MemoryChunk::Flag flag);
+  void SetFlagMaybeExecutable(MemoryChunk::Flag flag);
+  void ClearFlagMaybeExecutable(MemoryChunk::Flag flag);
+  // TODO(mlippautz): Replace those with non-executable or slow versions.
+  V8_INLINE void SetFlagUnlocked(MemoryChunk::Flag flag);
+  V8_INLINE void ClearFlagUnlocked(MemoryChunk::Flag flag);
+
+  V8_EXPORT_PRIVATE void MarkNeverEvacuate();
+
+  size_t BucketsInSlotSet() const { return SlotSet::BucketsForSize(size()); }
+
+  base::Mutex& mutex() { return mutex_; }
+  const base::Mutex& mutex() const { return mutex_; }
+  base::Mutex& object_mutex() { return object_mutex_; }
+  const base::Mutex& object_mutex() const { return object_mutex_; }
 
   void set_concurrent_sweeping_state(ConcurrentSweepingState state) {
     concurrent_sweeping_ = state;
@@ -166,8 +198,12 @@ class MutablePageMetadata : public MemoryChunkMetadata {
   // Approximate amount of physical memory committed for this chunk.
   V8_EXPORT_PRIVATE size_t CommittedPhysicalMemory() const;
 
-  class ProgressBar& ProgressBar() { return progress_bar_; }
-  const class ProgressBar& ProgressBar() const { return progress_bar_; }
+  MarkingProgressTracker& marking_progress_tracker() {
+    return marking_progress_tracker_;
+  }
+  const MarkingProgressTracker& marking_progress_tracker() const {
+    return marking_progress_tracker_;
+  }
 
   inline void IncrementExternalBackingStoreBytes(ExternalBackingStoreType type,
                                                  size_t amount);
@@ -181,15 +217,6 @@ class MutablePageMetadata : public MemoryChunkMetadata {
 
   Space* owner() const {
     return reinterpret_cast<Space*>(MemoryChunkMetadata::owner());
-  }
-
-  // Gets the chunk's allocation space, potentially dealing with a null owner_
-  // (like read-only chunks have).
-  inline AllocationSpace owner_identity() const;
-
-  static PageAllocator::Permission GetCodeModificationPermission() {
-    return v8_flags.jitless ? PageAllocator::kReadWrite
-                            : PageAllocator::kReadWriteExecute;
   }
 
   heap::ListNode<MutablePageMetadata>& list_node() { return list_node_; }
@@ -254,16 +281,23 @@ class MutablePageMetadata : public MemoryChunkMetadata {
     live_byte_count_.fetch_add(diff, std::memory_order_relaxed);
   }
 
+  template <AccessMode mode = AccessMode::NON_ATOMIC>
   void ClearLiveness();
 
+  bool IsLivenessClear() const;
+
  protected:
+  MutablePageMetadata(Heap* heap, BaseSpace* space, size_t size,
+                      Address area_start, Address area_end,
+                      VirtualMemory reservation, PageSize page_size,
+                      Executability executability);
+
+  MemoryChunk::MainThreadFlags ComputeInitialFlags(
+      Executability executable) const;
+
   // Release all memory allocated by the chunk. Should be called when memory
   // chunk is about to be freed.
   void ReleaseAllAllocatedMemory();
-
-#ifdef DEBUG
-  static void ValidateOffsets(MutablePageMetadata* chunk);
-#endif
 
   template <RememberedSetType type, AccessMode access_mode = AccessMode::ATOMIC>
   void set_slot_set(SlotSet* slot_set) {
@@ -294,8 +328,9 @@ class MutablePageMetadata : public MemoryChunkMetadata {
   TypedSlotSet* typed_slot_set_[NUMBER_OF_REMEMBERED_SET_TYPES] = {nullptr};
 
   // Used by the marker to keep track of the scanning progress in large objects
-  // that have a progress bar and are scanned in increments.
-  class ProgressBar progress_bar_;
+  // that have a progress tracker and are scanned in increments and
+  // concurrently.
+  MarkingProgressTracker marking_progress_tracker_;
 
   // Count of bytes marked black on page. With sticky mark-bits, the counter
   // represents the size of the old objects allocated on the page. This is
@@ -303,10 +338,6 @@ class MutablePageMetadata : public MemoryChunkMetadata {
   // approximate allocated size on the space (before it gets refined due to
   // right/left-trimming or slack tracking).
   std::atomic<intptr_t> live_byte_count_{0};
-
-  base::Mutex* mutex_;
-  base::SharedMutex* shared_mutex_;
-  base::Mutex* page_protection_change_mutex_;
 
   std::atomic<ConcurrentSweepingState> concurrent_sweeping_{
       ConcurrentSweepingState::kDone};
@@ -321,7 +352,8 @@ class MutablePageMetadata : public MemoryChunkMetadata {
 
   PossiblyEmptyBuckets possibly_empty_buckets_;
 
-  ActiveSystemPages* active_system_pages_;
+  // This also serves as indicator for whether a page is large. See constructor.
+  std::unique_ptr<ActiveSystemPages> active_system_pages_;
 
   // Counts overall allocated LAB size on the page since the last GC. Used
   // only for new space pages.
@@ -331,19 +363,50 @@ class MutablePageMetadata : public MemoryChunkMetadata {
   // counter is reset to 0 whenever the page is empty.
   size_t age_in_new_space_ = 0;
 
+  MemoryChunk::MainThreadFlags trusted_main_thread_flags_ =
+      MemoryChunk::Flag::NO_FLAGS;
+
   MarkingBitmap marking_bitmap_;
 
+  // Possibly platform-dependent fields should go last. We depend on the marking
+  // bitmap offset from generated code and assume that it's stable across 64-bit
+  // platforms. In theory, there could be a difference between Linux and Android
+  // in terms of Mutex size.
+
+  base::Mutex mutex_;
+  base::Mutex object_mutex_;
+
  private:
-  friend class ConcurrentMarkingState;
-  friend class MarkingState;
-  friend class AtomicMarkingState;
-  friend class NonAtomicMarkingState;
+  V8_INLINE void RawSetTrustedAndUntrustedFlags(
+      MemoryChunk::MainThreadFlags new_flags);
+  V8_INLINE void SetFlagsUnlocked(
+      MemoryChunk::MainThreadFlags flags,
+      MemoryChunk::MainThreadFlags mask = MemoryChunk::kAllFlagsMask);
+  V8_INLINE void ClearFlagsUnlocked(MemoryChunk::MainThreadFlags flags);
+
+  static constexpr intptr_t MarkingBitmapOffset() {
+    return offsetof(MutablePageMetadata, marking_bitmap_);
+  }
+
+  static constexpr intptr_t SlotSetOffset(
+      RememberedSetType remembered_set_type) {
+    return offsetof(MutablePageMetadata, slot_set_) +
+           sizeof(void*) * remembered_set_type;
+  }
+
+  // For ReleaseAllAllocatedMemory().
   friend class MemoryAllocator;
-  friend class MemoryChunkValidator;
-  friend class PagedSpace;
+  friend class MemoryPool;
+  // For set_typed_slot_set().
   template <RememberedSetType>
   friend class RememberedSet;
-  friend class YoungGenerationMarkingState;
+  // For MarkingBitmapOffset().
+  friend class CodeStubAssembler;
+  friend class MacroAssembler;
+  friend class MarkingBitmap;
+  friend class TestWithBitmap;
+  // For SlotSetOffset().
+  friend class WriteBarrierCodeStubAssembler;
 };
 
 }  // namespace internal

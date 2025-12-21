@@ -484,36 +484,6 @@ static bool IsAlpha(char c) {
 
 static bool IsDigit(char c) { return c >= '0' && c <= '9'; }
 
-// Returns true if "str" is a function clone suffix.  These suffixes are used
-// by GCC 4.5.x and later versions (and our locally-modified version of GCC
-// 4.4.x) to indicate functions which have been cloned during optimization.
-// We treat any sequence (.<alpha>+.<digit>+)+ as a function clone suffix.
-// Additionally, '_' is allowed along with the alphanumeric sequence.
-static bool IsFunctionCloneSuffix(const char *str) {
-  size_t i = 0;
-  while (str[i] != '\0') {
-    bool parsed = false;
-    // Consume a single [.<alpha> | _]*[.<digit>]* sequence.
-    if (str[i] == '.' && (IsAlpha(str[i + 1]) || str[i + 1] == '_')) {
-      parsed = true;
-      i += 2;
-      while (IsAlpha(str[i]) || str[i] == '_') {
-        ++i;
-      }
-    }
-    if (str[i] == '.' && IsDigit(str[i + 1])) {
-      parsed = true;
-      i += 2;
-      while (IsDigit(str[i])) {
-        ++i;
-      }
-    }
-    if (!parsed)
-      return false;
-  }
-  return true;  // Consumed everything in "str".
-}
-
 static bool EndsWith(State *state, const char chr) {
   return state->parse_state.out_cur_idx > 0 &&
          state->parse_state.out_cur_idx < state->out_end_idx &&
@@ -1039,7 +1009,8 @@ static bool ParseNumber(State *state, int *number_out) {
     number = ~number + 1;
   }
   if (p != RemainingInput(state)) {  // Conversion succeeded.
-    state->parse_state.mangled_idx += p - RemainingInput(state);
+    state->parse_state.mangled_idx +=
+        static_cast<int>(p - RemainingInput(state));
     UpdateHighWaterMark(state);
     if (number_out != nullptr) {
       // Note: possibly truncate "number".
@@ -1062,7 +1033,8 @@ static bool ParseFloatNumber(State *state) {
     }
   }
   if (p != RemainingInput(state)) {  // Conversion succeeded.
-    state->parse_state.mangled_idx += p - RemainingInput(state);
+    state->parse_state.mangled_idx +=
+        static_cast<int>(p - RemainingInput(state));
     UpdateHighWaterMark(state);
     return true;
   }
@@ -1081,7 +1053,8 @@ static bool ParseSeqId(State *state) {
     }
   }
   if (p != RemainingInput(state)) {  // Conversion succeeded.
-    state->parse_state.mangled_idx += p - RemainingInput(state);
+    state->parse_state.mangled_idx +=
+        static_cast<int>(p - RemainingInput(state));
     UpdateHighWaterMark(state);
     return true;
   }
@@ -1100,7 +1073,7 @@ static bool ParseIdentifier(State *state, size_t length) {
   } else {
     MaybeAppendWithLength(state, RemainingInput(state), length);
   }
-  state->parse_state.mangled_idx += length;
+  state->parse_state.mangled_idx += static_cast<int>(length);
   UpdateHighWaterMark(state);
   return true;
 }
@@ -2816,7 +2789,8 @@ static bool ParseLocalNameSuffix(State *state) {
     // On late parse failure, roll back not only the input but also the output,
     // whose trailing NUL was overwritten.
     state->parse_state = copy;
-    if (state->parse_state.append) {
+    if (state->parse_state.append &&
+        state->parse_state.out_cur_idx < state->out_end_idx) {
       state->out[state->parse_state.out_cur_idx] = '\0';
     }
     return false;
@@ -2829,7 +2803,8 @@ static bool ParseLocalNameSuffix(State *state) {
     return true;
   }
   state->parse_state = copy;
-  if (state->parse_state.append) {
+  if (state->parse_state.append &&
+      state->parse_state.out_cur_idx < state->out_end_idx) {
     state->out[state->parse_state.out_cur_idx] = '\0';
   }
 
@@ -2927,7 +2902,7 @@ static bool ParseTopLevelMangledName(State *state) {
   if (ParseMangledName(state)) {
     if (RemainingInput(state)[0] != '\0') {
       // Drop trailing function clone suffix, if any.
-      if (IsFunctionCloneSuffix(RemainingInput(state))) {
+      if (RemainingInput(state)[0] == '.') {
         return true;
       }
       // Append trailing version suffix if any.

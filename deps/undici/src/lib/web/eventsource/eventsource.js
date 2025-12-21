@@ -3,12 +3,11 @@
 const { pipeline } = require('node:stream')
 const { fetching } = require('../fetch')
 const { makeRequest } = require('../fetch/request')
-const { webidl } = require('../fetch/webidl')
+const { webidl } = require('../webidl')
 const { EventSourceStream } = require('./eventsource-stream')
 const { parseMIMEType } = require('../fetch/data-url')
 const { createFastMessageEvent } = require('../websocket/events')
 const { isNetworkError } = require('../fetch/response')
-const { delay } = require('./util')
 const { kEnumerableProperty } = require('../../core/util')
 const { environmentSettingsObject } = require('../fetch/util')
 
@@ -124,10 +123,10 @@ class EventSource extends EventTarget {
     url = webidl.converters.USVString(url)
     eventSourceInitDict = webidl.converters.EventSourceInitDict(eventSourceInitDict, prefix, 'eventSourceInitDict')
 
-    this.#dispatcher = eventSourceInitDict.dispatcher
+    this.#dispatcher = eventSourceInitDict.node.dispatcher || eventSourceInitDict.dispatcher
     this.#state = {
       lastEventId: '',
-      reconnectionTime: defaultReconnectionTime
+      reconnectionTime: eventSourceInitDict.node.reconnectionTime
     }
 
     // 2. Let settings be ev's relevant settings object.
@@ -231,12 +230,9 @@ class EventSource extends EventTarget {
 
     // 14. Let processEventSourceEndOfBody given response res be the following step: if res is not a network error, then reestablish the connection.
     const processEventSourceEndOfBody = (response) => {
-      if (isNetworkError(response)) {
-        this.dispatchEvent(new Event('error'))
-        this.close()
+      if (!isNetworkError(response)) {
+        return this.#reconnect()
       }
-
-      this.#reconnect()
     }
 
     // 15. Fetch request, with processResponseEndOfBody set to processEventSourceEndOfBody...
@@ -321,9 +317,9 @@ class EventSource extends EventTarget {
 
   /**
    * @see https://html.spec.whatwg.org/multipage/server-sent-events.html#sse-processing-model
-   * @returns {Promise<void>}
+   * @returns {void}
    */
-  async #reconnect () {
+  #reconnect () {
     // When a user agent is to reestablish the connection, the user agent must
     // run the following steps. These steps are run in parallel, not as part of
     // a task. (The tasks that it queues, of course, are run like normal tasks
@@ -341,27 +337,27 @@ class EventSource extends EventTarget {
     this.dispatchEvent(new Event('error'))
 
     // 2. Wait a delay equal to the reconnection time of the event source.
-    await delay(this.#state.reconnectionTime)
+    setTimeout(() => {
+      // 5. Queue a task to run the following steps:
 
-    // 5. Queue a task to run the following steps:
+      //   1. If the EventSource object's readyState attribute is not set to
+      //      CONNECTING, then return.
+      if (this.#readyState !== CONNECTING) return
 
-    //   1. If the EventSource object's readyState attribute is not set to
-    //      CONNECTING, then return.
-    if (this.#readyState !== CONNECTING) return
+      //   2. Let request be the EventSource object's request.
+      //   3. If the EventSource object's last event ID string is not the empty
+      //      string, then:
+      //      1. Let lastEventIDValue be the EventSource object's last event ID
+      //         string, encoded as UTF-8.
+      //      2. Set (`Last-Event-ID`, lastEventIDValue) in request's header
+      //         list.
+      if (this.#state.lastEventId.length) {
+        this.#request.headersList.set('last-event-id', this.#state.lastEventId, true)
+      }
 
-    //   2. Let request be the EventSource object's request.
-    //   3. If the EventSource object's last event ID string is not the empty
-    //      string, then:
-    //      1. Let lastEventIDValue be the EventSource object's last event ID
-    //         string, encoded as UTF-8.
-    //      2. Set (`Last-Event-ID`, lastEventIDValue) in request's header
-    //         list.
-    if (this.#state.lastEventId.length) {
-      this.#request.headersList.set('last-event-id', this.#state.lastEventId, true)
-    }
-
-    //   4. Fetch request and process the response obtained in this fashion, if any, as described earlier in this section.
-    this.#connect()
+      //   4. Fetch request and process the response obtained in this fashion, if any, as described earlier in this section.
+      this.#connect()
+    }, this.#state.reconnectionTime)?.unref()
   }
 
   /**
@@ -386,9 +382,11 @@ class EventSource extends EventTarget {
       this.removeEventListener('open', this.#events.open)
     }
 
-    if (typeof fn === 'function') {
+    const listener = webidl.converters.EventHandlerNonNull(fn)
+
+    if (listener !== null) {
+      this.addEventListener('open', listener)
       this.#events.open = fn
-      this.addEventListener('open', fn)
     } else {
       this.#events.open = null
     }
@@ -403,9 +401,11 @@ class EventSource extends EventTarget {
       this.removeEventListener('message', this.#events.message)
     }
 
-    if (typeof fn === 'function') {
+    const listener = webidl.converters.EventHandlerNonNull(fn)
+
+    if (listener !== null) {
+      this.addEventListener('message', listener)
       this.#events.message = fn
-      this.addEventListener('message', fn)
     } else {
       this.#events.message = null
     }
@@ -420,9 +420,11 @@ class EventSource extends EventTarget {
       this.removeEventListener('error', this.#events.error)
     }
 
-    if (typeof fn === 'function') {
+    const listener = webidl.converters.EventHandlerNonNull(fn)
+
+    if (listener !== null) {
+      this.addEventListener('error', listener)
       this.#events.error = fn
-      this.addEventListener('error', fn)
     } else {
       this.#events.error = null
     }
@@ -475,6 +477,21 @@ webidl.converters.EventSourceInitDict = webidl.dictionaryConverter([
   {
     key: 'dispatcher', // undici only
     converter: webidl.converters.any
+  },
+  {
+    key: 'node', // undici only
+    converter: webidl.dictionaryConverter([
+      {
+        key: 'reconnectionTime',
+        converter: webidl.converters['unsigned long'],
+        defaultValue: () => defaultReconnectionTime
+      },
+      {
+        key: 'dispatcher',
+        converter: webidl.converters.any
+      }
+    ]),
+    defaultValue: () => ({})
   }
 ])
 

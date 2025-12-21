@@ -17,7 +17,8 @@ const {
   serializePathWithQuery,
   assertRequestHandler,
   getServerName,
-  normalizedMethodRecords
+  normalizedMethodRecords,
+  getProtocolFromUrlString
 } = require('./util')
 const { channels } = require('./diagnostics.js')
 const { headerNameLowerCasedRecord } = require('./constants')
@@ -42,7 +43,8 @@ class Request {
     reset,
     expectContinue,
     servername,
-    throwOnError
+    throwOnError,
+    maxRedirections
   }, handler) {
     if (typeof path !== 'string') {
       throw new InvalidArgumentError('path must be a string')
@@ -84,6 +86,10 @@ class Request {
 
     if (throwOnError != null) {
       throw new InvalidArgumentError('invalid throwOnError')
+    }
+
+    if (maxRedirections != null && maxRedirections !== 0) {
+      throw new InvalidArgumentError('maxRedirections is not supported, use the redirect interceptor')
     }
 
     this.headersTimeout = headersTimeout
@@ -136,7 +142,10 @@ class Request {
 
     this.path = query ? serializePathWithQuery(path, query) : path
 
+    // TODO: shall we maybe standardize it to an URL object?
     this.origin = origin
+
+    this.protocol = getProtocolFromUrlString(origin)
 
     this.idempotent = idempotent == null
       ? method === 'HEAD' || method === 'GET'
@@ -194,6 +203,9 @@ class Request {
   }
 
   onBodySent (chunk) {
+    if (channels.bodyChunkSent.hasSubscribers) {
+      channels.bodyChunkSent.publish({ request: this, chunk })
+    }
     if (this[kHandler].onBodySent) {
       try {
         return this[kHandler].onBodySent(chunk)
@@ -252,6 +264,9 @@ class Request {
     assert(!this.aborted)
     assert(!this.completed)
 
+    if (channels.bodyChunkReceived.hasSubscribers) {
+      channels.bodyChunkReceived.publish({ request: this, chunk })
+    }
     try {
       return this[kHandler].onData(chunk)
     } catch (err) {

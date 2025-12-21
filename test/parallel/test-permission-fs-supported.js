@@ -38,6 +38,7 @@ const supportedApis = [
   ...syncAndAsyncAPI('open'),
   'openAsBlob',
   ...syncAndAsyncAPI('mkdtemp'),
+  'mkdtempDisposableSync',
   ...syncAndAsyncAPI('readdir'),
   ...syncAndAsyncAPI('readFile'),
   ...syncAndAsyncAPI('readlink'),
@@ -66,6 +67,10 @@ const ignoreList = [
   'R_OK',
   'F_OK',
   'Dir',
+  // the Utf8Stream is implemented in terms of functions
+  // on the fs module that have permission checks, so we don't
+  // need to check it here.
+  'Utf8Stream',
   'FileReadStream',
   'FileWriteStream',
   '_toUnixTimestamp',

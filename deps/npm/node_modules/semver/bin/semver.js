@@ -3,6 +3,8 @@
 // Exits successfully and prints matching version(s) if
 // any supplied version is valid and passes all tests.
 
+'use strict'
+
 const argv = process.argv.slice(2)
 
 let versions = []

@@ -472,7 +472,7 @@ SHA3_absorb:
 .size	SHA3_absorb,.-SHA3_absorb
 ___
 }
-{ my ($A_flat,$out,$len,$bsz) = map("%r$_",(2..5));
+{ my ($A_flat,$out,$len,$bsz,$next) = map("%r$_",(2..6));
 
 $code.=<<___;
 .globl	SHA3_squeeze
@@ -484,6 +484,7 @@ SHA3_squeeze:
 	lghi	%r14,8
 	st${g}	$bsz,5*$SIZE_T($sp)
 	la	%r1,0($A_flat)
+	cijne	$next,0,.Lnext_block
 
 	j	.Loop_squeeze
 
@@ -501,6 +502,7 @@ SHA3_squeeze:
 
 	brct	$bsz,.Loop_squeeze	# bsz--
 
+.Lnext_block:
 	stm${g}	$out,$len,3*$SIZE_T($sp)
 	bras	%r14,.LKeccakF1600
 	lm${g}	$out,$bsz,3*$SIZE_T($sp)

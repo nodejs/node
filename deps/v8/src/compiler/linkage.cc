@@ -4,6 +4,7 @@
 
 #include "src/compiler/linkage.h"
 
+#include "src/builtins/builtins-descriptors.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/optimized-compilation-info.h"
@@ -55,8 +56,14 @@ std::ostream& operator<<(std::ostream& os, const CallDescriptor::Kind& k) {
     case CallDescriptor::kCallWasmFunction:
       os << "WasmFunction";
       break;
+    case CallDescriptor::kCallWasmFunctionIndirect:
+      os << "WasmFunctionIndirect";
+      break;
     case CallDescriptor::kCallWasmImportWrapper:
       os << "WasmImportWrapper";
+      break;
+    case CallDescriptor::kResumeWasmContinuation:
+      os << "WasmResumeContinuation";
       break;
 #endif  // V8_ENABLE_WEBASSEMBLY
     case CallDescriptor::kCallBuiltinPointer:
@@ -214,13 +221,22 @@ int CallDescriptor::CalculateFixedFrameSize(CodeKind code_kind) const {
       return TypedFrameConstants::kFixedSlotCount;
 #if V8_ENABLE_WEBASSEMBLY
     case kCallWasmFunction:
+    case kCallWasmFunctionIndirect:
     case kCallWasmImportWrapper:
+    case kResumeWasmContinuation:
       return WasmFrameConstants::kFixedSlotCount;
     case kCallWasmCapiFunction:
       return WasmExitFrameConstants::kFixedSlotCount;
 #endif  // V8_ENABLE_WEBASSEMBLY
   }
   UNREACHABLE();
+}
+
+uint64_t CallDescriptor::signature_hash() const {
+#if V8_ENABLE_WEBASSEMBLY
+  DCHECK_EQ(kind_, kCallWasmFunctionIndirect);
+#endif
+  return signature_hash_;
 }
 
 EncodedCSignature CallDescriptor::ToEncodedCSignature() const {
@@ -332,7 +348,10 @@ CallDescriptor* ReplaceTypeInCallDescriptorWith(
       call_descriptor->debug_name(),              // debug name
       call_descriptor->GetStackArgumentOrder(),   // stack order
       call_descriptor->AllocatableRegisters(),    // allocatable registers
-      return_slots);                              // return slot count
+      return_slots,                               // return slot count
+      call_descriptor->IsIndirectWasmFunctionCall()
+          ? call_descriptor->signature_hash()
+          : kInvalidWasmSignatureHash);  // signature hash
 }
 }  // namespace
 
@@ -382,8 +401,6 @@ bool Linkage::NeedsFrameStateInput(Runtime::FunctionId function) {
     case Runtime::kNewFunctionContext:
     case Runtime::kPushBlockContext:
     case Runtime::kPushCatchContext:
-    case Runtime::kReThrow:
-    case Runtime::kReThrowWithMessage:
     case Runtime::kStringEqual:
     case Runtime::kStringLessThan:
     case Runtime::kStringLessThanOrEqual:
@@ -411,7 +428,7 @@ bool Linkage::NeedsFrameStateInput(Runtime::FunctionId function) {
 }
 
 CallDescriptor* Linkage::GetRuntimeCallDescriptor(
-    Zone* zone, Runtime::FunctionId function_id, int js_parameter_count,
+    Zone* zone, Runtime::FunctionId function_id, int parameter_count,
     Operator::Properties properties, CallDescriptor::Flags flags,
     LazyDeoptOnThrow lazy_deopt_on_throw) {
   const Runtime::Function* function = Runtime::FunctionForId(function_id);
@@ -427,19 +444,32 @@ CallDescriptor* Linkage::GetRuntimeCallDescriptor(
   DCHECK_IMPLIES(lazy_deopt_on_throw == LazyDeoptOnThrow::kYes,
                  flags & CallDescriptor::kNeedsFrameState);
 
-  return GetCEntryStubCallDescriptor(zone, return_count, js_parameter_count,
-                                     debug_name, properties, flags);
+  CallDescriptor* descriptor = GetCEntryStubCallDescriptor(
+      zone, return_count, parameter_count, debug_name, properties, flags,
+      StackArgumentOrder::kDefault, kCEntryEntrypointTag);
+  descriptor->runtime_function_id_ = function_id;
+  return descriptor;
+}
+
+CallDescriptor* Linkage::GetCPPBuiltinCallDescriptor(
+    Zone* zone, int js_parameter_count, const char* debug_name,
+    Operator::Properties properties, CallDescriptor::Flags flags) {
+  DCHECK_LE(BuiltinArguments::kNumExtraArgsWithReceiver, js_parameter_count);
+  return GetCEntryStubCallDescriptor(zone, 1, js_parameter_count, debug_name,
+                                     properties, flags, StackArgumentOrder::kJS,
+                                     kInvalidEntrypointTag);
 }
 
 CallDescriptor* Linkage::GetCEntryStubCallDescriptor(
-    Zone* zone, int return_count, int js_parameter_count,
+    Zone* zone, int return_count, int stack_parameter_count,
     const char* debug_name, Operator::Properties properties,
-    CallDescriptor::Flags flags, StackArgumentOrder stack_order) {
+    CallDescriptor::Flags flags, StackArgumentOrder stack_order,
+    CodeEntrypointTag entrypoint_tag) {
   const size_t function_count = 1;
   const size_t num_args_count = 1;
   const size_t context_count = 1;
   const size_t parameter_count = function_count +
-                                 static_cast<size_t>(js_parameter_count) +
+                                 static_cast<size_t>(stack_parameter_count) +
                                  num_args_count + context_count;
 
   LocationSignature::Builder locations(zone, static_cast<size_t>(return_count),
@@ -457,9 +487,9 @@ CallDescriptor* Linkage::GetCEntryStubCallDescriptor(
   }
 
   // All parameters to the runtime call go on the stack.
-  for (int i = 0; i < js_parameter_count; i++) {
+  for (int i = 0; i < stack_parameter_count; i++) {
     locations.AddParam(LinkageLocation::ForCallerFrameSlot(
-        i - js_parameter_count, MachineType::AnyTagged()));
+        i - stack_parameter_count, MachineType::AnyTagged()));
   }
   // Add runtime function itself.
   locations.AddParam(
@@ -478,11 +508,11 @@ CallDescriptor* Linkage::GetCEntryStubCallDescriptor(
       LinkageLocation::ForAnyRegister(MachineType::AnyTagged());
   return zone->New<CallDescriptor>(     // --
       CallDescriptor::kCallCodeObject,  // kind
-      kDefaultCodeEntrypointTag,        // tag
+      entrypoint_tag,                   // tag
       target_type,                      // target MachineType
       target_loc,                       // target location
-      locations.Build(),                // location_sig
-      js_parameter_count,               // stack_parameter_count
+      locations.Get(),                  // location_sig
+      stack_parameter_count,            // stack_parameter_count
       properties,                       // properties
       kNoCalleeSaved,                   // callee-saved
       kNoCalleeSavedFp,                 // callee-saved fp
@@ -499,8 +529,18 @@ CallDescriptor* Linkage::GetJSCallDescriptor(Zone* zone, bool is_osr,
   const size_t context_count = 1;
   const size_t new_target_count = 1;
   const size_t num_args_count = 1;
-  const size_t parameter_count =
-      js_parameter_count + new_target_count + num_args_count + context_count;
+  const size_t dispatch_handle_count =
+      V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE_BOOL ? 1 : 0;
+  const size_t parameter_count = js_parameter_count + new_target_count +
+                                 num_args_count + dispatch_handle_count +
+                                 context_count;
+
+  // The JSCallDescriptor must be compatible both with the interface descriptor
+  // of JS builtins and with the general JS calling convention (as defined by
+  // the JSTrampolineDescriptor). The JS builtin descriptors are already
+  // statically asserted to be compatible with the JS calling convention, so
+  // here we just ensure compatibility with the JS builtin descriptors.
+  DCHECK_EQ(parameter_count, kJSBuiltinBaseParameterCount + js_parameter_count);
 
   LocationSignature::Builder locations(zone, return_count, parameter_count);
 
@@ -522,6 +562,12 @@ CallDescriptor* Linkage::GetJSCallDescriptor(Zone* zone, bool is_osr,
   locations.AddParam(
       regloc(kJavaScriptCallArgCountRegister, MachineType::Int32()));
 
+#ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
+  // Add dispatch handle.
+  locations.AddParam(
+      regloc(kJavaScriptCallDispatchHandleRegister, MachineType::Int32()));
+#endif
+
   // Add context.
   locations.AddParam(regloc(kContextRegister, MachineType::AnyTagged()));
 
@@ -540,7 +586,7 @@ CallDescriptor* Linkage::GetJSCallDescriptor(Zone* zone, bool is_osr,
       kJSEntrypointTag,              // tag
       target_type,                   // target MachineType
       target_loc,                    // target location
-      locations.Build(),             // location_sig
+      locations.Get(),               // location_sig
       js_parameter_count,            // stack_parameter_count
       properties,                    // properties
       kNoCalleeSaved,                // callee-saved
@@ -604,6 +650,7 @@ CallDescriptor* Linkage::GetStubCallDescriptor(
                           : MachineType::AnyTagged()));
     }
   }
+
   // Add context.
   if (context_count) {
     locations.AddParam(regloc(kContextRegister, MachineType::AnyTagged()));
@@ -641,7 +688,7 @@ CallDescriptor* Linkage::GetStubCallDescriptor(
       descriptor.tag(),                      // tag
       target_type,                           // target MachineType
       target_loc,                            // target location
-      locations.Build(),                     // location_sig
+      locations.Get(),                       // location_sig
       stack_parameter_count,                 // stack_parameter_count
       properties,                            // properties
       callee_saved_registers,                // callee-saved registers
@@ -689,7 +736,7 @@ CallDescriptor* Linkage::GetBytecodeDispatchCallDescriptor(
       kBytecodeHandlerEntrypointTag,  // tag
       target_type,                    // target MachineType
       target_loc,                     // target location
-      locations.Build(),              // location_sig
+      locations.Get(),                // location_sig
       stack_parameter_count,          // stack_parameter_count
       Operator::kNoProperties,        // properties
       kNoCalleeSaved,                 // callee-saved registers
@@ -700,15 +747,15 @@ CallDescriptor* Linkage::GetBytecodeDispatchCallDescriptor(
 
 LinkageLocation Linkage::GetOsrValueLocation(int index) const {
   CHECK(incoming_->IsJSFunctionCall());
-  int parameter_count = static_cast<int>(incoming_->JSParameterCount() - 1);
-  int first_stack_slot = OsrHelper::FirstStackSlotIndex(parameter_count);
+  int parameter_count_with_receiver =
+      static_cast<int>(incoming_->JSParameterCount());
+  int first_stack_slot =
+      OsrHelper::FirstStackSlotIndex(parameter_count_with_receiver - 1);
 
   if (index == kOsrContextSpillSlotIndex) {
-    // Context. Use the parameter location of the context spill slot.
-    // Parameter (arity + 2) is special for the context of the function frame.
-    // >> context_index = target + receiver + params + new_target + #args
-    int context_index = 1 + 1 + parameter_count + 1 + 1;
-    return incoming_->GetInputLocation(context_index);
+    int context_index =
+        Linkage::GetJSCallContextParamIndex(parameter_count_with_receiver);
+    return GetParameterLocation(context_index);
   } else if (index >= first_stack_slot) {
     // Local variable stored in this (callee) stack.
     int spill_index =
@@ -717,8 +764,7 @@ LinkageLocation Linkage::GetOsrValueLocation(int index) const {
                                                MachineType::AnyTagged());
   } else {
     // Parameter. Use the assigned location from the incoming call descriptor.
-    int parameter_index = 1 + index;  // skip index 0, which is the target.
-    return incoming_->GetInputLocation(parameter_index);
+    return GetParameterLocation(index);
   }
 }
 
@@ -738,7 +784,7 @@ bool Linkage::ParameterHasSecondaryLocation(int index) const {
            IsTaggedReg(loc, kContextRegister);
   }
 #if V8_ENABLE_WEBASSEMBLY
-  if (incoming_->IsWasmFunctionCall()) {
+  if (incoming_->IsAnyWasmFunctionCall()) {
     LinkageLocation loc = GetParameterLocation(index);
     return IsTaggedReg(loc, kWasmImplicitArgRegister);
   }
@@ -768,7 +814,7 @@ LinkageLocation Linkage::GetParameterSecondaryLocation(int index) const {
 #if V8_ENABLE_WEBASSEMBLY
   static const int kWasmInstanceDataSlot =
       3 + StandardFrameConstants::kCPSlotCount;
-  if (incoming_->IsWasmFunctionCall()) {
+  if (incoming_->IsAnyWasmFunctionCall()) {
     DCHECK(IsTaggedReg(loc, kWasmImplicitArgRegister));
     return LinkageLocation::ForCalleeFrameSlot(kWasmInstanceDataSlot,
                                                MachineType::AnyTagged());

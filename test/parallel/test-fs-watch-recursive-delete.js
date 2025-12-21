@@ -28,6 +28,6 @@ const onFileUpdate = common.mustCallAtLeast((eventType, filename) => {
 const watcher = fs.watch(toWatch, { recursive: true }, onFileUpdate);
 
 // We must wait a bit `fs.rm()` to let the watcher be set up properly
-setTimeout(() => {
+setTimeout(common.mustCall(() => {
   fs.rm(tmpdir.resolve('./parent/child'), { recursive: true }, common.mustCall());
-}, common.platformTimeout(500));
+}), common.platformTimeout(500));

@@ -81,9 +81,6 @@ struct DerefPtrIterator : base::iterator<std::bidirectional_iterator_tag, T> {
     --ptr;
     return *this;
   }
-  bool operator!=(const DerefPtrIterator& other) const {
-    return ptr != other.ptr;
-  }
   bool operator==(const DerefPtrIterator& other) const {
     return ptr == other.ptr;
   }

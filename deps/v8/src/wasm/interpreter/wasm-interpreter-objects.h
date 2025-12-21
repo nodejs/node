@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_WASM_INTERPRETER_WASM_INTERPRETER_OBJECTS_H_
+#define V8_WASM_INTERPRETER_WASM_INTERPRETER_OBJECTS_H_
+
 #if !V8_ENABLE_WEBASSEMBLY
 #error This header should only be included if WebAssembly is enabled.
 #endif  // !V8_ENABLE_WEBASSEMBLY
-
-#ifndef V8_WASM_INTERPRETER_WASM_INTERPRETER_OBJECTS_H_
-#define V8_WASM_INTERPRETER_WASM_INTERPRETER_OBJECTS_H_
 
 #include "src/objects/struct.h"
 #include "src/wasm/wasm-value.h"
@@ -30,7 +30,8 @@ struct WasmInterpreterStackEntry {
 // in order to avoid issues in static-roots.h with the DrumBrake build flag,
 // it is better not to introduce DrumBrake-specific types. Therefore we use a
 // Tuple2 as WasmInterpreterObject and class WasmInterpreterObject only has
-// static methods that receive a Tagged<Tuple2> or Handle<Tuple2> as argument.
+// static methods that receive a Tagged<Tuple2> or DirectHandle<Tuple2> as
+// argument.
 //
 class WasmInterpreterObject {
  public:
@@ -45,7 +46,7 @@ class WasmInterpreterObject {
   static inline void set_interpreter_handle(Tagged<Tuple2> interpreter_object,
                                             Tagged<Object> interpreter_handle);
 
-  static Handle<Tuple2> New(Handle<WasmInstanceObject>);
+  static DirectHandle<Tuple2> New(DirectHandle<WasmInstanceObject>);
 
   // Execute the specified function in the interpreter. Read arguments from the
   // {argument_values} vector and write to {return_values} on regular exit.
@@ -55,11 +56,11 @@ class WasmInterpreterObject {
   // case, a pending exception will have been set on the isolate.
   static bool RunInterpreter(
       Isolate* isolate, Address frame_pointer,
-      Handle<WasmInstanceObject> instance, int func_index,
+      DirectHandle<WasmInstanceObject> instance, int func_index,
       const std::vector<wasm::WasmValue>& argument_values,
       std::vector<wasm::WasmValue>& return_values);
   static bool RunInterpreter(Isolate* isolate, Address frame_pointer,
-                             Handle<WasmInstanceObject> instance,
+                             DirectHandle<WasmInstanceObject> instance,
                              int func_index, uint8_t* interpreter_sp);
 
   // Get the stack of the wasm interpreter as pairs of {function index, byte
@@ -75,9 +76,9 @@ class WasmInterpreterObject {
 
 namespace wasm {
 V8_EXPORT_PRIVATE InterpreterHandle* GetInterpreterHandle(
-    Isolate* isolate, Handle<Tuple2> interpreter_object);
+    Isolate* isolate, DirectHandle<Tuple2> interpreter_object);
 V8_EXPORT_PRIVATE InterpreterHandle* GetOrCreateInterpreterHandle(
-    Isolate* isolate, Handle<Tuple2> interpreter_object);
+    Isolate* isolate, DirectHandle<Tuple2> interpreter_object);
 }  // namespace wasm
 
 }  // namespace internal

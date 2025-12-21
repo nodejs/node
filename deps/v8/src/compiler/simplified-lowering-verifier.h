@@ -24,7 +24,7 @@ class SimplifiedLoweringVerifier final {
     Truncation truncation = Truncation::Any(IdentifyZeros::kDistinguishZeros);
   };
 
-  SimplifiedLoweringVerifier(Zone* zone, Graph* graph)
+  SimplifiedLoweringVerifier(Zone* zone, TFGraph* graph)
       : hints_(zone),
         machine_uses_of_constants_(zone),
         data_(zone),
@@ -134,7 +134,7 @@ class SimplifiedLoweringVerifier final {
   ZoneVector<Node*> hints_;
   ZoneUnorderedMap<Node*, ZoneVector<Node*>> machine_uses_of_constants_;
   ZoneVector<PerNodeData> data_;
-  Graph* graph_;
+  TFGraph* graph_;
   Zone* zone_;
 };
 

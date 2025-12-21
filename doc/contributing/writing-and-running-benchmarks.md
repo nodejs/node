@@ -9,6 +9,7 @@
   * [Benchmark analysis requirements](#benchmark-analysis-requirements)
 * [Running benchmarks](#running-benchmarks)
   * [Running individual benchmarks](#running-individual-benchmarks)
+  * [Calibrating the number of iterations with calibrate-n.js](#calibrating-the-number-of-iterations-with-calibrate-njs)
   * [Running all benchmarks](#running-all-benchmarks)
   * [Specifying CPU Cores for Benchmarks with run.js](#specifying-cpu-cores-for-benchmarks-with-runjs)
   * [Filtering benchmarks](#filtering-benchmarks)
@@ -24,6 +25,10 @@
 Basic Unix tools are required for some benchmarks.
 [Git for Windows][git-for-windows] includes Git Bash and the necessary tools,
 which need to be included in the global Windows `PATH`.
+
+If you are using Nix, all the required tools are already listed in the
+`benchmarkTools` argument of the `shell.nix` file, so you can skip those
+prerequesites.
 
 ### HTTP benchmark requirements
 
@@ -101,7 +106,7 @@ benchmarks. This increases the likelihood of each benchmark achieving peak perfo
 according to the hardware. Therefore, run:
 
 ```console
-$ ./benchmarks/cpu.sh fast
+$ ./benchmark/cpu.sh fast
 ```
 
 ### Running individual benchmarks
@@ -141,6 +146,46 @@ $ node benchmark/buffers/buffer-tostring.js len=1024
 buffers/buffer-tostring.js n=10000000 len=1024 arg=true: 3498295.68561504
 buffers/buffer-tostring.js n=10000000 len=1024 arg=false: 3783071.1678948295
 ```
+
+### Calibrating the number of iterations with calibrate-n.js
+
+Before running benchmarks, it's often useful to determine the optimal number of iterations (`n`)
+that provides statistically stable results. The `calibrate-n.js` tool helps find this value by
+running a benchmark multiple times with increasing `n` values until the coefficient of variation (CV)
+falls below a target threshold.
+
+```console
+$ node benchmark/calibrate-n.js benchmark/buffers/buffer-compare.js
+
+--------------------------------------------------------
+Benchmark: buffers/buffer-compare.js
+--------------------------------------------------------
+What we are trying to find: The optimal number of iterations (n)
+that produces consistent benchmark results without wasting time.
+
+How it works:
+1. Run the benchmark multiple times with a specific n value
+2. Group results by configuration
+3. If overall CV is above 5% or any configuration has CV above 10%, increase n and try again
+4. Stop when we have stable results (overall CV < 5% and all configs CV < 10%) or max increases reached
+
+Configuration:
+- Starting n: 10 iterations
+- Runs per n value: 30
+- Target CV threshold: 5% (lower CV = more stable results)
+- Max increases: 6
+- Increase factor: 10x
+```
+
+The tool accepts several options:
+
+* `--runs=N`: Number of runs for each n value (default: 30)
+* `--cv-threshold=N`: Target coefficient of variation threshold (default: 0.05)
+* `--max-increases=N`: Maximum number of n increases to try (default: 6)
+* `--start-n=N`: Initial n value to start with (default: 10)
+* `--increase=N`: Factor by which to increase n (default: 10)
+
+Once you've determined a stable `n` value, you can use it when running your benchmarks.
 
 ### Running all benchmarks
 
@@ -546,6 +591,32 @@ The arguments of `createBenchmark` are:
     containing a combination of benchmark parameters. It should return `true`
     or `false` to indicate whether the combination should be included or not.
 
+  * `setup` {Function} A function that will be run once in the root process
+    before the benchmark combinations are executed in child processes.
+    It can be used to setup any global state required by the benchmark. Note
+    that the JavaScript heap state will not be shared with the benchmark processes,
+    so don't try to access any variables created in the `setup` function from
+    the `main` function, for example.
+    The argument passed into it is an array of all the combinations of
+    configurations that will be executed.
+    If tear down is necessary, register a listener for the `exit` event on
+    `process` inside the `setup` function. In the example below, that's done
+    by `tmpdir.refresh()`.
+
+    ```js
+    const tmpdir = require('../../test/common/tmpdir');
+    const bench = common.createBenchmark(main, {
+      type: ['fast', 'slow'],
+      n: [1e4],
+    }, {
+      setup(configs) {
+        tmpdir.refresh();
+        const maxN = configs.reduce((max, c) => Math.max(max, c.n), 0);
+        setupFixturesReusedForAllBenchmarks(maxN);
+      },
+    });
+    ```
+
 `createBenchmark` returns a `bench` object, which is used for timing
 the runtime of the benchmark. Run `bench.start()` after the initialization
 and `bench.end(n)` when the benchmark is done. `n` is the number of operations
@@ -572,7 +643,7 @@ the code inside the `main` function if it's more than just declaration.
 ```js
 'use strict';
 const common = require('../common.js');
-const { SlowBuffer } = require('node:buffer');
+const { Buffer } = require('node:buffer');
 
 const configs = {
   // Number of operations, specified here so they show up in the report.
@@ -603,10 +674,11 @@ function main(conf) {
   bench.start();
 
   // Do operations here
-  const BufferConstructor = conf.type === 'fast' ? Buffer : SlowBuffer;
 
   for (let i = 0; i < conf.n; i++) {
-    new BufferConstructor(conf.size);
+    conf.type === 'fast' ?
+      Buffer.allocUnsafe(conf.size) :
+      Buffer.allocUnsafeSlow(conf.size);
   }
 
   // End the timer, pass in the number of operations

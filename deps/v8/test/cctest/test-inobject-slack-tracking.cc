@@ -33,31 +33,28 @@ static inline v8::Local<v8::Value> Run(v8::Local<v8::Script> script) {
   return v8::Local<v8::Value>();
 }
 
-
-
 template <typename T = Object>
-Handle<T> GetLexical(const char* name) {
+DirectHandle<T> GetLexical(const char* name) {
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
 
-  Handle<String> str_name = factory->InternalizeUtf8String(name);
+  DirectHandle<String> str_name = factory->InternalizeUtf8String(name);
   DirectHandle<ScriptContextTable> script_contexts(
       isolate->native_context()->script_context_table(), isolate);
 
   VariableLookupResult lookup_result;
   if (script_contexts->Lookup(str_name, &lookup_result)) {
-    Tagged<Context> script_context =
-        script_contexts->get(lookup_result.context_index);
-    Handle<Object> result(script_context->get(lookup_result.slot_index),
-                          isolate);
+    DirectHandle<Context> script_context =
+        handle(script_contexts->get(lookup_result.context_index), isolate);
+    DirectHandle<Object> result =
+        Context::Get(script_context, lookup_result.slot_index, isolate);
     return Cast<T>(result);
   }
-  return Handle<T>();
+  return DirectHandle<T>();
 }
 
-
 template <typename T = Object>
-Handle<T> GetLexical(const std::string& name) {
+DirectHandle<T> GetLexical(const std::string& name) {
   return GetLexical<T>(name.c_str());
 }
 
@@ -67,7 +64,7 @@ static inline Handle<T> RunI(v8::Local<v8::Script> script) {
 }
 
 template <typename T>
-static inline Handle<T> CompileRunI(const char* script) {
+static inline DirectHandle<T> CompileRunI(const char* script) {
   return OpenHandle<T>(CompileRun(script));
 }
 
@@ -109,8 +106,6 @@ bool IsObjectShrinkable(Tagged<JSObject> obj) {
 }
 
 TEST(JSObjectBasic) {
-  // Avoid possible completion of in-object slack tracking.
-  v8_flags.always_turbofan = false;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   const char* source =
@@ -131,7 +126,7 @@ TEST(JSObjectBasic) {
   DirectHandle<JSObject> obj = RunI<JSObject>(new_A_script);
 
   CHECK(func->has_initial_map());
-  DirectHandle<Map> initial_map(func->initial_map(), func->GetIsolate());
+  DirectHandle<Map> initial_map(func->initial_map(), CcTest::i_isolate());
 
   // One instance created.
   CHECK_EQ(Map::kSlackTrackingCounterStart - 1,
@@ -167,8 +162,6 @@ TEST(JSObjectBasicNoInlineNew) {
 
 
 TEST(JSObjectComplex) {
-  // Avoid possible completion of in-object slack tracking.
-  v8_flags.always_turbofan = false;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   const char* source =
@@ -192,7 +185,7 @@ TEST(JSObjectComplex) {
   DirectHandle<JSObject> obj5 = CompileRunI<JSObject>("new A(5);");
 
   CHECK(func->has_initial_map());
-  DirectHandle<Map> initial_map(func->initial_map(), func->GetIsolate());
+  DirectHandle<Map> initial_map(func->initial_map(), CcTest::i_isolate());
 
   // Three instances created.
   CHECK_EQ(Map::kSlackTrackingCounterStart - 3,
@@ -247,8 +240,6 @@ TEST(JSObjectComplexNoInlineNew) {
 
 
 TEST(JSGeneratorObjectBasic) {
-  // Avoid possible completion of in-object slack tracking.
-  v8_flags.always_turbofan = false;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   const char* source =
@@ -277,7 +268,7 @@ TEST(JSGeneratorObjectBasic) {
   DirectHandle<JSObject> obj = RunI<JSObject>(new_A_script);
 
   CHECK(func->has_initial_map());
-  DirectHandle<Map> initial_map(func->initial_map(), func->GetIsolate());
+  DirectHandle<Map> initial_map(func->initial_map(), CcTest::i_isolate());
 
   // One instance created.
   CHECK_EQ(Map::kSlackTrackingCounterStart - 1,
@@ -313,8 +304,6 @@ TEST(JSGeneratorObjectBasicNoInlineNew) {
 
 
 TEST(SubclassBasicNoBaseClassInstances) {
-  // Avoid possible completion of in-object slack tracking.
-  v8_flags.always_turbofan = false;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
 
@@ -353,10 +342,10 @@ TEST(SubclassBasicNoBaseClassInstances) {
   DirectHandle<JSObject> obj = RunI<JSObject>(new_B_script);
 
   CHECK(a_func->has_initial_map());
-  DirectHandle<Map> a_initial_map(a_func->initial_map(), a_func->GetIsolate());
+  DirectHandle<Map> a_initial_map(a_func->initial_map(), CcTest::i_isolate());
 
   CHECK(b_func->has_initial_map());
-  DirectHandle<Map> b_initial_map(b_func->initial_map(), a_func->GetIsolate());
+  DirectHandle<Map> b_initial_map(b_func->initial_map(), CcTest::i_isolate());
 
   // Zero instances of A created.
   CHECK_EQ(Map::kSlackTrackingCounterStart,
@@ -405,8 +394,6 @@ TEST(SubclassBasicNoBaseClassInstancesNoInlineNew) {
 
 
 TEST(SubclassBasic) {
-  // Avoid possible completion of in-object slack tracking.
-  v8_flags.always_turbofan = false;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
 
@@ -448,10 +435,10 @@ TEST(SubclassBasic) {
   DirectHandle<JSObject> b_obj = RunI<JSObject>(new_B_script);
 
   CHECK(a_func->has_initial_map());
-  DirectHandle<Map> a_initial_map(a_func->initial_map(), a_func->GetIsolate());
+  DirectHandle<Map> a_initial_map(a_func->initial_map(), CcTest::i_isolate());
 
   CHECK(b_func->has_initial_map());
-  DirectHandle<Map> b_initial_map(b_func->initial_map(), a_func->GetIsolate());
+  DirectHandle<Map> b_initial_map(b_func->initial_map(), CcTest::i_isolate());
 
   // One instance of a base class created.
   CHECK_EQ(Map::kSlackTrackingCounterStart - 1,
@@ -571,7 +558,7 @@ static void TestClassHierarchy(const std::vector<int>& hierarchy_desc, int n) {
     DirectHandle<JSObject> obj = RunI<JSObject>(new_script);
 
     CHECK(func->has_initial_map());
-    DirectHandle<Map> initial_map(func->initial_map(), func->GetIsolate());
+    DirectHandle<Map> initial_map(func->initial_map(), CcTest::i_isolate());
 
     // If the object is slow-mode already, bail out.
     if (obj->map()->is_dictionary_map()) continue;
@@ -607,8 +594,6 @@ static void TestClassHierarchy(const std::vector<int>& hierarchy_desc, int n) {
 
 
 static void TestSubclassChain(const std::vector<int>& hierarchy_desc) {
-  // Avoid possible completion of in-object slack tracking.
-  v8_flags.always_turbofan = false;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
 
@@ -653,8 +638,6 @@ TEST(LongSubclassChain3) {
 
 
 TEST(InobjectPropetiesCountOverflowInSubclass) {
-  // Avoid possible completion of in-object slack tracking.
-  v8_flags.always_turbofan = false;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
 
@@ -681,7 +664,7 @@ TEST(InobjectPropetiesCountOverflowInSubclass) {
     DirectHandle<JSObject> obj = RunI<JSObject>(new_script);
 
     CHECK(func->has_initial_map());
-    DirectHandle<Map> initial_map(func->initial_map(), func->GetIsolate());
+    DirectHandle<Map> initial_map(func->initial_map(), CcTest::i_isolate());
 
     // There must be no slack left.
     CHECK_EQ(JSObject::kMaxInstanceSize, obj->map()->instance_size());
@@ -839,8 +822,6 @@ TEST(ObjectLiteralPropertyBackingStoreSize) {
 TEST(SlowModeSubclass) {
   if (v8_flags.stress_concurrent_allocation) return;
 
-  // Avoid possible completion of in-object slack tracking.
-  v8_flags.always_turbofan = false;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
 
@@ -867,7 +848,7 @@ TEST(SlowModeSubclass) {
     DirectHandle<JSObject> obj = RunI<JSObject>(new_script);
 
     CHECK(func->has_initial_map());
-    DirectHandle<Map> initial_map(func->initial_map(), func->GetIsolate());
+    DirectHandle<Map> initial_map(func->initial_map(), CcTest::i_isolate());
 
     // Object should go dictionary mode.
     CHECK_EQ(JSObject::kHeaderSize, obj->map()->instance_size());
@@ -933,7 +914,7 @@ static void TestSubclassBuiltin(const char* subclass_name,
   RunI<JSObject>(new_script);
 
   CHECK(func->has_initial_map());
-  DirectHandle<Map> initial_map(func->initial_map(), func->GetIsolate());
+  DirectHandle<Map> initial_map(func->initial_map(), CcTest::i_isolate());
 
   CHECK_EQ(instance_type, initial_map->instance_type());
 
@@ -976,8 +957,6 @@ static void TestSubclassBuiltin(const char* subclass_name,
 
 
 TEST(SubclassObjectBuiltin) {
-  // Avoid possible completion of in-object slack tracking.
-  v8_flags.always_turbofan = false;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
 
@@ -994,8 +973,6 @@ TEST(SubclassObjectBuiltinNoInlineNew) {
 
 
 TEST(SubclassFunctionBuiltin) {
-  // Avoid possible completion of in-object slack tracking.
-  v8_flags.always_turbofan = false;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
 
@@ -1011,8 +988,6 @@ TEST(SubclassFunctionBuiltinNoInlineNew) {
 
 
 TEST(SubclassBooleanBuiltin) {
-  // Avoid possible completion of in-object slack tracking.
-  v8_flags.always_turbofan = false;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
 
@@ -1028,8 +1003,6 @@ TEST(SubclassBooleanBuiltinNoInlineNew) {
 
 
 TEST(SubclassErrorBuiltin) {
-  // Avoid possible completion of in-object slack tracking.
-  v8_flags.always_turbofan = false;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
 
@@ -1052,8 +1025,6 @@ TEST(SubclassErrorBuiltinNoInlineNew) {
 
 
 TEST(SubclassNumberBuiltin) {
-  // Avoid possible completion of in-object slack tracking.
-  v8_flags.always_turbofan = false;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
 
@@ -1069,8 +1040,6 @@ TEST(SubclassNumberBuiltinNoInlineNew) {
 
 
 TEST(SubclassDateBuiltin) {
-  // Avoid possible completion of in-object slack tracking.
-  v8_flags.always_turbofan = false;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
 
@@ -1085,8 +1054,6 @@ TEST(SubclassDateBuiltinNoInlineNew) {
 
 
 TEST(SubclassStringBuiltin) {
-  // Avoid possible completion of in-object slack tracking.
-  v8_flags.always_turbofan = false;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
 
@@ -1103,8 +1070,6 @@ TEST(SubclassStringBuiltinNoInlineNew) {
 
 
 TEST(SubclassRegExpBuiltin) {
-  // Avoid possible completion of in-object slack tracking.
-  v8_flags.always_turbofan = false;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
 
@@ -1121,8 +1086,6 @@ TEST(SubclassRegExpBuiltinNoInlineNew) {
 
 
 TEST(SubclassArrayBuiltin) {
-  // Avoid possible completion of in-object slack tracking.
-  v8_flags.always_turbofan = false;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
 
@@ -1137,8 +1100,6 @@ TEST(SubclassArrayBuiltinNoInlineNew) {
 
 
 TEST(SubclassTypedArrayBuiltin) {
-  // Avoid possible completion of in-object slack tracking.
-  v8_flags.always_turbofan = false;
   v8_flags.js_float16array = true;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
@@ -1159,8 +1120,6 @@ TEST(SubclassTypedArrayBuiltinNoInlineNew) {
 
 
 TEST(SubclassCollectionBuiltin) {
-  // Avoid possible completion of in-object slack tracking.
-  v8_flags.always_turbofan = false;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
 
@@ -1178,8 +1137,6 @@ TEST(SubclassCollectionBuiltinNoInlineNew) {
 
 
 TEST(SubclassArrayBufferBuiltin) {
-  // Avoid possible completion of in-object slack tracking.
-  v8_flags.always_turbofan = false;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
 
@@ -1196,8 +1153,6 @@ TEST(SubclassArrayBufferBuiltinNoInlineNew) {
 
 
 TEST(SubclassPromiseBuiltin) {
-  // Avoid possible completion of in-object slack tracking.
-  v8_flags.always_turbofan = false;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
 
@@ -1254,7 +1209,7 @@ TEST(SubclassTranspiledClassHierarchy) {
   RunI<JSObject>(new_script);
 
   CHECK(func->has_initial_map());
-  DirectHandle<Map> initial_map(func->initial_map(), func->GetIsolate());
+  DirectHandle<Map> initial_map(func->initial_map(), CcTest::i_isolate());
 
   CHECK_EQ(JS_OBJECT_TYPE, initial_map->instance_type());
 

@@ -226,6 +226,23 @@ b.copy(c, 'not a valid offset');
 // Make sure this acted like a regular copy with `0` offset.
 assert.deepStrictEqual(c, b.slice(0, c.length));
 
+// Copy into a Uint16Array target; bytes are packed into 16-bit elements.
+{
+  const x = new Uint16Array(4);
+  const buf = Buffer.of(1, 2, 3, 4);
+  const copied = buf.copy(x);
+  assert.strictEqual(copied, 4);
+  assert.ok(x instanceof Uint16Array);
+  const bytes = new Uint8Array(x.buffer, x.byteOffset, 4);
+  assert.deepStrictEqual(Array.from(bytes), [1, 2, 3, 4]);
+  const remaining = new Uint8Array(
+    x.buffer,
+    x.byteOffset + 4,
+    x.byteLength - 4
+  );
+  assert.ok(remaining.every((b) => b === 0));
+}
+
 {
   c.fill('C');
   assert.throws(() => {

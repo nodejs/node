@@ -157,6 +157,8 @@ Create a new resolver.
     default timeout.
   * `tries` {integer} The number of tries the resolver will try contacting
     each name server before giving up. **Default:** `4`
+  * `maxTimeout` {integer} The max retry timeout, in milliseconds.
+    **Default:** `0`, disabled.
 
 ### `resolver.cancel()`
 
@@ -538,6 +540,7 @@ will be present on the object:
 | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `'A'`     | `address`/`ttl`                                                                                                                                  |
 | `'AAAA'`  | `address`/`ttl`                                                                                                                                  |
+| `'CAA'`   | Refer to [`dns.resolveCaa()`][]                                                                                                                  |
 | `'CNAME'` | `value`                                                                                                                                          |
 | `'MX'`    | Refer to [`dns.resolveMx()`][]                                                                                                                   |
 | `'NAPTR'` | Refer to [`dns.resolveNaptr()`][]                                                                                                                |
@@ -808,7 +811,9 @@ be an array of objects with the following properties:
 ## `dns.resolveTlsa(hostname, callback)`
 
 <!-- YAML
-added: v23.9.0
+added:
+  - v23.9.0
+  - v22.15.0
 -->
 
 <!--lint disable no-undefined-references list-item-bullet-indent-->
@@ -852,14 +857,10 @@ changes:
                  `ERR_INVALID_CALLBACK`.
 -->
 
-<!--lint disable no-undefined-references list-item-bullet-indent-->
-
 * `hostname` {string}
 * `callback` {Function}
   * `err` {Error}
-  * `records` <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type" class="type">\<string\[]\[]></a>
-
-<!--lint enable no-undefined-references list-item-bullet-indent-->
+  * `records` {string\[]}
 
 Uses the DNS protocol to resolve text queries (`TXT` records) for the
 `hostname`. The `records` argument passed to the `callback` function is a
@@ -1309,6 +1310,7 @@ present on the object:
 | --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `'A'`     | `address`/`ttl`                                                                                                                                          |
 | `'AAAA'`  | `address`/`ttl`                                                                                                                                          |
+| `'CAA'`   | Refer to [`dnsPromises.resolveCaa()`][]                                                                                                                  |
 | `'CNAME'` | `value`                                                                                                                                                  |
 | `'MX'`    | Refer to [`dnsPromises.resolveMx()`][]                                                                                                                   |
 | `'NAPTR'` | Refer to [`dnsPromises.resolveNaptr()`][]                                                                                                                |
@@ -1502,7 +1504,9 @@ the following properties:
 ### `dnsPromises.resolveTlsa(hostname)`
 
 <!-- YAML
-added: v23.9.0
+added:
+  - v23.9.0
+  - v22.15.0
 -->
 
 * `hostname` {string}

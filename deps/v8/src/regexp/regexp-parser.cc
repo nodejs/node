@@ -279,9 +279,9 @@ RegExpTree* RegExpTextBuilder::PopLastAtom() {
 
 RegExpTree* RegExpTextBuilder::ToRegExp() {
   FlushText();
-  size_t num_alternatives = terms_->size();
-  if (num_alternatives == 0) return zone()->New<RegExpEmpty>();
-  if (num_alternatives == 1) return terms_->back();
+  size_t number_of_terms = terms_->size();
+  if (number_of_terms == 0) return zone()->New<RegExpEmpty>();
+  if (number_of_terms == 1) return terms_->back();
   return zone()->New<RegExpAlternative>(zone()->New<ZoneList<RegExpTree*>>(
       base::VectorOf(terms_->begin(), terms_->size()), zone()));
 }
@@ -358,12 +358,16 @@ class RegExpParserState : public ZoneObject {
         group_type_(group_type),
         lookaround_type_(lookaround_type),
         disjunction_capture_index_(disjunction_capture_index),
-        capture_name_(capture_name) {
+        capture_name_(capture_name),
+        non_participating_capture_group_intervals_(zone) {
     if (previous_state != nullptr) {
-      non_participating_capture_group_interval_ =
-          previous_state->non_participating_capture_group_interval();
+      non_participating_capture_group_intervals_.insert(
+          non_participating_capture_group_intervals_.begin(),
+          previous_state->non_participating_capture_group_intervals_);
     }
   }
+  using IntervalVector = SmallZoneVector<Interval, 1>;
+
   // Parser state of containing expression, if any.
   RegExpParserState* previous_state() const { return previous_state_; }
   bool IsSubexpression() { return previous_state_ != nullptr; }
@@ -380,8 +384,8 @@ class RegExpParserState : public ZoneObject {
   // The name of the current sub-expression, if group_type is CAPTURE. Only
   // used for named captures.
   const ZoneVector<base::uc16>* capture_name() const { return capture_name_; }
-  std::pair<int, int> non_participating_capture_group_interval() const {
-    return non_participating_capture_group_interval_;
+  const IntervalVector& non_participating_capture_group_intervals() const {
+    return non_participating_capture_group_intervals_;
   }
 
   bool IsNamedCapture() const { return capture_name_ != nullptr; }
@@ -411,14 +415,23 @@ class RegExpParserState : public ZoneObject {
   }
 
   void NewAlternative(int captures_started) {
-    if (non_participating_capture_group_interval().second != 0) {
-      // Extend the non-participating interval.
-      non_participating_capture_group_interval_.second = captures_started;
+    // Nothing to do if there were no new captures started before the
+    // alternative.
+    if (capture_index() == captures_started) return;
+
+    // +1 to create a closed interval (capture_index() is exclusive).
+    int from = capture_index() + 1;
+    int to = captures_started;
+    DCHECK_LE(from, to);
+    // Extend the last interval if we increase its range by exactly 1.
+    if (!non_participating_capture_group_intervals().empty() &&
+        non_participating_capture_group_intervals().back().to() + 1 == to) {
+      Interval& interval = non_participating_capture_group_intervals_.back();
+      DCHECK(!interval.is_empty());
+      DCHECK_GE(from, interval.from());
+      interval = interval.Union({from, to});
     } else {
-      // Create new non-participating interval from the start of the current
-      // enclosing group to all captures created within that group so far.
-      non_participating_capture_group_interval_ =
-          std::make_pair(capture_index(), captures_started);
+      non_participating_capture_group_intervals_.push_back({from, to});
     }
   }
 
@@ -435,11 +448,11 @@ class RegExpParserState : public ZoneObject {
   const int disjunction_capture_index_;
   // Stored capture name (if any).
   const ZoneVector<base::uc16>* const capture_name_;
-  // Interval of (named) capture indices ]from, to] that are not participating
-  // in the current state (i.e. they cannot match).
+  // List of Intervals of (named) capture indices [from, to] that are not
+  // participating in the current state (i.e. they cannot match).
   // Capture indices are not participating if they were created in a different
   // alternative.
-  std::pair<int, int> non_participating_capture_group_interval_;
+  IntervalVector non_participating_capture_group_intervals_;
 };
 
 template <class CharT>
@@ -536,7 +549,13 @@ class RegExpParserImpl final {
   bool contains_anchor() const { return contains_anchor_; }
   void set_contains_anchor() { contains_anchor_ = true; }
   int captures_started() const { return captures_started_; }
-  int position() const { return next_pos_ - 1; }
+  int position() const {
+    const bool current_is_surrogate =
+        current() != kEndMarker &&
+        current() > unibrow::Utf16::kMaxNonSurrogateCharCode;
+    const int rewind_bytes = current_is_surrogate ? 2 : 1;
+    return next_pos_ - rewind_bytes;
+  }
   bool failed() const { return failed_; }
   RegExpFlags flags() const { return flags_; }
   bool IsUnicodeMode() const {
@@ -630,7 +649,6 @@ class RegExpParserImpl final {
   ZoneMap<RegExpCapture*, ZoneList<int>*, RegExpCaptureNameLess>*
       named_captures_;
   ZoneList<RegExpBackReference*>* named_back_references_;
-  ZoneList<CharacterRange>* temp_ranges_;
   const CharT* const input_;
   const int input_length_;
   base::uc32 current_;
@@ -1297,7 +1315,8 @@ RegExpParserState* RegExpParserImpl<CharT>::ParseOpenParenthesis(
   Advance();
   if (current() == '?') {
     do {
-      switch (Next()) {
+      base::uc32 next = Next();
+      switch (next) {
         case '-':
           if (!v8_flags.js_regexp_modifiers) {
             ReportError(RegExpError::kInvalidGroup);
@@ -1320,7 +1339,7 @@ RegExpParserState* RegExpParserImpl<CharT>::ParseOpenParenthesis(
           }
           Advance();
           parsing_modifiers = true;
-          RegExpFlag flag = TryRegExpFlagFromChar(current()).value();
+          RegExpFlag flag = TryRegExpFlagFromChar(next).value();
           if ((modifiers & flag) != 0) {
             ReportError(RegExpError::kRepeatedFlag);
             return nullptr;
@@ -1617,8 +1636,8 @@ template <class CharT>
 bool RegExpParserImpl<CharT>::CreateNamedCaptureAtIndex(
     const RegExpParserState* state, int index) {
   const ZoneVector<base::uc16>* name = state->capture_name();
-  const std::pair<int, int> non_participating_capture_group_interval =
-      state->non_participating_capture_group_interval();
+  const auto& non_participating_capture_group_intervals =
+      state->non_participating_capture_group_intervals();
   DCHECK(0 < index && index <= captures_started_);
   DCHECK_NOT_NULL(name);
 
@@ -1639,8 +1658,23 @@ bool RegExpParserImpl<CharT>::CreateNamedCaptureAtIndex(
         DCHECK_NOT_NULL(named_capture_indices);
         DCHECK(!named_capture_indices->is_empty());
         for (int named_index : *named_capture_indices) {
-          if (named_index < non_participating_capture_group_interval.first ||
-              named_index > non_participating_capture_group_interval.second) {
+          bool is_duplicate = true;
+          for (Interval interval : non_participating_capture_group_intervals) {
+            DCHECK(!interval.is_empty());
+            // We can stop as soon as we are inside one non-participating
+            // interval. There can't be a non-participating and participating
+            // interval, as intervals are never decreasing.
+            if (interval.Contains(named_index)) {
+              is_duplicate = false;
+              break;
+            }
+            // Intervals are ordered strictly increasing, so we can stop early
+            // when the current interval is past the current index.
+            if (named_index <= interval.from()) {
+              break;
+            }
+          }
+          if (is_duplicate) {
             ReportError(RegExpError::kDuplicateCaptureGroupName);
             return false;
           }
@@ -1649,6 +1683,15 @@ bool RegExpParserImpl<CharT>::CreateNamedCaptureAtIndex(
         ReportError(RegExpError::kDuplicateCaptureGroupName);
         return false;
       }
+    }
+  }
+  if (v8_flags.js_regexp_duplicate_named_groups) {
+    // Check for nested named captures. This is necessary to find duplicate
+    // named captures within the same disjunct.
+    RegExpParserState* parent_state = state->previous_state();
+    if (parent_state && parent_state->IsInsideCaptureGroup(name)) {
+      ReportError(RegExpError::kDuplicateCaptureGroupName);
+      return false;
     }
   }
 
@@ -1734,7 +1777,7 @@ RegExpCapture* RegExpParserImpl<CharT>::GetCapture(int index) {
   // zero-based.
   const int known_captures =
       is_scanned_for_captures_ ? capture_count_ : captures_started_;
-  DCHECK(index <= known_captures);
+  SBXCHECK(index >= 1 && index <= known_captures);
   if (captures_ == nullptr) {
     captures_ =
         zone()->template New<ZoneList<RegExpCapture*>>(known_captures, zone());
@@ -3047,7 +3090,8 @@ RegExpTree* RegExpParserImpl<CharT>::ParseCharacterClass(
         if (Next() == '-') {
           if (operand == nullptr) {
             if (operand_type == ClassSetOperandType::kClassSetCharacter) {
-              ranges->Add(CharacterRange::Singleton(character), zone());
+              AddMaybeSimpleCaseFoldedRange(
+                  ranges, CharacterRange::Singleton(character));
             }
             operand =
                 zone()->template New<RegExpClassSetOperand>(ranges, strings);
@@ -3061,7 +3105,8 @@ RegExpTree* RegExpParserImpl<CharT>::ParseCharacterClass(
         if (Next() == '&') {
           if (operand == nullptr) {
             if (operand_type == ClassSetOperandType::kClassSetCharacter) {
-              ranges->Add(CharacterRange::Singleton(character), zone());
+              AddMaybeSimpleCaseFoldedRange(
+                  ranges, CharacterRange::Singleton(character));
             }
             operand =
                 zone()->template New<RegExpClassSetOperand>(ranges, strings);

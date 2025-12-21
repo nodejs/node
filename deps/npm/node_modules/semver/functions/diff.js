@@ -1,3 +1,5 @@
+'use strict'
+
 const parse = require('./parse.js')
 
 const diff = (version1, version2) => {

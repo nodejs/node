@@ -19,7 +19,7 @@ const { createServer } = require('net');
 
   try {
     const script = fixtures.path('debugger', 'three-lines.js');
-    const cli = startCLI([`--port=${port}`, script]);
+    const cli = startCLI([`--port=${port}`, script], [], {}, { randomPort: false });
     const code = await cli.quit();
 
     assert.doesNotMatch(

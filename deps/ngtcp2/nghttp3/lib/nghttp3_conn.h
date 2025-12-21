@@ -38,8 +38,6 @@
 #include "nghttp3_idtr.h"
 #include "nghttp3_gaptr.h"
 
-#define NGHTTP3_VARINT_MAX ((1ull << 62) - 1)
-
 /* NGHTTP3_QPACK_ENCODER_MAX_TABLE_CAPACITY is the maximum dynamic
    table size for QPACK encoder. */
 #define NGHTTP3_QPACK_ENCODER_MAX_TABLE_CAPACITY 16384
@@ -76,7 +74,7 @@ typedef struct nghttp3_chunk {
   nghttp3_opl_entry oplent;
 } nghttp3_chunk;
 
-nghttp3_objalloc_decl(chunk, nghttp3_chunk, oplent);
+nghttp3_objalloc_decl(chunk, nghttp3_chunk, oplent)
 
 struct nghttp3_conn {
   nghttp3_objalloc out_chunk_objalloc;
@@ -95,6 +93,11 @@ struct nghttp3_conn {
   uint16_t flags;
 
   struct {
+    /* origin_list contains the shallow copy of
+       nghttp3_settings.origin_list passed from an application if this
+       object is initialized as server.  settings.origin_list may
+       point to the address of this field. */
+    nghttp3_vec origin_list;
     nghttp3_settings settings;
     struct {
       /* max_pushes is the number of push IDs that local endpoint can
@@ -125,12 +128,36 @@ struct nghttp3_conn {
 
     int64_t max_stream_id_bidi;
 
-    /* pri_fieldbuf is a buffer to store incoming Priority Field Value
-       in PRIORITY_UPDATE frame. */
-    uint8_t pri_fieldbuf[8];
-    /* pri_fieldlen is the number of bytes written into
-       pri_fieldbuf. */
-    size_t pri_fieldbuflen;
+    union {
+      struct {
+        /* pri_fieldbuf is a buffer to store incoming Priority Field Value
+           in PRIORITY_UPDATE frame. */
+        uint8_t pri_fieldbuf[8];
+        /* pri_fieldlen is the number of bytes written into
+           pri_fieldbuf. */
+        size_t pri_fieldbuflen;
+      };
+      /* ORIGIN frame */
+      struct {
+        /* originlen_offset is the offset to Origin-Len that is going
+           to be added to originlen.  If this value equals
+           sizeof(originlen), Origin-Len is fully read, and the length
+           of ASCII-Origin is determined. */
+        size_t originlen_offset;
+        /* originlen is Origin-Len of ASCII-Origin currently read. */
+        uint16_t originlen;
+      };
+    };
+
+    /* originbuf points to the buffer that contains ASCII-Origin that
+       is not fully available in a single input buffer.  If it is
+       fully available in the input buffer, it is emitted to an
+       application without using this field.  Otherwise, partial
+       ASCII-Origin is copied to this field, and the complete
+       ASCII-Origin is emitted when the assembly finishes. */
+    uint8_t *originbuf;
+    /* originbuflen is the length of bytes written to originbuf. */
+    size_t originbuflen;
   } rx;
 
   struct {

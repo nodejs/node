@@ -275,7 +275,9 @@ from being emitted by the `InterfaceConstructor` instance.
 ### `rl[Symbol.dispose]()`
 
 <!-- YAML
-added: v23.10.0
+added:
+  - v23.10.0
+  - v22.15.0
 -->
 
 Alias for `rl.close()`.
@@ -435,7 +437,7 @@ changes:
     description: Value will always be a string, never undefined.
 -->
 
-* {string}
+* Type: {string}
 
 The current input data being processed by node.
 
@@ -471,7 +473,7 @@ process.stdin.on('keypress', (c, k) => {
 added: v0.1.98
 -->
 
-* {number|undefined}
+* Type: {number|undefined}
 
 The cursor position relative to `rl.line`.
 
@@ -501,7 +503,9 @@ line prompts are included in the calculations.
 <!-- YAML
 added: v17.0.0
 changes:
-  - version: REPLACEME
+  - version:
+      - v24.0.0
+      - v22.17.0
     pr-url: https://github.com/nodejs/node/pull/57513
     description: Marking the API stable.
 -->
@@ -708,6 +712,7 @@ added: v17.0.0
     **Default:** `500`.
   * `tabSize` {integer} The number of spaces a tab is equal to (minimum 1).
     **Default:** `8`.
+  * `signal` {AbortSignal} Allows closing the interface using an AbortSignal.
 * Returns: {readlinePromises.Interface}
 
 The `readlinePromises.createInterface()` method creates a new `readlinePromises.Interface`

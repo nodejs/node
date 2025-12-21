@@ -15,10 +15,6 @@
 extern "C" {
 #endif
 
-/*===== dependency =====*/
-#include <stddef.h>   /* size_t */
-
-
 /* =====   ZSTDERRORLIB_API : control library symbols visibility   ===== */
 #ifndef ZSTDERRORLIB_VISIBLE
    /* Backwards compatibility with old macro name */
@@ -80,6 +76,7 @@ typedef enum {
   ZSTD_error_tableLog_tooLarge       = 44,
   ZSTD_error_maxSymbolValue_tooLarge = 46,
   ZSTD_error_maxSymbolValue_tooSmall = 48,
+  ZSTD_error_cannotProduce_uncompressedBlock = 49,
   ZSTD_error_stabilityCondition_notRespected = 50,
   ZSTD_error_stage_wrong       = 60,
   ZSTD_error_init_missing      = 62,
@@ -100,10 +97,6 @@ typedef enum {
   ZSTD_error_maxCode = 120  /* never EVER use this value directly, it can change in future versions! Use ZSTD_isError() instead */
 } ZSTD_ErrorCode;
 
-/*! ZSTD_getErrorCode() :
-    convert a `size_t` function result into a `ZSTD_ErrorCode` enum type,
-    which can be used to compare with enum list published above */
-ZSTDERRORLIB_API ZSTD_ErrorCode ZSTD_getErrorCode(size_t functionResult);
 ZSTDERRORLIB_API const char* ZSTD_getErrorString(ZSTD_ErrorCode code);   /**< Same as ZSTD_getErrorName, but using a `ZSTD_ErrorCode` enum argument */
 
 

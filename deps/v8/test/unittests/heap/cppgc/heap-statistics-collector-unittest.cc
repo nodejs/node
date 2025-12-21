@@ -4,6 +4,7 @@
 
 #include "src/heap/cppgc/heap-statistics-collector.h"
 
+#include "include/cppgc/allocation.h"
 #include "include/cppgc/heap-statistics.h"
 #include "include/cppgc/persistent.h"
 #include "src/base/logging.h"

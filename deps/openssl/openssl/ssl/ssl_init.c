@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -7,19 +7,17 @@
  * https://www.openssl.org/source/license.html
  */
 
-#include "e_os.h"
+#include "internal/e_os.h"
 
 #include "internal/err.h"
 #include <openssl/crypto.h>
 #include <openssl/evp.h>
 #include <openssl/trace.h>
 #include "ssl_local.h"
-#include "sslerr.h"
 #include "internal/thread_once.h"
+#include "internal/rio_notifier.h"    /* for ossl_wsa_cleanup() */
 
 static int stopped;
-
-static void ssl_library_stop(void);
 
 static CRYPTO_ONCE ssl_base = CRYPTO_ONCE_STATIC_INIT;
 static int ssl_base_inited = 0;
@@ -35,52 +33,9 @@ DEFINE_RUN_ONCE_STATIC(ossl_init_ssl_base)
     SSL_COMP_get_compression_methods();
 #endif
     ssl_sort_cipher_list();
-    OSSL_TRACE(INIT,"ossl_init_ssl_base: SSL_add_ssl_module()\n");
-    /*
-     * We ignore an error return here. Not much we can do - but not that bad
-     * either. We can still safely continue.
-     */
-    OPENSSL_atexit(ssl_library_stop);
+    OSSL_TRACE(INIT, "ossl_init_ssl_base: SSL_add_ssl_module()\n");
     ssl_base_inited = 1;
     return 1;
-}
-
-static CRYPTO_ONCE ssl_strings = CRYPTO_ONCE_STATIC_INIT;
-
-DEFINE_RUN_ONCE_STATIC(ossl_init_load_ssl_strings)
-{
-    /*
-     * OPENSSL_NO_AUTOERRINIT is provided here to prevent at compile time
-     * pulling in all the error strings during static linking
-     */
-#if !defined(OPENSSL_NO_ERR) && !defined(OPENSSL_NO_AUTOERRINIT)
-    OSSL_TRACE(INIT, "ossl_init_load_ssl_strings: ossl_err_load_SSL_strings()\n");
-    ossl_err_load_SSL_strings();
-#endif
-    return 1;
-}
-
-DEFINE_RUN_ONCE_STATIC_ALT(ossl_init_no_load_ssl_strings,
-                           ossl_init_load_ssl_strings)
-{
-    /* Do nothing in this case */
-    return 1;
-}
-
-static void ssl_library_stop(void)
-{
-    /* Might be explicitly called and also by atexit */
-    if (stopped)
-        return;
-    stopped = 1;
-
-    if (ssl_base_inited) {
-#ifndef OPENSSL_NO_COMP
-        OSSL_TRACE(INIT, "ssl_library_stop: "
-                   "ssl_comp_free_compression_methods_int()\n");
-        ssl_comp_free_compression_methods_int();
-#endif
-    }
 }
 
 /*
@@ -88,7 +43,7 @@ static void ssl_library_stop(void)
  * called prior to any threads making calls to any OpenSSL functions,
  * i.e. passing a non-null settings value is assumed to be single-threaded.
  */
-int OPENSSL_init_ssl(uint64_t opts, const OPENSSL_INIT_SETTINGS * settings)
+int OPENSSL_init_ssl(uint64_t opts, const OPENSSL_INIT_SETTINGS *settings)
 {
     static int stoperrset = 0;
 
@@ -116,15 +71,6 @@ int OPENSSL_init_ssl(uint64_t opts, const OPENSSL_INIT_SETTINGS * settings)
         return 0;
 
     if (!RUN_ONCE(&ssl_base, ossl_init_ssl_base))
-        return 0;
-
-    if ((opts & OPENSSL_INIT_NO_LOAD_SSL_STRINGS)
-        && !RUN_ONCE_ALT(&ssl_strings, ossl_init_no_load_ssl_strings,
-                         ossl_init_load_ssl_strings))
-        return 0;
-
-    if ((opts & OPENSSL_INIT_LOAD_SSL_STRINGS)
-        && !RUN_ONCE(&ssl_strings, ossl_init_load_ssl_strings))
         return 0;
 
     return 1;

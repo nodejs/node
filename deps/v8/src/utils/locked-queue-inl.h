@@ -5,9 +5,11 @@
 #ifndef V8_UTILS_LOCKED_QUEUE_INL_H_
 #define V8_UTILS_LOCKED_QUEUE_INL_H_
 
+#include "src/utils/locked-queue.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/base/atomic-utils.h"
 #include "src/utils/allocation.h"
-#include "src/utils/locked-queue.h"
 
 namespace v8 {
 namespace internal {

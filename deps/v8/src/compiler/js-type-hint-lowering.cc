@@ -4,6 +4,7 @@
 
 #include "src/compiler/js-type-hint-lowering.h"
 
+#include "src/base/logging.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/opcodes.h"
@@ -25,6 +26,9 @@ bool BinaryOperationHintToNumberOperationHint(
       return true;
     case BinaryOperationHint::kSignedSmallInputs:
       *number_hint = NumberOperationHint::kSignedSmallInputs;
+      return true;
+    case BinaryOperationHint::kAdditiveSafeInteger:
+      *number_hint = NumberOperationHint::kAdditiveSafeInteger;
       return true;
     case BinaryOperationHint::kNumber:
       *number_hint = NumberOperationHint::kNumber;
@@ -48,6 +52,7 @@ bool BinaryOperationHintToBigIntOperationHint(
   switch (binop_hint) {
     case BinaryOperationHint::kSignedSmall:
     case BinaryOperationHint::kSignedSmallInputs:
+    case BinaryOperationHint::kAdditiveSafeInteger:
     case BinaryOperationHint::kNumber:
     case BinaryOperationHint::kNumberOrOddball:
     case BinaryOperationHint::kAny:
@@ -112,6 +117,7 @@ class JSSpeculativeBinopBuilder final {
       case CompareOperationHint::kBigInt64:
       case CompareOperationHint::kReceiver:
       case CompareOperationHint::kReceiverOrNullOrUndefined:
+      case CompareOperationHint::kStringOrOddball:
       case CompareOperationHint::kInternalizedString:
         break;
     }
@@ -130,6 +136,7 @@ class JSSpeculativeBinopBuilder final {
       case CompareOperationHint::kSymbol:
       case CompareOperationHint::kReceiver:
       case CompareOperationHint::kReceiverOrNullOrUndefined:
+      case CompareOperationHint::kStringOrOddball:
       case CompareOperationHint::kInternalizedString:
         return false;
       case CompareOperationHint::kBigInt:
@@ -145,13 +152,17 @@ class JSSpeculativeBinopBuilder final {
     switch (op_->opcode()) {
       case IrOpcode::kJSAdd:
         if (hint == NumberOperationHint::kSignedSmall) {
-          return simplified()->SpeculativeSafeIntegerAdd(hint);
+          return simplified()->SpeculativeSmallIntegerAdd(hint);
+        } else if (hint == NumberOperationHint::kAdditiveSafeInteger) {
+          return simplified()->SpeculativeAdditiveSafeIntegerAdd(hint);
         } else {
           return simplified()->SpeculativeNumberAdd(hint);
         }
       case IrOpcode::kJSSubtract:
         if (hint == NumberOperationHint::kSignedSmall) {
-          return simplified()->SpeculativeSafeIntegerSubtract(hint);
+          return simplified()->SpeculativeSmallIntegerSubtract(hint);
+        } else if (hint == NumberOperationHint::kAdditiveSafeInteger) {
+          return simplified()->SpeculativeAdditiveSafeIntegerSubtract(hint);
         } else {
           return simplified()->SpeculativeNumberSubtract(hint);
         }
@@ -283,6 +294,11 @@ class JSSpeculativeBinopBuilder final {
   Node* TryBuildNumberCompare() {
     NumberOperationHint hint;
     if (GetCompareNumberOperationHint(&hint)) {
+      // Equality doesn't not perform ToNumber conversions on Oddballs.
+      if (hint == NumberOperationHint::kNumberOrOddball &&
+          op_->opcode() == IrOpcode::kJSEqual) {
+        return nullptr;
+      }
       const Operator* op = SpeculativeNumberCompareOp(hint);
       Node* node = BuildSpeculativeOperation(op);
       return node;
@@ -302,7 +318,7 @@ class JSSpeculativeBinopBuilder final {
 
   JSGraph* jsgraph() const { return lowering_->jsgraph(); }
   Isolate* isolate() const { return jsgraph()->isolate(); }
-  Graph* graph() const { return jsgraph()->graph(); }
+  TFGraph* graph() const { return jsgraph()->graph(); }
   JSOperatorBuilder* javascript() { return jsgraph()->javascript(); }
   SimplifiedOperatorBuilder* simplified() { return jsgraph()->simplified(); }
   CommonOperatorBuilder* common() { return jsgraph()->common(); }
@@ -561,19 +577,6 @@ JSTypeHintLowering::LoweringResult JSTypeHintLowering::ReduceToNumberOperation(
         jsgraph()->simplified()->SpeculativeToNumber(hint, FeedbackSource()),
         input, effect, control);
     return LoweringResult::SideEffectFree(node, node, control);
-  }
-  return LoweringResult::NoChange();
-}
-
-JSTypeHintLowering::LoweringResult JSTypeHintLowering::ReduceCallOperation(
-    const Operator* op, Node* const* args, int arg_count, Node* effect,
-    Node* control, FeedbackSlot slot) const {
-  DCHECK(op->opcode() == IrOpcode::kJSCall ||
-         op->opcode() == IrOpcode::kJSCallWithSpread);
-  if (Node* node = BuildDeoptIfFeedbackIsInsufficient(
-          slot, effect, control,
-          DeoptimizeReason::kInsufficientTypeFeedbackForCall)) {
-    return LoweringResult::Exit(node);
   }
   return LoweringResult::NoChange();
 }

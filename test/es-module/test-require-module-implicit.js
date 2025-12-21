@@ -12,7 +12,7 @@ const assert = require('assert');
   assert.throws(() => {
     require(id);
   }, {
-    code: 'MODULE_NOT_FOUND'
+    code: 'MODULE_NOT_FOUND',
   });
   const mod = require(`${id}.mjs`);
   common.expectRequiredModule(mod, { hello: 'world' });

@@ -5,10 +5,12 @@
 #ifndef V8_OBJECTS_JS_ATOMICS_SYNCHRONIZATION_INL_H_
 #define V8_OBJECTS_JS_ATOMICS_SYNCHRONIZATION_INL_H_
 
+#include "src/objects/js-atomics-synchronization.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/heap/heap-write-barrier-inl.h"
-#include "src/objects/js-atomics-synchronization.h"
 #include "src/objects/js-struct-inl.h"
 #include "src/objects/objects-inl.h"
 
@@ -68,7 +70,6 @@ WaiterQueueNode* JSSynchronizationPrimitive::DestructivelyGetWaiterQueueHead(
   WaiterQueueNode* waiter_head = reinterpret_cast<WaiterQueueNode*>(
       requester->shared_external_pointer_table().Exchange(handle, kNullAddress,
                                                           kWaiterQueueNodeTag));
-  CHECK_NOT_NULL(waiter_head);
   return waiter_head;
 #else
   return base::AsAtomicPointer::Relaxed_Load(waiter_queue_head_location());
@@ -85,10 +86,10 @@ JSSynchronizationPrimitive::SetWaiterQueueHead(Isolate* requester,
     USE(state);
   }
 #if V8_COMPRESS_POINTERS
+  ExternalPointerHandle handle =
+      base::AsAtomic32::Relaxed_Load(waiter_queue_head_handle_location());
   if (waiter_head) {
     new_state = HasWaitersField::update(new_state, true);
-    ExternalPointerHandle handle =
-        base::AsAtomic32::Relaxed_Load(waiter_queue_head_handle_location());
     ExternalPointerTable& table = requester->shared_external_pointer_table();
     if (handle == kNullExternalPointerHandle) {
       handle = table.AllocateAndInitializeEntry(
@@ -99,6 +100,8 @@ JSSynchronizationPrimitive::SetWaiterQueueHead(Isolate* requester,
       // threads may access an uninitialized table entry and crash.
       base::AsAtomic32::Release_Store(waiter_queue_head_handle_location(),
                                       handle);
+      EXTERNAL_POINTER_WRITE_BARRIER(*this, kWaiterQueueHeadOffset,
+                                     kWaiterQueueNodeTag);
       return new_state;
     }
     if (DEBUG_BOOL) {
@@ -112,8 +115,10 @@ JSSynchronizationPrimitive::SetWaiterQueueHead(Isolate* requester,
     }
   } else {
     new_state = HasWaitersField::update(new_state, false);
-    base::AsAtomic32::Relaxed_Store(waiter_queue_head_handle_location(),
-                                    kNullExternalPointerHandle);
+    if (handle) {
+      requester->shared_external_pointer_table().Set(handle, kNullAddress,
+                                                     kWaiterQueueNodeTag);
+    }
   }
 #else
   new_state = HasWaitersField::update(new_state, waiter_head);
@@ -126,7 +131,7 @@ JSSynchronizationPrimitive::SetWaiterQueueHead(Isolate* requester,
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSAtomicsMutex)
 
 JSAtomicsMutex::LockGuardBase::LockGuardBase(Isolate* isolate,
-                                             Handle<JSAtomicsMutex> mutex,
+                                             DirectHandle<JSAtomicsMutex> mutex,
                                              bool locked)
     : isolate_(isolate), mutex_(mutex), locked_(locked) {}
 
@@ -135,16 +140,17 @@ JSAtomicsMutex::LockGuardBase::~LockGuardBase() {
 }
 
 JSAtomicsMutex::LockGuard::LockGuard(Isolate* isolate,
-                                     Handle<JSAtomicsMutex> mutex,
+                                     DirectHandle<JSAtomicsMutex> mutex,
                                      std::optional<base::TimeDelta> timeout)
     : LockGuardBase(isolate, mutex,
                     JSAtomicsMutex::Lock(isolate, mutex, timeout)) {}
 
 JSAtomicsMutex::TryLockGuard::TryLockGuard(Isolate* isolate,
-                                           Handle<JSAtomicsMutex> mutex)
+                                           DirectHandle<JSAtomicsMutex> mutex)
     : LockGuardBase(isolate, mutex, mutex->TryLock()) {}
 
 // static
+template <typename LockSlowPathWrapper, typename>
 bool JSAtomicsMutex::LockImpl(Isolate* requester,
                               DirectHandle<JSAtomicsMutex> mutex,
                               std::optional<base::TimeDelta> timeout,
@@ -173,7 +179,8 @@ bool JSAtomicsMutex::LockImpl(Isolate* requester,
 }
 
 // static
-bool JSAtomicsMutex::Lock(Isolate* requester, Handle<JSAtomicsMutex> mutex,
+bool JSAtomicsMutex::Lock(Isolate* requester,
+                          DirectHandle<JSAtomicsMutex> mutex,
                           std::optional<base::TimeDelta> timeout) {
   return LockImpl(requester, mutex, timeout, [=](std::atomic<StateT>* state) {
     return LockSlowPath(requester, mutex, state, timeout);

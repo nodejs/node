@@ -9,6 +9,7 @@
 #include <string>
 #include <string_view>
 #include <vector>
+#include "builtin_info.h"
 #include "embedded_data.h"
 #include "executable_wrapper.h"
 #include "simdutf.h"
@@ -687,15 +688,26 @@ int AddModule(const std::string& filename,
   std::string var = GetVariableName(file_id);
 
   definitions->emplace_back(GetDefinition(var, code));
-
+  std::string source_type = builtins::GetBuiltinSourceTypeName(
+      builtins::GetBuiltinSourceType(file_id, filename));
   // Initializers of the BuiltinSourceMap:
-  // {"fs", UnionBytes{&fs_resource}},
-  Fragment& init_buf = initializers->emplace_back(Fragment(256, 0));
+  // {"fs",
+  //   BuiltinSource{UnionBytes(&fs_resource), BuiltinSourceType::kFunction}},
+  // {"internal/deps/v8/tools/tickprocessor-driver",
+  //  BuiltinSource{UnionBytes(&fs_resource),
+  //                BuiltinSourceType::kSourceTextModule}},
+  Fragment& init_buf = initializers->emplace_back(Fragment(512, 0));
   int init_size = snprintf(init_buf.data(),
                            init_buf.size(),
-                           "    {\"%s\", UnionBytes(&%s_resource) },",
+                           "    {\"%s\","
+                           " BuiltinSource{"
+                           " \"%s\","
+                           " UnionBytes(&%s_resource),"
+                           " BuiltinSourceType::%s} },",
                            file_id.c_str(),
-                           var.c_str());
+                           file_id.c_str(),
+                           var.c_str(),
+                           source_type.c_str());
   init_buf.resize(init_size);
 
   // Registrations:
@@ -784,21 +796,11 @@ std::vector<char> JSONify(const std::vector<char>& code) {
   // 1. Remove string comments
   std::vector<char> stripped = StripComments(code);
 
-  // 2. join multiline strings
-  std::vector<char> joined = JoinMultilineString(stripped);
+  // 2. turn pseudo-booleans strings into Booleans
+  std::vector<char> result1 = ReplaceAll(stripped, R"("true")", "true");
+  std::vector<char> result2 = ReplaceAll(result1, R"("false")", "false");
 
-  // 3. normalize string literals from ' into "
-  for (size_t i = 0; i < joined.size(); ++i) {
-    if (joined[i] == '\'') {
-      joined[i] = '"';
-    }
-  }
-
-  // 4. turn pseudo-booleans strings into Booleans
-  std::vector<char> result3 = ReplaceAll(joined, R"("true")", "true");
-  std::vector<char> result4 = ReplaceAll(result3, R"("false")", "false");
-
-  return result4;
+  return result2;
 }
 
 int AddGypi(const std::string& var,

@@ -105,6 +105,35 @@ class ThreadedListBase final : public BaseClass {
     list.Clear();
   }
 
+  // This is only valid if {v} is in the current list.
+  void TruncateAt(ThreadedListBase* rem, T* v) {
+    CHECK_NOT_NULL(rem);
+    CHECK_NOT_NULL(v);
+    CHECK(rem->is_empty());
+    Iterator it = begin();
+    T* last = nullptr;
+    for (; it != end(); ++it) {
+      if (*it == v) {
+        break;
+      }
+      last = *it;
+    }
+    CHECK_EQ(v, *it);
+
+    // Remaining list.
+    rem->head_ = v;
+    rem->tail_ = tail_;
+
+    if (last == nullptr) {
+      // The head must point to v, so we return the empty list.
+      CHECK_EQ(head_, v);
+      Clear();
+    } else {
+      tail_ = TLTraits::next(last);
+      *tail_ = nullptr;
+    }
+  }
+
   void Clear() {
     head_ = nullptr;
     tail_ = &head_;
@@ -167,9 +196,6 @@ class ThreadedListBase final : public BaseClass {
     bool operator==(const Iterator& other) const {
       return entry_ == other.entry_;
     }
-    bool operator!=(const Iterator& other) const {
-      return entry_ != other.entry_;
-    }
     T*& operator*() { return *entry_; }
     T* operator->() { return *entry_; }
     Iterator& operator=(T* entry) {
@@ -217,9 +243,6 @@ class ThreadedListBase final : public BaseClass {
     }
     bool operator==(const ConstIterator& other) const {
       return entry_ == other.entry_;
-    }
-    bool operator!=(const ConstIterator& other) const {
-      return entry_ != other.entry_;
     }
     const T* operator*() const { return *entry_; }
 

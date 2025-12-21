@@ -43,6 +43,11 @@ namespace internal {
 #define C_REGISTERS(V)                                            \
   V(cr0)  V(cr1)  V(cr2)  V(cr3)  V(cr4)  V(cr5)  V(cr6)  V(cr7)  \
   V(cr8)  V(cr9)  V(cr10) V(cr11) V(cr12) V(cr15)
+
+#define C_CALL_CALLEE_SAVE_REGISTERS r6, r7, r8, r9, r10, ip, r13
+
+#define C_CALL_CALLEE_SAVE_FP_REGISTERS d8, d9, d10, d11, d12, d13, d14, d15
+
 // clang-format on
 
 // The following constants describe the stack frame linkage area as
@@ -88,7 +93,7 @@ const int kStackFrameRASlot = 10;
 const int kStackFrameExtraParamSlot = 21;
 const int kXPLINKStackFrameExtraParamSlot = 19;
 const int kStackPointerBias = 2048;
-#elif V8_TARGET_ARCH_S390X
+#else
 // [0] Back Chain
 // [1] Reserved for compiler use
 // [2] GPR 2
@@ -103,32 +108,11 @@ const int kNumRequiredStackFrameSlots = 20;
 const int kStackFrameRASlot = 14;
 const int kStackFrameSPSlot = 15;
 const int kStackFrameExtraParamSlot = 20;
-#else
-// [0] Back Chain
-// [1] Reserved for compiler use
-// [2] GPR 2
-// [3] GPR 3
-// ...
-// [15] GPR 15
-// [16..17] FPR 0
-// [18..19] FPR 2
-// [20..21] FPR 4
-// [22..23] FPR 6
-const int kNumRequiredStackFrameSlots = 24;
-const int kStackFrameRASlot = 14;
-const int kStackFrameSPSlot = 15;
-const int kStackFrameExtraParamSlot = 24;
 #endif
 
 // zLinux ABI requires caller frames to include sufficient space for
 // callee preserved register save area.
-#if V8_TARGET_ARCH_S390X
 const int kCalleeRegisterSaveAreaSize = 160;
-#elif V8_TARGET_ARCH_S390
-const int kCalleeRegisterSaveAreaSize = 96;
-#else
-const int kCalleeRegisterSaveAreaSize = 0;
-#endif
 
 enum RegisterCode {
 #define REGISTER_CODE(R) kRegCode_##R,
@@ -279,6 +263,9 @@ constexpr Register kJavaScriptCallCodeStartRegister = r4;
 constexpr Register kJavaScriptCallTargetRegister = kJSFunctionRegister;
 constexpr Register kJavaScriptCallNewTargetRegister = r5;
 constexpr Register kJavaScriptCallExtraArg1Register = r4;
+// DispatchHandle is only needed for the sandbox which is not available on
+// s390x.
+constexpr Register kJavaScriptCallDispatchHandleRegister = no_reg;
 
 constexpr Register kRuntimeCallFunctionRegister = r3;
 constexpr Register kRuntimeCallArgCountRegister = r2;

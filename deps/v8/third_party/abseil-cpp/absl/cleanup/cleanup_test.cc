@@ -116,7 +116,6 @@ TYPED_TEST(CleanupTest, FactoryProducesCorrectType) {
   }
 }
 
-#if defined(ABSL_HAVE_CLASS_TEMPLATE_ARGUMENT_DEDUCTION)
 TYPED_TEST(CleanupTest, CTADProducesCorrectType) {
   {
     auto callback = TypeParam::AsCallback([] {});
@@ -186,7 +185,6 @@ TYPED_TEST(CleanupTest, FactoryAndCTADProduceSameType) {
         IsSame<decltype(factory_cleanup), decltype(deduction_cleanup)>(), "");
   }
 }
-#endif  // defined(ABSL_HAVE_CLASS_TEMPLATE_ARGUMENT_DEDUCTION)
 
 TYPED_TEST(CleanupTest, BasicUsage) {
   bool called = false;

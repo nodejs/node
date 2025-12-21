@@ -30,7 +30,7 @@ class V8_EXPORT_PRIVATE TypeNarrowingReducer final
 
  private:
   JSGraph* jsgraph() const { return jsgraph_; }
-  Graph* graph() const;
+  TFGraph* graph() const;
   Zone* zone() const;
 
   JSGraph* const jsgraph_;

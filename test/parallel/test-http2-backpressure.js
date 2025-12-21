@@ -12,7 +12,7 @@ const { duplexPair } = require('stream');
 {
   let req;
   const server = http2.createServer();
-  server.on('stream', mustCallAsync(async (stream, headers) => {
+  server.on('stream', mustCall(async (stream, headers) => {
     stream.respond({
       'content-type': 'text/html',
       ':status': 200
@@ -46,7 +46,7 @@ function event(ee, eventName) {
   });
 }
 
-function mustCallAsync(fn, exact) {
+function mustCall(fn, exact) {
   return common.mustCall((...args) => {
     return Promise.resolve(fn(...args)).then(common.mustCall((val) => val));
   }, exact);

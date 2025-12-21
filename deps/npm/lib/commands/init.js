@@ -21,6 +21,7 @@ class Init extends BaseCommand {
     'init-module',
     'init-type',
     'init-version',
+    'init-private',
     'yes',
     'force',
     'scope',
@@ -65,7 +66,7 @@ class Init extends BaseCommand {
       throw err
     })
 
-    // these are workspaces that are being created, so we cant use
+    // these are workspaces that are being created, so we can't use
     // this.setWorkspaces()
     const filters = this.npm.config.get('workspace')
     const wPath = filterArg => resolve(this.npm.localPrefix, filterArg)
@@ -133,8 +134,14 @@ class Init extends BaseCommand {
     const scriptShell = this.npm.config.get('script-shell') || undefined
     const yes = this.npm.config.get('yes')
 
+    // only send the init-private flag if it is set
+    const opts = { ...flatOptions }
+    if (this.npm.config.isDefault('init-private')) {
+      delete opts.initPrivate
+    }
+
     await libexec({
-      ...flatOptions,
+      ...opts,
       args: newArgs,
       localBin,
       globalBin,
@@ -170,6 +177,7 @@ class Init extends BaseCommand {
       return data
     } catch (er) {
       if (er.message === 'canceled') {
+        output.flush()
         log.warn('init', 'canceled')
       } else {
         throw er

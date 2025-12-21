@@ -27,6 +27,7 @@ const EXPECTED_EVENTS = {
           url: 'https://nodejs.org/en',
           method: 'GET',
           headers: {},
+          hasPostData: false,
         },
         timestamp: 1000,
         wallTime: 1000,
@@ -42,7 +43,9 @@ const EXPECTED_EVENTS = {
           url: 'https://nodejs.org/en',
           status: 200,
           statusText: '',
-          headers: { host: 'nodejs.org' }
+          headers: { host: 'nodejs.org' },
+          mimeType: 'text/html',
+          charset: 'utf-8'
         }
       },
       expected: {
@@ -53,9 +56,21 @@ const EXPECTED_EVENTS = {
           url: 'https://nodejs.org/en',
           status: 200,
           statusText: '',
-          headers: { host: 'nodejs.org' }
+          headers: { host: 'nodejs.org' },
+          mimeType: 'text/html',
+          charset: 'utf-8'
         }
       }
+    },
+    {
+      name: 'dataReceived',
+      // Network.dataReceived is buffered until Network.streamResourceContent/Network.getResponseBody is invoked.
+      skip: true,
+    },
+    {
+      name: 'dataSent',
+      // Network.dataSent is buffered until Network.getRequestPostData is invoked.
+      skip: true,
     },
     {
       name: 'loadingFinished',
@@ -73,6 +88,34 @@ const EXPECTED_EVENTS = {
         errorText: 'Failed to load resource'
       }
     },
+    {
+      name: 'webSocketCreated',
+      params: {
+        requestId: 'websocket-id-1',
+        url: 'ws://example.com:8080',
+      }
+
+    },
+    {
+      name: 'webSocketHandshakeResponseReceived',
+      params: {
+        requestId: 'websocket-id-1',
+        response: {
+          status: 101,
+          statusText: 'Switching Protocols',
+          headers: {},
+        },
+        timestamp: 1000,
+      }
+    },
+    {
+      name: 'webSocketClosed',
+      params: {
+        requestId: 'websocket-id-1',
+        timestamp: 1000,
+
+      }
+    },
   ]
 };
 
@@ -81,8 +124,8 @@ for (const [domain, events] of Object.entries(EXPECTED_EVENTS)) {
   if (!(domain in inspector)) {
     assert.fail(`Expected domain ${domain} to be present in inspector`);
   }
-  const actualEventNames = Object.keys(inspector[domain]);
-  const expectedEventNames = events.map((event) => event.name);
+  const actualEventNames = Object.keys(inspector[domain]).sort();
+  const expectedEventNames = events.map((event) => event.name).sort();
   assert.deepStrictEqual(actualEventNames, expectedEventNames, `Expected ${domain} to have events ${expectedEventNames}, but got ${actualEventNames}`);
 }
 
@@ -97,7 +140,7 @@ for (const [domain, events] of Object.entries(EXPECTED_EVENTS)) {
   }
 }
 
-const runAsyncTest = async () => {
+(async () => {
   const session = new inspector.Session();
   session.connect();
 
@@ -105,8 +148,11 @@ const runAsyncTest = async () => {
   await session.post('Network.enable');
   for (const [domain, events] of Object.entries(EXPECTED_EVENTS)) {
     for (const event of events) {
+      if (event.skip) {
+        continue;
+      }
       session.on(`${domain}.${event.name}`, common.mustCall(({ params }) => {
-        if (event.name === 'requestWillBeSent') {
+        if (event.name === 'requestWillBeSent' || event.name === 'webSocketCreated') {
           // Initiator is automatically captured and contains caller info.
           // No need to validate it.
           delete params.initiator;
@@ -121,8 +167,4 @@ const runAsyncTest = async () => {
   await session.post('Network.disable');
   session.on('Network.requestWillBeSent', common.mustNotCall());
   inspector.Network.requestWillBeSent({});
-};
-
-runAsyncTest().then(common.mustCall()).catch((e) => {
-  assert.fail(e);
-});
+})().then(common.mustCall());

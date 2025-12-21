@@ -26,44 +26,32 @@
 
 extern "C" {
 const char* emscripten_pc_get_function(const void* pc);
+void* emscripten_stack_snapshot();
 }
-
-// clang-format off
-EM_JS(bool, HaveOffsetConverter, (),
-      { return typeof wasmOffsetConverter !== 'undefined'; });
-// clang-format on
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 
-void InitializeSymbolizer(const char*) {
-  if (!HaveOffsetConverter()) {
-    ABSL_RAW_LOG(INFO,
-                 "Symbolization unavailable. Rebuild with -sWASM=1 "
-                 "and -sUSE_OFFSET_CONVERTER=1.");
-  }
-}
+void InitializeSymbolizer(const char*) {}
 
 bool Symbolize(const void* pc, char* out, int out_size) {
-  // Check if we have the offset converter necessary for pc_get_function.
-  // Without it, the program will abort().
-  if (!HaveOffsetConverter()) {
-    return false;
-  }
   if (pc == nullptr || out_size <= 0) {
     return false;
   }
+  // Need to capture a snapshot first.
+  emscripten_stack_snapshot();
   const char* func_name = emscripten_pc_get_function(pc);
   if (func_name == nullptr) {
     return false;
   }
 
-  strncpy(out, func_name, out_size);
+  strncpy(out, func_name, static_cast<size_t>(out_size));
 
   if (out[out_size - 1] != '\0') {
     // strncpy() does not '\0' terminate when it truncates.
     static constexpr char kEllipsis[] = "...";
-    int ellipsis_size = std::min<int>(sizeof(kEllipsis) - 1, out_size - 1);
+    size_t ellipsis_size =
+        std::min(sizeof(kEllipsis) - 1, static_cast<size_t>(out_size) - 1);
     memcpy(out + out_size - ellipsis_size - 1, kEllipsis, ellipsis_size);
     out[out_size - 1] = '\0';
   }

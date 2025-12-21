@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2018-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -54,7 +54,8 @@
 #include <openssl/evp.h>
 #include <openssl/err.h>
 #include <openssl/proverr.h>
-
+#include <openssl/fips_names.h>
+#include "prov/securitycheck.h"
 #include "prov/implementations.h"
 #include "prov/provider_ctx.h"
 #include "prov/provider_util.h"
@@ -126,6 +127,15 @@ struct kmac_data_st {
     /* key and custom are stored in encoded form */
     unsigned char key[KMAC_MAX_KEY_ENCODED];
     unsigned char custom[KMAC_MAX_CUSTOM_ENCODED];
+#ifdef FIPS_MODULE
+    /*
+     * 'internal' is set to 1 if KMAC is used inside another algorithm such as a
+     * KDF. In this case it is the parent algorithm that is responsible for
+     * performing any conditional FIPS indicator related checks for KMAC.
+     */
+    int internal;
+#endif
+    OSSL_FIPS_IND_DECLARE
 };
 
 static int encode_string(unsigned char *out, size_t out_max_len, size_t *out_len,
@@ -172,12 +182,14 @@ static struct kmac_data_st *kmac_new(void *provctx)
         return NULL;
     }
     kctx->provctx = provctx;
+    OSSL_FIPS_IND_INIT(kctx)
     return kctx;
 }
 
 static void *kmac_fetch_new(void *provctx, const OSSL_PARAM *params)
 {
     struct kmac_data_st *kctx = kmac_new(provctx);
+    int md_size;
 
     if (kctx == NULL)
         return 0;
@@ -187,7 +199,12 @@ static void *kmac_fetch_new(void *provctx, const OSSL_PARAM *params)
         return 0;
     }
 
-    kctx->out_len = EVP_MD_get_size(ossl_prov_digest_md(&kctx->digest));
+    md_size = EVP_MD_get_size(ossl_prov_digest_md(&kctx->digest));
+    if (md_size <= 0) {
+        kmac_free(kctx);
+        return 0;
+    }
+    kctx->out_len = (size_t)md_size;
     return kctx;
 }
 
@@ -228,13 +245,16 @@ static void *kmac_dup(void *vsrc)
         kmac_free(dst);
         return NULL;
     }
-
+#ifdef FIPS_MODULE
+    dst->internal = src->internal;
+#endif
     dst->out_len = src->out_len;
     dst->key_len = src->key_len;
     dst->custom_len = src->custom_len;
     dst->xof_mode = src->xof_mode;
     memcpy(dst->key, src->key, src->key_len);
     memcpy(dst->custom, src->custom, dst->custom_len);
+    OSSL_FIPS_IND_COPY(dst, src)
 
     return dst;
 }
@@ -249,6 +269,25 @@ static int kmac_setkey(struct kmac_data_st *kctx, const unsigned char *key,
         ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_KEY_LENGTH);
         return 0;
     }
+#ifdef FIPS_MODULE
+    /*
+     * Only do the key check if KMAC is fetched directly.
+     * Other algorithms that embed KMAC such as SSKDF will ignore this check.
+     */
+    if (!kctx->internal) {
+        int approved = ossl_mac_check_key_size(keylen);
+
+        if (!approved) {
+            if (!OSSL_FIPS_IND_ON_UNAPPROVED(kctx, OSSL_FIPS_IND_SETTABLE1,
+                                             PROV_LIBCTX_OF(kctx->provctx),
+                                             "KMAC", "Key size",
+                                             ossl_fips_config_kmac_key_check)) {
+                ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_KEY_LENGTH);
+                return 0;
+            }
+        }
+    }
+#endif
     if (w <= 0) {
         ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_DIGEST_LENGTH);
         return 0;
@@ -310,10 +349,8 @@ static int kmac_init(void *vmacctx, const unsigned char *key,
         return 0;
     }
     out = OPENSSL_malloc(out_len);
-    if (out == NULL) {
-        ERR_raise(ERR_LIB_PROV, ERR_R_MALLOC_FAILURE);
+    if (out == NULL)
         return 0;
-    }
     res = bytepad(out, NULL, kmac_string, sizeof(kmac_string),
                   kctx->custom, kctx->custom_len, block_len)
           && EVP_DigestUpdate(ctx, out, out_len)
@@ -355,6 +392,7 @@ static int kmac_final(void *vmacctx, unsigned char *out, size_t *outl,
 static const OSSL_PARAM known_gettable_ctx_params[] = {
     OSSL_PARAM_size_t(OSSL_MAC_PARAM_SIZE, NULL),
     OSSL_PARAM_size_t(OSSL_MAC_PARAM_BLOCK_SIZE, NULL),
+    OSSL_FIPS_IND_GETTABLE_CTX_PARAM()
     OSSL_PARAM_END
 };
 static const OSSL_PARAM *kmac_gettable_ctx_params(ossl_unused void *ctx,
@@ -379,6 +417,9 @@ static int kmac_get_ctx_params(void *vmacctx, OSSL_PARAM params[])
             return 0;
     }
 
+    if (!OSSL_FIPS_IND_GET_CTX_PARAM(kctx, params))
+        return 0;
+
     return 1;
 }
 
@@ -387,6 +428,8 @@ static const OSSL_PARAM known_settable_ctx_params[] = {
     OSSL_PARAM_size_t(OSSL_MAC_PARAM_SIZE, NULL),
     OSSL_PARAM_octet_string(OSSL_MAC_PARAM_KEY, NULL, 0),
     OSSL_PARAM_octet_string(OSSL_MAC_PARAM_CUSTOM, NULL, 0),
+    OSSL_FIPS_IND_SETTABLE_CTX_PARAM(OSSL_MAC_PARAM_FIPS_NO_SHORT_MAC)
+    OSSL_FIPS_IND_SETTABLE_CTX_PARAM(OSSL_MAC_PARAM_FIPS_KEY_CHECK)
     OSSL_PARAM_END
 };
 static const OSSL_PARAM *kmac_settable_ctx_params(ossl_unused void *ctx,
@@ -409,8 +452,15 @@ static int kmac_set_ctx_params(void *vmacctx, const OSSL_PARAM *params)
     struct kmac_data_st *kctx = vmacctx;
     const OSSL_PARAM *p;
 
-    if (params == NULL)
+    if (ossl_param_is_empty(params))
         return 1;
+
+    if (!OSSL_FIPS_IND_SET_CTX_PARAM(kctx, OSSL_FIPS_IND_SETTABLE0, params,
+                                     OSSL_MAC_PARAM_FIPS_NO_SHORT_MAC))
+        return 0;
+    if (!OSSL_FIPS_IND_SET_CTX_PARAM(kctx, OSSL_FIPS_IND_SETTABLE1, params,
+                                     OSSL_MAC_PARAM_FIPS_KEY_CHECK))
+        return 0;
 
     if ((p = OSSL_PARAM_locate_const(params, OSSL_MAC_PARAM_XOF)) != NULL
         && !OSSL_PARAM_get_int(p, &kctx->xof_mode))
@@ -424,6 +474,18 @@ static int kmac_set_ctx_params(void *vmacctx, const OSSL_PARAM *params)
             ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_OUTPUT_LENGTH);
             return 0;
         }
+#ifdef FIPS_MODULE
+        /* SP 800-185 8.4.2 mandates a minimum of 32 bits of output */
+        if (sz < 32 / 8) {
+            if (!OSSL_FIPS_IND_ON_UNAPPROVED(kctx, OSSL_FIPS_IND_SETTABLE0,
+                                             PROV_LIBCTX_OF(kctx->provctx),
+                                             "KMAC", "length",
+                                             ossl_fips_config_no_short_mac)) {
+                ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_OUTPUT_LENGTH);
+                return 0;
+            }
+        }
+#endif
         kctx->out_len = sz;
     }
     if ((p = OSSL_PARAM_locate_const(params, OSSL_MAC_PARAM_KEY)) != NULL
@@ -594,34 +656,42 @@ static int kmac_bytepad_encode_key(unsigned char *out, size_t out_max_len,
     return bytepad(out, NULL, tmp, tmp_len, NULL, 0, w);
 }
 
-const OSSL_DISPATCH ossl_kmac128_functions[] = {
-    { OSSL_FUNC_MAC_NEWCTX, (void (*)(void))kmac128_new },
-    { OSSL_FUNC_MAC_DUPCTX, (void (*)(void))kmac_dup },
-    { OSSL_FUNC_MAC_FREECTX, (void (*)(void))kmac_free },
-    { OSSL_FUNC_MAC_INIT, (void (*)(void))kmac_init },
-    { OSSL_FUNC_MAC_UPDATE, (void (*)(void))kmac_update },
-    { OSSL_FUNC_MAC_FINAL, (void (*)(void))kmac_final },
-    { OSSL_FUNC_MAC_GETTABLE_CTX_PARAMS,
-      (void (*)(void))kmac_gettable_ctx_params },
-    { OSSL_FUNC_MAC_GET_CTX_PARAMS, (void (*)(void))kmac_get_ctx_params },
-    { OSSL_FUNC_MAC_SETTABLE_CTX_PARAMS,
-      (void (*)(void))kmac_settable_ctx_params },
-    { OSSL_FUNC_MAC_SET_CTX_PARAMS, (void (*)(void))kmac_set_ctx_params },
-    { 0, NULL }
-};
+#define IMPLEMENT_KMAC_TABLE(size, funcname, newname)                          \
+const OSSL_DISPATCH ossl_kmac##size##_##funcname[] =                           \
+{                                                                              \
+    { OSSL_FUNC_MAC_NEWCTX, (void (*)(void))kmac##size##_##newname },          \
+    { OSSL_FUNC_MAC_DUPCTX, (void (*)(void))kmac_dup },                        \
+    { OSSL_FUNC_MAC_FREECTX, (void (*)(void))kmac_free },                      \
+    { OSSL_FUNC_MAC_INIT, (void (*)(void))kmac_init },                         \
+    { OSSL_FUNC_MAC_UPDATE, (void (*)(void))kmac_update },                     \
+    { OSSL_FUNC_MAC_FINAL, (void (*)(void))kmac_final },                       \
+    { OSSL_FUNC_MAC_GETTABLE_CTX_PARAMS,                                       \
+      (void (*)(void))kmac_gettable_ctx_params },                              \
+    { OSSL_FUNC_MAC_GET_CTX_PARAMS, (void (*)(void))kmac_get_ctx_params },     \
+    { OSSL_FUNC_MAC_SETTABLE_CTX_PARAMS,                                       \
+      (void (*)(void))kmac_settable_ctx_params },                              \
+    { OSSL_FUNC_MAC_SET_CTX_PARAMS, (void (*)(void))kmac_set_ctx_params },     \
+    OSSL_DISPATCH_END                                                          \
+}
 
-const OSSL_DISPATCH ossl_kmac256_functions[] = {
-    { OSSL_FUNC_MAC_NEWCTX, (void (*)(void))kmac256_new },
-    { OSSL_FUNC_MAC_DUPCTX, (void (*)(void))kmac_dup },
-    { OSSL_FUNC_MAC_FREECTX, (void (*)(void))kmac_free },
-    { OSSL_FUNC_MAC_INIT, (void (*)(void))kmac_init },
-    { OSSL_FUNC_MAC_UPDATE, (void (*)(void))kmac_update },
-    { OSSL_FUNC_MAC_FINAL, (void (*)(void))kmac_final },
-    { OSSL_FUNC_MAC_GETTABLE_CTX_PARAMS,
-      (void (*)(void))kmac_gettable_ctx_params },
-    { OSSL_FUNC_MAC_GET_CTX_PARAMS, (void (*)(void))kmac_get_ctx_params },
-    { OSSL_FUNC_MAC_SETTABLE_CTX_PARAMS,
-      (void (*)(void))kmac_settable_ctx_params },
-    { OSSL_FUNC_MAC_SET_CTX_PARAMS, (void (*)(void))kmac_set_ctx_params },
-    { 0, NULL }
-};
+#define KMAC_TABLE(size) IMPLEMENT_KMAC_TABLE(size, functions, new)
+
+KMAC_TABLE(128);
+KMAC_TABLE(256);
+
+#ifdef FIPS_MODULE
+# define KMAC_INTERNAL_TABLE(size)                                             \
+static OSSL_FUNC_mac_newctx_fn kmac##size##_internal_new;                      \
+static void *kmac##size##_internal_new(void *provctx)                          \
+{                                                                              \
+    struct kmac_data_st *macctx = kmac##size##_new(provctx);                   \
+                                                                               \
+    if (macctx != NULL)                                                        \
+        macctx->internal = 1;                                                  \
+    return macctx;                                                             \
+}                                                                              \
+IMPLEMENT_KMAC_TABLE(size, internal_functions, internal_new)
+
+KMAC_INTERNAL_TABLE(128);
+KMAC_INTERNAL_TABLE(256);
+#endif /* FIPS_MODULE */
