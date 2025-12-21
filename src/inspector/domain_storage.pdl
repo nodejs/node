@@ -1,0 +1,7 @@
+experimental domain Storage
+  type SerializedStorageKey extends string
+  experimental command getStorageKey
+    parameters
+      optional string frameId
+    returns
+      SerializedStorageKey storageKey
