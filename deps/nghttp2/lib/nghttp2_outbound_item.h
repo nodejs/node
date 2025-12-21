@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <nghttp2/nghttp2.h>
 #include "nghttp2_frame.h"
@@ -186,4 +186,4 @@ void nghttp2_outbound_queue_pop(nghttp2_outbound_queue *q);
 /* Returns the size of the queue */
 #define nghttp2_outbound_queue_size(Q) ((Q)->n)
 
-#endif /* NGHTTP2_OUTBOUND_ITEM_H */
+#endif /* !defined(NGHTTP2_OUTBOUND_ITEM_H) */

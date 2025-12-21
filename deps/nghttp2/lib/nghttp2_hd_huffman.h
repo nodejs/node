@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <nghttp2/nghttp2.h>
 
@@ -69,4 +69,4 @@ typedef struct {
 extern const nghttp2_huff_sym huff_sym_table[];
 extern const nghttp2_huff_decode huff_decode_table[][16];
 
-#endif /* NGHTTP2_HD_HUFFMAN_H */
+#endif /* !defined(NGHTTP2_HD_HUFFMAN_H) */

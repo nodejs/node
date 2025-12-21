@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <nghttp2/nghttp2.h>
 
@@ -154,4 +154,4 @@ struct nghttp2_session_callbacks {
   nghttp2_rand_callback rand_callback;
 };
 
-#endif /* NGHTTP2_CALLBACKS_H */
+#endif /* !defined(NGHTTP2_CALLBACKS_H) */

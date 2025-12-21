@@ -27,28 +27,28 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #ifdef HAVE_ARPA_INET_H
 #  include <arpa/inet.h>
-#endif /* HAVE_ARPA_INET_H */
+#endif /* defined(HAVE_ARPA_INET_H) */
 
 #ifdef HAVE_NETINET_IN_H
 #  include <netinet/in.h>
-#endif /* HAVE_NETINET_IN_H */
+#endif /* defined(HAVE_NETINET_IN_H) */
 
 #include <nghttp2/nghttp2.h>
 
-#if defined(WIN32)
+#ifdef WIN32
 /* Windows requires ws2_32 library for ntonl family functions.  We
    define inline functions for those function so that we don't have
    dependency on that lib. */
 
 #  ifdef _MSC_VER
 #    define STIN static __inline
-#  else
+#  else /* !defined(_MSC_VER) */
 #    define STIN static inline
-#  endif
+#  endif /* !defined(_MSC_VER) */
 
 STIN uint32_t htonl(uint32_t hostlong) {
   uint32_t res;
@@ -86,6 +86,6 @@ STIN uint16_t ntohs(uint16_t netshort) {
   return res;
 }
 
-#endif /* WIN32 */
+#endif /* defined(WIN32) */
 
-#endif /* NGHTTP2_NET_H */
+#endif /* !defined(NGHTTP2_NET_H) */

@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <nghttp2/nghttp2.h>
 
@@ -35,4 +35,4 @@
    timepoint.  If it is unable to get seconds, it returns 0. */
 uint64_t nghttp2_time_now_sec(void);
 
-#endif /* NGHTTP2_TIME_H */
+#endif /* !defined(NGHTTP2_TIME_H) */

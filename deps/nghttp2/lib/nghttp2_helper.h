@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <string.h>
 #include <stddef.h>
@@ -142,4 +142,4 @@ int nghttp2_should_send_window_update(int32_t local_window_size,
  */
 uint8_t *nghttp2_cpymem(uint8_t *dest, const void *src, size_t len);
 
-#endif /* NGHTTP2_HELPER_H */
+#endif /* !defined(NGHTTP2_HELPER_H) */

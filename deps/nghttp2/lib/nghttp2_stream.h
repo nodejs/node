@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <nghttp2/nghttp2.h>
 #include "nghttp2_outbound_item.h"
@@ -294,4 +294,4 @@ void nghttp2_stream_attach_item(nghttp2_stream *stream,
  */
 void nghttp2_stream_detach_item(nghttp2_stream *stream);
 
-#endif /* NGHTTP2_STREAM */
+#endif /* !defined(NGHTTP2_STREAM_H) */
