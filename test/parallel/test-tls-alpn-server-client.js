@@ -253,25 +253,35 @@ function TestALPNCallback() {
 function TestBadALPNCallback() {
   // Server always returns a fixed invalid value:
   const serverOptions = {
+    key: loadPEM('agent2-key'),
+    cert: loadPEM('agent2-cert'),
     ALPNCallback: common.mustCall(() => 'http/5')
   };
 
-  const clientsOptions = [{
-    ALPNProtocols: ['http/1', 'h2'],
-  }];
+  const server = tls.createServer(serverOptions);
 
-  process.once('uncaughtException', common.mustCall((error) => {
+  // Error should be emitted via tlsClientError, not as uncaughtException
+  server.on('tlsClientError', common.mustCall((error, socket) => {
     assert.strictEqual(error.code, 'ERR_TLS_ALPN_CALLBACK_INVALID_RESULT');
+    socket.destroy();
   }));
 
-  runTest(clientsOptions, serverOptions, function(results) {
-    // Callback returns 'http/5' => doesn't match client ALPN => error & reset
-    assert.strictEqual(results[0].server, undefined);
-    const allowedErrors = ['ECONNRESET', 'ERR_SSL_TLSV1_ALERT_NO_APPLICATION_PROTOCOL'];
-    assert.ok(allowedErrors.includes(results[0].client.error.code), `'${results[0].client.error.code}' was not one of ${allowedErrors}.`);
+  server.listen(0, serverIP, common.mustCall(() => {
+    const client = tls.connect({
+      port: server.address().port,
+      host: serverIP,
+      rejectUnauthorized: false,
+      ALPNProtocols: ['http/1', 'h2'],
+    }, common.mustNotCall());
 
-    TestALPNOptionsCallback();
-  });
+    client.on('error', common.mustCall((err) => {
+      // Client gets reset when server handles error via tlsClientError
+      const allowedErrors = ['ECONNRESET', 'ERR_SSL_TLSV1_ALERT_NO_APPLICATION_PROTOCOL'];
+      assert.ok(allowedErrors.includes(err.code), `'${err.code}' was not one of ${allowedErrors}.`);
+      server.close();
+      TestALPNOptionsCallback();
+    }));
+  }));
 }
 
 function TestALPNOptionsCallback() {
