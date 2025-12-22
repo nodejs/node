@@ -1779,5 +1779,155 @@ test('Functions as error message', () => {
   );
 });
 
+test('Word-level diff for strings with word boundaries', () => {
+  process.env.FORCE_COLOR = '1';
+  delete process.env.NODE_DISABLE_COLORS;
+  delete process.env.NO_COLOR;
+
+  assert.throws(
+    () => assert.strictEqual('the quick brown fox', 'the quick black fox'),
+    {
+      code: 'ERR_ASSERTION',
+      name: 'AssertionError',
+      generatedMessage: true,
+      message: 'Expected values to be strictly equal:\n' +
+                '\u001b[32mactual\u001b[39m \u001b[31mexpected\u001b[39m\n' +
+                '\n' +
+                '\u001b[39mthe\u001b[39m\u001b[39m \u001b[39m\u001b[39mquick\u001b[39m' +
+                '\u001b[39m \u001b[39m\u001b[32mbrown\u001b[39m\u001b[31mblack\u001b[39m' +
+                '\u001b[39m \u001b[39m\u001b[39mfox\u001b[39m\n'
+    }
+  );
+
+  assert.throws(
+    () => assert.strictEqual('hello_world_test', 'hello_there_test'),
+    {
+      code: 'ERR_ASSERTION',
+      name: 'AssertionError',
+      generatedMessage: true,
+      message: 'Expected values to be strictly equal:\n' +
+                '\u001b[32mactual\u001b[39m \u001b[31mexpected\u001b[39m\n' +
+                '\n' +
+                '\u001b[39mhello\u001b[39m\u001b[39m_\u001b[39m' +
+                '\u001b[32mworld\u001b[39m\u001b[31mthere\u001b[39m' +
+                '\u001b[39m_\u001b[39m\u001b[39mtest\u001b[39m\n'
+    }
+  );
+
+  assert.throws(
+    () => assert.strictEqual('hello-world-test', 'hello-there-test'),
+    {
+      code: 'ERR_ASSERTION',
+      name: 'AssertionError',
+      generatedMessage: true,
+      message: 'Expected values to be strictly equal:\n' +
+                '\u001b[32mactual\u001b[39m \u001b[31mexpected\u001b[39m\n' +
+                '\n' +
+                '\u001b[39mhello\u001b[39m\u001b[39m-\u001b[39m' +
+                '\u001b[32mworld\u001b[39m\u001b[31mthere\u001b[39m' +
+                '\u001b[39m-\u001b[39m\u001b[39mtest\u001b[39m\n'
+    }
+  );
+
+  assert.throws(
+    () => assert.strictEqual('abcdefghij', 'abcdxfghij'),
+    {
+      code: 'ERR_ASSERTION',
+      name: 'AssertionError',
+      generatedMessage: true,
+      message: 'Expected values to be strictly equal:\n' +
+                '\u001b[32mactual\u001b[39m \u001b[31mexpected\u001b[39m\n' +
+                '\n' +
+                '\u001b[39m\'\u001b[39m\u001b[39ma\u001b[39m\u001b[39mb\u001b[39m' +
+                '\u001b[39mc\u001b[39m\u001b[39md\u001b[39m\u001b[32me\u001b[39m' +
+                '\u001b[31mx\u001b[39m\u001b[39mf\u001b[39m\u001b[39mg\u001b[39m' +
+                '\u001b[39mh\u001b[39m\u001b[39mi\u001b[39m\u001b[39mj\u001b[39m\u001b[39m\'\u001b[39m\n'
+    }
+  );
+
+  assert.throws(
+    () => assert.strictEqual('hello_world-test case', 'hello_there-test case'),
+    {
+      code: 'ERR_ASSERTION',
+      name: 'AssertionError',
+      generatedMessage: true,
+      message: 'Expected values to be strictly equal:\n' +
+                '\u001b[32mactual\u001b[39m \u001b[31mexpected\u001b[39m\n' +
+                '\n' +
+                '\u001b[39mhello\u001b[39m\u001b[39m_\u001b[39m' +
+                '\u001b[32mworld\u001b[39m\u001b[31mthere\u001b[39m' +
+                '\u001b[39m-\u001b[39m\u001b[39mtest\u001b[39m' +
+                '\u001b[39m \u001b[39m\u001b[39mcase\u001b[39m\n'
+    }
+  );
+
+  assert.throws(
+    () => assert.strictEqual('version 1 2 3', 'version 1 2 4'),
+    {
+      code: 'ERR_ASSERTION',
+      name: 'AssertionError',
+      generatedMessage: true,
+      message: 'Expected values to be strictly equal:\n' +
+                '\u001b[32mactual\u001b[39m \u001b[31mexpected\u001b[39m\n' +
+                '\n' +
+                '\u001b[39mversion\u001b[39m\u001b[39m \u001b[39m' +
+                '\u001b[39m1\u001b[39m\u001b[39m \u001b[39m' +
+                '\u001b[39m2\u001b[39m\u001b[39m \u001b[39m' +
+                '\u001b[32m3\u001b[39m\u001b[31m4\u001b[39m\n'
+    }
+  );
+
+  assert.throws(
+    () => assert.strictEqual('hello  world', 'hello   world'),
+    {
+      code: 'ERR_ASSERTION',
+      name: 'AssertionError',
+      generatedMessage: true,
+      message: 'Expected values to be strictly equal:\n' +
+                '\u001b[32mactual\u001b[39m \u001b[31mexpected\u001b[39m\n' +
+                '\n' +
+                '\u001b[39mhello\u001b[39m' +
+                '\u001b[32m  \u001b[39m\u001b[31m   \u001b[39m' +
+                '\u001b[39mworld\u001b[39m\n'
+    }
+  );
+
+  assert.throws(
+    () => assert.strictEqual('test@example.com foo', 'test@example.com bar'),
+    {
+      code: 'ERR_ASSERTION',
+      name: 'AssertionError',
+      generatedMessage: true,
+      message: 'Expected values to be strictly equal:\n' +
+                '\u001b[32mactual\u001b[39m \u001b[31mexpected\u001b[39m\n' +
+                '\n' +
+                '\u001b[39mtest@example.com\u001b[39m\u001b[39m \u001b[39m' +
+                '\u001b[32mfoo\u001b[39m\u001b[31mbar\u001b[39m\n'
+    }
+  );
+
+  // Fall back to character diff because of word density
+  assert.throws(
+    () => assert.strictEqual('hello', 'hallo'),
+    {
+      code: 'ERR_ASSERTION',
+      name: 'AssertionError',
+      generatedMessage: true,
+      message: "Expected values to be strictly equal:\n\n'hello' !== 'hallo'\n"
+    }
+  );
+
+  assert.throws(
+    () => assert.strictEqual('', 'hello world'),
+    {
+      code: 'ERR_ASSERTION',
+      name: 'AssertionError',
+      generatedMessage: true,
+      message: "Expected values to be strictly equal:\n\n'' !== 'hello world'\n"
+    }
+  );
+
+});
+
 /* eslint-enable no-restricted-syntax */
 /* eslint-enable no-restricted-properties */
