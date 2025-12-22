@@ -42,7 +42,11 @@ proxyObj = new Proxy(target, handler);
 util.inspect(proxyObj, opts);
 
 // Make sure inspecting object does not trigger any proxy traps.
-util.format('%s', proxyObj);
+// %i%f%d use Symbol.toPrimitive to convert the value to a string.
+// %j uses JSON.stringify, accessing the value's toJSON and toString method.
+util.format('%s%o%O%c', proxyObj, proxyObj, proxyObj, proxyObj);
+const nestedProxy = new Proxy(new Proxy({}, handler), {});
+util.format('%s%o%O%c', nestedProxy, nestedProxy, nestedProxy, nestedProxy);
 
 // getProxyDetails is an internal method, not intended for public use.
 // This is here to test that the internals are working correctly.
@@ -135,6 +139,10 @@ const expected6 = 'Proxy [\n' +
                   '    Proxy [ Proxy [Array], Proxy [Array] ]\n' +
                   '  ]\n' +
                   ']';
+const expected2NoShowProxy = 'Proxy(Proxy({}))';
+const expected3NoShowProxy = 'Proxy(Proxy(Proxy({})))';
+const expected4NoShowProxy = 'Proxy(Proxy(Proxy(Proxy({}))))';
+const expected5NoShowProxy = 'Proxy(Proxy(Proxy(Proxy(Proxy({})))))';
 assert.strictEqual(
   util.inspect(proxy1, { showProxy: 1, depth: null }),
   expected1);
@@ -144,11 +152,11 @@ assert.strictEqual(util.inspect(proxy4, opts), expected4);
 assert.strictEqual(util.inspect(proxy5, opts), expected5);
 assert.strictEqual(util.inspect(proxy6, opts), expected6);
 assert.strictEqual(util.inspect(proxy1), expected0);
-assert.strictEqual(util.inspect(proxy2), expected0);
-assert.strictEqual(util.inspect(proxy3), expected0);
-assert.strictEqual(util.inspect(proxy4), expected0);
-assert.strictEqual(util.inspect(proxy5), expected0);
-assert.strictEqual(util.inspect(proxy6), expected0);
+assert.strictEqual(util.inspect(proxy2), expected2NoShowProxy);
+assert.strictEqual(util.inspect(proxy3), expected3NoShowProxy);
+assert.strictEqual(util.inspect(proxy4), expected2NoShowProxy);
+assert.strictEqual(util.inspect(proxy5), expected4NoShowProxy);
+assert.strictEqual(util.inspect(proxy6), expected5NoShowProxy);
 
 // Just for fun, let's create a Proxy using Arrays.
 const proxy7 = new Proxy([], []);
@@ -188,3 +196,24 @@ assert.strictEqual(
     ')\x1B[39m'
 );
 assert.strictEqual(util.format('%s', proxy12), 'Proxy([ 1, 2, 3 ])');
+
+{
+  // Nested proxies should not trigger any proxy handlers.
+  const nestedProxy = new Proxy(new Proxy(new Proxy({}, handler), {}), {});
+
+  assert.strictEqual(
+    util.inspect(nestedProxy, { showProxy: true }),
+    'Proxy [ Proxy [ Proxy [ {}, [Object] ], {} ], {} ]'
+  );
+  assert.strictEqual(util.inspect(nestedProxy, { showProxy: false }), expected3NoShowProxy);
+}
+
+{
+  // Nested revoked proxies should work as expected as well as custom inspection functions.
+  const revocable = Proxy.revocable({}, handler);
+  revocable.revoke();
+  const nestedProxy = new Proxy(revocable.proxy, {});
+
+  assert.strictEqual(util.inspect(nestedProxy, { showProxy: true }), 'Proxy [ <Revoked Proxy>, {} ]');
+  assert.strictEqual(util.inspect(nestedProxy, { showProxy: false }), 'Proxy(<Revoked Proxy>)');
+}
