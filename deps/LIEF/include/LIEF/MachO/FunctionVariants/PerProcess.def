@@ -1,0 +1,8 @@
+#ifndef FUNCTION_VARIANT_FLAG
+#error "FUNCTION_VARIANT_FLAG must be defined"
+#endif
+
+FUNCTION_VARIANT_FLAG(PER_PROCESS_DEFAULT     , 0  , "default"     )
+
+FUNCTION_VARIANT_FLAG(PER_PROCESS_TRANSLATED   , 1  , "translated"  )
+FUNCTION_VARIANT_FLAG(PER_PROCESS_NO_OVERREAD  , 3  , "no_overread" )
