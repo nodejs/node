@@ -172,7 +172,7 @@ impl TimeZone {
     #[inline]
     pub(crate) fn from_time_zone_record(
         record: TimeZoneRecord<Utf8>,
-        provider: &impl TimeZoneProvider,
+        provider: &(impl TimeZoneProvider + ?Sized),
     ) -> TemporalResult<Self> {
         let timezone = match record {
             TimeZoneRecord::Name(name) => TimeZone::IanaIdentifier(provider.get(name)?),
@@ -190,7 +190,7 @@ impl TimeZone {
     /// Parses a `TimeZone` from a provided `&str`.
     pub fn try_from_identifier_str_with_provider(
         identifier: &str,
-        provider: &impl TimeZoneProvider,
+        provider: &(impl TimeZoneProvider + ?Sized),
     ) -> TemporalResult<Self> {
         parse_identifier(identifier).map(|tz| match tz {
             TimeZoneRecord::Name(name) => Ok(TimeZone::IanaIdentifier(provider.get(name)?)),
@@ -210,7 +210,7 @@ impl TimeZone {
     /// This is the equivalent to [`ParseTemporalTimeZoneString`](https://tc39.es/proposal-temporal/#sec-temporal-parsetemporaltimezonestring)
     pub fn try_from_str_with_provider(
         src: &str,
-        provider: &impl TimeZoneProvider,
+        provider: &(impl TimeZoneProvider + ?Sized),
     ) -> TemporalResult<Self> {
         if let Ok(timezone) = Self::try_from_identifier_str_with_provider(src, provider) {
             return Ok(timezone);
@@ -227,7 +227,7 @@ impl TimeZone {
     /// Returns the current `TimeZoneSlot`'s identifier.
     pub fn identifier_with_provider(
         &self,
-        provider: &impl TimeZoneProvider,
+        provider: &(impl TimeZoneProvider + ?Sized),
     ) -> TemporalResult<String> {
         Ok(match self {
             TimeZone::IanaIdentifier(s) => provider.identifier(*s)?.into(),
@@ -244,7 +244,7 @@ impl TimeZone {
     /// Get the primary identifier for this timezone
     pub fn primary_identifier_with_provider(
         &self,
-        provider: &impl TimeZoneProvider,
+        provider: &(impl TimeZoneProvider + ?Sized),
     ) -> TemporalResult<Self> {
         Ok(match self {
             TimeZone::IanaIdentifier(s) => TimeZone::IanaIdentifier(provider.canonicalized(*s)?),
@@ -262,7 +262,7 @@ impl TimeZone {
     pub(crate) fn time_zone_equals_with_provider(
         &self,
         other: &Self,
-        provider: &impl TimeZoneProvider,
+        provider: &(impl TimeZoneProvider + ?Sized),
     ) -> TemporalResult<bool> {
         Ok(match (self, other) {
             (TimeZone::IanaIdentifier(one), TimeZone::IanaIdentifier(two)) => {
@@ -282,7 +282,7 @@ impl TimeZone {
     }
 
     /// Get the primary identifier for this timezone
-    pub fn utc_with_provider(provider: &impl TimeZoneProvider) -> Self {
+    pub fn utc_with_provider(provider: &(impl TimeZoneProvider + ?Sized)) -> Self {
         Self::IanaIdentifier(provider.get(b"UTC").unwrap_or_default())
     }
 }
@@ -303,7 +303,7 @@ impl TimeZone {
     pub(crate) fn get_iso_datetime_for(
         &self,
         instant: &Instant,
-        provider: &impl TimeZoneProvider,
+        provider: &(impl TimeZoneProvider + ?Sized),
     ) -> TemporalResult<IsoDateTime> {
         // 1. Let offsetNanoseconds be GetOffsetNanosecondsFor(timeZone, epochNs).
         let nanos = self.get_offset_nanos_for(instant.as_i128(), provider)?;
@@ -321,7 +321,7 @@ impl TimeZone {
     pub(crate) fn get_offset_nanos_for(
         &self,
         utc_epoch: i128,
-        provider: &impl TimeZoneProvider,
+        provider: &(impl TimeZoneProvider + ?Sized),
     ) -> TemporalResult<i128> {
         // 1. Let parseResult be ! ParseTimeZoneIdentifier(timeZone).
         match self {
@@ -340,7 +340,7 @@ impl TimeZone {
     pub(crate) fn get_utc_offset_for(
         &self,
         utc_epoch: i128,
-        provider: &impl TimeZoneProvider,
+        provider: &(impl TimeZoneProvider + ?Sized),
     ) -> TemporalResult<UtcOffset> {
         let offset = self.get_offset_nanos_for(utc_epoch, provider)?;
         let offset = i64::try_from(offset).ok().temporal_unwrap()?;
@@ -351,7 +351,7 @@ impl TimeZone {
         &self,
         local_iso: IsoDateTime,
         disambiguation: Disambiguation,
-        provider: &impl TimeZoneProvider,
+        provider: &(impl TimeZoneProvider + ?Sized),
     ) -> TemporalResult<EpochNanosecondsAndOffset> {
         // 1. Let possibleEpochNs be ? GetPossibleEpochNanoseconds(timeZone, isoDateTime).
         let possible_nanos = self.get_possible_epoch_ns_for(local_iso, provider)?;
@@ -363,7 +363,7 @@ impl TimeZone {
     pub(crate) fn get_possible_epoch_ns_for(
         &self,
         local_iso: IsoDateTime,
-        provider: &impl TimeZoneProvider,
+        provider: &(impl TimeZoneProvider + ?Sized),
     ) -> TemporalResult<CandidateEpochNanoseconds> {
         // 1.Let parseResult be ! ParseTimeZoneIdentifier(timeZone).
         let possible_nanoseconds = match self {
@@ -442,7 +442,7 @@ impl TimeZone {
         nanos: CandidateEpochNanoseconds,
         iso: IsoDateTime,
         disambiguation: Disambiguation,
-        provider: &impl TimeZoneProvider,
+        provider: &(impl TimeZoneProvider + ?Sized),
     ) -> TemporalResult<EpochNanosecondsAndOffset> {
         // 1. Let n be possibleEpochNs's length.
         let valid_bounds = match nanos {
@@ -556,7 +556,7 @@ impl TimeZone {
     pub(crate) fn get_start_of_day(
         &self,
         iso_date: &IsoDate,
-        provider: &impl TimeZoneProvider,
+        provider: &(impl TimeZoneProvider + ?Sized),
     ) -> TemporalResult<EpochNanosecondsAndOffset> {
         // 1. Let isoDateTime be CombineISODateAndTimeRecord(isoDate, MidnightTimeRecord()).
         let iso = IsoDateTime::new_unchecked(*iso_date, IsoTime::default());

@@ -11,7 +11,7 @@ use alloc::{borrow::ToOwned, string::String, vec, vec::Vec};
 use crate::{
     rule::{Rule, Rules},
     zone::ZoneRecord,
-    ZoneInfoData,
+    ZoneInfoData, ZoneTabEntry,
 };
 
 /// The zoneinfo parsing error
@@ -213,6 +213,33 @@ impl<'data> ZoneInfoParser<'data> {
                 let zone = next_split(&mut splits, &context)?;
                 let link = next_split(&mut splits, &context)?;
                 zoneinfo.links.insert(link.to_owned(), zone.to_owned());
+            }
+            self.lines.next();
+            context.line_number += 1;
+        }
+        Ok(zoneinfo)
+    }
+
+    /// Parse the provided lines
+    pub fn parse_zonetab(&mut self) -> Result<ZoneInfoData, ZoneInfoParseError> {
+        let mut zoneinfo = ZoneInfoData::default();
+        let mut context = LineParseContext::default();
+
+        // The allow clippy is used in favor of for so that `ZoneTable` can
+        // iterate and parse it's own lines in `Zone::parse_full_table`.
+        #[allow(clippy::while_let_on_iterator)]
+        while let Some(line) = self.lines.peek() {
+            // Check if line is empty or a comment
+            if !line.is_empty() && !line.starts_with("#") {
+                let mut splits = line.split_whitespace();
+                let country_code = next_split(&mut splits, &context)?;
+                let coordinates_raw = next_split(&mut splits, &context)?;
+                let tz = next_split(&mut splits, &context)?;
+                zoneinfo.zone_tab.push(ZoneTabEntry {
+                    country_code: country_code.into(),
+                    coordinates_raw: coordinates_raw.into(),
+                    tz: tz.into(),
+                })
             }
             self.lines.next();
             context.line_number += 1;

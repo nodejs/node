@@ -2,7 +2,7 @@
 name = "zoneinfo_rs"
 description = "Zoneinfo parser and compiler"
 edition.workspace = true
-version = "0.0.17"
+version = "0.0.18"
 rust-version.workspace = true
 authors.workspace = true
 license.workspace = true
