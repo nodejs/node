@@ -252,6 +252,9 @@
         '<(ABSEIL_ROOT)/absl/strings/internal/cordz_update_tracker.h',
         '<(ABSEIL_ROOT)/absl/strings/internal/damerau_levenshtein_distance.h',
         '<(ABSEIL_ROOT)/absl/strings/internal/damerau_levenshtein_distance.cc',
+        '<(ABSEIL_ROOT)/absl/strings/internal/generic_printer.cc',
+        '<(ABSEIL_ROOT)/absl/strings/internal/generic_printer.h',
+        '<(ABSEIL_ROOT)/absl/strings/internal/generic_printer_internal.h',
         '<(ABSEIL_ROOT)/absl/strings/internal/escaping.h',
         '<(ABSEIL_ROOT)/absl/strings/internal/escaping.cc',
         '<(ABSEIL_ROOT)/absl/strings/internal/memutil.h',
@@ -296,7 +299,6 @@
         '<(ABSEIL_ROOT)/absl/strings/str_split.h',
         '<(ABSEIL_ROOT)/absl/strings/str_split.cc',
         '<(ABSEIL_ROOT)/absl/strings/string_view.h',
-        '<(ABSEIL_ROOT)/absl/strings/string_view.cc',
         '<(ABSEIL_ROOT)/absl/strings/strip.h',
         '<(ABSEIL_ROOT)/absl/strings/substitute.h',
         '<(ABSEIL_ROOT)/absl/strings/substitute.cc',
@@ -369,7 +371,15 @@
         '<(ABSEIL_ROOT)/absl/types/span.h',
         '<(ABSEIL_ROOT)/absl/types/variant.h',
         '<(ABSEIL_ROOT)/absl/utility/utility.h',
-      ]
+      ],
+      'conditions': [
+        ['OS=="win"', {
+          'sources': [
+            '<(ABSEIL_ROOT)/absl/time/internal/cctz/src/time_zone_name_win.h',
+            '<(ABSEIL_ROOT)/absl/time/internal/cctz/src/time_zone_name_win.cc',
+          ],
+        }],
+      ],
     },  # abseil
   ]
 }
