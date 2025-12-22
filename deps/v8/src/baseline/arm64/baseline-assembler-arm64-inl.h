@@ -436,7 +436,7 @@ void BaselineAssembler::StoreTaggedFieldWithWriteBarrier(Register target,
                                                          Register value) {
   ASM_CODE_COMMENT(masm_);
   __ StoreTaggedField(value, FieldMemOperand(target, offset));
-  __ RecordWriteField(target, offset, value, kLRHasNotBeenSaved,
+  __ RecordWriteField(target, offset, value, kLRHasBeenSaved,
                       SaveFPRegsMode::kIgnore);
 }
 

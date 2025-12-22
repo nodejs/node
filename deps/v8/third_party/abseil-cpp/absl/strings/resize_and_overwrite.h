@@ -141,22 +141,8 @@ void StringResizeAndOverwriteFallback(T& str, typename T::size_type n, Op op) {
   str.erase(static_cast<typename T::size_type>(new_size));
 }
 
-}  // namespace strings_internal
-
-// Resizes `str` to contain at most `n` characters, using the user-provided
-// operation `op` to modify the possibly indeterminate contents. `op` must
-// return the finalized length of `str`.
-//
-// Invalidates all iterators, pointers, and references into `str`, regardless
-// of whether reallocation occurs.
-//
-// `op(value_type* buf, size_t buf_size)` is allowed to write `value_type{}` to
-// `buf[buf_size]`, which facilitiates interoperation with functions that write
-// a trailing NUL. Please note that this requirement is more strict than
-// `basic_string::resize_and_overwrite()`, which allows writing an abitrary
-// value to `buf[buf_size]`.
 template <typename T, typename Op>
-void StringResizeAndOverwrite(T& str, typename T::size_type n, Op op) {
+void StringResizeAndOverwriteImpl(T& str, typename T::size_type n, Op op) {
 #ifdef ABSL_INTERNAL_HAS_RESIZE_AND_OVERWRITE
   str.resize_and_overwrite(n, std::move(op));
 #else
@@ -173,12 +159,30 @@ void StringResizeAndOverwrite(T& str, typename T::size_type n, Op op) {
   } else if constexpr (strings_internal::has_Resize_and_overwrite<T>::value) {
     str._Resize_and_overwrite(n, std::move(op));
   } else {
-    strings_internal::StringResizeAndOverwriteFallback(str, n, op);
+    strings_internal::StringResizeAndOverwriteFallback(str, n, std::move(op));
   }
 #endif
+}
+
+}  // namespace strings_internal
+
+// Resizes `str` to contain at most `n` characters, using the user-provided
+// operation `op` to modify the possibly indeterminate contents. `op` must
+// return the finalized length of `str`.
+//
+// Invalidates all iterators, pointers, and references into `str`, regardless
+// of whether reallocation occurs.
+//
+// `op(value_type* buf, size_t buf_size)` is allowed to write `value_type{}` to
+// `buf[buf_size]`, which facilitiates interoperation with functions that write
+// a trailing NUL. Please note that this requirement is more strict than
+// `basic_string::resize_and_overwrite()`, which allows writing an abitrary
+// value to `buf[buf_size]`.
+template <typename T, typename Op>
+void StringResizeAndOverwrite(T& str, typename T::size_type n, Op op) {
+  strings_internal::StringResizeAndOverwriteImpl(str, n, std::move(op));
 #if defined(ABSL_HAVE_MEMORY_SANITIZER)
-  auto shadow = __msan_test_shadow(str.data(), str.size());
-  ABSL_ASSERT(shadow == -1);
+  __msan_check_mem_is_initialized(str.data(), str.size());
 #endif
 }
 

@@ -46,7 +46,7 @@ for (let i = 0; i < kNumDescriptors; i++) {
           kGCPrefix, kExprStructNew, $desc0]);
   let body = [
     kExprGlobalGet, global.index,
-    kGCPrefix, kExprStructNew, $obj0,
+    kGCPrefix, kExprStructNewDesc, $obj0,
   ];
   constructor_funcs[i] =
       builder.addFunction("WasmP", $make_t).addBody(body);

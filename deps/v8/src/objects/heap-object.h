@@ -386,9 +386,13 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   //
   // These are only available when the sandbox is enabled, in which case they
   // are the under-the-hood implementation of trusted pointers.
+
   inline void InitSelfIndirectPointerField(
       size_t offset, IsolateForSandbox isolate,
       TrustedPointerPublishingScope* opt_publishing_scope);
+
+  inline void InitSelfIndirectPointerFieldWithoutPublishing(
+      size_t offset, IsolateForSandbox isolate);
 #endif  // V8_ENABLE_SANDBOX
 
   // Trusted pointers.
@@ -399,60 +403,12 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   // ExposedTrustedObject as (only) these objects can be referenced through the
   // trusted pointer table.
   template <IndirectPointerTag tag>
-  inline auto CastExposedTrustedObjectByTag(Tagged<Object> object) const {
-    if constexpr (tag == kCodeIndirectPointerTag) {
-      return TrustedCast<Code>(object);
-    }
-    if constexpr (tag == kBytecodeArrayIndirectPointerTag) {
-      return TrustedCast<BytecodeArray>(object);
-    }
-    if constexpr (tag == kInterpreterDataIndirectPointerTag) {
-      return TrustedCast<InterpreterData>(object);
-    }
-    if constexpr (tag == kUncompiledDataIndirectPointerTag) {
-      return TrustedCast<UncompiledData>(object);
-    }
-    if constexpr (tag == kRegExpDataIndirectPointerTag) {
-      return TrustedCast<RegExpData>(object);
-    }
-#if V8_ENABLE_WEBASSEMBLY
-    if constexpr (tag == kWasmDispatchTableIndirectPointerTag ||
-                  tag == kSharedWasmDispatchTableIndirectPointerTag) {
-      return TrustedCast<WasmDispatchTable>(object);
-    }
-    if constexpr (tag == kWasmTrustedInstanceDataIndirectPointerTag ||
-                  tag == kSharedWasmTrustedInstanceDataIndirectPointerTag) {
-      return TrustedCast<WasmTrustedInstanceData>(object);
-    }
-    if constexpr (tag == kWasmInternalFunctionIndirectPointerTag) {
-      return TrustedCast<WasmInternalFunction>(object);
-    }
-    if constexpr (tag == kWasmSuspenderIndirectPointerTag) {
-      return TrustedCast<WasmSuspenderObject>(object);
-    }
-    if constexpr (tag == kWasmFunctionDataIndirectPointerTag) {
-      return TrustedCast<WasmFunctionData>(object);
-    }
-#endif  // V8_ENABLE_WEBASSEMBLY
-    UNREACHABLE();
-  }
-
-  template <IndirectPointerTag tag>
   inline auto ReadTrustedPointerField(size_t offset,
-                                      IsolateForSandbox isolate) const {
-    // Currently, trusted pointer loads always use acquire semantics as the
-    // under-the-hood indirect pointer loads use acquire loads anyway.
-    return ReadTrustedPointerField<tag>(offset, isolate, kAcquireLoad);
-  }
+                                      IsolateForSandbox isolate) const;
 
   template <IndirectPointerTag tag>
   inline auto ReadTrustedPointerField(size_t offset, IsolateForSandbox isolate,
-                                      AcquireLoadTag acquire_load) const {
-    Tagged<Object> object =
-        ReadMaybeEmptyTrustedPointerField<tag>(offset, isolate, acquire_load);
-
-    return CastExposedTrustedObjectByTag<tag>(object);
-  }
+                                      AcquireLoadTag acquire_load) const;
 
   // Like ReadTrustedPointerField, but if the field is cleared, this will
   // return Smi::zero().
@@ -659,10 +615,6 @@ IS_TYPE_FUNCTION_DECL(SmallOrderedHashTable)
 IS_TYPE_FUNCTION_DECL(PropertyDictionary)
 IS_TYPE_FUNCTION_DECL(AnyHole)
 #undef IS_TYPE_FUNCTION_DECL
-
-// Predicate for IsAnyHole which can be used on any object type -- the standard
-// IsAnyHole check cannot be used for Code space objects.
-V8_INLINE bool SafeIsAnyHole(Tagged<HeapObject> obj);
 
 // Most calls to Is<Oddball> should go via the Tagged<Object> overloads, withst
 // an Isolate/LocalIsolate/ReadOnlyRoots parameter.

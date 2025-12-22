@@ -14,11 +14,12 @@
 #include "src/handles/handles-inl.h"
 #include "src/heap/factory-inl.h"
 #include "src/logging/runtime-call-stats-scope.h"
-#include "src/objects/api-callbacks.h"
+#include "src/objects/api-callbacks-inl.h"
 #include "src/objects/internal-index.h"
 #include "src/objects/map-inl.h"
 #include "src/objects/name-inl.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/property-details.h"
 
 namespace v8 {
 namespace internal {
@@ -34,23 +35,20 @@ LookupIterator::LookupIterator(Isolate* isolate, DirectHandle<JSAny> receiver,
                                DirectHandle<JSAny> lookup_start_object,
                                Configuration configuration)
     : LookupIterator(isolate, receiver, name, kInvalidIndex,
-                     Cast<JSAny>(lookup_start_object), configuration) {}
+                     lookup_start_object, configuration) {}
 
 LookupIterator::LookupIterator(Isolate* isolate, DirectHandle<JSAny> receiver,
                                size_t index, Configuration configuration)
-    : LookupIterator(isolate, receiver, DirectHandle<Name>(), index, receiver,
-                     configuration) {
-  DCHECK_NE(index, kInvalidIndex);
-}
+    : LookupIterator(isolate, receiver, DirectHandle<Name>(),
+                     AssumeValidIndex(index), receiver, configuration) {}
 
 LookupIterator::LookupIterator(Isolate* isolate, DirectHandle<JSAny> receiver,
                                size_t index,
                                DirectHandle<JSAny> lookup_start_object,
                                Configuration configuration)
-    : LookupIterator(isolate, receiver, DirectHandle<Name>(), index,
-                     Cast<JSAny>(lookup_start_object), configuration) {
-  DCHECK_NE(index, kInvalidIndex);
-}
+    : LookupIterator(isolate, receiver, DirectHandle<Name>(),
+                     AssumeValidIndex(index), lookup_start_object,
+                     configuration) {}
 
 LookupIterator::LookupIterator(Isolate* isolate, DirectHandle<JSAny> receiver,
                                const PropertyKey& key,
@@ -63,7 +61,7 @@ LookupIterator::LookupIterator(Isolate* isolate, DirectHandle<JSAny> receiver,
                                DirectHandle<JSAny> lookup_start_object,
                                Configuration configuration)
     : LookupIterator(isolate, receiver, key.name(), key.index(),
-                     Cast<JSAny>(lookup_start_object), configuration) {}
+                     lookup_start_object, configuration) {}
 
 // This private constructor is the central bottleneck that all the other
 // constructors use.
@@ -71,7 +69,7 @@ LookupIterator::LookupIterator(Isolate* isolate, DirectHandle<JSAny> receiver,
                                DirectHandle<Name> name, size_t index,
                                DirectHandle<JSAny> lookup_start_object,
                                Configuration configuration)
-    : configuration_(ComputeConfiguration(isolate, configuration, name)),
+    : configuration_(ComputeConfiguration(isolate, configuration, index, name)),
       isolate_(isolate),
       name_(name),
       receiver_(receiver),
@@ -382,9 +380,10 @@ InternalIndex LookupIterator::dictionary_entry() const {
 
 // static
 LookupIterator::Configuration LookupIterator::ComputeConfiguration(
-    Isolate* isolate, Configuration configuration, DirectHandle<Name> name) {
-  return (!name.is_null() && name->IsPrivate()) ? OWN_SKIP_INTERCEPTOR
-                                                : configuration;
+    Isolate* isolate, Configuration configuration, size_t index,
+    DirectHandle<Name> name) {
+  if (index != kInvalidIndex) return configuration;
+  return name->IsPrivate() ? OWN_SKIP_INTERCEPTOR : configuration;
 }
 
 template <class T>

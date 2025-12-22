@@ -42,13 +42,12 @@
 
 #include <algorithm>
 #include <atomic>
-#include <iterator>
 
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
-#include "absl/base/internal/low_level_alloc.h"
 #include "absl/base/optimization.h"
 #include "absl/base/port.h"
+#include "absl/debugging/internal/borrowed_fixup_buffer.h"
 #include "absl/debugging/internal/stacktrace_config.h"
 
 #if defined(ABSL_STACKTRACE_INL_HEADER)
@@ -78,29 +77,10 @@ template <bool IS_STACK_FRAMES, bool IS_WITH_CONTEXT>
 ABSL_ATTRIBUTE_ALWAYS_INLINE inline int Unwind(void** result, uintptr_t* frames,
                                                int* sizes, size_t max_depth,
                                                int skip_count, const void* uc,
-                                               int* min_dropped_frames) {
-  static constexpr size_t kMinPageSize = 4096;
-
-  // Allow up to ~half a page, leaving some slack space for local variables etc.
-  static constexpr size_t kMaxStackElements =
-      (kMinPageSize / 2) / (sizeof(*frames) + sizeof(*sizes));
-
-  // Allocate a buffer dynamically, using the signal-safe allocator.
-  static constexpr auto allocate = [](size_t num_bytes) -> void* {
-    base_internal::InitSigSafeArena();
-    return base_internal::LowLevelAlloc::AllocWithArena(
-        num_bytes, base_internal::SigSafeArena());
-  };
-
-  uintptr_t frames_stackbuf[kMaxStackElements];
-  int sizes_stackbuf[kMaxStackElements];
-
-  // We only need to free the buffers if we allocated them with the signal-safe
-  // allocator.
-  bool must_free_frames = false;
-  bool must_free_sizes = false;
-
-  bool unwind_with_fixup = internal_stacktrace::ShouldFixUpStack();
+                                               int* min_dropped_frames,
+                                               bool unwind_with_fixup = true) {
+  unwind_with_fixup =
+      unwind_with_fixup && internal_stacktrace::ShouldFixUpStack();
 
 #ifdef _WIN32
   if (unwind_with_fixup) {
@@ -112,29 +92,17 @@ ABSL_ATTRIBUTE_ALWAYS_INLINE inline int Unwind(void** result, uintptr_t* frames,
   }
 #endif
 
-  if (unwind_with_fixup) {
-    // Some implementations of FixUpStack may need to be passed frame
-    // information from Unwind, even if the caller doesn't need that
-    // information. We allocate the necessary buffers for such implementations
-    // here.
-
-    if (frames == nullptr) {
-      if (max_depth <= std::size(frames_stackbuf)) {
-        frames = frames_stackbuf;
-      } else {
-        frames = static_cast<uintptr_t*>(allocate(max_depth * sizeof(*frames)));
-        must_free_frames = true;
-      }
-    }
-
-    if (sizes == nullptr) {
-      if (max_depth <= std::size(sizes_stackbuf)) {
-        sizes = sizes_stackbuf;
-      } else {
-        sizes = static_cast<int*>(allocate(max_depth * sizeof(*sizes)));
-        must_free_sizes = true;
-      }
-    }
+  // Some implementations of FixUpStack may need to be passed frame
+  // information from Unwind, even if the caller doesn't need that
+  // information. We allocate the necessary buffers for such implementations
+  // here.
+  const internal_stacktrace::BorrowedFixupBuffer fixup_buffer(
+      unwind_with_fixup ? max_depth : 0);
+  if (frames == nullptr) {
+    frames = fixup_buffer.frames();
+  }
+  if (sizes == nullptr) {
+    sizes = fixup_buffer.sizes();
   }
 
   Unwinder g = custom.load(std::memory_order_acquire);
@@ -162,14 +130,6 @@ ABSL_ATTRIBUTE_ALWAYS_INLINE inline int Unwind(void** result, uintptr_t* frames,
     internal_stacktrace::FixUpStack(result, frames, sizes, max_depth, size);
   }
 
-  if (must_free_sizes) {
-    base_internal::LowLevelAlloc::Free(sizes);
-  }
-
-  if (must_free_frames) {
-    base_internal::LowLevelAlloc::Free(frames);
-  }
-
   ABSL_BLOCK_TAIL_CALL_OPTIMIZATION();
   return static_cast<int>(size);
 }
@@ -192,6 +152,14 @@ internal_stacktrace::GetStackFramesWithContext(void** result, uintptr_t* frames,
   return Unwind<true, true>(result, frames, sizes,
                             static_cast<size_t>(max_depth), skip_count, uc,
                             min_dropped_frames);
+}
+
+ABSL_ATTRIBUTE_NOINLINE ABSL_ATTRIBUTE_NO_TAIL_CALL int
+internal_stacktrace::GetStackTraceNoFixup(void** result, int max_depth,
+                                          int skip_count) {
+  return Unwind<false, false>(result, nullptr, nullptr,
+                              static_cast<size_t>(max_depth), skip_count,
+                              nullptr, nullptr, /*unwind_with_fixup=*/false);
 }
 
 ABSL_ATTRIBUTE_NOINLINE ABSL_ATTRIBUTE_NO_TAIL_CALL int GetStackTrace(

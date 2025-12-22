@@ -45,17 +45,13 @@ Address CheckObjectType(Address raw_value, Address raw_type,
     }
   } else {
     Tagged<Object> value(raw_value);
-    if (type == ObjectType::kHole) {
-      if (IsAnyHole(value)) return Smi::FromInt(0).ptr();
-      expected = "any Hole";
-    } else {
-      switch (type) {
-        case ObjectType::kHeapObjectReference:
-          if (!IsSmi(value)) return Smi::FromInt(0).ptr();
-          expected = "HeapObjectReference";
-          break;
-        case ObjectType::kObject:
-          return Smi::FromInt(0).ptr();
+    switch (type) {
+      case ObjectType::kHeapObjectReference:
+        if (!IsSmi(value)) return Smi::FromInt(0).ptr();
+        expected = "HeapObjectReference";
+        break;
+      case ObjectType::kObject:
+        return Smi::FromInt(0).ptr();
 #define TYPE_CASE(Name)                                \
   case ObjectType::k##Name:                            \
     if (Is##Name(value)) return Smi::FromInt(0).ptr(); \
@@ -75,7 +71,6 @@ Address CheckObjectType(Address raw_value, Address raw_type,
           STRUCT_LIST(TYPE_STRUCT_CASE)
 #undef TYPE_CASE
 #undef TYPE_STRUCT_CASE
-      }
     }
   }
   Tagged<MaybeObject> maybe_value(raw_value);

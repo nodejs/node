@@ -91,7 +91,11 @@ void TracingCpuProfilerImpl::StartProfiling() {
   profiler_.reset(new CpuProfiler(isolate_, kDebugNaming));
   profiler_->set_sampling_interval(
       base::TimeDelta::FromMicroseconds(sampling_interval_us));
-  profiler_->StartProfiling("", {kLeafNodeLineNumbers});
+  v8::CpuProfilingOptions options(
+      v8::kLeafNodeLineNumbers, v8::CpuProfilingOptions::kNoSampleLimit,
+      /* sampling_interval_us */ 0, v8::MaybeLocal<v8::Context>(),
+      v8::CpuProfileSource::kInternal);
+  profiler_->StartProfiling("", std::move(options));
 }
 
 void TracingCpuProfilerImpl::StopProfiling() {

@@ -71,17 +71,23 @@ void RegisterSpinLockProfiler(void (*fn)(const void *contendedlock,
 }
 
 // Monitor the lock to see if its value changes within some time period
-// (adaptive_spin_count loop iterations). The last value read from the lock
+// (adaptive_spin_count_ loop iterations). The last value read from the lock
 // is returned from the method.
+ABSL_CONST_INIT std::atomic<int> SpinLock::adaptive_spin_count_{0};
 uint32_t SpinLock::SpinLoop() {
   // We are already in the slow path of SpinLock, initialize the
   // adaptive_spin_count here.
-  ABSL_CONST_INIT static absl::once_flag init_adaptive_spin_count;
-  ABSL_CONST_INIT static int adaptive_spin_count = 0;
-  LowLevelCallOnce(&init_adaptive_spin_count,
-                   []() { adaptive_spin_count = NumCPUs() > 1 ? 1000 : 1; });
-
-  int c = adaptive_spin_count;
+  if (adaptive_spin_count_.load(std::memory_order_relaxed) == 0) {
+    int current_spin_count = 0;
+    int new_spin_count = NumCPUs() > 1 ? 1000 : 1;
+    // If this fails, the value will remain unchanged. We may not spin for the
+    // intended duration, but that is still safe. We will try again on the next
+    // call to SpinLoop.
+    adaptive_spin_count_.compare_exchange_weak(
+        current_spin_count, new_spin_count, std::memory_order_relaxed,
+        std::memory_order_relaxed);
+  }
+  int c = adaptive_spin_count_.load(std::memory_order_relaxed);
   uint32_t lock_value;
   do {
     lock_value = lockword_.load(std::memory_order_relaxed);

@@ -4960,7 +4960,6 @@ void MacroAssembler::StackOverflowCheck(Register num_args, Register scratch1,
   Branch(stack_overflow, le, scratch1, Operand(scratch2));
 }
 
-#ifdef V8_ENABLE_LEAPTIERING
 void MacroAssembler::LoadEntrypointFromJSDispatchTable(Register destination,
                                                        Register dispatch_handle,
                                                        Register scratch) {
@@ -5007,7 +5006,6 @@ void MacroAssembler::LoadEntrypointAndParameterCountFromJSDispatchTable(
   static_assert(JSDispatchEntry::kParameterCountMask == 0xffff);
   Lhu(parameter_count, MemOperand(scratch, JSDispatchEntry::kCodeObjectOffset));
 }
-#endif
 
 void MacroAssembler::TestCodeIsMarkedForDeoptimizationAndJump(
     Register code_data_container, Register scratch, Condition cond,
@@ -5124,7 +5122,6 @@ void MacroAssembler::CheckDebugHook(
   bind(&skip_hook);
 }
 
-#ifdef V8_ENABLE_LEAPTIERING
 void MacroAssembler::InvokeFunction(
     Register function, Register actual_parameter_count, InvokeType type,
     ArgumentAdaptionMode argument_adaption_mode) {
@@ -5217,84 +5214,6 @@ void MacroAssembler::InvokeFunctionCode(
 
   bind(&done);
 }
-#else
-void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
-                                        Register expected_parameter_count,
-                                        Register actual_parameter_count,
-                                        InvokeType type) {
-  // You can't call a function without a valid frame.
-  DCHECK_IMPLIES(type == InvokeType::kCall, has_frame());
-  DCHECK_EQ(function, a1);
-  DCHECK_IMPLIES(new_target.is_valid(), new_target == a3);
-
-  // On function call, call into the debugger if necessary.
-  CheckDebugHook(function, new_target, expected_parameter_count,
-                 actual_parameter_count);
-
-  // Clear the new.target register if not given.
-  if (!new_target.is_valid()) {
-    LoadRoot(a3, RootIndex::kUndefinedValue);
-  }
-
-  InvokePrologue(expected_parameter_count, actual_parameter_count, type);
-  // We call indirectly through the code field in the function to
-  // allow recompilation to take effect without changing any of the
-  // call sites.
-  constexpr int unused_argument_count = 0;
-  switch (type) {
-    case InvokeType::kCall:
-      CallJSFunction(function, unused_argument_count);
-      break;
-    case InvokeType::kJump:
-      JumpJSFunction(function);
-      break;
-  }
-  Label done;
-  // Continue here if InvokePrologue does handle the invocation due to
-  // mismatched parameter counts.
-  bind(&done);
-}
-
-void MacroAssembler::InvokeFunctionWithNewTarget(
-    Register function, Register new_target, Register actual_parameter_count,
-    InvokeType type) {
-  ASM_CODE_COMMENT(this);
-  // You can't call a function without a valid frame.
-  DCHECK_IMPLIES(type == InvokeType::kCall, has_frame());
-
-  // Contract with called JS functions requires that function is passed in a1.
-  DCHECK_EQ(function, a1);
-  Register expected_parameter_count = a2;
-  Register temp_reg = t0;
-  Ld(temp_reg, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
-  Ld(cp, FieldMemOperand(a1, JSFunction::kContextOffset));
-  // The argument count is stored as uint16_t
-  Lhu(expected_parameter_count,
-      FieldMemOperand(temp_reg,
-                      SharedFunctionInfo::kFormalParameterCountOffset));
-
-  InvokeFunctionCode(a1, new_target, expected_parameter_count,
-                     actual_parameter_count, type);
-}
-
-void MacroAssembler::InvokeFunction(Register function,
-                                    Register expected_parameter_count,
-                                    Register actual_parameter_count,
-                                    InvokeType type) {
-  ASM_CODE_COMMENT(this);
-  // You can't call a function without a valid frame.
-  DCHECK_IMPLIES(type == InvokeType::kCall, has_frame());
-
-  // Contract with called JS functions requires that function is passed in a1.
-  DCHECK_EQ(function, a1);
-
-  // Get the function and setup the context.
-  Ld(cp, FieldMemOperand(a1, JSFunction::kContextOffset));
-
-  InvokeFunctionCode(a1, no_reg, expected_parameter_count,
-                     actual_parameter_count, type);
-}
-#endif  // V8_ENABLE_LEAPTIERING
 // ---------------------------------------------------------------------------
 // Support functions.
 
@@ -6395,41 +6314,21 @@ void MacroAssembler::ComputeCodeStartAddress(Register dst) {
 
   pop(ra);  // Restore ra
 }
-// Check if the code object is marked for deoptimization. If it is, then it
-// jumps to the CompileLazyDeoptimizedCode builtin. In order to do this we need
-// to:
-//    1. read from memory the word that contains that bit, which can be found in
-//       the flags in the referenced {Code} object;
-//    2. test kMarkedForDeoptimizationBit in those flags; and
-//    3. if it is not zero then it jumps to the builtin.
-//
-// Note: With leaptiering we simply assert the code is not deoptimized.
-void MacroAssembler::BailoutIfDeoptimized() {
+
+void MacroAssembler::AssertNotDeoptimized() {
   // UseScratchRegisterScope temps(this);
   // Register scratch = temps.Acquire();
-  if (v8_flags.debug_code || !V8_ENABLE_LEAPTIERING_BOOL) {
-    int offset =
-        InstructionStream::kCodeOffset - InstructionStream::kHeaderSize;
-    // LoadProtectedPointerField(
-    //   scratch, MemOperand(kJavaScriptCallCodeStartRegister, offset));
-    Ld(kScratchReg, MemOperand(kJavaScriptCallCodeStartRegister, offset));
-    Lwu(kScratchReg, FieldMemOperand(kScratchReg, Code::kFlagsOffset));
-  }
-#ifdef V8_ENABLE_LEAPTIERING
-  if (v8_flags.debug_code) {
-    Label not_deoptimized;
-    And(kScratchReg, kScratchReg,
-        Operand(1 << Code::kMarkedForDeoptimizationBit));
-    Branch(&not_deoptimized, eq, kScratchReg, Operand(zero_reg));
-    Abort(AbortReason::kInvalidDeoptimizedCode);
-    bind(&not_deoptimized);
-  }
-#else
+  int offset = InstructionStream::kCodeOffset - InstructionStream::kHeaderSize;
+  // LoadProtectedPointerField(
+  //   scratch, MemOperand(kJavaScriptCallCodeStartRegister, offset));
+  Ld(kScratchReg, MemOperand(kJavaScriptCallCodeStartRegister, offset));
+  Lwu(kScratchReg, FieldMemOperand(kScratchReg, Code::kFlagsOffset));
+  Label not_deoptimized;
   And(kScratchReg, kScratchReg,
       Operand(1 << Code::kMarkedForDeoptimizationBit));
-  TailCallBuiltin(Builtin::kCompileLazyDeoptimizedCode, ne, kScratchReg,
-                  Operand(zero_reg));
-#endif
+  Branch(&not_deoptimized, eq, kScratchReg, Operand(zero_reg));
+  Abort(AbortReason::kInvalidDeoptimizedCode);
+  bind(&not_deoptimized);
 }
 
 void MacroAssembler::CallForDeoptimization(Builtin target, int, Label* exit,
@@ -6473,7 +6372,6 @@ void MacroAssembler::JumpCodeObject(Register code_data_container_object,
 void MacroAssembler::CallJSFunction(Register function_object,
                                     uint16_t argument_count) {
   Register code = kJavaScriptCallCodeStartRegister;
-#ifdef V8_ENABLE_LEAPTIERING
   Register dispatch_handle = kJavaScriptCallDispatchHandleRegister;
   Register parameter_count = s1;
   Register scratch = s2;
@@ -6487,24 +6385,14 @@ void MacroAssembler::CallJSFunction(Register function_object,
   SbxCheck(le, AbortReason::kJSSignatureMismatch, parameter_count,
            Operand(argument_count));
   Call(code);
-#else
-  Ld(code, FieldMemOperand(function_object, JSFunction::kCodeOffset));
-  CallCodeObject(code, kJSEntrypointTag);
-#endif
 }
 
 void MacroAssembler::JumpJSFunction(Register function_object,
                                     JumpMode jump_mode) {
-#ifdef V8_ENABLE_LEAPTIERING
   // This implementation is not currently used because callers usually need
   // to load both entry point and parameter count and then do something with
   // the latter before the actual call.
   UNREACHABLE();
-#else
-  Register code = kJavaScriptCallCodeStartRegister;
-  Ld(code, FieldMemOperand(function_object, JSFunction::kCodeOffset));
-  JumpCodeObject(code, kJSEntrypointTag, jump_mode);
-#endif
 }
 
 #ifdef V8_ENABLE_WEBASSEMBLY
@@ -6535,58 +6423,6 @@ void MacroAssembler::CallWasmCodePointer(Register target,
 
 #endif
 
-namespace {
-
-#ifndef V8_ENABLE_LEAPTIERING
-// Only used when leaptiering is disabled.
-void TailCallOptimizedCodeSlot(MacroAssembler* masm,
-                               Register optimized_code_entry, Register scratch1,
-                               Register scratch2) {
-  // ----------- S t a t e -------------
-  //  -- a0 : actual argument count
-  //  -- a3 : new target (preserved for callee if needed, and caller)
-  //  -- a1 : target function (preserved for callee if needed, and caller)
-  // -----------------------------------
-  ASM_CODE_COMMENT(masm);
-  DCHECK(!AreAliased(optimized_code_entry, a1, a3, scratch1, scratch2));
-
-  Label heal_optimized_code_slot;
-
-  // If the optimized code is cleared, go to runtime to update the optimization
-  // marker field.
-  __ LoadWeakValue(optimized_code_entry, optimized_code_entry,
-                   &heal_optimized_code_slot);
-
-  // The entry references a CodeWrapper object. Unwrap it now.
-  __ Ld(optimized_code_entry,
-        FieldMemOperand(optimized_code_entry, CodeWrapper::kCodeOffset));
-
-  // Check if the optimized code is marked for deopt. If it is, call the
-  // runtime to clear it.
-  __ TestCodeIsMarkedForDeoptimizationAndJump(optimized_code_entry, scratch1,
-                                              ne, &heal_optimized_code_slot);
-
-  // Optimized code is good, get it into the closure and link the closure into
-  // the optimized functions list, then tail call the optimized code.
-  // The feedback vector is no longer used, so reuse it as a scratch
-  // register.
-  __ ReplaceClosureCodeWithOptimizedCode(optimized_code_entry, a1, scratch1,
-                                         scratch2);
-
-  static_assert(kJavaScriptCallCodeStartRegister == a2, "ABI mismatch");
-  __ LoadCodeInstructionStart(a2, optimized_code_entry, kJSEntrypointTag);
-  __ Jump(a2);
-
-  // Optimized code slot contains deoptimized code or code is cleared and
-  // optimized code marker isn't updated. Evict the code, update the marker
-  // and re-enter the closure's code.
-  __ bind(&heal_optimized_code_slot);
-  __ GenerateTailCallToReturnedCode(Runtime::kHealOptimizedCodeSlot);
-}
-#endif  // V8_ENABLE_LEAPTIERING
-
-}  // namespace
-
 #ifdef V8_ENABLE_DEBUG_CODE
 void MacroAssembler::AssertFeedbackCell(Register object, Register scratch) {
   if (v8_flags.debug_code) {
@@ -6610,16 +6446,7 @@ void MacroAssembler::ReplaceClosureCodeWithOptimizedCode(
   ASM_CODE_COMMENT(this);
   DCHECK(!AreAliased(optimized_code, closure, scratch1, scratch2));
 
-#ifdef V8_ENABLE_LEAPTIERING
   UNREACHABLE();
-#else
-  // Store code entry in the closure.
-  Sd(optimized_code, FieldMemOperand(closure, JSFunction::kCodeOffset));
-  mov(scratch1, optimized_code);  // Write barrier clobbers scratch1 below.
-  RecordWriteField(closure, JSFunction::kCodeOffset, scratch1, scratch2,
-                   kRAHasNotBeenSaved, SaveFPRegsMode::kIgnore,
-                   SmiCheck::kOmit);
-#endif  // V8_ENABLE_LEAPTIERING
 }
 
 void MacroAssembler::GenerateTailCallToReturnedCode(
@@ -6660,54 +6487,6 @@ void MacroAssembler::GenerateTailCallToReturnedCode(
   LoadCodeInstructionStart(a2, v0, kJSEntrypointTag);
   Jump(a2);
 }
-#ifndef V8_ENABLE_LEAPTIERING
-void MacroAssembler::LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
-    Register flags, Register feedback_vector, CodeKind current_code_kind,
-    Label* flags_need_processing) {
-  ASM_CODE_COMMENT(this);
-  DCHECK(CodeKindCanTierUp(current_code_kind));
-  Register scratch = t2;
-  uint32_t flag_mask =
-      FeedbackVector::FlagMaskForNeedsProcessingCheckFrom(current_code_kind);
-  Lhu(flags, FieldMemOperand(feedback_vector, FeedbackVector::kFlagsOffset));
-  And(scratch, flags, Operand(flag_mask));
-  Branch(flags_need_processing, ne, scratch, Operand(zero_reg));
-}
-
-void MacroAssembler::OptimizeCodeOrTailCallOptimizedCodeSlot(
-    Register flags, Register feedback_vector) {
-  ASM_CODE_COMMENT(this);
-  Label maybe_has_optimized_code, maybe_needs_logging;
-  // Check if optimized code marker is available.
-  {
-    UseScratchRegisterScope temps(this);
-    Register scratch = temps.Acquire();
-    And(scratch, flags,
-        Operand(FeedbackVector::kFlagsTieringStateIsAnyRequested));
-    Branch(&maybe_needs_logging, eq, scratch, Operand(zero_reg));
-  }
-
-  GenerateTailCallToReturnedCode(Runtime::kCompileOptimized);
-
-  bind(&maybe_needs_logging);
-  {
-    UseScratchRegisterScope temps(this);
-    Register scratch = temps.Acquire();
-    And(scratch, flags, Operand(FeedbackVector::LogNextExecutionBit::kMask));
-    Branch(&maybe_has_optimized_code, eq, scratch, Operand(zero_reg));
-  }
-
-  GenerateTailCallToReturnedCode(Runtime::kFunctionLogNextExecution);
-
-  bind(&maybe_has_optimized_code);
-  Register optimized_code_entry = flags;
-  Ld(optimized_code_entry,
-     FieldMemOperand(feedback_vector,
-                     FeedbackVector::kMaybeOptimizedCodeOffset));
-  TailCallOptimizedCodeSlot(this, optimized_code_entry, t3, a5);
-}
-
-#endif  // !V8_ENABLE_LEAPTIERING
 // Calls an API function.  Allocates HandleScope, extracts returned value
 // from handle and propagates exceptions. Clobbers C argument registers
 // and C caller-saved registers. Restores context. On return removes

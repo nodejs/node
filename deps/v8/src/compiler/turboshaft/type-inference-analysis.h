@@ -159,6 +159,7 @@ class TypeInferenceAnalysis {
         case Opcode::kUnreachable:
         case Opcode::kSwitch:
         case Opcode::kMakeTuple:
+        case Opcode::kMajorGCForCompilerTesting:
         case Opcode::kStaticAssert:
         case Opcode::kDebugBreak:
         case Opcode::kDebugPrint:
@@ -289,22 +290,9 @@ class TypeInferenceAnalysis {
   }
 
   void ProcessConstant(OpIndex index, const ConstantOp& constant) {
-    if (constant.kind == ConstantOp::Kind::kFloat64 &&
-        constant.float64().is_hole_nan()) {
-      // TODO(nicohartmann): figure out how to type Float64 NaN holes. Typing
-      // them simply as NaN is not always correct and can lead to replacing NaN
-      // holes with regular NaNs.
-      SetType(index, Type::Any());
-      return;
-    }
-#ifdef V8_ENABLE_UNDEFINED_DOUBLE
-    if (constant.kind == ConstantOp::Kind::kFloat64 &&
-        constant.float64().is_undefined_nan()) {
-      // TODO(nicohartmann): Ignore this case for now.
-      SetType(index, Type::Any());
-      return;
-    }
-#endif  // V8_ENABLE_UNDEFINED_DOUBLE
+    // TODO(nicohartmann): Hole and Undefined NaNs should have special types.
+    // For now we track them as NaNs, but we don't optimize float constants that
+    // contain NaNs.
     Type type = Typer::TypeConstant(constant.kind, constant.storage);
     SetType(index, type);
   }

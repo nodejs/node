@@ -179,7 +179,7 @@ class DictionaryTest : public TestWithHeapInternalsAndContext {
     SimulateFullSpace(heap()->old_space());
 
     // Calling Contains() should not cause GC ever.
-    int gc_count = heap()->gc_count();
+    GCEpoch gc_count = heap()->gc_count();
     CHECK(!table->Contains(key));
     CHECK(gc_count == heap()->gc_count());
 
@@ -213,7 +213,7 @@ class DictionaryTest : public TestWithHeapInternalsAndContext {
     CHECK(IsTheHole(table->Lookup(key), isolate()));
 
     // Calling Put() should request GC by returning a failure.
-    int gc_count = heap()->gc_count();
+    GCEpoch gc_count = heap()->gc_count();
     HashMap::Put(isolate(), table, key, key);
     CHECK(gc_count == heap()->gc_count());
   }

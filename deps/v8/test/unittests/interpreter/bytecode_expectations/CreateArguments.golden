@@ -36,7 +36,7 @@ bytecodes: [
   /*   10 E> */ B(CreateMappedArguments),
                 B(Star0),
   /*   15 S> */ B(LdaZero),
-  /*   31 E> */ B(GetKeyedProperty), R(0), U8(0),
+  /*   31 E> */ B(GetKeyedProperty), R(0), FBV(0),
   /*   35 S> */ B(Return),
 ]
 constant pool: [
@@ -71,14 +71,14 @@ frame size: 2
 parameter count: 2
 bytecode array length: 16
 bytecodes: [
-  /*   10 E> */ B(CreateFunctionContext), U8(0), U8(1),
+  /*   10 E> */ B(CreateFunctionContext), U8(0:SCOPE_INFO_TYPE), U8(1),
                 B(PushContext), R(1),
                 B(Ldar), R(arg0),
-                B(StaCurrentContextSlotNoCell), U8(2),
+                B(StaCurrentContextSlotNoCell), C8(2),
                 B(CreateMappedArguments),
                 B(Star0),
   /*   16 S> */ B(LdaZero),
-  /*   32 E> */ B(GetKeyedProperty), R(0), U8(0),
+  /*   32 E> */ B(GetKeyedProperty), R(0), FBV(0),
   /*   36 S> */ B(Return),
 ]
 constant pool: [
@@ -96,14 +96,14 @@ frame size: 2
 parameter count: 4
 bytecode array length: 20
 bytecodes: [
-  /*   10 E> */ B(CreateFunctionContext), U8(0), U8(3),
+  /*   10 E> */ B(CreateFunctionContext), U8(0:SCOPE_INFO_TYPE), U8(3),
                 B(PushContext), R(1),
                 B(Ldar), R(arg0),
-                B(StaCurrentContextSlotNoCell), U8(4),
+                B(StaCurrentContextSlotNoCell), C8(4),
                 B(Ldar), R(arg1),
-                B(StaCurrentContextSlotNoCell), U8(3),
+                B(StaCurrentContextSlotNoCell), C8(3),
                 B(Ldar), R(arg2),
-                B(StaCurrentContextSlotNoCell), U8(2),
+                B(StaCurrentContextSlotNoCell), C8(2),
                 B(CreateMappedArguments),
                 B(Star0),
   /*   39 S> */ B(Return),

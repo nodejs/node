@@ -132,8 +132,7 @@ class Accessors : public AllStatic {
                                       FieldIndex* field_index);
 
   static MaybeDirectHandle<Object> ReplaceAccessorWithDataProperty(
-      Isolate* isolate, DirectHandle<JSAny> receiver,
-      DirectHandle<JSObject> holder, DirectHandle<Name> name,
+      Isolate* isolate, DirectHandle<JSObject> holder, DirectHandle<Name> name,
       DirectHandle<Object> value);
 
   // Create an AccessorInfo. The setter is optional (can be nullptr).

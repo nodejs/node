@@ -4,7 +4,6 @@
 
 #include <cinttypes>
 #include <cstring>
-#include <type_traits>
 
 #include "include/v8-wasm.h"
 #include "src/base/memory.h"
@@ -17,12 +16,14 @@
 #include "src/objects/property-descriptor.h"
 #include "src/objects/smi.h"
 #include "src/trap-handler/trap-handler.h"
+#include "src/wasm/compilation-hints-generation.h"
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/fuzzing/random-module-generation.h"
 #include "src/wasm/module-compiler.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-code-pointer-table-inl.h"
 #include "src/wasm/wasm-engine.h"
+#include "src/wasm/wasm-module-builder.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-result.h"
@@ -423,6 +424,111 @@ RUNTIME_FUNCTION(Runtime_IsWasmTrapHandlerEnabled) {
 RUNTIME_FUNCTION(Runtime_IsWasmPartialOOBWriteNoop) {
   DisallowGarbageCollection no_gc;
   return isolate->heap()->ToBoolean(wasm::kPartialOOBWritesAreNoops);
+}
+
+RUNTIME_FUNCTION(Runtime_GenerateWasmCompilationHints) {
+  if (!v8_flags.wasm_generate_compilation_hints &&
+      !v8_flags.trace_wasm_generate_compilation_hints) {
+    return ReadOnlyRoots(isolate).undefined_value();
+  }
+  HandleScope scope(isolate);
+  if (args.length() != 1 || !IsWasmInstanceObject(args[0])) {
+    // TODO(manoskouk): What is a more elegant way to report an error here?
+    return CrashUnlessFuzzing(isolate);
+  }
+
+  DisallowGarbageCollection no_gc;
+
+  DirectHandle<WasmInstanceObject> instance = args.at<WasmInstanceObject>(0);
+
+  wasm::NativeModule* native_module =
+      instance->trusted_data(isolate)->native_module();
+  const wasm::WasmModule* module = native_module->module();
+
+  wasm::TransitiveTypeFeedbackProcessor::ProcessAll(
+      isolate, instance->trusted_data(isolate));
+
+  if (v8_flags.trace_wasm_generate_compilation_hints) {
+    int num_imported_functions = module->num_imported_functions;
+    int num_total_functions = static_cast<int>(module->functions.size());
+
+    for (int i = num_imported_functions; i < num_total_functions; i++) {
+      wasm::WasmCodeRefScope code_ref_scope;
+      wasm::WasmCode* code = native_module->GetCode(i);
+      if (code) {
+        DCHECK(code->is_liftoff());
+        base::MutexGuard marked_for_tierup_mutex_guard(
+            &module->marked_for_tierup_mutex);
+        if (module->marked_for_tierup.contains(i)) {
+          PrintF("%d: optimized\n", i);
+        } else {
+          PrintF("%d: compiled\n", i);
+        }
+      } else {
+        PrintF("%d: uncompiled\n", i);
+      }
+    }
+
+    base::MutexGuard mutex(&module->type_feedback.mutex);
+
+    std::unordered_map<uint32_t, wasm::FunctionTypeFeedback>& feedback =
+        module->type_feedback.feedback_for_function;
+
+    for (int func_index = num_imported_functions;
+         func_index < num_total_functions; func_index++) {
+      PrintF("%d", func_index);
+      auto it = feedback.find(func_index);
+      if (it == feedback.end()) {
+        PrintF(" no feedback\n");
+        continue;
+      }
+      PrintF("\n");
+      wasm::FunctionTypeFeedback& feedback_for_function = it->second;
+
+      for (size_t num_slot = 0;
+           num_slot < feedback_for_function.feedback_vector.size();
+           num_slot++) {
+        wasm::CallSiteFeedback& slot =
+            feedback_for_function.feedback_vector[num_slot];
+        int total_count_at_slot = 0;
+        for (int call = 0; call < slot.num_cases(); call++) {
+          total_count_at_slot += slot.call_count(call);
+        }
+
+        PrintF(
+            "  slot %d, offset %d: total relative call count %lf\n",
+            static_cast<int>(num_slot),
+            module->feedback_slots_to_wire_byte_offsets[func_index][num_slot],
+            static_cast<double>(total_count_at_slot) /
+                feedback_for_function.num_invocations);
+        if (feedback_for_function.call_targets[num_slot] !=
+                wasm::FunctionTypeFeedback::kCallIndirect &&
+            feedback_for_function.call_targets[num_slot] !=
+                wasm::FunctionTypeFeedback::kCallRef) {
+          PrintF("    direct call to %d\n", slot.function_index(0));
+        } else {
+          for (int call = 0; call < slot.num_cases(); call++) {
+            // We floor the percentage so we do not end up with a sum of over
+            // 100.
+            PrintF("    call to %d, percentage %d\n", slot.function_index(call),
+                   static_cast<int>(
+                       std::floor(static_cast<double>(slot.call_count(call)) *
+                                  100 / total_count_at_slot)));
+          }
+        }
+      }
+    }
+  }
+
+  if (v8_flags.wasm_generate_compilation_hints) {
+    AccountingAllocator allocator;
+    Zone zone{&allocator, "wasm::EmitCompilationHintsToBuffer"};
+    wasm::ZoneBuffer buffer{&zone};
+    wasm::EmitCompilationHintsToBuffer(buffer, native_module);
+    wasm::WriteCompilationHintsToFile(buffer, native_module);
+  }
+
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_GetWasmRecoveredTrapCount) {

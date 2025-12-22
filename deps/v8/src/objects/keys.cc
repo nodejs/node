@@ -272,8 +272,8 @@ Maybe<bool> KeyAccumulator::CollectKeys(DirectHandle<JSReceiver> receiver,
       result = CollectOwnJSProxyKeys(receiver, Cast<JSProxy>(current));
     } else if (IsWasmObject(*current)) {
       if (mode_ == KeyCollectionMode::kIncludePrototypes) {
-        RETURN_FAILURE(isolate_, kThrowOnError,
-                       NewTypeError(MessageTemplate::kWasmObjectsAreOpaque));
+        // No keys to report, also no reason to stop iterating.
+        result = Just(true);
       } else {
         DCHECK_EQ(KeyCollectionMode::kOwnOnly, mode_);
         DCHECK_EQ(result, Just(false));  // Stop iterating.
@@ -731,9 +731,8 @@ bool FastKeyAccumulator::TryPrototypeInfoCache(
 
 V8_WARN_UNUSED_RESULT ExceptionStatus
 KeyAccumulator::FilterForEnumerableProperties(
-    DirectHandle<JSReceiver> receiver, DirectHandle<JSObject> object,
-    DirectHandle<InterceptorInfo> interceptor, DirectHandle<JSObject> result,
-    IndexedOrNamed type) {
+    PropertyCallbackArguments& args, DirectHandle<InterceptorInfo> interceptor,
+    DirectHandle<JSObject> result, IndexedOrNamed type) {
   DCHECK(IsJSArray(*result) || result->HasSloppyArgumentsElements());
   ElementsAccessor* accessor = result->GetElementsAccessor();
 
@@ -741,10 +740,7 @@ KeyAccumulator::FilterForEnumerableProperties(
   for (InternalIndex entry : InternalIndex::Range(length)) {
     if (!accessor->HasEntry(isolate(), *result, entry)) continue;
 
-    // args are invalid after args.Call(), create a new one in every iteration.
     // Query callbacks are not expected to have side effects.
-    PropertyCallbackArguments args(isolate_, interceptor->data(), *receiver,
-                                   *object, Just(kDontThrow));
     DirectHandle<Object> element = accessor->Get(isolate_, result, entry);
     DirectHandle<Object> attributes;
     if (type == kIndexed) {
@@ -773,33 +769,38 @@ KeyAccumulator::FilterForEnumerableProperties(
 Maybe<bool> KeyAccumulator::CollectInterceptorKeysInternal(
     DirectHandle<JSReceiver> receiver, DirectHandle<JSObject> object,
     DirectHandle<InterceptorInfo> interceptor, IndexedOrNamed type) {
-  PropertyCallbackArguments enum_args(isolate_, interceptor->data(), *receiver,
-                                      *object, Just(kDontThrow));
+  PropertyCallbackArguments args(isolate_, *receiver, GetHolderForApi(*object),
+                                 Just(kDontThrow));
 
   DCHECK_EQ(interceptor->is_named(), type == kNamed);
   if (!interceptor->has_enumerator()) {
     return Just(true);
   }
-  DirectHandle<JSObjectOrUndefined> maybe_result;
-  if (type == kIndexed) {
-    maybe_result = enum_args.CallIndexedEnumerator(interceptor);
-  } else {
-    DCHECK_EQ(type, kNamed);
-    maybe_result = enum_args.CallNamedEnumerator(interceptor);
+  DirectHandle<JSObject> result;
+  {
+    DirectHandle<JSObjectOrUndefined> maybe_result;
+    if (type == kIndexed) {
+      maybe_result = args.CallIndexedEnumerator(interceptor);
+    } else {
+      DCHECK_EQ(type, kNamed);
+      maybe_result = args.CallNamedEnumerator(interceptor);
+    }
+    // An exception was thrown in the interceptor. Propagate.
+    RETURN_VALUE_IF_EXCEPTION_DETECTOR(isolate_, args, Nothing<bool>());
+    if (IsUndefined(*maybe_result)) return Just(true);
+    DCHECK(IsJSObject(*maybe_result));
+    result = Cast<JSObject>(maybe_result);
   }
-  // An exception was thrown in the interceptor. Propagate.
-  RETURN_VALUE_IF_EXCEPTION_DETECTOR(isolate_, enum_args, Nothing<bool>());
-  if (IsUndefined(*maybe_result)) return Just(true);
-  DCHECK(IsJSObject(*maybe_result));
-  DirectHandle<JSObject> result = Cast<JSObject>(maybe_result);
-
   // Request was successfully intercepted, so accept potential side effects
   // happened up to this point.
-  enum_args.AcceptSideEffects();
+  args.AcceptSideEffects();
 
   if ((filter_ & ONLY_ENUMERABLE) && interceptor->has_query()) {
-    RETURN_NOTHING_IF_NOT_SUCCESSFUL(FilterForEnumerableProperties(
-        receiver, object, interceptor, result, type));
+    // Create a new handle for the result object, since we are going to reuse
+    // |args| object where |result| handle is currently located.
+    result = direct_handle(Cast<JSObject>(*result), isolate_);
+    RETURN_NOTHING_IF_NOT_SUCCESSFUL(
+        FilterForEnumerableProperties(args, interceptor, result, type));
   } else {
     RETURN_NOTHING_IF_NOT_SUCCESSFUL(AddKeys(
         result, type == kIndexed ? CONVERT_TO_ARRAY_INDEX : DO_NOT_CONVERT));

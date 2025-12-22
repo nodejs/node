@@ -132,7 +132,7 @@ TEST_F(ConservativeStackVisitorTest, DirectBasePointer) {
   // Ensure the heap is iterable before CSS.
   SafepointScope safepoint_scope(isolate(),
                                  kGlobalSafepointForSharedSpaceIsolate);
-  heap()->MakeHeapIterable();
+  heap()->MakeHeapIterable(CompleteSweepingReason::kTesting);
 
   {
     volatile Address regular_ptr = recorder->base_address(kRegularObject);
@@ -160,7 +160,7 @@ TEST_F(ConservativeStackVisitorTest, TaggedBasePointer) {
   // Ensure the heap is iterable before CSS.
   SafepointScope safepoint_scope(isolate(),
                                  kGlobalSafepointForSharedSpaceIsolate);
-  heap()->MakeHeapIterable();
+  heap()->MakeHeapIterable(CompleteSweepingReason::kTesting);
 
   {
     volatile Address regular_ptr = recorder->tagged_address(kRegularObject);
@@ -188,7 +188,7 @@ TEST_F(ConservativeStackVisitorTest, InnerPointer) {
   // Ensure the heap is iterable before CSS.
   SafepointScope safepoint_scope(isolate(),
                                  kGlobalSafepointForSharedSpaceIsolate);
-  heap()->MakeHeapIterable();
+  heap()->MakeHeapIterable(CompleteSweepingReason::kTesting);
 
   {
     volatile Address regular_ptr = recorder->inner_address(kRegularObject);
@@ -218,7 +218,7 @@ TEST_F(ConservativeStackVisitorTest, HalfWord1) {
   // Ensure the heap is iterable before CSS.
   SafepointScope safepoint_scope(isolate(),
                                  kGlobalSafepointForSharedSpaceIsolate);
-  heap()->MakeHeapIterable();
+  heap()->MakeHeapIterable(CompleteSweepingReason::kTesting);
 
   {
     volatile uint32_t regular_ptr[] = {recorder->compr_address(kRegularObject),
@@ -248,7 +248,7 @@ TEST_F(ConservativeStackVisitorTest, HalfWord2) {
   // Ensure the heap is iterable before CSS.
   SafepointScope safepoint_scope(isolate(),
                                  kGlobalSafepointForSharedSpaceIsolate);
-  heap()->MakeHeapIterable();
+  heap()->MakeHeapIterable(CompleteSweepingReason::kTesting);
 
   {
     volatile uint32_t regular_ptr[] = {0,
@@ -278,7 +278,7 @@ TEST_F(ConservativeStackVisitorTest, InnerHalfWord1) {
   // Ensure the heap is iterable before CSS.
   SafepointScope safepoint_scope(isolate(),
                                  kGlobalSafepointForSharedSpaceIsolate);
-  heap()->MakeHeapIterable();
+  heap()->MakeHeapIterable(CompleteSweepingReason::kTesting);
 
   {
     volatile uint32_t regular_ptr[] = {recorder->compr_inner(kRegularObject),
@@ -308,7 +308,7 @@ TEST_F(ConservativeStackVisitorTest, InnerHalfWord2) {
   // Ensure the heap is iterable before CSS.
   SafepointScope safepoint_scope(isolate(),
                                  kGlobalSafepointForSharedSpaceIsolate);
-  heap()->MakeHeapIterable();
+  heap()->MakeHeapIterable(CompleteSweepingReason::kTesting);
 
   {
     volatile uint32_t regular_ptr[] = {0,

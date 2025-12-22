@@ -21,8 +21,9 @@ const typeFuncIRef2I = makeSig(
   [kWasmI32, wasmRefType(typeII2I)],
   [kWasmI32]);
 moduleBuilder.addFunction("callRef", typeFuncIRef2I)
-  // The sum of the locals in callRef and callIndirect must be > 40000+25524 = 65524 = 0xFFF4
-  .addLocals(kWasmI64, 40000)
+  // The sum of the locals in callRef and callIndirect must be
+  // larger than 40000+25524 = 65524 = 0xFFF4.
+  .addLocals(kWasmI32, 40000)
   .addBody([
     kExprI32Const, 12,
     kExprLocalGet, 0,
@@ -31,7 +32,7 @@ moduleBuilder.addFunction("callRef", typeFuncIRef2I)
   ])
   .exportFunc();
 moduleBuilder.addFunction("callRef2", typeII2I)
-  .addLocals(kWasmI64, 25525)
+  .addLocals(kWasmI32, 25525)
   .addBody([
     kExprI32Const, 13,
     kExprLocalGet, 0,

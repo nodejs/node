@@ -48,7 +48,7 @@ bytecodes: [
   /*   34 S> */ B(LdaZero),
                 B(Star0),
                 B(LdaSmi), I8(1),
-  /*   43 E> */ B(TestLessThan), R(0), U8(0),
+  /*   43 E> */ B(TestLessThan), R(0), FBV(0),
                 B(JumpIfFalse), U8(6),
                 B(LdaSmi), I8(2),
                 B(Jump), U8(4),

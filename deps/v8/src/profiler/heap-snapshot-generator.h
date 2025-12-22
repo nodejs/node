@@ -427,6 +427,16 @@ class V8_EXPORT_PRIVATE V8HeapExplorer : public HeapEntriesAllocator {
   void PopulateLineEnds();
   bool IterateAndExtractReferences(HeapSnapshotGenerator* generator);
 
+  struct NativeContextTagInfo {
+    // The tag is an addition provided by the embedder to identify the context.
+    // Typically it's the URL of the iframe or the main thread.
+    const char* tag;
+    // The postfix gives additional internal information about the object, e.g.
+    // that this object is a prototype ("prototype"), or this object is not yet
+    // used but already exists in an internal cache ("internal cache").
+    const char* postfix;
+  };
+
   using TemporaryNativeContextTags =
       std::vector<std::pair<v8::Global<v8::Context>, const char*>>;
   // Modifies heap. Must not be run during heap traversal. Collects a temporary
@@ -596,7 +606,7 @@ class V8_EXPORT_PRIVATE V8HeapExplorer : public HeapEntriesAllocator {
   HeapObjectsMap* heap_object_map_;
   SnapshottingProgressReportingInterface* progress_;
   HeapSnapshotGenerator* generator_ = nullptr;
-  std::unordered_map<Tagged<NativeContext>, const char*, Object::Hasher>
+  std::unordered_map<Tagged<HeapObject>, NativeContextTagInfo, Object::Hasher>
       native_context_tag_map_;
   UnorderedHeapObjectMap<const char*> strong_gc_subroot_names_;
   std::unordered_set<Tagged<NativeContext>, Object::Hasher> user_roots_;

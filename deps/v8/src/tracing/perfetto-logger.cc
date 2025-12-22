@@ -7,10 +7,6 @@
 #include <memory>
 
 #include "absl/container/flat_hash_map.h"
-#include "protos/perfetto/common/builtin_clock.pbzero.h"
-#include "protos/perfetto/trace/chrome/v8.pbzero.h"
-#include "protos/perfetto/trace/trace_packet.pbzero.h"
-#include "protos/perfetto/trace/trace_packet_defaults.pbzero.h"
 #include "src/base/logging.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/platform.h"
@@ -30,6 +26,7 @@
 #include "src/objects/tagged.h"
 #include "src/tracing/code-data-source.h"
 #include "src/tracing/code-trace-context.h"
+#include "src/tracing/perfetto-sdk.h"
 #include "src/tracing/perfetto-utils.h"
 
 #if V8_ENABLE_WEBASSEMBLY

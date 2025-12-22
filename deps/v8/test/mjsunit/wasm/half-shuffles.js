@@ -274,6 +274,22 @@ const shuffle_8x8_tests = [
     name: "DupLow_Lane12_Input1",
     shuffle: [28, 28, 28, 28, 28, 28, 28, 28],
   },
+  {
+    name: "8x8DeinterleaveEvenEven",
+    shuffle: [0, 4, 8, 12, 16, 20, 24, 28],
+  },
+  {
+    name: "8x8DeinterleaveOddEven",
+    shuffle: [1, 5, 9, 13, 17, 21, 25, 29],
+  },
+  {
+    name: "8x8DeinterleaveEvenOdd",
+    shuffle: [2, 6, 10, 14, 18, 22, 26, 30],
+  },
+  {
+    name: "8x8DeinterleaveOddOdd",
+    shuffle: [3, 7, 11, 15, 19, 23, 27, 31],
+  },
 ];
 
 (function Shuffle8x8TestAll() {

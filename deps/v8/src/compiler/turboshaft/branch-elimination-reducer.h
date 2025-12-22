@@ -371,6 +371,10 @@ class BranchEliminationReducer : public Next {
       goto no_change;
     }
 
+    if (!__ CanCreateNVariables(destination_origin->OpCountUpperBound())) {
+      goto no_change;
+    }
+
     if (const BranchOp* branch = last_op.template TryCast<BranchOp>()) {
       V<Word32> condition =
           __ template MapToNewGraph<true>(branch->condition());

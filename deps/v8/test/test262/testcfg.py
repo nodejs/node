@@ -42,7 +42,6 @@ from testrunner.outproc import test262
 #
 # Multiple flags are allowed, separated by space.
 FEATURE_FLAGS = {
-    'Intl.Locale-info': '--harmony-intl-locale-info-func',
     'FinalizationRegistry': '--harmony-weak-refs-with-cleanup-some',
     'WeakRef': '--harmony-weak-refs-with-cleanup-some',
     'host-gc-required': '--expose-gc-as=v8GC',

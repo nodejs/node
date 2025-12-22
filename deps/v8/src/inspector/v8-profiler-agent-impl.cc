@@ -465,7 +465,11 @@ void V8ProfilerAgentImpl::startProfiling(const String16& title) {
     if (interval) m_profiler->SetSamplingInterval(interval);
   }
   ++m_startedProfilesCount;
-  m_profiler->StartProfiling(toV8String(m_isolate, title), true);
+  v8::CpuProfilingOptions options(
+      v8::kLeafNodeLineNumbers, v8::CpuProfilingOptions::kNoSampleLimit,
+      /* sampling_interval_us */ 0, v8::MaybeLocal<v8::Context>(),
+      v8::CpuProfileSource::kInspector);
+  m_profiler->StartProfiling(toV8String(m_isolate, title), std::move(options));
 }
 
 std::unique_ptr<protocol::Profiler::Profile> V8ProfilerAgentImpl::stopProfiling(

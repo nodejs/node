@@ -261,9 +261,9 @@ bytecodes: [
   /*   73 S> */ B(Ldar), R(0),
                 B(JumpIfUndefined), U8(11),
   /*   92 S> */ B(Ldar), R(1),
-                B(Inc), U8(0),
+                B(Inc), FBV(0),
                 B(Star1),
-  /*   64 E> */ B(JumpLoop), U8(9), I8(0), U8(1),
+  /*   64 E> */ B(JumpLoop), U8(9), I8(0), FBV(1),
                 B(LdaUndefined),
   /*   99 S> */ B(Return),
 ]

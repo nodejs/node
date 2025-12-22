@@ -46,8 +46,11 @@ struct JSOperatorGlobalCache;
 #define JS_BINOP_WITH_FEEDBACK(V) \
   JS_ARITH_BINOP_LIST(V)          \
   JS_BITWISE_BINOP_LIST(V)        \
-  JS_COMPARE_BINOP_LIST(V)        \
+  JS_COMPARE_BINOP_COMMON_LIST(V) \
   V(JSInstanceOf, InstanceOf)
+
+#define JS_BINOP_WITH_EMBEDDED_FEEDBACK(V) \
+  JS_COMPARE_BINOP_WITH_EMBEDDED_FEEDBACK_LIST(V)
 
 // Predicates.
 class JSOperator final : public AllStatic {
@@ -70,6 +73,19 @@ class JSOperator final : public AllStatic {
     return true;
     switch (opcode) {
       JS_BINOP_WITH_FEEDBACK(CASE);
+      JS_BINOP_WITH_EMBEDDED_FEEDBACK(CASE);
+      default:
+        return false;
+    }
+#undef CASE
+  }
+
+  static constexpr bool IsBinaryWithEmbeddedFeedback(Operator::Opcode opcode) {
+#define CASE(Name, ...)   \
+  case IrOpcode::k##Name: \
+    return true;
+    switch (opcode) {
+      JS_BINOP_WITH_EMBEDDED_FEEDBACK(CASE);
       default:
         return false;
     }
@@ -440,6 +456,27 @@ size_t hash_value(FeedbackParameter const&);
 std::ostream& operator<<(std::ostream&, FeedbackParameter const&);
 
 const FeedbackParameter& FeedbackParameterOf(const Operator* op);
+
+class EmbeddedHintParameter final {
+ public:
+  using EmbeddedHint = std::variant<CompareOperationHint>;
+  explicit EmbeddedHintParameter(const CompareOperationHint hint)
+      : hint_(hint) {}
+
+  const EmbeddedHint& hint() const { return hint_; }
+
+ private:
+  const EmbeddedHint hint_;
+};
+
+bool operator==(EmbeddedHintParameter const&, EmbeddedHintParameter const&);
+bool operator!=(EmbeddedHintParameter const&, EmbeddedHintParameter const&);
+
+size_t hash_value(EmbeddedHintParameter const&);
+
+std::ostream& operator<<(std::ostream&, EmbeddedHintParameter const&);
+
+const EmbeddedHintParameter& EmbeddedHintParameterOf(const Operator* op);
 
 // Defines the property of an object for a named access. This is
 // used as a parameter by the JSLoadNamed and JSSetNamedProperty operators.
@@ -837,6 +874,26 @@ std::ostream& operator<<(std::ostream&, GetIteratorParameters const&);
 
 const GetIteratorParameters& GetIteratorParametersOf(const Operator* op);
 
+class ForOfNextParameters final {
+ public:
+  ForOfNextParameters(const FeedbackSource& call_feedback)
+      : call_feedback_(call_feedback) {}
+
+  FeedbackSource const& callFeedback() const { return call_feedback_; }
+
+ private:
+  FeedbackSource const call_feedback_;
+};
+
+bool operator==(ForOfNextParameters const&, ForOfNextParameters const&);
+bool operator!=(ForOfNextParameters const&, ForOfNextParameters const&);
+
+size_t hash_value(ForOfNextParameters const&);
+
+std::ostream& operator<<(std::ostream&, ForOfNextParameters const&);
+
+const ForOfNextParameters& ForOfNextParametersOf(const Operator* op);
+
 enum class ForInMode : uint8_t {
   kUseEnumCacheKeysAndIndices,
   kUseEnumCacheKeys,
@@ -923,6 +980,7 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
 
   const Operator* Equal(FeedbackSource const& feedback);
   const Operator* StrictEqual(FeedbackSource const& feedback);
+  const Operator* StrictEqual(const CompareOperationHint feedback);
   const Operator* LessThan(FeedbackSource const& feedback);
   const Operator* GreaterThan(FeedbackSource const& feedback);
   const Operator* LessThanOrEqual(FeedbackSource const& feedback);
@@ -1100,7 +1158,7 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* ForInNext(ForInMode mode, const FeedbackSource& feedback);
   const Operator* ForInPrepare(ForInMode mode, const FeedbackSource& feedback);
 
-  const Operator* ForOfNext();
+  const Operator* ForOfNext(FeedbackSource const& call_feedback);
 
   const Operator* LoadMessage();
   const Operator* StoreMessage();
@@ -1218,8 +1276,30 @@ class JSBinaryOpNode final : public JSNodeWrapperBase {
 #undef INPUTS
 };
 
+class JSBinaryOpWithEmbeddedFeedbackNode final : JSNodeWrapperBase {
+ public:
+  explicit constexpr JSBinaryOpWithEmbeddedFeedbackNode(Node* node)
+      : JSNodeWrapperBase(node) {
+    DCHECK(JSOperator::IsBinaryWithEmbeddedFeedback(node->opcode()));
+  }
+
+  const EmbeddedHintParameter& Parameters() const {
+    return EmbeddedHintParameterOf(node()->op());
+  }
+
+#define INPUTS(V)          \
+  V(Left, left, 0, Object) \
+  V(Right, right, 1, Object)
+  INPUTS(DEFINE_INPUT_ACCESSORS)
+#undef INPUTS
+};
+
 #define V(JSName, ...) using JSName##Node = JSBinaryOpNode;
 JS_BINOP_WITH_FEEDBACK(V)
+#undef V
+
+#define V(JSName, ...) using JSName##Node = JSBinaryOpWithEmbeddedFeedbackNode;
+JS_BINOP_WITH_EMBEDDED_FEEDBACK(V)
 #undef V
 
 class JSGetIteratorNode final : public JSNodeWrapperBase {
@@ -1235,6 +1315,24 @@ class JSGetIteratorNode final : public JSNodeWrapperBase {
 #define INPUTS(V)                  \
   V(Receiver, receiver, 0, Object) \
   V(FeedbackVector, feedback_vector, 1, HeapObject)
+  INPUTS(DEFINE_INPUT_ACCESSORS)
+#undef INPUTS
+};
+
+class JSForOfNextNode final : public JSNodeWrapperBase {
+ public:
+  explicit constexpr JSForOfNextNode(Node* node) : JSNodeWrapperBase(node) {
+    DCHECK_EQ(IrOpcode::kJSForOfNext, node->opcode());
+  }
+
+  const ForOfNextParameters& Parameters() const {
+    return ForOfNextParametersOf(node()->op());
+  }
+
+#define INPUTS(V)                       \
+  V(Iterator, iterator, 0, Object)      \
+  V(NextMethod, next_method, 1, Object) \
+  V(FeedbackVector, feedback_vector, 2, HeapObject)
   INPUTS(DEFINE_INPUT_ACCESSORS)
 #undef INPUTS
 };

@@ -31,6 +31,20 @@ using ::v8::Value;
 
 namespace {
 
+// This tag value has been picked arbitrarily between 0 and
+// V8_EXTERNAL_POINTER_TAG_COUNT.
+constexpr v8::ExternalPointerTypeTag kTestConfigTag = 14;
+
+template <typename T, typename U>
+T* GetData(const v8::PropertyCallbackInfo<U>& info) {
+  return reinterpret_cast<T*>(
+      v8::External::Cast(*info.Data())->Value(kTestConfigTag));
+}
+
+v8::Local<v8::External> MakeData(v8::Isolate* isolate, void* pointer) {
+  return v8::External::New(isolate, pointer, kTestConfigTag);
+}
+
 constexpr v8::EmbedderDataTypeTag kApiInterceptorTag = 1;
 
 void Returns42(const v8::FunctionCallbackInfo<v8::Value>& info) {
@@ -139,7 +153,7 @@ v8::Intercepted InterceptorGetter(
   for (i = 0; name_str[i] && prefix[i]; ++i) {
     if (name_str[i] != prefix[i]) return v8::Intercepted::kNo;
   }
-  Local<Object> self = info.This().As<Object>();
+  Local<Object> self = info.HolderV2().As<Object>();
   info.GetReturnValue().Set(
       self->GetPrivate(
               info.GetIsolate()->GetCurrentContext(),
@@ -165,13 +179,17 @@ v8::Intercepted InterceptorSetter(Local<Name> generic_name, Local<Value> value,
 
   Local<Context> context = info.GetIsolate()->GetCurrentContext();
   if (value->IsInt32() && value->Int32Value(context).FromJust() < 10000) {
-    Local<Object> self = info.This().As<Object>();
+    Local<Object> self = info.HolderV2().As<Object>();
     Local<v8::Private> symbol = v8::Private::ForApi(info.GetIsolate(), name);
     self->SetPrivate(context, symbol, value).FromJust();
     return v8::Intercepted::kYes;
   }
   return v8::Intercepted::kNo;
 }
+
+// Allow usages of v8::PropertyCallbackInfo<T>::This() for now.
+// TODO(https://crbug.com/455600234): remove.
+START_ALLOW_USE_DEPRECATED()
 
 v8::Intercepted GenericInterceptorGetter(
     Local<Name> generic_name, const v8::PropertyCallbackInfo<v8::Value>& info) {
@@ -195,6 +213,10 @@ v8::Intercepted GenericInterceptorGetter(
   return v8::Intercepted::kYes;
 }
 
+// Allow usages of v8::PropertyCallbackInfo<T>::This() for now.
+// TODO(https://crbug.com/455600234): remove.
+END_ALLOW_USE_DEPRECATED()
+
 v8::Intercepted GenericInterceptorSetter(
     Local<Name> generic_name, Local<Value> value,
     const v8::PropertyCallbackInfo<void>& info) {
@@ -212,7 +234,7 @@ v8::Intercepted GenericInterceptorSetter(
     str = String::Concat(info.GetIsolate(), v8_str("_str_"), name);
   }
 
-  Local<Object> self = info.This().As<Object>();
+  Local<Object> self = info.HolderV2().As<Object>();
   self->Set(info.GetIsolate()->GetCurrentContext(), str, value).FromJust();
   return v8::Intercepted::kYes;
 }
@@ -246,6 +268,10 @@ void AddInterceptor(Local<FunctionTemplate> templ,
 
 v8::Global<v8::Object> bottom_global;
 
+// Allow usages of v8::PropertyCallbackInfo<T>::This() for now.
+// TODO(https://crbug.com/455600234): remove.
+START_ALLOW_USE_DEPRECATED()
+
 v8::Intercepted CheckThisIndexedPropertyHandler(
     uint32_t index, const v8::PropertyCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
@@ -254,6 +280,7 @@ v8::Intercepted CheckThisIndexedPropertyHandler(
   CHECK(info.This()
             ->Equals(isolate->GetCurrentContext(), bottom_global.Get(isolate))
             .FromJust());
+  // CHECK_EQ(info.This(), info.HolderV2());
   return v8::Intercepted::kNo;
 }
 
@@ -277,6 +304,7 @@ v8::Intercepted CheckThisIndexedPropertyDefiner(
   CHECK(info.This()
             ->Equals(isolate->GetCurrentContext(), bottom_global.Get(isolate))
             .FromJust());
+  CHECK_EQ(info.This(), info.HolderV2());
   return v8::Intercepted::kNo;
 }
 
@@ -289,6 +317,7 @@ v8::Intercepted CheckThisNamedPropertyDefiner(
   CHECK(info.This()
             ->Equals(isolate->GetCurrentContext(), bottom_global.Get(isolate))
             .FromJust());
+  CHECK_EQ(info.This(), info.HolderV2());
   return v8::Intercepted::kNo;
 }
 
@@ -301,6 +330,7 @@ v8::Intercepted CheckThisIndexedPropertySetter(
   CHECK(info.This()
             ->Equals(isolate->GetCurrentContext(), bottom_global.Get(isolate))
             .FromJust());
+  CHECK_EQ(info.This(), info.HolderV2());
   return v8::Intercepted::kNo;
 }
 
@@ -313,6 +343,7 @@ v8::Intercepted CheckThisNamedPropertySetter(
   CHECK(info.This()
             ->Equals(isolate->GetCurrentContext(), bottom_global.Get(isolate))
             .FromJust());
+  CHECK_EQ(info.This(), info.HolderV2());
   return v8::Intercepted::kNo;
 }
 
@@ -324,6 +355,7 @@ v8::Intercepted CheckThisIndexedPropertyDescriptor(
   CHECK(info.This()
             ->Equals(isolate->GetCurrentContext(), bottom_global.Get(isolate))
             .FromJust());
+  CHECK_EQ(info.This(), info.HolderV2());
   return v8::Intercepted::kNo;
 }
 
@@ -335,6 +367,7 @@ v8::Intercepted CheckThisNamedPropertyDescriptor(
   CHECK(info.This()
             ->Equals(isolate->GetCurrentContext(), bottom_global.Get(isolate))
             .FromJust());
+  CHECK_EQ(info.This(), info.HolderV2());
   return v8::Intercepted::kNo;
 }
 
@@ -346,6 +379,7 @@ v8::Intercepted CheckThisIndexedPropertyQuery(
   CHECK(info.This()
             ->Equals(isolate->GetCurrentContext(), bottom_global.Get(isolate))
             .FromJust());
+  // CHECK_EQ(info.This(), info.HolderV2());
   return v8::Intercepted::kNo;
 }
 
@@ -357,6 +391,7 @@ v8::Intercepted CheckThisNamedPropertyQuery(
   CHECK(info.This()
             ->Equals(isolate->GetCurrentContext(), bottom_global.Get(isolate))
             .FromJust());
+  // CHECK_EQ(info.This(), info.HolderV2());
   return v8::Intercepted::kNo;
 }
 
@@ -368,6 +403,7 @@ v8::Intercepted CheckThisIndexedPropertyDeleter(
   CHECK(info.This()
             ->Equals(isolate->GetCurrentContext(), bottom_global.Get(isolate))
             .FromJust());
+  CHECK_EQ(info.This(), info.HolderV2());
   return v8::Intercepted::kNo;
 }
 
@@ -379,6 +415,7 @@ v8::Intercepted CheckThisNamedPropertyDeleter(
   CHECK(info.This()
             ->Equals(isolate->GetCurrentContext(), bottom_global.Get(isolate))
             .FromJust());
+  CHECK_EQ(info.This(), info.HolderV2());
   return v8::Intercepted::kNo;
 }
 
@@ -390,6 +427,7 @@ void CheckThisIndexedPropertyEnumerator(
   CHECK(info.This()
             ->Equals(isolate->GetCurrentContext(), bottom_global.Get(isolate))
             .FromJust());
+  // CHECK_EQ(info.This(), info.HolderV2());
 }
 
 
@@ -401,8 +439,12 @@ void CheckThisNamedPropertyEnumerator(
   CHECK(info.This()
             ->Equals(isolate->GetCurrentContext(), bottom_global.Get(isolate))
             .FromJust());
+  // CHECK_EQ(info.This(), info.HolderV2());
 }
 
+// Allow usages of v8::PropertyCallbackInfo<T>::This() for now.
+// TODO(https://crbug.com/455600234): remove.
+END_ALLOW_USE_DEPRECATED()
 
 int echo_named_call_count;
 
@@ -430,98 +472,251 @@ v8::Intercepted InterceptorHasOwnPropertyGetterGC(
   return v8::Intercepted::kNo;
 }
 
-int query_counter_int = 0;
-
 v8::Intercepted QueryCallback(
     Local<Name> property, const v8::PropertyCallbackInfo<v8::Integer>& info) {
+  int& query_counter_int = *GetData<int>(info);
   query_counter_int++;
+
+  auto context = info.GetIsolate()->GetCurrentContext();
+
+  if (v8_str("prop_rw")->Equals(context, property).FromJust()) {
+    info.GetReturnValue().Set(v8::PropertyAttribute::None);
+    return v8::Intercepted::kYes;
+  }
+  if (v8_str("prop_ro")->Equals(context, property).FromJust()) {
+    info.GetReturnValue().Set(v8::PropertyAttribute::ReadOnly);
+    return v8::Intercepted::kYes;
+  }
+
   return v8::Intercepted::kNo;
+}
+
+// Examples that show when the query callback is triggered.
+void TestQueryInterceptor(bool interceptor_is_proto, const bool masking) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+
+  const bool interceptor_is_object = !interceptor_is_proto;
+
+  int query_counter = 0;
+
+  LocalContext env;
+
+  v8::Local<v8::Object> interceptor;
+  {
+    v8::Local<v8::FunctionTemplate> templ = v8::FunctionTemplate::New(isolate);
+    v8::NamedPropertyHandlerConfiguration config{nullptr};
+    config.query = QueryCallback;
+    config.data = MakeData(isolate, &query_counter);
+    if (!masking) {
+      config.flags = v8::PropertyHandlerFlags::kNonMasking;
+    }
+    templ->InstanceTemplate()->SetHandler(config);
+    interceptor = templ->GetFunction(env.local())
+                      .ToLocalChecked()
+                      ->NewInstance(env.local())
+                      .ToLocalChecked();
+  }
+  env->Global()
+      ->Set(env.local(), v8_str("interceptor"), interceptor)
+      .FromJust();
+
+  v8_run_bool(
+      "Object.defineProperties(interceptor.__proto__, {"
+      "  proto_prop_rw: {configurable:true, writable:true, enumerable:true},"
+      "  proto_prop_ro: {configurable:true, writable:false, enumerable:true},"
+      "});");
+
+  if (interceptor_is_proto) {
+    v8_run_bool("var obj = Object.create(interceptor);");
+  } else {
+    v8_run_bool("var obj = interceptor;");
+  }
+
+  //
+  // Perform operations on properties not intercepted by the interceptor.
+  //
+
+  query_counter = 0;
+  CHECK(
+      v8_run_bool("Object.getOwnPropertyDescriptor(obj, 'x') === undefined;"));
+  if (interceptor_is_object) CHECK_EQ(1, query_counter);
+  if (interceptor_is_proto) CHECK_EQ(0, query_counter);
+
+  query_counter = 0;
+  v8_run_bool("Object.defineProperty(obj, 'not_enum', {value: 17});");
+  if (interceptor_is_object) CHECK_EQ(1, query_counter);
+  if (interceptor_is_proto) CHECK_EQ(0, query_counter);
+
+  query_counter = 0;
+  v8_run_bool(
+      "Object.defineProperty(obj, 'enum', {value: 17, enumerable: true, "
+      "writable: true});");
+  if (interceptor_is_object) CHECK_EQ(1, query_counter);
+  if (interceptor_is_proto) CHECK_EQ(0, query_counter);
+
+  query_counter = 0;
+  CHECK(v8_run_bool("obj.propertyIsEnumerable('enum');"));
+  if (interceptor_is_object) {
+    if (masking) CHECK_EQ(1, query_counter);
+    if (!masking) CHECK_EQ(0, query_counter);
+  }
+  if (interceptor_is_proto) CHECK_EQ(0, query_counter);
+
+  query_counter = 0;
+  CHECK(!v8_run_bool("obj.propertyIsEnumerable('not_enum');"));
+  if (interceptor_is_object) {
+    if (masking) CHECK_EQ(1, query_counter);
+    if (!masking) CHECK_EQ(0, query_counter);
+  }
+  if (interceptor_is_proto) CHECK_EQ(0, query_counter);
+
+  query_counter = 0;
+  CHECK(v8_run_bool("obj.hasOwnProperty('enum');"));
+  CHECK(v8_run_bool("obj.hasOwnProperty('not_enum');"));
+  // Runtime_ObjectHasOwnProperty has an fast path - it checks own properties
+  // on the object first and calls the query callback only if the property
+  // was not found.
+  CHECK_EQ(0, query_counter);
+
+  query_counter = 0;
+  CHECK(!v8_run_bool("obj.hasOwnProperty('x');"));
+  if (interceptor_is_object) CHECK_EQ(1, query_counter);
+  if (interceptor_is_proto) CHECK_EQ(0, query_counter);
+
+  query_counter = 0;
+  CHECK(!v8_run_bool("obj.propertyIsEnumerable('undef');"));
+  if (interceptor_is_object) CHECK_EQ(1, query_counter);
+  if (interceptor_is_proto) CHECK_EQ(0, query_counter);
+
+  query_counter = 0;
+  v8_run_bool("Object.defineProperty(obj, 'enum', {value: 42});");
+  if (interceptor_is_object) {
+    if (masking) CHECK_EQ(1, query_counter);
+    if (!masking) CHECK_EQ(0, query_counter);
+  }
+  if (interceptor_is_proto) CHECK_EQ(0, query_counter);
+
+  query_counter = 0;
+  CHECK(!v8_run_bool("'x' in obj;"));
+  CHECK_EQ(1, query_counter);
+
+  //
+  // Perform operations on properties intercepted by the interceptor.
+  //
+
+  // Attempt to store to interceptor's RW property should trigger query
+  // and since there are no setter, the property should be added to the
+  // object itself.
+  query_counter = 0;
+  CHECK_EQ(interceptor_is_object,
+           v8_run_bool("obj.hasOwnProperty('prop_rw');"));
+  if (interceptor_is_object) CHECK_EQ(1, query_counter);
+  if (interceptor_is_proto) CHECK_EQ(0, query_counter);
+
+  query_counter = 0;
+  v8_run_bool("obj.prop_rw = 44;");
+  // First call happens during property lookup and second call happens
+  // (as there are no setter callback) as a part of DefineOwnProperty on
+  // the obj.
+  if (interceptor_is_object) CHECK_EQ(2, query_counter);
+  if (interceptor_is_proto) CHECK_EQ(1, query_counter);
+
+  query_counter = 0;
+  // Either the property already existed on the object or it was added
+  // by the last store.
+  CHECK(v8_run_bool("obj.hasOwnProperty('prop_rw');"));
+  CHECK_EQ(0, query_counter);  // not triggered, since it's on the object
+
+  // Attempt to store to interceptor's RO property should trigger query
+  // and since it's RO the store shouldn't happen.
+
+  query_counter = 0;
+  v8_run_bool("obj.prop_ro = 44;");
+  CHECK_EQ(1, query_counter);
+
+  query_counter = 0;
+  CHECK_EQ(interceptor_is_object,
+           v8_run_bool("obj.hasOwnProperty('prop_ro');"));
+  if (interceptor_is_object) CHECK_EQ(1, query_counter);
+  if (interceptor_is_proto) CHECK_EQ(0, query_counter);
+
+  //
+  // Perform operations on properties existing in the interceptor's prototype.
+  //
+
+  query_counter = 0;
+  CHECK(!v8_run_bool("obj.hasOwnProperty('proto_prop_rw');"));
+  if (interceptor_is_object) CHECK_EQ(1, query_counter);
+  if (interceptor_is_proto) CHECK_EQ(0, query_counter);
+
+  query_counter = 0;
+  CHECK(!v8_run_bool("obj.hasOwnProperty('proto_prop_ro');"));
+  if (interceptor_is_object) CHECK_EQ(1, query_counter);
+  if (interceptor_is_proto) CHECK_EQ(0, query_counter);
+
+  // Attempt to store to interceptor's prototype's RW property should trigger
+  // query and since it's RW the store should happen.
+  query_counter = 0;
+  v8_run_bool("obj.proto_prop_rw = 44;");
+  // First call happens during property lookup and second call happens
+  // (as there are no setter callback) as a part of DefineOwnProperty on
+  // the obj.
+  if (interceptor_is_object && masking) CHECK_EQ(2, query_counter);
+  if (interceptor_is_proto && masking) CHECK_EQ(1, query_counter);
+  // Property on the prototype chain hides it from non-masking interceptor.
+  if (!masking) CHECK_EQ(0, query_counter);
+
+  query_counter = 0;
+  CHECK(v8_run_bool("obj.hasOwnProperty('proto_prop_rw');"));
+  // Runtime_ObjectHasOwnProperty has an fast path - it checks own properties
+  // on the object first and calls the query callback only if the property
+  // was not found.
+  if (interceptor_is_object) CHECK_EQ(0, query_counter);
+  if (interceptor_is_proto) CHECK_EQ(0, query_counter);
+
+  // Attempt to store to interceptor's prototype's RO property should not
+  // trigger query because its existence "blocks" the store from happening.
+  query_counter = 0;
+  v8_run_bool("obj.proto_prop_ro = 44;");
+  if (interceptor_is_object) CHECK_EQ(0, query_counter);
+  if (interceptor_is_proto) {
+    // On the way to the interceptor's prototype there's an interceptor which
+    // might be queried.
+    if (masking) CHECK_EQ(1, query_counter);
+    if (!masking) CHECK_EQ(0, query_counter);
+  }
+
+  query_counter = 0;
+  CHECK(!v8_run_bool("obj.hasOwnProperty('proto_prop_ro');"));
+  if (interceptor_is_object) CHECK_EQ(1, query_counter);
+  if (interceptor_is_proto) CHECK_EQ(0, query_counter);
 }
 
 }  // namespace
 
-// Examples that show when the query callback is triggered.
 THREADED_TEST(QueryInterceptor) {
-  v8::Isolate* isolate = CcTest::isolate();
-  v8::HandleScope scope(isolate);
-  v8::Local<v8::FunctionTemplate> templ = v8::FunctionTemplate::New(isolate);
-  templ->InstanceTemplate()->SetHandler(
-      v8::NamedPropertyHandlerConfiguration(nullptr, nullptr, QueryCallback));
-  LocalContext env;
-  env->Global()
-      ->Set(env.local(), v8_str("obj"), templ->GetFunction(env.local())
-                                            .ToLocalChecked()
-                                            ->NewInstance(env.local())
-                                            .ToLocalChecked())
-      .FromJust();
-  CHECK_EQ(0, query_counter_int);
-  v8::Local<Value> result =
-      v8_compile("Object.getOwnPropertyDescriptor(obj, 'x');")
-          ->Run(env.local())
-          .ToLocalChecked();
-  CHECK_EQ(1, query_counter_int);
-  CHECK_EQ(v8::PropertyAttribute::None,
-           static_cast<v8::PropertyAttribute>(
-               result->Int32Value(env.local()).FromJust()));
+  TestQueryInterceptor(false,  // interceptor_is_prototype
+                       true    // masking
+  );
+}
 
-  v8_compile("Object.defineProperty(obj, 'not_enum', {value: 17});")
-      ->Run(env.local())
-      .ToLocalChecked();
-  CHECK_EQ(2, query_counter_int);
+THREADED_TEST(QueryInterceptorNonMasking) {
+  TestQueryInterceptor(false,  // interceptor_is_prototype
+                       false   // masking
+  );
+}
 
-  v8_compile(
-      "Object.defineProperty(obj, 'enum', {value: 17, enumerable: true, "
-      "writable: true});")
-      ->Run(env.local())
-      .ToLocalChecked();
-  CHECK_EQ(3, query_counter_int);
+THREADED_TEST(QueryInterceptorPrototype) {
+  TestQueryInterceptor(true,  // interceptor_is_prototype
+                       true   // masking
+  );
+}
 
-  CHECK(v8_compile("obj.propertyIsEnumerable('enum');")
-            ->Run(env.local())
-            .ToLocalChecked()
-            ->BooleanValue(isolate));
-  CHECK_EQ(4, query_counter_int);
-
-  CHECK(!v8_compile("obj.propertyIsEnumerable('not_enum');")
-             ->Run(env.local())
-             .ToLocalChecked()
-             ->BooleanValue(isolate));
-  CHECK_EQ(5, query_counter_int);
-
-  CHECK(v8_compile("obj.hasOwnProperty('enum');")
-            ->Run(env.local())
-            .ToLocalChecked()
-            ->BooleanValue(isolate));
-  CHECK_EQ(5, query_counter_int);
-
-  CHECK(v8_compile("obj.hasOwnProperty('not_enum');")
-            ->Run(env.local())
-            .ToLocalChecked()
-            ->BooleanValue(isolate));
-  CHECK_EQ(5, query_counter_int);
-
-  CHECK(!v8_compile("obj.hasOwnProperty('x');")
-             ->Run(env.local())
-             .ToLocalChecked()
-             ->BooleanValue(isolate));
-  CHECK_EQ(6, query_counter_int);
-
-  CHECK(!v8_compile("obj.propertyIsEnumerable('undef');")
-             ->Run(env.local())
-             .ToLocalChecked()
-             ->BooleanValue(isolate));
-  CHECK_EQ(7, query_counter_int);
-
-  v8_compile("Object.defineProperty(obj, 'enum', {value: 42});")
-      ->Run(env.local())
-      .ToLocalChecked();
-  CHECK_EQ(8, query_counter_int);
-
-  v8_compile("Object.isFrozen('obj.x');")->Run(env.local()).ToLocalChecked();
-  CHECK_EQ(8, query_counter_int);
-
-  v8_compile("'x' in obj;")->Run(env.local()).ToLocalChecked();
-  CHECK_EQ(9, query_counter_int);
+THREADED_TEST(QueryInterceptorPrototypeNonMasking) {
+  TestQueryInterceptor(true,  // interceptor_is_prototype
+                       false  // masking
+  );
 }
 
 namespace {
@@ -1195,13 +1390,26 @@ THREADED_TEST(InterceptorLoadICInvalidatedFieldViaGlobal) {
       42 * 10);
 }
 
-static void SetOnThis(Local<Name> name, Local<Value> value,
-                      const v8::PropertyCallbackInfo<void>& info) {
+// Allow usages of v8::PropertyCallbackInfo<T>::This() for now.
+// TODO(https://crbug.com/455600234): remove.
+START_ALLOW_USE_DEPRECATED()
+
+namespace {
+
+// TODO(https://crbug.com/455600234): update test.
+void SetOnThis(Local<Name> name, Local<Value> value,
+               const v8::PropertyCallbackInfo<void>& info) {
   info.This()
       .As<Object>()
       ->CreateDataProperty(info.GetIsolate()->GetCurrentContext(), name, value)
       .FromJust();
 }
+
+}  // namespace
+
+// Allow usages of v8::PropertyCallbackInfo<T>::This() for now.
+// TODO(https://crbug.com/455600234): remove.
+END_ALLOW_USE_DEPRECATED()
 
 THREADED_TEST(InterceptorLoadICWithCallbackOnHolder) {
   v8::Isolate* isolate = CcTest::isolate();
@@ -3387,7 +3595,7 @@ THREADED_TEST(NamedInterceptorDictionaryIC) {
       "interceptor_obj.x = 42;"
       "interceptor_obj.y = 10;"
       "delete interceptor_obj.y;"
-      "get_x(interceptor_obj)");
+      "for (var i = 0; i < 10; i++) get_x(interceptor_obj);");
   CHECK(result->Equals(context.local(), v8_str("x")).FromJust());
 }
 
@@ -5479,15 +5687,10 @@ struct PreprocessExceptionTestConfig {
   bool descriptor_should_throw : 1 = false;
 };
 
-// This tag value has been picked arbitrarily between 0 and
-// V8_EXTERNAL_POINTER_TAG_COUNT.
-constexpr v8::ExternalPointerTypeTag kTestConfigTag = 14;
-
 template <typename T>
 PreprocessExceptionTestConfig* GetPETConfig(
     const v8::PropertyCallbackInfo<T>& info) {
-  return reinterpret_cast<PreprocessExceptionTestConfig*>(
-      v8::External::Cast(*info.Data())->Value(kTestConfigTag));
+  return GetData<PreprocessExceptionTestConfig>(info);
 }
 
 const char* ToString(v8::ExceptionContext kind) {
@@ -5936,13 +6139,13 @@ TEST(PreprocessExceptionFromInterceptorsWithoutDescriptorCallback) {
       nullptr,  // enumerator
       PETNamedDefiner,
       nullptr,  // descriptor
-      v8::External::New(isolate, &config, kTestConfigTag)));
+      MakeData(isolate, &config)));
   obj_template->SetHandler(v8::IndexedPropertyHandlerConfiguration(
       PETIndexedGetter, PETIndexedSetter, PETIndexedQuery, PETIndexedDeleter,
       nullptr,  // enumerator
       PETIndexedDefiner,
       nullptr,  // descriptor
-      v8::External::New(isolate, &config, kTestConfigTag)));
+      MakeData(isolate, &config)));
 
   LocalContext env;
   Local<Context> ctx = env.local();
@@ -5974,13 +6177,11 @@ TEST(PreprocessExceptionFromInterceptorsWithDescriptorCallback) {
   obj_template->SetHandler(v8::NamedPropertyHandlerConfiguration(
       PETNamedGetter, PETNamedSetter, PETNamedQuery, PETNamedDeleter,
       nullptr,  // enumerator
-      PETNamedDefiner, PETNamedDescriptor,
-      v8::External::New(isolate, &config, kTestConfigTag)));
+      PETNamedDefiner, PETNamedDescriptor, MakeData(isolate, &config)));
   obj_template->SetHandler(v8::IndexedPropertyHandlerConfiguration(
       PETIndexedGetter, PETIndexedSetter, PETIndexedQuery, PETIndexedDeleter,
       nullptr,  // enumerator
-      PETIndexedDefiner, PETIndexedDescriptor,
-      v8::External::New(isolate, &config, kTestConfigTag)));
+      PETIndexedDefiner, PETIndexedDescriptor, MakeData(isolate, &config)));
 
   LocalContext env;
   Local<Context> ctx = env.local();
@@ -6023,9 +6224,9 @@ struct ShouldInterceptData {
   bool should_intercept;
 };
 
-v8::Intercepted ShouldNamedInterceptor(
+v8::Intercepted ShouldNamedGetterInterceptor(
     Local<Name> name, const v8::PropertyCallbackInfo<Value>& info) {
-  CheckReturnValue(info, FUNCTION_ADDR(ShouldNamedInterceptor));
+  CheckReturnValue(info, FUNCTION_ADDR(ShouldNamedGetterInterceptor));
   auto data = GetWrappedObject<ShouldInterceptData>(info.Data());
   if (!data->should_intercept) return v8::Intercepted::kNo;
   // Side effects are allowed only when the property is present or throws.
@@ -6034,43 +6235,22 @@ v8::Intercepted ShouldNamedInterceptor(
   return v8::Intercepted::kYes;
 }
 
-}  // namespace
-
-THREADED_TEST(NonMaskingInterceptorOwnProperty) {
-  auto isolate = CcTest::isolate();
-  v8::HandleScope handle_scope(isolate);
-  LocalContext context;
-
-  ShouldInterceptData intercept_data;
-  intercept_data.value = 239;
-  intercept_data.should_intercept = true;
-
-  auto interceptor_templ = v8::ObjectTemplate::New(isolate);
-  v8::NamedPropertyHandlerConfiguration conf(ShouldNamedInterceptor);
-  conf.flags = v8::PropertyHandlerFlags::kNonMasking;
-  conf.data = BuildWrappedObject<ShouldInterceptData>(isolate, &intercept_data);
-  interceptor_templ->SetHandler(conf);
-
-  auto interceptor =
-      interceptor_templ->NewInstance(context.local()).ToLocalChecked();
-  context->Global()
-      ->Set(context.local(), v8_str("obj"), interceptor)
-      .FromJust();
-
-  ExpectInt32("obj.whatever", 239);
-
-  CompileRun("obj.whatever = 4;");
-
-  // obj.whatever exists, thus it is not affected by the non-masking
-  // interceptor.
-  ExpectInt32("obj.whatever", 4);
-
-  CompileRun("delete obj.whatever;");
-  ExpectInt32("obj.whatever", 239);
+v8::Intercepted ShouldNamedSetterInterceptor(
+    Local<Name> name, Local<Value> value,
+    const v8::PropertyCallbackInfo<void>& info) {
+  CheckReturnValue(info, FUNCTION_ADDR(ShouldNamedSetterInterceptor));
+  auto data = GetWrappedObject<ShouldInterceptData>(info.Data());
+  if (!data->should_intercept) return v8::Intercepted::kNo;
+  // Side effects are allowed only when the property is present or throws.
+  ApiTestFuzzer::Fuzz();
+  Local<Context> context = info.GetIsolate()->GetCurrentContext();
+  if (value->IsInt32()) {
+    USE(value->Int32Value(context).To(&data->value));
+  }
+  return v8::Intercepted::kYes;
 }
 
-
-THREADED_TEST(NonMaskingInterceptorPrototypeProperty) {
+void TestNonMaskingInterceptorOwnProperty(bool with_setter) {
   auto isolate = CcTest::isolate();
   v8::HandleScope handle_scope(isolate);
   LocalContext context;
@@ -6080,7 +6260,103 @@ THREADED_TEST(NonMaskingInterceptorPrototypeProperty) {
   intercept_data.should_intercept = true;
 
   auto interceptor_templ = v8::ObjectTemplate::New(isolate);
-  v8::NamedPropertyHandlerConfiguration conf(ShouldNamedInterceptor);
+  v8::NamedPropertyHandlerConfiguration conf(ShouldNamedGetterInterceptor);
+  if (with_setter) conf.setter = ShouldNamedSetterInterceptor;
+  conf.flags = v8::PropertyHandlerFlags::kNonMasking;
+  conf.data = BuildWrappedObject<ShouldInterceptData>(isolate, &intercept_data);
+  interceptor_templ->SetHandler(conf);
+
+  auto interceptor =
+      interceptor_templ->NewInstance(context.local()).ToLocalChecked();
+  context->Global()
+      ->Set(context.local(), v8_str("obj"), interceptor)
+      .FromJust();
+  auto i_interceptor = v8::Utils::OpenHandle(*interceptor);
+
+  CompileRun(
+      "function get() { return obj.whatever; } "
+      "function set(v) { obj.whatever = v; } "
+      "function trainICs() { "
+      "  for (var i = 0; i < 20; i++) {"
+      "    var v = get();"
+      "    set(v);"
+      "  }"
+      "}"
+      "trainICs();");
+  CHECK_EQ(intercept_data.value, 239);
+
+  ExpectInt32("obj.whatever", 239);
+  ExpectInt32("get()", 239);
+
+  CompileRun("obj.whatever = 4;");
+  if (with_setter) {
+    CHECK_EQ(i_interceptor->map()->NumberOfOwnDescriptors(), 0);
+    CHECK_EQ(intercept_data.value, 4);
+    ExpectInt32("obj.whatever", 4);
+
+    // Store through IC should also trigger setter callback.
+    CompileRun("set(44);");
+    CHECK_EQ(intercept_data.value, 44);
+    ExpectInt32("obj.whatever", 44);
+
+  } else {
+    // No interceptor setter -> store adds property to the receiver.
+    CHECK_EQ(i_interceptor->map()->NumberOfOwnDescriptors(), 1);
+    CHECK_EQ(intercept_data.value, 239);
+
+    // obj.whatever exists, thus it is not affected by the non-masking
+    // interceptor.
+    ExpectInt32("obj.whatever", 4);
+
+    // Stores through ICs should also store to the object.
+    CompileRun("trainICs(); set(55);");
+    CHECK_EQ(intercept_data.value, 239);
+
+    ExpectInt32("obj.whatever", 55);
+  }
+  intercept_data.value = 1239;
+
+  CompileRun("delete obj.whatever;");
+  ExpectInt32("obj.whatever", 1239);
+  ExpectInt32("get()", 1239);
+
+  if (with_setter) {
+    // If the store is not intercepted then the property should be added to
+    // receiver.
+    intercept_data.should_intercept = false;
+    CHECK_EQ(i_interceptor->map()->NumberOfOwnDescriptors(), 0);
+    // CompileRun("obj.whatever = 257;");
+    CompileRun("set(257);");
+    CHECK_EQ(i_interceptor->map()->NumberOfOwnDescriptors(), 1);
+
+    intercept_data.should_intercept = true;
+    ExpectInt32("obj.whatever", 257);
+    CHECK_EQ(intercept_data.value, 1239);
+  }
+}
+
+}  // namespace
+
+THREADED_TEST(NonMaskingInterceptorWithSetterOwnProperty) {
+  TestNonMaskingInterceptorOwnProperty(true);
+}
+
+THREADED_TEST(NonMaskingInterceptorWithoutSetterOwnProperty) {
+  TestNonMaskingInterceptorOwnProperty(false);
+}
+
+void TestNonMaskingInterceptorPrototypeProperty(bool with_setter) {
+  auto isolate = CcTest::isolate();
+  v8::HandleScope handle_scope(isolate);
+  LocalContext context;
+
+  ShouldInterceptData intercept_data;
+  intercept_data.value = 239;
+  intercept_data.should_intercept = true;
+
+  auto interceptor_templ = v8::ObjectTemplate::New(isolate);
+  v8::NamedPropertyHandlerConfiguration conf(ShouldNamedGetterInterceptor);
+  if (with_setter) conf.setter = ShouldNamedSetterInterceptor;
   conf.flags = v8::PropertyHandlerFlags::kNonMasking;
   conf.data = BuildWrappedObject<ShouldInterceptData>(isolate, &intercept_data);
   interceptor_templ->SetHandler(conf);
@@ -6091,6 +6367,7 @@ THREADED_TEST(NonMaskingInterceptorPrototypeProperty) {
       ->Set(context.local(), v8_str("obj"), interceptor)
       .FromJust();
 
+  // [[Get]]
   ExpectInt32("obj.whatever", 239);
 
   CompileRun("obj.__proto__ = {'whatever': 4};");
@@ -6098,8 +6375,40 @@ THREADED_TEST(NonMaskingInterceptorPrototypeProperty) {
 
   CompileRun("delete obj.__proto__.whatever;");
   ExpectInt32("obj.whatever", 239);
+
+  // [[Set]]
+  CompileRun("obj.__proto__ = {'whatever': 77};");
+  CompileRun("obj.whatever = 5;");
+  CHECK_EQ(intercept_data.value, 239);
+
+  CompileRun("delete obj.__proto__.whatever;");
+  CompileRun("obj.whatever = 7;");
+  ExpectInt32("obj.whatever", 7);
+
+  // Regardless of the setter existence, the property was already added to
+  // the receiver.
+  CHECK_EQ(intercept_data.value, 239);
+
+  if (with_setter) {
+    // Delete property on receiver to make stores trigger the setter again.
+    CompileRun("delete obj.whatever;");
+    CompileRun("obj.whatever = 157;");
+
+    CHECK_EQ(intercept_data.value, 157);
+    ExpectInt32("obj.whatever", 157);
+
+    intercept_data.should_intercept = false;
+    CompileRun("obj.whatever = 257;");
+  }
 }
 
+THREADED_TEST(NonMaskingInterceptorWithSetterPrototypeProperty) {
+  TestNonMaskingInterceptorPrototypeProperty(true);
+}
+
+THREADED_TEST(NonMaskingInterceptorWithoutSetterPrototypeProperty) {
+  TestNonMaskingInterceptorPrototypeProperty(false);
+}
 
 THREADED_TEST(NonMaskingInterceptorPrototypePropertyIC) {
   auto isolate = CcTest::isolate();
@@ -6111,7 +6420,7 @@ THREADED_TEST(NonMaskingInterceptorPrototypePropertyIC) {
   intercept_data.should_intercept = true;
 
   auto interceptor_templ = v8::ObjectTemplate::New(isolate);
-  v8::NamedPropertyHandlerConfiguration conf(ShouldNamedInterceptor);
+  v8::NamedPropertyHandlerConfiguration conf(ShouldNamedGetterInterceptor);
   conf.flags = v8::PropertyHandlerFlags::kNonMasking;
   conf.data = BuildWrappedObject<ShouldInterceptData>(isolate, &intercept_data);
   interceptor_templ->SetHandler(conf);
@@ -6509,6 +6818,10 @@ THREADED_TEST(NonMaskingInterceptorGlobalEvalRegression) {
       9);
 }
 
+// Allow usages of v8::PropertyCallbackInfo<T>::This() for now.
+// TODO(https://crbug.com/455600234): remove.
+START_ALLOW_USE_DEPRECATED()
+
 namespace {
 v8::Intercepted CheckReceiver(Local<Name> name,
                               const v8::PropertyCallbackInfo<v8::Value>& info) {
@@ -6517,6 +6830,8 @@ v8::Intercepted CheckReceiver(Local<Name> name,
 }
 }  // namespace
 
+// TODO(https://crbug.com/455600234): remove since this regression test is
+// no longer relevant (the callbacks will not have access to receiver).
 TEST(Regress609134Interceptor) {
   LocalContext env;
   v8::Isolate* isolate = env.isolate();
@@ -6536,6 +6851,10 @@ TEST(Regress609134Interceptor) {
       "var a = 42;"
       "for (var i = 0; i<3; i++) { a.foo; }");
 }
+
+// Allow usages of v8::PropertyCallbackInfo<T>::This() for now.
+// TODO(https://crbug.com/455600234): remove.
+END_ALLOW_USE_DEPRECATED()
 
 namespace {
 

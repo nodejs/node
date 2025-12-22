@@ -10,7 +10,6 @@
 #include "src/objects/code-inl.h"
 #include "src/sandbox/js-dispatch-table-inl.h"
 
-#ifdef V8_ENABLE_LEAPTIERING
 
 namespace v8 {
 namespace internal {
@@ -108,5 +107,3 @@ void JSDispatchTable::PrintCurrentTieringRequest(JSDispatchHandle handle,
 
 }  // namespace internal
 }  // namespace v8
-
-#endif  // V8_ENABLE_LEAPTIERING

@@ -23,15 +23,15 @@ struct RootTypes {
 template <typename AssemblerT>
 OpIndex LoadRootHelper(AssemblerT&& assembler, RootIndex index) {
   if (RootsTable::IsImmortalImmovable(index)) {
-    // Note that we skip the bit cast here as the value does not need to be
-    // tagged as the object will never be collected / moved.
-    return assembler.Load(
-        assembler.LoadRootRegister(), LoadOp::Kind::RawAligned().Immutable(),
-        MemoryRepresentation::UintPtr(), IsolateData::root_slot_offset(index));
+    return assembler.Load(assembler.LoadRootRegister(),
+                          LoadOp::Kind::RawAligned().Immutable(),
+                          MemoryRepresentation::AnyUncompressedTagged(),
+                          IsolateData::root_slot_offset(index));
   } else {
-    return assembler.BitcastWordPtrToTagged(assembler.Load(
-        assembler.LoadRootRegister(), LoadOp::Kind::RawAligned(),
-        MemoryRepresentation::UintPtr(), IsolateData::root_slot_offset(index)));
+    return assembler.Load(assembler.LoadRootRegister(),
+                          LoadOp::Kind::RawAligned(),
+                          MemoryRepresentation::AnyUncompressedTagged(),
+                          IsolateData::root_slot_offset(index));
   }
 }
 

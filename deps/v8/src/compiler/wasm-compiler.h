@@ -78,7 +78,6 @@ V8_EXPORT_PRIVATE wasm::WasmCompilationResult CompileWasmStackEntryWrapper();
 wasm::WasmCompilationResult CompileWasmCapiCallWrapper(
     const wasm::CanonicalSig*);
 
-bool IsFastCallSupportedSignature(const v8::CFunctionInfo*);
 // Compiles a wrapper to call a Fast API function from Wasm.
 wasm::WasmCompilationResult CompileWasmJSFastCallWrapper(
     const wasm::CanonicalSig*, DirectHandle<JSReceiver> callable);

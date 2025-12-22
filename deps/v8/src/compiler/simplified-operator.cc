@@ -870,8 +870,6 @@ bool operator==(AssertNotNullParameters const& lhs,
   V(StringIndexOf, Operator::kNoProperties, 3, 0)                            \
   V(StringLength, Operator::kNoProperties, 1, 0)                             \
   V(StringWrapperLength, Operator::kNoProperties, 1, 0)                      \
-  V(StringToLowerCaseIntl, Operator::kNoProperties, 1, 0)                    \
-  V(StringToUpperCaseIntl, Operator::kNoProperties, 1, 0)                    \
   V(TypeOf, Operator::kNoProperties, 1, 1)                                   \
   V(PlainPrimitiveToNumber, Operator::kNoProperties, 1, 0)                   \
   V(PlainPrimitiveToWord32, Operator::kNoProperties, 1, 0)                   \
@@ -1412,8 +1410,23 @@ struct SimplifiedOperatorGlobalCache final {
                    1, 3, 1, 1) {}
   };
   StringPrepareForGetCodeunitOperator kStringPrepareForGetCodeunit;
-
 #endif
+
+  struct StringToLowerCaseIntlOperator final : public Operator {
+    StringToLowerCaseIntlOperator()
+        : Operator(IrOpcode::kStringToLowerCaseIntl,
+                   Operator::kFoldable | Operator::kIdempotent,
+                   "StringToLowerCaseIntl", 3, 1, 1, 1, 1, 1) {}
+  };
+  StringToLowerCaseIntlOperator kStringToLowerCaseIntl;
+
+  struct StringToUpperCaseIntlOperator final : public Operator {
+    StringToUpperCaseIntlOperator()
+        : Operator(IrOpcode::kStringToUpperCaseIntl,
+                   Operator::kFoldable | Operator::kIdempotent,
+                   "StringToUpperCaseIntl", 3, 1, 1, 1, 1, 1) {}
+  };
+  StringToUpperCaseIntlOperator kStringToUpperCaseIntl;
 
 #define SPECULATIVE_NUMBER_BINOP(Name)                                     \
   template <NumberOperationHint kHint>                                     \
@@ -1517,6 +1530,8 @@ EFFECT_DEPENDENT_OP_LIST(GET_FROM_CACHE)
 CHECKED_OP_LIST(GET_FROM_CACHE)
 GET_FROM_CACHE(FindOrderedHashMapEntryForInt32Key)
 GET_FROM_CACHE(LoadFieldByIndex)
+GET_FROM_CACHE(StringToLowerCaseIntl)
+GET_FROM_CACHE(StringToUpperCaseIntl)
 #undef GET_FROM_CACHE
 
 const Operator* SimplifiedOperatorBuilder::FindOrderedCollectionEntry(

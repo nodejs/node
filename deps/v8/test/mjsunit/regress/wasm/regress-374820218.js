@@ -4,5 +4,25 @@
 
 // Flags: --wasm-test-streaming
 
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
+
+(function() {
+
+let builder = new WasmModuleBuilder();
+builder.addFunction("main", kSig_i_i)
+      .addBody([kExprLocalGet, 0])
+      .exportAs("main");
+
+let bytes = builder.toBuffer();
+let bytesPromise = Promise.resolve(bytes);
+
+// Promise species shouldn't affect the Wasm compilation promise.
+let oldPromiseSpecies = Object.getOwnPropertyDescriptor(Promise, Symbol.species);
 Object.defineProperty(Promise, Symbol.species, {value: -13});
-assertThrows(() => WebAssembly.compileStreaming(), TypeError);
+
+assertInstanceof(WebAssembly.compileStreaming(bytesPromise), Promise);
+
+// Restore the promise species for test cleanup.
+Object.defineProperty(Promise, Symbol.species, oldPromiseSpecies);
+
+})();

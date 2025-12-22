@@ -464,12 +464,14 @@ void MacroAssembler::BindJumpOrCallTarget(Label* label) {
 #endif
 }
 
-void MacroAssembler::Bl(Label* label) {
+void MacroAssembler::Call(Label* label) {
+  Assembler::BlockPoolsScope block_pools(this);
   DCHECK(allow_macro_instructions());
   bl(label);
 }
 
-void MacroAssembler::Blr(const Register& xn) {
+void MacroAssembler::Call(const Register& xn) {
+  Assembler::BlockPoolsScope block_pools(this);
   DCHECK(allow_macro_instructions());
   DCHECK(!xn.IsZero());
   blr(xn);
