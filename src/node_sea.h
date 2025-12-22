@@ -54,6 +54,7 @@ struct SeaResource {
 };
 
 bool IsSingleExecutable();
+std::string_view FindSingleExecutableBlob();
 SeaResource FindSingleExecutableResource();
 std::tuple<int, char**> FixupArgsForSEA(int argc, char** argv);
 node::ExitCode BuildSingleExecutableBlob(
