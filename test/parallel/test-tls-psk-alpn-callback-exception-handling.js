@@ -90,9 +90,7 @@ describe('TLS callback exception handling', () => {
       }
     }));
 
-    server.on('secureConnection', common.mustNotCall(() => {
-      reject(new Error('secureConnection should not fire'));
-    }));
+    server.on('secureConnection', common.mustNotCall('secureConnection should not fire'));
 
     await new Promise((res) => server.listen(0, res));
 
@@ -137,9 +135,7 @@ describe('TLS callback exception handling', () => {
       }
     }));
 
-    server.on('secureConnection', common.mustNotCall(() => {
-      reject(new Error('secureConnection should not fire'));
-    }));
+    server.on('secureConnection', common.mustNotCall('secureConnection should not fire'));
 
     await new Promise((res) => server.listen(0, res));
 
@@ -185,9 +181,7 @@ describe('TLS callback exception handling', () => {
       }
     }));
 
-    server.on('secureConnection', common.mustNotCall(() => {
-      reject(new Error('secureConnection should not fire'));
-    }));
+    server.on('secureConnection', common.mustNotCall('secureConnection should not fire'));
 
     await new Promise((res) => server.listen(0, res));
 
@@ -228,9 +222,7 @@ describe('TLS callback exception handling', () => {
       }
     }));
 
-    server.on('secureConnection', common.mustNotCall(() => {
-      reject(new Error('secureConnection should not fire'));
-    }));
+    server.on('secureConnection', common.mustNotCall('secureConnection should not fire'));
     await new Promise((res) => server.listen(0, res));
 
     const client = tls.connect({
@@ -259,9 +251,7 @@ describe('TLS callback exception handling', () => {
 
     const { promise, resolve, reject } = createTestPromise();
 
-    server.on('secureConnection', common.mustNotCall(() => {
-      reject(new Error('secureConnection should not fire'));
-    }));
+    server.on('secureConnection', common.mustNotCall('secureConnection should not fire'));
 
     await new Promise((res) => server.listen(0, res));
 
@@ -303,9 +293,7 @@ describe('TLS callback exception handling', () => {
 
     const { promise, resolve, reject } = createTestPromise();
 
-    server.on('secureConnection', common.mustNotCall(() => {
-      reject(new Error('secureConnection should not fire'));
-    }));
+    server.on('secureConnection', common.mustNotCall('secureConnection should not fire'));
 
     await new Promise((res) => server.listen(0, res));
 
