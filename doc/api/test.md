@@ -231,25 +231,11 @@ added:
  - REPLACEME
 -->
 
-These are tests written to otherwise pass but there is some issue (often
-upstream) causing them to fail. Rather than using `skip` or `todo`, which would
-effectively silence the failure, the test would instead be marked `xfail` (`x`
-from "expected" + `fail`). That way, when the issue is resolved, that is
-explicitly surfaced.
+This flips the pass/fail reporting for a specific test or suite: A flagged test/test-case must throw
+in order to "pass"; a test/test-case that does not throw, fails.
 
-The test would normally be written:
-
-```js
-it('should do the thing', () => {
-  assert.strictEqual(doTheThing(), true);
-});
-
-it('should do the thing', () => {
-  assert.strictEqual(doTheThing(), true);
-});
-```
-
-But for whatever reason, `doTheThing` is not and _currently_ cannot return `true`.
+In the following, `doTheThing()` returns _currently_ `false` (`false` does not equal `true`, causing
+`strictEqual` to throw, so the test-case passes).
 
 ```js
 it.xfail('should do the thing', () => {
