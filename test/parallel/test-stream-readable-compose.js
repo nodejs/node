@@ -2,7 +2,9 @@
 
 const common = require('../common');
 const {
-  Readable, Transform,
+  PassThrough,
+  Readable,
+  Transform,
 } = require('stream');
 const assert = require('assert');
 
@@ -19,6 +21,8 @@ const assert = require('assert');
       }
     }
   });
+  assert.strictEqual(stream.readable, true);
+  assert.strictEqual(stream.writable, false);
   const result = ['ab', 'cd'];
   (async () => {
     for await (const item of stream) {
@@ -35,12 +39,34 @@ const assert = require('assert');
       callback(null, chunk);
     }, 4)
   }));
+  assert.strictEqual(stream.readable, true);
+  assert.strictEqual(stream.writable, false);
   const result = ['a', 'b', 'c', 'd'];
   (async () => {
     for await (const item of stream) {
       assert.strictEqual(item, result.shift());
     }
   })().then(common.mustCall());
+}
+
+{
+  // With Duplex stream as `this`, ensuring writes to the composed stream
+  // are passed to the head of the pipeline
+  const pt = new PassThrough({ objectMode: true });
+  const composed = pt.compose(async function *(stream) {
+    for await (const chunk of stream) {
+      yield chunk * 2;
+    }
+  });
+  assert.strictEqual(composed.readable, true);
+  assert.strictEqual(composed.writable, true);
+  pt.on('data', common.mustCall((chunk) => {
+    assert.strictEqual(chunk, 123);
+  }));
+  composed.on('data', common.mustCall((chunk) => {
+    assert.strictEqual(chunk, 246);
+  }));
+  composed.end(123);
 }
 
 {
