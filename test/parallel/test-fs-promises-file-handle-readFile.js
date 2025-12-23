@@ -138,10 +138,24 @@ async function doReadAndCancel() {
 
       await using fileHandle = await open(newFile, 'r');
 
-      await assert.rejects(fileHandle.readFile(), {
-        name: 'RangeError',
-        code: 'ERR_FS_FILE_TOO_LARGE'
+      let warningEmitted = false;
+      let warningMessage = '';
+      process.once('warning', (warning) => {
+        if (warning.name === 'LargeFileWarning') {
+          warningEmitted = true;
+          warningMessage = warning.message;
+        }
       });
+
+      const data = await fileHandle.readFile();
+
+      const expectedWarningMsg = 'Expected LargeFileWarning to be emitted for 5GB file';
+      assert.strictEqual(warningEmitted, true, expectedWarningMsg);
+
+      assert.match(warningMessage,
+                   /larger than the recommended limit \(\d+ > \d+ bytes\)/);
+
+      console.log(`File read successfully, size: ${data.length} bytes`);
     }
   }
 }
