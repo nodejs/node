@@ -102,6 +102,15 @@ void PerProcessOptions::CheckOptions(std::vector<std::string>* errors,
 #endif  // V8_ENABLE_SANDBOX
 #endif  // HAVE_OPENSSL
 
+  if (!build_sea.empty()) {
+#if defined(DISABLE_SINGLE_EXECUTABLE_APPLICATION)
+    errors->push_back("Single executable application is disabled.\n");
+#elif !defined(HAVE_LIEF)
+    errors->push_back(
+        "Node.js must be built with LIEF to build support --build-sea.\n");
+#endif  // !defined(HAVE_LIEF)
+  }
+
   if (use_largepages != "off" &&
       use_largepages != "on" &&
       use_largepages != "silent") {
@@ -1443,6 +1452,10 @@ PerProcessOptionsParser::PerProcessOptionsParser(
       "performance.",
       &PerProcessOptions::disable_wasm_trap_handler,
       kAllowedInEnvvar);
+
+  AddOption("--build-sea",
+            "Build a Node.js single executable application",
+            &PerProcessOptions::build_sea);
 }
 
 inline std::string RemoveBrackets(const std::string& host) {

@@ -1254,7 +1254,8 @@ The externally maintained libraries used by Node.js are:
     SOFTWARE.
   """
 
-- postject, located at test/fixtures/postject-copy, is licensed as follows:
+- postject, located at test/fixtures/postject-copy and used as a basis for
+  src/node_sea_bin.cc, is licensed as follows:
   """
     Postject is licensed for use as follows:
 

@@ -907,6 +907,12 @@ parser.add_argument('--without-amaro',
     default=None,
     help='do not install the bundled Amaro (TypeScript utils)')
 
+parser.add_argument('--without-lief',
+    action='store_true',
+    dest='without_lief',
+    default=None,
+    help='build without LIEF (Library for instrumenting executable formats)')
+
 parser.add_argument('--without-npm',
     action='store_true',
     dest='without_npm',
@@ -1782,6 +1788,14 @@ def configure_node(o):
   o['variables']['single_executable_application'] = b(not options.disable_single_executable_application)
   if options.disable_single_executable_application:
     o['defines'] += ['DISABLE_SINGLE_EXECUTABLE_APPLICATION']
+    o['variables']['node_use_lief'] = 'false'
+  else:
+    if (options.without_lief is not None):
+      o['variables']['node_use_lief'] = b(not options.without_lief)
+    elif flavor in ('mac', 'linux', 'win'):
+      o['variables']['node_use_lief'] = 'true'
+    else:
+      o['variables']['node_use_lief'] = 'false'
 
   o['variables']['node_with_ltcg'] = b(options.with_ltcg)
   if flavor != 'win' and options.with_ltcg:

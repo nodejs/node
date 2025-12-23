@@ -152,6 +152,7 @@
 /test/parallel/test-runner-* @nodejs/test_runner
 
 # Single Executable Applications
+/deps/LIEF @nodejs/single-executable
 /deps/postject @nodejs/single-executable
 /doc/api/single-executable-applications.md @nodejs/single-executable
 /doc/contributing/maintaining/maintaining-single-executable-application-support.md @nodejs/single-executable
@@ -159,6 +160,7 @@
 /test/fixtures/postject-copy @nodejs/single-executable
 /test/sea @nodejs/single-executable
 /tools/dep_updaters/update-postject.sh @nodejs/single-executable
+/tools/dep_updaters/update-lief.sh @nodejs/single-executable
 
 # Permission Model
 /doc/api/permissions.md @nodejs/security-wg
