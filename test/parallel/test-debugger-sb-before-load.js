@@ -17,7 +17,7 @@ const script = path.relative(process.cwd(), scriptFullPath);
 const otherScriptFullPath = fixtures.path('debugger', 'cjs', 'other.js');
 const otherScript = path.relative(process.cwd(), otherScriptFullPath);
 
-const cli = startCLI(['--port=0', script]);
+const cli = startCLI([script]);
 
 (async () => {
   await cli.waitForInitialBreak();

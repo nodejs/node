@@ -8,7 +8,7 @@ const startCLI = require('../common/debugger');
 
 const assert = require('assert');
 
-const cli = startCLI(['--port=0', fixtures.path('debugger/alive.js')]);
+const cli = startCLI([fixtures.path('debugger/alive.js')]);
 
 async function waitInitialBreak() {
   try {
@@ -60,6 +60,11 @@ async function waitInitialBreak() {
       /\[ 'undefined', 'function' \]/,
       'non-paused exec can see global but not module-scope values'
     );
+
+    // Ref: https://github.com/nodejs/node/issues/46808
+    await cli.waitForPrompt();
+    await cli.command('exec { a: 1 }');
+    assert.match(cli.output, /\{ a: 1 \}/);
   } finally {
     await cli.quit();
   }

@@ -9,18 +9,18 @@
 
 #include "metablock.h"
 
-#include <brotli/types.h>
-
 #include "../common/constants.h"
 #include "../common/context.h"
 #include "../common/platform.h"
 #include "bit_cost.h"
 #include "block_splitter.h"
 #include "cluster.h"
+#include "command.h"
 #include "entropy_encode.h"
 #include "histogram.h"
 #include "memory.h"
-#include "quality.h"
+#include "params.h"
+#include "prefix.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -298,8 +298,6 @@ void BrotliBuildMetaBlock(MemoryManager* m,
 #include "metablock_inc.h"  /* NOLINT(build/include) */
 #undef FN
 
-#define BROTLI_MAX_STATIC_CONTEXTS 13
-
 /* Greedy block splitter for one block category (literal, command or distance).
    Gathers histograms for all context buckets. */
 typedef struct ContextBlockSplitter {
@@ -400,7 +398,7 @@ static void ContextBlockSplitterFinishBlock(
 
     for (i = 0; i < num_contexts; ++i) {
       last_entropy[i] =
-          BitsEntropy(histograms[i].data_, self->alphabet_size_);
+          BrotliBitsEntropy(histograms[i].data_, self->alphabet_size_);
       last_entropy[num_contexts + i] = last_entropy[i];
     }
     ++self->num_blocks_;
@@ -426,15 +424,15 @@ static void ContextBlockSplitterFinishBlock(
     for (i = 0; i < num_contexts; ++i) {
       size_t curr_histo_ix = self->curr_histogram_ix_ + i;
       size_t j;
-      entropy[i] = BitsEntropy(histograms[curr_histo_ix].data_,
-                               self->alphabet_size_);
+      entropy[i] = BrotliBitsEntropy(histograms[curr_histo_ix].data_,
+                                     self->alphabet_size_);
       for (j = 0; j < 2; ++j) {
         size_t jx = j * num_contexts + i;
         size_t last_histogram_ix = self->last_histogram_ix_[j] + i;
         combined_histo[jx] = histograms[curr_histo_ix];
         HistogramAddHistogramLiteral(&combined_histo[jx],
             &histograms[last_histogram_ix]);
-        combined_entropy[jx] = BitsEntropy(
+        combined_entropy[jx] = BrotliBitsEntropy(
             &combined_histo[jx].data_[0], self->alphabet_size_);
         diff[j] += combined_entropy[jx] - entropy[i] - last_entropy[jx];
       }

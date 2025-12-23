@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2009-2020 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2009-2024 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -4743,6 +4743,7 @@ ___
 }
 
 $code.=<<___;
+.section .rodata align=64
 .align	64
 .Lbswap_mask:
 	.byte	15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0
@@ -4765,6 +4766,7 @@ $code.=<<___;
 
 .asciz  "AES for Intel AES-NI, CRYPTOGAMS by <appro\@openssl.org>"
 .align	64
+.previous
 ___
 
 # EXCEPTION_DISPOSITION handler (EXCEPTION_RECORD *rec,ULONG64 frame,

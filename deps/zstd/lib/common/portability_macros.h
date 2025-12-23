@@ -74,26 +74,39 @@
 # define ZSTD_HIDE_ASM_FUNCTION(func)
 #endif
 
+/* Compile time determination of BMI2 support */
+#ifndef STATIC_BMI2
+#  if defined(__BMI2__)
+#    define STATIC_BMI2 1
+#  elif defined(_MSC_VER) && defined(__AVX2__)
+#    define STATIC_BMI2 1 /* MSVC does not have a BMI2 specific flag, but every CPU that supports AVX2 also supports BMI2 */
+#  endif
+#endif
+
+#ifndef STATIC_BMI2
+#  define STATIC_BMI2 0
+#endif
+
 /* Enable runtime BMI2 dispatch based on the CPU.
  * Enabled for clang & gcc >=4.8 on x86 when BMI2 isn't enabled by default.
  */
 #ifndef DYNAMIC_BMI2
-  #if ((defined(__clang__) && __has_attribute(__target__)) \
+#  if ((defined(__clang__) && __has_attribute(__target__)) \
       || (defined(__GNUC__) \
           && (__GNUC__ >= 5 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 8)))) \
-      && (defined(__x86_64__) || defined(_M_X64)) \
+      && (defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)) \
       && !defined(__BMI2__)
-  #  define DYNAMIC_BMI2 1
-  #else
-  #  define DYNAMIC_BMI2 0
-  #endif
+#    define DYNAMIC_BMI2 1
+#  else
+#    define DYNAMIC_BMI2 0
+#  endif
 #endif
 
 /**
- * Only enable assembly for GNUC compatible compilers,
+ * Only enable assembly for GNU C compatible compilers,
  * because other platforms may not support GAS assembly syntax.
  *
- * Only enable assembly for Linux / MacOS, other platforms may
+ * Only enable assembly for Linux / MacOS / Win32, other platforms may
  * work, but they haven't been tested. This could likely be
  * extended to BSD systems.
  *
@@ -101,7 +114,7 @@
  * 100% of code to be instrumented to work.
  */
 #if defined(__GNUC__)
-#  if defined(__linux__) || defined(__linux) || defined(__APPLE__)
+#  if defined(__linux__) || defined(__linux) || defined(__APPLE__) || defined(_WIN32)
 #    if ZSTD_MEMORY_SANITIZER
 #      define ZSTD_ASM_SUPPORTED 0
 #    elif ZSTD_DATAFLOW_SANITIZER

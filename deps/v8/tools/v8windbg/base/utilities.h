@@ -5,6 +5,8 @@
 #ifndef V8_TOOLS_V8WINDBG_BASE_UTILITIES_H_
 #define V8_TOOLS_V8WINDBG_BASE_UTILITIES_H_
 
+#include <stdint.h>
+
 #include "tools/v8windbg/base/dbgext.h"
 
 inline const wchar_t* U16ToWChar(const char16_t* p_u16) {

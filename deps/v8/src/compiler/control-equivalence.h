@@ -7,8 +7,8 @@
 
 #include "src/base/compiler-specific.h"
 #include "src/common/globals.h"
-#include "src/compiler/graph.h"
 #include "src/compiler/node.h"
+#include "src/compiler/turbofan-graph.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
@@ -33,7 +33,7 @@ namespace compiler {
 class V8_EXPORT_PRIVATE ControlEquivalence final
     : public NON_EXPORTED_BASE(ZoneObject) {
  public:
-  ControlEquivalence(Zone* zone, Graph* graph)
+  ControlEquivalence(Zone* zone, TFGraph* graph)
       : zone_(zone),
         graph_(graph),
         dfs_number_(0),
@@ -171,7 +171,7 @@ class V8_EXPORT_PRIVATE ControlEquivalence final
   void BracketListTRACE(BracketList& blist);
 
   Zone* const zone_;
-  Graph* const graph_;
+  TFGraph* const graph_;
   int dfs_number_;    // Generates new DFS pre-order numbers on demand.
   int class_number_;  // Generates new equivalence class numbers on demand.
   Data node_data_;    // Per-node data stored as a side-table.

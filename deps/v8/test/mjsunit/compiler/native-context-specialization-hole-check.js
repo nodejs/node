@@ -25,11 +25,11 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --turbofan --no-always-turbofan --turbo-inlining
+// Flags: --allow-natives-syntax --turbofan --turbo-inlining
 
 if (isNeverOptimizeLiteMode()) {
   print("Warning: skipping test that requires optimization in Lite mode.");
-  testRunner.quit(0);
+  quit(0);
 }
 
 function f() {

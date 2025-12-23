@@ -569,7 +569,7 @@ bn_sub_words_internal:
 
 #if 0
 /*
- * The bn_div_3_words entry point is re-used for constant-time interface.
+ * The bn_div_3_words entry point is reused for constant-time interface.
  * Implementation is retained as historical reference.
  */
 .align 5

@@ -12,6 +12,7 @@ export default [
       globals: {
         ...globals.node,
         CloseEvent: true,
+        ErrorEvent: true,
       },
     },
     rules: {
@@ -37,6 +38,10 @@ export default [
           message: 'Do not use a literal for the third argument of assert.deepStrictEqual()',
         },
         {
+          selector: "CallExpression:matches([callee.name='notDeepStrictEqual'], [callee.property.name='deepStrictEqual'])[arguments.2.type='Literal']",
+          message: 'Do not use a literal for the third argument of assert.notDeepStrictEqual()',
+        },
+        {
           selector: "CallExpression:matches([callee.name='doesNotThrow'], [callee.property.name='doesNotThrow'])",
           message: 'Do not use `assert.doesNotThrow()`. Write the code without the wrapper and add a comment instead.',
         },
@@ -49,8 +54,16 @@ export default [
           message: '`assert.rejects()` must be invoked with at least two arguments.',
         },
         {
+          selector: "CallExpression[callee.property.name='notStrictEqual'][arguments.2.type='Literal']",
+          message: 'Do not use a literal for the third argument of assert.notStrictEqual()',
+        },
+        {
           selector: "CallExpression[callee.property.name='strictEqual'][arguments.2.type='Literal']",
           message: 'Do not use a literal for the third argument of assert.strictEqual()',
+        },
+        {
+          selector: "CallExpression[callee.name='assert'][arguments.1.type='Literal']:not([arguments.1.raw=/['\"`].*/])",
+          message: 'Do not use a non-string literal for the second argument of assert()',
         },
         {
           selector: "CallExpression:matches([callee.name='throws'], [callee.property.name='throws'])[arguments.1.type='Literal']:not([arguments.1.regex])",
@@ -92,6 +105,18 @@ export default [
           selector: "ExpressionStatement>CallExpression:matches([callee.name='rejects'], [callee.object.name='assert'][callee.property.name='rejects'])",
           message: 'Calling `assert.rejects` without `await` or `.then(common.mustCall())` will not detect never-settling promises.',
         },
+        {
+          selector: 'CallExpression[callee.property.name="catch"]>:first-child:matches(CallExpression[callee.object.name="common"][callee.property.name="mustNotCall"], CallExpression[callee.name="mustNotCall"])',
+          message: 'Calling `.catch(common.mustNotCall())` will not detect never-settling promises. Use `.then(common.mustCall())` instead.',
+        },
+        {
+          selector: 'CallExpression:matches([callee.type="Identifier"][callee.name="assert"], [callee.type="MemberExpression"][callee.object.type="Identifier"][callee.object.name="assert"][callee.property.type="Identifier"][callee.property.name="ok"])[arguments.0.type="CallExpression"][arguments.0.callee.type="MemberExpression"][arguments.0.callee.object.regex][arguments.0.callee.property.type="Identifier"][arguments.0.callee.property.name="test"]',
+          message: 'Use assert.match instead',
+        },
+        {
+          selector: 'CallExpression:matches([callee.type="Identifier"][callee.name="assert"], [callee.type="MemberExpression"][callee.object.type="Identifier"][callee.object.name="assert"][callee.property.type="Identifier"][callee.property.name="ok"])[arguments.0.type="UnaryExpression"][arguments.0.operator="!"][arguments.0.argument.type="CallExpression"][arguments.0.argument.callee.type="MemberExpression"][arguments.0.argument.callee.object.regex][arguments.0.argument.callee.property.name="test"]',
+          message: 'Use assert.doesNotMatch instead',
+        },
       ],
 
       // Stylistic rules.
@@ -116,13 +141,12 @@ export default [
       ],
       'node-core/require-common-first': 'error',
       'node-core/no-duplicate-requires': 'off',
+      'node-core/must-call-assert': 'error',
     },
   },
   {
     files: [
-      'test/es-module/**/*.{js,mjs}',
       'test/parallel/**/*.{js,mjs}',
-      'test/sequential/**/*.{js,mjs}',
     ],
     rules: {
       '@stylistic/js/comma-dangle': [
@@ -139,12 +163,31 @@ export default [
   },
   {
     files: [
-      'test/{common,wpt}/**/*.{js,mjs,cjs}',
+      'test/es-module/**/*.{js,mjs}',
+      'test/sequential/**/*.{js,mjs}',
+    ],
+    rules: {
+      '@stylistic/js/comma-dangle': [
+        'error',
+        {
+          arrays: 'always-multiline',
+          exports: 'always-multiline',
+          functions: 'only-multiline',
+          imports: 'always-multiline',
+          objects: 'always-multiline',
+        },
+      ],
+    },
+  },
+  {
+    files: [
+      'test/{common,fixtures,wpt}/**/*.{js,mjs,cjs}',
       'test/eslint.config_partial.mjs',
     ],
     rules: {
       'node-core/required-modules': 'off',
       'node-core/require-common-first': 'off',
+      'node-core/must-call-assert': 'off',
     },
   },
   {

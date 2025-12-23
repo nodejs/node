@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// Flags: --allow-natives-syntax --turbofan --no-always-turbofan
+// Flags: --allow-natives-syntax --turbofan
 
 ////////////////////////////////////////////////////////////////////////////////
 // This is a variant of regress-99540-1.js that does not rely on concurrent
@@ -10,7 +10,8 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 function mkbar() { return function(x) { x.p } }
-var bar = mkbar();
+var bar0 = mkbar();
+var bar = mkbar(); // disable context specialization by creating two closures
 function foo(x) { bar(x) }
 
 %PrepareFunctionForOptimization(foo);
@@ -35,24 +36,21 @@ foo(a);
 // Trigger optimization of bar, based on PACKED_SMI_ELEMENTS feedback.
 %OptimizeFunctionOnNextCall(bar);
 bar(a);
-assertOptimized(bar);
 %PrepareFunctionForOptimization(bar);
+assertOptimized(bar);
 
 // Change a's map from PACKED_SMI_ELEMENTS to PACKED_ELEMENTS and run new
 // instance of mkbar() in the interpreter s.t. bar's load feedback changes
 // accordingly (thanks to feedback vector sharing).
 a[0] = {};
 mkbar()(a);
-assertOptimized(bar);
-// If we were to call the optimized bar now, it would deopt.
+// This deoptimizes bar
+assertUnoptimized(bar);
 
 // Instead we trigger optimization of foo, which will inline bar (this time
 // based on the new PACKED_ELEMENTS map.
-assertOptimized(bar);
 %OptimizeFunctionOnNextCall(foo);
-assertOptimized(bar);
 foo(a);
-assertOptimized(bar);
 assertOptimized(foo);
 %PrepareFunctionForOptimization(foo);
 
@@ -61,7 +59,6 @@ assertOptimized(foo);
 // old map.
 foo(b);
 assertUnoptimized(foo);
-assertOptimized(bar);
 
 // Now ensure there is no deopt-loop. There used to be a deopt-loop because, as
 // a result of over-eager checkpoint elimination, we used to deopt into foo

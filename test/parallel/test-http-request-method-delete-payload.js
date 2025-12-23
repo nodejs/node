@@ -1,15 +1,12 @@
 'use strict';
 const common = require('../common');
 
-const assert = require('assert');
 const http = require('http');
 
 const data = 'PUT / HTTP/1.1\r\n\r\n';
 
 const server = http.createServer(common.mustCall(function(req, res) {
-  req.on('data', function(chunk) {
-    assert.strictEqual(chunk, Buffer.from(data));
-  });
+  req.on('data', common.mustNotCall());
   res.setHeader('Content-Type', 'text/plain');
   for (let i = 0; i < req.rawHeaders.length; i += 2) {
     if (req.rawHeaders[i].toLowerCase() === 'host') continue;

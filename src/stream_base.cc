@@ -401,7 +401,7 @@ int StreamBase::WriteString(const FunctionCallbackInfo<Value>& args) {
     // Copy partial data
     bs = ArrayBuffer::NewBackingStore(
         isolate, buf.len, BackingStoreInitializationMode::kUninitialized);
-    memcpy(static_cast<char*>(bs->Data()), buf.base, buf.len);
+    memcpy(bs->Data(), buf.base, buf.len);
     data_size = buf.len;
   } else {
     // Write it
@@ -708,10 +708,9 @@ void EmitToJSStreamListener::OnStreamRead(ssize_t nread, const uv_buf_t& buf_) {
   CHECK_LE(static_cast<size_t>(nread), bs->ByteLength());
   if (static_cast<size_t>(nread) != bs->ByteLength()) {
     std::unique_ptr<BackingStore> old_bs = std::move(bs);
-    bs = ArrayBuffer::NewBackingStore(isolate, nread);
-    memcpy(static_cast<char*>(bs->Data()),
-           static_cast<char*>(old_bs->Data()),
-           nread);
+    bs = ArrayBuffer::NewBackingStore(
+        isolate, nread, BackingStoreInitializationMode::kUninitialized);
+    memcpy(bs->Data(), old_bs->Data(), nread);
   }
 
   stream->CallJSOnreadMethod(nread, ArrayBuffer::New(isolate, std::move(bs)));

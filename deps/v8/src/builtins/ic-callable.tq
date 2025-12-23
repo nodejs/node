@@ -57,8 +57,10 @@ macro TaggedEqualPrototypeApplyFunction(
 macro FeedbackValueIsReceiver(
     implicit context: Context)(feedbackVector: FeedbackVector,
     slotId: uintptr): bool {
-  const callCount: intptr = SmiUntag(Cast<Smi>(LoadFeedbackVectorSlot(
-      feedbackVector, slotId, kTaggedSize)) otherwise return false);
+  const callCountSmi =
+      Cast<Smi>(LoadFeedbackVectorSlot(feedbackVector, slotId, kTaggedSize))
+      otherwise return false;
+  const callCount: intptr = SmiUntag(callCountSmi);
   return (callCount & IntPtrConstant(kCallFeedbackContentFieldMask)) !=
       IntPtrConstant(0);
 }
@@ -67,8 +69,10 @@ macro SetCallFeedbackContent(
     implicit context: Context)(feedbackVector: FeedbackVector, slotId: uintptr,
     callFeedbackContent: constexpr CallFeedbackContent): void {
   // Load the call count field from the feecback vector.
-  const callCount: intptr = SmiUntag(Cast<Smi>(LoadFeedbackVectorSlot(
-      feedbackVector, slotId, kTaggedSize)) otherwise return);
+  const callCountSmi =
+      Cast<Smi>(LoadFeedbackVectorSlot(feedbackVector, slotId, kTaggedSize))
+      otherwise return;
+  const callCount: intptr = SmiUntag(callCountSmi);
   // The second lowest bits of the call count are used to state whether the
   // feedback collected is a target or a receiver. Change that bit based on the
   // callFeedbackContent input.

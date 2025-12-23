@@ -1,0 +1,8 @@
+{
+    "test": {
+        "test-isolation": "process"
+    },
+    "nodeOptions": {
+        "test-isolation": "none"
+    }
+}

@@ -8,6 +8,8 @@
 
 #if U_SHOW_CPLUSPLUS_API
 
+#if !UCONFIG_NO_NORMALIZATION
+
 #if !UCONFIG_NO_FORMATTING
 
 #if !UCONFIG_NO_MF2
@@ -20,6 +22,7 @@
 #include "unicode/messageformat2_arguments.h"
 #include "unicode/messageformat2_data_model.h"
 #include "unicode/messageformat2_function_registry.h"
+#include "unicode/normalizer2.h"
 #include "unicode/unistr.h"
 
 #ifndef U_HIDE_DEPRECATED_API
@@ -30,8 +33,8 @@ namespace message2 {
 
     class Environment;
     class MessageContext;
-    class ResolvedSelector;
     class StaticErrors;
+    class InternalValue;
 
     /**
      * <p>MessageFormatter is a Technical Preview API implementing MessageFormat 2.0.
@@ -325,6 +328,8 @@ namespace message2 {
 
     private:
         friend class Builder;
+        friend class Checker;
+        friend class MessageArguments;
         friend class MessageContext;
 
         MessageFormatter(const MessageFormatter::Builder& builder, UErrorCode &status);
@@ -333,9 +338,6 @@ namespace message2 {
 
         // Do not define default assignment operator
         const MessageFormatter &operator=(const MessageFormatter &) = delete;
-
-        ResolvedSelector resolveVariables(const Environment& env, const data_model::Operand&, MessageContext&, UErrorCode &) const;
-        ResolvedSelector resolveVariables(const Environment& env, const data_model::Expression&, MessageContext&, UErrorCode &) const;
 
         // Selection methods
 
@@ -346,31 +348,35 @@ namespace message2 {
         // Takes a vector of vectors of strings (input) and a vector of PrioritizedVariants (input/output)
         void sortVariants(const UVector&, UVector&, UErrorCode&) const;
         // Takes a vector of strings (input) and a vector of strings (output)
-        void matchSelectorKeys(const UVector&, MessageContext&, ResolvedSelector&& rv, UVector&, UErrorCode&) const;
+        void matchSelectorKeys(const UVector&, MessageContext&, InternalValue* rv, UVector&, UErrorCode&) const;
         // Takes a vector of FormattedPlaceholders (input),
         // and a vector of vectors of strings (output)
         void resolvePreferences(MessageContext&, UVector&, UVector&, UErrorCode&) const;
 
         // Formatting methods
+
+        // Used for normalizing variable names and keys for comparison
+        UnicodeString normalizeNFC(const UnicodeString&) const;
         [[nodiscard]] FormattedPlaceholder formatLiteral(const data_model::Literal&) const;
         void formatPattern(MessageContext&, const Environment&, const data_model::Pattern&, UErrorCode&, UnicodeString&) const;
-        // Formats a call to a formatting function
+        // Evaluates a function call
         // Dispatches on argument type
-        [[nodiscard]] FormattedPlaceholder evalFormatterCall(FormattedPlaceholder&& argument,
-                                                       MessageContext& context,
-                                                       UErrorCode& status) const;
+        [[nodiscard]] InternalValue* evalFunctionCall(FormattedPlaceholder&& argument,
+                                                     MessageContext& context,
+                                                     UErrorCode& status) const;
         // Dispatches on function name
-        [[nodiscard]] FormattedPlaceholder evalFormatterCall(const FunctionName& functionName,
-                                                       FormattedPlaceholder&& argument,
-                                                       FunctionOptions&& options,
-                                                       MessageContext& context,
-                                                       UErrorCode& status) const;
-        // Formats an expression that appears as a selector
-        ResolvedSelector formatSelectorExpression(const Environment& env, const data_model::Expression&, MessageContext&, UErrorCode&) const;
+        [[nodiscard]] InternalValue* evalFunctionCall(const FunctionName& functionName,
+                                                     InternalValue* argument,
+                                                     FunctionOptions&& options,
+                                                     MessageContext& context,
+                                                     UErrorCode& status) const;
         // Formats an expression that appears in a pattern or as the definition of a local variable
-        [[nodiscard]] FormattedPlaceholder formatExpression(const Environment&, const data_model::Expression&, MessageContext&, UErrorCode&) const;
+        [[nodiscard]] InternalValue* formatExpression(const Environment&,
+                                                     const data_model::Expression&,
+                                                     MessageContext&,
+                                                     UErrorCode&) const;
         [[nodiscard]] FunctionOptions resolveOptions(const Environment& env, const OptionMap&, MessageContext&, UErrorCode&) const;
-        [[nodiscard]] FormattedPlaceholder formatOperand(const Environment&, const data_model::Operand&, MessageContext&, UErrorCode&) const;
+        [[nodiscard]] InternalValue* formatOperand(const Environment&, const data_model::Operand&, MessageContext&, UErrorCode&) const;
         [[nodiscard]] FormattedPlaceholder evalArgument(const data_model::VariableName&, MessageContext&, UErrorCode&) const;
         void formatSelectors(MessageContext& context, const Environment& env, UErrorCode &status, UnicodeString& result) const;
 
@@ -445,6 +451,10 @@ namespace message2 {
         // formatting methods return best-effort output.
         // The default is false.
         bool signalErrors = false;
+
+        // Used for implementing normalizeNFC()
+        const Normalizer2* nfcNormalizer = nullptr;
+
     }; // class MessageFormatter
 
 } // namespace message2
@@ -456,6 +466,8 @@ U_NAMESPACE_END
 #endif /* #if !UCONFIG_NO_MF2 */
 
 #endif /* #if !UCONFIG_NO_FORMATTING */
+
+#endif /* #if !UCONFIG_NO_NORMALIZATION */
 
 #endif /* U_SHOW_CPLUSPLUS_API */
 

@@ -5,15 +5,14 @@ const { kDestroyed, kBodyUsed, kListeners, kBody } = require('./symbols')
 const { IncomingMessage } = require('node:http')
 const stream = require('node:stream')
 const net = require('node:net')
-const { Blob } = require('node:buffer')
-const nodeUtil = require('node:util')
 const { stringify } = require('node:querystring')
 const { EventEmitter: EE } = require('node:events')
-const { InvalidArgumentError } = require('./errors')
+const timers = require('../util/timers')
+const { InvalidArgumentError, ConnectTimeoutError } = require('./errors')
 const { headerNameLowerCasedRecord } = require('./constants')
 const { tree } = require('./tree')
 
-const [nodeMajor, nodeMinor] = process.versions.node.split('.').map(v => Number(v))
+const [nodeMajor, nodeMinor] = process.versions.node.split('.', 2).map(v => Number(v))
 
 class BodyAsyncIterable {
   constructor (body) {
@@ -27,6 +26,8 @@ class BodyAsyncIterable {
     yield * this[kBody]
   }
 }
+
+function noop () {}
 
 /**
  * @param {*} body
@@ -102,12 +103,23 @@ function isBlobLike (object) {
 }
 
 /**
+ * @param {string} url The path to check for query strings or fragments.
+ * @returns {boolean} Returns true if the path contains a query string or fragment.
+ */
+function pathHasQueryOrFragment (url) {
+  return (
+    url.includes('?') ||
+    url.includes('#')
+  )
+}
+
+/**
  * @param {string} url The URL to add the query params to
  * @param {import('node:querystring').ParsedUrlQueryInput} queryParams The object to serialize into a URL query string
  * @returns {string} The URL with the query params added
  */
 function serializePathWithQuery (url, queryParams) {
-  if (url.includes('?') || url.includes('#')) {
+  if (pathHasQueryOrFragment(url)) {
     throw new Error('Query params cannot be passed when url already contains "?" or "#".')
   }
 
@@ -597,12 +609,11 @@ function ReadableStreamFrom (iterable) {
   let iterator
   return new ReadableStream(
     {
-      async start () {
+      start () {
         iterator = iterable[Symbol.asyncIterator]()
       },
       pull (controller) {
-        async function pull () {
-          const { done, value } = await iterator.next()
+        return iterator.next().then(({ done, value }) => {
           if (done) {
             queueMicrotask(() => {
               controller.close()
@@ -613,15 +624,13 @@ function ReadableStreamFrom (iterable) {
             if (buf.byteLength) {
               controller.enqueue(new Uint8Array(buf))
             } else {
-              return await pull()
+              return this.pull(controller)
             }
           }
-        }
-
-        return pull()
+        })
       },
-      async cancel () {
-        await iterator.return()
+      cancel () {
+        return iterator.return()
       },
       type: 'bytes'
     }
@@ -656,48 +665,6 @@ function addAbortListener (signal, listener) {
   signal.once('abort', listener)
   return () => signal.removeListener('abort', listener)
 }
-
-/**
- * @function
- * @param {string} value
- * @returns {string}
- */
-const toUSVString = (() => {
-  if (typeof String.prototype.toWellFormed === 'function') {
-    /**
-     * @param {string} value
-     * @returns {string}
-     */
-    return (value) => `${value}`.toWellFormed()
-  } else {
-    /**
-     * @param {string} value
-     * @returns {string}
-     */
-    return nodeUtil.toUSVString
-  }
-})()
-
-/**
- * @param {*} value
- * @returns {boolean}
- */
-// TODO: move this to webidl
-const isUSVString = (() => {
-  if (typeof String.prototype.isWellFormed === 'function') {
-    /**
-     * @param {*} value
-     * @returns {boolean}
-     */
-    return (value) => `${value}`.isWellFormed()
-  } else {
-    /**
-     * @param {*} value
-     * @returns {boolean}
-     */
-    return (value) => toUSVString(value) === `${value}`
-  }
-})()
 
 /**
  * @see https://tools.ietf.org/html/rfc7230#section-3.2.6
@@ -837,6 +804,102 @@ function errorRequest (client, request, err) {
   }
 }
 
+/**
+ * @param {WeakRef<net.Socket>} socketWeakRef
+ * @param {object} opts
+ * @param {number} opts.timeout
+ * @param {string} opts.hostname
+ * @param {number} opts.port
+ * @returns {() => void}
+ */
+const setupConnectTimeout = process.platform === 'win32'
+  ? (socketWeakRef, opts) => {
+      if (!opts.timeout) {
+        return noop
+      }
+
+      let s1 = null
+      let s2 = null
+      const fastTimer = timers.setFastTimeout(() => {
+      // setImmediate is added to make sure that we prioritize socket error events over timeouts
+        s1 = setImmediate(() => {
+        // Windows needs an extra setImmediate probably due to implementation differences in the socket logic
+          s2 = setImmediate(() => onConnectTimeout(socketWeakRef.deref(), opts))
+        })
+      }, opts.timeout)
+      return () => {
+        timers.clearFastTimeout(fastTimer)
+        clearImmediate(s1)
+        clearImmediate(s2)
+      }
+    }
+  : (socketWeakRef, opts) => {
+      if (!opts.timeout) {
+        return noop
+      }
+
+      let s1 = null
+      const fastTimer = timers.setFastTimeout(() => {
+      // setImmediate is added to make sure that we prioritize socket error events over timeouts
+        s1 = setImmediate(() => {
+          onConnectTimeout(socketWeakRef.deref(), opts)
+        })
+      }, opts.timeout)
+      return () => {
+        timers.clearFastTimeout(fastTimer)
+        clearImmediate(s1)
+      }
+    }
+
+/**
+ * @param {net.Socket} socket
+ * @param {object} opts
+ * @param {number} opts.timeout
+ * @param {string} opts.hostname
+ * @param {number} opts.port
+ */
+function onConnectTimeout (socket, opts) {
+  // The socket could be already garbage collected
+  if (socket == null) {
+    return
+  }
+
+  let message = 'Connect Timeout Error'
+  if (Array.isArray(socket.autoSelectFamilyAttemptedAddresses)) {
+    message += ` (attempted addresses: ${socket.autoSelectFamilyAttemptedAddresses.join(', ')},`
+  } else {
+    message += ` (attempted address: ${opts.hostname}:${opts.port},`
+  }
+
+  message += ` timeout: ${opts.timeout}ms)`
+
+  destroy(socket, new ConnectTimeoutError(message))
+}
+
+/**
+ * @param {string} urlString
+ * @returns {string}
+ */
+function getProtocolFromUrlString (urlString) {
+  if (
+    urlString[0] === 'h' &&
+    urlString[1] === 't' &&
+    urlString[2] === 't' &&
+    urlString[3] === 'p'
+  ) {
+    switch (urlString[4]) {
+      case ':':
+        return 'http:'
+      case 's':
+        if (urlString[5] === ':') {
+          return 'https:'
+        }
+    }
+  }
+  // fallback if none of the usual suspects
+  return urlString.slice(0, urlString.indexOf(':') + 1)
+}
+
 const kEnumerableProperty = Object.create(null)
 kEnumerableProperty.enumerable = true
 
@@ -868,8 +931,6 @@ Object.setPrototypeOf(normalizedMethodRecords, null)
 module.exports = {
   kEnumerableProperty,
   isDisturbed,
-  toUSVString,
-  isUSVString,
   isBlobLike,
   parseOrigin,
   parseURL,
@@ -895,6 +956,7 @@ module.exports = {
   assertRequestHandler,
   getSocketInfo,
   isFormDataLike,
+  pathHasQueryOrFragment,
   serializePathWithQuery,
   addAbortListener,
   isValidHTTPToken,
@@ -908,5 +970,7 @@ module.exports = {
   nodeMajor,
   nodeMinor,
   safeHTTPMethods: Object.freeze(['GET', 'HEAD', 'OPTIONS', 'TRACE']),
-  wrapRequestBody
+  wrapRequestBody,
+  setupConnectTimeout,
+  getProtocolFromUrlString
 }

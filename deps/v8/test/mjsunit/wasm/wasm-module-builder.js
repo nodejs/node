@@ -50,6 +50,7 @@ var kPageSize = 65536;
 var kSpecMaxPages = 65536;
 var kMaxVarInt32Size = 5;
 var kMaxVarInt64Size = 10;
+var kSpecMaxFunctionParams = 1_000;
 
 let kDeclNoLocals = 0;
 
@@ -80,9 +81,12 @@ let kWasmSharedTypeForm = 0x65;
 let kWasmFunctionTypeForm = 0x60;
 let kWasmStructTypeForm = 0x5f;
 let kWasmArrayTypeForm = 0x5e;
+let kWasmContTypeForm = 0x5d;
 let kWasmSubtypeForm = 0x50;
 let kWasmSubtypeFinalForm = 0x4f;
 let kWasmRecursiveTypeGroupForm = 0x4e;
+let kWasmDescriptorTypeForm = 0x4d;
+let kWasmDescribesTypeForm = 0x4c;
 
 let kNoSuperType = 0xFFFFFFFF;
 
@@ -137,8 +141,10 @@ let kWasmExnRef = -0x17;
 let kWasmNullExnRef = -0x0c;
 let kWasmStringRef = -0x19;
 let kWasmStringViewWtf8 = -0x1a;
-let kWasmStringViewWtf16 = -0x1e;
+let kWasmStringViewWtf16 = -0x20;
 let kWasmStringViewIter = -0x1f;
+const kWasmContRef = -0x18;
+const kWasmNullContRef = -0x0b;
 
 // Use the positive-byte versions inside function bodies.
 let kLeb128Mask = 0x7f;
@@ -159,14 +165,39 @@ let kStringRefCode = kWasmStringRef & kLeb128Mask;
 let kStringViewWtf8Code = kWasmStringViewWtf8 & kLeb128Mask;
 let kStringViewWtf16Code = kWasmStringViewWtf16 & kLeb128Mask;
 let kStringViewIterCode = kWasmStringViewIter & kLeb128Mask;
+const kContRefCode = kWasmContRef & kLeb128Mask;
+const kNullContRefCode = kWasmNullContRef & kLeb128Mask;
 
 let kWasmRefNull = 0x63;
 let kWasmRef = 0x64;
-function wasmRefNullType(heap_type, is_shared = false) {
-  return {opcode: kWasmRefNull, heap_type: heap_type, is_shared: is_shared};
+let kWasmExact = 0x62;
+
+// Implementation detail of `wasmRef[Null]Type`, don't use directly.
+class RefTypeBuilder {
+  constructor(opcode, heap_type) {
+    this.opcode = opcode;
+    this.heap_type = heap_type;
+    this.is_shared = false;
+    this.is_exact = false;
+  }
+  nullable() {
+    this.opcode = kWasmRefNull;
+    return this;
+  }
+  shared() {
+    this.is_shared = true;
+    return this;
+  }
+  exact() {
+    this.is_exact = true;
+    return this;
+  }
 }
-function wasmRefType(heap_type, is_shared = false) {
-  return {opcode: kWasmRef, heap_type: heap_type, is_shared: is_shared};
+function wasmRefNullType(heap_type) {
+  return new RefTypeBuilder(kWasmRefNull, heap_type);
+}
+function wasmRefType(heap_type) {
+  return new RefTypeBuilder(kWasmRef, heap_type);
 }
 
 let kExternalFunction = 0;
@@ -181,6 +212,9 @@ let kSegmentZero = 0;
 
 let kExceptionAttribute = 0;
 
+const kAtomicSeqCst = 0;
+const kAtomicAcqRel = 1;
+
 // Useful signatures
 let kSig_i_i = makeSig([kWasmI32], [kWasmI32]);
 let kSig_l_l = makeSig([kWasmI64], [kWasmI64]);
@@ -189,6 +223,7 @@ let kSig_i_ii = makeSig([kWasmI32, kWasmI32], [kWasmI32]);
 let kSig_i_iii = makeSig([kWasmI32, kWasmI32, kWasmI32], [kWasmI32]);
 let kSig_i_iiii = makeSig([kWasmI32, kWasmI32, kWasmI32, kWasmI32], [kWasmI32]);
 let kSig_v_iiii = makeSig([kWasmI32, kWasmI32, kWasmI32, kWasmI32], []);
+let kSig_l_iiii = makeSig([kWasmI32, kWasmI32, kWasmI32, kWasmI32], [kWasmI64]);
 let kSig_l_i = makeSig([kWasmI32], [kWasmI64]);
 let kSig_f_i = makeSig([kWasmI32], [kWasmF32]);
 let kSig_i_f = makeSig([kWasmF32], [kWasmI32]);
@@ -196,7 +231,9 @@ let kSig_i_ff = makeSig([kWasmF32, kWasmF32], [kWasmI32]);
 let kSig_f_ff = makeSig([kWasmF32, kWasmF32], [kWasmF32]);
 let kSig_f_ffff = makeSig([kWasmF32, kWasmF32, kWasmF32, kWasmF32], [kWasmF32]);
 let kSig_d_dd = makeSig([kWasmF64, kWasmF64], [kWasmF64]);
+let kSig_d_dddd = makeSig([kWasmF64, kWasmF64, kWasmF64, kWasmF64], [kWasmF64]);
 let kSig_l_ll = makeSig([kWasmI64, kWasmI64], [kWasmI64]);
+let kSig_l_llll = makeSig([kWasmI64, kWasmI64, kWasmI64, kWasmI64], [kWasmI64]);
 let kSig_i_dd = makeSig([kWasmF64, kWasmF64], [kWasmI32]);
 let kSig_v_v = makeSig([], []);
 let kSig_i_v = makeSig([], [kWasmI32]);
@@ -467,7 +504,13 @@ const kWasmOpcodes = {
   'RefEq': 0xd3,
   'RefAsNonNull': 0xd4,
   'BrOnNull': 0xd5,
-  'BrOnNonNull': 0xd6
+  'BrOnNonNull': 0xd6,
+  'ContNew': 0xe0,
+  'ContBind': 0xe1,
+  'Suspend': 0xe2,
+  'Resume': 0xe3,
+  'ResumeThrow': 0xe4,
+  'Switch': 0xe5
 };
 
 function defineWasmOpcode(name, value) {
@@ -538,6 +581,13 @@ let kExprExternConvertAny = 0x1b;
 let kExprRefI31 = 0x1c;
 let kExprI31GetS = 0x1d;
 let kExprI31GetU = 0x1e;
+let kExprRefI31Shared = 0x1f;
+// Custom Descriptors proposal:
+let kExprRefGetDesc = 0x22;
+let kExprRefCastDesc = 0x23;
+let kExprRefCastDescNull = 0x24;
+let kExprBrOnCastDesc = 0x25;
+let kExprBrOnCastDescFail = 0x26;
 
 let kExprRefCastNop = 0x4c;
 
@@ -676,6 +726,31 @@ let kExprI64AtomicCompareExchange = 0x49
 let kExprI64AtomicCompareExchange8U = 0x4c;
 let kExprI64AtomicCompareExchange16U = 0x4d;
 let kExprI64AtomicCompareExchange32U = 0x4e;
+
+// Atomic GC opcodes (shared-everything-threads).
+const kExprPause = 0x04;
+const kExprStructAtomicGet = 0x5c;
+const kExprStructAtomicGetS = 0x5d;
+const kExprStructAtomicGetU = 0x5e;
+const kExprStructAtomicSet = 0x5f;
+const kExprStructAtomicAdd = 0x60;
+const kExprStructAtomicSub = 0x61;
+const kExprStructAtomicAnd = 0x62;
+const kExprStructAtomicOr = 0x63;
+const kExprStructAtomicXor = 0x64;
+const kExprStructAtomicExchange = 0x65;
+const kExprStructAtomicCompareExchange = 0x66;
+const kExprArrayAtomicGet = 0x67;
+const kExprArrayAtomicGetS = 0x68;
+const kExprArrayAtomicGetU = 0x69;
+const kExprArrayAtomicSet = 0x6a;
+const kExprArrayAtomicAdd = 0x6b;
+const kExprArrayAtomicSub = 0x6c;
+const kExprArrayAtomicAnd = 0x6d;
+const kExprArrayAtomicOr = 0x6e;
+const kExprArrayAtomicXor = 0x6f;
+const kExprArrayAtomicExchange = 0x70;
+const kExprArrayAtomicCompareExchange = 0x71;
 
 // Simd opcodes.
 let kExprS128LoadMem = 0x00;
@@ -973,15 +1048,6 @@ let kExprF32x4PromoteLowF16x8 = wasmSignedLeb(0x14b);
 let kExprF16x8Qfma = wasmSignedLeb(0x14e);
 let kExprF16x8Qfms = wasmSignedLeb(0x14f);
 
-// Compilation hint constants.
-let kCompilationHintStrategyDefault = 0x00;
-let kCompilationHintStrategyLazy = 0x01;
-let kCompilationHintStrategyEager = 0x02;
-let kCompilationHintStrategyLazyBaselineEagerTopTier = 0x03;
-let kCompilationHintTierDefault = 0x00;
-let kCompilationHintTierBaseline = 0x01;
-let kCompilationHintTierOptimized = 0x02;
-
 let kTrapUnreachable = 0;
 let kTrapMemOutOfBounds = 1;
 let kTrapDivByZero = 2;
@@ -989,15 +1055,16 @@ let kTrapDivUnrepresentable = 3;
 let kTrapRemByZero = 4;
 let kTrapFloatUnrepresentable = 5;
 let kTrapTableOutOfBounds = 6;
-let kTrapFuncSigMismatch = 7;
-let kTrapUnalignedAccess = 8;
-let kTrapDataSegmentOutOfBounds = 9;
-let kTrapElementSegmentOutOfBounds = 10;
-let kTrapRethrowNull = 11;
-let kTrapArrayTooLarge = 12;
-let kTrapArrayOutOfBounds = 13;
-let kTrapNullDereference = 14;
-let kTrapIllegalCast = 15;
+let kTrapNullFunc = 7;
+let kTrapFuncSigMismatch = 8;
+let kTrapUnalignedAccess = 9;
+let kTrapDataSegmentOutOfBounds = 10;
+let kTrapElementSegmentOutOfBounds = 11;
+let kTrapRethrowNull = 12;
+let kTrapArrayTooLarge = 13;
+let kTrapArrayOutOfBounds = 14;
+let kTrapNullDereference = 15;
+let kTrapIllegalCast = 16;
 
 let kAtomicWaitOk = 0;
 let kAtomicWaitNotEqual = 1;
@@ -1009,6 +1076,10 @@ let kCatchRef = 0x1;
 let kCatchAllNoRef = 0x2;
 let kCatchAllRef = 0x3;
 
+// Stack switching handler kinds.
+let kOnSuspend = 0x0;
+let kOnSwitch = 0x1;
+
 let kTrapMsgs = [
   'unreachable',                                    // --
   'memory access out of bounds',                    // --
@@ -1017,7 +1088,8 @@ let kTrapMsgs = [
   'remainder by zero',                              // --
   'float unrepresentable in integer range',         // --
   'table index is out of bounds',                   // --
-  'null function or function signature mismatch',   // --
+  'null function',   // --
+  'function signature mismatch',   // --
   'operation does not support unaligned accesses',  // --
   'data segment out of bounds',                     // --
   'element segment out of bounds',                  // --
@@ -1137,6 +1209,7 @@ class Binary {
     } else {
       this.emit_u8(type.opcode);
       if (type.is_shared) this.emit_u8(kWasmSharedTypeForm);
+      if (type.is_exact) this.emit_u8(kWasmExact);
       this.emit_heap_type(type.heap_type);
     }
   }
@@ -1194,11 +1267,6 @@ class WasmFunctionBuilder {
 
   exportFunc() {
     this.exportAs(this.name);
-    return this;
-  }
-
-  setCompilationHint(strategy, baselineTier, topTier) {
-    this.module.setCompilationHint(strategy, baselineTier, topTier, this.index);
     return this;
   }
 
@@ -1289,9 +1357,30 @@ function makeField(type, mutability) {
   return {type: type, mutability: mutability};
 }
 
+function MustBeNumber(x, name) {
+  if (typeof x !== 'undefined' && typeof x !== 'number') {
+    throw new Error(`${name} must be a number, was ${x}`);
+  }
+  return x;
+}
+
 class WasmStruct {
   constructor(fields, is_final, is_shared, supertype_idx) {
-    if (!Array.isArray(fields)) {
+    let descriptor = undefined;
+    let describes = undefined;
+    if (Array.isArray(fields)) {
+      // Fall through.
+    } else if (fields.constructor === Object) {
+      // Options bag.
+      is_final = fields.is_final ?? fields.final ?? false;
+      is_shared = fields.is_shared ?? fields.shared ?? false;
+      supertype_idx = MustBeNumber(
+          fields.supertype_idx ?? fields.supertype ?? kNoSuperType,
+          "supertype");
+      descriptor = MustBeNumber(fields.descriptor, "'descriptor'");
+      describes = MustBeNumber(fields.describes, "'describes'");
+      fields = fields.fields ?? [];  // This must happen last.
+    } else {
       throw new Error('struct fields must be an array');
     }
     this.fields = fields;
@@ -1299,6 +1388,8 @@ class WasmStruct {
     this.is_final = is_final;
     this.is_shared = is_shared;
     this.supertype = supertype_idx;
+    this.descriptor = descriptor;
+    this.describes = describes;
   }
 }
 
@@ -1310,6 +1401,15 @@ class WasmArray {
     this.is_final = is_final;
     this.is_shared = is_shared;
     this.supertype = supertype_idx;
+  }
+}
+
+class WasmCont {
+  constructor(type_index) {
+    this.type_index = type_index;
+    this.supertype = kNoSuperType;
+    this.is_final = true;
+    this.is_shared = false;
   }
 }
 
@@ -1360,11 +1460,12 @@ class WasmModuleBuilder {
     this.tags = [];
     this.memories = [];
     this.functions = [];
-    this.compilation_hints = [];
     this.element_segments = [];
     this.data_segments = [];
     this.explicit = [];
     this.rec_groups = [];
+    this.compilation_priorities = new Map();
+    this.start_index = undefined;
     this.num_imported_funcs = 0;
     this.num_imported_globals = 0;
     this.num_imported_tables = 0;
@@ -1429,11 +1530,13 @@ class WasmModuleBuilder {
 
   // We use {is_final = true} so that the MVP syntax is generated for
   // signatures.
-  addType(type, supertype_idx = kNoSuperType, is_final = true, is_shared = false) {
+  addType(type, supertype_idx = kNoSuperType, is_final = true,
+          is_shared = false) {
     var pl = type.params.length;   // should have params
     var rl = type.results.length;  // should have results
     var type_copy = {params: type.params, results: type.results,
-                     is_final: is_final, is_shared: is_shared, supertype: supertype_idx};
+                     is_final: is_final, is_shared: is_shared,
+                     supertype: supertype_idx};
     this.types.push(type_copy);
     return this.types.length - 1;
   }
@@ -1443,15 +1546,29 @@ class WasmModuleBuilder {
     return this.stringrefs.length - 1;
   }
 
-  addStruct(fields, supertype_idx = kNoSuperType, is_final = false, is_shared = false) {
-    this.types.push(new WasmStruct(fields, is_final, is_shared, supertype_idx));
+  // {fields} may be a list of fields, in which case the other parameters are
+  // relevant; or an options bag, which replaces the other parameters.
+  // Example: addStruct({fields: [...], supertype: 3})
+  addStruct(fields, supertype_idx = kNoSuperType, is_final = false,
+            is_shared = false) {
+    this.types.push(
+        new WasmStruct(fields, is_final, is_shared, supertype_idx));
     return this.types.length - 1;
   }
 
-  addArray(type, mutability, supertype_idx = kNoSuperType, is_final = false, is_shared = false) {
-    this.types.push(new WasmArray(type, mutability, is_final, is_shared, supertype_idx));
+  addArray(type, mutability, supertype_idx = kNoSuperType, is_final = false,
+           is_shared = false) {
+    this.types.push(
+        new WasmArray(type, mutability, is_final, is_shared, supertype_idx));
     return this.types.length - 1;
   }
+
+  addCont(type) {
+    let type_index = (typeof type) == 'number' ? type : this.addType(type);
+    this.types.push(new WasmCont(type_index));
+    return this.types.length - 1;
+  }
+
 
   nextTypeIndex() { return this.types.length; }
 
@@ -1583,7 +1700,8 @@ class WasmModuleBuilder {
   }
 
   addImportedTable(
-      module, name, initial, maximum, type = kWasmFuncRef, is_table64 = false) {
+      module, name, initial, maximum, type = kWasmFuncRef, shared = false,
+      is_table64 = false) {
     if (this.tables.length != 0) {
       throw new Error('Imported tables must be declared before local ones');
     }
@@ -1594,7 +1712,8 @@ class WasmModuleBuilder {
       initial: initial,
       maximum: maximum,
       type: type,
-      is_table64: !!is_table64
+      shared: !!shared,
+      is_table64: !!is_table64,
     };
     this.imports.push(o);
     return this.num_imported_tables++;
@@ -1630,15 +1749,6 @@ class WasmModuleBuilder {
       throw new Error('Index for exports must be a number')
     }
     this.exports.push({name: name, kind: kind, index: index});
-    return this;
-  }
-
-  setCompilationHint(strategy, baselineTier, topTier, index) {
-    this.compilation_hints[index] = {
-      strategy: strategy,
-      baselineTier: baselineTier,
-      topTier: topTier
-    };
     return this;
   }
 
@@ -1756,6 +1866,13 @@ class WasmModuleBuilder {
     return this;
   }
 
+  setCompilationPriority(
+      function_index, compilation_priority, optimization_priority) {
+    this.compilation_priorities.set(function_index, {
+      compilation_priority, optimization_priority
+    });
+  }
+
   toBuffer(debug = false) {
     let binary = new Binary;
     let wasm = this;
@@ -1794,6 +1911,14 @@ class WasmModuleBuilder {
             section.emit_u8(0);  // no supertypes
           }
           if (type.is_shared) section.emit_u8(kWasmSharedTypeForm);
+          if (type.describes !== undefined) {
+            section.emit_u8(kWasmDescribesTypeForm);
+            section.emit_u32v(type.describes);
+          }
+          if (type.descriptor !== undefined) {
+            section.emit_u8(kWasmDescriptorTypeForm);
+            section.emit_u32v(type.descriptor);
+          }
           if (type instanceof WasmStruct) {
             section.emit_u8(kWasmStructTypeForm);
             section.emit_u32v(type.fields.length);
@@ -1805,6 +1930,9 @@ class WasmModuleBuilder {
             section.emit_u8(kWasmArrayTypeForm);
             section.emit_type(type.type);
             section.emit_u8(type.mutability ? 1 : 0);
+          } else if (type instanceof WasmCont) {
+            section.emit_u8(kWasmContTypeForm);
+            section.emit_u32v(type.type_index);
           } else {
             section.emit_u8(kWasmFunctionTypeForm);
             section.emit_u32v(type.params.length);
@@ -1849,8 +1977,7 @@ class WasmModuleBuilder {
           } else if (imp.kind == kExternalTable) {
             section.emit_type(imp.type);
             const has_max = (typeof imp.maximum) != 'undefined';
-            // TODO(manoskouk): Store sharedness as a property.
-            const is_shared = false
+            const is_shared = !!imp.shared;
             const is_table64 = !!imp.is_table64;
             let limits_byte =
                 (is_table64 ? 4 : 0) | (is_shared ? 2 : 0) | (has_max ? 1 : 0);
@@ -2053,40 +2180,6 @@ class WasmModuleBuilder {
       });
     }
 
-    // If there are compilation hints add a custom section 'compilationHints'
-    // after the function section and before the code section.
-    if (wasm.compilation_hints.length > 0) {
-      if (debug) print('emitting compilation hints @ ' + binary.length);
-      // Build custom section payload.
-      let payloadBinary = new Binary();
-      let implicit_compilation_hints_count = wasm.functions.length;
-      payloadBinary.emit_u32v(implicit_compilation_hints_count);
-
-      // Defaults to the compiler's choice if no better hint was given (0x00).
-      let defaultHintByte = kCompilationHintStrategyDefault |
-          (kCompilationHintTierDefault << 2) |
-          (kCompilationHintTierDefault << 4);
-
-      // Emit hint byte for every function defined in this module.
-      for (let i = 0; i < implicit_compilation_hints_count; i++) {
-        let index = wasm.num_imported_funcs + i;
-        var hintByte;
-        if (index in wasm.compilation_hints) {
-          let hint = wasm.compilation_hints[index];
-          hintByte =
-              hint.strategy | (hint.baselineTier << 2) | (hint.topTier << 4);
-        } else {
-          hintByte = defaultHintByte;
-        }
-        payloadBinary.emit_u8(hintByte);
-      }
-
-      // Finalize as custom section.
-      let name = 'compilationHints';
-      let bytes = this.createCustomSection(name, payloadBinary.trunc_buffer());
-      binary.emit_bytes(bytes);
-    }
-
     // Add function bodies.
     if (wasm.functions.length > 0) {
       // emit function bodies
@@ -2204,6 +2297,28 @@ class WasmModuleBuilder {
           });
         }
       });
+    }
+
+    // Add compilation priorities.
+    if (this.compilation_priorities.size > 0) {
+      binary.emit_section(kUnknownSectionCode, section => {
+        section.emit_string("metadata.code.compilation_priority");
+        section.emit_u32v(this.compilation_priorities.size);
+        this.compilation_priorities.forEach((priority, index) => {
+          section.emit_u32v(index);
+          section.emit_u8(0);  // Byte offset 0 for function level hint.
+          let compilation_priority =
+              wasmUnsignedLeb(priority.compilation_priority);
+          let optimization_priority =
+              priority.optimization_priority != undefined ?
+              wasmUnsignedLeb(priority.optimization_priority) :
+              [];
+          section.emit_u32v(compilation_priority.length +
+                            optimization_priority.length);
+          section.emit_bytes(compilation_priority);
+          section.emit_bytes(optimization_priority);
+        })
+      })
     }
 
     return binary.trunc_buffer();
@@ -2336,23 +2451,38 @@ function wasmS128Const(f) {
   return result;
 }
 
-let [wasmBrOnCast, wasmBrOnCastFail] = (function() {
+let wasmEncodeHeapType = function(type) {
+  let result = wasmSignedLeb(type.heap_type, kMaxVarInt32Size);
+  if (type.is_shared) {
+    result = [kWasmSharedTypeForm].concat(result);
+  }
+  if (type.is_exact) {
+    result = [kWasmExact].concat(result);
+  }
+  return result;
+};
+
+let [wasmBrOnCast, wasmBrOnCastFail, wasmBrOnCastDesc, wasmBrOnCastDescFail] =
+(function() {
   return [
     (labelIdx, sourceType, targetType) =>
-      wasmBrOnCastImpl(labelIdx, sourceType, targetType, false),
-      (labelIdx, sourceType, targetType) =>
-      wasmBrOnCastImpl(labelIdx, sourceType, targetType, true),
+      wasmBrOnCastImpl(labelIdx, sourceType, targetType, kExprBrOnCast),
+    (labelIdx, sourceType, targetType) =>
+      wasmBrOnCastImpl(labelIdx, sourceType, targetType, kExprBrOnCastFail),
+    (labelIdx, sourceType, targetType) =>
+      wasmBrOnCastImpl(labelIdx, sourceType, targetType, kExprBrOnCastDesc),
+    (labelIdx, sourceType, targetType) =>
+      wasmBrOnCastImpl(labelIdx, sourceType, targetType, kExprBrOnCastDescFail),
   ];
-  function wasmBrOnCastImpl(labelIdx, sourceType, targetType, brOnFail) {
+  function wasmBrOnCastImpl(labelIdx, sourceType, targetType, opcode) {
     labelIdx = wasmUnsignedLeb(labelIdx, kMaxVarInt32Size);
-    let srcHeap = wasmSignedLeb(sourceType.heap_type, kMaxVarInt32Size);
-    let tgtHeap = wasmSignedLeb(targetType.heap_type, kMaxVarInt32Size);
     let srcIsNullable = sourceType.opcode == kWasmRefNull;
     let tgtIsNullable = targetType.opcode == kWasmRefNull;
     flags = (tgtIsNullable << 1) + srcIsNullable;
     return [
-      kGCPrefix, brOnFail ? kExprBrOnCastFail : kExprBrOnCast,
-      flags, ...labelIdx, ...srcHeap, ...tgtHeap];
+      kGCPrefix, opcode, flags, ...labelIdx, ...wasmEncodeHeapType(sourceType),
+      ...wasmEncodeHeapType(targetType)
+    ];
   }
 })();
 

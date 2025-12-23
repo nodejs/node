@@ -2,6 +2,7 @@
 #undef NDEBUG
 #endif
 #include <assert.h>
+#include "cppgc/platform.h"
 #include "executable_wrapper.h"
 #include "node.h"
 
@@ -43,6 +44,7 @@ NODE_MAIN(int argc, node::argv_type raw_argv[]) {
               // support in the future, split this configuration out as a
               // command line option.
               node::ProcessInitializationFlags::kDisableNodeOptionsEnv,
+              node::ProcessInitializationFlags::kNoInitializeCppgc,
           });
 
   for (const std::string& error : result->errors())
@@ -54,6 +56,7 @@ NODE_MAIN(int argc, node::argv_type raw_argv[]) {
   std::unique_ptr<MultiIsolatePlatform> platform =
       MultiIsolatePlatform::Create(4);
   V8::InitializePlatform(platform.get());
+  cppgc::InitializeProcess(platform->GetPageAllocator());
   V8::Initialize();
 
   int ret =
@@ -207,23 +210,23 @@ int RunNodeInstance(MultiIsolatePlatform* platform,
       return 1;
 
     exit_code = node::SpinEventLoop(env).FromMaybe(1);
-  }
 
-  if (!snapshot_blob_path.empty() && is_building_snapshot) {
-    snapshot = setup->CreateSnapshot();
-    assert(snapshot);
+    if (!snapshot_blob_path.empty() && is_building_snapshot) {
+      snapshot = setup->CreateSnapshot();
+      assert(snapshot);
 
-    FILE* fp = fopen(snapshot_blob_path.c_str(), "wb");
-    assert(fp != nullptr);
-    if (snapshot_as_file) {
-      snapshot->ToFile(fp);
-    } else {
-      const std::vector<char> vec = snapshot->ToBlob();
-      size_t written = fwrite(vec.data(), vec.size(), 1, fp);
-      assert(written == 1);
+      FILE* fp = fopen(snapshot_blob_path.c_str(), "wb");
+      assert(fp != nullptr);
+      if (snapshot_as_file) {
+        snapshot->ToFile(fp);
+      } else {
+        const std::vector<char> vec = snapshot->ToBlob();
+        size_t written = fwrite(vec.data(), vec.size(), 1, fp);
+        assert(written == 1);
+      }
+      int ret = fclose(fp);
+      assert(ret == 0);
     }
-    int ret = fclose(fp);
-    assert(ret == 0);
   }
 
   node::Stop(env);

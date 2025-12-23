@@ -162,6 +162,22 @@ constexpr Register TypeConversionDescriptor::ArgumentRegister() { return r3; }
 constexpr auto TypeofDescriptor::registers() { return RegisterArray(r3); }
 
 // static
+constexpr Register
+MaglevOptimizeCodeOrTailCallOptimizedCodeSlotDescriptor::FlagsRegister() {
+  return r5;
+}
+// static
+constexpr Register MaglevOptimizeCodeOrTailCallOptimizedCodeSlotDescriptor::
+    FeedbackVectorRegister() {
+  return r8;
+}
+// static
+constexpr Register
+MaglevOptimizeCodeOrTailCallOptimizedCodeSlotDescriptor::TemporaryRegister() {
+  return r7;
+}
+
+// static
 constexpr auto CallTrampolineDescriptor::registers() {
   // r3 : number of arguments
   // r4 : the target to call
@@ -314,10 +330,7 @@ constexpr Register
 CallApiCallbackOptimizedDescriptor::FunctionTemplateInfoRegister() {
   return r6;
 }
-// static
-constexpr Register CallApiCallbackOptimizedDescriptor::HolderRegister() {
-  return r3;
-}
+
 // static
 constexpr Register
 CallApiCallbackGenericDescriptor::ActualArgumentsCountRegister() {
@@ -332,10 +345,6 @@ CallApiCallbackGenericDescriptor::TopmostScriptHavingContextRegister() {
 constexpr Register
 CallApiCallbackGenericDescriptor::FunctionTemplateInfoRegister() {
   return r6;
-}
-// static
-constexpr Register CallApiCallbackGenericDescriptor::HolderRegister() {
-  return r3;
 }
 
 // static

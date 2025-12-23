@@ -29,7 +29,7 @@ class RegExpTest : public fuzztest::PerFuzzTestFixtureAdapter<TestWithContext> {
 
  protected:
   virtual i::Handle<i::String> CreateString(v8::base::Vector<const T>) = 0;
-  void Test(i::DirectHandle<i::JSRegExp>, i::Handle<i::String>);
+  void Test(i::DirectHandle<i::JSRegExp>, i::DirectHandle<i::String>);
 
   Local<Context> context_;
   Isolate* isolate_;
@@ -100,11 +100,11 @@ static fuzztest::Domain<std::vector<v8::base::uc16>> ArbitraryTwoBytes() {
 
 template <class T>
 void RegExpTest<T>::Test(i::DirectHandle<i::JSRegExp> regexp,
-                         i::Handle<i::String> subject) {
+                         i::DirectHandle<i::String> subject) {
   v8::TryCatch try_catch(isolate_);
   // Exceptions will be swallowed by the try/catch above.
-  USE(i::RegExp::Exec(i_isolate_, regexp, subject, 0,
-                      i::RegExpMatchInfo::New(i_isolate_, 2)));
+  USE(i::RegExp::Exec_Single(i_isolate_, regexp, subject, 0,
+                             i::RegExpMatchInfo::New(i_isolate_, 2)));
 }
 
 template <class T>
@@ -115,20 +115,20 @@ void RegExpTest<T>::RunRegExp(const std::string& regexp_input,
   if (regexp_input.size() > INT_MAX) return;
 
   // Convert input string.
-  i::MaybeHandle<i::String> maybe_source =
+  i::MaybeDirectHandle<i::String> maybe_source =
       factory_->NewStringFromUtf8(v8::base::CStrVector(regexp_input.c_str()));
-  i::Handle<i::String> source;
+  i::DirectHandle<i::String> source;
   if (!maybe_source.ToHandle(&source)) {
     i_isolate_->clear_exception();
     return;
   }
 
   // Create regexp.
-  i::Handle<i::JSRegExp> regexp;
+  i::DirectHandle<i::JSRegExp> regexp;
   {
     CHECK(!i_isolate_->has_exception());
     v8::TryCatch try_catch_inner(isolate_);
-    i::MaybeHandle<i::JSRegExp> maybe_regexp = i::JSRegExp::New(
+    i::MaybeDirectHandle<i::JSRegExp> maybe_regexp = i::JSRegExp::New(
         i_isolate_, source, i::JSRegExp::AsJSRegExpFlags(flags),
         /*backtrack_limit*/ 1000000);
     if (!maybe_regexp.ToHandle(&regexp)) {

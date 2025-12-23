@@ -10,6 +10,7 @@ set(ABSL_INTERNAL_DLL_FILES
   "base/config.h"
   "base/const_init.h"
   "base/dynamic_annotations.h"
+  "base/fast_type_id.h"
   "base/internal/atomic_hook.h"
   "base/internal/cycleclock.cc"
   "base/internal/cycleclock.h"
@@ -17,15 +18,12 @@ set(ABSL_INTERNAL_DLL_FILES
   "base/internal/direct_mmap.h"
   "base/internal/endian.h"
   "base/internal/errno_saver.h"
-  "base/internal/fast_type_id.h"
   "base/internal/hide_ptr.h"
-  "base/internal/identity.h"
-  "base/internal/invoke.h"
-  "base/internal/inline_variable.h"
+  "base/internal/iterator_traits.h"
   "base/internal/low_level_alloc.cc"
   "base/internal/low_level_alloc.h"
   "base/internal/low_level_scheduling.h"
-  "base/internal/nullability_impl.h"
+  "base/internal/nullability_traits.h"
   "base/internal/per_thread_tls.h"
   "base/internal/poison.cc"
   "base/internal/poison.h"
@@ -82,6 +80,7 @@ set(ABSL_INTERNAL_DLL_FILES
   "container/internal/container_memory.h"
   "container/internal/hash_function_defaults.h"
   "container/internal/hash_policy_traits.h"
+  "container/internal/hashtable_control_bytes.h"
   "container/internal/hashtable_debug.h"
   "container/internal/hashtable_debug_hooks.h"
   "container/internal/hashtablez_sampler.cc"
@@ -93,6 +92,7 @@ set(ABSL_INTERNAL_DLL_FILES
   "container/internal/raw_hash_map.h"
   "container/internal/raw_hash_set.cc"
   "container/internal/raw_hash_set.h"
+  "container/internal/raw_hash_set_resize_impl.h"
   "container/internal/tracked.h"
   "container/node_hash_map.h"
   "container/node_hash_set.h"
@@ -125,6 +125,7 @@ set(ABSL_INTERNAL_DLL_FILES
   "debugging/symbolize.h"
   "debugging/internal/address_is_readable.cc"
   "debugging/internal/address_is_readable.h"
+  "debugging/internal/addresses.h"
   "debugging/internal/bounded_utf8_length_sequence.h"
   "debugging/internal/decode_rust_punycode.cc"
   "debugging/internal/decode_rust_punycode.h"
@@ -157,8 +158,7 @@ set(ABSL_INTERNAL_DLL_FILES
   "hash/internal/hash.h"
   "hash/internal/hash.cc"
   "hash/internal/spy_hash_state.h"
-  "hash/internal/low_level_hash.h"
-  "hash/internal/low_level_hash.cc"
+  "hash/internal/weakly_mixed_integer.h"
   "log/absl_check.h"
   "log/absl_log.h"
   "log/absl_vlog_is_on.h"
@@ -192,6 +192,8 @@ set(ABSL_INTERNAL_DLL_FILES
   "log/internal/proto.cc"
   "log/internal/strip.h"
   "log/internal/structured.h"
+  "log/internal/structured_proto.cc"
+  "log/internal/structured_proto.h"
   "log/internal/vlog_config.cc"
   "log/internal/vlog_config.h"
   "log/internal/voidify.h"
@@ -213,10 +215,14 @@ set(ABSL_INTERNAL_DLL_FILES
   "numeric/int128.h"
   "numeric/internal/bits.h"
   "numeric/internal/representation.h"
+  "profiling/hashtable.cc"
+  "profiling/hashtable.h"
   "profiling/internal/exponential_biased.cc"
   "profiling/internal/exponential_biased.h"
   "profiling/internal/periodic_sampler.cc"
   "profiling/internal/periodic_sampler.h"
+  "profiling/internal/profile_builder.cc"
+  "profiling/internal/profile_builder.h"
   "profiling/internal/sample_recorder.h"
   "random/bernoulli_distribution.h"
   "random/beta_distribution.h"
@@ -235,8 +241,8 @@ set(ABSL_INTERNAL_DLL_FILES
   "random/internal/nonsecure_base.h"
   "random/internal/pcg_engine.h"
   "random/internal/platform.h"
-  "random/internal/pool_urbg.cc"
-  "random/internal/pool_urbg.h"
+  "random/internal/entropy_pool.cc"
+  "random/internal/entropy_pool.h"
   "random/internal/randen.cc"
   "random/internal/randen.h"
   "random/internal/randen_detect.cc"
@@ -283,7 +289,6 @@ set(ABSL_INTERNAL_DLL_FILES
   "strings/cord.h"
   "strings/cord_analysis.cc"
   "strings/cord_analysis.h"
-  "strings/cord_buffer.cc"
   "strings/cord_buffer.h"
   "strings/escaping.cc"
   "strings/escaping.h"
@@ -368,6 +373,7 @@ set(ABSL_INTERNAL_DLL_FILES
   "strings/internal/str_split_internal.h"
   "strings/internal/utf8.cc"
   "strings/internal/utf8.h"
+  "strings/resize_and_overwrite.h"
   "synchronization/barrier.cc"
   "synchronization/barrier.h"
   "synchronization/blocking_counter.cc"
@@ -429,20 +435,11 @@ set(ABSL_INTERNAL_DLL_FILES
   "time/internal/cctz/src/tzfile.h"
   "time/internal/cctz/src/zone_info_source.cc"
   "types/any.h"
-  "types/bad_any_cast.cc"
-  "types/bad_any_cast.h"
-  "types/bad_optional_access.cc"
-  "types/bad_optional_access.h"
-  "types/bad_variant_access.cc"
-  "types/bad_variant_access.h"
   "types/compare.h"
-  "types/internal/variant.h"
   "types/optional.h"
-  "types/internal/optional.h"
   "types/span.h"
   "types/internal/span.h"
   "types/variant.h"
-  "utility/internal/if_constexpr.h"
   "utility/utility.h"
   "debugging/leak_check.cc"
 )
@@ -493,10 +490,6 @@ set(ABSL_INTERNAL_DLL_TARGETS
   "any"
   "any_invocable"
   "atomic_hook"
-  "bad_any_cast"
-  "bad_any_cast_impl"
-  "bad_optional_access"
-  "bad_variant_access"
   "base"
   "base_internal"
   "bind_front"
@@ -731,7 +724,7 @@ if(ABSL_INTERNAL_AT_LEAST_CXX20)
 elseif(ABSL_INTERNAL_AT_LEAST_CXX17)
   set(ABSL_INTERNAL_CXX_STD_FEATURE cxx_std_17)
 else()
-  set(ABSL_INTERNAL_CXX_STD_FEATURE cxx_std_14)
+  message(FATAL_ERROR "The compiler defaults to or is configured for C++ < 17. C++ >= 17 is required and Abseil and all libraries that use Abseil must use the same C++ language standard")
 endif()
 
 function(absl_internal_dll_contains)
@@ -835,6 +828,10 @@ function(absl_make_dll)
     PRIVATE
       ${_dll_libs}
       ${ABSL_DEFAULT_LINKOPTS}
+      $<$<BOOL:${ANDROID}>:-llog>
+      $<$<BOOL:${MINGW}>:-ladvapi32>
+      $<$<BOOL:${MINGW}>:-ldbghelp>
+      $<$<BOOL:${MINGW}>:-lbcrypt>
   )
   set_target_properties(${_dll} PROPERTIES
     LINKER_LANGUAGE "CXX"
@@ -895,7 +892,7 @@ Cflags: -I\${includedir}${PC_CFLAGS}\n")
   )
 
   if(ABSL_PROPAGATE_CXX_STD)
-    # Abseil libraries require C++14 as the current minimum standard. When
+    # Abseil libraries require C++17 as the current minimum standard. When
     # compiled with a higher minimum (either because it is the compiler's
     # default or explicitly requested), then Abseil requires that standard.
     target_compile_features(${_dll} PUBLIC ${ABSL_INTERNAL_CXX_STD_FEATURE})

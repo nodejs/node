@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "include/v8-container.h"
+#include "include/v8-cpp-heap-external.h"
 #include "include/v8-external.h"
 #include "include/v8-function-callback.h"
 #include "include/v8-proxy.h"
@@ -49,30 +50,25 @@ class EphemeronTable;
 }  // namespace debug
 
 template <typename T, internal::ExternalPointerTag tag>
-inline T ToCData(i::Isolate* isolate,
-                 v8::internal::Tagged<v8::internal::Object> obj);
+inline T ToCData(i::Isolate* isolate, i::Tagged<i::Object> obj);
 template <internal::ExternalPointerTag tag>
-inline v8::internal::Address ToCData(
-    v8::internal::Isolate* isolate,
-    v8::internal::Tagged<v8::internal::Object> obj);
+inline i::Address ToCData(i::Isolate* isolate, i::Tagged<i::Object> obj);
 
 template <internal::ExternalPointerTag tag, typename T>
-inline v8::internal::Handle<
-    v8::internal::UnionOf<v8::internal::Smi, v8::internal::Foreign>>
-FromCData(v8::internal::Isolate* isolate, T obj);
+inline i::DirectHandle<i::UnionOf<i::Smi, i::Foreign>> FromCData(
+    i::Isolate* isolate, T obj);
 
 template <internal::ExternalPointerTag tag>
-inline v8::internal::Handle<
-    v8::internal::UnionOf<v8::internal::Smi, v8::internal::Foreign>>
-FromCData(v8::internal::Isolate* isolate, v8::internal::Address obj);
+inline i::DirectHandle<i::UnionOf<i::Smi, i::Foreign>> FromCData(
+    i::Isolate* isolate, i::Address obj);
 
 class ApiFunction {
  public:
-  explicit ApiFunction(v8::internal::Address addr) : addr_(addr) {}
-  v8::internal::Address address() { return addr_; }
+  explicit ApiFunction(i::Address addr) : addr_(addr) {}
+  i::Address address() { return addr_; }
 
  private:
-  v8::internal::Address addr_;
+  i::Address addr_;
 };
 
 class RegisteredExtension {
@@ -91,46 +87,49 @@ class RegisteredExtension {
   static RegisteredExtension* first_extension_;
 };
 
-#define TO_LOCAL_LIST(V)                                 \
-  V(ToLocal, AccessorPair, debug::AccessorPair)          \
-  V(ToLocal, NativeContext, Context)                     \
-  V(ToLocal, Object, Value)                              \
-  V(ToLocal, Module, Module)                             \
-  V(ToLocal, Name, Name)                                 \
-  V(ToLocal, String, String)                             \
-  V(ToLocal, Symbol, Symbol)                             \
-  V(ToLocal, JSRegExp, RegExp)                           \
-  V(ToLocal, JSReceiver, Object)                         \
-  V(ToLocal, JSObject, Object)                           \
-  V(ToLocal, JSFunction, Function)                       \
-  V(ToLocal, JSArray, Array)                             \
-  V(ToLocal, JSMap, Map)                                 \
-  V(ToLocal, JSSet, Set)                                 \
-  V(ToLocal, JSProxy, Proxy)                             \
-  V(ToLocal, JSArrayBuffer, ArrayBuffer)                 \
-  V(ToLocal, JSArrayBufferView, ArrayBufferView)         \
-  V(ToLocal, JSDataView, DataView)                       \
-  V(ToLocal, JSRabGsabDataView, DataView)                \
-  V(ToLocal, JSTypedArray, TypedArray)                   \
-  V(ToLocalShared, JSArrayBuffer, SharedArrayBuffer)     \
-  V(ToLocal, FunctionTemplateInfo, FunctionTemplate)     \
-  V(ToLocal, ObjectTemplateInfo, ObjectTemplate)         \
-  V(ToLocal, DictionaryTemplateInfo, DictionaryTemplate) \
-  V(SignatureToLocal, FunctionTemplateInfo, Signature)   \
-  V(MessageToLocal, Object, Message)                     \
-  V(PromiseToLocal, JSObject, Promise)                   \
-  V(StackTraceToLocal, FixedArray, StackTrace)           \
-  V(StackFrameToLocal, StackFrameInfo, StackFrame)       \
-  V(NumberToLocal, Object, Number)                       \
-  V(IntegerToLocal, Object, Integer)                     \
-  V(Uint32ToLocal, Object, Uint32)                       \
-  V(ToLocal, BigInt, BigInt)                             \
-  V(ExternalToLocal, JSObject, External)                 \
-  V(CallableToLocal, JSReceiver, Function)               \
-  V(ToLocalPrimitive, Object, Primitive)                 \
-  V(FixedArrayToLocal, FixedArray, FixedArray)           \
-  V(PrimitiveArrayToLocal, FixedArray, PrimitiveArray)   \
-  V(ToLocal, ScriptOrModule, ScriptOrModule)             \
+#define TO_LOCAL_LIST(V)                                                \
+  V(ToLocal, AccessorPair, debug::AccessorPair)                         \
+  V(ToLocal, NativeContext, Context)                                    \
+  V(ToLocal, Object, Value)                                             \
+  V(ToLocal, Module, Module)                                            \
+  V(ToLocal, Name, Name)                                                \
+  V(ToLocal, String, String)                                            \
+  V(ToLocal, Symbol, Symbol)                                            \
+  V(ToLocal, JSDate, Object)                                            \
+  V(ToLocal, JSRegExp, RegExp)                                          \
+  V(ToLocal, JSReceiver, Object)                                        \
+  V(ToLocal, JSObject, Object)                                          \
+  V(ToLocal, JSFunction, Function)                                      \
+  V(ToLocal, JSArray, Array)                                            \
+  V(ToLocal, JSMap, Map)                                                \
+  V(ToLocal, JSSet, Set)                                                \
+  V(ToLocal, JSProxy, Proxy)                                            \
+  V(ToLocal, JSArrayBuffer, ArrayBuffer)                                \
+  V(ToLocal, JSArrayBufferView, ArrayBufferView)                        \
+  V(ToLocal, JSDataView, DataView)                                      \
+  V(ToLocal, JSRabGsabDataView, DataView)                               \
+  V(ToLocal, JSTypedArray, TypedArray)                                  \
+  V(ToLocalShared, JSArrayBuffer, SharedArrayBuffer)                    \
+  V(ToLocal, FunctionTemplateInfo, FunctionTemplate)                    \
+  V(ToLocal, ObjectTemplateInfo, ObjectTemplate)                        \
+  V(ToLocal, DictionaryTemplateInfo, DictionaryTemplate)                \
+  V(SignatureToLocal, FunctionTemplateInfo, Signature)                  \
+  V(MessageToLocal, Object, Message)                                    \
+  V(PromiseToLocal, JSObject, Promise)                                  \
+  V(StackTraceToLocal, StackTraceInfo, StackTrace)                      \
+  V(StackFrameToLocal, StackFrameInfo, StackFrame)                      \
+  V(NumberToLocal, Object, Number)                                      \
+  V(IntegerToLocal, Object, Integer)                                    \
+  V(Uint32ToLocal, Object, Uint32)                                      \
+  V(ToLocal, BigInt, BigInt)                                            \
+  V(ExternalToLocal, JSObject, External)                                \
+  V(CallableToLocal, JSReceiver, Function)                              \
+  V(ToLocalPrimitive, Object, Primitive)                                \
+  V(FixedArrayToLocal, FixedArray, FixedArray)                          \
+  V(PrimitiveArrayToLocal, FixedArray, PrimitiveArray)                  \
+  V(ToLocal, ScriptOrModule, ScriptOrModule)                            \
+  V(CppHeapExternalToLocal, CppHeapExternalObject, CppHeapExternal)     \
+  IF_WASM(V, ToLocal, WasmMemoryMapDescriptor, WasmMemoryMapDescriptor) \
   IF_WASM(V, ToLocal, WasmModuleObject, WasmModuleObject)
 
 #define TO_LOCAL_NAME_LIST(V) \
@@ -148,63 +147,66 @@ class RegisteredExtension {
   V(CallableToLocal)          \
   V(ToLocalPrimitive)         \
   V(FixedArrayToLocal)        \
-  V(PrimitiveArrayToLocal)
+  V(PrimitiveArrayToLocal)    \
+  V(CppHeapExternalToLocal)
 
-#define OPEN_HANDLE_LIST(V)                     \
-  V(Template, TemplateInfo)                     \
-  V(FunctionTemplate, FunctionTemplateInfo)     \
-  V(ObjectTemplate, ObjectTemplateInfo)         \
-  V(DictionaryTemplate, DictionaryTemplateInfo) \
-  V(Signature, FunctionTemplateInfo)            \
-  V(Data, Object)                               \
-  V(Number, Number)                             \
-  V(RegExp, JSRegExp)                           \
-  V(Object, JSReceiver)                         \
-  V(Array, JSArray)                             \
-  V(Map, JSMap)                                 \
-  V(Set, JSSet)                                 \
-  V(ArrayBuffer, JSArrayBuffer)                 \
-  V(ArrayBufferView, JSArrayBufferView)         \
-  V(TypedArray, JSTypedArray)                   \
-  V(Uint8Array, JSTypedArray)                   \
-  V(Uint8ClampedArray, JSTypedArray)            \
-  V(Int8Array, JSTypedArray)                    \
-  V(Uint16Array, JSTypedArray)                  \
-  V(Int16Array, JSTypedArray)                   \
-  V(Uint32Array, JSTypedArray)                  \
-  V(Int32Array, JSTypedArray)                   \
-  V(Float16Array, JSTypedArray)                 \
-  V(Float32Array, JSTypedArray)                 \
-  V(Float64Array, JSTypedArray)                 \
-  V(DataView, JSDataViewOrRabGsabDataView)      \
-  V(SharedArrayBuffer, JSArrayBuffer)           \
-  V(Name, Name)                                 \
-  V(String, String)                             \
-  V(Symbol, Symbol)                             \
-  V(Script, JSFunction)                         \
-  V(UnboundModuleScript, SharedFunctionInfo)    \
-  V(UnboundScript, SharedFunctionInfo)          \
-  V(Module, Module)                             \
-  V(Function, JSReceiver)                       \
-  V(CompileHintsCollector, Script)              \
-  V(Message, JSMessageObject)                   \
-  V(Context, NativeContext)                     \
-  V(External, Object)                           \
-  V(StackTrace, FixedArray)                     \
-  V(StackFrame, StackFrameInfo)                 \
-  V(Proxy, JSProxy)                             \
-  V(debug::GeneratorObject, JSGeneratorObject)  \
-  V(debug::ScriptSource, HeapObject)            \
-  V(debug::Script, Script)                      \
-  V(debug::EphemeronTable, EphemeronHashTable)  \
-  V(debug::AccessorPair, AccessorPair)          \
-  V(Promise, JSPromise)                         \
-  V(Primitive, Object)                          \
-  V(PrimitiveArray, FixedArray)                 \
-  V(BigInt, BigInt)                             \
-  V(ScriptOrModule, ScriptOrModule)             \
-  V(FixedArray, FixedArray)                     \
-  V(ModuleRequest, ModuleRequest)               \
+#define OPEN_HANDLE_LIST(V)                                    \
+  V(Template, TemplateInfoWithProperties)                      \
+  V(FunctionTemplate, FunctionTemplateInfo)                    \
+  V(ObjectTemplate, ObjectTemplateInfo)                        \
+  V(DictionaryTemplate, DictionaryTemplateInfo)                \
+  V(Signature, FunctionTemplateInfo)                           \
+  V(Data, Object)                                              \
+  V(Number, Number)                                            \
+  V(RegExp, JSRegExp)                                          \
+  V(Object, JSReceiver)                                        \
+  V(Array, JSArray)                                            \
+  V(Map, JSMap)                                                \
+  V(Set, JSSet)                                                \
+  V(ArrayBuffer, JSArrayBuffer)                                \
+  V(ArrayBufferView, JSArrayBufferView)                        \
+  V(TypedArray, JSTypedArray)                                  \
+  V(Uint8Array, JSTypedArray)                                  \
+  V(Uint8ClampedArray, JSTypedArray)                           \
+  V(Int8Array, JSTypedArray)                                   \
+  V(Uint16Array, JSTypedArray)                                 \
+  V(Int16Array, JSTypedArray)                                  \
+  V(Uint32Array, JSTypedArray)                                 \
+  V(Int32Array, JSTypedArray)                                  \
+  V(Float16Array, JSTypedArray)                                \
+  V(Float32Array, JSTypedArray)                                \
+  V(Float64Array, JSTypedArray)                                \
+  V(DataView, JSDataViewOrRabGsabDataView)                     \
+  V(SharedArrayBuffer, JSArrayBuffer)                          \
+  V(Name, Name)                                                \
+  V(String, String)                                            \
+  V(Symbol, Symbol)                                            \
+  V(Script, JSFunction)                                        \
+  V(UnboundModuleScript, SharedFunctionInfo)                   \
+  V(UnboundScript, SharedFunctionInfo)                         \
+  V(Module, Module)                                            \
+  V(Function, JSReceiver)                                      \
+  V(CompileHintsCollector, Script)                             \
+  V(Message, JSMessageObject)                                  \
+  V(Context, NativeContext)                                    \
+  V(External, Object)                                          \
+  V(StackTrace, StackTraceInfo)                                \
+  V(StackFrame, StackFrameInfo)                                \
+  V(Proxy, JSProxy)                                            \
+  V(debug::GeneratorObject, JSGeneratorObject)                 \
+  V(debug::ScriptSource, HeapObject)                           \
+  V(debug::Script, Script)                                     \
+  V(debug::EphemeronTable, EphemeronHashTable)                 \
+  V(debug::AccessorPair, AccessorPair)                         \
+  V(Promise, JSPromise)                                        \
+  V(Primitive, Object)                                         \
+  V(PrimitiveArray, FixedArray)                                \
+  V(BigInt, BigInt)                                            \
+  V(ScriptOrModule, ScriptOrModule)                            \
+  V(FixedArray, FixedArray)                                    \
+  V(ModuleRequest, ModuleRequest)                              \
+  V(CppHeapExternal, CppHeapExternalObject)                    \
+  IF_WASM(V, WasmMemoryMapDescriptor, WasmMemoryMapDescriptor) \
   IF_WASM(V, WasmMemoryObject, WasmMemoryObject)
 
 class Utils {
@@ -216,101 +218,99 @@ class Utils {
     }
     return condition;
   }
-  static void ReportOOMFailure(v8::internal::Isolate* isolate,
-                               const char* location, const OOMDetails& details);
+  static void ReportOOMFailure(i::Isolate* isolate, const char* location,
+                               const OOMDetails& details);
 
   // TODO(42203211): It would be nice if we could keep only a version with
   // direct handles. But the implicit conversion from handles to direct handles
   // combined with the heterogeneous copy constructor for direct handles make
   // this ambiguous.
-  // TODO(42203211): Use C++20 concepts instead of the enable_if trait, when
-  // they are fully supported in V8.
-#define DECLARE_TO_LOCAL(Name)                                     \
-  template <template <typename T> typename HandleType, typename T, \
-            typename = std::enable_if_t<std::is_convertible_v<     \
-                HandleType<T>, v8::internal::DirectHandle<T>>>>    \
-  static inline auto Name(HandleType<T> obj);
+#define DECLARE_TO_LOCAL(Name)                                           \
+  template <template <typename> typename HandleType, typename T>         \
+    requires(std::is_convertible_v<HandleType<T>, i::DirectHandle<T>> && \
+             !std::is_same_v<HandleType<T>, i::DirectHandle<T>>)         \
+  static inline auto Name(HandleType<T> obj) {                           \
+    return Name(i::DirectHandle<T>(obj));                                \
+  }
 
   TO_LOCAL_NAME_LIST(DECLARE_TO_LOCAL)
+#undef DECLARE_TO_LOCAL
+
+#define DECLARE_TO_LOCAL(Name, From, To) \
+  static inline Local<v8::To> Name(i::DirectHandle<i::From> obj);
+
+  TO_LOCAL_LIST(DECLARE_TO_LOCAL)
+#undef DECLARE_TO_LOCAL
+
+  template <typename T>
+  static inline MaybeLocal<T> ToMaybe(Local<T> value) {
+    return value;
+  }
+
+  template <template <typename> typename HandleType, typename From>
+    requires std::is_convertible_v<HandleType<From>, i::MaybeDirectHandle<From>>
+  static inline auto ToMaybeLocal(HandleType<From> maybe_obj_in)
+      -> decltype(ToMaybe(ToLocal(std::declval<i::DirectHandle<From>>()))) {
+    i::MaybeDirectHandle<From> maybe_obj = maybe_obj_in;
+    i::DirectHandle<From> obj;
+    if (!maybe_obj.ToHandle(&obj)) return {};
+    return ToMaybe(ToLocal(obj));
+  }
 
 #define DECLARE_TO_LOCAL_TYPED_ARRAY(Type, typeName, TYPE, ctype) \
   static inline Local<v8::Type##Array> ToLocal##Type##Array(      \
-      v8::internal::DirectHandle<v8::internal::JSTypedArray> obj);
+      i::DirectHandle<i::JSTypedArray> obj);
 
   TYPED_ARRAYS(DECLARE_TO_LOCAL_TYPED_ARRAY)
+#undef DECLARE_TO_LOCAL_TYPED_ARRAY
 
-#define DECLARE_OPEN_HANDLE(From, To)                                          \
-  static inline v8::internal::Handle<v8::internal::To> OpenHandle(             \
-      const From* that, bool allow_empty_handle = false);                      \
-  static inline v8::internal::DirectHandle<v8::internal::To> OpenDirectHandle( \
-      const From* that, bool allow_empty_handle = false);                      \
-  static inline v8::internal::IndirectHandle<v8::internal::To>                 \
-  OpenIndirectHandle(const From* that, bool allow_empty_handle = false);
+#define DECLARE_OPEN_HANDLE(From, To)                                         \
+  static inline i::Handle<i::To> OpenHandle(const From* that,                 \
+                                            bool allow_empty_handle = false); \
+  static inline i::DirectHandle<i::To> OpenDirectHandle(                      \
+      const From* that, bool allow_empty_handle = false);                     \
+  static inline i::IndirectHandle<i::To> OpenIndirectHandle(                  \
+      const From* that, bool allow_empty_handle = false);
 
   OPEN_HANDLE_LIST(DECLARE_OPEN_HANDLE)
-
 #undef DECLARE_OPEN_HANDLE
-#undef DECLARE_TO_LOCAL_TYPED_ARRAY
-#undef DECLARE_TO_LOCAL
 
   template <class From, class To>
-  static inline Local<To> Convert(v8::internal::DirectHandle<From> obj);
+  static inline Local<To> Convert(i::DirectHandle<From> obj);
 
   template <class T>
-  static inline v8::internal::Handle<v8::internal::Object> OpenPersistent(
+  static inline i::Handle<i::Object> OpenPersistent(
       const v8::PersistentBase<T>& persistent) {
-    return v8::internal::Handle<v8::internal::Object>(persistent.slot());
+    return i::Handle<i::Object>(persistent.slot());
   }
 
   template <class T>
-  static inline v8::internal::Handle<v8::internal::Object> OpenPersistent(
+  static inline i::DirectHandle<i::Object> OpenPersistent(
       v8::Persistent<T>* persistent) {
     return OpenPersistent(*persistent);
   }
 
   template <class From, class To>
-  static inline v8::internal::Handle<To> OpenHandle(v8::Local<From> handle) {
+  static inline i::Handle<To> OpenHandle(v8::Local<From> handle) {
     return OpenHandle(*handle);
   }
 
   template <class From, class To>
-  static inline v8::internal::DirectHandle<To> OpenDirectHandle(
-      v8::Local<From> handle) {
+  static inline i::DirectHandle<To> OpenDirectHandle(v8::Local<From> handle) {
     return OpenDirectHandle(*handle);
   }
 
  private:
   V8_NOINLINE V8_PRESERVE_MOST static void ReportApiFailure(
       const char* location, const char* message);
-
-#define DECLARE_TO_LOCAL_PRIVATE(Name, From, To) \
-  static inline Local<v8::To> Name##_helper(     \
-      v8::internal::DirectHandle<v8::internal::From> obj);
-
-  TO_LOCAL_LIST(DECLARE_TO_LOCAL_PRIVATE)
-#undef DECLARE_TO_LOCAL_PRIVATE
 };
 
+// Convert DirectHandle to Local w/o type inference or type checks.
+// To get type inference (translating from internal to API types), use
+// Utils::ToLocal.
 template <class T>
-inline T* ToApi(v8::internal::Handle<v8::internal::Object> obj) {
-  return reinterpret_cast<T*>(obj.location());
-}
-
-template <class T>
-inline v8::Local<T> ToApiHandle(
-    v8::internal::DirectHandle<v8::internal::Object> obj) {
-  return Utils::Convert<v8::internal::Object, T>(obj);
-}
-
-template <class T>
-inline bool ToLocal(v8::internal::MaybeHandle<v8::internal::Object> maybe,
-                    Local<T>* local) {
-  v8::internal::Handle<v8::internal::Object> handle;
-  if (maybe.ToHandle(&handle)) {
-    *local = Utils::Convert<v8::internal::Object, T>(handle);
-    return true;
-  }
-  return false;
+inline v8::Local<T> ToApiHandle(i::DirectHandle<i::Object> obj) {
+  return Utils::Convert<i::Object, T>(obj);
 }
 
 namespace internal {
@@ -345,9 +345,7 @@ class HandleScopeImplementer {
   };
 
   explicit HandleScopeImplementer(Isolate* isolate)
-      : isolate_(isolate),
-        spare_(nullptr),
-        last_handle_before_deferred_block_(nullptr) {}
+      : isolate_(isolate), spare_(nullptr) {}
 
   ~HandleScopeImplementer() { DeleteArray(spare_); }
 
@@ -361,9 +359,8 @@ class HandleScopeImplementer {
   void FreeThreadResources();
 
   // Garbage collection support.
-  V8_EXPORT_PRIVATE void Iterate(v8::internal::RootVisitor* v);
-  V8_EXPORT_PRIVATE static char* Iterate(v8::internal::RootVisitor* v,
-                                         char* data);
+  V8_EXPORT_PRIVATE void Iterate(i::RootVisitor* v);
+  V8_EXPORT_PRIVATE static char* Iterate(i::RootVisitor* v, char* data);
 
   inline internal::Address* GetSpareOrNewBlock();
   inline void DeleteExtensions(internal::Address* prev_limit);
@@ -375,7 +372,7 @@ class HandleScopeImplementer {
 
   // Returns the last entered context or an empty handle if no
   // contexts have been entered.
-  inline Handle<NativeContext> LastEnteredContext();
+  inline DirectHandle<NativeContext> LastEnteredContext();
 
   inline void SaveContext(Tagged<Context> context);
   inline Tagged<Context> RestoreContext();
@@ -398,7 +395,7 @@ class HandleScopeImplementer {
     entered_contexts_.detach();
     saved_contexts_.detach();
     spare_ = nullptr;
-    last_handle_before_deferred_block_ = nullptr;
+    last_handle_before_persistent_block_.reset();
   }
 
   void Free() {
@@ -416,7 +413,13 @@ class HandleScopeImplementer {
     DCHECK(isolate_->thread_local_top()->CallDepthIsZero());
   }
 
-  void BeginDeferredScope();
+  void BeginPersistentScope() {
+    DCHECK(!last_handle_before_persistent_block_.has_value());
+    last_handle_before_persistent_block_ = isolate()->handle_scope_data()->next;
+  }
+  bool HasPersistentScope() const {
+    return last_handle_before_persistent_block_.has_value();
+  }
   std::unique_ptr<PersistentHandles> DetachPersistent(Address* first_block);
 
   Isolate* isolate_;
@@ -428,7 +431,7 @@ class HandleScopeImplementer {
   // Used as a stack to keep track of saved contexts.
   DetachableVector<Tagged<Context>> saved_contexts_;
   Address* spare_;
-  Address* last_handle_before_deferred_block_;
+  std::optional<Address*> last_handle_before_persistent_block_;
   // This is only used for threading support.
   HandleScopeData handle_scope_data_;
 
@@ -440,7 +443,7 @@ class HandleScopeImplementer {
   friend class PersistentHandlesScope;
 };
 
-const int kHandleBlockSize = v8::internal::KB - 2;  // fit in one page
+const int kHandleBlockSize = i::KB - 2;  // fit in one page
 
 void HandleScopeImplementer::SaveContext(Tagged<Context> context) {
   saved_contexts_.push_back(context);
@@ -481,20 +484,20 @@ void HandleScopeImplementer::DeleteExtensions(internal::Address* prev_limit) {
     internal::Address* block_limit = block_start + kHandleBlockSize;
 
     // SealHandleScope may make the prev_limit to point inside the block.
-    // Cast possibly-unrelated pointers to plain Addres before comparing them
+    // Cast possibly-unrelated pointers to plain Address before comparing them
     // to avoid undefined behavior.
     if (reinterpret_cast<Address>(block_start) <
             reinterpret_cast<Address>(prev_limit) &&
         reinterpret_cast<Address>(prev_limit) <=
             reinterpret_cast<Address>(block_limit)) {
-#ifdef ENABLE_HANDLE_ZAPPING
+#ifdef ENABLE_LOCAL_HANDLE_ZAPPING
       internal::HandleScope::ZapRange(prev_limit, block_limit);
 #endif
       break;
     }
 
     blocks_.pop_back();
-#ifdef ENABLE_HANDLE_ZAPPING
+#ifdef ENABLE_LOCAL_HANDLE_ZAPPING
     internal::HandleScope::ZapRange(block_start, block_limit);
 #endif
     if (spare_ != nullptr) {
@@ -528,9 +531,8 @@ void InvokeFunctionCallbackOptimized(
     const v8::FunctionCallbackInfo<v8::Value>& info);
 
 void InvokeFinalizationRegistryCleanupFromTask(
-    Handle<NativeContext> native_context,
-    Handle<JSFinalizationRegistry> finalization_registry,
-    Handle<Object> callback);
+    DirectHandle<NativeContext> native_context,
+    DirectHandle<JSFinalizationRegistry> finalization_registry);
 
 template <typename T>
 EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
@@ -544,7 +546,9 @@ template <typename T>
 EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
 bool ValidateCallbackInfo(const PropertyCallbackInfo<T>& info);
 
+#ifdef ENABLE_SLOW_DCHECKS
 DECLARE_CONTEXTUAL_VARIABLE_WITH_DEFAULT(StackAllocatedCheck, const bool, true);
+#endif
 
 }  // namespace internal
 }  // namespace v8

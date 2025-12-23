@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -8,6 +8,7 @@
  */
 
 #include "apps.h"
+#include <ctype.h>
 #include <string.h>
 #include <openssl/err.h>
 #include <openssl/provider.h>
@@ -65,6 +66,78 @@ static int opt_provider_path(const char *path)
     return OSSL_PROVIDER_set_default_search_path(app_get0_libctx(), path);
 }
 
+struct prov_param_st {
+    char *name;
+    char *key;
+    char *val;
+    int found;
+};
+
+static int set_prov_param(OSSL_PROVIDER *prov, void *vp)
+{
+    struct prov_param_st *p = (struct prov_param_st *)vp;
+
+    if (p->name != NULL && strcmp(OSSL_PROVIDER_get0_name(prov), p->name) != 0)
+        return 1;
+    p->found = 1;
+    return OSSL_PROVIDER_add_conf_parameter(prov, p->key, p->val);
+}
+
+static int opt_provider_param(const char *arg)
+{
+    struct prov_param_st p;
+    char *copy, *tmp;
+    int ret = 0;
+
+    if ((copy = OPENSSL_strdup(arg)) == NULL
+        || (p.val = strchr(copy, '=')) == NULL) {
+        opt_printf_stderr("%s: malformed '-provparam' option value: '%s'\n",
+                          opt_getprog(), arg);
+        goto end;
+    }
+
+    /* Drop whitespace on both sides of the '=' sign */
+    *(tmp = p.val++) = '\0';
+    while (tmp > copy && isspace(_UC(*--tmp)))
+        *tmp = '\0';
+    while (isspace(_UC(*p.val)))
+        ++p.val;
+
+    /*
+     * Split the key on ':', to get the optional provider, empty or missing
+     * means all.
+     */
+    if ((p.key = strchr(copy, ':')) != NULL) {
+        *p.key++ = '\0';
+        p.name = *copy != '\0' ? copy : NULL;
+    } else {
+        p.name = NULL;
+        p.key = copy;
+    }
+
+    /* The key must not be empty */
+    if (*p.key == '\0') {
+        opt_printf_stderr("%s: malformed '-provparam' option value: '%s'\n",
+                          opt_getprog(), arg);
+        goto end;
+    }
+
+    p.found = 0;
+    ret = OSSL_PROVIDER_do_all(app_get0_libctx(), set_prov_param, (void *)&p);
+    if (ret == 0) {
+        opt_printf_stderr("%s: Error setting provider '%s' parameter '%s'\n",
+                          opt_getprog(), p.name, p.key);
+    } else if (p.found == 0) {
+        opt_printf_stderr("%s: No provider named '%s' is loaded\n",
+                          opt_getprog(), p.name);
+        ret = 0;
+    }
+
+ end:
+    OPENSSL_free(copy);
+    return ret;
+}
+
 int opt_provider(int opt)
 {
     const int given = provider_option_given;
@@ -78,6 +151,8 @@ int opt_provider(int opt)
         return app_provider_load(app_get0_libctx(), opt_arg());
     case OPT_PROV_PROVIDER_PATH:
         return opt_provider_path(opt_arg());
+    case OPT_PROV_PARAM:
+        return opt_provider_param(opt_arg());
     case OPT_PROV_PROPQUERY:
         return app_set_propq(opt_arg());
     }

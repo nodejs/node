@@ -16,15 +16,16 @@
 #include "src/compiler/backend/instruction-codes.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/frame-states.h"
-#include "src/compiler/graph.h"
 #include "src/compiler/node.h"
 #include "src/compiler/schedule.h"
+#include "src/compiler/turbofan-graph.h"
 #include "src/compiler/turboshaft/graph.h"
 #include "src/compiler/turboshaft/loop-finder.h"
 #include "src/compiler/turboshaft/operations.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/frames.h"
 #include "src/execution/isolate-utils-inl.h"
+#include "src/objects/heap-object-inl.h"
 #include "src/objects/instance-type-inl.h"
 #include "src/utils/ostreams.h"
 
@@ -301,6 +302,7 @@ std::ostream& operator<<(std::ostream& os, const InstructionOperand& op) {
           os << "|sb";
           break;
         case MachineRepresentation::kMapWord:
+        case MachineRepresentation::kFloat16RawBits:
           UNREACHABLE();
       }
       return os << "]";
@@ -487,8 +489,8 @@ std::ostream& operator<<(std::ostream& os, const FlagsMode& fm) {
       return os << "trap";
     case kFlags_select:
       return os << "select";
-    case kFlags_conditional_set:
-      return os << "conditional set";
+    case kFlags_conditional_trap:
+      return os << "conditional trap";
     case kFlags_conditional_branch:
       return os << "conditional branch";
   }
@@ -604,16 +606,17 @@ Constant::Constant(RelocatablePtrConstantInfo info) {
   rmode_ = info.rmode();
 }
 
-Handle<HeapObject> Constant::ToHeapObject() const {
+IndirectHandle<HeapObject> Constant::ToHeapObject() const {
   DCHECK(kHeapObject == type() || kCompressedHeapObject == type());
-  Handle<HeapObject> value(
+  IndirectHandle<HeapObject> value(
       reinterpret_cast<Address*>(static_cast<intptr_t>(value_)));
   return value;
 }
 
-Handle<Code> Constant::ToCode() const {
+IndirectHandle<Code> Constant::ToCode() const {
   DCHECK_EQ(kHeapObject, type());
-  Handle<Code> value(reinterpret_cast<Address*>(static_cast<intptr_t>(value_)));
+  IndirectHandle<Code> value(
+      reinterpret_cast<Address*>(static_cast<intptr_t>(value_)));
   DCHECK(IsCode(*value));
   return value;
 }
@@ -670,10 +673,11 @@ InstructionBlock::InstructionBlock(Zone* zone, RpoNumber rpo_number,
       dominator_(dominator),
       deferred_(deferred),
       handler_(handler),
-      switch_target_(false),
-      code_target_alignment_(false),
-      loop_header_alignment_(false),
-      needs_frame_(false),
+      table_switch_target_(false),
+      align_switch_targets_(false),
+      align_branch_targets_(false),
+      align_loop_headers_(false),
+      needs_frame_(!v8_flags.turbo_elide_frames),
       must_construct_frame_(false),
       must_deconstruct_frame_(false),
       omitted_by_jump_threading_(false) {}
@@ -718,7 +722,7 @@ static InstructionBlock* InstructionBlockFor(Zone* zone,
   InstructionBlock* instr_block = zone->New<InstructionBlock>(
       zone, GetRpo(block), GetRpo(block->loop_header()), GetLoopEndRpo(block),
       GetRpo(block->dominator()), block->deferred(), is_handler);
-  // Map successors and precessors
+  // Map successors and predecessors
   instr_block->successors().reserve(block->SuccessorCount());
   for (BasicBlock* successor : block->successors()) {
     instr_block->successors().push_back(GetRpo(successor));
@@ -726,10 +730,6 @@ static InstructionBlock* InstructionBlockFor(Zone* zone,
   instr_block->predecessors().reserve(block->PredecessorCount());
   for (BasicBlock* predecessor : block->predecessors()) {
     instr_block->predecessors().push_back(GetRpo(predecessor));
-  }
-  if (block->PredecessorCount() == 1 &&
-      block->predecessors()[0]->control() == BasicBlock::Control::kSwitch) {
-    instr_block->set_switch_target(true);
   }
   return instr_block;
 }
@@ -744,13 +744,6 @@ static InstructionBlock* InstructionBlockFor(
   InstructionBlock* instr_block = zone->New<InstructionBlock>(
       zone, GetRpo(block), GetRpo(loop_header), GetLoopEndRpo(block),
       GetRpo(block->GetDominator()), deferred, is_handler);
-  if (block->PredecessorCount() == 1) {
-    const turboshaft::Block* predecessor = block->LastPredecessor();
-    if (V8_UNLIKELY(
-            predecessor->LastOperation(graph).Is<turboshaft::SwitchOp>())) {
-      instr_block->set_switch_target(true);
-    }
-  }
   // Map successors and predecessors.
   base::SmallVector<turboshaft::Block*, 4> succs =
       turboshaft::SuccessorBlocks(block->LastOperation(graph));
@@ -843,7 +836,8 @@ InstructionBlocks* InstructionSequence::InstructionBlocksFor(
   // headers. Since it's somewhat expensive to compute this, we should also use
   // the LoopFinder to compute the special RPO (we would only need to run the
   // LoopFinder once to compute both the special RPO and the loop headers).
-  turboshaft::LoopFinder loop_finder(zone, &graph);
+  turboshaft::LoopFinder loop_finder(zone, &graph,
+                                     turboshaft::LoopFinder::Config{});
   for (const turboshaft::Block& block : graph.blocks()) {
     DCHECK(!(*blocks)[rpo_number]);
     DCHECK_EQ(RpoNumber::FromInt(block.index().id()).ToSize(), rpo_number);
@@ -928,7 +922,8 @@ void InstructionSequence::ComputeAssemblyOrder() {
         // Perform loop rotation for non-deferred loops.
         InstructionBlock* loop_end =
             instruction_blocks_->at(block->loop_end().ToSize() - 1);
-        if (loop_end->SuccessorCount() == 1 && /* ends with goto */
+        if (!loop_end->IsDeferred() &&         /* Ignore deferred loop ends */
+            loop_end->SuccessorCount() == 1 && /* ends with goto */
             loop_end != block /* not a degenerate infinite loop */) {
           // If the last block has an unconditional jump back to the header,
           // then move it to be in front of the header in the assembly order.
@@ -937,15 +932,29 @@ void InstructionSequence::ComputeAssemblyOrder() {
           ao_blocks_->push_back(loop_end);
           // This block will be the new machine-level loop header, so align
           // this block instead of the loop header block.
-          loop_end->set_loop_header_alignment(true);
+          loop_end->set_align_loop_headers(true);
           header_align = false;
         }
       }
-      block->set_loop_header_alignment(header_align);
+      block->set_align_loop_headers(header_align);
     }
-    if (block->loop_header().IsValid() && block->IsSwitchTarget()) {
-      block->set_code_target_alignment(true);
+    if (block->loop_header().IsValid()) {
+      if (block->IsTableSwitchTarget()) {
+        block->set_align_switch_targets(true);
+      } else {
+        // If this block has no fallthrough predecessors then it can only be
+        // accessed via a jump.
+        RpoNumber ao_pred_block = ao_blocks_->back()->rpo_number();
+        if (std::none_of(block->predecessors().begin(),
+                         block->predecessors().end(),
+                         [&ao_pred_block](RpoNumber pred) {
+                           return pred == ao_pred_block;
+                         })) {
+          block->set_align_branch_targets(true);
+        }
+      }
     }
+
     block->set_ao_number(RpoNumber::FromInt(ao++));
     ao_blocks_->push_back(block);
   }
@@ -1019,6 +1028,11 @@ void InstructionSequence::EndBlock(RpoNumber rpo) {
   current_block_ = nullptr;
 }
 
+void InstructionSequence::EndBlock(RpoNumber rpo, Instruction* terminator) {
+  AddInstruction(terminator);
+  EndBlock(rpo);
+}
+
 int InstructionSequence::AddInstruction(Instruction* instr) {
   DCHECK_NOT_NULL(current_block_);
   int index = static_cast<int>(instructions_.size());
@@ -1059,6 +1073,7 @@ static MachineRepresentation FilterRepresentation(MachineRepresentation rep) {
     case MachineRepresentation::kNone:
     case MachineRepresentation::kMapWord:
     case MachineRepresentation::kIndirectPointer:
+    case MachineRepresentation::kFloat16RawBits:
       UNREACHABLE();
   }
 }
@@ -1224,7 +1239,8 @@ FrameStateDescriptor::FrameStateDescriptor(
     Zone* zone, FrameStateType type, BytecodeOffset bailout_id,
     OutputFrameStateCombine state_combine, uint16_t parameters_count,
     uint16_t max_arguments, size_t locals_count, size_t stack_count,
-    MaybeHandle<SharedFunctionInfo> shared_info,
+    MaybeIndirectHandle<SharedFunctionInfo> shared_info,
+    MaybeIndirectHandle<BytecodeArray> bytecode_array,
     FrameStateDescriptor* outer_state, uint32_t wasm_liftoff_frame_size,
     uint32_t wasm_function_index)
     : type_(type),
@@ -1240,6 +1256,7 @@ FrameStateDescriptor::FrameStateDescriptor(
               wasm_liftoff_frame_size, outer_state)),
       values_(zone),
       shared_info_(shared_info),
+      bytecode_array_(bytecode_array),
       outer_state_(outer_state),
       wasm_function_index_(wasm_function_index) {}
 
@@ -1313,11 +1330,11 @@ JSToWasmFrameStateDescriptor::JSToWasmFrameStateDescriptor(
     Zone* zone, FrameStateType type, BytecodeOffset bailout_id,
     OutputFrameStateCombine state_combine, uint16_t parameters_count,
     size_t locals_count, size_t stack_count,
-    MaybeHandle<SharedFunctionInfo> shared_info,
-    FrameStateDescriptor* outer_state, const wasm::FunctionSig* wasm_signature)
+    MaybeIndirectHandle<SharedFunctionInfo> shared_info,
+    FrameStateDescriptor* outer_state, const wasm::CanonicalSig* wasm_signature)
     : FrameStateDescriptor(zone, type, bailout_id, state_combine,
                            parameters_count, 0, locals_count, stack_count,
-                           shared_info, outer_state),
+                           shared_info, {}, outer_state),
       return_kind_(wasm::WasmReturnTypeFromSignature(wasm_signature)) {}
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -1354,16 +1371,19 @@ std::ostream& operator<<(std::ostream& os, StateValueKind kind) {
       return os << "Plain";
     case StateValueKind::kOptimizedOut:
       return os << "OptimizedOut";
-    case StateValueKind::kNested:
-      return os << "Nested";
+    case StateValueKind::kNestedObject:
+      return os << "NestedObject";
     case StateValueKind::kDuplicate:
       return os << "Duplicate";
+    case StateValueKind::kStringConcat:
+      return os << "StringConcat";
   }
 }
 
 void StateValueDescriptor::Print(std::ostream& os) const {
   os << "kind=" << kind_ << ", type=" << type_;
-  if (kind_ == StateValueKind::kDuplicate || kind_ == StateValueKind::kNested) {
+  if (kind_ == StateValueKind::kDuplicate ||
+      kind_ == StateValueKind::kNestedObject) {
     os << ", id=" << id_;
   } else if (kind_ == StateValueKind::kArgumentsElements) {
     os << ", args_type=" << args_type_;

@@ -603,10 +603,10 @@ myEmitter.emit('event', 1, 2, 3, 4, 5);
 added: v6.0.0
 -->
 
-* Returns: {Array}
+* Returns: {string\[]|symbol\[]}
 
 Returns an array listing the events for which the emitter has registered
-listeners. The values in the array are strings or `Symbol`s.
+listeners.
 
 ```mjs
 import { EventEmitter } from 'node:events';
@@ -1099,7 +1099,7 @@ changes:
     description: No longer experimental.
 -->
 
-* `err` Error
+* `err` {Error}
 * `eventName` {string|symbol}
 * `...args` {any}
 
@@ -1600,7 +1600,7 @@ changes:
     description: No longer experimental.
 -->
 
-Value: {boolean}
+* Type: {boolean}
 
 Change the default `captureRejections` option on all new `EventEmitter` objects.
 
@@ -1618,43 +1618,70 @@ changes:
     description: No longer experimental.
 -->
 
-Value: `Symbol.for('nodejs.rejection')`
+* Type: {symbol} `Symbol.for('nodejs.rejection')`
 
 See how to write a custom [rejection handler][rejection].
 
-## `events.listenerCount(emitter, eventName)`
+## `events.listenerCount(emitterOrTarget, eventName)`
 
 <!-- YAML
 added: v0.9.12
-deprecated: v3.2.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/60214
+    description: Now accepts EventTarget arguments.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/60214
+    description: Deprecation revoked.
+  - version: v3.2.0
+    pr-url: https://github.com/nodejs/node/pull/2349
+    description: Documentation-only deprecation.
 -->
 
-> Stability: 0 - Deprecated: Use [`emitter.listenerCount()`][] instead.
+* `emitterOrTarget` {EventEmitter|EventTarget}
+* `eventName` {string|symbol}
+* Returns: {integer}
 
-* `emitter` {EventEmitter} The emitter to query
-* `eventName` {string|symbol} The event name
+Returns the number of registered listeners for the event named `eventName`.
 
-A class method that returns the number of listeners for the given `eventName`
-registered on the given `emitter`.
+For `EventEmitter`s this behaves exactly the same as calling `.listenerCount`
+on the emitter.
+
+For `EventTarget`s this is the only way to obtain the listener count. This can
+be useful for debugging and diagnostic purposes.
 
 ```mjs
 import { EventEmitter, listenerCount } from 'node:events';
 
-const myEmitter = new EventEmitter();
-myEmitter.on('event', () => {});
-myEmitter.on('event', () => {});
-console.log(listenerCount(myEmitter, 'event'));
-// Prints: 2
+{
+  const ee = new EventEmitter();
+  ee.on('event', () => {});
+  ee.on('event', () => {});
+  console.log(listenerCount(ee, 'event')); // 2
+}
+{
+  const et = new EventTarget();
+  et.addEventListener('event', () => {});
+  et.addEventListener('event', () => {});
+  console.log(listenerCount(et, 'event')); // 2
+}
 ```
 
 ```cjs
 const { EventEmitter, listenerCount } = require('node:events');
 
-const myEmitter = new EventEmitter();
-myEmitter.on('event', () => {});
-myEmitter.on('event', () => {});
-console.log(listenerCount(myEmitter, 'event'));
-// Prints: 2
+{
+  const ee = new EventEmitter();
+  ee.on('event', () => {});
+  ee.on('event', () => {});
+  console.log(listenerCount(ee, 'event')); // 2
+}
+{
+  const et = new EventTarget();
+  et.addEventListener('event', () => {});
+  et.addEventListener('event', () => {});
+  console.log(listenerCount(et, 'event')); // 2
+}
 ```
 
 ## `events.on(emitter, eventName[, options])`
@@ -1681,12 +1708,12 @@ changes:
 * `eventName` {string|symbol} The name of the event being listened for
 * `options` {Object}
   * `signal` {AbortSignal} Can be used to cancel awaiting events.
-  * `close` - {string\[]} Names of events that will end the iteration.
-  * `highWaterMark` - {integer} **Default:** `Number.MAX_SAFE_INTEGER`
+  * `close` {string\[]} Names of events that will end the iteration.
+  * `highWaterMark` {integer} **Default:** `Number.MAX_SAFE_INTEGER`
     The high watermark. The emitter is paused every time the size of events
     being buffered is higher than it. Supported only on emitters implementing
     `pause()` and `resume()` methods.
-  * `lowWaterMark` - {integer} **Default:** `1`
+  * `lowWaterMark` {integer} **Default:** `1`
     The low watermark. The emitter is resumed every time the size of events
     being buffered is lower than it. Supported only on emitters implementing
     `pause()` and `resume()` methods.
@@ -1834,9 +1861,13 @@ setMaxListeners(5, target, emitter);
 added:
  - v20.5.0
  - v18.18.0
+changes:
+ - version:
+   - v24.0.0
+   - v22.16.0
+   pr-url: https://github.com/nodejs/node/pull/57765
+   description: Change stability index for this feature from Experimental to Stable.
 -->
-
-> Stability: 1 - Experimental
 
 * `signal` {AbortSignal}
 * `listener` {Function|EventListener}
@@ -1984,7 +2015,7 @@ same options as `EventEmitter` and `AsyncResource` themselves.
 
 ### `eventemitterasyncresource.asyncResource`
 
-* Type: The underlying {AsyncResource}.
+* Type: {AsyncResource} The underlying {AsyncResource}.
 
 The returned `AsyncResource` object has an additional `eventEmitter` property
 that provides a reference to this `EventEmitterAsyncResource`.
@@ -2444,8 +2475,6 @@ changes:
     description: No longer behind `--experimental-global-customevent` CLI flag.
 -->
 
-> Stability: 2 - Stable
-
 * Extends: {Event}
 
 The `CustomEvent` object is an adaptation of the [`CustomEvent` Web API][].
@@ -2464,8 +2493,6 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/52618
     description: CustomEvent is now stable.
 -->
-
-> Stability: 2 - Stable
 
 * Type: {any} Returns custom data passed when initializing.
 
@@ -2648,7 +2675,6 @@ to the `EventTarget`.
 [`Event` Web API]: https://dom.spec.whatwg.org/#event
 [`domain`]: domain.md
 [`e.stopImmediatePropagation()`]: #eventstopimmediatepropagation
-[`emitter.listenerCount()`]: #emitterlistenercounteventname-listener
 [`emitter.removeListener()`]: #emitterremovelistenereventname-listener
 [`emitter.setMaxListeners(n)`]: #emittersetmaxlistenersn
 [`event.defaultPrevented`]: #eventdefaultprevented

@@ -1,5 +1,6 @@
-#if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
-
+#if HAVE_OPENSSL
+#include "guard.h"
+#ifndef OPENSSL_NO_QUIC
 #include "packet.h"
 #include <base_object-inl.h>
 #include <crypto/crypto_util.h>
@@ -19,7 +20,6 @@
 
 namespace node {
 
-using v8::FunctionTemplate;
 using v8::Local;
 using v8::Object;
 
@@ -96,18 +96,11 @@ void Packet::Truncate(size_t len) {
   data_->data_.SetLength(len);
 }
 
-Local<FunctionTemplate> Packet::GetConstructorTemplate(Environment* env) {
-  auto& state = BindingData::Get(env);
-  Local<FunctionTemplate> tmpl = state.packet_constructor_template();
-  if (tmpl.IsEmpty()) {
-    tmpl = NewFunctionTemplate(env->isolate(), IllegalConstructor);
-    tmpl->Inherit(ReqWrap<uv_udp_send_t>::GetConstructorTemplate(env));
-    tmpl->InstanceTemplate()->SetInternalFieldCount(kInternalFieldCount);
-    tmpl->SetClassName(state.packetwrap_string());
-    state.set_packet_constructor_template(tmpl);
-  }
-  return tmpl;
-}
+JS_CONSTRUCTOR_IMPL(Packet, packet_constructor_template, {
+  JS_ILLEGAL_CONSTRUCTOR();
+  JS_INHERIT(ReqWrap<uv_udp_send_t>);
+  JS_CLASS(packetwrap);
+})
 
 BaseObjectPtr<Packet> Packet::Create(Environment* env,
                                      Listener* listener,
@@ -115,14 +108,7 @@ BaseObjectPtr<Packet> Packet::Create(Environment* env,
                                      size_t length,
                                      const char* diagnostic_label) {
   if (BindingData::Get(env).packet_freelist.empty()) {
-    Local<Object> obj;
-    if (!GetConstructorTemplate(env)
-             ->InstanceTemplate()
-             ->NewInstance(env->context())
-             .ToLocal(&obj)) [[unlikely]] {
-      return {};
-    }
-
+    JS_NEW_INSTANCE_OR_RETURN(env, obj, {});
     return MakeBaseObject<Packet>(
         env, listener, obj, destination, length, diagnostic_label);
   }
@@ -134,16 +120,11 @@ BaseObjectPtr<Packet> Packet::Create(Environment* env,
 }
 
 BaseObjectPtr<Packet> Packet::Clone() const {
+  // Cloning is copy-free. Our data_ is a shared_ptr so we can just
+  // share it with the cloned packet.
   auto& binding = BindingData::Get(env());
   if (binding.packet_freelist.empty()) {
-    Local<Object> obj;
-    if (!GetConstructorTemplate(env())
-             ->InstanceTemplate()
-             ->NewInstance(env()->context())
-             .ToLocal(&obj)) [[unlikely]] {
-      return {};
-    }
-
+    JS_NEW_INSTANCE_OR_RETURN(env(), obj, {});
     return MakeBaseObject<Packet>(env(), listener_, obj, destination_, data_);
   }
 
@@ -156,8 +137,8 @@ BaseObjectPtr<Packet> Packet::FromFreeList(Environment* env,
                                            const SocketAddress& destination) {
   auto& binding = BindingData::Get(env);
   if (binding.packet_freelist.empty()) return {};
-  auto obj = binding.packet_freelist.back();
-  binding.packet_freelist.pop_back();
+  auto obj = binding.packet_freelist.front();
+  binding.packet_freelist.pop_front();
   CHECK(obj);
   CHECK_EQ(env, obj->env());
   auto packet = BaseObjectPtr<Packet>(static_cast<Packet*>(obj.get()));
@@ -206,6 +187,8 @@ void Packet::Done(int status) {
   // big, we don't want to accumulate these things forever.
   auto& binding = BindingData::Get(env());
   if (binding.packet_freelist.size() >= kMaxFreeList) {
+    Debug(this, "Freelist full, destroying packet");
+    data_.reset();
     return;
   }
 
@@ -216,6 +199,10 @@ void Packet::Done(int status) {
   binding.packet_freelist.push_back(std::move(self));
 }
 
+Packet::operator bool() const {
+  return data_ != nullptr;
+}
+
 std::string Packet::ToString() const {
   if (!data_) return "Packet (<empty>)";
   return "Packet (" + data_->ToString() + ")";
@@ -223,7 +210,7 @@ std::string Packet::ToString() const {
 
 void Packet::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("destination", destination_);
-  tracker->TrackField("data", data_);
+  if (data_) tracker->TrackField("data", data_);
 }
 
 BaseObjectPtr<Packet> Packet::CreateRetryPacket(
@@ -260,7 +247,7 @@ BaseObjectPtr<Packet> Packet::CreateRetryPacket(
                                              vec.base,
                                              vec.len);
   if (nwrite <= 0) {
-    packet->Done(UV_ECANCELED);
+    packet->CancelPacket();
     return {};
   }
   packet->Truncate(static_cast<size_t>(nwrite));
@@ -281,7 +268,7 @@ BaseObjectPtr<Packet> Packet::CreateConnectionClosePacket(
   ssize_t nwrite = ngtcp2_conn_write_connection_close(
       conn, nullptr, nullptr, vec.base, vec.len, error, uv_hrtime());
   if (nwrite < 0) {
-    packet->Done(UV_ECANCELED);
+    packet->CancelPacket();
     return {};
   }
   packet->Truncate(static_cast<size_t>(nwrite));
@@ -312,7 +299,7 @@ BaseObjectPtr<Packet> Packet::CreateImmediateConnectionClosePacket(
       nullptr,
       0);
   if (nwrite <= 0) {
-    packet->Done(UV_ECANCELED);
+    packet->CancelPacket();
     return {};
   }
   packet->Truncate(static_cast<size_t>(nwrite));
@@ -349,7 +336,7 @@ BaseObjectPtr<Packet> Packet::CreateStatelessResetPacket(
   ssize_t nwrite = ngtcp2_pkt_write_stateless_reset(
       vec.base, pktlen, token, random, kRandlen);
   if (nwrite <= static_cast<ssize_t>(kMinStatelessResetLen)) {
-    packet->Done(UV_ECANCELED);
+    packet->CancelPacket();
     return {};
   }
 
@@ -407,7 +394,7 @@ BaseObjectPtr<Packet> Packet::CreateVersionNegotiationPacket(
                                            sv,
                                            arraysize(sv));
   if (nwrite <= 0) {
-    packet->Done(UV_ECANCELED);
+    packet->CancelPacket();
     return {};
   }
   packet->Truncate(static_cast<size_t>(nwrite));
@@ -417,4 +404,5 @@ BaseObjectPtr<Packet> Packet::CreateVersionNegotiationPacket(
 }  // namespace quic
 }  // namespace node
 
-#endif  // HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
+#endif  // OPENSSL_NO_QUIC
+#endif  // HAVE_OPENSSL

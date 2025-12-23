@@ -70,6 +70,9 @@ constexpr unsigned CpuFeaturesFromCompiler() {
 #if defined(__ARM_FEATURE_DOTPROD)
   features |= 1u << DOTPROD;
 #endif
+#if defined(__ARM_FEATURE_SHA3)
+  features |= 1u << SHA3;
+#endif
 #if defined(__ARM_FEATURE_ATOMICS)
   features |= 1u << LSE;
 #endif
@@ -77,6 +80,12 @@ constexpr unsigned CpuFeaturesFromCompiler() {
 // covers the FEAT_PMULL feature too.
 #if defined(__ARM_FEATURE_AES)
   features |= 1u << PMULL1Q;
+#endif
+#if defined(__ARM_FEATURE_HBC)
+  features |= 1u << HBC;
+#endif
+#if defined(__ARM_FEATURE_MOPS)
+  features |= 1u << MOPS;
 #endif
   return features;
 }
@@ -124,6 +133,9 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   if (cpu.has_dot_prod()) {
     runtime |= 1u << DOTPROD;
   }
+  if (cpu.has_sha3()) {
+    runtime |= 1u << SHA3;
+  }
   if (cpu.has_lse()) {
     runtime |= 1u << LSE;
   }
@@ -132,6 +144,15 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   }
   if (cpu.has_fp16()) {
     runtime |= 1u << FP16;
+  }
+  if (cpu.has_hbc()) {
+    runtime |= 1u << HBC;
+  }
+  if (cpu.has_cssc()) {
+    runtime |= 1u << CSSC;
+  }
+  if (cpu.has_mops()) {
+    runtime |= 1u << MOPS;
   }
 
   // Use the best of the features found by CPU detection and those inferred from
@@ -232,9 +253,14 @@ bool RelocInfo::IsCodedSpecially() {
 
 bool RelocInfo::IsInConstantPool() {
   Instruction* instr = reinterpret_cast<Instruction*>(pc_);
-  DCHECK_IMPLIES(instr->IsLdrLiteralW(), COMPRESS_POINTERS_BOOL);
-  return instr->IsLdrLiteralX() ||
-         (COMPRESS_POINTERS_BOOL && instr->IsLdrLiteralW());
+  if (instr->IsLdrLiteralX()) return true;
+  if (!instr->IsLdrLiteralW()) return false;
+#ifdef DEBUG
+  uint32_t value = *reinterpret_cast<uint32_t*>(instr->ImmPCOffsetTarget());
+  DCHECK(COMPRESS_POINTERS_BOOL ||
+         JSDispatchTable::MaybeValidJSDispatchHandle(value));
+#endif  // DEBUG
+  return true;
 }
 
 uint32_t RelocInfo::wasm_call_tag() const {
@@ -371,12 +397,13 @@ bool Operand::NeedsRelocation(const Assembler* assembler) const {
 }
 
 // Assembler
-Assembler::Assembler(const AssemblerOptions& options,
+Assembler::Assembler(const MaybeAssemblerZone& zone,
+                     const AssemblerOptions& options,
                      std::unique_ptr<AssemblerBuffer> buffer)
     : AssemblerBase(options, std::move(buffer)),
-      unresolved_branches_(),
+      zone_(zone),
+      unresolved_branches_(zone_.get()),
       constpool_(this) {
-  veneer_pool_blocked_nesting_ = 0;
   Reset();
 
 #if defined(V8_OS_WIN)
@@ -415,16 +442,10 @@ win64_unwindinfo::BuiltinUnwindInfo Assembler::GetUnwindInfo() const {
 }
 #endif
 
-void Assembler::AllocateAndInstallRequestedHeapNumbers(LocalIsolate* isolate) {
-  DCHECK_IMPLIES(isolate == nullptr, heap_number_requests_.empty());
-  for (auto& request : heap_number_requests_) {
-    Address pc = reinterpret_cast<Address>(buffer_start_) + request.offset();
-    Handle<HeapObject> object =
-        isolate->factory()->NewHeapNumber<AllocationType::kOld>(
-            request.heap_number());
-    EmbeddedObjectIndex index = AddEmbeddedObject(object);
-    set_embedded_object_index_referenced_from(pc, index);
-  }
+void Assembler::PatchInHeapNumberRequest(Address pc,
+                                         Handle<HeapNumber> object) {
+  EmbeddedObjectIndex index = AddEmbeddedObject(object);
+  set_embedded_object_index_referenced_from(pc, index);
 }
 
 void Assembler::GetCode(Isolate* isolate, CodeDesc* desc) {
@@ -446,7 +467,8 @@ void Assembler::GetCode(LocalIsolate* isolate, CodeDesc* desc,
   ForceConstantPoolEmissionWithoutJump();
   DCHECK(constpool_.IsEmpty());
 
-  int code_comments_size = WriteCodeComments();
+  const int code_comments_size = WriteCodeComments();
+  const int jump_table_info_size = WriteJumpTableInfos();
 
   AllocateAndInstallRequestedHeapNumbers(isolate);
 
@@ -455,12 +477,9 @@ void Assembler::GetCode(LocalIsolate* isolate, CodeDesc* desc,
   // this point to make CodeDesc initialization less fiddly.
 
   static constexpr int kConstantPoolSize = 0;
-  static constexpr int kBuiltinJumpTableInfoSize = 0;
   const int instruction_size = pc_offset();
-  const int builtin_jump_table_info_offset =
-      instruction_size - kBuiltinJumpTableInfoSize;
-  const int code_comments_offset =
-      builtin_jump_table_info_offset - code_comments_size;
+  const int jump_table_info_offset = instruction_size - jump_table_info_size;
+  const int code_comments_offset = jump_table_info_offset - code_comments_size;
   const int constant_pool_offset = code_comments_offset - kConstantPoolSize;
   const int handler_table_offset2 = (handler_table_offset == kNoHandlerTable)
                                         ? constant_pool_offset
@@ -473,7 +492,7 @@ void Assembler::GetCode(LocalIsolate* isolate, CodeDesc* desc,
       static_cast<int>(reloc_info_writer.pos() - buffer_->start());
   CodeDesc::Initialize(desc, this, safepoint_table_offset,
                        handler_table_offset2, constant_pool_offset,
-                       code_comments_offset, builtin_jump_table_info_offset,
+                       code_comments_offset, jump_table_info_offset,
                        reloc_info_offset);
 }
 
@@ -492,6 +511,12 @@ void Assembler::CodeTargetAlign() {
   Align(8);
 #endif
 }
+
+void Assembler::SwitchTargetAlign() { CodeTargetAlign(); }
+
+void Assembler::BranchTargetAlign() { CodeTargetAlign(); }
+
+void Assembler::LoopHeaderAlign() { CodeTargetAlign(); }
 
 void Assembler::CheckLabelLinkChain(Label const* label) {
 #ifdef DEBUG
@@ -554,7 +579,7 @@ void Assembler::RemoveBranchFromLabelLinkChain(Instruction* branch,
     // The branch is the last (but not also the first) instruction in the chain.
     //
     // Label -> 1+ branches -> this branch -> start
-    prev_link->SetImmPCOffsetTarget(options(), prev_link);
+    prev_link->SetImmPCOffsetTarget(zone(), options(), prev_link);
     branch_link_chain_back_edge_.erase(
         static_cast<int>(InstructionOffset(branch)));
   } else {
@@ -572,17 +597,17 @@ void Assembler::RemoveBranchFromLabelLinkChain(Instruction* branch,
     }
 
     if (prev_link->IsTargetInImmPCOffsetRange(next_link)) {
-      prev_link->SetImmPCOffsetTarget(options(), next_link);
+      prev_link->SetImmPCOffsetTarget(zone(), options(), next_link);
     } else if (label_veneer != nullptr) {
       // Use the veneer for all previous links in the chain.
-      prev_link->SetImmPCOffsetTarget(options(), prev_link);
+      prev_link->SetImmPCOffsetTarget(zone(), options(), prev_link);
 
       bool end_of_chain = false;
       link = next_link;
       while (!end_of_chain) {
         next_link = link->ImmPCOffsetTarget();
         end_of_chain = (link == next_link);
-        link->SetImmPCOffsetTarget(options(), label_veneer);
+        link->SetImmPCOffsetTarget(zone(), options(), label_veneer);
         // {link} is now resolved; remove it from {unresolved_branches_} so
         // we won't later try to process it again, which would fail because
         // by walking the chain of its label's unresolved branch instructions,
@@ -674,7 +699,7 @@ void Assembler::bind(Label* label) {
       internal_reference_positions_.push_back(linkoffset);
       memcpy(link, &pc_, kSystemPointerSize);
     } else {
-      link->SetImmPCOffsetTarget(options(),
+      link->SetImmPCOffsetTarget(zone(), options(),
                                  reinterpret_cast<Instruction*>(pc_));
 
       // Discard back edge data for this link.
@@ -878,6 +903,14 @@ void Assembler::b(int imm19, Condition cond) {
 
 void Assembler::b(Label* label, Condition cond) {
   b(LinkAndGetBranchInstructionOffsetTo(label), cond);
+}
+
+void Assembler::bc(int imm19, Condition cond) {
+  Emit(BC_cond | ImmCondBranch(imm19) | cond);
+}
+
+void Assembler::bc(Label* label, Condition cond) {
+  bc(LinkAndGetBranchInstructionOffsetTo(label), cond);
 }
 
 void Assembler::bl(int imm26) { Emit(BL | ImmUncondBranch(imm26)); }
@@ -1297,6 +1330,53 @@ void Assembler::clz(const Register& rd, const Register& rn) {
 void Assembler::cls(const Register& rd, const Register& rn) {
   DataProcessing1Source(rd, rn, CLS);
 }
+
+void Assembler::abs(const Register& rd, const Register& rn) {
+  DCHECK(IsEnabled(CSSC));
+  DCHECK(rd.IsSameSizeAndType(rn));
+
+  Emit(0x5ac02000 | SF(rd) | Rd(rd) | Rn(rn));
+}
+
+void Assembler::cnt(const Register& rd, const Register& rn) {
+  DCHECK(IsEnabled(CSSC));
+  DCHECK(rd.IsSameSizeAndType(rn));
+
+  Emit(0x5ac01c00 | SF(rd) | Rd(rd) | Rn(rn));
+}
+
+void Assembler::ctz(const Register& rd, const Register& rn) {
+  DCHECK(IsEnabled(CSSC));
+  DCHECK(rd.IsSameSizeAndType(rn));
+
+  Emit(0x5ac01800 | SF(rd) | Rd(rd) | Rn(rn));
+}
+
+#define MINMAX(V)                        \
+  V(smax, 0x11c00000, 0x1ac06000, true)  \
+  V(smin, 0x11c80000, 0x1ac06800, true)  \
+  V(umax, 0x11c40000, 0x1ac06400, false) \
+  V(umin, 0x11cc0000, 0x1ac06c00, false)
+
+#define DEFINE_ASM_FUNC(FN, IMMOP, REGOP, SIGNED)                          \
+  void Assembler::FN(const Register& rd, const Register& rn,               \
+                     const Operand& op) {                                  \
+    DCHECK(IsEnabled(CSSC));                                               \
+    DCHECK(rd.IsSameSizeAndType(rn));                                      \
+    Instr i = SF(rd) | Rd(rd) | Rn(rn);                                    \
+    if (op.IsImmediate()) {                                                \
+      int64_t imm = op.ImmediateValue();                                   \
+      i |= SIGNED ? ImmField<17, 10>(imm) : ImmUnsignedField<17, 10>(imm); \
+      Emit(IMMOP | i);                                                     \
+    } else {                                                               \
+      DCHECK(op.IsPlainRegister());                                        \
+      DCHECK(op.reg().IsSameSizeAndType(rd));                              \
+      Emit(REGOP | i | Rm(op.reg()));                                      \
+    }                                                                      \
+  }
+MINMAX(DEFINE_ASM_FUNC)
+#undef DEFINE_ASM_FUNC
+#undef MINMAX
 
 void Assembler::pacib1716() { Emit(PACIB1716); }
 void Assembler::autib1716() { Emit(AUTIB1716); }
@@ -2457,6 +2537,52 @@ void Assembler::mvn(const Register& rd, const Operand& operand) {
   orn(rd, AppropriateZeroRegFor(rd), operand);
 }
 
+void Assembler::cpy(MemCpyOp op, const Register& rd, const Register& rs,
+                    const Register& rn) {
+  Emit(op | Rd(rd) | Rs(rs) | Rn(rn));
+}
+
+// Copy prologue
+void Assembler::cpyp(const Register& rd, const Register& rs,
+                     const Register& rn) {
+  cpy(CPYP, rd, rs, rn);
+}
+
+// Copy main
+void Assembler::cpym(const Register& rd, const Register& rs,
+                     const Register& rn) {
+  cpy(CPYM, rd, rs, rn);
+}
+
+// Copy epilogue
+void Assembler::cpye(const Register& rd, const Register& rs,
+                     const Register& rn) {
+  cpy(CPYE, rd, rs, rn);
+}
+
+void Assembler::set(MemSetOp op, const Register& rd, const Register& rn,
+                    const Register& rs) {
+  Emit(op | Rd(rd) | Rn(rn) | Rs(rs));
+}
+
+// Set prologue
+void Assembler::setp(const Register& rd, const Register& rn,
+                     const Register& rs) {
+  set(SETP, rd, rn, rs);
+}
+
+// Set main
+void Assembler::setm(const Register& rd, const Register& rn,
+                     const Register& rs) {
+  set(SETM, rd, rn, rs);
+}
+
+// Set epilogue
+void Assembler::sete(const Register& rd, const Register& rn,
+                     const Register& rs) {
+  set(SETE, rd, rn, rs);
+}
+
 void Assembler::mrs(const Register& rt, SystemRegister sysreg) {
   DCHECK(rt.Is64Bits());
   Emit(MRS | ImmSystemRegister(sysreg) | Rt(rt));
@@ -3400,6 +3526,20 @@ NEON_3SAME_LIST(DEFINE_ASM_FUNC)
 NEON_FP3SAME_LIST_V2(DEFINE_ASM_FUNC)
 #undef DEFINE_ASM_FUNC
 
+void Assembler::bcax(const VRegister& vd, const VRegister& vn,
+                     const VRegister& vm, const VRegister& va) {
+  DCHECK(IsEnabled(SHA3));
+  DCHECK(vd.Is16B() && vn.Is16B() && vm.Is16B());
+  Emit(NEON_BCAX | Rd(vd) | Rn(vn) | Rm(vm) | Ra(va));
+}
+
+void Assembler::eor3(const VRegister& vd, const VRegister& vn,
+                     const VRegister& vm, const VRegister& va) {
+  DCHECK(IsEnabled(SHA3));
+  DCHECK(vd.Is16B() && vn.Is16B() && vm.Is16B() && va.Is16B());
+  Emit(NEON_EOR3 | Rd(vd) | Rn(vn) | Rm(vm) | Ra(va));
+}
+
 void Assembler::addp(const VRegister& vd, const VRegister& vn) {
   DCHECK((vd.Is1D() && vn.Is2D()));
   Emit(SFormat(vd) | NEON_ADDP_scalar | Rn(vn) | Rd(vd));
@@ -3931,6 +4071,23 @@ void Assembler::EmitStringData(const char* string) {
   static_assert(sizeof(pad) == kInstrSize,
                 "Size of padding must match instruction size.");
   EmitData(pad, RoundUp(pc_offset(), kInstrSize) - pc_offset());
+}
+
+void Assembler::WriteJumpTableEntry(Label* label, int table_pos) {
+  if constexpr (V8_JUMP_TABLE_INFO_BOOL) {
+    jump_table_info_writer_.Add(pc_offset(), label->pos());
+  }
+  dc32(label->pos() - table_pos);
+}
+
+int Assembler::WriteJumpTableInfos() {
+  if constexpr (!V8_JUMP_TABLE_INFO_BOOL) return 0;
+  if (jump_table_info_writer_.entry_count() == 0) return 0;
+  int offset = pc_offset();
+  jump_table_info_writer_.Emit(this);
+  int size = pc_offset() - offset;
+  DCHECK_EQ(size, jump_table_info_writer_.size_in_bytes());
+  return size;
 }
 
 void Assembler::debug(const char* message, uint32_t code, Instr params) {
@@ -4649,7 +4806,7 @@ void ConstantPool::SetLoadOffsetToConstPoolEntry(int load_offset,
   Instruction* instr = assm_->InstructionAt(load_offset);
   // Instruction to patch must be 'ldr rd, [pc, #offset]' with offset == 0.
   DCHECK(instr->IsLdrLiteral() && instr->ImmLLiteral() == 0);
-  instr->SetImmPCOffsetTarget(assm_->options(), entry_offset);
+  instr->SetImmPCOffsetTarget(assm_->zone(), assm_->options(), entry_offset);
 }
 
 void ConstantPool::Check(Emission force_emit, Jump require_jump,
@@ -4778,7 +4935,7 @@ void Assembler::EmitVeneers(bool force_emit, bool need_protection,
       Instruction* veneer = reinterpret_cast<Instruction*>(pc_);
       Instruction* branch = InstructionAt(pc_offset);
       RemoveBranchFromLabelLinkChain(branch, label, veneer);
-      branch->SetImmPCOffsetTarget(options(), veneer);
+      branch->SetImmPCOffsetTarget(zone(), options(), veneer);
       b(label);  // This may end up pointing at yet another veneer later on.
       DCHECK_EQ(SizeOfCodeGeneratedSince(&veneer_size_check),
                 static_cast<uint64_t>(kVeneerCodeSize));
@@ -4811,7 +4968,7 @@ void Assembler::CheckVeneerPool(bool force_emit, bool require_jump,
     return;
   }
 
-  DCHECK(pc_offset() < unresolved_branches_first_limit());
+  CHECK_LT(pc_offset(), unresolved_branches_first_limit());
 
   // Some short sequence of instruction mustn't be broken up by veneer pool
   // emission, such sequences are protected by calls to BlockVeneerPoolFor and

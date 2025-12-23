@@ -11,9 +11,9 @@ const { spawn } = require('child_process');
 
 const script = fixtures.path('debugger', 'alive.js');
 
-const runTest = async () => {
+(async () => {
   const target = spawn(process.execPath, [script]);
-  const cli = startCLI(['-p', `${target.pid}`]);
+  const cli = startCLI(['-p', `${target.pid}`], [], {}, { randomPort: false });
 
   try {
     await cli.waitForPrompt();
@@ -24,12 +24,8 @@ const runTest = async () => {
       cli.output,
       /> 3 {3}\+\+x;/,
       'marks the 3rd line');
-  } catch (error) {
-    assert.ifError(error);
   } finally {
     await cli.quit();
     target.kill();
   }
-};
-
-runTest().then(common.mustCall());
+})().then(common.mustCall());

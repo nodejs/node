@@ -33,7 +33,6 @@ set nobuild=
 set sign=
 set nosnapshot=
 set nonpm=
-set nocorepack=
 set cctest_args=
 set test_args=
 set stage_package=
@@ -73,6 +72,7 @@ set doc=
 set extra_msbuild_args=
 set compile_commands=
 set cfg=
+set v8windbg=
 set exit_code=0
 
 :next-arg
@@ -86,6 +86,7 @@ if /i "%1"=="x86"           set target_arch=x86&goto arg-ok
 if /i "%1"=="x64"           set target_arch=x64&goto arg-ok
 if /i "%1"=="arm64"         set target_arch=arm64&goto arg-ok
 if /i "%1"=="vs2022"        set target_env=vs2022&goto arg-ok
+if /i "%1"=="vs2026"        set target_env=vs2026&goto arg-ok
 if /i "%1"=="noprojgen"     set noprojgen=1&goto arg-ok
 if /i "%1"=="projgen"       set projgen=1&goto arg-ok
 if /i "%1"=="clang-cl"      set clang_cl=1&goto arg-ok
@@ -95,8 +96,8 @@ if /i "%1"=="nosign"        set "sign="&echo Note: vcbuild no longer signs by de
 if /i "%1"=="sign"          set sign=1&goto arg-ok
 if /i "%1"=="nosnapshot"    set nosnapshot=1&goto arg-ok
 if /i "%1"=="nonpm"         set nonpm=1&goto arg-ok
-if /i "%1"=="nocorepack"    set nocorepack=1&goto arg-ok
 if /i "%1"=="ltcg"          set ltcg=1&goto arg-ok
+if /i "%1"=="v8windbg"      set v8windbg=1&goto arg-ok
 if /i "%1"=="licensertf"    set licensertf=1&goto arg-ok
 if /i "%1"=="test"          set test_args=%test_args% %common_test_suites%&set lint_cpp=1&set lint_js=1&set lint_md=1&goto arg-ok
 if /i "%1"=="test-ci-native" set test_args=%test_args% %test_ci_args% -p tap --logfile test.tap %CI_NATIVE_SUITES% %CI_DOC%&set build_addons=1&set build_js_native_api_tests=1&set build_node_api_tests=1&set cctest_args=%cctest_args% --gtest_output=xml:cctest.junit.xml&goto arg-ok
@@ -182,8 +183,9 @@ if defined package set stage_package=1
 :: assign path to node_exe
 set "node_exe=%config%\node.exe"
 set "node_gyp_exe="%node_exe%" deps\npm\node_modules\node-gyp\bin\node-gyp"
-set "npm_exe="%~dp0%node_exe%" %~dp0deps\npm\bin\npm-cli.js"
+set "npm_exe="%node_exe%" deps\npm\bin\npm-cli.js"
 if "%target_env%"=="vs2022" set "node_gyp_exe=%node_gyp_exe% --msvs_version=2022"
+if "%target_env%"=="vs2026" set "node_gyp_exe=%node_gyp_exe% --msvs_version=2026"
 
 :: skip building if the only argument received was lint
 if "%*"=="lint" if exist "%node_exe%" goto lint-cpp
@@ -194,7 +196,6 @@ if "%*"=="format-md" if exist "%node_exe%" goto format-md
 if "%config%"=="Debug"      set configure_flags=%configure_flags% --debug
 if defined nosnapshot       set configure_flags=%configure_flags% --without-snapshot
 if defined nonpm            set configure_flags=%configure_flags% --without-npm
-if defined nocorepack       set configure_flags=%configure_flags% --without-corepack
 if defined ltcg             set configure_flags=%configure_flags% --with-ltcg
 if defined release_urlbase  set configure_flags=%configure_flags% --release-urlbase=%release_urlbase%
 if defined download_arg     set configure_flags=%configure_flags% %download_arg%
@@ -213,6 +214,7 @@ if defined DEBUG_HELPER     set configure_flags=%configure_flags% --verbose
 if defined ccache_path      set configure_flags=%configure_flags% --use-ccache-win
 if defined compile_commands set configure_flags=%configure_flags% -C
 if defined cfg              set configure_flags=%configure_flags% --control-flow-guard
+if defined v8windbg         set configure_flags=%configure_flags% --enable-v8windbg
 
 if "%target_arch%"=="x86" (
   echo "32-bit Windows builds are not supported anymore."
@@ -240,6 +242,14 @@ if errorlevel 1 echo Could not find NASM, install it or build with openssl-no-as
 
 call :getnodeversion || exit /b 1
 
+@REM Forcing ClangCL usage for version 24 and above
+set NODE_MAJOR_VERSION=
+for /F "tokens=1 delims=." %%i in ("%NODE_VERSION%") do set "NODE_MAJOR_VERSION=%%i"
+if %NODE_MAJOR_VERSION% GEQ 24 (
+  echo Using ClangCL because the Node.js version being compiled is ^>= 24.
+  set clang_cl=1
+)
+
 if defined TAG set configure_flags=%configure_flags% --tag=%TAG%
 
 if not "%target%"=="Clean" goto skip-clean
@@ -257,6 +267,33 @@ set vcvarsall_arg=%msvs_host_arch%_%target_arch%
 @rem unless both the host and the target are the same
 if %target_arch%==x64 if %msvs_host_arch%==amd64 set vcvarsall_arg=amd64
 if %target_arch%==%msvs_host_arch% set vcvarsall_arg=%target_arch%
+
+@rem Look for Visual Studio 2026
+:vs-set-2026
+if defined target_env if "%target_env%" NEQ "vs2026" goto msbuild-not-found
+echo Looking for Visual Studio 2026
+@rem VCINSTALLDIR may be set if run from a VS Command Prompt and needs to be
+@rem cleared first as vswhere_usability_wrapper.cmd doesn't when it fails to
+@rem detect the version searched for
+if not defined target_env set "VCINSTALLDIR="
+call tools\msvs\vswhere_usability_wrapper.cmd "[18.0,19.0)" %target_arch% "prerelease" %clang_cl%
+if "_%VCINSTALLDIR%_" == "__" goto vs-set-2022
+@rem check if VS2026 is already setup, and for the requested arch
+if "_%VisualStudioVersion%_" == "_18.0_" if "_%VSCMD_ARG_TGT_ARCH%_"=="_%target_arch%_" goto found_vs2026
+@rem need to clear VSINSTALLDIR for vcvarsall to work as expected
+set "VSINSTALLDIR="
+@rem prevent VsDevCmd.bat from changing the current working directory
+set "VSCMD_START_DIR=%CD%"
+set vcvars_call="%VCINSTALLDIR%\Auxiliary\Build\vcvarsall.bat" %vcvarsall_arg%
+echo calling: %vcvars_call%
+call %vcvars_call%
+if errorlevel 1 goto vs-set-2022
+if defined DEBUG_HELPER @ECHO ON
+:found_vs2026
+echo Found MSVS version %VisualStudioVersion%
+set GYP_MSVS_VERSION=2026
+set PLATFORM_TOOLSET=v145
+goto msbuild-found
 
 @rem Look for Visual Studio 2022
 :vs-set-2022
@@ -345,7 +382,7 @@ del .gyp_configure_stamp 2> NUL
 @rem Generate the VS project.
 echo configure %configure_flags%
 echo %configure_flags%> .used_configure_flags
-python configure %configure_flags%
+call python configure %configure_flags%
 if errorlevel 1 goto create-msvs-files-failed
 if not exist node.sln goto create-msvs-files-failed
 set project_generated=1
@@ -456,15 +493,6 @@ if not defined nonpm (
   if errorlevel 1 echo Cannot copy npm.ps1 && goto package_error
   copy /Y ..\deps\npm\bin\npx.ps1 %TARGET_NAME%\ > nul
   if errorlevel 1 echo Cannot copy npx.ps1 && goto package_error
-)
-
-if not defined nocorepack (
-  robocopy ..\deps\corepack %TARGET_NAME%\node_modules\corepack /e /xd test > nul
-  if errorlevel 8 echo Cannot copy corepack package && goto package_error
-  copy /Y ..\deps\corepack\shims\nodewin\corepack %TARGET_NAME%\ > nul
-  if errorlevel 1 echo Cannot copy corepack && goto package_error
-  copy /Y ..\deps\corepack\shims\nodewin\corepack.cmd %TARGET_NAME%\ > nul
-  if errorlevel 1 echo Cannot copy corepack.cmd && goto package_error
 )
 
 copy /Y ..\tools\msvs\nodevars.bat %TARGET_NAME%\ > nul
@@ -597,9 +625,7 @@ if not defined doc if not defined build_addons (
 )
 if exist "tools\doc\node_modules\unified\package.json" goto skip-install-doctools
 SETLOCAL
-cd tools\doc
-%npm_exe% ci
-cd ..\..
+%npm_exe% --prefix tools\doc ci
 if errorlevel 1 goto exit
 ENDLOCAL
 :skip-install-doctools
@@ -742,9 +768,7 @@ goto lint-js-build
 
 :lint-js-build
 if not defined lint_js_build if not defined lint_js if not defined lint_js_fix goto lint-md-build
-cd tools\eslint
-%npm_exe% ci
-cd ..\..
+%npm_exe% --prefix tools\eslint ci
 
 :lint-js
 if not defined lint_js goto lint-js-fix
@@ -762,9 +786,7 @@ goto lint-md-build
 
 :lint-md-build
 if not defined lint_md if not defined format_md goto lint-md
-cd tools\lint-md
-%npm_exe% ci
-cd ..\..
+%npm_exe% --prefix tools\lint-md ci
 
 :lint-md
 if not defined lint_md goto format-md
@@ -807,7 +829,7 @@ set exit_code=1
 goto exit
 
 :help
-echo vcbuild.bat [debug/release] [msi] [doc] [test/test-all/test-addons/test-doc/test-js-native-api/test-node-api/test-internet/test-tick-processor/test-known-issues/test-node-inspect/test-check-deopts/test-npm/test-v8/test-v8-intl/test-v8-benchmarks/test-v8-all] [ignore-flaky] [static/dll] [noprojgen] [projgen] [clang-cl] [ccache path-to-ccache] [small-icu/full-icu/without-intl] [nobuild] [nosnapshot] [nonpm] [nocorepack] [ltcg] [licensetf] [sign] [x64/arm64] [vs2022] [download-all] [enable-vtune] [lint/lint-ci/lint-js/lint-md] [lint-md-build] [format-md] [package] [build-release] [upload] [no-NODE-OPTIONS] [link-module path-to-module] [debug-http2] [debug-nghttp2] [clean] [cctest] [no-cctest] [openssl-no-asm]
+echo vcbuild.bat [debug/release] [msi] [doc] [test/test-all/test-addons/test-doc/test-js-native-api/test-node-api/test-internet/test-tick-processor/test-known-issues/test-node-inspect/test-check-deopts/test-npm/test-v8/test-v8-intl/test-v8-benchmarks/test-v8-all] [ignore-flaky] [static/dll] [noprojgen] [projgen] [clang-cl] [ccache path-to-ccache] [small-icu/full-icu/without-intl] [nobuild] [nosnapshot] [nonpm] [ltcg] [licensetf] [sign] [x64/arm64] [vs2022/vs2026] [download-all] [enable-vtune] [lint/lint-ci/lint-js/lint-md] [lint-md-build] [format-md] [package] [build-release] [upload] [no-NODE-OPTIONS] [link-module path-to-module] [debug-http2] [debug-nghttp2] [clean] [cctest] [no-cctest] [openssl-no-asm]
 echo Examples:
 echo   vcbuild.bat                          : builds release build
 echo   vcbuild.bat debug                    : builds debug build

@@ -78,10 +78,16 @@ EXEEXT := $(shell $(PYTHON) -c \
 		"import sys; print('.exe' if sys.platform == 'win32' else '')")
 
 NODE_EXE = node$(EXEEXT)
-# Use $(PWD) so we can cd to anywhere before calling this
-NODE ?= "$(PWD)/$(NODE_EXE)"
 NODE_G_EXE = node_g$(EXEEXT)
 NPM ?= ./deps/npm/bin/npm-cli.js
+
+# Release build of node.
+# Use $(PWD) so we can cd to anywhere before calling this.
+NODE ?= "$(PWD)/$(NODE_EXE)"
+# Prefer $(OUT_NODE) when running tests. Use $(NODE)
+# when generating coverage reports or running toolings as
+# debug build is be slower.
+OUT_NODE ?= "$(PWD)/out/$(BUILDTYPE)/node$(EXEEXT)"
 
 # Flags for packaging.
 BUILD_DOWNLOAD_FLAGS ?= --download=all
@@ -108,8 +114,10 @@ available-node = \
 # just the debug build, run `make -C out BUILDTYPE=Debug` instead.
 ifeq ($(BUILDTYPE),Release)
 all: $(NODE_EXE) ## Build node in out/Release/node (Default).
+$(OUT_NODE): $(NODE_EXE)
 else
 all: $(NODE_EXE) $(NODE_G_EXE)
+$(OUT_NODE): $(NODE_G_EXE)
 endif
 
 .PHONY: help
@@ -175,7 +183,7 @@ out/Makefile: config.gypi common.gypi node.gyp \
 	tools/v8_gypfiles/toolchain.gypi \
 	tools/v8_gypfiles/features.gypi \
 	tools/v8_gypfiles/inspector.gypi tools/v8_gypfiles/v8.gyp
-	$(PYTHON) tools/gyp_node.py -f make
+	$(PYTHON) tools/gyp_node.py -f make -Dpython=$(PYTHON)
 
 # node_version.h is listed because the N-API version is taken from there
 # and included in config.gypi
@@ -220,7 +228,7 @@ testclean: ## Remove test artifacts.
 distclean: ## Remove all build and test artifacts.
 	$(RM) -r out
 	$(RM) config.gypi icu_config.gypi
-	$(RM) config.mk
+	$(RM) config.mk config.status
 	$(RM) -r $(NODE_EXE) $(NODE_G_EXE)
 	$(RM) -r node_modules
 	$(RM) -r deps/icu
@@ -238,7 +246,7 @@ coverage-clean: ## Remove coverage artifacts.
 	$(RM) -r node_modules
 	$(RM) -r gcovr
 	$(RM) -r coverage/tmp
-	@if [ -d "out/Release/obj.target" ]; then \
+	@if [ -d "out/$(BUILDTYPE)/obj.target" ]; then \
 		$(FIND) out/$(BUILDTYPE)/obj.target \( -name "*.gcda" -o -name "*.gcno" \) \
 			-type f | xargs $(RM); \
 	fi
@@ -265,7 +273,7 @@ coverage-build-js: ## Build JavaScript coverage files.
 
 .PHONY: coverage-test
 coverage-test: coverage-build ## Run the tests and generate a coverage report.
-	@if [ -d "out/Release/obj.target" ]; then \
+	@if [ -d "out/$(BUILDTYPE)/obj.target" ]; then \
 		$(FIND) out/$(BUILDTYPE)/obj.target -name "*.gcda" -type f | xargs $(RM); \
 	fi
 	-NODE_V8_COVERAGE=coverage/tmp \
@@ -293,7 +301,7 @@ coverage-report-js: ## Report JavaScript coverage results.
 
 cctest: all ## Run the C++ tests using the built `cctest` executable.
 	@out/$(BUILDTYPE)/$@ --gtest_filter=$(GTEST_FILTER)
-	$(NODE) ./test/embedding/test-embedding.js
+	$(OUT_NODE) ./test/embedding/test-embedding.js
 
 .PHONY: list-gtests
 list-gtests: ## List all available C++ gtests.
@@ -399,7 +407,7 @@ ADDONS_HEADERS_PREREQS := tools/install.py \
 	$(wildcard deps/uv/include/*/*.h) \
 	$(wildcard deps/v8/include/*.h) \
 	$(wildcard deps/v8/include/*/*.h) \
-	deps/zlib/zconf.h deps/zlib/zlib.h \
+	$(wildcard deps/zlib/z*.h) \
 	src/node.h src/node_api.h src/js_native_api.h src/js_native_api_types.h \
 	src/node_api_types.h src/node_buffer.h src/node_object_wrap.h \
 	src/node_version.h
@@ -509,16 +517,24 @@ SQLITE_BINDING_SOURCES := \
 	$(wildcard test/sqlite/*/*.c)
 
 # Implicitly depends on $(NODE_EXE), see the build-sqlite-tests rule for rationale.
+ifndef NOSQLITE
 test/sqlite/.buildstamp: $(ADDONS_PREREQS) \
 	$(SQLITE_BINDING_GYPS) $(SQLITE_BINDING_SOURCES)
 	@$(call run_build_addons,"$$PWD/test/sqlite",$@)
+else
+test/sqlite/.buildstamp:
+endif
 
 .PHONY: build-sqlite-tests
+ifndef NOSQLITE
 # .buildstamp needs $(NODE_EXE) but cannot depend on it
 # directly because it calls make recursively.  The parent make cannot know
 # if the subprocess touched anything so it pessimistically assumes that
 # .buildstamp is out of date and need a rebuild.
 build-sqlite-tests: | $(NODE_EXE) test/sqlite/.buildstamp ## Build SQLite tests.
+else
+build-sqlite-tests:
+endif
 
 .PHONY: clear-stalled
 clear-stalled: ## Clear any stalled processes.
@@ -597,7 +613,7 @@ test-ci: | clear-stalled bench-addons-build build-addons build-js-native-api-tes
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) -p tap --logfile test.tap \
 		--mode=$(BUILDTYPE_LOWER) --flaky-tests=$(FLAKY_TESTS) \
 		$(TEST_CI_ARGS) $(CI_JS_SUITES) $(CI_NATIVE_SUITES) $(CI_DOC)
-	$(NODE) ./test/embedding/test-embedding.js
+	$(OUT_NODE) ./test/embedding/test-embedding.js
 	$(info Clean up any leftover processes, error if found.)
 	ps awwx | grep Release/node | grep -v grep | cat
 	@PS_OUT=`ps awwx | grep Release/node | grep -v grep | awk '{print $$1}'`; \
@@ -639,6 +655,10 @@ test-test426: all ## Run the Web Platform Tests.
 test-wpt: all ## Run the Web Platform Tests.
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) wpt
 
+# https://github.com/nodejs/node/blob/a00d95c73dcac8fc2b316238fb978a7d5aa650c6/.github/workflows/daily-wpt-fyi.yml#L71-L97
+# This uses NODE instead of OUT_NODE and if changes are to be made they'd need to be made on all
+# non-EOL release lines' since the wpt.fyi job checks out the repository in a state of a given release
+# to ensure future changes to the WPT runner don't need to be backported.
 .PHONY: test-wpt-report
 test-wpt-report: ## Run the Web Platform Tests and generate a report.
 	$(RM) -r out/wpt
@@ -653,10 +673,6 @@ test-internet: all ## Run internet tests.
 .PHONY: test-tick-processor
 test-tick-processor: all ## Run tick processor tests.
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) tick-processor
-
-.PHONY: test-hash-seed
-test-hash-seed: all ## Verifu that the hash seed used by V8 for hashing is random.
-	$(NODE) test/pummel/test-hash-seed.js
 
 .PHONY: test-doc
 test-doc: doc-only lint-md ## Build, lint, and verify the docs.
@@ -676,12 +692,12 @@ test-known-issues: all ## Run tests for known issues.
 
 # Related CI job: node-test-npm
 .PHONY: test-npm
-test-npm: $(NODE_EXE) ## Run the npm test suite on deps/npm.
-	$(NODE) tools/test-npm-package --install --logfile=test-npm.tap deps/npm test
+test-npm: $(OUT_NODE) ## Run the npm test suite on deps/npm.
+	$(OUT_NODE) tools/test-npm-package --install --logfile=test-npm.tap deps/npm test
 
 .PHONY: test-npm-publish
-test-npm-publish: $(NODE_EXE) ## Test the `npm publish` command.
-	npm_package_config_publishtest=true $(NODE) deps/npm/test/run.js
+test-npm-publish: $(OUT_NODE) ## Test the `npm publish` command.
+	npm_package_config_publishtest=true $(OUT_NODE) deps/npm/test/run.js
 
 .PHONY: test-js-native-api
 test-js-native-api: test-build-js-native-api ## Run JS Native-API tests.
@@ -751,8 +767,6 @@ test-v8: v8  ## Run the V8 test suite on deps/v8.
 				mjsunit cctest debugger inspector message preparser \
 				$(TAP_V8)
 	$(call convert_to_junit,$(TAP_V8_JSON))
-	$(info Testing hash seed)
-	$(MAKE) test-hash-seed
 
 test-v8-intl: v8 ## Run the v8 test suite, intl tests.
 	export PATH="$(NO_BIN_OVERRIDE_PATH)" && \
@@ -768,7 +782,7 @@ test-v8-benchmarks: v8 ## Run the v8 test suite, benchmarks.
 				$(TAP_V8_BENCHMARKS)
 	$(call convert_to_junit,$(TAP_V8_BENCHMARKS_JSON))
 
-test-v8-updates: ## Run the v8 test suite, updates.
+test-v8-updates: all ## Run the v8 test suite, updates.
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) v8-updates
 
 test-v8-all: test-v8 test-v8-intl test-v8-benchmarks test-v8-updates ## Run the entire V8 test suite, including intl, benchmarks, and updates.
@@ -949,9 +963,6 @@ else
 ifeq ($(findstring s390x,$(UNAME_M)),s390x)
 DESTCPU ?= s390x
 else
-ifeq ($(findstring s390,$(UNAME_M)),s390)
-DESTCPU ?= s390
-else
 ifeq ($(findstring OS/390,$(shell uname -s)),OS/390)
 DESTCPU ?= s390x
 else
@@ -985,7 +996,6 @@ endif
 endif
 endif
 endif
-endif
 ifeq ($(DESTCPU),x64)
 ARCH=x64
 else
@@ -998,9 +1008,6 @@ else
 ifeq ($(DESTCPU),ppc64)
 ARCH=ppc64
 else
-ifeq ($(DESTCPU),s390)
-ARCH=s390
-else
 ifeq ($(DESTCPU),s390x)
 ARCH=s390x
 else
@@ -1011,7 +1018,6 @@ ifeq ($(DESTCPU),loong64)
 ARCH=loong64
 else
 ARCH=x86
-endif
 endif
 endif
 endif
@@ -1038,6 +1044,11 @@ override DESTCPU=x86
 endif
 
 TARNAME=node-$(FULLVERSION)
+# Supply SKIP_SHARED_DEPS=1 to explicitly skip all dependencies that can be included as shared deps
+SKIP_SHARED_DEPS ?= 0
+ifeq ($(SKIP_SHARED_DEPS), 1)
+TARNAME:=$(TARNAME)-slim
+endif
 TARBALL=$(TARNAME).tar
 # Custom user-specified variation, use it directly
 ifdef VARIATION
@@ -1219,12 +1230,34 @@ $(TARBALL): release-only doc-only
 	$(RM) -r $(TARNAME)/.editorconfig
 	$(RM) -r $(TARNAME)/.git*
 	$(RM) -r $(TARNAME)/.mailmap
+	$(RM) -r $(TARNAME)/deps/corepack
+	$(RM) $(TARNAME)/test/parallel/test-corepack-version.js
+ifeq ($(SKIP_SHARED_DEPS), 1)
+	$(RM) -r $(TARNAME)/deps/ada
+	$(RM) -r $(TARNAME)/deps/brotli
+	$(RM) -r $(TARNAME)/deps/cares
+	$(RM) -r $(TARNAME)/deps/crates
+	$(RM) -r $(TARNAME)/deps/icu-small
+	$(RM) -r $(TARNAME)/deps/icu-tmp
+	$(RM) -r $(TARNAME)/deps/llhttp
+	$(RM) -r $(TARNAME)/deps/nghttp2
+	$(RM) -r $(TARNAME)/deps/ngtcp2
+	find $(TARNAME)/deps/openssl -maxdepth 1 -type f ! -name 'nodejs-openssl.cnf' -exec $(RM) {} +
+	find $(TARNAME)/deps/openssl -mindepth 1 -maxdepth 1 -type d -exec $(RM) -r {} +
+	$(RM) -r $(TARNAME)/deps/simdjson
+	$(RM) -r $(TARNAME)/deps/sqlite
+	$(RM) -r $(TARNAME)/deps/uv
+	$(RM) -r $(TARNAME)/deps/uvwasi
+	$(RM) -r $(TARNAME)/deps/zlib
+	$(RM) -r $(TARNAME)/deps/zstd
+else
 	$(RM) -r $(TARNAME)/deps/openssl/openssl/demos
 	$(RM) -r $(TARNAME)/deps/openssl/openssl/doc
 	$(RM) -r $(TARNAME)/deps/openssl/openssl/test
 	$(RM) -r $(TARNAME)/deps/uv/docs
 	$(RM) -r $(TARNAME)/deps/uv/samples
 	$(RM) -r $(TARNAME)/deps/uv/test
+endif
 	$(RM) -r $(TARNAME)/deps/v8/samples
 	$(RM) -r $(TARNAME)/deps/v8/tools/profviz
 	$(RM) -r $(TARNAME)/deps/v8/tools/run-tests.py
@@ -1233,6 +1266,7 @@ $(TARBALL): release-only doc-only
 	$(RM) -r $(TARNAME)/tools/cpplint.py
 	$(RM) -r $(TARNAME)/tools/eslint
 	$(RM) -r $(TARNAME)/tools/eslint-rules
+	$(RM) -r $(TARNAME)/test/parallel/test-eslint-*
 	$(RM) -r $(TARNAME)/tools/license-builder.sh
 	$(RM) -r $(TARNAME)/tools/eslint/node_modules
 	$(RM) -r $(TARNAME)/tools/osx-*
@@ -1568,8 +1602,8 @@ cpplint: lint-cpp
 # Try with '--system' if it fails without; the system may have set '--user'
 lint-py-build: ## Build resources needed to lint python files.
 	$(info Pip installing ruff on $(shell $(PYTHON) --version)...)
-	$(PYTHON) -m pip install --upgrade --target tools/pip/site-packages ruff==0.6.5 || \
-		$(PYTHON) -m pip install --upgrade --system --target tools/pip/site-packages ruff==0.6.5
+	$(PYTHON) -m pip install --upgrade --target tools/pip/site-packages ruff==0.13.1 || \
+		$(PYTHON) -m pip install --upgrade --system --target tools/pip/site-packages ruff==0.13.1
 
 .PHONY: lint-py lint-py-fix lint-py-fix-unsafe
 ifneq ("","$(wildcard tools/pip/site-packages/ruff)")
@@ -1579,7 +1613,6 @@ lint-py:
 	tools/pip/site-packages/bin/ruff check .
 lint-py-fix:
 	tools/pip/site-packages/bin/ruff check . --fix
-
 lint-py-fix-unsafe:
 	tools/pip/site-packages/bin/ruff check . --fix --unsafe-fixes
 else
@@ -1647,7 +1680,7 @@ HAS_DOCKER ?= $(shell command -v docker > /dev/null 2>&1; [ $$? -eq 0 ] && echo 
 
 .PHONY: gen-openssl
 ifeq ($(HAS_DOCKER), 1)
-DOCKER_COMMAND ?= docker run -it -v $(PWD):/node
+DOCKER_COMMAND ?= docker run --rm -u $(shell id -u) -v $(PWD):/node
 IS_IN_WORKTREE = $(shell grep '^gitdir: ' $(PWD)/.git 2>/dev/null)
 GIT_WORKTREE_COMMON = $(shell git rev-parse --git-common-dir)
 DOCKER_COMMAND += $(if $(IS_IN_WORKTREE), -v $(GIT_WORKTREE_COMMON):$(GIT_WORKTREE_COMMON))

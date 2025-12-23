@@ -22,9 +22,6 @@
     <String Id="npm_Title" Value="npm package manager"/>
     <String Id="npm_Description" Value="Install npm, the recommended package manager for [ProductName]."/>
 
-    <String Id="corepack_Title" Value="corepack manager"/>
-    <String Id="corepack_Description" Value="Install corepack, the universal package manager for [ProductName]."/>
-
     <String Id="DocumentationShortcuts_Title" Value="Online documentation shortcuts"/>
     <String Id="DocumentationShortcuts_Description" Value="Add start menu entries that link the online documentation for [ProductName] [FullVersion] and the [ProductName] website."/>
 

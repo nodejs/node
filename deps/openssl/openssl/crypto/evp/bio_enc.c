@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -65,10 +65,8 @@ static int enc_new(BIO *bi)
 {
     BIO_ENC_CTX *ctx;
 
-    if ((ctx = OPENSSL_zalloc(sizeof(*ctx))) == NULL) {
-        ERR_raise(ERR_LIB_EVP, ERR_R_MALLOC_FAILURE);
+    if ((ctx = OPENSSL_zalloc(sizeof(*ctx))) == NULL)
         return 0;
-    }
 
     ctx->cipher = EVP_CIPHER_CTX_new();
     if (ctx->cipher == NULL) {
@@ -134,6 +132,10 @@ static int enc_read(BIO *b, char *out, int outl)
     }
 
     blocksize = EVP_CIPHER_CTX_get_block_size(ctx->cipher);
+
+    if (blocksize == 0)
+        return 0;
+
     if (blocksize == 1)
         blocksize = 0;
 
@@ -159,6 +161,7 @@ static int enc_read(BIO *b, char *out, int outl)
             /* Should be continue next time we are called? */
             if (!BIO_should_retry(next)) {
                 ctx->cont = i;
+                ctx->finished = 1;
                 i = EVP_CipherFinal_ex(ctx->cipher,
                                        ctx->buf, &(ctx->buf_len));
                 ctx->ok = i;
@@ -362,6 +365,7 @@ static long enc_ctrl(BIO *b, int cmd, long num, void *ptr)
 
         /* Finally flush the underlying BIO */
         ret = BIO_ctrl(next, cmd, num, ptr);
+        BIO_copy_next_retry(b);
         break;
     case BIO_C_GET_CIPHER_STATUS:
         ret = (long)ctx->ok;

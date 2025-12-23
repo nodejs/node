@@ -18,11 +18,11 @@ namespace v8::internal::compiler::turboshaft {
 inline constexpr char kBuiltinCompilationZoneName[] =
     "builtin-compilation-zone";
 
-Handle<Code> BuildWithTurboshaftAssemblerImpl(
+DirectHandle<Code> BuildWithTurboshaftAssemblerImpl(
     Isolate* isolate, Builtin builtin, TurboshaftAssemblerGenerator generator,
     std::function<compiler::CallDescriptor*(Zone*)> call_descriptor_builder,
     const char* name, const AssemblerOptions& options, CodeKind code_kind,
-    std::optional<BytecodeHandlerData> bytecode_handler_data) {
+    std::optional<interpreter::BytecodeHandlerData> bytecode_handler_data) {
   using namespace compiler::turboshaft;  // NOLINT(build/namespaces)
   DCHECK_EQ(code_kind == CodeKind::BYTECODE_HANDLER,
             bytecode_handler_data.has_value());
@@ -42,10 +42,11 @@ Handle<Code> BuildWithTurboshaftAssemblerImpl(
   ZoneWithName<kTempZoneName> temp_zone(&zone_stats, kTempZoneName);
   generator(&data, isolate, data.graph(), temp_zone);
 
-  Handle<Code> code = compiler::Pipeline::GenerateCodeForTurboshaftBuiltin(
-                          &data, call_descriptor, builtin, name,
-                          ProfileDataFromFile::TryRead(name))
-                          .ToHandleChecked();
+  DirectHandle<Code> code =
+      compiler::Pipeline::GenerateCodeForTurboshaftBuiltin(
+          &data, call_descriptor, builtin, name,
+          ProfileDataFromFile::TryRead(name))
+          .ToHandleChecked();
   return code;
 }
 

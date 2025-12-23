@@ -491,7 +491,7 @@ typedef struct {
     U32  litLengthSum;
     U32  litSum;
     U32  offCodeSum;
-} seqStore_t;
+} SeqStore_t;
 
 
 

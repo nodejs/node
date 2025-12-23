@@ -1,7 +1,7 @@
 'use strict'
 
 const { Headers, HeadersList, fill, getHeadersGuard, setHeadersGuard, setHeadersList } = require('./headers')
-const { extractBody, cloneBody, mixinBody, hasFinalizationRegistry, streamRegistry, bodyUnusable } = require('./body')
+const { extractBody, cloneBody, mixinBody, streamRegistry, bodyUnusable } = require('./body')
 const util = require('../../core/util')
 const nodeUtil = require('node:util')
 const { kEnumerableProperty } = util
@@ -18,11 +18,10 @@ const {
   redirectStatusSet,
   nullBodyStatus
 } = require('./constants')
-const { webidl } = require('./webidl')
+const { webidl } = require('../webidl')
 const { URLSerializer } = require('./data-url')
 const { kConstruct } = require('../../core/symbols')
 const assert = require('node:assert')
-const { types } = require('node:util')
 
 const textEncoder = new TextEncoder('utf-8')
 
@@ -119,7 +118,7 @@ class Response {
     }
 
     if (body !== null) {
-      body = webidl.converters.BodyInit(body)
+      body = webidl.converters.BodyInit(body, 'Response', 'body')
     }
 
     init = webidl.converters.ResponseInit(init)
@@ -243,6 +242,11 @@ class Response {
     // 2. Let clonedResponse be the result of cloning this’s response.
     const clonedResponse = cloneResponse(this.#state)
 
+    // Note: To re-register because of a new stream.
+    if (this.#state.body?.stream) {
+      streamRegistry.register(this, new WeakRef(this.#state.body.stream))
+    }
+
     // 3. Return the result of creating a Response object, given
     // clonedResponse, this’s headers’s guard, and this’s relevant Realm.
     return fromInnerResponse(clonedResponse, getHeadersGuard(this.#headers))
@@ -352,7 +356,7 @@ function cloneResponse (response) {
   // 3. If response’s body is non-null, then set newResponse’s body to the
   // result of cloning response’s body.
   if (response.body != null) {
-    newResponse.body = cloneBody(newResponse, response.body)
+    newResponse.body = cloneBody(response.body)
   }
 
   // 4. Return newResponse.
@@ -552,7 +556,7 @@ function fromInnerResponse (innerResponse, guard) {
   setHeadersList(headers, innerResponse.headersList)
   setHeadersGuard(headers, guard)
 
-  if (hasFinalizationRegistry && innerResponse.body?.stream) {
+  if (innerResponse.body?.stream) {
     // If the target (response) is reclaimed, the cleanup callback may be called at some point with
     // the held value provided for it (innerResponse.body.stream). The held value can be any value:
     // a primitive or an object, even undefined. If the held value is an object, the registry keeps
@@ -574,7 +578,7 @@ webidl.converters.XMLHttpRequestBodyInit = function (V, prefix, name) {
     return V
   }
 
-  if (ArrayBuffer.isView(V) || types.isArrayBuffer(V)) {
+  if (webidl.is.BufferSource(V)) {
     return V
   }
 

@@ -4,8 +4,6 @@
 
 #include "src/heap/trusted-range.h"
 
-#include "src/base/lazy-instance.h"
-#include "src/base/once.h"
 #include "src/heap/heap-inl.h"
 #include "src/utils/allocation.h"
 
@@ -51,37 +49,37 @@ bool TrustedRange::InitReservation(size_t requested) {
   params.page_initialization_mode =
       base::PageInitializationMode::kAllocatedPagesCanBeUninitialized;
   params.page_freeing_mode = base::PageFreeingMode::kMakeInaccessible;
-  return VirtualMemoryCage::InitReservation(params);
-}
+  bool success = VirtualMemoryCage::InitReservation(params);
 
-namespace {
-
-TrustedRange* process_wide_trusted_range_ = nullptr;
-
-V8_DECLARE_ONCE(init_trusted_range_once);
-void InitProcessWideTrustedRange(size_t requested_size) {
-  TrustedRange* trusted_range = new TrustedRange();
-  if (!trusted_range->InitReservation(requested_size)) {
-    V8::FatalProcessOutOfMemory(
-        nullptr, "Failed to reserve virtual memory for TrustedRange");
+  if (success) {
+    // Reserve the null page to mitigate (compressed) nullptr dereference bugs.
+    //
+    // We typically use Smi::zero()/nullptr for protected pointer fields
+    // (compressed pointers in trusted space) if the field is empty.
+    // As such, we can have the equivalent of nullptr deref bugs if either some
+    // code doesn't handle empty fields or if objects aren't correctly
+    // initialized and fields are left empty. To mitigate these, we make the
+    // first pages of trusted space inaccessible so that any access is
+    // guaranteed to crash safely.
+    size_t guard_region_size = 1 * MB;
+#if COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL
+    if (v8_flags.reserve_contiguous_compressed_read_only_space) {
+      guard_region_size =
+          std::max(guard_region_size, kContiguousReadOnlyReservationSize);
+    }
+#endif  // COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL
+    DCHECK(IsAligned(guard_region_size, page_allocator_->AllocatePageSize()));
+    CHECK(page_allocator_->AllocatePagesAt(base(), guard_region_size,
+                                           PageAllocator::kNoAccess));
   }
-  process_wide_trusted_range_ = trusted_range;
 
-  TrustedSpaceCompressionScheme::InitBase(trusted_range->base());
-}
-}  // namespace
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+  // Sandboxed code should never write to trusted memory.
+  SandboxHardwareSupport::RegisterOutOfSandboxMemory(
+      base(), size(), PagePermissions::kNoAccess);
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
 
-// static
-TrustedRange* TrustedRange::EnsureProcessWideTrustedRange(
-    size_t requested_size) {
-  base::CallOnce(&init_trusted_range_once, InitProcessWideTrustedRange,
-                 requested_size);
-  return process_wide_trusted_range_;
-}
-
-// static
-TrustedRange* TrustedRange::GetProcessWideTrustedRange() {
-  return process_wide_trusted_range_;
+  return success;
 }
 
 #endif  // V8_ENABLE_SANDBOX

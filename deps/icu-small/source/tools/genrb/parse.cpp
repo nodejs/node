@@ -1153,7 +1153,7 @@ addCollation(ParseState* state, TableResource  *result, const char *collationTyp
     struct UString    *tokenValue;
     struct UString     comment;
     enum   ETokenType  token;
-    char               subtag[1024];
+    CharString         subtag;
     UnicodeString      rules;
     UBool              haveRules = false;
     UVersionInfo       version;
@@ -1189,15 +1189,15 @@ addCollation(ParseState* state, TableResource  *result, const char *collationTyp
             return nullptr;
         }
 
-        u_UCharsToChars(tokenValue->fChars, subtag, u_strlen(tokenValue->fChars) + 1);
-
+        subtag.clear();
+        subtag.appendInvariantChars(tokenValue->fChars, u_strlen(tokenValue->fChars), *status);
         if (U_FAILURE(*status))
         {
             res_close(result);
             return nullptr;
         }
 
-        member = parseResource(state, subtag, nullptr, status);
+        member = parseResource(state, subtag.data(), nullptr, status);
 
         if (U_FAILURE(*status))
         {
@@ -1208,7 +1208,7 @@ addCollation(ParseState* state, TableResource  *result, const char *collationTyp
         {
             // Ignore the parsed resources, continue parsing.
         }
-        else if (uprv_strcmp(subtag, "Version") == 0 && member->isString())
+        else if (uprv_strcmp(subtag.data(), "Version") == 0 && member->isString())
         {
             StringResource *sr = static_cast<StringResource *>(member);
             char     ver[40];
@@ -1225,11 +1225,11 @@ addCollation(ParseState* state, TableResource  *result, const char *collationTyp
             result->add(member, line, *status);
             member = nullptr;
         }
-        else if(uprv_strcmp(subtag, "%%CollationBin")==0)
+        else if(uprv_strcmp(subtag.data(), "%%CollationBin")==0)
         {
             /* discard duplicate %%CollationBin if any*/
         }
-        else if (uprv_strcmp(subtag, "Sequence") == 0 && member->isString())
+        else if (uprv_strcmp(subtag.data(), "Sequence") == 0 && member->isString())
         {
             StringResource *sr = static_cast<StringResource *>(member);
             rules = sr->fString;
@@ -1395,7 +1395,7 @@ parseCollationElements(ParseState* state, char *tag, uint32_t startline, UBool n
     struct UString    *tokenValue;
     struct UString     comment;
     enum   ETokenType  token;
-    char               subtag[1024], typeKeyword[1024];
+    CharString         subtag, typeKeyword;
     uint32_t           line;
 
     result = table_open(state->bundle, tag, nullptr, status);
@@ -1437,7 +1437,8 @@ parseCollationElements(ParseState* state, char *tag, uint32_t startline, UBool n
                 return nullptr;
             }
 
-            u_UCharsToChars(tokenValue->fChars, subtag, u_strlen(tokenValue->fChars) + 1);
+            subtag.clear();
+            subtag.appendInvariantChars(tokenValue->fChars, u_strlen(tokenValue->fChars), *status);
 
             if (U_FAILURE(*status))
             {
@@ -1445,9 +1446,9 @@ parseCollationElements(ParseState* state, char *tag, uint32_t startline, UBool n
                 return nullptr;
             }
 
-            if (uprv_strcmp(subtag, "default") == 0)
+            if (uprv_strcmp(subtag.data(), "default") == 0)
             {
-                member = parseResource(state, subtag, nullptr, status);
+                member = parseResource(state, subtag.data(), nullptr, status);
 
                 if (U_FAILURE(*status))
                 {
@@ -1466,22 +1467,29 @@ parseCollationElements(ParseState* state, char *tag, uint32_t startline, UBool n
                 if(token == TOK_OPEN_BRACE) {
                     token = getToken(state, &tokenValue, &comment, &line, status);
                     TableResource *collationRes;
-                    if (keepCollationType(subtag)) {
-                        collationRes = table_open(state->bundle, subtag, nullptr, status);
+                    if (keepCollationType(subtag.data())) {
+                        collationRes = table_open(state->bundle, subtag.data(), nullptr, status);
                     } else {
                         collationRes = nullptr;
                     }
                     // need to parse the collation data regardless
-                    collationRes = addCollation(state, collationRes, subtag, startline, status);
+                    collationRes = addCollation(state, collationRes, subtag.data(), startline, status);
                     if (collationRes != nullptr) {
                         result->add(collationRes, startline, *status);
                     }
                 } else if(token == TOK_COLON) { /* right now, we'll just try to see if we have aliases */
                     /* we could have a table too */
                     token = peekToken(state, 1, &tokenValue, &line, &comment, status);
-                    u_UCharsToChars(tokenValue->fChars, typeKeyword, u_strlen(tokenValue->fChars) + 1);
-                    if(uprv_strcmp(typeKeyword, "alias") == 0) {
-                        member = parseResource(state, subtag, nullptr, status);
+                    typeKeyword.clear();
+                    typeKeyword.appendInvariantChars(tokenValue->fChars, u_strlen(tokenValue->fChars), *status);
+                    if (U_FAILURE(*status))
+                    {
+                        res_close(result);
+                        return nullptr;
+                    }
+
+                    if(uprv_strcmp(typeKeyword.data(), "alias") == 0) {
+                        member = parseResource(state, subtag.data(), nullptr, status);
                         if (U_FAILURE(*status))
                         {
                             res_close(result);
@@ -1523,7 +1531,7 @@ realParseTable(ParseState* state, TableResource *table, char *tag, uint32_t star
     struct UString    *tokenValue=nullptr;
     struct UString    comment;
     enum   ETokenType token;
-    char              subtag[1024];
+    CharString        subtag;
     uint32_t          line;
     UBool             readToken = false;
 
@@ -1562,7 +1570,8 @@ realParseTable(ParseState* state, TableResource *table, char *tag, uint32_t star
         }
 
         if(uprv_isInvariantUString(tokenValue->fChars, -1)) {
-            u_UCharsToChars(tokenValue->fChars, subtag, u_strlen(tokenValue->fChars) + 1);
+            subtag.clear();
+            subtag.appendInvariantChars(tokenValue->fChars, u_strlen(tokenValue->fChars), *status);
         } else {
             *status = U_INVALID_FORMAT_ERROR;
             error(line, "invariant characters required for table keys");
@@ -1575,7 +1584,7 @@ realParseTable(ParseState* state, TableResource *table, char *tag, uint32_t star
             return nullptr;
         }
 
-        member = parseResource(state, subtag, &comment, status);
+        member = parseResource(state, subtag.data(), &comment, status);
 
         if (member == nullptr || U_FAILURE(*status))
         {

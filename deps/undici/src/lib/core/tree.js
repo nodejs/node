@@ -86,7 +86,7 @@ class TstNode {
 
   /**
    * @param {Uint8Array} key
-   * @return {TstNode | null}
+   * @returns {TstNode | null}
    */
   search (key) {
     const keylength = key.length

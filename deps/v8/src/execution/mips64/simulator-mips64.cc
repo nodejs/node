@@ -35,6 +35,11 @@ DEFINE_LAZY_LEAKY_OBJECT_GETTER(Simulator::GlobalMonitor,
 // Util functions.
 inline bool HaveSameSign(int64_t a, int64_t b) { return ((a ^ b) >= 0); }
 
+// TODO(mips): Currently defaults to true, indicating that MIPS supports
+// unaligned access by default. This can be changed based on the actual
+// environment or platform configuration.
+bool isMipsSupportUnalignedAccess = true;
+
 uint32_t get_fcsr_condition_bit(uint32_t cc) {
   if (cc == 0) {
     return 23;
@@ -815,7 +820,7 @@ Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
   // The sp is initialized to point to the bottom (high address) of the
   // allocated stack area. To be safe in potential stack underflows we leave
   // some buffer below.
-  registers_[sp] = stack_ + stack_size - kStackProtectionSize;
+  registers_[sp] = StackBase();
   // The ra and pc are initialized to a known bad value that will cause an
   // access violation if the simulator ever tries to execute it.
   registers_[pc] = bad_ra;
@@ -1672,18 +1677,18 @@ void Simulator::TraceMSARegWr(T* value) {
     } v;
     memcpy(v.b, value, kMSALanesByte);
 
-    if (std::is_same<T, int32_t>::value) {
+    if (std::is_same_v<T, int32_t>) {
       base::SNPrintF(trace_buf_,
                      "LO: %016" PRIx64 "  HI: %016" PRIx64 "    (%" PRIu64
                      ")    int32[0..3]:%" PRId32 "  %" PRId32 "  %" PRId32
                      "  %" PRId32,
                      v.d[0], v.d[1], icount_, v.w[0], v.w[1], v.w[2], v.w[3]);
-    } else if (std::is_same<T, float>::value) {
+    } else if (std::is_same_v<T, float>) {
       base::SNPrintF(trace_buf_,
                      "LO: %016" PRIx64 "  HI: %016" PRIx64 "    (%" PRIu64
                      ")    flt[0..3]:%e  %e  %e  %e",
                      v.d[0], v.d[1], icount_, v.f[0], v.f[1], v.f[2], v.f[3]);
-    } else if (std::is_same<T, double>::value) {
+    } else if (std::is_same_v<T, double>) {
       base::SNPrintF(trace_buf_,
                      "LO: %016" PRIx64 "  HI: %016" PRIx64 "    (%" PRIu64
                      ")    dbl[0..1]:%e  %e",
@@ -1860,7 +1865,8 @@ int32_t Simulator::ReadW(int64_t addr, Instruction* instr, TraceType t) {
            addr, reinterpret_cast<intptr_t>(instr));
     DieOrDebug();
   }
-  if ((addr & 0x3) == 0 || kArchVariant == kMips64r6) {
+  if ((addr & 0x3) == 0 || kArchVariant == kMips64r6 ||
+      isMipsSupportUnalignedAccess) {
     local_monitor_.NotifyLoad();
     int32_t* ptr = reinterpret_cast<int32_t*>(addr);
     TraceMemRd(addr, static_cast<int64_t>(*ptr), t);
@@ -1952,7 +1958,8 @@ int64_t Simulator::Read2W(int64_t addr, Instruction* instr) {
            addr, reinterpret_cast<intptr_t>(instr));
     DieOrDebug();
   }
-  if ((addr & kPointerAlignmentMask) == 0 || kArchVariant == kMips64r6) {
+  if ((addr & kPointerAlignmentMask) == 0 || kArchVariant == kMips64r6 ||
+      isMipsSupportUnalignedAccess) {
     local_monitor_.NotifyLoad();
     int64_t* ptr = reinterpret_cast<int64_t*>(addr);
     TraceMemRd(addr, *ptr);
@@ -2182,12 +2189,35 @@ uintptr_t Simulator::StackLimit(uintptr_t c_limit) const {
   return stack_limit_ + kAdditionalStackMargin;
 }
 
-base::Vector<uint8_t> Simulator::GetCurrentStackView() const {
+uintptr_t Simulator::StackBase() const {
+  return reinterpret_cast<uintptr_t>(stack_) + UsableStackSize();
+}
+
+base::Vector<uint8_t> Simulator::GetCentralStackView() const {
   // We do not add an additional safety margin as above in
   // Simulator::StackLimit, as users of this method are expected to add their
   // own margin.
-  return base::VectorOf(reinterpret_cast<uint8_t*>(stack_limit_),
-                        UsableStackSize());
+  return base::VectorOf(
+      reinterpret_cast<uint8_t*>(stack_) + kStackProtectionSize,
+      UsableStackSize());
+}
+
+// We touch the stack, which may or may not have been initialized properly. Msan
+// reports here are not interesting.
+DISABLE_MSAN void Simulator::IterateRegistersAndStack(
+    ::heap::base::StackVisitor* visitor) {
+  for (int i = 0; i < kNumSimuRegisters; ++i) {
+    visitor->VisitPointer(reinterpret_cast<const void*>(get_register(i)));
+  }
+  for (const void* const* current =
+           reinterpret_cast<const void* const*>(get_sp());
+       current < reinterpret_cast<const void* const*>(StackBase()); ++current) {
+    const void* address = *current;
+    if (address == nullptr) {
+      continue;
+    }
+    visitor->VisitPointer(address);
+  }
 }
 
 // Unsupported instructions use Format to print an error and stop execution.
@@ -2214,6 +2244,7 @@ using SimulatorRuntimeCompareCall = int64_t (*)(double darg0, double darg1);
 using SimulatorRuntimeFPFPCall = double (*)(double darg0, double darg1);
 using SimulatorRuntimeFPCall = double (*)(double darg0);
 using SimulatorRuntimeFPIntCall = double (*)(double darg0, int32_t arg0);
+using SimulatorRuntimeIntFPCall = int32_t (*)(double darg0);
 // Define four args for future flexibility; at the time of this writing only
 // one is ever used.
 using SimulatorRuntimeFPTaggedCall = double (*)(int64_t arg0, int64_t arg1,
@@ -2410,7 +2441,8 @@ void Simulator::SoftwareInterrupt() {
         (redirection->type() == ExternalReference::BUILTIN_FP_FP_CALL) ||
         (redirection->type() == ExternalReference::BUILTIN_COMPARE_CALL) ||
         (redirection->type() == ExternalReference::BUILTIN_FP_CALL) ||
-        (redirection->type() == ExternalReference::BUILTIN_FP_INT_CALL);
+        (redirection->type() == ExternalReference::BUILTIN_FP_INT_CALL) ||
+        (redirection->type() == ExternalReference::BUILTIN_INT_FP_CALL);
 
     if (!IsMipsSoftFloatABI) {
       // With the hard floating point calling convention, double
@@ -2469,6 +2501,11 @@ void Simulator::SoftwareInterrupt() {
                    reinterpret_cast<void*>(FUNCTION_ADDR(generic_target)),
                    dval0, ival);
             break;
+          case ExternalReference::BUILTIN_INT_FP_CALL:
+            PrintF("Call to host function at %p with args %f",
+                   reinterpret_cast<void*>(FUNCTION_ADDR(generic_target)),
+                   dval0);
+            break;
           default:
             UNREACHABLE();
         }
@@ -2503,12 +2540,20 @@ void Simulator::SoftwareInterrupt() {
           SetFpResult(dresult);
           break;
         }
+        case ExternalReference::BUILTIN_INT_FP_CALL: {
+          SimulatorRuntimeIntFPCall target =
+              reinterpret_cast<SimulatorRuntimeIntFPCall>(external);
+          iresult = target(dval0);
+          set_register(v0, iresult);
+          break;
+        }
         default:
           UNREACHABLE();
       }
       if (v8_flags.trace_sim) {
         switch (redirection->type()) {
           case ExternalReference::BUILTIN_COMPARE_CALL:
+          case ExternalReference::BUILTIN_INT_FP_CALL:
             PrintF("Returned %08x\n", static_cast<int32_t>(iresult));
             break;
           case ExternalReference::BUILTIN_FP_FP_CALL:
@@ -2770,8 +2815,8 @@ static T FPUMaxA(T a, T b) {
 
 enum class KeepSign : bool { no = false, yes };
 
-template <typename T, typename std::enable_if<std::is_floating_point<T>::value,
-                                              int>::type = 0>
+template <typename T,
+          typename std::enable_if_t<std::is_floating_point_v<T>, int> = 0>
 T FPUCanonalizeNaNArg(T result, T arg, KeepSign keepSign = KeepSign::no) {
   DCHECK(std::isnan(arg));
   T qNaN = std::numeric_limits<T>::quiet_NaN();
@@ -5114,7 +5159,7 @@ void Simulator::DecodeTypeMsaELM() {
 
 template <typename T>
 T Simulator::MsaBitInstrHelper(uint32_t opcode, T wd, T ws, int32_t m) {
-  using uT = typename std::make_unsigned<T>::type;
+  using uT = std::make_unsigned_t<T>;
   T res;
   switch (opcode) {
     case SLLI:
@@ -5307,7 +5352,7 @@ void Simulator::DecodeTypeMsaMI10() {
 
 template <typename T>
 T Simulator::Msa3RInstrHelper(uint32_t opcode, T wd, T ws, T wt) {
-  using uT = typename std::make_unsigned<T>::type;
+  using uT = std::make_unsigned_t<T>;
   T res;
   int wt_modulo = wt % (sizeof(T) * 8);
   switch (opcode) {
@@ -5587,8 +5632,8 @@ template <typename T_int, typename T_smaller_int, typename T_reg>
 void Msa3RInstrHelper_horizontal(const uint32_t opcode, T_reg ws, T_reg wt,
                                  T_reg wd, const int i,
                                  const int num_of_lanes) {
-  using T_uint = typename std::make_unsigned<T_int>::type;
-  using T_smaller_uint = typename std::make_unsigned<T_smaller_int>::type;
+  using T_uint = std::make_unsigned_t<T_int>;
+  using T_smaller_uint = std::make_unsigned_t<T_smaller_int>;
   T_int* wd_p;
   T_smaller_int *ws_p, *wt_p;
   ws_p = reinterpret_cast<T_smaller_int*>(ws);
@@ -5881,8 +5926,8 @@ void Msa3RFInstrHelper(uint32_t opcode, T_reg ws, T_reg wt, T_reg* wd) {
 
 template <typename T_int, typename T_int_dbl, typename T_reg>
 void Msa3RFInstrHelper2(uint32_t opcode, T_reg ws, T_reg wt, T_reg* wd) {
-  //  using T_uint = typename std::make_unsigned<T_int>::type;
-  using T_uint_dbl = typename std::make_unsigned<T_int_dbl>::type;
+  //  using T_uint = std::make_unsigned_t<T_int>;
+  using T_uint_dbl = std::make_unsigned_t<T_int_dbl>;
   const T_int max_int = std::numeric_limits<T_int>::max();
   const T_int min_int = std::numeric_limits<T_int>::min();
   const int shift = kBitsPerByte * sizeof(T_int) - 1;
@@ -6336,7 +6381,7 @@ static inline bool isSnan(double fp) { return !QUIET_BIT_D(fp); }
 template <typename T_int, typename T_fp, typename T_src, typename T_dst>
 T_int Msa2RFInstrHelper(uint32_t opcode, T_src src, T_dst* dst,
                         Simulator* sim) {
-  using T_uint = typename std::make_unsigned<T_int>::type;
+  using T_uint = std::make_unsigned_t<T_int>;
   switch (opcode) {
     case FCLASS: {
 #define SNAN_BIT BIT(0)
@@ -6522,7 +6567,7 @@ T_int Msa2RFInstrHelper(uint32_t opcode, T_src src, T_dst* dst,
       *dst = base::bit_cast<T_int>(static_cast<T_fp>(src));
       break;
     case FFINT_U:
-      using uT_src = typename std::make_unsigned<T_src>::type;
+      using uT_src = std::make_unsigned_t<T_src>;
       *dst =
           base::bit_cast<T_int>(static_cast<T_fp>(base::bit_cast<uT_src>(src)));
       break;
@@ -6569,21 +6614,21 @@ T_int Msa2RFInstrHelper2(uint32_t opcode, T_reg ws, int i) {
     }                                                                          \
   }
     case FEXUPL:
-      if (std::is_same<int32_t, T_int>::value) {
+      if (std::is_same_v<int32_t, T_int>) {
         FEXUP_DF(i + kMSALanesWord)
       } else {
         return base::bit_cast<int64_t>(static_cast<double>(
             base::bit_cast<float>(ws.w[i + kMSALanesDword])));
       }
     case FEXUPR:
-      if (std::is_same<int32_t, T_int>::value) {
+      if (std::is_same_v<int32_t, T_int>) {
         FEXUP_DF(i)
       } else {
         return base::bit_cast<int64_t>(
             static_cast<double>(base::bit_cast<float>(ws.w[i])));
       }
     case FFQL: {
-      if (std::is_same<int32_t, T_int>::value) {
+      if (std::is_same_v<int32_t, T_int>) {
         return base::bit_cast<int32_t>(
             static_cast<float>(ws.h[i + kMSALanesWord]) / (1U << 15));
       } else {
@@ -6593,7 +6638,7 @@ T_int Msa2RFInstrHelper2(uint32_t opcode, T_reg ws, int i) {
       break;
     }
     case FFQR: {
-      if (std::is_same<int32_t, T_int>::value) {
+      if (std::is_same_v<int32_t, T_int>) {
         return base::bit_cast<int32_t>(static_cast<float>(ws.h[i]) /
                                        (1U << 15));
       } else {

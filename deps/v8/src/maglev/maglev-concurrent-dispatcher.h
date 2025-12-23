@@ -22,27 +22,6 @@ namespace maglev {
 
 class MaglevCompilationInfo;
 
-// TODO(v8:7700): While basic infrastructure now exists, there are many TODOs
-// that should still be addressed soon:
-// - Full tracing support through --trace-opt.
-// - Concurrent codegen.
-// - Concurrent InstructionStream object creation (optional?).
-// - Test support for concurrency (see %FinalizeOptimization).
-
-// Exports needed functionality without exposing implementation details.
-class ExportedMaglevCompilationInfo final {
- public:
-  explicit ExportedMaglevCompilationInfo(MaglevCompilationInfo* info)
-      : info_(info) {}
-
-  Zone* zone() const;
-  void set_canonical_handles(
-      std::unique_ptr<CanonicalHandlesMap>&& canonical_handles);
-
- private:
-  MaglevCompilationInfo* const info_;
-};
-
 // The job is a single actual compilation task.
 class MaglevCompilationJob final : public OptimizedCompilationJob {
  public:
@@ -56,8 +35,8 @@ class MaglevCompilationJob final : public OptimizedCompilationJob {
                         LocalIsolate* local_isolate) override;
   Status FinalizeJobImpl(Isolate* isolate) override;
 
-  Handle<JSFunction> function() const;
-  MaybeHandle<Code> code() const;
+  IndirectHandle<JSFunction> function() const;
+  MaybeIndirectHandle<Code> code() const;
   BytecodeOffset osr_offset() const;
   bool is_osr() const;
 
@@ -73,6 +52,8 @@ class MaglevCompilationJob final : public OptimizedCompilationJob {
 
   // Intended for use as a globally unique id in trace events.
   uint64_t trace_id() const;
+
+  BailoutReason bailout_reason_ = BailoutReason::kNoReason;
 
  private:
   explicit MaglevCompilationJob(Isolate* isolate,

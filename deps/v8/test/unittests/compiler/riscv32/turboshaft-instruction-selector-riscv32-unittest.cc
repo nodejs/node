@@ -50,18 +50,18 @@ const FPCmp kFPCmpInstructions[] = {
      kEqual},
     {{TSBinop::kFloat64LessThan, "Float64LessThan", kRiscvCmpD,
       MachineType::Float64()},
-     kUnsignedLessThan},
+     kFloatLessThan},
     {{TSBinop::kFloat64LessThanOrEqual, "Float64LessThanOrEqual", kRiscvCmpD,
       MachineType::Float64()},
-     kUnsignedLessThanOrEqual},
-    //TODO(riscv): ADD kFloat64GreaterThan/kFloat64GreaterThanOrEqual
-    // in turboshaft-unittestes.
-    // {{TSBinop::kFloat64GreaterThan, "Float64GreaterThan",
-    //   kRiscvCmpD, MachineType::Float64()},
-    //  kUnsignedLessThan},
-    // {{TSBinop::kFloat64GreaterThanOrEqual,
-    //   "Float64GreaterThanOrEqual", kRiscvCmpD, MachineType::Float64()},
-    //  kUnsignedLessThanOrEqual}
+     kFloatLessThanOrEqual},
+    // TODO(riscv): ADD kFloat64GreaterThan/kFloat64GreaterThanOrEqual
+    //  in turboshaft-unittestes.
+    //  {{TSBinop::kFloat64GreaterThan, "Float64GreaterThan",
+    //    kRiscvCmpD, MachineType::Float64()},
+    //   kUnsignedLessThan},
+    //  {{TSBinop::kFloat64GreaterThanOrEqual,
+    //    "Float64GreaterThanOrEqual", kRiscvCmpD, MachineType::Float64()},
+    //   kUnsignedLessThanOrEqual}
 };
 
 struct Conversion {
@@ -133,10 +133,10 @@ const MachInst2 kAddSubInstructions[] = {
 // IntArithTest instructions, one node.
 // ----------------------------------------------------------------------------
 
-const MachInst1 kAddSubOneInstructions[] = {
-    // {TSBinop::kInt32Neg, "Int32Neg", kRiscvSub32,
-    //  MachineType::Int32()},
-};
+// const MachInst1 kAddSubOneInstructions[] = {
+// {TSBinop::kInt32Neg, "Int32Neg", kRiscvSub32,
+//  MachineType::Int32()},
+// };
 
 // ----------------------------------------------------------------------------
 // Arithmetic compare instructions.
@@ -201,20 +201,20 @@ const Conversion kConversionInstructions[] = {
     //  MachineType::Int32()}
 };
 
-const Conversion kFloat32RoundInstructions[] = {
-    // {{TSUnop::kFloat32RoundUp, "Float32RoundUp",
-    //   kRiscvFloat32RoundUp, MachineType::Int32()},
-    //  MachineType::Float32()},
-    // {{TSUnop::kFloat32RoundDown, "Float32RoundDown",
-    //   kRiscvFloat32RoundDown, MachineType::Int32()},
-    //  MachineType::Float32()},
-    // {{TSUnop::Float32RoundTiesEven, "Float32RoundTiesEven",
-    //   kRiscvFloat32RoundTiesEven, MachineType::Int32()},
-    //  MachineType::Float32()},
-    // {{TSUnop::Float32RoundTruncate, "Float32RoundTruncate",
-    //   kRiscvFloat32RoundTruncate, MachineType::Int32()},
-    //  MachineType::Float32()}
-};
+// const Conversion kFloat32RoundInstructions[] = {
+// {{TSUnop::kFloat32RoundUp, "Float32RoundUp",
+//   kRiscvFloat32RoundUp, MachineType::Int32()},
+//  MachineType::Float32()},
+// {{TSUnop::kFloat32RoundDown, "Float32RoundDown",
+//   kRiscvFloat32RoundDown, MachineType::Int32()},
+//  MachineType::Float32()},
+// {{TSUnop::Float32RoundTiesEven, "Float32RoundTiesEven",
+//   kRiscvFloat32RoundTiesEven, MachineType::Int32()},
+//  MachineType::Float32()},
+// {{TSUnop::Float32RoundTruncate, "Float32RoundTruncate",
+//   kRiscvFloat32RoundTruncate, MachineType::Int32()},
+//  MachineType::Float32()}
+// };
 
 }  // namespace
 

@@ -275,6 +275,31 @@ t.test('packs from git spec', async t => {
     const exists = await fs.stat(path.join(npm.prefix, 'npm-exec-test-success'))
     t.ok(exists.isFile(), 'bin ran, creating file')
   } catch (err) {
-    t.fail(err, "shouldn't throw")
+    t.fail(err, 'should not throw')
+  }
+})
+
+t.test('can run packages with keywords', async t => {
+  const { npm } = await loadMockNpm(t, {
+    prefixDir: {
+      'package.json': JSON.stringify({
+        name: '@npmcli/npx-package-test',
+        bin: { select: 'index.js' },
+      }),
+      'index.js': `#!/usr/bin/env node
+      require('fs').writeFileSync('npm-exec-test-success', (process.argv.length).toString())`,
+    },
+  })
+
+  try {
+    await npm.exec('exec', ['select'])
+
+    const testFilePath = path.join(npm.prefix, 'npm-exec-test-success')
+    const exists = await fs.stat(testFilePath)
+    t.ok(exists.isFile(), 'bin ran, creating file')
+    const noExtraArgumentCount = await fs.readFile(testFilePath, 'utf8')
+    t.equal(+noExtraArgumentCount, 2, 'should have no extra arguments')
+  } catch (err) {
+    t.fail(err, 'should not throw')
   }
 })

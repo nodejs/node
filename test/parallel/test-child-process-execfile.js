@@ -3,7 +3,7 @@
 const common = require('../common');
 const assert = require('assert');
 const { execFile, execFileSync } = require('child_process');
-const { getEventListeners } = require('events');
+const { listenerCount } = require('events');
 const { getSystemErrorName } = require('util');
 const fixtures = require('../common/fixtures');
 const os = require('os');
@@ -11,6 +11,12 @@ const os = require('os');
 const fixture = fixtures.path('exit.js');
 const echoFixture = fixtures.path('echo.js');
 const execOpts = { encoding: 'utf8', shell: true, env: { ...process.env, NODE: process.execPath, FIXTURE: fixture } };
+
+common.expectWarning(
+  'DeprecationWarning',
+  'Passing args to a child process with shell option true can lead to security ' +
+  'vulnerabilities, as the arguments are not escaped, only concatenated.',
+  'DEP0190');
 
 {
   execFile(
@@ -59,14 +65,14 @@ const execOpts = { encoding: 'utf8', shell: true, env: { ...process.env, NODE: p
   const ac = new AbortController();
   const { signal } = ac;
 
-  const test = () => {
+  const test = common.mustCall(() => {
     const check = common.mustCall((err) => {
       assert.strictEqual(err.code, 'ABORT_ERR');
       assert.strictEqual(err.name, 'AbortError');
       assert.strictEqual(err.signal, undefined);
     });
     execFile(process.execPath, [echoFixture, 0], { signal }, check);
-  };
+  });
 
   // Verify that it still works the same way now that the signal is aborted.
   test();
@@ -100,7 +106,7 @@ const execOpts = { encoding: 'utf8', shell: true, env: { ...process.env, NODE: p
   const { signal } = ac;
 
   const callback = common.mustCall((err) => {
-    assert.strictEqual(getEventListeners(ac.signal).length, 0);
+    assert.strictEqual(listenerCount(ac.signal, 'abort'), 0);
     assert.strictEqual(err, null);
   });
   execFile(process.execPath, [fixture, 0], { signal }, callback);

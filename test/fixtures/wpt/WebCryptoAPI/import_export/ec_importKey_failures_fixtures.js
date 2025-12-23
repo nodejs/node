@@ -20,11 +20,11 @@ function getMismatchedJWKKeyData(algorithm) {
 }
 
 function getMismatchedKtyField(algorithm) {
-    return mismatchedKtyField[algorithm.name];
+    return mismatchedKtyField[algorithm.namedCurve];
 }
 
 function getMismatchedCrvField(algorithm) {
-    return mismatchedCrvField[algorithm.name];
+    return mismatchedCrvField[algorithm.namedCurve];
 }
 
 var validKeyData = {

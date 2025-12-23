@@ -35,30 +35,25 @@ fs.open(filepath, 'r', common.mustSucceed((fd) => {
           }));
 }));
 
-let filehandle = null;
-
 // Tests for promises api
 (async () => {
-  filehandle = await fsPromises.open(filepath, 'r');
+  await using filehandle = await fsPromises.open(filepath, 'r');
   const readObject = await filehandle.read(buf, { offset: null });
   assert.strictEqual(readObject.buffer[0], 120);
 })()
-.finally(() => filehandle?.close())
 .then(common.mustCall());
 
 // Undocumented: omitted position works the same as position === null
 (async () => {
-  filehandle = await fsPromises.open(filepath, 'r');
+  await using filehandle = await fsPromises.open(filepath, 'r');
   const readObject = await filehandle.read(buf, null, buf.length);
   assert.strictEqual(readObject.buffer[0], 120);
 })()
-.finally(() => filehandle?.close())
 .then(common.mustCall());
 
 (async () => {
-  filehandle = await fsPromises.open(filepath, 'r');
+  await using filehandle = await fsPromises.open(filepath, 'r');
   const readObject = await filehandle.read(buf, null, buf.length, 0);
   assert.strictEqual(readObject.buffer[0], 120);
 })()
-.finally(() => filehandle?.close())
 .then(common.mustCall());

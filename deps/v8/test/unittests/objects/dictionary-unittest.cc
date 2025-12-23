@@ -46,9 +46,9 @@ class DictionaryTest : public TestWithHeapInternalsAndContext {
   void TestHashMap(Handle<HashMap> table) {
     Factory* factory = isolate()->factory();
 
-    Handle<JSObject> a = factory->NewJSArray(7);
-    Handle<JSObject> b = factory->NewJSArray(11);
-    table = HashMap::Put(table, a, b);
+    DirectHandle<JSObject> a = factory->NewJSArray(7);
+    DirectHandle<JSObject> b = factory->NewJSArray(11);
+    table = HashMap::Put(isolate(), table, a, b);
     CHECK_EQ(1, table->NumberOfElements());
     CHECK_EQ(table->Lookup(a), *b);
     // When the key does not exist in the map, Lookup returns the hole.
@@ -62,7 +62,7 @@ class DictionaryTest : public TestWithHeapInternalsAndContext {
     CHECK_EQ(table->Lookup(b), roots.the_hole_value());
 
     // Keys that are overwritten should not change number of elements.
-    table = HashMap::Put(table, a, factory->NewJSArray(13));
+    table = HashMap::Put(isolate(), table, a, factory->NewJSArray(13));
     CHECK_EQ(1, table->NumberOfElements());
     CHECK_NE(table->Lookup(a), *b);
 
@@ -76,9 +76,9 @@ class DictionaryTest : public TestWithHeapInternalsAndContext {
     // Keys should map back to their respective values and also should get
     // an identity hash code generated.
     for (int i = 0; i < 100; i++) {
-      Handle<JSReceiver> key = factory->NewJSArray(7);
-      Handle<JSObject> value = factory->NewJSArray(11);
-      table = HashMap::Put(table, key, value);
+      DirectHandle<JSReceiver> key = factory->NewJSArray(7);
+      DirectHandle<JSObject> value = factory->NewJSArray(11);
+      table = HashMap::Put(isolate(), table, key, value);
       CHECK_EQ(table->NumberOfElements(), i + 1);
       CHECK(table->FindEntry(isolate(), key).is_found());
       CHECK_EQ(table->Lookup(key), *value);
@@ -88,7 +88,7 @@ class DictionaryTest : public TestWithHeapInternalsAndContext {
     // Keys never added to the map which already have an identity hash
     // code should not be found.
     for (int i = 0; i < 100; i++) {
-      Handle<JSReceiver> key = factory->NewJSArray(7);
+      DirectHandle<JSReceiver> key = factory->NewJSArray(7);
       CHECK(IsSmi(key->GetOrCreateIdentityHash(isolate())));
       CHECK(table->FindEntry(isolate(), key).is_not_found());
       CHECK_EQ(table->Lookup(key), roots.the_hole_value());
@@ -98,7 +98,7 @@ class DictionaryTest : public TestWithHeapInternalsAndContext {
     // Keys that don't have an identity hash should not be found and also
     // should not get an identity hash code generated.
     for (int i = 0; i < 100; i++) {
-      Handle<JSReceiver> key = factory->NewJSArray(7);
+      DirectHandle<JSReceiver> key = factory->NewJSArray(7);
       CHECK_EQ(table->Lookup(key), roots.the_hole_value());
       Tagged<Object> identity_hash = key->GetIdentityHash();
       CHECK_EQ(roots.undefined_value(), identity_hash);
@@ -109,8 +109,8 @@ class DictionaryTest : public TestWithHeapInternalsAndContext {
   void TestHashSet(Handle<HashSet> table) {
     Factory* factory = isolate()->factory();
 
-    Handle<JSObject> a = factory->NewJSArray(7);
-    Handle<JSObject> b = factory->NewJSArray(11);
+    DirectHandle<JSObject> a = factory->NewJSArray(7);
+    DirectHandle<JSObject> b = factory->NewJSArray(11);
     table = HashSet::Add(isolate(), table, a);
     CHECK_EQ(1, table->NumberOfElements());
     CHECK(table->Has(isolate(), a));
@@ -140,7 +140,7 @@ class DictionaryTest : public TestWithHeapInternalsAndContext {
     // Keys should map back to their respective values and also should get
     // an identity hash code generated.
     for (int i = 0; i < 100; i++) {
-      Handle<JSReceiver> key = factory->NewJSArray(7);
+      DirectHandle<JSReceiver> key = factory->NewJSArray(7);
       table = HashSet::Add(isolate(), table, key);
       CHECK_EQ(table->NumberOfElements(), i + 2);
       CHECK(table->Has(isolate(), key));
@@ -150,7 +150,7 @@ class DictionaryTest : public TestWithHeapInternalsAndContext {
     // Keys never added to the map which already have an identity hash
     // code should not be found.
     for (int i = 0; i < 100; i++) {
-      Handle<JSReceiver> key = factory->NewJSArray(7);
+      DirectHandle<JSReceiver> key = factory->NewJSArray(7);
       CHECK(IsSmi(key->GetOrCreateIdentityHash(isolate())));
       CHECK(!table->Has(isolate(), key));
       CHECK(IsSmi(key->GetIdentityHash()));
@@ -159,7 +159,7 @@ class DictionaryTest : public TestWithHeapInternalsAndContext {
     // Keys that don't have an identity hash should not be found and also
     // should not get an identity hash code generated.
     for (int i = 0; i < 100; i++) {
-      Handle<JSReceiver> key = factory->NewJSArray(7);
+      DirectHandle<JSReceiver> key = factory->NewJSArray(7);
       CHECK(!table->Has(isolate(), key));
       Tagged<Object> identity_hash = key->GetIdentityHash();
       CHECK_EQ(ReadOnlyRoots(heap()).undefined_value(), identity_hash);
@@ -200,7 +200,7 @@ class DictionaryTest : public TestWithHeapInternalsAndContext {
   void TestHashMapDoesNotCauseGC(Handle<HashMap> table) {
     Factory* factory = isolate()->factory();
 
-    Handle<JSObject> key = factory->NewJSArray(0);
+    DirectHandle<JSObject> key = factory->NewJSArray(0);
 
     // Even though we simulate a full heap, generating an identity hash
     // code in subsequent calls will not request GC.
@@ -214,7 +214,7 @@ class DictionaryTest : public TestWithHeapInternalsAndContext {
 
     // Calling Put() should request GC by returning a failure.
     int gc_count = heap()->gc_count();
-    HashMap::Put(table, key, key);
+    HashMap::Put(isolate(), table, key, key);
     CHECK(gc_count == heap()->gc_count());
   }
 #endif
@@ -243,7 +243,7 @@ class ObjectHashTableTest {
   }
 
   int lookup(int key, Isolate* isolate) {
-    Handle<Object> key_obj(Smi::FromInt(key), isolate);
+    DirectHandle<Object> key_obj(Smi::FromInt(key), isolate);
     return Smi::ToInt(table_->Lookup(key_obj));
   }
 

@@ -32,7 +32,6 @@ class V8_EXPORT_PRIVATE ContextSerializer : public Serializer {
  private:
   void SerializeObjectImpl(Handle<HeapObject> o, SlotType slot_type) override;
   bool ShouldBeInTheStartupObjectCache(Tagged<HeapObject> o);
-  bool ShouldBeInTheSharedObjectCache(Tagged<HeapObject> o);
   void CheckRehashability(Tagged<HeapObject> obj);
 
   template <typename V8Type, typename UserSerializerWrapper,
@@ -45,7 +44,7 @@ class V8_EXPORT_PRIVATE ContextSerializer : public Serializer {
 
   // For JS API wrapper objects we serialize embedder-controled data for each
   // object.
-  void SerializeApiWrapperFields(Handle<JSObject> js_object);
+  void SerializeApiWrapperFields(DirectHandle<JSObject> js_object);
 
   StartupSerializer* startup_serializer_;
   SerializeEmbedderFieldsCallback serialize_embedder_fields_;

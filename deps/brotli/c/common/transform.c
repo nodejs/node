@@ -4,6 +4,7 @@
    See file LICENSE for detail or copy at https://opensource.org/licenses/MIT
 */
 
+#include "platform.h"
 #include "transform.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
@@ -11,7 +12,7 @@ extern "C" {
 #endif
 
 /* RFC 7932 transforms string data */
-static const char kPrefixSuffix[217] =
+static const BROTLI_MODEL("small") char kPrefixSuffix[217] =
       "\1 \2, \10 of the \4 of \2s \1.\5 and \4 "
 /* 0x  _0 _2  __5        _E    _3  _6 _8     _E */
       "in \1\"\4 to \2\">\1\n\2. \1]\5 for \3 a \6 "
@@ -27,7 +28,7 @@ static const char kPrefixSuffix[217] =
       "t \4ize \2\xc2\xa0\4ous \5 the \2e "; /* \0 - implicit trailing zero. */
 /* Cx    _2    _7___ ___ _A    _F     _5        _8 */
 
-static const uint16_t kPrefixSuffixMap[50] = {
+static const BROTLI_MODEL("small") uint16_t kPrefixSuffixMap[50] = {
   0x00, 0x02, 0x05, 0x0E, 0x13, 0x16, 0x18, 0x1E, 0x23, 0x25,
   0x2A, 0x2D, 0x2F, 0x32, 0x34, 0x3A, 0x3E, 0x45, 0x47, 0x4E,
   0x55, 0x5A, 0x5C, 0x63, 0x68, 0x6D, 0x72, 0x77, 0x7A, 0x7C,
@@ -36,7 +37,7 @@ static const uint16_t kPrefixSuffixMap[50] = {
 };
 
 /* RFC 7932 transforms */
-static const uint8_t kTransformsData[] = {
+static const BROTLI_MODEL("small") uint8_t kTransformsData[] = {
   49, BROTLI_TRANSFORM_IDENTITY, 49,
   49, BROTLI_TRANSFORM_IDENTITY, 0,
    0, BROTLI_TRANSFORM_IDENTITY, 0,
@@ -160,7 +161,8 @@ static const uint8_t kTransformsData[] = {
    0, BROTLI_TRANSFORM_UPPERCASE_FIRST, 34,
 };
 
-static const BrotliTransforms kBrotliTransforms = {
+static const BROTLI_MODEL("small")
+BrotliTransforms kBrotliTransforms = {
   sizeof(kPrefixSuffix),
   (const uint8_t*)kPrefixSuffix,
   kPrefixSuffixMap,

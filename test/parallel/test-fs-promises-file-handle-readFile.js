@@ -27,7 +27,7 @@ tmpdir.refresh();
 
 async function validateReadFile() {
   const filePath = path.resolve(tmpDir, 'tmp-read-file.txt');
-  const fileHandle = await open(filePath, 'w+');
+  await using fileHandle = await open(filePath, 'w+');
   const buffer = Buffer.from('Hello world'.repeat(100), 'utf8');
 
   const fd = fs.openSync(filePath, 'w+');
@@ -36,8 +36,6 @@ async function validateReadFile() {
 
   const readFileData = await fileHandle.readFile();
   assert.deepStrictEqual(buffer, readFileData);
-
-  await fileHandle.close();
 }
 
 async function validateLargeFileSupport() {
@@ -79,7 +77,7 @@ async function validateReadFileProc() {
   if (!common.isLinux)
     return;
 
-  const fileHandle = await open('/proc/sys/kernel/hostname', 'r');
+  await using fileHandle = await open('/proc/sys/kernel/hostname', 'r');
   const hostname = await fileHandle.readFile();
   assert.ok(hostname.length > 0);
 }
@@ -88,23 +86,19 @@ async function doReadAndCancel() {
   // Signal aborted from the start
   {
     const filePathForHandle = path.resolve(tmpDir, 'dogs-running.txt');
-    const fileHandle = await open(filePathForHandle, 'w+');
-    try {
-      const buffer = Buffer.from('Dogs running'.repeat(10000), 'utf8');
-      fs.writeFileSync(filePathForHandle, buffer);
-      const signal = AbortSignal.abort();
-      await assert.rejects(readFile(fileHandle, common.mustNotMutateObjectDeep({ signal })), {
-        name: 'AbortError'
-      });
-    } finally {
-      await fileHandle.close();
-    }
+    await using fileHandle = await open(filePathForHandle, 'w+');
+    const buffer = Buffer.from('Dogs running'.repeat(10000), 'utf8');
+    fs.writeFileSync(filePathForHandle, buffer);
+    const signal = AbortSignal.abort();
+    await assert.rejects(readFile(fileHandle, common.mustNotMutateObjectDeep({ signal })), {
+      name: 'AbortError'
+    });
   }
 
   // Signal aborted on first tick
   {
     const filePathForHandle = path.resolve(tmpDir, 'dogs-running1.txt');
-    const fileHandle = await open(filePathForHandle, 'w+');
+    await using fileHandle = await open(filePathForHandle, 'w+');
     const buffer = Buffer.from('Dogs running'.repeat(10000), 'utf8');
     fs.writeFileSync(filePathForHandle, buffer);
     const controller = new AbortController();
@@ -113,7 +107,6 @@ async function doReadAndCancel() {
     await assert.rejects(readFile(fileHandle, common.mustNotMutateObjectDeep({ signal })), {
       name: 'AbortError'
     }, 'tick-0');
-    await fileHandle.close();
   }
 
   // Signal aborted right before buffer read
@@ -122,16 +115,14 @@ async function doReadAndCancel() {
     const buffer = Buffer.from('Dogs running'.repeat(1000), 'utf8');
     fs.writeFileSync(newFile, buffer);
 
-    const fileHandle = await open(newFile, 'r');
-
+    await using fileHandle = await open(newFile, 'r');
     const controller = new AbortController();
     const { signal } = controller;
     tick(1, () => controller.abort());
-    await assert.rejects(fileHandle.readFile(common.mustNotMutateObjectDeep({ signal, encoding: 'utf8' })), {
+    await assert.rejects(fileHandle.readFile(
+      common.mustNotMutateObjectDeep({ signal, encoding: 'utf8' })), {
       name: 'AbortError'
     }, 'tick-1');
-
-    await fileHandle.close();
   }
 
   // For validates the ability of the filesystem module to handle large files
@@ -145,11 +136,12 @@ async function doReadAndCancel() {
       await writeFile(newFile, Buffer.from('0'));
       await truncate(newFile, largeFileSize);
 
-      const fileHandle = await open(newFile, 'r');
+      await using fileHandle = await open(newFile, 'r');
 
-      const data = await fileHandle.readFile();
-      console.log(`File read successfully, size: ${data.length} bytes`);
-      await fileHandle.close();
+      await assert.rejects(fileHandle.readFile(), {
+        name: 'RangeError',
+        code: 'ERR_FS_FILE_TOO_LARGE'
+      });
     }
   }
 }

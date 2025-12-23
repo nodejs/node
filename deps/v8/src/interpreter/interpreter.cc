@@ -41,9 +41,9 @@ class InterpreterCompilationJob final : public UnoptimizedCompilationJob {
 
  protected:
   Status ExecuteJobImpl() final;
-  Status FinalizeJobImpl(Handle<SharedFunctionInfo> shared_info,
+  Status FinalizeJobImpl(DirectHandle<SharedFunctionInfo> shared_info,
                          Isolate* isolate) final;
-  Status FinalizeJobImpl(Handle<SharedFunctionInfo> shared_info,
+  Status FinalizeJobImpl(DirectHandle<SharedFunctionInfo> shared_info,
                          LocalIsolate* isolate) final;
 
  private:
@@ -53,7 +53,7 @@ class InterpreterCompilationJob final : public UnoptimizedCompilationJob {
                                      DirectHandle<BytecodeArray> bytecode);
 
   template <typename IsolateT>
-  Status DoFinalizeJobImpl(Handle<SharedFunctionInfo> shared_info,
+  Status DoFinalizeJobImpl(DirectHandle<SharedFunctionInfo> shared_info,
                            IsolateT* isolate);
 
   Zone zone_;
@@ -188,6 +188,13 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::ExecuteJobImpl() {
   // TODO(lpy): add support for background compilation RCS trace.
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileIgnition");
 
+  std::optional<base::ElapsedTimer> timer;
+  if (v8_flags.enable_bytecode_compiler_ablation &&
+      base::TimeTicks::IsHighResolution()) {
+    timer.emplace();
+    timer->Start();
+  }
+
   // Print AST if flag is enabled. Note, if compiling on a background thread
   // then ASTs from different functions may be intersperse when printed.
   {
@@ -201,6 +208,17 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::ExecuteJobImpl() {
   if (generator()->HasStackOverflow()) {
     return FAILED;
   }
+
+  if (timer && timer->Elapsed().InNanoseconds() > 0) {
+    auto end = timer->Elapsed();
+    end += std::min(base::TimeDelta::FromSeconds(1),
+                    base::TimeDelta::FromMicroseconds(
+                        static_cast<double>(end.InMicroseconds()) *
+                        v8_flags.bytecode_compiler_ablation_amount));
+    while (timer->Elapsed() < end) {
+    }
+  }
+
   return SUCCEEDED;
 }
 
@@ -220,8 +238,9 @@ void InterpreterCompilationJob::CheckAndPrintBytecodeMismatch(
     std::cerr << "Bytecode mismatch";
 #ifdef OBJECT_PRINT
     std::cerr << " found for function: ";
-    MaybeHandle<String> maybe_name = parse_info()->literal()->GetName(isolate);
-    Handle<String> name;
+    MaybeDirectHandle<String> maybe_name =
+        parse_info()->literal()->GetName(isolate);
+    DirectHandle<String> name;
     if (maybe_name.ToHandle(&name) && name->length() != 0) {
       name->PrintUC16(std::cerr);
     } else {
@@ -244,7 +263,7 @@ void InterpreterCompilationJob::CheckAndPrintBytecodeMismatch(
 #endif
 
 InterpreterCompilationJob::Status InterpreterCompilationJob::FinalizeJobImpl(
-    Handle<SharedFunctionInfo> shared_info, Isolate* isolate) {
+    DirectHandle<SharedFunctionInfo> shared_info, Isolate* isolate) {
   RCS_SCOPE(parse_info()->runtime_call_stats(),
             RuntimeCallCounterId::kCompileIgnitionFinalization);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
@@ -253,7 +272,7 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::FinalizeJobImpl(
 }
 
 InterpreterCompilationJob::Status InterpreterCompilationJob::FinalizeJobImpl(
-    Handle<SharedFunctionInfo> shared_info, LocalIsolate* isolate) {
+    DirectHandle<SharedFunctionInfo> shared_info, LocalIsolate* isolate) {
   RCS_SCOPE(isolate, RuntimeCallCounterId::kCompileIgnitionFinalization,
             RuntimeCallStats::kThreadSpecific);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
@@ -263,7 +282,7 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::FinalizeJobImpl(
 
 template <typename IsolateT>
 InterpreterCompilationJob::Status InterpreterCompilationJob::DoFinalizeJobImpl(
-    Handle<SharedFunctionInfo> shared_info, IsolateT* isolate) {
+    DirectHandle<SharedFunctionInfo> shared_info, IsolateT* isolate) {
   Handle<BytecodeArray> bytecodes = compilation_info_.bytecode_array();
   if (bytecodes.is_null()) {
     bytecodes = generator()->FinalizeBytecode(
@@ -294,7 +313,8 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::DoFinalizeJobImpl(
 
 #ifdef DEBUG
   if (parse_info()->literal()->shared_function_info().is_null()) {
-    parse_info()->literal()->set_shared_function_info(shared_info);
+    parse_info()->literal()->set_shared_function_info(
+        indirect_handle(shared_info, isolate));
   }
   CheckAndPrintBytecodeMismatch(
       isolate, handle(Cast<Script>(shared_info->script()), isolate), bytecodes);
@@ -384,8 +404,8 @@ uintptr_t Interpreter::GetDispatchCounter(Bytecode from, Bytecode to) const {
                                            to_index];
 }
 
-Handle<JSObject> Interpreter::GetDispatchCountersObject() {
-  Handle<JSObject> counters_map =
+DirectHandle<JSObject> Interpreter::GetDispatchCountersObject() {
+  DirectHandle<JSObject> counters_map =
       isolate_->factory()->NewJSObjectWithNullProto();
 
   // Output is a JSON-encoded object of objects.
@@ -401,7 +421,7 @@ Handle<JSObject> Interpreter::GetDispatchCountersObject() {
 
   for (int from_index = 0; from_index < kNumberOfBytecodes; ++from_index) {
     Bytecode from_bytecode = Bytecodes::FromByte(from_index);
-    Handle<JSObject> counters_row =
+    DirectHandle<JSObject> counters_row =
         isolate_->factory()->NewJSObjectWithNullProto();
 
     for (int to_index = 0; to_index < kNumberOfBytecodes; ++to_index) {

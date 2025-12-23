@@ -272,7 +272,7 @@ s390x_kimd:
 	llgfr	%r0,%r4
 	lgr	%r1,%r5
 
-	.long	0xb93e0002	# kimd %r0,%r2
+	.long	0xb93e8002	# kimd %r0,%r2[,M3]
 	brc	1,.-4		# pay attention to "partial completion"
 
 	br	%r14
@@ -284,7 +284,7 @@ s390x_klmd:
 	llgfr	%r0,%r6
 	lg	%r1,160(%r15)
 
-	.long	0xb93f0042	# klmd %r4,%r2
+	.long	0xb93f8042	# klmd %r4,%r2[,M3]
 	brc	1,.-4		# pay attention to "partial completion"
 
 	br	%r14

@@ -111,22 +111,17 @@ This value is not exported to the environment for child processes.
 If true, npm does not run scripts specified in package.json files.
 
 Note that commands explicitly intended to run a particular script, such as
-`npm start`, `npm stop`, `npm restart`, `npm test`, and `npm run-script`
-will still run their intended script if `ignore-scripts` is set, but they
-will *not* run any pre- or post-scripts.
+`npm start`, `npm stop`, `npm restart`, `npm test`, and `npm run` will still
+run their intended script if `ignore-scripts` is set, but they will *not*
+run any pre- or post-scripts.
 
 
 
 ### Description
 
-For anything that's installable (that is, a package folder, tarball,
-tarball url, git url, name@tag, name@version, name, or scoped name), this
-command will fetch it to the cache, copy the tarball to the current working
-directory as `<name>-<version>.tgz`, and then write the filenames out to
-stdout.
+For anything that's installable (that is, a package folder, tarball, tarball url, git url, name@tag, name@version, name, or scoped name), this command will fetch it to the cache, copy the tarball to the current working directory as `<name>-<version>.tgz`, and then write the filenames out to stdout.
 
-If the same package is specified multiple times, then the file will be
-overwritten the second time.
+If the same package is specified multiple times, then the file will be overwritten the second time.
 
 If no arguments are supplied, then npm packs the current package folder.
 

@@ -33,13 +33,7 @@ class V8_NODISCARD MaglevCompilationHandleScope final {
  public:
   MaglevCompilationHandleScope(Isolate* isolate,
                                maglev::MaglevCompilationInfo* info)
-      : info_(info),
-        persistent_(isolate)
-#ifdef V8_ENABLE_MAGLEV
-        ,
-        exported_info_(info)
-#endif
-  {
+      : info_(info), persistent_(isolate) {
     info->ReopenAndCanonicalizeHandlesInNewScope(isolate);
   }
 
@@ -50,9 +44,6 @@ class V8_NODISCARD MaglevCompilationHandleScope final {
  private:
   maglev::MaglevCompilationInfo* const info_;
   PersistentHandlesScope persistent_;
-#ifdef V8_ENABLE_MAGLEV
-  ExportedMaglevCompilationInfo exported_info_;
-#endif
 };
 
 static bool SpecializeToFunctionContext(
@@ -74,8 +65,8 @@ static bool SpecializeToFunctionContext(
 }  // namespace
 
 MaglevCompilationInfo::MaglevCompilationInfo(
-    Isolate* isolate, Handle<JSFunction> function, BytecodeOffset osr_offset,
-    std::optional<compiler::JSHeapBroker*> js_broker,
+    Isolate* isolate, IndirectHandle<JSFunction> function,
+    BytecodeOffset osr_offset, std::optional<compiler::JSHeapBroker*> js_broker,
     std::optional<bool> specialize_to_function_context,
     bool for_turboshaft_frontend)
     : zone_(isolate->allocator(), kMaglevZoneName),
@@ -87,7 +78,7 @@ MaglevCompilationInfo::MaglevCompilationInfo(
       toplevel_function_(function),
       osr_offset_(osr_offset),
       owns_broker_(!js_broker.has_value()),
-      for_turboshaft_frontend_(for_turboshaft_frontend)
+      is_turbolev_(for_turboshaft_frontend)
 #define V(Name) , Name##_(v8_flags.Name)
           MAGLEV_COMPILATION_FLAG_LIST(V)
 #undef V
@@ -110,7 +101,7 @@ MaglevCompilationInfo::MaglevCompilationInfo(
     // Heap broker initialization may already use IsPendingAllocation.
     isolate->heap()->PublishMainThreadPendingAllocations();
     broker()->InitializeAndStartSerializing(
-        handle(function->native_context(), isolate));
+        direct_handle(function->native_context(), isolate));
     broker()->StopSerializing();
 
     // Serialization may have allocated.
@@ -121,6 +112,12 @@ MaglevCompilationInfo::MaglevCompilationInfo(
   } else {
     toplevel_compilation_unit_ =
         MaglevCompilationUnit::New(zone(), this, function);
+  }
+
+  if (FlagsMightEnableMaglevTracing()) {
+    is_tracing_enabled_ = toplevel_compilation_unit_->shared_function_info()
+                              .object()
+                              ->PassesFilter(v8_flags.maglev_print_filter);
   }
 
   collect_source_positions_ = isolate->NeedsDetailedOptimizedCodeLineInfo();
@@ -146,15 +143,15 @@ void MaglevCompilationInfo::set_code_generator(
 
 namespace {
 template <typename T>
-Handle<T> CanonicalHandle(CanonicalHandlesMap* canonical_handles,
-                          Tagged<T> object, Isolate* isolate) {
+IndirectHandle<T> CanonicalHandle(CanonicalHandlesMap* canonical_handles,
+                                  Tagged<T> object, Isolate* isolate) {
   DCHECK_NOT_NULL(canonical_handles);
   DCHECK(PersistentHandlesScope::IsActive(isolate));
   auto find_result = canonical_handles->FindOrInsert(object);
   if (!find_result.already_exists) {
-    *find_result.entry = Handle<T>(object, isolate).location();
+    *find_result.entry = IndirectHandle<T>(object, isolate).location();
   }
-  return Handle<T>(*find_result.entry);
+  return IndirectHandle<T>(*find_result.entry);
 }
 }  // namespace
 
@@ -185,7 +182,7 @@ void MaglevCompilationInfo::set_canonical_handles(
 }
 
 bool MaglevCompilationInfo::is_detached() {
-  return toplevel_function_->context()->IsDetached();
+  return toplevel_function_->context()->IsDetached(Isolate::Current());
 }
 
 std::unique_ptr<CanonicalHandlesMap>

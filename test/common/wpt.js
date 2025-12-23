@@ -26,6 +26,7 @@ function getBrowserProperties() {
 /**
  * Return one of three expected values
  * https://github.com/web-platform-tests/wpt/blob/1c6ff12/tools/wptrunner/wptrunner/tests/test_update.py#L953-L958
+ * @returns {'linux'|'mac'|'win'}
  */
 function getOs() {
   switch (os.type()) {
@@ -102,6 +103,7 @@ class WPTReport {
   /**
    * Get or create a ReportResult for a test spec.
    * @param {WPTTestSpec} spec
+   * @returns {ReportResult}
    */
   getResult(spec) {
     const name = `/${spec.getRelativePath()}${spec.variant}`;
@@ -113,6 +115,9 @@ class WPTReport {
     return result;
   }
 
+  /**
+   * @returns {void}
+   */
   write() {
     this.time_end = Date.now();
     const results = Array.from(this.results.values())
@@ -191,8 +196,9 @@ class ResourceLoader {
   /**
    * Load a resource in test/fixtures/wpt specified with a URL
    * @param {string} from the path of the file loading this resource,
-   *                      relative to the WPT folder.
+   *   relative to the WPT folder.
    * @param {string} url the url of the resource being loaded.
+   * @returns {string}
    */
   read(from, url) {
     const file = this.toRealFilePath(from, url);
@@ -202,8 +208,14 @@ class ResourceLoader {
   /**
    * Load a resource in test/fixtures/wpt specified with a URL
    * @param {string} from the path of the file loading this resource,
-   *                      relative to the WPT folder.
+   *   relative to the WPT folder.
    * @param {string} url the url of the resource being loaded.
+   * @returns {Promise<{
+   *   ok: string,
+   *   arrayBuffer: function(): Buffer,
+   *   json: function(): object,
+   *   text: function(): string,
+   * }>}
    */
   async readAsFetch(from, url) {
     const file = this.toRealFilePath(from, url);
@@ -284,9 +296,9 @@ class WPTTestSpec {
 
   /**
    * @param {string} mod name of the WPT module, e.g.
-   *                     'html/webappapis/microtask-queuing'
+   *   'html/webappapis/microtask-queuing'
    * @param {string} filename path of the test, relative to mod, e.g.
-   *                          'test.any.js'
+   *   'test.any.js'
    * @param {StatusRule[]} rules
    * @param {string} variant test file variant
    */
@@ -326,6 +338,7 @@ class WPTTestSpec {
    * @param {string} mod
    * @param {string} filename
    * @param {StatusRule[]} rules
+   * @returns {ReturnType<WPTTestSpec['getMeta']>[]}
    */
   static from(mod, filename, rules) {
     const spec = new WPTTestSpec(mod, filename, rules);
@@ -399,6 +412,9 @@ class BuildRequirement {
     // Not using common.hasCrypto because of the global leak checks
     this.hasCrypto = Boolean(process.versions.openssl) &&
       !process.env.NODE_SKIP_CRYPTO;
+
+    // Not using common.hasInspector because of the global leak checks
+    this.hasInspector = Boolean(process.features.inspector);
   }
 
   /**
@@ -415,6 +431,9 @@ class BuildRequirement {
     }
     if (requires.has('crypto') && !this.hasCrypto) {
       return 'crypto';
+    }
+    if (requires.has('inspector') && !this.hasInspector) {
+      return 'inspector';
     }
     return false;
   }
@@ -436,6 +455,7 @@ class StatusLoader {
   /**
    * Grep for all .*.js file recursively in a directory.
    * @param {string} dir
+   * @returns {any[]}
    */
   grep(dir) {
     let result = [];
@@ -513,6 +533,14 @@ const limit = (concurrency) => {
 
 class WPTRunner {
   constructor(path, { concurrency = os.availableParallelism() - 1 || 1 } = {}) {
+    // RISC-V has very limited virtual address space in the currently common
+    // sv39 mode, in which we can only create a very limited number of wasm
+    // memories(27 from a fresh node repl). Limit the concurrency to avoid
+    // creating too many wasm memories that would fail.
+    if (process.arch === 'riscv64' || process.arch === 'riscv32') {
+      concurrency = Math.min(10, concurrency);
+    }
+
     this.path = path;
     this.resource = new ResourceLoader(path);
     this.concurrency = concurrency;
@@ -561,6 +589,7 @@ class WPTRunner {
 
   /**
    * @param {WPTTestSpec} spec
+   * @returns {string}
    */
   fullInitScript(spec) {
     const url = new URL(`/${spec.getRelativePath().replace(/\.js$/, '.html')}${spec.variant}`, 'http://wpt');
@@ -803,7 +832,7 @@ class WPTRunner {
    * Report the status of each specific test case (there could be multiple
    * in one test file).
    * @param {WPTTestSpec} spec
-   * @param {Test} test  The Test object returned by WPT harness
+   * @param {Test} test The Test object returned by WPT harness
    * @param {ReportResult} reportResult The report result object
    */
   resultCallback(spec, test, reportResult) {

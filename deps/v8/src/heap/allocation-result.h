@@ -59,6 +59,8 @@ class AllocationResult final {
     return Cast<HeapObject>(object_).address();
   }
 
+  explicit operator bool() const { return !IsFailure(); }
+
  private:
   explicit AllocationResult(Tagged<HeapObject> heap_object)
       : object_(heap_object) {}

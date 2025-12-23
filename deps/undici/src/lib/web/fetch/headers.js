@@ -9,7 +9,7 @@ const {
   isValidHeaderName,
   isValidHeaderValue
 } = require('./util')
-const { webidl } = require('./webidl')
+const { webidl } = require('../webidl')
 const assert = require('node:assert')
 const util = require('node:util')
 

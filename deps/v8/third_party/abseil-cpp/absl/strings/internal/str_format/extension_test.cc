@@ -16,11 +16,13 @@
 
 #include "absl/strings/internal/str_format/extension.h"
 
+#include <cstddef>
 #include <random>
 #include <string>
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "absl/random/random.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
 
@@ -44,8 +46,7 @@ class UserDefinedType {
 namespace {
 
 std::string MakeRandomString(size_t len) {
-  std::random_device rd;
-  std::mt19937 gen(rd());
+  absl::InsecureBitGen gen;
   std::uniform_int_distribution<> dis('a', 'z');
   std::string s(len, '0');
   for (char& c : s) {

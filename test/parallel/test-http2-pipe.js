@@ -20,10 +20,10 @@ const server = http2.createServer();
 server.on('stream', common.mustCall((stream) => {
   const dest = stream.pipe(fs.createWriteStream(fn));
 
-  dest.on('finish', () => {
+  dest.on('finish', common.mustCall(() => {
     assert.strictEqual(fs.readFileSync(loc).length,
                        fs.readFileSync(fn).length);
-  });
+  }));
   stream.respond();
   stream.end();
 }));

@@ -403,6 +403,17 @@ class Block : public RandomAccessStackDominatorNode<Block> {
     predecessor_count_ = 0;
   }
 
+  Block* single_loop_predecessor() const {
+    DCHECK(IsLoop());
+    return single_loop_predecessor_;
+  }
+  void SetSingleLoopPredecessor(Block* single_loop_predecessor) {
+    DCHECK(IsLoop());
+    DCHECK_NULL(single_loop_predecessor_);
+    DCHECK_NOT_NULL(single_loop_predecessor);
+    single_loop_predecessor_ = single_loop_predecessor;
+  }
+
   // The block from the previous graph which produced the current block. This
   // has to be updated to be the last block that contributed operations to the
   // current block to ensure that phi nodes are created correctly.
@@ -416,6 +427,10 @@ class Block : public RandomAccessStackDominatorNode<Block> {
   // block as a branch destination.
   const Block* OriginForBlockEnd() const {
     DCHECK(IsBound());
+    return origin_;
+  }
+  const Block* OriginForLoopHeader() const {
+    DCHECK(IsLoop());
     return origin_;
   }
 
@@ -437,6 +452,7 @@ class Block : public RandomAccessStackDominatorNode<Block> {
 
   const Operation& FirstOperation(const Graph& graph) const;
   const Operation& LastOperation(const Graph& graph) const;
+  Operation& LastOperation(Graph& graph) const;
 
   bool EndsWithBranchingOp(const Graph& graph) const {
     switch (LastOperation(graph).opcode) {
@@ -529,6 +545,7 @@ class Block : public RandomAccessStackDominatorNode<Block> {
   BlockIndex index_ = BlockIndex::Invalid();
   Block* last_predecessor_ = nullptr;
   Block* neighboring_predecessor_ = nullptr;
+  Block* single_loop_predecessor_ = nullptr;
   uint32_t predecessor_count_ = 0;
   const Block* origin_ = nullptr;
   // The {custom_data_} field can be used by algorithms to temporarily store
@@ -726,8 +743,8 @@ class Graph {
 
   template <class Op, class... Args>
   void Replace(OpIndex replaced, Args... args) {
-    static_assert((std::is_base_of<Operation, Op>::value));
-    static_assert(std::is_trivially_destructible<Op>::value);
+    static_assert((std::is_base_of_v<Operation, Op>));
+    static_assert(std::is_trivially_destructible_v<Op>);
 
     const Operation& old_op = Get(replaced);
     DecrementInputUses(old_op);
@@ -1035,6 +1052,7 @@ class Graph {
 #ifdef DEBUG
       companion_->generation_ = generation_ + 1;
       if (IsCreatedFromTurbofan()) companion_->SetCreatedFromTurbofan();
+      companion_->broker_ = broker_;
 #endif  // DEBUG
     }
     return *companion_;
@@ -1101,6 +1119,15 @@ class Graph {
     return stack_checks_to_remove_;
   }
 
+#ifdef DEBUG
+  void set_broker(JSHeapBroker* broker) { broker_ = broker; }
+  bool has_broker() const { return broker_ != nullptr; }
+  JSHeapBroker* broker() const {
+    DCHECK_NOT_NULL(broker_);
+    return broker_;
+  }
+#endif
+
  private:
   bool InputsValid(const Operation& op) const {
     for (OpIndex i : op.inputs()) {
@@ -1114,7 +1141,8 @@ class Graph {
     for (OpIndex input : op.inputs()) {
       // Tuples should never be used as input, except in other tuples (which is
       // used for instance in Int64Lowering::LowerCall).
-      DCHECK_IMPLIES(Get(input).Is<TupleOp>(), op.template Is<TupleOp>());
+      DCHECK_IMPLIES(Get(input).Is<MakeTupleOp>(),
+                     op.template Is<MakeTupleOp>());
       Get(input).saturated_use_count.Incr();
     }
   }
@@ -1124,7 +1152,8 @@ class Graph {
     for (OpIndex input : op.inputs()) {
       // Tuples should never be used as input, except in other tuples (which is
       // used for instance in Int64Lowering::LowerCall).
-      DCHECK_IMPLIES(Get(input).Is<TupleOp>(), op.template Is<TupleOp>());
+      DCHECK_IMPLIES(Get(input).Is<MakeTupleOp>(),
+                     op.template Is<MakeTupleOp>());
       Get(input).saturated_use_count.Decr();
     }
   }
@@ -1181,6 +1210,7 @@ class Graph {
 #ifdef DEBUG
   GrowingBlockSidetable<TypeRefinements> block_type_refinement_;
   bool graph_created_from_turbofan_ = false;
+  JSHeapBroker* broker_ = nullptr;
 #endif
 
   Graph* companion_ = nullptr;
@@ -1223,6 +1253,11 @@ V8_INLINE const Operation& Block::FirstOperation(const Graph& graph) const {
 }
 
 V8_INLINE const Operation& Block::LastOperation(const Graph& graph) const {
+  DCHECK_EQ(graph_generation_, graph.generation());
+  return graph.Get(graph.PreviousIndex(end()));
+}
+
+V8_INLINE Operation& Block::LastOperation(Graph& graph) const {
   DCHECK_EQ(graph_generation_, graph.generation());
   return graph.Get(graph.PreviousIndex(end()));
 }

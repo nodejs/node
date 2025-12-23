@@ -450,7 +450,7 @@ ucol_prepareShortStringOpen( const char *definition,
     ucol_sit_readSpecs(&s, definition, parseError, status);
     ucol_sit_calculateWholeLocale(&s, *status);
 
-    CharString buffer = ulocimp_canonicalize(s.locale.data(), *status);
+    CharString buffer = ulocimp_canonicalize(s.locale.toStringPiece(), *status);
 
     UResourceBundle *b = ures_open(U_ICUDATA_COLL, buffer.data(), status);
     /* we try to find stuff from keyword */
@@ -514,7 +514,7 @@ ucol_openFromShortString( const char *definition,
 #ifdef UCOL_TRACE_SIT
     fprintf(stderr, "DEF %s, DATA %s, ERR %s\n", definition, s.locale.data(), u_errorName(*status));
 #endif
-    CharString buffer = ulocimp_canonicalize(s.locale.data(), *status);
+    CharString buffer = ulocimp_canonicalize(s.locale.toStringPiece(), *status);
 
     UCollator *result = ucol_open(buffer.data(), status);
     int32_t i = 0;

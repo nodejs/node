@@ -4,7 +4,7 @@
 
 """Visual Studio project reader/writer."""
 
-import gyp.easy_xml as easy_xml
+from gyp import easy_xml
 
 
 class Writer:
@@ -13,10 +13,10 @@ class Writer:
     def __init__(self, tool_file_path, name):
         """Initializes the tool file.
 
-    Args:
-      tool_file_path: Path to the tool file.
-      name: Name of the tool file.
-    """
+        Args:
+          tool_file_path: Path to the tool file.
+          name: Name of the tool file.
+        """
         self.tool_file_path = tool_file_path
         self.name = name
         self.rules_section = ["Rules"]
@@ -26,14 +26,14 @@ class Writer:
     ):
         """Adds a rule to the tool file.
 
-    Args:
-      name: Name of the rule.
-      description: Description of the rule.
-      cmd: Command line of the rule.
-      additional_dependencies: other files which may trigger the rule.
-      outputs: outputs of the rule.
-      extensions: extensions handled by the rule.
-    """
+        Args:
+          name: Name of the rule.
+          description: Description of the rule.
+          cmd: Command line of the rule.
+          additional_dependencies: other files which may trigger the rule.
+          outputs: outputs of the rule.
+          extensions: extensions handled by the rule.
+        """
         rule = [
             "CustomBuildRule",
             {

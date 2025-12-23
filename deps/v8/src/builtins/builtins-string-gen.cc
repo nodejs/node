@@ -491,13 +491,15 @@ TNode<String> StringBuiltinsAssembler::StringAdd(
       done(this, &result);
 
   TNode<Uint32T> left_length = LoadStringLengthAsWord32(left);
-  GotoIfNot(Word32Equal(left_length, Uint32Constant(0)), &check_right);
+  GotoIfNot(Word32Equal(left_length, Uint32Constant(0)), &check_right,
+            GotoHint::kLabel);
   result = right;
   Goto(&done);
 
   BIND(&check_right);
   TNode<Uint32T> right_length = LoadStringLengthAsWord32(right);
-  GotoIfNot(Word32Equal(right_length, Uint32Constant(0)), &cons);
+  GotoIfNot(Word32Equal(right_length, Uint32Constant(0)), &cons,
+            GotoHint::kLabel);
   result = left;
   Goto(&done);
 
@@ -509,7 +511,7 @@ TNode<String> StringBuiltinsAssembler::StringAdd(
     // throw. Note: we also need to invalidate the string length protector, so
     // can't just throw here directly.
     GotoIf(Uint32GreaterThan(new_length, Uint32Constant(String::kMaxLength)),
-           &runtime);
+           &runtime, GotoHint::kFallthrough);
 
     TVARIABLE(String, var_left, left);
     TVARIABLE(String, var_right, right);
@@ -535,7 +537,8 @@ TNode<String> StringBuiltinsAssembler::StringAdd(
         Word32Xor(left_instance_type, right_instance_type);
 
     // Check if both strings have the same encoding and both are sequential.
-    GotoIf(IsSetWord32(xored_instance_types, kStringEncodingMask), &runtime);
+    GotoIf(IsSetWord32(xored_instance_types, kStringEncodingMask), &runtime,
+           GotoHint::kFallthrough);
     GotoIf(IsSetWord32(ored_instance_types, kStringRepresentationMask), &slow);
 
     TNode<IntPtrT> word_left_length = Signed(ChangeUint32ToWord(left_length));
@@ -547,7 +550,7 @@ TNode<String> StringBuiltinsAssembler::StringAdd(
                        Int32Constant(kTwoByteStringTag)),
            &two_byte);
     // One-byte sequential string case
-    result = AllocateSeqOneByteString(new_length);
+    result = AllocateNonEmptySeqOneByteString(new_length);
     CopyStringCharacters(var_left.value(), result.value(), IntPtrConstant(0),
                          IntPtrConstant(0), word_left_length,
                          String::ONE_BYTE_ENCODING, String::ONE_BYTE_ENCODING);
@@ -559,7 +562,7 @@ TNode<String> StringBuiltinsAssembler::StringAdd(
     BIND(&two_byte);
     {
       // Two-byte sequential string case
-      result = AllocateSeqTwoByteString(new_length);
+      result = AllocateNonEmptySeqTwoByteString(new_length);
       CopyStringCharacters(var_left.value(), result.value(), IntPtrConstant(0),
                            IntPtrConstant(0), word_left_length,
                            String::TWO_BYTE_ENCODING,
@@ -687,6 +690,105 @@ TF_BUILTIN(SubString, StringBuiltinsAssembler) {
   Return(SubString(string, SmiUntag(from), SmiUntag(to)));
 }
 
+template <typename SeqStringT, typename CharT>
+void StringBuiltinsAssembler::GenerateSeqStringRelationalComparison(
+    TNode<String> lhs, TNode<String> rhs, Label* if_less, Label* if_equal,
+    Label* if_greater) {
+  TNode<IntPtrT> lhs_length = LoadStringLengthAsWord(lhs);
+  TNode<IntPtrT> rhs_length = LoadStringLengthAsWord(rhs);
+
+  TNode<IntPtrT> length = IntPtrMin(lhs_length, rhs_length);
+
+  // Loop over the {lhs} and {rhs} strings to see if they are equal.
+  constexpr int kBeginOffset =
+      OFFSET_OF_DATA_START(SeqStringT) - kHeapObjectTag;
+  TNode<IntPtrT> begin = IntPtrConstant(kBeginOffset);
+  TNode<IntPtrT> end;
+  TVARIABLE(IntPtrT, var_offset, begin);
+  Label chunk_loop(this, &var_offset), char_loop(this, &var_offset);
+  Label if_done(this);
+
+  int char_size;
+  if constexpr (std::is_same_v<SeqStringT, SeqOneByteString>) {
+    static_assert(std::is_same_v<CharT, Uint8T>);
+    char_size = 1;
+    end = IntPtrAdd(begin, length);
+  } else {
+    static_assert(std::is_same_v<SeqStringT, SeqTwoByteString>);
+    static_assert(std::is_same_v<CharT, Uint16T>);
+    char_size = 2;
+    end = IntPtrAdd(begin, IntPtrAdd(length, length));
+  }
+
+  // Unrolled first iteration.
+  GotoIf(IntPtrEqual(length, IntPtrConstant(0)), &if_done);
+
+  constexpr int kChunkSize = kTaggedSize;
+  static_assert(
+      kChunkSize == ElementSizeInBytes(MachineRepresentation::kWord64) ||
+      kChunkSize == ElementSizeInBytes(MachineRepresentation::kWord32));
+  if (kChunkSize == ElementSizeInBytes(MachineRepresentation::kWord32)) {
+    TNode<Uint32T> lhs_chunk = Load<Uint32T>(lhs, IntPtrConstant(kBeginOffset));
+    TNode<Uint32T> rhs_chunk = Load<Uint32T>(rhs, IntPtrConstant(kBeginOffset));
+    GotoIf(Word32NotEqual(lhs_chunk, rhs_chunk), &char_loop);
+  } else {
+    TNode<Uint64T> lhs_chunk = Load<Uint64T>(lhs, IntPtrConstant(kBeginOffset));
+    TNode<Uint64T> rhs_chunk = Load<Uint64T>(rhs, IntPtrConstant(kBeginOffset));
+    GotoIf(Word64NotEqual(lhs_chunk, rhs_chunk), &char_loop);
+  }
+
+  var_offset = IntPtrConstant(OFFSET_OF_DATA_START(SeqStringT) -
+                              kHeapObjectTag + kChunkSize);
+
+  Goto(&chunk_loop);
+
+  // Try skipping over chunks of kChunkSize identical characters.
+  // This depends on padding (between strings' lengths and the actual end
+  // of the heap object) being zeroed out.
+  BIND(&chunk_loop);
+  {
+    GotoIf(IntPtrGreaterThanOrEqual(var_offset.value(), end), &if_done);
+
+    if (kChunkSize == ElementSizeInBytes(MachineRepresentation::kWord32)) {
+      TNode<Uint32T> lhs_chunk = Load<Uint32T>(lhs, var_offset.value());
+      TNode<Uint32T> rhs_chunk = Load<Uint32T>(rhs, var_offset.value());
+      GotoIf(Word32NotEqual(lhs_chunk, rhs_chunk), &char_loop);
+    } else {
+      TNode<Uint64T> lhs_chunk = Load<Uint64T>(lhs, var_offset.value());
+      TNode<Uint64T> rhs_chunk = Load<Uint64T>(rhs, var_offset.value());
+      GotoIf(Word64NotEqual(lhs_chunk, rhs_chunk), &char_loop);
+    }
+
+    var_offset = IntPtrAdd(var_offset.value(), IntPtrConstant(kChunkSize));
+    Goto(&chunk_loop);
+  }
+
+  BIND(&char_loop);
+  {
+    GotoIf(WordEqual(var_offset.value(), end), &if_done);
+
+    TNode<CharT> lhs_char = Load<CharT>(lhs, var_offset.value());
+    TNode<CharT> rhs_char = Load<CharT>(rhs, var_offset.value());
+
+    Label if_charsdiffer(this);
+    GotoIf(Word32NotEqual(lhs_char, rhs_char), &if_charsdiffer);
+
+    var_offset = IntPtrAdd(var_offset.value(), IntPtrConstant(char_size));
+    Goto(&char_loop);
+
+    BIND(&if_charsdiffer);
+    Branch(Uint32LessThan(lhs_char, rhs_char), if_less, if_greater);
+  }
+
+  BIND(&if_done);
+  {
+    // All characters up to the min length are equal, decide based on
+    // string length.
+    GotoIf(IntPtrEqual(lhs_length, rhs_length), if_equal);
+    Branch(IntPtrLessThan(lhs_length, rhs_length), if_less, if_greater);
+  }
+}
+
 void StringBuiltinsAssembler::GenerateStringRelationalComparison(
     TNode<String> left, TNode<String> right, StringComparison op) {
   TVARIABLE(String, var_left, left);
@@ -712,113 +814,41 @@ void StringBuiltinsAssembler::GenerateStringRelationalComparison(
       lhs_instance_type, Word32Shl(rhs_instance_type, Int32Constant(8)));
 
   // Check that both {lhs} and {rhs} are flat one-byte strings.
-  int const kBothSeqOneByteStringMask =
-      kStringEncodingMask | kStringRepresentationMask |
-      ((kStringEncodingMask | kStringRepresentationMask) << 8);
+  int const kBothStringRepresentationAndEncodingMask =
+      kStringRepresentationAndEncodingMask |
+      (kStringRepresentationAndEncodingMask << 8);
   int const kBothSeqOneByteStringTag =
-      kOneByteStringTag | kSeqStringTag |
-      ((kOneByteStringTag | kSeqStringTag) << 8);
-  Label if_bothonebyteseqstrings(this), if_notbothonebyteseqstrings(this);
-  Branch(Word32Equal(Word32And(both_instance_types,
-                               Int32Constant(kBothSeqOneByteStringMask)),
-                     Int32Constant(kBothSeqOneByteStringTag)),
-         &if_bothonebyteseqstrings, &if_notbothonebyteseqstrings);
+      kSeqOneByteStringTag | (kSeqOneByteStringTag << 8);
+  int const kBothSeqTwoByteStringTag =
+      kSeqTwoByteStringTag | (kSeqTwoByteStringTag << 8);
+  Label if_bothonebyteseqstrings(this), if_bothtwobytesseqstrings(this),
+      if_notbothseqstrings(this);
+  TNode<Int32T> both_string_tags =
+      Word32And(both_instance_types,
+                Int32Constant(kBothStringRepresentationAndEncodingMask));
+  GotoIf(Word32Equal(both_string_tags, Int32Constant(kBothSeqOneByteStringTag)),
+         &if_bothonebyteseqstrings);
+  Branch(Word32Equal(both_string_tags, Int32Constant(kBothSeqTwoByteStringTag)),
+         &if_bothtwobytesseqstrings, &if_notbothseqstrings);
 
   BIND(&if_bothonebyteseqstrings);
   {
-    TNode<IntPtrT> lhs_length = LoadStringLengthAsWord(lhs);
-    TNode<IntPtrT> rhs_length = LoadStringLengthAsWord(rhs);
-
-    TNode<IntPtrT> length = IntPtrMin(lhs_length, rhs_length);
-
-    // Loop over the {lhs} and {rhs} strings to see if they are equal.
-    constexpr int kBeginOffset =
-        OFFSET_OF_DATA_START(SeqOneByteString) - kHeapObjectTag;
-    TNode<IntPtrT> begin = IntPtrConstant(kBeginOffset);
-    TNode<IntPtrT> end = IntPtrAdd(begin, length);
-    TVARIABLE(IntPtrT, var_offset, begin);
-    Label chunk_loop(this, &var_offset), char_loop(this, &var_offset);
-    Label if_done(this);
-
-    // Unrolled first iteration.
-    GotoIf(IntPtrEqual(length, IntPtrConstant(0)), &if_done);
-
-    constexpr int kChunkSize = kTaggedSize;
-    static_assert(
-        kChunkSize == ElementSizeInBytes(MachineRepresentation::kWord64) ||
-        kChunkSize == ElementSizeInBytes(MachineRepresentation::kWord32));
-    if (kChunkSize == ElementSizeInBytes(MachineRepresentation::kWord32)) {
-      TNode<Uint32T> lhs_chunk =
-          Load<Uint32T>(lhs, IntPtrConstant(kBeginOffset));
-      TNode<Uint32T> rhs_chunk =
-          Load<Uint32T>(rhs, IntPtrConstant(kBeginOffset));
-      GotoIf(Word32NotEqual(lhs_chunk, rhs_chunk), &char_loop);
-    } else {
-      TNode<Uint64T> lhs_chunk =
-          Load<Uint64T>(lhs, IntPtrConstant(kBeginOffset));
-      TNode<Uint64T> rhs_chunk =
-          Load<Uint64T>(rhs, IntPtrConstant(kBeginOffset));
-      GotoIf(Word64NotEqual(lhs_chunk, rhs_chunk), &char_loop);
-    }
-
-    var_offset = IntPtrConstant(OFFSET_OF_DATA_START(SeqOneByteString) -
-                                kHeapObjectTag + kChunkSize);
-
-    Goto(&chunk_loop);
-
-    // Try skipping over chunks of kChunkSize identical characters.
-    // This depends on padding (between strings' lengths and the actual end
-    // of the heap object) being zeroed out.
-    BIND(&chunk_loop);
-    {
-      GotoIf(IntPtrGreaterThanOrEqual(var_offset.value(), end), &if_done);
-
-      if (kChunkSize == ElementSizeInBytes(MachineRepresentation::kWord32)) {
-        TNode<Uint32T> lhs_chunk = Load<Uint32T>(lhs, var_offset.value());
-        TNode<Uint32T> rhs_chunk = Load<Uint32T>(rhs, var_offset.value());
-        GotoIf(Word32NotEqual(lhs_chunk, rhs_chunk), &char_loop);
-      } else {
-        TNode<Uint64T> lhs_chunk = Load<Uint64T>(lhs, var_offset.value());
-        TNode<Uint64T> rhs_chunk = Load<Uint64T>(rhs, var_offset.value());
-        GotoIf(Word64NotEqual(lhs_chunk, rhs_chunk), &char_loop);
-      }
-
-      var_offset = IntPtrAdd(var_offset.value(), IntPtrConstant(kChunkSize));
-      Goto(&chunk_loop);
-    }
-
-    BIND(&char_loop);
-    {
-      GotoIf(WordEqual(var_offset.value(), end), &if_done);
-
-      TNode<Uint8T> lhs_char = Load<Uint8T>(lhs, var_offset.value());
-      TNode<Uint8T> rhs_char = Load<Uint8T>(rhs, var_offset.value());
-
-      Label if_charsdiffer(this);
-      GotoIf(Word32NotEqual(lhs_char, rhs_char), &if_charsdiffer);
-
-      var_offset = IntPtrAdd(var_offset.value(), IntPtrConstant(1));
-      Goto(&char_loop);
-
-      BIND(&if_charsdiffer);
-      Branch(Uint32LessThan(lhs_char, rhs_char), &if_less, &if_greater);
-    }
-
-    BIND(&if_done);
-    {
-      // All characters up to the min length are equal, decide based on
-      // string length.
-      GotoIf(IntPtrEqual(lhs_length, rhs_length), &if_equal);
-      Branch(IntPtrLessThan(lhs_length, rhs_length), &if_less, &if_greater);
-    }
+    GenerateSeqStringRelationalComparison<SeqOneByteString, Uint8T>(
+        lhs, rhs, &if_less, &if_equal, &if_greater);
   }
 
-  BIND(&if_notbothonebyteseqstrings);
+  BIND(&if_bothtwobytesseqstrings);
+  {
+    GenerateSeqStringRelationalComparison<SeqTwoByteString, Uint16T>(
+        lhs, rhs, &if_less, &if_equal, &if_greater);
+  }
+
+  BIND(&if_notbothseqstrings);
   {
     // Try to unwrap indirect strings, restart the above attempt on success.
     MaybeDerefIndirectStrings(&var_left, lhs_instance_type, &var_right,
                               rhs_instance_type, &restart);
-    // TODO(bmeurer): Add support for two byte string relational comparisons.
+
     switch (op) {
       case StringComparison::kLessThan:
         TailCallRuntime(Runtime::kStringLessThan, NoContextConstant(), lhs,
@@ -936,6 +966,38 @@ TF_BUILTIN(StringGreaterThanOrEqual, StringBuiltinsAssembler) {
   GenerateStringRelationalComparison(left, right,
                                      StringComparison::kGreaterThanOrEqual);
 }
+
+#if V8_ENABLE_WEBASSEMBLY
+// Duplicate of string builtins for wasm. The only difference is that these
+// builtins are listed in WASM_BUILTIN_LIST. Builtins in this list are
+// instrumented to check if they are running on a secondary stack and switch
+// back to the central stack before calling a runtime function or a JS builtin
+// if needed.
+TF_BUILTIN(WasmJSStringEqual, StringBuiltinsAssembler) {
+  auto left = Parameter<String>(Descriptor::kLeft);
+  auto right = Parameter<String>(Descriptor::kRight);
+  auto length = UncheckedParameter<IntPtrT>(Descriptor::kLength);
+  // Callers must handle the case where {lhs} and {rhs} refer to the same
+  // String object.
+  CSA_DCHECK(this, TaggedNotEqual(left, right));
+  GenerateStringEqual(left, right, length);
+}
+
+TF_BUILTIN(WasmStringAdd_CheckNone, StringBuiltinsAssembler) {
+  auto left = Parameter<String>(Descriptor::kLeft);
+  auto right = Parameter<String>(Descriptor::kRight);
+  TNode<ContextOrEmptyContext> context =
+      UncheckedParameter<ContextOrEmptyContext>(Descriptor::kContext);
+  CSA_DCHECK(this, IsZeroOrContext(context));
+  Return(StringAdd(context, left, right));
+}
+
+TF_BUILTIN(WasmStringCompare, StringBuiltinsAssembler) {
+  auto left = Parameter<String>(Descriptor::kLeft);
+  auto right = Parameter<String>(Descriptor::kRight);
+  GenerateStringRelationalComparison(left, right, StringComparison::kCompare);
+}
+#endif
 
 #ifndef V8_ENABLE_EXPERIMENTAL_TSA_BUILTINS
 
@@ -1068,28 +1130,14 @@ TF_BUILTIN(StringFromCharCode, StringBuiltinsAssembler) {
 #endif  // V8_ENABLE_EXPERIMENTAL_TSA_BUILTINS
 
 void StringBuiltinsAssembler::MaybeCallFunctionAtSymbol(
-    const TNode<Context> context, const TNode<Object> object,
+    const TNode<Context> context, const TNode<JSAny> object,
     const TNode<Object> maybe_string, Handle<Symbol> symbol,
     DescriptorIndexNameValue additional_property_to_check,
     const NodeFunction0& regexp_call, const NodeFunction1& generic_call) {
-  Label out(this), no_protector(this), object_is_heapobject(this);
-  Label get_property_lookup(this);
+  Label out(this);
 
-  // The protector guarantees that that the Number and String wrapper
-  // prototypes do not contain Symbol.{matchAll|replace|split} (aka.
-  // @@matchAll, @@replace @@split).
-  GotoIf(IsNumberStringNotRegexpLikeProtectorCellInvalid(), &no_protector);
-  // Smi is safe thanks to the protector.
   GotoIf(TaggedIsSmi(object), &out);
-  // String is safe thanks to the protector.
-  GotoIf(IsString(CAST(object)), &out);
-  // HeapNumber is safe thanks to the protector.
-  Branch(IsHeapNumber(CAST(object)), &out, &object_is_heapobject);
-
-  BIND(&no_protector);
-  // Smis have to go through the GetProperty lookup in case Number.prototype or
-  // Object.prototype was modified.
-  Branch(TaggedIsSmi(object), &get_property_lookup, &object_is_heapobject);
+  GotoIfNot(IsJSReceiver(CAST(object)), &out);
 
   // Take the fast path for RegExps.
   // There's two conditions: {object} needs to be a fast regexp, and
@@ -1098,7 +1146,6 @@ void StringBuiltinsAssembler::MaybeCallFunctionAtSymbol(
   {
     Label stub_call(this), slow_lookup(this);
 
-    BIND(&object_is_heapobject);
     TNode<HeapObject> heap_object = CAST(object);
 
     GotoIf(TaggedIsSmi(maybe_string), &slow_lookup);
@@ -1121,8 +1168,6 @@ void StringBuiltinsAssembler::MaybeCallFunctionAtSymbol(
     regexp_call();
 
     BIND(&slow_lookup);
-    // Special case null and undefined to skip the property lookup.
-    Branch(IsNullOrUndefined(heap_object), &out, &get_property_lookup);
   }
 
   // Fall back to a slow lookup of {heap_object[symbol]}.
@@ -1132,8 +1177,6 @@ void StringBuiltinsAssembler::MaybeCallFunctionAtSymbol(
   // * an exception is thrown if the value is not undefined, null, or callable.
   // We handle the former by jumping to {out} for null values as well, while
   // the latter is already handled by the Call({maybe_func}) operation.
-
-  BIND(&get_property_lookup);
   const TNode<Object> maybe_func = GetProperty(context, object, symbol);
   GotoIf(IsUndefined(maybe_func), &out);
   GotoIf(IsNull(maybe_func), &out);
@@ -1144,10 +1187,10 @@ void StringBuiltinsAssembler::MaybeCallFunctionAtSymbol(
   BIND(&out);
 }
 
-const TNode<Smi> StringBuiltinsAssembler::IndexOfDollarChar(
+TNode<Smi> StringBuiltinsAssembler::IndexOfDollarChar(
     const TNode<Context> context, const TNode<String> string) {
-  const TNode<String> dollar_string = HeapConstantNoHole(
-      isolate()->factory()->LookupSingleCharacterStringFromCode('$'));
+  const TNode<String> dollar_string =
+      HeapConstantNoHole(isolate()->factory()->dollar_string());
   const TNode<Smi> dollar_ix = CAST(CallBuiltin(
       Builtin::kStringIndexOf, context, string, dollar_string, SmiConstant(0)));
   return dollar_ix;
@@ -1171,7 +1214,7 @@ TNode<String> StringBuiltinsAssembler::GetSubstitution(
   // TODO(jgruber): Possibly extend this in the future to handle more complex
   // cases without runtime calls.
 
-  const TNode<Smi> dollar_index = IndexOfDollarChar(context, replace_string);
+  TNode<Smi> dollar_index = IndexOfDollarChar(context, replace_string);
   Branch(SmiIsNegative(dollar_index), &out, &runtime);
 
   BIND(&runtime);
@@ -1197,31 +1240,33 @@ TNode<String> StringBuiltinsAssembler::GetSubstitution(
 TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
   Label out(this);
 
-  auto receiver = Parameter<Object>(Descriptor::kReceiver);
-  const auto search = Parameter<Object>(Descriptor::kSearch);
-  const auto replace = Parameter<Object>(Descriptor::kReplace);
+  auto receiver = Parameter<JSAny>(Descriptor::kReceiver);
+  const auto search = Parameter<JSAny>(Descriptor::kSearch);
+  const auto replace = Parameter<JSAny>(Descriptor::kReplace);
   auto context = Parameter<Context>(Descriptor::kContext);
 
   const TNode<Smi> smi_zero = SmiConstant(0);
 
   RequireObjectCoercible(context, receiver, "String.prototype.replace");
 
-  // Redirect to replacer method if {search[@@replace]} is not undefined.
+  // Redirect to replacer method if {search} is an Object and
+  // {search[@@replace]} is not undefined.
   {
     Label next(this);
 
+    auto if_regexp_call = [=, this] {
+      Return(CallBuiltin(Builtin::kRegExpReplace, context, search, receiver,
+                         replace));
+    };
+    auto if_generic_call = [=, this](TNode<Object> fn) {
+      Return(Call(context, fn, search, receiver, replace));
+    };
     MaybeCallFunctionAtSymbol(
         context, search, receiver, isolate()->factory()->replace_symbol(),
         DescriptorIndexNameValue{
             JSRegExp::kSymbolReplaceFunctionDescriptorIndex,
             RootIndex::kreplace_symbol, Context::REGEXP_REPLACE_FUNCTION_INDEX},
-        [=, this]() {
-          Return(CallBuiltin(Builtin::kRegExpReplace, context, search, receiver,
-                             replace));
-        },
-        [=, this](TNode<Object> fn) {
-          Return(Call(context, fn, search, receiver, replace));
-        });
+        if_regexp_call, if_generic_call);
     Goto(&next);
 
     BIND(&next);
@@ -1361,8 +1406,8 @@ TF_BUILTIN(StringPrototypeMatchAll, StringBuiltinsAssembler) {
   char const* method_name = "String.prototype.matchAll";
 
   auto context = Parameter<Context>(Descriptor::kContext);
-  auto maybe_regexp = Parameter<Object>(Descriptor::kRegexp);
-  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto maybe_regexp = Parameter<JSAny>(Descriptor::kRegexp);
+  auto receiver = Parameter<JSAny>(Descriptor::kReceiver);
   TNode<NativeContext> native_context = LoadNativeContext(context);
 
   // 1. Let O be ? RequireObjectCoercible(this value).
@@ -1372,9 +1417,10 @@ TF_BUILTIN(StringPrototypeMatchAll, StringBuiltinsAssembler) {
   {
     Label fast(this), slow(this, Label::kDeferred),
         throw_exception(this, Label::kDeferred),
-        throw_flags_exception(this, Label::kDeferred), next(this);
+        throw_flags_exception(this, Label::kDeferred), maybe_call_matcher(this),
+        next(this);
 
-    // 2. If regexp is neither undefined nor null, then
+    // 2. If regexp is an Object, then
     //   a. Let isRegExp be ? IsRegExp(regexp).
     //   b. If isRegExp is true, then
     //     i. Let flags be ? Get(regexp, "flags").
@@ -1382,20 +1428,22 @@ TF_BUILTIN(StringPrototypeMatchAll, StringBuiltinsAssembler) {
     //   iii. If ? ToString(flags) does not contain "g", throw a
     //        TypeError exception.
     GotoIf(TaggedIsSmi(maybe_regexp), &next);
-    TNode<HeapObject> heap_maybe_regexp = CAST(maybe_regexp);
+    GotoIfNot(IsJSReceiver(CAST(maybe_regexp)), &next);
+    TNode<JSAnyNotSmi> heap_maybe_regexp = CAST(maybe_regexp);
     regexp_asm.BranchIfFastRegExpForMatch(context, heap_maybe_regexp, &fast,
                                           &slow);
 
     BIND(&fast);
     {
-      TNode<BoolT> is_global = regexp_asm.FlagGetter(context, heap_maybe_regexp,
-                                                     JSRegExp::kGlobal, true);
-      Branch(is_global, &next, &throw_exception);
+      TNode<BoolT> is_global =
+          regexp_asm.FastFlagGetter(CAST(heap_maybe_regexp), JSRegExp::kGlobal);
+      Branch(is_global, &maybe_call_matcher, &throw_exception);
     }
 
     BIND(&slow);
     {
-      GotoIfNot(regexp_asm.IsRegExp(native_context, heap_maybe_regexp), &next);
+      GotoIfNot(regexp_asm.IsRegExp(native_context, heap_maybe_regexp),
+                &maybe_call_matcher);
 
       TNode<Object> flags = GetProperty(context, heap_maybe_regexp,
                                         isolate()->factory()->flags_string());
@@ -1408,7 +1456,8 @@ TF_BUILTIN(StringPrototypeMatchAll, StringBuiltinsAssembler) {
       TNode<Smi> global_ix =
           CAST(CallBuiltin(Builtin::kStringIndexOf, context, flags_string,
                            global_char_string, SmiConstant(0)));
-      Branch(SmiEqual(global_ix, SmiConstant(-1)), &throw_exception, &next);
+      Branch(SmiEqual(global_ix, SmiConstant(-1)), &throw_exception,
+             &maybe_call_matcher);
     }
 
     BIND(&throw_exception);
@@ -1419,37 +1468,44 @@ TF_BUILTIN(StringPrototypeMatchAll, StringBuiltinsAssembler) {
     ThrowTypeError(context,
                    MessageTemplate::kStringMatchAllNullOrUndefinedFlags);
 
+    //   a. Let matcher be ? GetMethod(regexp, %Symbol.matchAll%).
+    //   b. If matcher is not undefined, then
+    //     i. Return ? Call(matcher, regexp, « O »).
+    BIND(&maybe_call_matcher);
+    {
+      auto if_regexp_call = [&] {
+        // MaybeCallFunctionAtSymbol guarantees fast path is chosen only if
+        // maybe_regexp is a fast regexp and receiver is a string.
+        TNode<String> s = CAST(receiver);
+
+        Return(RegExpPrototypeMatchAllImpl(context, native_context,
+                                           maybe_regexp, s));
+      };
+      auto if_generic_call = [=, this](TNode<Object> fn) {
+        Return(Call(context, fn, maybe_regexp, receiver));
+      };
+      MaybeCallFunctionAtSymbol(
+          context, maybe_regexp, receiver,
+          isolate()->factory()->match_all_symbol(),
+          DescriptorIndexNameValue{
+              JSRegExp::kSymbolMatchAllFunctionDescriptorIndex,
+              RootIndex::kmatch_all_symbol,
+              Context::REGEXP_MATCH_ALL_FUNCTION_INDEX},
+          if_regexp_call, if_generic_call);
+      Goto(&next);
+    }
+
     BIND(&next);
   }
-  //   a. Let matcher be ? GetMethod(regexp, @@matchAll).
-  //   b. If matcher is not undefined, then
-  //     i. Return ? Call(matcher, regexp, « O »).
-  auto if_regexp_call = [&] {
-    // MaybeCallFunctionAtSymbol guarantees fast path is chosen only if
-    // maybe_regexp is a fast regexp and receiver is a string.
-    TNode<String> s = CAST(receiver);
-
-    Return(
-        RegExpPrototypeMatchAllImpl(context, native_context, maybe_regexp, s));
-  };
-  auto if_generic_call = [=, this](TNode<Object> fn) {
-    Return(Call(context, fn, maybe_regexp, receiver));
-  };
-  MaybeCallFunctionAtSymbol(
-      context, maybe_regexp, receiver, isolate()->factory()->match_all_symbol(),
-      DescriptorIndexNameValue{JSRegExp::kSymbolMatchAllFunctionDescriptorIndex,
-                               RootIndex::kmatch_all_symbol,
-                               Context::REGEXP_MATCH_ALL_FUNCTION_INDEX},
-      if_regexp_call, if_generic_call);
 
   // 3. Let S be ? ToString(O).
   TNode<String> s = ToString_Inline(context, receiver);
 
   // 4. Let rx be ? RegExpCreate(R, "g").
-  TNode<Object> rx = regexp_asm.RegExpCreate(context, native_context,
-                                             maybe_regexp, StringConstant("g"));
+  TNode<JSAny> rx = regexp_asm.RegExpCreate(context, native_context,
+                                            maybe_regexp, StringConstant("g"));
 
-  // 5. Return ? Invoke(rx, @@matchAll, « S »).
+  // 5. Return ? Invoke(rx, %Symbol.matchAll%, « S »).
   TNode<Object> match_all_func =
       GetProperty(context, rx, isolate()->factory()->match_all_symbol());
   Return(Call(context, match_all_func, rx, s));
@@ -1488,7 +1544,6 @@ TNode<JSArray> StringBuiltinsAssembler::StringToArray(
     TNode<RawPtrT> string_data =
         to_direct.PointerToData(&fill_thehole_and_call_runtime);
     TNode<IntPtrT> string_data_offset = to_direct.offset();
-    TNode<FixedArray> cache = SingleCharacterStringTableConstant();
 
     BuildFastLoop<IntPtrT>(
         IntPtrConstant(0), length,
@@ -1498,14 +1553,13 @@ TNode<JSArray> StringBuiltinsAssembler::StringToArray(
           // ToDirectStringAssembler.PointerToData().
           CSA_DCHECK(this, WordEqual(to_direct.PointerToData(&call_runtime),
                                      string_data));
-          TNode<Int32T> char_code =
-              UncheckedCast<Int32T>(Load(MachineType::Uint8(), string_data,
-                                         IntPtrAdd(index, string_data_offset)));
-          TNode<UintPtrT> code_index = ChangeUint32ToWord(char_code);
-          TNode<Object> entry = LoadFixedArrayElement(cache, code_index);
+          TNode<Uint8T> char_code =
+              Load<Uint8T>(string_data, IntPtrAdd(index, string_data_offset));
+          TNode<String> entry = StringFromSingleOneByteCharCode(char_code);
 
-          CSA_DCHECK(this, Word32BinaryNot(IsUndefined(entry)));
-
+          // TODO(ishell): make it possible to skip write barriers here.
+          // The single-character strings are in RO space so it should
+          // be safe to skip the write barriers.
           StoreFixedArrayElement(elements, index, entry);
         },
         1, LoopUnrollingMode::kNo, IndexAdvanceMode::kPost);
@@ -1542,29 +1596,37 @@ TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
       UncheckedParameter<Int32T>(Descriptor::kJSActualArgumentsCount));
   CodeStubArguments args(this, argc);
 
-  TNode<Object> receiver = args.GetReceiver();
-  const TNode<Object> separator = args.GetOptionalArgumentValue(kSeparatorArg);
-  const TNode<Object> limit = args.GetOptionalArgumentValue(kLimitArg);
+  TNode<JSAny> receiver = args.GetReceiver();
+  const TNode<JSAny> separator = args.GetOptionalArgumentValue(kSeparatorArg);
+  const TNode<JSAny> limit = args.GetOptionalArgumentValue(kLimitArg);
   auto context = Parameter<NativeContext>(Descriptor::kContext);
 
   TNode<Smi> smi_zero = SmiConstant(0);
 
   RequireObjectCoercible(context, receiver, "String.prototype.split");
 
-  // Redirect to splitter method if {separator[@@split]} is not undefined.
+  // Redirect to splitter method if {separator} is an Object and
+  // {separator[@@split]} is not undefined.
+  {
+    Label next(this);
 
-  MaybeCallFunctionAtSymbol(
-      context, separator, receiver, isolate()->factory()->split_symbol(),
-      DescriptorIndexNameValue{JSRegExp::kSymbolSplitFunctionDescriptorIndex,
-                               RootIndex::ksplit_symbol,
-                               Context::REGEXP_SPLIT_FUNCTION_INDEX},
-      [&]() {
-        args.PopAndReturn(CallBuiltin(Builtin::kRegExpSplit, context, separator,
-                                      receiver, limit));
-      },
-      [&](TNode<Object> fn) {
-        args.PopAndReturn(Call(context, fn, separator, receiver, limit));
-      });
+    auto if_regexp_call = [&] {
+      args.PopAndReturn(CallBuiltin<JSAny>(Builtin::kRegExpSplit, context,
+                                           separator, receiver, limit));
+    };
+    auto if_generic_call = [&](TNode<Object> fn) {
+      args.PopAndReturn(Call(context, fn, separator, receiver, limit));
+    };
+    MaybeCallFunctionAtSymbol(
+        context, separator, receiver, isolate()->factory()->split_symbol(),
+        DescriptorIndexNameValue{JSRegExp::kSymbolSplitFunctionDescriptorIndex,
+                                 RootIndex::ksplit_symbol,
+                                 Context::REGEXP_SPLIT_FUNCTION_INDEX},
+        if_regexp_call, if_generic_call);
+    Goto(&next);
+
+    BIND(&next);
+  }
 
   // String and integer conversions.
 
@@ -1616,9 +1678,9 @@ TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
     BIND(&next);
   }
 
-  const TNode<Object> result =
-      CallRuntime(Runtime::kStringSplit, context, subject_string,
-                  separator_string, limit_number);
+  const TNode<JSAny> result =
+      CallRuntime<JSAny>(Runtime::kStringSplit, context, subject_string,
+                         separator_string, limit_number);
   args.PopAndReturn(result);
 
   BIND(&return_empty_array);
@@ -1864,10 +1926,13 @@ void StringBuiltinsAssembler::CopyStringCharacters(
 // given character range using CopyStringCharacters.
 // |from_string| must be a sequential string.
 // 0 <= |from_index| <= |from_index| + |character_count| < from_string.length.
+// |character_count| > 0.
 template <typename T>
 TNode<String> StringBuiltinsAssembler::AllocAndCopyStringCharacters(
     TNode<T> from, TNode<BoolT> from_is_one_byte, TNode<IntPtrT> from_index,
     TNode<IntPtrT> character_count) {
+  CSA_DCHECK(this, IntPtrGreaterThan(character_count, IntPtrConstant(0)));
+
   Label end(this), one_byte_sequential(this), two_byte_sequential(this);
   TVARIABLE(String, var_result);
 
@@ -1876,7 +1941,7 @@ TNode<String> StringBuiltinsAssembler::AllocAndCopyStringCharacters(
   // The subject string is a sequential one-byte string.
   BIND(&one_byte_sequential);
   {
-    TNode<String> result = AllocateSeqOneByteString(
+    TNode<String> result = AllocateNonEmptySeqOneByteString(
         Unsigned(TruncateIntPtrToInt32(character_count)));
     CopyStringCharacters<T>(from, result, from_index, IntPtrConstant(0),
                             character_count, String::ONE_BYTE_ENCODING,
@@ -1950,7 +2015,7 @@ TNode<String> StringBuiltinsAssembler::AllocAndCopyStringCharacters(
     GotoIf(Uint32GreaterThan(var_bits.value(), Uint32Constant(0xFF)), &twobyte);
     // Fallthrough: only one-byte characters in the to-be-copied range.
     {
-      TNode<String> result = AllocateSeqOneByteString(
+      TNode<String> result = AllocateNonEmptySeqOneByteString(
           Unsigned(TruncateIntPtrToInt32(character_count)));
       CopyStringCharacters<T>(from, result, from_index, IntPtrConstant(0),
                               character_count, String::TWO_BYTE_ENCODING,
@@ -1961,7 +2026,7 @@ TNode<String> StringBuiltinsAssembler::AllocAndCopyStringCharacters(
 
     BIND(&twobyte);
     {
-      TNode<String> result = AllocateSeqTwoByteString(
+      TNode<String> result = AllocateNonEmptySeqTwoByteString(
           Unsigned(TruncateIntPtrToInt32(character_count)));
       CopyStringCharacters<T>(from, result, from_index, IntPtrConstant(0),
                               character_count, String::TWO_BYTE_ENCODING,

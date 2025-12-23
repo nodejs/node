@@ -7,6 +7,8 @@
 
 #include <stddef.h>
 
+#include "src/base/macros.h"
+
 namespace v8 {
 namespace internal {
 
@@ -23,7 +25,7 @@ class OsrHelper {
   explicit OsrHelper(OptimizedCompilationInfo* info);
 
   // Prepares the frame w.r.t. OSR.
-  void SetupFrame(Frame* frame);
+  V8_EXPORT_PRIVATE void SetupFrame(Frame* frame);
 
   // Returns the number of unoptimized frame slots for this OSR.
   size_t UnoptimizedFrameSlots() { return stack_slot_count_; }

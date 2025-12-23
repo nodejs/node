@@ -46,12 +46,19 @@ V8SerializationDuplicateTracker::LinkExistingOrCreate(
   return result;
 }
 
+namespace {
+// This tag value has been picked arbitrarily between 0 and
+// V8_EXTERNAL_POINTER_TAG_COUNT.
+constexpr v8::ExternalPointerTypeTag kDictionaryValueTag = 11;
+}  // namespace
+
 void V8SerializationDuplicateTracker::SetKnownSerializedValue(
     v8::Local<v8::Value> v8Value, protocol::DictionaryValue* serializedValue) {
   m_v8ObjectToSerializedDictionary =
       m_v8ObjectToSerializedDictionary
           ->Set(m_context, v8Value,
-                v8::External::New(m_context->GetIsolate(), serializedValue))
+                v8::External::New(v8::Isolate::GetCurrent(), serializedValue,
+                                  kDictionaryValueTag))
           .ToLocalChecked();
 }
 
@@ -66,12 +73,13 @@ V8SerializationDuplicateTracker::FindKnownSerializedValue(
   }
 
   return static_cast<protocol::DictionaryValue*>(
-      knownValue.As<v8::External>()->Value());
+      knownValue.As<v8::External>()->Value(kDictionaryValueTag));
 }
 
 V8SerializationDuplicateTracker::V8SerializationDuplicateTracker(
     v8::Local<v8::Context> context)
     : m_context(context),
       m_counter(1),
-      m_v8ObjectToSerializedDictionary(v8::Map::New(context->GetIsolate())) {}
+      m_v8ObjectToSerializedDictionary(
+          v8::Map::New(v8::Isolate::GetCurrent())) {}
 }  // namespace v8_inspector

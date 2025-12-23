@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// This file describes the way aborts are handled in OS::Abort and the way
-// DCHECKs are working.
-
 #ifndef V8_BASE_ABORT_MODE_H_
 #define V8_BASE_ABORT_MODE_H_
+
+// This file describes the way aborts are handled in OS::Abort and the way
+// DCHECKs are working.
 
 #include "src/base/base-export.h"
 
@@ -28,6 +28,11 @@ enum class AbortMode {
   kExitWithSuccessAndIgnoreDcheckFailures,
   kExitWithFailureAndIgnoreDcheckFailures,
 
+  // Used in combination with automated vulnerability discovery systems to
+  // ignore fatal errors that do not have any security impact.
+  // For everything else the default behavior is used.
+  kExitIfNoSecurityImpact,
+
   // DCHECKs, CHECKs, etc. use IMMEDIATE_CRASH() to signal abnormal program
   // termination. See the --hard-abort flag for more details.
   kImmediateCrash,
@@ -46,6 +51,10 @@ V8_INLINE bool ControlledCrashesAreHarmless() {
 V8_INLINE bool DcheckFailuresAreIgnored() {
   return g_abort_mode == AbortMode::kExitWithSuccessAndIgnoreDcheckFailures ||
          g_abort_mode == AbortMode::kExitWithFailureAndIgnoreDcheckFailures;
+}
+
+V8_INLINE bool FatalErrorsWithNoSecurityImpactShouldExit() {
+  return g_abort_mode == AbortMode::kExitIfNoSecurityImpact;
 }
 
 }  // namespace base

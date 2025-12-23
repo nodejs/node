@@ -281,20 +281,49 @@ std::string UnionType::SimpleNameImpl() const {
   return result.str();
 }
 
+// static
+void UnionType::InsertGeneratedTNodeTypeName(std::set<std::string>& names,
+                                             const Type* t) {
+  if (t->IsUnionType()) {
+    for (const Type* u : ((const UnionType*)t)->types_) {
+      names.insert(u->GetGeneratedTNodeTypeName());
+    }
+  } else {
+    names.insert(t->GetGeneratedTNodeTypeName());
+  }
+}
+
 std::string UnionType::GetGeneratedTNodeTypeNameImpl() const {
-  if (types_.size() <= 3) {
-    std::set<std::string> members;
-    for (const Type* t : types_) {
-      members.insert(t->GetGeneratedTNodeTypeName());
-    }
-    if (members == std::set<std::string>{"Smi", "HeapNumber"}) {
-      return "Number";
-    }
-    if (members == std::set<std::string>{"Smi", "HeapNumber", "BigInt"}) {
-      return "Numeric";
+  // For non-tagged unions, use the parent GetGeneratedTNodeTypeName.
+  for (const Type* t : types_) {
+    if (!t->IsSubtypeOf(TypeOracle::GetTaggedType())) {
+      return parent()->GetGeneratedTNodeTypeName();
     }
   }
-  return parent()->GetGeneratedTNodeTypeName();
+
+  std::string simple_name = SimpleName();
+  if (simple_name == "Object") return simple_name;
+  if (simple_name == "Number") return simple_name;
+  if (simple_name == "Numeric") return simple_name;
+  if (simple_name == "JSAny") return simple_name;
+  if (simple_name == "JSPrimitive") return simple_name;
+
+  std::set<std::string> names;
+  for (const Type* t : types_) {
+    InsertGeneratedTNodeTypeName(names, t);
+  }
+  std::stringstream result;
+  result << "Union<";
+  bool first = true;
+  for (std::string name : names) {
+    if (!first) {
+      result << ", ";
+    }
+    first = false;
+    result << name;
+  }
+  result << ">";
+  return result.str();
 }
 
 std::string UnionType::GetRuntimeType() const {
@@ -1122,7 +1151,7 @@ bool Signature::HasSameTypesAs(const Signature& other,
 }
 
 namespace {
-bool FirstTypeIsContext(const std::vector<const Type*> parameter_types) {
+bool FirstTypeIsContext(const std::vector<const Type*>& parameter_types) {
   return !parameter_types.empty() &&
          (parameter_types[0] == TypeOracle::GetContextType() ||
           parameter_types[0] == TypeOracle::GetNoContextType());
@@ -1274,7 +1303,7 @@ size_t AbstractType::AlignmentLog2() const {
 }
 
 size_t StructType::AlignmentLog2() const {
-  if (this == TypeOracle::GetFloat64OrHoleType()) {
+  if (this == TypeOracle::GetFloat64OrUndefinedOrHoleType()) {
     return TypeOracle::GetFloat64Type()->AlignmentLog2();
   }
   size_t alignment_log_2 = 0;
@@ -1288,7 +1317,8 @@ size_t StructType::AlignmentLog2() const {
 void Field::ValidateAlignment(ResidueClass at_offset) const {
   const Type* type = name_and_type.type;
   std::optional<const StructType*> struct_type = type->StructSupertype();
-  if (struct_type && struct_type != TypeOracle::GetFloat64OrHoleType()) {
+  if (struct_type &&
+      struct_type != TypeOracle::GetFloat64OrUndefinedOrHoleType()) {
     for (const Field& field : (*struct_type)->fields()) {
       field.ValidateAlignment(at_offset);
       size_t field_size = std::get<0>(field.GetFieldSizeInformation());
@@ -1356,7 +1386,7 @@ std::optional<std::tuple<size_t, std::string>> SizeOf(const Type* type) {
     size = TargetArchitecture::RawPtrSize();
     size_string = "kIntptrSize";
   } else if (auto struct_type = type->StructSupertype()) {
-    if (type == TypeOracle::GetFloat64OrHoleType()) {
+    if (type == TypeOracle::GetFloat64OrUndefinedOrHoleType()) {
       size = kDoubleSize;
       size_string = "kDoubleSize";
     } else {

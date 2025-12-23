@@ -2,10 +2,11 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import gyp.common
-import gyp.xcode_emulation
 import json
 import os
+
+import gyp.common
+import gyp.xcode_emulation
 
 generator_additional_non_configuration_keys = []
 generator_additional_path_sections = []
@@ -99,7 +100,7 @@ def AddCommandsForTarget(cwd, target, params, per_config_commands):
 def GenerateOutput(target_list, target_dicts, data, params):
     per_config_commands = {}
     for qualified_target, target in target_dicts.items():
-        build_file, target_name, toolset = gyp.common.ParseQualifiedTarget(
+        build_file, _target_name, _toolset = gyp.common.ParseQualifiedTarget(
             qualified_target
         )
         if IsMac(params):

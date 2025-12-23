@@ -34,13 +34,6 @@
 #include "ngtcp2_mem.h"
 
 /*
- * ngtcp2_vec_lit is a convenient macro to fill the object pointed by
- * |DEST| with the literal string |LIT|.
- */
-#define ngtcp2_vec_lit(DEST, LIT)                                              \
-  ((DEST)->base = (uint8_t *)(LIT), (DEST)->len = sizeof(LIT) - 1, (DEST))
-
-/*
  * ngtcp2_vec_init initializes |vec| with the given parameters.  It
  * returns |vec|.
  */
@@ -102,5 +95,19 @@ size_t ngtcp2_vec_copy_at_most(ngtcp2_vec *dst, size_t dstcnt,
  * have sufficient capacity.
  */
 void ngtcp2_vec_copy(ngtcp2_vec *dst, const ngtcp2_vec *src, size_t cnt);
+
+/*
+ * ngtcp2_vec_split_at splits |src| at the |offset|.  Caller must
+ * ensure that offset < src->len.  This function assigns the right
+ * part of vector into |dst|.
+ */
+void ngtcp2_vec_split_at(ngtcp2_vec *dst, ngtcp2_vec *src, size_t offset);
+
+/*
+ * ngtcp2_vec_end returns the one beyond the last offset of |v|.
+ */
+static inline uint8_t *ngtcp2_vec_end(const ngtcp2_vec *v) {
+  return v->base + v->len;
+}
 
 #endif /* !defined(NGTCP2_VEC_H) */

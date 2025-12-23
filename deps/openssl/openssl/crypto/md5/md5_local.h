@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -14,7 +14,9 @@
 
 #ifdef MD5_ASM
 # if defined(__i386) || defined(__i386__) || defined(_M_IX86) || \
-     defined(__x86_64) || defined(__x86_64__) || defined(_M_AMD64) || defined(_M_X64)
+     defined(__x86_64) || defined(__x86_64__) || defined(_M_AMD64) || \
+     defined(_M_X64) || defined(__aarch64__) || \
+     (defined(__loongarch__) && __loongarch_grlen == 64)
 #  define md5_block_data_order ossl_md5_block_asm_data_order
 # elif defined(__ia64) || defined(__ia64__) || defined(_M_IA64)
 #  define md5_block_data_order ossl_md5_block_asm_data_order

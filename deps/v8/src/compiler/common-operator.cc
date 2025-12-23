@@ -6,7 +6,7 @@
 
 #include <optional>
 
-#include "src/base/functional.h"
+#include "src/base/hashing.h"
 #include "src/base/lazy-instance.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/node.h"
@@ -153,7 +153,7 @@ DeoptimizeParameters const& DeoptimizeParametersOf(Operator const* const op) {
 
 bool operator==(SelectParameters const& lhs, SelectParameters const& rhs) {
   return lhs.representation() == rhs.representation() &&
-         lhs.hint() == rhs.hint();
+         lhs.hint() == rhs.hint() && lhs.semantics() == rhs.semantics();
 }
 
 
@@ -163,12 +163,12 @@ bool operator!=(SelectParameters const& lhs, SelectParameters const& rhs) {
 
 
 size_t hash_value(SelectParameters const& p) {
-  return base::hash_combine(p.representation(), p.hint());
+  return base::hash_combine(p.representation(), p.hint(), p.semantics());
 }
 
 
 std::ostream& operator<<(std::ostream& os, SelectParameters const& p) {
-  return os << p.representation() << ", " << p.hint();
+  return os << p.representation() << ", " << p.hint() << ", " << p.semantics();
 }
 
 
@@ -626,6 +626,7 @@ const ExitMachineGraphParameters& ExitMachineGraphParametersOf(
   V(TrapRemByZero)                 \
   V(TrapFloatUnrepresentable)      \
   V(TrapTableOutOfBounds)          \
+  V(TrapNullFunc)                  \
   V(TrapFuncSigMismatch)
 
 #define CACHED_PARAMETER_LIST(V) \
@@ -1304,15 +1305,17 @@ const Operator* CommonOperatorBuilder::Float32Constant(float value) {
       value);                                       // parameter
 }
 
-
 const Operator* CommonOperatorBuilder::Float64Constant(double value) {
-  return zone()->New<Operator1<double>>(            // --
+  return Float64Constant(Float64::FromBits(base::bit_cast<uint64_t>(value)));
+}
+
+const Operator* CommonOperatorBuilder::Float64Constant(Float64 value) {
+  return zone()->New<Operator1<Float64>>(           // --
       IrOpcode::kFloat64Constant, Operator::kPure,  // opcode
       "Float64Constant",                            // name
       0, 0, 0, 1, 0, 0,                             // counts
       value);                                       // parameter
 }
-
 
 const Operator* CommonOperatorBuilder::ExternalConstant(
     const ExternalReference& value) {
@@ -1342,36 +1345,36 @@ const Operator* CommonOperatorBuilder::PointerConstant(intptr_t value) {
 
 const Operator* CommonOperatorBuilder::HeapConstant(
     const Handle<HeapObject>& value) {
-  return zone()->New<Operator1<Handle<HeapObject>>>(  // --
-      IrOpcode::kHeapConstant, Operator::kPure,       // opcode
-      "HeapConstant",                                 // name
-      0, 0, 0, 1, 0, 0,                               // counts
-      value);                                         // parameter
+  return zone()->New<Operator1<IndirectHandle<HeapObject>>>(  // --
+      IrOpcode::kHeapConstant, Operator::kPure,               // opcode
+      "HeapConstant",                                         // name
+      0, 0, 0, 1, 0, 0,                                       // counts
+      value);                                                 // parameter
 }
 
 const Operator* CommonOperatorBuilder::CompressedHeapConstant(
     const Handle<HeapObject>& value) {
-  return zone()->New<Operator1<Handle<HeapObject>>>(       // --
-      IrOpcode::kCompressedHeapConstant, Operator::kPure,  // opcode
-      "CompressedHeapConstant",                            // name
-      0, 0, 0, 1, 0, 0,                                    // counts
-      value);                                              // parameter
+  return zone()->New<Operator1<IndirectHandle<HeapObject>>>(  // --
+      IrOpcode::kCompressedHeapConstant, Operator::kPure,     // opcode
+      "CompressedHeapConstant",                               // name
+      0, 0, 0, 1, 0, 0,                                       // counts
+      value);                                                 // parameter
 }
 
 const Operator* CommonOperatorBuilder::TrustedHeapConstant(
     const Handle<HeapObject>& value) {
-  return zone()->New<Operator1<Handle<HeapObject>>>(    // --
-      IrOpcode::kTrustedHeapConstant, Operator::kPure,  // opcode
-      "TrustedHeapConstant",                            // name
-      0, 0, 0, 1, 0, 0,                                 // counts
-      value);                                           // parameter
+  return zone()->New<Operator1<IndirectHandle<HeapObject>>>(  // --
+      IrOpcode::kTrustedHeapConstant, Operator::kPure,        // opcode
+      "TrustedHeapConstant",                                  // name
+      0, 0, 0, 1, 0, 0,                                       // counts
+      value);                                                 // parameter
 }
 
 Handle<HeapObject> HeapConstantOf(const Operator* op) {
   DCHECK(IrOpcode::kHeapConstant == op->opcode() ||
          IrOpcode::kCompressedHeapConstant == op->opcode() ||
          IrOpcode::kTrustedHeapConstant == op->opcode());
-  return OpParameter<Handle<HeapObject>>(op);
+  return OpParameter<IndirectHandle<HeapObject>>(op);
 }
 
 const char* StaticAssertSourceOf(const Operator* op) {
@@ -1406,14 +1409,14 @@ const Operator* CommonOperatorBuilder::ObjectId(uint32_t object_id) {
 }
 
 const Operator* CommonOperatorBuilder::Select(MachineRepresentation rep,
-                                              BranchHint hint) {
+                                              BranchHint hint,
+                                              BranchSemantics semantics) {
   return zone()->New<Operator1<SelectParameters>>(  // --
       IrOpcode::kSelect, Operator::kPure,           // opcode
       "Select",                                     // name
       3, 0, 0, 1, 0, 0,                             // counts
-      SelectParameters(rep, hint));                 // parameter
+      SelectParameters(rep, hint, semantics));      // parameter
 }
-
 
 const Operator* CommonOperatorBuilder::Phi(MachineRepresentation rep,
                                            int value_input_count) {
@@ -1692,9 +1695,11 @@ const Operator* CommonOperatorBuilder::ResizeMergeOrPhi(const Operator* op,
 const FrameStateFunctionInfo*
 CommonOperatorBuilder::CreateFrameStateFunctionInfo(
     FrameStateType type, uint16_t parameter_count, uint16_t max_arguments,
-    int local_count, Handle<SharedFunctionInfo> shared_info) {
-  return zone()->New<FrameStateFunctionInfo>(
-      type, parameter_count, max_arguments, local_count, shared_info);
+    int local_count, IndirectHandle<SharedFunctionInfo> shared_info,
+    IndirectHandle<BytecodeArray> bytecode_array) {
+  return zone()->New<FrameStateFunctionInfo>(type, parameter_count,
+                                             max_arguments, local_count,
+                                             shared_info, bytecode_array);
 }
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -1702,7 +1707,7 @@ const FrameStateFunctionInfo*
 CommonOperatorBuilder::CreateJSToWasmFrameStateFunctionInfo(
     FrameStateType type, uint16_t parameter_count, int local_count,
     Handle<SharedFunctionInfo> shared_info,
-    const wasm::FunctionSig* signature) {
+    const wasm::CanonicalSig* signature) {
   DCHECK_EQ(type, FrameStateType::kJSToWasmBuiltinContinuation);
   DCHECK_NOT_NULL(signature);
   return zone()->New<JSToWasmFrameStateFunctionInfo>(
@@ -1710,34 +1715,12 @@ CommonOperatorBuilder::CreateJSToWasmFrameStateFunctionInfo(
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-const Operator* CommonOperatorBuilder::Chained(const Operator* op) {
-  // Use Chained only for operators that are not on the effect chain already.
-  DCHECK_EQ(op->EffectInputCount(), 0);
-  DCHECK_EQ(op->ControlInputCount(), 0);
-  const char* mnemonic;
-  switch (op->opcode()) {
-    case IrOpcode::kChangeInt64ToBigInt:
-      mnemonic = "Chained[ChangeInt64ToBigInt]";
-      break;
-    case IrOpcode::kChangeUint64ToBigInt:
-      mnemonic = "Chained[ChangeUint64ToBigInt]";
-      break;
-    default:
-      UNREACHABLE();
-  }
-  // TODO(nicohartmann@): Need to store operator properties once we have to
-  // support Operator1 operators.
-  Operator::Properties properties = op->properties();
-  return zone()->New<Operator>(op->opcode(), properties, mnemonic,
-                               op->ValueInputCount(), 1, 1,
-                               op->ValueOutputCount(), 1, 0);
-}
-
-const Operator* CommonOperatorBuilder::DeadValue(MachineRepresentation rep) {
+const Operator* CommonOperatorBuilder::DeadValue(MachineRepresentation rep,
+                                                 int value_input_count) {
   return zone()->New<Operator1<MachineRepresentation>>(  // --
       IrOpcode::kDeadValue, Operator::kPure,             // opcode
       "DeadValue",                                       // name
-      1, 0, 0, 1, 0, 0,                                  // counts
+      value_input_count, 0, 0, 1, 0, 0,                  // counts
       rep);                                              // parameter
 }
 

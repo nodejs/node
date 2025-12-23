@@ -556,14 +556,15 @@ TEST(Demangle, Clones) {
   EXPECT_TRUE(Demangle("_ZL3Foov.part.9.165493.constprop.775.31805", tmp,
                        sizeof(tmp)));
   EXPECT_STREQ("Foo()", tmp);
-  // Invalid (. without anything else), should not demangle.
-  EXPECT_FALSE(Demangle("_ZL3Foov.", tmp, sizeof(tmp)));
-  // Invalid (. with mix of alpha and digits), should not demangle.
-  EXPECT_FALSE(Demangle("_ZL3Foov.abc123", tmp, sizeof(tmp)));
-  // Invalid (.clone. not followed by number), should not demangle.
-  EXPECT_FALSE(Demangle("_ZL3Foov.clone.", tmp, sizeof(tmp)));
-  // Invalid (.constprop. not followed by number), should not demangle.
-  EXPECT_FALSE(Demangle("_ZL3Foov.isra.2.constprop.", tmp, sizeof(tmp)));
+  // Other suffixes should demangle too.
+  EXPECT_TRUE(Demangle("_ZL3Foov.", tmp, sizeof(tmp)));
+  EXPECT_STREQ("Foo()", tmp);
+  EXPECT_TRUE(Demangle("_ZL3Foov.abc123", tmp, sizeof(tmp)));
+  EXPECT_STREQ("Foo()", tmp);
+  EXPECT_TRUE(Demangle("_ZL3Foov.clone.", tmp, sizeof(tmp)));
+  EXPECT_STREQ("Foo()", tmp);
+  EXPECT_TRUE(Demangle("_ZL3Foov.isra.2.constprop.", tmp, sizeof(tmp)));
+  EXPECT_STREQ("Foo()", tmp);
 }
 
 TEST(Demangle, Discriminators) {
@@ -1935,11 +1936,11 @@ static const char *DemangleStackConsumption(const char *mangled,
   return g_demangle_result;
 }
 
-// Demangle stack consumption should be within 8kB for simple mangled names
+// Demangle stack consumption should be within 9kB for simple mangled names
 // with some level of nesting. With alternate signal stack we have 64K,
 // but some signal handlers run on thread stack, and could have arbitrarily
 // little space left (so we don't want to make this number too large).
-const int kStackConsumptionUpperLimit = 8192;
+const int kStackConsumptionUpperLimit = 9670;
 
 // Returns a mangled name nested to the given depth.
 static std::string NestedMangledName(int depth) {
@@ -2015,6 +2016,13 @@ TEST(DemangleRegression, DeeplyNestedArrayType) {
     data += "A1_";
   }
   TestOnInput(data.c_str());
+}
+
+TEST(DemangleRegression, ShortOutputBuffer) {
+  // This should not crash.
+  char buffer[1];
+  EXPECT_FALSE(
+      absl::debugging_internal::Demangle("_ZZ2wwE", buffer, sizeof(buffer)));
 }
 
 struct Base {

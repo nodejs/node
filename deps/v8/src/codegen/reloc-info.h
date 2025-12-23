@@ -113,10 +113,14 @@ class RelocInfo {
     // TODO(ishell): rename to NEAR_CODE_TARGET.
     RELATIVE_CODE_TARGET,  // LAST_CODE_TARGET_MODE
     COMPRESSED_EMBEDDED_OBJECT,
-    FULL_EMBEDDED_OBJECT,  // LAST_GCED_ENUM
+    FULL_EMBEDDED_OBJECT,
+    // An integer JSDispatchHandle, referring to an entry in the
+    // JSDispatchTable.
+    JS_DISPATCH_HANDLE,  // LAST_GCED_ENUM
 
     WASM_CALL,  // FIRST_SHAREABLE_RELOC_MODE
     WASM_STUB_CALL,
+    WASM_CODE_POINTER_TABLE_ENTRY,
     WASM_CANONICAL_SIG_ID,
 
     EXTERNAL_REFERENCE,  // The address of an external C++ function.
@@ -126,7 +130,8 @@ class RelocInfo {
     // and PPC.
     INTERNAL_REFERENCE_ENCODED,
 
-    // An off-heap instruction stream target. See http://goo.gl/Z2HUiM.
+    // An off-heap instruction stream target. See:
+    // https://docs.google.com/document/d/1XmiXT54FQ0qqroWzRc8nzrpSSo_xoyFRkVgmonONEJk
     // TODO(ishell): rename to BUILTIN_ENTRY.
     OFF_HEAP_TARGET,  // FIRST_BUILTIN_ENTRY_MODE
     // An un-embedded off-heap instruction stream target.
@@ -157,10 +162,12 @@ class RelocInfo {
     LAST_REAL_RELOC_MODE = VENEER_POOL,
     FIRST_EMBEDDED_OBJECT_RELOC_MODE = COMPRESSED_EMBEDDED_OBJECT,
     LAST_EMBEDDED_OBJECT_RELOC_MODE = FULL_EMBEDDED_OBJECT,
-    LAST_GCED_ENUM = LAST_EMBEDDED_OBJECT_RELOC_MODE,
+    LAST_GCED_ENUM = JS_DISPATCH_HANDLE,
     FIRST_BUILTIN_ENTRY_MODE = OFF_HEAP_TARGET,
     LAST_BUILTIN_ENTRY_MODE = NEAR_BUILTIN_ENTRY,
     FIRST_SHAREABLE_RELOC_MODE = WASM_CALL,
+    FIRST_DEOPT_MODE = DEOPT_SCRIPT_OFFSET,
+    LAST_DEOPT_MODE = DEOPT_NODE_ID,
   };
 
   static_assert(NUMBER_OF_MODES <= kBitsPerInt);
@@ -212,8 +219,14 @@ class RelocInfo {
   static constexpr bool IsWasmCanonicalSigId(Mode mode) {
     return mode == WASM_CANONICAL_SIG_ID;
   }
+  static constexpr bool IsWasmCodePointerTableEntry(Mode mode) {
+    return mode == WASM_CODE_POINTER_TABLE_ENTRY;
+  }
   static constexpr bool IsConstPool(Mode mode) { return mode == CONST_POOL; }
   static constexpr bool IsVeneerPool(Mode mode) { return mode == VENEER_POOL; }
+  static constexpr bool IsDeoptMode(Mode mode) {
+    return mode >= FIRST_DEOPT_MODE && mode <= LAST_DEOPT_MODE;
+  }
   static constexpr bool IsDeoptPosition(Mode mode) {
     return mode == DEOPT_SCRIPT_OFFSET || mode == DEOPT_INLINING_ID;
   }
@@ -243,6 +256,9 @@ class RelocInfo {
     return base::IsInRange(mode, FIRST_BUILTIN_ENTRY_MODE,
                            LAST_BUILTIN_ENTRY_MODE);
   }
+  static constexpr bool IsJSDispatchHandle(Mode mode) {
+    return mode == JS_DISPATCH_HANDLE;
+  }
   static constexpr bool IsNoInfo(Mode mode) { return mode == NO_INFO; }
 
   static bool IsOnlyForSerializer(Mode mode) {
@@ -263,6 +279,7 @@ class RelocInfo {
   // Accessors
   Address pc() const { return pc_; }
   Mode rmode() const { return rmode_; }
+  Address constant_pool() const { return constant_pool_; }
   intptr_t data() const { return data_; }
 
   // Is the pointer this relocation info refers to coded like a plain pointer
@@ -281,6 +298,7 @@ class RelocInfo {
   Address wasm_call_address() const;
   Address wasm_stub_call_address() const;
   V8_EXPORT_PRIVATE uint32_t wasm_canonical_sig_id() const;
+  V8_INLINE WasmCodePointer wasm_code_pointer_table_entry() const;
 
   uint32_t wasm_call_tag() const;
 
@@ -294,7 +312,7 @@ class RelocInfo {
   // Cage base value is used for decompressing compressed embedded references.
   V8_INLINE Tagged<HeapObject> target_object(PtrComprCageBase cage_base);
 
-  V8_INLINE Handle<HeapObject> target_object_handle(Assembler* origin);
+  V8_INLINE DirectHandle<HeapObject> target_object_handle(Assembler* origin);
 
   // Decodes builtin ID encoded as a PC-relative offset. This encoding is used
   // during code generation of call/jump with NEAR_BUILTIN_ENTRY.
@@ -337,21 +355,17 @@ class RelocInfo {
   // can only be called if rmode_ is INTERNAL_REFERENCE.
   V8_INLINE Address target_internal_reference_address();
 
+  // Return the JSDispatchHandle this relocation applies to;
+  // can only be called if rmode_ is JS_DISPATCH_HANDLE.
+  V8_INLINE JSDispatchHandle js_dispatch_handle();
+
+  // Returns address and size of a slot for garbage collection reasons. Only
+  // usable if `IsGCRelocMode()` is true.
+  V8_INLINE Address target_address_address_for_gc();
+  V8_INLINE uint32_t target_address_size_for_gc();
+
   template <typename ObjectVisitor>
-  void Visit(Tagged<InstructionStream> host, ObjectVisitor* visitor) {
-    Mode mode = rmode();
-    if (IsEmbeddedObjectMode(mode)) {
-      visitor->VisitEmbeddedPointer(host, this);
-    } else if (IsCodeTargetMode(mode)) {
-      visitor->VisitCodeTarget(host, this);
-    } else if (IsExternalReference(mode)) {
-      visitor->VisitExternalReference(host, this);
-    } else if (IsInternalReference(mode) || IsInternalReferenceEncoded(mode)) {
-      visitor->VisitInternalReference(host, this);
-    } else if (IsBuiltinEntryMode(mode)) {
-      visitor->VisitOffHeapTarget(host, this);
-    }
-  }
+  void Visit(Tagged<InstructionStream> host, ObjectVisitor* visitor);
 
 #ifdef ENABLE_DISASSEMBLER
   // Printing
@@ -374,6 +388,10 @@ class RelocInfo {
   static int EmbeddedObjectModeMask() {
     return ModeMask(RelocInfo::FULL_EMBEDDED_OBJECT) |
            ModeMask(RelocInfo::COMPRESSED_EMBEDDED_OBJECT);
+  }
+
+  static int JSDispatchHandleModeMask() {
+    return ModeMask(RelocInfo::JS_DISPATCH_HANDLE);
   }
 
   // In addition to modes covered by the apply mask (which is applied at GC
@@ -404,10 +422,11 @@ class WritableRelocInfo : public RelocInfo {
  public:
   WritableRelocInfo(WritableJitAllocation& jit_allocation, Address pc,
                     Mode rmode)
-      : RelocInfo(pc, rmode) {}
+      : RelocInfo(pc, rmode), jit_allocation_(jit_allocation) {}
   WritableRelocInfo(WritableJitAllocation& jit_allocation, Address pc,
                     Mode rmode, intptr_t data, Address constant_pool)
-      : RelocInfo(pc, rmode, data, constant_pool) {}
+      : RelocInfo(pc, rmode, data, constant_pool),
+        jit_allocation_(jit_allocation) {}
 
   // Apply a relocation by delta bytes. When the code object is moved, PC
   // relative addresses have to be updated as well as absolute addresses
@@ -418,6 +437,9 @@ class WritableRelocInfo : public RelocInfo {
   void set_wasm_call_address(Address);
   void set_wasm_stub_call_address(Address);
   void set_wasm_canonical_sig_id(uint32_t);
+  V8_INLINE void set_wasm_code_pointer_table_entry(
+      WasmCodePointer,
+      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
   void set_target_address(
       Tagged<InstructionStream> host, Address target,
@@ -438,6 +460,16 @@ class WritableRelocInfo : public RelocInfo {
 
   V8_INLINE void set_target_external_reference(
       Address, ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
+
+  void set_js_dispatch_handle(
+      Tagged<InstructionStream> host, JSDispatchHandle handle,
+      WriteBarrierMode write_barrier_mode = UPDATE_WRITE_BARRIER,
+      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
+
+  V8_INLINE WritableJitAllocation& jit_allocation() { return jit_allocation_; }
+
+ private:
+  WritableJitAllocation& jit_allocation_;
 };
 
 // RelocInfoWriter serializes a stream of relocation info. It writes towards
@@ -469,7 +501,7 @@ class RelocInfoWriter {
   inline uint32_t WriteLongPCJump(uint32_t pc_delta);
 
   inline void WriteShortTaggedPC(uint32_t pc_delta, int tag);
-  inline void WriteShortData(intptr_t data_delta);
+  inline void WriteShortData(uint8_t data_delta);
 
   inline void WriteMode(RelocInfo::Mode rmode);
   inline void WriteModeAndPC(uint32_t pc_delta, RelocInfo::Mode rmode);

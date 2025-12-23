@@ -23,7 +23,7 @@ const os = require('node:os');
 added: v0.7.8
 -->
 
-* {string}
+* Type: {string}
 
 The operating system-specific end-of-line marker.
 
@@ -55,8 +55,7 @@ added: v0.5.0
 
 Returns the operating system CPU architecture for which the Node.js binary was
 compiled. Possible values are `'arm'`, `'arm64'`, `'ia32'`, `'loong64'`,
-`'mips'`, `'mipsel'`, `'ppc64'`, `'riscv64'`, `'s390'`, `'s390x'`,
-and `'x64'`.
+`'mips'`, `'mipsel'`, `'ppc64'`, `'riscv64'`, `'s390x'`, and `'x64'`.
 
 The return value is equivalent to [`process.arch`][].
 
@@ -66,7 +65,7 @@ The return value is equivalent to [`process.arch`][].
 added: v6.3.0
 -->
 
-* {Object}
+* Type: {Object}
 
 Contains commonly used operating system-specific constants for error codes,
 process signals, and so on. The specific constants defined are described in
@@ -161,7 +160,7 @@ added:
   - v14.18.0
 -->
 
-* {string}
+* Type: {string}
 
 The platform-specific file path of the null device.
 
@@ -257,7 +256,7 @@ added:
 * Returns: {string}
 
 Returns the machine type as a string, such as `arm`, `arm64`, `aarch64`,
-`mips`, `mips64`, `ppc64`, `ppc64le`, `s390`, `s390x`, `i386`, `i686`, `x86_64`.
+`mips`, `mips64`, `ppc64`, `ppc64le`, `s390x`, `i386`, `i686`, `x86_64`.
 
 On POSIX systems, the machine type is determined by calling
 [`uname(3)`][]. On Windows, `RtlGetVersion()` is used, and if it is not

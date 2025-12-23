@@ -16,6 +16,7 @@ const { getContents, logTar } = require('../utils/tar.js')
 const { flatten } = require('@npmcli/config/lib/definitions')
 const pkgJson = require('@npmcli/package-json')
 const BaseCommand = require('../base-cmd.js')
+const { oidc } = require('../../lib/utils/oidc.js')
 
 class Publish extends BaseCommand {
   static description = 'Publish a package'
@@ -136,6 +137,9 @@ class Publish extends BaseCommand {
     npa(`${manifest.name}@${defaultTag}`)
 
     const registry = npmFetch.pickRegistry(resolved, opts)
+
+    await oidc({ packageName: manifest.name, registry, opts, config: this.npm.config })
+
     const creds = this.npm.config.getCredentialsByURI(registry)
     const noCreds = !(creds.token || creds.username || creds.certfile && creds.keyfile)
     const outputRegistry = replaceInfo(registry)
@@ -184,7 +188,7 @@ class Publish extends BaseCommand {
       await otplease(this.npm, opts, o => libpub(manifest, tarballData, o))
     }
 
-    // In json mode we dont log until the publish has completed as this will
+    // In json mode we don't log until the publish has completed as this will
     // add it to the output only if completes successfully
     if (json) {
       logPkg()

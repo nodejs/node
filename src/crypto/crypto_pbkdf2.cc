@@ -101,9 +101,9 @@ Maybe<void> PBKDF2Traits::AdditionalConfig(
   }
 
   Utf8Value name(args.GetIsolate(), args[offset + 4]);
-  params->digest = Digest::FromName(name.ToStringView());
+  params->digest = Digest::FromName(*name);
   if (!params->digest) [[unlikely]] {
-    THROW_ERR_CRYPTO_INVALID_DIGEST(env, "Invalid digest: %s", *name);
+    THROW_ERR_CRYPTO_INVALID_DIGEST(env, "Invalid digest: %s", name);
     return Nothing<void>();
   }
 
@@ -112,7 +112,8 @@ Maybe<void> PBKDF2Traits::AdditionalConfig(
 
 bool PBKDF2Traits::DeriveBits(Environment* env,
                               const PBKDF2Config& params,
-                              ByteSource* out) {
+                              ByteSource* out,
+                              CryptoJobMode mode) {
   // Both pass and salt may be zero length here.
   auto dp = ncrypto::pbkdf2(params.digest,
                             ncrypto::Buffer<const char>{

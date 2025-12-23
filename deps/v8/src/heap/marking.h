@@ -11,8 +11,6 @@
 #include "src/common/globals.h"
 #include "src/heap/marking-worklist.h"
 #include "src/objects/heap-object.h"
-#include "src/objects/map.h"
-#include "src/utils/utils.h"
 
 namespace v8::internal {
 
@@ -23,8 +21,9 @@ class MarkBit final {
   using CellType = uintptr_t;
   static_assert(sizeof(CellType) == sizeof(base::AtomicWord));
 
-  V8_ALLOW_UNUSED static inline MarkBit From(Address);
-  V8_ALLOW_UNUSED static inline MarkBit From(Tagged<HeapObject>);
+  V8_ALLOW_UNUSED static inline MarkBit From(const Isolate* isolate, Address);
+  V8_ALLOW_UNUSED static inline MarkBit From(const Isolate* isolate,
+                                             Tagged<HeapObject>);
 
   // These methods are meant to be used from the debugger and therefore
   // intentionally not inlined such that they are always available.
@@ -71,7 +70,7 @@ inline bool MarkBit::Set<AccessMode::NON_ATOMIC>() {
 
 template <>
 inline bool MarkBit::Set<AccessMode::ATOMIC>() {
-  return base::AsAtomicWord::SetBits(cell_, mask_, mask_);
+  return base::AsAtomicWord::Relaxed_SetBits(cell_, mask_);
 }
 
 template <>
@@ -81,7 +80,7 @@ inline bool MarkBit::Get<AccessMode::NON_ATOMIC>() const {
 
 template <>
 inline bool MarkBit::Get<AccessMode::ATOMIC>() const {
-  return (base::AsAtomicWord::Acquire_Load(cell_) & mask_) != 0;
+  return (base::AsAtomicWord::Relaxed_Load(cell_) & mask_) != 0;
 }
 
 inline bool MarkBit::Clear() {
@@ -149,7 +148,14 @@ class V8_EXPORT_PRIVATE MarkingBitmap final {
 
   // Gets the MarkBit for an `address` which may be unaligned (include the tag
   // bit).
-  V8_INLINE static MarkBit MarkBitFromAddress(Address address);
+  V8_INLINE static MarkBit MarkBitFromAddress(MarkingBitmap* bitmap,
+                                              Address address);
+
+  V8_INLINE static MarkBit MarkBitFromAddress(const Isolate* isolate,
+                                              Address address);
+  V8_INLINE static MarkBit MarkBitFromAddress(const Isolate* isolate,
+                                              MarkingBitmap* bitmap,
+                                              Address address);
 
   MarkingBitmap() = default;
   MarkingBitmap(const MarkingBitmap&) = delete;
@@ -204,7 +210,8 @@ class V8_EXPORT_PRIVATE MarkingBitmap final {
                                                 Address maybe_inner_ptr);
 
  private:
-  V8_INLINE static MarkingBitmap* FromAddress(Address address);
+  V8_INLINE static MarkingBitmap* FromAddress(const Isolate* isolate,
+                                              Address address);
 
   // Sets bits in the given cell. The mask specifies bits to set: if a
   // bit is set in the mask then the corresponding bit is set in the cell.
@@ -230,53 +237,6 @@ class V8_EXPORT_PRIVATE MarkingBitmap final {
   CellType cells_[kCellsCount] = {0};
 };
 
-class LiveObjectRange final {
- public:
-  class iterator final {
-   public:
-    using value_type = std::pair<Tagged<HeapObject>, int /* size */>;
-    using pointer = const value_type*;
-    using reference = const value_type&;
-    using iterator_category = std::forward_iterator_tag;
-
-    inline iterator();
-    explicit inline iterator(const PageMetadata* page);
-
-    inline iterator& operator++();
-    inline iterator operator++(int);
-
-    bool operator==(iterator other) const {
-      return current_object_ == other.current_object_;
-    }
-    bool operator!=(iterator other) const { return !(*this == other); }
-
-    value_type operator*() {
-      return std::make_pair(current_object_, current_size_);
-    }
-
-   private:
-    inline bool AdvanceToNextMarkedObject();
-    inline void AdvanceToNextValidObject();
-
-    const PageMetadata* const page_ = nullptr;
-    const MarkBit::CellType* const cells_ = nullptr;
-    const PtrComprCageBase cage_base_;
-    MarkingBitmap::CellIndex current_cell_index_ = 0;
-    MarkingBitmap::CellType current_cell_ = 0;
-    Tagged<HeapObject> current_object_;
-    Tagged<Map> current_map_;
-    int current_size_ = 0;
-  };
-
-  explicit LiveObjectRange(const PageMetadata* page) : page_(page) {}
-
-  inline iterator begin();
-  inline iterator end();
-
- private:
-  const PageMetadata* const page_;
-};
-
 struct MarkingHelper final : public AllStatic {
   // TODO(340989496): Add on hold as target in ShouldMarkObject() and
   // TryMarkAndPush().
@@ -298,21 +258,21 @@ struct MarkingHelper final : public AllStatic {
 
   // Returns whether the markbit of an object should be considered or whether
   // the object is always considered as live.
-  static V8_INLINE LivenessMode GetLivenessMode(Heap* heap,
+  static V8_INLINE LivenessMode GetLivenessMode(const Heap* heap,
                                                 Tagged<HeapObject> object);
 
   // Returns true if the object is marked or resides on an always live page.
   template <typename MarkingStateT>
-  static V8_INLINE bool IsMarkedOrAlwaysLive(Heap* heap,
-                                             MarkingStateT* marking_state,
+  static V8_INLINE bool IsMarkedOrAlwaysLive(const Heap* heap,
+                                             const MarkingStateT* marking_state,
                                              Tagged<HeapObject> object);
 
   // Returns true if the object is unmarked and doesn't reside on an always live
   // page.
   template <typename MarkingStateT>
-  static V8_INLINE bool IsUnmarkedAndNotAlwaysLive(Heap* heap,
-                                                   MarkingStateT* marking_state,
-                                                   Tagged<HeapObject> object);
+  static V8_INLINE bool IsUnmarkedAndNotAlwaysLive(
+      const Heap* heap, const MarkingStateT* marking_state,
+      Tagged<HeapObject> object);
 
   // Convenience helper around marking and pushing an object.
   //

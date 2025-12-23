@@ -165,4 +165,8 @@ String16 findSourceMapURL(const String16& content, bool multiline) {
   return findMagicComment(content, "sourceMappingURL", multiline);
 }
 
+String16 findDebugId(const String16& content, bool multiline) {
+  return findMagicComment(content, "debugId", multiline);
+}
+
 }  // namespace v8_inspector

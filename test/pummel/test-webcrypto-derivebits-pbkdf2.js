@@ -362,50 +362,40 @@ const kDerivations = {
 };
 
 async function setupBaseKeys() {
-  const promises = [];
-
   const baseKeys = {};
   const noBits = {};
   const noKey = {};
   let wrongKey = null;
 
-  Object.keys(kPasswords).forEach((size) => {
-    promises.push(
-      subtle.importKey(
-        'raw',
-        Buffer.from(kPasswords[size], 'hex'),
-        { name: 'PBKDF2' },
-        false,
-        ['deriveKey', 'deriveBits'])
-        .then((key) => baseKeys[size] = key));
-
-    promises.push(
-      subtle.importKey(
-        'raw',
-        Buffer.from(kPasswords[size], 'hex'),
-        { name: 'PBKDF2' },
-        false,
-        ['deriveBits'])
-        .then((key) => noKey[size] = key));
-
-    promises.push(
-      subtle.importKey(
-        'raw',
-        Buffer.from(kPasswords[size], 'hex'),
-        { name: 'PBKDF2' },
-        false,
-        ['deriveKey'])
-        .then((key) => noBits[size] = key));
-  });
-
-  promises.push(
-    subtle.generateKey(
-      { name: 'ECDH', namedCurve: 'P-521' },
+  await Promise.all(Object.keys(kPasswords).flatMap((size) => [
+    subtle.importKey(
+      'raw',
+      Buffer.from(kPasswords[size], 'hex'),
+      { name: 'PBKDF2' },
       false,
       ['deriveKey', 'deriveBits'])
-      .then((key) => wrongKey = key.privateKey));
+        .then((key) => baseKeys[size] = key),
 
-  await Promise.all(promises);
+    subtle.importKey(
+      'raw',
+      Buffer.from(kPasswords[size], 'hex'),
+      { name: 'PBKDF2' },
+      false,
+      ['deriveBits'])
+        .then((key) => noKey[size] = key),
+
+    subtle.importKey(
+      'raw',
+      Buffer.from(kPasswords[size], 'hex'),
+      { name: 'PBKDF2' },
+      false,
+      ['deriveKey'])
+        .then((key) => noBits[size] = key),
+  ]).concat(subtle.generateKey(
+    { name: 'ECDH', namedCurve: 'P-521' },
+    false,
+    ['deriveKey', 'deriveBits'])
+      .then((key) => wrongKey = key.privateKey)));
 
   return { baseKeys, noBits, noKey, wrongKey };
 }
@@ -483,7 +473,6 @@ async function testDeriveBitsBadHash(
           ...algorithm,
           hash: hash.substring(0, 3) + hash.substring(4),
         }, baseKeys[size], 256), {
-        message: /Unrecognized algorithm name/,
         name: 'NotSupportedError',
       }),
     assert.rejects(
@@ -493,7 +482,6 @@ async function testDeriveBitsBadHash(
           hash: 'HKDF',
         },
         baseKeys[size], 256), {
-        message: /Unrecognized algorithm name/,
         name: 'NotSupportedError',
       }),
   ]);
@@ -571,10 +559,7 @@ async function testDeriveKeyBadHash(
         keyType,
         true,
         usages),
-      {
-        message: /Unrecognized algorithm name/,
-        name: 'NotSupportedError',
-      }),
+      { name: 'NotSupportedError' }),
     assert.rejects(
       subtle.deriveKey(
         {
@@ -585,10 +570,7 @@ async function testDeriveKeyBadHash(
         keyType,
         true,
         usages),
-      {
-        message: /Unrecognized algorithm name/,
-        name: 'NotSupportedError',
-      }),
+      { name: 'NotSupportedError' }),
   ]);
 }
 

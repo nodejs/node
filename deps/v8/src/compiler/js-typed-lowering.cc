@@ -7,10 +7,15 @@
 #include <optional>
 
 #include "src/ast/modules.h"
+#include "src/base/logging.h"
+#include "src/builtins/builtins-inl.h"
 #include "src/builtins/builtins-utils.h"
 #include "src/codegen/code-factory.h"
 #include "src/codegen/interface-descriptors-inl.h"
+#include "src/common/globals.h"
 #include "src/compiler/access-builder.h"
+#include "src/compiler/allocation-builder-inl.h"
+#include "src/compiler/allocation-builder.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/graph-assembler.h"
@@ -20,14 +25,23 @@
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/node.h"
+#include "src/compiler/opcodes.h"
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/simplified-operator.h"
+#include "src/compiler/turbofan-types.h"
 #include "src/compiler/type-cache.h"
-#include "src/compiler/types.h"
+#include "src/deoptimizer/deoptimize-reason.h"
 #include "src/execution/protectors.h"
+#include "src/flags/flags.h"
+#include "src/objects/casting.h"
+#include "src/objects/contexts.h"
+#include "src/objects/heap-number.h"
+#include "src/objects/heap-object.h"
 #include "src/objects/js-generator.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/objects.h"
+#include "src/objects/property-cell.h"
 
 namespace v8 {
 namespace internal {
@@ -65,6 +79,7 @@ class JSBinopReduction final {
       case CompareOperationHint::kBigInt64:
       case CompareOperationHint::kReceiver:
       case CompareOperationHint::kReceiverOrNullOrUndefined:
+      case CompareOperationHint::kStringOrOddball:
       case CompareOperationHint::kInternalizedString:
         break;
     }
@@ -84,6 +99,7 @@ class JSBinopReduction final {
       case CompareOperationHint::kSymbol:
       case CompareOperationHint::kReceiver:
       case CompareOperationHint::kReceiverOrNullOrUndefined:
+      case CompareOperationHint::kStringOrOddball:
       case CompareOperationHint::kInternalizedString:
         return false;
       case CompareOperationHint::kBigInt:
@@ -123,6 +139,13 @@ class JSBinopReduction final {
            BothInputsMaybe(Type::String());
   }
 
+  bool IsStringOrOddballCompareOperation() {
+    DCHECK_EQ(1, node_->op()->EffectOutputCount());
+    return (GetCompareOperationHint(node_) ==
+            CompareOperationHint::kStringOrOddball) &&
+           BothInputsMaybe(Type::StringOrOddball());
+  }
+
   bool IsSymbolCompareOperation() {
     DCHECK_EQ(1, node_->op()->EffectOutputCount());
     return (GetCompareOperationHint(node_) == CompareOperationHint::kSymbol) &&
@@ -134,14 +157,30 @@ class JSBinopReduction final {
   // minimum length.
   bool ShouldCreateConsString() {
     DCHECK_EQ(IrOpcode::kJSAdd, node_->opcode());
-    DCHECK(OneInputIs(Type::String()));
-    if (BothInputsAre(Type::String()) ||
+    DCHECK(OneInputIs(Type::StringOrStringWrapper()));
+    if (node_->InputAt(1)->opcode() == IrOpcode::kNewConsString) {
+      // If the right hand side is a ConsString, then we can create a
+      // ConsString. This doesn't work with the left hand side, since the right
+      // hand side of a ConsString cannot be the empty string except when the
+      // left hand side is a SeqString or External string, but we don't know
+      // that here.
+      return true;
+    }
+    // We don't look inside JSStringWrappers, but if the other side is a long
+    // enough string, that's enough to trigger cons string creation.
+    if (BothInputsAre(Type::StringOrStringWrapper()) ||
         GetBinaryOperationHint(node_) == BinaryOperationHint::kString) {
       HeapObjectBinopMatcher m(node_);
       JSHeapBroker* broker = lowering_->broker();
       if (m.right().HasResolvedValue() && m.right().Ref(broker).IsString()) {
         StringRef right_string = m.right().Ref(broker).AsString();
         if (right_string.length() >= ConsString::kMinLength) return true;
+        if (right_string.length() > 0 &&
+            m.left().opcode() == IrOpcode::kNewConsString) {
+          // Left is a ConsString and right is not the empty string, so we can
+          // create a ConsString.
+          return true;
+        }
       }
       if (m.left().HasResolvedValue() && m.left().Ref(broker).IsString()) {
         StringRef left_string = m.left().Ref(broker).AsString();
@@ -244,6 +283,23 @@ class JSBinopReduction final {
       Node* right_input =
           graph()->NewNode(simplified()->CheckString(FeedbackSource()), right(),
                            effect(), control());
+      node_->ReplaceInput(1, right_input);
+      update_effect(right_input);
+    }
+  }
+
+  void CheckInputsToStringOrOddball() {
+    if (!left_type().Is(Type::StringOrOddball())) {
+      Node* left_input =
+          graph()->NewNode(simplified()->CheckStringOrOddball(FeedbackSource()),
+                           left(), effect(), control());
+      node_->ReplaceInput(0, left_input);
+      update_effect(left_input);
+    }
+    if (!right_type().Is(Type::StringOrOddball())) {
+      Node* right_input =
+          graph()->NewNode(simplified()->CheckStringOrOddball(FeedbackSource()),
+                           right(), effect(), control());
       node_->ReplaceInput(1, right_input);
       update_effect(right_input);
     }
@@ -442,7 +498,7 @@ class JSBinopReduction final {
   Type type() { return NodeProperties::GetType(node_); }
 
   SimplifiedOperatorBuilder* simplified() { return lowering_->simplified(); }
-  Graph* graph() const { return lowering_->graph(); }
+  TFGraph* graph() const { return lowering_->graph(); }
   JSGraph* jsgraph() { return lowering_->jsgraph(); }
   Isolate* isolate() { return jsgraph()->isolate(); }
   JSOperatorBuilder* javascript() { return lowering_->javascript(); }
@@ -662,7 +718,7 @@ Node* JSTypedLowering::UnwrapStringWrapper(Node* string_or_wrapper,
 
   Node* vfalse = efalse = graph()->NewNode(
       simplified()->LoadField(AccessBuilder::ForJSPrimitiveWrapperValue()),
-      string_or_wrapper, *effect, *control);
+      string_or_wrapper, *effect, if_false);
 
   // The value read from a string wrapper is a string.
   vfalse = efalse = graph()->NewNode(common()->TypeGuard(Type::String()),
@@ -761,7 +817,8 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
 
     // Generate the string addition.
     return GenerateStringAddition(node, left_string, right_string, context,
-                                  frame_state, &effect, &control, false);
+                                  frame_state, &effect, &control,
+                                  r.ShouldCreateConsString());
   }
 
   // We never get here when we had String feedback.
@@ -1019,7 +1076,10 @@ Reduction JSTypedLowering::ReduceJSStrictEqual(Node* node) {
   if (r.BothInputsAre(Type::String())) {
     return r.ChangeToPureOperator(simplified()->StringEqual());
   }
-
+  if (r.IsStringOrOddballCompareOperation()) {
+    r.CheckInputsToStringOrOddball();
+    return r.ChangeToPureOperator(simplified()->StringOrOddballStrictEqual());
+  }
   NumberOperationHint hint;
   BigIntOperationHint hint_bigint;
   if (r.BothInputsAre(Type::Signed32()) ||
@@ -1285,10 +1345,15 @@ Reduction JSTypedLowering::ReduceJSToObject(Node* node) {
         graph()->zone(), callable.descriptor(),
         callable.descriptor().GetStackParameterCount(),
         CallDescriptor::kNeedsFrameState, node->op()->properties());
-    rfalse = efalse = if_false =
+    Node* call = rfalse = efalse = if_false =
         graph()->NewNode(common()->Call(call_descriptor),
                          jsgraph()->HeapConstantNoHole(callable.code()),
                          receiver, context, frame_state, efalse, if_false);
+
+    // We preserve the type of {node}. This is generally useful (to  enable
+    // type-based optimizations), and is also required in order to help
+    // verification of TypeGuards.
+    NodeProperties::SetType(call, NodeProperties::GetType(node));
   }
 
   // Update potential {IfException} uses of {node} to point to the above
@@ -1515,26 +1580,6 @@ Reduction JSTypedLowering::ReduceJSHasContextExtension(Node* node) {
   gasm.InitializeEffectControl(effect, control);
 
   for (size_t i = 0; i < depth; ++i) {
-#if DEBUG
-    // Const tracking let data is stored in the extension slot of a
-    // ScriptContext - however, it's unrelated to the sloppy eval variable
-    // extension. We should never iterate through a ScriptContext here.
-
-    TNode<ScopeInfo> scope_info = gasm.LoadField<ScopeInfo>(
-        AccessBuilder::ForContextSlot(Context::SCOPE_INFO_INDEX), context);
-    TNode<Word32T> scope_info_flags = gasm.EnterMachineGraph<Word32T>(
-        gasm.LoadField<Word32T>(AccessBuilder::ForScopeInfoFlags(), scope_info),
-        UseInfo::TruncatingWord32());
-    TNode<Word32T> scope_type = gasm.Word32And(
-        scope_info_flags, gasm.Uint32Constant(ScopeInfo::ScopeTypeBits::kMask));
-    TNode<Word32T> is_script_scope = gasm.Word32Equal(
-        scope_type, gasm.Uint32Constant(ScopeType::SCRIPT_SCOPE));
-    TNode<Word32T> is_not_script_scope =
-        gasm.Word32Equal(is_script_scope, gasm.Uint32Constant(0));
-    gasm.Assert(is_not_script_scope, "we should no see a ScriptContext here",
-                __FILE__, __LINE__);
-#endif
-
     context = gasm.LoadField<Context>(
         AccessBuilder::ForContextSlotKnownPointer(Context::PREVIOUS_INDEX),
         context);
@@ -1558,8 +1603,8 @@ Reduction JSTypedLowering::ReduceJSHasContextExtension(Node* node) {
   return Changed(node);
 }
 
-Reduction JSTypedLowering::ReduceJSLoadContext(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSLoadContext, node->opcode());
+Reduction JSTypedLowering::ReduceJSLoadContextNoCell(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSLoadContextNoCell, node->opcode());
   ContextAccess const& access = ContextAccessOf(node->op());
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* context = NodeProperties::GetContextInput(node);
@@ -1579,8 +1624,85 @@ Reduction JSTypedLowering::ReduceJSLoadContext(Node* node) {
   return Changed(node);
 }
 
-Reduction JSTypedLowering::ReduceJSStoreContext(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSStoreContext, node->opcode());
+Reduction JSTypedLowering::ReduceJSLoadContext(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSLoadContext, node->opcode());
+  ContextAccess const& access = ContextAccessOf(node->op());
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  JSGraphAssembler gasm(broker(), jsgraph(), jsgraph()->zone(),
+                        BranchSemantics::kJS);
+  gasm.InitializeEffectControl(effect, control);
+
+  TNode<Context> context =
+      TNode<Context>::UncheckedCast(NodeProperties::GetContextInput(node));
+  for (size_t i = 0; i < access.depth(); ++i) {
+    context = gasm.LoadField<Context>(
+        AccessBuilder::ForContextSlotKnownPointer(Context::PREVIOUS_INDEX),
+        context);
+  }
+
+  TNode<Object> value = gasm.LoadField<Object>(
+      AccessBuilder::ForContextSlot(access.index()), context);
+  TNode<Object> result =
+      gasm.SelectIf<Object>(gasm.ObjectIsSmi(value))
+          .Then([&] { return value; })
+          .Else([&] {
+            return gasm.SelectIf<Object>(gasm.IsTheHole(value))
+                .Then([&] { return value; })
+                .Else([&] {
+                  TNode<Map> value_map =
+                      gasm.LoadMap(TNode<HeapObject>::UncheckedCast(value));
+                  return gasm.SelectIf<Object>(gasm.IsContextCellMap(value_map))
+                      .Then([&] {
+                        TNode<HeapObject> heap_value =
+                            TNode<HeapObject>::UncheckedCast(value);
+                        TNode<Int32T> state = gasm.LoadField<Int32T>(
+                            AccessBuilder::ForContextCellState(), heap_value);
+                        static_assert(ContextCell::State::kConst == 0);
+                        static_assert(ContextCell::State::kSmi == 1);
+                        return gasm
+                            .MachineSelectIf<Object>(gasm.Int32LessThanOrEqual(
+                                state, gasm.Int32Constant(ContextCell::kSmi)))
+                            .Then([&] {
+                              return gasm.LoadField<Object>(
+                                  AccessBuilder::ForContextCellTaggedValue(),
+                                  heap_value);
+                            })
+                            .Else([&] {
+                              return gasm
+                                  .MachineSelectIf<Object>(gasm.Word32Equal(
+                                      state,
+                                      gasm.Int32Constant(ContextCell::kInt32)))
+                                  .Then([&] {
+                                    return gasm.LoadField<Number>(
+                                        AccessBuilder::
+                                            ForContextCellInt32Value(),
+                                        heap_value);
+                                  })
+                                  .Else([&] {
+                                    return gasm.LoadField<Number>(
+                                        AccessBuilder::
+                                            ForContextCellFloat64Value(),
+                                        heap_value);
+                                  })
+                                  .Value();
+                            })
+                            .Value();
+                      })
+                      .Else([&] { return value; })
+                      .ExpectFalse()
+                      .Value();
+                })
+                .Value();
+          })
+          .Value();
+
+  ReplaceWithValue(node, result, gasm.effect(), gasm.control());
+  return Changed(node);
+}
+
+Reduction JSTypedLowering::ReduceJSStoreContextNoCell(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSStoreContextNoCell, node->opcode());
   ContextAccess const& access = ContextAccessOf(node->op());
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* context = NodeProperties::GetContextInput(node);
@@ -1598,6 +1720,62 @@ Reduction JSTypedLowering::ReduceJSStoreContext(Node* node) {
   NodeProperties::ChangeOp(
       node,
       simplified()->StoreField(AccessBuilder::ForContextSlot(access.index())));
+  return Changed(node);
+}
+
+Reduction JSTypedLowering::ReduceJSStoreContext(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSStoreContext, node->opcode());
+  ContextAccess const& access = ContextAccessOf(node->op());
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  FrameState frame_state{NodeProperties::GetFrameStateInput(node)};
+  JSGraphAssembler gasm(broker(), jsgraph(), jsgraph()->zone(),
+                        BranchSemantics::kJS);
+  gasm.InitializeEffectControl(effect, control);
+
+  TNode<Context> context =
+      TNode<Context>::UncheckedCast(NodeProperties::GetContextInput(node));
+  for (size_t i = 0; i < access.depth(); ++i) {
+    context = gasm.LoadField<Context>(
+        AccessBuilder::ForContextSlotKnownPointer(Context::PREVIOUS_INDEX),
+        context);
+  }
+
+  TNode<Object> old_value = gasm.LoadField<Object>(
+      AccessBuilder::ForContextSlot(access.index()), context);
+  TNode<Object> new_value =
+      TNode<Object>::UncheckedCast(NodeProperties::GetValueInput(node, 0));
+
+  gasm.If(gasm.ObjectIsSmi(old_value))
+      .Then([&] {
+        gasm.StoreField(AccessBuilder::ForContextSlot(access.index()), context,
+                        new_value);
+      })
+      .Else([&] {
+        gasm.If(gasm.IsTheHole(old_value))
+            .Then([&] {
+              gasm.StoreField(AccessBuilder::ForContextSlot(access.index()),
+                              context, new_value);
+            })
+            .Else([&] {
+              TNode<Map> old_value_map =
+                  gasm.LoadMap(TNode<HeapObject>::UncheckedCast(old_value));
+              gasm.If(gasm.IsContextCellMap(old_value_map))
+                  .Then([&] {
+                    gasm.DetachContextCell(context, new_value,
+                                           static_cast<int>(access.index()),
+                                           frame_state);
+                  })
+                  .Else([&] {
+                    gasm.StoreField(
+                        AccessBuilder::ForContextSlot(access.index()), context,
+                        new_value);
+                  })
+                  .ExpectFalse();
+            });
+      });
+
+  ReplaceWithValue(node, gasm.effect(), gasm.effect(), gasm.control());
   return Changed(node);
 }
 
@@ -1692,6 +1870,12 @@ void ReduceBuiltin(JSGraph* jsgraph, Node* node, Builtin builtin, int arity,
   // -- 6 + n + 1: argc (Int32)
   // -----------------------------------
 
+  // These SBXCHECKs are a defense-in-depth measure to ensure that we always
+  // generate valid calls here (with matching signatures).
+  SBXCHECK(Builtins::IsCpp(builtin));
+  SBXCHECK_GE(arity + kJSArgcReceiverSlots,
+              Builtins::GetFormalParameterCount(builtin));
+
   // The logic contained here is mirrored in Builtins::Generate_Adaptor.
   // Keep these in sync.
 
@@ -1716,7 +1900,6 @@ void ReduceBuiltin(JSGraph* jsgraph, Node* node, Builtin builtin, int arity,
 
   // CPP builtins are implemented in C++, and we can inline it.
   // CPP builtins create a builtin exit frame.
-  DCHECK(Builtins::IsCpp(builtin));
   const bool has_builtin_exit_frame = true;
 
   Node* stub =
@@ -1726,12 +1909,16 @@ void ReduceBuiltin(JSGraph* jsgraph, Node* node, Builtin builtin, int arity,
   const int argc = arity + BuiltinArguments::kNumExtraArgsWithReceiver;
   Node* argc_node = jsgraph->ConstantNoHole(argc);
 
-  static const int kStubAndReceiver = 2;
+  static const int kStub = 1;
+  static_assert(BuiltinArguments::kNewTargetIndex == 0);
+  static_assert(BuiltinArguments::kTargetIndex == 1);
+  static_assert(BuiltinArguments::kArgcIndex == 2);
+  static_assert(BuiltinArguments::kPaddingIndex == 3);
   node->InsertInput(zone, 1, new_target);
   node->InsertInput(zone, 2, target);
   node->InsertInput(zone, 3, argc_node);
   node->InsertInput(zone, 4, jsgraph->PaddingConstant());
-  int cursor = arity + kStubAndReceiver + BuiltinArguments::kNumExtraArgs;
+  int cursor = arity + kStub + BuiltinArguments::kNumExtraArgsWithReceiver;
 
   Address entry = Builtins::CppEntryOf(builtin);
   ExternalReference entry_ref = ExternalReference::Create(entry);
@@ -1740,12 +1927,10 @@ void ReduceBuiltin(JSGraph* jsgraph, Node* node, Builtin builtin, int arity,
   node->InsertInput(zone, cursor++, entry_node);
   node->InsertInput(zone, cursor++, argc_node);
 
-  static const int kReturnCount = 1;
   const char* debug_name = Builtins::name(builtin);
   Operator::Properties properties = node->op()->properties();
-  auto call_descriptor = Linkage::GetCEntryStubCallDescriptor(
-      zone, kReturnCount, argc, debug_name, properties, flags,
-      StackArgumentOrder::kJS);
+  auto call_descriptor = Linkage::GetCPPBuiltinCallDescriptor(
+      zone, argc, debug_name, properties, flags);
 
   NodeProperties::ChangeOp(node, jsgraph->common()->Call(call_descriptor));
 }
@@ -1922,10 +2107,16 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
     }
 
     // Load the context from the {target}.
-    Node* context = effect = graph()->NewNode(
-        simplified()->LoadField(AccessBuilder::ForJSFunctionContext()), target,
-        effect, control);
-    NodeProperties::ReplaceContextInput(node, context);
+    if (function) {
+      NodeProperties::ReplaceContextInput(
+          node,
+          jsgraph()->ConstantNoHole(function->context(broker()), broker()));
+    } else {
+      Node* context = effect = graph()->NewNode(
+          simplified()->LoadField(AccessBuilder::ForJSFunctionContext()),
+          target, effect, control);
+      NodeProperties::ReplaceContextInput(node, context);
+    }
 
     // Update the effect dependency for the {node}.
     NodeProperties::ReplaceEffectInput(node, effect);
@@ -1934,8 +2125,9 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
     CallDescriptor::Flags flags = CallDescriptor::kNeedsFrameState;
     Node* new_target = jsgraph()->UndefinedConstant();
 
+    // TODO(412398354): use the dispatch handle here to avoid a runtime check.
     int formal_count =
-        shared->internal_formal_parameter_count_without_receiver();
+        shared->internal_formal_parameter_count_without_receiver_deprecated();
     if (formal_count > arity) {
       node->RemoveInput(n.FeedbackVectorIndex());
       // Underapplication. Massage the arguments to match the expected number of
@@ -1949,6 +2141,11 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
       node->InsertInput(graph()->zone(), formal_count + 2, new_target);
       node->InsertInput(graph()->zone(), formal_count + 3,
                         jsgraph()->ConstantNoHole(JSParameterCount(arity)));
+#ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
+      node->InsertInput(
+          graph()->zone(), formal_count + 4,
+          jsgraph()->ConstantNoHole(kPlaceholderDispatchHandle.value()));
+#endif
       NodeProperties::ChangeOp(node,
                                common()->Call(Linkage::GetJSCallDescriptor(
                                    graph()->zone(), false, 1 + formal_count,
@@ -1958,10 +2155,16 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
       // Patch {node} to a direct CEntry call.
       ReduceBuiltin(jsgraph(), node, shared->builtin_id(), arity, flags);
     } else if (shared->HasBuiltinId()) {
-      DCHECK(Builtins::HasJSLinkage(shared->builtin_id()));
+      Builtin builtin = shared->builtin_id();
+      DCHECK(Builtins::HasJSLinkage(builtin));
+
+      // This SBXCHECK is a defense-in-depth measure to ensure that we always
+      // generate valid calls here (with matching signatures).
+      SBXCHECK_GE(arity + kJSArgcReceiverSlots,
+                  Builtins::GetFormalParameterCount(builtin));
+
       // Patch {node} to a direct code object call.
-      Callable callable =
-          Builtins::CallableFor(isolate(), shared->builtin_id());
+      Callable callable = Builtins::CallableFor(isolate(), builtin);
 
       const CallInterfaceDescriptor& descriptor = callable.descriptor();
       auto call_descriptor = Linkage::GetStubCallDescriptor(
@@ -1972,6 +2175,11 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
       node->InsertInput(graph()->zone(), 2, new_target);
       node->InsertInput(graph()->zone(), 3,
                         jsgraph()->ConstantNoHole(JSParameterCount(arity)));
+#ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
+      node->InsertInput(
+          graph()->zone(), 4,
+          jsgraph()->ConstantNoHole(kPlaceholderDispatchHandle.value()));
+#endif
       NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
     } else {
       // Patch {node} to a direct call.
@@ -1979,6 +2187,11 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
       node->InsertInput(graph()->zone(), arity + 2, new_target);
       node->InsertInput(graph()->zone(), arity + 3,
                         jsgraph()->ConstantNoHole(JSParameterCount(arity)));
+#ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
+      node->InsertInput(
+          graph()->zone(), arity + 4,
+          jsgraph()->ConstantNoHole(kPlaceholderDispatchHandle.value()));
+#endif
       NodeProperties::ChangeOp(node,
                                common()->Call(Linkage::GetJSCallDescriptor(
                                    graph()->zone(), false, 1 + arity,
@@ -2352,8 +2565,8 @@ Reduction JSTypedLowering::ReduceJSGeneratorRestoreContinuation(Node* node) {
   return Changed(continuation);
 }
 
-Reduction JSTypedLowering::ReduceJSGeneratorRestoreContext(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSGeneratorRestoreContext, node->opcode());
+Reduction JSTypedLowering::ReduceJSGeneratorRestoreContextNoCell(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSGeneratorRestoreContextNoCell, node->opcode());
 
   const Operator* new_op =
       simplified()->LoadField(AccessBuilder::ForJSGeneratorObjectContext());
@@ -2603,8 +2816,12 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       return ReduceJSToObject(node);
     case IrOpcode::kJSLoadNamed:
       return ReduceJSLoadNamed(node);
+    case IrOpcode::kJSLoadContextNoCell:
+      return ReduceJSLoadContextNoCell(node);
     case IrOpcode::kJSLoadContext:
       return ReduceJSLoadContext(node);
+    case IrOpcode::kJSStoreContextNoCell:
+      return ReduceJSStoreContextNoCell(node);
     case IrOpcode::kJSStoreContext:
       return ReduceJSStoreContext(node);
     case IrOpcode::kJSLoadModule:
@@ -2633,8 +2850,8 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       return ReduceJSGeneratorStore(node);
     case IrOpcode::kJSGeneratorRestoreContinuation:
       return ReduceJSGeneratorRestoreContinuation(node);
-    case IrOpcode::kJSGeneratorRestoreContext:
-      return ReduceJSGeneratorRestoreContext(node);
+    case IrOpcode::kJSGeneratorRestoreContextNoCell:
+      return ReduceJSGeneratorRestoreContextNoCell(node);
     case IrOpcode::kJSGeneratorRestoreRegister:
       return ReduceJSGeneratorRestoreRegister(node);
     case IrOpcode::kJSGeneratorRestoreInputOrDebugPos:
@@ -2653,7 +2870,7 @@ Reduction JSTypedLowering::Reduce(Node* node) {
 
 Factory* JSTypedLowering::factory() const { return jsgraph()->factory(); }
 
-Graph* JSTypedLowering::graph() const { return jsgraph()->graph(); }
+TFGraph* JSTypedLowering::graph() const { return jsgraph()->graph(); }
 
 CompilationDependencies* JSTypedLowering::dependencies() const {
   return broker()->dependencies();

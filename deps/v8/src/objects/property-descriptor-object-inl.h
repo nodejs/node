@@ -5,8 +5,10 @@
 #ifndef V8_OBJECTS_PROPERTY_DESCRIPTOR_OBJECT_INL_H_
 #define V8_OBJECTS_PROPERTY_DESCRIPTOR_OBJECT_INL_H_
 
-#include "src/objects/objects-inl.h"
 #include "src/objects/property-descriptor-object.h"
+// Include the non-inl header before the rest of the headers.
+
+#include "src/objects/objects-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"

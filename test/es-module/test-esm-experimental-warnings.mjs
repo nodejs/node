@@ -1,6 +1,6 @@
 import { spawnPromisified } from '../common/index.mjs';
 import { fileURL } from '../common/fixtures.mjs';
-import { doesNotMatch, match, strictEqual } from 'node:assert';
+import assert from 'node:assert';
 import { execPath } from 'node:process';
 import { describe, it } from 'node:test';
 
@@ -13,13 +13,13 @@ describe('ESM: warn for obsolete hooks provided', { concurrency: !process.env.TE
       `import ${JSON.stringify(fileURL('es-module-loaders', 'module-named-exports.mjs'))}`,
     ]);
 
-    doesNotMatch(
+    assert.doesNotMatch(
       stderr,
       /ExperimentalWarning/,
       new Error('No experimental warning(s) should be emitted when no experimental feature is enabled')
     );
-    strictEqual(code, 0);
-    strictEqual(signal, null);
+    assert.strictEqual(code, 0);
+    assert.strictEqual(signal, null);
   });
 
   describe('experimental warnings for enabled experimental feature', () => {
@@ -40,10 +40,10 @@ describe('ESM: warn for obsolete hooks provided', { concurrency: !process.env.TE
           `import ${JSON.stringify(fileURL('es-module-loaders', 'module-named-exports.mjs'))}`,
         ]);
 
-        match(stderr, /ExperimentalWarning/);
-        match(stderr, experiment);
-        strictEqual(code, 0);
-        strictEqual(signal, null);
+        assert.match(stderr, /ExperimentalWarning/);
+        assert.match(stderr, experiment);
+        assert.strictEqual(code, 0);
+        assert.strictEqual(signal, null);
       });
     }
   });

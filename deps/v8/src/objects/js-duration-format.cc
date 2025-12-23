@@ -19,16 +19,22 @@
 #include "src/objects/intl-objects.h"
 #include "src/objects/js-duration-format-inl.h"
 #include "src/objects/js-number-format.h"
-#include "src/objects/js-temporal-objects.h"
+#include "src/objects/js-temporal-helpers.h"
 #include "src/objects/managed-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/option-utils.h"
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wshadow"
 #include "unicode/dtfmtsym.h"
 #include "unicode/listformatter.h"
 #include "unicode/locid.h"
 #include "unicode/numberformatter.h"
 #include "unicode/ulistformatter.h"
 #include "unicode/unumberformatter.h"
+#ifdef V8_TEMPORAL_SUPPORT
+#include "src/objects/js-temporal-objects.h"
+#endif
+#pragma GCC diagnostic pop
 
 namespace v8 {
 namespace internal {
@@ -56,12 +62,14 @@ struct DurationUnitOptions {
   JSDurationFormat::Display display;
 };
 
-const std::initializer_list<const char*> kLongShortNarrowStrings = {
-    "long", "short", "narrow"};
-const std::initializer_list<const char*> kLongShortNarrowNumericStrings = {
-    "long", "short", "narrow", "numeric"};
-const std::initializer_list<const char*> kLongShortNarrowNumeric2DigitStrings =
-    {"long", "short", "narrow", "numeric", "2-digit"};
+const auto kLongShortNarrowStrings =
+    std::to_array<const std::string_view>({"long", "short", "narrow"});
+const auto kLongShortNarrowNumericStrings =
+    std::to_array<const std::string_view>(
+        {"long", "short", "narrow", "numeric"});
+const auto kLongShortNarrowNumeric2DigitStrings =
+    std::to_array<const std::string_view>(
+        {"long", "short", "narrow", "numeric", "2-digit"});
 
 const std::initializer_list<JSDurationFormat::FieldStyle>
     kLongShortNarrowEnums = {JSDurationFormat::FieldStyle::kLong,
@@ -81,23 +89,22 @@ const std::initializer_list<JSDurationFormat::FieldStyle>
         JSDurationFormat::FieldStyle::k2Digit};
 
 Maybe<DurationUnitOptions> GetDurationUnitOptions(
-    Isolate* isolate, Unit unit, const char* unit_string,
-    const char* display_field, Handle<JSReceiver> options,
+    Isolate* isolate, Unit unit, DirectHandle<String> unit_string,
+    DirectHandle<String> display_field, DirectHandle<JSReceiver> options,
     JSDurationFormat::Style base_style,
-    const std::vector<const char*>& value_strings,
-    const std::vector<JSDurationFormat::FieldStyle>& value_enums,
+    const std::span<const std::string_view> value_strings,
+    const std::span<const JSDurationFormat::FieldStyle> value_enums,
     JSDurationFormat::FieldStyle digital_base,
     JSDurationFormat::FieldStyle prev_style) {
   const char* method_name = "Intl.DurationFormat";
   JSDurationFormat::FieldStyle style;
   // 1. Let style be ? GetOption(options, unit, "string", stylesList,
   // undefined).
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, style,
       GetStringOption<JSDurationFormat::FieldStyle>(
           isolate, options, unit_string, method_name, value_strings,
-          value_enums, JSDurationFormat::FieldStyle::kUndefined),
-      Nothing<DurationUnitOptions>());
+          value_enums, JSDurationFormat::FieldStyle::kUndefined));
 
   // 2. Let displayDefault be "always".
   JSDurationFormat::Display display_default =
@@ -164,34 +171,30 @@ Maybe<DurationUnitOptions> GetDurationUnitOptions(
   // 6. Let display be ? GetOption(options, displayField, "string", « "auto",
   // "always" », displayDefault).
   JSDurationFormat::Display display;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, display,
       GetStringOption<JSDurationFormat::Display>(
-          isolate, options, display_field, method_name, {"auto", "always"},
-          {JSDurationFormat::Display::kAuto,
-           JSDurationFormat::Display::kAlways},
-          display_default),
-      Nothing<DurationUnitOptions>());
+          isolate, options, display_field, method_name,
+          std::to_array<const std::string_view>({"auto", "always"}),
+          std::array{JSDurationFormat::Display::kAuto,
+                     JSDurationFormat::Display::kAlways},
+          display_default));
   // 7. If display is "always" and style is "fractional", then
   if (display == JSDurationFormat::Display::kAlways &&
       style == JSDurationFormat::FieldStyle::kFractional) {
     // a. Throw a RangeError exception.
-    THROW_NEW_ERROR_RETURN_VALUE(
-        isolate,
-        NewRangeError(MessageTemplate::kInvalid,
-                      isolate->factory()->object_string(), options),
-        Nothing<DurationUnitOptions>());
+    THROW_NEW_ERROR(
+        isolate, NewRangeError(MessageTemplate::kInvalid,
+                               isolate->factory()->object_string(), options));
   }
   // 8. If prevStyle is "fractional", then
   if (prev_style == JSDurationFormat::FieldStyle::kFractional) {
     // a. If style is not "fractional", then
     if (style != JSDurationFormat::FieldStyle::kFractional) {
       // i. Throw a RangeError exception.
-      THROW_NEW_ERROR_RETURN_VALUE(
-          isolate,
-          NewRangeError(MessageTemplate::kInvalid,
-                        isolate->factory()->object_string(), options),
-          Nothing<DurationUnitOptions>());
+      THROW_NEW_ERROR(
+          isolate, NewRangeError(MessageTemplate::kInvalid,
+                                 isolate->factory()->object_string(), options));
     }
   }
   // 7. If prevStyle is "numeric" or "2-digit", then
@@ -202,11 +205,9 @@ Maybe<DurationUnitOptions> GetDurationUnitOptions(
         style != JSDurationFormat::FieldStyle::kNumeric &&
         style != JSDurationFormat::FieldStyle::k2Digit) {
       // i. Throw a RangeError exception.
-      THROW_NEW_ERROR_RETURN_VALUE(
-          isolate,
-          NewRangeError(MessageTemplate::kInvalid,
-                        isolate->factory()->object_string(), options),
-          Nothing<DurationUnitOptions>());
+      THROW_NEW_ERROR(
+          isolate, NewRangeError(MessageTemplate::kInvalid,
+                                 isolate->factory()->object_string(), options));
     }
     // b. If unit is "minutes" or "seconds", then
     if (unit == Unit::kMinutes || unit == Unit::kSeconds) {
@@ -239,30 +240,26 @@ JSDurationFormat::Separator GetSeparator(const icu::Locale& l) {
 }
 
 }  // namespace
-MaybeHandle<JSDurationFormat> JSDurationFormat::New(
-    Isolate* isolate, DirectHandle<Map> map, Handle<Object> locales,
-    Handle<Object> input_options) {
+MaybeDirectHandle<JSDurationFormat> JSDurationFormat::New(
+    Isolate* isolate, DirectHandle<Map> map, DirectHandle<Object> locales,
+    DirectHandle<Object> input_options, const char* method_name) {
   Factory* factory = isolate->factory();
-  const char* method_name = "Intl.DurationFormat";
 
   // 3. Let requestedLocales be ? CanonicalizeLocaleList(locales).
   std::vector<std::string> requested_locales;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, requested_locales,
-      Intl::CanonicalizeLocaleList(isolate, locales),
-      Handle<JSDurationFormat>());
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, requested_locales,
+                             Intl::CanonicalizeLocaleList(isolate, locales));
 
   // 4. Let options be ? GetOptionsObject(options).
-  Handle<JSReceiver> options;
+  DirectHandle<JSReceiver> options;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, options, GetOptionsObject(isolate, input_options, method_name));
 
   // 5. Let matcher be ? GetOption(options, "localeMatcher", "string", «
   // "lookup", "best fit" », "best fit").
   Intl::MatcherOption matcher;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, matcher, Intl::GetLocaleMatcher(isolate, options, method_name),
-      Handle<JSDurationFormat>());
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, matcher, Intl::GetLocaleMatcher(isolate, options, method_name));
 
   // 6. Let numberingSystem be ? GetOption(options, "numberingSystem", "string",
   // undefined, undefined).
@@ -273,44 +270,41 @@ MaybeHandle<JSDurationFormat> JSDurationFormat::New(
   // nonterminal, throw a RangeError exception.
   // Note: The matching test and throw in Step 7-a is throw inside
   // Intl::GetNumberingSystem.
-  std::unique_ptr<char[]> numbering_system_str = nullptr;
+  std::string numbering_system_str;
   bool get;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, get,
       Intl::GetNumberingSystem(isolate, options, method_name,
-                               &numbering_system_str),
-      Handle<JSDurationFormat>());
+                               numbering_system_str));
 
   // 8. Let opt be the Record { [[localeMatcher]]: matcher, [[nu]]:
   // numberingSystem }.
   // 9. Let r be ResolveLocale(%DurationFormat%.[[AvailableLocales]],
   // requestedLocales, opt, %DurationFormat%.[[RelevantExtensionKeys]],
   // %DurationFormat%.[[LocaleData]]).
-  std::set<std::string> relevant_extension_keys{"nu"};
   Intl::ResolvedLocale r;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, r,
-      Intl::ResolveLocale(isolate, JSDurationFormat::GetAvailableLocales(),
-                          requested_locales, matcher, relevant_extension_keys),
-      Handle<JSDurationFormat>());
+  if (!Intl::ResolveLocale(isolate, JSDurationFormat::GetAvailableLocales(),
+                           requested_locales, matcher, {"nu"})
+           .To(&r)) {
+    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError));
+  }
 
   // 10. Let locale be r.[[locale]].
   icu::Locale r_locale = r.icu_locale;
   UErrorCode status = U_ZERO_ERROR;
   // 11. Set durationFormat.[[Locale]] to locale.
   // 12. Set durationFormat.[[NumberingSystem]] to r.[[nu]].
-  if (numbering_system_str != nullptr) {
+  if (get) {
     auto nu_extension_it = r.extensions.find("nu");
     if (nu_extension_it != r.extensions.end() &&
-        nu_extension_it->second != numbering_system_str.get()) {
+        nu_extension_it->second != numbering_system_str) {
       r_locale.setUnicodeKeywordValue("nu", nullptr, status);
       DCHECK(U_SUCCESS(status));
     }
   }
   icu::Locale icu_locale = r_locale;
-  if (numbering_system_str != nullptr &&
-      Intl::IsValidNumberingSystem(numbering_system_str.get())) {
-    r_locale.setUnicodeKeywordValue("nu", numbering_system_str.get(), status);
+  if (get && Intl::IsValidNumberingSystem(numbering_system_str)) {
+    r_locale.setUnicodeKeywordValue("nu", numbering_system_str, status);
     DCHECK(U_SUCCESS(status));
   }
   std::string numbering_system = Intl::GetNumberingSystem(r_locale);
@@ -319,14 +313,15 @@ MaybeHandle<JSDurationFormat> JSDurationFormat::New(
   // 13. Let style be ? GetOption(options, "style", "string", « "long", "short",
   // "narrow", "digital" », "long").
   Style style;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, style,
-      GetStringOption<Style>(
-          isolate, options, "style", method_name,
-          {"long", "short", "narrow", "digital"},
-          {Style::kLong, Style::kShort, Style::kNarrow, Style::kDigital},
-          Style::kShort),
-      Handle<JSDurationFormat>());
+      GetStringOption<Style>(isolate, options,
+                             isolate->factory()->style_string(), method_name,
+                             std::to_array<const std::string_view>(
+                                 {"long", "short", "narrow", "digital"}),
+                             std::array{Style::kLong, Style::kShort,
+                                        Style::kNarrow, Style::kDigital},
+                             Style::kShort));
 
   // 14. Set durationFormat.[[Style]] to style.
   // 15. Set durationFormat.[[DataLocale]] to r.[[dataLocale]].
@@ -362,13 +357,12 @@ MaybeHandle<JSDurationFormat> JSDurationFormat::New(
 
 #define CALL_GET_DURATION_UNIT_OPTIONS(unit, property, strings, enums,         \
                                        digital_base, prev_style)               \
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(                                      \
+  ASSIGN_RETURN_ON_EXCEPTION(                                                  \
       isolate, property##_option,                                              \
       GetDurationUnitOptions(                                                  \
-          isolate, Unit::unit, #property, #property "Display", options, style, \
-          strings, enums, JSDurationFormat::FieldStyle::digital_base,          \
-          prev_style),                                                         \
-      Handle<JSDurationFormat>());
+          isolate, Unit::unit, factory->property##_string(),                   \
+          factory->property##Display_string(), options, style, strings, enums, \
+          JSDurationFormat::FieldStyle::digital_base, prev_style));
 
   // #table-durationformat
   // Table 3: Internal slots and property names of DurationFormat instances
@@ -433,11 +427,10 @@ MaybeHandle<JSDurationFormat> JSDurationFormat::New(
   // 18. Set durationFormat.[[FractionalDigits]] to ? GetNumberOption(options,
   // "fractionalDigits", 0, 9, undefined).
   int fractional_digits;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, fractional_digits,
       GetNumberOption(isolate, options, factory->fractionalDigits_string(), 0,
-                      9, kUndefinedFractionalDigits),
-      Handle<JSDurationFormat>());
+                      9, kUndefinedFractionalDigits));
 
   icu::number::LocalizedNumberFormatter fmt =
       icu::number::UnlocalizedNumberFormatter()
@@ -455,7 +448,7 @@ MaybeHandle<JSDurationFormat> JSDurationFormat::New(
               std::make_shared<icu::number::LocalizedNumberFormatter>(fmt));
 
   // 19. Return durationFormat.
-  Handle<JSDurationFormat> duration_format =
+  DirectHandle<JSDurationFormat> duration_format =
       Cast<JSDurationFormat>(factory->NewFastOrSlowJSObjectFromMap(map));
   duration_format->set_style_flags(0);
   duration_format->set_display_flags(0);
@@ -493,67 +486,78 @@ MaybeHandle<JSDurationFormat> JSDurationFormat::New(
 
 namespace {
 
-Handle<String> StyleToString(Isolate* isolate, JSDurationFormat::Style style) {
+DirectHandle<String> StyleToString(Isolate* isolate,
+                                   JSDurationFormat::Style style) {
   switch (style) {
     case JSDurationFormat::Style::kLong:
-      return ReadOnlyRoots(isolate).long_string_handle();
+      return isolate->factory()->long_string();
     case JSDurationFormat::Style::kShort:
-      return ReadOnlyRoots(isolate).short_string_handle();
+      return isolate->factory()->short_string();
     case JSDurationFormat::Style::kNarrow:
-      return ReadOnlyRoots(isolate).narrow_string_handle();
+      return isolate->factory()->narrow_string();
     case JSDurationFormat::Style::kDigital:
-      return ReadOnlyRoots(isolate).digital_string_handle();
+      return isolate->factory()->digital_string();
   }
+  // Avoid undefined behavior for enum values not handled by the exhaustive
+  // switch, since they're read from inside the sandbox.
+  SBXCHECK(false);
 }
 
-Handle<String> StyleToString(Isolate* isolate,
-                             JSDurationFormat::FieldStyle style) {
+DirectHandle<String> StyleToString(Isolate* isolate,
+                                   JSDurationFormat::FieldStyle style) {
   switch (style) {
     case JSDurationFormat::FieldStyle::kLong:
-      return ReadOnlyRoots(isolate).long_string_handle();
+      return isolate->factory()->long_string();
     case JSDurationFormat::FieldStyle::kShort:
-      return ReadOnlyRoots(isolate).short_string_handle();
+      return isolate->factory()->short_string();
     case JSDurationFormat::FieldStyle::kNarrow:
-      return ReadOnlyRoots(isolate).narrow_string_handle();
+      return isolate->factory()->narrow_string();
     case JSDurationFormat::FieldStyle::kNumeric:
-      return ReadOnlyRoots(isolate).numeric_string_handle();
+      return isolate->factory()->numeric_string();
     case JSDurationFormat::FieldStyle::k2Digit:
-      return ReadOnlyRoots(isolate).two_digit_string_handle();
+      return isolate->factory()->two_digit_string();
     case JSDurationFormat::FieldStyle::kFractional:
       // Step 3 in Intl.DurationFormat.prototype.resolvedOptions ( )
       // e. If v is "fractional", then
       // ii. Set v to "numeric".
-      return ReadOnlyRoots(isolate).numeric_string_handle();
+      return isolate->factory()->numeric_string();
     case JSDurationFormat::FieldStyle::kUndefined:
       UNREACHABLE();
   }
+  // Avoid undefined behavior for enum values not handled by the exhaustive
+  // switch, since they're read from inside the sandbox.
+  SBXCHECK(false);
 }
 
-Handle<String> DisplayToString(Isolate* isolate,
-                               JSDurationFormat::Display display) {
+DirectHandle<String> DisplayToString(Isolate* isolate,
+                                     JSDurationFormat::Display display) {
   switch (display) {
     case JSDurationFormat::Display::kAuto:
-      return ReadOnlyRoots(isolate).auto_string_handle();
+      return isolate->factory()->auto_string();
     case JSDurationFormat::Display::kAlways:
-      return ReadOnlyRoots(isolate).always_string_handle();
+      return isolate->factory()->always_string();
   }
+  // Avoid undefined behavior for enum values not handled by the exhaustive
+  // switch, since they're read from inside the sandbox.
+  SBXCHECK(false);
 }
 
 }  // namespace
 
-Handle<JSObject> JSDurationFormat::ResolvedOptions(
+DirectHandle<JSObject> JSDurationFormat::ResolvedOptions(
     Isolate* isolate, DirectHandle<JSDurationFormat> format) {
   Factory* factory = isolate->factory();
-  Handle<JSObject> options = factory->NewJSObject(isolate->object_function());
+  DirectHandle<JSObject> options =
+      factory->NewJSObject(isolate->object_function());
 
-  Handle<String> locale = factory->NewStringFromAsciiChecked(
+  DirectHandle<String> locale = factory->NewStringFromAsciiChecked(
       Intl::ToLanguageTag(*format->icu_locale()->raw()).FromJust().c_str());
   UErrorCode status = U_ZERO_ERROR;
   icu::UnicodeString skeleton =
       format->icu_number_formatter()->raw()->toSkeleton(status);
   DCHECK(U_SUCCESS(status));
 
-  Handle<String> numbering_system;
+  DirectHandle<String> numbering_system;
   CHECK(Intl::ToString(isolate,
                        JSNumberFormat::NumberingSystemFromSkeleton(skeleton))
             .ToHandle(&numbering_system));
@@ -561,11 +565,11 @@ Handle<JSObject> JSDurationFormat::ResolvedOptions(
   bool created;
 
 #define OUTPUT_PROPERTY(s, f)                                           \
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(                               \
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(                                     \
       isolate, created,                                                 \
       JSReceiver::CreateDataProperty(isolate, options, factory->s(), f, \
                                      Just(kDontThrow)),                 \
-      Handle<JSObject>());                                              \
+      DirectHandle<JSObject>());                                        \
   CHECK(created);
 #define OUTPUT_STYLE_PROPERTY(p) \
   OUTPUT_PROPERTY(p##_string, StyleToString(isolate, format->p##_style()))
@@ -602,8 +606,8 @@ Handle<JSObject> JSDurationFormat::ResolvedOptions(
   int32_t fractional_digits = format->fractional_digits();
   // i. If v is not undefined, set v to 𝔽(v).
   if (kUndefinedFractionalDigits != fractional_digits) {
-    Handle<Smi> fractional_digits_obj =
-        handle(Smi::FromInt(fractional_digits), isolate);
+    DirectHandle<Smi> fractional_digits_obj =
+        direct_handle(Smi::FromInt(fractional_digits), isolate);
     // f. If v is not undefined, then
     // i. Perform ! CreateDataPropertyOrThrow(options, p, v).
     OUTPUT_PROPERTY(fractionalDigits_string, fractional_digits_obj);
@@ -629,6 +633,9 @@ UNumberUnitWidth ToUNumberUnitWidth(JSDurationFormat::FieldStyle style) {
     default:
       UNREACHABLE();
   }
+  // Avoid undefined behavior for enum values not handled by the exhaustive
+  // switch, since they're read from inside the sandbox.
+  SBXCHECK(false);
 }
 
 struct Part {
@@ -739,8 +746,10 @@ bool OutputLongShortNarrowOrNumeric(
   if (value == 0 && display == JSDurationFormat::Display::kAuto)
     return display_negative_sign;
   if (style == JSDurationFormat::FieldStyle::kNumeric) {
-    return Output(type, value, fmt, addToLast, display_negative_sign,
-                  negative_duration, separator, parts, strings);
+    return Output(type, value,
+                  fmt.grouping(UNumberGroupingStrategy::UNUM_GROUPING_OFF),
+                  addToLast, display_negative_sign, negative_duration,
+                  separator, parts, strings);
   }
   return OutputLongShortOrNarrow(
       type, value, display, fmt.unit(unit).unitWidth(ToUNumberUnitWidth(style)),
@@ -762,7 +771,8 @@ bool OutputLongShortNarrowNumericOr2Digit(
       displayRequired) {
     if (style == JSDurationFormat::FieldStyle::k2Digit) {
       return Output(type, value,
-                    fmt.integerWidth(icu::number::IntegerWidth::zeroFillTo(2)),
+                    fmt.integerWidth(icu::number::IntegerWidth::zeroFillTo(2))
+                        .grouping(UNumberGroupingStrategy::UNUM_GROUPING_OFF),
                     maybeAddToLast, display_negative_sign, negative_duration,
                     separator, parts, strings);
     }
@@ -953,13 +963,12 @@ UListFormatterWidth StyleToWidth(JSDurationFormat::Style style) {
 // for Format function to output detail structure and not needed if the
 // Format only needs to output a String.
 template <typename T, bool Details,
-          MaybeHandle<T> (*Format)(Isolate*, const icu::FormattedValue&,
-                                   const std::vector<std::vector<Part>>*,
-                                   JSDurationFormat::Separator separator)>
-MaybeHandle<T> PartitionDurationFormatPattern(Isolate* isolate,
-                                              DirectHandle<JSDurationFormat> df,
-                                              const DurationRecord& record,
-                                              const char* method_name) {
+          MaybeDirectHandle<T> (*Format)(Isolate*, const icu::FormattedValue&,
+                                         const std::vector<std::vector<Part>>*,
+                                         JSDurationFormat::Separator separator)>
+MaybeDirectHandle<T> PartitionDurationFormatPattern(
+    Isolate* isolate, DirectHandle<JSDurationFormat> df,
+    const DurationRecord& record, const char* method_name) {
   // 4. Let lfOpts be ! OrdinaryObjectCreate(null).
   // 5. Perform ! CreateDataPropertyOrThrow(lfOpts, "type", "unit").
   UListFormatterType type = ULISTFMT_TYPE_UNITS;
@@ -989,53 +998,63 @@ MaybeHandle<T> PartitionDurationFormatPattern(Isolate* isolate,
   return Format(isolate, formatted, parts, df->separator());
 }
 
+#ifndef V8_TEMPORAL_SUPPORT
 // #sec-todurationrecord
 // ToDurationRecord is almost the same as temporal::ToPartialDuration
 // except:
 // 1) In the beginning it will throw RangeError if the type of input is String,
 // 2) In the end it will throw RangeError if IsValidDurationRecord return false.
-Maybe<DurationRecord> ToDurationRecord(Isolate* isolate, Handle<Object> input,
+Maybe<DurationRecord> ToDurationRecord(Isolate* isolate,
+                                       DirectHandle<Object> input,
                                        const DurationRecord& default_value) {
   // 1-a. If Type(input) is String, throw a RangeError exception.
   if (IsString(*input)) {
-    THROW_NEW_ERROR_RETURN_VALUE(
-        isolate,
-        NewRangeError(MessageTemplate::kInvalid,
-                      isolate->factory()->object_string(), input),
-        Nothing<DurationRecord>());
+    THROW_NEW_ERROR(isolate,
+                    NewRangeError(MessageTemplate::kInvalid,
+                                  isolate->factory()->object_string(), input));
   }
-  // Step 1-b - 23. Same as ToTemporalPartialDurationRecord.
+
   DurationRecord record;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  // The Temporal spec patches this; we support both cases and normalize
+  // to a DurationRecord
+  // Step 1-b - 23. Same as ToTemporalPartialDurationRecord.
+  // 3. Let record be ?ToDurationRecord(durationLike).
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, record,
-      temporal::ToPartialDuration(isolate, input, default_value),
-      Nothing<DurationRecord>());
-  // 24. If IsValidDurationRecord(result) is false, throw a RangeError
-  // exception.
+      temporal::ToDurationRecord(isolate, input, default_value));
+  // (ToDurationRecord) 24. If IsValidDurationRecord(result) is false, throw a
+  // RangeError exception.
   if (!temporal::IsValidDuration(isolate, record)) {
-    THROW_NEW_ERROR_RETURN_VALUE(
-        isolate,
-        NewRangeError(MessageTemplate::kInvalid,
-                      isolate->factory()->object_string(), input),
-        Nothing<DurationRecord>());
+    THROW_NEW_ERROR(isolate,
+                    NewRangeError(MessageTemplate::kInvalid,
+                                  isolate->factory()->object_string(), input));
   }
   return Just(record);
 }
+#endif  // V8_TEMPORAL_SUPPORT
 
 template <typename T, bool Details,
-          MaybeHandle<T> (*Format)(Isolate*, const icu::FormattedValue&,
-                                   const std::vector<std::vector<Part>>*,
-                                   JSDurationFormat::Separator)>
-MaybeHandle<T> FormatCommon(Isolate* isolate, Handle<JSDurationFormat> df,
-                            Handle<Object> duration, const char* method_name) {
+          MaybeDirectHandle<T> (*Format)(Isolate*, const icu::FormattedValue&,
+                                         const std::vector<std::vector<Part>>*,
+                                         JSDurationFormat::Separator)>
+MaybeDirectHandle<T> FormatCommon(Isolate* isolate,
+                                  DirectHandle<JSDurationFormat> df,
+                                  DirectHandle<Object> duration,
+                                  const char* method_name) {
   // 1. Let df be this value.
   // 2. Perform ? RequireInternalSlot(df, [[InitializedDurationFormat]]).
-  // 3. Let record be ? ToDurationRecord(duration).
   DurationRecord record;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+#ifdef V8_TEMPORAL_SUPPORT
+  // 3. Let duration be ?ToTemporalDuration(durationLike).
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, record,
-      ToDurationRecord(isolate, duration, {0, 0, 0, {0, 0, 0, 0, 0, 0, 0}}),
-      Handle<T>());
+      temporal::ToTemporalDurationAsRecord(isolate, duration, method_name));
+#else
+  // 3. Let record be ? ToDurationRecord(duration).
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, record,
+      ToDurationRecord(isolate, duration, {0, 0, 0, {0, 0, 0, 0, 0, 0, 0}}));
+#endif
   // 5. Let parts be ! PartitionDurationFormatPattern(df, record).
   return PartitionDurationFormatPattern<T, Details, Format>(isolate, df, record,
                                                             method_name);
@@ -1043,20 +1062,20 @@ MaybeHandle<T> FormatCommon(Isolate* isolate, Handle<JSDurationFormat> df,
 
 }  // namespace
 
-MaybeHandle<String> FormattedToString(
+MaybeDirectHandle<String> FormattedToString(
     Isolate* isolate, const icu::FormattedValue& formatted,
     const std::vector<std::vector<Part>>* parts, JSDurationFormat::Separator) {
   DCHECK_NULL(parts);
   return Intl::FormattedToString(isolate, formatted);
 }
 
-MaybeHandle<JSArray> FormattedListToJSArray(
+MaybeDirectHandle<JSArray> FormattedListToJSArray(
     Isolate* isolate, const icu::FormattedValue& formatted,
     const std::vector<std::vector<Part>>* parts,
     JSDurationFormat::Separator separator) {
   DCHECK_NOT_NULL(parts);
   Factory* factory = isolate->factory();
-  Handle<JSArray> array = factory->NewJSArray(0);
+  DirectHandle<JSArray> array = factory->NewJSArray(0);
   icu::ConstrainedFieldPosition cfpos;
   cfpos.constrainCategory(UFIELD_CATEGORY_LIST);
   int index = 0;
@@ -1069,7 +1088,7 @@ MaybeHandle<JSArray> FormattedListToJSArray(
         switch (it.part_type) {
           case Part::Type::kSeparator: {
             icu::UnicodeString sep(SeparatorToChar(separator));
-            Handle<String> separator_string;
+            DirectHandle<String> separator_string;
             ASSIGN_RETURN_ON_EXCEPTION(isolate, separator_string,
                                        Intl::ToString(isolate, sep));
             Intl::AddElement(isolate, array, index++, factory->literal_string(),
@@ -1080,13 +1099,13 @@ MaybeHandle<JSArray> FormattedListToJSArray(
                 factory->NewStringFromAsciiChecked(it.type.c_str());
             Maybe<int> index_after_add = Intl::AddNumberElements(
                 isolate, it.formatted, array, index, type_string);
-            MAYBE_RETURN(index_after_add, MaybeHandle<JSArray>());
+            MAYBE_RETURN(index_after_add, MaybeDirectHandle<JSArray>());
             index = index_after_add.FromJust();
             break;
         }
       }
     } else {
-      Handle<String> substring;
+      DirectHandle<String> substring;
       ASSIGN_RETURN_ON_EXCEPTION(
           isolate, substring,
           Intl::ToString(isolate, string, cfpos.getStart(), cfpos.getLimit()));
@@ -1097,20 +1116,21 @@ MaybeHandle<JSArray> FormattedListToJSArray(
   if (U_FAILURE(status)) {
     THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError));
   }
-  JSObject::ValidateElements(*array);
+  JSObject::ValidateElements(isolate, *array);
   return array;
 }
 
-MaybeHandle<String> JSDurationFormat::Format(Isolate* isolate,
-                                             Handle<JSDurationFormat> df,
-                                             Handle<Object> duration) {
+MaybeDirectHandle<String> JSDurationFormat::Format(
+    Isolate* isolate, DirectHandle<JSDurationFormat> df,
+    DirectHandle<Object> duration) {
   const char* method_name = "Intl.DurationFormat.prototype.format";
   return FormatCommon<String, false, FormattedToString>(isolate, df, duration,
                                                         method_name);
 }
 
-MaybeHandle<JSArray> JSDurationFormat::FormatToParts(
-    Isolate* isolate, Handle<JSDurationFormat> df, Handle<Object> duration) {
+MaybeDirectHandle<JSArray> JSDurationFormat::FormatToParts(
+    Isolate* isolate, DirectHandle<JSDurationFormat> df,
+    DirectHandle<Object> duration) {
   const char* method_name = "Intl.DurationFormat.prototype.formatToParts";
   return FormatCommon<JSArray, true, FormattedListToJSArray>(
       isolate, df, duration, method_name);
@@ -1120,5 +1140,25 @@ const std::set<std::string>& JSDurationFormat::GetAvailableLocales() {
   return JSNumberFormat::GetAvailableLocales();
 }
 
+MaybeDirectHandle<String> JSDurationFormat::TemporalToLocaleString(
+    Isolate* isolate, DirectHandle<JSReceiver> duration,
+    DirectHandle<Object> locales, DirectHandle<Object> options) {
+  const char* method_name = "Temporal.Duration.prototype.toLocaleString";
+  // 3. Let formatter be ? Construct(%Intl.DurationFormat%, « locales,
+  // options »).
+  DirectHandle<JSFunction> constructor(
+      isolate->context()->native_context()->intl_duration_format_function(),
+      isolate);
+  DirectHandle<Map> map =
+      JSFunction::GetDerivedMap(isolate, constructor, constructor)
+          .ToHandleChecked();
+  DirectHandle<JSDurationFormat> df;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, df,
+      JSDurationFormat::New(isolate, map, locales, options, method_name));
+
+  return FormatCommon<String, false, FormattedToString>(isolate, df, duration,
+                                                        method_name);
+}
 }  // namespace internal
 }  // namespace v8

@@ -9,6 +9,7 @@
 #include "histogram.h"
 
 #include "../common/context.h"
+#include "../common/platform.h"
 #include "block_splitter.h"
 #include "command.h"
 

@@ -1,13 +1,14 @@
 // Copyright 2022 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+
+#ifndef V8_CODEGEN_RISCV_BASE_RISCV_I_H_
+#define V8_CODEGEN_RISCV_BASE_RISCV_I_H_
+
 #include "src/codegen/assembler.h"
 #include "src/codegen/riscv/base-assembler-riscv.h"
 #include "src/codegen/riscv/constant-riscv-i.h"
 #include "src/codegen/riscv/register-riscv.h"
-
-#ifndef V8_CODEGEN_RISCV_BASE_RISCV_I_H_
-#define V8_CODEGEN_RISCV_BASE_RISCV_I_H_
 
 namespace v8 {
 namespace internal {
@@ -100,6 +101,9 @@ class AssemblerRISCVI : public AssemblerRiscvBase {
   static bool IsOri(Instr instr);
   static bool IsSlli(Instr instr);
   static bool IsLw(Instr instr);
+#ifdef V8_TARGET_ARCH_RISCV32
+  static bool IsLoadWord(Instr instr) { return IsLw(instr); }
+#endif
 
   inline int32_t branch_offset(Label* L) {
     return branch_offset_helper(L, OffsetSize::kOffset13);
@@ -203,6 +207,7 @@ class AssemblerRISCVI : public AssemblerRiscvBase {
 
   static bool IsAddiw(Instr instr);
   static bool IsLd(Instr instr);
+  static bool IsLoadWord(Instr instr) { return IsLd(instr); }
 #endif
 };
 

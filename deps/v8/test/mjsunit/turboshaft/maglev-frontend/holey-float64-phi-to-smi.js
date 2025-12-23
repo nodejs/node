@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --turboshaft-from-maglev --turbofan
-// Flags: --no-always-turbofan --no-maglev-loop-peeling
+// Flags: --allow-natives-syntax --turbolev --turbofan
+// Flags: --no-maglev-loop-peeling
 
 // Creating an object with 2 Smi fields.
 let o = { x : 42, y : 19 };

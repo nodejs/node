@@ -2,19 +2,21 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_WASM_WASM_OPCODES_INL_H_
+#define V8_WASM_WASM_OPCODES_INL_H_
+
 #if !V8_ENABLE_WEBASSEMBLY
 #error This header should only be included if WebAssembly is enabled.
 #endif  // !V8_ENABLE_WEBASSEMBLY
 
-#ifndef V8_WASM_WASM_OPCODES_INL_H_
-#define V8_WASM_WASM_OPCODES_INL_H_
+#include "src/wasm/wasm-opcodes.h"
+// Include the non-inl header before the rest of the headers.
 
 #include <array>
 
 #include "src/base/template-utils.h"
 #include "src/codegen/signature.h"
 #include "src/execution/messages.h"
-#include "src/wasm/wasm-opcodes.h"
 
 namespace v8 {
 namespace internal {
@@ -33,6 +35,7 @@ constexpr const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     case kSimdPrefix:
     case kAtomicPrefix:
     case kGCPrefix:
+    case kAsmJsPrefix:
       return "unknown";
   }
   // Even though the switch above handles all well-defined enum values,
@@ -137,7 +140,8 @@ constexpr bool WasmOpcodes::IsRelaxedSimdOpcode(WasmOpcode opcode) {
 }
 
 constexpr bool WasmOpcodes::IsFP16SimdOpcode(WasmOpcode opcode) {
-  return opcode >= kExprF16x8Splat && opcode <= kExprF16x8Qfms;
+  return (opcode >= kExprF16x8Splat && opcode <= kExprF16x8ReplaceLane) ||
+         (opcode >= kExprF16x8Abs && opcode <= kExprF16x8Qfms);
 }
 
 #if DEBUG
@@ -170,17 +174,18 @@ enum WasmOpcodeSig : uint8_t {
   FOREACH_SIGNATURE(DECLARE_SIG_ENUM)
 };
 #undef DECLARE_SIG_ENUM
-#define DECLARE_SIG(name, ...)                                                \
-  constexpr ValueType kTypes_##name[] = {__VA_ARGS__};                        \
-  constexpr int kReturnsCount_##name = kTypes_##name[0] == kWasmVoid ? 0 : 1; \
-  constexpr FunctionSig kSig_##name(                                          \
-      kReturnsCount_##name, static_cast<int>(arraysize(kTypes_##name)) - 1,   \
+#define DECLARE_SIG(name, ...)                                              \
+  constexpr inline ValueType kTypes_##name[] = {__VA_ARGS__};               \
+  constexpr inline int kReturnsCount_##name =                               \
+      kTypes_##name[0] == kWasmVoid ? 0 : 1;                                \
+  constexpr inline FunctionSig kSig_##name(                                 \
+      kReturnsCount_##name, static_cast<int>(arraysize(kTypes_##name)) - 1, \
       kTypes_##name + (1 - kReturnsCount_##name));
 FOREACH_SIGNATURE(DECLARE_SIG)
 #undef DECLARE_SIG
 
 #define DECLARE_SIG_ENTRY(name, ...) &kSig_##name,
-constexpr const FunctionSig* kCachedSigs[] = {
+constexpr inline const FunctionSig* kCachedSigs[] = {
     nullptr, FOREACH_SIGNATURE(DECLARE_SIG_ENTRY)};
 #undef DECLARE_SIG_ENTRY
 
@@ -192,7 +197,7 @@ constexpr WasmOpcodeSig GetShortOpcodeSigIndex(uint8_t opcode) {
 }
 
 constexpr WasmOpcodeSig GetAsmJsOpcodeSigIndex(uint8_t opcode) {
-#define CASE(name, opc, sig, ...) opcode == opc ? kSigEnum_##sig:
+#define CASE(name, opc, sig, ...) opcode == (opc & 0xFF) ? kSigEnum_##sig:
   return FOREACH_ASMJS_COMPAT_OPCODE(CASE) kSigEnum_None;
 #undef CASE
 }
@@ -267,6 +272,8 @@ constexpr const FunctionSig* WasmOpcodes::Signature(WasmOpcode opcode) {
     }
     case kNumericPrefix:
       return impl::kCachedSigs[impl::kNumericExprSigTable[opcode & 0xff]];
+    case kAsmJsPrefix:
+      return impl::kCachedSigs[impl::kSimpleAsmjsExprSigTable[opcode & 0xff]];
     default:
       UNREACHABLE();  // invalid prefix.
   }
@@ -282,8 +289,8 @@ constexpr const FunctionSig* WasmOpcodes::SignatureForAtomicOp(
 }
 
 constexpr const FunctionSig* WasmOpcodes::AsmjsSignature(WasmOpcode opcode) {
-  DCHECK_GT(impl::kSimpleAsmjsExprSigTable.size(), opcode);
-  return impl::kCachedSigs[impl::kSimpleAsmjsExprSigTable[opcode]];
+  DCHECK_GT(impl::kSimpleAsmjsExprSigTable.size(), (opcode & 0xff));
+  return impl::kCachedSigs[impl::kSimpleAsmjsExprSigTable[opcode & 0xff]];
 }
 
 constexpr MessageTemplate WasmOpcodes::TrapReasonToMessageId(

@@ -8,9 +8,7 @@ const {
 if (!hasCrypto)
   skip('missing crypto');
 
-const {
-  deepStrictEqual
-} = require('assert');
+const assert = require('assert');
 const {
   createServer,
   connect
@@ -25,7 +23,7 @@ server.on('stream', mustCall((stream) => {
 }));
 server.on('session', mustCall((session) => {
   session.on('ping', mustCall((payload) => {
-    deepStrictEqual(check, payload);
+    assert.deepStrictEqual(check, payload);
   }));
   session.ping(check, mustCall());
 }));
@@ -33,7 +31,7 @@ server.listen(0, mustCall(() => {
   const client = connect(`http://localhost:${server.address().port}`);
 
   client.on('ping', mustCall((payload) => {
-    deepStrictEqual(check, payload);
+    assert.deepStrictEqual(check, payload);
   }));
   client.on('connect', mustCall(() => {
     client.ping(check, mustCall());

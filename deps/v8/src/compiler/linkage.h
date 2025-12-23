@@ -51,7 +51,10 @@ class V8_EXPORT_PRIVATE CallDescriptor final
 #if V8_ENABLE_WEBASSEMBLY    // ↓ WebAssembly only
     kCallWasmCapiFunction,   // target is a Wasm C API function
     kCallWasmFunction,       // target is a wasm function
-    kCallWasmImportWrapper,  // target is a wasm import wrapper
+    kCallWasmFunctionIndirect,  // target is a wasm function that will be called
+                                // indirectly
+    kCallWasmImportWrapper,     // target is a wasm import wrapper
+    kResumeWasmContinuation,    // target is a wasm continuation
 #endif                       // ↑ WebAssembly only
     kCallBuiltinPointer,     // target is a builtin pointer
   };
@@ -68,6 +71,9 @@ class V8_EXPORT_PRIVATE CallDescriptor final
     kInitializeRootRegister = 1u << 3,
     // Does not ever try to allocate space on our heap.
     kNoAllocate = 1u << 4,
+    // Repurpose this bit during instruction selection. Signal the presence of
+    // an effect handler to code generation.
+    kHasEffectHandler = kNoAllocate,
     // Use the kJavaScriptCallCodeStartRegister (fixed) register for the
     // indirect target address when calling.
     kFixedTargetRegister = 1u << 5,
@@ -110,7 +116,8 @@ class V8_EXPORT_PRIVATE CallDescriptor final
                  const char* debug_name = "",
                  StackArgumentOrder stack_order = StackArgumentOrder::kDefault,
                  const RegList allocatable_registers = {},
-                 size_t return_slot_count = 0)
+                 size_t return_slot_count = 0,
+                 uint64_t signature_hash = kInvalidWasmSignatureHash)
       : kind_(kind),
         tag_(tag),
         target_type_(target_type),
@@ -124,7 +131,14 @@ class V8_EXPORT_PRIVATE CallDescriptor final
         allocatable_registers_(allocatable_registers),
         flags_(flags),
         stack_order_(stack_order),
-        debug_name_(debug_name) {}
+        debug_name_(debug_name),
+        signature_hash_(signature_hash) {
+#ifdef V8_ENABLE_WEBASSEMBLY
+    if (kind == Kind::kCallWasmFunctionIndirect) {
+      CHECK_NE(signature_hash, kInvalidWasmSignatureHash);
+    }
+#endif
+  }
 
   CallDescriptor(const CallDescriptor&) = delete;
   CallDescriptor& operator=(const CallDescriptor&) = delete;
@@ -134,6 +148,8 @@ class V8_EXPORT_PRIVATE CallDescriptor final
 
   // Returns the entrypoint tag for this call.
   CodeEntrypointTag tag() const { return tag_; }
+
+  uint64_t signature_hash() const;
 
   // Returns the entrypoint tag for this call, shifted to the right by
   // kCodeEntrypointTagShift so that it fits into a 32-bit immediate.
@@ -152,8 +168,21 @@ class V8_EXPORT_PRIVATE CallDescriptor final
   bool IsJSFunctionCall() const { return kind_ == kCallJSFunction; }
 
 #if V8_ENABLE_WEBASSEMBLY
-  // Returns {true} if this descriptor is a call to a WebAssembly function.
-  bool IsWasmFunctionCall() const { return kind_ == kCallWasmFunction; }
+  // Returns {true} if this descriptor is a direct call to a WebAssembly
+  // function.
+  bool IsDirectWasmFunctionCall() const { return kind_ == kCallWasmFunction; }
+
+  // Returns {true} if this descriptor is a indirect call to a WebAssembly
+  // function.
+  bool IsIndirectWasmFunctionCall() const {
+    return kind_ == kCallWasmFunctionIndirect;
+  }
+
+  // Returns {true} if this descriptor is either a direct or an indirect call to
+  // a WebAssembly function.
+  bool IsAnyWasmFunctionCall() const {
+    return IsDirectWasmFunctionCall() || IsIndirectWasmFunctionCall();
+  }
 
   // Returns {true} if this descriptor is a call to a WebAssembly function.
   bool IsWasmImportWrapper() const { return kind_ == kCallWasmImportWrapper; }
@@ -167,7 +196,7 @@ class V8_EXPORT_PRIVATE CallDescriptor final
   bool RequiresFrameAsIncoming() const {
     if (IsCFunctionCall() || IsJSFunctionCall()) return true;
 #if V8_ENABLE_WEBASSEMBLY
-    if (IsWasmFunctionCall()) return true;
+    if (IsAnyWasmFunctionCall()) return true;
 #endif  // V8_ENABLE_WEBASSEMBLY
     if (CalleeSavedRegisters() != kNoCalleeSaved) return true;
     return false;
@@ -311,6 +340,10 @@ class V8_EXPORT_PRIVATE CallDescriptor final
 
   EncodedCSignature ToEncodedCSignature() const;
 
+  std::optional<Runtime::FunctionId> runtime_function_id() const {
+    return runtime_function_id_;
+  }
+
  private:
   void ComputeParamCounts() const;
 
@@ -332,6 +365,12 @@ class V8_EXPORT_PRIVATE CallDescriptor final
   const Flags flags_;
   const StackArgumentOrder stack_order_;
   const char* const debug_name_;
+
+  uint64_t signature_hash_;
+
+  // If this is a descriptor for a call to a runtime function,
+  // {runtime_function_id_} will contain the corresponding ID.
+  std::optional<Runtime::FunctionId> runtime_function_id_;
 
   mutable std::optional<size_t> gp_param_count_;
   mutable std::optional<size_t> fp_param_count_;
@@ -384,15 +423,15 @@ class V8_EXPORT_PRIVATE Linkage : public NON_EXPORTED_BASE(ZoneObject) {
           Operator::kNoProperties /* use with care! */);
 
   static CallDescriptor* GetRuntimeCallDescriptor(
-      Zone* zone, Runtime::FunctionId function, int js_parameter_count,
+      Zone* zone, Runtime::FunctionId function, int parameter_count,
       Operator::Properties properties, CallDescriptor::Flags flags,
       LazyDeoptOnThrow lazy_deopt_on_throw = LazyDeoptOnThrow::kNo);
 
-  static CallDescriptor* GetCEntryStubCallDescriptor(
-      Zone* zone, int return_count, int js_parameter_count,
-      const char* debug_name, Operator::Properties properties,
-      CallDescriptor::Flags flags,
-      StackArgumentOrder stack_order = StackArgumentOrder::kDefault);
+  // |js_parameter_count| must include BuiltinArguments::kNumExtraArgs and
+  // receiver.
+  static CallDescriptor* GetCPPBuiltinCallDescriptor(
+      Zone* zone, int js_parameter_count, const char* debug_name,
+      Operator::Properties properties, CallDescriptor::Flags flags);
 
   static CallDescriptor* GetStubCallDescriptor(
       Zone* zone, const CallInterfaceDescriptor& descriptor,
@@ -410,7 +449,8 @@ class V8_EXPORT_PRIVATE Linkage : public NON_EXPORTED_BASE(ZoneObject) {
   // structs, pointers to members, etc.
   static CallDescriptor* GetSimplifiedCDescriptor(
       Zone* zone, const MachineSignature* sig,
-      CallDescriptor::Flags flags = CallDescriptor::kNoFlags);
+      CallDescriptor::Flags flags = CallDescriptor::kNoFlags,
+      Operator::Properties properties = Operator::kNoThrow);
 
   // Get the location of an (incoming) parameter to this function.
   LinkageLocation GetParameterLocation(int index) const {
@@ -442,22 +482,34 @@ class V8_EXPORT_PRIVATE Linkage : public NON_EXPORTED_BASE(ZoneObject) {
 
   // A special {Parameter} index for Stub Calls that represents context.
   static int GetStubCallContextParamIndex(int parameter_count) {
-    return parameter_count + 0;  // Parameter (arity + 0) is special.
+    return parameter_count + 0;
   }
 
   // A special {Parameter} index for JSCalls that represents the new target.
   static constexpr int GetJSCallNewTargetParamIndex(int parameter_count) {
-    return parameter_count + 0;  // Parameter (arity + 0) is special.
+    return parameter_count + 0;
   }
 
   // A special {Parameter} index for JSCalls that represents the argument count.
   static constexpr int GetJSCallArgCountParamIndex(int parameter_count) {
-    return parameter_count + 1;  // Parameter (arity + 1) is special.
+    return GetJSCallNewTargetParamIndex(parameter_count) + 1;
   }
+
+#ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
+  // A special {Parameter} index for JSCalls that represents the dispatch
+  // handle.
+  static constexpr int GetJSCallDispatchHandleParamIndex(int parameter_count) {
+    return GetJSCallArgCountParamIndex(parameter_count) + 1;
+  }
+#endif
 
   // A special {Parameter} index for JSCalls that represents the context.
   static constexpr int GetJSCallContextParamIndex(int parameter_count) {
-    return parameter_count + 2;  // Parameter (arity + 2) is special.
+#ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
+    return GetJSCallDispatchHandleParamIndex(parameter_count) + 1;
+#else
+    return GetJSCallArgCountParamIndex(parameter_count) + 1;
+#endif
   }
 
   // A special {Parameter} index for JSCalls that represents the closure.
@@ -471,6 +523,12 @@ class V8_EXPORT_PRIVATE Linkage : public NON_EXPORTED_BASE(ZoneObject) {
   static const int kOsrAccumulatorRegisterIndex = -1;
 
  private:
+  static CallDescriptor* GetCEntryStubCallDescriptor(
+      Zone* zone, int return_count, int stack_parameter_count,
+      const char* debug_name, Operator::Properties properties,
+      CallDescriptor::Flags flags, StackArgumentOrder stack_order,
+      CodeEntrypointTag entrypoint_tag);
+
   CallDescriptor* const incoming_;
 };
 

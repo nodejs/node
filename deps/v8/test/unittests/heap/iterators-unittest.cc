@@ -97,7 +97,13 @@ TEST_F(IteratorsTest, PagedSpaceIterator) {
   PagedSpaceIterator iterator(heap);
   CHECK_EQ(heap->old_space(), iterator.Next());
   CHECK_EQ(heap->code_space(), iterator.Next());
+  if (v8_flags.shared_heap) {
+    CHECK_EQ(heap->shared_space(), iterator.Next());
+  }
   CHECK_EQ(heap->trusted_space(), iterator.Next());
+  if (v8_flags.shared_heap) {
+    CHECK_EQ(heap->shared_trusted_space(), iterator.Next());
+  }
   for (int i = 0; i < 20; i++) {
     CHECK_NULL(iterator.Next());
   }

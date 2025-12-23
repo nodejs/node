@@ -79,17 +79,17 @@ licenseText="$(curl -sL https://raw.githubusercontent.com/bestiejs/punycode.js/H
 addlicense "Punycode.js" "lib/punycode.js" "$licenseText"
 licenseText="$(cat "${rootdir}/deps/v8/LICENSE")"
 addlicense "V8" "deps/v8" "$licenseText"
-licenseText="$(sed -e '/You should have received a copy of the CC0/,$d' -e 's/^\/\* *//' -e 's/^ \* *//' deps/v8/src/third_party/siphash/halfsiphash.cc)"
+licenseText="$(sed -e '/You should have received a copy of the CC0/,$d' -e 's/^\/\* *//' -e 's/^ \* *//' deps/v8/third_party/siphash/halfsiphash.cc)"
 addlicense "SipHash" "deps/v8/src/third_party/siphash" "$licenseText"
 licenseText="$(sed -e '/The data format used by the zlib library/,$d' -e 's/^\/\* *//' -e 's/^ *//' "${rootdir}/deps/zlib/zlib.h")"
 addlicense "zlib" "deps/zlib" "$licenseText"
 licenseText="$(cat "${rootdir}/deps/simdjson/LICENSE")"
 addlicense "simdjson" "deps/simdjson" "$licenseText"
-licenseText="$(cat "${rootdir}/deps/simdutf/LICENSE-MIT")"
-addlicense "simdutf" "deps/simdutf" "$licenseText"
+licenseText="$(cat "${rootdir}/deps/v8/third_party/simdutf/LICENSE")"
+addlicense "simdutf" "deps/v8/third_party/simdutf" "$licenseText"
 licenseText="$(curl -sL https://raw.githubusercontent.com/ada-url/ada/HEAD/LICENSE-MIT)"
 addlicense "ada" "deps/ada" "$licenseText"
-licenseText="$(cat "${rootdir}/deps/minimatch/LICENSE")"
+licenseText="$(cat "${rootdir}/deps/minimatch/LICENSE.md")"
 addlicense "minimatch" "deps/minimatch" "$licenseText"
 
 # npm
@@ -155,5 +155,8 @@ addlicense "node-fs-extra" "lib/internal/fs/cp" "$licenseText"
 
 licenseText="$(curl -sL https://raw.githubusercontent.com/mcollina/on-exit-leak-free/2a01c7e66c690aca17187b10b0cecbe43e083eb2/LICENSE)"
 addlicense "on-exit-leak-free" "lib/internal/process/finalization" "$licenseText"
+
+licenseText="$(curl -sL https://raw.githubusercontent.com/pinojs/sonic-boom/refs/heads/master/LICENSE)"
+addlicense "sonic-boom" "lib/internal/streams/fast-utf8-stream.js" "$licenseText"
 
 mv "$tmplicense" "$licensefile"

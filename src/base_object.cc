@@ -45,7 +45,8 @@ BaseObject::~BaseObject() {
 
   {
     HandleScope handle_scope(realm()->isolate());
-    object()->SetAlignedPointerInInternalField(BaseObject::kSlot, nullptr);
+    object()->SetAlignedPointerInInternalField(
+        BaseObject::kSlot, nullptr, EmbedderDataTag::kDefault);
   }
 }
 
@@ -159,10 +160,6 @@ bool BaseObject::IsDoneInitializing() const {
 
 Local<Object> BaseObject::WrappedObject() const {
   return object();
-}
-
-bool BaseObject::IsRootNode() const {
-  return !persistent_handle_.IsWeak();
 }
 
 bool BaseObject::IsNotIndicativeOfMemoryLeakAtExit() const {

@@ -16,6 +16,7 @@ namespace wasm {
 namespace gdb_server {
 
 using ::testing::_;
+using ::testing::DoAll;
 using ::testing::Return;
 using ::testing::SetArrayArgument;
 using ::testing::StrEq;

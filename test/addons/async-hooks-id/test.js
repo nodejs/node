@@ -10,6 +10,10 @@ assert.strictEqual(
   async_hooks.executionAsyncId(),
 );
 assert.strictEqual(
+  binding.getExecutionAsyncIdWithContext(),
+  async_hooks.executionAsyncId(),
+);
+assert.strictEqual(
   binding.getTriggerAsyncId(),
   async_hooks.triggerAsyncId(),
 );
@@ -17,6 +21,10 @@ assert.strictEqual(
 process.nextTick(common.mustCall(() => {
   assert.strictEqual(
     binding.getExecutionAsyncId(),
+    async_hooks.executionAsyncId(),
+  );
+  assert.strictEqual(
+    binding.getExecutionAsyncIdWithContext(),
     async_hooks.executionAsyncId(),
   );
   assert.strictEqual(

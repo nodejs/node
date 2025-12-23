@@ -1,7 +1,5 @@
 #!/bin/sh
 
-set -xe
-
 GITHUB_REPOSITORY=${GITHUB_REPOSITORY:-nodejs/node}
 BOT_TOKEN=${BOT_TOKEN:-}
 
@@ -19,10 +17,16 @@ if [ -z "$GITHUB_REPOSITORY" ] || [ -z "$BOT_TOKEN" ]; then
   exit 1
 fi
 
-if ! command -v node || ! command -v gh || ! command -v git || ! command -v awk; then
-  echo "Missing required dependencies"
-  exit 1
-fi
+HAS_MISSING_DEPS=
+for dep in node gh git git-node awk; do
+  command -v "$dep" > /dev/null || {
+    echo "Required dependency $dep is missing" >&2
+    HAS_MISSING_DEPS=1
+  }
+done
+[ -z "$HAS_MISSING_DEPS" ] || exit 1
+
+set -xe
 
 git node release --prepare --skipBranchDiff --yes --releaseDate "$RELEASE_DATE"
 
@@ -31,8 +35,9 @@ HEAD_SHA="$(git rev-parse HEAD^)"
 
 TITLE="$(git log -1 --format=%s)"
 
-# Use a temporary file for the PR body
-TEMP_BODY="$(awk "/## ${RELEASE_DATE}/,/^<a id=/{ if (!/^<a id=/) print }" "doc/changelogs/CHANGELOG_V${RELEASE_LINE}.md")"
+TEMP_BODY="$(awk -v MAX_BODY_LENGTH="65536" \
+    "/^## ${RELEASE_DATE}/,/^<a id=/{ if (/^<a id=/) {exit;} if ((output_length += length(\$0)) > MAX_BODY_LENGTH) {exit 1;} print }" \
+    "doc/changelogs/CHANGELOG_V${RELEASE_LINE}.md" || echo "…")"
 
 # Create the proposal branch
 gh api \

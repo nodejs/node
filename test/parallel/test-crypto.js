@@ -218,9 +218,9 @@ assert.throws(() => {
   } : {
     name: 'Error',
     message: /routines:RSA_sign:digest too big for rsa key$/,
-    library: 'rsa routines',
+    library: /rsa routines/i,
     function: 'RSA_sign',
-    reason: 'digest too big for rsa key',
+    reason: /digest[\s_]too[\s_]big[\s_]for[\s_]rsa[\s_]key/i,
     code: 'ERR_OSSL_RSA_DIGEST_TOO_BIG_FOR_RSA_KEY'
   });
   return true;
@@ -274,12 +274,12 @@ function testEncoding(options, assertionHash) {
   const hash = crypto.createHash('sha256', options);
   let hashValue = '';
 
-  hash.on('data', (data) => {
+  hash.on('data', common.mustCall((data) => {
     // The defaultEncoding has no effect on the hash value. It only affects data
     // consumed by the Hash transform stream.
     assert(Buffer.isBuffer(data));
     hashValue += data.toString('hex');
-  });
+  }));
 
   hash.on('end', common.mustCall(() => {
     assert.strictEqual(hashValue, assertionHash);

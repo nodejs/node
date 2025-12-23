@@ -1,22 +1,26 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const repl = require('repl');
-const stream = require('stream');
+const { startNewREPLServer } = require('../common/repl');
+
+const testingReplPrompt = '_REPL_TESTING_PROMPT_>';
 
 testSloppyMode();
 testStrictMode();
 testResetContext();
 testResetContextGlobal();
-testMagicMode();
 testError();
 
 function testSloppyMode() {
-  const r = initRepl(repl.REPL_MODE_SLOPPY);
+  const { replServer, output } = startNewREPLServer({
+    prompt: testingReplPrompt,
+    mode: repl.REPL_MODE_SLOPPY,
+  });
 
   // Cannot use `let` in sloppy mode
-  r.write(`_;          // initial value undefined
+  replServer.write(`_;          // initial value undefined
           var x = 10;  // evaluates to undefined
           _;           // still undefined
           y = 10;      // evaluates to 10
@@ -29,7 +33,7 @@ function testSloppyMode() {
           _;           // remains 30 from user input
           `);
 
-  assertOutput(r.output, [
+  assertOutput(output, [
     'undefined',
     'undefined',
     'undefined',
@@ -46,9 +50,12 @@ function testSloppyMode() {
 }
 
 function testStrictMode() {
-  const r = initRepl(repl.REPL_MODE_STRICT);
+  const { replServer, output } = startNewREPLServer({
+    prompt: testingReplPrompt,
+    mode: repl.REPL_MODE_STRICT,
+  });
 
-  r.write(`_;          // initial value undefined
+  replServer.write(`_;          // initial value undefined
           var x = 10;  // evaluates to undefined
           _;           // still undefined
           let _ = 20;  // use 'let' only in strict mode - evals to undefined
@@ -62,7 +69,7 @@ function testStrictMode() {
           _;           // remains 30 from user input
           `);
 
-  assertOutput(r.output, [
+  assertOutput(output, [
     'undefined',
     'undefined',
     'undefined',
@@ -74,47 +81,16 @@ function testStrictMode() {
     '30',
     'undefined',
     'undefined',
-    '30',
-  ]);
-}
-
-function testMagicMode() {
-  const r = initRepl(repl.REPL_MODE_MAGIC);
-
-  r.write(`_;          // initial value undefined
-          x = 10;      //
-          _;           // last eval - 10
-          let _ = 20;  // undefined
-          _;           // 20 from user input
-          _ = 30;      // make sure we can set it twice and no prompt
-          _;           // 30 from user input
-          var y = 40;  // make sure eval doesn't change _
-          _;           // remains 30 from user input
-          function f() { let _ = 50; return _; } // undefined
-          f();         // 50
-          _;           // remains 30 from user input
-          `);
-
-  assertOutput(r.output, [
-    'undefined',
-    '10',
-    '10',
-    'undefined',
-    '20',
-    '30',
-    '30',
-    'undefined',
-    '30',
-    'undefined',
-    '50',
     '30',
   ]);
 }
 
 function testResetContext() {
-  const r = initRepl(repl.REPL_MODE_SLOPPY);
+  const { replServer, output } = startNewREPLServer({
+    prompt: testingReplPrompt,
+  });
 
-  r.write(`_ = 10;     // explicitly set to 10
+  replServer.write(`_ = 10;     // explicitly set to 10
           _;           // 10 from user input
           .clear       // Clearing context...
           _;           // remains 10
@@ -122,7 +98,7 @@ function testResetContext() {
           _;           // expect 20
           `);
 
-  assertOutput(r.output, [
+  assertOutput(output, [
     'Expression assignment to _ now disabled.',
     '10',
     '10',
@@ -134,15 +110,18 @@ function testResetContext() {
 }
 
 function testResetContextGlobal() {
-  const r = initRepl(repl.REPL_MODE_STRICT, true);
+  const { replServer, output } = startNewREPLServer({
+    prompt: testingReplPrompt,
+    useGlobal: true,
+  });
 
-  r.write(`_ = 10;     // explicitly set to 10
+  replServer.write(`_ = 10;     // explicitly set to 10
           _;           // 10 from user input
           .clear       // No output because useGlobal is true
           _;           // remains 10
           `);
 
-  assertOutput(r.output, [
+  assertOutput(output, [
     'Expression assignment to _ now disabled.',
     '10',
     '10',
@@ -155,9 +134,15 @@ function testResetContextGlobal() {
 }
 
 function testError() {
-  const r = initRepl(repl.REPL_MODE_STRICT);
+  const { replServer, output } = startNewREPLServer({
+    prompt: testingReplPrompt,
+    replMode: repl.REPL_MODE_STRICT,
+    preview: false,
+  }, {
+    disableDomainErrorAssert: true
+  });
 
-  r.write(`_error;                                // initial value undefined
+  replServer.write(`_error;                                // initial value undefined
            throw new Error('foo');                // throws error
            _error;                                // shows error
            fs.readdirSync('/nonexistent?');       // throws error, sync
@@ -167,8 +152,10 @@ function testError() {
                                                   // throws error, async
            `);
 
-  setImmediate(() => {
-    const lines = r.output.accum.trim().split('\n');
+  setImmediate(common.mustCall(() => {
+    const lines = output.accumulator.trim().split('\n').filter(
+      (line) => !line.includes(testingReplPrompt) || line.includes('Uncaught Error')
+    );
     const expectedLines = [
       'undefined',
 
@@ -192,7 +179,7 @@ function testError() {
       'undefined',
 
       // The message from the original throw
-      'Uncaught Error: baz',
+      /Uncaught Error: baz/,
     ];
     for (const line of lines) {
       const expected = expectedLines.shift();
@@ -204,44 +191,24 @@ function testError() {
     assert.strictEqual(expectedLines.length, 0);
 
     // Reset output, check that '_error' is the asynchronously caught error.
-    r.output.accum = '';
-    r.write(`_error.message                 // show the message
+    output.accumulator = '';
+    replServer.write(`_error.message                 // show the message
              _error = 0;                    // disable auto-assignment
              throw new Error('quux');       // new error
              _error;                        // should not see the new error
              `);
 
-    assertOutput(r.output, [
+    assertOutput(output, [
       "'baz'",
       'Expression assignment to _error now disabled.',
       '0',
       'Uncaught Error: quux',
       '0',
     ]);
-  });
-}
-
-function initRepl(mode, useGlobal) {
-  const inputStream = new stream.PassThrough();
-  const outputStream = new stream.PassThrough();
-  outputStream.accum = '';
-
-  outputStream.on('data', (data) => {
-    outputStream.accum += data;
-  });
-
-  return repl.start({
-    input: inputStream,
-    output: outputStream,
-    useColors: false,
-    terminal: false,
-    prompt: '',
-    replMode: mode,
-    useGlobal: useGlobal
-  });
+  }));
 }
 
 function assertOutput(output, expected) {
-  const lines = output.accum.trim().split('\n');
+  const lines = output.accumulator.trim().split('\n').filter((line) => !line.includes(testingReplPrompt));
   assert.deepStrictEqual(lines, expected);
 }

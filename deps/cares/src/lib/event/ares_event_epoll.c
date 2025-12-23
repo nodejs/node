@@ -26,14 +26,14 @@
 #include "ares_private.h"
 #include "ares_event.h"
 
+#if defined(HAVE_EPOLL) && defined(CARES_THREADS)
+
 #ifdef HAVE_SYS_EPOLL_H
 #  include <sys/epoll.h>
 #endif
 #ifdef HAVE_FCNTL_H
 #  include <fcntl.h>
 #endif
-
-#ifdef HAVE_EPOLL
 
 typedef struct {
   int epoll_fd;

@@ -270,6 +270,13 @@ GTEST_DEFINE_bool_(
     "disabled test cases) is linked.");
 
 GTEST_DEFINE_bool_(
+    fail_if_no_test_selected,
+    testing::internal::BoolFromGTestEnv("fail_if_no_test_selected", false),
+    "True if and only if the test should fail if no test case is selected to "
+    "run. A test case is selected to run if it is not disabled and is matched "
+    "by the filter flag so that it starts executing.");
+
+GTEST_DEFINE_bool_(
     also_run_disabled_tests,
     testing::internal::BoolFromGTestEnv("also_run_disabled_tests", false),
     "Run disabled tests too, in addition to the tests normally being run.");
@@ -706,7 +713,7 @@ std::string UnitTestOptions::GetAbsolutePathToOutputFile() {
   const char* const gtest_output_flag = s.c_str();
 
   std::string format = GetOutputFormat();
-  if (format.empty()) format = std::string(kDefaultOutputFormat);
+  if (format.empty()) format = kDefaultOutputFormat;
 
   const char* const colon = strchr(gtest_output_flag, ':');
   if (colon == nullptr)
@@ -1079,14 +1086,14 @@ void DefaultPerThreadTestPartResultReporter::ReportTestPartResult(
 // Returns the global test part result reporter.
 TestPartResultReporterInterface*
 UnitTestImpl::GetGlobalTestPartResultReporter() {
-  internal::MutexLock lock(&global_test_part_result_reporter_mutex_);
+  internal::MutexLock lock(global_test_part_result_reporter_mutex_);
   return global_test_part_result_reporter_;
 }
 
 // Sets the global test part result reporter.
 void UnitTestImpl::SetGlobalTestPartResultReporter(
     TestPartResultReporterInterface* reporter) {
-  internal::MutexLock lock(&global_test_part_result_reporter_mutex_);
+  internal::MutexLock lock(global_test_part_result_reporter_mutex_);
   global_test_part_result_reporter_ = reporter;
 }
 
@@ -1488,17 +1495,17 @@ class Hunk {
   // Print a unified diff header for one hunk.
   // The format is
   //   "@@ -<left_start>,<left_length> +<right_start>,<right_length> @@"
-  // where the left/right parts are omitted if unnecessary.
+  // where the left/right lengths are omitted if unnecessary.
   void PrintHeader(std::ostream* ss) const {
-    *ss << "@@ ";
-    if (removes_) {
-      *ss << "-" << left_start_ << "," << (removes_ + common_);
+    size_t left_length = removes_ + common_;
+    size_t right_length = adds_ + common_;
+    *ss << "@@ " << "-" << left_start_;
+    if (left_length != 1) {
+      *ss << "," << left_length;
     }
-    if (removes_ && adds_) {
-      *ss << " ";
-    }
-    if (adds_) {
-      *ss << "+" << right_start_ << "," << (adds_ + common_);
+    *ss << " " << "+" << right_start_;
+    if (right_length != 1) {
+      *ss << "," << right_length;
     }
     *ss << " @@\n";
   }
@@ -2340,7 +2347,7 @@ void TestResult::RecordProperty(const std::string& xml_element,
   if (!ValidateTestProperty(xml_element, test_property)) {
     return;
   }
-  internal::MutexLock lock(&test_properties_mutex_);
+  internal::MutexLock lock(test_properties_mutex_);
   const std::vector<TestProperty>::iterator property_with_matching_key =
       std::find_if(test_properties_.begin(), test_properties_.end(),
                    internal::TestPropertyKeyIs(test_property.key()));
@@ -3298,6 +3305,7 @@ bool ShouldUseColor(bool stdout_is_tty) {
     const bool term_supports_color =
         term != nullptr && (String::CStringEquals(term, "xterm") ||
                             String::CStringEquals(term, "xterm-color") ||
+                            String::CStringEquals(term, "xterm-ghostty") ||
                             String::CStringEquals(term, "xterm-kitty") ||
                             String::CStringEquals(term, "alacritty") ||
                             String::CStringEquals(term, "screen") ||
@@ -4347,8 +4355,8 @@ void XmlUnitTestResultPrinter::OutputXmlTestResult(::std::ostream* stream,
           internal::FormatCompilerIndependentFileLocation(part.file_name(),
                                                           part.line_number());
       const std::string summary = location + "\n" + part.summary();
-      *stream << "      <skipped message=\""
-              << EscapeXmlAttribute(summary.c_str()) << "\">";
+      *stream << "      <skipped message=\"" << EscapeXmlAttribute(summary)
+              << "\">";
       const std::string detail = location + "\n" + part.message();
       OutputXmlCDataSection(stream, RemoveInvalidXmlCharacters(detail).c_str());
       *stream << "</skipped>\n";
@@ -5080,7 +5088,7 @@ std::string OsStackTraceGetter::CurrentStackTrace(int max_depth, int skip_count)
 
   void* caller_frame = nullptr;
   {
-    MutexLock lock(&mutex_);
+    MutexLock lock(mutex_);
     caller_frame = caller_frame_;
   }
 
@@ -5119,7 +5127,7 @@ void OsStackTraceGetter::UponLeavingGTest() GTEST_LOCK_EXCLUDED_(mutex_) {
     caller_frame = nullptr;
   }
 
-  MutexLock lock(&mutex_);
+  MutexLock lock(mutex_);
   caller_frame_ = caller_frame;
 #endif  // GTEST_HAS_ABSL
 }
@@ -5382,13 +5390,13 @@ void UnitTest::UponLeavingGTest() {
 
 // Sets the TestSuite object for the test that's currently running.
 void UnitTest::set_current_test_suite(TestSuite* a_current_test_suite) {
-  internal::MutexLock lock(&mutex_);
+  internal::MutexLock lock(mutex_);
   impl_->set_current_test_suite(a_current_test_suite);
 }
 
 // Sets the TestInfo object for the test that's currently running.
 void UnitTest::set_current_test_info(TestInfo* a_current_test_info) {
-  internal::MutexLock lock(&mutex_);
+  internal::MutexLock lock(mutex_);
   impl_->set_current_test_info(a_current_test_info);
 }
 
@@ -5427,7 +5435,7 @@ void UnitTest::AddTestPartResult(TestPartResult::Type result_type,
   Message msg;
   msg << message;
 
-  internal::MutexLock lock(&mutex_);
+  internal::MutexLock lock(mutex_);
   if (!impl_->gtest_trace_stack().empty()) {
     msg << "\n" << GTEST_NAME_ << " trace:";
 
@@ -5610,7 +5618,7 @@ const char* UnitTest::original_working_dir() const {
 // or NULL if no test is running.
 const TestSuite* UnitTest::current_test_suite() const
     GTEST_LOCK_EXCLUDED_(mutex_) {
-  internal::MutexLock lock(&mutex_);
+  internal::MutexLock lock(mutex_);
   return impl_->current_test_suite();
 }
 
@@ -5618,7 +5626,7 @@ const TestSuite* UnitTest::current_test_suite() const
 #ifndef GTEST_REMOVE_LEGACY_TEST_CASEAPI_
 const TestCase* UnitTest::current_test_case() const
     GTEST_LOCK_EXCLUDED_(mutex_) {
-  internal::MutexLock lock(&mutex_);
+  internal::MutexLock lock(mutex_);
   return impl_->current_test_suite();
 }
 #endif
@@ -5627,7 +5635,7 @@ const TestCase* UnitTest::current_test_case() const
 // or NULL if no test is running.
 const TestInfo* UnitTest::current_test_info() const
     GTEST_LOCK_EXCLUDED_(mutex_) {
-  internal::MutexLock lock(&mutex_);
+  internal::MutexLock lock(mutex_);
   return impl_->current_test_info();
 }
 
@@ -5651,13 +5659,13 @@ UnitTest::~UnitTest() { delete impl_; }
 // Google Test trace stack.
 void UnitTest::PushGTestTrace(const internal::TraceInfo& trace)
     GTEST_LOCK_EXCLUDED_(mutex_) {
-  internal::MutexLock lock(&mutex_);
+  internal::MutexLock lock(mutex_);
   impl_->gtest_trace_stack().push_back(trace);
 }
 
 // Pops a trace from the per-thread Google Test trace stack.
 void UnitTest::PopGTestTrace() GTEST_LOCK_EXCLUDED_(mutex_) {
-  internal::MutexLock lock(&mutex_);
+  internal::MutexLock lock(mutex_);
   impl_->gtest_trace_stack().pop_back();
 }
 
@@ -6079,6 +6087,20 @@ bool UnitTestImpl::RunAllTests() {
                       TearDownEnvironment);
         repeater->OnEnvironmentsTearDownEnd(*parent_);
       }
+    } else if (GTEST_FLAG_GET(fail_if_no_test_selected)) {
+      // If there were no tests to run, bail if we were requested to be
+      // strict.
+      constexpr char kNoTestsSelectedMessage[] =
+          "No tests ran. Check that tests exist and are not disabled or "
+          "filtered out.\n\n"
+          "For sharded runs, this error indicates an empty shard. This can "
+          "happen if you have more shards than tests, or if --gtest_filter "
+          "leaves a shard with no tests.\n\n"
+          "To permit empty shards (e.g., when debugging with a filter), "
+          "specify \n"
+          "--gtest_fail_if_no_test_selected=false.";
+      ColoredPrintf(GTestColor::kRed, "%s\n", kNoTestsSelectedMessage);
+      return false;
     }
 
     elapsed_time_ = timer.Elapsed();
@@ -6763,6 +6785,7 @@ static bool ParseGoogleTestFlag(const char* const arg) {
   GTEST_INTERNAL_PARSE_FLAG(death_test_use_fork);
   GTEST_INTERNAL_PARSE_FLAG(fail_fast);
   GTEST_INTERNAL_PARSE_FLAG(fail_if_no_test_linked);
+  GTEST_INTERNAL_PARSE_FLAG(fail_if_no_test_selected);
   GTEST_INTERNAL_PARSE_FLAG(filter);
   GTEST_INTERNAL_PARSE_FLAG(internal_run_death_test);
   GTEST_INTERNAL_PARSE_FLAG(list_tests);

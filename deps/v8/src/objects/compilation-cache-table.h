@@ -45,25 +45,27 @@ class CompilationCacheShape : public BaseShape<HashTableKey*> {
   // Why 3 slots? Because of the eval cache.
   static const int kEntrySize = 3;
   static const bool kMatchNeedsHoleCheck = true;
+  static const bool kDoHashSpreading = false;
+  static const uint32_t kHashBits = 0;
 };
 
 class InfoCellPair {
  public:
   InfoCellPair() = default;
   inline InfoCellPair(Isolate* isolate, Tagged<SharedFunctionInfo> shared,
-                      Tagged<FeedbackCell> feedback_cell);
+                      Tagged<JSFunction> js_function);
 
-  Tagged<FeedbackCell> feedback_cell() const {
+  Tagged<JSFunction> js_function() const {
     DCHECK(is_compiled_scope_.is_compiled());
-    return feedback_cell_;
+    return js_function_;
   }
   Tagged<SharedFunctionInfo> shared() const {
     DCHECK(is_compiled_scope_.is_compiled());
     return shared_;
   }
 
-  bool has_feedback_cell() const {
-    return !feedback_cell_.is_null() && is_compiled_scope_.is_compiled();
+  bool has_js_function() const {
+    return !js_function_.is_null() && is_compiled_scope_.is_compiled();
   }
   bool has_shared() const {
     // Only return true if SFI is compiled - the bytecode could have been
@@ -75,7 +77,7 @@ class InfoCellPair {
  private:
   IsCompiledScope is_compiled_scope_;
   Tagged<SharedFunctionInfo> shared_;
-  Tagged<FeedbackCell> feedback_cell_;
+  Tagged<JSFunction> js_function_;
 };
 
 // A lookup result from the compilation cache for scripts. There are three
@@ -111,15 +113,13 @@ EXTERN_DECLARE_HASH_TABLE(CompilationCacheTable, CompilationCacheShape)
 class CompilationCacheTable
     : public HashTable<CompilationCacheTable, CompilationCacheShape> {
  public:
-  NEVER_READ_ONLY_SPACE
-
   // The 'script' cache contains SharedFunctionInfos. Once a root
   // SharedFunctionInfo has become old enough that its bytecode is flushed, the
   // entry is still present and can be used to get the Script.
   static CompilationCacheScriptLookupResult LookupScript(
       DirectHandle<CompilationCacheTable> table, Handle<String> src,
       const ScriptDetails& script_details, Isolate* isolate);
-  static Handle<CompilationCacheTable> PutScript(
+  static DirectHandle<CompilationCacheTable> PutScript(
       Handle<CompilationCacheTable> cache, Handle<String> src,
       MaybeHandle<FixedArray> maybe_wrapped_arguments,
       DirectHandle<SharedFunctionInfo> value, Isolate* isolate);
@@ -136,22 +136,29 @@ class CompilationCacheTable
   // leaks due to premature caching of eval strings that are
   // never needed later.
   static InfoCellPair LookupEval(DirectHandle<CompilationCacheTable> table,
-                                 Handle<String> src,
-                                 Handle<SharedFunctionInfo> shared,
-                                 DirectHandle<Context> native_context,
+                                 DirectHandle<String> src,
+                                 DirectHandle<SharedFunctionInfo> shared,
+                                 DirectHandle<NativeContext> native_context,
                                  LanguageMode language_mode, int position);
-  static Handle<CompilationCacheTable> PutEval(
-      Handle<CompilationCacheTable> cache, Handle<String> src,
-      Handle<SharedFunctionInfo> outer_info,
-      DirectHandle<SharedFunctionInfo> value,
-      DirectHandle<Context> native_context,
-      DirectHandle<FeedbackCell> feedback_cell, int position);
+  // Adds a new native-context-specific feedback back to an existing entry.
+  // Bails out if no existing entry was found.
+  static void UpdateEval(DirectHandle<CompilationCacheTable> table,
+                         DirectHandle<String> src,
+                         DirectHandle<SharedFunctionInfo> outer_info,
+                         DirectHandle<JSFunction> js_function,
+                         LanguageMode language_mode, int position);
+  static DirectHandle<CompilationCacheTable> PutEval(
+      DirectHandle<CompilationCacheTable> cache, DirectHandle<String> src,
+      DirectHandle<SharedFunctionInfo> outer_info,
+      DirectHandle<JSFunction> js_function, int position);
 
   // The RegExp cache contains RegExpData objects.
-  Handle<Object> LookupRegExp(Handle<String> source, JSRegExp::Flags flags);
-  static Handle<CompilationCacheTable> PutRegExp(
-      Isolate* isolate, Handle<CompilationCacheTable> cache, Handle<String> src,
-      JSRegExp::Flags flags, DirectHandle<RegExpData> value);
+  DirectHandle<Object> LookupRegExp(DirectHandle<String> source,
+                                    JSRegExp::Flags flags);
+  static DirectHandle<CompilationCacheTable> PutRegExp(
+      Isolate* isolate, DirectHandle<CompilationCacheTable> cache,
+      DirectHandle<String> src, JSRegExp::Flags flags,
+      DirectHandle<RegExpData> value);
 
   void Remove(Tagged<Object> value);
   void RemoveEntry(InternalIndex entry);
@@ -159,9 +166,10 @@ class CompilationCacheTable
   inline Tagged<Object> PrimaryValueAt(InternalIndex entry);
   inline void SetPrimaryValueAt(InternalIndex entry, Tagged<Object> value,
                                 WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  inline Tagged<Object> EvalFeedbackValueAt(InternalIndex entry);
-  inline void SetEvalFeedbackValueAt(
-      InternalIndex entry, Tagged<Object> value,
+  inline Tagged<UnionOf<TheHole, WeakFixedArray>> EvalJSFunctionsValueAt(
+      InternalIndex entry);
+  inline void SetEvalJSFunctionsValueAt(
+      InternalIndex entry, Tagged<UnionOf<TheHole, WeakFixedArray>> value,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // The initial placeholder insertion of the eval cache survives this many GCs.
@@ -170,9 +178,6 @@ class CompilationCacheTable
  private:
   static Handle<CompilationCacheTable> EnsureScriptTableCapacity(
       Isolate* isolate, Handle<CompilationCacheTable> cache);
-
-  OBJECT_CONSTRUCTORS(CompilationCacheTable,
-                      HashTable<CompilationCacheTable, CompilationCacheShape>);
 };
 
 }  // namespace internal

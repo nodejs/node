@@ -186,25 +186,27 @@ var promiseTestChain;
 var V8OptimizationStatus = {
   kIsFunction: 1 << 0,
   kNeverOptimize: 1 << 1,
-  kAlwaysOptimize: 1 << 2,
-  kMaybeDeopted: 1 << 3,
-  kOptimized: 1 << 4,
-  kMaglevved: 1 << 5,
-  kTurboFanned: 1 << 6,
-  kInterpreted: 1 << 7,
-  kMarkedForOptimization: 1 << 8,
-  kMarkedForConcurrentOptimization: 1 << 9,
-  kOptimizingConcurrently: 1 << 10,
-  kIsExecuting: 1 << 11,
-  kTopmostFrameIsTurboFanned: 1 << 12,
-  kLiteMode: 1 << 13,
-  kMarkedForDeoptimization: 1 << 14,
-  kBaseline: 1 << 15,
-  kTopmostFrameIsInterpreted: 1 << 16,
-  kTopmostFrameIsBaseline: 1 << 17,
-  kIsLazy: 1 << 18,
-  kTopmostFrameIsMaglev: 1 << 19,
-  kOptimizeOnNextCallOptimizesToMaglev: 1 << 20,
+  kMaybeDeopted: 1 << 2,
+  kOptimized: 1 << 3,
+  kMaglevved: 1 << 4,
+  kTurboFanned: 1 << 5,
+  kInterpreted: 1 << 6,
+  kMarkedForOptimization: 1 << 7,
+  kMarkedForConcurrentOptimization: 1 << 8,
+  kOptimizingConcurrently: 1 << 9,
+  kIsExecuting: 1 << 10,
+  kTopmostFrameIsTurboFanned: 1 << 11,
+  kLiteMode: 1 << 12,
+  kMarkedForDeoptimization: 1 << 13,
+  kBaseline: 1 << 14,
+  kTopmostFrameIsInterpreted: 1 << 15,
+  kTopmostFrameIsBaseline: 1 << 16,
+  kIsLazy: 1 << 17,
+  kTopmostFrameIsMaglev: 1 << 18,
+  kOptimizeOnNextCallOptimizesToMaglev: 1 << 19,
+  kOptimizeMaglevOptimizesToTurbofan: 1 << 20,
+  kMarkedForMagkevOptimization: 1 << 21,
+  kMarkedForConcurrentMaglevOptimization: 1 << 22,
 };
 
 // Returns true if --lite-mode is on and we can't ever turn on optimization.
@@ -212,9 +214,6 @@ var isNeverOptimizeLiteMode;
 
 // Returns true if --no-turbofan mode is on.
 var isNeverOptimize;
-
-// Returns true if --always-turbofan mode is on.
-var isAlwaysOptimize;
 
 // Returns true if given function in lazily compiled.
 var isLazy;
@@ -258,6 +257,9 @@ var topFrameIsMaglevved;
 // Returns true if the top frame in compiled by Turbofan according to the
 // status passed as a parameter.
 var topFrameIsTurboFanned;
+
+// Monkey-patchable all-purpose failure handler.
+var fail;
 
 // Monkey-patchable all-purpose failure handler.
 var failWithMessage;
@@ -412,7 +414,7 @@ var prettyPrinted;
     return message;
   }
 
-  function fail(expectedText, found, name_opt) {
+  fail = function fail(expectedText, found, name_opt) {
     throw new MjsUnitAssertionError(
         ()=>formatFailureText(expectedText, found, name_opt));
   }
@@ -783,10 +785,6 @@ var prettyPrinted;
       fun, name_opt, skip_if_maybe_deopted = true) {
     var opt_status = OptimizationStatus(fun);
     name_opt = name_opt ?? fun.name;
-    // Tests that use assertUnoptimized() do not make sense if --always-turbofan
-    // option is provided. Such tests must add --no-always-turbofan to flags comment.
-    assertFalse((opt_status & V8OptimizationStatus.kAlwaysOptimize) !== 0,
-                "test does not make sense with --always-turbofan");
     assertTrue((opt_status & V8OptimizationStatus.kIsFunction) !== 0, name_opt);
     if (skip_if_maybe_deopted &&
         (opt_status & V8OptimizationStatus.kMaybeDeopted) !== 0) {
@@ -805,6 +803,16 @@ var prettyPrinted;
       // succeed and continue the test.
       return;
     }
+    if (is_optimized && (opt_status & V8OptimizationStatus.kTurboFanned) &&
+        (opt_status &
+         V8OptimizationStatus.kOptimizeMaglevOptimizesToTurbofan)) {
+      // In some cases, Turbofan actually emits more generic code than Maglev
+      // (for instance, allowing Oddballs where Maglev only allows HeapNumbers),
+      // and assertUnoptimized with --optimize-maglev-optimizes-to-turbofan will
+      // fail. In those cases, we still want this assert to succeed and the test
+      // to continue.
+      return;
+    }
     assertFalse(is_optimized, 'should not be optimized: ' + name_opt);
   }
 
@@ -816,7 +824,7 @@ var prettyPrinted;
     // optimization is always disabled, explicitly exit the test with a warning.
     if (opt_status & V8OptimizationStatus.kLiteMode) {
       print("Warning: Test uses assertOptimized in Lite mode, skipping test.");
-      testRunner.quit(0);
+      quit(0);
     }
     // Tests that use assertOptimized() do not make sense if --no-turbofan
     // option is provided. Such tests must add --turbofan to flags comment.
@@ -832,6 +840,13 @@ var prettyPrinted;
       // to stress test the deoptimizer.
       return;
     }
+    if ((opt_status &
+         V8OptimizationStatus.kOptimizeMaglevOptimizesToTurbofan) !== 0) {
+      // When --optimize-maglev-optimizes-to-turbofan is used it's no longer
+      // guaranteed that a particular function stays optimized the same way
+      // as with Maglev.
+      return;
+    }
     assertTrue(
         (opt_status & V8OptimizationStatus.kOptimized) !== 0,
         'should be optimized: ' + name_opt);
@@ -845,11 +860,6 @@ var prettyPrinted;
   isNeverOptimize = function isNeverOptimize() {
     var opt_status = OptimizationStatus(undefined, "");
     return (opt_status & V8OptimizationStatus.kNeverOptimize) !== 0;
-  }
-
-  isAlwaysOptimize = function isAlwaysOptimize() {
-    var opt_status = OptimizationStatus(undefined, "");
-    return (opt_status & V8OptimizationStatus.kAlwaysOptimize) !== 0;
   }
 
   isLazy = function isLazy(fun) {
@@ -890,8 +900,16 @@ var prettyPrinted;
     var opt_status = OptimizationStatus(fun, "");
     assertTrue((opt_status & V8OptimizationStatus.kIsFunction) !== 0,
                "not a function");
-    return (opt_status & V8OptimizationStatus.kOptimized) !== 0 &&
-           (opt_status & V8OptimizationStatus.kMaglevved) !== 0;
+
+    const is_optimized = (opt_status & V8OptimizationStatus.kOptimized) !== 0;
+    const is_maglevved = (opt_status & V8OptimizationStatus.kMaglevved) !== 0;
+    // When --optimize-maglev-optimizes-to-turbofan is used, in many tests this
+    // method is synonym with isTurboFanned. Tests where this doesn't hold
+    // might need to negate that flag.
+    const is_turbofanned_by_flag = (
+        (opt_status & V8OptimizationStatus.kTurboFanned) !== 0 &&
+        (opt_status & V8OptimizationStatus.kOptimizeMaglevOptimizesToTurbofan) !== 0);
+    return is_optimized && (is_maglevved || is_turbofanned_by_flag);
   }
 
   willBeMaglevved = function willBeMaglevved(fun) {

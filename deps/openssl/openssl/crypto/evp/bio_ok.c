@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -132,10 +132,8 @@ static int ok_new(BIO *bi)
 {
     BIO_OK_CTX *ctx;
 
-    if ((ctx = OPENSSL_zalloc(sizeof(*ctx))) == NULL) {
-        ERR_raise(ERR_LIB_EVP, ERR_R_MALLOC_FAILURE);
+    if ((ctx = OPENSSL_zalloc(sizeof(*ctx))) == NULL)
         return 0;
-    }
 
     ctx->cont = 1;
     ctx->sigio = 1;
@@ -374,6 +372,7 @@ static long ok_ctrl(BIO *b, int cmd, long num, void *ptr)
 
         /* Finally flush the underlying BIO */
         ret = BIO_ctrl(next, cmd, num, ptr);
+        BIO_copy_next_retry(b);
         break;
     case BIO_C_DO_STATE_MACHINE:
         BIO_clear_retry_flags(b);
@@ -444,6 +443,8 @@ static int sig_out(BIO *b)
     md_size = EVP_MD_get_size(digest);
     md_data = EVP_MD_CTX_get0_md_data(md);
 
+    if (md_size <= 0)
+        goto berr;
     if (ctx->buf_len + 2 * md_size > OK_BLOCK_SIZE)
         return 1;
 
@@ -486,7 +487,7 @@ static int sig_in(BIO *b)
     if ((md = ctx->md) == NULL)
         goto berr;
     digest = EVP_MD_CTX_get0_md(md);
-    if ((md_size = EVP_MD_get_size(digest)) < 0)
+    if ((md_size = EVP_MD_get_size(digest)) <= 0)
         goto berr;
     md_data = EVP_MD_CTX_get0_md_data(md);
 
@@ -534,6 +535,8 @@ static int block_out(BIO *b)
     md = ctx->md;
     digest = EVP_MD_CTX_get0_md(md);
     md_size = EVP_MD_get_size(digest);
+    if (md_size <= 0)
+        goto berr;
 
     tl = ctx->buf_len - OK_BLOCK_BLOCK;
     ctx->buf[0] = (unsigned char)(tl >> 24);
@@ -557,26 +560,29 @@ static int block_in(BIO *b)
 {
     BIO_OK_CTX *ctx;
     EVP_MD_CTX *md;
-    unsigned long tl = 0;
+    size_t tl = 0;
     unsigned char tmp[EVP_MAX_MD_SIZE];
     int md_size;
 
     ctx = BIO_get_data(b);
     md = ctx->md;
     md_size = EVP_MD_get_size(EVP_MD_CTX_get0_md(md));
-    if (md_size < 0)
+    if (md_size <= 0)
         goto berr;
 
     assert(sizeof(tl) >= OK_BLOCK_BLOCK); /* always true */
-    tl = ctx->buf[0];
-    tl <<= 8;
-    tl |= ctx->buf[1];
-    tl <<= 8;
-    tl |= ctx->buf[2];
-    tl <<= 8;
-    tl |= ctx->buf[3];
+    tl = ((size_t)ctx->buf[0] << 24)
+           | ((size_t)ctx->buf[1] << 16)
+           | ((size_t)ctx->buf[2] << 8)
+           | ((size_t)ctx->buf[3]);
 
-    if (ctx->buf_len < tl + OK_BLOCK_BLOCK + md_size)
+    if (tl > OK_BLOCK_SIZE)
+        goto berr;
+
+    if (tl > SIZE_MAX - OK_BLOCK_BLOCK - (size_t)md_size)
+        goto berr;
+
+    if (ctx->buf_len < tl + OK_BLOCK_BLOCK + (size_t)md_size)
         return 1;
 
     if (!EVP_DigestUpdate(md,
@@ -584,7 +590,7 @@ static int block_in(BIO *b)
         goto berr;
     if (!EVP_DigestFinal_ex(md, tmp, NULL))
         goto berr;
-    if (memcmp(&(ctx->buf[tl + OK_BLOCK_BLOCK]), tmp, md_size) == 0) {
+    if (memcmp(&(ctx->buf[tl + OK_BLOCK_BLOCK]), tmp, (size_t)md_size) == 0) {
         /* there might be parts from next block lurking around ! */
         ctx->buf_off_save = tl + OK_BLOCK_BLOCK + md_size;
         ctx->buf_len_save = ctx->buf_len;

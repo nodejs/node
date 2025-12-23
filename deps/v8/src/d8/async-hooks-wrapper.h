@@ -11,7 +11,6 @@
 #include "include/v8-function-callback.h"
 #include "include/v8-local-handle.h"
 #include "include/v8-promise.h"
-#include "src/base/platform/mutex.h"
 
 namespace v8 {
 

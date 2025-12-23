@@ -43,7 +43,10 @@ int PrintHelp(char** argv) {
 
       << " --function-stats [bucket_size] [bucket_count]\n"
       << "    Show distribution of function sizes in the given module.\n"
-      << "    An optional bucket size and bucket count can be passed."
+      << "    An optional bucket size and bucket count can be passed.\n"
+
+      << " --type-stats\n"
+      << "    Show information about types defined in the module\n"
 
       << " --single-wat FUNC_INDEX\n"
       << "     Print function FUNC_INDEX in .wat format\n"
@@ -74,9 +77,7 @@ int PrintHelp(char** argv) {
   return 1;
 }
 
-namespace v8 {
-namespace internal {
-namespace wasm {
+namespace v8::internal::wasm {
 
 enum class OutputMode { kWat, kHexDump };
 
@@ -256,7 +257,9 @@ class ExtendedFunctionDis : public FunctionBodyDisassembler {
       auto [count, count_length] = read_u32v<ValidationTag>(pc_);
       auto [type, type_length] =
           value_type_reader::read_value_type<ValidationTag>(
-              this, pc_ + count_length, WasmEnabledFeatures::All());
+              this, pc_ + count_length, WasmEnabledFeatures::All(),
+              this->detected_);
+      value_type_reader::Populate(&type, module_);
       PrintHexBytes(out, count_length + type_length, pc_, 4);
       out << " // " << count << (count != 1 ? " locals" : " local")
           << " of type ";
@@ -270,8 +273,8 @@ class ExtendedFunctionDis : public FunctionBodyDisassembler {
       WasmOpcode opcode = GetOpcode();
       current_opcode_ = opcode;  // Some immediates need to know this.
       StringBuilder immediates;
-      uint32_t length = PrintImmediatesAndGetLength(immediates);
-      PrintHexBytes(out, length, pc_, 4);
+      uint32_t opcode_length = PrintImmediatesAndGetLength(immediates);
+      PrintHexBytes(out, opcode_length, pc_, 4);
       if (opcode == kExprEnd) {
         out << " // end";
         if (label_stack_.size() > 0) {
@@ -291,7 +294,7 @@ class ExtendedFunctionDis : public FunctionBodyDisassembler {
         label_stack_.emplace_back(out.line_number(), out.length(),
                                   label_occurrence_index_++);
       }
-      pc_ += length;
+      pc_ += opcode_length;
       out.NextLine(pc_offset());
     }
 
@@ -362,12 +365,15 @@ class DumpingModuleDecoder : public ModuleDecoderImpl {
   DumpingModuleDecoder(ModuleWireBytes wire_bytes,
                        HexDumpModuleDis* module_dis);
 
+ private:
   void onFirstError() override {
     // Pretend we've reached the end of the section, but contrary to the
     // superclass implementation do so without moving {pc_}, so whatever
     // bytes caused the failure can still be dumped correctly.
     end_ = pc_;
   }
+
+  WasmDetectedFeatures unused_detected_features_;
 };
 
 class HexDumpModuleDis : public ITracer {
@@ -401,7 +407,7 @@ class HexDumpModuleDis : public ITracer {
     out_.NextLine(0);
     constexpr bool kNoVerifyFunctions = false;
     decoder.DecodeModule(kNoVerifyFunctions);
-    if (out_.length() > 0) out_.NextLine(static_cast<uint32_t>(total_bytes_));
+    NextLine();
     out_ << "]";
 
     if (total_bytes_ != wire_bytes_.length()) {
@@ -435,6 +441,10 @@ class HexDumpModuleDis : public ITracer {
     description_.write(desc, length);
   }
   void Description(uint32_t number) override {
+    if (description_.length() != 0) description_ << " ";
+    description_ << number;
+  }
+  void Description(uint64_t number) override {
     if (description_.length() != 0) description_ << " ";
     description_ << number;
   }
@@ -591,7 +601,7 @@ class HexDumpModuleDis : public ITracer {
     uint32_t offset = pc_offset();
     const WasmModule* module = module_;
     if (!module) module = decoder_->shared_module().get();
-    bool shared = module->types[func->sig_index].is_shared;
+    bool shared = module->type(func->sig_index).is_shared;
     ExtendedFunctionDis d(&zone_, module, func->func_index, shared, &detected,
                           func->sig, start, end, offset, wire_bytes_, names_);
     d.HexDump(out_, FunctionBodyDisassembler::kSkipHeader);
@@ -793,7 +803,7 @@ class FormatConverter {
     ModuleResult result =
         DecodeWasmModuleForDisassembler(raw_bytes(), offsets_provider_.get());
     if (result.failed()) {
-      WasmError error = result.error();
+      const WasmError& error = result.error();
       std::cerr << "Decoding error: " << error.message() << " at offset "
                 << error.offset() << "\n";
       return;
@@ -833,10 +843,8 @@ class FormatConverter {
 
   void SortAndPrintSigUses(std::map<uint32_t, uint32_t> uses,
                            const WasmModule* module, const char* kind) {
-    std::vector<std::pair<uint32_t, uint32_t>> sig_uses_vector;
-    for (auto sig_use : uses) {
-      sig_uses_vector.push_back(sig_use);
-    }
+    std::vector<std::pair<uint32_t, uint32_t>> sig_uses_vector{uses.begin(),
+                                                               uses.end()};
     std::sort(sig_uses_vector.begin(), sig_uses_vector.end(),
               sig_uses_vector_comparison);
 
@@ -844,11 +852,12 @@ class FormatConverter {
          << kind << std::endl;
     for (auto sig_use : sig_uses_vector) {
       uint32_t sig_index = sig_use.first;
-      uint32_t uses = sig_use.second;
+      uint32_t use_count = sig_use.second;
 
-      const FunctionSig* sig = module->signature(sig_index);
+      const FunctionSig* sig = module->signature(ModuleTypeIndex{sig_index});
 
-      out_ << uses << " " << kind << " use the signature " << *sig << std::endl;
+      out_ << use_count << " " << kind << " use the signature " << *sig
+           << std::endl;
     }
   }
 
@@ -861,9 +870,9 @@ class FormatConverter {
 
     for (uint32_t i = 0; i < num_functions; i++) {
       const WasmFunction& f = m->functions[i];
-      sig_uses[f.sig_index]++;
+      sig_uses[f.sig_index.index]++;
       if (f.exported) {
-        export_sig_uses[f.sig_index]++;
+        export_sig_uses[f.sig_index.index]++;
       }
     }
 
@@ -922,7 +931,7 @@ class FormatConverter {
     for (uint32_t i = module()->num_imported_functions;
          i < module()->functions.size(); i++) {
       const WasmFunction* func = &module()->functions[i];
-      bool shared = module()->types[func->sig_index].is_shared;
+      bool shared = module()->type(func->sig_index).is_shared;
       WasmDetectedFeatures detected;
       base::Vector<const uint8_t> code = wire_bytes_.GetFunctionBytes(func);
       ExtendedFunctionDis d(&zone, module(), i, shared, &detected, func->sig,
@@ -945,6 +954,91 @@ class FormatConverter {
     stats.WriteTo(out_);
   }
 
+  void TypeStats() {
+    DCHECK_EQ(status_, kModuleReady);
+    auto Count = [](uint32_t value, std::vector<uint32_t>& list) {
+      if (list.size() <= value) list.resize(value + 1, 0u);
+      list[value]++;
+    };
+    uint32_t num_types = static_cast<uint32_t>(module()->types.size());
+    uint32_t num_structs = 0;
+    uint32_t num_arrays = 0;
+    uint32_t num_funcs = 0;
+    uint32_t num_conts = 0;
+    uint32_t num_has_descriptor = 0;
+    uint32_t num_is_descriptor = 0;
+    uint32_t num_with_super = 0;
+    uint32_t num_final = 0;
+    uint32_t num_shared = 0;
+    std::vector<uint32_t> field_counts;
+    std::vector<uint32_t> params;
+    std::vector<uint32_t> results;
+    std::vector<uint32_t> depths;
+    for (const TypeDefinition& type : module()->types) {
+      if (type.supertype.valid()) num_with_super++;
+      if (type.has_descriptor()) num_has_descriptor++;
+      if (type.is_descriptor()) num_is_descriptor++;
+      if (type.is_final) num_final++;
+      if (type.is_shared) num_shared++;
+      Count(type.subtyping_depth, depths);
+      switch (type.kind) {
+        case TypeDefinition::kFunction:
+          num_funcs++;
+          Count(static_cast<uint32_t>(type.function_sig->parameter_count()),
+                params);
+          Count(static_cast<uint32_t>(type.function_sig->return_count()),
+                results);
+          break;
+        case TypeDefinition::kStruct:
+          num_structs++;
+          Count(type.struct_type->field_count(), field_counts);
+          break;
+        case TypeDefinition::kArray:
+          num_arrays++;
+          break;
+        case TypeDefinition::kCont:
+          num_conts++;
+          break;
+      }
+    }
+    DCHECK_EQ(num_types, num_structs + num_arrays + num_funcs + num_conts);
+    out_ << num_types << " types\n";
+    out_ << num_final << " types are final\n";
+    out_ << num_shared << " types are shared\n";
+    out_ << num_has_descriptor << " types have a descriptor\n";
+    out_ << num_is_descriptor << " types are descriptors\n";
+
+    out_ << "\n" << num_with_super << " types have a supertype:\n";
+    for (size_t i = 1; i < depths.size(); i++) {
+      uint32_t count = depths[i];
+      if (count == 0) continue;
+      out_ << " - " << count << " types have subtyping depth " << i << "\n";
+    }
+
+    out_ << "\n" << num_arrays << " array types\n";
+    out_ << "\n" << num_conts << " continuation types\n";
+
+    out_ << "\n" << num_structs << " struct types, field count distribution:\n";
+    for (size_t i = 0; i < field_counts.size(); i++) {
+      uint32_t count = field_counts[i];
+      if (count == 0) continue;
+      out_ << " - " << count << " structs have " << i << " fields\n";
+    }
+
+    out_ << "\n" << num_funcs << " function types, signature distribution:\n";
+    for (size_t i = 0; i < params.size(); i++) {
+      uint32_t count = params[i];
+      if (count == 0) continue;
+      out_ << " - " << count << " functions have " << i << " parameters\n";
+    }
+    out_ << "\n";
+    for (size_t i = 0; i < results.size(); i++) {
+      uint32_t count = results[i];
+      if (count == 0) continue;
+      out_ << " - " << count << " functions have " << i << " results\n";
+    }
+  }
+
   void DisassembleFunction(uint32_t func_index, OutputMode mode) {
     DCHECK_EQ(status_, kModuleReady);
     MultiLineStringBuilder sb;
@@ -958,7 +1052,7 @@ class FormatConverter {
     }
     const WasmFunction* func = &module()->functions[func_index];
     Zone zone(&allocator_, "disassembler");
-    bool shared = module()->types[func->sig_index].is_shared;
+    bool shared = module()->type(func->sig_index).is_shared;
     WasmDetectedFeatures detected;
     base::Vector<const uint8_t> code = wire_bytes_.GetFunctionBytes(func);
 
@@ -1023,6 +1117,7 @@ class FormatConverter {
 
  private:
   static constexpr int kModuleHeaderSize = 8;
+  enum class ParseLiteralResult { kSuccess, kTryNext, kEOF };
 
   class Output {
    public:
@@ -1080,7 +1175,13 @@ class FormatConverter {
           std::vector<uint8_t>(std::istreambuf_iterator<char>(input), {});
       return true;
     }
-    if (TryParseLiteral(input, raw_bytes_)) return true;
+    do {
+      ParseLiteralResult result = TryParseLiteral(input, raw_bytes_);
+      if (result == ParseLiteralResult::kSuccess) return true;
+      if (result == ParseLiteralResult::kEOF) break;
+      DCHECK_EQ(result, ParseLiteralResult::kTryNext);
+      raw_bytes_.clear();
+    } while (true);
     std::cerr << "That's not a Wasm module!\n";
     return false;
   }
@@ -1095,8 +1196,8 @@ class FormatConverter {
   //   braces is ignored.
   // - Whitespace, line comments, and block comments are ignored.
   // So in particular, this can consume what --full-hexdump produces.
-  bool TryParseLiteral(std::istream& input,
-                       std::vector<uint8_t>& output_bytes) {
+  ParseLiteralResult TryParseLiteral(std::istream& input,
+                                     std::vector<uint8_t>& output_bytes) {
     int c = input.get();
     // Skip anything before the first opening '['.
     while (c != '[' && c != EOF) c = input.get();
@@ -1110,7 +1211,7 @@ class FormatConverter {
         while (IsWhitespace(c)) c = input.get();
       }
       // End of file before ']' is unexpected = invalid.
-      if (c == EOF) return false;
+      if (c == EOF) return ParseLiteralResult::kEOF;
       // Skip comments.
       if (c == '/' && input.peek() == '/') {
         // Line comment. Skip until '\n'.
@@ -1141,9 +1242,11 @@ class FormatConverter {
           state = kDecimal;
           // Fall through to handling kDecimal below.
         } else if (c == ']') {
-          return true;
+          return output_bytes.size() > 8 ? ParseLiteralResult::kSuccess
+                                         : ParseLiteralResult::kTryNext;
         } else {
-          return false;
+          return c == EOF ? ParseLiteralResult::kEOF
+                          : ParseLiteralResult::kTryNext;
         }
       }
       DCHECK(state == kDecimal || state == kHex || state == kAfterValue);
@@ -1157,12 +1260,14 @@ class FormatConverter {
       if (c == ']') {
         DCHECK_LT(value, 256);
         output_bytes.push_back(static_cast<uint8_t>(value));
-        return true;
+        return output_bytes.size() > 8 ? ParseLiteralResult::kSuccess
+                                       : ParseLiteralResult::kTryNext;
       }
       if (state == kAfterValue) {
         // Didn't take the ',' or ']' paths above, anything else is invalid.
         DCHECK(c != ',' && c != ']');
-        return false;
+        return c == EOF ? ParseLiteralResult::kEOF
+                        : ParseLiteralResult::kTryNext;
       }
       DCHECK(state == kDecimal || state == kHex);
       if (IsWhitespace(c)) {
@@ -1176,10 +1281,11 @@ class FormatConverter {
         // Setting the "0x20" bit maps uppercase onto lowercase letters.
         v = (c | 0x20) - 'a' + 10;
       } else {
-        return false;
+        return c == EOF ? ParseLiteralResult::kEOF
+                        : ParseLiteralResult::kTryNext;
       }
       value = value * state + v;
-      if (value > 0xFF) return false;
+      if (value > 0xFF) return ParseLiteralResult::kTryNext;
     }
   }
 
@@ -1204,11 +1310,9 @@ class FormatConverter {
 DumpingModuleDecoder::DumpingModuleDecoder(ModuleWireBytes wire_bytes,
                                            HexDumpModuleDis* module_dis)
     : ModuleDecoderImpl(WasmEnabledFeatures::All(), wire_bytes.module_bytes(),
-                        kWasmOrigin, module_dis) {}
+                        kWasmOrigin, &unused_detected_features_, module_dis) {}
 
-}  // namespace wasm
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal::wasm
 
 using FormatConverter = v8::internal::wasm::FormatConverter;
 using OutputMode = v8::internal::wasm::OutputMode;
@@ -1222,6 +1326,7 @@ enum class Action {
   kSectionStats,
   kInstructionStats,
   kFunctionStats,
+  kTypeStats,
   kFullWat,
   kFullHexdump,
   kMjsunit,
@@ -1284,6 +1389,8 @@ int ParseOptions(int argc, char** argv, Options* options) {
           return PrintHelp(argv);
         }
       }
+    } else if (strcmp(argv[i], "--type-stats") == 0) {
+      options->action = Action::kTypeStats;
     } else if (strcmp(argv[i], "--full-wat") == 0) {
       options->action = Action::kFullWat;
     } else if (strcmp(argv[i], "--full-hexdump") == 0) {
@@ -1390,6 +1497,9 @@ int main(int argc, char** argv) {
       break;
     case Action::kFunctionStats:
       fc.FunctionStats(options.fct_bucket_size, options.fct_bucket_count);
+      break;
+    case Action::kTypeStats:
+      fc.TypeStats();
       break;
     case Action::kSingleWat:
       fc.DisassembleFunction(options.func_index, OutputMode::kWat);

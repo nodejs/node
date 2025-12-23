@@ -7,7 +7,6 @@ const REPL = require('repl');
 const assert = require('assert');
 const fs = require('fs');
 const os = require('os');
-const util = require('util');
 
 if (process.env.TERM === 'dumb') {
   common.skip('skipping - dumb terminal');
@@ -39,11 +38,11 @@ class ActionStream extends stream.Stream {
       if (typeof action === 'object') {
         this.emit('keypress', '', action);
       } else {
-        this.emit('data', `${action}\n`);
+        this.emit('data', action);
       }
       setImmediate(doAction);
     };
-    setImmediate(doAction);
+    doAction();
   }
   resume() {}
   pause() {}
@@ -95,10 +94,8 @@ const tests = [
     test: [UP, '21', ENTER, "'42'", ENTER],
     expected: [
       prompt,
-      // TODO(BridgeAR): The line is refreshed too many times. The double prompt
-      // is redundant and can be optimized away.
-      '2', '1', '21\n', prompt, prompt,
-      "'", '4', '2', "'", "'42'\n", prompt, prompt,
+      '2', '1', '21\n', prompt,
+      "'", '4', '2', "'", "'42'\n", prompt,
     ],
     clean: false
   },
@@ -134,14 +131,12 @@ const tests = [
     expected: [prompt, replFailedRead, prompt, replDisabled, prompt]
   },
   {
-    before: function before() {
+    before: common.mustCall(function before() {
       if (common.isWindows) {
         const execSync = require('child_process').execSync;
-        execSync(`ATTRIB +H "${emptyHiddenHistoryPath}"`, (err) => {
-          assert.ifError(err);
-        });
+        execSync(`ATTRIB +H "${emptyHiddenHistoryPath}"`);
       }
-    },
+    }),
     env: { NODE_REPL_HISTORY: emptyHiddenHistoryPath },
     test: [UP],
     expected: [prompt]
@@ -191,8 +186,6 @@ function runTest(assertCleaned) {
   const opts = tests.shift();
   if (!opts) return; // All done
 
-  console.log('NEW');
-
   if (assertCleaned) {
     try {
       assert.strictEqual(fs.readFileSync(defaultHistoryPath, 'utf8'), '');
@@ -209,16 +202,15 @@ function runTest(assertCleaned) {
   const clean = opts.clean;
   const before = opts.before;
   const historySize = opts.env.NODE_REPL_HISTORY_SIZE;
-  const historyFile = opts.env.NODE_REPL_HISTORY;
+  const file = opts.env.NODE_REPL_HISTORY;
 
   if (before) before();
 
   const repl = REPL.start({
     input: new ActionStream(),
     output: new stream.Writable({
-      write(chunk, _, next) {
+      write: common.mustCallAtLeast((chunk, _, next) => {
         const output = chunk.toString();
-        console.log('INPUT', util.inspect(output));
 
         // Ignore escapes and blank lines
         if (output.charCodeAt(0) === 27 || /^[\r\n]+$/.test(output))
@@ -231,22 +223,22 @@ function runTest(assertCleaned) {
           throw err;
         }
         next();
-      }
+      }),
     }),
     prompt: prompt,
     useColors: false,
     terminal: true,
-    historySize: historySize
+    historySize
   });
 
-  repl.setupHistory(historyFile, function(err, repl) {
+  repl.setupHistory(file, common.mustCall((err, repl) => {
     if (err) {
       console.error(`Failed test # ${numtests - tests.length}`);
       throw err;
     }
 
     repl.once('close', () => {
-      if (repl._flushing) {
+      if (repl.historyManager.isFlushing) {
         repl.once('flushHistory', onClose);
         return;
       }
@@ -254,7 +246,7 @@ function runTest(assertCleaned) {
       onClose();
     });
 
-    function onClose() {
+    const onClose = common.mustCall(() => {
       const cleaned = clean === false ? false : cleanupTmpFile();
 
       try {
@@ -265,8 +257,8 @@ function runTest(assertCleaned) {
         console.error(`Failed test # ${numtests - tests.length}`);
         throw err;
       }
-    }
+    });
 
     repl.inputStream.run(test);
-  });
+  }));
 }

@@ -5,7 +5,7 @@ const assert = require('assert');
 const net = require('net');
 const http = require('http');
 
-const server = http.createServer(function(request, response) {
+const server = http.createServer(common.mustCallAtLeast((request, response) => {
   // When the connection header is removed, for HTTP/1.1 the connection should still persist.
   // For HTTP/1.0, the connection should be closed after the response automatically.
   response.removeHeader('connection');
@@ -18,7 +18,7 @@ const server = http.createServer(function(request, response) {
   }
 
   response.end('beep boop\n');
-});
+}));
 
 const agent = new http.Agent({ keepAlive: true });
 
@@ -26,7 +26,7 @@ function makeHttp11Request(cb) {
   http.get({
     port: server.address().port,
     agent
-  }, function(res) {
+  }, common.mustCall((res) => {
     const socket = res.socket;
 
     assert.strictEqual(res.statusCode, 200);
@@ -37,7 +37,7 @@ function makeHttp11Request(cb) {
     res.on('data', function(chunk) {
       response += chunk;
     });
-    res.on('end', function() {
+    res.on('end', common.mustCall(() => {
       assert.strictEqual(response, 'beep boop\n');
 
       // Wait till next tick to ensure that the socket is returned to the agent before
@@ -45,8 +45,8 @@ function makeHttp11Request(cb) {
       process.nextTick(function() {
         cb(socket);
       });
-    });
-  });
+    }));
+  }));
 }
 
 function makeHttp10Request(cb) {
@@ -61,15 +61,15 @@ function makeHttp10Request(cb) {
   });
 }
 
-server.listen(0, function() {
-  makeHttp11Request(function(firstSocket) {
-    makeHttp11Request(function(secondSocket) {
+server.listen(0, common.mustCall(() => {
+  makeHttp11Request(common.mustCall((firstSocket) => {
+    makeHttp11Request(common.mustCall((secondSocket) => {
       // Both HTTP/1.1 requests should have used the same socket:
       assert.strictEqual(firstSocket, secondSocket);
 
       makeHttp10Request(function() {
         server.close();
       });
-    });
-  });
-});
+    }));
+  }));
+}));

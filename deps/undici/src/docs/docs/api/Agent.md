@@ -2,7 +2,7 @@
 
 Extends: `undici.Dispatcher`
 
-Agent allow dispatching requests against multiple different origins.
+Agent allows dispatching requests against multiple different origins.
 
 Requests are not guaranteed to be dispatched in order of invocation.
 
@@ -19,6 +19,7 @@ Returns: `Agent`
 Extends: [`PoolOptions`](/docs/docs/api/Pool.md#parameter-pooloptions)
 
 * **factory** `(origin: URL, opts: Object) => Dispatcher` - Default: `(origin, opts) => new Pool(origin, opts)`
+* **maxOrigins** `number` (optional) - Default: `Infinity` - Limits the total number of origins that can receive requests at a time, throwing an `MaxOriginsReachedError` error when attempting to dispatch when the max is reached. If `Infinity`, no limit is enforced.
 
 ## Instance Properties
 
@@ -75,3 +76,9 @@ See [`Dispatcher.stream(options, factory[, callback])`](/docs/docs/api/Dispatche
 ### `Agent.upgrade(options[, callback])`
 
 See [`Dispatcher.upgrade(options[, callback])`](/docs/docs/api/Dispatcher.md#dispatcherupgradeoptions-callback).
+
+### `Agent.stats()`
+
+Returns an object of stats by origin in the format of `Record<string, TClientStats | TPoolStats>`
+
+See [`PoolStats`](/docs/docs/api/PoolStats.md) and [`ClientStats`](/docs/docs/api/ClientStats.md).

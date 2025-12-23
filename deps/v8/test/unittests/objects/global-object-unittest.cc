@@ -54,7 +54,7 @@ TEST_F(GlobalObjectTest, StrictUndeclaredGlobalVariable) {
 TEST_F(GlobalObjectTest, KeysGlobalObject_Regress2764) {
   Local<Context> env1 = context();
   // Create second environment.
-  Local<Context> env2 = Context::New(env1->GetIsolate());
+  Local<Context> env2 = Context::New(isolate());
 
   Local<Value> token = NewString("foo");
 
@@ -97,14 +97,10 @@ TEST_F(GlobalObjectTest, KeysGlobalObject_Regress2764) {
   CHECK_EQ(0u, result->Length());
 }
 
-// Allow usages of v8::Object::GetPrototype() for now.
-// TODO(https://crbug.com/333672197): remove.
-START_ALLOW_USE_DEPRECATED()
-
 TEST_F(GlobalObjectTest, KeysGlobalObject_SetPrototype) {
   Local<Context> env1 = context();
   // Create second environment.
-  Local<Context> env2 = Context::New(env1->GetIsolate());
+  Local<Context> env2 = Context::New(isolate());
 
   Local<Value> token = NewString("foo");
 
@@ -115,8 +111,6 @@ TEST_F(GlobalObjectTest, KeysGlobalObject_SetPrototype) {
   // Create a reference to env2 global from env1 global.
   env1->Global()->SetPrototypeV2(env1, env2->Global()).FromJust();
   CHECK_EQ(env1->Global()->GetPrototypeV2(), env2->Global());
-  CHECK_EQ(env1->Global()->GetPrototype().As<Object>()->GetPrototype(),
-           env2->Global());
 
   // Set some global variables in global2
   env2->Global()->Set(env2, NewString("a"), NewString("a")).FromJust();
@@ -125,9 +119,5 @@ TEST_F(GlobalObjectTest, KeysGlobalObject_SetPrototype) {
   // List all entries from global2.
   CHECK(RunJS("a == 'a'")->IsTrue());
 }
-
-// Allow usages of v8::Object::GetPrototype() for now.
-// TODO(https://crbug.com/333672197): remove.
-END_ALLOW_USE_DEPRECATED()
 
 }  // namespace v8

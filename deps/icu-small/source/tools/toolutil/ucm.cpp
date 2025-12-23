@@ -310,7 +310,7 @@ enum {
 
 static uint8_t
 checkBaseExtUnicode(UCMStates *baseStates, UCMTable *base, UCMTable *ext,
-                    UBool moveToExt, UBool intersectBase) {
+                    UBool moveToExt, int8_t intersectBase) {
     (void)baseStates;
 
     UCMapping *mb, *me, *mbLimit, *meLimit;
@@ -416,7 +416,7 @@ checkBaseExtUnicode(UCMStates *baseStates, UCMTable *base, UCMTable *ext,
 
 static uint8_t
 checkBaseExtBytes(UCMStates *baseStates, UCMTable *base, UCMTable *ext,
-                  UBool moveToExt, UBool intersectBase) {
+                  UBool moveToExt, int8_t intersectBase) {
     UCMapping *mb, *me;
     int32_t *baseMap, *extMap;
     int32_t b, e, bLimit, eLimit, cmp;
@@ -556,7 +556,7 @@ ucm_checkValidity(UCMTable *table, UCMStates *baseStates) {
 U_CAPI UBool U_EXPORT2
 ucm_checkBaseExt(UCMStates *baseStates,
                  UCMTable *base, UCMTable *ext, UCMTable *moveTarget,
-                 UBool intersectBase) {
+                 int8_t intersectBase) {
     uint8_t result;
 
     /* if we have an extension table, we must always use precision flags */
@@ -735,7 +735,7 @@ ucm_separateMappings(UCMFile *ucm, UBool isSISO) {
     }
     if(needsMove) {
         ucm_moveMappings(ucm->base, ucm->ext);
-        return ucm_checkBaseExt(&ucm->states, ucm->base, ucm->ext, ucm->ext, false);
+        return ucm_checkBaseExt(&ucm->states, ucm->base, ucm->ext, ucm->ext, 0);
     } else {
         ucm_sortTable(ucm->base);
         return true;

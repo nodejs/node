@@ -143,6 +143,9 @@ class ZipReader {
 
     // Entry POSIX permissions (POSIX systems only).
     int posix_mode;
+
+    // True if the entry is a symbolic link (POSIX systems only).
+    bool is_symbolic_link = false;
   };
 
   ZipReader();

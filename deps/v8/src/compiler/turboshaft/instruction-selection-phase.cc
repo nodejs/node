@@ -10,13 +10,14 @@
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/backend/instruction-selector-impl.h"
 #include "src/compiler/backend/instruction-selector.h"
-#include "src/compiler/graph-visualizer.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/pipeline.h"
+#include "src/compiler/turbofan-graph-visualizer.h"
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/turboshaft/sidetable.h"
 #include "src/diagnostics/code-tracer.h"
+#include "src/utils/sparse-bit-vector.h"
 
 namespace v8::internal::compiler::turboshaft {
 
@@ -215,8 +216,7 @@ void TurboshaftSpecialRPONumberer::ComputeLoopInfo(
     size_t loop_num = loop_number(header);
     DCHECK_NULL(loops_[loop_num].header);
     loops_[loop_num].header = header;
-    loops_[loop_num].members =
-        zone()->New<BitVector>(graph_->block_count(), zone());
+    loops_[loop_num].members = zone()->New<SparseBitVector>(zone());
 
     if (backedge != header) {
       // As long as the header doesn't have a backedge to itself,
@@ -355,7 +355,12 @@ std::optional<BailoutReason> InstructionSelectionPhase::Run(
           : InstructionSelector::kDisableRootsRelativeAddressing,
       data->info()->trace_turbo_json()
           ? InstructionSelector::kEnableTraceTurboJson
-          : InstructionSelector::kDisableTraceTurboJson);
+          : InstructionSelector::kDisableTraceTurboJson,
+      // For now only ensure a deterministic NaN pattern for Wasm code. The spec
+      // does not mandate it, but we want it for differential fuzzing.
+      // TODO(353475584): This will have to be refined for Wasm-in-JS inlining.
+      data->is_wasm() ? InstructionSelector::kEnsureDeterministicNan
+                      : InstructionSelector::kNoDeterministicNan);
   if (std::optional<BailoutReason> bailout = selector.SelectInstructions()) {
     return bailout;
   }

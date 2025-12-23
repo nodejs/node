@@ -24,12 +24,16 @@ class Heap;
 class PageMetadata : public MutablePageMetadata {
  public:
   PageMetadata(Heap* heap, BaseSpace* space, size_t size, Address area_start,
-               Address area_end, VirtualMemory reservation);
+               Address area_end, VirtualMemory reservation,
+               Executability executability,
+               MemoryChunk::MainThreadFlags* trusted_flags);
 
   // Returns the page containing a given address. The address ranges
   // from [page_addr .. page_addr + kPageSize]. This only works if the object is
   // in fact in a page.
   V8_INLINE static PageMetadata* FromAddress(Address addr);
+  V8_INLINE static PageMetadata* FromAddress(const Isolate* isolate,
+                                             Address addr);
   V8_INLINE static PageMetadata* FromHeapObject(Tagged<HeapObject> o);
 
   static PageMetadata* cast(MemoryChunkMetadata* metadata) {
@@ -37,7 +41,7 @@ class PageMetadata : public MutablePageMetadata {
   }
 
   static PageMetadata* cast(MutablePageMetadata* metadata) {
-    DCHECK_IMPLIES(metadata, !metadata->Chunk()->IsLargePage());
+    DCHECK_IMPLIES(metadata, !metadata->is_large());
     return static_cast<PageMetadata*>(metadata);
   }
 
@@ -58,11 +62,13 @@ class PageMetadata : public MutablePageMetadata {
     return MemoryChunk::IsAligned(addr);
   }
 
-  static PageMetadata* ConvertNewToOld(PageMetadata* old_page);
+  static PageMetadata* ConvertNewToOld(PageMetadata* old_page,
+                                       FreeMode free_mode);
 
   V8_EXPORT_PRIVATE void MarkNeverAllocateForTesting();
-  inline void MarkEvacuationCandidate();
-  inline void ClearEvacuationCandidate();
+  void MarkEvacuationCandidate();
+  void ClearEvacuationCandidate();
+  void AbortEvacuation();
 
   PageMetadata* next_page() {
     return static_cast<PageMetadata*>(list_node_.next());
@@ -92,8 +98,6 @@ class PageMetadata : public MutablePageMetadata {
     return categories_[type];
   }
 
-  V8_EXPORT_PRIVATE size_t ShrinkToHighWaterMark();
-
   V8_EXPORT_PRIVATE void CreateBlackArea(Address start, Address end);
   void DestroyBlackArea(Address start, Address end);
 
@@ -101,7 +105,9 @@ class PageMetadata : public MutablePageMetadata {
   void AllocateFreeListCategories();
   void ReleaseFreeListCategories();
 
-  ActiveSystemPages* active_system_pages() { return active_system_pages_; }
+  ActiveSystemPages* active_system_pages() {
+    return active_system_pages_.get();
+  }
 
   template <RememberedSetType remembered_set>
   void ClearTypedSlotsInFreeMemory(const TypedSlotSet::FreeRangesMap& ranges) {
@@ -125,14 +131,6 @@ class PageMetadata : public MutablePageMetadata {
  private:
   friend class MemoryAllocator;
 };
-
-// Validate our estimates on the header size.
-static_assert(sizeof(MemoryChunkMetadata) <=
-              MemoryChunkLayout::kMemoryChunkMetadataSize);
-static_assert(sizeof(MutablePageMetadata) <=
-              MemoryChunkLayout::kMutablePageMetadataSize);
-static_assert(sizeof(PageMetadata) <=
-              MemoryChunkLayout::kMutablePageMetadataSize);
 
 }  // namespace internal
 

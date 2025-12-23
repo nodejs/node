@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --turbofan --no-always-turbofan --allow-natives-syntax
+// Flags: --turbofan --allow-natives-syntax
 
 d8.file.execute('test/mjsunit/wasm/gc-js-interop-helpers.js');
 
@@ -41,6 +41,9 @@ for (const wasm_obj of [struct, array]) {
   repeated(() => assertEquals(true, Object.isFrozen(wasm_obj)));
   repeated(() => assertEquals(false, Object.isExtensible(wasm_obj)));
   repeated(() => assertEquals('object', typeof wasm_obj));
+  // This is not the same as above! We have a fast path in the optimizing
+  // compiler that's not smart enough to see through "assertEquals".
+  repeated(() => assertTrue(typeof wasm_obj == 'object'));
   repeated(
       () => assertEquals(
           '[object Object]', Object.prototype.toString.call(wasm_obj)));
@@ -70,7 +73,10 @@ for (const wasm_obj of [struct, array]) {
     repeated(() => assertSame(wasm_obj, Object.getPrototypeOf(obj)));
     repeated(() => assertSame(wasm_obj, Reflect.getPrototypeOf(obj)));
     repeated(() => assertSame(undefined, obj.__proto__));
-    testThrowsRepeated(() => obj.__proto__ = wasm_obj, TypeError);
+    // __proto__ is not an inherited accessor, so it's a named property
+    // like any other.
+    obj.__proto__ = wasm_obj;
+    repeated(() => assertSame(wasm_obj, obj.__proto__));
     // Property access fails.
     repeated(() => assertSame(undefined, obj[0]));
     repeated(() => assertSame(undefined, obj.prop));

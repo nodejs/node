@@ -27,14 +27,29 @@ class V8_EXPORT_PRIVATE MacroAssemblerBase : public Assembler {
                      std::unique_ptr<AssemblerBuffer> buffer = {})
       : MacroAssemblerBase(isolate, AssemblerOptions::Default(isolate),
                            create_code_object, std::move(buffer)) {}
+  MacroAssemblerBase(Isolate* isolate, MaybeAssemblerZone zone,
+                     CodeObjectRequired create_code_object,
+                     std::unique_ptr<AssemblerBuffer> buffer = {})
+      : MacroAssemblerBase(isolate, zone, AssemblerOptions::Default(isolate),
+                           create_code_object, std::move(buffer)) {}
 
   MacroAssemblerBase(Isolate* isolate, const AssemblerOptions& options,
                      CodeObjectRequired create_code_object,
                      std::unique_ptr<AssemblerBuffer> buffer = {});
+  MacroAssemblerBase(Isolate* isolate, MaybeAssemblerZone zone,
+                     AssemblerOptions options,
+                     CodeObjectRequired create_code_object,
+                     std::unique_ptr<AssemblerBuffer> buffer = {});
+  // For isolate-less users.
+  MacroAssemblerBase(MaybeAssemblerZone zone, AssemblerOptions options,
+                     CodeObjectRequired create_code_object,
+                     std::unique_ptr<AssemblerBuffer> buffer = {})
+      : MacroAssemblerBase(nullptr, zone, options, create_code_object,
+                           std::move(buffer)) {}
 
   Isolate* isolate() const { return isolate_; }
 
-  Handle<HeapObject> CodeObject() const {
+  IndirectHandle<HeapObject> CodeObject() const {
     DCHECK(!code_object_.is_null());
     return code_object_;
   }
@@ -42,13 +57,32 @@ class V8_EXPORT_PRIVATE MacroAssemblerBase : public Assembler {
   bool root_array_available() const { return root_array_available_; }
   void set_root_array_available(bool v) { root_array_available_ = v; }
 
-  bool trap_on_abort() const { return trap_on_abort_; }
-
   bool should_abort_hard() const { return hard_abort_; }
   void set_abort_hard(bool v) { hard_abort_ = v; }
 
-  void set_builtin(Builtin builtin) { maybe_builtin_ = builtin; }
+  // Must be called before generating any code as this affects the sandboxing
+  // mode of the generated code.
+  void set_builtin(Builtin builtin) {
+    DCHECK_EQ(pc_offset(), 0);
+    maybe_builtin_ = builtin;
+    if (builtin != Builtin::kNoBuiltinId) {
+      sandboxing_mode_ = Builtins::SandboxingModeOf(builtin);
+    }
+  }
   Builtin builtin() const { return maybe_builtin_; }
+
+  // Returns the sandboxing mode of the code being assembled.
+  CodeSandboxingMode sandboxing_mode() const { return sandboxing_mode_; }
+
+  // Changes the current sandboxing mode.
+  //
+  // This is used by builtins that need to transition the sandboxing mode for
+  // their execution, such as JSEntry (which changes from unsandboxed to
+  // sandboxed execution mode). It should not be used by any other builtins.
+  void SetSandboxingModeForCurrentBuiltin(CodeSandboxingMode mode) {
+    DCHECK_NE(maybe_builtin_, Builtin::kNoBuiltinId);
+    sandboxing_mode_ = mode;
+  }
 
   void set_has_frame(bool v) { has_frame_ = v; }
   bool has_frame() const { return has_frame_; }
@@ -117,21 +151,25 @@ class V8_EXPORT_PRIVATE MacroAssemblerBase : public Assembler {
   Isolate* const isolate_ = nullptr;
 
   // This handle will be patched with the code object on installation.
-  Handle<HeapObject> code_object_;
+  IndirectHandle<HeapObject> code_object_;
 
   // Whether kRootRegister has been initialized.
   bool root_array_available_ = true;
 
-  // Immediately trap instead of calling {Abort} when debug code fails.
-  bool trap_on_abort_ = v8_flags.trap_on_abort;
-
   // Emit a C call to abort instead of a runtime call.
   bool hard_abort_ = false;
 
+  bool has_frame_ = false;
+
+  // The sandboxing mode of the generated code.
+  //
+  // By default, we assume that the generated code runs sandboxed (e.g. when
+  // generating JS- or Wasm code at runtime) but we will update this for
+  // example when generating code for an unsandboxed builtin.
+  CodeSandboxingMode sandboxing_mode_ = CodeSandboxingMode::kSandboxed;
+
   // May be set while generating builtins.
   Builtin maybe_builtin_ = Builtin::kNoBuiltinId;
-
-  bool has_frame_ = false;
 
   int comment_depth_ = 0;
 

@@ -12,7 +12,7 @@ INCLUDE (CheckCSourceCompiles)
 INCLUDE (CheckStructHasMember)
 INCLUDE (CheckLibraryExists)
 
-PROJECT (c-ares LANGUAGES C VERSION "1.34.4" )
+PROJECT (c-ares LANGUAGES C VERSION "1.34.6" )
 
 # Set this version before release
 SET (CARES_VERSION "${PROJECT_VERSION}")
@@ -30,7 +30,7 @@ INCLUDE (GNUInstallDirs) # include this *AFTER* PROJECT(), otherwise paths are w
 # For example, a version of 4:0:2 would generate output such as:
 #    libname.so   -> libname.so.2
 #    libname.so.2 -> libname.so.2.2.0
-SET (CARES_LIB_VERSIONINFO "21:3:19")
+SET (CARES_LIB_VERSIONINFO "21:5:19")
 
 
 OPTION (CARES_STATIC        "Build as a static library"                                             OFF)
@@ -44,15 +44,6 @@ OPTION (CARES_SYMBOL_HIDING "Hide private symbols in shared libraries"          
 OPTION (CARES_THREADS       "Build with thread-safety support"                                      ON)
 OPTION (CARES_COVERAGE      "Build for code coverage"                                               OFF)
 SET    (CARES_RANDOM_FILE "/dev/urandom" CACHE STRING "Suitable File / Device Path for entropy, such as /dev/urandom")
-
-
-# Tests require a C++14 compiler
-IF (CARES_BUILD_TESTS OR CARES_BUILD_CONTAINER_TESTS)
-	set(CMAKE_CXX_STANDARD 14)
-	set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
-	set(CMAKE_CXX_EXTENSIONS FALSE)
-	enable_language(CXX)
-ENDIF ()
 
 # Tests require static to be enabled on Windows to be able to access otherwise hidden symbols
 IF ((CARES_BUILD_TESTS OR CARES_BUILD_CONTAINER_TESTS) AND (NOT CARES_STATIC) AND WIN32)
@@ -269,15 +260,17 @@ ELSEIF (CMAKE_SYSTEM_NAME STREQUAL "SunOS")
 	LIST (APPEND SYSFLAGS -D__EXTENSIONS__ -D_REENTRANT -D_XOPEN_SOURCE=600)
 ELSEIF (CMAKE_SYSTEM_NAME STREQUAL "AIX")
 	LIST (APPEND SYSFLAGS -D_ALL_SOURCE -D_XOPEN_SOURCE=700 -D_USE_IRS)
-ELSEIF (CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
+ELSEIF (CMAKE_SYSTEM_NAME STREQUAL "FreeBSD" OR CMAKE_SYSTEM_NAME STREQUAL "MidnightBSD")
 	# Don't define _XOPEN_SOURCE on FreeBSD, it actually reduces visibility instead of increasing it
 ELSEIF (CMAKE_SYSTEM_NAME STREQUAL "QNX")
 	LIST (APPEND SYSFLAGS -D_QNX_SOURCE)
 ELSEIF (WIN32)
-	LIST (APPEND SYSFLAGS -DWIN32_LEAN_AND_MEAN -D_CRT_SECURE_NO_DEPRECATE -D_CRT_NONSTDC_NO_DEPRECATE -D_WIN32_WINNT=0x0602)
+	LIST (APPEND SYSFLAGS -DWIN32_LEAN_AND_MEAN -D_CRT_SECURE_NO_DEPRECATE -D_CRT_NONSTDC_NO_DEPRECATE)
+	IF (NOT CMAKE_C_FLAGS MATCHES ".*-D_WIN32_WINNT=.*")
+		LIST (APPEND SYSFLAGS -D_WIN32_WINNT=0x0602)
+	ENDIF ()
 ENDIF ()
 ADD_DEFINITIONS(${SYSFLAGS})
-
 
 
 # Tell C-Ares about libraries to depend on
@@ -426,6 +419,7 @@ CHECK_SYMBOL_EXISTS (getservbyname_r "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_GETSERV
 CHECK_SYMBOL_EXISTS (gettimeofday    "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_GETTIMEOFDAY)
 CHECK_SYMBOL_EXISTS (if_indextoname  "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_IF_INDEXTONAME)
 CHECK_SYMBOL_EXISTS (if_nametoindex  "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_IF_NAMETOINDEX)
+CHECK_SYMBOL_EXISTS (GetBestRoute2   "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_GETBESTROUTE2)
 CHECK_SYMBOL_EXISTS (ConvertInterfaceIndexToLuid  "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_CONVERTINTERFACEINDEXTOLUID)
 CHECK_SYMBOL_EXISTS (ConvertInterfaceLuidToNameA  "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_CONVERTINTERFACELUIDTONAMEA)
 CHECK_SYMBOL_EXISTS (NotifyIpInterfaceChange      "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_NOTIFYIPINTERFACECHANGE)
@@ -503,11 +497,7 @@ IF (CARES_THREADS)
 			CARES_EXTRAINCLUDE_IFSET (HAVE_PTHREAD_H                       pthread.h)
 			CARES_EXTRAINCLUDE_IFSET (HAVE_PTHREAD_NP_H                    pthread_np.h)
 			CHECK_SYMBOL_EXISTS (pthread_init  "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_PTHREAD_INIT)
-			# Make sure libcares.pc.cmake knows about thread libraries on static builds
-			# The variable set by FIND_PACKAGE(Threads) has a -l prefix on it, we need
-			# to strip that first since CARES_DEPENDENT_LIBS doesn't expect that.
-			STRING (REPLACE "-l" "" CARES_THREAD_LIBRARY "${CMAKE_THREAD_LIBS_INIT}")
-			LIST (APPEND CARES_DEPENDENT_LIBS ${CARES_THREAD_LIBRARY})
+			LIST (APPEND CARES_DEPENDENT_LIBS ${CMAKE_THREAD_LIBS_INIT})
 		ELSE ()
 			MESSAGE (WARNING "Threading support not found, disabling...")
 			SET (CARES_THREADS OFF)
@@ -631,6 +621,7 @@ IF (HAVE_GETADDRINFO)
 		CMAKE_SYSTEM_NAME STREQUAL "NetBSD" OR
 		CMAKE_SYSTEM_NAME STREQUAL "SunOS" OR
 		CMAKE_SYSTEM_NAME STREQUAL "FreeBSD" OR
+		CMAKE_SYSTEM_NAME STREQUAL "MidnightBSD" OR
 		CMAKE_SYSTEM_NAME STREQUAL "AIX" OR
 		WIN32)
 			SET (HAVE_GETADDRINFO_THREADSAFE 1)
@@ -777,7 +768,10 @@ IF (CARES_INSTALL)
 
 	# pkgconfig support for static builds
 	FOREACH (LIB ${CARES_DEPENDENT_LIBS})
-		SET (CARES_PRIVATE_LIBS "${CARES_PRIVATE_LIBS} -l${LIB}")
+		IF (NOT LIB MATCHES "^-")
+			SET (LIB "-l${LIB}")
+		ENDIF ()
+		SET (CARES_PRIVATE_LIBS "${CARES_PRIVATE_LIBS} ${LIB}")
 	ENDFOREACH ()
 
 	CONFIGURE_FILE("libcares.pc.cmake" "libcares.pc" @ONLY)

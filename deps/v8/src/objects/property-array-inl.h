@@ -6,6 +6,7 @@
 #define V8_OBJECTS_PROPERTY_ARRAY_INL_H_
 
 #include "src/objects/property-array.h"
+// Include the non-inl header before the rest of the headers.
 
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/heap-object-inl.h"

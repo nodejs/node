@@ -75,10 +75,12 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
 // Probe for additional features at runtime.
 #ifdef USE_SIMULATOR
   // Simulator
-  supported_ |= (1u << PPC_10_PLUS);
+  supported_ |= (1u << PPC_11_PLUS);
 #else
   base::CPU cpu;
-  if (cpu.part() == base::CPU::kPPCPower10) {
+  if (cpu.part() == base::CPU::kPPCPower11) {
+    supported_ |= (1u << PPC_11_PLUS);
+  } else if (cpu.part() == base::CPU::kPPCPower10) {
 #if defined(__PASE__)
     // Some P10 features such as prefixed isns will only be supported in future
     // ibmi versions. We only enable full power 10 features if version>7.4
@@ -106,6 +108,7 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   }
 #endif
 #endif
+  if (supported_ & (1u << PPC_11_PLUS)) supported_ |= (1u << PPC_10_PLUS);
   if (supported_ & (1u << PPC_10_PLUS)) supported_ |= (1u << PPC_9_PLUS);
   if (supported_ & (1u << PPC_9_PLUS)) supported_ |= (1u << PPC_8_PLUS);
 
@@ -126,6 +129,7 @@ void CpuFeatures::PrintFeatures() {
   printf("PPC_8_PLUS=%d\n", CpuFeatures::IsSupported(PPC_8_PLUS));
   printf("PPC_9_PLUS=%d\n", CpuFeatures::IsSupported(PPC_9_PLUS));
   printf("PPC_10_PLUS=%d\n", CpuFeatures::IsSupported(PPC_10_PLUS));
+  printf("PPC_11_PLUS=%d\n", CpuFeatures::IsSupported(PPC_11_PLUS));
 }
 
 Register ToRegister(int num) {
@@ -193,17 +197,11 @@ MemOperand::MemOperand(Register ra, Register rb)
 MemOperand::MemOperand(Register ra, Register rb, int64_t offset)
     : ra_(ra), offset_(offset), rb_(rb) {}
 
-void Assembler::AllocateAndInstallRequestedHeapNumbers(LocalIsolate* isolate) {
-  DCHECK_IMPLIES(isolate == nullptr, heap_number_requests_.empty());
-  for (auto& request : heap_number_requests_) {
-    Handle<HeapObject> object =
-        isolate->factory()->NewHeapNumber<AllocationType::kOld>(
-            request.heap_number());
-    Address pc = reinterpret_cast<Address>(buffer_start_) + request.offset();
-    Address constant_pool = kNullAddress;
-    set_target_address_at(pc, constant_pool, object.address(),
-                          SKIP_ICACHE_FLUSH);
-  }
+void Assembler::PatchInHeapNumberRequest(Address pc,
+                                         Handle<HeapNumber> object) {
+  Address constant_pool = kNullAddress;
+  set_target_address_at(pc, constant_pool, object.address(), nullptr,
+                        SKIP_ICACHE_FLUSH);
 }
 
 // -----------------------------------------------------------------------------
@@ -212,7 +210,8 @@ void Assembler::AllocateAndInstallRequestedHeapNumbers(LocalIsolate* isolate) {
 Assembler::Assembler(const AssemblerOptions& options,
                      std::unique_ptr<AssemblerBuffer> buffer)
     : AssemblerBase(options, std::move(buffer)),
-      scratch_register_list_({ip}),
+      scratch_register_list_(DefaultTmpList()),
+      scratch_double_register_list_(DefaultFPTmpList()),
       constant_pool_builder_(kLoadPtrMaxReachBits, kLoadDoubleMaxReachBits) {
   reloc_info_writer.Reposition(buffer_start_ + buffer_->size(), pc_);
 
@@ -1344,17 +1343,6 @@ void Assembler::mov(Register dst, const Operand& src) {
   bool relocatable = src.must_output_reloc_info(this);
   bool canOptimize;
 
-  if (src.rmode_ == RelocInfo::WASM_CANONICAL_SIG_ID) {
-    if (relocatable) {
-      RecordRelocInfo(src.rmode_);
-    }
-    CHECK(is_int32(value));
-    // If this is changed then also change `uint32_constant_at` and
-    // `set_uint32_constant_at`.
-    bitwise_mov32(dst, value);
-    return;
-  }
-
   canOptimize =
       !(relocatable ||
         (is_trampoline_pool_blocked() &&
@@ -2157,7 +2145,7 @@ void Assembler::EmitRelocations() {
       intptr_t pos = static_cast<intptr_t>(target_address_at(pc, kNullAddress));
       set_target_address_at(pc, 0,
                             reinterpret_cast<Address>(buffer_start_) + pos,
-                            SKIP_ICACHE_FLUSH);
+                            nullptr, SKIP_ICACHE_FLUSH);
     }
 
     reloc_info_writer.Write(&rinfo);
@@ -2210,6 +2198,11 @@ PatchingAssembler::~PatchingAssembler() {
   // Check that the code was patched as expected.
   DCHECK_EQ(pc_, buffer_start_ + buffer_->size() - kGap);
   DCHECK_EQ(reloc_info_writer.pos(), buffer_start_ + buffer_->size());
+}
+
+RegList Assembler::DefaultTmpList() { return {r26, ip}; }
+DoubleRegList Assembler::DefaultFPTmpList() {
+  return {kScratchDoubleReg, kDoubleRegZero};
 }
 
 }  // namespace internal

@@ -1,9 +1,8 @@
 'use strict';
 const common = require('../common');
-const ArrayStream = require('../common/arraystream');
 const fixtures = require('../common/fixtures');
 const assert = require('assert');
-const repl = require('repl');
+const { startNewREPLServer } = require('../common/repl');
 
 if (process.env.TERM === 'dumb') {
   common.skip('skipping - dumb terminal');
@@ -24,21 +23,11 @@ const eat = (food) => '<nom nom nom>';
 undefined
 `;
 
-let accum = '';
+const { replServer, output } = startNewREPLServer();
 
-const inputStream = new ArrayStream();
-const outputStream = new ArrayStream();
-
-outputStream.write = (data) => accum += data.replace('\r', '');
-
-const r = repl.start({
-  prompt: '',
-  input: inputStream,
-  output: outputStream,
-  terminal: true,
-  useColors: false
-});
-
-r.write(`${command}\n`);
-assert.strictEqual(accum.replace(terminalCodeRegex, ''), expected);
-r.close();
+replServer.write(`${command}\n`);
+assert.strictEqual(
+  output.accumulator.replace(terminalCodeRegex, ''),
+  expected
+);
+replServer.close();

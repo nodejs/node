@@ -42,6 +42,12 @@ void nghttp3_buf_wrap_init(nghttp3_buf *buf, uint8_t *src, size_t len);
  */
 size_t nghttp3_buf_cap(const nghttp3_buf *buf);
 
+/*
+ * nghttp3_buf_offset returns the distance from tbuf->begin to
+ * tbuf->pos.  In other words, it returns buf->pos - buf->begin.
+ */
+size_t nghttp3_buf_offset(const nghttp3_buf *buf);
+
 int nghttp3_buf_reserve(nghttp3_buf *buf, size_t size, const nghttp3_mem *mem);
 
 /*
@@ -57,8 +63,12 @@ typedef enum nghttp3_buf_type {
      memory. */
   NGHTTP3_BUF_TYPE_SHARED,
   /* NGHTTP3_BUF_TYPE_ALIEN indicates that the buffer points to a
-     memory which comes from outside of the library. */
+     memory which comes from outside of the library.  When
+     acknowledged, acked_data callback is called. */
   NGHTTP3_BUF_TYPE_ALIEN,
+  /* NGHTTP3_BUF_TYPE_ALIEN_NO_ACK is like NGHTTP3_BUF_TYPE_ALIEN, but
+     acked_data callback is not called. */
+  NGHTTP3_BUF_TYPE_ALIEN_NO_ACK,
 } nghttp3_buf_type;
 
 typedef struct nghttp3_typed_buf {
@@ -68,6 +78,13 @@ typedef struct nghttp3_typed_buf {
 
 void nghttp3_typed_buf_init(nghttp3_typed_buf *tbuf, const nghttp3_buf *buf,
                             nghttp3_buf_type type);
+
+/*
+ * nghttp3_typed_buf_shared_init initializes |tbuf| of type
+ * NGHTTP3_BUF_TYPE_SHARED.
+ */
+void nghttp3_typed_buf_shared_init(nghttp3_typed_buf *tbuf,
+                                   const nghttp3_buf *chunk);
 
 void nghttp3_typed_buf_free(nghttp3_typed_buf *tbuf);
 

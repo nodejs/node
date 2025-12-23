@@ -215,10 +215,7 @@ async function checkInvalidOptionForEvaluate() {
     ['link', 'evaluate'].forEach(async (method) => {
       await assert.rejects(async () => {
         await Module.prototype[method]();
-      }, {
-        code: 'ERR_INVALID_ARG_TYPE',
-        message: /The "this" argument must be an instance of Module/
-      });
+      }, { code: 'ERR_INVALID_THIS' });
     });
   }
 }
@@ -240,26 +237,29 @@ function checkInvalidCachedData() {
 }
 
 function checkGettersErrors() {
-  const expectedError = {
-    code: 'ERR_INVALID_ARG_TYPE',
-    message: /The "this" argument must be an instance of (?:Module|SourceTextModule)/,
-  };
+  const expectedError = { name: 'TypeError' };
   const getters = ['identifier', 'context', 'namespace', 'status', 'error'];
   getters.forEach((getter) => {
     assert.throws(() => {
       // eslint-disable-next-line no-unused-expressions
       Module.prototype[getter];
-    }, expectedError);
+    }, expectedError, `Module.prototype.${getter} should throw`);
     assert.throws(() => {
       // eslint-disable-next-line no-unused-expressions
       SourceTextModule.prototype[getter];
-    }, expectedError);
+    }, expectedError, `SourceTextModule.prototype.${getter} should throw`);
   });
-  // `dependencySpecifiers` getter is just part of SourceTextModule
-  assert.throws(() => {
-    // eslint-disable-next-line no-unused-expressions
-    SourceTextModule.prototype.dependencySpecifiers;
-  }, expectedError);
+
+  const sourceTextModuleGetters = [
+    'moduleRequests',
+    'dependencySpecifiers',
+  ];
+  sourceTextModuleGetters.forEach((getter) => {
+    assert.throws(() => {
+      // eslint-disable-next-line no-unused-expressions
+      SourceTextModule.prototype[getter];
+    }, expectedError, `SourceTextModule.prototype.${getter} should throw`);
+  });
 }
 
 const finished = common.mustCall();

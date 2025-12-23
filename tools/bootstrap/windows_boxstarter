@@ -18,7 +18,7 @@ choco install python3 -y
 
 # Installs VS 2022 Build Tools
 choco install visualstudio2022buildtools -y
-choco install visualstudio2022-workload-vctools -y --params="--add Microsoft.VisualStudio.Component.VC.Tools.ARM64 --add Microsoft.VisualStudio.Component.VC.ATL.ARM64"
+choco install visualstudio2022-workload-vctools -y --params="--add Microsoft.VisualStudio.Component.VC.Tools.ARM64 --add Microsoft.VisualStudio.Component.VC.ATL.ARM64 --add Microsoft.NetCore.Component.SDK --add Microsoft.VisualStudio.Component.VC.Llvm.Clang --add Microsoft.VisualStudio.Component.VC.Llvm.ClangToolset"
 
 # NASM
 choco install nasm -y

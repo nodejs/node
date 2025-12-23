@@ -13,7 +13,7 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-LateEscapeAnalysis::LateEscapeAnalysis(Editor* editor, Graph* graph,
+LateEscapeAnalysis::LateEscapeAnalysis(Editor* editor, TFGraph* graph,
                                        CommonOperatorBuilder* common,
                                        Zone* zone)
     : AdvancedReducer(editor),

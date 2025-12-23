@@ -28,7 +28,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <nghttp2/nghttp2.h>
 
@@ -47,6 +47,7 @@ typedef struct nghttp2_map_bucket {
 typedef struct nghttp2_map {
   nghttp2_map_bucket *table;
   nghttp2_mem *mem;
+  uint32_t seed;
   size_t size;
   size_t hashbits;
 } nghttp2_map;
@@ -54,7 +55,7 @@ typedef struct nghttp2_map {
 /*
  * nghttp2_map_init initializes the map |map|.
  */
-void nghttp2_map_init(nghttp2_map *map, nghttp2_mem *mem);
+void nghttp2_map_init(nghttp2_map *map, uint32_t seed, nghttp2_mem *mem);
 
 /*
  * nghttp2_map_free deallocates any resources allocated for |map|.
@@ -123,6 +124,6 @@ int nghttp2_map_each(const nghttp2_map *map, int (*func)(void *data, void *ptr),
 
 #ifndef WIN32
 void nghttp2_map_print_distance(const nghttp2_map *map);
-#endif /* !WIN32 */
+#endif /* !defined(WIN32) */
 
-#endif /* NGHTTP2_MAP_H */
+#endif /* !defined(NGHTTP2_MAP_H) */

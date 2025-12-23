@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2011-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -72,15 +72,16 @@ static int aesni_cbc_hmac_sha1_init_key(EVP_CIPHER_CTX *ctx,
 {
     EVP_AES_HMAC_SHA1 *key = data(ctx);
     int ret;
+    const int keylen = EVP_CIPHER_CTX_get_key_length(ctx) * 8;
 
+    if (keylen <= 0) {
+        ERR_raise(ERR_LIB_EVP, EVP_R_INVALID_KEY_LENGTH);
+        return 0;
+    }
     if (enc)
-        ret = aesni_set_encrypt_key(inkey,
-                                    EVP_CIPHER_CTX_get_key_length(ctx) * 8,
-                                    &key->ks);
+        ret = aesni_set_encrypt_key(inkey, keylen, &key->ks);
     else
-        ret = aesni_set_decrypt_key(inkey,
-                                    EVP_CIPHER_CTX_get_key_length(ctx) * 8,
-                                    &key->ks);
+        ret = aesni_set_decrypt_key(inkey, keylen, &key->ks);
 
     SHA1_Init(&key->head);      /* handy when benchmarking */
     key->tail = key->head;
@@ -496,6 +497,12 @@ static int aesni_cbc_hmac_sha1_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
 # if defined(STITCHED_DECRYPT_CALL)
             unsigned char tail_iv[AES_BLOCK_SIZE];
             int stitch = 0;
+            const int keylen = EVP_CIPHER_CTX_get_key_length(ctx);
+
+            if (keylen <= 0) {
+                ERR_raise(ERR_LIB_EVP, EVP_R_INVALID_KEY_LENGTH);
+                return 0;
+            }
 # endif
 
             if ((key->aux.tls_aad[plen - 4] << 8 | key->aux.tls_aad[plen - 3])
@@ -513,7 +520,7 @@ static int aesni_cbc_hmac_sha1_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
                 return 0;
 
 # if defined(STITCHED_DECRYPT_CALL)
-            if (len >= 1024 && ctx->key_len == 32) {
+            if (len >= 1024 && keylen == 32) {
                 /* decrypt last block */
                 memcpy(tail_iv, in + len - 2 * AES_BLOCK_SIZE,
                        AES_BLOCK_SIZE);
@@ -734,7 +741,7 @@ static int aesni_cbc_hmac_sha1_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
             return ret;
         } else {
 # if defined(STITCHED_DECRYPT_CALL)
-            if (len >= 1024 && ctx->key_len == 32) {
+            if (len >= 1024 && keylen == 32) {
                 if (sha_off %= SHA_CBLOCK)
                     blocks = (len - 3 * SHA_CBLOCK) / SHA_CBLOCK;
                 else

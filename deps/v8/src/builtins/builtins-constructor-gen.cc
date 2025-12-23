@@ -51,8 +51,8 @@ void Builtins::Generate_ConstructForwardAllArgs(MacroAssembler* masm) {
 }
 
 TF_BUILTIN(Construct_Baseline, CallOrConstructBuiltinsAssembler) {
-  auto target = Parameter<Object>(Descriptor::kTarget);
-  auto new_target = Parameter<Object>(Descriptor::kNewTarget);
+  auto target = Parameter<JSAny>(Descriptor::kTarget);
+  auto new_target = Parameter<JSAny>(Descriptor::kNewTarget);
   auto argc = UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
   auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);
 
@@ -63,8 +63,8 @@ TF_BUILTIN(Construct_Baseline, CallOrConstructBuiltinsAssembler) {
 }
 
 TF_BUILTIN(Construct_WithFeedback, CallOrConstructBuiltinsAssembler) {
-  auto target = Parameter<Object>(Descriptor::kTarget);
-  auto new_target = Parameter<Object>(Descriptor::kNewTarget);
+  auto target = Parameter<JSAny>(Descriptor::kTarget);
+  auto new_target = Parameter<JSAny>(Descriptor::kNewTarget);
   auto argc = UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
   auto context = Parameter<Context>(Descriptor::kContext);
   auto feedback_vector = Parameter<FeedbackVector>(Descriptor::kFeedbackVector);
@@ -77,10 +77,10 @@ TF_BUILTIN(Construct_WithFeedback, CallOrConstructBuiltinsAssembler) {
 }
 
 void CallOrConstructBuiltinsAssembler::BuildConstruct(
-    TNode<Object> target, TNode<Object> new_target, TNode<Int32T> argc,
+    TNode<JSAny> target, TNode<JSAny> new_target, TNode<Int32T> argc,
     const LazyNode<Context>& context,
-    const LazyNode<HeapObject>& feedback_vector, TNode<UintPtrT> slot,
-    UpdateFeedbackMode mode) {
+    const LazyNode<Union<Undefined, FeedbackVector>>& feedback_vector,
+    TNode<UintPtrT> slot, UpdateFeedbackMode mode) {
   TVARIABLE(AllocationSite, allocation_site);
   Label if_construct_generic(this), if_construct_array(this);
   TNode<Context> eager_context = context();
@@ -99,17 +99,17 @@ void CallOrConstructBuiltinsAssembler::BuildConstruct(
 }
 
 TF_BUILTIN(ConstructWithArrayLike, CallOrConstructBuiltinsAssembler) {
-  auto target = Parameter<Object>(Descriptor::kTarget);
-  auto new_target = Parameter<Object>(Descriptor::kNewTarget);
+  auto target = Parameter<JSAny>(Descriptor::kTarget);
+  auto new_target = Parameter<JSAny>(Descriptor::kNewTarget);
   auto arguments_list = Parameter<Object>(Descriptor::kArgumentsList);
   auto context = Parameter<Context>(Descriptor::kContext);
   CallOrConstructWithArrayLike(target, new_target, arguments_list, context);
 }
 
 TF_BUILTIN(ConstructWithSpread, CallOrConstructBuiltinsAssembler) {
-  auto target = Parameter<Object>(Descriptor::kTarget);
-  auto new_target = Parameter<Object>(Descriptor::kNewTarget);
-  auto spread = Parameter<Object>(Descriptor::kSpread);
+  auto target = Parameter<JSAny>(Descriptor::kTarget);
+  auto new_target = Parameter<JSAny>(Descriptor::kNewTarget);
+  auto spread = Parameter<JSAny>(Descriptor::kSpread);
   auto args_count =
       UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
   auto context = Parameter<Context>(Descriptor::kContext);
@@ -117,9 +117,9 @@ TF_BUILTIN(ConstructWithSpread, CallOrConstructBuiltinsAssembler) {
 }
 
 TF_BUILTIN(ConstructWithSpread_Baseline, CallOrConstructBuiltinsAssembler) {
-  auto target = Parameter<Object>(Descriptor::kTarget);
-  auto new_target = Parameter<Object>(Descriptor::kNewTarget);
-  auto spread = Parameter<Object>(Descriptor::kSpread);
+  auto target = Parameter<JSAny>(Descriptor::kTarget);
+  auto new_target = Parameter<JSAny>(Descriptor::kNewTarget);
+  auto spread = Parameter<JSAny>(Descriptor::kSpread);
   auto args_count =
       UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
   auto slot = UncheckedParameter<TaggedIndex>(Descriptor::kSlot);
@@ -131,13 +131,13 @@ TF_BUILTIN(ConstructWithSpread_Baseline, CallOrConstructBuiltinsAssembler) {
 }
 
 TF_BUILTIN(ConstructWithSpread_WithFeedback, CallOrConstructBuiltinsAssembler) {
-  auto target = Parameter<Object>(Descriptor::kTarget);
-  auto new_target = Parameter<Object>(Descriptor::kNewTarget);
-  auto spread = Parameter<Object>(Descriptor::kSpread);
+  auto target = Parameter<JSAny>(Descriptor::kTarget);
+  auto new_target = Parameter<JSAny>(Descriptor::kNewTarget);
+  auto spread = Parameter<JSAny>(Descriptor::kSpread);
   auto args_count =
       UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
   auto context = Parameter<Context>(Descriptor::kContext);
-  auto feedback_vector = Parameter<HeapObject>(Descriptor::kVector);
+  auto feedback_vector = Parameter<FeedbackVector>(Descriptor::kVector);
   auto slot = UncheckedParameter<TaggedIndex>(Descriptor::kSlot);
 
   return BuildConstructWithSpread(
@@ -147,10 +147,10 @@ TF_BUILTIN(ConstructWithSpread_WithFeedback, CallOrConstructBuiltinsAssembler) {
 }
 
 void CallOrConstructBuiltinsAssembler::BuildConstructWithSpread(
-    TNode<Object> target, TNode<Object> new_target, TNode<Object> spread,
+    TNode<JSAny> target, TNode<JSAny> new_target, TNode<JSAny> spread,
     TNode<Int32T> argc, const LazyNode<Context>& context,
-    const LazyNode<HeapObject>& feedback_vector, TNode<TaggedIndex> slot,
-    UpdateFeedbackMode mode) {
+    const LazyNode<Union<Undefined, FeedbackVector>>& feedback_vector,
+    TNode<TaggedIndex> slot, UpdateFeedbackMode mode) {
   TVARIABLE(AllocationSite, allocation_site);
   Label if_construct_generic(this), if_construct_array(this);
   TNode<Context> eager_context = context();
@@ -167,8 +167,8 @@ void CallOrConstructBuiltinsAssembler::BuildConstructWithSpread(
 }
 
 TF_BUILTIN(ConstructForwardAllArgs_Baseline, CallOrConstructBuiltinsAssembler) {
-  auto target = Parameter<Object>(Descriptor::kTarget);
-  auto new_target = Parameter<Object>(Descriptor::kNewTarget);
+  auto target = Parameter<JSAny>(Descriptor::kTarget);
+  auto new_target = Parameter<JSAny>(Descriptor::kNewTarget);
   auto slot = UncheckedParameter<TaggedIndex>(Descriptor::kSlot);
 
   return BuildConstructForwardAllArgs(
@@ -178,10 +178,10 @@ TF_BUILTIN(ConstructForwardAllArgs_Baseline, CallOrConstructBuiltinsAssembler) {
 
 TF_BUILTIN(ConstructForwardAllArgs_WithFeedback,
            CallOrConstructBuiltinsAssembler) {
-  auto target = Parameter<Object>(Descriptor::kTarget);
-  auto new_target = Parameter<Object>(Descriptor::kNewTarget);
+  auto target = Parameter<JSAny>(Descriptor::kTarget);
+  auto new_target = Parameter<JSAny>(Descriptor::kNewTarget);
   auto slot = UncheckedParameter<TaggedIndex>(Descriptor::kSlot);
-  auto feedback_vector = Parameter<HeapObject>(Descriptor::kVector);
+  auto feedback_vector = Parameter<FeedbackVector>(Descriptor::kVector);
   auto context = Parameter<Context>(Descriptor::kContext);
 
   return BuildConstructForwardAllArgs(
@@ -190,9 +190,10 @@ TF_BUILTIN(ConstructForwardAllArgs_WithFeedback,
 }
 
 void CallOrConstructBuiltinsAssembler::BuildConstructForwardAllArgs(
-    TNode<Object> target, TNode<Object> new_target,
+    TNode<JSAny> target, TNode<JSAny> new_target,
     const LazyNode<Context>& context,
-    const LazyNode<HeapObject>& feedback_vector, TNode<TaggedIndex> slot) {
+    const LazyNode<Union<Undefined, FeedbackVector>>& feedback_vector,
+    TNode<TaggedIndex> slot) {
   TVARIABLE(AllocationSite, allocation_site);
   TNode<Context> eager_context = context();
 
@@ -228,8 +229,20 @@ TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
     Goto(&cell_done);
 
     BIND(&one_closure);
+#ifdef V8_ENABLE_LEAPTIERING
+    // The transition from one to many closures under leap tiering requires
+    // making sure that the dispatch_handle's code isn't context specialized for
+    // the single closure. This is handled in the runtime.
+    //
+    // TODO(leszeks): We could fast path this for the case where the dispatch
+    // handle either doesn't contain any code, or that code isn't context
+    // specialized.
+    TailCallRuntime(Runtime::kNewClosure, context, shared_function_info,
+                    feedback_cell);
+#else
     StoreMapNoWriteBarrier(feedback_cell, RootIndex::kManyClosuresCellMap);
     Goto(&cell_done);
+#endif  // V8_ENABLE_LEAPTIERING
 
     BIND(&cell_done);
   }
@@ -249,7 +262,7 @@ TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
   // as the map of the allocated object.
   const TNode<NativeContext> native_context = LoadNativeContext(context);
   const TNode<Map> function_map =
-      CAST(LoadContextElement(native_context, function_map_index));
+      CAST(LoadContextElementNoCell(native_context, function_map_index));
 
   // Create a new closure from the given function info in new space
   TNode<IntPtrT> instance_size_in_bytes =
@@ -287,8 +300,9 @@ TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
 #ifdef V8_ENABLE_LEAPTIERING
   TNode<JSDispatchHandleT> dispatch_handle = LoadObjectField<JSDispatchHandleT>(
       feedback_cell, FeedbackCell::kDispatchHandleOffset);
-  CSA_DCHECK(this, Word32NotEqual(dispatch_handle,
-                                  Int32Constant(kNullJSDispatchHandle)));
+  CSA_DCHECK(this,
+             Word32NotEqual(dispatch_handle,
+                            Int32Constant(kNullJSDispatchHandle.value())));
   StoreObjectFieldNoWriteBarrier(result, JSFunction::kDispatchHandleOffset,
                                  dispatch_handle);
 #else
@@ -341,11 +355,10 @@ TNode<JSObject> ConstructorBuiltinsAssembler::FastNewObject(
   // Fast path.
 
   // Load the initial map and verify that it's in fact a map.
-  TNode<Object> initial_map_or_proto =
+  TNode<Union<JSReceiver, Map, TheHole>> initial_map_or_proto =
       LoadJSFunctionPrototypeOrInitialMap(new_target_func);
-  GotoIf(TaggedIsSmi(initial_map_or_proto), call_runtime);
-  GotoIf(DoesntHaveInstanceType(CAST(initial_map_or_proto), MAP_TYPE),
-         call_runtime);
+  GotoIf(IsTheHole(initial_map_or_proto), call_runtime);
+  GotoIf(DoesntHaveInstanceType(initial_map_or_proto, MAP_TYPE), call_runtime);
   TNode<Map> initial_map = CAST(initial_map_or_proto);
 
   // Fall back to runtime if the target differs from the new target's
@@ -376,7 +389,7 @@ TNode<JSObject> ConstructorBuiltinsAssembler::FastNewObject(
 
 TNode<Context> ConstructorBuiltinsAssembler::FastNewFunctionContext(
     TNode<ScopeInfo> scope_info, TNode<Uint32T> slots, TNode<Context> context,
-    ScopeType scope_type) {
+    ScopeType scope_type, ContextMode context_mode) {
   TNode<IntPtrT> slots_intptr = Signed(ChangeUint32ToWord(slots));
   TNode<IntPtrT> size = ElementOffsetFromIndex(slots_intptr, PACKED_ELEMENTS,
                                                Context::kTodoHeaderSize);
@@ -397,7 +410,7 @@ TNode<Context> ConstructorBuiltinsAssembler::FastNewFunctionContext(
     default:
       UNREACHABLE();
   }
-  TNode<Map> map = CAST(LoadContextElement(native_context, index));
+  TNode<Map> map = CAST(LoadContextElementNoCell(native_context, index));
   // Set up the header.
   StoreMapNoWriteBarrier(function_context, map);
   TNode<IntPtrT> min_context_slots = IntPtrConstant(Context::MIN_CONTEXT_SLOTS);
@@ -411,16 +424,57 @@ TNode<Context> ConstructorBuiltinsAssembler::FastNewFunctionContext(
                                  context);
 
   // Initialize the varrest of the slots to undefined.
-  TNode<Oddball> undefined = UndefinedConstant();
-  TNode<IntPtrT> start_offset = IntPtrConstant(Context::kTodoHeaderSize);
-  CodeStubAssembler::VariableList vars(0, zone());
-  BuildFastLoop<IntPtrT>(
-      vars, start_offset, size,
-      [=, this](TNode<IntPtrT> offset) {
-        StoreObjectFieldNoWriteBarrier(function_context, offset, undefined);
-      },
-      kTaggedSize, LoopUnrollingMode::kYes, IndexAdvanceMode::kPost);
-  return function_context;
+  TNode<Object> undefined = UndefinedConstant();
+  if (context_mode == ContextMode::kHasContextCells) {
+    TVARIABLE(IntPtrT, offset, IntPtrConstant(Context::kTodoHeaderSize));
+    TNode<IntPtrT> local_count = LoadScopeInfoContextLocalCount(scope_info);
+
+    Label extension_field_done(this);
+    GotoIfNot(LoadScopeInfoHasExtensionField(scope_info),
+              &extension_field_done);
+    StoreObjectFieldNoWriteBarrier(function_context, Context::kExtensionOffset,
+                                   undefined);
+    offset = IntPtrAdd(offset.value(), IntPtrConstant(kTaggedSize));
+    Goto(&extension_field_done);
+    BIND(&extension_field_done);
+
+    CodeStubAssembler::VariableList vars({&offset}, zone());
+    BuildFastLoop<IntPtrT>(
+        vars, IntPtrConstant(0), local_count,
+        [&](TNode<IntPtrT> index) {
+          TNode<Object> init_value =
+              GetFunctionContextSlotInitialValue(scope_info, index);
+          StoreObjectFieldNoWriteBarrier(function_context, offset.value(),
+                                         init_value);
+          offset = IntPtrAdd(offset.value(), IntPtrConstant(kTaggedSize));
+        },
+        1, LoopUnrollingMode::kYes, IndexAdvanceMode::kPost);
+
+    Label done(this);
+    GotoIf(IntPtrEqual(offset.value(), size), &done);
+    // We store another undefined for function variables that are stored in the
+    // last slot of the context.
+    StoreObjectFieldNoWriteBarrier(function_context, offset.value(), undefined);
+    // Check that this is indeed the last slot.
+    CSA_DCHECK(this, IntPtrEqual(
+                         IntPtrAdd(offset.value(), IntPtrConstant(kTaggedSize)),
+                         size));
+    Goto(&done);
+
+    BIND(&done);
+    return function_context;
+  } else {
+    DCHECK_EQ(context_mode, ContextMode::kNoContextCells);
+    TNode<IntPtrT> start_offset = IntPtrConstant(Context::kTodoHeaderSize);
+    CodeStubAssembler::VariableList vars(0, zone());
+    BuildFastLoop<IntPtrT>(
+        vars, start_offset, size,
+        [=, this](TNode<IntPtrT> offset) {
+          StoreObjectFieldNoWriteBarrier(function_context, offset, undefined);
+        },
+        kTaggedSize, LoopUnrollingMode::kYes, IndexAdvanceMode::kPost);
+    return function_context;
+  }
 }
 
 TNode<JSRegExp> ConstructorBuiltinsAssembler::CreateRegExpLiteral(
@@ -450,7 +504,7 @@ TNode<JSRegExp> ConstructorBuiltinsAssembler::CreateRegExpLiteral(
     TNode<HeapObject> new_object = Allocate(JSRegExp::Size());
 
     // Initialize Object fields.
-    TNode<JSFunction> regexp_function = CAST(LoadContextElement(
+    TNode<JSFunction> regexp_function = CAST(LoadContextElementNoCell(
         LoadNativeContext(context), Context::REGEXP_FUNCTION_INDEX));
     TNode<Map> initial_map = CAST(LoadObjectField(
         regexp_function, JSFunction::kPrototypeOrInitialMapOffset));
@@ -651,7 +705,7 @@ TNode<HeapObject> ConstructorBuiltinsAssembler::CreateShallowObjectLiteral(
     // Prepare for inner-allocating the AllocationMemento.
     allocation_size = IntPtrAdd(aligned_instance_size,
                                 IntPtrConstant(ALIGN_TO_ALLOCATION_ALIGNMENT(
-                                    AllocationMemento::kSize)));
+                                    sizeof(AllocationMemento))));
   }
 
   TNode<HeapObject> copy =
@@ -685,6 +739,7 @@ TNode<HeapObject> ConstructorBuiltinsAssembler::CreateShallowObjectLiteral(
       TNode<Object> field = LoadObjectField(boilerplate, offset.value());
       Label store_field(this);
       GotoIf(TaggedIsSmi(field), &store_field);
+      GotoIf(IsUninitialized(field), &store_field);
       // TODO(leszeks): Read the field descriptor to decide if this heap
       // number is mutable or not.
       GotoIf(IsHeapNumber(CAST(field)), &continue_with_write_barrier);
@@ -747,6 +802,7 @@ void ConstructorBuiltinsAssembler::CopyMutableHeapNumbersInObject(
         Label copy_heap_number(this, Label::kDeferred), continue_loop(this);
         // We only have to clone complex field values.
         GotoIf(TaggedIsSmi(field), &continue_loop);
+        GotoIf(IsUninitialized(field), &continue_loop);
         // TODO(leszeks): Read the field descriptor to decide if this heap
         // number is mutable or not.
         Branch(IsHeapNumber(CAST(field)), &copy_heap_number, &continue_loop);

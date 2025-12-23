@@ -34,6 +34,7 @@
 #include "src/base/bits.h"
 #include "src/base/lazy-instance.h"
 #include "src/base/macros.h"
+#include "src/base/platform/mutex.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/time.h"
 #include "src/base/timezone-cache.h"
@@ -539,8 +540,7 @@ int OS::GetCurrentProcessId() {
   return static_cast<int>(::GetCurrentProcessId());
 }
 
-
-int OS::GetCurrentThreadId() {
+int OS::GetCurrentThreadIdInternal() {
   return static_cast<int>(::GetCurrentThreadId());
 }
 
@@ -821,6 +821,12 @@ bool OS::IsHardwareEnforcedShadowStacksEnabled() {
 }
 
 // static
+void OS::EnsureAlternativeSignalStackIsAvailableForCurrentThread() {
+  // Not supported on Windows.
+  UNREACHABLE();
+}
+
+// static
 size_t OS::AllocatePageSize() {
   static size_t allocate_alignment = 0;
   if (allocate_alignment == 0) {
@@ -989,7 +995,10 @@ void CheckIsOOMError(int error) {
 
 // static
 void* OS::Allocate(void* hint, size_t size, size_t alignment,
-                   MemoryPermission access) {
+                   MemoryPermission access, PlatformSharedMemoryHandle handle) {
+  // File handles aren't supported.
+  DCHECK_EQ(handle, kInvalidSharedMemoryHandle);
+
   size_t page_size = AllocatePageSize();
   DCHECK_EQ(0, size % page_size);
   DCHECK_EQ(0, alignment % page_size);
@@ -1132,8 +1141,10 @@ bool OS::CanReserveAddressSpace() {
 
 // static
 std::optional<AddressSpaceReservation> OS::CreateAddressSpaceReservation(
-    void* hint, size_t size, size_t alignment,
-    MemoryPermission max_permission) {
+    void* hint, size_t size, size_t alignment, MemoryPermission max_permission,
+    PlatformSharedMemoryHandle handle) {
+  // File handles aren't supported.
+  DCHECK_EQ(handle, kInvalidSharedMemoryHandle);
   CHECK(CanReserveAddressSpace());
 
   size_t page_size = AllocatePageSize();
@@ -1245,20 +1256,18 @@ void OS::Abort() {
 
   switch (g_abort_mode) {
     case AbortMode::kExitWithSuccessAndIgnoreDcheckFailures:
-      _exit(0);
+      ExitProcess(0);
     case AbortMode::kExitWithFailureAndIgnoreDcheckFailures:
-      _exit(-1);
+      ExitProcess(-1);
     case AbortMode::kImmediateCrash:
       IMMEDIATE_CRASH();
+    case AbortMode::kExitIfNoSecurityImpact:
     case AbortMode::kDefault:
       break;
   }
 
-  // Make the MSVCRT do a silent abort.
-  raise(SIGABRT);
-
   // Make sure function doesn't return.
-  abort();
+  ExitProcess(3);
 }
 
 

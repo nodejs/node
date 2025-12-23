@@ -1,16 +1,18 @@
-test(function() {
+test(t => {
     sessionStorage.clear();
 
     var index = 0;
     var key = "name";
     var val = "x".repeat(1024);
 
-    assert_throws_dom("QUOTA_EXCEEDED_ERR", function() {
+    t.add_cleanup(() => {
+        sessionStorage.clear();
+    });
+
+    assert_throws_quotaexceedederror(() => {
         while (true) {
             index++;
             sessionStorage.setItem("" + key + index, "" + val + index);
         }
-    });
-
-    sessionStorage.clear();
+    }, null, null);
 }, "Throws QuotaExceededError when the quota has been exceeded");

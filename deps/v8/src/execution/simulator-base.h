@@ -58,30 +58,34 @@ class SimulatorBase {
 
   // Convert back integral return types. This is always a narrowing conversion.
   template <typename T>
-  static typename std::enable_if<std::is_integral<T>::value, T>::type
-  ConvertReturn(intptr_t ret) {
+  static T ConvertReturn(intptr_t ret)
+    requires std::is_integral_v<T>
+  {
     static_assert(sizeof(T) <= sizeof(intptr_t), "type bigger than ptrsize");
     return static_cast<T>(ret);
   }
 
   // Convert back pointer-typed return types.
   template <typename T>
-  static typename std::enable_if<std::is_pointer<T>::value, T>::type
-  ConvertReturn(intptr_t ret) {
+  static T ConvertReturn(intptr_t ret)
+    requires std::is_pointer_v<T>
+  {
     return reinterpret_cast<T>(ret);
   }
 
   template <typename T>
-  static typename std::enable_if<std::is_base_of<Object, T>::value, T>::type
-  ConvertReturn(intptr_t ret) {
+  static T ConvertReturn(intptr_t ret)
+    requires std::is_base_of_v<Object, T>
+  {
     return Tagged<Object>(ret);
   }
 
 #if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_LOONG64 || \
     V8_TARGET_ARCH_RISCV64
   template <typename T>
-  static typename std::enable_if<std::is_same<T, v8::AnyCType>::value, T>::type
-  ConvertReturn(intptr_t ret) {
+  static T ConvertReturn(intptr_t ret)
+    requires std::is_same_v<T, v8::AnyCType>
+  {
     v8::AnyCType result;
     result.int64_value = static_cast<int64_t>(ret);
     return result;
@@ -91,25 +95,27 @@ class SimulatorBase {
 
   // Convert back void return type (i.e. no return).
   template <typename T>
-  static typename std::enable_if<std::is_void<T>::value, T>::type ConvertReturn(
-      intptr_t ret) {}
+  static T ConvertReturn(intptr_t ret)
+    requires std::is_void_v<T>
+  {}
 
   // Helper methods to convert arbitrary integer or pointer arguments to the
   // needed generic argument type intptr_t.
 
   // Convert integral argument to intptr_t.
   template <typename T>
-  static typename std::enable_if<std::is_integral<T>::value, intptr_t>::type
-  ConvertArg(T arg) {
+  static intptr_t ConvertArg(T arg)
+    requires std::is_integral_v<T>
+  {
     static_assert(sizeof(T) <= sizeof(intptr_t), "type bigger than ptrsize");
 #if V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_LOONG64 || \
     V8_TARGET_ARCH_RISCV32 || V8_TARGET_ARCH_RISCV64
     // The MIPS64, LOONG64 and RISCV64 calling convention is to sign extend all
     // values, even unsigned ones.
-    using signed_t = typename std::make_signed<T>::type;
+    using signed_t = std::make_signed_t<T>;
     return static_cast<intptr_t>(static_cast<signed_t>(arg));
 #else
-    // Standard C++ convertion: Sign-extend signed values, zero-extend unsigned
+    // Standard C++ conversion: Sign-extend signed values, zero-extend unsigned
     // values.
     return static_cast<intptr_t>(arg);
 #endif
@@ -117,15 +123,16 @@ class SimulatorBase {
 
   // Convert pointer-typed argument to intptr_t.
   template <typename T>
-  static typename std::enable_if<std::is_pointer<T>::value, intptr_t>::type
-  ConvertArg(T arg) {
+  static intptr_t ConvertArg(T arg)
+    requires std::is_pointer_v<T>
+  {
     return reinterpret_cast<intptr_t>(arg);
   }
 
   template <typename T>
-  static
-      typename std::enable_if<std::is_floating_point<T>::value, intptr_t>::type
-      ConvertArg(T arg) {
+  static intptr_t ConvertArg(T arg)
+    requires std::is_floating_point_v<T>
+  {
     UNREACHABLE();
   }
 
@@ -150,7 +157,7 @@ class SimulatorBase {
 //  - V8_TARGET_ARCH_ARM64: svc (Supervisor Call)
 //  - V8_TARGET_ARCH_MIPS64: swi (software-interrupt)
 //  - V8_TARGET_ARCH_PPC64: svc (Supervisor Call)
-//  - V8_TARGET_ARCH_S390: svc (Supervisor Call)
+//  - V8_TARGET_ARCH_S390X: svc (Supervisor Call)
 //  - V8_TARGET_ARCH_RISCV64: ecall (Supervisor Call)
 class Redirection {
  public:

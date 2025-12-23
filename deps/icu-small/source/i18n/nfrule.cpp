@@ -19,7 +19,6 @@
 
 #if U_HAVE_RBNF
 
-#include <limits>
 #include "unicode/localpointer.h"
 #include "unicode/rbnf.h"
 #include "unicode/tblcoll.h"
@@ -65,6 +64,7 @@ NFRule::~NFRule()
 
 static const char16_t gLeftBracket = 0x005b;
 static const char16_t gRightBracket = 0x005d;
+static const char16_t gVerticalLine = 0x007C;
 static const char16_t gColon = 0x003a;
 static const char16_t gZero = 0x0030;
 static const char16_t gNine = 0x0039;
@@ -147,6 +147,7 @@ NFRule::makeRules(UnicodeString& description,
         // then it's really shorthand for two rules (with one exception)
         LocalPointer<NFRule> rule2;
         UnicodeString sbuf;
+        int32_t orElseOp = description.indexOf(gVerticalLine);
 
         // we'll actually only split the rule into two rules if its
         // base value is an even multiple of its divisor (or it's one
@@ -194,9 +195,13 @@ NFRule::makeRules(UnicodeString& description,
             rule2->radix = rule1->radix;
             rule2->exponent = rule1->exponent;
 
-            // rule2's rule text omits the stuff in brackets: initialize
-            // its rule text and substitutions accordingly
+            // By default, rule2's rule text omits the stuff in brackets,
+            // unless it contains a | between the brackets.
+            // Initialize its rule text and substitutions accordingly.
             sbuf.append(description, 0, brack1);
+            if (orElseOp >= 0) {
+                sbuf.append(description, orElseOp + 1, brack2 - orElseOp - 1);
+            }
             if (brack2 + 1 < description.length()) {
                 sbuf.append(description, brack2 + 1, description.length() - brack2 - 1);
             }
@@ -207,7 +212,12 @@ NFRule::makeRules(UnicodeString& description,
         // the brackets themselves: initialize _its_ rule text and
         // substitutions accordingly
         sbuf.setTo(description, 0, brack1);
-        sbuf.append(description, brack1 + 1, brack2 - brack1 - 1);
+        if (orElseOp >= 0) {
+            sbuf.append(description, brack1 + 1, orElseOp - brack1 - 1);
+        }
+        else {
+            sbuf.append(description, brack1 + 1, brack2 - brack1 - 1);
+        }
         if (brack2 + 1 < description.length()) {
             sbuf.append(description, brack2 + 1, description.length() - brack2 - 1);
         }
@@ -286,18 +296,17 @@ NFRule::parseRuleDescriptor(UnicodeString& description, UErrorCode& status)
             // into "tempValue", skip periods, commas, and spaces,
             // stop on a slash or > sign (or at the end of the string),
             // and throw an exception on any other character
-            int64_t ll_10 = 10;
             while (p < descriptorLength) {
                 c = descriptor.charAt(p);
                 if (c >= gZero && c <= gNine) {
-                    int32_t single_digit = static_cast<int32_t>(c - gZero);
-                    if ((val > 0 && val > (std::numeric_limits<int64_t>::max() - single_digit) / 10) ||
-                        (val < 0 && val < (std::numeric_limits<int64_t>::min() - single_digit) / 10)) {
+                    int64_t digit = static_cast<int64_t>(c - gZero);
+                    if ((val > 0 && val > (INT64_MAX - digit) / 10) ||
+                        (val < 0 && val < (INT64_MIN - digit) / 10)) {
                         // out of int64_t range
                         status = U_PARSE_ERROR;
                         return;
                     }
-                    val = val * ll_10 + single_digit;
+                    val = val * 10 + digit;
                 }
                 else if (c == gSlash || c == gGreaterThan) {
                     break;
@@ -322,11 +331,17 @@ NFRule::parseRuleDescriptor(UnicodeString& description, UErrorCode& status)
             if (c == gSlash) {
                 val = 0;
                 ++p;
-                ll_10 = 10;
                 while (p < descriptorLength) {
                     c = descriptor.charAt(p);
                     if (c >= gZero && c <= gNine) {
-                        val = val * ll_10 + static_cast<int32_t>(c - gZero);
+                        int64_t digit = static_cast<int64_t>(c - gZero);
+                        if ((val > 0 && val > (INT64_MAX - digit) / 10) ||
+                            (val < 0 && val < (INT64_MIN - digit) / 10)) {
+                            // out of int64_t range
+                            status = U_PARSE_ERROR;
+                            return;
+                        }
+                        val = val * 10 + digit;
                     }
                     else if (c == gGreaterThan) {
                         break;
@@ -400,7 +415,7 @@ NFRule::parseRuleDescriptor(UnicodeString& description, UErrorCode& status)
     // finally, if the rule body begins with an apostrophe, strip it off
     // (this is generally used to put whitespace at the beginning of
     // a rule's rule text)
-    if (description.length() > 0 && description.charAt(0) == gTick) {
+    if (!description.isEmpty() && description.charAt(0) == gTick) {
         description.removeBetween(0, 1);
     }
 

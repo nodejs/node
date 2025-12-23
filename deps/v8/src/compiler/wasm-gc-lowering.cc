@@ -67,8 +67,6 @@ Reduction WasmGCLowering::Reduce(Node* node) {
       return ReduceIsNotNull(node);
     case IrOpcode::kRttCanon:
       return ReduceRttCanon(node);
-    case IrOpcode::kTypeGuard:
-      return ReduceTypeGuard(node);
     case IrOpcode::kWasmAnyConvertExtern:
       return ReduceWasmAnyConvertExtern(node);
     case IrOpcode::kWasmExternConvertAny:
@@ -95,24 +93,17 @@ Reduction WasmGCLowering::Reduce(Node* node) {
 }
 
 Node* WasmGCLowering::Null(wasm::ValueType type) {
-  // TODO(thibaudm): Can we use wasm null for exnref?
-  RootIndex index = wasm::IsSubtypeOf(type, wasm::kWasmExternRef, module_) ||
-                            wasm::IsSubtypeOf(type, wasm::kWasmExnRef, module_)
-                        ? RootIndex::kNullValue
-                        : RootIndex::kWasmNull;
+  RootIndex index =
+      type.use_wasm_null() ? RootIndex::kWasmNull : RootIndex::kNullValue;
   return gasm_.LoadImmutable(MachineType::Pointer(), gasm_.LoadRootRegister(),
                              IsolateData::root_slot_offset(index));
 }
 
 Node* WasmGCLowering::IsNull(Node* object, wasm::ValueType type) {
 #if V8_STATIC_ROOTS_BOOL
-  // TODO(14616): Extend this for shared types.
-  const bool is_wasm_null =
-      !wasm::IsSubtypeOf(type, wasm::kWasmExternRef, module_) &&
-      !wasm::IsSubtypeOf(type, wasm::kWasmExnRef, module_);
-  Node* null_value =
-      gasm_.UintPtrConstant(is_wasm_null ? StaticReadOnlyRoot::kWasmNull
-                                         : StaticReadOnlyRoot::kNullValue);
+  Node* null_value = gasm_.UintPtrConstant(
+      type.use_wasm_null() ? StaticReadOnlyRoot::kWasmNull
+                           : StaticReadOnlyRoot::kNullValue);
 #else
   Node* null_value = Null(type);
 #endif
@@ -138,7 +129,7 @@ Reduction WasmGCLowering::ReduceWasmTypeCheck(Node* node) {
   gasm_.InitializeEffectControl(effect_input, control_input);
 
   auto end_label = gasm_.MakeLabel(MachineRepresentation::kWord32);
-  bool is_cast_from_any = config.from.is_reference_to(wasm::HeapType::kAny);
+  bool is_cast_from_any = config.from.is_reference_to(wasm::GenericKind::kAny);
 
   // If we are casting from any and null results in check failure, then the
   // {IsDataRefMap} check below subsumes the null check. Otherwise, perform
@@ -155,7 +146,10 @@ Reduction WasmGCLowering::ReduceWasmTypeCheck(Node* node) {
 
   Node* map = gasm_.LoadMap(object);
 
-  if (module_->types[config.to.ref_index()].is_final) {
+  DCHECK_IMPLIES(module_->type(config.to.ref_index()).is_final,
+                 config.exactness == kExactMatchOnly);
+
+  if (config.exactness == kExactMatchOnly) {
     gasm_.Goto(&end_label, gasm_.TaggedEqual(map, rtt));
   } else {
     // First, check if types happen to be equal. This has been shown to give
@@ -212,19 +206,18 @@ Reduction WasmGCLowering::ReduceWasmTypeCheckAbstract(Node* node) {
   const bool null_succeeds = config.to.is_nullable();
   const bool object_can_be_i31 =
       wasm::IsSubtypeOf(wasm::kWasmI31Ref.AsNonNull(), config.from, module_) ||
-      config.from.heap_representation() == wasm::HeapType::kExtern;
+      config.from.is_reference_to(wasm::GenericKind::kExtern);
 
   gasm_.InitializeEffectControl(effect_input, control_input);
 
   Node* result = nullptr;
   auto end_label = gasm_.MakeLabel(MachineRepresentation::kWord32);
 
-  wasm::HeapType::Representation to_rep = config.to.heap_representation();
+  DCHECK(config.to.is_abstract_ref());
+  wasm::GenericKind to_kind = config.to.generic_kind();
   do {
     // The none-types only perform a null check. They need no control flow.
-    if (to_rep == wasm::HeapType::kNone ||
-        to_rep == wasm::HeapType::kNoExtern ||
-        to_rep == wasm::HeapType::kNoFunc || to_rep == wasm::HeapType::kNoExn) {
+    if (wasm::IsNullKind(to_kind)) {
       result = IsNull(object, config.from);
       break;
     }
@@ -237,13 +230,13 @@ Reduction WasmGCLowering::ReduceWasmTypeCheckAbstract(Node* node) {
                    BranchHint::kFalse, gasm_.Int32Constant(kResult));
     }
     // i31 is special in that the Smi check is the last thing to do.
-    if (to_rep == wasm::HeapType::kI31) {
+    if (to_kind == wasm::GenericKind::kI31) {
       // If earlier optimization passes reached the limit of possible graph
       // transformations, we could DCHECK(object_can_be_i31) here.
       result = object_can_be_i31 ? gasm_.IsSmi(object) : gasm_.Int32Constant(0);
       break;
     }
-    if (to_rep == wasm::HeapType::kEq) {
+    if (to_kind == wasm::GenericKind::kEq) {
       if (object_can_be_i31) {
         gasm_.GotoIf(gasm_.IsSmi(object), &end_label, BranchHint::kFalse,
                      gasm_.Int32Constant(1));
@@ -256,16 +249,16 @@ Reduction WasmGCLowering::ReduceWasmTypeCheckAbstract(Node* node) {
       gasm_.GotoIf(gasm_.IsSmi(object), &end_label, BranchHint::kFalse,
                    gasm_.Int32Constant(0));
     }
-    if (to_rep == wasm::HeapType::kArray) {
+    if (to_kind == wasm::GenericKind::kArray) {
       result = gasm_.HasInstanceType(object, WASM_ARRAY_TYPE);
       break;
     }
-    if (to_rep == wasm::HeapType::kStruct) {
+    if (to_kind == wasm::GenericKind::kStruct) {
       result = gasm_.HasInstanceType(object, WASM_STRUCT_TYPE);
       break;
     }
-    if (to_rep == wasm::HeapType::kString ||
-        to_rep == wasm::HeapType::kExternString) {
+    if (to_kind == wasm::GenericKind::kString ||
+        to_kind == wasm::GenericKind::kExternString) {
       Node* instance_type = gasm_.LoadInstanceType(gasm_.LoadMap(object));
       result = gasm_.Uint32LessThan(instance_type,
                                     gasm_.Uint32Constant(FIRST_NONSTRING_TYPE));
@@ -302,7 +295,7 @@ Reduction WasmGCLowering::ReduceWasmTypeCast(Node* node) {
   gasm_.InitializeEffectControl(effect_input, control_input);
 
   auto end_label = gasm_.MakeLabel();
-  bool is_cast_from_any = config.from.is_reference_to(wasm::HeapType::kAny);
+  bool is_cast_from_any = config.from.is_reference_to(wasm::GenericKind::kAny);
 
   // If we are casting from any and null results in check failure, then the
   // {IsDataRefMap} check below subsumes the null check. Otherwise, perform
@@ -324,7 +317,10 @@ Reduction WasmGCLowering::ReduceWasmTypeCast(Node* node) {
 
   Node* map = gasm_.LoadMap(object);
 
-  if (module_->types[config.to.ref_index()].is_final) {
+  DCHECK_IMPLIES(module_->type(config.to.ref_index()).is_final,
+                 config.exactness == kExactMatchOnly);
+
+  if (config.exactness == kExactMatchOnly) {
     gasm_.TrapUnless(gasm_.TaggedEqual(map, rtt), TrapId::kTrapIllegalCast);
     UpdateSourcePosition(gasm_.effect(), node);
     gasm_.Goto(&end_label);
@@ -386,19 +382,17 @@ Reduction WasmGCLowering::ReduceWasmTypeCastAbstract(Node* node) {
   const bool null_succeeds = config.to.is_nullable();
   const bool object_can_be_i31 =
       wasm::IsSubtypeOf(wasm::kWasmI31Ref.AsNonNull(), config.from, module_) ||
-      config.from.heap_representation() == wasm::HeapType::kExtern;
+      config.from.is_reference_to(wasm::GenericKind::kExtern);
 
   gasm_.InitializeEffectControl(effect_input, control_input);
 
   auto end_label = gasm_.MakeLabel();
 
-  wasm::HeapType::Representation to_rep = config.to.heap_representation();
-
+  DCHECK(config.to.is_abstract_ref());
+  wasm::GenericKind to_kind = config.to.generic_kind();
   do {
     // The none-types only perform a null check.
-    if (to_rep == wasm::HeapType::kNone ||
-        to_rep == wasm::HeapType::kNoExtern ||
-        to_rep == wasm::HeapType::kNoFunc || to_rep == wasm::HeapType::kNoExn) {
+    if (wasm::IsNullKind(to_kind)) {
       gasm_.TrapUnless(IsNull(object, config.from), TrapId::kTrapIllegalCast);
       UpdateSourcePosition(gasm_.effect(), node);
       break;
@@ -410,7 +404,7 @@ Reduction WasmGCLowering::ReduceWasmTypeCastAbstract(Node* node) {
         !v8_flags.experimental_wasm_skip_null_checks) {
       gasm_.GotoIf(IsNull(object, config.from), &end_label, BranchHint::kFalse);
     }
-    if (to_rep == wasm::HeapType::kI31) {
+    if (to_kind == wasm::GenericKind::kI31) {
       // If earlier optimization passes reached the limit of possible graph
       // transformations, we could DCHECK(object_can_be_i31) here.
       Node* success =
@@ -419,7 +413,7 @@ Reduction WasmGCLowering::ReduceWasmTypeCastAbstract(Node* node) {
       UpdateSourcePosition(gasm_.effect(), node);
       break;
     }
-    if (to_rep == wasm::HeapType::kEq) {
+    if (to_kind == wasm::GenericKind::kEq) {
       if (object_can_be_i31) {
         gasm_.GotoIf(gasm_.IsSmi(object), &end_label, BranchHint::kFalse);
       }
@@ -433,20 +427,20 @@ Reduction WasmGCLowering::ReduceWasmTypeCastAbstract(Node* node) {
       gasm_.TrapIf(gasm_.IsSmi(object), TrapId::kTrapIllegalCast);
       UpdateSourcePosition(gasm_.effect(), node);
     }
-    if (to_rep == wasm::HeapType::kArray) {
+    if (to_kind == wasm::GenericKind::kArray) {
       gasm_.TrapUnless(gasm_.HasInstanceType(object, WASM_ARRAY_TYPE),
                        TrapId::kTrapIllegalCast);
       UpdateSourcePosition(gasm_.effect(), node);
       break;
     }
-    if (to_rep == wasm::HeapType::kStruct) {
+    if (to_kind == wasm::GenericKind::kStruct) {
       gasm_.TrapUnless(gasm_.HasInstanceType(object, WASM_STRUCT_TYPE),
                        TrapId::kTrapIllegalCast);
       UpdateSourcePosition(gasm_.effect(), node);
       break;
     }
-    if (to_rep == wasm::HeapType::kString ||
-        to_rep == wasm::HeapType::kExternString) {
+    if (to_kind == wasm::GenericKind::kString ||
+        to_kind == wasm::GenericKind::kExternString) {
       Node* instance_type = gasm_.LoadInstanceType(gasm_.LoadMap(object));
       gasm_.TrapUnless(
           gasm_.Uint32LessThan(instance_type,
@@ -488,8 +482,7 @@ Reduction WasmGCLowering::ReduceAssertNotNull(Node* node) {
       if (null_check_strategy_ == NullCheckStrategy::kExplicit ||
           wasm::IsSubtypeOf(wasm::kWasmI31Ref.AsNonNull(), op_parameter.type,
                             module_) ||
-          wasm::IsSubtypeOf(op_parameter.type, wasm::kWasmExternRef, module_) ||
-          wasm::IsSubtypeOf(op_parameter.type, wasm::kWasmExnRef, module_)) {
+          !op_parameter.type.use_wasm_null()) {
         gasm_.TrapIf(IsNull(object, op_parameter.type), op_parameter.trap_id);
         UpdateSourcePosition(gasm_.effect(), node);
       } else {
@@ -543,14 +536,6 @@ Reduction WasmGCLowering::ReduceRttCanon(Node* node) {
   return Replace(gasm_.LoadImmutable(
       MachineType::TaggedPointer(), maps_list,
       wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(type_index)));
-}
-
-Reduction WasmGCLowering::ReduceTypeGuard(Node* node) {
-  DCHECK_EQ(node->opcode(), IrOpcode::kTypeGuard);
-  Node* alias = NodeProperties::GetValueInput(node, 0);
-  ReplaceWithValue(node, alias);
-  node->Kill();
-  return Replace(alias);
 }
 
 namespace {

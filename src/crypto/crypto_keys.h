@@ -127,7 +127,7 @@ class KeyObjectData final : public MemoryRetainer {
   KeyObjectData(KeyType type,
                 std::shared_ptr<Mutex> mutex,
                 std::shared_ptr<Data> data)
-      : key_type_(type), mutex_(mutex), data_(data) {}
+      : key_type_(type), mutex_(std::move(mutex)), data_(std::move(data)) {}
 };
 
 class KeyObjectHandle : public BaseObject {
@@ -169,6 +169,12 @@ class KeyObjectHandle : public BaseObject {
       const v8::FunctionCallbackInfo<v8::Value>& args);
 
   static void Export(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+#if OPENSSL_WITH_PQC
+  static void InitPqcRaw(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void RawPublicKey(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void RawSeed(const v8::FunctionCallbackInfo<v8::Value>& args);
+#endif
 
   v8::MaybeLocal<v8::Value> ExportSecretKey() const;
   v8::MaybeLocal<v8::Value> ExportPublicKey(

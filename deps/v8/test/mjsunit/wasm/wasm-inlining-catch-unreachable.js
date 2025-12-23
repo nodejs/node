@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --turboshaft-wasm --allow-natives-syntax --experimental-wasm-exnref
+// Flags: --allow-natives-syntax --wasm-staging
+// Flags: --wasm-allow-mixed-eh-for-testing
 
 // This test case reproduces an issue found in crbug.com/1508213 where
 // reachability is handled differently for unreachable catch blocks in liftoff

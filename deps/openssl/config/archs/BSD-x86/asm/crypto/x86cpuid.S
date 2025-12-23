@@ -122,6 +122,24 @@ L002generic:
 	xorl	%ecx,%ecx
 	.byte	0x0f,0xa2
 	movl	%ebx,8(%edi)
+	movl	%ecx,12(%edi)
+	movl	%edx,16(%edi)
+	cmpl	$1,%eax
+	jb	L005no_extended_info
+	movl	$7,%eax
+	movl	$1,%ecx
+	.byte	0x0f,0xa2
+	movl	%eax,20(%edi)
+	movl	%edx,24(%edi)
+	movl	%ebx,28(%edi)
+	movl	%ecx,32(%edi)
+	andl	$524288,%edx
+	cmpl	$0,%edx
+	je	L005no_extended_info
+	movl	$36,%eax
+	movl	$0,%ecx
+	.byte	0x0f,0xa2
+	movl	%ebx,36(%edi)
 L005no_extended_info:
 	btl	$27,%ebp
 	jnc	L006clear_avx
@@ -137,6 +155,7 @@ L008clear_xmm:
 	andl	$4278190079,%esi
 L006clear_avx:
 	andl	$4026525695,%ebp
+	andl	$4286578687,20(%edi)
 	andl	$4294967263,8(%edi)
 L007done:
 	movl	%esi,%eax
@@ -583,7 +602,7 @@ L036done:
 	popl	%ebx
 	popl	%edi
 	ret
-.comm	_OPENSSL_ia32cap_P,16
+.comm	_OPENSSL_ia32cap_P,40
 .text
 .type	__GLOBAL_$I$_OPENSSL_cpuid_setup,@function
 .globl	__GLOBAL_$I$_OPENSSL_cpuid_setup

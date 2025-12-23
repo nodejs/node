@@ -1,0 +1,32 @@
+# This file defines all third-party Rust dependencies approved for use
+# in Node.js.
+
+[package]
+edition = "2021"
+name = "node_crates"
+version = "0.1.0"
+rust-version = "1.82"
+
+[lib]
+crate-type = ["staticlib"]
+
+[dependencies]
+# Pin all temporal dependencies to the last version support rustc 1.82
+icu_calendar = "~2.0.0"
+icu_calendar_data = "~2.0.0"
+icu_collections = "~2.0.0"
+icu_locale = "~2.0.0"
+icu_locale_core = "~2.0.0"
+icu_locale_data = "~2.0.0"
+icu_provider = "~2.0.0"
+timezone_provider = "=0.1.0"
+
+[dependencies.temporal_capi]
+version = "=0.1.0"
+features = ["zoneinfo64"]
+
+[dependencies.temporal_rs]
+version = "=0.1.0"
+default-features = false
+# This is necessary to enable a spec-compliance quirk when upgrading to v0.1.2
+# features = ["float64_representable_durations"]

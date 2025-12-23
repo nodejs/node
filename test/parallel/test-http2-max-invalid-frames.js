@@ -21,7 +21,7 @@ server.on('stream', (stream) => {
   stream.end('Hello, world!\n');
 });
 
-server.listen(0, () => {
+server.listen(0, common.mustCall(() => {
   const h2header = Buffer.alloc(9);
   const conn = net.connect({
     port: server.address().port,
@@ -86,4 +86,4 @@ server.listen(0, () => {
     conn.destroy();
     server.close();
   }));
-});
+}));

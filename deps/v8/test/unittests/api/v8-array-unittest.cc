@@ -5,6 +5,8 @@
 #include "include/v8-container.h"
 #include "include/v8-primitive.h"
 #include "include/v8-value.h"
+#include "src/execution/protectors-inl.h"
+#include "test/unittests/interpreter/interpreter-tester.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -34,6 +36,7 @@ TEST_F(ArrayTest, IterateOneElement) {
     int sentinel;
     Local<Context> context;
     Isolate* isolate;
+    int invocation_count = 0;
   };
   Data data{42, context(), isolate()};
   const Local<Value> kSmi = Number::New(isolate(), 333);
@@ -44,11 +47,16 @@ TEST_F(ArrayTest, IterateOneElement) {
       [](uint32_t index, Local<Value> element, void* data) -> CbResult {
     Data* d = reinterpret_cast<Data*>(data);
     CHECK_EQ(42, d->sentinel);
-    CHECK_EQ(kIndex, index);
+    ++d->invocation_count;
+    if (index != kIndex) {
+      CHECK(element->IsUndefined());
+      return CbResult::kContinue;
+    }
     CHECK_EQ(333, element->NumberValue(d->context).FromJust());
     return CbResult::kContinue;
   };
   CHECK(smi_array->Iterate(context(), smi_callback, &data).IsJust());
+  CHECK_EQ(kIndex + 1, data.invocation_count);
 
   const Local<Value> kDouble = Number::New(isolate(), 1.5);
   CHECK(double_array->Set(context(), kIndex, kDouble).FromJust());
@@ -56,7 +64,10 @@ TEST_F(ArrayTest, IterateOneElement) {
       [](uint32_t index, Local<Value> element, void* data) -> CbResult {
     Data* d = reinterpret_cast<Data*>(data);
     CHECK_EQ(42, d->sentinel);
-    CHECK_EQ(kIndex, index);
+    if (index != kIndex) {
+      CHECK(element->IsUndefined());
+      return CbResult::kContinue;
+    }
     CHECK_EQ(1.5, element->NumberValue(d->context).FromJust());
     return CbResult::kContinue;
   };
@@ -69,6 +80,10 @@ TEST_F(ArrayTest, IterateOneElement) {
       [](uint32_t index, Local<Value> element, void* data) -> CbResult {
     Data* d = reinterpret_cast<Data*>(data);
     CHECK_EQ(42, d->sentinel);
+    if (index != kIndex) {
+      CHECK(element->IsUndefined());
+      return CbResult::kContinue;
+    }
     CHECK_EQ(kIndex, index);
     Local<String> str = element->ToString(d->context).ToLocalChecked();
     CHECK_EQ(0, strcmp("foo", *String::Utf8Value(d->isolate, str)));
@@ -146,6 +161,84 @@ TEST_F(ArrayTest, IterateEarlyTermination) {
     return CbResult::kBreak;
   };
   CHECK(array->Iterate(context(), break_callback, nullptr).IsJust());
+}
+
+TEST_F(ArrayTest, IterateWithUndefined) {
+  Local<Array> array = internal::interpreter::CompileRun(
+                           "(function() { return [0.2,undefined,8.1]; })()")
+                           .As<Array>();
+  CHECK(array->IsArray());
+
+  struct Data {
+    Local<Context> context;
+  };
+  Data data{context()};
+  Array::IterationCallback callback = [](uint32_t index, Local<Value> element,
+                                         void* data) -> CbResult {
+    Data* d = reinterpret_cast<Data*>(data);
+    switch (index) {
+      case 0:
+        CHECK_EQ(element->NumberValue(d->context).FromJust(), 0.2);
+        break;
+      case 1:
+        CHECK(element->IsUndefined());
+        break;
+      case 2:
+        CHECK_EQ(element->NumberValue(d->context).FromJust(), 8.1);
+        break;
+      default:
+        UNREACHABLE();
+    }
+    return CbResult::kContinue;
+  };
+  CHECK(array->Iterate(context(), callback, &data).IsJust());
+}
+
+TEST_F(ArrayTest,
+       IteratorAttributeChangeShouldNotInvalidateArrayIteratorProtectCell) {
+  HandleScope handle_scope(isolate());
+  const char source[] = R"(
+    ("use strict");
+    let threw = false;
+    try {
+      Object.defineProperty(Array.prototype, Symbol.iterator, {
+        writable: false,
+        configurable: false,
+        enumerable: true,
+      });
+    } catch (e) {
+      threw = e instanceof TypeError;
+    }
+    threw;
+  )";
+
+  Local<Value> result = internal::interpreter::CompileRun(source);
+  CHECK(result->IsBoolean() && !result.As<Boolean>()->Value());
+
+  CHECK(internal::Protectors::IsArrayIteratorLookupChainIntact(
+      internal::Isolate::Current()));
+}
+
+TEST_F(ArrayTest, IteratorValueChangeShouldInvalidateArrayIteratorProtectCell) {
+  HandleScope handle_scope(isolate());
+  const char source[] = R"(
+    ("use strict");
+    let threw = false;
+    try {
+      Object.defineProperty(Array.prototype, Symbol.iterator, {
+        value: 42,
+      });
+    } catch (e) {
+      threw = e instanceof TypeError;
+    }
+    threw;
+  )";
+
+  Local<Value> result = internal::interpreter::CompileRun(source);
+  CHECK(result->IsBoolean() && !result.As<Boolean>()->Value());
+
+  CHECK(!internal::Protectors::IsArrayIteratorLookupChainIntact(
+      internal::Isolate::Current()));
 }
 
 }  // namespace

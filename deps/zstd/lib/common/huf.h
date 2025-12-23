@@ -12,10 +12,6 @@
  * You may select, at your option, one of the above-listed licenses.
 ****************************************************************** */
 
-#if defined (__cplusplus)
-extern "C" {
-#endif
-
 #ifndef HUF_H_298734234
 #define HUF_H_298734234
 
@@ -24,7 +20,6 @@ extern "C" {
 #include "mem.h"          /* U32 */
 #define FSE_STATIC_LINKING_ONLY
 #include "fse.h"
-
 
 /* ***   Tool functions *** */
 #define HUF_BLOCKSIZE_MAX (128 * 1024)   /**< maximum input size for a single block compressed with HUF_compress */
@@ -280,7 +275,3 @@ size_t HUF_readDTableX2_wksp(HUF_DTable* DTable, const void* src, size_t srcSize
 #endif
 
 #endif   /* HUF_H_298734234 */
-
-#if defined (__cplusplus)
-}
-#endif

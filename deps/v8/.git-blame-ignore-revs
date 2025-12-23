@@ -85,6 +85,9 @@ e50b49a0e38b34e2b28e026f4d1c7e0da0c7bb1a
 # Rewrite code base to use "." instead of "->" to access Object members.
 878ccb33bd3cf0e6dc018ff8d15843f585ac07be
 
+# Rewrite code base to use "->" instead of "." to access Object members.
+95532da70de14206e64060647082766a293f81cb
+
 # Splitting src/ into subfolders
 632239011db501e76475d82ff6492f37fa8c1edc
 f455f86d899716df3b9550950ce172f5b867619a

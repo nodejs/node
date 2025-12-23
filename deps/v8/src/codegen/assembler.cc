@@ -34,9 +34,12 @@
 
 #include "src/codegen/assembler.h"
 
+#include "absl/container/flat_hash_map.h"
+#include "src/base/macros.h"
 #ifdef V8_CODE_COMMENTS
 #include <iomanip>
 #endif
+
 #include "src/base/vector.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/deoptimizer/deoptimizer.h"
@@ -132,9 +135,9 @@ class ExternalAssemblerBufferImpl : public AssemblerBuffer {
   const int size_;
 };
 
-static thread_local std::aligned_storage_t<sizeof(ExternalAssemblerBufferImpl),
-                                           alignof(ExternalAssemblerBufferImpl)>
-    tls_singleton_storage;
+alignas(
+    ExternalAssemblerBufferImpl) static thread_local char tls_singleton_storage
+    [sizeof(ExternalAssemblerBufferImpl)];
 
 static thread_local bool tls_singleton_taken{false};
 
@@ -142,13 +145,13 @@ void* ExternalAssemblerBufferImpl::operator new(std::size_t count) {
   DCHECK_EQ(count, sizeof(ExternalAssemblerBufferImpl));
   if (V8_LIKELY(!tls_singleton_taken)) {
     tls_singleton_taken = true;
-    return &tls_singleton_storage;
+    return tls_singleton_storage;
   }
   return ::operator new(count);
 }
 
 void ExternalAssemblerBufferImpl::operator delete(void* ptr) noexcept {
-  if (V8_LIKELY(ptr == &tls_singleton_storage)) {
+  if (V8_LIKELY(ptr == tls_singleton_storage)) {
     DCHECK(tls_singleton_taken);
     tls_singleton_taken = false;
     return;
@@ -220,6 +223,7 @@ bool CpuFeatures::supports_cetss_ = false;
 unsigned CpuFeatures::supported_ = 0;
 unsigned CpuFeatures::icache_line_size_ = 0;
 unsigned CpuFeatures::dcache_line_size_ = 0;
+unsigned CpuFeatures::vlen_ = 0;
 
 HeapNumberRequest::HeapNumberRequest(double heap_number, int offset)
     : offset_(offset) {
@@ -232,7 +236,7 @@ HeapNumberRequest::HeapNumberRequest(double heap_number, int offset)
 void Assembler::RecordDeoptReason(DeoptimizeReason reason, uint32_t node_id,
                                   SourcePosition position, int id) {
   static_assert(RelocInfoWriter::kMaxSize * 2 <= kGap);
-  {
+  if (position.IsKnown()) {
     EnsureSpace space(this);
     RecordRelocInfo(RelocInfo::DEOPT_SCRIPT_OFFSET, position.ScriptOffset());
     RecordRelocInfo(RelocInfo::DEOPT_INLINING_ID, position.InliningId());
@@ -263,7 +267,41 @@ void AssemblerBase::RequestHeapNumber(HeapNumberRequest request) {
   heap_number_requests_.push_front(request);
 }
 
-int AssemblerBase::AddCodeTarget(Handle<Code> target) {
+void AssemblerBase::AllocateAndInstallRequestedHeapNumbers(
+    LocalIsolate* isolate) {
+  DCHECK_IMPLIES(isolate == nullptr, heap_number_requests_.empty());
+
+  // {previous_requests} is a cache of HeapNumbers that have already been
+  // requested. It is keyed on uint64_t rather than doubles to avoid undefined
+  // behavior when NaN is used as a key (where the uint64_t are just bitcasts
+  // from the doubles).
+  absl::flat_hash_map<uint64_t, Handle<HeapNumber>> previous_requests;
+
+  for (HeapNumberRequest& request : heap_number_requests_) {
+    Handle<HeapNumber> object;
+
+    if (v8_flags.deduplicate_heap_number_requests) {
+      uint64_t cache_key = base::bit_cast<uint64_t>(request.heap_number());
+      auto it = previous_requests.find(cache_key);
+      if (it != previous_requests.end()) {
+        object = it->second;
+      } else {
+        object = isolate->factory()->NewHeapNumber<AllocationType::kOld>(
+            request.heap_number());
+        previous_requests.insert({cache_key, object});
+      }
+    } else {
+      object = isolate->factory()->NewHeapNumber<AllocationType::kOld>(
+          request.heap_number());
+    }
+
+    Address pc = reinterpret_cast<Address>(buffer_start_) + request.offset();
+
+    PatchInHeapNumberRequest(pc, object);
+  }
+}
+
+int AssemblerBase::AddCodeTarget(IndirectHandle<Code> target) {
   int current = static_cast<int>(code_targets_.size());
   if (current > 0 && !target.is_null() &&
       code_targets_.back().address() == target.address()) {
@@ -275,13 +313,14 @@ int AssemblerBase::AddCodeTarget(Handle<Code> target) {
   }
 }
 
-Handle<Code> AssemblerBase::GetCodeTarget(intptr_t code_target_index) const {
+IndirectHandle<Code> AssemblerBase::GetCodeTarget(
+    intptr_t code_target_index) const {
   DCHECK_LT(static_cast<size_t>(code_target_index), code_targets_.size());
   return code_targets_[code_target_index];
 }
 
 AssemblerBase::EmbeddedObjectIndex AssemblerBase::AddEmbeddedObject(
-    Handle<HeapObject> object) {
+    IndirectHandle<HeapObject> object) {
   EmbeddedObjectIndex current = embedded_objects_.size();
   // Do not deduplicate invalid handles, they are to heap object requests.
   if (!object.is_null()) {
@@ -295,12 +334,11 @@ AssemblerBase::EmbeddedObjectIndex AssemblerBase::AddEmbeddedObject(
   return current;
 }
 
-Handle<HeapObject> AssemblerBase::GetEmbeddedObject(
+IndirectHandle<HeapObject> AssemblerBase::GetEmbeddedObject(
     EmbeddedObjectIndex index) const {
   DCHECK_LT(index, embedded_objects_.size());
   return embedded_objects_[index];
 }
-
 
 int Assembler::WriteCodeComments() {
   if (!v8_flags.code_comments) return 0;
@@ -317,7 +355,7 @@ int Assembler::WriteCodeComments() {
 #ifdef V8_CODE_COMMENTS
 int Assembler::CodeComment::depth() const { return assembler_->comment_depth_; }
 void Assembler::CodeComment::Open(const std::string& comment,
-                                  const SourceLocation& loc) {
+                                  SourceLocation loc) {
   std::stringstream sstream;
   sstream << std::setfill(' ') << std::setw(depth() * kIndentWidth + 2);
   sstream << "[ " << comment;

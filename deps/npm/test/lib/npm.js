@@ -180,7 +180,7 @@ t.test('npm.load', async t => {
     })
     await t.rejects(
       npm.exec('run', []),
-      /Can not use --no-workspaces and --workspace at the same time/
+      /Cannot use --no-workspaces and --workspace at the same time/
     )
   })
 
@@ -214,9 +214,9 @@ t.test('npm.load', async t => {
       },
     })
 
-    await npm.exec('run', [])
+    await npm.exec('run-script', [])
 
-    t.equal(npm.command, 'run-script', 'npm.command set to canonical name')
+    t.equal(npm.command, 'run', 'npm.command set to canonical name')
 
     t.matchSnapshot(joinedOutput(), 'should exec workspaces version of commands')
   })

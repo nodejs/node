@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --deopt-every-n-times=0 --turbofan --no-always-turbofan
+// Flags: --allow-natives-syntax --deopt-every-n-times=0 --turbofan
 
 // Check that --deopt-every-n-times 0 doesn't deopt
 

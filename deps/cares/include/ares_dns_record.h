@@ -1104,7 +1104,7 @@ CARES_EXTERN ares_status_t ares_dns_write(const ares_dns_record_t *dnsrec,
  *  (such as the ttl decrement capability).
  *
  *  \param[in] dnsrec Pointer to initialized and filled DNS record object.
- *  \return duplicted DNS record object, or NULL on out of memory.
+ *  \return duplicated DNS record object, or NULL on out of memory.
  */
 CARES_EXTERN ares_dns_record_t *
   ares_dns_record_duplicate(const ares_dns_record_t *dnsrec);

@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -31,10 +31,10 @@ int RSA_X931_derive_ex(RSA *rsa, BIGNUM *p1, BIGNUM *p2, BIGNUM *q1,
     BN_CTX *ctx = NULL, *ctx2 = NULL;
     int ret = 0;
 
-    if (!rsa)
+    if (rsa == NULL)
         goto err;
 
-    ctx = BN_CTX_new();
+    ctx = BN_CTX_new_ex(rsa->libctx);
     if (ctx == NULL)
         goto err;
     BN_CTX_start(ctx);
@@ -145,7 +145,6 @@ int RSA_X931_derive_ex(RSA *rsa, BIGNUM *p1, BIGNUM *p2, BIGNUM *q1,
     BN_CTX_free(ctx2);
 
     return ret;
-
 }
 
 int RSA_X931_generate_key_ex(RSA *rsa, int bits, const BIGNUM *e,
@@ -155,7 +154,7 @@ int RSA_X931_generate_key_ex(RSA *rsa, int bits, const BIGNUM *e,
     BIGNUM *Xp = NULL, *Xq = NULL;
     BN_CTX *ctx = NULL;
 
-    ctx = BN_CTX_new();
+    ctx = BN_CTX_new_ex(rsa->libctx);
     if (ctx == NULL)
         goto error;
 

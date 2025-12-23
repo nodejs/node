@@ -17,9 +17,9 @@ extern enum PromiseAnyRejectElementContextSlots extends intptr
   kPromiseAnyRejectElementLength
 }
 
-extern operator '[]=' macro StoreContextElement(
+extern operator '[]=' macro StoreContextElementNoCell(
     Context, constexpr PromiseAnyRejectElementContextSlots, Object): void;
-extern operator '[]' macro LoadContextElement(
+extern operator '[]' macro LoadContextElementNoCell(
     Context, constexpr PromiseAnyRejectElementContextSlots): Object;
 
 // Creates the context used by all Promise.any reject element closures,
@@ -297,7 +297,7 @@ Reject(JSAny) {
         }
     }
   } catch (e, _message) deferred {
-    iterator::IteratorCloseOnException(iteratorRecord);
+    iterator::IteratorCloseOnException(iteratorRecord.object);
     goto Reject(e);
   } label Done {}
 
@@ -336,6 +336,7 @@ Reject(JSAny) {
 }
 
 // https://tc39.es/ecma262/#sec-promise.any
+@incrementUseCounter('v8::Isolate::kPromiseAny')
 transitioning javascript builtin PromiseAny(
     js-implicit context: Context, receiver: JSAny)(iterable: JSAny): JSAny {
   const nativeContext = LoadNativeContext(context);

@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --turboshaft-from-maglev --turbofan
-// Flags: --no-always-turbofan
+// Flags: --allow-natives-syntax --turbolev --turbofan
 
 const arr = new Uint32Array(2);
 function uint_to_i32_f64() {

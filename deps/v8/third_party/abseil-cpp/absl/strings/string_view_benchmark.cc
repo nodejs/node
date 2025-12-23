@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "absl/strings/string_view.h"
-
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
@@ -23,11 +21,13 @@
 #include <unordered_set>
 #include <vector>
 
-#include "benchmark/benchmark.h"
 #include "absl/base/attributes.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/base/macros.h"
+#include "absl/random/random.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/string_view.h"
+#include "benchmark/benchmark.h"
 
 namespace {
 
@@ -287,9 +287,7 @@ void StringViewMapBenchmark(benchmark::State& state) {
                          "found", "a",      "large",    "mushroom", "and",
                          "a",     "couple", "crickets", "eating",   "pie"};
   // Create some keys that consist of words in random order.
-  std::random_device r;
-  std::seed_seq seed({r(), r(), r(), r(), r(), r(), r(), r()});
-  std::mt19937 rng(seed);
+  absl::InsecureBitGen rng;
   std::vector<std::string> keys(table_size);
   std::vector<int> all_indices;
   const int kBlockSize = 1 << 12;

@@ -36,7 +36,6 @@ static const int32_t kGregorianEpoch = 1970;
 TaiwanCalendar::TaiwanCalendar(const Locale& aLocale, UErrorCode& success)
 :   GregorianCalendar(aLocale, success)
 {
-    setTimeInMillis(getNow(), success); // Call this again now that the vtable is set up properly.
 }
 
 TaiwanCalendar::~TaiwanCalendar()
@@ -46,12 +45,6 @@ TaiwanCalendar::~TaiwanCalendar()
 TaiwanCalendar::TaiwanCalendar(const TaiwanCalendar& source)
 : GregorianCalendar(source)
 {
-}
-
-TaiwanCalendar& TaiwanCalendar::operator= ( const TaiwanCalendar& right)
-{
-    GregorianCalendar::operator=(right);
-    return *this;
 }
 
 TaiwanCalendar* TaiwanCalendar::clone() const

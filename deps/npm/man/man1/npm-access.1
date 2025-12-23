@@ -1,4 +1,4 @@
-.TH "NPM-ACCESS" "1" "March 2025" "NPM@11.2.0" ""
+.TH "NPM-ACCESS" "1" "December 2025" "NPM@11.7.0" ""
 .SH "NAME"
 \fBnpm-access\fR - Set access level on published packages
 .SS "Synopsis"
@@ -23,17 +23,7 @@ Used to set access controls on private packages.
 For all of the subcommands, \fBnpm access\fR will perform actions on the packages in the current working directory if no package name is passed to the subcommand.
 .RS 0
 .IP \(bu 4
-public / restricted (deprecated): Set a package to be either publicly accessible or restricted.
-.IP \(bu 4
-grant / revoke (deprecated): Add or remove the ability of users and teams to have read-only or read-write access to a package.
-.IP \(bu 4
-2fa-required / 2fa-not-required (deprecated): Configure whether a package requires that anyone publishing it have two-factor authentication enabled on their account.
-.IP \(bu 4
-ls-packages (deprecated): Show all of the packages a user or a team is able to access, along with the access level, except for read-only public packages (it won't print the whole registry listing)
-.IP \(bu 4
-ls-collaborators (deprecated): Show all of the access privileges for a package. Will only show permissions for packages to which you have at least read access. If \fB<user>\fR is passed in, the list is filtered only to teams \fIthat\fR user happens to belong to.
-.IP \(bu 4
-edit (not implemented)
+grant / revoke: Add or remove the ability of users and teams to have read-only or read-write access to a package.
 .RE 0
 
 .SS "Details"
@@ -42,7 +32,7 @@ edit (not implemented)
 .P
 Unscoped packages are \fIalways public\fR.
 .P
-Scoped packages \fIdefault to restricted\fR, but you can either publish them as public using \fBnpm publish --access=public\fR, or set their access as public using \fBnpm access public\fR after the initial publish.
+Scoped packages \fIdefault to restricted\fR, but you can either publish them as public using \fBnpm publish --access=public\fR, or set their access as public using \fBnpm access set status=public\fR after the initial publish.
 .P
 You must have privileges to set the access of a package:
 .RS 0
@@ -103,7 +93,7 @@ The base URL of the npm registry.
 .SS "See Also"
 .RS 0
 .IP \(bu 4
-\fB\fBlibnpmaccess\fR\fR \fI\(lahttps://npm.im/libnpmaccess\(ra\fR
+\fB\[rs]fBlibnpmaccess\[rs]fR\fR \fI\(lahttps://npm.im/libnpmaccess\(ra\fR
 .IP \(bu 4
 npm help team
 .IP \(bu 4

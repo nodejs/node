@@ -49,6 +49,8 @@ void U_I18N_API Factor::divideBy(const Factor &rhs) {
     offset = std::max(rhs.offset, offset);
 }
 
+void U_I18N_API Factor::divideBy(const uint64_t constant) { factorDen *= constant; }
+
 void U_I18N_API Factor::power(int32_t power) {
     // multiply all the constant by the power.
     for (int i = 0; i < CONSTANTS_COUNT; i++) {
@@ -237,6 +239,12 @@ Factor loadCompoundFactor(const MeasureUnitImpl &source, const ConversionRates &
         singleFactor.power(singleUnit.dimensionality);
 
         result.multiplyBy(singleFactor);
+    }
+
+    // If the source has a constant denominator, then we need to divide the
+    // factor by the constant denominator.
+    if (source.constantDenominator != 0) {
+        result.divideBy(source.constantDenominator);
     }
 
     return result;

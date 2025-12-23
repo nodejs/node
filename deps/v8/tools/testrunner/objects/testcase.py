@@ -97,7 +97,7 @@ class TestCase(object):
     # Path (pathlib) with the relative test path, e.g. 'test-api/foo'.
     self.path = Path(path)
 
-    # Sting with a posix path to identify test in the status file and
+    # String with a posix path to identify test in the status file and
     # at the command line.
     self.name = name
 
@@ -198,6 +198,12 @@ class TestCase(object):
       self._expected_outcomes = (
           self.expected_outcomes + [statusfile.PASS])
 
+  # TODO(jgruber): Due to flag contradiction logic complexity, we will never
+  # fully match the v8 logic here. What we should do instead is simply ask v8
+  # whether given flags produce a flag contradiction or not, and use that to
+  # determine the expected outcome. E.g.: add a flag to d8 called
+  # --only-check-flag-contradictions, which exits with an appropriate code
+  # after running flag contradiction logic.
   @property
   def expected_outcomes(self):
     def is_flag(maybe_flag):
@@ -246,52 +252,71 @@ class TestCase(object):
               "tools/testrunner/local/variants.py expected a flag " +
               "contradiction error with " + incompatible_flag + ".")
 
+    def remove_flags_after(flags, flag):
+      try:
+        pos = flags.index(normalize_flag(flag))
+      except:
+        pass
+      else:
+        flags = flags[0:pos]
+      return flags
+
+    # Flags can be ignored with respect to contradictions by passing
+    # --fuzzing or --no-abort-on-contradictory-flags, which ignores all
+    # following flags; or by passing --allow-overwriting-for-next-flag,
+    # which ignores just the next flag. Remove these flags from the list.
+    # See Flag::ShouldCheckFlagContradictions.
+    def remove_ignored_flags(flags):
+      flags = remove_flags_after(flags, "--fuzzing")
+      flags = remove_flags_after(flags, "--no-abort-on-contradictory-flags")
+      flag_aofnf = normalize_flag("--allow-overwriting-for-next-flag")
+      while flag_aofnf in flags:
+        pos = flags.index(flag_aofnf)
+        flags.pop(pos)
+        flags.pop(pos)
+      return flags
+
     if not self._checked_flag_contradictions:
       self._checked_flag_contradictions = True
 
-      file_specific_flags = normalize_flags(self._get_source_flags() +
-                                            self._get_suite_flags() +
-                                            self._get_statusfile_flags())
-      extra_flags = normalize_flags(self._get_extra_flags())
+      test_flags = remove_ignored_flags(normalize_flags(self.get_flags()))
+      test_flags_without_extra = remove_ignored_flags(
+          normalize_flags(self.get_flags_without_extra()))
+      extra_flags = remove_ignored_flags(
+          normalize_flags(self._get_extra_flags()))
 
-      # Contradiction: flags contains both a flag --foo and its negation
-      # --no-foo.
-      if self.variant in ALL_VARIANT_FLAGS:
-        for flags in ALL_VARIANT_FLAGS[self.variant]:
-          all_flags = (file_specific_flags + extra_flags
-                       + normalize_flags(flags))
-          check_flags(negate_flags(all_flags), all_flags, "Flag negations")
+      # Contradiction: flags contains both a flag --foo and its negation --no-foo.
+      check_flags(negate_flags(test_flags), test_flags, "Flag negations")
 
-      # Contradiction: flags specified through the "Flags:" annotation are
-      # incompatible with the variant.
+      # Contradiction: flags are incompatible with the variant.
       if self.variant in INCOMPATIBLE_FLAGS_PER_VARIANT:
-        check_flags(INCOMPATIBLE_FLAGS_PER_VARIANT[self.variant],
-                    file_specific_flags,
+        check_flags(INCOMPATIBLE_FLAGS_PER_VARIANT[self.variant], test_flags,
                     "INCOMPATIBLE_FLAGS_PER_VARIANT[\"" + self.variant + "\"]")
 
-      # Contradiction: flags specified through the "Flags:" annotation are
-      # incompatible with the build.
-      for variable, incompatible_flags in INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE.items():
-        if variable.startswith("!"):
-          # `variable` is negated, apply the rule if the build variable is NOT set.
-          if not self.suite.statusfile.variables[variable[1:]]:
+      # Contradiction: flags are incompatible with the build.
+      for var, flags in INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE.items():
+        if var.startswith("!"):
+          # `var` is negated, apply the rule if the build variable is NOT set.
+          if not self.suite.statusfile.variables[var[1:]]:
             check_flags(
-                incompatible_flags, file_specific_flags,
-                "INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE[\"" + variable + "\"]")
+                flags, test_flags,
+                "INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE[\"" + var + "\"]")
         else:
-          if self.suite.statusfile.variables[variable]:
+          if self.suite.statusfile.variables[var]:
             check_flags(
-                incompatible_flags, file_specific_flags,
-                "INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE[\"" + variable + "\"]")
+                flags, test_flags,
+                "INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE[\"" + var + "\"]")
 
-      # Contradiction: flags passed through --extra-flags are incompatible.
-      for extra_flag, incompatible_flags in INCOMPATIBLE_FLAGS_PER_EXTRA_FLAG.items():
+      # Contradiction: flags passed through --extra-flags are incompatible with
+      # other test flags.
+      for extra_flag, flags in INCOMPATIBLE_FLAGS_PER_EXTRA_FLAG.items():
         flag = find_flag(extra_flag, extra_flags)
         if not flag:
           continue
-        check_flags(incompatible_flags, file_specific_flags,
+        check_flags(flags, test_flags_without_extra,
                     "INCOMPATIBLE_FLAGS_PER_EXTRA_FLAG[\"" + extra_flag + "\"]",
                     flag)
+
     return self._expected_outcomes
 
   @property
@@ -301,6 +326,10 @@ class TestCase(object):
   @property
   def framework_name(self):
     return self.test_config.framework_name
+
+  @property
+  def fuzz_rare(self):
+    return statusfile.FUZZ_RARE in self._statusfile_outcomes
 
   @property
   def shard_id(self):
@@ -361,7 +390,14 @@ class TestCase(object):
       - files [empty by default]
       - all flags
     """
-    return (self._get_files_params() + self.get_flags())
+    files = self._get_files_params()
+    flags = self.get_flags()
+    cwd = Path.cwd()
+    is_cwd_relative = lambda f: f.is_absolute() and f.is_relative_to(cwd)
+    make_relative = lambda f: Path(f).relative_to(cwd) if is_cwd_relative(
+        Path(f)) else f
+    relative_files = [make_relative(f) for f in files]
+    return relative_files + flags
 
   def get_flags(self):
     """Gets all flags and combines them in the following order:
@@ -385,6 +421,19 @@ class TestCase(object):
         self._get_suite_flags() +
         self._get_statusfile_flags()
     )
+
+  def get_flags_without_extra(self):
+    """Gets all flags except extra, and combines them in the following order:
+      - random seed
+      - mode flags (based on chosen mode)
+      - user flags (variant/fuzzer flags)
+      - source flags (from source code) [empty by default]
+      - test-suite flags
+      - statusfile flags
+    """
+    return (self._get_random_seed_flags() + self._get_mode_flags() +
+            self._get_variant_flags() + self._get_source_flags() +
+            self._get_suite_flags() + self._get_statusfile_flags())
 
   def _get_cmd_env(self):
     return {}
@@ -456,10 +505,17 @@ class TestCase(object):
     return self.path_and_suffix('.mjs')
 
   def _create_cmd(self, ctx, params, env, timeout):
+    shell_dir = self.test_config.shell_dir
+    try:
+      # Try to make the shell dir relative to the current working directory,
+      # keep the absolute path if it fails.
+      shell_dir = shell_dir.relative_to(Path.cwd())
+    except ValueError:
+      pass
+
     return ctx.command(
         cmd_prefix=self.test_config.command_prefix,
-        shell=ctx.platform_shell(self.get_shell(), params,
-                                 self.test_config.shell_dir),
+        shell=ctx.platform_shell(self.get_shell(), params, shell_dir),
         args=params,
         env=env,
         timeout=timeout,
@@ -579,7 +635,8 @@ class TestCase(object):
       for resource in self._get_resources_for_file(next_resource):
         # Only add files that exist on disc. The pattens we check for give some
         # false positives otherwise.
-        if resource not in result and resource.exists():
+        if (resource not in result and resource.exists() and
+            not resource.is_dir()):
           to_check.append(resource)
     return sorted(list(result))
 

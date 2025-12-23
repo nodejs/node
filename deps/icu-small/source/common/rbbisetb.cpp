@@ -375,7 +375,11 @@ void  RBBISetBuilder::addValToSets(UVector *sets, uint32_t val) {
 }
 
 void  RBBISetBuilder::addValToSet(RBBINode *usetNode, uint32_t val) {
-    RBBINode *leafNode = new RBBINode(RBBINode::leafChar);
+    RBBINode *leafNode = new RBBINode(RBBINode::leafChar, *fStatus);
+    if (U_FAILURE(*fStatus)) {
+        delete leafNode;
+        return;
+    }
     if (leafNode == nullptr) {
         *fStatus = U_MEMORY_ALLOCATION_ERROR;
         return;
@@ -388,9 +392,13 @@ void  RBBISetBuilder::addValToSet(RBBINode *usetNode, uint32_t val) {
         // There are already input symbols present for this set.
         // Set up an OR node, with the previous stuff as the left child
         //   and the new value as the right child.
-        RBBINode *orNode = new RBBINode(RBBINode::opOr);
+        RBBINode *orNode = new RBBINode(RBBINode::opOr, *fStatus);
         if (orNode == nullptr) {
             *fStatus = U_MEMORY_ALLOCATION_ERROR;
+        }
+        if (U_FAILURE(*fStatus)) {
+            delete orNode;
+            delete leafNode;
             return;
         }
         orNode->fLeftChild  = usetNode->fLeftChild;

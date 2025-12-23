@@ -155,6 +155,13 @@ class V8_EXPORT HeapStatistics {
   size_t number_of_detached_contexts() { return number_of_detached_contexts_; }
 
   /**
+   * Returns the total number of bytes allocated since the Isolate was created.
+   * This includes all heap objects allocated in any space (new, old, code,
+   * etc.).
+   */
+  uint64_t total_allocated_bytes() { return total_allocated_bytes_; }
+
+  /**
    * Returns a 0/1 boolean, which signifies whether the V8 overwrite heap
    * garbage with a bit pattern.
    */
@@ -175,6 +182,7 @@ class V8_EXPORT HeapStatistics {
   size_t number_of_detached_contexts_;
   size_t total_global_handles_size_;
   size_t used_global_handles_size_;
+  uint64_t total_allocated_bytes_;
 
   friend class V8;
   friend class Isolate;

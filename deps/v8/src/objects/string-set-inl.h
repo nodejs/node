@@ -5,18 +5,16 @@
 #ifndef V8_OBJECTS_STRING_SET_INL_H_
 #define V8_OBJECTS_STRING_SET_INL_H_
 
-#include "src/objects/string-inl.h"
 #include "src/objects/string-set.h"
+// Include the non-inl header before the rest of the headers.
+
+#include "src/objects/string-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
 namespace v8 {
 namespace internal {
-
-StringSet::StringSet(Address ptr) : HashTable<StringSet, StringSetShape>(ptr) {
-  SLOW_DCHECK(IsStringSet(*this));
-}
 
 bool StringSetShape::IsMatch(Tagged<String> key, Tagged<Object> value) {
   DCHECK(IsString(value));

@@ -20,6 +20,13 @@ export const noRestrictedSyntaxCommonAll = [
     selector: "CallExpression[callee.property.name='substr']",
     message: 'Use String.prototype.slice() or String.prototype.substring() instead of String.prototype.substr()',
   },
+  {
+    selector: `CallExpression:matches(${[
+      '[callee.name="assert"]',
+      '[callee.object.name="assert"][callee.property.name="ok"]',
+    ]})[arguments.0.type="Literal"]`,
+    message: 'Do not use a literal for the first argument of assert(), use assert.fail() instead or remove the call',
+  },
 ];
 
 export const noRestrictedSyntaxCommonLib = [

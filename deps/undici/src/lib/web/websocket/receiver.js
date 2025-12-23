@@ -3,7 +3,6 @@
 const { Writable } = require('node:stream')
 const assert = require('node:assert')
 const { parserStates, opcodes, states, emptyBuffer, sentCloseFrameState } = require('./constants')
-const { channels } = require('../../core/diagnostics')
 const {
   isValidStatusCode,
   isValidOpcode,
@@ -423,22 +422,13 @@ class ByteParser extends Writable {
 
         this.#handler.socket.write(frame.createFrame(opcodes.PONG))
 
-        if (channels.ping.hasSubscribers) {
-          channels.ping.publish({
-            payload: body
-          })
-        }
+        this.#handler.onPing(body)
       }
     } else if (opcode === opcodes.PONG) {
       // A Pong frame MAY be sent unsolicited.  This serves as a
       // unidirectional heartbeat.  A response to an unsolicited Pong frame is
       // not expected.
-
-      if (channels.pong.hasSubscribers) {
-        channels.pong.publish({
-          payload: body
-        })
-      }
+      this.#handler.onPong(body)
     }
 
     return true

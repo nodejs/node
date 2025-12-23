@@ -182,8 +182,9 @@ static UnicodeString& appendMillis(UDate date, UnicodeString& str) {
  */
 static UnicodeString& getDateTimeString(UDate time, UnicodeString& str, UErrorCode& status) {
     if (U_FAILURE(status)) {return str;}
-    int32_t year, month, dom, dow, doy, mid;
-    Grego::timeToFields(time, year, month, dom, dow, doy, mid, status);
+    int32_t year, mid;
+    int8_t month, dom, dow;
+    Grego::timeToFields(time, year, month, dom, dow, mid, status);
     if (U_FAILURE(status)) {return str;}
 
     str.remove();
@@ -675,9 +676,10 @@ static TimeZoneRule* createRuleByRRULE(const UnicodeString& zonename, int rawOff
     }
 
     // Calculate start/end year and missing fields
-    int32_t startYear, startMonth, startDOM, startDOW, startDOY, startMID;
+    int32_t startYear, startMID;
+    int8_t startMonth, startDOM;
     Grego::timeToFields(start + fromOffset, startYear, startMonth, startDOM,
-        startDOW, startDOY, startMID, status);
+        startMID, status);
     if (U_FAILURE(status)) {
         return nullptr;
     }
@@ -692,8 +694,7 @@ static TimeZoneRule* createRuleByRRULE(const UnicodeString& zonename, int rawOff
 
     int32_t endYear;
     if (until != MIN_MILLIS) {
-        int32_t endMonth, endDOM, endDOW, endDOY, endMID;
-        Grego::timeToFields(until, endYear, endMonth, endDOM, endDOW, endDOY, endMID, status);
+        endYear = Grego::timeToYear(until, status);
         if (U_FAILURE(status)) return nullptr;
     } else {
         endYear = AnnualTimeZoneRule::MAX_YEAR;
@@ -1674,8 +1675,7 @@ VTimeZone::parse(UErrorCode& status) {
                     status);
             } else {
                 // Update the end year
-                int32_t y, m, d, dow, doy, mid;
-                Grego::timeToFields(start, y, m, d, dow, doy, mid, status);
+                int32_t y = Grego::timeToYear(start, status);
                 if (U_FAILURE(status)) return;
                 newRule.adoptInsteadAndCheckErrorCode(
                     new AnnualTimeZoneRule(
@@ -1902,7 +1902,8 @@ VTimeZone::writeZone(VTZWriter& w, BasicTimeZone& basictz,
     int32_t stdCount = 0;
     AnnualTimeZoneRule *finalStdRule = nullptr;
 
-    int32_t year, month, dom, dow, doy, mid;
+    int32_t year, mid;
+    int8_t month, dom, dow;
     UBool hasTransitions = false;
     TimeZoneTransition tzt;
     UBool tztAvail;
@@ -1922,7 +1923,7 @@ VTimeZone::writeZone(VTZWriter& w, BasicTimeZone& basictz,
         int32_t fromOffset = tzt.getFrom()->getRawOffset() + tzt.getFrom()->getDSTSavings();
         int32_t fromDSTSavings = tzt.getFrom()->getDSTSavings();
         int32_t toOffset = tzt.getTo()->getRawOffset() + tzt.getTo()->getDSTSavings();
-        Grego::timeToFields(tzt.getTime() + fromOffset, year, month, dom, dow, doy, mid, status);
+        Grego::timeToFields(tzt.getTime() + fromOffset, year, month, dom, dow, mid, status);
         if (U_FAILURE(status)) return;
         int32_t weekInMonth = Grego::dayOfWeekInMonth(year, month, dom);
         UBool sameRule = false;

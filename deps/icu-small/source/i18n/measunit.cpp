@@ -41,26 +41,26 @@ static const int32_t gOffsets[] = {
     2,
     7,
     17,
-    27,
-    31,
-    333,
-    344,
-    362,
-    366,
-    375,
-    378,
-    382,
-    390,
-    412,
-    416,
-    431,
+    28,
+    32,
+    334,
+    345,
+    363,
+    367,
+    376,
+    379,
+    383,
+    391,
+    413,
+    417,
     432,
-    438,
-    449,
-    455,
-    459,
-    461,
-    495
+    433,
+    439,
+    450,
+    456,
+    460,
+    462,
+    496
 };
 
 static const int32_t kCurrencyOffset = 5;
@@ -121,6 +121,7 @@ static const char * const gSubTypes[] = {
     "permille",
     "permillion",
     "permyriad",
+    "portion-per-1e9",
     "liter-per-100-kilometer",
     "liter-per-kilometer",
     "mile-per-gallon",
@@ -809,6 +810,14 @@ MeasureUnit *MeasureUnit::createPermyriad(UErrorCode &status) {
 
 MeasureUnit MeasureUnit::getPermyriad() {
     return MeasureUnit(3, 9);
+}
+
+MeasureUnit *MeasureUnit::createPortionPer1E9(UErrorCode &status) {
+    return MeasureUnit::create(3, 10, status);
+}
+
+MeasureUnit MeasureUnit::getPortionPer1E9() {
+    return MeasureUnit(3, 10);
 }
 
 MeasureUnit *MeasureUnit::createLiterPer100Kilometers(UErrorCode &status) {
@@ -2400,6 +2409,7 @@ MeasureUnitImpl MeasureUnitImpl::copy(UErrorCode &status) const {
     MeasureUnitImpl result;
     result.complexity = complexity;
     result.identifier.append(identifier, status);
+    result.constantDenominator = constantDenominator;
     for (int32_t i = 0; i < singleUnits.length(); i++) {
         SingleUnitImpl *item = result.singleUnits.emplaceBack(*singleUnits[i]);
         if (!item) {

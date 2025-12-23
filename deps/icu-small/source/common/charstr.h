@@ -74,6 +74,7 @@ public:
      * use a UErrorCode where memory allocations might be needed.
      */
     CharString &copyFrom(const CharString &other, UErrorCode &errorCode);
+    CharString &copyFrom(StringPiece s, UErrorCode &errorCode);
 
     UBool isEmpty() const { return len==0; }
     int32_t length() const { return len; }
@@ -135,7 +136,7 @@ public:
     }
     CharString &append(const char *s, int32_t sLength, UErrorCode &status);
 
-    CharString &appendNumber(int32_t number, UErrorCode &status);
+    CharString &appendNumber(int64_t number, UErrorCode &status);
 
     /**
      * Returns a writable buffer for appending and writes the buffer's capacity to

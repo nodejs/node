@@ -152,7 +152,7 @@ macro Probe(hash: uint32, mask: uint32): ProbeSequence {
 macro FindEntry<GroupLoader: type>(table: SwissNameDictionary, key: Name):
     never labels
 Found(intptr), NotFound {
-  const hash: uint32 = LoadNameHash(key);
+  const hash: uint32 = LoadNameHashAssumeComputed(key);
   const capacity: int32 = table.capacity;
   const nonZeroCapacity: int32 = capacity | Convert<int32>(capacity == 0);
   const mask: uint32 = Unsigned(nonZeroCapacity - 1);
@@ -226,7 +226,7 @@ macro Add<GroupLoader: type>(
     const used: uint32 = SwissNameDictionaryIncreaseElementCountOrBailout(
         table.meta_table, capacity, maxUsable) otherwise Bailout;
 
-    const hash: uint32 = LoadNameHash(key);
+    const hash: uint32 = LoadNameHashAssumeComputed(key);
     const newEntry32 = FindFirstEmpty<GroupLoader>(table, capacity, hash);
     const newEntry = Convert<intptr>(newEntry32);
 

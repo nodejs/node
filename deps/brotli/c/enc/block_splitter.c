@@ -8,8 +8,6 @@
 
 #include "block_splitter.h"
 
-#include <string.h>  /* memcpy, memset */
-
 #include "../common/platform.h"
 #include "bit_cost.h"
 #include "cluster.h"
@@ -140,7 +138,7 @@ void BrotliSplitBlock(MemoryManager* m,
     CopyLiteralsToByteArray(cmds, num_commands, data, pos, mask, literals);
     /* Create the block split on the array of literals.
      * Literal histograms can have alphabet size up to 256.
-     * Though, to accomodate context modeling, less than half of maximum size
+     * Though, to accommodate context modeling, less than half of maximum size
      * is allowed. */
     SplitByteVectorLiteral(
         m, literals, literals_count,
@@ -150,7 +148,7 @@ void BrotliSplitBlock(MemoryManager* m,
     if (BROTLI_IS_OOM(m)) return;
     BROTLI_FREE(m, literals);
     /* NB: this might be a good place for injecting extra splitting without
-     *     increasing encoder complexity; however, output parition would be less
+     *     increasing encoder complexity; however, output partition would be less
      *     optimal than one produced with forced splitting inside
      *     SplitByteVector (FindBlocks / ClusterBlocks). */
   }
@@ -198,16 +196,15 @@ void BrotliSplitBlock(MemoryManager* m,
 }
 
 #if defined(BROTLI_TEST)
-size_t CountLiteralsForTest(const Command*, const size_t);
-size_t CountLiteralsForTest(const Command* cmds, const size_t num_commands) {
+size_t BrotliCountLiteralsForTest(const Command*, size_t);
+size_t BrotliCountLiteralsForTest(const Command* cmds, size_t num_commands) {
   return CountLiterals(cmds, num_commands);
 }
-
-void CopyLiteralsToByteArrayForTest(const Command*,
-    const size_t, const uint8_t*, const size_t, const size_t, uint8_t*);
-void CopyLiteralsToByteArrayForTest(const Command* cmds,
-    const size_t num_commands, const uint8_t* data, const size_t offset,
-    const size_t mask, uint8_t* literals) {
+void BrotliCopyLiteralsToByteArrayForTest(
+    const Command*, size_t, const uint8_t*, size_t, size_t, uint8_t*);
+void BrotliCopyLiteralsToByteArrayForTest(const Command* cmds,
+    size_t num_commands, const uint8_t* data, size_t offset, size_t mask,
+    uint8_t* literals) {
   CopyLiteralsToByteArray(cmds, num_commands, data, offset, mask, literals);
 }
 #endif

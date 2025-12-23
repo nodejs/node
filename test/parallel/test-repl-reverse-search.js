@@ -28,7 +28,9 @@ class ActionStream extends stream.Stream {
       const next = _iter.next();
       if (next.done) {
         // Close the repl. Note that it must have a clean prompt to do so.
-        this.emit('keypress', '', { ctrl: true, name: 'd' });
+        setImmediate(() => {
+          this.emit('keypress', '', { ctrl: true, name: 'd' });
+        });
         return;
       }
       const action = next.value;
@@ -36,7 +38,7 @@ class ActionStream extends stream.Stream {
       if (typeof action === 'object') {
         this.emit('keypress', '', action);
       } else {
-        this.emit('data', `${action}`);
+        this.emit('data', action);
       }
       setImmediate(doAction);
     };
@@ -299,7 +301,7 @@ function runTest() {
   REPL.createInternalRepl(opts.env, {
     input: new ActionStream(),
     output: new stream.Writable({
-      write(chunk, _, next) {
+      write: common.mustCallAtLeast((chunk, _, next) => {
         const output = chunk.toString();
 
         if (!opts.showEscapeCodes &&
@@ -323,19 +325,19 @@ function runTest() {
         }
 
         next();
-      }
+      }),
     }),
     completer: opts.completer,
     prompt,
     useColors: opts.useColors || false,
     terminal: true
-  }, function(err, repl) {
+  }, common.mustCall((err, repl) => {
     if (err) {
       console.error(`Failed test # ${numtests - tests.length}`);
       throw err;
     }
 
-    repl.once('close', () => {
+    repl.once('close', common.mustCall(() => {
       if (opts.clean)
         cleanupTmpFile();
 
@@ -347,7 +349,7 @@ function runTest() {
       }
 
       setImmediate(runTestWrap, true);
-    });
+    }));
 
     if (opts.columns) {
       Object.defineProperty(repl, 'columns', {
@@ -356,7 +358,7 @@ function runTest() {
       });
     }
     repl.inputStream.run(opts.test);
-  });
+  }));
 }
 
 // run the tests

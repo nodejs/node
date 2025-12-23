@@ -70,8 +70,14 @@ bool CommonStubCacheChecks(StubCache* stub_cache, Tagged<Name> name,
                            Tagged<Map> map, Tagged<MaybeObject> handler) {
   // Validate that the name and handler do not move on scavenge, and that we
   // can use identity checks instead of structural equality checks.
-  DCHECK(!Heap::InYoungGeneration(name));
-  DCHECK(!Heap::InYoungGeneration(handler));
+  DCHECK(!HeapLayout::InYoungGeneration(name));
+  DCHECK(!HeapLayout::InYoungGeneration(handler));
+#ifdef V8_COMPRESS_POINTERS
+  // If the handler is a heap object, it is expected to live in the regular
+  // cage, not the code cage. No cage information is stored in the cache and
+  // StubCache::Get() assumes that this is true.
+  DCHECK(handler.IsSmi() || handler.IsInMainCageBase());
+#endif  // V8_COMPRESS_POINTERS
   DCHECK(IsUniqueName(name));
   if (handler.ptr() != kNullAddress) DCHECK(IC::IsHandler(handler));
   return true;

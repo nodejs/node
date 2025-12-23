@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --turbofan --no-always-turbofan
+// Flags: --allow-natives-syntax --turbofan
 // Flags: --no-lazy-feedback-allocation
 
 // TODO(v8:10195): Fix these tests s.t. we assert deoptimization occurs when
@@ -867,7 +867,10 @@ assertEquals(undefined, Object.seal(arr).reduceRight(function(val) { return val 
 
 (function ReduceNonCallableOpt() {
   let done = false;
-  let f = (a, current) => {
+  // Introduce an indirection, so that we don't depend on
+  // ContextCells constness.
+  let f = null;
+  f = (a, current) => {
     return a + Number(current);
   };
   let array = [1,'2',3];
@@ -1225,7 +1228,10 @@ assertEquals(undefined, Object.seal(arr).reduceRight(function(val) { return val 
 
 (function ReduceNonCallableOpt() {
   let done = false;
-  let f = (a, current) => {
+  // Introduce an indirection, so that we don't depend on
+  // ContextCells constness.
+  let f = null;
+  f = (a, current) => {
     return a + Number(current);
   };
   let array = [1,'2',3];

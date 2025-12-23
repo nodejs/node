@@ -1,4 +1,0 @@
-1 - Root_CA (self-signed)
-1.1 - EndEntity1
-1.2 Intermediate_CA
-1.2.1 EndEntity2

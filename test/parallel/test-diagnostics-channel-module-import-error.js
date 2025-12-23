@@ -9,7 +9,7 @@ const events = [];
 let lastEvent;
 
 function track(name) {
-  return (event) => {
+  return common.mustCall((event) => {
     // Verify every event after the first is the same object
     if (events.length) {
       assert.strictEqual(event, lastEvent);
@@ -17,7 +17,7 @@ function track(name) {
     lastEvent = event;
 
     events.push({ name, ...event });
-  };
+  });
 }
 
 trace.subscribe({
@@ -28,40 +28,38 @@ trace.subscribe({
   error: common.mustCall(track('error')),
 });
 
-import('does-not-exist').then(
-  common.mustNotCall(),
-  common.mustCall((error) => {
-    const expectedParentURL = pathToFileURL(module.filename).href;
-    // Verify order and contents of each event
-    assert.deepStrictEqual(events, [
-      {
-        name: 'start',
-        parentURL: expectedParentURL,
-        url: 'does-not-exist',
-      },
-      {
-        name: 'end',
-        parentURL: expectedParentURL,
-        url: 'does-not-exist',
-      },
-      {
-        name: 'error',
-        parentURL: expectedParentURL,
-        url: 'does-not-exist',
-        error,
-      },
-      {
-        name: 'asyncStart',
-        parentURL: expectedParentURL,
-        url: 'does-not-exist',
-        error,
-      },
-      {
-        name: 'asyncEnd',
-        parentURL: expectedParentURL,
-        url: 'does-not-exist',
-        error,
-      },
-    ]);
-  })
-);
+assert.rejects(import('does-not-exist'), (error) => {
+  const expectedParentURL = pathToFileURL(module.filename).href;
+  // Verify order and contents of each event
+  assert.deepStrictEqual(events, [
+    {
+      name: 'start',
+      parentURL: expectedParentURL,
+      url: 'does-not-exist',
+    },
+    {
+      name: 'end',
+      parentURL: expectedParentURL,
+      url: 'does-not-exist',
+    },
+    {
+      name: 'error',
+      parentURL: expectedParentURL,
+      url: 'does-not-exist',
+      error,
+    },
+    {
+      name: 'asyncStart',
+      parentURL: expectedParentURL,
+      url: 'does-not-exist',
+      error,
+    },
+    {
+      name: 'asyncEnd',
+      parentURL: expectedParentURL,
+      url: 'does-not-exist',
+      error,
+    },
+  ]);
+  return true;
+}).then(common.mustCall());

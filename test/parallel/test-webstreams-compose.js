@@ -328,9 +328,9 @@ const {
   )
   .on('data', common.mustNotCall())
   .on('end', common.mustNotCall())
-  .on('error', (err) => {
+  .on('error', common.mustCall((err) => {
     assert.strictEqual(err?.message, 'asd');
-  })
+  }))
   .end('xyz');
 }
 
@@ -350,9 +350,9 @@ const {
   )
   .on('data', common.mustNotCall())
   .on('end', common.mustNotCall())
-  .on('error', (err) => {
+  .on('error', common.mustCall((err) => {
     assert.strictEqual(err?.message, 'asd');
-  })
+  }))
   .end('xyz');
 }
 
@@ -378,9 +378,9 @@ const {
   )
   .on('data', common.mustNotCall())
   .on('end', common.mustNotCall())
-  .on('error', (err) => {
+  .on('error', common.mustCall((err) => {
     assert.strictEqual(err?.message, 'asd');
-  })
+  }))
   .end('xyz');
 }
 
@@ -398,9 +398,9 @@ const {
   )
   .on('data', common.mustNotCall())
   .on('end', common.mustNotCall())
-  .on('error', (err) => {
+  .on('error', common.mustCall((err) => {
     assert.strictEqual(err?.message, 'asd');
-  })
+  }))
   .end('xyz');
 }
 
@@ -418,9 +418,9 @@ const {
   )
   .on('data', common.mustNotCall())
   .on('end', common.mustNotCall())
-  .on('error', (err) => {
+  .on('error', common.mustCall((err) => {
     assert.strictEqual(err?.message, 'asd');
-  })
+  }))
   .end('xyz');
 }
 
@@ -437,9 +437,7 @@ const {
   )
   .on('data', common.mustNotCall())
   .on('end', common.mustNotCall())
-  .on('error', (err) => {
-    assert.strictEqual(err?.message, 'asd');
-  })
+  .on('error', common.mustNotCall())
   .end('xyz');
 }
 
@@ -456,9 +454,9 @@ const {
       })
     })
   )
-  .on('error', (err) => {
+  .on('error', common.mustCall((err) => {
     assert.strictEqual(err?.message, 'asd');
-  })
+  }))
   .end('xyz');
 }
 
@@ -477,7 +475,7 @@ const {
     async function(source) {
       throw new Error('asd');
     }
-  ).on('error', (err) => {
+  ).on('error', common.mustCall((err) => {
     assert.strictEqual(err?.message, 'asd');
-  }).end('xyz');
+  })).end('xyz');
 }

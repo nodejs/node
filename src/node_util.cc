@@ -10,11 +10,13 @@ namespace util {
 
 using v8::ALL_PROPERTIES;
 using v8::Array;
+using v8::ArrayBuffer;
 using v8::ArrayBufferView;
 using v8::BigInt;
 using v8::Boolean;
 using v8::CFunction;
 using v8::Context;
+using v8::DictionaryTemplate;
 using v8::External;
 using v8::FunctionCallbackInfo;
 using v8::IndexFilter;
@@ -23,6 +25,7 @@ using v8::Isolate;
 using v8::KeyCollectionMode;
 using v8::Local;
 using v8::LocalVector;
+using v8::MaybeLocal;
 using v8::Name;
 using v8::Object;
 using v8::ObjectTemplate;
@@ -32,6 +35,7 @@ using v8::ONLY_WRITABLE;
 using v8::Promise;
 using v8::PropertyFilter;
 using v8::Proxy;
+using v8::SharedArrayBuffer;
 using v8::SKIP_STRINGS;
 using v8::SKIP_SYMBOLS;
 using v8::StackFrame;
@@ -51,8 +55,8 @@ CHAR_TEST(16, IsUnicodeSurrogateTrail, (ch & 0x400) != 0)
 
 static void GetOwnNonIndexProperties(
     const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  Local<Context> context = env->context();
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
 
   CHECK(args[0]->IsObject());
   CHECK(args[1]->IsUint32());
@@ -61,8 +65,7 @@ static void GetOwnNonIndexProperties(
 
   Local<Array> properties;
 
-  PropertyFilter filter =
-    static_cast<PropertyFilter>(args[1].As<Uint32>()->Value());
+  PropertyFilter filter = FromV8Value<PropertyFilter>(args[1]);
 
   if (!object->GetPropertyNames(
         context, KeyCollectionMode::kOwnOnly,
@@ -167,7 +170,7 @@ static void PreviewEntries(const FunctionCallbackInfo<Value>& args) {
   if (!args[0]->IsObject())
     return;
 
-  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = args.GetIsolate();
   bool is_key_value;
   Local<Array> entries;
   if (!args[0].As<Object>()->PreviewEntries(&is_key_value).ToLocal(&entries))
@@ -176,12 +179,8 @@ static void PreviewEntries(const FunctionCallbackInfo<Value>& args) {
   if (args.Length() == 1)
     return args.GetReturnValue().Set(entries);
 
-  Local<Value> ret[] = {
-    entries,
-    Boolean::New(env->isolate(), is_key_value)
-  };
-  return args.GetReturnValue().Set(
-      Array::New(env->isolate(), ret, arraysize(ret)));
+  Local<Value> ret[] = {entries, Boolean::New(isolate, is_key_value)};
+  return args.GetReturnValue().Set(Array::New(isolate, ret, arraysize(ret)));
 }
 
 static void Sleep(const FunctionCallbackInfo<Value>& args) {
@@ -221,9 +220,10 @@ static uint32_t GetUVHandleTypeCode(const uv_handle_type type) {
 }
 
 static void GuessHandleType(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
   int fd;
-  if (!args[0]->Int32Value(env->context()).To(&fd)) return;
+  if (!args[0]->Int32Value(context).To(&fd)) return;
   CHECK_GE(fd, 0);
 
   uv_handle_type t = uv_guess_handle(fd);
@@ -238,10 +238,12 @@ static uint32_t FastGuessHandleType(Local<Value> receiver, const uint32_t fd) {
 CFunction fast_guess_handle_type_(CFunction::Make(FastGuessHandleType));
 
 static void ParseEnv(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
+  Environment* env = Environment::GetCurrent(context);
   CHECK_EQ(args.Length(), 1);  // content
   CHECK(args[0]->IsString());
-  Utf8Value content(env->isolate(), args[0]);
+  Utf8Value content(isolate, args[0]);
   Dotenv dotenv{};
   dotenv.ParseContent(content.ToStringView());
   Local<Object> obj;
@@ -251,18 +253,33 @@ static void ParseEnv(const FunctionCallbackInfo<Value>& args) {
 }
 
 static void GetCallSites(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  Isolate* isolate = env->isolate();
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
+  Environment* env = Environment::GetCurrent(context);
 
   CHECK_EQ(args.Length(), 1);
   CHECK(args[0]->IsNumber());
   const uint32_t frames = args[0].As<Uint32>()->Value();
-  DCHECK(frames >= 1 && frames <= 200);
+  CHECK(frames >= 1 && frames <= 200);
 
   // +1 for disregarding node:util
   Local<StackTrace> stack = StackTrace::CurrentStackTrace(isolate, frames + 1);
   const int frame_count = stack->GetFrameCount();
   LocalVector<Value> callsite_objects(isolate);
+
+  auto callsite_template = env->callsite_template();
+  if (callsite_template.IsEmpty()) {
+    static constexpr std::string_view names[] = {
+        "functionName",
+        "scriptId",
+        "scriptName",
+        "lineNumber",
+        "columnNumber",
+        // TODO(legendecas): deprecate CallSite.column.
+        "column"};
+    callsite_template = DictionaryTemplate::New(isolate, names);
+    env->set_callsite_template(callsite_template);
+  }
 
   // Frame 0 is node:util. It should be skipped.
   for (int i = 1; i < frame_count; ++i) {
@@ -280,16 +297,7 @@ static void GetCallSites(const FunctionCallbackInfo<Value>& args) {
 
     std::string script_id = std::to_string(stack_frame->GetScriptId());
 
-    Local<Name> names[] = {
-        env->function_name_string(),
-        env->script_id_string(),
-        env->script_name_string(),
-        env->line_number_string(),
-        env->column_number_string(),
-        // TODO(legendecas): deprecate CallSite.column.
-        env->column_string(),
-    };
-    Local<Value> values[] = {
+    MaybeLocal<Value> values[] = {
         function_name,
         OneByteString(isolate, script_id),
         script_name,
@@ -298,10 +306,13 @@ static void GetCallSites(const FunctionCallbackInfo<Value>& args) {
         // TODO(legendecas): deprecate CallSite.column.
         Integer::NewFromUnsigned(isolate, stack_frame->GetColumn()),
     };
-    Local<Object> obj = Object::New(
-        isolate, v8::Null(isolate), names, values, arraysize(names));
 
-    callsite_objects.push_back(obj);
+    Local<Object> callsite;
+    if (!NewDictionaryInstanceNullProto(context, callsite_template, values)
+             .ToLocal(&callsite)) {
+      return;
+    }
+    callsite_objects.push_back(callsite);
   }
 
   Local<Array> callsites =
@@ -309,22 +320,20 @@ static void GetCallSites(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(callsites);
 }
 
+/**
+ * Checks whether the current call directly initiated from a file inside
+ * node_modules. This checks up to `frame_limit` stack frames, until it finds
+ * a frame that is not part of node internal modules.
+ */
 static void IsInsideNodeModules(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
-  CHECK_EQ(args.Length(), 2);
-  CHECK(args[0]->IsInt32());  // frame_limit
-  // The second argument is the default value.
 
-  int frames_limit = args[0].As<v8::Int32>()->Value();
+  int frames_limit = (args.Length() > 0 && args[0]->IsInt32())
+                         ? args[0].As<v8::Int32>()->Value()
+                         : 10;
   Local<StackTrace> stack =
       StackTrace::CurrentStackTrace(isolate, frames_limit);
   int frame_count = stack->GetFrameCount();
-
-  // If the search requires looking into more than |frames_limit| frames, give
-  // up and return the specified default value.
-  if (frame_count == frames_limit) {
-    return args.GetReturnValue().Set(args[1]);
-  }
 
   bool result = false;
   for (int i = 0; i < frame_count; ++i) {
@@ -339,13 +348,11 @@ static void IsInsideNodeModules(const FunctionCallbackInfo<Value>& args) {
     if (script_name_str.starts_with("node:")) {
       continue;
     }
-    if (script_name_str.find("/node_modules/") != std::string::npos ||
-        script_name_str.find("\\node_modules\\") != std::string::npos ||
-        script_name_str.find("/node_modules\\") != std::string::npos ||
-        script_name_str.find("\\node_modules/") != std::string::npos) {
-      result = true;
-      break;
-    }
+    result = script_name_str.find("/node_modules/") != std::string::npos ||
+             script_name_str.find("\\node_modules\\") != std::string::npos ||
+             script_name_str.find("/node_modules\\") != std::string::npos ||
+             script_name_str.find("\\node_modules/") != std::string::npos;
+    break;
   }
 
   args.GetReturnValue().Set(result);
@@ -400,9 +407,7 @@ static void DefineLazyProperties(const FunctionCallbackInfo<Value>& args) {
   // enumerable: Whether the property should be enumerable.
   CHECK(args.Length() == 3 || args[3]->IsBoolean());
 
-  Environment* env = Environment::GetCurrent(args);
-  Isolate* isolate = env->isolate();
-  auto context = isolate->GetCurrentContext();
+  auto context = args.GetIsolate()->GetCurrentContext();
 
   auto target = args[0].As<Object>();
   Local<Value> id = args[1];
@@ -431,6 +436,30 @@ static void DefineLazyProperties(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+void ConstructSharedArrayBuffer(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  int64_t length;
+  // Note: IntegerValue() clamps its output, so excessively large input values
+  // will not overflow
+  if (!args[0]->IntegerValue(env->context()).To(&length)) {
+    return;
+  }
+  if (length < 0 ||
+      static_cast<uint64_t>(length) > ArrayBuffer::kMaxByteLength) {
+    env->ThrowRangeError("Invalid array buffer length");
+    return;
+  }
+  Local<SharedArrayBuffer> sab;
+  if (!SharedArrayBuffer::MaybeNew(env->isolate(), static_cast<size_t>(length))
+           .ToLocal(&sab)) {
+    // Note: SharedArrayBuffer::MaybeNew doesn't schedule an exception if it
+    // fails
+    env->ThrowRangeError("Array buffer allocation failed");
+    return;
+  }
+  args.GetReturnValue().Set(sab);
+}
+
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(GetPromiseDetails);
   registry->Register(GetProxyDetails);
@@ -443,12 +472,12 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(Sleep);
   registry->Register(ArrayBufferViewHasBuffer);
   registry->Register(GuessHandleType);
-  registry->Register(FastGuessHandleType);
-  registry->Register(fast_guess_handle_type_.GetTypeInfo());
+  registry->Register(fast_guess_handle_type_);
   registry->Register(ParseEnv);
   registry->Register(IsInsideNodeModules);
   registry->Register(DefineLazyProperties);
   registry->Register(DefineLazyPropertiesGetter);
+  registry->Register(ConstructSharedArrayBuffer);
 }
 
 void Initialize(Local<Object> target,
@@ -548,9 +577,12 @@ void Initialize(Local<Object> target,
   SetMethodNoSideEffect(context, target, "getCallSites", GetCallSites);
   SetMethod(context, target, "sleep", Sleep);
   SetMethod(context, target, "parseEnv", ParseEnv);
-
   SetMethod(
       context, target, "arrayBufferViewHasBuffer", ArrayBufferViewHasBuffer);
+  SetMethod(context,
+            target,
+            "constructSharedArrayBuffer",
+            ConstructSharedArrayBuffer);
 
   Local<String> should_abort_on_uncaught_toggle =
       FIXED_ONE_BYTE_STRING(env->isolate(), "shouldAbortOnUncaughtToggle");

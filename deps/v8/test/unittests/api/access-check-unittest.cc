@@ -197,14 +197,14 @@ TEST_F(AccessCheckTest, GetOwnPropertyDescriptor) {
 
 class AccessRegressionTest : public AccessCheckTest {
  protected:
-  i::Handle<i::JSFunction> RetrieveFunctionFrom(Local<Context> context,
-                                                const char* script) {
+  i::DirectHandle<i::JSFunction> RetrieveFunctionFrom(Local<Context> context,
+                                                      const char* script) {
     Context::Scope context_scope(context);
     Local<Value> getter = CompileRun(isolate(), script).ToLocalChecked();
     EXPECT_TRUE(getter->IsFunction());
 
-    i::Handle<i::JSReceiver> r =
-        Utils::OpenHandle(*Local<Function>::Cast(getter));
+    i::DirectHandle<i::JSReceiver> r =
+        Utils::OpenDirectHandle(*Local<Function>::Cast(getter));
     EXPECT_TRUE(IsJSFunction(*r));
     return i::Cast<i::JSFunction>(r);
   }
@@ -253,7 +253,7 @@ TEST_F(AccessRegressionTest,
   //    - a normal function "breakfn".
   //
   // The test sets a break point on {object.breakfn} in the first context.
-  // This forces instantation of the JSFunction for the {object.property}
+  // This forces instantiation of the JSFunction for the {object.property}
   // accessor pair. The test verifies afterwards that the respective
   // JSFunction of the getter have the correct native context.
 
@@ -416,6 +416,10 @@ void IndexedEnumerator(const PropertyCallbackInfo<Array>& info) {
   info.GetReturnValue().Set(names);
 }
 
+// This tag value has been picked arbitrarily between 0 and
+// V8_EXTERNAL_POINTER_TAG_COUNT.
+constexpr v8::ExternalPointerTypeTag kFunctionTemplateTag = 24;
+
 v8::Intercepted MethodGetter(Local<Name> property,
                              const PropertyCallbackInfo<Value>& info) {
   Isolate* isolate = info.GetIsolate();
@@ -423,7 +427,8 @@ v8::Intercepted MethodGetter(Local<Name> property,
 
   Local<External> data = info.Data().As<External>();
   Local<FunctionTemplate>& function_template =
-      *reinterpret_cast<Local<FunctionTemplate>*>(data->Value());
+      *reinterpret_cast<Local<FunctionTemplate>*>(
+          data->Value(kFunctionTemplateTag));
 
   info.GetReturnValue().Set(
       function_template->GetFunction(context).ToLocalChecked());
@@ -514,14 +519,15 @@ TEST_F(AccessCheckTest, CallFunctionWithRemoteContextReceiver) {
 
   Local<Signature> signature = Signature::New(isolate(), global_template);
   Local<FunctionTemplate> function_template = FunctionTemplate::New(
-      isolate(), MethodCallback, External::New(isolate(), &function_template),
+      isolate(), MethodCallback,
+      External::New(isolate(), &function_template, kFunctionTemplateTag),
       signature);
 
   global_template->InstanceTemplate()->SetAccessCheckCallbackAndHandler(
       AccessCheck,
       NamedPropertyHandlerConfiguration(
           MethodGetter, nullptr, nullptr, nullptr, nullptr,
-          External::New(isolate(), &function_template)),
+          External::New(isolate(), &function_template, kFunctionTemplateTag)),
       IndexedPropertyHandlerConfiguration());
 
   Local<Object> accessed_object =

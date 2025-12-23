@@ -60,23 +60,38 @@ const removeAllListeners = util.removeAllListeners
 
 let extractBody
 
-async function lazyllhttp () {
+function lazyllhttp () {
   const llhttpWasmData = process.env.JEST_WORKER_ID ? require('../llhttp/llhttp-wasm.js') : undefined
 
   let mod
-  try {
-    mod = await WebAssembly.compile(require('../llhttp/llhttp_simd-wasm.js'))
-  } catch (e) {
-    /* istanbul ignore next */
 
+  // We disable wasm SIMD on ppc64 as it seems to be broken on Power 9 architectures.
+  let useWasmSIMD = process.arch !== 'ppc64'
+  // The Env Variable UNDICI_NO_WASM_SIMD allows explicitly overriding the default behavior
+  if (process.env.UNDICI_NO_WASM_SIMD === '1') {
+    useWasmSIMD = true
+  } else if (process.env.UNDICI_NO_WASM_SIMD === '0') {
+    useWasmSIMD = false
+  }
+
+  if (useWasmSIMD) {
+    try {
+      mod = new WebAssembly.Module(require('../llhttp/llhttp_simd-wasm.js'))
+      /* istanbul ignore next */
+    } catch {
+    }
+  }
+
+  /* istanbul ignore next */
+  if (!mod) {
     // We could check if the error was caused by the simd option not
     // being enabled, but the occurring of this other error
     // * https://github.com/emscripten-core/emscripten/issues/11495
     // got me to remove that check to avoid breaking Node 12.
-    mod = await WebAssembly.compile(llhttpWasmData || require('../llhttp/llhttp-wasm.js'))
+    mod = new WebAssembly.Module(llhttpWasmData || require('../llhttp/llhttp-wasm.js'))
   }
 
-  return await WebAssembly.instantiate(mod, {
+  return new WebAssembly.Instance(mod, {
     env: {
       /**
        * @param {number} p
@@ -165,11 +180,6 @@ async function lazyllhttp () {
 }
 
 let llhttpInstance = null
-/**
- * @type {Promise<WebAssembly.Instance>|null}
- */
-let llhttpPromise = lazyllhttp()
-llhttpPromise.catch()
 
 /**
  * @type {Parser|null}
@@ -249,7 +259,7 @@ class Parser {
           this.timeout = timers.setFastTimeout(onParserTimeout, delay, new WeakRef(this))
         } else {
           this.timeout = setTimeout(onParserTimeout, delay, new WeakRef(this))
-          this.timeout.unref()
+          this.timeout?.unref()
         }
       }
 
@@ -330,10 +340,6 @@ class Parser {
         currentBufferRef = chunk
         currentParser = this
         ret = llhttp.llhttp_execute(this.ptr, currentBufferPtr, chunk.length)
-        /* eslint-disable-next-line no-useless-catch */
-      } catch (err) {
-        /* istanbul ignore next: difficult to make a test case for */
-        throw err
       } finally {
         currentParser = null
         currentBufferRef = null
@@ -732,7 +738,7 @@ class Parser {
       // We must wait a full event loop cycle to reuse this socket to make sure
       // that non-spec compliant servers are not closing the connection even if they
       // said they won't.
-      setImmediate(() => client[kResume]())
+      setImmediate(client[kResume])
     } else {
       client[kResume]()
     }
@@ -765,15 +771,11 @@ function onParserTimeout (parser) {
  * @param {import('net').Socket} socket
  * @returns
  */
-async function connectH1 (client, socket) {
+function connectH1 (client, socket) {
   client[kSocket] = socket
 
   if (!llhttpInstance) {
-    const noop = () => {}
-    socket.on('error', noop)
-    llhttpInstance = await llhttpPromise
-    llhttpPromise = null
-    socket.off('error', noop)
+    llhttpInstance = lazyllhttp()
   }
 
   if (socket.errored) {
@@ -1297,9 +1299,9 @@ function writeStream (abort, body, client, request, socket, contentLength, heade
     .on('error', onFinished)
 
   if (body.errorEmitted ?? body.errored) {
-    setImmediate(() => onFinished(body.errored))
+    setImmediate(onFinished, body.errored)
   } else if (body.endEmitted ?? body.readableEnded) {
-    setImmediate(() => onFinished(null))
+    setImmediate(onFinished, null)
   }
 
   if (body.closeEmitted ?? body.closed) {

@@ -44,7 +44,7 @@ PageAllocator& CreateAllocatorIfNeeded(PageAllocator* page_allocator) {
 
 }  // namespace
 
-void Fatal(const std::string& reason, const SourceLocation& loc) {
+void Fatal(const std::string& reason, SourceLocation loc) {
 #ifdef DEBUG
   V8_Fatal(loc.FileName(), static_cast<int>(loc.Line()), "%s", reason.c_str());
 #else   // !DEBUG
@@ -53,7 +53,7 @@ void Fatal(const std::string& reason, const SourceLocation& loc) {
 }
 
 void FatalOutOfMemoryHandler::operator()(const std::string& reason,
-                                         const SourceLocation& loc) const {
+                                         SourceLocation loc) const {
   if (custom_handler_) {
     (*custom_handler_)(reason, loc, heap_);
     FATAL("Custom out of memory handler should not have returned");
@@ -86,6 +86,8 @@ TracingController* Platform::GetTracingController() {
   static v8::base::LeakyObject<TracingController> tracing_controller;
   return tracing_controller.get();
 }
+
+bool IsInitialized() { return internal::g_page_allocator != nullptr; }
 
 void InitializeProcess(PageAllocator* page_allocator,
                        size_t desired_heap_size) {

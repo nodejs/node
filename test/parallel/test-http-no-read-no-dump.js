@@ -4,7 +4,7 @@ const http = require('http');
 
 let onPause = null;
 
-const server = http.createServer((req, res) => {
+const server = http.createServer(common.mustCallAtLeast((req, res) => {
   if (req.method === 'GET')
     return res.end();
 
@@ -19,7 +19,7 @@ const server = http.createServer((req, res) => {
     res.end();
     onPause();
   });
-}).listen(0, common.mustCall(() => {
+})).listen(0, common.mustCall(() => {
   const agent = new http.Agent({
     maxSockets: 1,
     keepAlive: true

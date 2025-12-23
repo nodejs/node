@@ -104,24 +104,29 @@ struct FlatHashMapPolicy;
 // If your types are not moveable or you require pointer stability for keys,
 // consider `absl::node_hash_map`.
 //
+// PERFORMANCE WARNING: Erasure & sparsity can negatively affect performance:
+//  * Iteration takes O(capacity) time, not O(size).
+//  * erase() slows down begin() and ++iterator.
+//  * Capacity only shrinks on rehash() or clear() -- not on erase().
+//
 // Example:
 //
 //   // Create a flat hash map of three strings (that map to strings)
 //   absl::flat_hash_map<std::string, std::string> ducks =
 //     {{"a", "huey"}, {"b", "dewey"}, {"c", "louie"}};
 //
-//  // Insert a new element into the flat hash map
-//  ducks.insert({"d", "donald"});
+//   // Insert a new element into the flat hash map
+//   ducks.insert({"d", "donald"});
 //
-//  // Force a rehash of the flat hash map
-//  ducks.rehash(0);
+//   // Force a rehash of the flat hash map
+//   ducks.rehash(0);
 //
-//  // Find the element with the key "b"
-//  std::string search_key = "b";
-//  auto result = ducks.find(search_key);
-//  if (result != ducks.end()) {
-//    std::cout << "Result: " << result->second << std::endl;
-//  }
+//   // Find the element with the key "b"
+//   std::string search_key = "b";
+//   auto result = ducks.find(search_key);
+//   if (result != ducks.end()) {
+//     std::cout << "Result: " << result->second << std::endl;
+//   }
 template <class K, class V, class Hash = DefaultHashContainerHash<K>,
           class Eq = DefaultHashContainerEq<K>,
           class Allocator = std::allocator<std::pair<const K, V>>>
@@ -153,9 +158,9 @@ class ABSL_ATTRIBUTE_OWNER flat_hash_map
   //
   // * Copy assignment operator
   //
-  //  // Hash functor and Comparator are copied as well
-  //  absl::flat_hash_map<int, std::string> map4;
-  //  map4 = map3;
+  //   // Hash functor and Comparator are copied as well
+  //   absl::flat_hash_map<int, std::string> map4;
+  //   map4 = map3;
   //
   // * Move constructor
   //
@@ -457,7 +462,9 @@ class ABSL_ATTRIBUTE_OWNER flat_hash_map
   //
   // Sets the number of slots in the `flat_hash_map` to the number needed to
   // accommodate at least `count` total elements without exceeding the current
-  // maximum load factor, and may rehash the container if needed.
+  // maximum load factor, and may rehash the container if needed. After this
+  // returns, it is guaranteed that `count - size()` elements can be inserted
+  // into the `flat_hash_map` without another rehash.
   using Base::reserve;
 
   // flat_hash_map::at()
@@ -655,10 +662,10 @@ struct FlatHashMapPolicy {
                                                    std::forward<Args>(args)...);
   }
 
-  template <class Hash>
+  template <class Hash, bool kIsDefault>
   static constexpr HashSlotFn get_hash_slot_fn() {
     return memory_internal::IsLayoutCompatible<K, V>::value
-               ? &TypeErasedApplyToSlotFn<Hash, K>
+               ? &TypeErasedApplyToSlotFn<Hash, K, kIsDefault>
                : nullptr;
   }
 

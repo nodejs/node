@@ -147,7 +147,7 @@ set of enabled trace event categories.
 added: v10.0.0
 -->
 
-* {string}
+* Type: {string}
 
 A comma-separated list of the trace event categories covered by this
 `Tracing` object.
@@ -210,7 +210,7 @@ Enables this `Tracing` object for the set of categories covered by the
 added: v10.0.0
 -->
 
-* {boolean} `true` only if the `Tracing` object has been enabled.
+* Type: {boolean} `true` only if the `Tracing` object has been enabled.
 
 ### `trace_events.createTracing(options)`
 

@@ -135,7 +135,7 @@ function createTestWritableStream(values) {
 
   writer.write('a').then(() => {
     ac.abort();
-  });
+  }).then(common.mustCall());
 }
 
 {

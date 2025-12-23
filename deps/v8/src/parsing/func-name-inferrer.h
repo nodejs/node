@@ -59,7 +59,7 @@ class FuncNameInferrer {
     }
     ~State() {
       DCHECK(fni_->IsOpen());
-      fni_->names_stack_.resize_no_init(top_);
+      fni_->names_stack_.resize(top_);
       --fni_->scope_depth_;
     }
     State(const State&) = delete;

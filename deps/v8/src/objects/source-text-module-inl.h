@@ -5,9 +5,11 @@
 #ifndef V8_OBJECTS_SOURCE_TEXT_MODULE_INL_H_
 #define V8_OBJECTS_SOURCE_TEXT_MODULE_INL_H_
 
+#include "src/objects/source-text-module.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/objects/module-inl.h"
 #include "src/objects/objects-inl.h"
-#include "src/objects/source-text-module.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"

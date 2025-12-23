@@ -3,6 +3,8 @@
 
 #include "unicode/utypes.h"
 
+#if !UCONFIG_NO_NORMALIZATION
+
 #if !UCONFIG_NO_FORMATTING
 
 #if !UCONFIG_NO_MF2
@@ -85,10 +87,11 @@ MFFunctionRegistry::Builder::Builder(UErrorCode& errorCode) {
     formattersByType = new Hashtable();
     if (!(formatters != nullptr && selectors != nullptr && formattersByType != nullptr)) {
         errorCode = U_MEMORY_ALLOCATION_ERROR;
+    } else {
+        formatters->setValueDeleter(uprv_deleteUObject);
+        selectors->setValueDeleter(uprv_deleteUObject);
+        formattersByType->setValueDeleter(uprv_deleteUObject);
     }
-    formatters->setValueDeleter(uprv_deleteUObject);
-    selectors->setValueDeleter(uprv_deleteUObject);
-    formattersByType->setValueDeleter(uprv_deleteUObject);
 }
 
 MFFunctionRegistry::Builder::~Builder() {
@@ -158,9 +161,13 @@ void MFFunctionRegistry::checkStandard() const {
     checkFormatter("time");
     checkFormatter("number");
     checkFormatter("integer");
+    checkFormatter("test:function");
+    checkFormatter("test:format");
     checkSelector("number");
     checkSelector("integer");
     checkSelector("string");
+    checkSelector("test:function");
+    checkSelector("test:select");
 }
 
 // Formatter/selector helpers
@@ -424,14 +431,14 @@ static FormattedPlaceholder notANumber(const FormattedPlaceholder& input) {
     return FormattedPlaceholder(input, FormattedValue(UnicodeString("NaN")));
 }
 
-static double parseNumberLiteral(const FormattedPlaceholder& input, UErrorCode& errorCode) {
+static double parseNumberLiteral(const Formattable& input, UErrorCode& errorCode) {
     if (U_FAILURE(errorCode)) {
         return {};
     }
 
     // Copying string to avoid GCC dangling-reference warning
     // (although the reference is safe)
-    UnicodeString inputStr = input.asFormattable().getString(errorCode);
+    UnicodeString inputStr = input.getString(errorCode);
     // Precondition: `input`'s source Formattable has type string
     if (U_FAILURE(errorCode)) {
         return {};
@@ -463,8 +470,42 @@ static double parseNumberLiteral(const FormattedPlaceholder& input, UErrorCode& 
     return result;
 }
 
+static UChar32 digitToChar(int32_t val, UErrorCode errorCode) {
+    if (U_FAILURE(errorCode)) {
+        return '0';
+    }
+    if (val < 0 || val > 9) {
+        errorCode = U_ILLEGAL_ARGUMENT_ERROR;
+    }
+    switch(val) {
+        case 0:
+            return '0';
+        case 1:
+            return '1';
+        case 2:
+            return '2';
+        case 3:
+            return '3';
+        case 4:
+            return '4';
+        case 5:
+            return '5';
+        case 6:
+            return '6';
+        case 7:
+            return '7';
+        case 8:
+            return '8';
+        case 9:
+            return '9';
+        default:
+            errorCode = U_ILLEGAL_ARGUMENT_ERROR;
+            return '0';
+    }
+}
+
 static FormattedPlaceholder tryParsingNumberLiteral(const number::LocalizedNumberFormatter& nf, const FormattedPlaceholder& input, UErrorCode& errorCode) {
-    double numberValue = parseNumberLiteral(input, errorCode);
+    double numberValue = parseNumberLiteral(input.asFormattable(), errorCode);
     if (U_FAILURE(errorCode)) {
         return notANumber(input);
     }
@@ -1235,6 +1276,273 @@ void StandardFunctions::TextSelector::selectKey(FormattedPlaceholder&& toFormat,
 StandardFunctions::TextFactory::~TextFactory() {}
 StandardFunctions::TextSelector::~TextSelector() {}
 
+// ------------ TestFormatFactory
+
+Formatter* StandardFunctions::TestFormatFactory::createFormatter(const Locale& locale, UErrorCode& errorCode) {
+    NULL_ON_ERROR(errorCode);
+
+    // Results are not locale-dependent
+    (void) locale;
+
+    Formatter* result = new TestFormat();
+    if (result == nullptr) {
+        errorCode = U_MEMORY_ALLOCATION_ERROR;
+    }
+    return result;
+}
+
+StandardFunctions::TestFormatFactory::~TestFormatFactory() {}
+StandardFunctions::TestFormat::~TestFormat() {}
+
+// Extract numeric value from a Formattable or, if it's a string,
+// parse it as a number according to the MF2 `number-literal` grammar production
+double formattableToNumber(const Formattable& arg, UErrorCode& status) {
+    if (U_FAILURE(status)) {
+        return 0;
+    }
+
+    double result = 0;
+
+    switch (arg.getType()) {
+        case UFMT_DOUBLE: {
+            result = arg.getDouble(status);
+            U_ASSERT(U_SUCCESS(status));
+            break;
+        }
+        case UFMT_LONG: {
+            result = (double) arg.getLong(status);
+            U_ASSERT(U_SUCCESS(status));
+            break;
+        }
+        case UFMT_INT64: {
+            result = (double) arg.getInt64(status);
+            U_ASSERT(U_SUCCESS(status));
+            break;
+        }
+        case UFMT_STRING: {
+            // Try to parse the string as a number
+            result = parseNumberLiteral(arg, status);
+            if (U_FAILURE(status)) {
+                status = U_MF_OPERAND_MISMATCH_ERROR;
+            }
+            break;
+        }
+        default: {
+            // Other types can't be parsed as a number
+            status = U_MF_OPERAND_MISMATCH_ERROR;
+            break;
+        }
+        }
+    return result;
+}
+
+
+/* static */ void StandardFunctions::TestFormat::testFunctionParameters(const FormattedPlaceholder& arg,
+                                                                        const FunctionOptions& options,
+                                                                        int32_t& decimalPlaces,
+                                                                        bool& failsFormat,
+                                                                        bool& failsSelect,
+                                                                        double& input,
+                                                                        UErrorCode& status) {
+    CHECK_ERROR(status);
+
+    // 1. Let DecimalPlaces be 0.
+    decimalPlaces = 0;
+
+    // 2. Let FailsFormat be false.
+    failsFormat = false;
+
+    // 3. Let FailsSelect be false.
+    failsSelect = false;
+
+    // 4. Let arg be the resolved value of the expression operand.
+    // (already true)
+
+    // Step 5 omitted because composition isn't fully implemented yet
+    // 6. Else if arg is a numerical value or a string matching the number-literal production, then
+    input = formattableToNumber(arg.asFormattable(), status);
+    if (U_FAILURE(status)) {
+        // 7. Else,
+        // 7i. Emit "bad-input" Resolution Error.
+        status = U_MF_OPERAND_MISMATCH_ERROR;
+        // 7ii. Use a fallback value as the resolved value of the expression.
+        // Further steps of this algorithm are not followed.
+    }
+    // 8. If the decimalPlaces option is set, then
+    Formattable opt;
+    if (options.getFunctionOption(UnicodeString("decimalPlaces"), opt)) {
+        // 8i. If its value resolves to a numerical integer value 0 or 1
+        // or their corresponding string representations '0' or '1', then
+        double decimalPlacesInput = formattableToNumber(opt, status);
+        if (U_SUCCESS(status)) {
+            if (decimalPlacesInput == 0 || decimalPlacesInput == 1) {
+                // 8ia. Set DecimalPlaces to be the numerical value of the option.
+                decimalPlaces = decimalPlacesInput;
+            }
+        }
+        // 8ii. Else if its value is not an unresolved value set by option resolution,
+        else {
+            // 8iia. Emit "bad-option" Resolution Error.
+            status = U_MF_BAD_OPTION;
+            // 8iib. Use a fallback value as the resolved value of the expression.
+        }
+    }
+    // 9. If the fails option is set, then
+    Formattable failsOpt;
+    if (options.getFunctionOption(UnicodeString("fails"), failsOpt)) {
+        UnicodeString failsString = failsOpt.getString(status);
+        if (U_SUCCESS(status)) {
+            // 9i. If its value resolves to the string 'always', then
+            if (failsString == u"always") {
+                // 9ia. Set FailsFormat to be true
+                failsFormat = true;
+                // 9ib. Set FailsSelect to be true.
+                failsSelect = true;
+            }
+            // 9ii. Else if its value resolves to the string "format", then
+            else if (failsString == u"format") {
+                // 9ia. Set FailsFormat to be true
+                failsFormat = true;
+            }
+            // 9iii. Else if its value resolves to the string "select", then
+            else if (failsString == u"select") {
+                // 9iiia. Set FailsSelect to be true.
+                failsSelect = true;
+            }
+            // 9iv. Else if its value does not resolve to the string "never", then
+            else if (failsString != u"never") {
+                // 9iv(a). Emit "bad-option" Resolution Error.
+                status = U_MF_BAD_OPTION;
+            }
+        } else {
+            // 9iv. again
+            status = U_MF_BAD_OPTION;
+        }
+    }
+}
+
+FormattedPlaceholder StandardFunctions::TestFormat::format(FormattedPlaceholder&& arg,
+                                                           FunctionOptions&& options,
+                                                           UErrorCode& status) const{
+
+    int32_t decimalPlaces;
+    bool failsFormat;
+    bool failsSelect;
+    double input;
+
+    testFunctionParameters(arg, options, decimalPlaces,
+                           failsFormat, failsSelect, input, status);
+    if (U_FAILURE(status)) {
+        return FormattedPlaceholder(arg.getFallback());
+    }
+
+    // If FailsFormat is true, attempting to format the placeholder to any
+    // formatting target will fail.
+    if (failsFormat) {
+        status = U_MF_FORMATTING_ERROR;
+        return FormattedPlaceholder(arg.getFallback());
+    }
+    UnicodeString result;
+    // When :test:function is used as a formatter, a placeholder resolving to a value
+    // with a :test:function expression is formatted as a concatenation of the following parts:
+    // 1. If Input is less than 0, the character - U+002D Hyphen-Minus.
+    if (input < 0) {
+        result += HYPHEN;
+    }
+    // 2. The truncated absolute integer value of Input, i.e. floor(abs(Input)), formatted as a
+    // sequence of decimal digit characters (U+0030...U+0039).
+    char buffer[256];
+    bool ignore;
+    int ignoreLen;
+    int ignorePoint;
+    double_conversion::DoubleToStringConverter::DoubleToAscii(floor(abs(input)),
+                                                              double_conversion::DoubleToStringConverter::DtoaMode::SHORTEST,
+                                                              0,
+                                                              buffer,
+                                                              256,
+                                                              &ignore,
+                                                              &ignoreLen,
+                                                              &ignorePoint);
+    result += UnicodeString(buffer);
+    // 3. If DecimalPlaces is 1, then
+    if (decimalPlaces == 1) {
+        // 3i. The character . U+002E Full Stop.
+        result += u".";
+        // 3ii. The single decimal digit character representing the value
+        // floor((abs(Input) - floor(abs(Input))) * 10)
+        int32_t val = floor((abs(input) - floor(abs(input)) * 10));
+        result += digitToChar(val, status);
+        U_ASSERT(U_SUCCESS(status));
+    }
+    return FormattedPlaceholder(result);
+}
+
+// ------------ TestSelectFactory
+
+StandardFunctions::TestSelectFactory::~TestSelectFactory() {}
+StandardFunctions::TestSelect::~TestSelect() {}
+
+Selector* StandardFunctions::TestSelectFactory::createSelector(const Locale& locale,
+                                                               UErrorCode& errorCode) const {
+    NULL_ON_ERROR(errorCode);
+
+    // Results are not locale-dependent
+    (void) locale;
+
+    Selector* result = new TestSelect();
+    if (result == nullptr) {
+        errorCode = U_MEMORY_ALLOCATION_ERROR;
+    }
+    return result;
+}
+
+void StandardFunctions::TestSelect::selectKey(FormattedPlaceholder&& val,
+                                              FunctionOptions&& options,
+                                              const UnicodeString* keys,
+                                              int32_t keysLen,
+                                              UnicodeString* prefs,
+                                              int32_t& prefsLen,
+                                              UErrorCode& status) const {
+    int32_t decimalPlaces;
+    bool failsFormat;
+    bool failsSelect;
+    double input;
+
+    TestFormat::testFunctionParameters(val, options, decimalPlaces,
+                                       failsFormat, failsSelect, input, status);
+
+    if (U_FAILURE(status)) {
+        return;
+    }
+
+    if (failsSelect) {
+        status = U_MF_SELECTOR_ERROR;
+        return;
+    }
+
+    // If the Input is 1 and DecimalPlaces is 1, the method will return some slice
+    // of the list « '1.0', '1' », depending on whether those values are included in keys.
+    bool include1point0 = false;
+    bool include1 = false;
+    if (input == 1 && decimalPlaces == 1) {
+        include1point0 = true;
+        include1 = true;
+    } else if (input == 1 && decimalPlaces == 0) {
+        include1 = true;
+    }
+
+    // If the Input is 1 and DecimalPlaces is 0, the method will return the list « '1' » if
+    // keys includes '1', or an empty list otherwise.
+    // If the Input is any other value, the method will return an empty list.
+    for (int32_t i = 0; i < keysLen; i++) {
+        if ((keys[i] == u"1" && include1)
+            || (keys[i] == u"1.0" && include1point0)) {
+            prefs[prefsLen] = keys[i];
+            prefsLen++;
+        }
+    }
+}
+
 } // namespace message2
 U_NAMESPACE_END
 
@@ -1242,3 +1550,4 @@ U_NAMESPACE_END
 
 #endif /* #if !UCONFIG_NO_FORMATTING */
 
+#endif /* #if !UCONFIG_NO_NORMALIZATION */

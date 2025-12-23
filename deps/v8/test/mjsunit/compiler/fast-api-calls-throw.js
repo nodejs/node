@@ -4,13 +4,10 @@
 
 // Flags: --turbo-fast-api-calls --expose-fast-api --allow-natives-syntax
 // Flags: --turbofan --turboshaft
-// --always-turbofan is disabled because we rely on particular feedback for
-// optimizing to the fastest path.
-// Flags: --no-always-turbofan
 // The test relies on optimizing/deoptimizing at predictable moments, so
 // it's not suitable for deoptimization fuzzing.
 // Flags: --deopt-every-n-times=0
-// Flags: --turboshaft-wasm --no-liftoff --wasm-fast-api
+// Flags: --no-liftoff --wasm-fast-api
 // --wasm-lazy-compilation is needed so that wellknown imports work in the
 // absence of dynamic tiering.
 // Flags: --wasm-lazy-compilation

@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const fixtures = require('../common/fixtures');
 const fs = require('fs');
@@ -21,15 +21,15 @@ const dummyWriteStream = fs.createWriteStream(dummyPath, {
   encoding: firstEncoding
 });
 
-exampleReadStream.pipe(dummyWriteStream).on('finish', function() {
+exampleReadStream.pipe(dummyWriteStream).on('finish', common.mustCall(() => {
   const assertWriteStream = new stream.Writable({
-    write: function(chunk, enc, next) {
+    write: common.mustCall((chunk, enc, next) => {
       const expected = Buffer.from('xyz\n');
       assert(chunk.equals(expected));
-    }
+    }),
   });
   assertWriteStream.setDefaultEncoding(secondEncoding);
   fs.createReadStream(dummyPath, {
     encoding: secondEncoding
   }).pipe(assertWriteStream);
-});
+}));

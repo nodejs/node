@@ -25,6 +25,15 @@ const relativeProtectedFolder = process.env.RELATIVEBLOCKEDFOLDER;
   assert.ok(!process.permission.has('fs.write', blockedFile));
 }
 
+// Guarantee the error message suggest the --allow-fs-write
+{
+  fs.writeFile(blockedFile, 'example', common.expectsError({
+    message: 'Access to this API has been restricted. Use --allow-fs-write to manage permissions.',
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemWrite',
+  }));
+}
+
 // fs.writeFile
 {
   assert.throws(() => {
@@ -190,6 +199,7 @@ const relativeProtectedFolder = process.env.RELATIVEBLOCKEDFOLDER;
   });
 }
 
+// fs.mkdtemp
 {
   assert.throws(() => {
     fs.mkdtempSync(path.join(blockedFolder, 'any-folder'));
@@ -201,6 +211,22 @@ const relativeProtectedFolder = process.env.RELATIVEBLOCKEDFOLDER;
     code: 'ERR_ACCESS_DENIED',
     permission: 'FileSystemWrite',
   }));
+  assert.rejects(async () => {
+    await fs.promises.mkdtemp(path.join(blockedFolder, 'any-folder'));
+  }, {
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemWrite',
+  });
+}
+
+// fs.mkdtempDisposableSync
+{
+  assert.throws(() => {
+    fs.mkdtempDisposableSync(path.join(blockedFolder, 'any-folder'));
+  },{
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemWrite',
+  });
 }
 
 // fs.rename

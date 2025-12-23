@@ -5,6 +5,8 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+const { hasOpenSSL } = require('../common/crypto');
+
 const assert = require('assert');
 const { subtle } = globalThis.crypto;
 
@@ -37,12 +39,37 @@ const kWrappingData = {
     },
     pair: false
   },
-  'AES-KW': {
+};
+
+if (!process.features.openssl_is_boringssl) {
+  kWrappingData['AES-KW'] = {
     generate: { length: 128 },
     wrap: { },
     pair: false
-  }
-};
+  };
+  kWrappingData['ChaCha20-Poly1305'] = {
+    wrap: {
+      iv: new Uint8Array(12),
+      additionalData: new Uint8Array(16),
+      tagLength: 128
+    },
+    pair: false
+  };
+} else {
+  common.printSkipMessage('Skipping unsupported AES-KW test case');
+}
+
+if (hasOpenSSL(3)) {
+  kWrappingData['AES-OCB'] = {
+    generate: { length: 128 },
+    wrap: {
+      iv: new Uint8Array(15),
+      additionalData: new Uint8Array(16),
+      tagLength: 128
+    },
+    pair: false
+  };
+}
 
 function generateWrappingKeys() {
   return Promise.all(Object.keys(kWrappingData).map(async (name) => {
@@ -123,23 +150,7 @@ async function generateKeysToWrap() {
     },
     {
       algorithm: {
-        name: 'Ed448',
-      },
-      privateUsages: ['sign'],
-      publicUsages: ['verify'],
-      pair: true,
-    },
-    {
-      algorithm: {
         name: 'X25519',
-      },
-      privateUsages: ['deriveBits'],
-      publicUsages: [],
-      pair: true,
-    },
-    {
-      algorithm: {
-        name: 'X448',
       },
       privateUsages: ['deriveBits'],
       publicUsages: [],
@@ -170,10 +181,9 @@ async function generateKeysToWrap() {
     },
     {
       algorithm: {
-        name: 'AES-KW',
-        length: 128
+        name: 'ChaCha20-Poly1305'
       },
-      usages: ['wrapKey', 'unwrapKey'],
+      usages: ['encrypt', 'decrypt'],
       pair: false,
     },
     {
@@ -186,6 +196,53 @@ async function generateKeysToWrap() {
       pair: false,
     },
   ];
+
+  if (!process.features.openssl_is_boringssl) {
+    parameters.push({
+      algorithm: {
+        name: 'AES-KW',
+        length: 128
+      },
+      usages: ['wrapKey', 'unwrapKey'],
+      pair: false,
+    });
+  } else {
+    common.printSkipMessage('Skipping unsupported AES-KW test case');
+  }
+
+  if (hasOpenSSL(3, 5)) {
+    for (const name of ['ML-DSA-44', 'ML-DSA-65', 'ML-DSA-87']) {
+      parameters.push({
+        algorithm: { name },
+        privateUsages: ['sign'],
+        publicUsages: ['verify'],
+        pair: true,
+      });
+    }
+  }
+
+  if (!process.features.openssl_is_boringssl) {
+    parameters.push(
+      {
+        algorithm: {
+          name: 'Ed448',
+        },
+        privateUsages: ['sign'],
+        publicUsages: ['verify'],
+        pair: true,
+      },
+      {
+        algorithm: {
+          name: 'X448',
+        },
+        privateUsages: ['deriveBits'],
+        publicUsages: [],
+        pair: true,
+      },
+    );
+  } else {
+    common.printSkipMessage('Skipping unsupported Curve test cases');
+  }
 
   const allkeys = await Promise.all(parameters.map(async (params) => {
     const usages = 'usages' in params ?
@@ -220,10 +277,29 @@ async function generateKeysToWrap() {
 }
 
 function getFormats(key) {
-  switch (key.key.type) {
-    case 'secret': return ['raw', 'jwk'];
-    case 'public': return ['spki', 'jwk'];
-    case 'private': return ['pkcs8', 'jwk'];
+  switch (key.type) {
+    case 'secret': {
+      if (key.algorithm.name === 'ChaCha20-Poly1305') return ['raw-secret', 'jwk'];
+      return ['raw-secret', 'raw', 'jwk'];
+    };
+    case 'public': {
+      switch (key.algorithm.name.slice(0, 2)) {
+        case 'EC': // ECDSA, ECDH
+          return ['spki', 'jwk', 'raw', 'raw-public'];
+        case 'ML': // ML-DSA
+          return ['jwk', 'raw-public'];
+        default:
+          return ['spki', 'jwk'];
+      }
+    }
+    case 'private': {
+      switch (key.algorithm.name.slice(0, 2)) {
+        case 'ML': // ML-DSA
+          return ['jwk', 'raw-seed'];
+        default:
+          return ['pkcs8', 'jwk'];
+      }
+    }
   }
 }
 
@@ -285,7 +361,7 @@ function testWrapping(name, keys) {
   } = kWrappingData[name];
 
   keys.forEach((key) => {
-    getFormats(key).forEach((format) => {
+    getFormats(key.key).forEach((format) => {
       variations.push(testWrap(wrappingKey, unwrappingKey, key, wrap, format));
     });
   });

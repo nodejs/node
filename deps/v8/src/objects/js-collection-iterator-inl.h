@@ -6,6 +6,8 @@
 #define V8_OBJECTS_JS_COLLECTION_ITERATOR_INL_H_
 
 #include "src/objects/js-collection-iterator.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/objects/objects-inl.h"
 
 // Has to be the last include (doesn't have include guards):

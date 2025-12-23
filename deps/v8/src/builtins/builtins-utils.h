@@ -26,44 +26,50 @@ class BuiltinArguments : public JavaScriptArguments {
     DCHECK(Tagged<Object>((*at(0)).ptr()).IsObject());
   }
 
+  // Zero index states for receiver.
   Tagged<Object> operator[](int index) const {
     DCHECK_LT(index, length());
-    return Tagged<Object>(*address_of_arg_at(index + kArgsOffset));
+    return Tagged<Object>(*address_of_arg_at(index + kArgsIndex));
   }
 
+  // Zero index states for receiver.
   template <class S = Object>
   Handle<S> at(int index) const {
     DCHECK_LT(index, length());
-    return Handle<S>(address_of_arg_at(index + kArgsOffset));
+    return Handle<S>(address_of_arg_at(index + kArgsIndex));
   }
 
+  // Zero index states for receiver.
   inline void set_at(int index, Tagged<Object> value) {
     DCHECK_LT(index, length());
-    *address_of_arg_at(index + kArgsOffset) = value.ptr();
+    *address_of_arg_at(index + kArgsIndex) = value.ptr();
   }
 
   // Note: this should return the address after the receiver,
   // even when length() == 1.
   inline Address* address_of_first_argument() const {
-    return address_of_arg_at(kFirstArgsOffset);
+    return address_of_arg_at(kFirstArgsIndex);
   }
 
-  static constexpr int kNewTargetOffset = 0;
-  static constexpr int kTargetOffset = 1;
-  static constexpr int kArgcOffset = 2;
-  static constexpr int kPaddingOffset = 3;
-  static constexpr int kReceiverOffset = 4;
+  static constexpr int kNewTargetIndex = 0;
+  static constexpr int kTargetIndex = 1;
+  static constexpr int kArgcIndex = 2;
+  // TODO(ishell): this padding is required only on arm64.
+  static constexpr int kPaddingIndex = 3;
 
   static constexpr int kNumExtraArgs = 4;
   static constexpr int kNumExtraArgsWithReceiver = 5;
 
-  static constexpr int kArgsOffset = 4;
-  static_assert(kArgsOffset == kReceiverOffset);
-  static constexpr int kFirstArgsOffset = kArgsOffset + 1;  // Skip receiver.
-  static constexpr int kReceiverArgsOffset = kArgsOffset - kFirstArgsOffset;
+  static constexpr int kArgsIndex = kNumExtraArgs;
+  static constexpr int kReceiverIndex = kArgsIndex;
+  static constexpr int kFirstArgsIndex = kArgsIndex + 1;  // Skip receiver.
+  // Index of the receiver argument in JS arguments array returned by
+  // |address_of_first_argument()|.
+  static constexpr int kReceiverArgsIndex = kArgsIndex - kFirstArgsIndex;
 
+  // Zero index states for receiver.
   inline Handle<Object> atOrUndefined(Isolate* isolate, int index) const;
-  inline Handle<Object> receiver() const;
+  inline Handle<JSAny> receiver() const;
   inline Handle<JSFunction> target() const;
   inline Handle<HeapObject> new_target() const;
 
@@ -72,23 +78,31 @@ class BuiltinArguments : public JavaScriptArguments {
   int length() const { return Arguments::length() - kNumExtraArgs; }
 };
 
-#define ASSERT_OFFSET(BuiltinsOffset, FrameOffset)              \
-  static_assert(BuiltinArguments::BuiltinsOffset ==             \
-                (BuiltinExitFrameConstants::FrameOffset -       \
-                 BuiltinExitFrameConstants::kNewTargetOffset) / \
-                    kSystemPointerSize)
-ASSERT_OFFSET(kNewTargetOffset, kNewTargetOffset);
-ASSERT_OFFSET(kTargetOffset, kTargetOffset);
-ASSERT_OFFSET(kArgcOffset, kArgcOffset);
-ASSERT_OFFSET(kPaddingOffset, kPaddingOffset);
-ASSERT_OFFSET(kReceiverOffset, kFirstArgumentOffset);
-#undef ASSERT_OFFSET
+static_assert(BuiltinArguments::kNewTargetIndex ==
+              BuiltinExitFrameConstants::kNewTargetIndex);
+static_assert(BuiltinArguments::kTargetIndex ==
+              BuiltinExitFrameConstants::kTargetIndex);
+static_assert(BuiltinArguments::kArgcIndex ==
+              BuiltinExitFrameConstants::kArgcIndex);
+static_assert(BuiltinArguments::kPaddingIndex ==
+              BuiltinExitFrameConstants::kPaddingIndex);
 
 static_assert(BuiltinArguments::kNumExtraArgs ==
-              BuiltinExitFrameConstants::kNumExtraArgsWithoutReceiver);
+              BuiltinExitFrameConstants::kNumExtraArgs);
 static_assert(BuiltinArguments::kNumExtraArgsWithReceiver ==
               BuiltinExitFrameConstants::kNumExtraArgsWithReceiver);
 
+// Currently we expect all CPP builtins to run in unsandboxed execution mode.
+// TODO(422994386): In the future, we'll want to be able to also run CPP
+// builtins in sandboxed execution mode. For that, this macro could then take
+// the builtin ID as input and look up the expected sandboxing mode.
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+#define CHECK_BUILTIN_SANDBOXING_MODE()                   \
+  DCHECK(SandboxHardwareSupport::CurrentSandboxingModeIs( \
+      CodeSandboxingMode::kUnsandboxed));
+#else
+#define CHECK_BUILTIN_SANDBOXING_MODE()
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
 // ----------------------------------------------------------------------------
 // Support macro for defining builtins in C++.
 // ----------------------------------------------------------------------------
@@ -123,6 +137,7 @@ static_assert(BuiltinArguments::kNumExtraArgsWithReceiver ==
       return Builtin_Impl_Stats_##name(args_length, args_object, isolate); \
     }                                                                      \
     BuiltinArguments args(args_length, args_object);                       \
+    CHECK_BUILTIN_SANDBOXING_MODE()                                        \
     return BUILTIN_CONVERT_RESULT(Builtin_Impl_##name(args, isolate));     \
   }                                                                        \
                                                                            \
@@ -137,6 +152,7 @@ static_assert(BuiltinArguments::kNumExtraArgsWithReceiver ==
       int args_length, Address* args_object, Isolate* isolate) {           \
     DCHECK(isolate->context().is_null() || IsContext(isolate->context())); \
     BuiltinArguments args(args_length, args_object);                       \
+    CHECK_BUILTIN_SANDBOXING_MODE()                                        \
     return BUILTIN_CONVERT_RESULT(Builtin_Impl_##name(args, isolate));     \
   }                                                                        \
                                                                            \
@@ -170,7 +186,7 @@ static_assert(BuiltinArguments::kNumExtraArgsWithReceiver ==
         NewTypeError(MessageTemplate::kCalledOnNullOrUndefined,               \
                      isolate->factory()->NewStringFromAsciiChecked(method))); \
   }                                                                           \
-  Handle<String> name;                                                        \
+  DirectHandle<String> name;                                                  \
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(                                         \
       isolate, name, Object::ToString(isolate, args.receiver()))
 

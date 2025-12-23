@@ -32,6 +32,8 @@ absl_source_set("die_if_null") {
     ":log",
     "//third_party/abseil-cpp/absl/base:config",
     "//third_party/abseil-cpp/absl/base:core_headers",
+    "//third_party/abseil-cpp/absl/base:nullability",
+    "//third_party/abseil-cpp/absl/base:nullability_traits_internal",
     "//third_party/abseil-cpp/absl/strings",
   ]
 }
@@ -96,6 +98,8 @@ absl_source_set("log_entry") {
     "//third_party/abseil-cpp/absl/base:core_headers",
     "//third_party/abseil-cpp/absl/base:log_severity",
     "//third_party/abseil-cpp/absl/log/internal:config",
+    "//third_party/abseil-cpp/absl/log/internal:proto",
+    "//third_party/abseil-cpp/absl/strings",
     "//third_party/abseil-cpp/absl/strings:string_view",
     "//third_party/abseil-cpp/absl/time",
     "//third_party/abseil-cpp/absl/types:span",
@@ -116,6 +120,7 @@ absl_source_set("log_sink_registry") {
   deps = [
     ":log_sink",
     "//third_party/abseil-cpp/absl/base:config",
+    "//third_party/abseil-cpp/absl/base:nullability",
     "//third_party/abseil-cpp/absl/log/internal:log_sink_set",
   ]
 }
@@ -155,6 +160,7 @@ absl_source_set("structured") {
   public = [ "structured.h" ]
   deps = [
     "//third_party/abseil-cpp/absl/base:config",
+    "//third_party/abseil-cpp/absl/base:core_headers",
     "//third_party/abseil-cpp/absl/log/internal:structured",
     "//third_party/abseil-cpp/absl/strings:string_view",
   ]
@@ -325,6 +331,7 @@ absl_test("log_format_test") {
     ":check",
     ":log",
     ":scoped_mock_log",
+    "//third_party/abseil-cpp/absl/base:config",
     "//third_party/abseil-cpp/absl/log/internal:test_matchers",
     "//third_party/abseil-cpp/absl/strings",
     "//third_party/abseil-cpp/absl/strings:str_format",

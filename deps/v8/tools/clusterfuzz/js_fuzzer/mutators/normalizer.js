@@ -6,12 +6,14 @@
  * @fileoverview Normalizer.
  * This renames variables so that we don't have collisions when combining
  * different files. It also simplifies other logic when e.g. determining the
- * type of an identifier.
+ * type of an identifier. This also normalizes all loop bodies with blocks.
  */
+
 'use strict';
 
 const babelTypes = require('@babel/types');
 
+const common = require('./common.js');
 const mutator = require('./mutator.js');
 
 class NormalizerContext {
@@ -25,13 +27,21 @@ class NormalizerContext {
 class IdentifierNormalizer extends mutator.Mutator {
   constructor() {
     super();
-    this.context = new NormalizerContext();
+    this.normalizerContext = new NormalizerContext();
   }
 
   get visitor() {
-    const context = this.context;
+    const normalizerContext = this.normalizerContext;
     const renamed = new WeakSet();
     const globalMappings = new Map();
+
+    const loopStatement = {
+      enter(path) {
+        if (path.node.body && !babelTypes.isBlockStatement(path.node.body)) {
+          path.node.body = babelTypes.blockStatement([path.node.body]);
+        }
+      }
+    };
 
     return [{
       Scope(path) {
@@ -42,14 +52,17 @@ class IdentifierNormalizer extends mutator.Mutator {
 
           renamed.add(binding.identifier);
 
+          // Prefix with __JSF in the first pass to avoid collisions with
+          // leftover identifier names from old fuzzer output. A collision with
+          // __JSF would be extremely rare, hence we don't add extra logic.
           if (babelTypes.isClassDeclaration(binding.path.node) ||
               babelTypes.isClassExpression(binding.path.node)) {
-            path.scope.rename(name, '__c_' + context.classIndex++);
+            path.scope.rename(name, '__JSF__c_' + normalizerContext.classIndex++);
           } else if (babelTypes.isFunctionDeclaration(binding.path.node) ||
                      babelTypes.isFunctionExpression(binding.path.node)) {
-            path.scope.rename(name, '__f_' + context.funcIndex++);
+            path.scope.rename(name, '__JSF__f_' + normalizerContext.funcIndex++);
           } else {
-            path.scope.rename(name, '__v_' + context.varIndex++);
+            path.scope.rename(name, '__JSF__v_' + normalizerContext.varIndex++);
           }
         }
       },
@@ -61,11 +74,24 @@ class IdentifierNormalizer extends mutator.Mutator {
         const ids = path.getBindingIdentifiers();
         for (const name in ids) {
           if (!path.scope.getBinding(name)) {
-            globalMappings.set(name, '__v_' + context.varIndex++);
+            globalMappings.set(name, '__v_' + normalizerContext.varIndex++);
           }
         }
-      }
+      },
+
+      WhileStatement: loopStatement,
+      DoWhileStatement: loopStatement,
+      ForStatement: loopStatement,
     }, {
+      // Second pass to re-normalize already renamed identifiers to their final
+      // JS_Fuzzer name pattern.
+      Scope(path) {
+        for (const [name, binding] of Object.entries(path.scope.bindings)) {
+          if (name.startsWith('__JSF__')) {
+            path.scope.rename(name, name.substring(5));
+          }
+        }
+      },
       // Second pass to rename globals that weren't declared with
       // var/let/const etc.
       Identifier(path) {
@@ -78,8 +104,15 @@ class IdentifierNormalizer extends mutator.Mutator {
           return;
         }
 
+        if (path.node.name === "constructor" &&
+            babelTypes.isClassMethod(path.parent) &&
+            path.parent.key == path.node) {
+          // Don't touch constructors.
+          return;
+        }
+
         path.node.name = globalMappings.get(path.node.name);
-      }
+      },
     }];
   }
 }

@@ -21,3 +21,5 @@ let a = 456;
 console.log(a);
 let b = new Class();
 console.log(b.abc);
+
+constructor = undefined;

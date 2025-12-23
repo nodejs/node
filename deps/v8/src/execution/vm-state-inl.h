@@ -5,19 +5,18 @@
 #ifndef V8_EXECUTION_VM_STATE_INL_H_
 #define V8_EXECUTION_VM_STATE_INL_H_
 
+#include "src/execution/vm-state.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/execution/isolate-inl.h"
 #include "src/execution/simulator.h"
-#include "src/execution/vm-state.h"
 #include "src/logging/log.h"
 #include "src/tracing/trace-event.h"
 
 namespace v8 {
 namespace internal {
 
-// VMState class implementation. A simple stack of VM states held by the logger
-// and partially threaded through the call stack. States are pushed by VMState
-// construction and popped by destruction.
-inline const char* StateToString(StateTag state) {
+constexpr const char* ToString(StateTag state) {
   switch (state) {
     case JS:
       return "JS";
@@ -37,9 +36,15 @@ inline const char* StateToString(StateTag state) {
       return "ATOMICS_WAIT";
     case IDLE:
       return "IDLE";
+    case IDLE_EXTERNAL:
+      return "IDLE_EXTERNAL";
     case LOGGING:
       return "LOGGING";
   }
+}
+
+inline std::ostream& operator<<(std::ostream& os, StateTag kind) {
+  return os << ToString(kind);
 }
 
 template <StateTag Tag>
@@ -62,8 +67,9 @@ ExternalCallbackScope::ExternalCallbackScope(
       vm_state_(isolate),
       exception_context_(exception_context),
       pause_timed_histogram_scope_(isolate->counters()->execute()) {
-#ifdef USE_SIMULATOR
-  scope_address_ = Simulator::current(isolate)->get_sp();
+#if USE_SIMULATOR || V8_USE_ADDRESS_SANITIZER || V8_USE_SAFE_STACK
+  js_stack_comparable_address_ =
+      i::SimulatorStack::RegisterJSStackComparableAddress(isolate);
 #endif
   vm_state_.isolate_->set_external_callback_scope(this);
 #ifdef V8_RUNTIME_CALL_STATS
@@ -89,11 +95,14 @@ ExternalCallbackScope::~ExternalCallbackScope() {
   TRACE_EVENT_END0(TRACE_DISABLED_BY_DEFAULT("v8.runtime"),
                    "V8.ExternalCallback");
 #endif
+#if USE_SIMULATOR || V8_USE_ADDRESS_SANITIZER || V8_USE_SAFE_STACK
+  i::SimulatorStack::UnregisterJSStackComparableAddress(vm_state_.isolate_);
+#endif
 }
 
-Address ExternalCallbackScope::scope_address() {
-#ifdef USE_SIMULATOR
-  return scope_address_;
+Address ExternalCallbackScope::JSStackComparableAddress() {
+#if USE_SIMULATOR || V8_USE_ADDRESS_SANITIZER || V8_USE_SAFE_STACK
+  return js_stack_comparable_address_;
 #else
   return reinterpret_cast<Address>(this);
 #endif

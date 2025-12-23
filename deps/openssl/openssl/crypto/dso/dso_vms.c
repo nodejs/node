@@ -22,13 +22,26 @@
 # include "../vms_rms.h"
 
 /* Some compiler options may mask the declaration of "_malloc32". */
+# define DSO_MALLOC OPENSSL_malloc
 # if __INITIAL_POINTER_SIZE && defined _ANSI_C_SOURCE
 #  if __INITIAL_POINTER_SIZE == 64
 #   pragma pointer_size save
 #   pragma pointer_size 32
 void *_malloc32(__size_t);
+static void *dso_malloc(__size_t num, const char *file, int line)
+{
+    void *ret = _malloc32(num);
+    if (ret == NULL && (file != NULL || line != 0)) {
+        ERR_new();
+        ERR_set_debug(file, line, NULL);
+        ERR_set_error(ERR_LIB_DSO, ERR_R_MALLOC_FAILURE, NULL);
+    }
+    return ret;
+}
+#   undef DSO_MALLOC
+#   define DSO_MALLOC(num) dso_malloc((num), OPENSSL_FILE, OPENSSL_LINE)
 #   pragma pointer_size restore
-#  endif                        /* __INITIAL_POINTER_SIZE == 64 */
+#  endif                        /* __INITIAL_POINTER_SIZE == 64 [else] */
 # endif                         /* __INITIAL_POINTER_SIZE && defined
                                  * _ANSI_C_SOURCE */
 
@@ -88,19 +101,22 @@ static int vms_load(DSO *dso)
     char *filename = DSO_convert_filename(dso, NULL);
 
 /* Ensure 32-bit pointer for "p", and appropriate malloc() function. */
-# if __INITIAL_POINTER_SIZE == 64
-#  define DSO_MALLOC _malloc32
-#  pragma pointer_size save
-#  pragma pointer_size 32
-# else                          /* __INITIAL_POINTER_SIZE == 64 */
-#  define DSO_MALLOC OPENSSL_malloc
-# endif                         /* __INITIAL_POINTER_SIZE == 64 [else] */
+# if __INITIAL_POINTER_SIZE && defined _ANSI_C_SOURCE
+#  if __INITIAL_POINTER_SIZE == 64
+#   pragma pointer_size save
+#   pragma pointer_size 32
+#  endif                        /* __INITIAL_POINTER_SIZE == 64 */
+# endif                         /* __INITIAL_POINTER_SIZE && defined
+                                 * _ANSI_C_SOURCE */
 
     DSO_VMS_INTERNAL *p = NULL;
 
-# if __INITIAL_POINTER_SIZE == 64
-#  pragma pointer_size restore
-# endif                         /* __INITIAL_POINTER_SIZE == 64 */
+# if __INITIAL_POINTER_SIZE && defined _ANSI_C_SOURCE
+#  if __INITIAL_POINTER_SIZE == 64
+#   pragma pointer_size restore
+#  endif                        /* __INITIAL_POINTER_SIZE == 64 */
+# endif                         /* __INITIAL_POINTER_SIZE && defined
+                                 * _ANSI_C_SOURCE */
 
     const char *sp1, *sp2;      /* Search result */
     const char *ext = NULL;     /* possible extension to add */
@@ -174,10 +190,8 @@ static int vms_load(DSO *dso)
     }
 
     p = DSO_MALLOC(sizeof(*p));
-    if (p == NULL) {
-        ERR_raise(ERR_LIB_DSO, ERR_R_MALLOC_FAILURE);
+    if (p == NULL)
         goto err;
-    }
 
     strncpy(p->filename, sp1, sp2 - sp1);
     p->filename[sp2 - sp1] = '\0';
@@ -443,12 +457,10 @@ static char *vms_merger(DSO *dso, const char *filespec1,
 
     merged = OPENSSL_malloc(nam.NAMX_ESL + 1);
     if (merged == NULL)
-        goto malloc_err;
+        return NULL;
     strncpy(merged, nam.NAMX_ESA, nam.NAMX_ESL);
     merged[nam.NAMX_ESL] = '\0';
     return merged;
- malloc_err:
-    ERR_raise(ERR_LIB_DSO, ERR_R_MALLOC_FAILURE);
 }
 
 static char *vms_name_converter(DSO *dso, const char *filename)

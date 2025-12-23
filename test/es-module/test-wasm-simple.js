@@ -1,6 +1,6 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const fixtures = require('../common/fixtures');
 
@@ -14,4 +14,4 @@ WebAssembly.instantiate(buffer, {}).then((results) => {
     results.instance.exports.add(10, 20),
     30
   );
-});
+}).then(common.mustCall());

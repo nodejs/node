@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef INCLUDE_V8_FAST_API_CALLS_H_
+#define INCLUDE_V8_FAST_API_CALLS_H_
+
 /**
  * This file provides additional API on top of the default one for making
  * API calls, which come from embedder C++ functions. The functions are being
@@ -90,27 +93,11 @@
  *      }
  *    };
  *
- *    // TODO(mslekova): Clean-up these constants
- *    // The constants kV8EmbedderWrapperTypeIndex and
- *    // kV8EmbedderWrapperObjectIndex describe the offsets for the type info
- *    // struct and the native object, when expressed as internal field indices
- *    // within a JSObject. The existance of this helper function assumes that
- *    // all embedder objects have their JSObject-side type info at the same
- *    // offset, but this is not a limitation of the API itself. For a detailed
- *    // use case, see the third example.
- *    static constexpr int kV8EmbedderWrapperTypeIndex = 0;
- *    static constexpr int kV8EmbedderWrapperObjectIndex = 1;
- *
  *    // The following setup function can be templatized based on
  *    // the {embedder_object} argument.
  *    void SetupCustomEmbedderObject(v8::Isolate* isolate,
  *                                   v8::Local<v8::Context> context,
  *                                   CustomEmbedderType* embedder_object) {
- *      isolate->set_embedder_wrapper_type_index(
- *        kV8EmbedderWrapperTypeIndex);
- *      isolate->set_embedder_wrapper_object_index(
- *        kV8EmbedderWrapperObjectIndex);
- *
  *      v8::CFunction c_func =
  *        MakeV8CFunction(CustomEmbedderType::FastMethod);
  *
@@ -216,15 +203,13 @@
  * associated SlowCallback.
  */
 
-#ifndef INCLUDE_V8_FAST_API_CALLS_H_
-#define INCLUDE_V8_FAST_API_CALLS_H_
-
 #include <stddef.h>
 #include <stdint.h>
 
 #include <tuple>
 #include <type_traits>
 
+#include "v8-external.h"      // NOLINT(build/include_directory)
 #include "v8-internal.h"      // NOLINT(build/include_directory)
 #include "v8-local-handle.h"  // NOLINT(build/include_directory)
 #include "v8-typed-array.h"   // NOLINT(build/include_directory)
@@ -268,14 +253,6 @@ class CTypeInfo {
   // than any valid Type enum.
   static constexpr Type kCallbackOptionsType = Type(255);
 
-  enum class SequenceType : uint8_t {
-    kScalar,
-    kIsSequence,    // sequence<T>
-    kIsTypedArray,  // TypedArray of T or any ArrayBufferView if T
-                    // is void
-    kIsArrayBuffer  // ArrayBuffer
-  };
-
   enum class Flags : uint8_t {
     kNone = 0,
     kAllowSharedBit = 1 << 0,   // Must be an ArrayBuffer or TypedArray
@@ -284,24 +261,19 @@ class CTypeInfo {
     kIsRestrictedBit = 1 << 3,  // T must be float or double
   };
 
-  explicit constexpr CTypeInfo(
-      Type type, SequenceType sequence_type = SequenceType::kScalar,
-      Flags flags = Flags::kNone)
-      : type_(type), sequence_type_(sequence_type), flags_(flags) {}
+  explicit constexpr CTypeInfo(Type type, Flags flags = Flags::kNone)
+      : type_(type), flags_(flags) {}
 
   typedef uint32_t Identifier;
   explicit constexpr CTypeInfo(Identifier identifier)
-      : CTypeInfo(static_cast<Type>(identifier >> 16),
-                  static_cast<SequenceType>((identifier >> 8) & 255),
-                  static_cast<Flags>(identifier & 255)) {}
+      : type_(static_cast<Type>((identifier >> 8) & 255)),
+        flags_(static_cast<Flags>(identifier & 255)) {}
   constexpr Identifier GetId() const {
-    return static_cast<uint8_t>(type_) << 16 |
-           static_cast<uint8_t>(sequence_type_) << 8 |
+    return static_cast<uint8_t>(type_) << 8 |
            static_cast<uint8_t>(flags_);
   }
 
   constexpr Type GetType() const { return type_; }
-  constexpr SequenceType GetSequenceType() const { return sequence_type_; }
   constexpr Flags GetFlags() const { return flags_; }
 
   static constexpr bool IsIntegralType(Type type) {
@@ -321,71 +293,7 @@ class CTypeInfo {
 
  private:
   Type type_;
-  SequenceType sequence_type_;
   Flags flags_;
-};
-
-struct FastApiTypedArrayBase {
- public:
-  // Returns the length in number of elements.
-  size_t V8_EXPORT length() const { return length_; }
-  // Checks whether the given index is within the bounds of the collection.
-  void V8_EXPORT ValidateIndex(size_t index) const;
-
- protected:
-  size_t length_ = 0;
-};
-
-template <typename T>
-struct V8_DEPRECATE_SOON(
-    "When an API function expects a TypedArray as a parameter, the type in the "
-    "signature should be `v8::Local<v8::Value>` instead of "
-    "FastApiTypedArray<>. The API function then has to type-check the "
-    "parameter and convert it to a `v8::Local<v8::TypedArray` to access the "
-    "data. In essence, the parameter should be handled the same as for a "
-    "regular API call.") FastApiTypedArray : public FastApiTypedArrayBase {
- public:
-  V8_INLINE T get(size_t index) const {
-#ifdef DEBUG
-    ValidateIndex(index);
-#endif  // DEBUG
-    T tmp;
-    memcpy(&tmp, static_cast<void*>(reinterpret_cast<T*>(data_) + index),
-           sizeof(T));
-    return tmp;
-  }
-
-  bool getStorageIfAligned(T** elements) const {
-    if (reinterpret_cast<uintptr_t>(data_) % alignof(T) != 0) {
-      return false;
-    }
-    *elements = reinterpret_cast<T*>(data_);
-    return true;
-  }
-
- private:
-  // This pointer should include the typed array offset applied.
-  // It's not guaranteed that it's aligned to sizeof(T), it's only
-  // guaranteed that it's 4-byte aligned, so for 8-byte types we need to
-  // provide a special implementation for reading from it, which hides
-  // the possibly unaligned read in the `get` method.
-  void* data_;
-};
-
-// Any TypedArray. It uses kTypedArrayBit with base type void
-// Overloaded args of ArrayBufferView and TypedArray are not supported
-// (for now) because the generic “any” ArrayBufferView doesn’t have its
-// own instance type. It could be supported if we specify that
-// TypedArray<T> always has precedence over the generic ArrayBufferView,
-// but this complicates overload resolution.
-struct FastApiArrayBufferView {
-  void* data;
-  size_t byte_length;
-};
-
-struct FastApiArrayBuffer {
-  void* data;
-  size_t byte_length;
 };
 
 struct FastOneByteString {
@@ -492,40 +400,6 @@ class V8_EXPORT CFunction {
   const CFunctionInfo* GetTypeInfo() const { return type_info_; }
 
   enum class OverloadResolution { kImpossible, kAtRuntime, kAtCompileTime };
-
-  // Returns whether an overload between this and the given CFunction can
-  // be resolved at runtime by the RTTI available for the arguments or at
-  // compile time for functions with different number of arguments.
-  OverloadResolution GetOverloadResolution(const CFunction* other) {
-    // Runtime overload resolution can only deal with functions with the
-    // same number of arguments. Functions with different arity are handled
-    // by compile time overload resolution though.
-    if (ArgumentCount() != other->ArgumentCount()) {
-      return OverloadResolution::kAtCompileTime;
-    }
-
-    // The functions can only differ by a single argument position.
-    int diff_index = -1;
-    for (unsigned int i = 0; i < ArgumentCount(); ++i) {
-      if (ArgumentInfo(i).GetSequenceType() !=
-          other->ArgumentInfo(i).GetSequenceType()) {
-        if (diff_index >= 0) {
-          return OverloadResolution::kImpossible;
-        }
-        diff_index = i;
-
-        // We only support overload resolution between sequence types.
-        if (ArgumentInfo(i).GetSequenceType() ==
-                CTypeInfo::SequenceType::kScalar ||
-            other->ArgumentInfo(i).GetSequenceType() ==
-                CTypeInfo::SequenceType::kScalar) {
-          return OverloadResolution::kImpossible;
-        }
-      }
-    }
-
-    return OverloadResolution::kAtRuntime;
-  }
 
   template <typename F>
   static CFunction Make(F* func,
@@ -656,9 +530,6 @@ struct TypeInfoHelper {
     }                                                                         \
                                                                               \
     static constexpr CTypeInfo::Type Type() { return CTypeInfo::Type::Enum; } \
-    static constexpr CTypeInfo::SequenceType SequenceType() {                 \
-      return CTypeInfo::SequenceType::kScalar;                                \
-    }                                                                         \
   };
 
 template <CTypeInfo::Type type>
@@ -687,6 +558,7 @@ struct CTypeInfoTraits {};
   V(void, kVoid)                     \
   V(v8::Local<v8::Value>, kV8Value)  \
   V(v8::Local<v8::Object>, kV8Value) \
+  V(v8::Local<v8::Array>, kV8Value)  \
   V(AnyCType, kAny)
 
 // ApiObject was a temporary solution to wrap the pointer to the v8::Value.
@@ -699,51 +571,7 @@ PRIMITIVE_C_TYPES(DEFINE_TYPE_INFO_TRAITS)
 #undef PRIMITIVE_C_TYPES
 #undef ALL_C_TYPES
 
-#define SPECIALIZE_GET_TYPE_INFO_HELPER_FOR_TA(T, Enum)                       \
-  template <>                                                                 \
-  struct TypeInfoHelper<const FastApiTypedArray<T>&> {                        \
-    static constexpr CTypeInfo::Flags Flags() {                               \
-      return CTypeInfo::Flags::kNone;                                         \
-    }                                                                         \
-                                                                              \
-    static constexpr CTypeInfo::Type Type() { return CTypeInfo::Type::Enum; } \
-    static constexpr CTypeInfo::SequenceType SequenceType() {                 \
-      return CTypeInfo::SequenceType::kIsTypedArray;                          \
-    }                                                                         \
-  };
-
-#define TYPED_ARRAY_C_TYPES(V) \
-  V(uint8_t, kUint8)           \
-  V(int32_t, kInt32)           \
-  V(uint32_t, kUint32)         \
-  V(int64_t, kInt64)           \
-  V(uint64_t, kUint64)         \
-  V(float, kFloat32)           \
-  V(double, kFloat64)
-
-TYPED_ARRAY_C_TYPES(SPECIALIZE_GET_TYPE_INFO_HELPER_FOR_TA)
-
 #undef TYPED_ARRAY_C_TYPES
-
-template <>
-struct TypeInfoHelper<v8::Local<v8::Array>> {
-  static constexpr CTypeInfo::Flags Flags() { return CTypeInfo::Flags::kNone; }
-
-  static constexpr CTypeInfo::Type Type() { return CTypeInfo::Type::kVoid; }
-  static constexpr CTypeInfo::SequenceType SequenceType() {
-    return CTypeInfo::SequenceType::kIsSequence;
-  }
-};
-
-template <>
-struct TypeInfoHelper<v8::Local<v8::Uint32Array>> {
-  static constexpr CTypeInfo::Flags Flags() { return CTypeInfo::Flags::kNone; }
-
-  static constexpr CTypeInfo::Type Type() { return CTypeInfo::Type::kUint32; }
-  static constexpr CTypeInfo::SequenceType SequenceType() {
-    return CTypeInfo::SequenceType::kIsTypedArray;
-  }
-};
 
 template <>
 struct TypeInfoHelper<FastApiCallbackOptions&> {
@@ -751,9 +579,6 @@ struct TypeInfoHelper<FastApiCallbackOptions&> {
 
   static constexpr CTypeInfo::Type Type() {
     return CTypeInfo::kCallbackOptionsType;
-  }
-  static constexpr CTypeInfo::SequenceType SequenceType() {
-    return CTypeInfo::SequenceType::kScalar;
   }
 };
 
@@ -763,9 +588,6 @@ struct TypeInfoHelper<const FastOneByteString&> {
 
   static constexpr CTypeInfo::Type Type() {
     return CTypeInfo::Type::kSeqOneByteString;
-  }
-  static constexpr CTypeInfo::SequenceType SequenceType() {
-    return CTypeInfo::SequenceType::kScalar;
   }
 };
 
@@ -783,14 +605,7 @@ class V8_EXPORT CTypeInfoBuilder {
     constexpr CTypeInfo::Flags kFlags =
         MergeFlags(internal::TypeInfoHelper<T>::Flags(), Flags...);
     constexpr CTypeInfo::Type kType = internal::TypeInfoHelper<T>::Type();
-    constexpr CTypeInfo::SequenceType kSequenceType =
-        internal::TypeInfoHelper<T>::SequenceType();
 
-    STATIC_ASSERT_IMPLIES(
-        uint8_t(kFlags) & uint8_t(CTypeInfo::Flags::kAllowSharedBit),
-        (kSequenceType == CTypeInfo::SequenceType::kIsTypedArray ||
-         kSequenceType == CTypeInfo::SequenceType::kIsArrayBuffer),
-        "kAllowSharedBit is only allowed for TypedArrays and ArrayBuffers.");
     STATIC_ASSERT_IMPLIES(
         uint8_t(kFlags) & uint8_t(CTypeInfo::Flags::kEnforceRangeBit),
         CTypeInfo::IsIntegralType(kType),
@@ -803,17 +618,9 @@ class V8_EXPORT CTypeInfoBuilder {
         uint8_t(kFlags) & uint8_t(CTypeInfo::Flags::kIsRestrictedBit),
         CTypeInfo::IsFloatingPointType(kType),
         "kIsRestrictedBit is only allowed for floating point types.");
-    STATIC_ASSERT_IMPLIES(kSequenceType == CTypeInfo::SequenceType::kIsSequence,
-                          kType == CTypeInfo::Type::kVoid,
-                          "Sequences are only supported from void type.");
-    STATIC_ASSERT_IMPLIES(
-        kSequenceType == CTypeInfo::SequenceType::kIsTypedArray,
-        CTypeInfo::IsPrimitive(kType) || kType == CTypeInfo::Type::kVoid,
-        "TypedArrays are only supported from primitive types or void.");
 
     // Return the same type with the merged flags.
-    return CTypeInfo(internal::TypeInfoHelper<T>::Type(),
-                     internal::TypeInfoHelper<T>::SequenceType(), kFlags);
+    return CTypeInfo(internal::TypeInfoHelper<T>::Type(), kFlags);
   }
 
  private:
@@ -872,8 +679,7 @@ class CFunctionBuilderWithFunction {
   // Flags in the template parameter pack are ignored.
   template <unsigned int N, CTypeInfo::Flags... Flags>
   struct GetArgBuilder<false, N, Flags...> {
-    using type =
-        typename std::tuple_element<N, std::tuple<ArgBuilders...>>::type;
+    using type = std::tuple_element_t<N, std::tuple<ArgBuilders...>>;
   };
 
   // Returns an ArgBuilder with the same base type as the one at index N,
@@ -881,10 +687,8 @@ class CFunctionBuilderWithFunction {
   template <unsigned int N, CTypeInfo::Flags... Flags>
   struct GetArgBuilder<true, N, Flags...> {
     using type = CTypeInfoBuilder<
-        typename std::tuple_element<N,
-                                    std::tuple<ArgBuilders...>>::type::BaseType,
-        std::tuple_element<N, std::tuple<ArgBuilders...>>::type::Build()
-            .GetFlags(),
+        typename std::tuple_element_t<N, std::tuple<ArgBuilders...>>::BaseType,
+        std::tuple_element_t<N, std::tuple<ArgBuilders...>>::Build().GetFlags(),
         Flags...>;
   };
 
@@ -971,6 +775,9 @@ bool V8_EXPORT V8_WARN_UNUSED_RESULT
 TryToCopyAndConvertArrayToCppBuffer<CTypeInfoBuilder<double>::Build().GetId(),
                                     double>(Local<Array> src, double* dst,
                                             uint32_t max_length);
+
+constexpr v8::ExternalPointerTypeTag kFastAPIPointerTag =
+    V8_EXTERNAL_POINTER_TAG_COUNT - 1;
 
 }  // namespace v8
 

@@ -36,7 +36,8 @@ If there is a `binding.gyp` file in the root of your package, then npm will use 
 }
 ```
 
-This default behavior is suppressed if the `package.json` has its own `install` or `preinstall` scripts. It is also suppressed if the package specifies `"gypfile": false`
+This default behavior is suppressed if the `package.json` has its own `install` or `preinstall` scripts.
+It is also suppressed if the package specifies `"gypfile": false`
 
 ### Configuration
 
@@ -93,9 +94,9 @@ but can be useful for debugging.
 If true, npm does not run scripts specified in package.json files.
 
 Note that commands explicitly intended to run a particular script, such as
-`npm start`, `npm stop`, `npm restart`, `npm test`, and `npm run-script`
-will still run their intended script if `ignore-scripts` is set, but they
-will *not* run any pre- or post-scripts.
+`npm start`, `npm stop`, `npm restart`, `npm test`, and `npm run` will still
+run their intended script if `ignore-scripts` is set, but they will *not*
+run any pre- or post-scripts.
 
 
 

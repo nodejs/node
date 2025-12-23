@@ -7,10 +7,8 @@
 #ifndef BROTLI_ENC_ENCODER_DICT_H_
 #define BROTLI_ENC_ENCODER_DICT_H_
 
-#include <brotli/shared_dictionary.h>
-#include <brotli/types.h>
-
 #include "../common/dictionary.h"
+#include <brotli/shared_dictionary.h>
 #include "../common/platform.h"
 #include "compound_dictionary.h"
 #include "memory.h"
@@ -30,7 +28,7 @@ Dictionary hierarchy for Encoder:
 ---BrotliEncoderDictionary [up to 64x]
    = for each context, precomputed static dictionary with words + transforms
 
-Dictionary hiearchy from common: similar, but without precomputed hashes
+Dictionary hierarchy from common: similar, but without precomputed hashes
 -BrotliSharedDictionary
 --BrotliDictionary [up to 64x]
 --BrotliTransforms [up to 64x]

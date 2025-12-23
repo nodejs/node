@@ -16,13 +16,15 @@
 // File: log/internal/voidify.h
 // -----------------------------------------------------------------------------
 //
-// This class is used to explicitly ignore values in the conditional logging
-// macros. This avoids compiler warnings like "value computed is not used" and
-// "statement has no effect".
+// This class does the dispatching of the completed `absl::LogEntry` to
+// applicable `absl::LogSink`s, and is used to explicitly ignore values in the
+// conditional logging macros. This avoids compiler warnings like "value
+// computed is not used" and "statement has no effect".
 
 #ifndef ABSL_LOG_INTERNAL_VOIDIFY_H_
 #define ABSL_LOG_INTERNAL_VOIDIFY_H_
 
+#include "absl/base/attributes.h"
 #include "absl/base/config.h"
 
 namespace absl {
@@ -34,7 +36,11 @@ class Voidify final {
   // This has to be an operator with a precedence lower than << but higher than
   // ?:
   template <typename T>
-  void operator&&(const T&) const&& {}
+  ABSL_ATTRIBUTE_COLD void operator&&(T&& message) const&& {
+    // The dispatching of the completed `absl::LogEntry` to applicable
+    // `absl::LogSink`s happens here.
+    message.Flush();
+  }
 };
 
 }  // namespace log_internal

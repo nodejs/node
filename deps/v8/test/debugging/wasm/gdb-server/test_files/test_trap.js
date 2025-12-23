@@ -6,7 +6,8 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 var builder = new WasmModuleBuilder();
 
-builder.addMemory(32, 128).exportMemoryAs('mem')
+builder.addMemory(32, 128);
+builder.exportMemoryAs('mem', 0);
 
 var func_a_idx =
   builder.addFunction('wasm_A', kSig_v_v).addBody([

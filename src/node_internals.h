@@ -37,6 +37,7 @@
 #include <cstdlib>
 
 #include <string>
+#include <variant>
 #include <vector>
 
 struct sockaddr;
@@ -54,6 +55,9 @@ extern uint64_t node_start_time;
 
 // Forward declaration
 class Environment;
+
+static constexpr uint64_t kMaxPointerCompressionHeap = uint64_t{1}
+                                                       << 32;  // 4 GiB
 
 // Convert a struct sockaddr to a { address: '1.2.3.4', port: 1234 } JS object.
 // Sets address and port properties on the info object and returns it.
@@ -113,7 +117,10 @@ std::string GetHumanReadableProcessName();
 v8::Maybe<void> InitializeBaseContextForSnapshot(
     v8::Local<v8::Context> context);
 v8::Maybe<void> InitializeContextRuntime(v8::Local<v8::Context> context);
-v8::Maybe<void> InitializePrimordials(v8::Local<v8::Context> context);
+v8::Maybe<void> InitializePrimordials(v8::Local<v8::Context> context,
+                                      IsolateData* isolate_data);
+v8::MaybeLocal<v8::Object> InitializePrivateSymbols(
+    v8::Local<v8::Context> context, IsolateData* isolate_data);
 
 class NodeArrayBufferAllocator : public ArrayBufferAllocator {
  public:
@@ -242,9 +249,16 @@ class InternalCallbackScope {
     // compatibility issues, but it shouldn't.)
     kSkipTaskQueues = 2
   };
+  // You need to either guarantee that this `InternalCallbackScope` is
+  // stack-allocated itself, OR that `object` is a pointer to a stack-allocated
+  // `v8::Local<v8::Object>` which outlives this scope (e.g. for the
+  // public `CallbackScope` which indirectly allocates an instance of
+  // this class for ABI stability purposes), OR pass a `Global<>`.
   InternalCallbackScope(
       Environment* env,
-      v8::Local<v8::Object> object,
+      std::variant<v8::Local<v8::Object>,
+                   v8::Local<v8::Object>*,
+                   v8::Global<v8::Object>*> object,
       const async_context& asyncContext,
       int flags = kNoFlags,
       v8::Local<v8::Value> context_frame = v8::Local<v8::Value>());
@@ -260,7 +274,7 @@ class InternalCallbackScope {
  private:
   Environment* env_;
   async_context async_context_;
-  v8::Local<v8::Object> object_;
+  v8::Local<v8::Object> object_storage_;
   bool skip_hooks_;
   bool skip_task_queues_;
   bool failed_ = false;
@@ -331,6 +345,20 @@ void TraceEnvVar(Environment* env,
                  v8::Local<v8::String> key);
 
 void DefineZlibConstants(v8::Local<v8::Object> target);
+
+// If creating new v8::IsolateGroup instance is supported, this returns a
+// new instance. Otherwise, it returns the default instance.
+//
+// An IsolateGroup is a collection of Isolates that share the same underlying
+// pointer cage when pointer compression is enabled. When pointer compression is
+// disabled, there is a default IsolateGroup that is used for all isolates, and
+// when pointer compression is enabled, all isolates in the app share the
+// same pointer cage by default that is limited a maximum of 4GB, not counting
+// array buffers and off-heap storage. Multiple IsolateGroups can be used to
+// work around the 4GB limit, but each group reserves a range of virtual memory
+// addresses, so this should be used with care.
+v8::IsolateGroup GetOrCreateIsolateGroup();
+
 v8::Isolate* NewIsolate(v8::Isolate::CreateParams* params,
                         uv_loop_t* event_loop,
                         MultiIsolatePlatform* platform,
@@ -340,7 +368,8 @@ v8::Isolate* NewIsolate(v8::Isolate::CreateParams* params,
 // was provided by the embedder.
 v8::MaybeLocal<v8::Value> StartExecution(Environment* env,
                                          StartExecutionCallback cb = nullptr);
-v8::MaybeLocal<v8::Object> GetPerContextExports(v8::Local<v8::Context> context);
+v8::MaybeLocal<v8::Object> GetPerContextExports(
+    v8::Local<v8::Context> context, IsolateData* isolate_data = nullptr);
 void MarkBootstrapComplete(const v8::FunctionCallbackInfo<v8::Value>& args);
 
 class InitializationResultImpl final : public InitializationResult {

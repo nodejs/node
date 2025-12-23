@@ -7,7 +7,7 @@ const constants = internalBinding('constants');
 const assert = require('assert');
 
 assert.deepStrictEqual(
-  Object.keys(constants).sort(), ['crypto', 'fs', 'os', 'trace', 'zlib']
+  Object.keys(constants).sort(), ['crypto', 'fs', 'internal', 'os', 'trace', 'zlib']
 );
 
 assert.deepStrictEqual(
@@ -28,6 +28,6 @@ function test(obj) {
 }
 
 [
-  constants, constants.crypto, constants.fs, constants.os, constants.trace,
+  constants, constants.crypto, constants.fs, constants.internal, constants.os, constants.trace,
   constants.zlib, constants.os.dlopen, constants.os.errno, constants.os.signals,
 ].forEach(test);

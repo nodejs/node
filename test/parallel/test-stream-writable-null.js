@@ -9,6 +9,7 @@ class MyWritable extends stream.Writable {
     super({ autoDestroy: false, ...options });
   }
   _write(chunk, encoding, callback) {
+    // eslint-disable-next-line node-core/must-call-assert
     assert.notStrictEqual(chunk, null);
     callback();
   }
@@ -40,8 +41,6 @@ class MyWritable extends stream.Writable {
 }
 
 { // Should not throw.
-  const m = new MyWritable({ objectMode: true }).on('error', (e) => {
-    assert.ifError(e || new Error('should not get here'));
-  });
+  const m = new MyWritable({ objectMode: true }).on('error', common.mustNotCall());
   m.write(false, assert.ifError);
 }

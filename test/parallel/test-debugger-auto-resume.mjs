@@ -6,7 +6,7 @@ import { path as _path } from '../common/fixtures.js';
 import startCLI from '../common/debugger.js';
 import { addLibraryPath } from '../common/shared-lib-util.js';
 
-import { deepStrictEqual, strictEqual } from 'assert';
+import assert from 'assert';
 import { relative } from 'path';
 
 addLibraryPath(process.env);
@@ -21,15 +21,13 @@ addLibraryPath(process.env);
   };
   env.NODE_INSPECT_RESUME_ON_START = '1';
 
-  const cli = startCLI(['--port=0', script], [], {
-    env,
-  });
+  const cli = startCLI([script], [], { env });
 
   await cli.waitForInitialBreak();
-  deepStrictEqual(cli.breakInfo, {
+  assert.deepStrictEqual(cli.breakInfo, {
     filename: script,
     line: 10,
   });
   const code = await cli.quit();
-  strictEqual(code, 0);
+  assert.strictEqual(code, 0);
 }

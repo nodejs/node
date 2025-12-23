@@ -5,7 +5,7 @@
 
 const { mustCall } = require('../common');
 const { Agent, get } = require('http');
-const { strictEqual } = require('assert');
+const assert = require('assert');
 
 const request = get({
   agent: new Agent({ timeout: 50 }),
@@ -14,10 +14,10 @@ const request = get({
 });
 
 request.on('socket', mustCall((socket) => {
-  strictEqual(socket.timeout, 100);
+  assert.strictEqual(socket.timeout, 100);
 
   const listeners = socket.listeners('timeout');
 
-  strictEqual(listeners.length, 2);
-  strictEqual(listeners[1], request.timeoutCb);
+  assert.strictEqual(listeners.length, 2);
+  assert.strictEqual(listeners[1], request.timeoutCb);
 }));

@@ -5,8 +5,8 @@
 # found in the LICENSE file.
 
 import os
-import sys
 import subprocess
+import sys
 
 
 def IsCygwin():

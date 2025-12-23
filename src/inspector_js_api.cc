@@ -1,4 +1,5 @@
 #include "base_object-inl.h"
+#include "inspector/network_resource_manager.h"
 #include "inspector/protocol_helper.h"
 #include "inspector_agent.h"
 #include "inspector_io.h"
@@ -23,7 +24,6 @@ using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
 using v8::MaybeLocal;
-using v8::NewStringType;
 using v8::Object;
 using v8::String;
 using v8::Uint32;
@@ -69,9 +69,8 @@ class JSBindingsConnection : public BaseObject {
       HandleScope handle_scope(isolate);
       Context::Scope context_scope(env_->context());
       Local<Value> argument;
-      if (!String::NewFromTwoByte(isolate, message.characters16(),
-                                  NewStringType::kNormal,
-                                  message.length()).ToLocal(&argument)) return;
+      if (!ToV8Value(env_->context(), message, isolate).ToLocal(&argument))
+        return;
       connection_->OnMessage(argument);
     }
 
@@ -129,14 +128,13 @@ class JSBindingsConnection : public BaseObject {
   }
 
   static void Dispatch(const FunctionCallbackInfo<Value>& info) {
-    Environment* env = Environment::GetCurrent(info);
     JSBindingsConnection* session;
     ASSIGN_OR_RETURN_UNWRAP(&session, info.This());
     CHECK(info[0]->IsString());
 
     if (session->session_) {
       session->session_->Dispatch(
-          ToInspectorString(env->isolate(), info[0])->string());
+          ToInspectorString(info.GetIsolate(), info[0])->string());
     }
   }
 
@@ -242,8 +240,8 @@ static void AsyncTaskScheduledWrapper(const FunctionCallbackInfo<Value>& args) {
 
   CHECK(args[0]->IsString());
   Local<String> task_name = args[0].As<String>();
-  String::Value task_name_value(args.GetIsolate(), task_name);
-  StringView task_name_view(*task_name_value, task_name_value.length());
+  TwoByteValue task_name_value(args.GetIsolate(), task_name);
+  StringView task_name_view(task_name_value.out(), task_name_value.length());
 
   CHECK(args[1]->IsNumber());
   int64_t task_id;
@@ -336,6 +334,18 @@ void Url(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(OneByteString(env->isolate(), url));
 }
 
+void PutNetworkResource(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK_GE(args.Length(), 2);
+  CHECK(args[0]->IsString());
+  CHECK(args[1]->IsString());
+
+  Utf8Value url(env->isolate(), args[0].As<String>());
+  Utf8Value data(env->isolate(), args[1].As<String>());
+
+  env->inspector_agent()->GetNetworkResourceManager()->Put(*url, *data);
+}
+
 void Initialize(Local<Object> target, Local<Value> unused,
                 Local<Context> context, void* priv) {
   Environment* env = Environment::GetCurrent(context);
@@ -380,6 +390,7 @@ void Initialize(Local<Object> target, Local<Value> unused,
   SetMethodNoSideEffect(context, target, "isEnabled", IsEnabled);
   SetMethod(context, target, "emitProtocolEvent", EmitProtocolEvent);
   SetMethod(context, target, "setupNetworkTracking", SetupNetworkTracking);
+  SetMethod(context, target, "putNetworkResource", PutNetworkResource);
 
   Local<String> console_string = FIXED_ONE_BYTE_STRING(isolate, "console");
 
@@ -422,6 +433,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(JSBindingsConnection<MainThreadConnection>::New);
   registry->Register(JSBindingsConnection<MainThreadConnection>::Dispatch);
   registry->Register(JSBindingsConnection<MainThreadConnection>::Disconnect);
+  registry->Register(PutNetworkResource);
 }
 
 }  // namespace inspector

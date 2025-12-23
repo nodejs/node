@@ -35,7 +35,7 @@ if (!process.env.HAS_STARTED_WORKER) {
       fs.open('this file does not exist'),
       {
         code: 'ENOENT',
-        syscall: 'open'
+        syscall: 'open',
       }
     );
     await scheduler.yield();

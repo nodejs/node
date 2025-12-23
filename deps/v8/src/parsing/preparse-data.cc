@@ -373,7 +373,7 @@ void PreparseDataBuilder::SaveDataForScope(Scope* scope) {
               ->needs_private_name_context_chain_recalc()) |
       ShouldSaveClassVariableIndexField::encode(
           scope->is_class_scope() &&
-          scope->AsClassScope()->should_save_class_variable_index());
+          scope->AsClassScope()->should_save_class_variable());
   byte_data_.Reserve(kUint8Size);
   byte_data_.WriteUint8(scope_data_flags);
 
@@ -691,7 +691,7 @@ void BaseConsumedPreparseData<Data>::RestoreDataForScope(
     }
     var->set_is_used();
     var->ForceContextAllocation();
-    scope->AsClassScope()->set_should_save_class_variable_index();
+    scope->AsClassScope()->set_should_save_class_variable();
   }
 
   if (scope->is_function_scope()) {

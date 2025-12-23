@@ -38,7 +38,7 @@ void AdvanceToOffsetForTracing(
               interpreter::OperandScale::kSingle));
 }
 
-void PrintRegisterRange(UnoptimizedFrame* frame, std::ostream& os,
+void PrintRegisterRange(UnoptimizedJSFrame* frame, std::ostream& os,
                         interpreter::BytecodeArrayIterator& bytecode_iterator,
                         const int& reg_field_width, const char* arrow_direction,
                         interpreter::Register first_reg, int range) {
@@ -52,7 +52,7 @@ void PrintRegisterRange(UnoptimizedFrame* frame, std::ostream& os,
   }
 }
 
-void PrintRegisters(UnoptimizedFrame* frame, std::ostream& os, bool is_input,
+void PrintRegisters(UnoptimizedJSFrame* frame, std::ostream& os, bool is_input,
                     interpreter::BytecodeArrayIterator& bytecode_iterator,
                     Handle<Object> accumulator) {
   static const char kAccumulator[] = "accumulator";
@@ -111,8 +111,8 @@ RUNTIME_FUNCTION(Runtime_TraceUnoptimizedBytecodeEntry) {
   }
 
   JavaScriptStackFrameIterator frame_iterator(isolate);
-  UnoptimizedFrame* frame =
-      reinterpret_cast<UnoptimizedFrame*>(frame_iterator.frame());
+  UnoptimizedJSFrame* frame =
+      reinterpret_cast<UnoptimizedJSFrame*>(frame_iterator.frame());
 
   if (frame->is_interpreted() && !v8_flags.trace_ignition) {
     return ReadOnlyRoots(isolate).undefined_value();
@@ -123,7 +123,7 @@ RUNTIME_FUNCTION(Runtime_TraceUnoptimizedBytecodeEntry) {
 
   SealHandleScope shs(isolate);
   DCHECK_EQ(3, args.length());
-  Handle<BytecodeArray> bytecode_array = args.at<BytecodeArray>(0);
+  Handle<BytecodeArray> bytecode_array = CheckedCast<BytecodeArray>(args.at(0));
   int bytecode_offset = args.smi_value_at(1);
   Handle<Object> accumulator = args.at(2);
 
@@ -161,8 +161,8 @@ RUNTIME_FUNCTION(Runtime_TraceUnoptimizedBytecodeExit) {
   }
 
   JavaScriptStackFrameIterator frame_iterator(isolate);
-  UnoptimizedFrame* frame =
-      reinterpret_cast<UnoptimizedFrame*>(frame_iterator.frame());
+  UnoptimizedJSFrame* frame =
+      reinterpret_cast<UnoptimizedJSFrame*>(frame_iterator.frame());
 
   if (frame->is_interpreted() && !v8_flags.trace_ignition) {
     return ReadOnlyRoots(isolate).undefined_value();
@@ -173,7 +173,7 @@ RUNTIME_FUNCTION(Runtime_TraceUnoptimizedBytecodeExit) {
 
   SealHandleScope shs(isolate);
   DCHECK_EQ(3, args.length());
-  Handle<BytecodeArray> bytecode_array = args.at<BytecodeArray>(0);
+  Handle<BytecodeArray> bytecode_array = CheckedCast<BytecodeArray>(args.at(0));
   int bytecode_offset = args.smi_value_at(1);
   Handle<Object> accumulator = args.at(2);
 

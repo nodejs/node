@@ -27,20 +27,20 @@ server.listen(0, common.mustCall(() => {
   {
     const req = client.request();
 
-    req.on('response', () => {
+    req.on('response', common.mustCall(() => {
       // This one should be rejected because the server is over budget
       // on the current memory allocation
       const req = client.request();
       req.on('error', common.expectsError({
         code: 'ERR_HTTP2_STREAM_ERROR',
         name: 'Error',
-        message: 'Stream closed with error code NGHTTP2_ENHANCE_YOUR_CALM'
+        message: 'Stream closed with error code NGHTTP2_ENHANCE_YOUR_CALM',
       }));
       req.on('close', common.mustCall(() => {
         server.close();
         client.destroy();
       }));
-    });
+    }));
 
     req.resume();
     req.on('close', common.mustCall());

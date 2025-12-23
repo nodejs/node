@@ -25,7 +25,7 @@ class JSGlobalProxy;
 namespace compiler {
 
 // Forward declarations.
-enum class AccessMode;
+enum class AccessMode : uint8_t;
 class CommonOperatorBuilder;
 class CompilationDependencies;
 class ElementAccessInfo;
@@ -183,20 +183,29 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
                                 Node** control,
                                 ZoneVector<Node*>* if_exceptions,
                                 PropertyAccessInfo const& access_info);
-  Node* InlineApiCall(Node* receiver, Node* api_holder, Node* frame_state,
-                      Node* value, Node** effect, Node** control,
-                      FunctionTemplateInfoRef function_template_info);
+  Node* InlineApiCall(Node* receiver, Node* frame_state, Node* value,
+                      Node** effect, Node** control,
+                      FunctionTemplateInfoRef function_template_info,
+                      const FeedbackSource& feedback);
 
   // Construct the appropriate subgraph for element access.
-  ValueEffectControl BuildElementAccess(Node* receiver, Node* index,
-                                        Node* value, Node* effect,
-                                        Node* control, Node* context,
-                                        ElementAccessInfo const& access_info,
-                                        KeyedAccessMode const& keyed_mode);
+  ValueEffectControl BuildElementAccess(
+      Node* receiver, Node* index, Node* value, Node* effect, Node* control,
+      Node* context, ElementAccessInfo const& access_info,
+      LanguageMode language_mode, KeyedAccessMode const& keyed_mode,
+      ZoneVector<Node*>* if_exceptions, Node* frame_state);
   ValueEffectControl BuildElementAccessForTypedArrayOrRabGsabTypedArray(
       Node* receiver, Node* index, Node* value, Node* effect, Node* control,
       Node* context, ElementsKind elements_kind,
       KeyedAccessMode const& keyed_mode);
+
+#if V8_ENABLE_WEBASSEMBLY
+  ValueEffectControl BuildPrototypeProxyElementAccess(
+      Node* receiver, Node* index, Node* value, Node* effect, Node* control,
+      Node* context, ElementAccessInfo const& access_info,
+      LanguageMode language_mode, KeyedAccessMode const& keyed_mode,
+      ZoneVector<Node*>* if_exceptions, Node* frame_state);
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   // Construct appropriate subgraph to load from a String.
   Node* BuildIndexedStringLoad(Node* receiver, Node* index, Node* length,
@@ -211,9 +220,6 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   // the previously recorded {name} feedback.
   Node* BuildCheckEqualsName(NameRef name, Node* value, Node* effect,
                              Node* control);
-
-  // Concatenates {left} and {right}.
-  Handle<String> Concatenate(Handle<String> left, Handle<String> right);
 
   // Returns true if {str} can safely be read:
   //   - if we are on the main thread, then any string can safely be read
@@ -257,7 +263,7 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   std::pair<Node*, Node*> ReleaseEffectAndControlFromAssembler(
       JSGraphAssembler* assembler);
 
-  Graph* graph() const;
+  TFGraph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
 
   JSHeapBroker* broker() const { return broker_; }
@@ -267,8 +273,8 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   JSOperatorBuilder* javascript() const;
   SimplifiedOperatorBuilder* simplified() const;
   Flags flags() const { return flags_; }
-  Handle<JSGlobalObject> global_object() const { return global_object_; }
-  Handle<JSGlobalProxy> global_proxy() const { return global_proxy_; }
+  DirectHandle<JSGlobalObject> global_object() const { return global_object_; }
+  DirectHandle<JSGlobalProxy> global_proxy() const { return global_proxy_; }
   NativeContextRef native_context() const {
     return broker()->target_native_context();
   }
@@ -286,8 +292,8 @@ class V8_EXPORT_PRIVATE JSNativeContextSpecialization final
   Zone* const zone_;
   Zone* const shared_zone_;
   TypeCache const* type_cache_;
-  ZoneUnorderedSet<Handle<String>, Handle<String>::hash,
-                   Handle<String>::equal_to>
+  ZoneUnorderedSet<IndirectHandle<String>, IndirectHandle<String>::hash,
+                   IndirectHandle<String>::equal_to>
       created_strings_;
 };
 

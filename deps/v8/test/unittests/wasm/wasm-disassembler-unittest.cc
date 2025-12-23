@@ -127,7 +127,16 @@ TEST_F(WasmDisassemblerTest, Gc) {
   CheckDisassemblerOutput(base::ArrayVector(module_bytes), expected);
 }
 
-TEST_F(WasmDisassemblerTest, TooManyends) {
+TEST_F(WasmDisassemblerTest, CustomDescriptors) {
+  constexpr uint8_t module_bytes[] = {
+#include "wasm-disassembler-unittest-custom-descriptors.wasm.inc"
+  };
+  std::string expected;
+#include "wasm-disassembler-unittest-custom-descriptors.wat.inc"
+  CheckDisassemblerOutput(base::ArrayVector(module_bytes), expected);
+}
+
+TEST_F(WasmDisassemblerTest, TooManyEnds) {
   constexpr uint8_t module_bytes[] = {
 #include "wasm-disassembler-unittest-too-many-ends.wasm.inc"
   };
@@ -142,6 +151,16 @@ TEST_F(WasmDisassemblerTest, Stringref) {
   };
   std::string expected;
 #include "wasm-disassembler-unittest-stringref.wat.inc"
+  CheckDisassemblerOutput(base::ArrayVector(module_bytes), expected);
+}
+
+TEST_F(WasmDisassemblerTest, SharedEverything) {
+  // TODO(42204563): Add tests for other shared-everything instructions.
+  constexpr uint8_t module_bytes[] = {
+#include "wasm-disassembler-unittest-shared-everything.wasm.inc"
+  };
+  std::string expected;
+#include "wasm-disassembler-unittest-shared-everything.wat.inc"
   CheckDisassemblerOutput(base::ArrayVector(module_bytes), expected);
 }
 

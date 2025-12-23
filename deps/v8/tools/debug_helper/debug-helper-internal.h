@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_TOOLS_DEBUG_HELPER_DEBUG_HELPER_INTERNAL_H_
+#define V8_TOOLS_DEBUG_HELPER_DEBUG_HELPER_INTERNAL_H_
+
 // This file defines internal versions of the public API structs. These should
 // all be tidy and simple classes which maintain proper ownership (unique_ptr)
 // of each other. Each contains an instance of its corresponding public type,
 // which can be filled out with GetPublicView.
-
-#ifndef V8_TOOLS_DEBUG_HELPER_DEBUG_HELPER_INTERNAL_H_
-#define V8_TOOLS_DEBUG_HELPER_DEBUG_HELPER_INTERNAL_H_
 
 #include <memory>
 #include <string>

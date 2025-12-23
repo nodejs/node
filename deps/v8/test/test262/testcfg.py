@@ -42,7 +42,6 @@ from testrunner.outproc import test262
 #
 # Multiple flags are allowed, separated by space.
 FEATURE_FLAGS = {
-    'Intl.DurationFormat': '--harmony-intl-duration-format',
     'Intl.Locale-info': '--harmony-intl-locale-info-func',
     'FinalizationRegistry': '--harmony-weak-refs-with-cleanup-some',
     'WeakRef': '--harmony-weak-refs-with-cleanup-some',
@@ -52,7 +51,6 @@ FEATURE_FLAGS = {
     'Temporal': '--harmony-temporal',
     'array-find-from-last': '--harmony-array-find-last',
     'ShadowRealm': '--harmony-shadow-realm',
-    'regexp-v-flag': '--harmony-regexp-unicode-sets',
     'String.prototype.isWellFormed': '--harmony-string-is-well-formed',
     'String.prototype.toWellFormed': '--harmony-string-is-well-formed',
     'json-parse-with-source': '--harmony-json-parse-with-source',
@@ -62,11 +60,17 @@ FEATURE_FLAGS = {
     'regexp-duplicate-named-groups': '--js-regexp-duplicate-named-groups',
     'regexp-modifiers': '--js-regexp-modifiers',
     'Float16Array': '--js-float16array',
-    'explicit-resource-management': '--js_explicit_resource_management',
+    'explicit-resource-management': '--js-explicit-resource-management',
     'decorators': '--js-decorators',
     'promise-try': '--js-promise-try',
     'Atomics.pause': '--js-atomics-pause',
     'source-phase-imports': '--js-source-phase-imports --allow-natives-syntax',
+    'Error.isError': '--js-error-iserror',
+    'uint8array-base64': '--js-base-64',
+    'RegExp.escape': '--js-regexp-escape',
+    'upsert': '--js-upsert',
+    'Intl.Locale': '--js-intl-locale-variants',
+    'nonextensible-applies-to-private': '--js-nonextensible-applies-to-private',
 }
 
 SKIPPED_FEATURES = set([])
@@ -79,7 +83,7 @@ TEST_262_NATIVE_FILES = ["detachArrayBuffer.js"]
 
 TEST_262_SUITE_PATH = Path("data") / "test"
 TEST_262_HARNESS_PATH = Path("data") / "harness"
-TEST_262_TOOLS_ABS_PATH = BASE_DIR / "third_party" / "test262-harness" / "src"
+TEST_262_TOOLS_ABS_PATH = TEST262_DIR / Path("data") / "tools" / "packaging"
 TEST_262_LOCAL_TESTS_PATH = Path("local-tests") / "test"
 
 sys.path.append(str(TEST_262_TOOLS_ABS_PATH))
@@ -221,21 +225,21 @@ class TestCase(testcase.D8TestCase):
     harness_args = []
     if "raw" not in self.test_record.get("flags", []):
       harness_args = list(self.suite.harness)
-    return (harness_args +
-            ([self.suite.root /
-              "harness-agent.js"] if self.__needs_harness_agent() else []) +
-            ([self.suite.root / "harness-ishtmldda.js"]
-             if "IsHTMLDDA" in self.test_record.get("features", []) else []) +
-            ([self.suite.root /
-              "harness-abstractmodulesource.js"] if "source-phase-imports"
-             in self.test_record.get("features", []) else []) +
-            ([self.suite.root / "harness-adapt-donotevaluate.js"]
-             if self.fail_phase_only and not self._fail_phase_reverse else []) +
-            ([self.suite.root / "harness-done.js"]
-             if "async" in self.test_record.get("flags", []) else []) +
-            self._get_includes() +
-            (["--module"] if "module" in self.test_record else []) +
-            [self._get_source_path()])
+    return (
+        harness_args +
+        ([self.suite.root /
+          "harness-agent.js"] if self.__needs_harness_agent() else []) +
+        ([self.suite.root / "harness-ishtmldda.js"]
+         if "IsHTMLDDA" in self.test_record.get("features", []) else []) +
+        ([self.suite.root / "harness-abstractmodulesource.js"] if
+         "source-phase-imports" in self.test_record.get("features", []) else [])
+        + ([self.suite.root / "harness-adapt-donotevaluate.js"]
+           if self.fail_phase_only and not self._fail_phase_reverse else []) +
+        ([self.suite.root / "harness-done.js"] if "async"
+         in self.test_record.get("flags", []) else []) + self._get_includes() +
+        (["--module"] if "module" in self.test_record else []) +
+        (["--no-can-block"] if "CanBlockIsFalse" in self.test_record else []) +
+        [self._get_source_path()])
 
   def _get_suite_flags(self):
     feature_flags = []

@@ -26,7 +26,6 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --allow-natives-syntax --concurrent-recompilation
-// Flags: --no-always-turbofan
 
 function f1(a, i) {
   return a[i] + 0.5;

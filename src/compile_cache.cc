@@ -13,7 +13,18 @@
 #include <unistd.h>  // getuid
 #endif
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
 namespace node {
+
+using v8::Function;
+using v8::Local;
+using v8::Module;
+using v8::ScriptCompiler;
+using v8::String;
+
+namespace {
 std::string Uint32ToHex(uint32_t crc) {
   std::string str;
   str.reserve(8);
@@ -40,8 +51,7 @@ std::string GetCacheVersionTag() {
   // This should be fine on Windows, as there local directories tend to be
   // user-specific.
   std::string tag = std::string(NODE_VERSION) + '-' + std::string(NODE_ARCH) +
-                    '-' +
-                    Uint32ToHex(v8::ScriptCompiler::CachedDataVersionTag());
+                    '-' + Uint32ToHex(ScriptCompiler::CachedDataVersionTag());
 #ifdef NODE_IMPLEMENTS_POSIX_CREDENTIALS
   tag += '-' + std::to_string(getuid());
 #endif
@@ -55,6 +65,7 @@ uint32_t GetCacheKey(std::string_view filename, CachedCodeType type) {
       crc, reinterpret_cast<const Bytef*>(filename.data()), filename.length());
   return crc;
 }
+}  // namespace
 
 template <typename... Args>
 inline void CompileCacheHandler::Debug(const char* format,
@@ -64,13 +75,13 @@ inline void CompileCacheHandler::Debug(const char* format,
   }
 }
 
-v8::ScriptCompiler::CachedData* CompileCacheEntry::CopyCache() const {
+ScriptCompiler::CachedData* CompileCacheEntry::CopyCache() const {
   DCHECK_NOT_NULL(cache);
   int cache_size = cache->length;
   uint8_t* data = new uint8_t[cache_size];
   memcpy(data, cache->data, cache_size);
-  return new v8::ScriptCompiler::CachedData(
-      data, cache_size, v8::ScriptCompiler::CachedData::BufferOwned);
+  return new ScriptCompiler::CachedData(
+      data, cache_size, ScriptCompiler::CachedData::BufferOwned);
 }
 
 // Used for identifying and verifying a file is a compile cache file.
@@ -210,19 +221,55 @@ void CompileCacheHandler::ReadCacheFile(CompileCacheEntry* entry) {
     return;
   }
 
-  entry->cache.reset(new v8::ScriptCompiler::CachedData(
-      buffer, total_read, v8::ScriptCompiler::CachedData::BufferOwned));
+  entry->cache.reset(new ScriptCompiler::CachedData(
+      buffer, total_read, ScriptCompiler::CachedData::BufferOwned));
   Debug(" success, size=%d\n", total_read);
 }
 
-CompileCacheEntry* CompileCacheHandler::GetOrInsert(
-    v8::Local<v8::String> code,
-    v8::Local<v8::String> filename,
-    CachedCodeType type) {
+static std::string GetRelativePath(std::string_view path,
+                                   std::string_view base) {
+// On Windows, the native encoding is UTF-16, so we need to convert
+// the paths to wide strings before using std::filesystem::path.
+// On other platforms, std::filesystem::path can handle UTF-8 directly.
+#ifdef _WIN32
+  std::filesystem::path module_path(ConvertUTF8ToWideString(std::string(path)));
+  std::filesystem::path base_path(ConvertUTF8ToWideString(std::string(base)));
+#else
+  std::filesystem::path module_path(path);
+  std::filesystem::path base_path(base);
+#endif
+  std::filesystem::path relative = module_path.lexically_relative(base_path);
+  auto u8str = relative.u8string();
+  return std::string(u8str.begin(), u8str.end());
+}
+
+CompileCacheEntry* CompileCacheHandler::GetOrInsert(Local<String> code,
+                                                    Local<String> filename,
+                                                    CachedCodeType type) {
   DCHECK(!compile_cache_dir_.empty());
 
+  Environment* env = Environment::GetCurrent(isolate_->GetCurrentContext());
   Utf8Value filename_utf8(isolate_, filename);
-  uint32_t key = GetCacheKey(filename_utf8.ToStringView(), type);
+  std::string file_path = filename_utf8.ToString();
+  // If the portable cache is enabled and it seems possible to compute the
+  // relative position from an absolute path, we use the relative position
+  // in the cache key.
+  if (portable_ == EnableOption::PORTABLE && IsAbsoluteFilePath(file_path)) {
+    // Normalize the path to ensure it is consistent.
+    std::string normalized_file_path = NormalizeFileURLOrPath(env, file_path);
+    if (normalized_file_path.empty()) {
+      return nullptr;
+    }
+    std::string relative_path =
+        GetRelativePath(normalized_file_path, normalized_compile_cache_dir_);
+    if (!relative_path.empty()) {
+      file_path = relative_path;
+      Debug("[compile cache] using relative path %s from %s\n",
+            file_path.c_str(),
+            compile_cache_dir_.c_str());
+    }
+  }
+  uint32_t key = GetCacheKey(file_path, type);
 
   // TODO(joyeecheung): don't encode this again into UTF8. If we read the
   // UTF8 content on disk as raw buffer (from the JS layer, while watching out
@@ -259,18 +306,17 @@ CompileCacheEntry* CompileCacheHandler::GetOrInsert(
   return result;
 }
 
-v8::ScriptCompiler::CachedData* SerializeCodeCache(
-    v8::Local<v8::Function> func) {
-  return v8::ScriptCompiler::CreateCodeCacheForFunction(func);
+ScriptCompiler::CachedData* SerializeCodeCache(Local<Function> func) {
+  return ScriptCompiler::CreateCodeCacheForFunction(func);
 }
 
-v8::ScriptCompiler::CachedData* SerializeCodeCache(v8::Local<v8::Module> mod) {
-  return v8::ScriptCompiler::CreateCodeCache(mod->GetUnboundModuleScript());
+ScriptCompiler::CachedData* SerializeCodeCache(Local<Module> mod) {
+  return ScriptCompiler::CreateCodeCache(mod->GetUnboundModuleScript());
 }
 
 template <typename T>
 void CompileCacheHandler::MaybeSaveImpl(CompileCacheEntry* entry,
-                                        v8::Local<T> func_or_mod,
+                                        Local<T> func_or_mod,
                                         bool rejected) {
   DCHECK_NOT_NULL(entry);
   Debug("[compile cache] V8 code cache for %s %s was %s, ",
@@ -286,21 +332,21 @@ void CompileCacheHandler::MaybeSaveImpl(CompileCacheEntry* entry,
   Debug("%s the in-memory entry\n",
         entry->cache == nullptr ? "initializing" : "refreshing");
 
-  v8::ScriptCompiler::CachedData* data = SerializeCodeCache(func_or_mod);
-  DCHECK_EQ(data->buffer_policy, v8::ScriptCompiler::CachedData::BufferOwned);
+  ScriptCompiler::CachedData* data = SerializeCodeCache(func_or_mod);
+  DCHECK_EQ(data->buffer_policy, ScriptCompiler::CachedData::BufferOwned);
   entry->refreshed = true;
   entry->cache.reset(data);
 }
 
 void CompileCacheHandler::MaybeSave(CompileCacheEntry* entry,
-                                    v8::Local<v8::Module> mod,
+                                    Local<Module> mod,
                                     bool rejected) {
   DCHECK(mod->IsSourceTextModule());
   MaybeSaveImpl(entry, mod, rejected);
 }
 
 void CompileCacheHandler::MaybeSave(CompileCacheEntry* entry,
-                                    v8::Local<v8::Function> func,
+                                    Local<Function> func,
                                     bool rejected) {
   MaybeSaveImpl(entry, func, rejected);
 }
@@ -319,8 +365,8 @@ void CompileCacheHandler::MaybeSave(CompileCacheEntry* entry,
   int cache_size = static_cast<int>(transpiled.size());
   uint8_t* data = new uint8_t[cache_size];
   memcpy(data, transpiled.data(), cache_size);
-  entry->cache.reset(new v8::ScriptCompiler::CachedData(
-      data, cache_size, v8::ScriptCompiler::CachedData::BufferOwned));
+  entry->cache.reset(new ScriptCompiler::CachedData(
+      data, cache_size, ScriptCompiler::CachedData::BufferOwned));
   entry->refreshed = true;
 }
 
@@ -377,7 +423,7 @@ void CompileCacheHandler::Persist() {
     }
 
     DCHECK_EQ(entry->cache->buffer_policy,
-              v8::ScriptCompiler::CachedData::BufferOwned);
+              ScriptCompiler::CachedData::BufferOwned);
     char* cache_ptr =
         reinterpret_cast<char*>(const_cast<uint8_t*>(entry->cache->data));
     uint32_t cache_size = static_cast<uint32_t>(entry->cache->length);
@@ -494,7 +540,8 @@ CompileCacheHandler::CompileCacheHandler(Environment* env)
 //   - $NODE_VERSION-$ARCH-$CACHE_DATA_VERSION_TAG-$UID
 //     - $FILENAME_AND_MODULE_TYPE_HASH.cache: a hash of filename + module type
 CompileCacheEnableResult CompileCacheHandler::Enable(Environment* env,
-                                                     const std::string& dir) {
+                                                     const std::string& dir,
+                                                     EnableOption option) {
   std::string cache_tag = GetCacheVersionTag();
   std::string absolute_cache_dir_base = PathResolve(env, {dir});
   std::string cache_dir_with_tag =
@@ -542,6 +589,11 @@ CompileCacheEnableResult CompileCacheHandler::Enable(Environment* env,
 
   result.cache_directory = absolute_cache_dir_base;
   compile_cache_dir_ = cache_dir_with_tag;
+  portable_ = option;
+  if (option == EnableOption::PORTABLE) {
+    normalized_compile_cache_dir_ =
+        NormalizeFileURLOrPath(env, compile_cache_dir_);
+  }
   result.status = CompileCacheEnableStatus::ENABLED;
   return result;
 }

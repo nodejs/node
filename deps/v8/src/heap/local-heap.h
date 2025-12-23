@@ -8,12 +8,16 @@
 #include <atomic>
 #include <memory>
 
+#if V8_OS_DARWIN
+#include "pthread.h"
+#endif
+
 #include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/base/platform/condition-variable.h"
-#include "src/base/platform/mutex.h"
 #include "src/common/assert-scope.h"
 #include "src/common/ptr-compr.h"
+#include "src/common/thread-local-storage.h"
 #include "src/execution/isolate.h"
 #include "src/handles/global-handles.h"
 #include "src/handles/persistent-handles.h"
@@ -28,6 +32,11 @@ class LocalHandles;
 class MarkingBarrier;
 class MutablePageMetadata;
 class Safepoint;
+
+// Do not use this variable directly, use LocalHeap::Current() instead.
+// Defined outside of LocalHeap because LocalHeap uses V8_EXPORT_PRIVATE.
+__attribute__((tls_model(V8_TLS_MODEL))) extern thread_local LocalHeap*
+    g_current_local_heap_ V8_CONSTINIT;
 
 // LocalHeap is used by the GC to track all threads with heap access in order to
 // stop them before performing a collection. LocalHeaps can be either Parked or
@@ -51,6 +60,12 @@ class V8_EXPORT_PRIVATE LocalHeap {
   // from the main thread.
   void Safepoint() {
     DCHECK(AllowSafepoints::IsAllowed());
+
+#if V8_VERIFY_WRITE_BARRIERS
+    heap_allocator_.ResetMostRecentYoungAllocation();
+    AssertNoWriteBarrierModeScope();
+#endif  // V8_VERIFY_WRITE_BARRIERS
+
     ThreadState current = state_.load_relaxed();
 
     if (V8_UNLIKELY(current.IsRunningWithSlowPathFlag())) {
@@ -61,27 +76,32 @@ class V8_EXPORT_PRIVATE LocalHeap {
   LocalHandles* handles() { return handles_.get(); }
 
   template <typename T>
-  Handle<T> NewPersistentHandle(Tagged<T> object) {
+  IndirectHandle<T> NewPersistentHandle(Tagged<T> object) {
     if (!persistent_handles_) {
       EnsurePersistentHandles();
     }
     return persistent_handles_->NewHandle(object);
   }
 
-  template <typename T>
-  Handle<T> NewPersistentHandle(Handle<T> object) {
+  template <typename T, template <typename> typename HandleType>
+  IndirectHandle<T> NewPersistentHandle(HandleType<T> object)
+    requires(std::is_convertible_v<HandleType<T>, DirectHandle<T>>)
+  {
     return NewPersistentHandle(*object);
   }
 
   template <typename T>
-  Handle<T> NewPersistentHandle(T object) {
+  IndirectHandle<T> NewPersistentHandle(T object) {
     static_assert(kTaggedCanConvertToRawObjects);
     return NewPersistentHandle(Tagged<T>(object));
   }
 
-  template <typename T>
-  MaybeHandle<T> NewPersistentMaybeHandle(MaybeHandle<T> maybe_handle) {
-    Handle<T> handle;
+  template <typename T, template <typename> typename MaybeHandleType>
+  MaybeIndirectHandle<T> NewPersistentMaybeHandle(
+      MaybeHandleType<T> maybe_handle)
+    requires(std::is_convertible_v<MaybeHandleType<T>, MaybeDirectHandle<T>>)
+  {
+    DirectHandle<T> handle;
     if (maybe_handle.ToHandle(&handle)) {
       return NewPersistentHandle(handle);
     }
@@ -122,6 +142,15 @@ class V8_EXPORT_PRIVATE LocalHeap {
   void VerifyLinearAllocationAreas() const;
 #endif  // DEBUG
 
+#if V8_VERIFY_WRITE_BARRIERS
+  void AssertNoWriteBarrierModeScope() const {
+    CHECK_EQ(write_barrier_mode_for_object_, kNullAddress);
+  }
+  Address CurrentObjectForWriteBarrierMode() const {
+    return write_barrier_mode_for_object_;
+  }
+#endif  // V8_VERIFY_WRITE_BARRIERS
+
   // Make all LABs iterable.
   void MakeLinearAllocationAreasIterable();
 
@@ -135,12 +164,24 @@ class V8_EXPORT_PRIVATE LocalHeap {
   void MarkSharedLinearAllocationAreasBlack();
   void UnmarkSharedLinearAllocationsArea();
 
-  // Fetches a pointer to the local heap from the thread local storage.
-  // It is intended to be used in handle and write barrier code where it is
-  // difficult to get a pointer to the current instance of local heap otherwise.
-  // The result may be a nullptr if there is no local heap instance associated
-  // with the current thread.
-  static LocalHeap* Current();
+  // Free all LABs and reset free-lists except for the new and shared space.
+  // Used on black allocation.
+  void FreeLinearAllocationAreasAndResetFreeLists();
+  void FreeSharedLinearAllocationAreasAndResetFreeLists();
+
+  // Fetches a pointer to the current LocalHeap from the TLS variable or returns
+  // nullptr if not set.
+  V8_TLS_DECLARE_GETTER(TryGetCurrent, LocalHeap*, g_current_local_heap_)
+
+  // Fetches a pointer to the current LocalHeap from the TLS variable. DHECKs
+  // that LocalHeap is non-null.
+  static LocalHeap* Current() {
+    LocalHeap* local_heap = TryGetCurrent();
+    DCHECK_NOT_NULL(local_heap);
+    return local_heap;
+  }
+
+  static void SetCurrent(LocalHeap* local_heap);
 
 #ifdef DEBUG
   void VerifyCurrent() const;
@@ -150,21 +191,24 @@ class V8_EXPORT_PRIVATE LocalHeap {
   V8_WARN_UNUSED_RESULT inline AllocationResult AllocateRaw(
       int size_in_bytes, AllocationType allocation,
       AllocationOrigin origin = AllocationOrigin::kRuntime,
-      AllocationAlignment alignment = kTaggedAligned);
+      AllocationAlignment alignment = kTaggedAligned,
+      AllocationHint hint = AllocationHint());
 
   // Allocate an uninitialized object.
   template <HeapAllocator::AllocationRetryMode mode>
   Tagged<HeapObject> AllocateRawWith(
       int size_in_bytes, AllocationType allocation,
       AllocationOrigin origin = AllocationOrigin::kRuntime,
-      AllocationAlignment alignment = kTaggedAligned);
+      AllocationAlignment alignment = kTaggedAligned,
+      AllocationHint hint = AllocationHint());
 
   // Allocates an uninitialized object and crashes when object
   // cannot be allocated.
   V8_WARN_UNUSED_RESULT inline Address AllocateRawOrFail(
       int size_in_bytes, AllocationType allocation,
       AllocationOrigin origin = AllocationOrigin::kRuntime,
-      AllocationAlignment alignment = kTaggedAligned);
+      AllocationAlignment alignment = kTaggedAligned,
+      AllocationHint hint = AllocationHint());
 
   void NotifyObjectSizeChange(Tagged<HeapObject> object, int old_size,
                               int new_size,
@@ -209,6 +253,14 @@ class V8_EXPORT_PRIVATE LocalHeap {
   V8_INLINE void ExecuteMainThreadWhileParked(Callback callback);
   template <typename Callback>
   V8_INLINE void ExecuteBackgroundThreadWhileParked(Callback callback);
+
+#if V8_OS_DARWIN
+  pthread_t thread_handle() { return thread_handle_; }
+#endif
+
+  void Iterate(RootVisitor* visitor);
+
+  HeapAllocator* allocator() { return &heap_allocator_; }
 
  private:
   using ParkedBit = base::BitField8<bool, 0, 1>;
@@ -340,8 +392,7 @@ class V8_EXPORT_PRIVATE LocalHeap {
       GCCallbacksInSafepoint::GCType gc_type);
 
   // Set up this LocalHeap as main thread.
-  void SetUpMainThread(LinearAllocationArea& new_allocation_info,
-                       LinearAllocationArea& old_allocation_info);
+  void SetUpMainThread();
 
   void SetUpMarkingBarrier();
   void SetUpSharedMarking();
@@ -352,8 +403,15 @@ class V8_EXPORT_PRIVATE LocalHeap {
 
   AtomicThreadState state_;
 
+#if V8_OS_DARWIN
+  pthread_t thread_handle_;
+#endif
+
   bool allocation_failed_;
   int nested_parked_scopes_;
+
+  LocalHeap* saved_current_local_heap_ = nullptr;
+  Isolate* saved_current_isolate_ = nullptr;
 
   LocalHeap* prev_;
   LocalHeap* next_;
@@ -363,6 +421,7 @@ class V8_EXPORT_PRIVATE LocalHeap {
   std::unique_ptr<MarkingBarrier> marking_barrier_;
 
   GCCallbacksInSafepoint gc_epilogue_callbacks_;
+  base::SmallVector<GCRootsProvider*, 4> roots_providers_;
 
   HeapAllocator heap_allocator_;
 
@@ -370,6 +429,10 @@ class V8_EXPORT_PRIVATE LocalHeap {
 
   // Stack information for the thread using this local heap.
   ::heap::base::Stack stack_;
+
+#if V8_VERIFY_WRITE_BARRIERS
+  Address write_barrier_mode_for_object_ = kNullAddress;
+#endif  // V8_VERIFY_WRITE_BARRIERS
 
   friend class CollectionBarrier;
   friend class GlobalSafepoint;
@@ -379,6 +442,18 @@ class V8_EXPORT_PRIVATE LocalHeap {
   friend class IsolateSafepointScope;
   friend class ParkedScope;
   friend class UnparkedScope;
+  friend class GCRootsProviderScope;
+  friend class WriteBarrierModeScope;
+};
+
+class V8_NODISCARD SetCurrentLocalHeapScope final {
+ public:
+  explicit inline SetCurrentLocalHeapScope(LocalHeap* local_heap);
+  explicit inline SetCurrentLocalHeapScope(Isolate* isolate);
+  inline ~SetCurrentLocalHeapScope();
+
+ private:
+  LocalHeap* saved_local_heap_;
 };
 
 }  // namespace internal

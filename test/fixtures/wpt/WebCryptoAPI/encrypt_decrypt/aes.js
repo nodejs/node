@@ -284,7 +284,7 @@ function run_test() {
                 resolve(vector);
             });
         } else {
-            return subtle.importKey("raw", vector.keyBuffer, {name: vector.algorithm.name}, false, usages)
+            return subtle.importKey(vector.algorithm.name.toUpperCase() === "AES-OCB" ? "raw-secret" : "raw", vector.keyBuffer, {name: vector.algorithm.name}, false, usages)
             .then(function(key) {
                 vector.key = key;
                 return vector;

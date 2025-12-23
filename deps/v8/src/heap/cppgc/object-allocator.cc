@@ -80,10 +80,41 @@ void ReplaceLinearAllocationBuffer(NormalPageSpace& space,
   }
 }
 
+LargePage* TryAllocateLargeObjectImpl(PageBackend& page_backend,
+                                      LargePageSpace& space, size_t size) {
+  LargePage* page = LargePage::TryCreate(page_backend, space, size);
+  if (page) return page;
+
+  Sweeper& sweeper = space.raw_heap()->heap()->sweeper();
+
+  // Lazily sweep pages of this heap. This is not exhaustive to limit jank on
+  // allocation.
+  if (sweeper.SweepForAllocationIfRunning(
+          &space, size, v8::base::TimeDelta::FromMicroseconds(500)) &&
+      (page = LargePage::TryCreate(page_backend, space, size))) {
+    return page;
+  }
+
+  // Before finishing all sweeping, finish sweeping of a given space which is
+  // cheaper.
+  if (sweeper.SweepForAllocationIfRunning(&space, size,
+                                          v8::base::TimeDelta::Max()) &&
+      (page = LargePage::TryCreate(page_backend, space, size))) {
+    return page;
+  }
+
+  if (sweeper.FinishIfRunning() &&
+      (page = LargePage::TryCreate(page_backend, space, size))) {
+    return page;
+  }
+
+  return nullptr;
+}
+
 void* TryAllocateLargeObject(PageBackend& page_backend, LargePageSpace& space,
                              StatsCollector& stats_collector, size_t size,
                              GCInfoIndex gcinfo) {
-  LargePage* page = LargePage::TryCreate(page_backend, space, size);
+  LargePage* page = TryAllocateLargeObjectImpl(page_backend, space, size);
   if (!page) return nullptr;
 
   space.AddPage(page);
@@ -149,24 +180,22 @@ void* ObjectAllocator::OutOfLineAllocateImpl(NormalPageSpace& space,
     void* result = TryAllocateLargeObject(page_backend_, large_space,
                                           stats_collector_, size, gcinfo);
     if (!result) {
-      auto config = GCConfig::ConservativeAtomicConfig();
-      config.free_memory_handling =
-          GCConfig::FreeMemoryHandling::kDiscardWherePossible;
-      garbage_collector_.CollectGarbage(config);
-      result = TryAllocateLargeObject(page_backend_, large_space,
-                                      stats_collector_, size, gcinfo);
-      if (!result) {
+      garbage_collector_.RetryAllocate([&]() {
+        return result = TryAllocateLargeObject(page_backend_, large_space,
+                                               stats_collector_, size, gcinfo);
+      });
+    }
+    if (!result) {
 #if defined(CPPGC_CAGED_HEAP)
-        const auto last_alloc_status =
-            CagedHeap::Instance().page_allocator().get_last_allocation_status();
-        const std::string suffix =
-            v8::base::BoundedPageAllocator::AllocationStatusToString(
-                last_alloc_status);
-        oom_handler_("Oilpan: Large allocation. " + suffix);
+      const auto last_alloc_status =
+          CagedHeap::Instance().page_allocator().get_last_allocation_status();
+      const std::string suffix =
+          v8::base::BoundedPageAllocator::AllocationStatusToString(
+              last_alloc_status);
+      oom_handler_("Oilpan: Large allocation. " + suffix);
 #else
-        oom_handler_("Oilpan: Large allocation.");
+      oom_handler_("Oilpan: Large allocation.");
 #endif
-      }
     }
     return result;
   }
@@ -179,23 +208,22 @@ void* ObjectAllocator::OutOfLineAllocateImpl(NormalPageSpace& space,
     request_size += kAllocationGranularity;
   }
 
-  if (!TryRefillLinearAllocationBuffer(space, request_size)) {
-    auto config = GCConfig::ConservativeAtomicConfig();
-    config.free_memory_handling =
-        GCConfig::FreeMemoryHandling::kDiscardWherePossible;
-    garbage_collector_.CollectGarbage(config);
-    if (!TryRefillLinearAllocationBuffer(space, request_size)) {
+  bool success = TryRefillLinearAllocationBuffer(space, request_size);
+  if (!success) {
+    success = garbage_collector_.RetryAllocate(
+        [&]() { return TryRefillLinearAllocationBuffer(space, request_size); });
+  }
+  if (!success) {
 #if defined(CPPGC_CAGED_HEAP)
-      const auto last_alloc_status =
-          CagedHeap::Instance().page_allocator().get_last_allocation_status();
-      const std::string suffix =
-          v8::base::BoundedPageAllocator::AllocationStatusToString(
-              last_alloc_status);
-      oom_handler_("Oilpan: Normal allocation. " + suffix);
+    const auto last_alloc_status =
+        CagedHeap::Instance().page_allocator().get_last_allocation_status();
+    const std::string suffix =
+        v8::base::BoundedPageAllocator::AllocationStatusToString(
+            last_alloc_status);
+    oom_handler_("Oilpan: Normal allocation. " + suffix);
 #else
-      oom_handler_("Oilpan: Normal allocation.");
+    oom_handler_("Oilpan: Normal allocation.");
 #endif
-    }
   }
 
   // The allocation must succeed, as we just refilled the LAB.
@@ -335,7 +363,11 @@ void ObjectAllocator::TriggerGCOnAllocationTimeoutIfNeeded() {
   if (!allocation_timeout_) return;
   DCHECK_GT(*allocation_timeout_, 0);
   if (--*allocation_timeout_ == 0) {
-    garbage_collector_.CollectGarbage(GCConfig::ConservativeAtomicConfig());
+    garbage_collector_.CollectGarbage(
+        {CollectionType::kMajor, StackState::kMayContainHeapPointers,
+         GCConfig::MarkingType::kAtomic,
+         GCConfig::SweepingType::kIncrementalAndConcurrent,
+         GCConfig::FreeMemoryHandling::kDiscardWherePossible});
     allocation_timeout_ = garbage_collector_.UpdateAllocationTimeout();
     DCHECK(allocation_timeout_);
     DCHECK_GT(*allocation_timeout_, 0);

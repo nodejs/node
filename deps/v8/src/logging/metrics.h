@@ -14,11 +14,10 @@
 #include "src/init/v8.h"
 
 namespace v8 {
-
 class TaskRunner;
+}  // namespace v8
 
-namespace internal {
-namespace metrics {
+namespace v8::internal::metrics {
 
 class Recorder : public std::enable_shared_from_this<Recorder> {
  public:
@@ -83,29 +82,6 @@ class Recorder : public std::enable_shared_from_this<Recorder> {
   std::queue<std::unique_ptr<DelayedEventBase>> delayed_events_;
 };
 
-template <class T, int64_t (base::TimeDelta::*precision)() const =
-                       &base::TimeDelta::InMicroseconds>
-class V8_NODISCARD TimedScope {
- public:
-  explicit TimedScope(T* event) : event_(event) { Start(); }
-  ~TimedScope() { Stop(); }
-
-  void Start() { start_time_ = base::TimeTicks::Now(); }
-
-  void Stop() {
-    if (start_time_.IsMin()) return;
-    base::TimeDelta duration = base::TimeTicks::Now() - start_time_;
-    event_->wall_clock_duration_in_us = (duration.*precision)();
-    start_time_ = base::TimeTicks::Min();
-  }
-
- private:
-  T* event_;
-  base::TimeTicks start_time_;
-};
-
-}  // namespace metrics
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal::metrics
 
 #endif  // V8_LOGGING_METRICS_H_

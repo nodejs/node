@@ -5,7 +5,7 @@
 // the process reports the error message from the error thrown in the
 // top-level error handler, not the one from the previous error.
 
-require('../common');
+const common = require('../common');
 
 const domainErrHandlerExMessage = 'exception from domain error handler';
 const internalExMessage = 'You should NOT see me';
@@ -34,17 +34,17 @@ if (process.argv[2] === 'child') {
       stderrOutput += data.toString();
     });
 
-    child.on('close', function onChildClosed() {
+    child.on('close', common.mustCall(function onChildClosed() {
       assert(stderrOutput.includes(domainErrHandlerExMessage));
       assert.strictEqual(stderrOutput.includes(internalExMessage), false);
-    });
+    }));
 
-    child.on('exit', function onChildExited(exitCode, signal) {
+    child.on('exit', common.mustCall(function onChildExited(exitCode, signal) {
       const expectedExitCode = 7;
       const expectedSignal = null;
 
       assert.strictEqual(exitCode, expectedExitCode);
       assert.strictEqual(signal, expectedSignal);
-    });
+    }));
   }
 }

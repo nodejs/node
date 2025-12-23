@@ -15,7 +15,8 @@
 // 2. Any changes must be reviewed by someone from the crash reporting
 //    or security team. See OWNERS for suggested reviewers.
 //
-// For more information, see https://goo.gl/yMeyUY.
+// For more information, see:
+// https://docs.google.com/document/d/17y4kxuHFrVxAiuCP_FFtFA2HP5sNPsCD10KEx17Hz6M
 //
 // For the code that runs in the trap handler itself, see handler-inside.cc.
 
@@ -40,9 +41,7 @@ constexpr bool kEnableSlowChecks = false;
 #endif
 }  // namespace
 
-namespace v8 {
-namespace internal {
-namespace trap_handler {
+namespace v8::internal::trap_handler {
 
 constexpr size_t kInitialCodeObjectSize = 1024;
 constexpr size_t kCodeObjectGrowthFactor = 2;
@@ -140,6 +139,7 @@ int RegisterHandlerData(
     abort();
   }
 
+  TrapHandlerGuard active_guard;
   MetadataLock lock;
 
   if (kEnableSlowChecks) {
@@ -215,6 +215,7 @@ void ReleaseHandlerData(int index) {
   // Remove the data from the global list if it's there.
   CodeProtectionInfo* data = nullptr;
   {
+    TrapHandlerGuard active_guard;
     MetadataLock lock;
 
     data = gCodeObjects[index].code_info;
@@ -233,14 +234,53 @@ void ReleaseHandlerData(int index) {
   free(data);
 }
 
-void SetV8SandboxBaseAndSize(uintptr_t base, size_t size) {
-  TH_DCHECK(gV8SandboxBase == 0 && base != 0);
-  TH_DCHECK(gV8SandboxSize == 0 && size != 0);
-  gV8SandboxBase = base;
-  gV8SandboxSize = size;
+bool RegisterV8Sandbox(uintptr_t base, size_t size) {
+  TrapHandlerGuard active_guard;
+  SandboxRecordsLock lock;
+
+#ifdef DEBUG
+  for (SandboxRecord* current = gSandboxRecordsHead; current != nullptr;
+       current = current->next) {
+    TH_DCHECK(current->base != base);
+  }
+#endif
+
+  SandboxRecord* new_record =
+      reinterpret_cast<SandboxRecord*>(malloc(sizeof(SandboxRecord)));
+  if (new_record == nullptr) {
+    return false;
+  }
+
+  new_record->base = base;
+  new_record->size = size;
+  new_record->next = gSandboxRecordsHead;
+  gSandboxRecordsHead = new_record;
+  return true;
 }
 
-int* GetThreadInWasmThreadLocalAddress() { return &g_thread_in_wasm_code; }
+void UnregisterV8Sandbox(uintptr_t base, size_t size) {
+  TrapHandlerGuard active_guard;
+  SandboxRecordsLock lock;
+
+  SandboxRecord* current = gSandboxRecordsHead;
+  SandboxRecord* previous = nullptr;
+  while (current != nullptr) {
+    if (current->base == base) {
+      break;
+    }
+    previous = current;
+    current = current->next;
+  }
+
+  TH_CHECK(current != nullptr);
+  TH_CHECK(current->size == size);
+  if (previous) {
+    previous->next = current->next;
+  } else {
+    gSandboxRecordsHead = current->next;
+  }
+  free(current);
+}
 
 size_t GetRecoveredTrapCount() {
   return gRecoveredTrapCount.load(std::memory_order_relaxed);
@@ -270,6 +310,13 @@ bool EnableTrapHandler(bool use_v8_handler) {
   if (!V8_TRAP_HANDLER_SUPPORTED) {
     return false;
   }
+
+  // "Warm-up" the TrapHandlerGuard mechanism to ensure that if any
+  // initialization is required for its thread-local storage, it is done now
+  // and not inside the signal handler. We're being extra cautious here, it's
+  // unclear if this is really necessary.
+  TrapHandlerGuard active_guard;
+
   if (use_v8_handler) {
     g_is_trap_handler_enabled = RegisterDefaultTrapHandler();
     return g_is_trap_handler_enabled;
@@ -280,6 +327,4 @@ bool EnableTrapHandler(bool use_v8_handler) {
 
 void SetLandingPad(uintptr_t landing_pad) { gLandingPad.store(landing_pad); }
 
-}  // namespace trap_handler
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal::trap_handler

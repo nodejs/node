@@ -4,41 +4,38 @@
 // does not suppress errors in the whole application. Adding such listener
 // should throw.
 
-require('../common');
-const ArrayStream = require('../common/arraystream');
-const repl = require('repl');
+const common = require('../common');
 const assert = require('assert');
+const { startNewREPLServer } = require('../common/repl');
 
-let accum = '';
+const { replServer, output } = startNewREPLServer(
+  {
+    prompt: '',
+    terminal: false,
+    useColors: false,
+    global: false,
+  },
+  {
+    disableDomainErrorAssert: true
+  },
+);
 
-const output = new ArrayStream();
-output.write = (data) => accum += data.replace('\r', '');
-
-const r = repl.start({
-  prompt: '',
-  input: new ArrayStream(),
-  output,
-  terminal: false,
-  useColors: false,
-  global: false
-});
-
-r.write(
+replServer.write(
   'process.nextTick(() => {\n' +
   '  process.on("uncaughtException", () => console.log("Foo"));\n' +
   '  throw new TypeError("foobar");\n' +
   '});\n'
 );
-r.write(
+replServer.write(
   'setTimeout(() => {\n' +
   '  throw new RangeError("abc");\n' +
   '}, 1);console.log()\n'
 );
-r.close();
 
-setTimeout(() => {
+setTimeout(common.mustCall(() => {
+  replServer.close();
   const len = process.listenerCount('uncaughtException');
   process.removeAllListeners('uncaughtException');
   assert.strictEqual(len, 0);
-  assert.match(accum, /ERR_INVALID_REPL_INPUT.*(?!Type)RangeError: abc/s);
-}, 2);
+  assert.match(output.accumulator, /ERR_INVALID_REPL_INPUT.*(?!Type)RangeError: abc/s);
+}), 2);

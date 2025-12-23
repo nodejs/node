@@ -7,7 +7,7 @@ import startCLI from '../common/debugger.js';
 import assert from 'assert';
 
 const script = path('debugger', 'twenty-lines.js');
-const cli = startCLI(['--port=0', script]);
+const cli = startCLI([script]);
 
 function onFatal(error) {
   cli.quit();

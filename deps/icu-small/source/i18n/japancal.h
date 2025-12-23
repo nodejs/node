@@ -105,13 +105,6 @@ public:
     JapaneseCalendar(const JapaneseCalendar& source);
 
     /**
-     * Default assignment operator
-     * @param right    the object to be copied.
-     * @internal
-     */
-    JapaneseCalendar& operator=(const JapaneseCalendar& right);
-
-    /**
      * Create and return a polymorphic copy of this calendar.
      * @return    return a polymorphic copy of this calendar.
      * @internal

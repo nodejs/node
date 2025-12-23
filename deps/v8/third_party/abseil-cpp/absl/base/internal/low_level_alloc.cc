@@ -19,6 +19,9 @@
 
 #include "absl/base/internal/low_level_alloc.h"
 
+#include <stdint.h>
+
+#include <optional>
 #include <type_traits>
 
 #include "absl/base/call_once.h"
@@ -219,6 +222,32 @@ struct LowLevelAlloc::Arena {
   uint32_t random ABSL_GUARDED_BY(mu);
 };
 
+// ---------------------------------------------------------------
+// An async-signal-safe arena for LowLevelAlloc
+static std::atomic<base_internal::LowLevelAlloc::Arena *> g_sig_safe_arena;
+
+base_internal::LowLevelAlloc::Arena *SigSafeArena() {
+  return g_sig_safe_arena.load(std::memory_order_acquire);
+}
+
+void InitSigSafeArena() {
+  if (SigSafeArena() == nullptr) {
+    uint32_t flags = 0;
+#ifndef ABSL_LOW_LEVEL_ALLOC_ASYNC_SIGNAL_SAFE_MISSING
+    flags |= base_internal::LowLevelAlloc::kAsyncSignalSafe;
+#endif
+    base_internal::LowLevelAlloc::Arena *new_arena =
+        base_internal::LowLevelAlloc::NewArena(flags);
+    base_internal::LowLevelAlloc::Arena *old_value = nullptr;
+    if (!g_sig_safe_arena.compare_exchange_strong(old_value, new_arena,
+                                                  std::memory_order_release,
+                                                  std::memory_order_relaxed)) {
+      // We lost a race to allocate an arena; deallocate.
+      base_internal::LowLevelAlloc::DeleteArena(new_arena);
+    }
+  }
+}
+
 namespace {
 // Static storage space for the lazily-constructed, default global arena
 // instances.  We require this space because the whole point of LowLevelAlloc
@@ -289,11 +318,11 @@ class ABSL_SCOPED_LOCKABLE ArenaLock {
       mask_valid_ = pthread_sigmask(SIG_BLOCK, &all, &mask_) == 0;
     }
 #endif
-    arena_->mu.Lock();
+    arena_->mu.lock();
   }
   ~ArenaLock() { ABSL_RAW_CHECK(left_, "haven't left Arena region"); }
   void Leave() ABSL_UNLOCK_FUNCTION() {
-    arena_->mu.Unlock();
+    arena_->mu.unlock();
 #ifndef ABSL_LOW_LEVEL_ALLOC_ASYNC_SIGNAL_SAFE_MISSING
     if (mask_valid_) {
       const int err = pthread_sigmask(SIG_SETMASK, &mask_, nullptr);
@@ -330,7 +359,7 @@ size_t GetPageSize() {
   GetSystemInfo(&system_info);
   return std::max(system_info.dwPageSize, system_info.dwAllocationGranularity);
 #elif defined(__wasm__) || defined(__asmjs__) || defined(__hexagon__)
-  return getpagesize();
+  return static_cast<size_t>(getpagesize());
 #else
   return static_cast<size_t>(sysconf(_SC_PAGESIZE));
 #endif
@@ -448,8 +477,8 @@ static inline uintptr_t RoundUp(uintptr_t addr, uintptr_t align) {
 // that the freelist is in the correct order, that it
 // consists of regions marked "unallocated", and that no two regions
 // are adjacent in memory (they should have been coalesced).
-// L >= arena->mu
-static AllocList *Next(int i, AllocList *prev, LowLevelAlloc::Arena *arena) {
+static AllocList *Next(int i, AllocList *prev, LowLevelAlloc::Arena *arena)
+    ABSL_EXCLUSIVE_LOCKS_REQUIRED(arena->mu) {
   ABSL_RAW_CHECK(i < prev->levels, "too few levels in Next()");
   AllocList *next = prev->next[i];
   if (next != nullptr) {
@@ -473,6 +502,7 @@ static void Coalesce(AllocList *a) {
   if (n != nullptr && reinterpret_cast<char *>(a) + a->header.size ==
                           reinterpret_cast<char *>(n)) {
     LowLevelAlloc::Arena *arena = a->header.arena;
+    arena->mu.AssertHeld();
     a->header.size += n->header.size;
     n->header.magic = 0;
     n->header.arena = nullptr;
@@ -486,8 +516,8 @@ static void Coalesce(AllocList *a) {
 }
 
 // Adds block at location "v" to the free list
-// L >= arena->mu
-static void AddToFreelist(void *v, LowLevelAlloc::Arena *arena) {
+static void AddToFreelist(void *v, LowLevelAlloc::Arena *arena)
+    ABSL_EXCLUSIVE_LOCKS_REQUIRED(arena->mu) {
   AllocList *f = reinterpret_cast<AllocList *>(reinterpret_cast<char *>(v) -
                                                sizeof(f->header));
   ABSL_RAW_CHECK(f->header.magic == Magic(kMagicAllocated, &f->header),
@@ -543,7 +573,7 @@ static void *DoAllocWithArena(size_t request, LowLevelAlloc::Arena *arena) {
       }
       // we unlock before mmap() both because mmap() may call a callback hook,
       // and because it may be slow.
-      arena->mu.Unlock();
+      arena->mu.unlock();
       // mmap generous 64K chunks to decrease
       // the chances/impact of fragmentation:
       size_t new_pages_size = RoundUp(req_rnd, arena->pagesize * 16);
@@ -582,7 +612,7 @@ static void *DoAllocWithArena(size_t request, LowLevelAlloc::Arena *arena) {
 #endif
 #endif  // __linux__
 #endif  // _WIN32
-      arena->mu.Lock();
+      arena->mu.lock();
       s = reinterpret_cast<AllocList *>(new_pages);
       s->header.size = new_pages_size;
       // Pretend the block is allocated; call AddToFreelist() to free it.

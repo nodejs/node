@@ -20,8 +20,8 @@ inline Realm* Realm::GetCurrent(v8::Local<v8::Context> context) {
   if (!ContextEmbedderTag::IsNodeContext(context)) [[unlikely]] {
     return nullptr;
   }
-  return static_cast<Realm*>(
-      context->GetAlignedPointerFromEmbedderData(ContextEmbedderIndex::kRealm));
+  return static_cast<Realm*>(context->GetAlignedPointerFromEmbedderData(
+      ContextEmbedderIndex::kRealm, EmbedderDataTag::kPerContextData));
 }
 
 inline Realm* Realm::GetCurrent(
@@ -128,6 +128,13 @@ void Realm::TrackBaseObject(BaseObject* bo) {
   DCHECK_EQ(bo->realm(), this);
   base_object_list_.PushBack(bo);
   ++base_object_count_;
+}
+
+CppgcWrapperListNode::CppgcWrapperListNode(CppgcMixin* ptr) : persistent(ptr) {}
+
+void Realm::TrackCppgcWrapper(CppgcMixin* handle) {
+  DCHECK_EQ(handle->realm(), this);
+  cppgc_wrapper_list_.PushFront(new CppgcWrapperListNode(handle));
 }
 
 void Realm::UntrackBaseObject(BaseObject* bo) {

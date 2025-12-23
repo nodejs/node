@@ -18,6 +18,7 @@
 /doc/contributing/**/* @nodejs/tsc
 /GOVERNANCE.md @nodejs/tsc
 /SECURITY.md @nodejs/tsc
+/BUILDING.md @nodejs/build @nodejs/tsc
 /LICENSE @nodejs/tsc
 /onboarding.md @nodejs/tsc
 
@@ -157,8 +158,7 @@
 /doc/contributing/maintaining/maintaining-single-executable-application-support.md @nodejs/single-executable
 /src/node_sea* @nodejs/single-executable
 /test/fixtures/postject-copy @nodejs/single-executable
-/test/parallel/test-single-executable-* @nodejs/single-executable
-/test/sequential/test-single-executable-* @nodejs/single-executable
+/test/sea @nodejs/single-executable
 /tools/dep_updaters/update-postject.sh @nodejs/single-executable
 
 # Permission Model
@@ -216,3 +216,22 @@
 /src/node_options.* @nodejs/config
 /test/parallel/test-config-* @nodejs/config
 /test/parallel/test-dotenv-* @nodejs/config
+
+# Inspector
+/src/inspector/* @nodejs/inspector
+/src/inspector_* @nodejs/inspector
+/lib/internal/inspector/* @nodejs/inspector
+/lib/internal/inspector_* @nodejs/inspector
+/lib/inspector.js @nodejs/inspector
+
+# path
+/lib/path.js @nodejs/path
+/lib/path/* @nodejs/path
+/test/parallel/test-path-* @nodejs/path
+
+# userland-migrations
+/doc/api/deprecations.md @nodejs/userland-migrations
+
+# dev container
+/.devcontainer/* @nodejs/devcontainer
+/doc/contributing/using-devcontainer.md @nodejs/devcontainer

@@ -22,8 +22,9 @@ namespace v8 {
 namespace internal {
 
 OptimizedCompilationInfo::OptimizedCompilationInfo(
-    Zone* zone, Isolate* isolate, Handle<SharedFunctionInfo> shared,
-    Handle<JSFunction> closure, CodeKind code_kind, BytecodeOffset osr_offset)
+    Zone* zone, Isolate* isolate, IndirectHandle<SharedFunctionInfo> shared,
+    IndirectHandle<JSFunction> closure, CodeKind code_kind,
+    BytecodeOffset osr_offset)
     : isolate_unsafe_(isolate),
       code_kind_(code_kind),
       osr_offset_(osr_offset),
@@ -42,7 +43,11 @@ OptimizedCompilationInfo::OptimizedCompilationInfo(
   // is active, to be able to get more precise source positions at the price of
   // more memory consumption.
   if (isolate->NeedsDetailedOptimizedCodeLineInfo()) {
-    set_source_positions();
+    // We might not have source positions if collection fails (e.g. because we
+    // run out of stack space).
+    if (bytecode_array_->HasSourcePositionTable()) {
+      set_source_positions();
+    }
   }
 
   SetTracingFlags(shared->PassesFilter(v8_flags.trace_turbo_filter));
@@ -79,7 +84,7 @@ void OptimizedCompilationInfo::ConfigureFlags() {
   }
 
   switch (code_kind_) {
-    case CodeKind::TURBOFAN:
+    case CodeKind::TURBOFAN_JS:
       set_called_with_code_start_register();
       set_switch_jump_table();
       if (v8_flags.analyze_environment_liveness) {
@@ -89,15 +94,19 @@ void OptimizedCompilationInfo::ConfigureFlags() {
       break;
     case CodeKind::BYTECODE_HANDLER:
       set_called_with_code_start_register();
+#ifdef V8_ENABLE_BUILTIN_JUMP_TABLE_SWITCH
+      set_switch_jump_table();
+#endif  // V8_ENABLE_BUILTIN_JUMP_TABLE_SWITCH
       if (v8_flags.turbo_splitting) set_splitting();
       if (v8_flags.enable_allocation_folding) set_allocation_folding();
       break;
     case CodeKind::BUILTIN:
 #ifdef V8_ENABLE_BUILTIN_JUMP_TABLE_SWITCH
       set_switch_jump_table();
-#endif  // V8_TARGET_ARCH_X64
+#endif  // V8_ENABLE_BUILTIN_JUMP_TABLE_SWITCH
       [[fallthrough]];
     case CodeKind::FOR_TESTING:
+    case CodeKind::FOR_TESTING_JS:
       if (v8_flags.turbo_splitting) set_splitting();
       if (v8_flags.enable_allocation_folding) set_allocation_folding();
 #if ENABLE_GDB_JIT_INTERFACE && DEBUG
@@ -111,6 +120,7 @@ void OptimizedCompilationInfo::ConfigureFlags() {
     case CodeKind::C_WASM_ENTRY:
     case CodeKind::JS_TO_WASM_FUNCTION:
     case CodeKind::WASM_TO_JS_FUNCTION:
+    case CodeKind::WASM_STACK_ENTRY:
       break;
     case CodeKind::BASELINE:
     case CodeKind::MAGLEV:
@@ -146,7 +156,9 @@ void OptimizedCompilationInfo::AbortOptimization(BailoutReason reason) {
   if (bailout_reason_ == BailoutReason::kNoReason) {
     bailout_reason_ = reason;
   }
-  set_disable_future_optimization();
+  if (IsTerminalBailoutReasonForTurbofan(reason)) {
+    set_disable_future_optimization();
+  }
 }
 
 void OptimizedCompilationInfo::RetryOptimization(BailoutReason reason) {
@@ -170,6 +182,7 @@ std::unique_ptr<char[]> OptimizedCompilationInfo::GetDebugName() const {
 StackFrame::Type OptimizedCompilationInfo::GetOutputStackFrameType() const {
   switch (code_kind()) {
     case CodeKind::FOR_TESTING:
+    case CodeKind::FOR_TESTING_JS:
     case CodeKind::BYTECODE_HANDLER:
     case CodeKind::BUILTIN:
       return StackFrame::STUB;
@@ -184,28 +197,32 @@ StackFrame::Type OptimizedCompilationInfo::GetOutputStackFrameType() const {
       return StackFrame::WASM_TO_JS;
     case CodeKind::C_WASM_ENTRY:
       return StackFrame::C_WASM_ENTRY;
+    case CodeKind::WASM_STACK_ENTRY:
+      return StackFrame::WASM_STACK_ENTRY;
+#else
+    case CodeKind::WASM_FUNCTION:
+    case CodeKind::WASM_TO_CAPI_FUNCTION:
+    case CodeKind::JS_TO_WASM_FUNCTION:
+    case CodeKind::WASM_TO_JS_FUNCTION:
+    case CodeKind::C_WASM_ENTRY:
+    case CodeKind::WASM_STACK_ENTRY:
+      UNREACHABLE();
 #endif  // V8_ENABLE_WEBASSEMBLY
-    default:
+
+    case CodeKind::REGEXP:
+    case CodeKind::INTERPRETED_FUNCTION:
+    case CodeKind::BASELINE:
+    case CodeKind::MAGLEV:
+    case CodeKind::TURBOFAN_JS:
       UNIMPLEMENTED();
   }
+  UNREACHABLE();
 }
 
-void OptimizedCompilationInfo::SetCode(Handle<Code> code) {
+void OptimizedCompilationInfo::SetCode(IndirectHandle<Code> code) {
   DCHECK_EQ(code->kind(), code_kind());
   code_ = code;
 }
-
-#if V8_ENABLE_WEBASSEMBLY
-void OptimizedCompilationInfo::SetWasmCompilationResult(
-    std::unique_ptr<wasm::WasmCompilationResult> wasm_compilation_result) {
-  wasm_compilation_result_ = std::move(wasm_compilation_result);
-}
-
-std::unique_ptr<wasm::WasmCompilationResult>
-OptimizedCompilationInfo::ReleaseWasmCompilationResult() {
-  return std::move(wasm_compilation_result_);
-}
-#endif  // V8_ENABLE_WEBASSEMBLY
 
 bool OptimizedCompilationInfo::has_context() const {
   return !closure().is_null();
@@ -235,8 +252,8 @@ Tagged<JSGlobalObject> OptimizedCompilationInfo::global_object() const {
 }
 
 int OptimizedCompilationInfo::AddInlinedFunction(
-    Handle<SharedFunctionInfo> inlined_function,
-    Handle<BytecodeArray> inlined_bytecode, SourcePosition pos) {
+    IndirectHandle<SharedFunctionInfo> inlined_function,
+    IndirectHandle<BytecodeArray> inlined_bytecode, SourcePosition pos) {
   int id = static_cast<int>(inlined_functions_.size());
   inlined_functions_.push_back(
       InlinedFunctionHolder(inlined_function, inlined_bytecode, pos));
@@ -253,9 +270,13 @@ void OptimizedCompilationInfo::SetTracingFlags(bool passes_filter) {
   if (v8_flags.turboshaft_trace_reduction) set_turboshaft_trace_reduction();
 }
 
+void OptimizedCompilationInfo::mark_cancelled() {
+  was_cancelled_.store(true, std::memory_order_relaxed);
+}
+
 OptimizedCompilationInfo::InlinedFunctionHolder::InlinedFunctionHolder(
-    Handle<SharedFunctionInfo> inlined_shared_info,
-    Handle<BytecodeArray> inlined_bytecode, SourcePosition pos)
+    IndirectHandle<SharedFunctionInfo> inlined_shared_info,
+    IndirectHandle<BytecodeArray> inlined_bytecode, SourcePosition pos)
     : shared_info(inlined_shared_info), bytecode_array(inlined_bytecode) {
   position.position = pos;
   // initialized when generating the deoptimization literals

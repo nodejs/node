@@ -2,9 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+bitfield struct TemplateInfoFlags extends uint31 {
+  is_cacheable: bool: 1 bit;
+  should_promote_to_read_only: bool: 1 bit;
+  serial_number: uint32: 29 bit;
+}
+
 @abstract
 extern class TemplateInfo extends HeapObject {
-  serial_number: Smi;
+  template_info_flags: SmiTagged<TemplateInfoFlags>;
+}
+
+@abstract
+extern class TemplateInfoWithProperties extends TemplateInfo {
   number_of_properties: Smi;
   property_list: ArrayList|Undefined;
   property_accessors: ArrayList|Undefined;
@@ -42,7 +52,7 @@ bitfield struct FunctionTemplateInfoFlags extends uint32 {
 }
 
 @generateUniqueMap
-extern class FunctionTemplateInfo extends TemplateInfo {
+extern class FunctionTemplateInfo extends TemplateInfoWithProperties {
   class_name: String|Undefined;
   // Experimental exception preprocessing Api (https://crbug.com/328104148).
   // This value is provided as contextual information for embedder
@@ -102,13 +112,12 @@ bitfield struct ObjectTemplateInfoFlags extends uint31 {
 }
 
 @generateUniqueMap
-extern class ObjectTemplateInfo extends TemplateInfo {
+extern class ObjectTemplateInfo extends TemplateInfoWithProperties {
   constructor: FunctionTemplateInfo|Undefined;
   data: SmiTagged<ObjectTemplateInfoFlags>;
 }
 
 @generateBodyDescriptor
-extern class DictionaryTemplateInfo extends HeapObject {
+extern class DictionaryTemplateInfo extends TemplateInfo {
   property_names: FixedArray;
-  serial_number: Smi;
 }

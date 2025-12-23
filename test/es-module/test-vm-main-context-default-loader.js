@@ -16,7 +16,6 @@ const fs = require('fs');
 const {
   compileFunction,
   Script,
-  createContext,
   constants: { USE_MAIN_CONTEXT_DEFAULT_LOADER },
 } = require('vm');
 const assert = require('assert');
@@ -78,7 +77,7 @@ async function main() {
     const filename = tmpdir.resolve('index.js');
     const options = {
       filename,
-      importModuleDynamically: USE_MAIN_CONTEXT_DEFAULT_LOADER
+      importModuleDynamically: USE_MAIN_CONTEXT_DEFAULT_LOADER,
     };
     await testNotFoundErrors(options);
     await testLoader(options);
@@ -91,7 +90,7 @@ async function main() {
     const filename = url.pathToFileURL(tmpdir.resolve('index.js')).href + '?t=1';
     const options = {
       filename,
-      importModuleDynamically: USE_MAIN_CONTEXT_DEFAULT_LOADER
+      importModuleDynamically: USE_MAIN_CONTEXT_DEFAULT_LOADER,
     };
     await testNotFoundErrors(options);
     await testLoader(options);
@@ -102,45 +101,19 @@ async function main() {
     tmpdir.refresh();
     process.chdir(tmpdir.path);
     const undefinedOptions = {
-      importModuleDynamically: USE_MAIN_CONTEXT_DEFAULT_LOADER
+      importModuleDynamically: USE_MAIN_CONTEXT_DEFAULT_LOADER,
     };
     const nonPathOptions = {
       filename: 'non-path',
-      importModuleDynamically: USE_MAIN_CONTEXT_DEFAULT_LOADER
+      importModuleDynamically: USE_MAIN_CONTEXT_DEFAULT_LOADER,
     };
     // Run the error tests first to avoid caching.
     await testNotFoundErrors(undefinedOptions);
     await testNotFoundErrors(nonPathOptions);
 
-    // createContext() with null referrer also resolves to cwd.
-    {
-      const options = {
-        importModuleDynamically: USE_MAIN_CONTEXT_DEFAULT_LOADER,
-      };
-      const ctx = createContext({}, options);
-      const s = new Script('Promise.resolve("import(\'./message.mjs\')").then(eval)', {
-        importModuleDynamically: common.mustNotCall(),
-      });
-      await assert.rejects(s.runInContext(ctx), { code: 'ERR_MODULE_NOT_FOUND' });
-    }
-
     await testLoader(undefinedOptions);
     await testLoader(nonPathOptions);
-
-    {
-      const options = {
-        importModuleDynamically: USE_MAIN_CONTEXT_DEFAULT_LOADER,
-      };
-      const ctx = createContext({}, options);
-      const moduleUrl = fixtures.fileURL('es-modules', 'message.mjs');
-      const namespace = await import(moduleUrl.href);
-      const script = new Script('Promise.resolve("import(\'./message.mjs\')").then(eval)', {
-        importModuleDynamically: common.mustNotCall(),
-      });
-      const result = await script.runInContext(ctx);
-      assert.deepStrictEqual(result, namespace);
-    }
   }
 }
 
-main().catch(common.mustNotCall());
+main().then(common.mustCall());

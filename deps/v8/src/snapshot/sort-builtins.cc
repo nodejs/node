@@ -316,6 +316,23 @@ std::vector<Builtin> BuiltinsSorter::SortBuiltins(
     Cluster* cls = clusters_.at(i);
     for (size_t j = 0; j < cls->targets_.size(); j++) {
       Builtin builtin = cls->targets_[j];
+#if V8_ENABLE_GEARBOX
+      if (Builtins::IsGearboxPlaceholder(builtin)) {
+        // We insert ISX variants into builtin_order instead of the placeholder
+        // if we enable gearbox, which helps us bring best performance for ISX.
+        Builtin isx_variant =
+            Builtins::GetISXVariantFromGearboxPlaceholder(builtin);
+        CHECK(AddBuiltinIfNotProcessed(isx_variant, builtin_order,
+                                       processed_builtins));
+        continue;
+      } else if (Builtins::IsGenericVariant(builtin) ||
+                 Builtins::IsISXVariant(builtin)) {
+        // we didn't insert variants, because we already insert ISX when we
+        // iterate over the placeholder, and we will place Generic close to
+        // placeholder later.
+        continue;
+      }
+#endif  // V8_ENABLE_GEARBOX
       CHECK(
           AddBuiltinIfNotProcessed(builtin, builtin_order, processed_builtins));
     }

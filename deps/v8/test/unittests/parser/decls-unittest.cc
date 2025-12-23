@@ -120,11 +120,15 @@ DeclarationContext::DeclarationContext()
   // Do nothing.
 }
 
+// This tag value has been picked arbitrarily between 0 and
+// V8_EXTERNAL_POINTER_TAG_COUNT.
+constexpr v8::ExternalPointerTypeTag kDeclarationContextTag = 27;
+
 void DeclarationContext::InitializeIfNeeded() {
   if (is_initialized_) return;
   HandleScope scope(isolate_);
   Local<FunctionTemplate> function = FunctionTemplate::New(isolate_);
-  Local<Value> data = External::New(isolate_, this);
+  Local<Value> data = External::New(isolate_, this, kDeclarationContextTag);
   GetHolder(function)->SetHandler(v8::NamedPropertyHandlerConfiguration(
       &HandleGet, &HandleSet, &HandleQuery, nullptr, nullptr, data));
   Local<Context> context = Context::New(
@@ -218,7 +222,7 @@ v8::Intercepted DeclarationContext::HandleQuery(
 }
 
 DeclarationContext* DeclarationContext::GetInstance(Local<Value> data) {
-  void* value = Local<External>::Cast(data)->Value();
+  void* value = Local<External>::Cast(data)->Value(kDeclarationContextTag);
   return static_cast<DeclarationContext*>(value);
 }
 
@@ -435,12 +439,12 @@ class SimpleContext {
 
   void Check(const char* source, Expectations expectations,
              v8::Local<Value> value = Local<Value>()) {
-    HandleScope scope(context_->GetIsolate());
-    TryCatch catcher(context_->GetIsolate());
+    v8::Isolate* isolate = v8::Isolate::GetCurrent();
+    HandleScope scope(isolate);
+    TryCatch catcher(isolate);
     catcher.SetVerbose(true);
     MaybeLocal<Script> script = Script::Compile(
-        context_,
-        String::NewFromUtf8(context_->GetIsolate(), source).ToLocalChecked());
+        context_, String::NewFromUtf8(isolate, source).ToLocalChecked());
     if (expectations == EXPECT_ERROR) {
       CHECK(script.IsEmpty());
       return;
@@ -1071,13 +1075,35 @@ TEST_F(DeclsTest, TestUsing) {
   {
     SimpleContext context;
     context.Check("using x = 42;", EXPECT_ERROR);
-    context.Check("{ using await x = 1;}", EXPECT_ERROR);
-    context.Check("{ using \n x = 1;}", EXPECT_EXCEPTION);
+    context.Check("{using await x = 1;}", EXPECT_ERROR);
+    context.Check("{using \n x = 1;}", EXPECT_EXCEPTION);
     context.Check("{using {x} = {x:5};}", EXPECT_ERROR);
     context.Check("{for(using x in [1, 2, 3]){\n console.log(x);}}",
                   EXPECT_ERROR);
     context.Check("{for(using {x} = {x:5}; x < 10 ; i++) {\n console.log(x);}}",
                   EXPECT_ERROR);
+    context.Check("{for(using\n x = 0; x < 10 ; x++) {\n console.log(x);}) {}}",
+                  EXPECT_ERROR);
+    context.Check("{var using; \n using = 42;}", EXPECT_RESULT,
+                  Number::New(isolate(), 42));
+    context.Check(
+        "let label = \"1\"; \n switch (label) { \n case 1: \n let y = 2; \n"
+        "using x = { \n "
+        "     value: 1, \n "
+        "      [Symbol.dispose]() { \n "
+        "       return 42; \n "
+        "     } \n "
+        "   };  }",
+        EXPECT_ERROR);
+    context.Check(
+        "let label = \"1\"; \n switch (label) { \n case 1: {\n let y = 2; \n"
+        "using x = { \n "
+        "     value: 1, \n "
+        "      [Symbol.dispose]() { \n "
+        "       return 42; \n "
+        "     } \n "
+        "   };  } }",
+        EXPECT_RESULT, Undefined(isolate()));
   }
 }
 
@@ -1088,6 +1114,8 @@ TEST_F(DeclsTest, TestAwaitUsing) {
   {
     SimpleContext context;
     context.Check("await using x = 42;", EXPECT_ERROR);
+    context.Check("async function f() {await using = 1;} \n f();",
+                  EXPECT_ERROR);
     context.Check("async function f() {await using await x = 1;} \n f();",
                   EXPECT_ERROR);
     context.Check("async function f() {await using {x} = {x:5};} \n f();",
@@ -1098,6 +1126,18 @@ TEST_F(DeclsTest, TestAwaitUsing) {
         EXPECT_ERROR);
     context.Check(
         "async function f() {for(await using {x} = {x:5}; x < 10 ; i++) {\n "
+        "console.log(x);}} \n f();",
+        EXPECT_ERROR);
+    context.Check(
+        "async function f() {for(await \n using x = 0; x < 10 ; x++) {\n "
+        "console.log(x);}} \n f();",
+        EXPECT_ERROR);
+    context.Check(
+        "async function f() {for(await using \n x = 0; x < 10 ; x++) {\n "
+        "console.log(x);}} \n f();",
+        EXPECT_ERROR);
+    context.Check(
+        "async function f() {for(await \n using \n x = 0; x < 10 ; x++) {\n "
         "console.log(x);}} \n f();",
         EXPECT_ERROR);
     context.Check(
@@ -1125,6 +1165,17 @@ TEST_F(DeclsTest, TestAwaitUsing) {
         " } \n "
         " } } \n "
         " f(); ",
+        EXPECT_ERROR);
+    context.Check(
+        "async function f() {let label = \"1\"; \n switch (label){ \n case 1: "
+        "\n let y = 2;"
+        "\n await using x = { \n "
+        "     value: 1, \n "
+        "      [Symbol.asyncDispose]() { \n "
+        "       classStaticBlockBodyValues.push(42); \n "
+        "     } \n "
+        "   }; \n }"
+        "} \n f();",
         EXPECT_ERROR);
   }
 }

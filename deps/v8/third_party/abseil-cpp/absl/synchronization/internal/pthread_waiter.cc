@@ -58,10 +58,6 @@ class PthreadMutexHolder {
 };
 }  // namespace
 
-#ifdef ABSL_INTERNAL_NEED_REDUNDANT_CONSTEXPR_DECL
-constexpr char PthreadWaiter::kName[];
-#endif
-
 PthreadWaiter::PthreadWaiter() : waiter_count_(0), wakeup_count_(0) {
   const int err = pthread_mutex_init(&mu_, 0);
   if (err != 0) {

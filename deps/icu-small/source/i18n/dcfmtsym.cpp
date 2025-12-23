@@ -118,7 +118,6 @@ DecimalFormatSymbols::DecimalFormatSymbols(const Locale& loc, const NumberingSys
 
 DecimalFormatSymbols::DecimalFormatSymbols()
         : UObject(), locale(Locale::getRoot()) {
-    *validLocale = *actualLocale = 0;
     initialize();
 }
 
@@ -136,6 +135,8 @@ DecimalFormatSymbols::createWithLastResortData(UErrorCode& status) {
 
 DecimalFormatSymbols::~DecimalFormatSymbols()
 {
+    delete actualLocale;
+    delete validLocale;
 }
 
 // -------------------------------------
@@ -163,8 +164,12 @@ DecimalFormatSymbols::operator=(const DecimalFormatSymbols& rhs)
             currencySpcAfterSym[i].fastCopyFrom(rhs.currencySpcAfterSym[i]);
         }
         locale = rhs.locale;
-        uprv_strcpy(validLocale, rhs.validLocale);
-        uprv_strcpy(actualLocale, rhs.actualLocale);
+
+        UErrorCode status = U_ZERO_ERROR;
+        U_LOCALE_BASED(locBased, *this);
+        locBased.setLocaleIDs(rhs.validLocale, rhs.actualLocale, status);
+        U_ASSERT(U_SUCCESS(status));
+
         fIsCustomCurrencySymbol = rhs.fIsCustomCurrencySymbol; 
         fIsCustomIntlCurrencySymbol = rhs.fIsCustomIntlCurrencySymbol; 
         fCodePointZero = rhs.fCodePointZero;
@@ -203,8 +208,8 @@ DecimalFormatSymbols::operator==(const DecimalFormatSymbols& that) const
     }
     // No need to check fCodePointZero since it is based on fSymbols
     return locale == that.locale &&
-        uprv_strcmp(validLocale, that.validLocale) == 0 &&
-        uprv_strcmp(actualLocale, that.actualLocale) == 0;
+        LocaleBased::equalIDs(actualLocale, that.actualLocale) &&
+        LocaleBased::equalIDs(validLocale, that.validLocale);
 }
 
 // -------------------------------------
@@ -353,7 +358,6 @@ DecimalFormatSymbols::initialize(const Locale& loc, UErrorCode& status,
     UBool useLastResortData, const NumberingSystem* ns)
 {
     if (U_FAILURE(status)) { return; }
-    *validLocale = *actualLocale = 0;
 
     // First initialize all the symbols to the fallbacks for anything we can't find
     initialize();
@@ -409,7 +413,8 @@ DecimalFormatSymbols::initialize(const Locale& loc, UErrorCode& status,
             ULOC_VALID_LOCALE, &status),
         ures_getLocaleByType(
             numberElementsRes.getAlias(),
-            ULOC_ACTUAL_LOCALE, &status));
+            ULOC_ACTUAL_LOCALE, &status),
+        status);
 
     // Now load the rest of the data from the data sink.
     // Start with loading this nsName if it is not Latin.
@@ -568,8 +573,7 @@ void DecimalFormatSymbols::setCurrency(const char16_t* currency, UErrorCode& sta
 
 Locale
 DecimalFormatSymbols::getLocale(ULocDataLocaleType type, UErrorCode& status) const {
-    U_LOCALE_BASED(locBased, *this);
-    return locBased.getLocale(type, status);
+    return LocaleBased::getLocale(validLocale, actualLocale, type, status);
 }
 
 const UnicodeString&

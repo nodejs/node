@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --turboshaft-from-maglev --turbofan
-// Flags: --no-always-turbofan
+// Flags: --allow-natives-syntax --turbolev --turbofan
 
 function check_int32_is_smi(a, b) {
   let v1 = a + 1_000_000_000;

@@ -25,7 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --always-turbofan
+// Flags: --no-lazy-feedback-allocation
+// Flags: --invocation-count-for-turbofan=1
 
 var v = {};
 function inlined() {
@@ -35,4 +36,5 @@ function outer() {
   inlined();
 };
 
+outer();
 outer();

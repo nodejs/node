@@ -326,27 +326,14 @@ void ngtcp2_cc_reno_cc_on_persistent_congestion(ngtcp2_cc *cc,
 void ngtcp2_cc_reno_cc_reset(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
                              ngtcp2_tstamp ts);
 
-typedef enum ngtcp2_cubic_state {
-  /* NGTCP2_CUBIC_STATE_INITIAL is the state where CUBIC is in slow
-     start phase, or congestion avoidance phase before congestion
-     events occur. */
-  NGTCP2_CUBIC_STATE_INITIAL,
-  /* NGTCP2_CUBIC_STATE_RECOVERY is the state that a connection is in
-     recovery period. */
-  NGTCP2_CUBIC_STATE_RECOVERY,
-  /* NGTCP2_CUBIC_STATE_CONGESTION_AVOIDANCE is the state where CUBIC
-     is in congestion avoidance phase after recovery period ends. */
-  NGTCP2_CUBIC_STATE_CONGESTION_AVOIDANCE,
-} ngtcp2_cubic_state;
-
 typedef struct ngtcp2_cubic_vars {
   uint64_t cwnd_prior;
   uint64_t w_max;
-  ngtcp2_duration k;
+  /* CUBIC K with 10 bits extra precision. */
+  uint64_t k_m;
   ngtcp2_tstamp epoch_start;
   uint64_t w_est;
 
-  ngtcp2_cubic_state state;
   /* app_limited_start_ts is the timestamp where app limited period
      started. */
   ngtcp2_tstamp app_limited_start_ts;

@@ -13,15 +13,15 @@ expectExperimentalWarning();
 // Test eager memory measurement
 {
   vm.measureMemory({ execution: 'eager' })
-    .then(common.mustCall(assertSummaryShape));
+    .then(assertSummaryShape).then(common.mustCall());
 
   if (!common.isWindows) {
     vm.measureMemory({ mode: 'detailed', execution: 'eager' })
-      .then(common.mustCall(assertSingleDetailedShape));
+      .then(assertSingleDetailedShape).then(common.mustCall());
   }
 
   vm.measureMemory({ mode: 'summary', execution: 'eager' })
-    .then(common.mustCall(assertSummaryShape));
+    .then(assertSummaryShape).then(common.mustCall());
 
   assert.throws(() => vm.measureMemory(null), {
     code: 'ERR_INVALID_ARG_TYPE'

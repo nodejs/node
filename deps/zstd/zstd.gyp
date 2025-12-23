@@ -50,6 +50,7 @@
       'lib/compress/zstd_lazy.c',
       'lib/compress/zstd_ldm.c',
       'lib/compress/zstd_opt.c',
+      'lib/compress/zstd_preSplit.c',
       'lib/compress/zstdmt_compress.c',
 
       # cxx_library(name='decompress')

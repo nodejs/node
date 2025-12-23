@@ -1116,10 +1116,42 @@ typedef struct nghttp3_qpack_encoder nghttp3_qpack_encoder;
  *
  * :macro:`NGHTTP3_ERR_NOMEM`
  *     Out of memory.
+ *
+ * See also `nghttp3_qpack_encoder_new2`.  This function calls
+ * `nghttp3_qpack_encoder_new2` with the given parameters and 0 as
+ * seed.
  */
 NGHTTP3_EXTERN int nghttp3_qpack_encoder_new(nghttp3_qpack_encoder **pencoder,
                                              size_t hard_max_dtable_capacity,
                                              const nghttp3_mem *mem);
+
+/**
+ * @function
+ *
+ * `nghttp3_qpack_encoder_new2` initializes QPACK encoder.  |pencoder|
+ * must be non-NULL pointer.  |hard_max_dtable_capacity| is the upper
+ * bound of the dynamic table capacity.  |seed| must be unpredictable
+ * value, and is used to seed the internal data structure.  |mem| is a
+ * memory allocator.  This function allocates memory for
+ * :type:`nghttp3_qpack_encoder` itself, and assigns its pointer to
+ * |*pencoder| if it succeeds.
+ *
+ * The maximum dynamic table capacity is still 0.  In order to change
+ * the maximum dynamic table capacity, call
+ * `nghttp3_qpack_encoder_set_max_dtable_capacity`.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * :macro:`NGHTTP3_ERR_NOMEM`
+ *     Out of memory.
+ *
+ * This function is available since v1.11.0.
+ */
+NGHTTP3_EXTERN int nghttp3_qpack_encoder_new2(nghttp3_qpack_encoder **pencoder,
+                                              size_t hard_max_dtable_capacity,
+                                              uint64_t seed,
+                                              const nghttp3_mem *mem);
 
 /**
  * @function
@@ -1605,7 +1637,8 @@ NGHTTP3_EXTERN void nghttp3_set_debug_vprintf_callback(
 typedef struct nghttp3_conn nghttp3_conn;
 
 #define NGHTTP3_SETTINGS_V1 1
-#define NGHTTP3_SETTINGS_VERSION NGHTTP3_SETTINGS_V1
+#define NGHTTP3_SETTINGS_V2 2
+#define NGHTTP3_SETTINGS_VERSION NGHTTP3_SETTINGS_V2
 
 /**
  * @struct
@@ -1652,6 +1685,21 @@ typedef struct nghttp3_settings {
    * Datagrams (see :rfc:`9297`).
    */
   uint8_t h3_datagram;
+  /* The following fields have been added since NGHTTP3_SETTINGS_V2. */
+  /**
+   * :member:`origin_list`, if set, must contain a serialized HTTP/3
+   * ORIGIN frame (see :rfc:`9412`) payload.  The ORIGIN frame payload
+   * is a sequence of zero or more of a length prefixed byte string.
+   * The length is encoded in 2 bytes in network byte order.  If
+   * :member:`origin_list->len <nghttp3_vec.len>` is zero, an empty
+   * ORIGIN frame is sent.  An application must keep the buffer
+   * pointed by :member:`origin_list->base <nghttp3_vec.base>` alive
+   * until the :type:`nghttp3_conn` to which this field was passed is
+   * freed by `nghttp3_conn_del`.  The object pointed to by this field
+   * is copied internally, and does not need to be kept alive.  Only
+   * server uses this field.  This field is available since v1.11.0.
+   */
+  const nghttp3_vec *origin_list;
 } nghttp3_settings;
 
 /**
@@ -1891,8 +1939,47 @@ typedef int (*nghttp3_recv_settings)(nghttp3_conn *conn,
                                      const nghttp3_settings *settings,
                                      void *conn_user_data);
 
+/**
+ * @functypedef
+ *
+ * :type:`nghttp3_recv_origin` is a callback function which is invoked
+ * when a single origin in ORIGIN frame is received.  |origin| is a
+ * received origin of length |originlen|.  |originlen| never be 0.
+ *
+ * The implementation of this callback must return 0 if it succeeds.
+ * Returning :macro:`NGHTTP3_ERR_CALLBACK_FAILURE` will return to the
+ * caller immediately.  Any values other than 0 is treated as
+ * :macro:`NGHTTP3_ERR_CALLBACK_FAILURE`.
+ */
+typedef int (*nghttp3_recv_origin)(nghttp3_conn *conn, const uint8_t *origin,
+                                   size_t originlen, void *conn_user_data);
+
+/**
+ * @functypedef
+ *
+ * :type:`nghttp3_end_origin` is a callback function which is invoked
+ * when an ORIGIN frame has been completely processed.
+ *
+ * The implementation of this callback must return 0 if it succeeds.
+ * Returning :macro:`NGHTTP3_ERR_CALLBACK_FAILURE` will return to the
+ * caller immediately.  Any values other than 0 is treated as
+ * :macro:`NGHTTP3_ERR_CALLBACK_FAILURE`.
+ */
+typedef int (*nghttp3_end_origin)(nghttp3_conn *conn, void *conn_user_data);
+
+/**
+ * @functypedef
+ *
+ * :type:`nghttp3_rand` is a callback function which is invoked when
+ * unpredictable data of |destlen| bytes are needed.  The
+ * implementation must write unpredictable data of |destlen| bytes
+ * into the buffer pointed by |dest|.
+ */
+typedef void (*nghttp3_rand)(uint8_t *dest, size_t destlen);
+
 #define NGHTTP3_CALLBACKS_V1 1
-#define NGHTTP3_CALLBACKS_VERSION NGHTTP3_CALLBACKS_V1
+#define NGHTTP3_CALLBACKS_V2 2
+#define NGHTTP3_CALLBACKS_VERSION NGHTTP3_CALLBACKS_V2
 
 /**
  * @struct
@@ -1986,6 +2073,28 @@ typedef struct nghttp3_callbacks {
    * when SETTINGS frame is received.
    */
   nghttp3_recv_settings recv_settings;
+  /* The following fields have been added since NGHTTP3_CALLBACKS_V2. */
+  /**
+   * :member:`recv_origin` is a callback function which is invoked
+   * when a single origin in an ORIGIN frame is received.  This field
+   * is available since v1.11.0.
+   */
+  nghttp3_recv_origin recv_origin;
+  /**
+   * :member:`end_origin` is a callback function which is invoked when
+   * an ORIGIN frame has been completely processed.  This field is
+   * available since v1.11.0.
+   */
+  nghttp3_end_origin end_origin;
+  /**
+   * :member:`rand` is a callback function which is invoked when
+   * unpredictable data are needed.  Although this field is optional
+   * due to the backward compatibility, it is recommended to specify
+   * this field to harden the runtime behavior against suspicious
+   * activities of a remote endpoint.  This field is available since
+   * v1.11.0.
+   */
+  nghttp3_rand rand;
 } nghttp3_callbacks;
 
 /**
@@ -2106,7 +2215,7 @@ NGHTTP3_EXTERN int nghttp3_conn_bind_qpack_streams(nghttp3_conn *conn,
  * control credit (both stream and connection) of underlying QUIC
  * connection by that amount.  It does not include the amount of data
  * carried by DATA frame which contains application data (excluding
- * any control or QPACK unidirectional streams) .  See
+ * any control or QPACK unidirectional streams).  See
  * :type:`nghttp3_recv_data` to handle those bytes.  If |fin| is
  * nonzero, this is the last data from remote endpoint in this stream.
  *
@@ -2480,8 +2589,6 @@ typedef struct nghttp3_data_reader {
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
  *
- * :macro:`NGHTTP3_ERR_INVALID_ARGUMENT`
- *     |stream_id| identifies unidirectional stream.
  * :macro:`NGHTTP3_ERR_CONN_CLOSING`
  *     Connection is shutting down, and no new stream is allowed.
  * :macro:`NGHTTP3_ERR_STREAM_IN_USE`

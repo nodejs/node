@@ -49,7 +49,7 @@ absl_cc_library(
     "internal/cctz/include/cctz/civil_time.h"
     "internal/cctz/include/cctz/civil_time_detail.h"
   SRCS
-  "internal/cctz/src/civil_time_detail.cc"
+    "internal/cctz/src/civil_time_detail.cc"
   COPTS
     ${ABSL_DEFAULT_COPTS}
 )
@@ -121,6 +121,8 @@ absl_cc_test(
     absl::time
     absl::config
     absl::core_headers
+    absl::hash_testing
+    absl::random_random
     absl::strings
     absl::str_format
     absl::time_zone

@@ -17,12 +17,11 @@ RUNTIME_FUNCTION(Runtime_Add) {
   RETURN_RESULT_OR_FAILURE(isolate, Object::Add(isolate, lhs, rhs));
 }
 
-
 RUNTIME_FUNCTION(Runtime_Equal) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  Handle<Object> x = args.at(0);
-  Handle<Object> y = args.at(1);
+  DirectHandle<Object> x = args.at(0);
+  DirectHandle<Object> y = args.at(1);
   Maybe<bool> result = Object::Equals(isolate, x, y);
   if (result.IsNothing()) return ReadOnlyRoots(isolate).exception();
   return isolate->heap()->ToBoolean(result.FromJust());
@@ -31,8 +30,8 @@ RUNTIME_FUNCTION(Runtime_Equal) {
 RUNTIME_FUNCTION(Runtime_NotEqual) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  Handle<Object> x = args.at(0);
-  Handle<Object> y = args.at(1);
+  DirectHandle<Object> x = args.at(0);
+  DirectHandle<Object> y = args.at(1);
   Maybe<bool> result = Object::Equals(isolate, x, y);
   if (result.IsNothing()) return ReadOnlyRoots(isolate).exception();
   return isolate->heap()->ToBoolean(!result.FromJust());
@@ -65,8 +64,8 @@ RUNTIME_FUNCTION(Runtime_ReferenceEqual) {
 RUNTIME_FUNCTION(Runtime_LessThan) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  Handle<Object> x = args.at(0);
-  Handle<Object> y = args.at(1);
+  DirectHandle<Object> x = args.at(0);
+  DirectHandle<Object> y = args.at(1);
   Maybe<bool> result = Object::LessThan(isolate, x, y);
   if (result.IsNothing()) return ReadOnlyRoots(isolate).exception();
   return isolate->heap()->ToBoolean(result.FromJust());
@@ -75,8 +74,8 @@ RUNTIME_FUNCTION(Runtime_LessThan) {
 RUNTIME_FUNCTION(Runtime_GreaterThan) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  Handle<Object> x = args.at(0);
-  Handle<Object> y = args.at(1);
+  DirectHandle<Object> x = args.at(0);
+  DirectHandle<Object> y = args.at(1);
   Maybe<bool> result = Object::GreaterThan(isolate, x, y);
   if (result.IsNothing()) return ReadOnlyRoots(isolate).exception();
   return isolate->heap()->ToBoolean(result.FromJust());
@@ -85,8 +84,8 @@ RUNTIME_FUNCTION(Runtime_GreaterThan) {
 RUNTIME_FUNCTION(Runtime_LessThanOrEqual) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  Handle<Object> x = args.at(0);
-  Handle<Object> y = args.at(1);
+  DirectHandle<Object> x = args.at(0);
+  DirectHandle<Object> y = args.at(1);
   Maybe<bool> result = Object::LessThanOrEqual(isolate, x, y);
   if (result.IsNothing()) return ReadOnlyRoots(isolate).exception();
   return isolate->heap()->ToBoolean(result.FromJust());
@@ -95,8 +94,8 @@ RUNTIME_FUNCTION(Runtime_LessThanOrEqual) {
 RUNTIME_FUNCTION(Runtime_GreaterThanOrEqual) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  Handle<Object> x = args.at(0);
-  Handle<Object> y = args.at(1);
+  DirectHandle<Object> x = args.at(0);
+  DirectHandle<Object> y = args.at(1);
   Maybe<bool> result = Object::GreaterThanOrEqual(isolate, x, y);
   if (result.IsNothing()) return ReadOnlyRoots(isolate).exception();
   return isolate->heap()->ToBoolean(result.FromJust());

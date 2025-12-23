@@ -44,8 +44,7 @@ class AllocationHandle;
 
 namespace internal {
 
-// Similar to C++17 std::align_val_t;
-enum class AlignVal : size_t {};
+using AlignVal = std::align_val_t;
 
 class MakeGarbageCollectedTraitInternal {
  protected:
@@ -72,7 +71,7 @@ class MakeGarbageCollectedTraitInternal {
   template <typename GCInfoType, typename CustomSpace, size_t alignment>
   struct AllocationDispatcher final {
     static void* Invoke(AllocationHandle& handle, size_t size) {
-      static_assert(std::is_base_of<CustomSpaceBase, CustomSpace>::value,
+      static_assert(std::is_base_of_v<CustomSpaceBase, CustomSpace>,
                     "Custom space must inherit from CustomSpaceBase.");
       static_assert(
           !CustomSpace::kSupportsCompaction,
@@ -112,7 +111,7 @@ class MakeGarbageCollectedTraitInternal {
                               api_constants::kDefaultAlignment>
       final {
     static void* Invoke(AllocationHandle& handle, size_t size) {
-      static_assert(std::is_base_of<CustomSpaceBase, CustomSpace>::value,
+      static_assert(std::is_base_of_v<CustomSpaceBase, CustomSpace>,
                     "Custom space must inherit from CustomSpaceBase.");
       return MakeGarbageCollectedTraitInternal::Allocate(
           handle, size, internal::GCInfoTrait<GCInfoType>::Index(),
@@ -165,7 +164,7 @@ class MakeGarbageCollectedTraitBase
    */
   V8_INLINE static void* Allocate(AllocationHandle& handle, size_t size) {
     static_assert(
-        std::is_base_of<typename T::ParentMostGarbageCollectedType, T>::value,
+        std::is_base_of_v<typename T::ParentMostGarbageCollectedType, T>,
         "U of GarbageCollected<U> must be a base of T. Check "
         "GarbageCollected<T> base class inheritance.");
     static constexpr size_t kWantedAlignment =

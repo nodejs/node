@@ -1,10 +1,13 @@
-import '../common/index.mjs';
+import { isWindows, skipIfSQLiteMissing } from '../common/index.mjs';
 import tmpdir from '../common/tmpdir.js';
 import { join } from 'node:path';
-import { backup, DatabaseSync } from 'node:sqlite';
 import { describe, test } from 'node:test';
 import { writeFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
+skipIfSQLiteMissing();
+const { backup, DatabaseSync } = await import('node:sqlite');
+
+const isRoot = !isWindows && process.getuid() === 0;
 
 let cnt = 0;
 
@@ -251,7 +254,7 @@ test('throws if URL is not file: scheme', (t) => {
   });
 });
 
-test('database backup fails when dest file is not writable', async (t) => {
+test('database backup fails when dest file is not writable', { skip: isRoot }, async (t) => {
   const readonlyDestDb = nextDb();
   writeFileSync(readonlyDestDb, '', { mode: 0o444 });
 
@@ -305,4 +308,9 @@ test('backup fails when path cannot be opened', async (t) => {
   }, {
     message: 'unable to open database file'
   });
+});
+
+test('backup has correct name and length', (t) => {
+  t.assert.strictEqual(backup.name, 'backup');
+  t.assert.strictEqual(backup.length, 2);
 });

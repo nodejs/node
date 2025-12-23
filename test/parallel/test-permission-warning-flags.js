@@ -7,6 +7,7 @@ const assert = require('assert');
 const warnFlags = [
   '--allow-addons',
   '--allow-child-process',
+  '--allow-inspector',
   '--allow-wasi',
   '--allow-worker',
 ];
@@ -20,6 +21,6 @@ for (const flag of warnFlags) {
     ]
   );
 
-  assert.match(stderr.toString(), new RegExp(`SecurityWarning: The flag ${flag} must be used with extreme caution`));
+  assert.match(stderr.toString(), new RegExp(`SecurityWarning: The flag ${RegExp.escape(flag)} must be used with extreme caution`));
   assert.strictEqual(status, 0);
 }

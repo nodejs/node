@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --turbo-optimize-apply --turbofan
-// Flags: --no-always-turbofan
 
 // These tests do not work well if we flush the feedback vector, which causes
 // deoptimization.
@@ -18,7 +17,10 @@
 // Test JSCallReducer::ReduceJSCallWithArrayLike.
 (function () {
   "use strict";
-  var sum_js_got_interpreted = true;
+  // Introduce an indirection, so that we don't depend on
+  // ContextCells constness.
+  var sum_js_got_interpreted = null;
+  sum_js_got_interpreted = true;
   function sum_js(a, b, c, d) {
     sum_js_got_interpreted = %IsBeingInterpreted();
     return a + b + c + d;
@@ -58,7 +60,10 @@
 // Test with holey array.
 (function () {
   "use strict";
-  var sum_js_got_interpreted = true;
+  // Introduce an indirection, so that we don't depend
+  // on ContextCells constness.
+  var sum_js_got_interpreted = null;
+  sum_js_got_interpreted = true;
   function sum_js(a, b, c, d) {
     sum_js_got_interpreted = %IsBeingInterpreted();
     return a + b + c + d;
@@ -80,7 +85,10 @@
 // Test with holey-double array.
 (function () {
   "use strict";
-  var sum_js_got_interpreted = true;
+  // Introduce an indirection, so that we don't depend
+  // on ContextCells constness.
+  var sum_js_got_interpreted = null;
+  sum_js_got_interpreted = true;
   function sum_js(a, b, c, d) {
     sum_js_got_interpreted = %IsBeingInterpreted();
     return a + b + (c ? c : .0) + d;
@@ -104,7 +112,10 @@
 // Test deopt when array size changes.
 (function () {
   "use strict";
-  var sum_js_got_interpreted = true;
+  // Introduce an indirection, so that we don't depend on
+  // ContextCells constness.
+  var sum_js_got_interpreted = null;
+  sum_js_got_interpreted = true;
   function sum_js(a, b, c, d) {
     sum_js_got_interpreted = %IsBeingInterpreted();
     return a + b + c + d;
@@ -136,7 +147,10 @@
 // Test with FixedDoubleArray.
 (function () {
   "use strict";
-  var sum_js_got_interpreted = true;
+  // Introduce an indirection, so that we don't depend on
+  // ContextCells constness.
+  var sum_js_got_interpreted = null;
+  sum_js_got_interpreted = true;
   function sum_js(a, b, c, d) {
     sum_js_got_interpreted = %IsBeingInterpreted();
     return a + b + c + d;
@@ -158,7 +172,10 @@
 // Test with empty array.
 (function () {
   "use strict";
-  var got_interpreted = true;
+  // Introduce an indirection, so that we don't depend on
+  // ContextCells constness.
+  var got_interpreted = null;
+  got_interpreted = true;
   function fortytwo() {
     got_interpreted = %IsBeingInterpreted();
     return 42;
@@ -180,13 +197,19 @@
 // Test with empty array that changes size.
 (function () {
   "use strict";
-  var got_interpreted = true;
+  // Introduce an indirection, so that we don't depend on
+  // ContextCells constness.
+  var got_interpreted = null;
+  got_interpreted = true;
   function fortytwo() {
     got_interpreted = %IsBeingInterpreted();
     return 42 + arguments.length;
   }
 
-  var len = 2;
+  // Introduce an indirection, so that we don't depend on
+  // ContextCells constness.
+  var len = null;
+  len = 2;
   function foo() {
     let args = []
     for (var i = 0; i < len; i++) { args.push(1); }
@@ -268,7 +291,10 @@
 // Test Reflect.apply().
 (function () {
   "use strict";
-  var sum_js_got_interpreted = true;
+  // Introduce an indirection, so that we don't depend on
+  // ContextCells constness.
+  var sum_js_got_interpreted = null;
+  sum_js_got_interpreted = true;
   function sum_js(a, b, c, d) {
     sum_js_got_interpreted = %IsBeingInterpreted();
     return a + b + c + d;
@@ -290,7 +316,10 @@
 // Test Reflect.apply() with empty array.
 (function () {
   "use strict";
-  var got_interpreted = true;
+  // Introduce an indirection, so that we don't depend on
+  // ContextCells constness.
+  var got_interpreted = null;
+  got_interpreted = true;
   function fortytwo() {
     got_interpreted = %IsBeingInterpreted();
     return 42;
@@ -312,13 +341,17 @@
 // Test Reflect.apply() with empty array that changes size.
 (function () {
   "use strict";
-  var got_interpreted = true;
+  // Introduce an indirection, so that we don't depend on
+  // ContextCells constness.
+  var got_interpreted = null;
+  got_interpreted = true;
   function fortytwo() {
     got_interpreted = %IsBeingInterpreted();
     return 42 + arguments.length;
   }
 
-  var len = 2;
+  var len = null;
+  len = 2;
   function foo() {
     let args = []
     for (var i = 0; i < len; i++) { args.push(1); }
@@ -344,7 +377,10 @@
 // Test JSCallReducer::ReduceJSCallWithSpread.
 (function () {
   "use strict";
-  var sum_js_got_interpreted = true;
+  // Introduce an indirection, so that we don't depend on
+  // ContextCells constness.
+  var sum_js_got_interpreted = null;
+  sum_js_got_interpreted = true;
   function sum_js(a, b, c, d) {
     sum_js_got_interpreted = %IsBeingInterpreted();
     return a + b + c + d;
@@ -367,7 +403,10 @@
 // Test spread call with empty array.
 (function () {
   "use strict";
-  var sum_js_got_interpreted = true;
+  // Introduce an indirection, so that we don't depend on
+  // ContextCells constness.
+  var sum_js_got_interpreted = null;
+  sum_js_got_interpreted = true;
   function sum_js(a, b, c) {
     sum_js_got_interpreted = %IsBeingInterpreted();
     return a + b + c;
@@ -390,13 +429,17 @@
 // Test spread call with empty array that changes size.
 (function () {
   "use strict";
-  var max_got_interpreted = true;
+  // Introduce an indirection, so that we don't depend on
+  // ContextCells constness.
+  var max_got_interpreted = null;
+  max_got_interpreted = true;
   function max() {
     max_got_interpreted = %IsBeingInterpreted();
     return Math.max(...arguments);
   }
 
-  var len = 2;
+  var len = null;
+  len = 2;
   function foo(x, y, z) {
     let args = [];
     for (var i = 0; i < len; i++) { args.push(4 + i); }
@@ -421,7 +464,10 @@
 // Test spread call with more args.
 (function () {
   "use strict";
-  var sum_js_got_interpreted = true;
+  // Introduce an indirection, so that we don't depend on
+  // ContextCells constness.
+  var sum_js_got_interpreted = null;
+  sum_js_got_interpreted = true;
   function sum_js(a, b, c, d, e, f, g) {
     assertEquals(7, arguments.length);
     sum_js_got_interpreted = %IsBeingInterpreted();
@@ -521,7 +567,10 @@
 // Test apply on JSCreateClosure.
 (function () {
   "use strict";
-  var sum_got_interpreted = true;
+  // Introduce an indirection, so that we don't depend on
+  // ContextCells constness.
+  var sum_got_interpreted = null;
+  sum_got_interpreted = true;
   function foo_closure() {
     return function(a, b, c, d) {
       sum_got_interpreted = %IsBeingInterpreted();
@@ -549,7 +598,10 @@
 // Test apply with JSBoundFunction
 (function () {
   "use strict";
-  var sum_got_interpreted = true;
+  // Introduce an indirection, so that we don't depend on
+  // ContextCells constness.
+  var sum_got_interpreted = null;
+  sum_got_interpreted = true;
   function sum_js(a, b, c, d, e) {
     sum_got_interpreted = %IsBeingInterpreted();
     return this.x + a + b + c + d + e;
@@ -573,7 +625,10 @@
 // Test apply with nested bindings
 (function () {
   "use strict";
-  var sum_got_interpreted = true;
+  // Introduce an indirection, so that we don't depend on
+  // ContextCells constness.
+  var sum_got_interpreted = null;
+  sum_got_interpreted = true;
   function sum_js(a, b, c, d, e) {
     sum_got_interpreted = %IsBeingInterpreted();
     return this.x + a + b + c + d + e;
@@ -597,7 +652,10 @@
 // Test apply on bound function (JSCreateBoundFunction).
 (function () {
   "use strict";
-  var sum_got_interpreted = true;
+  // Introduce an indirection, so that we don't depend on
+  // ContextCells constness.
+  var sum_got_interpreted = null;
+  sum_got_interpreted = true;
   function sum_js(a, b, c, d) {
     sum_got_interpreted = %IsBeingInterpreted();
     return this.x + a + b + c + d;
@@ -620,7 +678,10 @@
 // Test apply on bound function (JSCreateBoundFunction) with args.
 (function () {
   "use strict";
-  var sum_got_interpreted = true;
+  // Introduce an indirection, so that we don't depend on
+  // ContextCells constness.
+  var sum_got_interpreted = null;
+  sum_got_interpreted = true
   function sum_js(a, b, c, d, e, f) {
     sum_got_interpreted = %IsBeingInterpreted();
     return this.x + a + b + c + d + e + f;
@@ -643,7 +704,10 @@
 // Test call with array-like under-application.
 (function () {
   "use strict";
-  var sum_js_got_interpreted = true;
+  // Introduce an indirection, so that we don't depend on
+  // ContextCells constness.
+  var sum_js_got_interpreted = null;
+  sum_js_got_interpreted = true
   function sum_js(a, b, c, d) {
     sum_js_got_interpreted = %IsBeingInterpreted();
     return a + b + c + d + arguments.length;
@@ -665,7 +729,10 @@
 // Test call with array-like over-application.
 (function () {
   "use strict";
-  var sum_js_got_interpreted = true;
+  // Introduce an indirection, so that we don't depend on
+  // ContextCells constness.
+  var sum_js_got_interpreted = null;
+  sum_js_got_interpreted = true
   function sum_js(a, b, c, d) {
     sum_js_got_interpreted = %IsBeingInterpreted();
     return a + b + c + d + arguments.length;
@@ -687,7 +754,10 @@
 // Test call with spread under-application.
 (function () {
   "use strict";
-  var sum_js_got_interpreted = true;
+  // Introduce an indirection, so that we don't depend on
+  // ContextCells constness.
+  var sum_js_got_interpreted = null;
+  sum_js_got_interpreted = true
   function sum_js(a, b, c, d) {
     sum_js_got_interpreted = %IsBeingInterpreted();
     return a + b + c + d + arguments.length;
@@ -710,7 +780,10 @@
 // Test call with spread over-application.
 (function () {
   "use strict";
-  var sum_js_got_interpreted = true;
+  // Introduce an indirection, so that we don't depend on
+  // ContextCells constness.
+  var sum_js_got_interpreted = null;
+  sum_js_got_interpreted = true
   function sum_js(a, b, c, d) {
     sum_js_got_interpreted = %IsBeingInterpreted();
     return a + b + c + d + arguments.length;
@@ -733,7 +806,10 @@
 // Test calling function that has rest parameters.
 (function () {
   "use strict";
-  var sum_js_got_interpreted = true;
+  // Introduce an indirection, so that we don't depend on
+  // ContextCells constness.
+  var sum_js_got_interpreted = null;
+  sum_js_got_interpreted = true
   function sum_js(a, b, ...moreArgs) {
     sum_js_got_interpreted = %IsBeingInterpreted();
     return a + b + moreArgs[0] + moreArgs[1] + moreArgs[2] + moreArgs[3];
@@ -779,7 +855,10 @@
 // Test with inlined calls.
 (function () {
   "use strict";
-  var sum_js_got_interpreted = true;
+  // Introduce an indirection, so that we don't depend on
+  // ContextCells constness.
+  var sum_js_got_interpreted = null;
+  sum_js_got_interpreted = true
   function sum_js(a, b, c, d) {
     sum_js_got_interpreted = %IsBeingInterpreted();
     return a + b + c + d;

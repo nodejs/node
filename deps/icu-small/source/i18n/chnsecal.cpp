@@ -130,7 +130,6 @@ ChineseCalendar::ChineseCalendar(const Locale& aLocale, UErrorCode& success)
 :   Calendar(TimeZone::forLocaleOrDefault(aLocale), aLocale, success),
     hasLeapMonthBetweenWinterSolstices(false)
 {
-    setTimeInMillis(getNow(), success); // Call this again now that the vtable is set up properly.
 }
 
 ChineseCalendar::ChineseCalendar(const ChineseCalendar& other) : Calendar(other) {
@@ -219,7 +218,9 @@ int32_t ChineseCalendar::handleGetExtendedYear(UErrorCode& status) {
     }
 
     int32_t year;
-    if (newestStamp(UCAL_ERA, UCAL_YEAR, kUnset) <= fStamp[UCAL_EXTENDED_YEAR]) {
+    // if UCAL_EXTENDED_YEAR is not older than UCAL_ERA nor UCAL_YEAR
+    if (newerField(UCAL_EXTENDED_YEAR, newerField(UCAL_ERA, UCAL_YEAR)) ==
+        UCAL_EXTENDED_YEAR) {
         year = internalGet(UCAL_EXTENDED_YEAR, 1); // Default to year 1
     } else {
         // adjust to the instance specific epoch
@@ -252,11 +253,16 @@ int32_t ChineseCalendar::handleGetExtendedYear(UErrorCode& status) {
  * @stable ICU 2.8
  */
 int32_t ChineseCalendar::handleGetMonthLength(int32_t extendedYear, int32_t month, UErrorCode& status) const {
+    bool isLeapMonth = internalGet(UCAL_IS_LEAP_MONTH) == 1;
+    return handleGetMonthLengthWithLeap(extendedYear, month, isLeapMonth, status);
+}
+
+int32_t ChineseCalendar::handleGetMonthLengthWithLeap(int32_t extendedYear, int32_t month, bool leap, UErrorCode& status) const {
     const Setting setting = getSetting(status);
     if (U_FAILURE(status)) {
         return 0;
     }
-    int32_t thisStart = handleComputeMonthStart(extendedYear, month, true, status);
+    int32_t thisStart = handleComputeMonthStartWithLeap(extendedYear, month, leap, status);
     if (U_FAILURE(status)) {
         return 0;
     }
@@ -332,18 +338,24 @@ struct MonthInfo computeMonthInfo(
  * @stable ICU 2.8
  */
 int64_t ChineseCalendar::handleComputeMonthStart(int32_t eyear, int32_t month, UBool useMonth, UErrorCode& status) const {
+    bool isLeapMonth = false;
+    if (useMonth) {
+        isLeapMonth = internalGet(UCAL_IS_LEAP_MONTH) != 0;
+    }
+    return handleComputeMonthStartWithLeap(eyear, month, isLeapMonth, status);
+}
+
+int64_t ChineseCalendar::handleComputeMonthStartWithLeap(int32_t eyear, int32_t month, bool isLeapMonth, UErrorCode& status) const {
     if (U_FAILURE(status)) {
        return 0;
     }
     // If the month is out of range, adjust it into range, and
     // modify the extended year value accordingly.
     if (month < 0 || month > 11) {
-        double m = month;
-        if (uprv_add32_overflow(eyear, ClockMath::floorDivide(m, 12.0, &m), &eyear)) {
+        if (uprv_add32_overflow(eyear, ClockMath::floorDivide(month, 12, &month), &eyear)) {
             status = U_ILLEGAL_ARGUMENT_ERROR;
             return 0;
         }
-        month = static_cast<int32_t>(m);
     }
 
     const Setting setting = getSetting(status);
@@ -362,19 +374,9 @@ int64_t ChineseCalendar::handleComputeMonthStart(int32_t eyear, int32_t month, U
        return 0;
     }
 
-    // Ignore IS_LEAP_MONTH field if useMonth is false
-    bool isLeapMonth = false;
-    if (useMonth) {
-        isLeapMonth = internalGet(UCAL_IS_LEAP_MONTH) != 0;
-    }
+    int32_t newMonthYear = Grego::dayToYear(newMoon, status);
 
-    int32_t unusedMonth;
-    int32_t unusedDayOfWeek;
-    int32_t unusedDayOfMonth;
-    int32_t unusedDayOfYear;
-    Grego::dayToFields(newMoon, gyear, unusedMonth, unusedDayOfWeek, unusedDayOfMonth, unusedDayOfYear, status);
-
-    struct MonthInfo monthInfo = computeMonthInfo(setting, gyear, newMoon, status);
+    struct MonthInfo monthInfo = computeMonthInfo(setting, newMonthYear, newMoon, status);
     if (U_FAILURE(status)) {
        return 0;
     }
@@ -794,6 +796,9 @@ struct MonthInfo computeMonthInfo(
         solsticeBefore = solsticeAfter;
         solsticeAfter = winterSolstice(setting, gyear + 1, status);
     }
+    if (!(solsticeBefore <= days && days < solsticeAfter)) {
+        status = U_ILLEGAL_ARGUMENT_ERROR;
+    }
     if (U_FAILURE(status)) {
         return output;
     }
@@ -1043,7 +1048,12 @@ void ChineseCalendar::offsetMonth(int32_t newMoon, int32_t dayOfMonth, int32_t d
     }
 
     // Find the target dayOfMonth
-    int32_t jd = newMoon + kEpochStartAsJulianDay - 1 + dayOfMonth;
+    int32_t jd;
+    if (uprv_add32_overflow(newMoon, kEpochStartAsJulianDay - 1, &jd) ||
+        uprv_add32_overflow(jd, dayOfMonth, &jd)) {
+        status = U_ILLEGAL_ARGUMENT_ERROR;
+        return;
+    }
 
     // Pin the dayOfMonth.  In this calendar all months are 29 or 30 days
     // so pinning just means handling dayOfMonth 30.
@@ -1180,6 +1190,27 @@ ChineseCalendar::Setting ChineseCalendar::getSetting(UErrorCode&) const {
         &gWinterSolsticeCache,
         &gNewYearCache
   };
+}
+
+int32_t
+ChineseCalendar::getActualMaximum(UCalendarDateFields field, UErrorCode& status) const
+{
+    if (U_FAILURE(status)) {
+       return 0;
+    }
+    if (field == UCAL_DATE) {
+        LocalPointer<ChineseCalendar> cal(clone(), status);
+        if(U_FAILURE(status)) {
+            return 0;
+        }
+        cal->setLenient(true);
+        cal->prepareGetActual(field,false,status);
+        int32_t year = cal->get(UCAL_EXTENDED_YEAR, status);
+        int32_t month = cal->get(UCAL_MONTH, status);
+        bool leap = cal->get(UCAL_IS_LEAP_MONTH, status) != 0;
+        return handleGetMonthLengthWithLeap(year, month, leap, status);
+    }
+    return Calendar::getActualMaximum(field, status);
 }
 
 U_NAMESPACE_END

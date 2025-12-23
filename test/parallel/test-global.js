@@ -60,6 +60,9 @@ for (const moduleName of builtinModules) {
     'crypto',
     'navigator',
   ];
+  if (common.hasSQLite) {
+    expected.push('localStorage', 'sessionStorage');
+  }
   assert.deepStrictEqual(new Set(Object.keys(globalThis)), new Set(expected));
   expected.forEach((value) => {
     const desc = Object.getOwnPropertyDescriptor(globalThis, value);

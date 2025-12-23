@@ -8,6 +8,7 @@
     'openssl/crypto/ec/curve448',
     'openssl/crypto/ec/curve448/arch_32',
     'openssl/providers/common/include',
+    'openssl/providers/fips/include',
     'openssl/providers/implementations/include',
     'config/',
   ],

@@ -23,13 +23,21 @@ struct PositionTableEntry {
   PositionTableEntry()
       : source_position(0),
         code_offset(kFunctionEntryBytecodeOffset),
-        is_statement(false) {}
-  PositionTableEntry(int offset, int64_t source, bool statement)
-      : source_position(source), code_offset(offset), is_statement(statement) {}
+        is_statement(false),
+        is_breakable(true) {}
+  PositionTableEntry(int offset, int64_t source, bool statement,
+                     bool breakable = true)
+      : source_position(source),
+        code_offset(offset),
+        is_statement(statement),
+        is_breakable(breakable) {}
 
   int64_t source_position;
   int code_offset;
   bool is_statement;
+  bool is_breakable;
+
+  bool operator==(const PositionTableEntry&) const = default;
 };
 
 class V8_EXPORT_PRIVATE SourcePositionTableBuilder {
@@ -49,7 +57,7 @@ class V8_EXPORT_PRIVATE SourcePositionTableBuilder {
       Zone* zone, RecordingMode mode = RECORD_SOURCE_POSITIONS);
 
   void AddPosition(size_t code_offset, SourcePosition source_position,
-                   bool is_statement);
+                   bool is_statement, bool is_breakable = true);
 
   template <typename IsolateT>
   EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
@@ -89,6 +97,8 @@ class V8_EXPORT_PRIVATE SourcePositionTableIterator {
     PositionTableEntry position_;
     IterationFilter iteration_filter_;
     FunctionEntryFilter function_entry_filter_;
+
+    bool operator==(const IndexAndPositionState&) const = default;
   };
 
   // We expose three flavours of the iterator, depending on the argument passed
@@ -129,6 +139,10 @@ class V8_EXPORT_PRIVATE SourcePositionTableIterator {
   bool is_statement() const {
     DCHECK(!done());
     return current_.is_statement;
+  }
+  bool is_breakable() const {
+    DCHECK(!done());
+    return current_.is_breakable;
   }
   bool done() const { return index_ == kDone; }
 

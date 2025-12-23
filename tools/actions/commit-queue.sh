@@ -87,22 +87,18 @@ for pr in "$@"; do
     commit_body=$(git log -1 --pretty='format:%b')
     commit_head=$(grep 'Fetched commits as' output | cut -d. -f3 | xargs git rev-parse)
 
-    jq -n \
-      --arg title "${commit_title}" \
-      --arg body "${commit_body}" \
-      --arg head "${commit_head}" \
-      '{merge_method:"squash",commit_title:$title,commit_message:$body,sha:$head}' > output.json
-    cat output.json
-    if ! gh api -X PUT "repos/${OWNER}/${REPOSITORY}/pulls/${pr}/merge" --input output.json > output; then
+    if ! commits="$(
+      jq -cn \
+        --arg title "${commit_title}" \
+        --arg body "${commit_body}" \
+        --arg head "${commit_head}" \
+        '{merge_method:"squash",commit_title:$title,commit_message:$body,sha:$head}' |\
+      gh api -X PUT "repos/${OWNER}/${REPOSITORY}/pulls/${pr}/merge" --input -\
+        --jq 'if .merged then .sha else halt_error end'
+    )"; then
       commit_queue_failed "$pr"
       continue
     fi
-    cat output
-    if ! commits="$(jq -r 'if .merged then .sha else error("not merged") end' < output)"; then
-      commit_queue_failed "$pr"
-      continue
-    fi
-    rm output.json
   fi
 
   rm output

@@ -46,7 +46,7 @@
 #endif
 
 #include "absl/time/internal/cctz/include/cctz/civil_time.h"
-#include "time_zone_if.h"
+#include "absl/time/internal/cctz/src/time_zone_if.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
@@ -117,7 +117,7 @@ std::tm ToTM(const time_zone::absolute_lookup& al) {
   tm.tm_mday = al.cs.day();
   tm.tm_mon = al.cs.month() - 1;
 
-  // Saturate tm.tm_year is cases of over/underflow.
+  // Saturate tm.tm_year in cases of over/underflow.
   if (al.cs.year() < std::numeric_limits<int>::min() + 1900) {
     tm.tm_year = std::numeric_limits<int>::min();
   } else if (al.cs.year() - 1900 > std::numeric_limits<int>::max()) {
@@ -338,7 +338,7 @@ std::string format(const std::string& format, const time_point<seconds>& tp,
   const std::tm tm = ToTM(al);
 
   // Scratch buffer for internal conversions.
-  char buf[3 + kDigits10_64];  // enough for longest conversion
+  char buf[6 + (kDigits10_64 + 2)];  // enough for longest conversion %F
   char* const ep = buf + sizeof(buf);
   char* bp;  // works back from ep
 
@@ -382,7 +382,7 @@ std::string format(const std::string& format, const time_point<seconds>& tp,
     if (cur == end || (cur - percent) % 2 == 0) continue;
 
     // Simple specifiers that we handle ourselves.
-    if (strchr("YmdeUuWwHMSzZs%", *cur)) {
+    if (strchr("YmdeFUuWwHMSTzZs%", *cur)) {
       if (cur - 1 != pending) {
         FormatTM(&result, std::string(pending, cur - 1), tm);
       }
@@ -401,6 +401,14 @@ std::string format(const std::string& format, const time_point<seconds>& tp,
         case 'e':
           bp = Format02d(ep, al.cs.day());
           if (*cur == 'e' && *bp == '0') *bp = ' ';  // for Windows
+          result.append(bp, static_cast<std::size_t>(ep - bp));
+          break;
+        case 'F':
+          bp = Format02d(ep, al.cs.day());
+          *--bp = '-';
+          bp = Format02d(bp, al.cs.month());
+          *--bp = '-';
+          bp = Format64(bp, 0, al.cs.year());
           result.append(bp, static_cast<std::size_t>(ep - bp));
           break;
         case 'U':
@@ -429,6 +437,14 @@ std::string format(const std::string& format, const time_point<seconds>& tp,
           break;
         case 'S':
           bp = Format02d(ep, al.cs.second());
+          result.append(bp, static_cast<std::size_t>(ep - bp));
+          break;
+        case 'T':
+          bp = Format02d(ep, al.cs.second());
+          *--bp = ':';
+          bp = Format02d(bp, al.cs.minute());
+          *--bp = ':';
+          bp = Format02d(bp, al.cs.hour());
           result.append(bp, static_cast<std::size_t>(ep - bp));
           break;
         case 'z':
@@ -769,6 +785,20 @@ bool parse(const std::string& format, const std::string& input,
         data = ParseInt(data, 2, 1, 31, &tm.tm_mday);
         week_num = -1;
         continue;
+      case 'F':
+        data = ParseInt(data, 0, kyearmin, kyearmax, &year);
+        if (data != nullptr) {
+          saw_year = true;
+          data = (*data == '-' ? data + 1 : nullptr);
+        }
+        data = ParseInt(data, 2, 1, 12, &tm.tm_mon);
+        if (data != nullptr) {
+          tm.tm_mon -= 1;
+          data = (*data == '-' ? data + 1 : nullptr);
+        }
+        data = ParseInt(data, 2, 1, 31, &tm.tm_mday);
+        week_num = -1;
+        continue;
       case 'U':
         data = ParseInt(data, 0, 0, 53, &week_num);
         week_start = weekday::sunday;
@@ -794,13 +824,20 @@ bool parse(const std::string& format, const std::string& input,
       case 'S':
         data = ParseInt(data, 2, 0, 60, &tm.tm_sec);
         continue;
+      case 'T':
+        data = ParseInt(data, 2, 0, 23, &tm.tm_hour);
+        twelve_hour = false;
+        data = (data != nullptr && *data == ':' ? data + 1 : nullptr);
+        data = ParseInt(data, 2, 0, 59, &tm.tm_min);
+        data = (data != nullptr && *data == ':' ? data + 1 : nullptr);
+        data = ParseInt(data, 2, 0, 60, &tm.tm_sec);
+        continue;
       case 'I':
       case 'l':
       case 'r':  // probably uses %I
         twelve_hour = true;
         break;
       case 'R':  // uses %H
-      case 'T':  // uses %H
       case 'c':  // probably uses %H
       case 'X':  // probably uses %H
         twelve_hour = false;

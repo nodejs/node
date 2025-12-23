@@ -27,6 +27,7 @@
 
 #include "src/handles/global-handles.h"
 
+#include "include/cppgc/macros.h"
 #include "include/v8-embedder-heap.h"
 #include "include/v8-function.h"
 #include "src/api/api-inl.h"
@@ -45,20 +46,15 @@ namespace internal {
 namespace {
 
 struct TracedReferenceWrapper {
+  void Trace(cppgc::Visitor* v) { v->Trace(handle); }
   v8::TracedReference<v8::Object> handle;
 };
 
 class NonRootingEmbedderRootsHandler final : public v8::EmbedderRootsHandler {
- public:
-  START_ALLOW_USE_DEPRECATED()
-  NonRootingEmbedderRootsHandler()
-      : v8::EmbedderRootsHandler(v8::EmbedderRootsHandler::RootHandling::
-                                     kQueryEmbedderForNonDroppableReferences) {}
-  END_ALLOW_USE_DEPRECATED()
-  bool IsRoot(const v8::TracedReference<v8::Value>& handle) final {
-    return false;
-  }
+  CPPGC_STACK_ALLOCATED();
 
+ public:
+  NonRootingEmbedderRootsHandler() : v8::EmbedderRootsHandler() {}
   void ResetRoot(const v8::TracedReference<v8::Value>& handle) final {
     for (auto* wrapper : wrappers_) {
       if (wrapper->handle == handle) {
@@ -196,8 +192,6 @@ TEST_F(GlobalHandlesTest, EternalHandles) {
   Isolate* isolate = i_isolate();
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
   EternalHandles* eternal_handles = isolate->eternal_handles();
-  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
-      isolate->heap());
 
   // Create a number of handles that will not be on a block boundary
   const int kArrayLength = 2048 - 1;
@@ -222,7 +216,13 @@ TEST_F(GlobalHandlesTest, EternalHandles) {
     CHECK(!eternals[i].IsEmpty());
   }
 
-  InvokeMemoryReducingMajorGCs(isolate);
+  {
+    // We need to invoke GC without stack, otherwise some objects may not be
+    // reclaimed because of conservative stack scanning.
+    DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+        isolate->heap());
+    InvokeMemoryReducingMajorGCs(isolate);
+  }
 
   for (int i = 0; i < kArrayLength; i++) {
     for (int j = 0; j < 2; j++) {
@@ -362,17 +362,6 @@ TEST_F(GlobalHandlesTest, WeakHandleToUnmodifiedJSApiObjectDiesOnScavenge) {
 }
 
 TEST_F(GlobalHandlesTest,
-       TracedReferenceToUnmodifiedJSApiObjectDiesOnScavenge) {
-  if (v8_flags.single_generation) return;
-  if (!v8_flags.reclaim_unmodified_wrappers) return;
-
-  ManualGCScope manual_gc(i_isolate());
-  TracedReferenceTestWithScavenge(
-      &ConstructJSApiObject<TracedReferenceWrapper>,
-      [](TracedReferenceWrapper* fp) {}, SurvivalMode::kDies);
-}
-
-TEST_F(GlobalHandlesTest,
        TracedReferenceToJSApiObjectWithIdentityHashSurvivesScavenge) {
   if (v8_flags.single_generation) return;
 
@@ -385,8 +374,8 @@ TEST_F(GlobalHandlesTest,
       &ConstructJSApiObject<TracedReferenceWrapper>,
       [this, &weakmap, isolate](TracedReferenceWrapper* fp) {
         v8::HandleScope scope(v8_isolate());
-        Handle<JSReceiver> key =
-            Utils::OpenHandle(*fp->handle.Get(v8_isolate()));
+        DirectHandle<JSReceiver> key =
+            Utils::OpenDirectHandle(*fp->handle.Get(v8_isolate()));
         DirectHandle<Smi> smi(Smi::FromInt(23), isolate);
         int32_t hash = Object::GetOrCreateHash(*key, isolate).value();
         JSWeakCollection::Set(weakmap, key, smi, hash);
@@ -619,6 +608,8 @@ TEST_F(GlobalHandlesTest, TotalSizeRegularNode) {
 }
 
 TEST_F(GlobalHandlesTest, TotalSizeTracedNode) {
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      i_isolate()->heap());
   ManualGCScope manual_gc(i_isolate());
   v8::Isolate* isolate = v8_isolate();
   v8::HandleScope scope(isolate);

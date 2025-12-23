@@ -36,6 +36,9 @@ struct BranchInfo {
   FlagsCondition condition;
   Label* true_label;
   Label* false_label;
+  // Whether there a hint that this branch is unlikely to change direction,
+  // such as a WebAssembly hinted branch or a trap.
+  bool hinted;
   bool fallthru;
 };
 
@@ -92,6 +95,7 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
 
 #if V8_ENABLE_WEBASSEMBLY
   base::OwnedVector<uint8_t> GenerateWasmDeoptimizationData();
+  base::OwnedVector<wasm::WasmCode::EffectHandler> GenerateWasmEffectHandler();
 #endif
 
   base::OwnedVector<uint8_t> GetSourcePositionTable();
@@ -217,10 +221,11 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   void AssembleArchDeoptBranch(Instruction* instr, BranchInfo* branch);
 
   void AssembleArchBoolean(Instruction* instr, FlagsCondition condition);
-  void AssembleArchConditionalBoolean(Instruction* instr);
   void AssembleArchSelect(Instruction* instr, FlagsCondition condition);
 #if V8_ENABLE_WEBASSEMBLY
   void AssembleArchTrap(Instruction* instr, FlagsCondition condition);
+  void AssembleArchConditionalTrap(Instruction* instr,
+                                   FlagsCondition condition);
 #endif  // V8_ENABLE_WEBASSEMBLY
 #if V8_TARGET_ARCH_X64
   void AssembleArchBinarySearchSwitchRange(
@@ -234,14 +239,22 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   void AssembleArchBinarySearchSwitch(Instruction* instr);
   void AssembleArchTableSwitch(Instruction* instr);
 
-  // Generates code that checks whether the {kJavaScriptCallCodeStartRegister}
+  // Generates code to check whether the {kJavaScriptCallCodeStartRegister}
   // contains the expected pointer to the start of the instruction stream.
   void AssembleCodeStartRegisterCheck();
+
+#ifdef V8_ENABLE_LEAPTIERING
+  // Generates code to check whether the {kJavaScriptCallDispatchHandleRegister}
+  // references a valid entry compatible with this code.
+  void AssembleDispatchHandleRegisterCheck();
+#endif  // V8_ENABLE_LEAPTIERING
 
   // When entering a code that is marked for deoptimization, rather continuing
   // with its execution, we jump to a lazy compiled code. We need to do this
   // because this code has already been deoptimized and needs to be unlinked
   // from the JS functions referring it.
+  // TODO(olivf, 42204201) Rename this to AssertNotDeoptimized once
+  // non-leaptiering is removed from the codebase.
   void BailoutIfDeoptimized();
 
   // Assemble NOP instruction for lazy deoptimization. This place will be
@@ -346,9 +359,9 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   // Adds a jump table that is emitted after the actual code.  Returns label
   // pointing to the beginning of the table.  {targets} is assumed to be static
   // or zone allocated.
-  Label* AddJumpTable(Label** targets, size_t target_count);
+  Label* AddJumpTable(base::Vector<Label*> targets);
   // Emits a jump table.
-  void AssembleJumpTable(Label** targets, size_t target_count);
+  void AssembleJumpTable(base::Vector<Label*> targets);
 
   // ===========================================================================
   // ================== Deoptimization table construction. =====================
@@ -357,7 +370,11 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   void RecordCallPosition(Instruction* instr);
   void RecordDeoptInfo(Instruction* instr, int pc_offset);
   Handle<DeoptimizationData> GenerateDeoptimizationData();
+  int DefineProtectedDeoptimizationLiteral(
+      IndirectHandle<TrustedObject> object);
   int DefineDeoptimizationLiteral(DeoptimizationLiteral literal);
+  bool HasProtectedDeoptimizationLiteral(
+      IndirectHandle<TrustedObject> object) const;
   DeoptimizationEntry const& GetDeoptimizationEntry(Instruction* instr,
                                                     size_t frame_state_offset);
 
@@ -385,6 +402,12 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
     int pc_offset;
   };
 
+  struct EffectHandlerInfo {
+    int tag_index;
+    Label* handler;
+    int pc_offset;
+  };
+
   friend class OutOfLineCode;
   friend class CodeGeneratorTester;
 
@@ -404,11 +427,13 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   GapResolver resolver_;
   SafepointTableBuilder safepoints_;
   ZoneVector<HandlerInfo> handlers_;
+  ZoneVector<EffectHandlerInfo> effect_handlers_;
   int next_deoptimization_id_ = 0;
   int deopt_exit_start_offset_ = 0;
   int eager_deopt_count_ = 0;
   int lazy_deopt_count_ = 0;
   ZoneDeque<DeoptimizationExit*> deoptimization_exits_;
+  ZoneDeque<IndirectHandle<TrustedObject>> protected_deoptimization_literals_;
   ZoneDeque<DeoptimizationLiteral> deoptimization_literals_;
   size_t inlined_function_count_ = 0;
   FrameTranslationBuilder translations_;

@@ -46,8 +46,10 @@
 // reason, `insert()`, `erase()`, and `extract_and_get_next()` return a valid
 // iterator at the current position.
 //
-// Another API difference is that btree iterators can be subtracted, and this
-// is faster than using std::distance.
+// There are other API differences: first, btree iterators can be subtracted,
+// and this is faster than using `std::distance`. Additionally, btree
+// iterators can be advanced via `operator+=` and `operator-=`, which is faster
+// than using `std::advance`.
 //
 // B-tree sets are not exception-safe.
 
@@ -117,8 +119,8 @@ class ABSL_ATTRIBUTE_OWNER btree_set
   //
   // * Copy assignment operator
   //
-  //  absl::btree_set<std::string> set4;
-  //  set4 = set3;
+  //   absl::btree_set<std::string> set4;
+  //   set4 = set3;
   //
   // * Move constructor
   //
@@ -473,8 +475,8 @@ class ABSL_ATTRIBUTE_OWNER btree_multiset
   //
   // * Copy assignment operator
   //
-  //  absl::btree_multiset<std::string> set4;
-  //  set4 = set3;
+  //   absl::btree_multiset<std::string> set4;
+  //   set4 = set3;
   //
   // * Move constructor
   //
