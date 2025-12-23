@@ -7,6 +7,7 @@
 #include "crypto/crypto_ec.h"
 #include "crypto/crypto_ml_dsa.h"
 #include "crypto/crypto_rsa.h"
+#include "crypto/crypto_slh_dsa.h"
 #include "crypto/crypto_util.h"
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
@@ -184,6 +185,30 @@ bool ExportJWKAsymmetricKey(Environment* env,
       // Fall through
     case EVP_PKEY_ML_DSA_87:
       return ExportJwkMlDsaKey(env, key, target);
+    case EVP_PKEY_SLH_DSA_SHA2_128F:
+      // Fall through
+    case EVP_PKEY_SLH_DSA_SHA2_128S:
+      // Fall through
+    case EVP_PKEY_SLH_DSA_SHA2_192F:
+      // Fall through
+    case EVP_PKEY_SLH_DSA_SHA2_192S:
+      // Fall through
+    case EVP_PKEY_SLH_DSA_SHA2_256F:
+      // Fall through
+    case EVP_PKEY_SLH_DSA_SHA2_256S:
+      // Fall through
+    case EVP_PKEY_SLH_DSA_SHAKE_128F:
+      // Fall through
+    case EVP_PKEY_SLH_DSA_SHAKE_128S:
+      // Fall through
+    case EVP_PKEY_SLH_DSA_SHAKE_192F:
+      // Fall through
+    case EVP_PKEY_SLH_DSA_SHAKE_192S:
+      // Fall through
+    case EVP_PKEY_SLH_DSA_SHAKE_256F:
+      // Fall through
+    case EVP_PKEY_SLH_DSA_SHAKE_256S:
+      return ExportJwkSlhDsaKey(env, key, target);
 #endif
   }
   THROW_ERR_CRYPTO_JWK_UNSUPPORTED_KEY_TYPE(env);
@@ -293,6 +318,30 @@ int GetNidFromName(const char* name) {
     nid = EVP_PKEY_ML_KEM_768;
   } else if (strcmp(name, "ML-KEM-1024") == 0) {
     nid = EVP_PKEY_ML_KEM_1024;
+  } else if (strcmp(name, "SLH-DSA-SHA2-128f") == 0) {
+    nid = EVP_PKEY_SLH_DSA_SHA2_128F;
+  } else if (strcmp(name, "SLH-DSA-SHA2-128s") == 0) {
+    nid = EVP_PKEY_SLH_DSA_SHA2_128S;
+  } else if (strcmp(name, "SLH-DSA-SHA2-192f") == 0) {
+    nid = EVP_PKEY_SLH_DSA_SHA2_192F;
+  } else if (strcmp(name, "SLH-DSA-SHA2-192s") == 0) {
+    nid = EVP_PKEY_SLH_DSA_SHA2_192S;
+  } else if (strcmp(name, "SLH-DSA-SHA2-256f") == 0) {
+    nid = EVP_PKEY_SLH_DSA_SHA2_256F;
+  } else if (strcmp(name, "SLH-DSA-SHA2-256s") == 0) {
+    nid = EVP_PKEY_SLH_DSA_SHA2_256S;
+  } else if (strcmp(name, "SLH-DSA-SHAKE-128f") == 0) {
+    nid = EVP_PKEY_SLH_DSA_SHAKE_128F;
+  } else if (strcmp(name, "SLH-DSA-SHAKE-128s") == 0) {
+    nid = EVP_PKEY_SLH_DSA_SHAKE_128S;
+  } else if (strcmp(name, "SLH-DSA-SHAKE-192f") == 0) {
+    nid = EVP_PKEY_SLH_DSA_SHAKE_192F;
+  } else if (strcmp(name, "SLH-DSA-SHAKE-192s") == 0) {
+    nid = EVP_PKEY_SLH_DSA_SHAKE_192S;
+  } else if (strcmp(name, "SLH-DSA-SHAKE-256f") == 0) {
+    nid = EVP_PKEY_SLH_DSA_SHAKE_256F;
+  } else if (strcmp(name, "SLH-DSA-SHAKE-256s") == 0) {
+    nid = EVP_PKEY_SLH_DSA_SHAKE_256S;
 #endif
   } else {
     nid = NID_undef;
@@ -862,10 +911,12 @@ void KeyObjectHandle::InitPqcRaw(const FunctionCallbackInfo<Value>& args) {
 
   typedef EVPKeyPointer (*new_key_fn)(
       int, const ncrypto::Buffer<const unsigned char>&);
-  new_key_fn fn = type == kKeyTypePrivate ? EVPKeyPointer::NewRawSeed
-                                          : EVPKeyPointer::NewRawPublic;
 
   int id = GetNidFromName(*name);
+
+  typedef EVPKeyPointer (*new_key_fn)(
+      int, const ncrypto::Buffer<const unsigned char>&);
+  new_key_fn fn;
 
   switch (id) {
     case EVP_PKEY_ML_DSA_44:
@@ -873,22 +924,39 @@ void KeyObjectHandle::InitPqcRaw(const FunctionCallbackInfo<Value>& args) {
     case EVP_PKEY_ML_DSA_87:
     case EVP_PKEY_ML_KEM_512:
     case EVP_PKEY_ML_KEM_768:
-    case EVP_PKEY_ML_KEM_1024: {
-      auto pkey = fn(id,
-                     ncrypto::Buffer<const unsigned char>{
-                         .data = key_data.data(),
-                         .len = key_data.size(),
-                     });
-      if (!pkey) {
-        return args.GetReturnValue().Set(false);
-      }
-      key->data_ = KeyObjectData::CreateAsymmetric(type, std::move(pkey));
-      CHECK(key->data_);
+    case EVP_PKEY_ML_KEM_1024:
+      fn = type == kKeyTypePrivate ? EVPKeyPointer::NewRawSeed
+                                   : EVPKeyPointer::NewRawPublic;
       break;
-    }
+    case EVP_PKEY_SLH_DSA_SHA2_128F:
+    case EVP_PKEY_SLH_DSA_SHA2_128S:
+    case EVP_PKEY_SLH_DSA_SHA2_192F:
+    case EVP_PKEY_SLH_DSA_SHA2_192S:
+    case EVP_PKEY_SLH_DSA_SHA2_256F:
+    case EVP_PKEY_SLH_DSA_SHA2_256S:
+    case EVP_PKEY_SLH_DSA_SHAKE_128F:
+    case EVP_PKEY_SLH_DSA_SHAKE_128S:
+    case EVP_PKEY_SLH_DSA_SHAKE_192F:
+    case EVP_PKEY_SLH_DSA_SHAKE_192S:
+    case EVP_PKEY_SLH_DSA_SHAKE_256F:
+    case EVP_PKEY_SLH_DSA_SHAKE_256S:
+      fn = type == kKeyTypePrivate ? EVPKeyPointer::NewRawPrivate
+                                   : EVPKeyPointer::NewRawPublic;
+      break;
     default:
       UNREACHABLE();
   }
+
+  auto pkey = fn(id,
+                 ncrypto::Buffer<const unsigned char>{
+                     .data = key_data.data(),
+                     .len = key_data.size(),
+                 });
+  if (!pkey) {
+    return args.GetReturnValue().Set(false);
+  }
+  key->data_ = KeyObjectData::CreateAsymmetric(type, std::move(pkey));
+  CHECK(key->data_);
 
   args.GetReturnValue().Set(true);
 }
