@@ -11,7 +11,14 @@ const assert = require('assert');
 const { readFileSync, copyFileSync, statSync } = require('fs');
 const {
   spawnSyncAndExitWithoutError,
+  spawnSyncAndAssert,
 } = require('../common/child_process');
+
+function skipIfBuildSEAIsNotSupported() {
+  if (!process.config.variables.node_use_lief)
+    common.skip('Node.js was not built with LIEF support.');
+  skipIfSingleExecutableIsNotSupported();
+}
 
 function skipIfSingleExecutableIsNotSupported() {
   if (!process.config.variables.single_executable_application)
@@ -71,6 +78,59 @@ function skipIfSingleExecutableIsNotSupported() {
   if (!tmpdir.hasEnoughSpace(expectedSpace)) {
     common.skip(`Available disk space < ${Math.floor(expectedSpace / 1024 / 1024)} MB`);
   }
+}
+
+function buildSEA(fixtureDir, options = {}) {
+  const {
+    workingDir = tmpdir.path,
+    configPath = 'sea-config.json',
+    verifyWorkflow = false,
+    failure,
+  } = options;
+
+  // Copy fixture files to working directory if they are different.
+  if (fixtureDir !== workingDir) {
+    fs.cpSync(fixtureDir, workingDir, { recursive: true });
+  }
+
+  // Parse the config to get the output file path, if on Windows, ensure it ends with .exe
+  const config = JSON.parse(fs.readFileSync(path.resolve(workingDir, configPath)));
+  assert.strictEqual(typeof config.output, 'string');
+  if (process.platform === 'win32') {
+    if (!config.output.endsWith('.exe')) {
+      config.output += '.exe';
+    }
+    if (config.executable && !config.executable.endsWith('.exe')) {
+      config.executable += '.exe';
+    }
+    fs.writeFileSync(path.resolve(workingDir, configPath), JSON.stringify(config, null, 2));
+  }
+
+  // Build the SEA.
+  const child = spawnSyncAndAssert(process.execPath, ['--build-sea', configPath], {
+    cwd: workingDir,
+    env: {
+      NODE_DEBUG_NATIVE: 'SEA',
+      ...process.env,
+    },
+  }, failure === undefined ? {
+    status: 0,
+    signal: null,
+  } : {
+    stderr: failure,
+    status: 1,
+  });
+
+  if (failure !== undefined) {
+    // Log more information, otherwise it's hard to debug failures from CI.
+    console.log(child.stderr.toString());
+    return child;
+  }
+
+  const outputFile = path.resolve(workingDir, config.output);
+  assert(fs.existsSync(outputFile), `Expected SEA output file ${outputFile} to exist`);
+  signSEA(outputFile, verifyWorkflow);
+  return outputFile;
 }
 
 function generateSEA(fixtureDir, options = {}) {
@@ -181,6 +241,9 @@ function signSEA(targetExecutable, verifyWorkflow = false) {
 }
 
 module.exports = {
+  skipIfBuildSEAIsNotSupported,
   skipIfSingleExecutableIsNotSupported,
   generateSEA,
+  signSEA,
+  buildSEA,
 };
