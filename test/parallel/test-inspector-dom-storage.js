@@ -3,16 +3,16 @@
 
 const common = require('../common');
 const assert = require('assert');
+common.skipIfInspectorDisabled();
 const { DOMStorage, Session } = require('node:inspector/promises');
 
-common.skipIfInspectorDisabled();
 
 async function test() {
   const session = new Session();
   await session.connect();
 
   // Check disabled before enable
-  session
+  await session
     .post('DOMStorage.getDOMStorageItems', {
       storageId: {
         isLocalStorage: true,
