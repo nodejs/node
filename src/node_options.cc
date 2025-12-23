@@ -784,7 +784,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "experimental network inspection support",
             &EnvironmentOptions::experimental_network_inspection);
   AddOption("--experimental-inspector-storage-key",
-            "experimental network inspection support",
+            "experimental storage inspection support",
             &EnvironmentOptions::experimental_inspector_storage_key);
   AddOption("--experimental-worker-inspection",
             "experimental worker inspection support",
