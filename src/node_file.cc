@@ -1636,7 +1636,7 @@ static void RmSync(const FunctionCallbackInfo<Value>& args) {
       env, permission::PermissionScope::kFileSystemWrite, path.ToStringView());
   auto file_path = std::filesystem::path(path.ToStringView());
   std::error_code error;
-  auto file_status = std::filesystem::status(file_path, error);
+  auto file_status = std::filesystem::symlink_status(file_path, error);
 
   if (file_status.type() == std::filesystem::file_type::not_found) {
     return;
