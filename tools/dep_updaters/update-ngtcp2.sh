@@ -10,20 +10,19 @@ DEPS_DIR="$BASE_DIR/deps"
 # shellcheck disable=SC1091
 . "$BASE_DIR/tools/dep_updaters/utils.sh"
 
-NEW_VERSION="1.15.1"
-# NEW_VERSION="$("$NODE" --input-type=module <<'EOF'
-# const res = await fetch('https://api.github.com/repos/ngtcp2/ngtcp2/releases',
-#   process.env.GITHUB_TOKEN && {
-#     headers: {
-#       "Authorization": `Bearer ${process.env.GITHUB_TOKEN}`
-#     },
-#   });
-# if (!res.ok) throw new Error(`FetchError: ${res.status} ${res.statusText}`, { cause: res });
-# const releases = await res.json()
-# const { tag_name } = releases.at(0);
-# console.log(tag_name.replace('v', ''));
-# EOF
-# )"
+NEW_VERSION="$("$NODE" --input-type=module <<'EOF'
+const res = await fetch('https://api.github.com/repos/ngtcp2/ngtcp2/releases',
+  process.env.GITHUB_TOKEN && {
+    headers: {
+      "Authorization": `Bearer ${process.env.GITHUB_TOKEN}`
+    },
+  });
+if (!res.ok) throw new Error(`FetchError: ${res.status} ${res.statusText}`, { cause: res });
+const releases = await res.json()
+const { tag_name } = releases.at(0);
+console.log(tag_name.replace('v', ''));
+EOF
+)"
 
 NGTCP2_VERSION_H="$DEPS_DIR/ngtcp2/ngtcp2/lib/includes/ngtcp2/version.h"
 
