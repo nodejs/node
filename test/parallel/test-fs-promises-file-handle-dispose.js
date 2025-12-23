@@ -23,10 +23,13 @@ async function explicitCall() {
 }
 
 async function implicitCall() {
+  let fh;
   {
-    await using fh = await fs.open(__filename);
+    await using openHandle = await fs.open(__filename);
+    fh = openHandle;
     fh.on('close', common.mustCall());
   }
+  assert.strictEqual(fh.fd, -1);
 
   let dh;
   {
