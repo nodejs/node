@@ -2,7 +2,7 @@ import * as common from '../common/index.mjs';
 import tmpdir from '../common/tmpdir.js';
 import { resolve } from 'node:path';
 import { mkdir, writeFile, symlink, glob as asyncGlob } from 'node:fs/promises';
-import { globSync } from 'node:fs';
+import { globSync, mkdirSync, symlinkSync } from 'node:fs';
 import { test } from 'node:test';
 import assert from 'node:assert';
 
@@ -203,4 +203,44 @@ test('glob with withFileTypes and followSymlinks', async () => {
   results.forEach((entry) => {
     assert.ok(entry.isFile() || entry.isDirectory(), `Entry ${entry.name} should be a file or directory`);
   });
+});
+
+test('glob with followSymlinks avoids cycles', async () => {
+  if (common.isWindows) {
+    return;
+  }
+
+  // Create a symlink that points back up the tree to test cycle protection
+  const loopDir = resolve(fixtureDir, 'loop');
+  await mkdir(loopDir, { recursive: true });
+  const loopTarget = resolve(loopDir, 'back');
+  await symlink(fixtureDir, loopTarget, 'dir');
+
+  const results = [];
+  for await (const file of asyncGlob('**/*.txt', { cwd: fixtureDir, followSymlinks: true })) {
+    results.push(file);
+    // Hard break guard: if we ever blow up beyond a sane bound, bail to avoid hanging tests
+    assert.ok(results.length < 200, 'Traversal should not loop infinitely when following symlinks');
+  }
+
+  // Ensure we still find original files
+  assert.ok(results.includes('real-dir/file.txt'));
+  assert.ok(results.includes('regular-dir/regular.txt'));
+});
+
+test('globSync with followSymlinks avoids cycles', () => {
+  if (common.isWindows) {
+    return;
+  }
+
+  const loopDir = resolve(fixtureDir, 'loop-sync');
+  mkdirSync(loopDir, { recursive: true });
+  const loopTarget = resolve(loopDir, 'back');
+  symlinkSync(fixtureDir, loopTarget, 'dir');
+
+  const results = globSync('**/*.txt', { cwd: fixtureDir, followSymlinks: true });
+
+  assert.ok(results.includes('real-dir/file.txt'));
+  assert.ok(results.includes('regular-dir/regular.txt'));
+  assert.ok(results.length < 200, 'Traversal should not loop infinitely when following symlinks (sync)');
 });
