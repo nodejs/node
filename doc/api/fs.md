@@ -1115,6 +1115,8 @@ changes:
     If a string array is provided, each string should be a glob pattern that
     specifies paths to exclude. Note: Negation patterns (e.g., '!foo.js') are
     not supported.
+  * `followSymlinks` {boolean} `true` if the glob should traverse symbolic
+    links to directories, `false` otherwise. **Default:** `false`.
   * `withFileTypes` {boolean} `true` if the glob should return paths as Dirents,
     `false` otherwise. **Default:** `false`.
 * Returns: {AsyncIterator} An AsyncIterator that yields the paths of files
@@ -3215,6 +3217,8 @@ changes:
   * `exclude` {Function|string\[]} Function to filter out files/directories or a
     list of glob patterns to be excluded. If a function is provided, return
     `true` to exclude the item, `false` to include it. **Default:** `undefined`.
+  * `followSymlinks` {boolean} `true` if the glob should traverse symbolic
+    links to directories, `false` otherwise. **Default:** `false`.
   * `withFileTypes` {boolean} `true` if the glob should return paths as Dirents,
     `false` otherwise. **Default:** `false`.
 
@@ -5772,6 +5776,8 @@ changes:
   * `exclude` {Function|string\[]} Function to filter out files/directories or a
     list of glob patterns to be excluded. If a function is provided, return
     `true` to exclude the item, `false` to include it. **Default:** `undefined`.
+  * `followSymlinks` {boolean} `true` if the glob should traverse symbolic
+    links to directories, `false` otherwise. **Default:** `false`.
   * `withFileTypes` {boolean} `true` if the glob should return paths as Dirents,
     `false` otherwise. **Default:** `false`.
 * Returns: {string\[]} paths of files that match the pattern.
