@@ -19,8 +19,7 @@ void StorageAgent::Wire(protocol::UberDispatcher* dispatcher) {
 }
 DispatchResponse StorageAgent::getStorageKey(
     std::optional<protocol::String> frameId, protocol::String* storageKey) {
-  //    *storageKey = env_->options()->experimental_inspector_storage_key;
-  *storageKey = "node-inspector://default-dom-storage";
+  *storageKey = env_->options()->experimental_inspector_storage_key;
   return protocol::DispatchResponse::Success();
 }
 
