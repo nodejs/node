@@ -15,6 +15,7 @@
     'ossfuzz' : 'false',
     'node_module_version%': '',
     'node_use_amaro%': 'true',
+    'node_use_lief%': 'false',
     'node_shared_brotli%': 'false',
     'node_shared_zstd%': 'false',
     'node_shared_zlib%': 'false',
@@ -977,6 +978,10 @@
           'dependencies': [
             'deps/ncrypto/ncrypto.gyp:ncrypto',
           ],
+        }],
+        [ 'node_use_lief=="true"', {
+          'defines': [ 'HAVE_LIEF=1' ],
+          'dependencies': [ 'deps/LIEF/lief.gyp:liblief' ],
         }],
         [ 'node_use_sqlite=="true"', {
           'sources': [
