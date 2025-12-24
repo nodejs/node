@@ -1449,7 +1449,7 @@ void CopyArrayBuffer(const FunctionCallbackInfo<Value>& args) {
   memcpy(dest, src, bytes_to_copy);
 }
 
-std::pair<void*, size_t> DecomposeSourceToParts(Local<Value> source) {
+std::pair<void*, size_t> DecomposeBufferToParts(Local<Value> source) {
   void* pointer;
   size_t byte_length;
 
@@ -1488,11 +1488,11 @@ void StaticCopy(const FunctionCallbackInfo<Value>& args) {
 
   void* source_data;
   size_t source_byte_length;
-  std::tie(source_data, source_byte_length) = DecomposeSourceToParts(source);
+  std::tie(source_data, source_byte_length) = DecomposeBufferToParts(source);
 
   void* target_data;
   size_t target_byte_length;
-  std::tie(target_data, target_byte_length) = DecomposeSourceToParts(target);
+  std::tie(target_data, target_byte_length) = DecomposeBufferToParts(target);
 
   size_t target_start = static_cast<size_t>(args[2].As<Number>()->Value());
   size_t source_start = static_cast<size_t>(args[3].As<Number>()->Value());
