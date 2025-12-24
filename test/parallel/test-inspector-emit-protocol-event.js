@@ -1,4 +1,4 @@
-// Flags: --inspect=0 --experimental-network-inspection --experimental-inspector-storage-key=node-inspector://default-dom-storage
+// Flags: --inspect=0 --experimental-network-inspection --experimental-storage-inspection
 'use strict';
 const common = require('../common');
 

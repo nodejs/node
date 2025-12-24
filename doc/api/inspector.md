@@ -698,7 +698,7 @@ added:
   * `newValue` {string}
 
 This feature is only available with the
-`--experimental-inspector-storage-key=key` flag enabled.
+`--experimental-storage-inspection` flag enabled.
 
 Broadcasts the `DOMStorage.domStorageItemAdded` event to connected frontends.
 This event indicates that a new item has been added to the storage.
@@ -718,7 +718,7 @@ added:
   * `key` {string}
 
 This feature is only available with the
-`--experimental-inspector-storage-key=key` flag enabled.
+`--experimental-storage-inspection` flag enabled.
 
 Broadcasts the `DOMStorage.domStorageItemRemoved` event to connected frontends.
 This event indicates that an item has been removed from the storage.
@@ -740,7 +740,7 @@ added:
   * `newValue` {string}
 
 This feature is only available with the
-`--experimental-inspector-storage-key=key` flag enabled.
+`--experimental-storage-inspection` flag enabled.
 
 Broadcasts the `DOMStorage.domStorageItemUpdated` event to connected frontends.
 This event indicates that a storage item has been updated.
@@ -759,7 +759,7 @@ added:
     * `isLocalStorage` {boolean}
 
 This feature is only available with the
-`--experimental-inspector-storage-key=key` flag enabled.
+`--experimental-storage-inspection` flag enabled.
 
 Broadcasts the `DOMStorage.domStorageItemsCleared` event to connected
 frontends. This event indicates that all items have been cleared from the
@@ -777,10 +777,7 @@ added:
   * `storageMap` {Object}
 
 This feature is only available with the
-`--experimental-inspector-storage-key=key` flag enabled.
-
-Registers a storage map with the inspector. The registered storage entries are
-reported when getDOMStorageItems is called.
+`--experimental-storage-inspection` flag enabled.
 
 ## Support of breakpoints
 

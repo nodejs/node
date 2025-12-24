@@ -265,7 +265,7 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
       target_agent_->Wire(node_dispatcher_.get());
       target_agent_->listenWorker(worker_manager);
     }
-    if (env->options()->experimental_inspector_storage_key.empty() == false) {
+    if (env->options()->experimental_storage_inspection) {
       dom_storage_agent_ = std::make_unique<DOMStorageAgent>(env);
       dom_storage_agent_->Wire(node_dispatcher_.get());
       storage_agent_ = std::make_unique<protocol::StorageAgent>(env_);
@@ -308,7 +308,7 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
       network_inspector_->emitNotification(
           context, domain_name, event_name, params);
     } else if (dom_storage_agent_ && dom_storage_agent_->canEmit(domain_name) &&
-               !env_->options()->experimental_inspector_storage_key.empty()) {
+               env_->options()->experimental_storage_inspection) {
       dom_storage_agent_->emitNotification(context, event_name, params);
     }
   }

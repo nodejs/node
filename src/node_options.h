@@ -176,7 +176,7 @@ class EnvironmentOptions : public Options {
   bool cpu_prof = false;
   bool experimental_network_inspection = false;
   bool experimental_worker_inspection = false;
-  std::string experimental_inspector_storage_key;
+  bool experimental_storage_inspection = false;
   bool experimental_inspector_network_resource = false;
   std::string heap_prof_dir;
   std::string heap_prof_name;

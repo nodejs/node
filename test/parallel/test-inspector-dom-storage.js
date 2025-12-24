@@ -1,10 +1,11 @@
-// Flags: --inspect=0 --experimental-inspector-storage-key=node-inspector://default-dom-storage
+// Flags: --inspect=0 --experimental-storage-inspection --localstorage-file=./localstorage.db
 'use strict';
 
 const common = require('../common');
 const assert = require('assert');
 common.skipIfInspectorDisabled();
 const { DOMStorage, Session } = require('node:inspector/promises');
+const { pathToFileURL } = require('node:url');
 
 
 async function test() {
@@ -12,6 +13,11 @@ async function test() {
   await session.connect();
 
   await session.post('DOMStorage.enable');
+
+  const localStorageFileUrl = pathToFileURL('./localstorage.db').toString();
+
+  const { storageKey } = await session.post('Storage.getStorageKey');
+  assert.strictEqual(storageKey, localStorageFileUrl);
 
   await checkStorage(true);
   await checkStorage(false);

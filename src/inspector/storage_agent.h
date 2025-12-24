@@ -26,6 +26,7 @@ class StorageAgent : public protocol::Storage::Backend {
  private:
   std::unique_ptr<protocol::Storage::Frontend> frontend_;
   Environment* env_;
+  std::string to_file_url(const std::filesystem::path& input);
 };
 }  // namespace protocol
 }  // namespace inspector

@@ -1122,17 +1122,6 @@ added:
 
 Enable experimental support for inspector network resources.
 
-### `--experimental-inspector-storage-key=key`
-
-<!-- YAML
-added:
-  - REPLACEME
--->
-
-> Stability: 1.1 - Active Development
-
-Specify a inspector storage key used by the Node.js inspector when connecting to Chrome DevTools.
-
 ### `--experimental-loader=module`
 
 <!-- YAML
@@ -1236,6 +1225,17 @@ added:
 -->
 
 Use this flag to enable [ShadowRealm][] support.
+
+### `--experimental-storage-inspection`
+
+<!-- YAML
+added:
+  - REPLACEME
+-->
+
+> Stability: 1.1 - Active Development
+
+Enable experimental support for storage inspection
 
 ### `--experimental-test-coverage`
 
