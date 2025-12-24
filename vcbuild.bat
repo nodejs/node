@@ -781,6 +781,11 @@ for /D %%D IN (doc\*) do (
   for %%F IN (%%D\*.md) do (
     set "lint_md_files="%%F" !lint_md_files!"
   )
+  for /D %%S IN (%%D\*) do (
+    for %%F IN (%%S\*.md) do (
+      set "lint_md_files="%%F" !lint_md_files!"
+    )
+  )
 )
 %node_exe% tools\lint-md\lint-md.mjs %lint_md_files%
 ENDLOCAL
@@ -795,6 +800,11 @@ set lint_md_files=
 for /D %%D IN (doc\*) do (
   for %%F IN (%%D\*.md) do (
     set "lint_md_files="%%F" !lint_md_files!"
+  )
+  for /D %%S IN (%%D\*) do (
+    for %%F IN (%%S\*.md) do (
+      set "lint_md_files="%%F" !lint_md_files!"
+    )
   )
 )
 %node_exe% tools\lint-md\lint-md.mjs --format %lint_md_files%
