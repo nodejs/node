@@ -550,3 +550,19 @@ test('correctly prints the coverage report of files contained in parent director
   assert(result.stdout.toString().includes(report));
   assert.strictEqual(result.status, 0);
 });
+
+// Regression test for https://github.com/nodejs/node/issues/61080
+test('coverage with directory and file named "file"', skipIfNoInspector, () => {
+  const fixture = fixtures.path('test-runner', 'coverage-file-name', 'test.js');
+  const args = [
+    '--experimental-test-coverage',
+    '--test-reporter',
+    'tap',
+    fixture,
+  ];
+  const result = spawnSync(process.execPath, args);
+
+  assert.strictEqual(result.stderr.toString(), '');
+  assert.strictEqual(result.status, 0);
+  assert(result.stdout.toString().includes('start of coverage report'));
+});
