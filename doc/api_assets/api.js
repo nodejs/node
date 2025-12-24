@@ -197,7 +197,7 @@
 
     if (!link) return;
 
-    link.scrollIntoView({ block: 'center' });
+    link.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 
 
