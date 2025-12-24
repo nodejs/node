@@ -1449,6 +1449,91 @@ void CopyArrayBuffer(const FunctionCallbackInfo<Value>& args) {
   memcpy(dest, src, bytes_to_copy);
 }
 
+std::pair<void*, size_t> DecomposeSourceToParts(Local<Value> source) {
+  void* pointer;
+  size_t byte_length;
+
+  if (source->IsArrayBufferView()) {
+    Local<ArrayBufferView> view = source.As<ArrayBufferView>();
+    Local<ArrayBuffer> buffer = view->Buffer();
+
+    // Handle potential detached buffer case
+    if (buffer.IsEmpty() || buffer->Data() == nullptr) {
+      pointer = nullptr;
+      byte_length = 0;
+    } else {
+      pointer = static_cast<uint8_t*>(buffer->Data()) + view->ByteOffset();
+      byte_length = view->ByteLength();
+    }
+  } else if (source->IsArrayBuffer()) {
+    Local<ArrayBuffer> ab = source.As<ArrayBuffer>();
+    pointer = ab->Data();
+    byte_length = ab->ByteLength();
+  } else if (source->IsSharedArrayBuffer()) {
+    Local<SharedArrayBuffer> ab = source.As<SharedArrayBuffer>();
+    pointer = ab->Data();
+    byte_length = ab->ByteLength();
+  } else {
+    UNREACHABLE();  // Caller must validate.
+  }
+
+  return {pointer, byte_length};
+}
+
+void StaticCopy(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  Local<Value> source = args[0];
+  Local<Value> target = args[1];
+
+  void* source_data;
+  size_t source_byte_length;
+  std::tie(source_data, source_byte_length) = DecomposeSourceToParts(source);
+
+  void* target_data;
+  size_t target_byte_length;
+  std::tie(target_data, target_byte_length) = DecomposeSourceToParts(target);
+
+  size_t target_start = static_cast<size_t>(args[2].As<Number>()->Value());
+  size_t source_start = static_cast<size_t>(args[3].As<Number>()->Value());
+  size_t source_end = static_cast<size_t>(args[4].As<Number>()->Value());
+
+  if (source_data == nullptr || target_data == nullptr) {
+    args.GetReturnValue().Set(0);
+    return;
+  }
+
+  if (target_start >= target_byte_length) {
+    return THROW_ERR_OUT_OF_RANGE(
+        env, "targetStart is out of bounds");
+  }
+
+  if (source_start > source_byte_length || source_end > source_byte_length) {
+    return THROW_ERR_OUT_OF_RANGE(
+        env, "sourceStart or sourceEnd is out of bounds");
+  }
+
+  if (source_start >= source_end) {
+    args.GetReturnValue().Set(0);
+    return;
+  }
+
+  size_t bytes_to_copy = source_end - source_start;
+  size_t target_remaining = target_byte_length - target_start;
+
+  if (bytes_to_copy > target_remaining) {
+    bytes_to_copy = target_remaining;
+  }
+
+  if (bytes_to_copy > 0) {
+    uint8_t* dest = static_cast<uint8_t*>(target_data) + target_start;
+    uint8_t* src = static_cast<uint8_t*>(source_data) + source_start;
+    memmove(dest, src, bytes_to_copy);
+  }
+
+  args.GetReturnValue().Set(static_cast<double>(bytes_to_copy));
+}
+
 template <encoding encoding>
 uint32_t WriteOneByteString(const char* src,
                             uint32_t src_len,
@@ -1576,6 +1661,7 @@ void Initialize(Local<Object> target,
   SetMethodNoSideEffect(context, target, "indexOfString", IndexOfString);
 
   SetMethod(context, target, "copyArrayBuffer", CopyArrayBuffer);
+  SetMethod(context, target, "staticCopy", StaticCopy);
 
   SetMethod(context, target, "swap16", Swap16);
   SetMethod(context, target, "swap32", Swap32);
@@ -1646,6 +1732,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(SlowIndexOfNumber);
   registry->Register(fast_index_of_number);
   registry->Register(IndexOfString);
+  registry->Register(StaticCopy);
 
   registry->Register(Swap16);
   registry->Register(Swap32);
