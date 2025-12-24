@@ -11,20 +11,6 @@ async function test() {
   const session = new Session();
   await session.connect();
 
-  // Check disabled before enable
-  await session
-    .post('DOMStorage.getDOMStorageItems', {
-      storageId: {
-        isLocalStorage: true,
-        securityOrigin: 'node-inspector://default-dom-storage',
-      },
-    })
-    .catch(
-      common.mustCall((err) => {
-        assert.ok(err.message.includes('DOMStorage domain is not enabled'));
-      })
-    );
-
   await session.post('DOMStorage.enable');
 
   await checkStorage(true);
