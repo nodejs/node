@@ -1086,8 +1086,8 @@ assert.throws(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError',
-    message: 'The "target" argument must be an instance of Buffer or ' +
-             'Uint8Array. Received undefined'
+    message: 'The "target" argument must be an instance of Buffer, ' +
+             'ArrayBuffer, SharedArrayBuffer, or TypedArray. Received undefined'
   });
 
 assert.throws(() => Buffer.from(), {
