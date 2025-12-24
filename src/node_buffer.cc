@@ -1504,13 +1504,11 @@ void StaticCopy(const FunctionCallbackInfo<Value>& args) {
   }
 
   if (target_start >= target_byte_length) {
-    return THROW_ERR_OUT_OF_RANGE(
-        env, "targetStart is out of bounds");
+    return THROW_ERR_OUT_OF_RANGE(env, "targetStart is out of bounds");
   }
 
   if (source_start > source_byte_length || source_end > source_byte_length) {
-    return THROW_ERR_OUT_OF_RANGE(
-        env, "sourceStart or sourceEnd is out of bounds");
+    return THROW_ERR_OUT_OF_RANGE(env, "sourceStart or sourceEnd is out of bounds");
   }
 
   if (source_start >= source_end) {
