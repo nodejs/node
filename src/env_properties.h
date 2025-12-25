@@ -164,6 +164,7 @@
   V(errno_string, "errno")                                                     \
   V(error_string, "error")                                                     \
   V(errstr_string, "errstr")                                                   \
+  V(errmsg_string, "errmsg")                                                   \
   V(events_waiting, "eventsWaiting")                                           \
   V(events, "events")                                                          \
   V(exclusive_string, "exclusive")                                             \

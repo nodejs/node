@@ -102,3 +102,16 @@ test('TagStore capacity, size, and clear', () => {
 test('sql.db returns the associated DatabaseSync instance', () => {
   assert.strictEqual(sql.db, db);
 });
+
+test('failed prepares throw', () => {
+  assert.throws(() => {
+    sql.all`SELECT * FROM does_not_exist`;
+  }, {
+    name: 'Error',
+    message: 'Failed to prepare statement',
+    code: 'ERR_SQLITE_ERROR',
+    errcode: 1,
+    errstr: 'SQL logic error',
+    errmsg: 'no such table: does_not_exist'
+  });
+});
