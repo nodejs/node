@@ -1404,14 +1404,8 @@ std::pair<void*, size_t> DecomposeBufferToParts(Local<Value> buffer) {
     Local<ArrayBufferView> view = buffer.As<ArrayBufferView>();
     Local<ArrayBuffer> buffer = view->Buffer();
 
-    // Handle potential detached buffer case
-    if (buffer.IsEmpty() || buffer->Data() == nullptr) {
-      pointer = nullptr;
-      byte_length = 0;
-    } else {
-      pointer = static_cast<uint8_t*>(buffer->Data()) + view->ByteOffset();
-      byte_length = view->ByteLength();
-    }
+    pointer = static_cast<uint8_t*>(buffer->Data()) + view->ByteOffset();
+    byte_length = view->ByteLength();
   } else if (buffer->IsArrayBuffer()) {
     Local<ArrayBuffer> ab = buffer.As<ArrayBuffer>();
     pointer = ab->Data();
