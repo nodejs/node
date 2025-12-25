@@ -6,6 +6,7 @@ const assert = require('assert');
 common.skipIfInspectorDisabled();
 const { DOMStorage, Session } = require('node:inspector/promises');
 const { pathToFileURL } = require('node:url');
+const path = require('node:path');
 
 
 async function test() {
@@ -14,7 +15,8 @@ async function test() {
 
   await session.post('DOMStorage.enable');
 
-  const localStorageFileUrl = pathToFileURL('./localstorage.db').toString();
+  const localStorageFileUrl =
+    pathToFileURL(path.join(process.cwd(), 'localstorage.db')).href;
 
   const { storageKey } = await session.post('Storage.getStorageKey');
   assert.strictEqual(storageKey, localStorageFileUrl);
