@@ -919,6 +919,97 @@ socket.on('readable', () => {
 
 A `TypeError` will be thrown if `size` is not a number.
 
+### Static method: `Buffer.copy(source, target, targetStart[, sourceStart[, sourceEnd]])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `source` {Buffer|TypedArray|DataView|ArrayBuffer|SharedArrayBuffer} The source
+  to copy data from.
+* `target` {Buffer|TypedArray|DataView|ArrayBuffer|SharedArrayBuffer} The target
+  to copy data to.
+* `targetStart` {integer} The offset within `target` at which to begin writing.
+  **Default:** `0`.
+* `sourceStart` {integer} The offset within `source` from which to begin copying.
+  **Default:** `0`.
+* `sourceEnd` {integer} The offset within `source` at which to stop copying
+  (exclusive). **Default:** `source.byteLength`.
+* Returns: {integer} The number of bytes copied.
+
+Copies data from `source` to `target`. This is a method that can copy data between different types of binary data structures, including `Buffer`, `TypedArray`, `DataView`, `ArrayBuffer`, and `SharedArrayBuffer` instances.
+
+```mjs
+import { Buffer } from 'node:buffer';
+
+const src = Buffer.from([1, 2, 3, 4]);
+const dst = Buffer.alloc(4);
+
+const bytesCopied = Buffer.copy(src, dst, 0);
+console.log(bytesCopied); // 4
+console.log(dst); // <Buffer 01 02 03 04>
+```
+
+```cjs
+const { Buffer } = require('node:buffer');
+
+const src = Buffer.from([1, 2, 3, 4]);
+const dst = Buffer.alloc(4);
+
+const bytesCopied = Buffer.copy(src, dst, 0);
+console.log(bytesCopied); // 4
+console.log(dst); // <Buffer 01 02 03 04>
+```
+
+The method can also copy between different types:
+
+```mjs
+import { Buffer } from 'node:buffer';
+
+// Copy from ArrayBuffer to Buffer
+const ab = new Uint8Array([5, 6, 7, 8]).buffer;
+const buf = Buffer.alloc(4);
+
+Buffer.copy(ab, buf, 0);
+console.log(buf); // <Buffer 05 06 07 08>
+
+// Copy from Buffer to DataView
+const src = Buffer.from([1, 2, 3]);
+const targetAB = new ArrayBuffer(5);
+const dv = new DataView(targetAB);
+
+Buffer.copy(src, dv, 2);
+console.log(new Uint8Array(targetAB)); // Uint8Array(5) [ 0, 0, 1, 2, 3 ]
+```
+
+```cjs
+const { Buffer } = require('node:buffer');
+
+// Copy from ArrayBuffer to Buffer
+const ab = new Uint8Array([5, 6, 7, 8]).buffer;
+const buf = Buffer.alloc(4);
+
+Buffer.copy(ab, buf, 0);
+console.log(buf); // <Buffer 05 06 07 08>
+
+// Copy from Buffer to DataView
+const src = Buffer.from([1, 2, 3]);
+const targetAB = new ArrayBuffer(5);
+const dv = new DataView(targetAB);
+
+Buffer.copy(src, dv, 2);
+console.log(new Uint8Array(targetAB)); // Uint8Array(5) [ 0, 0, 1, 2, 3 ]
+```
+
+If `targetStart` is negative or beyond the length of `target`, a [`RangeError`][]
+is thrown. If `sourceStart` is negative or beyond the length of `source`, a
+[`RangeError`][] is thrown. If `sourceEnd` is negative, a [`RangeError`][] is
+thrown. Values that exceed the respective buffer lengths are clamped to the
+appropriate limits.
+
+If `sourceStart` is greater than or equal to `sourceEnd`, zero bytes are copied
+and the method returns `0`.
+
 ### Static method: `Buffer.byteLength(string[, encoding])`
 
 <!-- YAML
