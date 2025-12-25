@@ -1001,9 +1001,9 @@ Buffer.copy(src, dv, 2);
 console.log(new Uint8Array(targetAB)); // Uint8Array(5) [ 0, 0, 1, 2, 3 ]
 ```
 
-If `targetStart` is negative or beyond the length of `target`, a [`RangeError`][]
+If `targetStart` is negative or beyond the length of `target`, a \[`RangeError`]\[]
 is thrown. If `sourceStart` is negative or beyond the length of `source`, a
-[`RangeError`][] is thrown. If `sourceEnd` is negative, a [`RangeError`][] is
+\[`RangeError`]\[] is thrown. If `sourceEnd` is negative, a \[`RangeError`]\[] is
 thrown. Values that exceed the respective buffer lengths are clamped to the
 appropriate limits.
 

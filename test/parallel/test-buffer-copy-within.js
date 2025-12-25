@@ -62,15 +62,15 @@ describe('Buffer.copy', () => {
       assert.deepStrictEqual(new Uint8Array(ab), new Uint8Array([1, 2, 1, 2, 3, 4, 5]));
     });
 
-    test("should handle detached instances", () => {
+    test('should handle detached instances', () => {
       const src = new Uint8Array([5, 6]).buffer;
-      src.transfer()
+      src.transfer();
       const dst = Buffer.from([0, 0, 0, 0]);
 
       Buffer.copy(src, dst, 1);
 
       assert.deepStrictEqual(dst, Buffer.from([0, 0, 0, 0]));
-    })
+    });
   });
 
   describe('DataView to Buffer', () => {
