@@ -1506,7 +1506,7 @@ void StaticCopy(const FunctionCallbackInfo<Value>& args) {
     memmove(dest, src, bytes_to_copy);
   }
 
-  args.GetReturnValue().Set(static_cast<double>(bytes_to_copy));
+  args.GetReturnValue().Set(static_cast<uint32_t>(bytes_to_copy));
 }
 
 template <encoding encoding>
