@@ -531,6 +531,24 @@ MaybeLocal<Value> StringBytes::Encode(Isolate* isolate,
 
     case UTF8: {
       buflen = keep_buflen_in_range(buflen);
+
+      // ASCII fast path
+      // TODO(chalker): remove when String::NewFromUtf8 is fast enough itself
+      // This is cheap compared to the benefits though
+      if (!simdutf::validate_ascii_with_errors(buf, buflen).error) {
+        return ExternOneByteString::NewFromCopy(isolate, buf, buflen);
+      }
+
+      if (simdutf::validate_utf8(buf, buflen)) {
+        // We know that we are non-ASCII (and are unlikely Latin1), use 2-byte
+        // In the most likely case of valid UTF-8, we can use this fast impl
+        size_t u16size = simdutf::utf16_length_from_utf8(buf, buflen);
+        uint16_t* dst = node::UncheckedMalloc<uint16_t>(u16size);
+        size_t utf16len = simdutf::convert_valid_utf8_to_utf16(
+              buf, buflen, reinterpret_cast<char16_t*>(dst));
+        return ExternTwoByteString::New(isolate, dst, utf16len);
+      }
+
       val =
           String::NewFromUtf8(isolate, buf, v8::NewStringType::kNormal, buflen);
       Local<String> str;
