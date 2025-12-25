@@ -1,6 +1,6 @@
 # This action uses the following secrets:
 #   CACHIX_AUTH_TOKEN: Write access to nodejs.cachix.org – without it, the cache is read-only.
-name: Test Shared libraries
+name: Benchmark and shared libraries
 
 on:
   pull_request:
@@ -89,6 +89,30 @@ on:
       - vcbuild.bat
       - .**
       - '!.github/workflows/test-shared.yml'
+  workflow_dispatch:
+    inputs:
+      repo:
+        type: string
+        description: GitHub repository to fetch from (default to the current repo)
+      pr_id:
+        type: number
+        required: true
+        description: The PR to test
+      commit:
+        required: true
+        type: string
+        description: The expect HEAD of the PR
+      category:
+        required: true
+        type: string
+        description: The category (or categories) of tests to run, for example buffers, cluster etc. Maps to a folders in node/benchmark
+      filter:
+        type: string
+        description: A substring to restrict the benchmarks to run in a category. e.g. `net-c2c`
+      runs:
+        type: number
+        default: 30
+        description: How many times to repeat each benchmark
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
@@ -157,6 +181,22 @@ jobs:
           tar xzf tarballs/*.tar.gz -C "$RUNNER_TEMP"
           echo "TAR_DIR=$RUNNER_TEMP/$(basename tarballs/*.tar.gz .tar.gz)" >> "$GITHUB_ENV"
 
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        with:
+          repository: ${{ inputs.repo || github.repository }}
+          ref: refs/pull/${{ inputs.pr_id }}/merge
+          persist-credentials: false
+          fetch-depth: 2
+
+      - name: Validate PR head and roll back to base commit
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        run: |
+          [ "$(git rev-parse HEAD^2)" = "$EXPECTED_SHA" ]
+          git reset HEAD^ --hard
+        env:
+          EXPECTED_SHA: ${{ inputs.commit }}
+
       - uses: cachix/install-nix-action@0b0e072294b088b73964f1d72dfdac0951439dbd  # v31.8.4
         with:
           extra_nix_config: sandbox = true
@@ -182,7 +222,7 @@ jobs:
           mkdir tools
           mv "$TAR_DIR"/tools/nix tools/.
 
-      - name: Build Node.js and run tests
+      - name: Build Node.js ${{ github.event_name == 'workflow_dispatch' && 'on the base commit' || 'and run tests' }}
         run: |
           nix-shell \
             -I nixpkgs=./tools/nix/pkgs.nix \
@@ -194,5 +234,114 @@ jobs:
             --arg benchmarkTools '[]' \
             ${{ endsWith(matrix.system, '-darwin') && '--arg withAmaro false --arg withSQLite false --arg extraConfigFlags ''["--without-inspector" "--without-node-options"]'' \' || '\' }}
             --run '
-                make -C "$TAR_DIR" run-ci -j4 V=1 TEST_CI_ARGS="-p actions --measure-flakiness 9 --skip-tests=$CI_SKIP_TESTS"
+                make ${{ github.event_name == 'workflow_dispatch' && 'build' || '-C "$TAR_DIR" run' }}-ci -j4 V=1 TEST_CI_ARGS="-p actions --measure-flakiness 9 --skip-tests=$CI_SKIP_TESTS"
             '
+
+      - name: Re-build Node.js on the merge commit
+        # ccache is disabled here to avoid polluting the cache. Local build outputs should make this build relatively quick anyway.
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        run: |
+          mv out/Release/node base_node
+          git reset FETCH_HEAD --hard
+          nix-shell \
+            -I nixpkgs=./tools/nix/pkgs.nix \
+            --pure \
+            --arg loadJSBuiltinsDynamically false \
+            --arg ccache 'null' \
+            --arg devTools '[]' \
+            --arg benchmarkTools '[]' \
+            --run '
+                make -j4 V=1
+            '
+
+      - name: Run benchmark
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        run: |
+          nix-shell \
+            -I nixpkgs=./tools/nix/pkgs.nix \
+            --pure --keep FILTER --keep LC_ALL --keep LANG \
+            --arg loadJSBuiltinsDynamically false \
+            --arg ccache 'null' \
+            --arg icu 'null' \
+            --arg sharedLibDeps '{}' \
+            --arg devTools '[]' \
+            --run '
+                set -o pipefail
+                ./base_node benchmark/compare.js \
+                  --filter "$FILTER" \
+                  --runs ${{ inputs.runs }} \
+                  --old ./base_node --new ./node \
+                  -- ${{ inputs.category }} \
+                | tee /dev/stderr \
+                > ${{ matrix.system }}.csv
+                echo "Warning: do not take GHA benchmark results as face value, always confirm them"
+                echo "using a dedicated machine, e.g. Jenkins CI."
+                echo
+                echo "Benchmark results:"
+                echo
+                echo '"'"'```'"'"'
+                Rscript benchmark/compare.R < ${{ matrix.system }}.csv
+                echo '"'"'```'"'"'
+                echo
+                echo "Warning: do not take GHA benchmark results as face value, always confirm them"
+                echo "using a dedicated machine, e.g. Jenkins CI."
+            ' | tee /dev/stderr >> "$GITHUB_STEP_SUMMARY"
+        env:
+          FILTER: ${{ inputs.filter }}
+
+      - name: Upload raw benchmark results
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: csv-${{ matrix.system }}
+          path: ${{ matrix.system }}.csv
+
+  aggregate-benchmark-results:
+    needs: build
+    name: Aggregate benchmark results
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            benchmark/*.R
+            tools/nix/*.nix
+            *.nix
+          sparse-checkout-cone-mode: false
+
+      - name: Download benchmark raw results
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0  # v5.0.0
+        with:
+          pattern: csv-*
+          merge-multiple: true
+          path: raw-results
+
+      - uses: cachix/install-nix-action@7be5dee1421f63d07e71ce6e0a9f8a4b07c2a487  # v31.6.1
+        with:
+          extra_nix_config: sandbox = true
+
+      - name: Benchmark results
+        run: |
+          nix-shell \
+            -I nixpkgs=./tools/nix/pkgs.nix \
+            --pure --keep LC_ALL --keep LANG \
+            --arg loadJSBuiltinsDynamically false \
+            --arg ccache 'null' \
+            --arg icu 'null' \
+            --arg sharedLibDeps '{}' \
+            --arg devTools '[]' \
+            --run '
+                echo "Warning: do not take GHA benchmark results as face value, always confirm them"
+                echo "using a dedicated machine, e.g. Jenkins CI."
+                echo
+                echo "Benchmark results:"
+                echo
+                echo '"'"'```'"'"'
+                awk "FNR==1 && NR!=1{next;}{print}" raw-results/*.csv | Rscript benchmark/compare.R
+                echo '"'"'```'"'"'
+                echo
+                echo "Warning: do not take GHA benchmark results as face value, always confirm them"
+                echo "using a dedicated machine, e.g. Jenkins CI."
+            ' | tee /dev/stderr >> "$GITHUB_STEP_SUMMARY"
