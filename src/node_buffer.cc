@@ -1399,7 +1399,20 @@ namespace {
 std::pair<void*, size_t> DecomposeBufferToParts(Local<Value> buffer) {
   void* pointer;
   size_t byte_length;
-  if (buffer->IsArrayBuffer()) {
+
+  if (buffer->IsArrayBufferView()) {
+    Local<ArrayBufferView> view = buffer.As<ArrayBufferView>();
+    Local<ArrayBuffer> buffer = view->Buffer();
+
+    // Handle potential detached buffer case
+    if (buffer.IsEmpty() || buffer->Data() == nullptr) {
+      pointer = nullptr;
+      byte_length = 0;
+    } else {
+      pointer = static_cast<uint8_t*>(buffer->Data()) + view->ByteOffset();
+      byte_length = view->ByteLength();
+    }
+  } else if (buffer->IsArrayBuffer()) {
     Local<ArrayBuffer> ab = buffer.As<ArrayBuffer>();
     pointer = ab->Data();
     byte_length = ab->ByteLength();
@@ -1447,37 +1460,6 @@ void CopyArrayBuffer(const FunctionCallbackInfo<Value>& args) {
   uint8_t* dest = static_cast<uint8_t*>(destination) + destination_offset;
   uint8_t* src = static_cast<uint8_t*>(source) + source_offset;
   memcpy(dest, src, bytes_to_copy);
-}
-
-std::pair<void*, size_t> DecomposeBufferToParts(Local<Value> source) {
-  void* pointer;
-  size_t byte_length;
-
-  if (source->IsArrayBufferView()) {
-    Local<ArrayBufferView> view = source.As<ArrayBufferView>();
-    Local<ArrayBuffer> buffer = view->Buffer();
-
-    // Handle potential detached buffer case
-    if (buffer.IsEmpty() || buffer->Data() == nullptr) {
-      pointer = nullptr;
-      byte_length = 0;
-    } else {
-      pointer = static_cast<uint8_t*>(buffer->Data()) + view->ByteOffset();
-      byte_length = view->ByteLength();
-    }
-  } else if (source->IsArrayBuffer()) {
-    Local<ArrayBuffer> ab = source.As<ArrayBuffer>();
-    pointer = ab->Data();
-    byte_length = ab->ByteLength();
-  } else if (source->IsSharedArrayBuffer()) {
-    Local<SharedArrayBuffer> ab = source.As<SharedArrayBuffer>();
-    pointer = ab->Data();
-    byte_length = ab->ByteLength();
-  } else {
-    UNREACHABLE();  // Caller must validate.
-  }
-
-  return {pointer, byte_length};
 }
 
 void StaticCopy(const FunctionCallbackInfo<Value>& args) {
