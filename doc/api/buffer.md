@@ -937,7 +937,9 @@ added: REPLACEME
   (exclusive). **Default:** `source.byteLength`.
 * Returns: {integer} The number of bytes copied.
 
-Copies data from `source` to `target`. This is a method that can copy data between different types of binary data structures, including `Buffer`, `TypedArray`, `DataView`, `ArrayBuffer`, and `SharedArrayBuffer` instances.
+Copies data from `source` to `target`. This is a method that can copy data
+between different types of binary data structures, including `Buffer`,
+`TypedArray`, `DataView`, `ArrayBuffer`, and `SharedArrayBuffer` instances.
 
 ```mjs
 import { Buffer } from 'node:buffer';
