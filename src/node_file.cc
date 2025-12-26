@@ -810,6 +810,22 @@ void AfterStat(uv_fs_t* req) {
   }
 }
 
+void AfterStatNoThrowIfNoEntry(uv_fs_t* req) {
+  FSReqBase* req_wrap = FSReqBase::from_req(req);
+  FSReqAfterScope after(req_wrap, req);
+
+  FS_ASYNC_TRACE_END1(
+      req->fs_type, req_wrap, "result", static_cast<int>(req->result))
+  if (req->result == UV_ENOENT || req->result == UV_ENOTDIR) {
+    req_wrap->Resolve(Undefined(req_wrap->env()->isolate()));
+    return;
+  }
+
+  if (after.Proceed()) {
+    req_wrap->ResolveStat(&req->statbuf);
+  }
+}
+
 void AfterStatFs(uv_fs_t* req) {
   FSReqBase* req_wrap = FSReqBase::from_req(req);
   FSReqAfterScope after(req_wrap, req);
@@ -1105,7 +1121,9 @@ static void Stat(const FunctionCallbackInfo<Value>& args) {
   ToNamespacedPath(env, &path);
 
   bool use_bigint = args[1]->IsTrue();
-  if (!args[2]->IsUndefined()) {  // stat(path, use_bigint, req)
+  if (!args[2]->IsUndefined()) {  // stat(path, use_bigint, req,
+                                  // do_not_throw_if_no_entry)
+    bool do_not_throw_if_no_entry = args[3]->IsFalse();
     FSReqBase* req_wrap_async = GetReqWrap(args, 2, use_bigint);
     CHECK_NOT_NULL(req_wrap_async);
     ASYNC_THROW_IF_INSUFFICIENT_PERMISSIONS(
@@ -1115,8 +1133,25 @@ static void Stat(const FunctionCallbackInfo<Value>& args) {
         path.ToStringView());
     FS_ASYNC_TRACE_BEGIN1(
         UV_FS_STAT, req_wrap_async, "path", TRACE_STR_COPY(*path))
-    AsyncCall(env, req_wrap_async, args, "stat", UTF8, AfterStat,
-              uv_fs_stat, *path);
+    if (do_not_throw_if_no_entry) {
+      AsyncCall(env,
+                req_wrap_async,
+                args,
+                "stat",
+                UTF8,
+                AfterStatNoThrowIfNoEntry,
+                uv_fs_stat,
+                *path);
+    } else {
+      AsyncCall(env,
+                req_wrap_async,
+                args,
+                "stat",
+                UTF8,
+                AfterStat,
+                uv_fs_stat,
+                *path);
+    }
   } else {  // stat(path, use_bigint, undefined, do_not_throw_if_no_entry)
     THROW_IF_INSUFFICIENT_PERMISSIONS(
         env, permission::PermissionScope::kFileSystemRead, path.ToStringView());
