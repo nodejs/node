@@ -26,6 +26,7 @@ assert.throws(
   () => process.cwd(),
   {
     code: 'ENOENT',
-    message: 'ENOENT: process.cwd failed with error no such file or directory, uv_cwd',
+    message: 'ENOENT: process.cwd failed with error no such file or directory,' +
+      ' the current working directory was likely removed without changing the working directory, uv_cwd',
   }
 );
