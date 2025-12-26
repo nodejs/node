@@ -22,7 +22,7 @@ except ImportError:
   from distutils.spawn import find_executable as which
 
 print('Node.js configure: Found Python {}.{}.{}...'.format(*sys.version_info))
-acceptable_pythons = ((3, 14), (3, 13), (3, 12), (3, 11), (3, 10)
+acceptable_pythons = ((3, 14), (3, 13), (3, 12), (3, 11), (3, 10))
 if sys.version_info[:2] in acceptable_pythons:
   import configure
 else:
