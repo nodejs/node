@@ -64,14 +64,6 @@ for (const e of fileInfo) {
     const file = path.join(tmpdir.path, 'temp-large-file.txt');
     fs.writeFileSync(file, Buffer.alloc(1024));
     fs.truncateSync(file, kLargeFileSize);
-
-    fs.readFile(file, (err, data) => {
-      if (err) {
-        console.error('Error reading file:', err);
-      } else {
-        console.log('File read successfully:', data.length);
-      }
-    });
   }
 }
 {
