@@ -2946,7 +2946,7 @@ BaseObjectPtr<StatementSync> SQLTagStore::PrepareStatement(
         session->database_->connection_, sql.data(), sql.size(), &s, 0);
 
     if (r != SQLITE_OK) {
-      THROW_ERR_SQLITE_ERROR(isolate, "Failed to prepare statement");
+      THROW_ERR_SQLITE_ERROR(isolate, session->database_.get());
       sqlite3_finalize(s);
       return BaseObjectPtr<StatementSync>();
     }
