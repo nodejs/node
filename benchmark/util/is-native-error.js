@@ -25,11 +25,15 @@ function main({ argument, version, n }) {
   const types = require('internal/util/types');
 
   const func = { native: util, js: types }[version].isNativeError;
-  const arg = args[argument];
+
+  const testArgs = [args[argument], args[argument], args[argument]];
+  let sum = 0;
 
   bench.start();
   for (let iteration = 0; iteration < n; iteration++) {
-    func(arg);
+    const testArg = testArgs[iteration % 3];
+    sum += func(testArg) ? 1 : 0;
   }
   bench.end(n);
+  if (sum < 0) console.log(sum);
 }
