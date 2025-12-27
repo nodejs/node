@@ -102,6 +102,17 @@ The listener function is called without passing any arguments.
 The `InterfaceConstructor` instance is finished once the `'close'` event is
 emitted.
 
+### Event: `'error'`
+
+<!-- YAML
+added: v16.0.0
+-->
+
+The `'error'` event is emitted when an error occurs on the `input` stream
+associated with the `node:readline` `Interface`.
+
+The listener function is called with an `Error` object passed as the single argument.
+
 ### Event: `'line'`
 
 <!-- YAML
