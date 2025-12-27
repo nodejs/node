@@ -1493,3 +1493,42 @@ node_api_create_buffer_from_arraybuffer(napi_env env,
 }
 
 #endif
+
+static const node_api_module_vtable g_vtable = {
+    napi_module_register,
+    napi_fatal_error,
+    napi_async_init,
+    napi_async_destroy,
+    napi_make_callback,
+    napi_create_buffer,
+    napi_create_external_buffer,
+    napi_create_buffer_copy,
+    napi_is_buffer,
+    napi_get_buffer_info,
+    napi_create_async_work,
+    napi_delete_async_work,
+    napi_queue_async_work,
+    napi_cancel_async_work,
+    napi_get_node_version,
+    napi_get_uv_event_loop,
+    napi_fatal_exception,
+    napi_add_env_cleanup_hook,
+    napi_remove_env_cleanup_hook,
+    napi_open_callback_scope,
+    napi_close_callback_scope,
+    napi_create_threadsafe_function,
+    napi_get_threadsafe_function_context,
+    napi_call_threadsafe_function,
+    napi_acquire_threadsafe_function,
+    napi_release_threadsafe_function,
+    napi_unref_threadsafe_function,
+    napi_ref_threadsafe_function,
+    napi_add_async_cleanup_hook,
+    napi_remove_async_cleanup_hook,
+    node_api_get_module_file_name,
+    node_api_create_buffer_from_arraybuffer,
+};
+
+const node_api_module_vtable* node_api_get_module_vtable() {
+  return &g_vtable;
+}

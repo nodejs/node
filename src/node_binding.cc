@@ -148,16 +148,14 @@ struct dl_wrap {
   };
 
   struct equal {
-    bool operator()(const dl_wrap* a,
-                    const dl_wrap* b) const {
+    bool operator()(const dl_wrap* a, const dl_wrap* b) const {
       return a->st_dev == b->st_dev && a->st_ino == b->st_ino;
     }
   };
 };
 
 static Mutex dlhandles_mutex;
-static std::unordered_set<dl_wrap*, dl_wrap::hash, dl_wrap::equal>
-    dlhandles;
+static std::unordered_set<dl_wrap*, dl_wrap::hash, dl_wrap::equal> dlhandles;
 static thread_local std::string dlerror_storage;
 
 char* wrapped_dlerror() {
@@ -177,11 +175,7 @@ void* wrapped_dlopen(const char* filename, int flags) {
     return nullptr;
   }
 
-  dl_wrap search = {
-    req.statbuf.st_dev,
-    req.statbuf.st_ino,
-    0, nullptr
-  };
+  dl_wrap search = {req.statbuf.st_dev, req.statbuf.st_ino, 0, nullptr};
 
   auto it = dlhandles.find(&search);
   if (it != dlhandles.end()) {
@@ -237,15 +231,23 @@ void* wrapped_dlsym(void* handle, const char* symbol) {
 #ifdef __linux__
 static bool libc_may_be_musl() {
   static std::atomic_bool retval;  // Cache the return value.
-  static std::atomic_bool has_cached_retval { false };
+  static std::atomic_bool has_cached_retval{false};
   if (has_cached_retval) return retval;
   retval = dlsym(RTLD_DEFAULT, "gnu_get_libc_version") == nullptr;
   has_cached_retval = true;
   return retval;
 }
 #elif defined(__POSIX__)
-static bool libc_may_be_musl() { return false; }
+static bool libc_may_be_musl() {
+  return false;
+}
 #endif  // __linux__
+
+// Defined in js_native_api_v8.cc
+const node_api_js_native_vtable* node_api_get_js_native_vtable();
+
+// Defined in node_api.cc
+const node_api_module_vtable* node_api_get_module_vtable();
 
 namespace node {
 
@@ -323,8 +325,7 @@ static struct global_handle_map_t {
     if (it == map_.end()) return;
     CHECK_GE(it->second.refcount, 1);
     if (--it->second.refcount == 0) {
-      if (it->second.wants_delete_module)
-        delete it->second.module;
+      if (it->second.wants_delete_module) delete it->second.module;
       map_.erase(handle);
     }
   }
@@ -364,8 +365,7 @@ void DLib::Close() {
 
   int err = dlclose(handle_);
   if (err == 0) {
-    if (has_entry_in_global_handle_map_)
-      global_handle_map.erase(handle_);
+    if (has_entry_in_global_handle_map_) global_handle_map.erase(handle_);
   }
   handle_ = nullptr;
 }
@@ -387,8 +387,7 @@ bool DLib::Open() {
 
 void DLib::Close() {
   if (handle_ == nullptr) return;
-  if (has_entry_in_global_handle_map_)
-    global_handle_map.erase(handle_);
+  if (has_entry_in_global_handle_map_) global_handle_map.erase(handle_);
   uv_dlclose(&lib_);
   handle_ = nullptr;
 }
@@ -419,17 +418,21 @@ inline InitializerCallback GetInitializerCallback(DLib* dlib) {
   return reinterpret_cast<InitializerCallback>(dlib->GetSymbolAddress(name));
 }
 
-inline napi_addon_register_func GetNapiInitializerCallback(DLib* dlib) {
-  const char* name =
-      STRINGIFY(NAPI_MODULE_INITIALIZER_BASE) STRINGIFY(NAPI_MODULE_VERSION);
+inline napi_addon_register_func GetNodeApiInitializerCallback(DLib* dlib) {
   return reinterpret_cast<napi_addon_register_func>(
-      dlib->GetSymbolAddress(name));
+      dlib->GetSymbolAddress(STRINGIFY(NAPI_MODULE_INITIALIZER)));
 }
 
-inline node_api_addon_get_api_version_func GetNapiAddonGetApiVersionCallback(
+inline node_api_addon_get_api_version_func GetNodeApiAddonGetApiVersionCallback(
     DLib* dlib) {
   return reinterpret_cast<node_api_addon_get_api_version_func>(
       dlib->GetSymbolAddress(STRINGIFY(NODE_API_MODULE_GET_API_VERSION)));
+}
+
+inline node_api_addon_set_module_vtable_func GetNodeApiAddonSetVtableCallback(
+    DLib* dlib) {
+  return reinterpret_cast<node_api_addon_set_module_vtable_func>(
+      dlib->GetSymbolAddress(STRINGIFY(NODE_API_MODULE_SET_VTABLE)));
 }
 
 // DLOpen is process.dlopen(module, filename, flags).
@@ -443,7 +446,7 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
 
   if (env->no_native_addons()) {
     return THROW_ERR_DLOPEN_DISABLED(
-      env, "Cannot load native addon because loading addons is disabled.");
+        env, "Cannot load native addon because loading addons is disabled.");
   }
 
   auto context = env->context();
@@ -451,8 +454,8 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
   CHECK_NULL(thread_local_modpending);
 
   if (args.Length() < 2) {
-    return THROW_ERR_MISSING_ARGS(
-        env, "process.dlopen needs at least 2 arguments");
+    return THROW_ERR_MISSING_ARGS(env,
+                                  "process.dlopen needs at least 2 arguments");
   }
 
   int32_t flags = DLib::kDefaultFlags;
@@ -507,13 +510,20 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
       if (auto callback = GetInitializerCallback(dlib)) {
         callback(exports, module, context);
         return true;
-      } else if (auto napi_callback = GetNapiInitializerCallback(dlib)) {
+      } else if (napi_addon_register_func init_module =
+                     GetNodeApiInitializerCallback(dlib)) {
         int32_t module_api_version = NODE_API_DEFAULT_MODULE_API_VERSION;
-        if (auto get_version = GetNapiAddonGetApiVersionCallback(dlib)) {
+        if (node_api_addon_get_api_version_func get_version =
+                GetNodeApiAddonGetApiVersionCallback(dlib)) {
           module_api_version = get_version();
         }
+        if (node_api_addon_set_module_vtable_func set_module_vtable =
+                GetNodeApiAddonSetVtableCallback(dlib)) {
+          set_module_vtable(node_api_get_module_vtable(),
+                            node_api_get_js_native_vtable());
+        }
         napi_module_register_by_symbol(
-            exports, module, context, napi_callback, module_api_version);
+            exports, module, context, init_module, module_api_version);
         return true;
       } else {
         mp = dlib->GetSavedModuleFromGlobalHandleMap();
@@ -675,8 +685,7 @@ void GetLinkedBinding(const FunctionCallbackInfo<Value>& args) {
     cur_env = cur_env->worker_parent_env();
   }
 
-  if (mod == nullptr)
-    mod = FindModule(modlist_linked, name, NM_F_LINKED);
+  if (mod == nullptr) mod = FindModule(modlist_linked, name, NM_F_LINKED);
 
   if (mod == nullptr) {
     return THROW_ERR_INVALID_MODULE(
