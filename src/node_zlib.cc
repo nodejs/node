@@ -1685,6 +1685,7 @@ static uint32_t FastCRC32(v8::Local<v8::Value> receiver,
                           v8::FastApiCallbackOptions& options) {
   TRACK_V8_FAST_API_CALL("zlib.crc32");
   v8::HandleScope handle_scope(options.isolate);
+  CHECK(data->IsArrayBufferView() || data->IsString());
   return CRC32Impl(options.isolate, data, value);
 }
 
