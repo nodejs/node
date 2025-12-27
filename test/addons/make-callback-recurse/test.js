@@ -2,12 +2,8 @@
 
 const common = require('../../common');
 const assert = require('assert');
-const domain = require('domain');
 const binding = require(`./build/${common.buildType}/binding`);
 const makeCallback = binding.makeCallback;
-
-// Make sure this is run in the future.
-const mustCallCheckDomains = common.mustCall(checkDomains);
 
 // Make sure that using MakeCallback allows the error to propagate.
 assert.throws(() => {
@@ -82,68 +78,8 @@ assert.throws(() => {
       setTimeout(common.mustCall(() => {
         verifyExecutionOrder(3);
       }), 10);
-    } else if (arg === 3) {
-      mustCallCheckDomains();
     } else {
-      throw new Error('UNREACHABLE');
+      assert.strictEqual(arg, 3);
     }
   }));
 }(1));
-
-
-function checkDomains() {
-  // Check that domains are properly entered/exited when called in multiple
-  // levels from both node::MakeCallback() and AsyncWrap::MakeCallback
-  setImmediate(common.mustCall(() => {
-    const d1 = domain.create();
-    const d2 = domain.create();
-    const d3 = domain.create();
-
-    makeCallback({ domain: d1 }, common.mustCall(() => {
-      assert.strictEqual(d1, process.domain);
-      makeCallback({ domain: d2 }, common.mustCall(() => {
-        assert.strictEqual(d2, process.domain);
-        makeCallback({ domain: d3 }, common.mustCall(() => {
-          assert.strictEqual(d3, process.domain);
-        }));
-        assert.strictEqual(d2, process.domain);
-      }));
-      assert.strictEqual(d1, process.domain);
-    }));
-  }));
-
-  setTimeout(common.mustCall(() => {
-    const d1 = domain.create();
-    const d2 = domain.create();
-    const d3 = domain.create();
-
-    makeCallback({ domain: d1 }, common.mustCall(() => {
-      assert.strictEqual(d1, process.domain);
-      makeCallback({ domain: d2 }, common.mustCall(() => {
-        assert.strictEqual(d2, process.domain);
-        makeCallback({ domain: d3 }, common.mustCall(() => {
-          assert.strictEqual(d3, process.domain);
-        }));
-        assert.strictEqual(d2, process.domain);
-      }));
-      assert.strictEqual(d1, process.domain);
-    }));
-  }), 1);
-
-  function testTimer(id) {
-    // Make sure nextTick, setImmediate and setTimeout can all recover properly
-    // after a thrown makeCallback call.
-    const d = domain.create();
-    d.on('error', common.mustCall((e) => {
-      assert.strictEqual(e.message, `throw from domain ${id}`);
-    }));
-    makeCallback({ domain: d }, () => {
-      throw new Error(`throw from domain ${id}`);
-    });
-    throw new Error('UNREACHABLE');
-  }
-
-  process.nextTick(common.mustCall(testTimer), 3);
-  setImmediate(common.mustCall(testTimer), 2);
-  setTimeout(common.mustCall(testTimer), 1, 1);
-}

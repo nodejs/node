@@ -2272,16 +2272,20 @@ Type: End-of-Life
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/61095
+    description: End-of-Life.
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/17417
     description: Runtime deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
-Users of `MakeCallback` that add the `domain` property to carry context,
-should start using the `async_context` variant of `MakeCallback` or
-`CallbackScope`, or the high-level `AsyncResource` class.
+The `domain` property on async resources and `MakeCallback` has been removed.
+The domain module now uses `AsyncLocalStorage` for context propagation instead
+of `async_hooks`. Accessing the `domain` property on `AsyncResource` will throw
+an error. Use `AsyncLocalStorage` instead for context propagation.
 
 ### DEP0098: AsyncHooks embedder `AsyncResource.emitBefore` and `AsyncResource.emitAfter` APIs
 

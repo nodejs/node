@@ -710,6 +710,14 @@ An attempt was made to register something that is not a function as an
 An operation related to module loading is customized by an asynchronous loader
 hook that never settled the promise before the loader thread exits.
 
+<a id="ERR_ASYNC_RESOURCE_DOMAIN_REMOVED"></a>
+
+### `ERR_ASYNC_RESOURCE_DOMAIN_REMOVED`
+
+The `domain` property on `AsyncResource` has been removed. The domain module
+now uses `AsyncLocalStorage` for context propagation instead of `async_hooks`.
+Use `AsyncLocalStorage` instead for context propagation.
+
 <a id="ERR_ASYNC_TYPE"></a>
 
 ### `ERR_ASYNC_TYPE`

@@ -180,7 +180,7 @@ async function ordinaryTests() {
     ['k', '234'],
     ['const k = await Promise.resolve(345)', "Uncaught SyntaxError: Identifier 'k' has already been declared"],
     // Regression test for https://github.com/nodejs/node/issues/43777.
-    ['await Promise.resolve(123), Promise.resolve(456)', 'Promise {', { line: 0 }],
+    ['await Promise.resolve(123), Promise.resolve(456)', 'Promise { 456 }', { line: 0 }],
     ['await Promise.resolve(123), await Promise.resolve(456)', '456'],
     ['await (Promise.resolve(123), Promise.resolve(456))', '456'],
   ];
