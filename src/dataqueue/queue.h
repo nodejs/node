@@ -2,7 +2,9 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include <async_wrap.h>
 #include <base_object.h>
+#include <env-inl.h>
 #include <memory_tracker.h>
 #include <node.h>
 #include <node_bob.h>
@@ -16,6 +18,8 @@
 #include <vector>
 
 namespace node {
+using v8::Local;
+using v8::Value;
 
 // Represents a sequenced collection of data sources that can be
 // consumed as a single logical stream of data. Sources can be
@@ -124,6 +128,8 @@ namespace node {
 // For non-idempotent DataQueues, only a single reader is ever allowed for
 // the DataQueue, and the data can only ever be read once.
 
+class DataQueueFeeder;
+
 class DataQueue : public MemoryRetainer {
  public:
   struct Vec {
@@ -147,6 +153,12 @@ class DataQueue : public MemoryRetainer {
   class BackpressureListener {
    public:
     virtual void EntryRead(size_t amount) = 0;
+  };
+
+  // A Notifier, that is called, when data is added or cap is called
+  class Notifier {
+   public:
+    virtual void newDataOrCloseAdded() = 0;
   };
 
   // A DataQueue::Entry represents a logical chunk of data in the queue.
@@ -186,19 +198,23 @@ class DataQueue : public MemoryRetainer {
     // idempotent and cannot preserve that quality, subsequent reads
     // must fail with an error when a variance is detected.
     virtual bool is_idempotent() const = 0;
+
+    // calls if required readers to invalidate next function's
+    // which may hold captures to stream and session objects
+    virtual void clearPendingNext() = 0;
   };
 
   // Creates an idempotent DataQueue with a pre-established collection
   // of entries. All of the entries must also be idempotent otherwise
   // an empty std::unique_ptr will be returned.
   static std::shared_ptr<DataQueue> CreateIdempotent(
-      std::vector<std::unique_ptr<Entry>> list);
+      Environment* env, std::vector<std::unique_ptr<Entry>> list);
 
   // Creates a non-idempotent DataQueue. This kind of queue can be
   // mutated and updated such that multiple reads are not guaranteed
   // to produce the same result. The entries added can be of any type.
   static std::shared_ptr<DataQueue> Create(
-      std::optional<uint64_t> capped = std::nullopt);
+      Environment* env, std::optional<uint64_t> capped = std::nullopt);
 
   // Creates an idempotent Entry from a v8::ArrayBufferView. To help
   // ensure idempotency, the underlying ArrayBuffer is detached from
@@ -293,12 +309,74 @@ class DataQueue : public MemoryRetainer {
   // been set, maybeCapRemaining() will return std::nullopt.
   virtual std::optional<uint64_t> maybeCapRemaining() const = 0;
 
+  // calls all entries and readers to invalidate next function's
+  // which may hold captures to stream and session objects
+  virtual void clearPendingNext() = 0;
+
   // BackpressureListeners only work on non-idempotent DataQueues.
   virtual void addBackpressureListener(BackpressureListener* listener) = 0;
   virtual void removeBackpressureListener(BackpressureListener* listener) = 0;
 
+  // Set a notifier, e. g. to schedule packet sending
+  virtual void SetNotifier(Notifier* notfier) = 0;
+  // sets the environment in order to schedule functions
+  virtual void SetEnvironment(Environment* env) = 0;
+
   static void Initialize(Environment* env, v8::Local<v8::Object> target);
   static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
+};
+
+class DataQueueFeeder final : public AsyncWrap,
+                              public DataQueue::BackpressureListener {
+ public:
+  using Next = bob::Next<DataQueue::Vec>;
+
+  DataQueueFeeder(Environment* env, v8::Local<v8::Object> object);
+
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
+
+  static BaseObjectPtr<DataQueueFeeder> Create();
+
+  void setDataQueue(std::shared_ptr<DataQueue> queue);
+
+  bool Done() { return done; }
+  bool Full() { return buffer_size_ >= max_buffer_size_; }
+
+  void DrainAndClose();
+  void tryWakePulls();
+
+  void EntryRead(size_t amount) override;
+
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(DataQueueFeeder)
+  SET_SELF_SIZE(DataQueueFeeder)
+
+  static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Submit(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Error(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Ready(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
+      Environment* env);
+
+  static void CreatePerIsolateProperties(IsolateData* isolate_data,
+                                         v8::Local<v8::ObjectTemplate> target);
+  static void CreatePerContextProperties(v8::Local<v8::Object> target,
+                                         v8::Local<v8::Value> unused,
+                                         v8::Local<v8::Context> context,
+                                         void* priv);
+
+  static BaseObjectPtr<DataQueueFeeder> Create(Environment* env);
+
+  static bool HasInstance(Environment* env, v8::Local<v8::Value> object);
+
+ private:
+  const size_t max_buffer_size_ = 16384;
+  size_t buffer_size_;
+  std::shared_ptr<DataQueue> dataQueue_;
+  v8::Global<v8::Promise::Resolver> readFinish_;
+  size_t bytecount;
+  bool done = false;
 };
 
 }  // namespace node
