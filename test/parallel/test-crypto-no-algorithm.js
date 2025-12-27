@@ -22,8 +22,9 @@ if (isMainThread) {
     if (err) {
       assert.match(err.message, /digital envelope routines::unsupported/);
       const expected = /random number generator::unable to fetch drbg/;
-      assert(err.opensslErrorStack.some((msg) => expected.test(msg)),
-             `did not find ${expected} in ${err.opensslErrorStack}`);
+      assert(
+        err.opensslErrorStack.some((msg) => msg.match(expected)),
+        `did not find ${expected} in ${err.opensslErrorStack}`);
     }
   }));
 }
