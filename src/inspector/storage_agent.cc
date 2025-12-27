@@ -21,8 +21,14 @@ void StorageAgent::Wire(protocol::UberDispatcher* dispatcher) {
 DispatchResponse StorageAgent::getStorageKey(
     std::optional<protocol::String> frameId, protocol::String* storageKey) {
   auto local_storage_file = env_->options()->localstorage_file;
-  *storageKey = node::url::FromFilePath(local_storage_file);
+  *storageKey = node::url::FromFilePath(to_absolute_path(local_storage_file));
   return protocol::DispatchResponse::Success();
+}
+
+std::string StorageAgent::to_absolute_path(const std::filesystem::path& input) {
+  std::filesystem::path abs =
+      std::filesystem::weakly_canonical(std::filesystem::absolute(input));
+  return abs.generic_string();
 }
 
 }  // namespace protocol

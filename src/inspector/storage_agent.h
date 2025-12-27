@@ -24,6 +24,7 @@ class StorageAgent : public protocol::Storage::Backend {
   StorageAgent& operator=(const StorageAgent&) = delete;
 
  private:
+  std::string to_absolute_path(const std::filesystem::path& input);
   std::unique_ptr<protocol::Storage::Frontend> frontend_;
   Environment* env_;
 };
