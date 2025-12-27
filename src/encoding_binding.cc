@@ -356,19 +356,29 @@ void BindingData::DecodeUTF8(const FunctionCallbackInfo<Value>& args) {
   const char* data = buffer.data();
   size_t length = buffer.length();
 
+  if (!ignore_bom && length >= 3) {
+    if (memcmp(data, "\xEF\xBB\xBF", 3) == 0) {
+      data += 3;
+      length -= 3;
+    }
+  }
+
   if (has_fatal) {
+    // Are we perhaps ASCII? Then we won't have to check for UTF-8
+    if (!simdutf::validate_ascii_with_errors(data, length).error) {
+      Local<Value> ret;
+      if (StringBytes::Encode(env->isolate(), data, length, LATIN1)
+              .ToLocal(&ret)) {
+        args.GetReturnValue().Set(ret);
+      }
+      return;
+    }
+
     auto result = simdutf::validate_utf8_with_errors(data, length);
 
     if (result.error) {
       return node::THROW_ERR_ENCODING_INVALID_ENCODED_DATA(
           env->isolate(), "The encoded data was not valid for encoding utf-8");
-    }
-  }
-
-  if (!ignore_bom && length >= 3) {
-    if (memcmp(data, "\xEF\xBB\xBF", 3) == 0) {
-      data += 3;
-      length -= 3;
     }
   }
 
