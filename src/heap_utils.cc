@@ -181,6 +181,7 @@ class JSGraph : public EmbedderGraph {
       size_t i = 0;
       size_t j = 0;
       for (const auto& edge : edge_info.second) {
+        HandleScope handle_scope(isolate_);
         Local<Object> to_object = info_objects[edge.second];
         Local<Object> edge_obj = Object::New(isolate_);
         Local<Value> edge_name_value;
