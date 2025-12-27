@@ -50,9 +50,11 @@
           'defines': [
             'USING_UV_SHARED',
             'USING_V8_SHARED',
+            'USING_V8_PLATFORM_SHARED',
             'BUILDING_NODE_EXTENSION'
           ],
           'defines!': [
+            'BUILDING_V8_PLATFORM_SHARED=1',
             'BUILDING_V8_SHARED=1',
             'BUILDING_UV_SHARED=1'
           ]
