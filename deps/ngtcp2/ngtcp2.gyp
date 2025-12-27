@@ -78,6 +78,7 @@
       'nghttp3/lib/nghttp3_qpack_huffman.c',
       'nghttp3/lib/nghttp3_qpack_huffman_data.c',
       'nghttp3/lib/nghttp3_range.c',
+      'nghttp3/lib/nghttp3_ratelim.c',
       'nghttp3/lib/nghttp3_rcbuf.c',
       'nghttp3/lib/nghttp3_ringbuf.c',
       'nghttp3/lib/nghttp3_settings.c',

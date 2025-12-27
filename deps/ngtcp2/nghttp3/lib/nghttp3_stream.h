@@ -114,10 +114,6 @@ typedef struct nghttp3_stream_read_state {
 /* NGHTTP3_STREAM_FLAG_READ_EOF indicates that remote endpoint sent
    fin. */
 #define NGHTTP3_STREAM_FLAG_READ_EOF 0x0020u
-/* NGHTTP3_STREAM_FLAG_CLOSED indicates that QUIC stream was closed.
-   nghttp3_stream object can still alive because it might be blocked
-   by QPACK decoder. */
-#define NGHTTP3_STREAM_FLAG_CLOSED 0x0040u
 /* NGHTTP3_STREAM_FLAG_SHUT_WR indicates that any further write
    operation to a stream is prohibited. */
 #define NGHTTP3_STREAM_FLAG_SHUT_WR 0x0100u
@@ -135,7 +131,6 @@ typedef struct nghttp3_stream_read_state {
 typedef enum nghttp3_stream_http_state {
   NGHTTP3_HTTP_STATE_NONE,
   NGHTTP3_HTTP_STATE_REQ_INITIAL,
-  NGHTTP3_HTTP_STATE_REQ_BEGIN,
   NGHTTP3_HTTP_STATE_REQ_HEADERS_BEGIN,
   NGHTTP3_HTTP_STATE_REQ_HEADERS_END,
   NGHTTP3_HTTP_STATE_REQ_DATA_BEGIN,
@@ -144,7 +139,6 @@ typedef enum nghttp3_stream_http_state {
   NGHTTP3_HTTP_STATE_REQ_TRAILERS_END,
   NGHTTP3_HTTP_STATE_REQ_END,
   NGHTTP3_HTTP_STATE_RESP_INITIAL,
-  NGHTTP3_HTTP_STATE_RESP_BEGIN,
   NGHTTP3_HTTP_STATE_RESP_HEADERS_BEGIN,
   NGHTTP3_HTTP_STATE_RESP_HEADERS_END,
   NGHTTP3_HTTP_STATE_RESP_DATA_BEGIN,

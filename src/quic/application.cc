@@ -45,6 +45,9 @@ Session::Application_Options::operator const nghttp3_settings() const {
       .h3_datagram = enable_datagrams,
       // TODO(@jasnell): Support origin frames?
       .origin_list = nullptr,
+      .glitch_ratelim_burst = 1000,
+      .glitch_ratelim_rate = 33,
+      .qpack_indexing_strat = NGHTTP3_QPACK_INDEXING_STRAT_NONE,
   };
 }
 
