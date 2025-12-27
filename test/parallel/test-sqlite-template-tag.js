@@ -102,3 +102,25 @@ test('TagStore capacity, size, and clear', () => {
 test('sql.db returns the associated DatabaseSync instance', () => {
   assert.strictEqual(sql.db, db);
 });
+
+test('sql error messages are descriptive', () => {
+  assert.strictEqual(sql.run`INSERT INTO foo (text) VALUES (${'test'})`.changes, 1);
+
+  // Test with non-existent column
+  assert.throws(() => {
+    const result = sql.get`SELECT nonexistent_column FROM foo`;
+    assert.fail(`Expected error, got: ${JSON.stringify(result)}`);
+  }, {
+    code: 'ERR_SQLITE_ERROR',
+    message: /no such column/i,
+  });
+
+  // Test with non-existent table
+  assert.throws(() => {
+    const result = sql.get`SELECT * FROM nonexistent_table`;
+    assert.fail(`Expected error, got: ${JSON.stringify(result)}`);
+  }, {
+    code: 'ERR_SQLITE_ERROR',
+    message: /no such table/i,
+  });
+});
