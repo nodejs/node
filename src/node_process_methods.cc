@@ -165,7 +165,7 @@ static void Cwd(const FunctionCallbackInfo<Value>& args) {
   if (err) {
     std::string err_msg =
         std::string("process.cwd failed with error ") + uv_strerror(err);
-        if (err == UV_ENOENT) {
+    if (err == UV_ENOENT) {
       // If err == UV_ENOENT it is necessary to notice the user
       // that the current working dir was likely removed.
       err_msg = err_msg +
