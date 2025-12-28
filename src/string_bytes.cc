@@ -668,4 +668,10 @@ MaybeLocal<Value> StringBytes::Encode(Isolate* isolate,
   return Encode(isolate, buf, len, encoding);
 }
 
+MaybeLocal<Value> StringBytes::Raw(Isolate* isolate,
+                                      uint16_t* buf,
+                                      size_t buflen) {
+  return ExternTwoByteString::New(isolate, buf, buflen);
+}
+
 }  // namespace node

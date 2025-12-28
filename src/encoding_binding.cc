@@ -1,7 +1,7 @@
 #include "encoding_binding.h"
+#include "encoding_singlebyte.h"
 #include "ada.h"
 #include "env-inl.h"
-#include "node_buffer.h"
 #include "node_errors.h"
 #include "node_external_reference.h"
 #include "simdutf.h"
@@ -390,6 +390,84 @@ void BindingData::DecodeUTF8(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+static uint32_t * tWindows1252x2 = 0;
+
+void BindingData::DecodeSingleByte(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  CHECK_GE(args.Length(), 2);
+
+  if (!(args[0]->IsArrayBuffer() || args[0]->IsSharedArrayBuffer() ||
+        args[0]->IsArrayBufferView())) {
+    return node::THROW_ERR_INVALID_ARG_TYPE(
+        env->isolate(),
+        "The \"list\" argument must be an instance of SharedArrayBuffer, "
+        "ArrayBuffer or ArrayBufferView.");
+  }
+
+  CHECK(args[1]->IsInt32());
+  const int encoding = args[1].As<v8::Int32>()->Value();
+  CHECK(encoding >= 0 && encoding < 29);
+
+  ArrayBufferViewContents<uint8_t> buffer(args[0]);
+  const uint8_t* data = buffer.data();
+  size_t length = buffer.length();
+
+  if (length == 0) return args.GetReturnValue().SetEmptyString();
+
+  if (simdutf::validate_ascii(reinterpret_cast<const char*>(data), length)) {
+    Local<Value> ret;
+    if (StringBytes::Encode(env->isolate(), reinterpret_cast<const char*>(data), length, LATIN1).ToLocal(&ret)) {
+      args.GetReturnValue().Set(ret);
+    }
+    return;
+  }
+
+  uint16_t* dst = node::UncheckedMalloc<uint16_t>(length);
+
+  if (encoding == 28) {
+    // x-user-defined
+    for (size_t i = 0; i < length; i++) dst[i] = data[i] >= 0x80 ? data[i] + 0xf700 : data[i];
+  } else if (encoding == 21 && (tWindows1252x2 || length > 256 * 256) && ((size_t) data) % 2 == 0) {
+    // TODO(chalker): remove alignment check and align
+
+    const uint16_t* table = tSingleByteEncodings[encoding];
+    if (!tWindows1252x2) {
+      tWindows1252x2 = (uint32_t *) malloc(256 * 256 * 4); // 256 KiB
+      for (uint16_t i = 0; i < 256; i++) {
+        for (uint16_t j = 0; j < 256; j++) {
+          tWindows1252x2[(i << 8) + j] = (((uint32_t) table[i]) << 16) + table[j];
+        }
+      }
+    }
+
+    size_t length2 = length / 2;
+    size_t i = 0;
+    const uint16_t* data2 = reinterpret_cast<const uint16_t *>(data);
+    uint32_t* dst2 = reinterpret_cast<uint32_t *>(dst);
+    for (; i < length2; i++) dst2[i] = tWindows1252x2[data2[i]];
+    i *= 2;
+    for (; i < length; i++) dst[i] = table[data[i]];
+  } else {
+    bool has_fatal = args[2]->IsTrue();
+
+    const uint16_t* table = tSingleByteEncodings[encoding];
+    for (size_t i = 0; i < length; i++) dst[i] = table[data[i]];
+
+    if (has_fatal && fSingleByteEncodings[encoding] &&
+      simdutf::find(reinterpret_cast<char16_t*>(dst), reinterpret_cast<char16_t*>(dst) + length, 0xfffd) != reinterpret_cast<char16_t*>(dst) + length
+    ) {
+      return node::THROW_ERR_ENCODING_INVALID_ENCODED_DATA(
+        env->isolate(), "The encoded data was not valid for this encoding");
+    }
+  }
+
+  Local<Value> ret;
+  if (StringBytes::Raw(env->isolate(), dst, length).ToLocal(&ret)) {
+    args.GetReturnValue().Set(ret);
+  }
+}
+
 void BindingData::ToASCII(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   CHECK_GE(args.Length(), 1);
@@ -422,10 +500,9 @@ void BindingData::CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethod(isolate, target, "encodeInto", EncodeInto);
   SetMethodNoSideEffect(isolate, target, "encodeUtf8String", EncodeUtf8String);
   SetMethodNoSideEffect(isolate, target, "decodeUTF8", DecodeUTF8);
+  SetMethodNoSideEffect(isolate, target, "decodeSingleByte", DecodeSingleByte);
   SetMethodNoSideEffect(isolate, target, "toASCII", ToASCII);
   SetMethodNoSideEffect(isolate, target, "toUnicode", ToUnicode);
-  SetMethodNoSideEffect(
-      isolate, target, "decodeWindows1252", DecodeWindows1252);
 }
 
 void BindingData::CreatePerContextProperties(Local<Object> target,
@@ -441,79 +518,9 @@ void BindingData::RegisterTimerExternalReferences(
   registry->Register(EncodeInto);
   registry->Register(EncodeUtf8String);
   registry->Register(DecodeUTF8);
+  registry->Register(DecodeSingleByte);
   registry->Register(ToASCII);
   registry->Register(ToUnicode);
-  registry->Register(DecodeWindows1252);
-}
-
-void BindingData::DecodeWindows1252(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
-  CHECK_GE(args.Length(), 1);
-  if (!(args[0]->IsArrayBuffer() || args[0]->IsSharedArrayBuffer() ||
-        args[0]->IsArrayBufferView())) {
-    return node::THROW_ERR_INVALID_ARG_TYPE(
-        env->isolate(),
-        "The \"input\" argument must be an instance of ArrayBuffer, "
-        "SharedArrayBuffer, or ArrayBufferView.");
-  }
-
-  bool ignore_bom = args[1]->IsTrue();
-
-  ArrayBufferViewContents<uint8_t> buffer(args[0]);
-  const uint8_t* data = buffer.data();
-  size_t length = buffer.length();
-
-  if (ignore_bom && length > 0 && data[0] == 0xFF) {
-    data++;
-    length--;
-  }
-
-  if (length == 0) {
-    return args.GetReturnValue().SetEmptyString();
-  }
-
-  // Windows-1252 specific mapping for bytes 128-159
-  // These differ from Latin-1/ISO-8859-1
-  static const uint16_t windows1252_mapping[32] = {
-      0x20AC, 0x0081, 0x201A, 0x0192, 0x201E, 0x2026, 0x2020, 0x2021,  // 80-87
-      0x02C6, 0x2030, 0x0160, 0x2039, 0x0152, 0x008D, 0x017D, 0x008F,  // 88-8F
-      0x0090, 0x2018, 0x2019, 0x201C, 0x201D, 0x2022, 0x2013, 0x2014,  // 90-97
-      0x02DC, 0x2122, 0x0161, 0x203A, 0x0153, 0x009D, 0x017E, 0x0178   // 98-9F
-  };
-
-  std::string result;
-  result.reserve(length * 3);  // Reserve space for UTF-8 output
-
-  for (size_t i = 0; i < length; i++) {
-    uint8_t byte = data[i];
-    uint32_t codepoint;
-
-    // Check if byte is in the special Windows-1252 range (128-159)
-    if (byte >= 0x80 && byte <= 0x9F) {
-      codepoint = windows1252_mapping[byte - 0x80];
-    } else {
-      // For all other bytes, Windows-1252 is identical to Latin-1
-      codepoint = byte;
-    }
-
-    // Convert codepoint to UTF-8
-    if (codepoint < 0x80) {
-      result.push_back(static_cast<char>(codepoint));
-    } else if (codepoint < 0x800) {
-      result.push_back(static_cast<char>(0xC0 | (codepoint >> 6)));
-      result.push_back(static_cast<char>(0x80 | (codepoint & 0x3F)));
-    } else {
-      result.push_back(static_cast<char>(0xE0 | (codepoint >> 12)));
-      result.push_back(static_cast<char>(0x80 | ((codepoint >> 6) & 0x3F)));
-      result.push_back(static_cast<char>(0x80 | (codepoint & 0x3F)));
-    }
-  }
-
-  Local<Value> ret;
-  if (ToV8Value(env->context(), result, env->isolate()).ToLocal(&ret)) {
-    args.GetReturnValue().Set(ret);
-  }
 }
 
 }  // namespace encoding_binding
