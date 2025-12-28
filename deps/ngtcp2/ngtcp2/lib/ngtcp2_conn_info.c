@@ -1,7 +1,7 @@
 /*
  * ngtcp2
  *
- * Copyright (c) 2020 ngtcp2 contributors
+ * Copyright (c) 2025 ngtcp2 contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -22,30 +22,29 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef TLS_CLIENT_CONTEXT_WOLFSSL_H
-#define TLS_CLIENT_CONTEXT_WOLFSSL_H
+#include "ngtcp2_conn_info.h"
+#include "ngtcp2_conn_stat.h"
 
-#ifdef HAVE_CONFIG_H
-#  include <config.h>
-#endif // defined(HAVE_CONFIG_H)
+void ngtcp2_conn_info_init_versioned(int conn_info_version,
+                                     ngtcp2_conn_info *cinfo,
+                                     const ngtcp2_conn_stat *cstat) {
+  cinfo->latest_rtt = cstat->latest_rtt;
+  cinfo->min_rtt = cstat->min_rtt;
+  cinfo->smoothed_rtt = cstat->smoothed_rtt;
+  cinfo->rttvar = cstat->rttvar;
+  cinfo->cwnd = cstat->cwnd;
+  cinfo->ssthresh = cstat->ssthresh;
+  cinfo->bytes_in_flight = cstat->bytes_in_flight;
 
-#include <wolfssl/options.h>
-#include <wolfssl/ssl.h>
-#include <wolfssl/quic.h>
-
-class TLSClientContext {
-public:
-  TLSClientContext() = default;
-  ~TLSClientContext();
-
-  int init(const char *private_key_file, const char *cert_file);
-
-  WOLFSSL_CTX *get_native_handle() const;
-
-  void enable_keylog();
-
-private:
-  WOLFSSL_CTX *ssl_ctx_{};
-};
-
-#endif // !defined(TLS_CLIENT_CONTEXT_WOLFSSL_H)
+  switch (conn_info_version) {
+  case NGTCP2_CONN_INFO_V2:
+    cinfo->pkt_sent = cstat->pkt_sent;
+    cinfo->bytes_sent = cstat->bytes_sent;
+    cinfo->pkt_recv = cstat->pkt_recv;
+    cinfo->bytes_recv = cstat->bytes_recv;
+    cinfo->pkt_lost = cstat->pkt_lost;
+    cinfo->bytes_lost = cstat->bytes_lost;
+    cinfo->ping_recv = cstat->ping_recv;
+    cinfo->pkt_discarded = cstat->pkt_discarded;
+  }
+}

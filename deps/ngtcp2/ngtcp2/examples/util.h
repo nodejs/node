@@ -80,18 +80,23 @@ inline nghttp3_nv make_nv_nn(const std::string_view &name,
                  NGHTTP3_NV_FLAG_NO_COPY_NAME | NGHTTP3_NV_FLAG_NO_COPY_VALUE);
 }
 
-constinit const auto hexdigits = []() {
-  constexpr char LOWER_XDIGITS[] = "0123456789abcdef";
+inline constexpr char LOWER_XDIGITS[] = "0123456789abcdef";
 
-  std::array<char, 512> tbl;
+template <std::weakly_incrementable O>
+requires(std::indirectly_writable<O, char>)
+constexpr O format_hex_uint8(uint8_t b, O result) {
+#ifdef __GNUC__
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Wsign-conversion"
+#endif // __GNUC__
+  *result++ = LOWER_XDIGITS[b >> 4];
+  *result++ = LOWER_XDIGITS[b & 0xf];
+#ifdef __GNUC__
+#  pragma GCC diagnostic pop
+#endif // __GNUC__
 
-  for (size_t i = 0; i < 256; ++i) {
-    tbl[i * 2] = LOWER_XDIGITS[static_cast<size_t>(i >> 4)];
-    tbl[i * 2 + 1] = LOWER_XDIGITS[static_cast<size_t>(i & 0xf)];
-  }
-
-  return tbl;
-}();
+  return result;
+}
 
 // format_hex converts a range [|first|, |last|) in hex format, and
 // stores the result in another range, beginning at |result|.  It
@@ -102,9 +107,7 @@ requires(std::indirectly_writable<O, char> &&
          sizeof(std::iter_value_t<I>) == sizeof(uint8_t))
 constexpr O format_hex(I first, I last, O result) {
   for (; first != last; ++first) {
-    result = std::ranges::copy_n(
-               hexdigits.data() + static_cast<uint8_t>(*first) * 2, 2, result)
-               .out;
+    result = format_hex_uint8(static_cast<uint8_t>(*first), result);
   }
 
   return result;
@@ -172,7 +175,7 @@ template <std::unsigned_integral T, std::weakly_incrementable O>
 requires(std::indirectly_writable<O, char>)
 constexpr O format_hex(T n, O result) {
   if constexpr (sizeof(n) == 1) {
-    return std::ranges::copy_n(hexdigits.data() + n * 2, 2, result).out;
+    return format_hex_uint8(n, result);
   }
 
   if constexpr (std::endian::native == std::endian::little) {
@@ -180,15 +183,14 @@ constexpr O format_hex(T n, O result) {
     auto p = end + sizeof(n);
 
     for (; p != end; --p) {
-      result =
-        std::ranges::copy_n(hexdigits.data() + *(p - 1) * 2, 2, result).out;
+      result = format_hex_uint8(*(p - 1), result);
     }
   } else {
     auto p = reinterpret_cast<uint8_t *>(&n);
     auto end = p + sizeof(n);
 
     for (; p != end; ++p) {
-      result = std::ranges::copy_n(hexdigits.data() + *p * 2, 2, result).out;
+      result = format_hex_uint8(*p, result);
     }
   }
 
@@ -231,29 +233,22 @@ bool numeric_host(const char *hostname, int family);
 // or -1.
 int hexdump(FILE *out, const void *data, size_t datalen);
 
-static constexpr uint8_t lowcase_tbl[] = {
-  0,   1,   2,   3,   4,   5,   6,   7,   8,   9,   10,  11,  12,  13,  14,
-  15,  16,  17,  18,  19,  20,  21,  22,  23,  24,  25,  26,  27,  28,  29,
-  30,  31,  32,  33,  34,  35,  36,  37,  38,  39,  40,  41,  42,  43,  44,
-  45,  46,  47,  48,  49,  50,  51,  52,  53,  54,  55,  56,  57,  58,  59,
-  60,  61,  62,  63,  64,  'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j',
-  'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y',
-  'z', 91,  92,  93,  94,  95,  96,  97,  98,  99,  100, 101, 102, 103, 104,
-  105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119,
-  120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134,
-  135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149,
-  150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164,
-  165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179,
-  180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194,
-  195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209,
-  210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224,
-  225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239,
-  240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254,
-  255,
-};
+inline constexpr auto lowcase_tbl = [] {
+  std::array<char, 256> tbl;
+
+  for (size_t i = 0; i < 256; ++i) {
+    if ('A' <= i && i <= 'Z') {
+      tbl[i] = static_cast<char>(i - 'A' + 'a');
+    } else {
+      tbl[i] = static_cast<char>(i);
+    }
+  }
+
+  return tbl;
+}();
 
 constexpr char lowcase(char c) noexcept {
-  return as_signed(lowcase_tbl[static_cast<uint8_t>(c)]);
+  return lowcase_tbl[static_cast<uint8_t>(c)];
 }
 
 struct CaseCmp {
@@ -277,8 +272,8 @@ ngtcp2_cid make_cid_key(std::span<const uint8_t> cid);
 // straddr stringifies |sa| of length |salen| in a format "[IP]:PORT".
 std::string straddr(const sockaddr *sa, socklen_t salen);
 
-// port returns port from |su|.
-uint16_t port(const sockaddr_union *su);
+// straddr stringifies |addr| in a format "[IP]:PORT".
+std::string straddr(const Address &addr);
 
 // prohibited_port returns true if |port| is prohibited as a client
 // port.
@@ -293,7 +288,7 @@ std::string_view strccalgo(ngtcp2_cc_algo cc_algo);
 std::optional<std::unordered_map<std::string, std::string>>
 read_mime_types(const std::string_view &filename);
 
-constinit const auto count_digit_tbl = []() {
+inline constexpr auto count_digit_tbl = [] {
   std::array<uint64_t, std::numeric_limits<uint64_t>::digits10> tbl;
 
   uint64_t x = 1;
@@ -321,7 +316,7 @@ template <std::unsigned_integral T> constexpr size_t count_digit(T x) {
   return y + 1;
 }
 
-constinit const auto utos_digits = []() {
+inline constexpr auto utos_digits = [] {
   std::array<char, 200> a;
 
   for (size_t i = 0; i < 100; ++i) {
@@ -443,7 +438,7 @@ int generate_secret(std::span<uint8_t> secret);
 std::string normalize_path(const std::string_view &path);
 
 template <std::predicate<size_t> Pred>
-constexpr auto pred_tbl_gen256(Pred pred) {
+consteval auto pred_tbl_gen256(Pred pred) {
   std::array<bool, 256> tbl;
 
   for (size_t i = 0; i < tbl.size(); ++i) {
@@ -453,17 +448,19 @@ constexpr auto pred_tbl_gen256(Pred pred) {
   return tbl;
 }
 
-constexpr auto digit_pred(size_t i) noexcept { return '0' <= i && i <= '9'; }
+consteval auto digit_pred(size_t i) noexcept { return '0' <= i && i <= '9'; }
 
-constinit const auto is_digit_tbl = pred_tbl_gen256(digit_pred);
+inline constexpr auto is_digit_tbl = pred_tbl_gen256(digit_pred);
 
 constexpr bool is_digit(char c) noexcept {
   return is_digit_tbl[static_cast<uint8_t>(c)];
 }
 
-constinit const auto is_hex_digit_tbl = pred_tbl_gen256([](auto i) {
+consteval auto hex_digit_pred(size_t i) noexcept {
   return digit_pred(i) || ('A' <= i && i <= 'F') || ('a' <= i && i <= 'f');
-});
+}
+
+inline constexpr auto is_hex_digit_tbl = pred_tbl_gen256(hex_digit_pred);
 
 constexpr bool is_hex_digit(char c) noexcept {
   return is_hex_digit_tbl[static_cast<uint8_t>(c)];
@@ -478,7 +475,7 @@ constexpr bool is_hex_string(R &&r) {
   return !(std::ranges::size(r) & 1) && std::ranges::all_of(r, is_hex_digit);
 }
 
-constinit const auto hex_to_uint_tbl = []() {
+inline constexpr auto hex_to_uint_tbl = [] {
   std::array<uint32_t, 256> tbl;
 
   std::ranges::fill(tbl, 256);
@@ -531,11 +528,16 @@ std::vector<std::string_view> split_str(const std::string_view &s,
                                         char delim = ',');
 
 // parse_version parses |s| to get 4 byte QUIC version.  |s| must be a
-// hex string and must start with "0x" (.e.g, 0x00000001).
+// hex string and must start with "0x" (e.g., 0x00000001).
 std::optional<uint32_t> parse_version(const std::string_view &s);
 
 // read_file reads a file denoted by |path| and returns its content.
 std::optional<std::vector<uint8_t>> read_file(const std::string_view &path);
+
+size_t clamp_buffer_size(ngtcp2_conn *conn, size_t buflen, size_t gso_burst);
+
+bool recv_pkt_time_threshold_exceeded(bool time_sensitive, ngtcp2_tstamp start,
+                                      size_t pktcnt);
 
 enum HPKEPrivateKeyType : uint16_t {
   HPKE_DHKEM_X25519_HKDF_SHA256 = 0x0020,
@@ -576,6 +578,9 @@ constexpr std::string_view get_string(const std::string_view &uri,
   return {uri.data() + p->off, p->len};
 }
 
+// realpath returns the canonicalized absolute path to |path|.
+std::string realpath(const char *path);
+
 } // namespace util
 
 std::ostream &operator<<(std::ostream &os, const ngtcp2_cid &cid);
@@ -585,7 +590,8 @@ std::ostream &operator<<(std::ostream &os, const ngtcp2_cid &cid);
 namespace std {
 template <> struct hash<ngtcp2_cid> {
   hash() {
-    std::ranges::copy(ngtcp2::util::generate_siphash_key(), key.begin());
+    std::ranges::copy(ngtcp2::util::generate_siphash_key(),
+                      std::ranges::begin(key));
   }
 
   std::size_t operator()(const ngtcp2_cid &cid) const noexcept {

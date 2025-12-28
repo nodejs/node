@@ -71,7 +71,7 @@ int ngtcp2_balloc_get(ngtcp2_balloc *balloc, void **pbuf, size_t n) {
       return NGTCP2_ERR_NOMEM;
     }
 
-    hd = (ngtcp2_memblock_hd *)(void *)p;
+    hd = (void *)p;
     hd->next = balloc->head;
     balloc->head = hd;
     ngtcp2_buf_init(

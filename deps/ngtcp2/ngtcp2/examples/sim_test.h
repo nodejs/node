@@ -1,7 +1,7 @@
 /*
  * ngtcp2
  *
- * Copyright (c) 2020 ngtcp2 contributors
+ * Copyright (c) 2025 ngtcp2 contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -22,30 +22,24 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef TLS_CLIENT_CONTEXT_WOLFSSL_H
-#define TLS_CLIENT_CONTEXT_WOLFSSL_H
+#ifndef SIM_TEST_H
+#define SIM_TEST_H
 
 #ifdef HAVE_CONFIG_H
-#  include <config.h>
+#  include "config.h"
 #endif // defined(HAVE_CONFIG_H)
 
-#include <wolfssl/options.h>
-#include <wolfssl/ssl.h>
-#include <wolfssl/quic.h>
+#define MUNIT_ENABLE_ASSERT_ALIASES
 
-class TLSClientContext {
-public:
-  TLSClientContext() = default;
-  ~TLSClientContext();
+#include "munitxx.h"
 
-  int init(const char *private_key_file, const char *cert_file);
+namespace ngtcp2 {
 
-  WOLFSSL_CTX *get_native_handle() const;
+extern const MunitSuite sim_suite;
 
-  void enable_keylog();
+munit_void_test_decl(test_sim_handshake)
+munit_void_test_decl(test_sim_unistream)
 
-private:
-  WOLFSSL_CTX *ssl_ctx_{};
-};
+} // namespace ngtcp2
 
-#endif // !defined(TLS_CLIENT_CONTEXT_WOLFSSL_H)
+#endif // !defined(SIM_TEST_H)

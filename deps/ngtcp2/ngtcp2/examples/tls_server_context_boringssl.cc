@@ -40,8 +40,6 @@
 
 extern Config config;
 
-TLSServerContext::TLSServerContext() : ssl_ctx_{nullptr} {}
-
 TLSServerContext::~TLSServerContext() {
   if (ssl_ctx_) {
     SSL_CTX_free(ssl_ctx_);
@@ -228,10 +226,10 @@ int TLSServerContext::init(const char *private_key_file, const char *cert_file,
       return -1;
     }
 
-    auto pkey_d = defer(EVP_HPKE_KEY_free, pkey);
+    auto pkey_d = defer([pkey] { EVP_HPKE_KEY_free(pkey); });
 
     auto keys = SSL_ECH_KEYS_new();
-    auto keys_d = defer(SSL_ECH_KEYS_free, keys);
+    auto keys_d = defer([keys] { SSL_ECH_KEYS_free(keys); });
 
     if (SSL_ECH_KEYS_add(keys, 1, echconf.ech_config.data(),
                          echconf.ech_config.size(), pkey) != 1) {
