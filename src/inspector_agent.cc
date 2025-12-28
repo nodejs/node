@@ -1,13 +1,18 @@
 #include "inspector_agent.h"
+#include <cstddef>
+#include <memory>
 
 #include "crdtp/json.h"
 #include "env-inl.h"
+#include "inspector/dom_storage_agent.h"
+#include "inspector/io_agent.h"
 #include "inspector/main_thread_interface.h"
 #include "inspector/network_inspector.h"
 #include "inspector/node_json.h"
 #include "inspector/node_string.h"
 #include "inspector/protocol_helper.h"
 #include "inspector/runtime_agent.h"
+#include "inspector/storage_agent.h"
 #include "inspector/target_agent.h"
 #include "inspector/tracing_agent.h"
 #include "inspector/worker_agent.h"
@@ -225,6 +230,7 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
                        bool prevent_shutdown)
       : delegate_(std::move(delegate)),
         main_thread_(main_thread),
+        env_(env),
         prevent_shutdown_(prevent_shutdown),
         retaining_context_(false) {
     session_ = inspector->connect(CONTEXT_GROUP_ID,
@@ -259,6 +265,12 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
       target_agent_->Wire(node_dispatcher_.get());
       target_agent_->listenWorker(worker_manager);
     }
+    if (env->options()->experimental_storage_inspection) {
+      dom_storage_agent_ = std::make_unique<DOMStorageAgent>(env);
+      dom_storage_agent_->Wire(node_dispatcher_.get());
+      storage_agent_ = std::make_unique<protocol::StorageAgent>(env_);
+      storage_agent_->Wire(node_dispatcher_.get());
+    }
   }
 
   ~ChannelImpl() override {
@@ -275,6 +287,14 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
     if (target_agent_) {
       target_agent_->reset();
     }
+    if (storage_agent_) {
+      storage_agent_->disable();
+      storage_agent_.reset();
+    }
+    if (dom_storage_agent_) {
+      dom_storage_agent_->disable();
+      dom_storage_agent_.reset();
+    }
   }
 
   void emitNotificationFromBackend(v8::Local<v8::Context> context,
@@ -283,11 +303,13 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
     std::string raw_event = protocol::StringUtil::StringViewToUtf8(event);
     std::string domain_name = raw_event.substr(0, raw_event.find('.'));
     std::string event_name = raw_event.substr(raw_event.find('.') + 1);
-    if (network_inspector_->canEmit(domain_name)) {
+    if (network_inspector_->canEmit(domain_name) &&
+        env_->options()->experimental_network_inspection) {
       network_inspector_->emitNotification(
           context, domain_name, event_name, params);
-    } else {
-      UNREACHABLE("Unknown domain for emitNotificationFromBackend");
+    } else if (dom_storage_agent_ && dom_storage_agent_->canEmit(domain_name) &&
+               env_->options()->experimental_storage_inspection) {
+      dom_storage_agent_->emitNotification(context, event_name, params);
     }
   }
 
@@ -418,11 +440,14 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
   std::unique_ptr<protocol::WorkerAgent> worker_agent_;
   std::shared_ptr<protocol::TargetAgent> target_agent_;
   std::unique_ptr<NetworkInspector> network_inspector_;
+  std::unique_ptr<DOMStorageAgent> dom_storage_agent_;
+  std::unique_ptr<protocol::StorageAgent> storage_agent_;
   std::shared_ptr<protocol::IoAgent> io_agent_;
   std::unique_ptr<InspectorSessionDelegate> delegate_;
   std::unique_ptr<v8_inspector::V8InspectorSession> session_;
   std::unique_ptr<UberDispatcher> node_dispatcher_;
   std::shared_ptr<MainThreadHandle> main_thread_;
+  Environment* env_;
   bool prevent_shutdown_;
   bool retaining_context_;
 };
@@ -942,7 +967,6 @@ std::unique_ptr<InspectorSession> Agent::ConnectToMainThread(
 void Agent::EmitProtocolEvent(v8::Local<v8::Context> context,
                               const StringView& event,
                               Local<Object> params) {
-  if (!env()->options()->experimental_network_inspection) return;
   client_->emitNotification(context, event, params);
 }
 

@@ -1253,6 +1253,17 @@ added:
 
 Use this flag to enable [ShadowRealm][] support.
 
+### `--experimental-storage-inspection`
+
+<!-- YAML
+added:
+  - REPLACEME
+-->
+
+> Stability: 1.1 - Active Development
+
+Enable experimental support for storage inspection
+
 ### `--experimental-test-coverage`
 
 <!-- YAML
