@@ -325,7 +325,7 @@ the community they pose.
     execution, causing crashes or use-after-free conditions).
   * Exposing `child_process.exec()` or similar APIs to untrusted users without
     proper input validation, allowing command injection.
-  * Allowing untrusted users to control file paths passed to filesystem APIs
+  * Allowing untrusted users to control file paths passed to file system APIs
     without validation, leading to path traversal issues.
   * Permitting untrusted users to define custom code that executes with the
     application's privileges (e.g., custom transforms, plugins, or callbacks).
