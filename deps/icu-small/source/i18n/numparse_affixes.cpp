@@ -86,6 +86,9 @@ void AffixPatternMatcherBuilder::consumeToken(AffixPatternType type, UChar32 cp,
             case TYPE_PLUS_SIGN:
                 addMatcher(fWarehouse.plusSign());
                 break;
+            case TYPE_APPROXIMATELY_SIGN:
+                addMatcher(fWarehouse.approximatelySign());
+                break;
             case TYPE_PERCENT:
                 addMatcher(fWarehouse.percent());
                 break;
@@ -97,6 +100,7 @@ void AffixPatternMatcherBuilder::consumeToken(AffixPatternType type, UChar32 cp,
             case TYPE_CURRENCY_TRIPLE:
             case TYPE_CURRENCY_QUAD:
             case TYPE_CURRENCY_QUINT:
+            case TYPE_CURRENCY_OVERFLOW:
                 // All currency symbols use the same matcher
                 addMatcher(fWarehouse.currency(status));
                 break;
@@ -140,6 +144,10 @@ NumberParseMatcher& AffixTokenMatcherWarehouse::minusSign() {
 
 NumberParseMatcher& AffixTokenMatcherWarehouse::plusSign() {
     return fPlusSign = {fSetupData->dfs, true};
+}
+
+NumberParseMatcher& AffixTokenMatcherWarehouse::approximatelySign() {
+    return fApproximatelySign = {fSetupData->dfs, true};
 }
 
 NumberParseMatcher& AffixTokenMatcherWarehouse::percent() {

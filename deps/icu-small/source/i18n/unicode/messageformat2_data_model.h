@@ -53,7 +53,6 @@ static inline std::vector<T> toStdVector(const T* arr, int32_t len) {
 
 namespace message2 {
     class Checker;
-    class MFDataModel;
     class MessageFormatter;
     class Parser;
     class Serializer;
@@ -63,6 +62,7 @@ namespace message2 {
         class Binding;
         class Literal;
         class Operator;
+        class MFDataModel;
 
       /**
          * The `Literal` class corresponds to the `literal` nonterminal in the MessageFormat 2 grammar,
@@ -197,47 +197,6 @@ namespace message2 {
             /* const */ bool thisIsQuoted = false;
             /* const */ UnicodeString contents;
         };
-  } // namespace data_model
-} // namespace message2
-
-/// @cond DOXYGEN_IGNORE
-// Export an explicit template instantiation of the LocalPointer that is used as a
-// data member of various MFDataModel classes.
-// (When building DLLs for Windows this is required.)
-// (See measunit_impl.h, datefmt.h, collationiterator.h, erarules.h and others
-// for similar examples.)
-#if U_PF_WINDOWS <= U_PLATFORM && U_PLATFORM <= U_PF_CYGWIN
-template class U_I18N_API LocalPointerBase<message2::data_model::Literal>;
-template class U_I18N_API LocalArray<message2::data_model::Literal>;
-#endif
-#if defined(U_REAL_MSVC)
-#pragma warning(pop)
-#endif
-/// @endcond
-
-U_NAMESPACE_END
-
-/// @cond DOXYGEN_IGNORE
-// Export an explicit template instantiation of the std::variants and std::optionals
-// that are used as a data member of various MFDataModel classes.
-// (When building DLLs for Windows this is required.)
-// (See measunit_impl.h, datefmt.h, collationiterator.h, erarules.h and others
-// for similar examples.)
-#if U_PF_WINDOWS <= U_PLATFORM && U_PLATFORM <= U_PF_CYGWIN
-#if defined(U_REAL_MSVC) && defined(_MSVC_STL_VERSION)
-struct U_I18N_API std::_Nontrivial_dummy_type;
-template class U_I18N_API std::_Variant_storage_<false, icu::UnicodeString, icu::message2::data_model::Literal>;
-#endif
-template class U_I18N_API std::variant<icu::UnicodeString, icu::message2::data_model::Literal>;
-template class U_I18N_API std::optional<std::variant<icu::UnicodeString, icu::message2::data_model::Literal>>;
-template class U_I18N_API std::optional<icu::message2::data_model::Literal>;
-#endif
-/// @endcond
-
-U_NAMESPACE_BEGIN
-
-namespace message2 {
-  namespace data_model {
 
         /**
          * The `Operand` class corresponds to the `operand` nonterminal in the MessageFormat 2 grammar,
@@ -253,7 +212,7 @@ namespace message2 {
          * @internal ICU 75 technology preview
          * @deprecated This API is for technology preview only.
          */
-        class U_I18N_API Operand : public UObject {
+        class U_I18N_API_CLASS Operand : public UObject {
         public:
             /**
              * Determines if this operand represents a variable.
@@ -263,7 +222,7 @@ namespace message2 {
              * @internal ICU 75 technology preview
              * @deprecated This API is for technology preview only.
              */
-            UBool isVariable() const;
+            U_I18N_API UBool isVariable() const;
             /**
              * Determines if this operand represents a literal.
              *
@@ -272,7 +231,7 @@ namespace message2 {
              * @internal ICU 75 technology preview
              * @deprecated This API is for technology preview only.
              */
-            UBool isLiteral() const;
+            U_I18N_API UBool isLiteral() const;
             /**
              * Determines if this operand is the null operand.
              *
@@ -281,7 +240,7 @@ namespace message2 {
              * @internal ICU 75 technology preview
              * @deprecated This API is for technology preview only.
              */
-            virtual UBool isNull() const;
+            U_I18N_API virtual UBool isNull() const;
             /**
              * Returns a reference to this operand's variable name.
              * Precondition: isVariable()
@@ -291,7 +250,7 @@ namespace message2 {
              * @internal ICU 75 technology preview
              * @deprecated This API is for technology preview only.
              */
-            const UnicodeString& asVariable() const;
+            U_I18N_API const UnicodeString& asVariable() const;
             /**
              * Returns a reference to this operand's literal contents.
              * Precondition: isLiteral()
@@ -301,7 +260,7 @@ namespace message2 {
              * @internal ICU 75 technology preview
              * @deprecated This API is for technology preview only.
              */
-            const Literal& asLiteral() const;
+            U_I18N_API const Literal& asLiteral() const;
             /**
              * Default constructor.
              * Creates a null Operand.
@@ -309,7 +268,7 @@ namespace message2 {
              * @internal ICU 75 technology preview
              * @deprecated This API is for technology preview only.
              */
-            Operand() : contents(std::nullopt) {}
+            U_I18N_API Operand() : contents(std::nullopt) {}
             /**
              * Variable operand constructor.
              *
@@ -319,7 +278,7 @@ namespace message2 {
              * @internal ICU 75 technology preview
              * @deprecated This API is for technology preview only.
              */
-            explicit Operand(const UnicodeString& v) : contents(VariableName(v)) {}
+            U_I18N_API explicit Operand(const UnicodeString& v) : contents(VariableName(v)) {}
             /**
              * Literal operand constructor.
              *
@@ -329,7 +288,7 @@ namespace message2 {
              * @internal ICU 75 technology preview
              * @deprecated This API is for technology preview only.
              */
-            explicit Operand(const Literal& l) : contents(l) {}
+            U_I18N_API explicit Operand(const Literal& l) : contents(l) {}
             /**
              * Non-member swap function.
              * @param o1 will get o2's contents
@@ -338,7 +297,7 @@ namespace message2 {
              * @internal ICU 75 technology preview
              * @deprecated This API is for technology preview only.
              */
-            friend inline void swap(Operand& o1, Operand& o2) noexcept {
+            U_I18N_API friend inline void swap(Operand& o1, Operand& o2) noexcept {
                 using std::swap;
                 (void) o1;
                 (void) o2;
@@ -350,21 +309,21 @@ namespace message2 {
              * @internal ICU 75 technology preview
              * @deprecated This API is for technology preview only.
              */
-            virtual Operand& operator=(Operand) noexcept;
+            U_I18N_API virtual Operand& operator=(Operand) noexcept;
             /**
              * Copy constructor.
              *
              * @internal ICU 75 technology preview
              * @deprecated This API is for technology preview only.
              */
-            Operand(const Operand&);
+            U_I18N_API Operand(const Operand&);
             /**
              * Destructor.
              *
              * @internal ICU 75 technology preview
              * @deprecated This API is for technology preview only.
              */
-            virtual ~Operand();
+            U_I18N_API virtual ~Operand();
         private:
             std::optional<std::variant<VariableName, Literal>> contents;
         }; // class Operand
@@ -384,7 +343,7 @@ namespace message2 {
          * @internal ICU 75 technology preview
          * @deprecated This API is for technology preview only.
          */
-        class U_I18N_API Key : public UObject {
+        class U_I18N_API_CLASS Key : public UObject {
         public:
             /**
              * Determines if this is a wildcard key
@@ -394,7 +353,7 @@ namespace message2 {
              * @internal ICU 75 technology preview
              * @deprecated This API is for technology preview only.
              */
-            UBool isWildcard() const { return !contents.has_value(); }
+            U_I18N_API UBool isWildcard() const { return !contents.has_value(); }
             /**
              * Returns the contents of this key as a literal.
              * Precondition: !isWildcard()
@@ -404,14 +363,14 @@ namespace message2 {
              * @internal ICU 75 technology preview
              * @deprecated This API is for technology preview only.
              */
-            const Literal& asLiteral() const;
+            U_I18N_API const Literal& asLiteral() const;
             /**
              * Copy constructor.
              *
              * @internal ICU 75 technology preview
              * @deprecated This API is for technology preview only.
              */
-            Key(const Key& other) : contents(other.contents) {}
+            U_I18N_API Key(const Key& other) : contents(other.contents) {}
             /**
              * Wildcard constructor; constructs a Key representing the
              * catchall or wildcard key, '*'.
@@ -419,7 +378,7 @@ namespace message2 {
              * @internal ICU 75 technology preview
              * @deprecated This API is for technology preview only.
              */
-            Key() : contents(std::nullopt) {}
+            U_I18N_API Key() : contents(std::nullopt) {}
             /**
              * Literal key constructor.
              *
@@ -429,7 +388,7 @@ namespace message2 {
              * @internal ICU 75 technology preview
              * @deprecated This API is for technology preview only.
              */
-            explicit Key(const Literal& lit) : contents(lit) {}
+            U_I18N_API explicit Key(const Literal& lit) : contents(lit) {}
             /**
              * Non-member swap function.
              * @param k1 will get k2's contents
@@ -438,7 +397,7 @@ namespace message2 {
              * @internal ICU 75 technology preview
              * @deprecated This API is for technology preview only.
              */
-            friend inline void swap(Key& k1, Key& k2) noexcept {
+            U_I18N_API friend inline void swap(Key& k1, Key& k2) noexcept {
                 using std::swap;
 
                 swap(k1.contents, k2.contents);
@@ -449,7 +408,7 @@ namespace message2 {
              * @internal ICU 75 technology preview
              * @deprecated This API is for technology preview only.
              */
-            Key& operator=(Key) noexcept;
+            U_I18N_API Key& operator=(Key) noexcept;
             /**
              * Less than operator. Compares the literal of `this` with the literal of `other`.
              * This method is used in representing the mapping from key lists to patterns
@@ -463,7 +422,7 @@ namespace message2 {
              * @internal ICU 75 technology preview
              * @deprecated This API is for technology preview only.
              */
-            bool operator<(const Key& other) const;
+            U_I18N_API bool operator<(const Key& other) const;
             /**
              * Equality operator. Compares the literal of `this` with the literal of `other`.
              * This method is used in representing the mapping from key lists to patterns
@@ -477,34 +436,18 @@ namespace message2 {
              * @internal ICU 75 technology preview
              * @deprecated This API is for technology preview only.
              */
-            bool operator==(const Key& other) const;
+            U_I18N_API bool operator==(const Key& other) const;
             /**
              * Destructor.
              *
              * @internal ICU 75 technology preview
              * @deprecated This API is for technology preview only.
              */
-            virtual ~Key();
+            U_I18N_API virtual ~Key();
         private:
             /* const */ std::optional<Literal> contents;
         }; // class Key
-  } // namespace data_model
-} // namespace message2
 
-/// @cond DOXYGEN_IGNORE
-// Export an explicit template instantiation of the LocalPointer that is used as a
-// data member of various MFDataModel classes.
-// (When building DLLs for Windows this is required.)
-// (See measunit_impl.h, datefmt.h, collationiterator.h, erarules.h and others
-// for similar examples.)
-#if U_PF_WINDOWS <= U_PLATFORM && U_PLATFORM <= U_PF_CYGWIN
-template class U_I18N_API LocalPointerBase<message2::data_model::Key>;
-template class U_I18N_API LocalArray<message2::data_model::Key>;
-#endif
-/// @endcond
-
-namespace message2 {
-  namespace data_model {
         /**
          * The `SelectorKeys` class represents the key list for a single variant.
          * It corresponds to the `keys` array in the `Variant` interface
@@ -515,7 +458,7 @@ namespace message2 {
          * @internal ICU 75 technology preview
          * @deprecated This API is for technology preview only.
          */
-        class U_I18N_API SelectorKeys : public UObject {
+        class U_I18N_API_CLASS SelectorKeys : public UObject {
         public:
             /**
              * Returns the underlying list of keys.
@@ -527,7 +470,7 @@ namespace message2 {
              * @internal ICU 75 technology preview
              * @deprecated This API is for technology preview only.
              */
-            std::vector<Key> getKeys() const {
+            U_I18N_API std::vector<Key> getKeys() const {
                 return toStdVector<Key>(keys.getAlias(), len);
             }
             /**
@@ -606,7 +549,7 @@ namespace message2 {
              * @internal ICU 75 technology preview
              * @deprecated This API is for technology preview only.
              */
-            bool operator<(const SelectorKeys& other) const;
+            U_I18N_API bool operator<(const SelectorKeys& other) const;
             /**
              * Default constructor.
              * Puts the SelectorKeys into a valid but undefined state.
@@ -614,7 +557,7 @@ namespace message2 {
              * @internal ICU 75 technology preview
              * @deprecated This API is for technology preview only.
              */
-            SelectorKeys() : len(0) {}
+            U_I18N_API SelectorKeys() : len(0) {}
             /**
              * Non-member swap function.
              * @param s1 will get s2's contents
@@ -623,7 +566,7 @@ namespace message2 {
              * @internal ICU 75 technology preview
              * @deprecated This API is for technology preview only.
              */
-            friend inline void swap(SelectorKeys& s1, SelectorKeys& s2) noexcept {
+            U_I18N_API friend inline void swap(SelectorKeys& s1, SelectorKeys& s2) noexcept {
                 using std::swap;
 
                 swap(s1.len, s2.len);
@@ -635,21 +578,21 @@ namespace message2 {
              * @internal ICU 75 technology preview
              * @deprecated This API is for technology preview only.
              */
-            SelectorKeys(const SelectorKeys& other);
+            U_I18N_API SelectorKeys(const SelectorKeys& other);
             /**
              * Assignment operator.
              *
              * @internal ICU 75 technology preview
              * @deprecated This API is for technology preview only.
              */
-            SelectorKeys& operator=(SelectorKeys other) noexcept;
+            U_I18N_API SelectorKeys& operator=(SelectorKeys other) noexcept;
             /**
              * Destructor.
              *
              * @internal ICU 75 technology preview
              * @deprecated This API is for technology preview only.
              */
-            virtual ~SelectorKeys();
+            U_I18N_API virtual ~SelectorKeys();
         private:
             friend class Builder;
             friend class message2::Checker;
@@ -663,11 +606,6 @@ namespace message2 {
             SelectorKeys(const UVector& ks, UErrorCode& status);
         }; // class SelectorKeys
 
-
-    } // namespace data_model
-
-
-    namespace data_model {
         class Operator;
 
         /**
@@ -756,48 +694,32 @@ namespace message2 {
             /* const */ UnicodeString name;
             /* const */ Operand rand;
         }; // class Option
-    } // namespace data_model
-} // namespace message2
 
-  /// @cond DOXYGEN_IGNORE
-// Export an explicit template instantiation of the LocalPointer that is used as a
-// data member of various MFDataModel classes.
-// (When building DLLs for Windows this is required.)
-// (See measunit_impl.h, datefmt.h, collationiterator.h, erarules.h and others
-// for similar examples.)
-#if U_PF_WINDOWS <= U_PLATFORM && U_PLATFORM <= U_PF_CYGWIN
-template class U_I18N_API LocalPointerBase<message2::data_model::Option>;
-template class U_I18N_API LocalArray<message2::data_model::Option>;
-#endif
-/// @endcond
-
-namespace message2 {
-  namespace data_model {
         // Internal only
         #ifndef U_IN_DOXYGEN
         // Options
         // This is a wrapper class around a vector of options that provides lookup operations
-        class U_I18N_API OptionMap : public UObject {
+        class U_I18N_API_CLASS OptionMap : public UObject {
         public:
-            int32_t size() const;
+            U_I18N_API int32_t size() const;
             // Needs to take an error code b/c an earlier copy might have failed
-            const Option& getOption(int32_t, UErrorCode&) const;
-            friend inline void swap(OptionMap& m1, OptionMap& m2) noexcept {
+            U_I18N_API const Option& getOption(int32_t, UErrorCode&) const;
+            U_I18N_API friend inline void swap(OptionMap& m1, OptionMap& m2) noexcept {
                 using std::swap;
 
                 swap(m1.bogus, m2.bogus);
                 swap(m1.options, m2.options);
                 swap(m1.len, m2.len);
             }
-            OptionMap() : len(0) {}
-            OptionMap(const OptionMap&);
-            OptionMap& operator=(OptionMap);
-            std::vector<Option> getOptions() const {
+            U_I18N_API OptionMap() : len(0) {}
+            U_I18N_API OptionMap(const OptionMap&);
+            U_I18N_API OptionMap& operator=(OptionMap);
+            U_I18N_API std::vector<Option> getOptions() const {
                 return toStdVector<Option>(options.getAlias(), len);
             }
-            OptionMap(const UVector&, UErrorCode&);
-            OptionMap(Option*, int32_t);
-            virtual ~OptionMap();
+            U_I18N_API OptionMap(const UVector&, UErrorCode&);
+            U_I18N_API OptionMap(Option*, int32_t);
+            U_I18N_API virtual ~OptionMap();
 
             class U_I18N_API Builder : public UObject {
                 private:
@@ -829,16 +751,7 @@ namespace message2 {
         }; // class OptionMap
         #endif
 
-  } // namespace data_model
-} // namespace message2
-
-U_NAMESPACE_END
-
-U_NAMESPACE_BEGIN
-
-namespace message2 {
-  namespace data_model {
-      /**
+        /**
          * The `Operator` class corresponds to the `FunctionRef` type in the
          * `Expression` interface defined in
          * https://github.com/unicode-org/message-format-wg/blob/main/spec/data-model.md#patterns
@@ -1009,26 +922,7 @@ namespace message2 {
             /* const */ FunctionName name;
             /* const */ OptionMap options;
         }; // class Operator
-  } // namespace data_model
-} // namespace message2
 
-U_NAMESPACE_END
-
-/// @cond DOXYGEN_IGNORE
-// Export an explicit template instantiation of the std::optional that is used as a
-// data member of various MFDataModel classes.
-// (When building DLLs for Windows this is required.)
-// (See measunit_impl.h, datefmt.h, collationiterator.h, erarules.h and others
-// for similar examples.)
-#if U_PF_WINDOWS <= U_PLATFORM && U_PLATFORM <= U_PF_CYGWIN
-template class U_I18N_API std::optional<icu::message2::data_model::Operator>;
-#endif
-/// @endcond
-
-U_NAMESPACE_BEGIN
-
-namespace message2 {
-  namespace data_model {
       // Internal only
       typedef enum UMarkupType {
           UMARKUP_OPEN = 0,
@@ -1264,7 +1158,7 @@ namespace message2 {
          * @internal ICU 75 technology preview
          * @deprecated This API is for technology preview only.
          */
-        class U_I18N_API Expression : public UObject {
+        class U_I18N_API_CLASS Expression : public UObject {
         public:
             /**
              * Checks if this expression is an annotation
@@ -1276,7 +1170,7 @@ namespace message2 {
              * @internal ICU 75 technology preview
              * @deprecated This API is for technology preview only.
              */
-            UBool isStandaloneAnnotation() const;
+            U_I18N_API UBool isStandaloneAnnotation() const;
             /**
              * Checks if this expression has a function
              * annotation (with or without an operand).
@@ -1287,7 +1181,7 @@ namespace message2 {
              * @internal ICU 75 technology preview
              * @deprecated This API is for technology preview only.
              */
-            UBool isFunctionCall() const;
+            U_I18N_API UBool isFunctionCall() const;
             /**
              * Accesses the function
              * annotating this expression.
@@ -1301,7 +1195,7 @@ namespace message2 {
              * @internal ICU 75 technology preview
              * @deprecated This API is for technology preview only.
              */
-            const Operator* getOperator(UErrorCode& status) const;
+            U_I18N_API const Operator* getOperator(UErrorCode& status) const;
             /**
              * Accesses the operand of this expression.
              *
@@ -1311,7 +1205,7 @@ namespace message2 {
              * @internal ICU 75 technology preview
              * @deprecated This API is for technology preview only.
              */
-            const Operand& getOperand() const;
+            U_I18N_API const Operand& getOperand() const;
             /**
              * Gets the attributes of this expression
              *
@@ -1320,7 +1214,7 @@ namespace message2 {
              * @internal ICU 75 technology preview
              * @deprecated This API is for technology preview only.
              */
-            std::vector<Option> getAttributes() const { return attributes.getOptions(); }
+            U_I18N_API std::vector<Option> getAttributes() const { return attributes.getOptions(); }
             /**
              * The mutable `Expression::Builder` class allows the operator to be constructed
              * incrementally.
@@ -1420,7 +1314,7 @@ namespace message2 {
              * @internal ICU 75 technology preview
              * @deprecated This API is for technology preview only.
              */
-            friend inline void swap(Expression& e1, Expression& e2) noexcept {
+            U_I18N_API friend inline void swap(Expression& e1, Expression& e2) noexcept {
                 using std::swap;
 
                 swap(e1.rator, e2.rator);
@@ -1433,14 +1327,14 @@ namespace message2 {
              * @internal ICU 75 technology preview
              * @deprecated This API is for technology preview only.
              */
-            Expression(const Expression& other);
+            U_I18N_API Expression(const Expression& other);
             /**
              * Assignment operator.
              *
              * @internal ICU 75 technology preview
              * @deprecated This API is for technology preview only.
              */
-            Expression& operator=(Expression) noexcept;
+            U_I18N_API Expression& operator=(Expression) noexcept;
             /**
              * Default constructor.
              * Puts the Expression into a valid but undefined state.
@@ -1448,14 +1342,14 @@ namespace message2 {
              * @internal ICU 75 technology preview
              * @deprecated This API is for technology preview only.
              */
-            Expression();
+            U_I18N_API Expression();
             /**
              * Destructor.
              *
              * @internal ICU 75 technology preview
              * @deprecated This API is for technology preview only.
              */
-            virtual ~Expression();
+            U_I18N_API virtual ~Expression();
         private:
             friend class message2::Serializer;
 
@@ -1481,23 +1375,6 @@ namespace message2 {
             /* const */ OptionMap attributes;
             const OptionMap& getAttributesInternal() const { return attributes; }
         }; // class Expression
-  } // namespace data_model
-} // namespace message2
-
-/// @cond DOXYGEN_IGNORE
-// Export an explicit template instantiation of the LocalPointer that is used as a
-// data member of various MFDataModel classes.
-// (When building DLLs for Windows this is required.)
-// (See measunit_impl.h, datefmt.h, collationiterator.h, erarules.h and others
-// for similar examples.)
-#if U_PF_WINDOWS <= U_PLATFORM && U_PLATFORM <= U_PF_CYGWIN
-template class U_I18N_API LocalPointerBase<message2::data_model::Expression>;
-template class U_I18N_API LocalArray<message2::data_model::Expression>;
-#endif
-/// @endcond
-
-namespace message2 {
-  namespace data_model {
 
       class Pattern;
 
@@ -1512,7 +1389,7 @@ namespace message2 {
          * @internal ICU 75 technology preview
          * @deprecated This API is for technology preview only.
          */
-        class PatternPart : public UObject {
+        class U_I18N_API_CLASS PatternPart : public UObject {
         public:
             /**
              * Checks if the part is a text part.
@@ -1522,7 +1399,7 @@ namespace message2 {
              * @internal ICU 75 technology preview
              * @deprecated This API is for technology preview only.
              */
-            UBool isText() const { return std::holds_alternative<UnicodeString>(piece); }
+            U_I18N_API UBool isText() const { return std::holds_alternative<UnicodeString>(piece); }
             /**
              * Checks if the part is a markup part.
              *
@@ -1531,7 +1408,7 @@ namespace message2 {
              * @internal ICU 75 technology preview
              * @deprecated This API is for technology preview only.
              */
-            UBool isMarkup() const { return std::holds_alternative<Markup>(piece); }
+            U_I18N_API UBool isMarkup() const { return std::holds_alternative<Markup>(piece); }
             /**
              * Checks if the part is an expression part.
              *
@@ -1540,7 +1417,7 @@ namespace message2 {
              * @internal ICU 75 technology preview
              * @deprecated This API is for technology preview only.
              */
-            UBool isExpression() const { return std::holds_alternative<Expression>(piece); }
+            U_I18N_API UBool isExpression() const { return std::holds_alternative<Expression>(piece); }
             /**
              * Accesses the expression of the part.
              * Precondition: isExpression()
@@ -1550,7 +1427,7 @@ namespace message2 {
              * @internal ICU 75 technology preview
              * @deprecated This API is for technology preview only.
              */
-            const Expression& contents() const;
+            U_I18N_API const Expression& contents() const;
             /**
              * Accesses the expression of the part.
              * Precondition: isMarkup()
@@ -1560,7 +1437,7 @@ namespace message2 {
              * @internal ICU 75 technology preview
              * @deprecated This API is for technology preview only.
              */
-            const Markup& asMarkup() const;
+            U_I18N_API const Markup& asMarkup() const;
             /**
              * Accesses the text contents of the part.
              * Precondition: isText()
@@ -1570,7 +1447,7 @@ namespace message2 {
              * @internal ICU 75 technology preview
              * @deprecated This API is for technology preview only.
              */
-            const UnicodeString& asText() const;
+            U_I18N_API const UnicodeString& asText() const;
             /**
              * Non-member swap function.
              * @param p1 will get p2's contents
@@ -1579,7 +1456,7 @@ namespace message2 {
              * @internal ICU 75 technology preview
              * @deprecated This API is for technology preview only.
              */
-            friend inline void swap(PatternPart& p1, PatternPart& p2) noexcept {
+            U_I18N_API friend inline void swap(PatternPart& p1, PatternPart& p2) noexcept {
                 using std::swap;
 
                 swap(p1.piece, p2.piece);
@@ -1590,21 +1467,21 @@ namespace message2 {
              * @internal ICU 75 technology preview
              * @deprecated This API is for technology preview only.
              */
-            PatternPart(const PatternPart& other);
+            U_I18N_API PatternPart(const PatternPart& other);
             /**
              * Assignment operator.
              *
              * @internal ICU 75 technology preview
              * @deprecated This API is for technology preview only.
              */
-            PatternPart& operator=(PatternPart) noexcept;
+            U_I18N_API PatternPart& operator=(PatternPart) noexcept;
             /**
              * Destructor.
              *
              * @internal ICU 75 technology preview
              * @deprecated This API is for technology preview only.
              */
-            virtual ~PatternPart();
+            U_I18N_API virtual ~PatternPart();
             /**
              * Text part constructor. Returns a text pattern part
              * with text `t`.
@@ -1614,7 +1491,7 @@ namespace message2 {
              * @internal ICU 75 technology preview
              * @deprecated This API is for technology preview only.
              */
-            explicit PatternPart(const UnicodeString& t) : piece(t) {}
+            U_I18N_API explicit PatternPart(const UnicodeString& t) : piece(t) {}
             /**
              * Expression part constructor. Returns an Expression pattern
              * part with expression `e`.
@@ -1624,7 +1501,7 @@ namespace message2 {
              * @internal ICU 75 technology preview
              * @deprecated This API is for technology preview only.
              */
-            explicit PatternPart(Expression&& e) : piece(e) {}
+            U_I18N_API explicit PatternPart(Expression&& e) : piece(e) {}
             /**
              * Markup part constructor. Returns a Markup pattern
              * part with markup `m`
@@ -1634,7 +1511,7 @@ namespace message2 {
              * @internal ICU 75 technology preview
              * @deprecated This API is for technology preview only.
              */
-            explicit PatternPart(Markup&& m) : piece(m) {}
+            U_I18N_API explicit PatternPart(Markup&& m) : piece(m) {}
             /**
              * Default constructor.
              * Puts the PatternPart into a valid but undefined state.
@@ -1642,29 +1519,13 @@ namespace message2 {
              * @internal ICU 75 technology preview
              * @deprecated This API is for technology preview only.
              */
-            PatternPart() = default;
+            U_I18N_API PatternPart() = default;
         private:
             friend class Pattern;
 
             std::variant<UnicodeString, Expression, Markup> piece;
         }; // class PatternPart
-  } // namespace data_model
-} // namespace message2
 
-  /// @cond DOXYGEN_IGNORE
-// Export an explicit template instantiation of the LocalPointer that is used as a
-// data member of various MFDataModel classes.
-// (When building DLLs for Windows this is required.)
-// (See measunit_impl.h, datefmt.h, collationiterator.h, erarules.h and others
-// for similar examples.)
-#if U_PF_WINDOWS <= U_PLATFORM && U_PLATFORM <= U_PF_CYGWIN
-template class U_I18N_API LocalPointerBase<message2::data_model::PatternPart>;
-template class U_I18N_API LocalArray<message2::data_model::PatternPart>;
-#endif
-/// @endcond
-
-namespace message2 {
-  namespace data_model {
         /**
          *  A `Pattern` is a sequence of formattable parts.
          * It corresponds to the `Pattern` interface
@@ -1675,12 +1536,14 @@ namespace message2 {
          * @internal ICU 75 technology preview
          * @deprecated This API is for technology preview only.
          */
-        class U_I18N_API Pattern : public UObject {
+        class U_I18N_API_CLASS Pattern : public UObject {
         private:
             friend class PatternPart;
 
         public:
-            struct Iterator;
+            #ifndef U_IN_DOXYGEN
+            struct U_I18N_API Iterator;
+            #endif
             /**
              * Returns the parts of this pattern
              *
@@ -1690,7 +1553,7 @@ namespace message2 {
              * @internal ICU 75 technology preview
              * @deprecated This API is for technology preview only.
              */
-            Iterator begin() const {
+            U_I18N_API Iterator begin() const {
                 return Iterator(this, 0);
             }
             /**
@@ -1702,7 +1565,7 @@ namespace message2 {
              * @internal ICU 75 technology preview
              * @deprecated This API is for technology preview only.
              */
-            Iterator end() const {
+            U_I18N_API Iterator end() const {
                 return Iterator(this, len);
             }
             /**
@@ -1797,7 +1660,7 @@ namespace message2 {
              * @internal ICU 75 technology preview
              * @deprecated This API is for technology preview only.
              */
-            Pattern() : parts(LocalArray<PatternPart>()) {}
+            U_I18N_API Pattern() : parts(LocalArray<PatternPart>()) {}
             /**
              * Non-member swap function.
              * @param p1 will get p2's contents
@@ -1806,7 +1669,7 @@ namespace message2 {
              * @internal ICU 75 technology preview
              * @deprecated This API is for technology preview only.
              */
-            friend inline void swap(Pattern& p1, Pattern& p2) noexcept {
+            U_I18N_API friend inline void swap(Pattern& p1, Pattern& p2) noexcept {
                 using std::swap;
 
                 swap(p1.bogus, p2.bogus);
@@ -1819,21 +1682,21 @@ namespace message2 {
              * @internal ICU 75 technology preview
              * @deprecated This API is for technology preview only.
              */
-            Pattern(const Pattern& other);
+            U_I18N_API Pattern(const Pattern& other);
             /**
              * Assignment operator
              *
              * @internal ICU 75 technology preview
              * @deprecated This API is for technology preview only.
              */
-            Pattern& operator=(Pattern) noexcept;
+            U_I18N_API Pattern& operator=(Pattern) noexcept;
             /**
              * Destructor.
              *
              * @internal ICU 75 technology preview
              * @deprecated This API is for technology preview only.
              */
-            virtual ~Pattern();
+            U_I18N_API virtual ~Pattern();
 
             /**
              *  The `Pattern::Iterator` class provides an iterator over the formattable
@@ -2020,9 +1883,7 @@ namespace message2 {
             /* const */ SelectorKeys k;
             /* const */ Pattern p;
         }; // class Variant
-    } // namespace data_model
 
-        namespace data_model {
         /**
          *  A `Binding` pairs a variable name with an expression.
          * It corresponds to the `Declaration` interface
@@ -2074,6 +1935,8 @@ namespace message2 {
              *
              * @return True if this binding represents a variable and expression;
              *         false if it represents a variable plus an annotation.
+             * @internal ICU 78 technology preview
+             * @deprecated This API is for technology preview only.
              */
             UBool isLocal() const { return local; }
             /**
@@ -2154,36 +2017,14 @@ namespace message2 {
             bool hasAnnotation() const { return !local && (annotation != nullptr); }
             void updateAnnotation();
         }; // class Binding
-    } // namespace data_model
-} // namespace message2
-
-  /// @cond DOXYGEN_IGNORE
-// Export an explicit template instantiation of the LocalPointer that is used as a
-// data member of various MFDataModel classes.
-// (When building DLLs for Windows this is required.)
-// (See measunit_impl.h, datefmt.h, collationiterator.h, erarules.h and others
-// for similar examples.)
-#if U_PF_WINDOWS <= U_PLATFORM && U_PLATFORM <= U_PF_CYGWIN
-template class U_I18N_API LocalPointerBase<message2::data_model::Variant>;
-template class U_I18N_API LocalPointerBase<message2::data_model::Binding>;
-template class U_I18N_API LocalArray<message2::data_model::Variant>;
-template class U_I18N_API LocalArray<message2::data_model::Binding>;
-#endif
-/// @endcond
-
-namespace message2 {
-    using namespace data_model;
-
 
     // Internal only
 
-    class MFDataModel;
-
     #ifndef U_IN_DOXYGEN
-    class Matcher : public UObject {
+    class U_I18N_API_CLASS Matcher : public UObject {
     public:
-        Matcher& operator=(Matcher);
-        Matcher(const Matcher&);
+        U_I18N_API Matcher& operator=(Matcher);
+        U_I18N_API Matcher(const Matcher&);
         /**
          * Non-member swap function.
          * @param m1 will get m2's contents
@@ -2192,7 +2033,7 @@ namespace message2 {
          * @internal ICU 75 technology preview
          * @deprecated This API is for technology preview only.
          */
-        friend inline void swap(Matcher& m1, Matcher& m2) noexcept {
+        U_I18N_API friend inline void swap(Matcher& m1, Matcher& m2) noexcept {
             using std::swap;
 
             if (m1.bogus) {
@@ -2208,7 +2049,7 @@ namespace message2 {
             swap(m1.variants, m2.variants);
             swap(m1.numVariants, m2.numVariants);
         }
-        virtual ~Matcher();
+        U_I18N_API virtual ~Matcher();
     private:
 
         friend class MFDataModel;
@@ -2231,27 +2072,7 @@ namespace message2 {
         int32_t numVariants = 0;
     }; // class Matcher
     #endif
-} // namespace message2
 
-U_NAMESPACE_END
-
-/// @cond DOXYGEN_IGNORE
-// Export an explicit template instantiation of the std::variant that is used as a
-// data member of various MFDataModel classes.
-// (When building DLLs for Windows this is required.)
-// (See measunit_impl.h, datefmt.h, collationiterator.h, erarules.h and others
-// for similar examples.)
-#if U_PF_WINDOWS <= U_PLATFORM && U_PLATFORM <= U_PF_CYGWIN
-#if defined(U_REAL_MSVC) && defined(_MSVC_STL_VERSION)
-template class U_I18N_API std::_Variant_storage_<false, icu::message2::Matcher,icu::message2::data_model::Pattern>;
-#endif
-template class U_I18N_API std::variant<icu::message2::Matcher,icu::message2::data_model::Pattern>;
-#endif
-/// @endcond
-
-U_NAMESPACE_BEGIN
-
-namespace message2 {
     // -----------------------------------------------------------------------
     // Public MFDataModel class
 
@@ -2271,7 +2092,7 @@ namespace message2 {
      * @internal ICU 75 technology preview
      * @deprecated This API is for technology preview only.
      */
-    class U_I18N_API MFDataModel : public UMemory {
+    class U_I18N_API_CLASS MFDataModel : public UMemory {
         /*
           Classes that represent nodes in the data model are nested inside the
           `MFDataModel` class.
@@ -2315,7 +2136,7 @@ namespace message2 {
          * @internal ICU 75 technology preview
          * @deprecated This API is for technology preview only.
          */
-        std::vector<Binding> getLocalVariables() const {
+        U_I18N_API std::vector<Binding> getLocalVariables() const {
             std::vector<Binding> result;
             if (!bogus) {
                 return toStdVector<Binding>(bindings.getAlias(), bindingsLen);
@@ -2330,7 +2151,7 @@ namespace message2 {
          * @internal ICU 75 technology preview
          * @deprecated This API is for technology preview only.
          */
-        std::vector<VariableName> getSelectors() const {
+        U_I18N_API std::vector<VariableName> getSelectors() const {
             if (std::holds_alternative<Pattern>(body)) {
                 return {};
             }
@@ -2346,7 +2167,7 @@ namespace message2 {
          * @internal ICU 75 technology preview
          * @deprecated This API is for technology preview only.
          */
-        std::vector<Variant> getVariants() const {
+        U_I18N_API std::vector<Variant> getVariants() const {
             // Return empty vector if no variants
             if (std::holds_alternative<Pattern>(body)) {
                 return {};
@@ -2365,8 +2186,7 @@ namespace message2 {
          * @internal ICU 75 technology preview
          * @deprecated This API is for technology preview only.
          */
-        const Pattern& getPattern() const;
-
+        U_I18N_API const Pattern& getPattern() const;
         /**
          * The mutable `MFDataModel::Builder` class allows the data model to be
          * constructed incrementally.
@@ -2375,7 +2195,6 @@ namespace message2 {
          * @deprecated This API is for technology preview only.
          */
         class U_I18N_API Builder;
-
         /**
          * Default constructor.
          * Puts the MFDataModel into a valid but undefined state.
@@ -2383,7 +2202,7 @@ namespace message2 {
          * @internal ICU 75 technology preview
          * @deprecated This API is for technology preview only.
          */
-        MFDataModel();
+        U_I18N_API MFDataModel();
         /**
          * Non-member swap function.
          * @param m1 will get m2's contents
@@ -2392,7 +2211,7 @@ namespace message2 {
          * @internal ICU 75 technology preview
          * @deprecated This API is for technology preview only.
          */
-        friend inline void swap(MFDataModel& m1, MFDataModel& m2) noexcept {
+        U_I18N_API friend inline void swap(MFDataModel& m1, MFDataModel& m2) noexcept {
             using std::swap;
 
             if (m1.bogus) {
@@ -2413,21 +2232,21 @@ namespace message2 {
          * @internal ICU 75 technology preview
          * @deprecated This API is for technology preview only.
          */
-        MFDataModel& operator=(MFDataModel) noexcept;
+        U_I18N_API MFDataModel& operator=(MFDataModel) noexcept;
         /**
          * Copy constructor.
          *
          * @internal ICU 75 technology preview
          * @deprecated This API is for technology preview only.
          */
-        MFDataModel(const MFDataModel& other);
+        U_I18N_API MFDataModel(const MFDataModel& other);
         /**
          * Destructor.
          *
          * @internal ICU 75 technology preview
          * @deprecated This API is for technology preview only.
          */
-        virtual ~MFDataModel();
+        U_I18N_API virtual ~MFDataModel();
 
         /**
          * The mutable `MFDataModel::Builder` class allows the data model to be
@@ -2547,9 +2366,9 @@ namespace message2 {
         }; // class Builder
 
     private:
-        friend class Checker;
-        friend class MessageFormatter;
-        friend class Serializer;
+        friend class message2::Checker;
+        friend class message2::MessageFormatter;
+        friend class message2::Serializer;
 
         Pattern empty; // Provided so that `getPattern()` can return a result
                        // if called on a selectors message
@@ -2583,7 +2402,7 @@ namespace message2 {
 
         MFDataModel(const Builder& builder, UErrorCode&) noexcept;
     }; // class MFDataModel
-
+  } // namespace data_model
 } // namespace message2
 
 U_NAMESPACE_END

@@ -17,27 +17,21 @@
 
 U_NAMESPACE_BEGIN
 
-// Export an explicit template instantiation of the LocalPointer that is used as a
-// data member of AdoptingModifierStore.
-// (When building DLLs for Windows this is required.)
-#if U_PF_WINDOWS <= U_PLATFORM && U_PLATFORM <= U_PF_CYGWIN
-template class U_I18N_API LocalPointerBase<number::impl::AdoptingModifierStore>;
-template class U_I18N_API LocalPointer<number::impl::AdoptingModifierStore>;
-#endif
-
 namespace number::impl {
 
 // Forward declaration
 class MutablePatternModifier;
 
-// Exported as U_I18N_API because it is needed for the unit test PatternModifierTest
-class U_I18N_API ImmutablePatternModifier : public MicroPropsGenerator, public UMemory {
+// Exported as U_I18N_API_CLASS because it is needed for the unit test PatternModifierTest
+class U_I18N_API_CLASS ImmutablePatternModifier : public MicroPropsGenerator, public UMemory {
   public:
     ~ImmutablePatternModifier() override = default;
 
     void processQuantity(DecimalQuantity&, MicroProps& micros, UErrorCode& status) const override;
 
-    void applyToMicros(MicroProps& micros, const DecimalQuantity& quantity, UErrorCode& status) const;
+    U_I18N_API void applyToMicros(MicroProps& micros,
+                                  const DecimalQuantity& quantity,
+                                  UErrorCode& status) const;
 
     const Modifier* getModifier(Signum signum, StandardPlural::Form plural) const;
 
@@ -73,7 +67,7 @@ class U_I18N_API ImmutablePatternModifier : public MicroPropsGenerator, public U
  * {@link MutablePatternModifier#createImmutable}, in effect treating this instance as a builder for the immutable
  * variant.
  */
-class U_I18N_API MutablePatternModifier
+class U_I18N_API_CLASS MutablePatternModifier
         : public MicroPropsGenerator,
           public Modifier,
           public SymbolProvider,
@@ -88,7 +82,7 @@ class U_I18N_API MutablePatternModifier
      *            {@link Modifier#isStrong()}. Most of the time, decimal format pattern modifiers should be considered
      *            as non-strong.
      */
-    explicit MutablePatternModifier(bool isStrong);
+    U_I18N_API explicit MutablePatternModifier(bool isStrong);
 
     /**
      * Sets a reference to the parsed decimal format pattern, usually obtained from
@@ -98,7 +92,7 @@ class U_I18N_API MutablePatternModifier
      * @param field
      *            Which field to use for literal characters in the pattern.
      */
-    void setPatternInfo(const AffixPatternProvider *patternInfo, Field field);
+    U_I18N_API void setPatternInfo(const AffixPatternProvider *patternInfo, Field field);
 
     /**
      * Sets attributes that imply changes to the literal interpretation of the pattern string affixes.
@@ -110,7 +104,8 @@ class U_I18N_API MutablePatternModifier
      * @param approximately
      *            Whether to prepend approximately to the sign
      */
-    void setPatternAttributes(UNumberSignDisplay signDisplay, bool perMille, bool approximately);
+    U_I18N_API void setPatternAttributes(UNumberSignDisplay signDisplay, bool perMille,
+                                         bool approximately);
 
     /**
      * Sets locale-specific details that affect the symbols substituted into the pattern string affixes.
@@ -127,8 +122,8 @@ class U_I18N_API MutablePatternModifier
      * @param status
      *            Set if an error occurs while loading currency data.
      */
-    void setSymbols(const DecimalFormatSymbols* symbols, const CurrencyUnit& currency,
-                    UNumberUnitWidth unitWidth, const PluralRules* rules, UErrorCode& status);
+    U_I18N_API void setSymbols(const DecimalFormatSymbols* symbols, const CurrencyUnit& currency,
+                               UNumberUnitWidth unitWidth, const PluralRules* rules, UErrorCode& status);
 
     /**
      * Sets attributes of the current number being processed.
@@ -139,7 +134,7 @@ class U_I18N_API MutablePatternModifier
      *            The plural form of the number, required only if the pattern contains the triple
      *            currency sign, "¤¤¤" (and as indicated by {@link #needsPlurals()}).
      */
-    void setNumberProperties(Signum signum, StandardPlural::Form plural);
+    U_I18N_API void setNumberProperties(Signum signum, StandardPlural::Form plural);
 
     /**
      * Returns true if the pattern represented by this MurkyModifier requires a plural keyword in order to localize.
@@ -148,7 +143,8 @@ class U_I18N_API MutablePatternModifier
     bool needsPlurals() const;
 
     /** Creates a quantity-dependent Modifier for the specified plural form. */
-    AdoptingSignumModifierStore createImmutableForPlural(StandardPlural::Form plural, UErrorCode& status);
+    U_I18N_API AdoptingSignumModifierStore createImmutableForPlural(StandardPlural::Form plural,
+                                                                    UErrorCode& status);
 
     /**
      * Creates a new quantity-dependent Modifier that behaves the same as the current instance, but which is immutable
@@ -163,14 +159,15 @@ class U_I18N_API MutablePatternModifier
      *
      * @return An immutable that supports both positive and negative numbers.
      */
-    ImmutablePatternModifier *createImmutable(UErrorCode &status);
+    U_I18N_API ImmutablePatternModifier *createImmutable(UErrorCode &status);
 
-    MicroPropsGenerator &addToChain(const MicroPropsGenerator *parent);
+    U_I18N_API MicroPropsGenerator &addToChain(const MicroPropsGenerator *parent);
 
-    void processQuantity(DecimalQuantity &, MicroProps &micros, UErrorCode &status) const override;
+    U_I18N_API void processQuantity(DecimalQuantity &, MicroProps &micros,
+                                    UErrorCode &status) const override;
 
-    int32_t apply(FormattedStringBuilder &output, int32_t leftIndex, int32_t rightIndex,
-                  UErrorCode &status) const override;
+    U_I18N_API int32_t apply(FormattedStringBuilder &output, int32_t leftIndex, int32_t rightIndex,
+                             UErrorCode &status) const override;
 
     int32_t getPrefixLength() const override;
 

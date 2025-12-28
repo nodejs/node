@@ -1004,6 +1004,7 @@ static UDataMemory *doLoadFromIndividualFiles(const char *pkgName,
                 *  and return it.   */
                 pEntryData->mapAddr = dataMemory.mapAddr;
                 pEntryData->map     = dataMemory.map;
+                pEntryData->length  = dataMemory.length;
 
 #ifdef UDATA_DEBUG
                 fprintf(stderr, "** Mapped file: %s\n", pathBuffer);

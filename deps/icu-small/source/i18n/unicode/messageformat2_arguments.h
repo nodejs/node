@@ -29,20 +29,6 @@
 
 U_NAMESPACE_BEGIN
 
-/// @cond DOXYGEN_IGNORE
-// Export an explicit template instantiation of the LocalPointer that is used as a
-// data member of various MessageFormatDataModel classes.
-// (When building DLLs for Windows this is required.)
-// (See measunit_impl.h, datefmt.h, collationiterator.h, erarules.h and others
-// for similar examples.)
-#if U_PF_WINDOWS <= U_PLATFORM && U_PLATFORM <= U_PF_CYGWIN
-template class U_I18N_API LocalPointerBase<UnicodeString>;
-template class U_I18N_API LocalPointerBase<message2::Formattable>;
-template class U_I18N_API LocalArray<UnicodeString>;
-template class U_I18N_API LocalArray<message2::Formattable>;
-#endif
-/// @endcond
-
 namespace message2 {
 
     class MessageFormatter;
@@ -58,7 +44,7 @@ namespace message2 {
      * @internal ICU 75 technology preview
      * @deprecated This API is for technology preview only.
      */
-    class U_I18N_API MessageArguments : public UObject {
+    class U_I18N_API_CLASS MessageArguments : public UObject {
     public:
         /**
          * Message arguments constructor, which takes a map and returns a container
@@ -71,7 +57,7 @@ namespace message2 {
          * @internal ICU 75 technology preview
          * @deprecated This API is for technology preview only.
          */
-        MessageArguments(const std::map<UnicodeString, Formattable>& args, UErrorCode& status) {
+        U_I18N_API MessageArguments(const std::map<UnicodeString, Formattable>& args, UErrorCode& status) {
             if (U_FAILURE(status)) {
                 return;
             }
@@ -95,7 +81,7 @@ namespace message2 {
          * @internal ICU 75 technology preview
          * @deprecated This API is for technology preview only.
          */
-        MessageArguments& operator=(MessageArguments&&) noexcept;
+        U_I18N_API MessageArguments& operator=(MessageArguments&&) noexcept;
         /**
          * Default constructor.
          * Returns an empty arguments mapping.
@@ -103,19 +89,18 @@ namespace message2 {
          * @internal ICU 75 technology preview
          * @deprecated This API is for technology preview only.
          */
-        MessageArguments() = default;
+        U_I18N_API MessageArguments() = default;
         /**
          * Destructor.
          *
          * @internal ICU 75 technology preview
          * @deprecated This API is for technology preview only.
          */
-        virtual ~MessageArguments();
+        U_I18N_API virtual ~MessageArguments();
     private:
         friend class MessageContext;
 
-        const Formattable* getArgument(const MessageFormatter&,
-                                       const data_model::VariableName&,
+        const Formattable* getArgument(const data_model::VariableName&,
                                        UErrorCode&) const;
 
         // Avoids using Hashtable so that code constructing a Hashtable

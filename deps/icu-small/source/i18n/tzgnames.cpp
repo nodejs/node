@@ -24,6 +24,7 @@
 #include "charstr.h"
 #include "cmemory.h"
 #include "cstring.h"
+#include "fixedstring.h"
 #include "mutex.h"
 #include "uhash.h"
 #include "uassert.h"
@@ -294,7 +295,7 @@ private:
     TextTrieMap fGNamesTrie;
     UBool fGNamesTrieFullyLoaded;
 
-    CharString fTargetRegion;
+    FixedString fTargetRegion;
 
     void initialize(const Locale& locale, UErrorCode& status);
     void cleanup();
@@ -406,13 +407,25 @@ TZGNCore::initialize(const Locale& locale, UErrorCode& status) {
     int32_t regionLen = static_cast<int32_t>(uprv_strlen(region));
     if (regionLen == 0) {
         CharString loc = ulocimp_addLikelySubtags(fLocale.getName(), status);
-        ulocimp_getSubtags(loc.toStringPiece(), nullptr, nullptr, &fTargetRegion, nullptr, nullptr, status);
+        CharString tmp;
+        ulocimp_getSubtags(loc.toStringPiece(), nullptr, nullptr, &tmp, nullptr, nullptr, status);
         if (U_FAILURE(status)) {
             cleanup();
             return;
         }
+        fTargetRegion = tmp.toStringPiece();
+        if (fTargetRegion.isEmpty() != tmp.isEmpty()) {
+            status = U_MEMORY_ALLOCATION_ERROR;
+            cleanup();
+            return;
+        }
     } else {
-        fTargetRegion.append(region, regionLen, status);
+        fTargetRegion = {region, static_cast<std::string_view::size_type>(regionLen)};
+        if (fTargetRegion.isEmpty()) {
+            status = U_MEMORY_ALLOCATION_ERROR;
+            cleanup();
+            return;
+        }
     }
 
     // preload generic names for the default zone
@@ -1172,9 +1185,8 @@ TimeZoneGenericNames::createInstance(const Locale& locale, UErrorCode& status) {
     if (U_FAILURE(status)) {
         return nullptr;
     }
-    TimeZoneGenericNames* instance = new TimeZoneGenericNames();
-    if (instance == nullptr) {
-        status = U_MEMORY_ALLOCATION_ERROR;
+    LocalPointer<TimeZoneGenericNames> instance(new TimeZoneGenericNames(), status);
+    if (U_FAILURE(status)) {
         return nullptr;
     }
 
@@ -1193,7 +1205,6 @@ TimeZoneGenericNames::createInstance(const Locale& locale, UErrorCode& status) {
             }
         }
         if (U_FAILURE(status)) {
-            delete instance;
             return nullptr;
         }
 
@@ -1252,12 +1263,11 @@ TimeZoneGenericNames::createInstance(const Locale& locale, UErrorCode& status) {
     }  // End of mutex locked block
 
     if (cacheEntry == nullptr) {
-        delete instance;
         return nullptr;
     }
 
     instance->fRef = cacheEntry;
-    return instance;
+    return instance.orphan();
 }
 
 bool
