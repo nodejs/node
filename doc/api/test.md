@@ -3706,6 +3706,14 @@ added:
 
 The failure reason for the test/case; wrapped and available via `context.error.cause`.
 
+### `context.attempt` {number}
+
+<!-- YAML
+added: v25.0.0
+-->
+
+Number of times the test has been attempted.
+
 ### `context.plan(count[,options])`
 
 <!-- YAML
