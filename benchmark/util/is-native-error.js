@@ -11,8 +11,8 @@ const args = {
 const bench = common.createBenchmark(
   main,
   {
-    argument: ['true', 'falsePrimitive', 'falseObject'],
-    version: ['native', 'js'],
+    argument: ['true'],
+    version: ['native'],
     n: [1e6],
   },
   {
@@ -25,16 +25,11 @@ function main({ argument, version, n }) {
   const types = require('internal/util/types');
 
   const func = { native: util, js: types }[version].isNativeError;
-
-  const testArgs = [args.true, args.falsePrimitive, args.falseObject];
+  const arg = args[argument];
 
   bench.start();
-  const start = performance.now();
   for (let iteration = 0; iteration < n; iteration++) {
-    const testArg = testArgs[iteration % testArgs.length];
-    func(testArg);
+    func(arg);
   }
-  const end = performance.now();
   bench.end(n);
-  console.log('Elapsed(ms):', (end - start).toFixed(3));
 }
