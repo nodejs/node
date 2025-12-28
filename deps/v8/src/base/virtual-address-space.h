@@ -84,8 +84,8 @@ class V8_BASE_EXPORT VirtualAddressSpace : public VirtualAddressSpaceBase {
   std::unique_ptr<v8::VirtualAddressSpace> AllocateSubspace(
       Address hint, size_t size, size_t alignment,
       PagePermissions max_page_permissions,
-      std::optional<MemoryProtectionKeyId> key = std::nullopt,
-      PlatformSharedMemoryHandle handle = kInvalidSharedMemoryHandle) override;
+      std::optional<MemoryProtectionKeyId> key,
+      PlatformSharedMemoryHandle handle) override;
 
   bool RecommitPages(Address address, size_t size,
                      PagePermissions access) override;
@@ -136,8 +136,8 @@ class V8_BASE_EXPORT VirtualAddressSubspace : public VirtualAddressSpaceBase {
   std::unique_ptr<v8::VirtualAddressSpace> AllocateSubspace(
       Address hint, size_t size, size_t alignment,
       PagePermissions max_page_permissions,
-      std::optional<MemoryProtectionKeyId> key = std::nullopt,
-      PlatformSharedMemoryHandle handle = kInvalidSharedMemoryHandle) override;
+      std::optional<MemoryProtectionKeyId> key,
+      PlatformSharedMemoryHandle handle) override;
 
   bool RecommitPages(Address address, size_t size,
                      PagePermissions permissions) override;

@@ -147,7 +147,7 @@ class IdentityMapTester {
             Internals::IntegralToSmi(Internals::SmiValue(key) + shift);
       }
     }
-    map.gc_counter_ = -1;
+    map.gc_counter_ = GCEpoch(-1);
   }
 
   void CheckFind(DirectHandle<Object> key, void* value) {

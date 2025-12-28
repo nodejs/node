@@ -213,14 +213,13 @@ class StreamTester {
   explicit StreamTester(v8::Isolate* isolate)
       : zone_(&allocator_, "StreamTester") {
     Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-    v8::Local<v8::Context> context = isolate->GetCurrentContext();
 
     WasmEnabledFeatures features = WasmEnabledFeatures::FromIsolate(i_isolate);
     stream_ = GetWasmEngine()->StartStreamingCompilation(
-        i_isolate, features, CompileTimeImports{},
-        v8::Utils::OpenDirectHandle(*context), "WebAssembly.compileStreaming()",
+        features, CompileTimeImports{}, "WebAssembly.compileStreaming()",
         std::make_shared<TestResolver>(i_isolate, &state_, &error_message_,
                                        &module_object_));
+    stream_->InitializeIsolateSpecificInfo(i_isolate);
   }
 
   std::shared_ptr<StreamingDecoder> stream() const { return stream_; }

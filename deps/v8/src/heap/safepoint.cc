@@ -322,8 +322,8 @@ IsolateSafepoint::ReachSafepointWithoutTriggeringGC() {
       // already hold the lock so no GC will happen.
       AllowGarbageCollection allow_gc;
 #if DEBUG
-      const size_t local_gc_count = heap_->gc_count();
-      const size_t shared_gc_count =
+      const GCEpoch local_gc_count = heap_->gc_count();
+      const GCEpoch shared_gc_count =
           isolate()->shared_space_isolate()->heap()->gc_count();
 #endif  // DEBUG
       IsolateSafepointScope safepoint_scope(heap_);
@@ -341,7 +341,7 @@ IsolateSafepoint::ReachSafepointWithoutTriggeringGC() {
     // Without a shared heap EnterLocalSafepointScope() will not trigger a GC.
     AllowGarbageCollection allow_gc;
 #if DEBUG
-    const size_t gc_count = heap_->gc_count();
+    const GCEpoch gc_count = heap_->gc_count();
 #endif  // DEBUG
     IsolateSafepointScope safepoint_scope(heap_);
     DCHECK_EQ(gc_count, heap_->gc_count());

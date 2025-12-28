@@ -20,12 +20,12 @@ bytecodes: [
   /*   42 S> */ B(LdaZero),
                 B(Star0),
   /*   54 S> */ B(LdaSmi), I8(10),
-  /*   54 E> */ B(TestEqual), R(0), U8(0),
+  /*   54 E> */ B(TestEqual), R(0), FBV(0),
                 B(JumpIfTrue), U8(12),
   /*   65 S> */ B(Ldar), R(0),
-  /*   71 E> */ B(AddSmi), I8(10), U8(1),
+  /*   71 E> */ B(AddSmi), I8(10), FBV(1),
                 B(Star0),
-  /*   45 E> */ B(JumpLoop), U8(13), I8(0), U8(2),
+  /*   45 E> */ B(JumpLoop), U8(13), I8(0), FBV(2),
   /*   79 S> */ B(Ldar), R(0),
   /*   88 S> */ B(Return),
 ]
@@ -52,9 +52,9 @@ bytecodes: [
                 B(ToBooleanLogicalNot),
                 B(Star0),
   /*   74 S> */ B(LdaFalse),
-  /*   74 E> */ B(TestEqual), R(0), U8(0),
+  /*   74 E> */ B(TestEqual), R(0), FBV(0),
                 B(JumpIfFalse), U8(6),
-  /*   49 E> */ B(JumpLoop), U8(10), I8(0), U8(1),
+  /*   49 E> */ B(JumpLoop), U8(10), I8(0), FBV(1),
   /*   85 S> */ B(Ldar), R(0),
   /*   94 S> */ B(Return),
 ]
@@ -74,7 +74,7 @@ bytecode array length: 8
 bytecodes: [
   /*   42 S> */ B(LdaSmi), I8(101),
                 B(Star0),
-  /*   61 S> */ B(MulSmi), I8(3), U8(0),
+  /*   61 S> */ B(MulSmi), I8(3), FBV(0),
                 B(LdaUndefined),
   /*   66 S> */ B(Return),
 ]
@@ -95,8 +95,8 @@ bytecode array length: 14
 bytecodes: [
   /*   42 S> */ B(Wide), B(LdaSmi), I16(1234),
                 B(Star0),
-  /*   64 S> */ B(Mul), R(0), U8(1),
-  /*   68 E> */ B(SubSmi), I8(1), U8(0),
+  /*   64 S> */ B(Mul), R(0), FBV(1),
+  /*   68 E> */ B(SubSmi), I8(1), FBV(0),
                 B(LdaUndefined),
                 B(Star1),
   /*   83 S> */ B(Return),
@@ -117,7 +117,7 @@ bytecode array length: 6
 bytecodes: [
   /*   42 S> */ B(LdaSmi), I8(13),
                 B(Star0),
-  /*   53 S> */ B(BitwiseNot), U8(0),
+  /*   53 S> */ B(BitwiseNot), FBV(0),
   /*   56 S> */ B(Return),
 ]
 constant pool: [
@@ -136,7 +136,7 @@ bytecode array length: 6
 bytecodes: [
   /*   42 S> */ B(LdaSmi), I8(13),
                 B(Star0),
-  /*   53 S> */ B(ToNumber), U8(0),
+  /*   53 S> */ B(ToNumber), FBV(0),
   /*   56 S> */ B(Return),
 ]
 constant pool: [
@@ -155,7 +155,7 @@ bytecode array length: 6
 bytecodes: [
   /*   42 S> */ B(LdaSmi), I8(13),
                 B(Star0),
-  /*   53 S> */ B(Negate), U8(0),
+  /*   53 S> */ B(Negate), FBV(0),
   /*   56 S> */ B(Return),
 ]
 constant pool: [

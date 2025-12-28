@@ -10,8 +10,11 @@ builder.addFunction("test", kSig_i_v).addBody([
   kExprI32Const, 12,         // i32.const 12
 ]);
 
+const err = new Error("my custom error");
 WebAssembly.Module.prototype.then = resolve => {
-  assertUnreachable();
+  throw err;
 };
 
-WebAssembly.instantiate(builder.toBuffer());
+assertPromiseResult(
+    WebAssembly.instantiate(builder.toBuffer()), assertUnreachable,
+    e => assertSame(err, e));

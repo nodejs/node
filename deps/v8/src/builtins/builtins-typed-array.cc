@@ -8,6 +8,7 @@
 #include "src/builtins/builtins.h"
 #include "src/common/message-template.h"
 #include "src/logging/counters.h"
+#include "src/objects/elements-kind.h"
 #include "src/objects/elements.h"
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
@@ -617,7 +618,9 @@ BUILTIN(Uint8ArrayPrototypeSetFromBase64) {
   // 1. Let into be the this value.
   // 2. Perform ? ValidateUint8Array(into).
   CHECK_RECEIVER(JSTypedArray, uint8array, method_name);
-  if (uint8array->GetElementsKind() != ElementsKind::UINT8_ELEMENTS) {
+  ElementsKind elements_kind = uint8array->GetElementsKind();
+  if (elements_kind != ElementsKind::UINT8_ELEMENTS &&
+      elements_kind != ElementsKind::RAB_GSAB_UINT8_ELEMENTS) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
                               isolate->factory()->NewStringFromAsciiChecked(
@@ -734,7 +737,9 @@ BUILTIN(Uint8ArrayPrototypeToBase64) {
   // 1. Let O be the this value.
   // 2. Perform ? ValidateUint8Array(O).
   CHECK_RECEIVER(JSTypedArray, uint8array, method_name);
-  if (uint8array->GetElementsKind() != ElementsKind::UINT8_ELEMENTS) {
+  ElementsKind elements_kind = uint8array->GetElementsKind();
+  if (elements_kind != ElementsKind::UINT8_ELEMENTS &&
+      elements_kind != ElementsKind::RAB_GSAB_UINT8_ELEMENTS) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
                               isolate->factory()->NewStringFromAsciiChecked(
@@ -941,7 +946,9 @@ BUILTIN(Uint8ArrayPrototypeSetFromHex) {
   // 1. Let into be the this value.
   // 2. Perform ? ValidateUint8Array(into).
   CHECK_RECEIVER(JSTypedArray, uint8array, method_name);
-  if (uint8array->GetElementsKind() != ElementsKind::UINT8_ELEMENTS) {
+  ElementsKind elements_kind = uint8array->GetElementsKind();
+  if (elements_kind != ElementsKind::UINT8_ELEMENTS &&
+      elements_kind != ElementsKind::RAB_GSAB_UINT8_ELEMENTS) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
                               isolate->factory()->NewStringFromAsciiChecked(
@@ -1043,7 +1050,9 @@ BUILTIN(Uint8ArrayPrototypeToHex) {
   //  1. Let O be the this value.
   //  2. Perform ? ValidateUint8Array(O).
   CHECK_RECEIVER(JSTypedArray, uint8array, method_name);
-  if (uint8array->GetElementsKind() != ElementsKind::UINT8_ELEMENTS) {
+  ElementsKind elements_kind = uint8array->GetElementsKind();
+  if (elements_kind != ElementsKind::UINT8_ELEMENTS &&
+      elements_kind != ElementsKind::RAB_GSAB_UINT8_ELEMENTS) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
                               isolate->factory()->NewStringFromAsciiChecked(

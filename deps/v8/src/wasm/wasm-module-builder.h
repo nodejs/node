@@ -101,8 +101,8 @@ class ZoneBuffer : public ZoneObject {
   }
 
   void write_string(base::Vector<const char> name) {
-    write_size(name.length());
-    write(reinterpret_cast<const uint8_t*>(name.begin()), name.length());
+    write_size(name.size());
+    write(reinterpret_cast<const uint8_t*>(name.begin()), name.size());
   }
 
   size_t reserve_u32v() {
@@ -453,6 +453,13 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
 
   ModuleTypeIndex GetSuperType(uint32_t index) {
     return types_[index].supertype;
+  }
+
+  bool HasDescriptor(ModuleTypeIndex index) {
+    return types_[index.index].has_descriptor();
+  }
+  ModuleTypeIndex GetDescriptor(ModuleTypeIndex index) {
+    return types_[index.index].descriptor;
   }
 
   WasmFunctionBuilder* GetFunction(uint32_t index) { return functions_[index]; }

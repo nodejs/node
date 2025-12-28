@@ -26,7 +26,7 @@
 #include "absl/base/nullability.h"
 #include "absl/strings/ascii.h"
 #include "absl/strings/escaping.h"
-#include "absl/strings/internal/resize_uninitialized.h"
+#include "absl/strings/internal/append_and_overwrite.h"
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
@@ -85,29 +85,29 @@ void SubstituteAndAppendArray(std::string* absl_nonnull output,
   if (size == 0) return;
 
   // Build the string.
-  size_t original_size = output->size();
-  ABSL_INTERNAL_CHECK(
-      size <= std::numeric_limits<size_t>::max() - original_size,
-      "size_t overflow");
-  strings_internal::STLStringResizeUninitializedAmortized(output,
-                                                          original_size + size);
-  char* target = &(*output)[original_size];
-  for (size_t i = 0; i < format.size(); i++) {
-    if (format[i] == '$') {
-      if (absl::ascii_isdigit(static_cast<unsigned char>(format[i + 1]))) {
-        const absl::string_view src = args_array[format[i + 1] - '0'];
-        target = std::copy(src.begin(), src.end(), target);
-        ++i;  // Skip next char.
-      } else if (format[i + 1] == '$') {
-        *target++ = '$';
-        ++i;  // Skip next char.
-      }
-    } else {
-      *target++ = format[i];
-    }
-  }
-
-  assert(target == output->data() + output->size());
+  ABSL_INTERNAL_CHECK(size <= output->max_size() - output->size(),
+                      "Exceeds std::string::max_size()");
+  strings_internal::StringAppendAndOverwrite(
+      *output, size, [format, args_array](char* const buf, size_t buf_size) {
+        char* target = buf;
+        for (size_t i = 0; i < format.size(); i++) {
+          if (format[i] == '$') {
+            if (absl::ascii_isdigit(
+                    static_cast<unsigned char>(format[i + 1]))) {
+              const absl::string_view src = args_array[format[i + 1] - '0'];
+              target = std::copy(src.begin(), src.end(), target);
+              ++i;  // Skip next char.
+            } else if (format[i + 1] == '$') {
+              *target++ = '$';
+              ++i;  // Skip next char.
+            }
+          } else {
+            *target++ = format[i];
+          }
+        }
+        assert(target == buf + buf_size);
+        return buf_size;
+      });
 }
 
 Arg::Arg(const void* absl_nullable value) {

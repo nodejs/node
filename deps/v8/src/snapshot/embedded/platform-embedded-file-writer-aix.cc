@@ -53,19 +53,7 @@ void PlatformEmbeddedFileWriterAIX::DeclareSymbolGlobal(const char* name) {
 }
 
 void PlatformEmbeddedFileWriterAIX::AlignToCodeAlignment() {
-#if V8_TARGET_ARCH_X64
-  // On x64 use 64-bytes code alignment to allow 64-bytes loop header alignment.
-  static_assert((1 << 6) >= kCodeAlignment);
-  fprintf(fp_, ".align 6\n");
-#elif V8_TARGET_ARCH_PPC64
-  // 64 byte alignment is needed on ppc64 to make sure p10 prefixed instructions
-  // don't cross 64-byte boundaries.
-  static_assert((1 << 6) >= kCodeAlignment);
-  fprintf(fp_, ".align 6\n");
-#else
-  static_assert((1 << 5) >= kCodeAlignment);
-  fprintf(fp_, ".align 5\n");
-#endif
+  fprintf(fp_, ".align %d\n", kCodeAlignmentBits);
 }
 
 void PlatformEmbeddedFileWriterAIX::AlignToDataAlignment() {

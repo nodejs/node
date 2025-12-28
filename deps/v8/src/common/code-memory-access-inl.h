@@ -85,6 +85,20 @@ WritableJitAllocation WritableJitAllocation::ForNonExecutableMemory(
   return WritableJitAllocation(addr, size, type, false);
 }
 
+#ifdef V8_ENABLE_SPARKPLUG_PLUS
+WritableJitAllocation::WritableJitAllocation(Address addr, size_t size)
+    : address_(addr),
+      write_scope_("WritableJitAllocation"),
+      allocation_(size,
+                  ThreadIsolation::JitAllocationType::kInstructionStream) {}
+
+// static
+WritableJitAllocation WritableJitAllocation::ForPatchableBaselineJIT(
+    Address addr, size_t size) {
+  return WritableJitAllocation(addr, size);
+}
+#endif
+
 std::optional<RwxMemoryWriteScope>
 WritableJitAllocation::WriteScopeForApiEnforcement() const {
 #ifdef DEBUG

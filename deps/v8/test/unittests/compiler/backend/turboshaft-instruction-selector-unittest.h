@@ -107,7 +107,14 @@ namespace v8::internal::compiler::turboshaft {
   V(Float32LessThan)            \
   V(Float32LessThanOrEqual)
 
+#if V8_ENABLE_WEBASSEMBLY
+#define SIMD_UNOP_LIST(V) FOREACH_SIMD_128_UNARY_OPCODE(V)
+#else
+#define SIMD_UNOP_LIST(V)
+#endif
+
 #define UNOP_LIST(V)          \
+  SIMD_UNOP_LIST(V)           \
   V(ChangeFloat32ToFloat64)   \
   V(TruncateFloat64ToFloat32) \
   V(ChangeInt32ToInt64)       \
@@ -127,8 +134,8 @@ enum class TSUnop { UNOP_LIST(DECL) };
 
 class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
  public:
-  using BaseAssembler = TSAssembler<LoadStoreSimplificationReducer,
-                                    InstructionSelectionNormalizationReducer>;
+  using BaseAssembler = Assembler<LoadStoreSimplificationReducer,
+                                  InstructionSelectionNormalizationReducer>;
 
   TurboshaftInstructionSelectorTest();
   ~TurboshaftInstructionSelectorTest() override;
@@ -139,7 +146,8 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
     pipeline_data_ = std::make_unique<PipelineData>(
         &zone_stats_, TurboshaftPipelineKind::kJS, isolate_, nullptr,
         AssemblerOptions::Default(isolate_));
-    pipeline_data_->InitializeGraphComponent(nullptr);
+    pipeline_data_->InitializeGraphComponent(nullptr,
+                                             Graph::Origin::kPureTurboshaft);
   }
   void TearDown() override { pipeline_data_.reset(); }
 

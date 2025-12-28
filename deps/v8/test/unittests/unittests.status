@@ -389,4 +389,10 @@
   'LogAllTest.LogAll': [SKIP],
 }],  # 'full_debug'
 
+##############################################################################
+['ubsan', {
+  # https://crbug.com/456051623
+  'SimdShuffleTest.TryMatch32x4OneLaneSwizzle': [SKIP],
+}],  # 'ubsan'
+
 ]

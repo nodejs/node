@@ -392,11 +392,11 @@ void BaseCollectionsAssembler::GenerateConstructor(
   GotoIfNot(IsNullOrUndefined(iterable), &add_constructor_entries);
   TNode<HeapObject> table = AllocateTable(variant, IntPtrConstant(0));
   StoreObjectField(collection, GetTableOffset(variant), table);
-  Return(collection);
+  args.PopAndReturn(collection);
 
   BIND(&add_constructor_entries);
   AddConstructorEntries(variant, context, native_context, collection, iterable);
-  Return(collection);
+  args.PopAndReturn(collection);
 
   BIND(&if_undefined);
   ThrowTypeError(context, MessageTemplate::kConstructorNotFunction,
@@ -613,7 +613,6 @@ void CollectionsBuiltinsAssembler::FindOrderedHashTableEntry(
     // Load the key from the entry.
     const TNode<Object> candidate_key =
         UnsafeLoadKeyFromOrderedHashTableEntry(table, entry_start);
-    GotoIf(IsHashTableHole(candidate_key), &continue_next_entry);
 
     key_compare(candidate_key, &if_key_found, &continue_next_entry);
 
@@ -1670,6 +1669,9 @@ TNode<CollectionType> CollectionsBuiltinsAssembler::AddToOrderedHashTable(
   Label no_hash(this), add_entry(this), store_new_entry(this);
   BIND(&not_found);
   {
+    // If the key is a Smi, we know the hash has been computed.
+    GotoIf(TaggedIsSmi(key->value()), &add_entry);
+
     // If we have a hash code, we can start adding the new entry.
     GotoIf(IntPtrGreaterThan(entry_start_position_or_hash.value(),
                              IntPtrConstant(0)),

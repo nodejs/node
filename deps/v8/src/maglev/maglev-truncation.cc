@@ -68,7 +68,7 @@ int TruncationProcessor::NonInt32InputCount(ValueNode* node) {
     ValueNode* input_node = input.node();
     if (!input_node->is_int32()) {
       if (input_node->Is<Float64Constant>() &&
-          input_node->GetRange().IsSafeIntegerRange()) {
+          input_node->GetStaticRange().IsSafeInt()) {
         // We can truncate Float64 constants if they're in the safe integer
         // range.
         continue;
@@ -97,7 +97,7 @@ void TruncationProcessor::ConvertInputsToFloat64(ValueNode* node) {
 ValueNode* TruncationProcessor::GetUnwrappedInput(ValueNode* node, int index) {
   ValueNode* input = node->NodeBase::input(index).node();
   if (input->Is<Float64Constant>()) {
-    DCHECK(input->GetRange().IsSafeIntegerRange());
+    DCHECK(input->GetStaticRange().IsSafeInt());
     input = GetTruncatedInt32Constant(
         input->Cast<Float64Constant>()->value().get_scalar());
   } else if (input->Is<ChangeInt32ToFloat64>()) {

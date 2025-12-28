@@ -7,17 +7,17 @@
 
 #include "src/ast/ast.h"
 #include "src/objects/literal-objects.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
 
+using PrototypeAssignment = std::pair<const AstRawString*, Expression*>;
+
 class ProtoAssignmentSeqBuilder final : public ZoneObject {
  public:
-  static constexpr int kInitialPropertyCount = 64;
-
   explicit ProtoAssignmentSeqBuilder(
-      const base::SmallVector<std::pair<const AstRawString*, Expression*>,
-                              kInitialPropertyCount>& properties)
+      ZoneVector<PrototypeAssignment>&& properties)
       : properties_(std::move(properties)) {}
 
   ~ProtoAssignmentSeqBuilder() = default;
@@ -53,10 +53,10 @@ class ProtoAssignmentSeqBuilder final : public ZoneObject {
                                                   IsolateT* isolate,
                                                   Handle<Script> script);
 
+  const ZoneVector<PrototypeAssignment>* properties() { return &properties_; }
+
  private:
-  base::SmallVector<std::pair<const AstRawString*, Expression*>,
-                    kInitialPropertyCount>
-      properties_;
+  ZoneVector<PrototypeAssignment> properties_;
   IndirectHandle<ObjectBoilerplateDescription> boilerplate_description_;
 };
 

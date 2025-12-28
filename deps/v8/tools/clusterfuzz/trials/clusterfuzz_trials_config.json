@@ -58,6 +58,8 @@
     {"app_args": "--turbo-instruction-scheduling", "app_name": "d8", "probability": 0.1},
     {"app_args": "--turbo-stress-instruction-scheduling", "app_name": "d8", "probability": 0.1},
     {"app_args": "--turboshaft-verify-load-elimination", "app_name": "d8", "probability": 0.2},
+    {"app_args": "--turboshaft-verify-load-store-taggedness", "app_name": "d8", "probability": 0.2},
+    {"app_args": "--turboshaft-verify-reductions", "app_name": "d8", "probability": 0.1},
     {"app_args": "--stress-wasm-code-gc", "app_name": "d8", "probability": 0.1},
     {"app_args": "--lazy", "app_name": "d8", "probability": 0.1},
     {"app_args": "--no-stress-lazy-source-positions", "app_name": "d8", "probability": 0.1},
@@ -69,7 +71,7 @@
     {"app_args": "--ephemeron-fixpoint-iterations=0", "app_name": "d8", "probability": 0.1},
     {"app_args": "--experimental-wasm-revectorize", "app_name": "d8", "probability": 0.25},
     {"app_args": "--no-memory-pool", "app_name": "d8", "probability": 0.1},
-    {"app_args": "--handle-weak-ref-weakly-in-minor-gc", "app_name": "d8", "probability": 0.1},
     {"app_args": "--proto-assign-seq-opt", "app_name": "d8", "probability": 0.5},
+    {"app_args": "--proto-assign-seq-opt --proto-assign-seq-opt-count=1", "app_name": "d8", "probability": 0.1},
     {"app_args": "--scavenger-chaos-mode", "app_name": "d8", "probability": 0.1}
 ]

@@ -93,8 +93,7 @@ void MarkingVerifierBase::VerifyMarking(LargeObjectSpace* lo_space) {
 }
 #endif  // VERIFY_HEAP
 
-template <ExternalStringTableCleaningMode mode>
-void ExternalStringTableCleanerVisitor<mode>::VisitRootPointers(
+void ExternalStringTableCleanerVisitor::VisitRootPointers(
     Root root, const char* description, FullObjectSlot start,
     FullObjectSlot end) {
   // Visit all HeapObject pointers in [start, end).
@@ -109,9 +108,6 @@ void ExternalStringTableCleanerVisitor<mode>::VisitRootPointers(
     // MinorMS doesn't update the young strings set and so it may contain
     // strings that are already in old space.
     if (MarkingHelper::IsMarkedOrAlwaysLive(heap_, marking_state, heap_object))
-      continue;
-    if ((mode == ExternalStringTableCleaningMode::kYoungOnly) &&
-        !HeapLayout::InYoungGeneration(heap_object))
       continue;
     if (IsExternalString(o)) {
       heap_->FinalizeExternalString(Cast<String>(o));

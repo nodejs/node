@@ -559,15 +559,38 @@ DirectHandle<JSObject> GetOrCreateInstanceProxy(
 //
 // See http://doc/1VZOJrU2VsqOZe3IUzbwQWQQSZwgGySsm5119Ust1gUA and
 // http://bit.ly/devtools-wasm-entities for more details.
-class ContextProxyPrototype {
+class ContextProxy {
  public:
-  static DirectHandle<JSObject> Create(Isolate* isolate) {
+  static DirectHandle<JSObject> Create(WasmFrame* frame) {
+    Isolate* isolate = frame->isolate();
     auto object_map =
-        GetOrCreateDebugProxyMap(isolate, kContextProxy, &CreateTemplate);
-    return isolate->factory()->NewJSObjectFromMap(
+        GetOrCreateDebugProxyMap(isolate, kContextProxy, &CreateTemplate,
+                                 false /* leave map extensible */);
+    auto object = isolate->factory()->NewJSObjectFromMap(
         object_map, AllocationType::kYoung,
         DirectHandle<AllocationSite>::null(),
         NewJSObjectType::kMaybeEmbedderFieldsAndApiWrapper);
+
+    DirectHandle<WasmInstanceObject> instance(frame->wasm_instance(), isolate);
+    JSObject::AddProperty(isolate, object, "instance", instance, FROZEN);
+    DirectHandle<WasmModuleObject> module_object(instance->module_object(),
+                                                 isolate);
+    JSObject::AddProperty(isolate, object, "module", module_object, FROZEN);
+    auto locals = LocalsProxy::Create(frame);
+    JSObject::AddProperty(isolate, object, "locals", locals, FROZEN);
+    auto stack = StackProxy::Create(frame);
+    JSObject::AddProperty(isolate, object, "stack", stack, FROZEN);
+    auto memories = GetOrCreateInstanceProxy<MemoriesProxy>(isolate, instance);
+    JSObject::AddProperty(isolate, object, "memories", memories, FROZEN);
+    auto tables = GetOrCreateInstanceProxy<TablesProxy>(isolate, instance);
+    JSObject::AddProperty(isolate, object, "tables", tables, FROZEN);
+    auto globals = GetOrCreateInstanceProxy<GlobalsProxy>(isolate, instance);
+    JSObject::AddProperty(isolate, object, "globals", globals, FROZEN);
+    auto functions =
+        GetOrCreateInstanceProxy<FunctionsProxy>(isolate, instance);
+    JSObject::AddProperty(isolate, object, "functions", functions, FROZEN);
+
+    return object;
   }
 
  private:
@@ -609,43 +632,13 @@ class ContextProxyPrototype {
       Local<v8::Name> name, const PropertyCallbackInfo<v8::Value>& info) {
     auto name_string = Cast<String>(Utils::OpenHandle(*name));
     auto isolate = reinterpret_cast<Isolate*>(info.GetIsolate());
-    auto receiver = Cast<JSObject>(Utils::OpenHandle(*info.This()));
+    auto holder = Cast<JSObject>(Utils::OpenHandle(*info.HolderV2()));
     DirectHandle<Object> value;
-    if (GetNamedProperty(isolate, receiver, name_string).ToHandle(&value)) {
+    if (GetNamedProperty(isolate, holder, name_string).ToHandle(&value)) {
       info.GetReturnValue().Set(Utils::ToLocal(value));
       return v8::Intercepted::kYes;
     }
     return v8::Intercepted::kNo;
-  }
-};
-
-class ContextProxy {
- public:
-  static DirectHandle<JSObject> Create(WasmFrame* frame) {
-    Isolate* isolate = frame->isolate();
-    auto object = isolate->factory()->NewSlowJSObjectWithNullProto();
-    DirectHandle<WasmInstanceObject> instance(frame->wasm_instance(), isolate);
-    JSObject::AddProperty(isolate, object, "instance", instance, FROZEN);
-    DirectHandle<WasmModuleObject> module_object(instance->module_object(),
-                                                 isolate);
-    JSObject::AddProperty(isolate, object, "module", module_object, FROZEN);
-    auto locals = LocalsProxy::Create(frame);
-    JSObject::AddProperty(isolate, object, "locals", locals, FROZEN);
-    auto stack = StackProxy::Create(frame);
-    JSObject::AddProperty(isolate, object, "stack", stack, FROZEN);
-    auto memories = GetOrCreateInstanceProxy<MemoriesProxy>(isolate, instance);
-    JSObject::AddProperty(isolate, object, "memories", memories, FROZEN);
-    auto tables = GetOrCreateInstanceProxy<TablesProxy>(isolate, instance);
-    JSObject::AddProperty(isolate, object, "tables", tables, FROZEN);
-    auto globals = GetOrCreateInstanceProxy<GlobalsProxy>(isolate, instance);
-    JSObject::AddProperty(isolate, object, "globals", globals, FROZEN);
-    auto functions =
-        GetOrCreateInstanceProxy<FunctionsProxy>(isolate, instance);
-    JSObject::AddProperty(isolate, object, "functions", functions, FROZEN);
-    DirectHandle<JSObject> prototype = ContextProxyPrototype::Create(isolate);
-    JSObject::SetPrototype(isolate, object, prototype, false, kDontThrow)
-        .Check();
-    return object;
   }
 };
 

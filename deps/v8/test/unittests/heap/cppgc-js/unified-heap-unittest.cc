@@ -810,7 +810,8 @@ TEST_F(UnifiedHeapTest, CppgcSweepingDuringMinorV8Sweeping) {
                        GCCallbackFlags::kNoGCCallbackFlags);
   CHECK(heap->sweeping_in_progress());
   CHECK(cppheap->sweeper().IsSweepingInProgress());
-  heap->EnsureSweepingCompleted(Heap::SweepingForcedFinalizationMode::kV8Only);
+  heap->EnsureSweepingCompleted(Heap::SweepingForcedFinalizationMode::kV8Only,
+                                CompleteSweepingReason::kTesting);
   CHECK(!heap->sweeping_in_progress());
   CHECK(cppheap->sweeper().IsSweepingInProgress());
   heap->CollectGarbage(AllocationSpace::NEW_SPACE,
@@ -824,7 +825,8 @@ TEST_F(UnifiedHeapTest, CppgcSweepingDuringMinorV8Sweeping) {
   CHECK(heap->minor_sweeping_in_progress());
   CHECK(!cppheap->sweeper().IsSweepingInProgress());
   heap->EnsureSweepingCompleted(
-      Heap::SweepingForcedFinalizationMode::kUnifiedHeap);
+      Heap::SweepingForcedFinalizationMode::kUnifiedHeap,
+      CompleteSweepingReason::kTesting);
   v8_flags.single_threaded_gc = single_threaded_gc_flag;
 }
 
@@ -848,18 +850,15 @@ TEST_F(UnifiedHeapTestWithRandomGCInterval, AllocationTimeout) {
   const int initial_allocation_timeout =
       allocator.get_allocation_timeout_for_testing();
   ASSERT_GT(initial_allocation_timeout, 0);
-  const auto current_epoch = isolate()->heap()->tracer()->CurrentEpoch(
-      GCTracer::Scope::MARK_COMPACTOR);
+  const auto current_epoch = isolate()->heap()->tracer()->CurrentEpoch();
   for (int i = 0; i < initial_allocation_timeout - 1; ++i) {
     MakeGarbageCollected<Wrappable>(allocation_handle());
   }
   // Expect no GC happened so far.
-  EXPECT_EQ(current_epoch, isolate()->heap()->tracer()->CurrentEpoch(
-                               GCTracer::Scope::MARK_COMPACTOR));
+  EXPECT_EQ(current_epoch, isolate()->heap()->tracer()->CurrentEpoch());
   // This allocation must cause a GC.
   MakeGarbageCollected<Wrappable>(allocation_handle());
-  EXPECT_EQ(current_epoch + 1, isolate()->heap()->tracer()->CurrentEpoch(
-                                   GCTracer::Scope::MARK_COMPACTOR));
+  EXPECT_EQ(current_epoch + 1, isolate()->heap()->tracer()->CurrentEpoch());
 }
 #endif  // V8_ENABLE_ALLOCATION_TIMEOUT
 

@@ -748,6 +748,11 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   void DebugBreak();
   void Unreachable();
 
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+  void ExitSandbox();
+  void EnterSandbox();
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+
   // Hack for supporting SourceLocation alongside template packs.
   struct MessageWithSourceLocation {
     const char* message;
@@ -919,6 +924,17 @@ class V8_EXPORT_PRIVATE CodeAssembler {
     return UncheckedCast<Type>(UnalignedLoad(mt, base, offset));
   }
 
+  template <typename Type>
+  TNode<Type> UnalignedLoad(TNode<BytecodeArray> base, TNode<IntPtrT> offset) {
+    MachineType type = MachineTypeOf<Type>::value;
+    if (UnalignedLoadSupported(type.representation())) {
+      return UncheckedCast<Type>(Load(type, base, offset));
+    } else {
+      TNode<RawPtrT> base_raw = BitcastTaggedToWord(base);
+      return UncheckedCast<Type>(UnalignedLoad(type, base_raw, offset));
+    }
+  }
+
   // Store value to raw memory location.
   void Store(Node* base, Node* value);
   void Store(Node* base, Node* offset, Node* value);
@@ -926,6 +942,9 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   void StoreNoWriteBarrier(MachineRepresentation rep, Node* base, Node* value);
   void StoreNoWriteBarrier(MachineRepresentation rep, Node* base, Node* offset,
                            Node* value);
+  void UnalignedStoreNoWriteBarrier(MachineRepresentation rep,
+                                    TNode<BytecodeArray> base,
+                                    TNode<IntPtrT> offset, Node* value);
   void UnsafeStoreNoWriteBarrier(MachineRepresentation rep, Node* base,
                                  Node* value);
   void UnsafeStoreNoWriteBarrier(MachineRepresentation rep, Node* base,

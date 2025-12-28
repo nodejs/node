@@ -1221,6 +1221,12 @@ size_t String::Utf8Length(Isolate* isolate, DirectHandle<String> string) {
         reinterpret_cast<const char*>(vec.begin()), vec.size());
   }
 
+  base::Vector<const base::uc16> vec = content.ToUC16Vector();
+  const char16_t* data = reinterpret_cast<const char16_t*>(vec.begin());
+  if (simdutf::validate_utf16(data, vec.size())) {
+    return simdutf::utf8_length_from_utf16(data, vec.size());
+  }
+
   // TODO(419496232): Use simdutf once upstream bug is resolved.
   size_t utf8_length = 0;
   uint16_t last_character = unibrow::Utf16::kNoPreviousCharacter;

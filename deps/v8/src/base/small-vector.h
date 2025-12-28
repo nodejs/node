@@ -11,6 +11,7 @@
 
 #include "src/base/bits.h"
 #include "src/base/macros.h"
+#include "src/base/memcopy.h"
 #include "src/base/vector.h"
 
 namespace v8 {
@@ -124,7 +125,8 @@ class SmallVector {
       DCHECK_GE(capacity(), other.size());  // Sanity check.
       size_t other_size = other.size();
       if constexpr (kHasTrivialElement) {
-        std::move(other.begin_, other.end_, begin_);
+        // Ranges cannot overlap and we can just emit a trivial memcpy.
+        base::MemCopy(begin_, other.begin_, other_size * sizeof(T));
       } else {
         ptrdiff_t to_move =
             std::min(static_cast<ptrdiff_t>(other_size), end_ - begin_);

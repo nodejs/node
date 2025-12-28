@@ -731,6 +731,7 @@ class MachineRepresentationChecker {
           case IrOpcode::kThrow:
           case IrOpcode::kTypedStateValues:
           case IrOpcode::kFrameState:
+          case IrOpcode::kMajorGCForCompilerTesting:
           case IrOpcode::kStaticAssert:
             break;
           default:

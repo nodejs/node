@@ -31,12 +31,8 @@ class StructBodyDescriptor;
 class AccessorInfo
     : public TorqueGeneratedAccessorInfo<AccessorInfo, HeapObject> {
  public:
-  // This is a wrapper around |maybe_redirected_getter| accessor which
-  // returns/accepts C function and converts the value from and to redirected
-  // pointer.
-  DECL_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST(getter, Address)
-  inline void init_getter_redirection(IsolateForSandbox isolate);
-  inline void remove_getter_redirection(IsolateForSandbox isolate);
+  // C function pointer that can be called from native code.
+  DECL_REDIRECTED_CALLBACK_ACCESSORS_MAYBE_READ_ONLY_HOST(getter, Address)
   inline bool has_getter(Isolate* isolate);
 
   // The field contains the address of the C function.
@@ -71,36 +67,60 @@ class AccessorInfo
 
   DECL_PRINTER(AccessorInfo)
 
+  inline void RemoveCallbackRedirectionForSerialization(
+      IsolateForSandbox isolate);
+  inline void RestoreCallbackRedirectionAfterDeserialization(
+      IsolateForSandbox isolate);
+
   inline void clear_padding();
 
   class BodyDescriptor;
 
  private:
-  // When simulator is enabled the field stores the "redirected" address of the
-  // C function (the one that's callabled from simulated compiled code), in
-  // this case the original address of the C function has to be taken from the
-  // redirection.
-  // For native builds the field contains the address of the C function.
-  // This field is initialized implicitly via respective |getter|-related
-  // methods.
-  DECL_EXTERNAL_POINTER_ACCESSORS(maybe_redirected_getter, Address)
-
   // Bit positions in |flags|.
   DEFINE_TORQUE_GENERATED_ACCESSOR_INFO_FLAGS()
 
   TQ_OBJECT_CONSTRUCTORS(AccessorInfo)
 };
 
-class AccessCheckInfo
-    : public TorqueGeneratedAccessCheckInfo<AccessCheckInfo, Struct> {
+V8_OBJECT class AccessCheckInfo : public StructLayout {
  public:
   static Tagged<AccessCheckInfo> Get(Isolate* isolate,
                                      DirectHandle<JSObject> receiver);
 
+  inline Tagged<UnionOf<Foreign, Smi, Undefined>> callback() const;
+  inline void set_callback(Tagged<UnionOf<Foreign, Smi, Undefined>> value,
+                           WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<UnionOf<InterceptorInfo, Smi, Undefined>> named_interceptor()
+      const;
+  inline void set_named_interceptor(
+      Tagged<UnionOf<InterceptorInfo, Smi, Undefined>> value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<UnionOf<InterceptorInfo, Smi, Undefined>> indexed_interceptor()
+      const;
+  inline void set_indexed_interceptor(
+      Tagged<UnionOf<InterceptorInfo, Smi, Undefined>> value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<Object> data() const;
+  inline void set_data(Tagged<Object> value,
+                       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  DECL_PRINTER(AccessCheckInfo)
+  DECL_VERIFIER(AccessCheckInfo)
+
   using BodyDescriptor = StructBodyDescriptor;
 
-  TQ_OBJECT_CONSTRUCTORS(AccessCheckInfo)
-};
+ private:
+  friend class TorqueGeneratedAccessCheckInfoAsserts;
+
+  TaggedMember<UnionOf<Foreign, Smi, Undefined>> callback_;
+  TaggedMember<UnionOf<InterceptorInfo, Smi, Undefined>> named_interceptor_;
+  TaggedMember<UnionOf<InterceptorInfo, Smi, Undefined>> indexed_interceptor_;
+  TaggedMember<Object> data_;
+} V8_OBJECT_END;
 
 #define INTERCEPTOR_INFO_CALLBACK_LIST(V) \
   V(Getter, getter)                       \
@@ -124,8 +144,8 @@ class InterceptorInfo
   inline bool has_definer() const;
 
   // Accessor callbacks for named interceptors.
-  DECL_LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST(named_getter,
-                                                            Address)
+  DECL_LAZY_REDIRECTED_CALLBACK_ACCESSORS_MAYBE_READ_ONLY_HOST(named_getter,
+                                                               Address)
   DECL_LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST(named_setter,
                                                             Address)
   DECL_LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST(named_query,
@@ -166,6 +186,11 @@ class InterceptorInfo
   DEFINE_TORQUE_GENERATED_INTERCEPTOR_INFO_FLAGS()
 
   DECL_PRINTER(InterceptorInfo)
+
+  inline void RemoveCallbackRedirectionForSerialization(
+      IsolateForSandbox isolate);
+  inline void RestoreCallbackRedirectionAfterDeserialization(
+      IsolateForSandbox isolate);
 
   inline void clear_padding();
 

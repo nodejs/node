@@ -342,13 +342,14 @@ namespace internal {
     "SharedStructType registered as '%' does not match")                       \
   T(StaticPrototype,                                                           \
     "Classes may not have a static property named 'prototype'")                \
-  T(StrictDeleteProperty, "Cannot delete property '%' of %")                   \
+  T(StrictCannotCreateProperty, "Cannot create property '%' on % '%'")         \
+  T(StrictCannotDeleteProperty, "Cannot delete property '%' of %")             \
+  T(StrictCannotSetProperty, "Cannot assign to property '%' of %")             \
   T(StrictPoisonPill,                                                          \
     "'caller', 'callee', and 'arguments' properties may not be accessed on "   \
     "strict mode functions or the arguments objects for calls to them")        \
   T(StrictReadOnlyProperty,                                                    \
     "Cannot assign to read only property '%' of % '%'")                        \
-  T(StrictCannotCreateProperty, "Cannot create property '%' on % '%'")         \
   T(StringMatchAllNullOrUndefinedFlags,                                        \
     "The .flags property of the argument to String.prototype.matchAll cannot " \
     "be null or undefined")                                                    \
@@ -364,6 +365,7 @@ namespace internal {
   T(ThrowMethodMissing, "The iterator does not provide a 'throw' method.")     \
   T(TopLevelAwaitStalled, "Top-level await promise never resolved")            \
   T(UndefinedOrNullToObject, "Cannot convert undefined or null to object")     \
+  T(AwaitUsingAssign, "Assignment to await using variable.")                   \
   T(UsingAssign, "Assignment to using variable.")                              \
   T(ValueAndAccessor,                                                          \
     "Invalid property descriptor. Cannot both specify accessors and a value "  \

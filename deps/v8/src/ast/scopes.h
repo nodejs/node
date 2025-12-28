@@ -996,7 +996,7 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   bool should_ban_arguments() const {
-    return IsClassMembersInitializerFunction(function_kind());
+    return IsClassInitializerFunction(function_kind());
   }
 
   void set_module_has_toplevel_await() {

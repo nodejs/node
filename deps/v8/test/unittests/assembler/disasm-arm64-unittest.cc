@@ -131,6 +131,9 @@ TEST_F(DisasmArm64Test, bootstrap) {
   COMPARE(dci(0x93407c00), "sxtw x0, w0");
   COMPARE(dci(0x2a000020), "orr w0, w1, w0");
   COMPARE(dci(0xa8c67bfd), "ldp fp, lr, [sp], #96");
+  COMPARE(dci(0xf9800800), "prfm pldl1keep, [x0, #16]");
+  COMPARE(dci(0xf8b7c973), "prfm pstl2strm, [x11, w23, sxtw]");
+  COMPARE(dci(0xf98003e4), "prfm pldl3keep, [sp]");
 
   CLEANUP();
 }

@@ -227,7 +227,7 @@ class ABSL_ATTRIBUTE_VIEW string_view {
   constexpr string_view(  // NOLINT(runtime/explicit)
       const char* absl_nonnull str)
       : ptr_(str), length_(str ? StrlenInternal(str) : 0) {
-    assert(str != nullptr);
+    ABSL_HARDENING_ASSERT(str != nullptr);
   }
 
   // Constructor of a `string_view` from a `const char*` and length.
@@ -245,6 +245,9 @@ class ABSL_ATTRIBUTE_VIEW string_view {
     ABSL_HARDENING_ASSERT(end >= begin);
   }
 #endif  // ABSL_INTERNAL_CPLUSPLUS_LANG >= 202002L
+
+  // Deleted constructor from std::nullptr_t from C++23.
+  string_view(std::nullptr_t) = delete;
 
   constexpr string_view(const string_view&) noexcept = default;
   string_view& operator=(const string_view&) noexcept = default;

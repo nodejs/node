@@ -243,19 +243,11 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   // contains the expected pointer to the start of the instruction stream.
   void AssembleCodeStartRegisterCheck();
 
-#ifdef V8_ENABLE_LEAPTIERING
   // Generates code to check whether the {kJavaScriptCallDispatchHandleRegister}
   // references a valid entry compatible with this code.
   void AssembleDispatchHandleRegisterCheck();
-#endif  // V8_ENABLE_LEAPTIERING
 
-  // When entering a code that is marked for deoptimization, rather continuing
-  // with its execution, we jump to a lazy compiled code. We need to do this
-  // because this code has already been deoptimized and needs to be unlinked
-  // from the JS functions referring it.
-  // TODO(olivf, 42204201) Rename this to AssertNotDeoptimized once
-  // non-leaptiering is removed from the codebase.
-  void BailoutIfDeoptimized();
+  void AssertNotDeoptimized();
 
   // Assemble NOP instruction for lazy deoptimization. This place will be
   // patched later as a jump instruction to deoptimization trampoline.

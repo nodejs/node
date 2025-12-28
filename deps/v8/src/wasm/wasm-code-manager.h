@@ -172,28 +172,23 @@ class V8_EXPORT_PRIVATE WasmCode final {
 #endif  // V8_IS_TSAN
 
   base::Vector<uint8_t> instructions() const {
-    return base::VectorOf(instructions_,
-                          static_cast<size_t>(instructions_size_));
+    return base::VectorOf(instructions_, instructions_size_);
   }
   Address instruction_start() const {
     return reinterpret_cast<Address>(instructions_);
   }
-  size_t instructions_size() const {
-    return static_cast<size_t>(instructions_size_);
-  }
+  size_t instructions_size() const { return instructions_size_; }
   base::Vector<const uint8_t> reloc_info() const {
-    return {protected_instructions_data().end(),
-            static_cast<size_t>(reloc_info_size_)};
+    return {protected_instructions_data().end(), reloc_info_size_};
   }
   base::Vector<const uint8_t> source_positions() const {
-    return {reloc_info().end(), static_cast<size_t>(source_positions_size_)};
+    return {reloc_info().end(), source_positions_size_};
   }
   base::Vector<const uint8_t> inlining_positions() const {
-    return {source_positions().end(),
-            static_cast<size_t>(inlining_positions_size_)};
+    return {source_positions().end(), inlining_positions_size_};
   }
   base::Vector<const uint8_t> deopt_data() const {
-    return {inlining_positions().end(), static_cast<size_t>(deopt_data_size_)};
+    return {inlining_positions().end(), deopt_data_size_};
   }
 
   int index() const { return index_; }
@@ -243,8 +238,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
   bool is_inspectable() const { return is_liftoff() && for_debugging(); }
 
   base::Vector<const uint8_t> protected_instructions_data() const {
-    return {meta_data_.get(),
-            static_cast<size_t>(protected_instructions_size_)};
+    return {meta_data_.get(), protected_instructions_size_};
   }
 
   base::Vector<const trap_handler::ProtectedInstructionData>
@@ -422,12 +416,15 @@ class V8_EXPORT_PRIVATE WasmCode final {
         meta_data_(ConcatenateBytes({protected_instructions_data, reloc_info,
                                      source_position_table, inlining_positions,
                                      deopt_data})),
-        instructions_size_(instructions.length()),
-        reloc_info_size_(reloc_info.length()),
-        source_positions_size_(source_position_table.length()),
-        inlining_positions_size_(inlining_positions.length()),
-        deopt_data_size_(deopt_data.length()),
-        protected_instructions_size_(protected_instructions_data.length()),
+        instructions_size_(static_cast<uint32_t>(instructions.size())),
+        reloc_info_size_(static_cast<uint32_t>(reloc_info.size())),
+        source_positions_size_(
+            static_cast<uint32_t>(source_position_table.size())),
+        inlining_positions_size_(
+            static_cast<uint32_t>(inlining_positions.size())),
+        deopt_data_size_(static_cast<uint32_t>(deopt_data.size())),
+        protected_instructions_size_(
+            static_cast<uint32_t>(protected_instructions_data.size())),
         index_(index),
         constant_pool_offset_(constant_pool_offset),
         stack_slots_(stack_slots),
@@ -483,12 +480,12 @@ class V8_EXPORT_PRIVATE WasmCode final {
   //  - deopt data of size {deopt_data_size_}
   // Note that the protected instructions come first to ensure alignment.
   std::unique_ptr<const uint8_t[]> meta_data_;
-  const int instructions_size_;
-  const int reloc_info_size_;
-  const int source_positions_size_;
-  const int inlining_positions_size_;
-  const int deopt_data_size_;
-  const int protected_instructions_size_;
+  const uint32_t instructions_size_;
+  const uint32_t reloc_info_size_;
+  const uint32_t source_positions_size_;
+  const uint32_t inlining_positions_size_;
+  const uint32_t deopt_data_size_;
+  const uint32_t protected_instructions_size_;
   const int index_;  // The wasm function-index within the module.
   const int constant_pool_offset_;
   const int stack_slots_;
@@ -1222,7 +1219,7 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
   // Estimate the needed code space from the number of functions and total code
   // section length.
   static size_t EstimateNativeModuleCodeSize(int num_functions,
-                                             int code_section_length);
+                                             size_t code_section_length);
   // Estimate the size of metadata needed for the NativeModule, excluding
   // generated code. This data is stored on the C++ heap.
   static size_t EstimateNativeModuleMetaDataSize(const WasmModule*);

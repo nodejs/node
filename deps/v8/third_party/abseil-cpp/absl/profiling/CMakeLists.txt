@@ -109,6 +109,7 @@ absl_cc_library(
     absl::flat_hash_map
     absl::btree
     absl::strings
+    absl::str_format
     absl::span
 )
 

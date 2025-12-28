@@ -55,6 +55,7 @@
 #include "src/objects/tagged-impl-inl.h"
 #include "src/objects/tagged-index.h"
 #include "src/objects/templates.h"
+#include "src/objects/trusted-pointer-inl.h"
 #include "src/roots/roots.h"
 #include "src/sandbox/bounded-size-inl.h"
 #include "src/sandbox/code-pointer-inl.h"
@@ -217,23 +218,6 @@ bool IsAnyHole(Tagged<HeapObject> obj, PtrComprCageBase) {
   return IsAnyHole(obj);
 }
 
-bool SafeIsAnyHole(Tagged<HeapObject> obj) {
-  if (detail::IsAnyHoleNoSpaceCheck(obj)) {
-#if V8_STATIC_ROOTS_BOOL
-    // Only check this after the hole check succeeds, to make it cheaper in the
-    // common case that things aren't holes.
-    if (!obj.IsInMainCageBase()) return false;
-#endif
-    return true;
-  }
-  return false;
-}
-
-bool SafeIsAnyHole(Tagged<Object> obj) {
-  Tagged<HeapObject> ho;
-  return TryCast<HeapObject>(obj, &ho) && SafeIsAnyHole(ho);
-}
-
 bool IsHole(Tagged<HeapObject> obj) { return IsAnyHole(obj); }
 
 bool IsHole(Tagged<HeapObject> obj, PtrComprCageBase) { return IsAnyHole(obj); }
@@ -300,40 +284,9 @@ IS_HELPER_DEF(Number)
 template <typename... T>
 struct CastTraits<Union<T...>> {
   static inline bool AllowFrom(Tagged<Object> value) {
-    // Make sure to test for holes first, recursing into a check of the Union
-    // without a Hole.
-    if constexpr (base::has_type_v<Hole, T...>) {
-      return IsAnyHole(value) ||
-             CastTraits<typename Union<T...>::template Without<Hole>>::
-                 AllowFrom(value);
-    }
-#define CHECK_HOLE_IF_HAS_HOLE(Type, ...)                             \
-  if constexpr (base::has_type_v<Type, T...>) {                       \
-    return Is##Type(value) ||                                         \
-           CastTraits<typename Union<T...>::template Without<Type>>:: \
-               AllowFrom(value);                                      \
-  }
-    HOLE_LIST(CHECK_HOLE_IF_HAS_HOLE)
-#undef CHECK_HOLE_IF_HAS_HOLE
-
     return (Is<T>(value) || ...);
   }
   static inline bool AllowFrom(Tagged<HeapObject> value) {
-    // Make sure to test for holes first.
-    if constexpr (base::has_type_v<Hole, T...>) {
-      return IsAnyHole(value) ||
-             CastTraits<typename Union<T...>::template Without<Hole>>::
-                 AllowFrom(value);
-    }
-#define CHECK_HOLE_IF_HAS_HOLE(Type, ...)                             \
-  if constexpr (base::has_type_v<Type, T...>) {                       \
-    return Is##Type(value) ||                                         \
-           CastTraits<typename Union<T...>::template Without<Type>>:: \
-               AllowFrom(value);                                      \
-  }
-    HOLE_LIST(CHECK_HOLE_IF_HAS_HOLE)
-#undef CHECK_HOLE_IF_HAS_HOLE
-
     return (Is<T>(value) || ...);
   }
 };
@@ -474,8 +427,11 @@ constexpr bool FastInReadOnlySpaceOrSmallSmi(Tagged_t obj) {
   // roots. This is not strictly necessary and can be relaxed in future as the
   // most prominent static roots are anyways allocated at the beginning of the
   // first page.
-  static_assert(StaticReadOnlyRoot::kLastAllocatedRoot < kRegularPageSize);
-  return obj < kRegularPageSize;
+  constexpr int kLastStaticRootPage =
+      RoundUp<kRegularPageSize>(StaticReadOnlyRoot::kLastAllocatedRoot);
+  static_assert(kLastStaticRootPage <=
+                V8_CONTIGUOUS_COMPRESSED_RO_SPACE_SIZE_MB * MB);
+  return obj < kLastStaticRootPage;
 #else   // !V8_STATIC_ROOTS_BOOL
   return false;
 #endif  // !V8_STATIC_ROOTS_BOOL
@@ -751,7 +707,7 @@ DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsAccessCheckNeeded) {
     // TODO(ishell): compare security tokens here in order to allow ICs to
     // take fast paths for cross context accesses.
     Tagged<JSGlobalObject> global = isolate->context()->global_object();
-    return proxy->IsDetachedFrom(isolate, global);
+    return proxy->IsDetachedFrom(global);
   }
   return obj->map(cage_base)->is_access_check_needed();
 }
@@ -1230,6 +1186,13 @@ void HeapObject::InitSelfIndirectPointerField(
                                   opt_publishing_scope);
 }
 
+void HeapObject::InitSelfIndirectPointerFieldWithoutPublishing(
+    size_t offset, IsolateForSandbox isolate) {
+  DCHECK(IsExposedTrustedObject(*this));
+  i::InitSelfIndirectPointerField(field_address(offset), isolate, *this,
+                                  kUnpublishedIndirectPointerTag, nullptr);
+}
+
 void HeapObjectLayout::InitSelfIndirectPointerField(
     std::atomic<IndirectPointerHandle>* field_ptr, IsolateForSandbox isolate,
     TrustedPointerPublishingScope* opt_publishing_scope) {
@@ -1244,63 +1207,50 @@ void HeapObjectLayout::InitSelfIndirectPointerField(
 #endif  // V8_ENABLE_SANDBOX
 
 template <IndirectPointerTag tag>
+inline auto HeapObject::ReadTrustedPointerField(
+    size_t offset, IsolateForSandbox isolate) const {
+  return TrustedPointerField::ReadTrustedPointerField<tag>(*this, offset,
+                                                           isolate);
+}
+
+template <IndirectPointerTag tag>
+inline auto HeapObject::ReadTrustedPointerField(
+    size_t offset, IsolateForSandbox isolate,
+    AcquireLoadTag acquire_load) const {
+  return TrustedPointerField::ReadTrustedPointerField<tag>(
+      *this, offset, isolate, acquire_load);
+}
+
+template <IndirectPointerTag tag>
 Tagged<Object> HeapObject::ReadMaybeEmptyTrustedPointerField(
     size_t offset, IsolateForSandbox isolate,
     AcquireLoadTag acquire_load) const {
-#ifdef V8_ENABLE_SANDBOX
-  return i::ReadIndirectPointerField<tag>(field_address(offset), isolate,
-                                          acquire_load);
-#else
-  return TaggedField<Object>::Acquire_Load(*this, static_cast<int>(offset));
-#endif
+  return TrustedPointerField::ReadMaybeEmptyTrustedPointerField<tag>(
+      *this, offset, isolate, acquire_load);
 }
 
 template <IndirectPointerTag tag>
 void HeapObject::WriteTrustedPointerField(size_t offset,
                                           Tagged<ExposedTrustedObject> value) {
-  // Currently, trusted pointer stores always use release semantics as the
-  // under-the-hood indirect pointer stores use release stores anyway.
-#ifdef V8_ENABLE_SANDBOX
-  i::WriteIndirectPointerField<tag>(field_address(offset), value,
-                                    kReleaseStore);
-#else
-  TaggedField<ExposedTrustedObject>::Release_Store(
-      *this, static_cast<int>(offset), value);
-#endif
+  TrustedPointerField::WriteTrustedPointerField<tag>(*this, offset, value);
 }
 
 bool HeapObject::IsTrustedPointerFieldEmpty(size_t offset) const {
-#ifdef V8_ENABLE_SANDBOX
-  IndirectPointerHandle handle = ACQUIRE_READ_UINT32_FIELD(*this, offset);
-  return handle == kNullIndirectPointerHandle;
-#else
-  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
-  return IsSmi(TaggedField<Object>::Acquire_Load(cage_base, *this,
-                                                 static_cast<int>(offset)));
-#endif
+  return TrustedPointerField::IsTrustedPointerFieldEmpty(*this, offset);
 }
 
 bool HeapObject::IsTrustedPointerFieldUnpublished(
     size_t offset, IndirectPointerTag tag, IsolateForSandbox isolate) const {
-#ifdef V8_ENABLE_SANDBOX
-  IndirectPointerHandle handle = ACQUIRE_READ_UINT32_FIELD(*this, offset);
-  const TrustedPointerTable& table = isolate.GetTrustedPointerTableFor(tag);
-  return table.IsUnpublished(handle);
-#else
-  return false;
-#endif
+  return TrustedPointerField::IsTrustedPointerFieldUnpublished(*this, offset,
+                                                               tag, isolate);
 }
 
 void HeapObject::ClearTrustedPointerField(size_t offset) {
-#ifdef V8_ENABLE_SANDBOX
-  RELEASE_WRITE_UINT32_FIELD(*this, offset, kNullIndirectPointerHandle);
-#else
-  TaggedField<Smi>::Release_Store(*this, static_cast<int>(offset), Smi::zero());
-#endif
+  TrustedPointerField::ClearTrustedPointerField(*this, offset);
 }
 
 void HeapObject::ClearTrustedPointerField(size_t offset, ReleaseStoreTag) {
-  return ClearTrustedPointerField(offset);
+  TrustedPointerField::ClearTrustedPointerField(*this, offset, kReleaseStore);
 }
 
 Tagged<Code> HeapObject::ReadCodePointerField(size_t offset,

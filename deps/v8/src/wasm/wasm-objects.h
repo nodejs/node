@@ -1645,44 +1645,24 @@ class WasmNull : public TorqueGeneratedWasmNull<WasmNull, HeapObject> {
  public:
 #if V8_STATIC_ROOTS_BOOL || V8_STATIC_ROOTS_GENERATION_BOOL
   // TODO(manoskouk): Make it smaller if able and needed.
-  // The payload size is either two max page size -- one so that we can safely
-  // unmap the page immediately after the header, and a second for holes, so
-  // that the page containing the holes can be unmapped conditionally
-  // independent of the wasm null page. The unmapped hole page is part of the
-  // WasmNull so that RO heap iteration can safely skip over the unmapped page.
-  // TODO(leszeks): Consider making hole unmapping independent of wasm null.
-  static constexpr int kFirstPayloadSize = 64 * KB;
-  static constexpr int kSecondPayloadSize = 64 * KB;
-  static constexpr int kFullPayloadSize =
-      kFirstPayloadSize + kSecondPayloadSize;
+  static constexpr int kPayloadSize = 64 * KB;
   // Payload should be a multiple of page size.
-  static_assert(kFirstPayloadSize % kMinimumOSPageSize == 0);
-  static_assert(kFullPayloadSize % kMinimumOSPageSize == 0);
+  static_assert(kPayloadSize % kMinimumOSPageSize == 0);
 
-  Address first_payload() { return field_address(kPayloadOffset); }
-  Address second_payload() {
-    return field_address(kPayloadOffset + kFirstPayloadSize);
-  }
+  Address payload() { return field_address(kPayloadOffset); }
 
   static constexpr int kPayloadOffset = HeapObject::kHeaderSize;
-  static constexpr int kSizeWithFirstPayload =
-      kPayloadOffset + kFirstPayloadSize;
-  static constexpr int kSizeWithFullPayload = kPayloadOffset + kFullPayloadSize;
+  static constexpr int kSizeWithPayload = kPayloadOffset + kPayloadSize;
 
-  static inline int Size() {
-    return v8_flags.unmap_holes ? WasmNull::kSizeWithFullPayload
-                                : WasmNull::kSizeWithFirstPayload;
-  }
+  static constexpr int kSize = kSizeWithPayload;
 
   // Any wasm struct offset should fit in the object.
-  static_assert(kSizeWithFirstPayload >=
+  static_assert(kSizeWithPayload >=
                 WasmStruct::kHeaderSize +
                     (wasm::kMaxStructFieldIndexForImplicitNullCheck + 1) *
                         kSimd128Size);
 #else
   static constexpr int kSize = HeapObject::kHeaderSize;
-
-  static constexpr inline int Size() { return kSize; }
 #endif
 
   // WasmNull cannot use `FixedBodyDescriptorFor()` as its map is variable size

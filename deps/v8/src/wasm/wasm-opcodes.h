@@ -257,13 +257,14 @@ V8_EXPORT_PRIVATE bool IsJSCompatibleSignature(const CanonicalSig* sig);
   V(I64SExtendI16, 0xc3, l_l, "i64.extend16_s") \
   V(I64SExtendI32, 0xc4, l_l, "i64.extend32_s")
 
-#define FOREACH_WASMFX_OPCODE(V)          \
-  V(ContNew, 0xe0, _, "cont.new")         \
-  V(ContBind, 0xe1, _, "cont.bind")       \
-  V(Suspend, 0xe2, _, "suspend")          \
-  V(Resume, 0xe3, _, "resume")            \
-  V(ResumeThrow, 0xe4, _, "resume_throw") \
-  V(Switch, 0xe5, _, "switch")
+#define FOREACH_WASMFX_OPCODE(V)                 \
+  V(ContNew, 0xe0, _, "cont.new")                \
+  V(ContBind, 0xe1, _, "cont.bind")              \
+  V(Suspend, 0xe2, _, "suspend")                 \
+  V(Resume, 0xe3, _, "resume")                   \
+  V(ResumeThrow, 0xe4, _, "resume_throw")        \
+  V(ResumeThrowRef, 0xe5, _, "resume_throw_ref") \
+  V(Switch, 0xe6, _, "switch")
 
 #define FOREACH_SIMPLE_OPCODE(V)          \
   FOREACH_SIMPLE_EXTENDED_CONST_OPCODE(V) \
@@ -770,6 +771,8 @@ V8_EXPORT_PRIVATE bool IsJSCompatibleSignature(const CanonicalSig* sig);
   V(I31GetU, 0xfb1e, _, "i31.get_u")                                           \
   V(RefI31Shared, 0xfb1f, _, "ref.i31_shared")                                 \
   /* Custom Descriptors proposal */                                            \
+  V(StructNewDesc, 0xfb20, _, "struct.new_desc")                               \
+  V(StructNewDefaultDesc, 0xfb21, _, "struct.new_default_desc")                \
   V(RefGetDesc, 0xfb22, _, "ref.get_desc")                                     \
   V(RefCastDesc, 0xfb23, _, "ref.cast_desc")                                   \
   V(RefCastDescNull, 0xfb24, _, "ref.cast_desc null")                          \

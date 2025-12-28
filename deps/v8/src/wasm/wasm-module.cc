@@ -232,7 +232,7 @@ std::ostream& operator<<(std::ostream& os, const WasmFunctionName& name) {
   if (!name.name_.empty()) {
     if (name.name_.begin()) {
       os << ":";
-      os.write(name.name_.begin(), name.name_.length());
+      os.write(name.name_.begin(), name.name_.size());
     }
   } else {
     os << "?";
@@ -469,6 +469,7 @@ DirectHandle<JSArray> GetImports(Isolate* isolate,
     DirectHandle<JSObject> type_value;
     switch (import.kind) {
       case kExternalFunction:
+      case kExternalExactFunction:
         if (IsCompileTimeImport(well_known_imports.get(import.index))) {
           continue;
         }
@@ -476,6 +477,8 @@ DirectHandle<JSArray> GetImports(Isolate* isolate,
           auto& func = module->functions[import.index];
           type_value = GetTypeForFunction(isolate, func.sig);
         }
+        // Since {kExternalExactFunction} is still a function import, it
+        // uses the string "function" here.
         import_kind = function_string;
         break;
       case kExternalTable:
@@ -625,6 +628,7 @@ DirectHandle<JSArray> GetExports(Isolate* isolate,
       case kExternalTag:
         export_kind = tag_string;
         break;
+      case kExternalExactFunction:
       default:
         UNREACHABLE();
     }
@@ -722,9 +726,9 @@ int GetSourcePosition(const WasmModule* module, uint32_t func_index,
 size_t WasmModule::EstimateStoredSize() const {
   UPDATE_WHEN_CLASS_CHANGES(WasmModule,
 #if V8_ENABLE_DRUMBRAKE
-                            904
+                            952
 #else   // V8_ENABLE_DRUMBRAKE
-                            872
+                            920
 #endif  // V8_ENABLE_DRUMBRAKE
   );
   return sizeof(WasmModule) +                            // --
@@ -803,9 +807,9 @@ size_t TypeFeedbackStorage::EstimateCurrentMemoryConsumption() const {
 size_t WasmModule::EstimateCurrentMemoryConsumption() const {
   UPDATE_WHEN_CLASS_CHANGES(WasmModule,
 #if V8_ENABLE_DRUMBRAKE
-                            904
+                            952
 #else   // V8_ENABLE_DRUMBRAKE
-                            872
+                            920
 #endif  // V8_ENABLE_DRUMBRAKE
   );
   size_t result = EstimateStoredSize();
@@ -815,6 +819,9 @@ size_t WasmModule::EstimateCurrentMemoryConsumption() const {
   result += num_imported_functions * sizeof(WellKnownImport);
 
   result += lazily_generated_names.EstimateCurrentMemoryConsumption();
+
+  result += ContentSize(marked_for_tierup);
+  result += ContentSize(feedback_slots_to_wire_byte_offsets);
 
   if (v8_flags.trace_wasm_offheap_memory) {
     PrintF("WasmModule: %zu\n", result);
@@ -849,8 +856,8 @@ int JumpTableOffset(const WasmModule* module, int func_index) {
 
 size_t GetWireBytesHash(base::Vector<const uint8_t> wire_bytes) {
   return StringHasher::HashSequentialString(
-      reinterpret_cast<const char*>(wire_bytes.begin()), wire_bytes.length(),
-      HashSeed::Default());
+      reinterpret_cast<const char*>(wire_bytes.begin()),
+      static_cast<uint32_t>(wire_bytes.size()), HashSeed::Default());
 }
 
 int NumFeedbackSlots(const WasmModule* module, int func_index) {

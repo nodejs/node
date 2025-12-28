@@ -173,6 +173,11 @@ void TransitionsAccessor::InsertHelper(Isolate* isolate, DirectHandle<Map> map,
       }
       array->SetKey(insertion_index, *name);
       array->SetRawTarget(insertion_index, MakeWeak(*target));
+      // The new size exceeds the threshold for linear search, sort the array
+      // for binary search later.
+      if (new_nof == TransitionArray::kMaxElementsForLinearSearch + 1) {
+        array->Sort();
+      }
       SLOW_DCHECK(array->IsSortedNoDuplicates());
       return;
     }
@@ -222,6 +227,11 @@ void TransitionsAccessor::InsertHelper(Isolate* isolate, DirectHandle<Map> map,
     result->Set(i + 1, array->GetKey(i), array->GetRawTarget(i));
   }
 
+  // The new size exceeds the threshold for linear search, sort the array
+  // for binary search later.
+  if (new_nof == TransitionArray::kMaxElementsForLinearSearch + 1) {
+    result->Sort();
+  }
   SLOW_DCHECK(result->IsSortedNoDuplicates());
   ReplaceTransitions(isolate, map, result);
 }
@@ -779,6 +789,9 @@ void TransitionArray::Sort() {
   DisallowGarbageCollection no_gc;
   // In-place insertion sort.
   int length = number_of_transitions();
+  // Sorting matters only for binary search.
+  if (length <= kMaxElementsForLinearSearch) return;
+
   ReadOnlyRoots roots = GetReadOnlyRoots();
   for (int i = 1; i < length; i++) {
     Tagged<Name> key = GetKey(i);

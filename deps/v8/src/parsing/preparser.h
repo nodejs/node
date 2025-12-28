@@ -1005,7 +1005,8 @@ class PreParser : public ParserBase<PreParser> {
 
   void DeclareAndBindVariable(const VariableProxy* proxy, VariableKind kind,
                               VariableMode mode, Scope* scope, bool* was_added,
-                              int initializer_position) {
+                              int initializer_position,
+                              VariableProxy::BindingMode binding_mode) {
     Variable* var = DeclareVariableName(proxy->raw_name(), mode, scope,
                                         was_added, proxy->position(), kind);
     var->set_initializer_position(initializer_position);

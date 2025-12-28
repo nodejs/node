@@ -429,6 +429,7 @@ cc_test(
     deps = [
         ":container_memory",
         ":test_instance_tracker",
+        "//absl/base:config",
         "//absl/base:no_destructor",
         "//absl/meta:type_traits",
         "//absl/strings",

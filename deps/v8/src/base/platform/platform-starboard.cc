@@ -78,8 +78,7 @@ const int kStackSize = 1;
 
 }  // namespace
 
-void OS::Initialize(AbortMode abort_mode, const char* const gc_fake_mmap) {
-  g_abort_mode = abort_mode;
+void OS::Initialize(const char* const gc_fake_mmap) {
   // This is only used on Posix, we don't need to use it for anything.
 }
 

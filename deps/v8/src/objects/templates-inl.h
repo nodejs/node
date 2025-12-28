@@ -76,49 +76,20 @@ void FunctionTemplateInfo::set_relaxed_flag(int32_t flags) {
   return set_flag(flags, kRelaxedStore);
 }
 
-Address FunctionTemplateInfo::callback(i::IsolateForSandbox isolate) const {
-  Address result = maybe_redirected_callback(isolate);
-  if (!USE_SIMULATOR_BOOL) return result;
-  if (result == kNullAddress) return kNullAddress;
-  return ExternalReference::UnwrapRedirection(result);
-}
+REDIRECTED_CALLBACK_ACCESSORS_MAYBE_READ_ONLY_HOST(
+    FunctionTemplateInfo, callback, Address, kCallbackOffset,
+    kFunctionTemplateInfoCallbackTag, ExternalReference::DIRECT_API_CALL)
 
-void FunctionTemplateInfo::init_callback(i::IsolateForSandbox isolate,
-                                         Address initial_value) {
-  init_maybe_redirected_callback(isolate, initial_value);
-  if (USE_SIMULATOR_BOOL) {
-    init_callback_redirection(isolate);
-  }
-}
-
-void FunctionTemplateInfo::set_callback(i::IsolateForSandbox isolate,
-                                        Address value) {
-  set_maybe_redirected_callback(isolate, value);
-  if (USE_SIMULATOR_BOOL) {
-    init_callback_redirection(isolate);
-  }
-}
-
-void FunctionTemplateInfo::init_callback_redirection(
-    i::IsolateForSandbox isolate) {
+void FunctionTemplateInfo::RemoveCallbackRedirectionForSerialization(
+    IsolateForSandbox isolate) {
   CHECK(USE_SIMULATOR_BOOL);
-  Address value = maybe_redirected_callback(isolate);
-  if (value == kNullAddress) return;
-  value =
-      ExternalReference::Redirect(value, ExternalReference::DIRECT_API_CALL);
-  set_maybe_redirected_callback(isolate, value);
+  remove_callback_redirection(isolate);
 }
-
-void FunctionTemplateInfo::remove_callback_redirection(
-    i::IsolateForSandbox isolate) {
+void FunctionTemplateInfo::RestoreCallbackRedirectionAfterDeserialization(
+    IsolateForSandbox isolate) {
   CHECK(USE_SIMULATOR_BOOL);
-  Address value = callback(isolate);
-  set_maybe_redirected_callback(isolate, value);
+  init_callback_redirection(isolate);
 }
-
-EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST(
-    FunctionTemplateInfo, maybe_redirected_callback, Address,
-    kMaybeRedirectedCallbackOffset, kFunctionTemplateInfoCallbackTag)
 
 template <class IsolateT>
 bool FunctionTemplateInfo::has_callback(IsolateT* isolate) const {

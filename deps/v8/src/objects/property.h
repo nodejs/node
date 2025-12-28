@@ -30,6 +30,7 @@ class V8_EXPORT_PRIVATE Descriptor final {
   MaybeObjectDirectHandle GetValue() const { return value_; }
   PropertyDetails GetDetails() const { return details_; }
 
+  int GetSortedKeyIndex() const { return details_.pointer(); }
   void SetSortedKeyIndex(int index) { details_ = details_.set_pointer(index); }
 
   static Descriptor DataField(Isolate* isolate, DirectHandle<Name> key,
