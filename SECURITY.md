@@ -309,6 +309,32 @@ the community they pose.
   Node.js releases won't be affected by such vulnerabilities. Users are
   responsible for keeping the software they use through Corepack up-to-date.
 
+#### Exposing Application-Level APIs to Untrusted Users (CWE-653)
+
+* Node.js trusts the application code that uses its APIs. When application code
+  exposes Node.js functionality to untrusted users in an unsafe manner, any
+  resulting crashes, data corruption, or other issues are not considered
+  vulnerabilities in Node.js itself. It is the application's responsibility to:
+  * Validate and sanitize all untrusted input before passing it to Node.js APIs.
+  * Design appropriate access controls and security boundaries.
+  * Avoid exposing low-level or dangerous APIs directly to untrusted users.
+
+* Examples of scenarios that are **not** Node.js vulnerabilities:
+  * Allowing untrusted users to register SQLite user-defined functions that can
+    perform arbitrary operations (e.g., closing database connections during query
+    execution, causing crashes or use-after-free conditions).
+  * Exposing `child_process.exec()` or similar APIs to untrusted users without
+    proper input validation, allowing command injection.
+  * Allowing untrusted users to control file paths passed to file system APIs
+    without validation, leading to path traversal issues.
+  * Permitting untrusted users to define custom code that executes with the
+    application's privileges (e.g., custom transforms, plugins, or callbacks).
+
+* These scenarios represent application-level security issues, not Node.js
+  vulnerabilities. The root cause is the application's failure to establish
+  proper security boundaries between trusted application logic and untrusted
+  user input.
+
 ## Assessing experimental features reports
 
 Experimental features are eligible for security reports just like any other
