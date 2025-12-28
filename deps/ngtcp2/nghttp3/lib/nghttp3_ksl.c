@@ -39,8 +39,7 @@ static nghttp3_ksl_blk null_blk;
 nghttp3_objalloc_def(ksl_blk, nghttp3_ksl_blk, oplent)
 
 static size_t ksl_blklen(size_t aligned_keylen) {
-  return sizeof(nghttp3_ksl_blk) + NGHTTP3_KSL_MAX_NBLK * aligned_keylen -
-         sizeof(uint64_t);
+  return sizeof(nghttp3_ksl_blk) + NGHTTP3_KSL_MAX_NBLK * aligned_keylen;
 }
 
 /*
@@ -74,8 +73,16 @@ void nghttp3_ksl_init(nghttp3_ksl *ksl, nghttp3_ksl_compar compar,
 }
 
 static nghttp3_ksl_blk *ksl_blk_objalloc_new(nghttp3_ksl *ksl) {
-  return nghttp3_objalloc_ksl_blk_len_get(&ksl->blkalloc,
-                                          ksl_blklen(ksl->aligned_keylen));
+  nghttp3_ksl_blk *blk = nghttp3_objalloc_ksl_blk_len_get(
+    &ksl->blkalloc, ksl_blklen(ksl->aligned_keylen));
+
+  if (!blk) {
+    return NULL;
+  }
+
+  blk->keys = (uint8_t *)blk + sizeof(*blk);
+
+  return blk;
 }
 
 static void ksl_blk_objalloc_del(nghttp3_ksl *ksl, nghttp3_ksl_blk *blk) {

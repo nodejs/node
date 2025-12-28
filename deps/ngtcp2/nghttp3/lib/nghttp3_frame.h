@@ -54,6 +54,10 @@
 #define NGHTTP3_H2_FRAME_WINDOW_UPDATE 0x08
 #define NGHTTP3_H2_FRAME_CONTINUATION 0x9
 
+typedef struct nghttp3_frame_hd {
+  int64_t type;
+} nghttp3_frame_hd;
+
 typedef struct nghttp3_frame_data {
   int64_t type;
 } nghttp3_frame_data;
@@ -83,7 +87,7 @@ typedef struct nghttp3_settings_entry {
 typedef struct nghttp3_frame_settings {
   int64_t type;
   size_t niv;
-  nghttp3_settings_entry iv[1];
+  nghttp3_settings_entry *iv;
 } nghttp3_frame_settings;
 
 typedef struct nghttp3_frame_goaway {
@@ -103,11 +107,15 @@ typedef struct nghttp3_frame_priority_update {
      set to datalen.  On reception, pri contains the decoded priority
      header value. */
   union {
-    nghttp3_pri pri;
+    /* Unnamed struct first, so that in unit test, it is
+       zero-initialized in the initialization without initializer,
+       which is convenient to pass nghttp3_frame to
+       nghttp3_write_frame test helper function. */
     struct {
       uint8_t *data;
       size_t datalen;
     };
+    nghttp3_pri pri;
   };
 } nghttp3_frame_priority_update;
 
@@ -119,7 +127,7 @@ typedef struct nghttp3_frame_origin {
 } nghttp3_frame_origin;
 
 typedef union nghttp3_frame {
-  int64_t type;
+  nghttp3_frame_hd hd;
   nghttp3_frame_data data;
   nghttp3_frame_headers headers;
   nghttp3_frame_settings settings;

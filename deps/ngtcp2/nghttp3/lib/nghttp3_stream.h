@@ -89,6 +89,7 @@ typedef struct nghttp3_varint_read_state {
 
 typedef struct nghttp3_stream_read_state {
   nghttp3_varint_read_state rvint;
+  nghttp3_settings_entry iv;
   nghttp3_frame fr;
   int64_t left;
   int state;
@@ -229,7 +230,6 @@ struct nghttp3_stream {
 
       struct {
         uint64_t offset;
-        nghttp3_stream_http_state hstate;
       } tx;
 
       struct {

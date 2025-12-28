@@ -180,7 +180,7 @@ int nghttp3_pri_parse_priority_versioned(int pri_version, nghttp3_pri *dest,
   return nghttp3_http_parse_priority(dest, value, valuelen);
 }
 
-static const char VALID_AUTHORITY_CHARS[256] = {
+static const int8_t VALID_AUTHORITY_CHARS[256] = {
   ['!'] = 1, ['$'] = 1, ['%'] = 1, ['&'] = 1, ['\''] = 1, ['('] = 1, [')'] = 1,
   ['*'] = 1, ['+'] = 1, [','] = 1, ['-'] = 1, ['.'] = 1,  ['0'] = 1, ['1'] = 1,
   ['2'] = 1, ['3'] = 1, ['4'] = 1, ['5'] = 1, ['6'] = 1,  ['7'] = 1, ['8'] = 1,
@@ -229,7 +229,7 @@ static int check_scheme(const uint8_t *value, size_t len) {
   return 1;
 }
 
-static const char VALID_METHOD_CHARS[256] = {
+static const int8_t VALID_METHOD_CHARS[256] = {
   ['!'] = 1, ['#'] = 1, ['$'] = 1, ['%'] = 1, ['&'] = 1, ['\''] = 1, ['*'] = 1,
   ['+'] = 1, ['-'] = 1, ['.'] = 1, ['0'] = 1, ['1'] = 1, ['2'] = 1,  ['3'] = 1,
   ['4'] = 1, ['5'] = 1, ['6'] = 1, ['7'] = 1, ['8'] = 1, ['9'] = 1,  ['A'] = 1,
@@ -256,7 +256,7 @@ static int check_method(const uint8_t *value, size_t len) {
   return 1;
 }
 
-static const char VALID_PATH_CHARS[256] = {
+static const int8_t VALID_PATH_CHARS[256] = {
   ['!'] = 1,  ['"'] = 1,  ['#'] = 1,  ['$'] = 1,  ['%'] = 1,  ['&'] = 1,
   ['\''] = 1, ['('] = 1,  [')'] = 1,  ['*'] = 1,  ['+'] = 1,  [','] = 1,
   ['-'] = 1,  ['.'] = 1,  ['/'] = 1,  ['0'] = 1,  ['1'] = 1,  ['2'] = 1,
@@ -714,7 +714,7 @@ static int http_check_nonempty_header_name(const uint8_t *name, size_t len) {
   return 1;
 }
 
-static const char VALID_HD_VALUE_CHARS[256] = {
+static const int8_t VALID_HD_VALUE_CHARS[256] = {
   [0x09] = 1, [' '] = 1,  ['!'] = 1,  ['"'] = 1,  ['#'] = 1,  ['$'] = 1,
   ['%'] = 1,  ['&'] = 1,  ['\''] = 1, ['('] = 1,  [')'] = 1,  ['*'] = 1,
   ['+'] = 1,  [','] = 1,  ['-'] = 1,  ['.'] = 1,  ['/'] = 1,  ['0'] = 1,
