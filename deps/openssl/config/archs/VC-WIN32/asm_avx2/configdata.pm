@@ -316,7 +316,7 @@ our %target = (
     "LDFLAGS" => "/nologo /debug",
     "MT" => "mt",
     "MTFLAGS" => "-nologo",
-    "RANLIB" => "CODE(0x5580f2abcdd0)",
+    "RANLIB" => "CODE(0x5642bff171c0)",
     "RC" => "rc",
     "_conf_fname_int" => [
         "Configurations/00-base-templates.conf",

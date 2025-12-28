@@ -4,10 +4,10 @@
 .align	4
 _whirlpool_block_mmx:
 L_whirlpool_block_mmx_begin:
-	%ifdef __CET__
+	#ifdef __CET__
 
 .byte	243,15,30,251
-	%endif
+	#endif
 
 	pushl	%ebp
 	pushl	%ebx
