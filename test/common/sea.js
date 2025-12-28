@@ -100,7 +100,10 @@ function generateSEA(targetExecutable, sourceExecutable, seaBlob, verifyWorkflow
     common.skip(message);
   }
   console.log(`Injected ${seaBlob} into ${targetExecutable}`);
+  signSEA(targetExecutable, verifyWorkflow);
+}
 
+function signSEA(targetExecutable, verifyWorkflow = false) {
   if (process.platform === 'darwin') {
     try {
       spawnSyncAndExitWithoutError('codesign', [ '--sign', '-', targetExecutable ]);
@@ -141,4 +144,5 @@ function generateSEA(targetExecutable, sourceExecutable, seaBlob, verifyWorkflow
 module.exports = {
   skipIfSingleExecutableIsNotSupported,
   generateSEA,
+  signSEA,
 };
