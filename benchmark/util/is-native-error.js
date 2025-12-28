@@ -26,14 +26,15 @@ function main({ argument, version, n }) {
 
   const func = { native: util, js: types }[version].isNativeError;
 
-  const testArgs = [args[argument], args[argument], args[argument]];
-  let sum = 0;
+  const testArgs = [args.true, args.falsePrimitive, args.falseObject];
 
   bench.start();
+  const start = performance.now();
   for (let iteration = 0; iteration < n; iteration++) {
-    const testArg = testArgs[iteration % 3];
-    sum += func(testArg) ? 1 : 0;
+    const testArg = testArgs[iteration % testArgs.length];
+    func(testArg);
   }
+  const end = performance.now();
   bench.end(n);
-  if (sum < 0) console.log(sum);
+  console.log('Elapsed(ms):', (end - start).toFixed(3));
 }
