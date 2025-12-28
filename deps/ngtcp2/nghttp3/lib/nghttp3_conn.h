@@ -121,7 +121,7 @@ struct nghttp3_conn {
          use only. */
       size_t num_streams;
     } bidi;
-    nghttp3_settings settings;
+    nghttp3_proto_settings settings;
   } remote;
 
   struct {
