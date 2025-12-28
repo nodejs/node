@@ -85,6 +85,7 @@ function asynctest(testBlock, args, callback, assertBlock) {
 
 // sub-tests:
 function test_simple_error_callback(realpath, realpathSync, cb) {
+  console.log('test_simple_error_callback');
   realpath('/this/path/does/not/exist', common.mustCall(function(err, s) {
     assert(err);
     assert(!s);
@@ -93,6 +94,7 @@ function test_simple_error_callback(realpath, realpathSync, cb) {
 }
 
 function test_simple_error_cb_with_null_options(realpath, realpathSync, cb) {
+  console.log('test_simple_error_cb_with_null_options');
   realpath('/this/path/does/not/exist', null, common.mustCall(function(err, s) {
     assert(err);
     assert(!s);
@@ -382,6 +384,43 @@ function test_non_symlinks(realpath, realpathSync, callback) {
   });
 }
 
+function test_parent_after_symlink(realpath, realpathSync, callback) {
+  console.log('test_parent_after_symlink');
+  if (skipSymlinks) {
+    common.printSkipMessage('symlink test (no privs)');
+    return callback();
+  }
+
+  const folder = tmp('folder');
+  const nested = path.join(folder, 'nested');
+  const symlinkDir = tmp('symlink-dir');
+
+  try {
+    fs.mkdirSync(folder);
+    fs.mkdirSync(nested);
+  } catch {
+    // Continue regardless of error.
+  }
+
+  try { fs.unlinkSync(symlinkDir); } catch {
+    // Continue regardless of error.
+  }
+
+  fs.symlinkSync(nested, symlinkDir, 'dir');
+  unlink.push(symlinkDir);
+  unlink.push(nested);
+  unlink.push(folder);
+
+  const a = realpathSync(`${symlinkDir}/..`);
+  const b = realpathSync(folder);
+
+  assertEqualPath(a, b);
+
+  asynctest(realpath, [`${symlinkDir}/..`], callback, (err, res) => {
+    assertEqualPath(res, b);
+  });
+}
+
 const upone = path.join(process.cwd(), '..');
 function test_escape_cwd(realpath, realpathSync, cb) {
   console.log('test_escape_cwd');
@@ -579,6 +618,7 @@ const tests = [
   test_up_multiple_with_null_options,
   test_root,
   test_root_with_null_options,
+  test_parent_after_symlink,
 ];
 const numtests = tests.length;
 let testsRun = 0;
