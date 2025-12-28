@@ -38,4 +38,7 @@ By making a contribution to this project, I certify that:
     personal information I submit with it, including my sign-off) is
     maintained indefinitely and may be redistributed consistent with
     this project or the open source license(s) involved.
+    
+(e) I have not followed any tutorial, edited the readme.md, added
+    nonsense content, and then created a pull request.
 -->
