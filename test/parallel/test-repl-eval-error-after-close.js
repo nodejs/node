@@ -20,8 +20,6 @@ const assert = require('node:assert');
         eval$.resolve();
       });
     },
-  }, {
-    disableDomainErrorAssert: true,
   });
 
   replServer.write('\n');

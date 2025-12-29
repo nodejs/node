@@ -8,17 +8,12 @@ const common = require('../common');
 const assert = require('assert');
 const { startNewREPLServer } = require('../common/repl');
 
-const { replServer, output } = startNewREPLServer(
-  {
-    prompt: '',
-    terminal: false,
-    useColors: false,
-    global: false,
-  },
-  {
-    disableDomainErrorAssert: true
-  },
-);
+const { replServer, output } = startNewREPLServer({
+  prompt: '',
+  terminal: false,
+  useColors: false,
+  global: false,
+});
 
 replServer.write(
   'process.nextTick(() => {\n' +

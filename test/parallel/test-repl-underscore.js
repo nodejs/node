@@ -138,8 +138,6 @@ function testError() {
     prompt: testingReplPrompt,
     replMode: repl.REPL_MODE_STRICT,
     preview: false,
-  }, {
-    disableDomainErrorAssert: true
   });
 
   replServer.write(`_error;                                // initial value undefined
