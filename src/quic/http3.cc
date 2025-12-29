@@ -983,7 +983,8 @@ class Http3ApplicationImpl final : public Session::Application {
                                                    on_receive_settings,
                                                    on_receive_origin,
                                                    on_end_origin,
-                                                   on_rand};
+                                                   on_rand,
+                                                   nullptr};
 };
 
 std::unique_ptr<Session::Application> Http3Application::Create(
