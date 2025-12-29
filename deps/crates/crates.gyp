@@ -17,6 +17,14 @@
         'libraries': [
           '<(node_crates_libpath)',
         ],
+        'conditions': [
+          ['OS=="win"', {
+            'libraries': [
+              '-lntdll',
+              '-luserenv'
+            ],
+          }],
+        ],
       },
       'actions': [
         {
@@ -50,18 +58,6 @@
           '<(cargo_vendor_dir)/temporal_capi/bindings/cpp',
         ],
       },
-      'conditions': [
-        ['OS=="win"', {
-          'direct_dependent_settings': {
-            'link_settings': {
-              'libraries': [
-                '-lntdll',
-                '-luserenv'
-              ],
-            },
-          },
-        }],
-      ],
     },
   ]
 }
