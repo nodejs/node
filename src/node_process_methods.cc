@@ -170,8 +170,8 @@ static void Cwd(const FunctionCallbackInfo<Value>& args) {
       // that the current working dir was likely removed.
       err_msg =
           err_msg +
-          std::string(", the current working directory was likely removed ") +
-          std::string("without changing the working directory");
+          ", the current working directory was likely removed " +
+          "without changing the working directory";
     }
     return env->ThrowUVException(err, "uv_cwd", err_msg.c_str());
   }
