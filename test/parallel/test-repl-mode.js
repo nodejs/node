@@ -31,8 +31,8 @@ function testSloppyMode() {
 }
 
 function testStrictMode() {
-  const { input, output } = startNewREPLServer({ replMode: repl.REPL_MODE_STRICT, terminal: false, prompt: '> ' }, {
-    disableDomainErrorAssert: true,
+  const { input, output } = startNewREPLServer({
+    replMode: repl.REPL_MODE_STRICT, terminal: false, prompt: '> '
   });
 
   input.emit('data', 'x = 3\n');

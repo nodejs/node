@@ -4,7 +4,7 @@ const common = require('../common');
 const assert = require('assert');
 const { startNewREPLServer } = require('../common/repl');
 
-const { replServer, input } = startNewREPLServer({}, { disableDomainErrorAssert: true });
+const { replServer, input } = startNewREPLServer();
 
 // https://github.com/nodejs/node/issues/3346
 // Tab-completion should be empty

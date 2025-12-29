@@ -6,9 +6,7 @@ const { startNewREPLServer } = require('../common/repl');
 
 common.skipIfInspectorDisabled();
 
-const { input, output } = startNewREPLServer(
-  { useColors: true }, { disableDomainErrorAssert: true }
-);
+const { input, output } = startNewREPLServer({ useColors: true });
 
 output.accumulator = '';
 
