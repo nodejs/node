@@ -168,10 +168,9 @@ static void Cwd(const FunctionCallbackInfo<Value>& args) {
     if (err == UV_ENOENT) {
       // If err == UV_ENOENT it is necessary to notice the user
       // that the current working dir was likely removed.
-      err_msg =
-          err_msg +
-          ", the current working directory was likely removed " +
-          "without changing the working directory";
+      err_msg = err_msg +
+                ", the current working directory was likely removed " +
+                "without changing the working directory";
     }
     return env->ThrowUVException(err, "uv_cwd", err_msg.c_str());
   }
