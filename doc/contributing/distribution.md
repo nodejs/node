@@ -18,7 +18,7 @@ for their particular purposes:
 
 * JavaScript engine: V8
 * Package manager: `npm`
-* Package manager version manager: Corepack (Node.js <v25)
+* Package manager version manager: Corepack
 
 Being user-accessible, removal or replacement of these projects could happen
 only as a semver-major change, unless the related feature or project is
@@ -26,4 +26,6 @@ documented as experimental. In addition, Node.js includes external projects as
 internal dependencies. These may be replaced or removed at any time, provided
 that doing so is not a breaking change.
 
-The [corepack](https://github.com/nodejs/corepack) module is no longer distributed starting with Node.js v25.
+## History
+
+- [corepack](https://github.com/nodejs/corepack) was added in Node.js v14.9.0 and v16.9.0. It is no longer distributed as of Node.js v25.0.0.
