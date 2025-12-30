@@ -28,8 +28,10 @@ function main({ argument, version, n }) {
   const arg = args[argument];
 
   bench.start();
+  let result;
   for (let iteration = 0; iteration < n; iteration++) {
-    func(arg);
+    result = func(arg);
   }
   bench.end(n);
+  if (typeof result !== 'boolean') throw new Error('unexpected result');
 }
