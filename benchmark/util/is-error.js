@@ -14,14 +14,12 @@ const bench = common.createBenchmark(
     argument: ['true'],
     version: ['instanceof', 'isError'],
     n: [1e6],
-  }
+  },
 );
 
 function main({ argument, version, n }) {
   const arg = args[argument];
-  const func = version === 'isError'
-    ? Error.isError
-    : (v) => v instanceof Error;
+  const func = version === 'isError' ? Error.isError : (v) => v instanceof Error;
 
   bench.start();
   let result;
