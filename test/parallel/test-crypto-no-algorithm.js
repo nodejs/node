@@ -30,9 +30,9 @@ if (isMainThread) {
 
 {
   // Startup test. Should not hang.
-  const { path } = require('../common/fixtures');
+  const fixtures = require('../common/fixtures');
   const { spawnSync } = require('node:child_process');
-  const baseConf = path('openssl3-conf', 'base_only.cnf');
+  const baseConf = fixtures.path('openssl3-conf', 'base_only.cnf');
   const cp = spawnSync(process.execPath,
                        [ `--openssl-config=${baseConf}`, '-p', '"hello"' ],
                        { encoding: 'utf8' });

@@ -2,7 +2,7 @@
 
 require('../common');
 const { spawnSyncAndAssert } = require('../common/child_process');
-const { fixturesDir } = require('../common/fixtures');
+const fixtures = require('../common/fixtures');
 
 function testPreload(preloadFlag) {
   // Test named exports.
@@ -16,7 +16,7 @@ function testPreload(preloadFlag) {
         './printA.js',
       ],
       {
-        cwd: fixturesDir,
+        cwd: fixtures.fixturesDir,
       },
       {
         stdout: 'A',
@@ -36,7 +36,7 @@ function testPreload(preloadFlag) {
         './printA.js',
       ],
       {
-        cwd: fixturesDir,
+        cwd: fixtures.fixturesDir,
       },
       {
         stdout: /^world\s+A$/,
@@ -56,7 +56,7 @@ function testPreload(preloadFlag) {
         './printA.js',
       ],
       {
-        cwd: fixturesDir,
+        cwd: fixtures.fixturesDir,
       },
       {
         stdout: /^ok\s+A$/,
@@ -78,7 +78,7 @@ function testPreload(preloadFlag) {
         './printA.js',
       ],
       {
-        cwd: fixturesDir,
+        cwd: fixtures.fixturesDir,
       },
       {
         stdout: /^world\s+A$/,
@@ -103,7 +103,7 @@ testPreload('--import');
       './printA.js',
     ],
     {
-      cwd: fixturesDir,
+      cwd: fixtures.fixturesDir,
     },
     {
       stdout: /^package-type-module\s+A$/,

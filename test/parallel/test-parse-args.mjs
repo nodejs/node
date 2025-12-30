@@ -1,5 +1,5 @@
 import { spawnPromisified } from '../common/index.mjs';
-import { path } from '../common/fixtures.mjs';
+import * as fixtures from '../common/fixtures.mjs';
 import assert from 'node:assert';
 import { suite, test } from 'node:test';
 import { parseArgs } from 'node:util';
@@ -241,7 +241,7 @@ suite('correct default args', () => {
   test('without CLI flags', async () => {
     const { code, signal, stderr, stdout } = await spawnPromisified(
       process.execPath,
-      [path('parse-args.js'), '--foo', '--bar']);
+      [fixtures.path('parse-args.js'), '--foo', '--bar']);
     assert.deepStrictEqual({ code, signal, stderr, stdout: JSON.parse(stdout) }, expected);
   });
 });
