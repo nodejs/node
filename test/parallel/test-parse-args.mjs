@@ -1,4 +1,5 @@
 import { spawnPromisified } from '../common/index.mjs';
+import { path } from '../common/fixtures.mjs';
 import assert from 'node:assert';
 import { suite, test } from 'node:test';
 import { parseArgs } from 'node:util';
@@ -212,6 +213,8 @@ test('order of option and positional does not matter (per README)', () => {
 });
 
 suite('correct default args', () => {
+  const expected = { code: 0, signal: null, stderr: '', stdout: { foo: true, bar: true } };
+
   suite('with CLI flags', () => {
     const evalCode = "JSON.stringify(require('util').parseArgs({ strict: false }).values)";
     const evalCodePrinted = `process.stdout.write(${evalCode})`;
@@ -225,33 +228,21 @@ suite('correct default args', () => {
       '--print --eval <script>': ['--print', '--eval', evalCode],
       '--print --eval=<script>': ['--print', `--eval=${evalCode}`],
     };
-    for (const description in execArgsTests) {
-      const execArgs = execArgsTests[description];
+    for (const [description, execArgs] of Object.entries(execArgsTests)) {
       test(description, async () => {
         const { code, signal, stderr, stdout } = await spawnPromisified(
           process.execPath,
           [...execArgs, '--', '--foo', '--bar']);
-        assert.deepStrictEqual({
-          code,
-          signal,
-          stderr,
-          stdout: JSON.parse(stdout),
-        }, {
-          code: 0,
-          signal: null,
-          stderr: '',
-          stdout: { foo: true, bar: true },
-        });
+        assert.deepStrictEqual({ code, signal, stderr, stdout: JSON.parse(stdout) }, expected);
       });
     }
   });
 
-  test('without CLI flags', () => {
-    const holdArgv = process.argv;
-    process.argv = [process.argv0, 'script.js', '--foo', '--bar'];
-    const { values } = parseArgs({ strict: false });
-    assert.deepStrictEqual(values, { __proto__: null, foo: true, bar: true });
-    process.argv = holdArgv;
+  test('without CLI flags', async () => {
+    const { code, signal, stderr, stdout } = await spawnPromisified(
+      process.execPath,
+      [path('parse-args.js'), '--foo', '--bar']);
+    assert.deepStrictEqual({ code, signal, stderr, stdout: JSON.parse(stdout) }, expected);
   });
 });
 
