@@ -12,24 +12,20 @@ const bench = common.createBenchmark(
   main,
   {
     argument: ['true'],
-    version: ['native'],
+    version: ['instanceof', 'isError'],
     n: [1e6],
-  },
-  {
-    flags: ['--expose-internals', '--no-warnings'],
-  },
+  }
 );
 
 function main({ argument, version, n }) {
-  const util = common.binding('util');
-  const types = require('internal/util/types');
-
-  const func = { native: util, js: types }[version].isNativeError;
   const arg = args[argument];
+  const func = version === 'isError'
+    ? Error.isError
+    : (v) => v instanceof Error;
 
   bench.start();
   let result;
-  for (let iteration = 0; iteration < n; iteration++) {
+  for (let i = 0; i < n; i++) {
     result = func(arg);
   }
   bench.end(n);
