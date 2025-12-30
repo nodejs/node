@@ -3686,6 +3686,40 @@ added:
 
 The name of the test.
 
+### `context.passed`
+
+<!-- YAML
+added:
+  - v21.7.0
+  - v20.12.0
+-->
+
+* Type: {boolean} `false` before the test is executed, e.g. in a `beforeEach` hook.
+
+Indicated whether the test succeeded.
+
+### `context.error`
+
+<!-- YAML
+added:
+  - v21.7.0
+  - v20.12.0
+-->
+
+* Type: {Error|null}
+
+The failure reason for the test/case; wrapped and available via `context.error.cause`.
+
+### `context.attempt`
+
+<!-- YAML
+added: v25.0.0
+-->
+
+* Type: {number}
+
+Number of times the test has been attempted.
+
 ### `context.plan(count[,options])`
 
 <!-- YAML
