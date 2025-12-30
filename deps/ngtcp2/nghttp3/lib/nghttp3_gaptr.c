@@ -36,11 +36,11 @@ void nghttp3_gaptr_init(nghttp3_gaptr *gaptr, const nghttp3_mem *mem) {
 }
 
 static int gaptr_gap_init(nghttp3_gaptr *gaptr) {
-  nghttp3_range range = {
-    .end = UINT64_MAX,
-  };
-
-  return nghttp3_ksl_insert(&gaptr->gap, NULL, &range, NULL);
+  return nghttp3_ksl_insert(&gaptr->gap, NULL,
+                            &(nghttp3_range){
+                              .end = UINT64_MAX,
+                            },
+                            NULL);
 }
 
 void nghttp3_gaptr_free(nghttp3_gaptr *gaptr) {
@@ -104,7 +104,7 @@ int nghttp3_gaptr_push(nghttp3_gaptr *gaptr, uint64_t offset,
   return 0;
 }
 
-uint64_t nghttp3_gaptr_first_gap_offset(nghttp3_gaptr *gaptr) {
+uint64_t nghttp3_gaptr_first_gap_offset(const nghttp3_gaptr *gaptr) {
   nghttp3_ksl_it it;
 
   if (nghttp3_ksl_len(&gaptr->gap) == 0) {
@@ -116,20 +116,22 @@ uint64_t nghttp3_gaptr_first_gap_offset(nghttp3_gaptr *gaptr) {
   return ((nghttp3_range *)nghttp3_ksl_it_key(&it))->begin;
 }
 
-nghttp3_range nghttp3_gaptr_get_first_gap_after(nghttp3_gaptr *gaptr,
+nghttp3_range nghttp3_gaptr_get_first_gap_after(const nghttp3_gaptr *gaptr,
                                                 uint64_t offset) {
-  nghttp3_range q = {
-    .begin = offset,
-    .end = offset + 1,
-  };
   nghttp3_ksl_it it;
 
   if (nghttp3_ksl_len(&gaptr->gap) == 0) {
-    nghttp3_range r = {0, UINT64_MAX};
+    nghttp3_range r = {
+      .end = UINT64_MAX,
+    };
     return r;
   }
 
-  it = nghttp3_ksl_lower_bound_search(&gaptr->gap, &q,
+  it = nghttp3_ksl_lower_bound_search(&gaptr->gap,
+                                      &(nghttp3_range){
+                                        .begin = offset,
+                                        .end = offset + 1,
+                                      },
                                       nghttp3_ksl_range_exclusive_search);
 
   assert(!nghttp3_ksl_it_end(&it));
@@ -137,7 +139,7 @@ nghttp3_range nghttp3_gaptr_get_first_gap_after(nghttp3_gaptr *gaptr,
   return *(nghttp3_range *)nghttp3_ksl_it_key(&it);
 }
 
-int nghttp3_gaptr_is_pushed(nghttp3_gaptr *gaptr, uint64_t offset,
+int nghttp3_gaptr_is_pushed(const nghttp3_gaptr *gaptr, uint64_t offset,
                             uint64_t datalen) {
   nghttp3_range q = {
     .begin = offset,
