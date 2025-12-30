@@ -2,6 +2,6 @@
   "name": "doc",
   "private": true,
   "dependencies": {
-    "@nodejs/doc-kit": "github:nodejs/doc-kit#b2181a2e1f0c50752ace36d6af3d0de58ba6d8e8"
+    "@nodejs/doc-kit": "github:nodejs/doc-kit#53d2c2d1ae4bdfa2ce9fd56a39f99e0a67a103a6"
   }
 }
