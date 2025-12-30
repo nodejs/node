@@ -27,20 +27,22 @@
 
 #include <stdio.h>
 #include <errno.h>
-#ifdef HAVE_UNISTD_H
-#  include <unistd.h>
-#endif /* defined(HAVE_UNISTD_H) */
 #include <stdlib.h>
-#ifdef WIN32
+#ifdef HAVE_UNISTD_H
+#  define NGHTTP3_UNREACHABLE_LOG
+#  include <unistd.h>
+#elif defined(WIN32)
+#  define NGHTTP3_UNREACHABLE_LOG
 #  include <io.h>
 #endif /* defined(WIN32) */
 
 void nghttp3_unreachable_fail(const char *file, int line, const char *func) {
+#ifdef NGHTTP3_UNREACHABLE_LOG
   char *buf;
   size_t buflen;
   int rv;
 
-#define NGHTTP3_UNREACHABLE_TEMPLATE "%s:%d %s: Unreachable.\n"
+#  define NGHTTP3_UNREACHABLE_TEMPLATE "%s:%d %s: Unreachable.\n"
 
   rv = snprintf(NULL, 0, NGHTTP3_UNREACHABLE_TEMPLATE, file, line, func);
   if (rv < 0) {
@@ -59,14 +61,15 @@ void nghttp3_unreachable_fail(const char *file, int line, const char *func) {
     abort();
   }
 
-#ifndef WIN32
+#  ifndef WIN32
   while (write(STDERR_FILENO, buf, (size_t)rv) == -1 && errno == EINTR)
     ;
-#else  /* defined(WIN32) */
+#  else  /* defined(WIN32) */
   _write(_fileno(stderr), buf, (unsigned int)rv);
-#endif /* defined(WIN32) */
+#  endif /* defined(WIN32) */
 
   free(buf);
+#endif /* defined(NGHTTP3_UNREACHABLE_LOG) */
 
   abort();
 }

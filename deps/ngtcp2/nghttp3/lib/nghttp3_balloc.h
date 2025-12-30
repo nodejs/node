@@ -64,7 +64,7 @@ typedef struct nghttp3_balloc {
 
 /*
  * nghttp3_balloc_init initializes |balloc| with |blklen| which is the
- * size of memory block.
+ * size of memory block.  |blklen| must be divisible by 16.
  */
 void nghttp3_balloc_init(nghttp3_balloc *balloc, size_t blklen,
                          const nghttp3_mem *mem);

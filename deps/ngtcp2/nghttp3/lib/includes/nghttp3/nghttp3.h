@@ -1749,7 +1749,11 @@ typedef struct nghttp3_conn nghttp3_conn;
 typedef struct nghttp3_settings {
   /**
    * :member:`max_field_section_size` specifies the maximum header
-   * section (block) size.
+   * section (block) size.  nghttp3 library does not enforce this
+   * limit.  Applications are responsible for imposing their own
+   * limits to protect against resource exhaustion.  See
+   * https://datatracker.ietf.org/doc/html/rfc9114#section-4.2.2 for
+   * details.
    */
   uint64_t max_field_section_size;
   /**
@@ -1827,6 +1831,44 @@ typedef struct nghttp3_settings {
    */
   nghttp3_qpack_indexing_strat qpack_indexing_strat;
 } nghttp3_settings;
+
+#define NGHTTP3_PROTO_SETTINGS_V1 1
+#define NGHTTP3_PROTO_SETTINGS_VERSION NGHTTP3_PROTO_SETTINGS_V1
+
+/**
+ * @struct
+ *
+ * :type:`nghttp3_proto_settings` contains HTTP/3 settings that this
+ * library can recognize.  This field is available since v1.14.0.
+ */
+typedef struct nghttp3_proto_settings {
+  /**
+   * :member:`max_field_section_size` specifies the maximum header
+   * section (block) size.
+   */
+  uint64_t max_field_section_size;
+  /**
+   * :member:`qpack_max_dtable_capacity` is the maximum size of QPACK
+   * dynamic table.
+   */
+  size_t qpack_max_dtable_capacity;
+  /**
+   * :member:`qpack_blocked_streams` is the maximum number of streams
+   * which can be blocked while they are being decoded.
+   */
+  size_t qpack_blocked_streams;
+  /**
+   * :member:`enable_connect_protocol`, if set to nonzero, enables
+   * Extended CONNECT Method (see :rfc:`9220`).  Client ignores this
+   * field.
+   */
+  uint8_t enable_connect_protocol;
+  /**
+   * :member:`h3_datagram`, if set to nonzero, enables HTTP/3
+   * Datagrams (see :rfc:`9297`).
+   */
+  uint8_t h3_datagram;
+} nghttp3_proto_settings;
 
 /**
  * @functypedef
@@ -2052,6 +2094,11 @@ typedef int (*nghttp3_shutdown)(nghttp3_conn *conn, int64_t id,
 /**
  * @functypedef
  *
+ * .. warning::
+ *
+ *   Deprecated since v1.14.0.  Use :type:`nghttp3_recv_settings2`
+ *   instead.  New settings will not be notified with this callback.
+ *
  * :type:`nghttp3_recv_settings` is a callback function which is
  * invoked when SETTINGS frame is received.  |settings| is a received
  * remote HTTP/3 settings.
@@ -2103,9 +2150,27 @@ typedef int (*nghttp3_end_origin)(nghttp3_conn *conn, void *conn_user_data);
  */
 typedef void (*nghttp3_rand)(uint8_t *dest, size_t destlen);
 
+/**
+ * @functypedef
+ *
+ * :type:`nghttp3_recv_settings2` is a callback function which is
+ * invoked when SETTINGS frame is received.  |settings| is a received
+ * remote HTTP/3 settings.
+ *
+ * The implementation of this callback must return 0 if it succeeds.
+ * Returning :macro:`NGHTTP3_ERR_CALLBACK_FAILURE` will return to the
+ * caller immediately.  Any values other than 0 is treated as
+ * :macro:`NGHTTP3_ERR_CALLBACK_FAILURE`.  This callback is available
+ * since v1.14.0.
+ */
+typedef int (*nghttp3_recv_settings2)(nghttp3_conn *conn,
+                                      const nghttp3_proto_settings *settings,
+                                      void *conn_user_data);
+
 #define NGHTTP3_CALLBACKS_V1 1
 #define NGHTTP3_CALLBACKS_V2 2
-#define NGHTTP3_CALLBACKS_VERSION NGHTTP3_CALLBACKS_V2
+#define NGHTTP3_CALLBACKS_V3 3
+#define NGHTTP3_CALLBACKS_VERSION NGHTTP3_CALLBACKS_V3
 
 /**
  * @struct
@@ -2195,6 +2260,11 @@ typedef struct nghttp3_callbacks {
    */
   nghttp3_shutdown shutdown;
   /**
+   * .. warning::
+   *
+   *   Deprecated since v1.14.0.  Use :member:`recv_settings2`
+   *   instead.
+   *
    * :member:`recv_settings` is a callback function which is invoked
    * when SETTINGS frame is received.
    */
@@ -2221,6 +2291,12 @@ typedef struct nghttp3_callbacks {
    * v1.11.0.
    */
   nghttp3_rand rand;
+  /**
+   * :member:`recv_settings2` is a callback function which is invoked
+   * when SETTINGS frame is received.  This field is available since
+   * v1.14.0.
+   */
+  nghttp3_recv_settings2 recv_settings2;
 } nghttp3_callbacks;
 
 /**

@@ -81,14 +81,11 @@ struct nghttp3_ksl_blk {
       /* leaf is nonzero if this block contains leaf nodes. */
       uint32_t leaf;
       nghttp3_ksl_node nodes[NGHTTP3_KSL_MAX_NBLK];
-      union {
-        uint64_t align;
-        /* keys is a buffer to include NGHTTP3_KSL_MAX_NBLK keys.
-           Because the length of key is unknown until nghttp3_ksl_init
-           is called, the actual buffer will be allocated after this
-           field. */
-        uint8_t keys[1];
-      };
+      /* keys is a pointer to the buffer to include
+         NGHTTP3_KSL_MAX_NBLK keys.  Because the length of key is
+         unknown until nghttp3_ksl_init is called, the actual buffer
+         will be allocated after this field. */
+      uint8_t *keys;
     };
 
     nghttp3_opl_entry oplent;

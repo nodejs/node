@@ -32,11 +32,11 @@
 #include "nghttp3_conv.h"
 
 void nghttp3_tnode_init(nghttp3_tnode *tnode, int64_t id) {
-  tnode->pe.index = NGHTTP3_PQ_BAD_INDEX;
-  tnode->id = id;
-  tnode->cycle = 0;
-  tnode->pri.urgency = NGHTTP3_DEFAULT_URGENCY;
-  tnode->pri.inc = 0;
+  *tnode = (nghttp3_tnode){
+    .pe.index = NGHTTP3_PQ_BAD_INDEX,
+    .id = id,
+    .pri.urgency = NGHTTP3_DEFAULT_URGENCY,
+  };
 }
 
 void nghttp3_tnode_free(nghttp3_tnode *tnode) { (void)tnode; }

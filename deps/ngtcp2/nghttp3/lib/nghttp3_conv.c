@@ -32,33 +32,33 @@
 #include "nghttp3_unreachable.h"
 
 const uint8_t *nghttp3_get_varint(int64_t *dest, const uint8_t *p) {
-  union {
-    uint8_t n8;
-    uint16_t n16;
-    uint32_t n32;
-    uint64_t n64;
-  } n;
+  uint16_t n16;
+  uint32_t n32;
+  uint64_t n64;
 
   switch (*p >> 6) {
   case 0:
     *dest = *p++;
     return p;
   case 1:
-    memcpy(&n, p, 2);
-    n.n8 &= 0x3f;
-    *dest = ntohs(n.n16);
+    memcpy(&n16, p, 2);
+    n16 = ntohs(n16);
+    n16 &= 0x3fff;
+    *dest = n16;
 
     return p + 2;
   case 2:
-    memcpy(&n, p, 4);
-    n.n8 &= 0x3f;
-    *dest = ntohl(n.n32);
+    memcpy(&n32, p, 4);
+    n32 = ntohl(n32);
+    n32 &= 0x3fffffff;
+    *dest = n32;
 
     return p + 4;
   case 3:
-    memcpy(&n, p, 8);
-    n.n8 &= 0x3f;
-    *dest = (int64_t)nghttp3_ntohl64(n.n64);
+    memcpy(&n64, p, 8);
+    n64 = nghttp3_ntohl64(n64);
+    n64 &= 0x3fffffffffffffff;
+    *dest = (int64_t)n64;
 
     return p + 8;
   default:

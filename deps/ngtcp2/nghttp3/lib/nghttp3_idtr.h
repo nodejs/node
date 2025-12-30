@@ -72,6 +72,6 @@ int nghttp3_idtr_open(nghttp3_idtr *idtr, int64_t stream_id);
 /*
  * nghttp3_idtr_open returns nonzero if |stream_id| is in use.
  */
-int nghttp3_idtr_is_open(nghttp3_idtr *idtr, int64_t stream_id);
+int nghttp3_idtr_is_open(const nghttp3_idtr *idtr, int64_t stream_id);
 
 #endif /* !defined(NGHTTP3_IDTR_H) */
