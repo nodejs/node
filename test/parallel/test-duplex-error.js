@@ -8,7 +8,6 @@ const [sideA, sideB] = duplexPair();
 
 // Use common.mustCall inside the listeners to ensure they trigger
 sideA.on('error', common.mustCall((err) => {
-  sideAErrorReceived = true;
 }));
 
 sideB.on('error', common.mustCall((err) => {
