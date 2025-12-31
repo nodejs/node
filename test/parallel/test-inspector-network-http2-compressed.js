@@ -29,34 +29,30 @@ const handleStream = common.mustCallAtLeast((stream, headers) => {
     case '/gzip':
       responseHeaders[http2.constants.HTTP2_HEADER_CONTENT_ENCODING] = 'gzip';
       stream.respond(responseHeaders);
-      zlib.gzip(plainTextBody, (err, compressed) => {
-        if (err) throw err;
+      zlib.gzip(plainTextBody, common.mustSucceed((compressed) => {
         stream.end(compressed);
-      });
+      }));
       break;
     case '/deflate':
       responseHeaders[http2.constants.HTTP2_HEADER_CONTENT_ENCODING] = 'deflate';
       stream.respond(responseHeaders);
-      zlib.deflate(plainTextBody, (err, compressed) => {
-        if (err) throw err;
+      zlib.deflate(plainTextBody, common.mustSucceed((compressed) => {
         stream.end(compressed);
-      });
+      }));
       break;
     case '/br':
       responseHeaders[http2.constants.HTTP2_HEADER_CONTENT_ENCODING] = 'br';
       stream.respond(responseHeaders);
-      zlib.brotliCompress(plainTextBody, (err, compressed) => {
-        if (err) throw err;
+      zlib.brotliCompress(plainTextBody, common.mustSucceed((compressed) => {
         stream.end(compressed);
-      });
+      }));
       break;
     case '/zstd':
       responseHeaders[http2.constants.HTTP2_HEADER_CONTENT_ENCODING] = 'zstd';
       stream.respond(responseHeaders);
-      zlib.zstdCompress(plainTextBody, (err, compressed) => {
-        if (err) throw err;
+      zlib.zstdCompress(plainTextBody, common.mustSucceed((compressed) => {
         stream.end(compressed);
-      });
+      }));
       break;
     case '/plain':
       stream.respond(responseHeaders);

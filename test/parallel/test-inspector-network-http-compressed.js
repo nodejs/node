@@ -31,34 +31,30 @@ const handleRequest = (req, res) => {
     case '/gzip':
       setResponseHeaders(res, 'gzip');
       res.writeHead(200);
-      zlib.gzip(plainTextBody, (err, compressed) => {
-        if (err) throw err;
+      zlib.gzip(plainTextBody, common.mustSucceed((compressed) => {
         res.end(compressed);
-      });
+      }));
       break;
     case '/deflate':
       setResponseHeaders(res, 'deflate');
       res.writeHead(200);
-      zlib.deflate(plainTextBody, (err, compressed) => {
-        if (err) throw err;
+      zlib.deflate(plainTextBody, common.mustSucceed((compressed) => {
         res.end(compressed);
-      });
+      }));
       break;
     case '/br':
       setResponseHeaders(res, 'br');
       res.writeHead(200);
-      zlib.brotliCompress(plainTextBody, (err, compressed) => {
-        if (err) throw err;
+      zlib.brotliCompress(plainTextBody, common.mustSucceed((compressed) => {
         res.end(compressed);
-      });
+      }));
       break;
     case '/zstd':
       setResponseHeaders(res, 'zstd');
       res.writeHead(200);
-      zlib.zstdCompress(plainTextBody, (err, compressed) => {
-        if (err) throw err;
+      zlib.zstdCompress(plainTextBody, common.mustSucceed((compressed) => {
         res.end(compressed);
-      });
+      }));
       break;
     case '/plain':
       setResponseHeaders(res);
