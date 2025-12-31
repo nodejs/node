@@ -12,7 +12,6 @@ sideA.on('error', common.mustCall((err) => {
 }));
 
 sideB.on('error', common.mustCall((err) => {
-  sideBErrorReceived = true;
 }));
 
 sideA.resume();
