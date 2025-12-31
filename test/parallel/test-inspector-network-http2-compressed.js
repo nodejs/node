@@ -33,6 +33,13 @@ const handleStream = common.mustCallAtLeast((stream, headers) => {
         stream.end(compressed);
       }));
       break;
+    case '/x-gzip':
+      responseHeaders[http2.constants.HTTP2_HEADER_CONTENT_ENCODING] = 'x-gzip';
+      stream.respond(responseHeaders);
+      zlib.gzip(plainTextBody, common.mustSucceed((compressed) => {
+        stream.end(compressed);
+      }));
+      break;
     case '/deflate':
       responseHeaders[http2.constants.HTTP2_HEADER_CONTENT_ENCODING] = 'deflate';
       stream.respond(responseHeaders);
@@ -121,7 +128,7 @@ async function testCompressedResponse(server, encoding, path) {
 
     // Manually decompress the response to verify it works for user code
     let decompressor;
-    if (encoding === 'gzip') {
+    if (encoding === 'gzip' || encoding === 'x-gzip') {
       decompressor = zlib.createGunzip();
     } else if (encoding === 'deflate') {
       decompressor = zlib.createInflate();
@@ -180,6 +187,14 @@ async function testGzipHttp2Secure() {
   await testCompressedResponse(http2SecureServer, 'gzip', '/gzip');
 }
 
+async function testXGzipHttp2() {
+  await testCompressedResponse(http2Server, 'x-gzip', '/x-gzip');
+}
+
+async function testXGzipHttp2Secure() {
+  await testCompressedResponse(http2SecureServer, 'x-gzip', '/x-gzip');
+}
+
 async function testDeflateHttp2() {
   await testCompressedResponse(http2Server, 'deflate', '/deflate');
 }
@@ -217,6 +232,12 @@ const testNetworkInspection = async () => {
   await testGzipHttp2();
   session.removeAllListeners();
   await testGzipHttp2Secure();
+  session.removeAllListeners();
+
+  // Test x-gzip (alternate gzip encoding)
+  await testXGzipHttp2();
+  session.removeAllListeners();
+  await testXGzipHttp2Secure();
   session.removeAllListeners();
 
   // Test deflate

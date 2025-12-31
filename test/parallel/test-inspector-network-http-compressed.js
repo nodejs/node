@@ -35,6 +35,13 @@ const handleRequest = (req, res) => {
         res.end(compressed);
       }));
       break;
+    case '/x-gzip':
+      setResponseHeaders(res, 'x-gzip');
+      res.writeHead(200);
+      zlib.gzip(plainTextBody, common.mustSucceed((compressed) => {
+        res.end(compressed);
+      }));
+      break;
     case '/deflate':
       setResponseHeaders(res, 'deflate');
       res.writeHead(200);
@@ -119,7 +126,7 @@ async function testCompressedResponse(server, encoding, path) {
     }, (res) => {
       // Manually decompress the response to verify it works for user code
       let decompressor;
-      if (encoding === 'gzip') {
+      if (encoding === 'gzip' || encoding === 'x-gzip') {
         decompressor = zlib.createGunzip();
       } else if (encoding === 'deflate') {
         decompressor = zlib.createInflate();
@@ -165,6 +172,14 @@ async function testGzipHttps() {
   await testCompressedResponse(httpsServer, 'gzip', '/gzip');
 }
 
+async function testXGzipHttp() {
+  await testCompressedResponse(httpServer, 'x-gzip', '/x-gzip');
+}
+
+async function testXGzipHttps() {
+  await testCompressedResponse(httpsServer, 'x-gzip', '/x-gzip');
+}
+
 async function testDeflateHttp() {
   await testCompressedResponse(httpServer, 'deflate', '/deflate');
 }
@@ -202,6 +217,12 @@ const testNetworkInspection = async () => {
   await testGzipHttp();
   session.removeAllListeners();
   await testGzipHttps();
+  session.removeAllListeners();
+
+  // Test x-gzip (alternate gzip encoding)
+  await testXGzipHttp();
+  session.removeAllListeners();
+  await testXGzipHttps();
   session.removeAllListeners();
 
   // Test deflate
