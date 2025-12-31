@@ -6,9 +6,6 @@ const { duplexPair } = require('stream');
 
 const [sideA, sideB] = duplexPair();
 
-let sideAErrorReceived = false;
-let sideBErrorReceived = false;
-
 // Use common.mustCall inside the listeners to ensure they trigger
 sideA.on('error', common.mustCall((err) => {
   sideAErrorReceived = true;
