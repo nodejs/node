@@ -1258,10 +1258,10 @@ InitializeOncePerProcessInternal(const std::vector<std::string>& args,
   }
 
 #if NODE_USE_V8_WASM_TRAP_HANDLER
-  bool use_wasm_trap_handler =
-      !per_process::cli_options->disable_wasm_trap_handler;
+  bool wasm_trap_handler_disabled =
+      per_process::cli_options->disable_wasm_trap_handler;
   if (!(flags & ProcessInitializationFlags::kNoDefaultSignalHandling) &&
-      use_wasm_trap_handler) {
+      !wasm_trap_handler_disabled && V8::CanEnableWebAssemblyTrapHandler()) {
 #if defined(_WIN32)
     constexpr ULONG first = TRUE;
     per_process::old_vectored_exception_handler =

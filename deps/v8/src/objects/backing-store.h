@@ -183,6 +183,9 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
 
   uint32_t id() const { return id_; }
 
+  // Return the size of the reservation needed for a wasm backing store.
+  static size_t GetWasmReservationSize(bool has_guard_regions, size_t byte_capacity,
+                                       bool is_wasm_memory64);
  private:
   friend class GlobalBackingStoreRegistry;
 
