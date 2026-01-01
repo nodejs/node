@@ -40,6 +40,7 @@
 
 #include <cassert>
 #include <cstring>
+#include <cstdlib>
 #include <chrono>
 #include <array>
 #include <iostream>
@@ -108,7 +109,7 @@ uint64_t round2even(uint64_t n) {
 } // namespace
 
 std::string format_durationf(uint64_t ns) {
-  static constexpr const std::string_view units[] = {"us"sv, "ms"sv, "s"sv};
+  static constexpr std::string_view units[] = {"us"sv, "ms"sv, "s"sv};
   if (ns < 1000) {
     return format_uint(ns) + "ns";
   }
@@ -351,15 +352,8 @@ std::string straddr(const sockaddr *sa, socklen_t salen) {
   return res;
 }
 
-uint16_t port(const sockaddr_union *su) {
-  switch (su->sa.sa_family) {
-  case AF_INET:
-    return ntohs(su->in.sin_port);
-  case AF_INET6:
-    return ntohs(su->in6.sin6_port);
-  default:
-    return 0;
-  }
+std::string straddr(const Address &addr) {
+  return straddr(addr.as_sockaddr(), addr.size());
 }
 
 bool prohibited_port(uint16_t port) {
@@ -796,7 +790,7 @@ std::optional<std::vector<uint8_t>> read_file(const std::string_view &path) {
     return {};
   }
 
-  auto fd_d = defer(close, fd);
+  auto fd_d = defer([fd] { close(fd); });
 
   auto size = lseek(fd, 0, SEEK_END);
   if (size == static_cast<off_t>(-1)) {
@@ -809,11 +803,26 @@ std::optional<std::vector<uint8_t>> read_file(const std::string_view &path) {
     return {};
   }
 
-  auto addr_d = defer(munmap, addr, static_cast<size_t>(size));
+  auto addr_d =
+    defer([addr, size] { munmap(addr, static_cast<size_t>(size)); });
 
   auto p = static_cast<uint8_t *>(addr);
 
   return {{p, p + size}};
+}
+
+size_t clamp_buffer_size(ngtcp2_conn *conn, size_t buflen, size_t gso_burst) {
+  return std::min(gso_burst == 0
+                    ? ngtcp2_conn_get_send_quantum(conn)
+                    : ngtcp2_conn_get_path_max_tx_udp_payload_size(conn) *
+                        gso_burst,
+                  buflen);
+}
+
+bool recv_pkt_time_threshold_exceeded(bool time_sensitive, ngtcp2_tstamp start,
+                                      size_t pktcnt) {
+  return time_sensitive && pktcnt &&
+         util::timestamp() - start >= NGTCP2_MILLISECONDS;
 }
 
 std::optional<ECHServerConfig>
@@ -835,7 +844,7 @@ read_ech_server_config(const std::string_view &path) {
 }
 
 std::span<uint64_t, 2> generate_siphash_key() {
-  static auto key = []() {
+  static auto key = [] {
     std::array<uint64_t, 2> key;
 
     auto rv = generate_secure_random(as_writable_uint8_span(std::span{key}));
@@ -850,6 +859,18 @@ std::span<uint64_t, 2> generate_siphash_key() {
   ++key[0];
 
   return key;
+}
+
+std::string realpath(const char *path) {
+  auto cpath = ::realpath(path, nullptr);
+  if (!cpath) {
+    assert(0);
+    abort();
+  }
+
+  auto cpath_d = defer([cpath] { free(cpath); });
+
+  return cpath;
 }
 
 } // namespace util

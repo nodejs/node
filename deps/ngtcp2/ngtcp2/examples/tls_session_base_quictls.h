@@ -36,7 +36,7 @@
 
 class TLSSessionBase {
 public:
-  TLSSessionBase();
+  TLSSessionBase() = default;
   ~TLSSessionBase();
 
   SSL *get_native_handle() const;
@@ -48,7 +48,7 @@ public:
   void enable_keylog() {}
 
 protected:
-  SSL *ssl_;
+  SSL *ssl_{};
 };
 
 #endif // !defined(TLS_SESSION_BASE_QUICTLS_H)

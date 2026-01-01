@@ -44,8 +44,6 @@ using namespace std::literals;
 
 extern Config config;
 
-TLSClientSession::TLSClientSession() {}
-
 TLSClientSession::~TLSClientSession() {
   auto &hsprops = cptls_.handshake_properties;
 
@@ -126,7 +124,7 @@ int TLSClientSession::init(bool &early_data_enabled, TLSClientContext &tls_ctx,
       std::cerr << "Could not read TLS session file " << config.session_file
                 << std::endl;
     } else {
-      auto f_d = defer(BIO_free, f);
+      auto f_d = defer([f] { BIO_free(f); });
 
       char *name, *header;
       unsigned char *data;

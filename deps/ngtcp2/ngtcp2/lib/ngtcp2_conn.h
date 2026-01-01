@@ -77,10 +77,6 @@ typedef enum {
    unreceived data. */
 #define NGTCP2_MAX_REORDERED_CRYPTO_DATA 65536
 
-/* NGTCP2_MAX_RETRIES is the number of Retry packet which client can
-   accept. */
-#define NGTCP2_MAX_RETRIES 3
-
 /* NGTCP2_MAX_SCID_POOL_SIZE is the maximum number of source
    connection ID the local endpoint provides to the remote endpoint.
    The chosen value was described in old draft.  Now a remote endpoint
@@ -115,19 +111,6 @@ typedef enum {
 /* NGTCP2_WRITE_PKT_FLAG_PADDING_IF_NOT_EMPTY adds padding to the QUIC
    packet as much as possible if the packet is not empty. */
 #define NGTCP2_WRITE_PKT_FLAG_PADDING_IF_NOT_EMPTY 0x08u
-
-/*
- * ngtcp2_max_frame is defined so that it covers the largest ACK
- * frame.
- */
-typedef union ngtcp2_max_frame {
-  ngtcp2_frame fr;
-  struct {
-    ngtcp2_ack ack;
-    /* ack includes 1 ngtcp2_ack_range. */
-    ngtcp2_ack_range ranges[NGTCP2_MAX_ACK_RANGES - 1];
-  } ackfr;
-} ngtcp2_max_frame;
 
 typedef struct ngtcp2_path_challenge_entry {
   ngtcp2_path_storage ps;
@@ -772,15 +755,9 @@ int ngtcp2_conn_close_stream_if_shut_rdwr(ngtcp2_conn *conn, ngtcp2_strm *strm);
  * ack_delay included in ACK frame.  |ack_delay| is actually tainted
  * (sent by peer), so don't assume that |ack_delay| is always smaller
  * than, or equals to |rtt|.
- *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes:
- *
- * NGTCP2_ERR_INVALID_ARGUMENT
- *     RTT sample is ignored.
  */
-int ngtcp2_conn_update_rtt(ngtcp2_conn *conn, ngtcp2_duration rtt,
-                           ngtcp2_duration ack_delay, ngtcp2_tstamp ts);
+void ngtcp2_conn_update_rtt(ngtcp2_conn *conn, ngtcp2_duration rtt,
+                            ngtcp2_duration ack_delay, ngtcp2_tstamp ts);
 
 void ngtcp2_conn_set_loss_detection_timer(ngtcp2_conn *conn, ngtcp2_tstamp ts);
 

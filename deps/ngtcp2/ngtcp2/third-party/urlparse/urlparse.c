@@ -26,94 +26,24 @@
 
 #include <string.h>
 #include <assert.h>
-#include <stdio.h>
 
-#define DIGIT_CASES                                                            \
-  case '0':                                                                    \
-  case '1':                                                                    \
-  case '2':                                                                    \
-  case '3':                                                                    \
-  case '4':                                                                    \
-  case '5':                                                                    \
-  case '6':                                                                    \
-  case '7':                                                                    \
-  case '8':                                                                    \
-  case '9'
+#define ALPHAS                                                                 \
+  ['A'] = 1, ['B'] = 1, ['C'] = 1, ['D'] = 1, ['E'] = 1, ['F'] = 1, ['G'] = 1, \
+  ['H'] = 1, ['I'] = 1, ['J'] = 1, ['K'] = 1, ['L'] = 1, ['M'] = 1, ['N'] = 1, \
+  ['O'] = 1, ['P'] = 1, ['Q'] = 1, ['R'] = 1, ['S'] = 1, ['T'] = 1, ['U'] = 1, \
+  ['V'] = 1, ['W'] = 1, ['X'] = 1, ['Y'] = 1, ['Z'] = 1, ['a'] = 1, ['b'] = 1, \
+  ['c'] = 1, ['d'] = 1, ['e'] = 1, ['f'] = 1, ['g'] = 1, ['h'] = 1, ['i'] = 1, \
+  ['j'] = 1, ['k'] = 1, ['l'] = 1, ['m'] = 1, ['n'] = 1, ['o'] = 1, ['p'] = 1, \
+  ['q'] = 1, ['r'] = 1, ['s'] = 1, ['t'] = 1, ['u'] = 1, ['v'] = 1, ['w'] = 1, \
+  ['x'] = 1, ['y'] = 1, ['z'] = 1
 
-#define LCALPHA_CASES                                                          \
-  case 'a':                                                                    \
-  case 'b':                                                                    \
-  case 'c':                                                                    \
-  case 'd':                                                                    \
-  case 'e':                                                                    \
-  case 'f':                                                                    \
-  case 'g':                                                                    \
-  case 'h':                                                                    \
-  case 'i':                                                                    \
-  case 'j':                                                                    \
-  case 'k':                                                                    \
-  case 'l':                                                                    \
-  case 'm':                                                                    \
-  case 'n':                                                                    \
-  case 'o':                                                                    \
-  case 'p':                                                                    \
-  case 'q':                                                                    \
-  case 'r':                                                                    \
-  case 's':                                                                    \
-  case 't':                                                                    \
-  case 'u':                                                                    \
-  case 'v':                                                                    \
-  case 'w':                                                                    \
-  case 'x':                                                                    \
-  case 'y':                                                                    \
-  case 'z'
+#define DIGITS                                                                 \
+  ['0'] = 1, ['1'] = 1, ['2'] = 1, ['3'] = 1, ['4'] = 1, ['5'] = 1, ['6'] = 1, \
+  ['7'] = 1, ['8'] = 1, ['9'] = 1
 
-#define UCALPHA_CASES                                                          \
-  case 'A':                                                                    \
-  case 'B':                                                                    \
-  case 'C':                                                                    \
-  case 'D':                                                                    \
-  case 'E':                                                                    \
-  case 'F':                                                                    \
-  case 'G':                                                                    \
-  case 'H':                                                                    \
-  case 'I':                                                                    \
-  case 'J':                                                                    \
-  case 'K':                                                                    \
-  case 'L':                                                                    \
-  case 'M':                                                                    \
-  case 'N':                                                                    \
-  case 'O':                                                                    \
-  case 'P':                                                                    \
-  case 'Q':                                                                    \
-  case 'R':                                                                    \
-  case 'S':                                                                    \
-  case 'T':                                                                    \
-  case 'U':                                                                    \
-  case 'V':                                                                    \
-  case 'W':                                                                    \
-  case 'X':                                                                    \
-  case 'Y':                                                                    \
-  case 'Z'
-
-#define ALPHA_CASES                                                            \
-  UCALPHA_CASES:                                                               \
-  LCALPHA_CASES
-
-#define HEX_CASES                                                              \
-  DIGIT_CASES:                                                                 \
-  case 'A':                                                                    \
-  case 'B':                                                                    \
-  case 'C':                                                                    \
-  case 'D':                                                                    \
-  case 'E':                                                                    \
-  case 'F':                                                                    \
-  case 'a':                                                                    \
-  case 'b':                                                                    \
-  case 'c':                                                                    \
-  case 'd':                                                                    \
-  case 'e':                                                                    \
-  case 'f'
+#define HEXDIGITS                                                              \
+  DIGITS, ['A'] = 1, ['B'] = 1, ['C'] = 1, ['D'] = 1, ['E'] = 1, ['F'] = 1,    \
+          ['a'] = 1, ['b'] = 1, ['c'] = 1, ['d'] = 1, ['e'] = 1, ['f'] = 1
 
 typedef struct urlparse_parser {
   const char *begin;
@@ -133,6 +63,13 @@ static void urlparse_url_set_field_data(urlparse_url *dest, int field,
   dest->field_data[field].len = (uint16_t)(end - start);
 }
 
+static const uint8_t scheme_chars[256] = {
+  ALPHAS,
+  [':'] = 2,
+  ['/'] = 3,
+  ['*'] = 3,
+};
+
 static int parse_scheme(urlparse_parser *up, urlparse_url *dest) {
   const char *start;
 
@@ -140,27 +77,28 @@ static int parse_scheme(urlparse_parser *up, urlparse_url *dest) {
     return URLPARSE_ERR_PARSE;
   }
 
-  switch (*up->pos) {
-  ALPHA_CASES:
-    break;
-  case '/':
-  case '*':
-    return 0;
-  default:
+  switch (scheme_chars[(uint8_t)*up->pos]) {
+  case 0:
+  case 2:
     return URLPARSE_ERR_PARSE;
+  case 1:
+    break;
+  case 3:
+    return 0;
   }
 
   start = up->pos;
   ++up->pos;
 
   for (; !urlparse_parser_eof(up); ++up->pos) {
-    switch (*up->pos) {
-    ALPHA_CASES:
-      continue;
-    case ':':
-      goto fin;
-    default:
+    switch (scheme_chars[(uint8_t)*up->pos]) {
+    case 0:
+    case 3:
       return URLPARSE_ERR_PARSE;
+    case 1:
+      continue;
+    case 2:
+      goto fin;
     }
   }
 
@@ -171,6 +109,50 @@ fin:
 
   return 0;
 }
+
+static const uint8_t path_chars[256] = {
+  /* unreserved */
+  DIGITS,
+  ALPHAS,
+  ['-'] = 1,
+  ['.'] = 1,
+  ['_'] = 1,
+  ['~'] = 1,
+  /* pct-encoded */
+  ['%'] = 1,
+  /* sub-delims */
+  ['!'] = 1,
+  ['$'] = 1,
+  ['&'] = 1,
+  ['\''] = 1,
+  ['('] = 1,
+  [')'] = 1,
+  ['*'] = 1,
+  ['+'] = 1,
+  [','] = 1,
+  [';'] = 1,
+  ['='] = 1,
+  /* extra */
+  [':'] = 1,
+  ['@'] = 1,
+  ['/'] = 1,
+  /* http-parser allows the following characters as well. */
+  ['"'] = 1,
+  ['<'] = 1,
+  ['>'] = 1,
+  ['['] = 1,
+  ['\\'] = 1,
+  [']'] = 1,
+  ['^'] = 1,
+  ['`'] = 1,
+  ['{'] = 1,
+  ['|'] = 1,
+  ['}'] = 1,
+  /* query found */
+  ['?'] = 2,
+  /* fragment found */
+  ['#'] = 2,
+};
 
 static int parse_path_abempty(urlparse_parser *up, urlparse_url *dest) {
   const char *start;
@@ -197,50 +179,13 @@ static int parse_path_abempty(urlparse_parser *up, urlparse_url *dest) {
   start = up->pos++;
 
   for (; !urlparse_parser_eof(up); ++up->pos) {
-    switch (*up->pos) {
-      /* unreserved */
-    ALPHA_CASES:
-    DIGIT_CASES:
-    case '-':
-    case '.':
-    case '_':
-    case '~':
-      /* pct-encoded */
-    case '%':
-      /* sub-delims */
-    case '!':
-    case '$':
-    case '&':
-    case '\'':
-    case '(':
-    case ')':
-    case '*':
-    case '+':
-    case ',':
-    case ';':
-    case '=':
-      /* extra */
-    case ':':
-    case '@':
-    case '/':
-      /* http-parser allows the following characters as well. */
-    case '"':
-    case '<':
-    case '>':
-    case '[':
-    case '\\':
-    case ']':
-    case '^':
-    case '`':
-    case '{':
-    case '|':
-    case '}':
-      continue;
-    case '?':
-    case '#':
-      goto fin;
-    default:
+    switch (path_chars[(uint8_t)*up->pos]) {
+    case 0:
       return URLPARSE_ERR_PARSE;
+    case 1:
+      continue;
+    case 2:
+      goto fin;
     }
   }
 
@@ -250,6 +195,32 @@ fin:
   return 0;
 }
 
+static const uint8_t userinfo_chars[256] = {
+  /* unreserved */
+  DIGITS,
+  ALPHAS,
+  ['-'] = 1,
+  ['.'] = 1,
+  ['_'] = 1,
+  ['~'] = 1,
+  /* pct-encoded */
+  ['%'] = 1,
+  /* sub-delims */
+  ['!'] = 1,
+  ['$'] = 1,
+  ['&'] = 1,
+  ['\''] = 1,
+  ['('] = 1,
+  [')'] = 1,
+  ['*'] = 1,
+  ['+'] = 1,
+  [','] = 1,
+  [';'] = 1,
+  ['='] = 1,
+  [':'] = 1,
+  ['@'] = 2,
+};
+
 static int parse_userinfo(urlparse_parser *up, urlparse_url *dest) {
   const char *start;
 
@@ -258,34 +229,13 @@ static int parse_userinfo(urlparse_parser *up, urlparse_url *dest) {
   start = up->pos;
 
   for (; !urlparse_parser_eof(up); ++up->pos) {
-    switch (*up->pos) {
-      /* unreserved */
-    ALPHA_CASES:
-    DIGIT_CASES:
-    case '-':
-    case '.':
-    case '_':
-    case '~':
-      /* pct-encoded */
-    case '%':
-      /* sub-delims */
-    case '!':
-    case '$':
-    case '&':
-    case '\'':
-    case '(':
-    case ')':
-    case '*':
-    case '+':
-    case ',':
-    case ';':
-    case '=':
-    case ':':
-      continue;
-    case '@':
-      goto fin;
-    default:
+    switch (userinfo_chars[(uint8_t)*up->pos]) {
+    case 0:
       return URLPARSE_ERR_PARSE;
+    case 1:
+      continue;
+    case 2:
+      goto fin;
     }
   }
 
@@ -302,6 +252,10 @@ fin:
   return 0;
 }
 
+static const uint8_t host_chars[256] = {
+  DIGITS, ALPHAS, ['.'] = 1, ['-'] = 1, [':'] = 2, ['/'] = 2, ['?'] = 2,
+};
+
 static int parse_host(urlparse_parser *up, urlparse_url *dest) {
   const char *start;
 
@@ -310,18 +264,13 @@ static int parse_host(urlparse_parser *up, urlparse_url *dest) {
   start = up->pos;
 
   for (; !urlparse_parser_eof(up); ++up->pos) {
-    switch (*up->pos) {
-    ALPHA_CASES:
-    DIGIT_CASES:
-    case '.':
-    case '-':
-      continue;
-    case ':':
-    case '/':
-    case '?':
-      break;
-    default:
+    switch (host_chars[(uint8_t)*up->pos]) {
+    case 0:
       return URLPARSE_ERR_PARSE;
+    case 1:
+      continue;
+    case 2:
+      break;
     }
 
     break;
@@ -336,6 +285,15 @@ static int parse_host(urlparse_parser *up, urlparse_url *dest) {
   return 0;
 }
 
+static const uint8_t ipv6_host_chars[256] = {
+  HEXDIGITS, [':'] = 1, ['.'] = 1, ['%'] = 2, [']'] = 3,
+};
+
+static const uint8_t ipv6_zone_chars[256] = {
+  DIGITS,    ALPHAS,    ['%'] = 1, ['.'] = 1,
+  ['-'] = 1, ['_'] = 1, ['~'] = 1, [']'] = 2,
+};
+
 static int parse_ipv6_host(urlparse_parser *up, urlparse_url *dest) {
   const char *start, *zone_start;
 
@@ -346,12 +304,12 @@ static int parse_ipv6_host(urlparse_parser *up, urlparse_url *dest) {
   start = up->pos;
 
   for (; !urlparse_parser_eof(up); ++up->pos) {
-    switch (*up->pos) {
-    HEX_CASES:
-    case ':':
-    case '.':
+    switch (ipv6_host_chars[(uint8_t)*up->pos]) {
+    case 0:
+      return URLPARSE_ERR_PARSE;
+    case 1:
       continue;
-    case '%':
+    case 2:
       if (start == up->pos) {
         return URLPARSE_ERR_PARSE;
       }
@@ -364,31 +322,23 @@ static int parse_ipv6_host(urlparse_parser *up, urlparse_url *dest) {
       }
 
       for (; !urlparse_parser_eof(up); ++up->pos) {
-        switch (*up->pos) {
-        ALPHA_CASES:
-        DIGIT_CASES:
-        case '%':
-        case '.':
-        case '-':
-        case '_':
-        case '~':
+        switch (ipv6_zone_chars[(uint8_t)*up->pos]) {
+        case 0:
+          return URLPARSE_ERR_PARSE;
+        case 1:
           continue;
-        case ']':
+        case 2:
           if (zone_start + 1 == up->pos) {
             return URLPARSE_ERR_PARSE;
           }
 
           goto fin;
-        default:
-          return URLPARSE_ERR_PARSE;
         }
       }
 
       return URLPARSE_ERR_PARSE;
-    case ']':
+    case 3:
       goto fin;
-    default:
-      return URLPARSE_ERR_PARSE;
     }
   }
 
@@ -406,6 +356,12 @@ fin:
   return 0;
 }
 
+static const uint8_t port_chars[256] = {
+  DIGITS,
+  ['/'] = 2,
+  ['?'] = 2,
+};
+
 static int parse_port(urlparse_parser *up, urlparse_url *dest) {
   const char *start;
   uint16_t port, d;
@@ -419,8 +375,10 @@ static int parse_port(urlparse_parser *up, urlparse_url *dest) {
   port = 0;
 
   for (; !urlparse_parser_eof(up); ++up->pos) {
-    switch (*up->pos) {
-    DIGIT_CASES:
+    switch (port_chars[(uint8_t)*up->pos]) {
+    case 0:
+      return URLPARSE_ERR_PARSE;
+    case 1:
       if (port > UINT16_MAX / 10) {
         return URLPARSE_ERR_PARSE;
       }
@@ -435,16 +393,13 @@ static int parse_port(urlparse_parser *up, urlparse_url *dest) {
       port += d;
 
       break;
-    case '/':
-    case '?':
+    case 2:
       /* http_parser disallows empty port. */
       if (start == up->pos) {
         return URLPARSE_ERR_PARSE;
       }
 
       goto fin;
-    default:
-      return URLPARSE_ERR_PARSE;
     }
   }
 
@@ -523,61 +478,66 @@ static int parse_authority(urlparse_parser *up, urlparse_url *dest) {
   return parse_port(up, dest);
 }
 
+static const uint8_t extra_chars[256] = {
+  /* unreserved */
+  DIGITS,
+  ALPHAS,
+  ['-'] = 1,
+  ['.'] = 1,
+  ['_'] = 1,
+  ['~'] = 1,
+  /* pct-encoded */
+  ['%'] = 1,
+  /* sub-delims */
+  ['!'] = 1,
+  ['$'] = 1,
+  ['&'] = 1,
+  ['\''] = 1,
+  ['('] = 1,
+  [')'] = 1,
+  ['*'] = 1,
+  ['+'] = 1,
+  [','] = 1,
+  [';'] = 1,
+  ['='] = 1,
+  /* extra */
+  [':'] = 1,
+  ['@'] = 1,
+  /* query/fragment specific */
+  ['/'] = 1,
+  ['?'] = 1,
+  /* http-parser allows the following characters as well. */
+  ['"'] = 1,
+  ['<'] = 1,
+  ['>'] = 1,
+  ['['] = 1,
+  ['\\'] = 1,
+  [']'] = 1,
+  ['^'] = 1,
+  ['`'] = 1,
+  ['{'] = 1,
+  ['|'] = 1,
+  ['}'] = 1,
+  ['#'] = 2,
+};
+
 static int parse_extra(urlparse_parser *up, urlparse_url *dest, int field) {
   const char *start;
 
   start = up->pos;
 
   for (; !urlparse_parser_eof(up); ++up->pos) {
-    switch (*up->pos) {
-      /* unreserved */
-    ALPHA_CASES:
-    DIGIT_CASES:
-    case '-':
-    case '.':
-    case '_':
-    case '~':
-      /* pct-encoded */
-    case '%':
-      /* sub-delims */
-    case '!':
-    case '$':
-    case '&':
-    case '\'':
-    case '(':
-    case ')':
-    case '*':
-    case '+':
-    case ',':
-    case ';':
-    case '=':
-      /* extra */
-    case ':':
-    case '@':
-      /* query/fragment specific */
-    case '/':
-    case '?':
-      /* http-parser allows the following characters as well. */
-    case '"':
-    case '<':
-    case '>':
-    case '[':
-    case '\\':
-    case ']':
-    case '^':
-    case '`':
-    case '{':
-    case '|':
-    case '}':
+    switch (extra_chars[(uint8_t)*up->pos]) {
+    case 0:
+      return URLPARSE_ERR_PARSE;
+    case 1:
       continue;
-    case '#':
+    case 2:
       if (field == URLPARSE_QUERY) {
         goto fin;
       }
 
       continue;
-    default:
-      return URLPARSE_ERR_PARSE;
     }
   }
 

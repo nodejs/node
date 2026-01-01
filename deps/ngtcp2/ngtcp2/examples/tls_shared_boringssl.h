@@ -35,7 +35,7 @@ namespace ngtcp2 {
 
 namespace tls {
 
-constexpr uint16_t CERTIFICATE_COMPRESSION_ALGO_BROTLI = 2;
+inline constexpr uint16_t CERTIFICATE_COMPRESSION_ALGO_BROTLI = 2;
 
 #ifdef HAVE_LIBBROTLI
 int cert_compress(SSL *ssl, CBB *out, const uint8_t *in, size_t in_len);
