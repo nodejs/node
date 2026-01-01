@@ -4,6 +4,9 @@ const common = require('../common');
 const fixtures = require('../common/fixtures');
 const tmpdir = require('../common/tmpdir');
 const { inspect } = require('util');
+const fs = require('fs');
+const path = require('path');
+const assert = require('assert');
 
 const { readFileSync, copyFileSync, statSync } = require('fs');
 const {
@@ -70,37 +73,76 @@ function skipIfSingleExecutableIsNotSupported() {
   }
 }
 
-function generateSEA(targetExecutable, sourceExecutable, seaBlob, verifyWorkflow = false) {
+function generateSEA(fixtureDir, options = {}) {
+  const {
+    workingDir = tmpdir.path,
+    configPath = 'sea-config.json',
+    verifyWorkflow = false,
+  } = options;
+  // Copy fixture files to working directory if they are different.
+  if (fixtureDir !== workingDir) {
+    fs.cpSync(fixtureDir, workingDir, { recursive: true });
+  }
+
+  // Determine the output executable path.
+  const outputFile = path.resolve(workingDir, process.platform === 'win32' ? 'sea.exe' : 'sea');
+
   try {
-    copyFileSync(sourceExecutable, targetExecutable);
+    // Copy the executable.
+    copyFileSync(process.execPath, outputFile);
+    console.log(`Copied ${process.execPath} to ${outputFile}`);
   } catch (e) {
-    const message = `Cannot copy ${sourceExecutable} to ${targetExecutable}: ${inspect(e)}`;
+    const message = `Cannot copy ${process.execPath} to ${outputFile}: ${inspect(e)}`;
     if (verifyWorkflow) {
       throw new Error(message);
     }
     common.skip(message);
   }
-  console.log(`Copied ${sourceExecutable} to ${targetExecutable}`);
 
+  // Generate the blob using --experimental-sea-config.
+  spawnSyncAndExitWithoutError(
+    process.execPath,
+    ['--experimental-sea-config', configPath],
+    {
+      cwd: workingDir,
+      env: {
+        NODE_DEBUG_NATIVE: 'SEA',
+        ...process.env,
+      },
+    },
+  );
+
+  // Parse the config to get the output file path.
+  const config = JSON.parse(fs.readFileSync(path.resolve(workingDir, configPath)));
+  assert.strictEqual(typeof config.output, 'string');
+  const seaPrepBlob = path.resolve(workingDir, config.output);
+  assert(fs.existsSync(seaPrepBlob), `Expected SEA blob ${seaPrepBlob} to exist`);
+
+  // Use postject to inject the blob.
   const postjectFile = fixtures.path('postject-copy', 'node_modules', 'postject', 'dist', 'cli.js');
   try {
     spawnSyncAndExitWithoutError(process.execPath, [
       postjectFile,
-      targetExecutable,
+      outputFile,
       'NODE_SEA_BLOB',
-      seaBlob,
+      seaPrepBlob,
       '--sentinel-fuse', 'NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2',
       ...process.platform === 'darwin' ? [ '--macho-segment-name', 'NODE_SEA' ] : [],
     ]);
   } catch (e) {
-    const message = `Cannot inject ${seaBlob} into ${targetExecutable}: ${inspect(e)}`;
+    const message = `Cannot inject ${seaPrepBlob} into ${outputFile}: ${inspect(e)}`;
     if (verifyWorkflow) {
       throw new Error(message);
     }
     common.skip(message);
   }
-  console.log(`Injected ${seaBlob} into ${targetExecutable}`);
+  console.log(`Injected ${seaPrepBlob} into ${outputFile}`);
 
+  signSEA(outputFile, verifyWorkflow);
+  return outputFile;
+}
+
+function signSEA(targetExecutable, verifyWorkflow = false) {
   if (process.platform === 'darwin') {
     try {
       spawnSyncAndExitWithoutError('codesign', [ '--sign', '-', targetExecutable ]);
