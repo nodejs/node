@@ -38,7 +38,7 @@ using namespace ngtcp2;
 
 class TLSServerContext {
 public:
-  TLSServerContext();
+  TLSServerContext() = default;
   ~TLSServerContext();
 
   int init(const char *private_key_file, const char *cert_file,
@@ -49,7 +49,7 @@ public:
   void enable_keylog();
 
 private:
-  WOLFSSL_CTX *ssl_ctx_;
+  WOLFSSL_CTX *ssl_ctx_{};
 };
 
 #endif // !defined(TLS_SERVER_CONTEXT_WOLFSSL_H)

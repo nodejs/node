@@ -103,10 +103,6 @@
 /* NGTCP2_RETRY_TAGLEN is the length of Retry packet integrity tag. */
 #define NGTCP2_RETRY_TAGLEN 16
 
-/* NGTCP2_HARD_MAX_UDP_PAYLOAD_SIZE is the maximum UDP datagram
-   payload size that this library can write. */
-#define NGTCP2_HARD_MAX_UDP_PAYLOAD_SIZE ((1 << 24) - 1)
-
 /* NGTCP2_PKT_LENGTHLEN is the number of bytes that is occupied by
    Length field in Long packet header. */
 #define NGTCP2_PKT_LENGTHLEN 4
@@ -184,6 +180,10 @@ typedef struct ngtcp2_pkt_retry {
 #define NGTCP2_FRAME_DATAGRAM 0x30
 #define NGTCP2_FRAME_DATAGRAM_LEN 0x31
 
+typedef struct ngtcp2_frame_hd {
+  uint64_t type;
+} ngtcp2_frame_hd;
+
 /* ngtcp2_stream represents STREAM and CRYPTO frames. */
 typedef struct ngtcp2_stream {
   uint64_t type;
@@ -195,7 +195,7 @@ typedef struct ngtcp2_stream {
   uint8_t flags;
   /* CRYPTO frame does not include this field, and must set it to
      0. */
-  uint8_t fin;
+  int fin;
   /* CRYPTO frame does not include this field, and must set it to
      0. */
   int64_t stream_id;
@@ -204,8 +204,9 @@ typedef struct ngtcp2_stream {
      the length of data is 1 in this definition, the library may
      allocate extra bytes to hold more elements. */
   size_t datacnt;
-  /* data is the array of ngtcp2_vec which references data. */
-  ngtcp2_vec data[1];
+  /* data points to ngtcp2_vec array which references data.  If
+     datacnt == 0, this field may be NULL. */
+  ngtcp2_vec *data;
 } ngtcp2_stream;
 
 typedef struct ngtcp2_ack_range {
@@ -229,7 +230,7 @@ typedef struct ngtcp2_ack {
   } ecn;
   uint64_t first_ack_range;
   size_t rangecnt;
-  ngtcp2_ack_range ranges[1];
+  ngtcp2_ack_range *ranges;
 } ngtcp2_ack;
 
 typedef struct ngtcp2_padding {
@@ -349,7 +350,7 @@ typedef struct ngtcp2_datagram {
 } ngtcp2_datagram;
 
 typedef union ngtcp2_frame {
-  uint64_t type;
+  ngtcp2_frame_hd hd;
   ngtcp2_stream stream;
   ngtcp2_ack ack;
   ngtcp2_padding padding;
@@ -370,11 +371,6 @@ typedef union ngtcp2_frame {
   ngtcp2_retire_connection_id retire_connection_id;
   ngtcp2_handshake_done handshake_done;
   ngtcp2_datagram datagram;
-  /* Extend ngtcp2_frame so that ngtcp2_stream has at least additional
-     3 ngtcp2_vec, totaling 4 slots, which can store HEADERS header,
-     HEADERS payload, DATA header, and DATA payload in the standard
-     sized ngtcp2_frame_chain. */
-  uint8_t pad[sizeof(ngtcp2_stream) + sizeof(ngtcp2_vec) * 3];
 } ngtcp2_frame;
 
 typedef struct ngtcp2_pkt_chain ngtcp2_pkt_chain;
@@ -454,10 +450,22 @@ ngtcp2_ssize ngtcp2_pkt_encode_hd_long(uint8_t *out, size_t outlen,
 ngtcp2_ssize ngtcp2_pkt_encode_hd_short(uint8_t *out, size_t outlen,
                                         const ngtcp2_pkt_hd *hd);
 
+/*
+ * ngtcp2_frame_decoder is QUIC frame decoder.  For frames that
+ * require the external buffers (e.g., ngtcp2_stream and ngtcp2_ack),
+ * it provides those buffers on demand.
+ */
+typedef struct ngtcp2_frame_decoder {
+  union {
+    ngtcp2_vec stream_data;
+    ngtcp2_ack_range ack_ranges[NGTCP2_MAX_ACK_RANGES];
+  } buf;
+} ngtcp2_frame_decoder;
+
 /**
  * @function
  *
- * `ngtcp2_pkt_decode_frame` decodes a QUIC frame from the buffer
+ * `ngtcp2_frame_decoder_decode` decodes a QUIC frame from the buffer
  * pointed by |payload| whose length is |payloadlen|.
  *
  * This function returns the number of bytes read to decode a single
@@ -467,8 +475,10 @@ ngtcp2_ssize ngtcp2_pkt_encode_hd_short(uint8_t *out, size_t outlen,
  *     Frame is badly formatted; or frame type is unknown; or
  *     |payloadlen| is 0.
  */
-ngtcp2_ssize ngtcp2_pkt_decode_frame(ngtcp2_frame *dest, const uint8_t *payload,
-                                     size_t payloadlen);
+ngtcp2_ssize ngtcp2_frame_decoder_decode(ngtcp2_frame_decoder *frd,
+                                         ngtcp2_frame *dest,
+                                         const uint8_t *payload,
+                                         size_t payloadlen);
 
 /**
  * @function

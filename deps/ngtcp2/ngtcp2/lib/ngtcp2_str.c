@@ -47,20 +47,25 @@ const void *ngtcp2_get_bytes(void *dest, const void *src, size_t n) {
 
 uint8_t *ngtcp2_encode_hex(uint8_t *dest, const uint8_t *data, size_t len) {
   size_t i;
-  uint8_t *p = dest;
 
   for (i = 0; i < len; ++i) {
-    *p++ = (uint8_t)LOWER_XDIGITS[data[i] >> 4];
-    *p++ = (uint8_t)LOWER_XDIGITS[data[i] & 0xf];
+    *dest++ = (uint8_t)LOWER_XDIGITS[data[i] >> 4];
+    *dest++ = (uint8_t)LOWER_XDIGITS[data[i] & 0xf];
   }
+
+  return dest;
+}
+
+char *ngtcp2_encode_hex_cstr(char *dest, const uint8_t *data, size_t len) {
+  uint8_t *p = ngtcp2_encode_hex((uint8_t *)dest, data, len);
 
   *p = '\0';
 
   return dest;
 }
 
-char *ngtcp2_encode_printable_ascii(char *dest, const uint8_t *data,
-                                    size_t len) {
+char *ngtcp2_encode_printable_ascii_cstr(char *dest, const uint8_t *data,
+                                         size_t len) {
   size_t i;
   char *p = dest;
   uint8_t c;
@@ -79,40 +84,15 @@ char *ngtcp2_encode_printable_ascii(char *dest, const uint8_t *data,
   return dest;
 }
 
-/*
- * write_uint writes |n| to the buffer pointed by |p| in decimal
- * representation.  It returns |p| plus the number of bytes written.
- * The function assumes that the buffer has enough capacity to contain
- * a string.
- */
-static uint8_t *write_uint(uint8_t *p, uint64_t n) {
-  size_t nlen = 0;
-  uint64_t t;
-  uint8_t *res;
-
-  if (n == 0) {
-    *p++ = '0';
-    return p;
-  }
-  for (t = n; t; t /= 10, ++nlen)
-    ;
-  p += nlen;
-  res = p;
-  for (; n; n /= 10) {
-    *--p = (uint8_t)((n % 10) + '0');
-  }
-  return res;
-}
-
-uint8_t *ngtcp2_encode_ipv4(uint8_t *dest, const uint8_t *addr) {
+char *ngtcp2_encode_ipv4_cstr(char *dest, const uint8_t *addr) {
   size_t i;
-  uint8_t *p = dest;
+  char *p = dest;
 
-  p = write_uint(p, addr[0]);
+  p = (char *)ngtcp2_encode_uint((uint8_t *)p, addr[0]);
 
   for (i = 1; i < 4; ++i) {
     *p++ = '.';
-    p = write_uint(p, addr[i]);
+    p = (char *)ngtcp2_encode_uint((uint8_t *)p, addr[i]);
   }
 
   *p = '\0';
@@ -125,9 +105,9 @@ uint8_t *ngtcp2_encode_ipv4(uint8_t *dest, const uint8_t *addr) {
  * length |len| to |dest| in hex string.  Any leading zeros are
  * suppressed.  It returns |dest| plus the number of bytes written.
  */
-static uint8_t *write_hex_zsup(uint8_t *dest, const uint8_t *data, size_t len) {
+static char *write_hex_zsup(char *dest, const uint8_t *data, size_t len) {
   size_t i;
-  uint8_t *p = dest;
+  char *p = dest;
   uint8_t d;
 
   for (i = 0; i < len; ++i) {
@@ -139,7 +119,7 @@ static uint8_t *write_hex_zsup(uint8_t *dest, const uint8_t *data, size_t len) {
     d &= 0xf;
 
     if (d) {
-      *p++ = (uint8_t)LOWER_XDIGITS[d];
+      *p++ = LOWER_XDIGITS[d];
       ++i;
       break;
     }
@@ -152,19 +132,19 @@ static uint8_t *write_hex_zsup(uint8_t *dest, const uint8_t *data, size_t len) {
 
   for (; i < len; ++i) {
     d = data[i];
-    *p++ = (uint8_t)LOWER_XDIGITS[d >> 4];
-    *p++ = (uint8_t)LOWER_XDIGITS[d & 0xf];
+    *p++ = LOWER_XDIGITS[d >> 4];
+    *p++ = LOWER_XDIGITS[d & 0xf];
   }
 
   return p;
 }
 
-uint8_t *ngtcp2_encode_ipv6(uint8_t *dest, const uint8_t *addr) {
+char *ngtcp2_encode_ipv6_cstr(char *dest, const uint8_t *addr) {
   uint16_t blks[8];
   size_t i;
   size_t zlen, zoff;
   size_t max_zlen = 0, max_zoff = 8;
-  uint8_t *p = dest;
+  char *p = dest;
 
   for (i = 0; i < 16; i += sizeof(uint16_t)) {
     /* Copy in network byte order. */
@@ -230,4 +210,125 @@ int ngtcp2_cmemeq(const uint8_t *a, const uint8_t *b, size_t n) {
   }
 
   return rv == 0;
+}
+
+/* countl_zero counts the number of leading zeros in |x|.  It is
+   undefined if |x| is 0. */
+static int countl_zero(uint64_t x) {
+#ifdef __GNUC__
+  return __builtin_clzll(x);
+#else  /* !defined(__GNUC__) */
+  /* This is the same implementation of Go's LeadingZeros64 in
+     math/bits package. */
+  static const uint8_t len8tab[] = {
+    0, 1, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 5, 5,
+    5, 5, 5, 5, 5, 5, 5, 5, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6,
+    6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 7, 7, 7, 7, 7, 7, 7, 7,
+    7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
+    7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
+    7, 7, 7, 7, 7, 7, 7, 7, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+    8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+    8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+    8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+    8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+    8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
+  };
+  int n = 0;
+
+  if (x >= 1ull << 32) {
+    x >>= 32;
+    n += 32;
+  }
+
+  if (x >= 1 << 16) {
+    x >>= 16;
+    n += 16;
+  }
+
+  if (x >= 1 << 8) {
+    x >>= 8;
+    n += 8;
+  }
+
+  return 64 - (n + len8tab[x]);
+#endif /* !defined(__GNUC__) */
+}
+
+/*
+ * count_digit returns the minimum number of digits to represent |x|
+ * in base 10.
+ *
+ * credit:
+ * https://lemire.me/blog/2025/01/07/counting-the-digits-of-64-bit-integers/
+ */
+static size_t count_digit(uint64_t x) {
+  static const uint64_t count_digit_tbl[] = {
+    9ull,
+    99ull,
+    999ull,
+    9999ull,
+    99999ull,
+    999999ull,
+    9999999ull,
+    99999999ull,
+    999999999ull,
+    9999999999ull,
+    99999999999ull,
+    999999999999ull,
+    9999999999999ull,
+    99999999999999ull,
+    999999999999999ull,
+    9999999999999999ull,
+    99999999999999999ull,
+    999999999999999999ull,
+    9999999999999999999ull,
+  };
+  size_t y = (size_t)(19 * (63 - countl_zero(x | 1)) >> 6);
+
+  y += x > count_digit_tbl[y];
+
+  return y + 1;
+}
+
+uint8_t *ngtcp2_encode_uint(uint8_t *dest, uint64_t n) {
+  static const uint8_t uint_digits[] =
+    "00010203040506070809101112131415161718192021222324252627282930313233343536"
+    "37383940414243444546474849505152535455565758596061626364656667686970717273"
+    "7475767778798081828384858687888990919293949596979899";
+  uint8_t *p;
+  const uint8_t *tp;
+
+  if (n < 10) {
+    *dest++ = (uint8_t)('0' + n);
+    return dest;
+  }
+
+  if (n < 100) {
+    tp = &uint_digits[n * 2];
+    *dest++ = *tp++;
+    *dest++ = *tp;
+    return dest;
+  }
+
+  dest += count_digit(n);
+  p = dest;
+
+  for (; n >= 100; n /= 100) {
+    p -= 2;
+    tp = &uint_digits[(n % 100) * 2];
+    p[0] = *tp++;
+    p[1] = *tp;
+  }
+
+  if (n < 10) {
+    *--p = (uint8_t)('0' + n);
+    return dest;
+  }
+
+  p -= 2;
+  tp = &uint_digits[n * 2];
+  p[0] = *tp++;
+  p[1] = *tp;
+
+  return dest;
 }

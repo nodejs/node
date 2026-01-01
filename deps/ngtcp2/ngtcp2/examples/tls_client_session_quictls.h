@@ -39,8 +39,7 @@ class ClientBase;
 
 class TLSClientSession : public TLSSessionBase {
 public:
-  TLSClientSession();
-  ~TLSClientSession();
+  TLSClientSession() = default;
 
   int init(bool &early_data_enabled, const TLSClientContext &tls_ctx,
            const char *remote_addr, ClientBase *client, uint32_t quic_version,

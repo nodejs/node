@@ -89,11 +89,6 @@ typedef struct ngtcp2_cc_pkt {
  */
 typedef struct ngtcp2_cc_ack {
   /**
-   * :member:`prior_bytes_in_flight` is the in-flight bytes before
-   * processing this ACK.
-   */
-  uint64_t prior_bytes_in_flight;
-  /**
    * :member:`bytes_delivered` is the number of bytes acknowledged.
    */
   uint64_t bytes_delivered;
@@ -143,13 +138,16 @@ typedef void (*ngtcp2_cc_on_pkt_lost)(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
  * @functypedef
  *
  * :type:`ngtcp2_cc_congestion_event` is a callback function which is
- * called when congestion event happens (e.g., when packet is lost).
- * |bytes_lost| is the number of bytes lost in this congestion event.
+ * called when congestion event happens (e.g., when packet is lost or
+ * due to ECN).  |ack| contains information after ACK processing.
+ * This callback may be called from non-ACK processing context.  In
+ * that case, the information only taken from |ack| processing has
+ * default values, like 0 or UINT64_MAX;
  */
 typedef void (*ngtcp2_cc_congestion_event)(ngtcp2_cc *cc,
                                            ngtcp2_conn_stat *cstat,
                                            ngtcp2_tstamp sent_ts,
-                                           uint64_t bytes_lost,
+                                           const ngtcp2_cc_ack *ack,
                                            ngtcp2_tstamp ts);
 
 /**
@@ -186,19 +184,11 @@ typedef void (*ngtcp2_cc_on_ack_recv)(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
  * @functypedef
  *
  * :type:`ngtcp2_cc_on_pkt_sent` is a callback function which is
- * called when an ack-eliciting packet is sent.
+ * called when an ack-eliciting packet is sent.  The lost,
+ * tx_in_flight, and is_app_limited fields in |pkt| are set to 0.
  */
 typedef void (*ngtcp2_cc_on_pkt_sent)(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
                                       const ngtcp2_cc_pkt *pkt);
-
-/**
- * @functypedef
- *
- * :type:`ngtcp2_cc_new_rtt_sample` is a callback function which is
- * called when new RTT sample is obtained.
- */
-typedef void (*ngtcp2_cc_new_rtt_sample)(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
-                                         ngtcp2_tstamp ts);
 
 /**
  * @functypedef
@@ -208,28 +198,6 @@ typedef void (*ngtcp2_cc_new_rtt_sample)(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
  */
 typedef void (*ngtcp2_cc_reset)(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
                                 ngtcp2_tstamp ts);
-
-/**
- * @enum
- *
- * :type:`ngtcp2_cc_event_type` defines congestion control events.
- */
-typedef enum ngtcp2_cc_event_type {
-  /**
-   * :enum:`NGTCP2_CC_EVENT_TX_START` occurs when ack-eliciting packet
-   * is sent and no other ack-eliciting packet is present.
-   */
-  NGTCP2_CC_EVENT_TYPE_TX_START
-} ngtcp2_cc_event_type;
-
-/**
- * @functypedef
- *
- * :type:`ngtcp2_cc_event` is a callback function which is called when
- * a specific event happens.
- */
-typedef void (*ngtcp2_cc_event)(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
-                                ngtcp2_cc_event_type event, ngtcp2_tstamp ts);
 
 /**
  * @struct
@@ -254,7 +222,7 @@ typedef struct ngtcp2_cc {
   ngtcp2_cc_on_pkt_lost on_pkt_lost;
   /**
    * :member:`congestion_event` is a callback function which is called
-   * when congestion event happens (.e.g, packet is lost).
+   * when congestion event happens (e.g., packet is lost).
    */
   ngtcp2_cc_congestion_event congestion_event;
   /**
@@ -278,20 +246,10 @@ typedef struct ngtcp2_cc {
    */
   ngtcp2_cc_on_pkt_sent on_pkt_sent;
   /**
-   * :member:`new_rtt_sample` is a callback function which is called
-   * when new RTT sample is obtained.
-   */
-  ngtcp2_cc_new_rtt_sample new_rtt_sample;
-  /**
    * :member:`reset` is a callback function which is called when
    * congestion control state must be reset.
    */
   ngtcp2_cc_reset reset;
-  /**
-   * :member:`event` is a callback function which is called when a
-   * specific event happens.
-   */
-  ngtcp2_cc_event event;
 } ngtcp2_cc;
 
 /*
@@ -310,14 +268,16 @@ typedef struct ngtcp2_cc_reno {
   uint64_t pending_add;
 } ngtcp2_cc_reno;
 
-void ngtcp2_cc_reno_init(ngtcp2_cc_reno *reno, ngtcp2_log *log);
+void ngtcp2_cc_reno_init(ngtcp2_cc_reno *reno, ngtcp2_log *log,
+                         ngtcp2_conn_stat *cstat);
 
 void ngtcp2_cc_reno_cc_on_pkt_acked(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
                                     const ngtcp2_cc_pkt *pkt, ngtcp2_tstamp ts);
 
 void ngtcp2_cc_reno_cc_congestion_event(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
                                         ngtcp2_tstamp sent_ts,
-                                        uint64_t bytes_lost, ngtcp2_tstamp ts);
+                                        const ngtcp2_cc_ack *ack,
+                                        ngtcp2_tstamp ts);
 
 void ngtcp2_cc_reno_cc_on_persistent_congestion(ngtcp2_cc *cc,
                                                 ngtcp2_conn_stat *cstat,
@@ -340,8 +300,8 @@ typedef struct ngtcp2_cubic_vars {
   /* app_limited_duration is the cumulative duration where a
      connection is under app limited when ACK is received. */
   ngtcp2_duration app_limited_duration;
-  uint64_t pending_bytes_delivered;
-  uint64_t pending_est_bytes_delivered;
+  uint64_t pending_bytes_acked;
+  uint64_t pending_est_bytes_acked;
 } ngtcp2_cubic_vars;
 
 /* ngtcp2_cc_cubic is CUBIC congestion controller. */
@@ -371,14 +331,15 @@ typedef struct ngtcp2_cc_cubic {
 } ngtcp2_cc_cubic;
 
 void ngtcp2_cc_cubic_init(ngtcp2_cc_cubic *cc, ngtcp2_log *log,
-                          ngtcp2_rst *rst);
+                          ngtcp2_conn_stat *cstat, ngtcp2_rst *rst);
 
 void ngtcp2_cc_cubic_cc_on_ack_recv(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
                                     const ngtcp2_cc_ack *ack, ngtcp2_tstamp ts);
 
 void ngtcp2_cc_cubic_cc_congestion_event(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,
                                          ngtcp2_tstamp sent_ts,
-                                         uint64_t bytes_lost, ngtcp2_tstamp ts);
+                                         const ngtcp2_cc_ack *ack,
+                                         ngtcp2_tstamp ts);
 
 void ngtcp2_cc_cubic_cc_on_spurious_congestion(ngtcp2_cc *ccx,
                                                ngtcp2_conn_stat *cstat,

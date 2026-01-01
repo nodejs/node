@@ -34,10 +34,6 @@
 
 extern Config config;
 
-TLSServerSession::TLSServerSession() {}
-
-TLSServerSession::~TLSServerSession() {}
-
 int TLSServerSession::init(const TLSServerContext &tls_ctx,
                            HandlerBase *handler) {
   auto ssl_ctx = tls_ctx.get_native_handle();

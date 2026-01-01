@@ -61,7 +61,7 @@ struct Stream {
 
   Request req;
   int64_t stream_id;
-  int fd;
+  int fd{-1};
   std::string rawreqbuf;
   nghttp3_buf reqbuf;
 };
@@ -77,8 +77,8 @@ class Client;
 struct Endpoint {
   Address addr;
   ev_io rev;
-  Client *client;
-  int fd;
+  Client *client{};
+  int fd{};
 };
 
 class Client : public ClientBase {
@@ -167,22 +167,22 @@ private:
   std::set<Stream *, StreamIDLess> sendq_;
   std::vector<uint32_t> offered_versions_;
   // addr_ is the server host address.
-  const char *addr_;
+  const char *addr_{};
   // port_ is the server port.
-  const char *port_;
+  const char *port_{};
   // nstreams_done_ is the number of streams opened.
-  size_t nstreams_done_;
+  size_t nstreams_done_{};
   // nstreams_closed_ is the number of streams get closed.
-  size_t nstreams_closed_;
+  size_t nstreams_closed_{};
   // nkey_update_ is the number of key update occurred.
-  size_t nkey_update_;
+  size_t nkey_update_{};
   uint32_t client_chosen_version_;
   uint32_t original_version_;
   // early_data_ is true if client attempts to do 0RTT data transfer.
-  bool early_data_;
+  bool early_data_{};
   // handshake_confirmed_ gets true after handshake has been
   // confirmed.
-  bool handshake_confirmed_;
+  bool handshake_confirmed_{};
   bool no_gso_;
 
   struct {
@@ -195,8 +195,8 @@ private:
       std::span<const uint8_t> data;
       size_t gso_size;
     } blocked;
-    std::array<uint8_t, 64_k> data;
-  } tx_;
+  } tx_{};
+  std::array<uint8_t, 64_k> txbuf_;
 };
 
 #endif // !defined(H09CLIENT_H)

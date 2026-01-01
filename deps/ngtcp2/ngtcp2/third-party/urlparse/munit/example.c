@@ -333,7 +333,7 @@ static const MunitSuite test_suite = {
  * about µnit requires it. */
 #include <stdlib.h>
 
-int main(int argc, char *argv[MUNIT_ARRAY_PARAM(argc + 1)]) {
+int main(int argc, char *argv[]) {
   /* Finally, we'll actually run our test suite!  That second argument
    * is the user_data parameter which will be passed either to the
    * test or (if provided) the fixture setup function. */

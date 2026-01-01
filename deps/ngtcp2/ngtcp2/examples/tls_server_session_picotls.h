@@ -36,8 +36,7 @@ class HandlerBase;
 
 class TLSServerSession : public TLSSessionBase {
 public:
-  TLSServerSession();
-  ~TLSServerSession();
+  TLSServerSession() = default;
 
   int init(TLSServerContext &tls_ctx, HandlerBase *handler);
   // ticket is sent automatically.
