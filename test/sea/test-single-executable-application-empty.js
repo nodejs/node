@@ -13,34 +13,16 @@ skipIfSingleExecutableIsNotSupported();
 // script.
 
 const tmpdir = require('../common/tmpdir');
-const { writeFileSync, existsSync } = require('fs');
+const fixtures = require('../common/fixtures');
 const { spawnSyncAndExitWithoutError } = require('../common/child_process');
-const assert = require('assert');
-
-const configFile = tmpdir.resolve('sea-config.json');
-const seaPrepBlob = tmpdir.resolve('sea-prep.blob');
-const outputFile = tmpdir.resolve(process.platform === 'win32' ? 'sea.exe' : 'sea');
 
 tmpdir.refresh();
 
-writeFileSync(tmpdir.resolve('empty.js'), '', 'utf-8');
-writeFileSync(configFile, `
-{
-  "main": "empty.js",
-  "output": "sea-prep.blob"
-}
-`);
-
-spawnSyncAndExitWithoutError(
-  process.execPath,
-  ['--experimental-sea-config', 'sea-config.json'],
-  { cwd: tmpdir.path });
-
-assert(existsSync(seaPrepBlob));
-
-// Verify the workflow.
+let outputFile;
 try {
-  generateSEA(outputFile, process.execPath, seaPrepBlob, true);
+  outputFile = generateSEA(fixtures.path('sea', 'empty'), {
+    verifyWorkflow: true,
+  });
 } catch (e) {
   if (/Cannot copy/.test(e.message)) {
     common.skip(e.message);
