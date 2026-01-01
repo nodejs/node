@@ -2,7 +2,7 @@
 import { hasQuic, skip } from '../common/index.mjs';
 
 import assert from 'node:assert';
-import { readKey } from '../common/fixtures.mjs';
+import * as fixtures from '../common/fixtures.mjs';
 import { SocketAddress } from 'node:net';
 
 if (!hasQuic) {
@@ -14,8 +14,8 @@ const { listen, QuicEndpoint } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
 const { getQuicEndpointState } = (await import('internal/quic/quic')).default;
 
-const keys = createPrivateKey(readKey('agent1-key.pem'));
-const certs = readKey('agent1-cert.pem');
+const keys = createPrivateKey(fixtures.readKey('agent1-key.pem'));
+const certs = fixtures.readKey('agent1-cert.pem');
 
 const endpoint = new QuicEndpoint();
 const state = getQuicEndpointState(endpoint);

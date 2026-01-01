@@ -9,5 +9,5 @@ const ArrayIteratorPrototype =
 delete Array.prototype[Symbol.iterator];
 delete ArrayIteratorPrototype.next;
 
-require('../common/fixtures');
-import('../fixtures/es-modules/test-esm-ok.mjs').then(common.mustCall());
+const fixtures = require('../common/fixtures');
+import(fixtures.fileURL('es-modules/test-esm-ok.mjs')).then(common.mustCall());
