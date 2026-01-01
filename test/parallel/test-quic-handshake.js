@@ -1,7 +1,7 @@
 // Flags: --experimental-quic --no-warnings
 'use strict';
 
-const { hasQuic } = require('../common');
+const { hasQuic, mustCall } = require('../common');
 const { Buffer } = require('node:buffer');
 
 const {
@@ -40,21 +40,21 @@ describe('quic basic server/client handshake works', { skip }, async () => {
     const p2 = Promise.withResolvers();
     const p3 = Promise.withResolvers();
 
-    const serverEndpoint = await listen((serverSession) => {
+    const serverEndpoint = await listen(mustCall((serverSession) => {
 
       serverSession.opened.then((info) => {
         assert.strictEqual(info.servername, 'localhost');
         assert.strictEqual(info.protocol, 'h3');
         assert.strictEqual(info.cipher, 'TLS_AES_128_GCM_SHA256');
         p1.resolve();
-      });
+      }).then(mustCall());
 
-      serverSession.onstream = (stream) => {
+      serverSession.onstream = mustCall((stream) => {
         readAll(stream.readable, p3.resolve).then(() => {
           serverSession.close();
-        });
-      };
-    }, { keys, certs });
+        }).then(mustCall());
+      });
+    }), { keys, certs });
 
     assert.ok(serverEndpoint.address !== undefined);
 
@@ -64,7 +64,7 @@ describe('quic basic server/client handshake works', { skip }, async () => {
       assert.strictEqual(info.protocol, 'h3');
       assert.strictEqual(info.cipher, 'TLS_AES_128_GCM_SHA256');
       p2.resolve();
-    });
+    }).then(mustCall());
 
     const body = new Blob(['hello']);
     const stream = await clientSession.createUnidirectionalStream({
