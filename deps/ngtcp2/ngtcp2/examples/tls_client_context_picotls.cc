@@ -92,13 +92,13 @@ ptls_cipher_suite_t *cipher_suites[] = {
 } // namespace
 
 TLSClientContext::TLSClientContext()
-    : ctx_{
-          .random_bytes = ptls_openssl_random_bytes,
-          .get_time = &ptls_get_time,
-          .key_exchanges = key_exchanges,
-          .cipher_suites = cipher_suites,
-          .require_dhe_on_psk = 1,
-      }, sign_cert_{} {}
+  : ctx_{
+      .random_bytes = ptls_openssl_random_bytes,
+      .get_time = &ptls_get_time,
+      .key_exchanges = key_exchanges,
+      .cipher_suites = cipher_suites,
+      .require_dhe_on_psk = 1,
+    } {}
 
 TLSClientContext::~TLSClientContext() {
   if (sign_cert_.key) {
@@ -147,7 +147,7 @@ int TLSClientContext::load_private_key(const char *private_key_file) {
     return -1;
   }
 
-  auto fp_d = defer(fclose, fp);
+  auto fp_d = defer([fp] { fclose(fp); });
 
   auto pkey = PEM_read_PrivateKey(fp, nullptr, nullptr, nullptr);
   if (pkey == nullptr) {
@@ -156,7 +156,7 @@ int TLSClientContext::load_private_key(const char *private_key_file) {
     return -1;
   }
 
-  auto pkey_d = defer(EVP_PKEY_free, pkey);
+  auto pkey_d = defer([pkey] { EVP_PKEY_free(pkey); });
 
   if (ptls_openssl_init_sign_certificate(&sign_cert_, pkey) != 0) {
     std::cerr << "ptls_openssl_init_sign_certificate failed" << std::endl;

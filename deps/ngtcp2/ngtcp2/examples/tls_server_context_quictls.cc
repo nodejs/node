@@ -39,7 +39,7 @@
 #include "template.h"
 
 namespace {
-auto _ = []() {
+auto _ = [] {
   if (ngtcp2_crypto_quictls_init() != 0) {
     assert(0);
     abort();
@@ -50,8 +50,6 @@ auto _ = []() {
 } // namespace
 
 extern Config config;
-
-TLSServerContext::TLSServerContext() : ssl_ctx_{nullptr} {}
 
 TLSServerContext::~TLSServerContext() {
   if (ssl_ctx_) {

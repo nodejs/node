@@ -37,10 +37,6 @@ using namespace ngtcp2;
 
 extern Config config;
 
-TLSServerSession::TLSServerSession() {}
-
-TLSServerSession::~TLSServerSession() {}
-
 int TLSServerSession::init(TLSServerContext &tls_ctx, HandlerBase *handler) {
   cptls_.ptls = ptls_server_new(tls_ctx.get_native_handle());
   if (!cptls_.ptls) {

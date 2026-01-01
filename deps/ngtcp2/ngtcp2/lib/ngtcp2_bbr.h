@@ -106,6 +106,11 @@ typedef struct ngtcp2_cc_bbr {
   ngtcp2_bbr_state state;
   uint64_t cwnd_gain_h;
 
+  /* Backup for spurious losses */
+  uint64_t undo_bw_shortterm;
+  uint64_t undo_inflight_shortterm;
+  uint64_t undo_inflight_longterm;
+
   int loss_round_start;
   uint64_t loss_round_delivered;
   uint64_t rounds_since_bw_probe;
@@ -130,7 +135,6 @@ typedef struct ngtcp2_cc_bbr {
   int in_loss_recovery;
   uint64_t round_count_at_recovery;
   uint64_t max_inflight;
-  ngtcp2_tstamp congestion_recovery_start_ts;
   uint64_t bdp;
 } ngtcp2_cc_bbr;
 

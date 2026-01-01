@@ -30,8 +30,6 @@
 
 using namespace ngtcp2;
 
-TLSSessionBase::TLSSessionBase() : ssl_{nullptr} {}
-
 TLSSessionBase::~TLSSessionBase() {
   if (ssl_) {
     wolfSSL_free(ssl_);

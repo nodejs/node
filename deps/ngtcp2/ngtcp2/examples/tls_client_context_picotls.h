@@ -47,7 +47,7 @@ private:
   int load_private_key(const char *private_key_file);
 
   ptls_context_t ctx_;
-  ptls_openssl_sign_certificate_t sign_cert_;
+  ptls_openssl_sign_certificate_t sign_cert_{};
 };
 
 #endif // !defined(TLS_CLIENT_CONTEXT_PICOTLS_H)

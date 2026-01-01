@@ -505,6 +505,42 @@ void test_urlparse_parse_url(void) {
   }
 
   {
+    /* '*' in scheme */
+    init_buffer(b, blen, "https*://example.com");
+
+    rv = urlparse_parse_url(b, blen, /* is_connect = */ 0, &u);
+
+    assert_int(URLPARSE_ERR_PARSE, ==, rv);
+
+    memset(&hu, 0, sizeof(hu));
+    rv = http_parser_parse_url(b, blen, /* is_connect = */ 0, &hu);
+
+    assert_int(0, !=, rv);
+
+    free(b);
+  }
+
+  {
+    /* scheme contains a character that has the highest bit set, which
+       can make the char negative. */
+    init_buffer(b, blen,
+                "https"
+                "\x80"
+                "://example.com");
+
+    rv = urlparse_parse_url(b, blen, /* is_connect = */ 0, &u);
+
+    assert_int(URLPARSE_ERR_PARSE, ==, rv);
+
+    memset(&hu, 0, sizeof(hu));
+    rv = http_parser_parse_url(b, blen, /* is_connect = */ 0, &hu);
+
+    assert_int(0, !=, rv);
+
+    free(b);
+  }
+
+  {
     /* query starts with ?? */
     init_buffer(b, blen, "/foo??bar");
 

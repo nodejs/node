@@ -40,6 +40,7 @@
 #include "tls_client_session.h"
 #include "network.h"
 #include "shared.h"
+#include "util.h"
 
 using namespace ngtcp2;
 
@@ -50,55 +51,55 @@ struct Request {
 };
 
 struct Config {
-  ngtcp2_cid dcid;
-  ngtcp2_cid scid;
-  bool scid_present;
+  ngtcp2_cid dcid{};
+  ngtcp2_cid scid{};
+  bool scid_present{};
   // tx_loss_prob is probability of losing outgoing packet.
-  double tx_loss_prob;
+  double tx_loss_prob{};
   // rx_loss_prob is probability of losing incoming packet.
-  double rx_loss_prob;
+  double rx_loss_prob{};
   // fd is a file descriptor to read input for streams.
-  int fd;
+  int fd{-1};
   // ciphers is the list of enabled ciphers.
-  const char *ciphers;
+  const char *ciphers{util::crypto_default_ciphers()};
   // groups is the list of supported groups.
-  const char *groups;
+  const char *groups{util::crypto_default_groups()};
   // nstreams is the number of streams to open.
-  size_t nstreams;
+  size_t nstreams{};
   // data is the pointer to memory region which maps file denoted by
   // fd.
-  uint8_t *data;
+  uint8_t *data{};
   // datalen is the length of file denoted by fd.
-  size_t datalen;
+  size_t datalen{};
   // version is a QUIC version to use.
-  uint32_t version;
+  uint32_t version{NGTCP2_PROTO_VER_V1};
   // quiet suppresses the output normally shown except for the error
   // messages.
-  bool quiet;
+  bool quiet{};
   // timeout is an idle timeout for QUIC connection.
-  ngtcp2_duration timeout;
+  ngtcp2_duration timeout{30 * NGTCP2_SECONDS};
   // session_file is a path to a file to write, and read TLS session.
-  const char *session_file;
+  const char *session_file{};
   // tp_file is a path to a file to write, and read QUIC transport
   // parameters.
-  const char *tp_file;
+  const char *tp_file{};
   // show_secret is true if transport secrets should be printed out.
-  bool show_secret;
+  bool show_secret{};
   // change_local_addr is the duration after which client changes
   // local address.
-  ngtcp2_duration change_local_addr;
+  ngtcp2_duration change_local_addr{};
   // key_update is the duration after which client initiates key
   // update.
-  ngtcp2_duration key_update;
+  ngtcp2_duration key_update{};
   // delay_stream is the duration after which client sends the first
   // 1-RTT stream.
-  ngtcp2_duration delay_stream;
+  ngtcp2_duration delay_stream{};
   // nat_rebinding is true if simulated NAT rebinding is enabled.
-  bool nat_rebinding;
+  bool nat_rebinding{};
   // no_preferred_addr is true if client do not follow preferred
   // address offered by server.
-  bool no_preferred_addr;
-  std::string_view http_method;
+  bool no_preferred_addr{};
+  std::string_view http_method{"GET"sv};
   // download is a path to a directory where a downloaded file is
   // saved.  If it is empty, no file is saved.
   std::string_view download;
@@ -106,55 +107,55 @@ struct Config {
   std::vector<Request> requests;
   // no_quic_dump is true if hexdump of QUIC STREAM and CRYPTO data
   // should be disabled.
-  bool no_quic_dump;
+  bool no_quic_dump{};
   // no_http_dump is true if hexdump of HTTP response body should be
   // disabled.
-  bool no_http_dump;
+  bool no_http_dump{};
   // qlog_file is the path to write qlog.
   std::string_view qlog_file;
   // qlog_dir is the path to directory where qlog is stored.  qlog_dir
   // and qlog_file are mutually exclusive.
   std::string_view qlog_dir;
   // max_data is the initial connection-level flow control window.
-  uint64_t max_data;
+  uint64_t max_data{24_m};
   // max_stream_data_bidi_local is the initial stream-level flow
   // control window for a bidirectional stream that the local endpoint
   // initiates.
-  uint64_t max_stream_data_bidi_local;
+  uint64_t max_stream_data_bidi_local{16_m};
   // max_stream_data_bidi_remote is the initial stream-level flow
   // control window for a bidirectional stream that the remote
   // endpoint initiates.
-  uint64_t max_stream_data_bidi_remote;
+  uint64_t max_stream_data_bidi_remote{};
   // max_stream_data_uni is the initial stream-level flow control
   // window for a unidirectional stream.
-  uint64_t max_stream_data_uni;
+  uint64_t max_stream_data_uni{16_m};
   // max_streams_bidi is the number of the concurrent bidirectional
   // streams.
-  uint64_t max_streams_bidi;
+  uint64_t max_streams_bidi{};
   // max_streams_uni is the number of the concurrent unidirectional
   // streams.
-  uint64_t max_streams_uni;
+  uint64_t max_streams_uni{100};
   // max_window is the maximum connection-level flow control window
   // size if auto-tuning is enabled.
-  uint64_t max_window;
+  uint64_t max_window{};
   // max_stream_window is the maximum stream-level flow control window
   // size if auto-tuning is enabled.
-  uint64_t max_stream_window;
+  uint64_t max_stream_window{};
   // exit_on_first_stream_close is the flag that if it is true, client
   // exits when a first HTTP stream gets closed.  It is not
   // necessarily the same time when the underlying QUIC stream closes
   // due to the QPACK synchronization.
-  bool exit_on_first_stream_close;
+  bool exit_on_first_stream_close{};
   // exit_on_all_streams_close is the flag that if it is true, client
   // exits when all HTTP streams get closed.
-  bool exit_on_all_streams_close;
+  bool exit_on_all_streams_close{};
   // disable_early_data disables early data.
-  bool disable_early_data;
+  bool disable_early_data{};
   // static_secret is used to derive keying materials for Stateless
   // Retry token.
   std::array<uint8_t, 32> static_secret;
   // cc_algo is the congestion controller algorithm.
-  ngtcp2_cc_algo cc_algo;
+  ngtcp2_cc_algo cc_algo{NGTCP2_CC_ALGO_CUBIC};
   // token_file is a path to file to read or write token from
   // NEW_TOKEN frame.
   std::string_view token_file;
@@ -162,13 +163,13 @@ struct Config {
   // remote host.
   std::string_view sni;
   // initial_rtt is an initial RTT.
-  ngtcp2_duration initial_rtt;
+  ngtcp2_duration initial_rtt{NGTCP2_DEFAULT_INITIAL_RTT};
   // max_udp_payload_size is the maximum UDP payload size that client
   // transmits.
-  size_t max_udp_payload_size;
+  size_t max_udp_payload_size{};
   // handshake_timeout is the period of time before giving up QUIC
   // connection establishment.
-  ngtcp2_duration handshake_timeout;
+  ngtcp2_duration handshake_timeout{UINT64_MAX};
   // preferred_versions includes QUIC versions in the order of
   // preference.  Client uses this field to select a version from the
   // version set offered in Version Negotiation packet.
@@ -178,24 +179,32 @@ struct Config {
   // transport_parameter.
   std::vector<uint32_t> available_versions;
   // no_pmtud disables Path MTU Discovery.
-  bool no_pmtud;
+  bool no_pmtud{};
   // ack_thresh is the minimum number of the received ACK eliciting
   // packets that triggers immediate acknowledgement.
-  size_t ack_thresh;
+  size_t ack_thresh{2};
   // wait_for_ticket, if true, waits for a ticket to be received
   // before exiting on exit_on_first_stream_close or
   // exit_on_all_streams_close.
-  bool wait_for_ticket;
+  bool wait_for_ticket{};
   // initial_pkt_num is the initial packet number for each packet
   // number space.  If it is set to UINT32_MAX, it is chosen randomly.
-  uint32_t initial_pkt_num;
+  uint32_t initial_pkt_num{UINT32_MAX};
   // pmtud_probes is the array of UDP datagram payload size to probes.
   std::vector<uint16_t> pmtud_probes;
   // ech_config_list contains ECHConfigList.
   std::vector<uint8_t> ech_config_list;
   // ech_config_list_file is a path to a file to read and write
   // ECHConfigList.
-  const char *ech_config_list_file;
+  const char *ech_config_list_file{};
+  // no_gso disables GSO.
+  bool no_gso{};
+  // show_stat, if true, displays the connection statistics when the
+  // connection is closed.
+  bool show_stat{};
+  // gso_burst is the number of packets to aggregate in GSO.  0 means
+  // it is not limited by the configuration.
+  size_t gso_burst{};
 };
 
 class ClientBase {
@@ -218,10 +227,10 @@ public:
 protected:
   ngtcp2_crypto_conn_ref conn_ref_;
   TLSClientSession tls_session_;
-  FILE *qlog_;
-  ngtcp2_conn *conn_;
+  FILE *qlog_{};
+  ngtcp2_conn *conn_{};
   ngtcp2_ccerr last_error_;
-  bool ticket_received_;
+  bool ticket_received_{};
 };
 
 void qlog_write_cb(void *user_data, uint32_t flags, const void *data,

@@ -31,8 +31,11 @@
 
 ngtcp2_addr *ngtcp2_addr_init(ngtcp2_addr *dest, const ngtcp2_sockaddr *addr,
                               ngtcp2_socklen addrlen) {
-  dest->addrlen = addrlen;
-  dest->addr = (ngtcp2_sockaddr *)addr;
+  *dest = (ngtcp2_addr){
+    .addr = (ngtcp2_sockaddr *)addr,
+    .addrlen = addrlen,
+  };
+
   return dest;
 }
 
@@ -58,14 +61,12 @@ int ngtcp2_sockaddr_eq(const ngtcp2_sockaddr *a, const ngtcp2_sockaddr *b) {
 
   switch (a->sa_family) {
   case NGTCP2_AF_INET: {
-    const ngtcp2_sockaddr_in *ai = (const ngtcp2_sockaddr_in *)(void *)a,
-                             *bi = (const ngtcp2_sockaddr_in *)(void *)b;
+    const ngtcp2_sockaddr_in *ai = (void *)a, *bi = (void *)b;
     return ai->sin_port == bi->sin_port &&
            memcmp(&ai->sin_addr, &bi->sin_addr, sizeof(ai->sin_addr)) == 0;
   }
   case NGTCP2_AF_INET6: {
-    const ngtcp2_sockaddr_in6 *ai = (const ngtcp2_sockaddr_in6 *)(void *)a,
-                              *bi = (const ngtcp2_sockaddr_in6 *)(void *)b;
+    const ngtcp2_sockaddr_in6 *ai = (void *)a, *bi = (void *)b;
     return ai->sin6_port == bi->sin6_port &&
            memcmp(&ai->sin6_addr, &bi->sin6_addr, sizeof(ai->sin6_addr)) == 0;
   }
@@ -89,8 +90,7 @@ uint32_t ngtcp2_addr_cmp(const ngtcp2_addr *aa, const ngtcp2_addr *bb) {
 
   switch (a->sa_family) {
   case NGTCP2_AF_INET: {
-    const ngtcp2_sockaddr_in *ai = (const ngtcp2_sockaddr_in *)(void *)a,
-                             *bi = (const ngtcp2_sockaddr_in *)(void *)b;
+    const ngtcp2_sockaddr_in *ai = (void *)a, *bi = (void *)b;
     if (memcmp(&ai->sin_addr, &bi->sin_addr, sizeof(ai->sin_addr))) {
       flags |= NGTCP2_ADDR_CMP_FLAG_ADDR;
     }
@@ -100,8 +100,7 @@ uint32_t ngtcp2_addr_cmp(const ngtcp2_addr *aa, const ngtcp2_addr *bb) {
     return flags;
   }
   case NGTCP2_AF_INET6: {
-    const ngtcp2_sockaddr_in6 *ai = (const ngtcp2_sockaddr_in6 *)(void *)a,
-                              *bi = (const ngtcp2_sockaddr_in6 *)(void *)b;
+    const ngtcp2_sockaddr_in6 *ai = (void *)a, *bi = (void *)b;
     if (memcmp(&ai->sin6_addr, &bi->sin6_addr, sizeof(ai->sin6_addr))) {
       flags |= NGTCP2_ADDR_CMP_FLAG_ADDR;
     }

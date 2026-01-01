@@ -58,11 +58,13 @@ int ngtcp2_cid_less(const ngtcp2_cid *lhs, const ngtcp2_cid *rhs) {
 int ngtcp2_cid_empty(const ngtcp2_cid *cid) { return cid->datalen == 0; }
 
 void ngtcp2_scid_init(ngtcp2_scid *scid, uint64_t seq, const ngtcp2_cid *cid) {
-  scid->pe.index = NGTCP2_PQ_BAD_INDEX;
-  scid->seq = seq;
-  scid->cid = *cid;
-  scid->retired_ts = UINT64_MAX;
-  scid->flags = NGTCP2_SCID_FLAG_NONE;
+  *scid = (ngtcp2_scid){
+    .pe.index = NGTCP2_PQ_BAD_INDEX,
+    .seq = seq,
+    .cid = *cid,
+    .retired_ts = UINT64_MAX,
+    .flags = NGTCP2_SCID_FLAG_NONE,
+  };
 }
 
 void ngtcp2_scid_copy(ngtcp2_scid *dest, const ngtcp2_scid *src) {

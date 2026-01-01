@@ -31,10 +31,6 @@
 #include "tls_server_context_quictls.h"
 #include "server_base.h"
 
-TLSServerSession::TLSServerSession() {}
-
-TLSServerSession::~TLSServerSession() {}
-
 int TLSServerSession::init(const TLSServerContext &tls_ctx,
                            HandlerBase *handler) {
   auto ssl_ctx = tls_ctx.get_native_handle();

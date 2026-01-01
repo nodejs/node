@@ -33,10 +33,6 @@
 #include "template.h"
 #include "util.h"
 
-TLSClientSession::TLSClientSession() {}
-
-TLSClientSession::~TLSClientSession() {}
-
 extern Config config;
 
 int TLSClientSession::init(bool &early_data_enabled,

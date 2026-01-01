@@ -26,8 +26,12 @@
 #include "ngtcp2_mem.h"
 
 void ngtcp2_buf_init(ngtcp2_buf *buf, uint8_t *begin, size_t len) {
-  buf->begin = buf->pos = buf->last = begin;
-  buf->end = begin + len;
+  *buf = (ngtcp2_buf){
+    .begin = begin,
+    .end = begin + len,
+    .pos = begin,
+    .last = begin,
+  };
 }
 
 void ngtcp2_buf_reset(ngtcp2_buf *buf) { buf->pos = buf->last = buf->begin; }
