@@ -1,0 +1,29 @@
+name: Suggest PR URL
+
+on:
+  pull_request:
+    types: [opened]
+    paths:
+      - doc/api/**/*.md
+
+permissions:
+  pull-requests: write
+
+jobs:
+  suggest-fill-prurl:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3  # v6.0.0
+        with:
+          persist-credentials: false
+          sparse-checkout: /tools/actions/suggest-fill-prurl.mjs
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903  # v6.0.0
+        with:
+          node-version: latest
+      - run: ./tools/actions/suggest-fill-prurl.mjs
+        env:
+          GH_TOKEN: ${{ secrets.GH_USER_TOKEN }}
+          PR_NUMBER: ${{ github.event.number }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
