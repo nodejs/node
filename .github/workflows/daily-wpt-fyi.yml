@@ -52,7 +52,7 @@ jobs:
         run: echo "NIGHTLY=$(curl -s https://nodejs.org/download/nightly/index.json | jq -r '[.[] | select(.files[] | contains("linux-x64"))][0].version')" >> $GITHUB_ENV
       - name: Install Node.js
         id: setup-node
-        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903  # v6.0.0
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f  # v6.1.0
         with:
           node-version: ${{ env.NIGHTLY || matrix.node-version }}
           check-latest: true
