@@ -1,7 +1,7 @@
 /*
  * ngtcp2
  *
- * Copyright (c) 2020 ngtcp2 contributors
+ * Copyright (c) 2025 ngtcp2 contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -22,30 +22,24 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef TLS_CLIENT_CONTEXT_WOLFSSL_H
-#define TLS_CLIENT_CONTEXT_WOLFSSL_H
+#ifndef NGTCP2_CONN_INFO_H
+#define NGTCP2_CONN_INFO_H
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif // defined(HAVE_CONFIG_H)
+#endif /* defined(HAVE_CONFIG_H) */
 
-#include <wolfssl/options.h>
-#include <wolfssl/ssl.h>
-#include <wolfssl/quic.h>
+#include <ngtcp2/ngtcp2.h>
 
-class TLSClientContext {
-public:
-  TLSClientContext() = default;
-  ~TLSClientContext();
+typedef struct ngtcp2_conn_stat ngtcp2_conn_stat;
 
-  int init(const char *private_key_file, const char *cert_file);
+/*
+ * ngtcp2_conn_info_init_versioned initializes |cinfo| of version
+ * |conn_info_version| from |cstat|.  This function only fills the
+ * fields of |cinfo| that are available in the specified version.
+ */
+void ngtcp2_conn_info_init_versioned(int conn_info_version,
+                                     ngtcp2_conn_info *cinfo,
+                                     const ngtcp2_conn_stat *cstat);
 
-  WOLFSSL_CTX *get_native_handle() const;
-
-  void enable_keylog();
-
-private:
-  WOLFSSL_CTX *ssl_ctx_{};
-};
-
-#endif // !defined(TLS_CLIENT_CONTEXT_WOLFSSL_H)
+#endif /* !defined(NGTCP2_CONN_INFO_H) */

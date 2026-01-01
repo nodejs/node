@@ -308,8 +308,8 @@ void munit_errorf_ex(const char *filename, int line, const char *format, ...);
 #include <string.h>
 #define munit_assert_string_equal(a, b)                                        \
   do {                                                                         \
-    const char *munit_tmp_a_ = a;                                              \
-    const char *munit_tmp_b_ = b;                                              \
+    const char *munit_tmp_a_ = (a);                                            \
+    const char *munit_tmp_b_ = (b);                                            \
     if (MUNIT_UNLIKELY(strcmp(munit_tmp_a_, munit_tmp_b_) != 0)) {             \
       munit_hexdump_diff(stderr, munit_tmp_a_, strlen(munit_tmp_a_),           \
                          munit_tmp_b_, strlen(munit_tmp_b_));                  \
@@ -321,8 +321,8 @@ void munit_errorf_ex(const char *filename, int line, const char *format, ...);
 
 #define munit_assert_string_not_equal(a, b)                                    \
   do {                                                                         \
-    const char *munit_tmp_a_ = a;                                              \
-    const char *munit_tmp_b_ = b;                                              \
+    const char *munit_tmp_a_ = (a);                                            \
+    const char *munit_tmp_b_ = (b);                                            \
     if (MUNIT_UNLIKELY(strcmp(munit_tmp_a_, munit_tmp_b_) == 0)) {             \
       munit_errorf("assertion failed: string %s != %s (\"%s\" == \"%s\")", #a, \
                    #b, munit_tmp_a_, munit_tmp_b_);                            \
