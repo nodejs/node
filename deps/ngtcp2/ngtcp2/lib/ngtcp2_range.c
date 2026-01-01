@@ -26,18 +26,22 @@
 #include "ngtcp2_macro.h"
 
 void ngtcp2_range_init(ngtcp2_range *r, uint64_t begin, uint64_t end) {
-  r->begin = begin;
-  r->end = end;
+  *r = (ngtcp2_range){
+    .begin = begin,
+    .end = end,
+  };
 }
 
 ngtcp2_range ngtcp2_range_intersect(const ngtcp2_range *a,
                                     const ngtcp2_range *b) {
-  ngtcp2_range r = {0};
+  ngtcp2_range r;
   uint64_t begin = ngtcp2_max_uint64(a->begin, b->begin);
   uint64_t end = ngtcp2_min_uint64(a->end, b->end);
 
   if (begin < end) {
     ngtcp2_range_init(&r, begin, end);
+  } else {
+    r = (ngtcp2_range){0};
   }
 
   return r;
@@ -52,10 +56,14 @@ int ngtcp2_range_eq(const ngtcp2_range *a, const ngtcp2_range *b) {
 void ngtcp2_range_cut(ngtcp2_range *left, ngtcp2_range *right,
                       const ngtcp2_range *a, const ngtcp2_range *b) {
   /* Assume that b is included in a */
-  left->begin = a->begin;
-  left->end = b->begin;
-  right->begin = b->end;
-  right->end = a->end;
+  *left = (ngtcp2_range){
+    .begin = a->begin,
+    .end = b->begin,
+  };
+  *right = (ngtcp2_range){
+    .begin = b->end,
+    .end = a->end,
+  };
 }
 
 int ngtcp2_range_not_after(const ngtcp2_range *a, const ngtcp2_range *b) {

@@ -38,7 +38,7 @@
 
 class TLSSessionBase {
 public:
-  TLSSessionBase();
+  TLSSessionBase() = default;
   ~TLSSessionBase();
 
   WOLFSSL *get_native_handle() const;
@@ -54,7 +54,7 @@ public:
   void enable_keylog() {}
 
 protected:
-  WOLFSSL *ssl_;
+  WOLFSSL *ssl_{};
 };
 
 #endif // !defined(TLS_SESSION_BASE_WOLFSSL_H)

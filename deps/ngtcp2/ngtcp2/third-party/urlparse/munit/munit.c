@@ -856,23 +856,18 @@ static psnip_uint64_t munit_clock_get_elapsed(struct PsnipClockTimespec *start,
 
 #if defined(_OPENMP)
 #  define ATOMIC_UINT32_T uint32_t
-#  define ATOMIC_UINT32_INIT(x) (x)
 #elif defined(HAVE_STDATOMIC)
 #  include <stdatomic.h>
 #  define ATOMIC_UINT32_T _Atomic uint32_t
-#  define ATOMIC_UINT32_INIT(x) ATOMIC_VAR_INIT(x)
 #elif defined(HAVE_CLANG_ATOMICS)
 #  define ATOMIC_UINT32_T _Atomic uint32_t
-#  define ATOMIC_UINT32_INIT(x) (x)
 #elif defined(_WIN32)
 #  define ATOMIC_UINT32_T volatile LONG
-#  define ATOMIC_UINT32_INIT(x) (x)
 #else
 #  define ATOMIC_UINT32_T volatile uint32_t
-#  define ATOMIC_UINT32_INIT(x) (x)
 #endif
 
-static ATOMIC_UINT32_T munit_rand_state = ATOMIC_UINT32_INIT(42);
+static ATOMIC_UINT32_T munit_rand_state = 42;
 
 #if defined(_OPENMP)
 static inline void munit_atomic_store(ATOMIC_UINT32_T *dest,

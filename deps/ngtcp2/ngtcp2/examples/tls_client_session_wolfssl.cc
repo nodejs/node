@@ -35,10 +35,6 @@
 
 using namespace std::literals;
 
-TLSClientSession::TLSClientSession() {}
-
-TLSClientSession::~TLSClientSession() {}
-
 extern Config config;
 
 namespace {

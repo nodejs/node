@@ -170,10 +170,9 @@ std::optional<Address> msghdr_get_local_addr(msghdr *msg, int family) {
         in_pktinfo pktinfo;
         memcpy(&pktinfo, CMSG_DATA(cmsg), sizeof(pktinfo));
         Address res{
-          .len = sizeof(res.su.in),
           .ifindex = static_cast<uint32_t>(pktinfo.ipi_ifindex),
         };
-        auto &sa = res.su.in;
+        auto &sa = res.skaddr.emplace<sockaddr_in>();
         sa.sin_family = AF_INET;
         sa.sin_addr = pktinfo.ipi_addr;
         return res;
@@ -186,10 +185,9 @@ std::optional<Address> msghdr_get_local_addr(msghdr *msg, int family) {
         in6_pktinfo pktinfo;
         memcpy(&pktinfo, CMSG_DATA(cmsg), sizeof(pktinfo));
         Address res{
-          .len = sizeof(res.su.in6),
           .ifindex = static_cast<uint32_t>(pktinfo.ipi6_ifindex),
         };
-        auto &sa = res.su.in6;
+        auto &sa = res.skaddr.emplace<sockaddr_in6>();
         sa.sin6_family = AF_INET6;
         sa.sin6_addr = pktinfo.ipi6_addr;
         return res;
@@ -216,64 +214,52 @@ size_t msghdr_get_udp_gro(msghdr *msg) {
   return static_cast<size_t>(gso_size);
 }
 
-void set_port(Address &dst, const Address &src) {
-  switch (dst.su.storage.ss_family) {
-  case AF_INET:
-    assert(AF_INET == src.su.storage.ss_family);
-    dst.su.in.sin_port = src.su.in.sin_port;
-    return;
-  case AF_INET6:
-    assert(AF_INET6 == src.su.storage.ss_family);
-    dst.su.in6.sin6_port = src.su.in6.sin6_port;
-    return;
-  default:
-    assert(0);
-  }
-}
-
 #ifdef HAVE_LINUX_RTNETLINK_H
 
 struct nlmsg {
   nlmsghdr hdr;
   rtmsg msg;
   rtattr dst;
-  in_addr_union dst_addr;
+  uint8_t dst_addr[sizeof(sockaddr_storage)];
 };
 
 namespace {
 int send_netlink_msg(int fd, const Address &remote_addr, uint32_t seq) {
   nlmsg nlmsg{
-    .hdr =
-      {
-        .nlmsg_type = RTM_GETROUTE,
-        .nlmsg_flags = NLM_F_REQUEST | NLM_F_ACK,
-        .nlmsg_seq = seq,
-      },
-    .msg =
-      {
-        .rtm_family = static_cast<unsigned char>(remote_addr.su.sa.sa_family),
-        .rtm_protocol = RTPROT_KERNEL,
-      },
-    .dst =
-      {
-        .rta_type = RTA_DST,
-      },
+    .hdr{
+      .nlmsg_type = RTM_GETROUTE,
+      .nlmsg_flags = NLM_F_REQUEST | NLM_F_ACK,
+      .nlmsg_seq = seq,
+    },
+    .msg{
+      .rtm_family = static_cast<unsigned char>(remote_addr.family()),
+      .rtm_protocol = RTPROT_KERNEL,
+    },
+    .dst{
+      .rta_type = RTA_DST,
+    },
   };
 
-  switch (remote_addr.su.sa.sa_family) {
-  case AF_INET:
-    nlmsg.dst.rta_len = RTA_LENGTH(sizeof(remote_addr.su.in.sin_addr));
-    memcpy(RTA_DATA(&nlmsg.dst), &remote_addr.su.in.sin_addr,
-           sizeof(remote_addr.su.in.sin_addr));
-    break;
-  case AF_INET6:
-    nlmsg.dst.rta_len = RTA_LENGTH(sizeof(remote_addr.su.in6.sin6_addr));
-    memcpy(RTA_DATA(&nlmsg.dst), &remote_addr.su.in6.sin6_addr,
-           sizeof(remote_addr.su.in6.sin6_addr));
-    break;
-  default:
-    assert(0);
-  }
+  std::visit(
+    [&nlmsg](auto &&arg) {
+      using T = std::decay_t<decltype(arg)>;
+
+      if constexpr (std::is_same_v<T, sockaddr_in>) {
+        nlmsg.dst.rta_len = RTA_LENGTH(sizeof(arg.sin_addr));
+        memcpy(RTA_DATA(&nlmsg.dst), &arg.sin_addr, sizeof(arg.sin_addr));
+        return;
+      }
+
+      if constexpr (std::is_same_v<T, sockaddr_in6>) {
+        nlmsg.dst.rta_len = RTA_LENGTH(sizeof(arg.sin6_addr));
+        memcpy(RTA_DATA(&nlmsg.dst), &arg.sin6_addr, sizeof(arg.sin6_addr));
+        return;
+      }
+
+      assert(0);
+      abort();
+    },
+    remote_addr.skaddr);
 
   nlmsg.hdr.nlmsg_len = NLMSG_LENGTH(sizeof(nlmsg.msg) + nlmsg.dst.rta_len);
 
@@ -309,7 +295,7 @@ int send_netlink_msg(int fd, const Address &remote_addr, uint32_t seq) {
 } // namespace
 
 namespace {
-int recv_netlink_msg(in_addr_union &iau, int fd, uint32_t seq) {
+int recv_netlink_msg(InAddr &ia, int fd, uint32_t seq) {
   std::array<uint8_t, 8192> buf;
   iovec iov = {
     .iov_base = buf.data(),
@@ -333,8 +319,6 @@ int recv_netlink_msg(in_addr_union &iau, int fd, uint32_t seq) {
               << strerror(errno) << std::endl;
     return -1;
   }
-
-  size_t in_addrlen = 0;
 
   for (auto hdr = reinterpret_cast<nlmsghdr *>(buf.data());
        NLMSG_OK(hdr, nread); hdr = NLMSG_NEXT(hdr, nread)) {
@@ -372,28 +356,42 @@ int recv_netlink_msg(in_addr_union &iau, int fd, uint32_t seq) {
       }
 
       switch (static_cast<rtmsg *>(NLMSG_DATA(hdr))->rtm_family) {
-      case AF_INET:
-        in_addrlen = sizeof(in_addr);
+      case AF_INET: {
+        constexpr auto in_addrlen = sizeof(in_addr);
+        if (RTA_LENGTH(in_addrlen) != rta->rta_len) {
+          return -1;
+        }
+
+        in_addr addr;
+        memcpy(&addr, RTA_DATA(rta), in_addrlen);
+
+        ia.emplace<in_addr>(addr);
+
         break;
-      case AF_INET6:
-        in_addrlen = sizeof(in6_addr);
+      }
+      case AF_INET6: {
+        constexpr auto in_addrlen = sizeof(in6_addr);
+        if (RTA_LENGTH(in_addrlen) != rta->rta_len) {
+          return -1;
+        }
+
+        in6_addr addr;
+        memcpy(&addr, RTA_DATA(rta), in_addrlen);
+
+        ia.emplace<in6_addr>(addr);
+
         break;
+      }
       default:
         assert(0);
         abort();
       }
 
-      if (RTA_LENGTH(in_addrlen) != rta->rta_len) {
-        return -1;
-      }
-
-      memcpy(&iau, RTA_DATA(rta), in_addrlen);
-
       break;
     }
   }
 
-  if (in_addrlen == 0) {
+  if (in_addr_empty(ia)) {
     return -1;
   }
 
@@ -459,7 +457,7 @@ int recv_netlink_msg(in_addr_union &iau, int fd, uint32_t seq) {
 }
 } // namespace
 
-int get_local_addr(in_addr_union &iau, const Address &remote_addr) {
+int get_local_addr(InAddr &ia, const Address &remote_addr) {
   sockaddr_nl sa{
     .nl_family = AF_NETLINK,
   };
@@ -471,7 +469,7 @@ int get_local_addr(in_addr_union &iau, const Address &remote_addr) {
     return -1;
   }
 
-  auto fd_d = defer(close, fd);
+  auto fd_d = defer([fd] { close(fd); });
 
   if (bind(fd, reinterpret_cast<sockaddr *>(&sa), sizeof(sa)) == -1) {
     std::cerr << "bind: Could not bind netlink socket: " << strerror(errno)
@@ -485,23 +483,163 @@ int get_local_addr(in_addr_union &iau, const Address &remote_addr) {
     return -1;
   }
 
-  return recv_netlink_msg(iau, fd, seq);
+  return recv_netlink_msg(ia, fd, seq);
 }
 
 #endif // defined(HAVE_LINUX_NETLINK_H)
 
-bool addreq(const sockaddr *sa, const in_addr_union &iau) {
+bool addreq(const Address &addr, const InAddr &ia) {
+  return std::visit(
+    [&ia](auto &&arg) -> bool {
+      using T = std::decay_t<decltype(arg)>;
+
+      if constexpr (std::is_same_v<T, sockaddr_in>) {
+        auto rhs = std::get_if<in_addr>(&ia);
+
+        return rhs && memcmp(&arg.sin_addr, rhs, sizeof(*rhs)) == 0;
+      }
+
+      if constexpr (std::is_same_v<T, sockaddr_in6>) {
+        auto rhs = std::get_if<in6_addr>(&ia);
+
+        return rhs && memcmp(&arg.sin6_addr, rhs, sizeof(*rhs)) == 0;
+      }
+
+      assert(0);
+      abort();
+    },
+    addr.skaddr);
+}
+
+const void *in_addr_get_ptr(const InAddr &ia) {
+  return std::visit(
+    [](auto &&arg) {
+      if constexpr (std::is_same_v<std::decay_t<decltype(arg)>,
+                                   std::monostate>) {
+        assert(0);
+        abort();
+      }
+
+      return reinterpret_cast<const void *>(&arg);
+    },
+    ia);
+}
+
+bool in_addr_empty(const InAddr &ia) {
+  return std::holds_alternative<std::monostate>(ia);
+}
+
+const sockaddr *as_sockaddr(const Sockaddr &skaddr) {
+  return std::visit(
+    [](auto &&arg) {
+      if constexpr (std::is_same_v<std::decay_t<decltype(arg)>,
+                                   std::monostate>) {
+        assert(0);
+        abort();
+      }
+
+      return reinterpret_cast<const sockaddr *>(&arg);
+    },
+    skaddr);
+}
+
+sockaddr *as_sockaddr(Sockaddr &skaddr) {
+  return std::visit(
+    [](auto &&arg) {
+      if constexpr (std::is_same_v<std::decay_t<decltype(arg)>,
+                                   std::monostate>) {
+        assert(0);
+        abort();
+      }
+
+      return reinterpret_cast<sockaddr *>(&arg);
+    },
+    skaddr);
+}
+
+int sockaddr_family(const Sockaddr &skaddr) {
+  return as_sockaddr(skaddr)->sa_family;
+}
+
+uint16_t sockaddr_port(const Sockaddr &skaddr) {
+  return std::visit(
+    [](auto &&arg) -> uint16_t {
+      using T = std::decay_t<decltype(arg)>;
+
+      if constexpr (std::is_same_v<T, sockaddr_in>) {
+        return ntohs(arg.sin_port);
+      }
+
+      if constexpr (std::is_same_v<T, sockaddr_in6>) {
+        return ntohs(arg.sin6_port);
+      }
+
+      assert(0);
+      abort();
+    },
+    skaddr);
+}
+
+void sockaddr_port(Sockaddr &skaddr, uint16_t port) {
+  std::visit(
+    [port](auto &&arg) {
+      using T = std::decay_t<decltype(arg)>;
+
+      if constexpr (std::is_same_v<T, sockaddr_in>) {
+        arg.sin_port = htons(port);
+        return;
+      }
+
+      if constexpr (std::is_same_v<T, sockaddr_in6>) {
+        arg.sin6_port = htons(port);
+        return;
+      }
+
+      assert(0);
+      abort();
+    },
+    skaddr);
+}
+
+void sockaddr_set(Sockaddr &skaddr, const sockaddr *sa) {
   switch (sa->sa_family) {
   case AF_INET:
-    return memcmp(&reinterpret_cast<const sockaddr_in *>(sa)->sin_addr, &iau.in,
-                  sizeof(iau.in)) == 0;
+    skaddr.emplace<sockaddr_in>(*reinterpret_cast<const sockaddr_in *>(sa));
+    return;
   case AF_INET6:
-    return memcmp(&reinterpret_cast<const sockaddr_in6 *>(sa)->sin6_addr,
-                  &iau.in6, sizeof(iau.in6)) == 0;
+    skaddr.emplace<sockaddr_in6>(*reinterpret_cast<const sockaddr_in6 *>(sa));
+    return;
   default:
     assert(0);
     abort();
   }
 }
+
+socklen_t sockaddr_size(const Sockaddr &skaddr) {
+  return std::visit(
+    [](auto &&arg) { return static_cast<socklen_t>(sizeof(arg)); }, skaddr);
+}
+
+bool sockaddr_empty(const Sockaddr &skaddr) {
+  return std::holds_alternative<std::monostate>(skaddr);
+}
+
+const sockaddr *Address::as_sockaddr() const {
+  return ngtcp2::as_sockaddr(skaddr);
+}
+
+sockaddr *Address::as_sockaddr() { return ngtcp2::as_sockaddr(skaddr); }
+
+int Address::family() const { return sockaddr_family(skaddr); }
+
+uint16_t Address::port() const { return sockaddr_port(skaddr); }
+
+void Address::port(uint16_t port) { sockaddr_port(skaddr, port); }
+
+void Address::set(const sockaddr *sa) { sockaddr_set(skaddr, sa); }
+
+socklen_t Address::size() const { return sockaddr_size(skaddr); }
+
+bool Address::empty() const { return sockaddr_empty(skaddr); }
 
 } // namespace ngtcp2

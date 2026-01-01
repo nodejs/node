@@ -110,4 +110,14 @@ static inline uint8_t *ngtcp2_vec_end(const ngtcp2_vec *v) {
   return v->base + v->len;
 }
 
+/*
+ * ngtcp2_vec_drop removes the first |n| bytes from |v| by adjusting
+ * its base and len fields.  This function assumes |v|->len > 0 &&
+ * |v|->len >= n.
+ */
+static inline void ngtcp2_vec_drop(ngtcp2_vec *v, size_t n) {
+  v->base += n;
+  v->len -= n;
+}
+
 #endif /* !defined(NGTCP2_VEC_H) */

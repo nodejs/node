@@ -28,12 +28,6 @@
 
 #include "ngtcp2_addr.h"
 
-void ngtcp2_path_init(ngtcp2_path *path, const ngtcp2_addr *local,
-                      const ngtcp2_addr *remote) {
-  path->local = *local;
-  path->remote = *remote;
-}
-
 void ngtcp2_path_copy(ngtcp2_path *dest, const ngtcp2_path *src) {
   ngtcp2_addr_copy(&dest->local, &src->local);
   ngtcp2_addr_copy(&dest->remote, &src->remote);

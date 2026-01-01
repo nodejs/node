@@ -38,7 +38,7 @@
 #include "template.h"
 
 namespace {
-auto _ = []() {
+auto _ = [] {
   if (ngtcp2_crypto_ossl_init() != 0) {
     assert(0);
     abort();
@@ -49,8 +49,6 @@ auto _ = []() {
 } // namespace
 
 extern Config config;
-
-TLSClientContext::TLSClientContext() : ssl_ctx_{nullptr} {}
 
 TLSClientContext::~TLSClientContext() {
   if (ssl_ctx_) {

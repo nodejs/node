@@ -66,7 +66,7 @@ void ngtcp2_pcg32_init(ngtcp2_pcg32 *pcg, uint64_t seed) {
 }
 
 static uint32_t pcg_rotr_32(uint32_t value, unsigned int rot) {
-  return (value >> rot) | (value << ((-rot) & 31));
+  return (value >> rot) | (value << ((32 - rot) & 31));
 }
 
 static uint32_t pcg_output_xsh_rr_64_32(uint64_t state) {
