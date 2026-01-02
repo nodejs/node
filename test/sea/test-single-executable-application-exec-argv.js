@@ -3,11 +3,11 @@
 require('../common');
 
 const {
-  generateSEA,
-  skipIfSingleExecutableIsNotSupported,
+  buildSEA,
+  skipIfBuildSEAIsNotSupported,
 } = require('../common/sea');
 
-skipIfSingleExecutableIsNotSupported();
+skipIfBuildSEAIsNotSupported();
 
 // This tests the execArgv functionality with multiple arguments in single executable applications.
 
@@ -19,7 +19,7 @@ const assert = require('assert');
 
 tmpdir.refresh();
 
-const outputFile = generateSEA(fixtures.path('sea', 'exec-argv'));
+const outputFile = buildSEA(fixtures.path('sea', 'exec-argv'));
 
 // Test that multiple execArgv are properly applied
 spawnSyncAndAssert(

@@ -3,11 +3,11 @@
 require('../common');
 
 const {
-  generateSEA,
-  skipIfSingleExecutableIsNotSupported,
+  buildSEA,
+  skipIfBuildSEAIsNotSupported,
 } = require('../common/sea');
 
-skipIfSingleExecutableIsNotSupported();
+skipIfBuildSEAIsNotSupported();
 
 // This tests "useCodeCache" is ignored when "useSnapshot" is true.
 
@@ -20,7 +20,7 @@ const fixtures = require('../common/fixtures');
 {
   tmpdir.refresh();
 
-  const outputFile = generateSEA(fixtures.path('sea', 'snapshot-and-code-cache'));
+  const outputFile = buildSEA(fixtures.path('sea', 'snapshot-and-code-cache'));
 
   spawnSyncAndAssert(
     outputFile,
