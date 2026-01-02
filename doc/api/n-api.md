@@ -5051,6 +5051,28 @@ added to it, as well as marking all existing properties as non-configurable.
 This is described in [Section 19.1.2.20](https://tc39.es/ecma262/#sec-object.seal)
 of the ECMA-262 specification.
 
+#### `node_api_set_prototype`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+```c
+napi_status node_api_set_prototype(napi_env env,
+                                   napi_value object,
+                                   napi_value value);
+```
+
+* `[in] env`: The environment that the Node-API call is invoked under.
+* `[in] object`: The object on which to set the prototype.
+* `[in] value`: The prototype value.
+
+Returns `napi_ok` if the API succeeded.
+
+This API sets the prototype of the `Object` passed in.
+
 ## Working with JavaScript functions
 
 Node-API provides a set of APIs that allow JavaScript code to
