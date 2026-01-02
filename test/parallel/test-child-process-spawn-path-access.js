@@ -60,3 +60,46 @@ try {
 } catch (err) {
   assert.strictEqual(err.code, 'ENOENT');
 }
+
+// Case: File exists but is not executable. Should NOT be normalized to ENOENT.
+if (!common.isWindows) {
+  const nonExecFile = path.join(tmpdir.path, 'non-executable');
+  fs.writeFileSync(nonExecFile, 'echo "should not run"');
+  fs.chmodSync(nonExecFile, '644');
+
+  const env2 = { ...process.env, PATH: tmpdir.path };
+  const child2 = cp.spawn('non-executable', { env: env2 });
+  child2.on('error', common.mustCall((err) => {
+    // It should stay EACCES because the file actually exists
+    assert.strictEqual(err.code, 'EACCES');
+  }));
+
+  // Also test empty PATH entry
+  const env3 = { ...process.env, PATH: `${path.delimiter}${env.PATH}` };
+  const child3 = cp.spawn(command, { env: env3 });
+  child3.on('error', common.mustCall((err) => {
+    assert.strictEqual(err.code, 'ENOENT');
+  }));
+}
+
+// Case: No PATH in envPairs
+const env4 = { ...process.env };
+delete env4.PATH;
+const child4 = cp.spawn(command, { env: env4 });
+child4.on('error', common.mustCall((err) => {
+  assert.strictEqual(err.code, 'ENOENT');
+}));
+
+// Case: envPath ||= process.env.PATH (no env passed)
+if (!common.isWindows) {
+  const oldPath = process.env.PATH;
+  process.env.PATH = `${noPermDir}${path.delimiter}${oldPath}`;
+  try {
+    const child5 = cp.spawn(command);
+    child5.on('error', common.mustCall((err) => {
+      assert.strictEqual(err.code, 'ENOENT');
+    }));
+  } finally {
+    process.env.PATH = oldPath;
+  }
+}
