@@ -6,11 +6,11 @@
 require('../common');
 
 const {
-  generateSEA,
-  skipIfSingleExecutableIsNotSupported,
+  buildSEA,
+  skipIfBuildSEAIsNotSupported,
 } = require('../common/sea');
 
-skipIfSingleExecutableIsNotSupported();
+skipIfBuildSEAIsNotSupported();
 
 const tmpdir = require('../common/tmpdir');
 
@@ -21,7 +21,7 @@ const fixtures = require('../common/fixtures');
 
 tmpdir.refresh();
 
-const outputFile = generateSEA(fixtures.path('sea', 'asset-keys'));
+const outputFile = buildSEA(fixtures.path('sea', 'asset-keys'));
 
 spawnSyncAndAssert(
   outputFile,

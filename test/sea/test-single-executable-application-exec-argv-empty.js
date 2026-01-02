@@ -3,11 +3,11 @@
 require('../common');
 
 const {
-  generateSEA,
-  skipIfSingleExecutableIsNotSupported,
+  buildSEA,
+  skipIfBuildSEAIsNotSupported,
 } = require('../common/sea');
 
-skipIfSingleExecutableIsNotSupported();
+skipIfBuildSEAIsNotSupported();
 
 // This tests the execArgv functionality with empty array in single executable applications.
 
@@ -18,7 +18,7 @@ const fixtures = require('../common/fixtures');
 
 tmpdir.refresh();
 
-const outputFile = generateSEA(fixtures.path('sea', 'exec-argv-empty'));
+const outputFile = buildSEA(fixtures.path('sea', 'exec-argv-empty'));
 
 // Test that empty execArgv work correctly
 spawnSyncAndAssert(
