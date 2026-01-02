@@ -23,7 +23,7 @@
 const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
-const { readKey } = require('../common/fixtures');
+const fixtures = require('../common/fixtures');
 
 const assert = require('assert');
 const https = require('https');
@@ -31,8 +31,8 @@ const url = require('url');
 
 // https options
 const httpsOptions = {
-  key: readKey('agent1-key.pem'),
-  cert: readKey('agent1-cert.pem')
+  key: fixtures.readKey('agent1-key.pem'),
+  cert: fixtures.readKey('agent1-cert.pem')
 };
 
 function check(request) {

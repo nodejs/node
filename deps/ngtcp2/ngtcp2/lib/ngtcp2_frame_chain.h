@@ -57,6 +57,19 @@ typedef struct ngtcp2_frame_chain_binder {
 int ngtcp2_frame_chain_binder_new(ngtcp2_frame_chain_binder **pbinder,
                                   const ngtcp2_mem *mem);
 
+/* NGTCP2_FRAME_CHAIN_STREAM_DATACNT_THRES is the number of datacnt
+   that changes allocation method.  If datacnt is more than this
+   value, ngtcp2_frame_chain is allocated without ngtcp2_objalloc.
+   Otherwise, it is allocated using ngtcp2_objalloc.  */
+#define NGTCP2_FRAME_CHAIN_STREAM_DATACNT_THRES 4
+
+/* NGTCP2_FRAME_CHAIN_NEW_TOKEN_THRES is the length of a token that
+   changes allocation method.  If the length is more than this value,
+   ngtcp2_frame_chain is allocated without ngtcp2_objalloc.
+   Otherwise, it is allocated using ngtcp2_objalloc. */
+#define NGTCP2_FRAME_CHAIN_NEW_TOKEN_THRES                                     \
+  (NGTCP2_FRAME_CHAIN_STREAM_DATACNT_THRES * sizeof(ngtcp2_vec))
+
 typedef struct ngtcp2_frame_chain ngtcp2_frame_chain;
 
 /*
@@ -68,6 +81,7 @@ struct ngtcp2_frame_chain {
       ngtcp2_frame_chain *next;
       ngtcp2_frame_chain_binder *binder;
       ngtcp2_frame fr;
+      uint8_t buf[sizeof(ngtcp2_vec) * NGTCP2_FRAME_CHAIN_STREAM_DATACNT_THRES];
     };
 
     ngtcp2_opl_entry oplent;
@@ -103,26 +117,6 @@ int ngtcp2_frame_chain_objalloc_new(ngtcp2_frame_chain **pfrc,
  */
 int ngtcp2_frame_chain_extralen_new(ngtcp2_frame_chain **pfrc, size_t extralen,
                                     const ngtcp2_mem *mem);
-
-/* NGTCP2_FRAME_CHAIN_STREAM_AVAIL is the number of additional bytes
-   available after ngtcp2_stream when it is embedded in
-   ngtcp2_frame. */
-#define NGTCP2_FRAME_CHAIN_STREAM_AVAIL                                        \
-  (sizeof(ngtcp2_frame) - sizeof(ngtcp2_stream))
-
-/* NGTCP2_FRAME_CHAIN_STREAM_DATACNT_THRES is the number of datacnt
-   that changes allocation method.  If datacnt is more than this
-   value, ngtcp2_frame_chain is allocated without ngtcp2_objalloc.
-   Otherwise, it is allocated using ngtcp2_objalloc.  */
-#define NGTCP2_FRAME_CHAIN_STREAM_DATACNT_THRES                                \
-  (NGTCP2_FRAME_CHAIN_STREAM_AVAIL / sizeof(ngtcp2_vec) + 1)
-
-/* NGTCP2_FRAME_CHAIN_NEW_TOKEN_THRES is the length of a token that
-   changes allocation method.  If the length is more than this value,
-   ngtcp2_frame_chain is allocated without ngtcp2_objalloc.
-   Otherwise, it is allocated using ngtcp2_objalloc. */
-#define NGTCP2_FRAME_CHAIN_NEW_TOKEN_THRES                                     \
-  (sizeof(ngtcp2_frame) - sizeof(ngtcp2_new_token))
 
 /*
  * ngtcp2_frame_chain_stream_datacnt_objalloc_new allocates enough
