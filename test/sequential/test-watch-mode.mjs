@@ -902,7 +902,7 @@ process.on('message', (message) => {
       assert.deepStrictEqual(stdout, [
         'hello, world',
         `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
-      ])
+      ]);
 
       // Update file with syntax error
       const syntaxErrorContent = `console.log('hello, wor`;
@@ -914,7 +914,7 @@ process.on('message', (message) => {
       assert.deepStrictEqual(stdout2, [
         `Restarting ${inspect(file)}`,
         `Failed running ${inspect(file)}. Waiting for file changes before restarting...`,
-      ])
+      ]);
 
       writeFileSync(file, `console.log('hello again, world');`);
 
