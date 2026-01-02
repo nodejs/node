@@ -1,0 +1,199 @@
+name: Test Windows
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths-ignore:
+      - '**.md'
+      - '**.nix'
+      - eslint.config.mjs
+      - '**/eslint.config_partial.mjs'
+      - android-configure
+      - android-configure.py
+      - android-patches/**
+      - benchmarks/**
+      - codecov.yml
+      - doc/**
+      - pyproject.yml
+      - tsconfig.json
+      - test/internet/**
+      - tools/**
+      - .**
+      - '!.github/workflows/test-windows.yml'
+  push:
+    branches:
+      - main
+      - canary
+      - v[0-9]+.x-staging
+      - v[0-9]+.x
+    paths-ignore:
+      - '**.md'
+      - '**.nix'
+      - eslint.config.mjs
+      - '**/eslint.config_partial.mjs'
+      - android-configure
+      - android-configure.py
+      - android-patches/**
+      - benchmarks/**
+      - codecov.yml
+      - doc/**
+      - pyproject.yml
+      - tsconfig.json
+      - test/internet/**
+      - tools/**
+      - .**
+      - '!.github/workflows/test-windows.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: '3.14'
+  FLAKY_TESTS: keep_retrying
+  CLANG_VERSION: '19'
+  RUSTC_VERSION: '1.85'
+
+permissions:
+  contents: read
+
+jobs:
+  test-wsl:
+    if: github.event.pull_request.draft == false
+    runs-on: windows-latest
+    env:
+      DISTRO_NAME: Ubuntu-22.04
+      CC: sccache clang
+      CXX: sccache clang++
+      SCCACHE_GHA_ENABLED: 'true'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3  # v6.0.0
+        with:
+          persist-credentials: false
+          path: node
+
+      - name: Download Ubuntu rootfs tarball
+        shell: powershell
+        run: |
+          $url = "https://cloud-images.ubuntu.com/wsl/jammy/current/ubuntu-jammy-wsl-amd64-ubuntu22.04lts.rootfs.tar.gz"
+          $output = "$env:TEMP\ubuntu-22.04.tar.gz"
+          Write-Host "Downloading Ubuntu rootfs from $url to $output"
+          Invoke-WebRequest -Uri $url -OutFile $output -UseBasicParsing
+          Write-Host "Download complete. File size: $((Get-Item $output).Length) bytes"
+
+      - name: Import WSL Distribution
+        shell: powershell
+        run: |
+          $distroName = "$env:DISTRO_NAME"
+          $tarFile = "$env:TEMP\ubuntu-22.04.tar.gz"
+          $installLocation = "$env:LOCALAPPDATA\WSL\$distroName"
+
+          Write-Host "Creating installation directory: $installLocation"
+          New-Item -ItemType Directory -Force -Path $installLocation | Out-Null
+
+          Write-Host "Importing WSL distribution: $distroName"
+          Write-Host "  Tarball: $tarFile"
+          Write-Host "  Install location: $installLocation"
+          wsl --import $distroName $installLocation $tarFile --version 2
+
+          Write-Host "Verifying installation..."
+          wsl --list --verbose
+
+          Write-Host "Testing WSL distribution..."
+          wsl -d $distroName echo "WSL distribution is working!"
+
+      - name: Initial Setup in WSL
+        shell: powershell
+        run: |
+          $distroName = "$env:DISTRO_NAME"
+
+          Write-Host "Installing basic packages..."
+          wsl -d $distroName -u root bash -c "apt update && DEBIAN_FRONTEND=noninteractive apt install -y python3 python3-pip git curl sudo build-essential ca-certificates wget gnupg software-properties-common lsb-release"
+
+          Write-Host "Installing Clang ${{ env.CLANG_VERSION }}..."
+          wsl -d $distroName -u root bash -c "wget -O /tmp/llvm.sh https://apt.llvm.org/llvm.sh && chmod +x /tmp/llvm.sh && /tmp/llvm.sh ${{ env.CLANG_VERSION }} && update-alternatives --install /usr/bin/clang clang /usr/bin/clang-${{ env.CLANG_VERSION }} 100 && update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-${{ env.CLANG_VERSION }} 100"
+
+          Write-Host "Installing Rust ${{ env.RUSTC_VERSION }}..."
+          wsl -d $distroName -u root bash -c "curl --proto =https --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain ${{ env.RUSTC_VERSION }}"
+
+          Write-Host "Setting up Rust environment..."
+          wsl -d $distroName -u root bash -c "echo 'export PATH=/root/.cargo/bin:\$PATH' >> /root/.bashrc"
+
+          Write-Host "Installing sccache v0.12.0..."
+          wsl -d $distroName -u root bash -c "curl -L https://github.com/mozilla/sccache/releases/download/v0.12.0/sccache-v0.12.0-x86_64-unknown-linux-musl.tar.gz -o /tmp/sccache.tar.gz && tar -xzf /tmp/sccache.tar.gz -C /tmp && mv /tmp/sccache-v0.12.0-x86_64-unknown-linux-musl/sccache /usr/local/bin/ && chmod +x /usr/local/bin/sccache"
+
+          Write-Host "Setting environment variables..."
+          wsl -d $distroName -u root bash -c "echo 'export CC=sccache clang' >> /root/.bashrc"
+          wsl -d $distroName -u root bash -c "echo 'export CXX=sccache clang++' >> /root/.bashrc"
+          wsl -d $distroName -u root bash -c "echo 'export SCCACHE_GHA_ENABLED=true' >> /root/.bashrc"
+
+          Write-Host "Verifying tools..."
+          wsl -d $distroName bash -c "source /root/.bashrc && clang --version"
+          wsl -d $distroName bash -c "source /root/.bashrc && rustc --version"
+          wsl -d $distroName bash -c "source /root/.bashrc && sccache --version"
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548  # v6.1.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          allow-prereleases: true
+
+      - name: Set up sccache (for GitHub Actions cache)
+        uses: Mozilla-Actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad  # v0.0.9
+        with:
+          version: v0.12.0
+
+      - name: Environment Information
+        shell: powershell
+        run: |
+          $distroName = "$env:DISTRO_NAME"
+          $checkoutRoot = "${{ github.workspace }}".Replace('\', '/')
+          $wslCheckoutRoot = "/mnt/" + $checkoutRoot.Substring(0,1).ToLower() + $checkoutRoot.Substring(2).Replace(':', '')
+
+          Write-Host "WSL Checkout Root: $wslCheckoutRoot/node"
+          Write-Host "Running envinfo in WSL..."
+          wsl -d $distroName bash -c "source /root/.bashrc && cd '$wslCheckoutRoot/node' && npx envinfo"
+
+      - name: Build Node.js in WSL
+        shell: powershell
+        run: |
+          $distroName = "$env:DISTRO_NAME"
+          $checkoutRoot = "${{ github.workspace }}".Replace('\', '/')
+          $wslCheckoutRoot = "/mnt/" + $checkoutRoot.Substring(0,1).ToLower() + $checkoutRoot.Substring(2).Replace(':', '')
+
+          $nproc = wsl -d $distroName bash -c "nproc"
+          Write-Host "Building Node.js with $nproc cores..."
+          wsl -d $distroName bash -c "source /root/.bashrc && cd '$wslCheckoutRoot/node' && make build-ci -j$nproc V=1 CONFIG_FLAGS='--error-on-warn'"
+
+      - name: Test Node.js in WSL
+        shell: powershell
+        run: |
+          $distroName = "$env:DISTRO_NAME"
+          $checkoutRoot = "${{ github.workspace }}".Replace('\', '/')
+          $wslCheckoutRoot = "/mnt/" + $checkoutRoot.Substring(0,1).ToLower() + $checkoutRoot.Substring(2).Replace(':', '')
+
+          Write-Host "Running tests..."
+          wsl -d $distroName bash -c "source /root/.bashrc && cd '$wslCheckoutRoot/node' && make test-ci -j1 V=1 TEST_CI_ARGS='-p actions --measure-flakiness 9'"
+
+      - name: Re-run test in a folder whose name contains unusual chars
+        shell: powershell
+        run: |
+          $distroName = "$env:DISTRO_NAME"
+          $checkoutRoot = "${{ github.workspace }}".Replace('\', '/')
+          $wslCheckoutRoot = "/mnt/" + $checkoutRoot.Substring(0,1).ToLower() + $checkoutRoot.Substring(2).Replace(':', '')
+          $unusualDir = "dir%20with `$unusual`"chars?'åß∂ƒ©∆¬…"
+
+          Write-Host "Re-running tests in unusual directory..."
+          wsl -d $distroName bash -c "source /root/.bashrc && cd '$wslCheckoutRoot' && mv node '$unusualDir' && cd '$unusualDir' && ./tools/test.py --flaky-tests keep_retrying -p actions -j 4"
+
+      - name: Cleanup
+        if: always()
+        shell: powershell
+        run: |
+          $distroName = "$env:DISTRO_NAME"
+          if ($distroName) {
+            Write-Host "Unregistering WSL distribution: $distroName"
+            wsl --unregister $distroName
+          }
