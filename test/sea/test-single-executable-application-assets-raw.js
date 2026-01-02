@@ -2,11 +2,11 @@
 
 require('../common');
 const {
-  generateSEA,
-  skipIfSingleExecutableIsNotSupported,
+  buildSEA,
+  skipIfBuildSEAIsNotSupported,
 } = require('../common/sea');
 
-skipIfSingleExecutableIsNotSupported();
+skipIfBuildSEAIsNotSupported();
 
 // This tests the snapshot support in single executable applications.
 const tmpdir = require('../common/tmpdir');
@@ -17,7 +17,7 @@ const {
 const fixtures = require('../common/fixtures');
 
 tmpdir.refresh();
-const outputFile = generateSEA(fixtures.path('sea', 'assets-raw'));
+const outputFile = buildSEA(fixtures.path('sea', 'assets-raw'));
 
 spawnSyncAndExitWithoutError(
   outputFile,

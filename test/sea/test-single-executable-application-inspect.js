@@ -10,16 +10,16 @@ const tmpdir = require('../common/tmpdir');
 const fixtures = require('../common/fixtures');
 
 const {
-  generateSEA,
-  skipIfSingleExecutableIsNotSupported,
+  buildSEA,
+  skipIfBuildSEAIsNotSupported,
 } = require('../common/sea');
 
-skipIfSingleExecutableIsNotSupported();
+skipIfBuildSEAIsNotSupported();
 common.skipIfInspectorDisabled();
 
 tmpdir.refresh();
 
-const outputFile = generateSEA(fixtures.path('sea', 'inspect'));
+const outputFile = buildSEA(fixtures.path('sea', 'inspect'));
 
 // Spawn the SEA with inspect option
 const seaProcess = spawn(outputFile, [], {

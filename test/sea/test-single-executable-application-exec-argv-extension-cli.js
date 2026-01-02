@@ -3,11 +3,11 @@
 require('../common');
 
 const {
-  generateSEA,
-  skipIfSingleExecutableIsNotSupported,
+  buildSEA,
+  skipIfBuildSEAIsNotSupported,
 } = require('../common/sea');
 
-skipIfSingleExecutableIsNotSupported();
+skipIfBuildSEAIsNotSupported();
 
 // This tests the execArgvExtension "cli" mode in single executable applications.
 
@@ -18,7 +18,7 @@ const fixtures = require('../common/fixtures');
 
 tmpdir.refresh();
 
-const outputFile = generateSEA(fixtures.path('sea', 'exec-argv-extension-cli'));
+const outputFile = buildSEA(fixtures.path('sea', 'exec-argv-extension-cli'));
 
 // Test that --node-options works with execArgvExtension: "cli"
 spawnSyncAndAssert(
