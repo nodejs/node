@@ -26,5 +26,3 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GH_USER_TOKEN }}
           PR_NUMBER: ${{ github.event.number }}
-          REPO: ${{ github.repository }}
-          SHA: ${{ github.sha }}

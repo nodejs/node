@@ -8,13 +8,19 @@
 
 import { env } from 'node:process';
 
-const { GH_TOKEN, PR_NUMBER, REPO, SHA } = env;
-if (!GH_TOKEN || !PR_NUMBER || !REPO || !SHA) {
+const {
+  GITHUB_API_URL = 'https://api.github.com',
+  GITHUB_REPOSITORY = 'nodejs/node',
+  GITHUB_SHA,
+  GH_TOKEN,
+  PR_NUMBER,
+} = env;
+if (!GITHUB_SHA || !GH_TOKEN || !PR_NUMBER) {
   throw new Error('Missing required environment variables');
 }
 
 const PLACEHOLDER = 'FILLME';
-const placeholderReg = new RegExp(`^\\+.*${RegExp.escape(`https://github.com/${REPO}/pull/${PLACEHOLDER}`)}`);
+const placeholderReg = new RegExp(`^\\+.*${RegExp.escape(`https://github.com/${GITHUB_REPOSITORY}/pull/${PLACEHOLDER}`)}`);
 
 const headers = new Headers({
   'Accept': 'application/vnd.github+json',
@@ -25,7 +31,7 @@ const headers = new Headers({
 
 // https://docs.github.com/en/rest/pulls/pulls?apiVersion=2022-11-28#list-pull-requests-files
 const res = await fetch(
-  new URL(`repos/${REPO}/pulls/${PR_NUMBER}/files`, 'https://api.github.com'),
+  new URL(`repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/files`, GITHUB_API_URL),
   { headers },
 );
 if (!res.ok) {
@@ -45,7 +51,10 @@ const comments = files.flatMap(({ status, filename, patch }) => {
     }
     const suggestion = line
       .slice(1)
-      .replace(`https://github.com/${REPO}/pull/${PLACEHOLDER}`, `https://github.com/${REPO}/pull/${PR_NUMBER}`);
+      .replace(
+        `https://github.com/${GITHUB_REPOSITORY}/pull/${PLACEHOLDER}`,
+        `https://github.com/${GITHUB_REPOSITORY}/pull/${PR_NUMBER}`,
+      );
     return {
       path: filename,
       position,
@@ -60,13 +69,13 @@ const comments = files.flatMap(({ status, filename, patch }) => {
 if (comments.length) {
   const payload = {
     comments,
-    commit_id: SHA,
+    commit_id: GITHUB_SHA,
     event: 'COMMENT',
   };
 
   // https://docs.github.com/en/rest/pulls/reviews?apiVersion=2022-11-28#create-a-review-for-a-pull-request
   await fetch(
-    new URL(`repos/${REPO}/pulls/${PR_NUMBER}/reviews`, 'https://api.github.com'),
+    new URL(`repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/reviews`, GITHUB_API_URL),
     {
       method: 'POST',
       headers,
