@@ -29,6 +29,7 @@ enum class SeaFlags : uint32_t {
   kUseCodeCache = 1 << 2,
   kIncludeAssets = 1 << 3,
   kIncludeExecArgv = 1 << 4,
+  kIncludeUserArgv = 1 << 5,
 };
 
 enum class SeaExecArgvExtension : uint8_t {
@@ -45,6 +46,7 @@ struct SeaResource {
   std::optional<std::string_view> code_cache;
   std::unordered_map<std::string_view, std::string_view> assets;
   std::vector<std::string_view> exec_argv;
+  std::vector<std::string_view> user_argv;
 
   bool use_snapshot() const;
   bool use_code_cache() const;
