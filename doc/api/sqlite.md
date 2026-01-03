@@ -917,6 +917,7 @@ added: v22.5.0
 
 * `enabled` {boolean} Enables or disables support for binding named parameters
   without the prefix character.
+* Returns: {StatementSync} The prepared statement.
 
 The names of SQLite parameters begin with a prefix character. By default,
 `node:sqlite` requires that this prefix character is present when binding
@@ -943,6 +944,7 @@ added:
 -->
 
 * `enabled` {boolean} Enables or disables support for unknown named parameters.
+* Returns: {StatementSync} The prepared statement.
 
 By default, if an unknown name is encountered while binding parameters, an
 exception is thrown. This method allows unknown named parameters to be ignored.
@@ -956,6 +958,7 @@ added:
 -->
 
 * `enabled` {boolean} Enables or disables the return of query results as arrays.
+* Returns: {StatementSync} The prepared statement.
 
 When enabled, query results returned by the `all()`, `get()`, and `iterate()` methods will be returned as arrays instead
 of objects.
@@ -968,6 +971,7 @@ added: v22.5.0
 
 * `enabled` {boolean} Enables or disables the use of `BigInt`s when reading
   `INTEGER` fields from the database.
+* Returns: {StatementSync} The prepared statement.
 
 When reading from the database, SQLite `INTEGER`s are mapped to JavaScript
 numbers by default. However, SQLite `INTEGER`s can store values larger than
