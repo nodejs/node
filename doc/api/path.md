@@ -168,7 +168,7 @@ A [`TypeError`][] is thrown if `path` is not a string.
 ## `path.escapeGlob(pattern)`
 
 <!-- YAML
-added: CHANGEME
+added: REPLACEME
 -->
 
 * `pattern` {string}
@@ -658,7 +658,7 @@ method is non-operational and always returns `path` without modifications.
 ## `path.unescapeGlob(pattern)`
 
 <!-- YAML
-added: CHANGEME
+added: REPLACEME
 -->
 
 * `pattern` {string}

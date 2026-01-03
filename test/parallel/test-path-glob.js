@@ -10,7 +10,8 @@ function testMatch() {
       ['foo\\bar\\baz', 'foo\\[bcr]ar\\baz', true], // Matches 'bar' or 'car' in 'foo\\bar'
       ['foo\\bar\\baz', 'foo\\[!bcr]ar\\baz', false], // Matches anything except 'bar' or 'car' in 'foo\\bar'
       ['foo\\bar\\baz', 'foo\\[bc-r]ar\\baz', true], // Matches 'bar' or 'car' using range in 'foo\\bar'
-      ['foo\\bar\\baz', 'foo\\*\\!bar\\*\\baz', false], // Matches anything with 'foo' and 'baz' but not 'bar' in between
+      ['foo\\bar\\baz', 'foo\\*\\!bar\\*\\baz', false], // Matches anything with 'foo' and 'baz' but not 'bar'
+      // in between
       ['foo\\bar1\\baz', 'foo\\bar[0-9]\\baz', true], // Matches 'bar' followed by any digit in 'foo\\bar1'
       ['foo\\bar5\\baz', 'foo\\bar[0-9]\\baz', true], // Matches 'bar' followed by any digit in 'foo\\bar5'
       ['foo\\barx\\baz', 'foo\\bar[a-z]\\baz', true], // Matches 'bar' followed by any lowercase letter in 'foo\\barx'
@@ -54,7 +55,7 @@ function testEscaping() {
     ['file{1,2}.txt', 'file[{]1,2[}].txt'],
     ['file[0-9]?.txt', 'file[[]0-9[]][?].txt'],
     ['C:\\Users\\*.txt', 'C:\\Users\\[*].txt'],
-    ['?[]', '[?][[][]]']
+    ['?[]', '[?][[][]]'],
   ];
 
   for (const [pattern, expected] of samples) {
@@ -68,9 +69,9 @@ function testEscaping() {
   }
 
   // Test for non-string input
-  assert.throws(() => path.escapeGlob(123));
-  assert.throws(() => path.unescapeGlob(123));
+  assert.throws(() => path.escapeGlob(123), /.*must be of type string.*/);
+  assert.throws(() => path.unescapeGlob(123), /.*must be of type string.*/);
 }
 
-testMatch()
-testEscaping()
+testMatch();
+testEscaping();
