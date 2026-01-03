@@ -2,6 +2,7 @@
 #include <string>
 #include "debug_utils-inl.h"
 #include "env-inl.h"
+#include "inspector/inspector_object_utils.h"
 #include "inspector/network_resource_manager.h"
 #include "inspector/protocol_helper.h"
 #include "network_inspector.h"
@@ -14,97 +15,14 @@
 namespace node {
 namespace inspector {
 
-using v8::EscapableHandleScope;
 using v8::HandleScope;
 using v8::Isolate;
-using v8::Just;
 using v8::Local;
-using v8::Maybe;
-using v8::MaybeLocal;
-using v8::Nothing;
 using v8::Object;
 using v8::Uint8Array;
 using v8::Value;
 
 constexpr size_t kDefaultMaxTotalBufferSize = 100 * 1024 * 1024;  // 100MB
-
-// Get a protocol string property from the object.
-Maybe<protocol::String> ObjectGetProtocolString(v8::Local<v8::Context> context,
-                                                Local<Object> object,
-                                                Local<v8::String> property) {
-  HandleScope handle_scope(Isolate::GetCurrent());
-  Local<Value> value;
-  if (!object->Get(context, property).ToLocal(&value) || !value->IsString()) {
-    return Nothing<protocol::String>();
-  }
-  Local<v8::String> str = value.As<v8::String>();
-  return Just(ToProtocolString(Isolate::GetCurrent(), str));
-}
-
-// Get a protocol string property from the object.
-Maybe<protocol::String> ObjectGetProtocolString(v8::Local<v8::Context> context,
-                                                Local<Object> object,
-                                                const char* property) {
-  HandleScope handle_scope(Isolate::GetCurrent());
-  return ObjectGetProtocolString(
-      context, object, OneByteString(Isolate::GetCurrent(), property));
-}
-
-// Get a protocol double property from the object.
-Maybe<double> ObjectGetDouble(v8::Local<v8::Context> context,
-                              Local<Object> object,
-                              const char* property) {
-  HandleScope handle_scope(Isolate::GetCurrent());
-  Local<Value> value;
-  if (!object->Get(context, OneByteString(Isolate::GetCurrent(), property))
-           .ToLocal(&value) ||
-      !value->IsNumber()) {
-    return Nothing<double>();
-  }
-  return Just(value.As<v8::Number>()->Value());
-}
-
-// Get a protocol int property from the object.
-Maybe<int> ObjectGetInt(v8::Local<v8::Context> context,
-                        Local<Object> object,
-                        const char* property) {
-  HandleScope handle_scope(Isolate::GetCurrent());
-  Local<Value> value;
-  if (!object->Get(context, OneByteString(Isolate::GetCurrent(), property))
-           .ToLocal(&value) ||
-      !value->IsInt32()) {
-    return Nothing<int>();
-  }
-  return Just(value.As<v8::Int32>()->Value());
-}
-
-// Get a protocol bool property from the object.
-Maybe<bool> ObjectGetBool(v8::Local<v8::Context> context,
-                          Local<Object> object,
-                          const char* property) {
-  HandleScope handle_scope(Isolate::GetCurrent());
-  Local<Value> value;
-  if (!object->Get(context, OneByteString(Isolate::GetCurrent(), property))
-           .ToLocal(&value) ||
-      !value->IsBoolean()) {
-    return Nothing<bool>();
-  }
-  return Just(value.As<v8::Boolean>()->Value());
-}
-
-// Get an object property from the object.
-MaybeLocal<v8::Object> ObjectGetObject(v8::Local<v8::Context> context,
-                                       Local<Object> object,
-                                       const char* property) {
-  EscapableHandleScope handle_scope(Isolate::GetCurrent());
-  Local<Value> value;
-  if (!object->Get(context, OneByteString(Isolate::GetCurrent(), property))
-           .ToLocal(&value) ||
-      !value->IsObject()) {
-    return {};
-  }
-  return handle_scope.Escape(value.As<v8::Object>());
-}
 
 // Create a protocol::Network::Headers from the v8 object.
 std::unique_ptr<protocol::Network::Headers> createHeadersFromObject(
