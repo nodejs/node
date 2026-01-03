@@ -387,8 +387,8 @@ loop tick.
 present on builtin `Error` objects (those for which [`Error.isError`][] returns
 true). If `error` is not a builtin error object, then the `error.stack` getter
 will always return `undefined`, and the setter will do nothing. This can occur
-if `error` is an object that has had its prototype set to `Error.prototype`,
-but was not constructed by a builtin `Error` constructor.
+if the accessor is manually invoked with a `this` value that is not a builtin
+error object, such as a {Proxy}.
 
 ## Class: `AssertionError`
 
