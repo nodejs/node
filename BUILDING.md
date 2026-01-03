@@ -178,7 +178,7 @@ Binaries at <https://nodejs.org/download/release/> are produced on:
 Starting with Node.js 25, official Linux binaries are linked with `libatomic` and these systems
 must have the `libatomic` runtime installed and available at execution time to run the binaries.
 The package name for the `libatomic` runtime is typically `libatomic` or `libatomic1` depending
-on your Linux distibution.
+on your Linux distribution.
 
 <!--lint disable final-definition-->
 
@@ -635,7 +635,7 @@ on Linux, you can try [Docker](https://www.docker.com/products/docker-desktop/)
 (using an image like `gengjiawen/node-build:2020-02-14`).
 
 The `--debug` is not necessary and will slow down build and testing, but it can
-show clear stacktrace if ASan hits an issue.
+show a clear stack trace if ASan hits an issue.
 
 ```bash
 ./configure --debug --enable-asan && make -j4
@@ -713,8 +713,8 @@ the number of parallel build tasks (`-j<n>`).
 
 #### Tips
 
-You may need disable vcpkg integration if you got link error about symbol
-redefine related to zlib.lib(zlib1.dll), even you never install it by hand,
+You may need to disable vcpkg integration if you encounter a link error about symbol
+redefinition related to zlib.lib(zlib1.dll), even if you never installed it by hand,
 as vcpkg is part of CLion and Visual Studio now.
 
 ```powershell
