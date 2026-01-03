@@ -941,8 +941,7 @@ int uv_pty_resize(uv_process_t* process,
     return UV_EINVAL;
 
   if (pfnResize == NULL) {
-    HANDLE hLibrary = LoadLibraryExW(L"kernel32.dll", 0, 0);
-    // Error loading kernel32.dll: (error code %i)
+    HANDLE hLibrary = GetModuleHandleW(L"kernel32.dll");
     if (!hLibrary)
       return uv_translate_sys_error(GetLastError());
 
