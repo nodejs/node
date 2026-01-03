@@ -21,7 +21,7 @@ const { getHeapSnapshot } = require('v8');
 
 function createJSHeapSnapshot(stream = getHeapSnapshot()) {
   stream.pause();
-  const dump = JSON.parse(stream.read());
+  const dump = JSON.parse(stream.read(stream.readableLength));
   const meta = dump.snapshot.meta;
 
   const nodes =
