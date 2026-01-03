@@ -103,7 +103,7 @@ jobs:
         run: cp wptreport.json wptreport-${{ steps.setup-node.outputs.node-version }}.json
       - name: Upload GitHub Actions artifact
         if: ${{ env.WPT_REPORT != '' }}
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4  # v5.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0
         with:
           path: out/wpt/wptreport-*.json
           name: WPT Report for ${{ steps.setup-node.outputs.node-version }}
