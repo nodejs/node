@@ -208,7 +208,12 @@ Commits in one pull request that belong to one logical change should
 be squashed. It is rarely the case in onboarding exercises, so this
 needs to be pointed out separately during the onboarding.
 
-<!-- TODO(joyeechueng): provide examples about "one logical change" -->
+Examples of "one logical change":
+- A bug fix that includes the code change and corresponding test updates.
+- A new feature implementation in a single module.
+- A refactoring of a specific function or class.
+
+Multiple commits should be squashed if they represent iterations on the same logical change (e.g., fixing review feedback). Commits that represent separate logical changes should remain separate.
 
 ## Exercise: Make a pull request adding yourself to the README
 
