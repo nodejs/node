@@ -1037,7 +1037,7 @@ typedef struct {
   HANDLE pty_out_read;
   uv_pipe_t out_write;
 } uv__pty_out_data;
-const int out_read_buf_len = 512;
+const int out_read_buf_len = 128 * 1024;
 
 void pty_stdout_read_cb(uv_work_t *req) {
   int err = 0;
