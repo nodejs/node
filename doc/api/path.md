@@ -298,6 +298,7 @@ path.format({
 });
 // Returns: 'C:\\path\\dir\\file.txt'
 ```
+
 ## `path.isAbsolute(path)`
 
 <!-- YAML
