@@ -935,20 +935,25 @@ void uv__process_endgame(uv_loop_t* loop, uv_process_t* handle) {
 int uv_pty_resize(uv_process_t* process,
                   unsigned short cols,
                   unsigned short rows) {
+  static PFNRESIZEPSEUDOCONSOLE pfnResize = NULL;
+
   if (process->pty_handle == NULL)
     return UV_EINVAL;
-  HANDLE hLibrary = LoadLibraryExW(L"kernel32.dll", 0, 0);
-  // Error loading kernel32.dll: (error code %i)
-  if (!hLibrary)
-    return uv_translate_sys_error(GetLastError());
 
-  PFNRESIZEPSEUDOCONSOLE pfnResize = (PFNRESIZEPSEUDOCONSOLE)GetProcAddress((HMODULE)hLibrary,"ResizePseudoConsole");
-  if (!pfnResize) {
-    int err = GetLastError();
-    if (err == ERROR_PROC_NOT_FOUND)
-      return UV_ENOTSUP;
-    else
-      return uv_translate_sys_error(err);
+  if (pfnResize == NULL) {
+    HANDLE hLibrary = LoadLibraryExW(L"kernel32.dll", 0, 0);
+    // Error loading kernel32.dll: (error code %i)
+    if (!hLibrary)
+      return uv_translate_sys_error(GetLastError());
+
+    pfnResize = (PFNRESIZEPSEUDOCONSOLE)GetProcAddress((HMODULE)hLibrary,"ResizePseudoConsole");
+    if (!pfnResize) {
+      int err = GetLastError();
+      if (err == ERROR_PROC_NOT_FOUND)
+        return UV_ENOTSUP;
+      else
+        return uv_translate_sys_error(err);
+    }
   }
 
   COORD size = {cols, rows};
