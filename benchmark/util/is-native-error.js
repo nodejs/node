@@ -12,7 +12,7 @@ const bench = common.createBenchmark(
   main,
   {
     argument: ['true'],
-    version: ['native'],
+    version: ['native', 'js'],
     n: [1e6],
   },
   {

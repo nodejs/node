@@ -1567,6 +1567,26 @@ napi_status NAPI_CDECL napi_strict_equals(napi_env env,
   return GET_RETURN_STATUS(env);
 }
 
+napi_status NAPI_CDECL node_api_set_prototype(napi_env env,
+                                              napi_value object,
+                                              napi_value value) {
+  NAPI_PREAMBLE(env);
+  CHECK_ARG(env, value);
+
+  v8::Local<v8::Context> context = env->context();
+  v8::Local<v8::Object> obj;
+
+  CHECK_TO_OBJECT(env, context, obj, object);
+
+  v8::Local<v8::Value> val = v8impl::V8LocalValueFromJsValue(value);
+
+  v8::Maybe<bool> set_maybe = obj->SetPrototypeV2(context, val);
+
+  RETURN_STATUS_IF_FALSE_WITH_PREAMBLE(
+      env, set_maybe.FromMaybe(false), napi_generic_failure);
+  return GET_RETURN_STATUS(env);
+}
+
 napi_status NAPI_CDECL napi_get_prototype(napi_env env,
                                           napi_value object,
                                           napi_value* result) {

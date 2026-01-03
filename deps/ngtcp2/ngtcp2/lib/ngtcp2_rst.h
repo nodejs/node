@@ -79,6 +79,8 @@ void ngtcp2_rst_init(ngtcp2_rst *rst);
 
 void ngtcp2_rst_reset(ngtcp2_rst *rst);
 
+void ngtcp2_rst_reset_rate_sample(ngtcp2_rst *rst, ngtcp2_conn_stat *cstat);
+
 void ngtcp2_rst_on_pkt_sent(ngtcp2_rst *rst, ngtcp2_rtb_entry *ent,
                             const ngtcp2_conn_stat *cstat);
 void ngtcp2_rst_on_ack_recv(ngtcp2_rst *rst, ngtcp2_conn_stat *cstat);

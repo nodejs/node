@@ -72,10 +72,12 @@ int nghttp3_buf_reserve(nghttp3_buf *buf, size_t size, const nghttp3_mem *mem) {
     return NGHTTP3_ERR_NOMEM;
   }
 
-  buf->begin = p;
-  buf->end = p + size;
-  buf->pos = p + pos_offset;
-  buf->last = p + last_offset;
+  *buf = (nghttp3_buf){
+    .begin = p,
+    .end = p + size,
+    .pos = p + pos_offset,
+    .last = p + last_offset,
+  };
 
   return 0;
 }

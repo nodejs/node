@@ -1,6 +1,7 @@
 {
   'variables': {
     'cargo_vendor_dir': './vendor',
+    'node_crates_libpath': '<(SHARED_INTERMEDIATE_DIR)/>(cargo_build_mode)/<(STATIC_LIB_PREFIX)node_crates<(STATIC_LIB_SUFFIX)',
   },
   'targets': [
     {
@@ -14,7 +15,15 @@
       ],
       'link_settings': {
         'libraries': [
-          '<(SHARED_INTERMEDIATE_DIR)/>(cargo_build_mode)/libnode_crates.a',
+          '<(node_crates_libpath)',
+        ],
+        'conditions': [
+          ['OS=="win"', {
+            'libraries': [
+              '-lntdll',
+              '-luserenv'
+            ],
+          }],
         ],
       },
       'actions': [
@@ -24,7 +33,7 @@
             '<@(_sources)'
           ],
           'outputs': [
-            '<(SHARED_INTERMEDIATE_DIR)/>(cargo_build_mode)/libnode_crates.a'
+            '<(node_crates_libpath)'
           ],
           'action': [
             'cargo',

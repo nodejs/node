@@ -1,5 +1,5 @@
 import { spawnPromisified } from '../common/index.mjs';
-import { fileURL, path } from '../common/fixtures.mjs';
+import * as fixtures from '../common/fixtures.mjs';
 import assert from 'node:assert';
 import { execPath } from 'node:process';
 import { describe, it } from 'node:test';
@@ -9,8 +9,8 @@ describe('ESM: loader with syntax error', { concurrency: !process.env.TEST_PARAL
   it('should crash the node process', async () => {
     const { code, stderr } = await spawnPromisified(execPath, [
       '--experimental-loader',
-      fileURL('es-module-loaders', 'syntax-error.mjs').href,
-      path('print-error-message.js'),
+      fixtures.fileURL('es-module-loaders', 'syntax-error.mjs').href,
+      fixtures.path('print-error-message.js'),
     ]);
 
     assert.match(stderr, /SyntaxError/);

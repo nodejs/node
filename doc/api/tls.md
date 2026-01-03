@@ -1730,6 +1730,9 @@ changes:
     **Default:** `1024`.
   * `highWaterMark` {number} Consistent with the readable stream `highWaterMark` parameter.
     **Default:** `16 * 1024`.
+  * `timeout`: {number} If set and if a socket is created internally, will call
+    [`socket.setTimeout(timeout)`][] after the socket is created, but before it
+    starts the connection.
   * `secureContext`: TLS context object created with
     [`tls.createSecureContext()`][]. If a `secureContext` is _not_ provided, one
     will be created by passing the entire `options` object to
@@ -2479,6 +2482,7 @@ added: v0.11.3
 [`server.listen()`]: net.md#serverlisten
 [`server.setTicketKeys()`]: #serversetticketkeyskeys
 [`socket.connect()`]: net.md#socketconnectoptions-connectlistener
+[`socket.setTimeout(timeout)`]: net.md#socketsettimeouttimeout-callback
 [`tls.DEFAULT_ECDH_CURVE`]: #tlsdefault_ecdh_curve
 [`tls.DEFAULT_MAX_VERSION`]: #tlsdefault_max_version
 [`tls.DEFAULT_MIN_VERSION`]: #tlsdefault_min_version
