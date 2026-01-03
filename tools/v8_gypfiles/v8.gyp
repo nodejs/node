@@ -2131,6 +2131,7 @@
           'direct_dependent_settings': {
             'defines': [
               'USING_V8_SHARED',
+              'USING_V8_PLATFORM_SHARED',
             ],
           },
           'conditions': [
