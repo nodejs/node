@@ -147,6 +147,7 @@ test('tag store prevents circular reference leaks', async () => {
   for (let i = 0; i < 1000; i++) {
     const sql = new DatabaseSync(':memory:').createTagStore();
     sql.db.exec('CREATE TABLE test (data INTEGER)');
+    // eslint-disable-next-line no-void
     sql.db.setAuthorizer(() => void sql.db);
   }
 
