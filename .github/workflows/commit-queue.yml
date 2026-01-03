@@ -59,7 +59,7 @@ jobs:
     if: needs.get_mergeable_prs.outputs.numbers != ''
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3  # v6.0.0
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
         with:
           # A personal token is required because pushing with GITHUB_TOKEN will
           # prevent commits from running CI after they land. It needs
