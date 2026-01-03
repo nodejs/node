@@ -8,9 +8,9 @@
     "@babel/plugin-syntax-import-source": "^7.27.1",
     "@eslint/markdown": "^7.5.1",
     "@stylistic/eslint-plugin": "^5.6.1",
-    "eslint": "^9.39.1",
+    "eslint": "^9.39.2",
     "eslint-formatter-tap": "^9.0.1",
-    "eslint-plugin-jsdoc": "^61.4.1",
+    "eslint-plugin-jsdoc": "^61.5.0",
     "globals": "^16.5.0"
   }
 }
