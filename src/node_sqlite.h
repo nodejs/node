@@ -315,10 +315,7 @@ class SQLTagStore : public BaseObject {
               int capacity);
   ~SQLTagStore() override;
   static BaseObjectPtr<SQLTagStore> Create(
-      Environment* env,
-      BaseObjectWeakPtr<DatabaseSync> database,
-      v8::Local<v8::Object> database_object,
-      int capacity);
+      Environment* env, BaseObjectWeakPtr<DatabaseSync> database, int capacity);
   static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
       Environment* env);
   static void All(const v8::FunctionCallbackInfo<v8::Value>& args);
