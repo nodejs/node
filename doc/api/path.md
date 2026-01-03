@@ -165,6 +165,22 @@ path.dirname('/foo/bar/baz/asdf/quux');
 
 A [`TypeError`][] is thrown if `path` is not a string.
 
+## `path.escapeGlob(pattern)`
+
+<!-- YAML
+added: CHANGEME
+-->
+
+* `pattern` {string}
+* Returns: {string}
+
+The `path.escapeGlob()` method escapes glob characters in a `pattern`.
+
+```js
+path.escapeGlob('foo*bar');
+// Returns: 'foo[*]bar'
+```
+
 ## `path.extname(path)`
 
 <!-- YAML
@@ -638,6 +654,22 @@ modifications.
 
 This method is meaningful only on Windows systems. On POSIX systems, the
 method is non-operational and always returns `path` without modifications.
+
+## `path.unescapeGlob(pattern)`
+
+<!-- YAML
+added: CHANGEME
+-->
+
+* `pattern` {string}
+* Returns: {string}
+
+The `path.unescapeGlob()` method unescapes the given glob pattern.
+
+```js
+path.unescapeGlob('foo[*]bar');
+// Returns: 'foo*bar'
+```
 
 ## `path.win32`
 
