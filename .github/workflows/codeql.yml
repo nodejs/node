@@ -27,15 +27,15 @@ jobs:
 
       # Initializes the CodeQL tools for scanning.
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@fe4161a26a8629af62121b670040955b330f9af2  # v4.31.6
+        uses: github/codeql-action/init@5d4e8d1aca955e8d8589aabd499c5cae939e33c7  # v4.31.9
         with:
           languages: ${{ matrix.language }}
           config-file: ./.github/codeql-config.yml
 
       - name: Autobuild
-        uses: github/codeql-action/autobuild@fe4161a26a8629af62121b670040955b330f9af2  # v4.31.6
+        uses: github/codeql-action/autobuild@5d4e8d1aca955e8d8589aabd499c5cae939e33c7  # v4.31.9
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@fe4161a26a8629af62121b670040955b330f9af2  # v4.31.6
+        uses: github/codeql-action/analyze@5d4e8d1aca955e8d8589aabd499c5cae939e33c7  # v4.31.9
         with:
           category: /language:${{matrix.language}}
