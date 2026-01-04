@@ -178,7 +178,7 @@ Binaries at <https://nodejs.org/download/release/> are produced on:
 Starting with Node.js 25, official Linux binaries are linked with `libatomic` and these systems
 must have the `libatomic` runtime installed and available at execution time to run the binaries.
 The package name for the `libatomic` runtime is typically `libatomic` or `libatomic1` depending
-on your Linux distibution.
+on your Linux distribution.
 
 <!--lint disable final-definition-->
 
