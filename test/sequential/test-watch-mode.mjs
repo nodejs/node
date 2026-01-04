@@ -884,8 +884,4 @@ process.on('message', (message) => {
       await done();
     }
   });
-
-  it('should watch changes even when there is syntax errors during esm loading', async () => {
-
-  });
 });
