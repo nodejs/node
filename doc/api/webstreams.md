@@ -1694,6 +1694,43 @@ buffer(readable).then((data) => {
 });
 ```
 
+#### `streamConsumers.bytes(stream)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `stream` {ReadableStream|stream.Readable|AsyncIterator}
+* Returns: {Promise} Fulfills with a {Uint8Array} containing the full
+  contents of the stream.
+
+```mjs
+import { bytes } from 'node:stream/consumers';
+import { Readable } from 'node:stream';
+import { Buffer } from 'node:buffer';
+
+const dataBuffer = Buffer.from('hello world from consumers!');
+
+const readable = Readable.from(dataBuffer);
+const data = await bytes(readable);
+console.log(`from readable: ${data.length}`);
+// Prints: from readable: 27
+```
+
+```cjs
+const { bytes } = require('node:stream/consumers');
+const { Readable } = require('node:stream');
+const { Buffer } = require('node:buffer');
+
+const dataBuffer = Buffer.from('hello world from consumers!');
+
+const readable = Readable.from(dataBuffer);
+bytes(readable).then((data) => {
+  console.log(`from readable: ${data.length}`);
+  // Prints: from readable: 27
+});
+```
+
 #### `streamConsumers.json(stream)`
 
 <!-- YAML
