@@ -8,6 +8,7 @@
 #define __UNITS_CONVERTER_H__
 
 #include "cmemory.h"
+#include "fixedstring.h"
 #include "measunit_impl.h"
 #include "unicode/errorcode.h"
 #include "unicode/stringpiece.h"
@@ -71,7 +72,7 @@ typedef enum Signum {
 } Signum;
 
 /* Represents a conversion factor */
-struct U_I18N_API Factor {
+struct U_I18N_API_CLASS Factor {
     double factorNum = 1;
     double factorDen = 1;
     double offset = 0;
@@ -94,10 +95,10 @@ struct U_I18N_API Factor {
     // constantExponents (resetting the exponents).
     //
     // In ICU4J, see UnitConverter.Factor.getConversionRate().
-    void substituteConstants();
+    U_I18N_API void substituteConstants();
 };
 
-struct U_I18N_API ConversionInfo {
+struct ConversionInfo {
     double conversionRate;
     double offset;
     bool reciprocal;
@@ -114,11 +115,11 @@ void U_I18N_API addSingleFactorConstant(StringPiece baseStr, int32_t power, Sign
  * TODO ICU-22683: COnsider moving the handling of special mappings (e.g. beaufort) to a separate
  * struct.
  */
-struct U_I18N_API ConversionRate : public UMemory {
+struct ConversionRate : public UMemory {
     const MeasureUnitImpl source;
     const MeasureUnitImpl target;
-    CharString specialSource;
-    CharString specialTarget;
+    FixedString specialSource;
+    FixedString specialTarget;
     double factorNum = 1;
     double factorDen = 1;
     double sourceOffset = 0;
@@ -135,9 +136,9 @@ enum Convertibility {
     UNCONVERTIBLE,
 };
 
-MeasureUnitImpl U_I18N_API extractCompoundBaseUnit(const MeasureUnitImpl &source,
-                                                   const ConversionRates &conversionRates,
-                                                   UErrorCode &status);
+MeasureUnitImpl extractCompoundBaseUnit(const MeasureUnitImpl& source,
+                                        const ConversionRates& conversionRates,
+                                        UErrorCode& status);
 
 /**
  * Check if the convertibility between `source` and `target`.
@@ -162,7 +163,7 @@ Convertibility U_I18N_API extractConvertibility(const MeasureUnitImpl &source,
  *    Only works with SINGLE and COMPOUND units. If one of the units is a
  *    MIXED unit, an error will occur. For more information, see UMeasureUnitComplexity.
  */
-class U_I18N_API UnitsConverter : public UMemory {
+class U_I18N_API_CLASS UnitsConverter : public UMemory {
   public:
     /**
      * Constructor of `UnitConverter`.
@@ -176,7 +177,8 @@ class U_I18N_API UnitsConverter : public UMemory {
      * @param targetIdentifier represents the target unit identifier.
      * @param status
      */
-    UnitsConverter(StringPiece sourceIdentifier, StringPiece targetIdentifier, UErrorCode &status);
+    U_I18N_API UnitsConverter(StringPiece sourceIdentifier, StringPiece targetIdentifier,
+                              UErrorCode &status);
 
     /**
      * Constructor of `UnitConverter`.
@@ -189,8 +191,8 @@ class U_I18N_API UnitsConverter : public UMemory {
      * @param ratesInfo Contains all the needed conversion rates.
      * @param status
      */
-    UnitsConverter(const MeasureUnitImpl &source, const MeasureUnitImpl &target,
-                  const ConversionRates &ratesInfo, UErrorCode &status);
+    U_I18N_API UnitsConverter(const MeasureUnitImpl &source, const MeasureUnitImpl &target,
+                              const ConversionRates &ratesInfo, UErrorCode &status);
 
     /**
      * Compares two single units and returns 1 if the first one is greater, -1 if the second
@@ -209,7 +211,7 @@ class U_I18N_API UnitsConverter : public UMemory {
      * @param inputValue the value to be converted.
      * @return the converted value.
      */
-    double convert(double inputValue) const;
+    U_I18N_API double convert(double inputValue) const;
 
     /**
      * The inverse of convert(): convert a measurement expressed in the target
@@ -218,9 +220,9 @@ class U_I18N_API UnitsConverter : public UMemory {
      * @param inputValue the value to be converted.
      * @return the converted value.
      */
-    double convertInverse(double inputValue) const;
+    U_I18N_API double convertInverse(double inputValue) const;
 
-    ConversionInfo getConversionInfo() const;
+    U_I18N_API ConversionInfo getConversionInfo() const;
 
   private:
     ConversionRate conversionRate_;
