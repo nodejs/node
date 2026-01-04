@@ -104,6 +104,9 @@ exposed by this class execute synchronously.
 <!-- YAML
 added: v22.5.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/61266
+    description: Enable `defensive` by default.
   - version:
       - v25.1.0
       - v24.12.0
@@ -154,7 +157,7 @@ changes:
   * `defensive` {boolean} If `true`, enables the defensive flag. When the defensive flag is enabled,
     language features that allow ordinary SQL to deliberately corrupt the database file are disabled.
     The defensive flag can also be set using `enableDefensive()`.
-    **Default:** `false`.
+    **Default:** `true`.
 
 Constructs a new `DatabaseSync` instance.
 
