@@ -25,6 +25,14 @@ if (!common.hasQuic) {
   common.skip('this test requires QUIC');
 }
 
+if (process.config.variables.icu_small) {
+  common.skip('this test assumes full ICU build');
+}
+
+if (process.config.variables.node_quic) {
+  common.skip('this test assumes default configuration options');
+}
+
 const {
   generateConfigJsonSchema,
 } = require('internal/options');
