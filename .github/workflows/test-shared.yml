@@ -23,6 +23,7 @@ on:
       - deps/icu-small/**
       - deps/icu-tmp/**
       - deps/llhttp/**
+      - deps/nbytes/**
       - deps/nghttp2/**
       - deps/ngtcp2/**
       - deps/openssl/*/**
@@ -71,6 +72,7 @@ on:
       - deps/icu-small/**
       - deps/icu-tmp/**
       - deps/llhttp/**
+      - deps/nbytes/**
       - deps/nghttp2/**
       - deps/ngtcp2/**
       - deps/openssl/*/**
