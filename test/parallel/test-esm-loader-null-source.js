@@ -41,9 +41,9 @@ const fixtures = require('../common/fixtures');
   const output = result.stdout + result.stderr;
   
   // Verify test passed
-  assert.ok(
-    output.includes('PASS: Got expected error'),
-    'Should pass with expected error. Output: ' + output
+  assert.match(
+    output,
+    /PASS: Got expected error/,
   );
   
   assert.strictEqual(
