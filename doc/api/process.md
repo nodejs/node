@@ -2862,6 +2862,10 @@ console.log(memoryUsage.rss());
 
 <!-- YAML
 added: v0.5.3
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/61276
+    description: Now a copy instead of the internal list itself.
 -->
 
 * Returns: {string\[]}
