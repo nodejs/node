@@ -7,7 +7,6 @@ import { spawn } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
 import { inspect } from 'node:util';
 import { createInterface } from 'node:readline';
-import { it, before } from 'node:test';
 
 if (common.isIBMi)
   common.skip('IBMi does not support `fs.watch()`');
