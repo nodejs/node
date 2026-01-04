@@ -30,8 +30,6 @@ const expectedPublicModules = new Set([
   '_stream_transform',
   '_stream_wrap',
   '_stream_writable',
-  '_tls_common',
-  '_tls_wrap',
   'assert',
   'async_hooks',
   'buffer',

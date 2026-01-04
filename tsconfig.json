@@ -26,8 +26,6 @@
       "_stream_transform": ["./lib/_stream_transform.js"],
       "_stream_wrap": ["./lib/_stream_wrap.js"],
       "_stream_writable": ["./lib/_stream_writable.js"],
-      "_tls_common": ["./lib/_tls_common.js"],
-      "_tls_wrap": ["./lib/_tls_wrap.js"],
       "assert": ["./lib/assert.js"],
       "assert/strict": ["./lib/assert/strict.js"],
       "async_hooks": ["./lib/async_hooks.js"],
