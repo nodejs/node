@@ -19,6 +19,7 @@
     zlib
     zstd
     ;
+  hdr-histogram = pkgs.hdrhistogram_c;
   http-parser = pkgs.llhttp;
   nghttp2 = pkgs.nghttp2.overrideAttrs {
     patches = [

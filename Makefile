@@ -1238,6 +1238,7 @@ ifeq ($(SKIP_SHARED_DEPS), 1)
 	$(RM) -r $(TARNAME)/deps/cares
 	$(RM) -r $(TARNAME)/deps/crates
 	$(RM) -r $(TARNAME)/deps/googletest
+	$(RM) -r $(TARNAME)/deps/histogram
 	$(RM) -r $(TARNAME)/deps/icu-small
 	$(RM) -r $(TARNAME)/deps/icu-tmp
 	$(RM) -r $(TARNAME)/deps/llhttp
