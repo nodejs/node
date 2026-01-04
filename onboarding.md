@@ -286,7 +286,7 @@ needs to be pointed out separately during the onboarding.
 * If you are interested in helping to fix coverity reports consider requesting
   access to the projects coverity project as outlined in [static-analysis][].
 * If you are interested in helping out with CI reliability, check out the
-  [reliability respository][] and [guide on how to deal with CI flakes][].
+  [reliability repository][] and [guide on how to deal with CI flakes][].
 
 [Code of Conduct]: https://github.com/nodejs/admin/blob/HEAD/CODE_OF_CONDUCT.md
 [Labels]: doc/contributing/collaborator-guide.md#labels
