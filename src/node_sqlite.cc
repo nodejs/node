@@ -2718,6 +2718,7 @@ BaseObjectPtr<SQLTagStore> SQLTagStore::Create(
            .ToLocal(&obj)) {
     return nullptr;
   }
+  obj->SetInternalField(kDatabaseObject, database->object());
   return MakeBaseObject<SQLTagStore>(env, obj, std::move(database), capacity);
 }
 
@@ -2728,9 +2729,8 @@ void SQLTagStore::CapacityGetter(const FunctionCallbackInfo<Value>& args) {
 }
 
 void SQLTagStore::DatabaseGetter(const FunctionCallbackInfo<Value>& args) {
-  SQLTagStore* store;
-  ASSIGN_OR_RETURN_UNWRAP(&store, args.This());
-  args.GetReturnValue().Set(store->database_->object());
+  args.GetReturnValue().Set(
+      args.This()->GetInternalField(kDatabaseObject).As<Value>());
 }
 
 void SQLTagStore::SizeGetter(const FunctionCallbackInfo<Value>& args) {
