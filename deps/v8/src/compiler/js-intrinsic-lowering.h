@@ -56,6 +56,7 @@ class V8_EXPORT_PRIVATE JSIntrinsicLowering final
   Reduction ReduceIsInstanceType(Node* node, InstanceType instance_type);
   Reduction ReduceIsJSReceiver(Node* node);
   Reduction ReduceIsBeingInterpreted(Node* node);
+  Reduction ReduceMajorGCForCompilerTesting(Node* node);
   Reduction ReduceTurbofanStaticAssert(Node* node);
   Reduction ReduceVerifyType(Node* node);
   Reduction ReduceCheckTurboshaftTypeOf(Node* node);
@@ -83,6 +84,7 @@ class V8_EXPORT_PRIVATE JSIntrinsicLowering final
                    enum FrameStateFlag frame_state_flag = kNeedsFrameState);
 
   TFGraph* graph() const;
+  Zone* zone() const;
   JSGraph* jsgraph() const { return jsgraph_; }
   JSHeapBroker* broker() const { return broker_; }
   Isolate* isolate() const;

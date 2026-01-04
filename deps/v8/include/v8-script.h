@@ -188,6 +188,13 @@ class V8_EXPORT Module : public Data {
   };
 
   /**
+   * If the module is a Source Text Module, returns the name that was passed
+   * by the embedder as resource_name to the ScriptOrigin. If it's a Synthetic
+   * Module, returns the module_name passed to CreateSyntheticModule().
+   */
+  Local<Value> GetResourceName() const;
+
+  /**
    * Returns the module's current status.
    */
   Status GetStatus() const;

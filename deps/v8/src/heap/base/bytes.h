@@ -12,6 +12,7 @@
 
 #include "src/base/platform/time.h"
 #include "src/base/ring-buffer.h"
+#include "src/base/strong-alias.h"
 
 namespace heap::base {
 
@@ -87,6 +88,9 @@ class SmoothedBytesAndDuration {
   double throughput_ = 0.0;
   const v8::base::TimeDelta decay_;
 };
+
+struct ByteSizeTag;
+using ByteSize = v8::base::StrongAlias<ByteSizeTag, size_t>;
 
 }  // namespace heap::base
 

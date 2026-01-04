@@ -82,12 +82,12 @@ struct HashtablezInfo : public profiling_internal::Sample<HashtablezInfo> {
   std::atomic<size_t> capacity;
   std::atomic<size_t> size;
   std::atomic<size_t> num_erases;
+  std::atomic<size_t> num_insert_hits;
   std::atomic<size_t> num_rehashes;
   std::atomic<size_t> max_probe_length;
   std::atomic<size_t> total_probe_length;
   std::atomic<size_t> hashes_bitwise_or;
   std::atomic<size_t> hashes_bitwise_and;
-  std::atomic<size_t> hashes_bitwise_xor;
   std::atomic<size_t> max_reserve;
 
   // All of the fields below are set by `PrepareForSampling`, they must not be
@@ -111,6 +111,16 @@ struct HashtablezInfo : public profiling_internal::Sample<HashtablezInfo> {
 
 void RecordRehashSlow(HashtablezInfo* info, size_t total_probe_length);
 
+// This is inline to avoid calling convention overhead for an otherwise
+// lightweight operation.
+inline void RecordInsertHitSlow(HashtablezInfo* info) {
+  // We avoid fetch_add since no other thread should be mutating the table
+  // simultaneously without synchronization.
+  info->num_insert_hits.store(
+      info->num_insert_hits.load(std::memory_order_relaxed) + 1,
+      std::memory_order_relaxed);
+}
+
 void RecordReservationSlow(HashtablezInfo* info, size_t target_capacity);
 
 void RecordClearedReservationSlow(HashtablezInfo* info);
@@ -118,8 +128,8 @@ void RecordClearedReservationSlow(HashtablezInfo* info);
 void RecordStorageChangedSlow(HashtablezInfo* info, size_t size,
                               size_t capacity);
 
-void RecordInsertSlow(HashtablezInfo* info, size_t hash,
-                      size_t distance_from_desired);
+void RecordInsertMissSlow(HashtablezInfo* info, size_t hash,
+                          size_t distance_from_desired);
 
 void RecordEraseSlow(HashtablezInfo* info);
 
@@ -174,14 +184,19 @@ class HashtablezInfoHandle {
     RecordClearedReservationSlow(info_);
   }
 
-  inline void RecordInsert(size_t hash, size_t distance_from_desired) {
+  inline void RecordInsertMiss(size_t hash, size_t distance_from_desired) {
     if (ABSL_PREDICT_TRUE(info_ == nullptr)) return;
-    RecordInsertSlow(info_, hash, distance_from_desired);
+    RecordInsertMissSlow(info_, hash, distance_from_desired);
   }
 
   inline void RecordErase() {
     if (ABSL_PREDICT_TRUE(info_ == nullptr)) return;
     RecordEraseSlow(info_);
+  }
+
+  inline void RecordInsertHit() {
+    if (ABSL_PREDICT_TRUE(info_ == nullptr)) return;
+    RecordInsertHitSlow(info_);
   }
 
   friend inline void swap(HashtablezInfoHandle& lhs,
@@ -207,8 +222,10 @@ class HashtablezInfoHandle {
   inline void RecordRehash(size_t /*total_probe_length*/) {}
   inline void RecordReservation(size_t /*target_capacity*/) {}
   inline void RecordClearedReservation() {}
-  inline void RecordInsert(size_t /*hash*/, size_t /*distance_from_desired*/) {}
+  inline void RecordInsertMiss(size_t /*hash*/,
+                               size_t /*distance_from_desired*/) {}
   inline void RecordErase() {}
+  inline void RecordInsertHit() {}
 
   friend inline void swap(HashtablezInfoHandle& /*lhs*/,
                           HashtablezInfoHandle& /*rhs*/) {}

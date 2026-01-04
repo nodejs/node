@@ -349,9 +349,20 @@ inline MemOperand MaglevAssembler::TypedArrayElementOperand(
   return Operand(data_pointer, index, ScaleFactorFromInt(element_size), 0);
 }
 
-inline MemOperand MaglevAssembler::DataViewElementOperand(Register data_pointer,
-                                                          Register index) {
-  return Operand(data_pointer, index, times_1, 0);
+inline void MaglevAssembler::StoreDataViewElement(Register value,
+                                                  Register data_pointer,
+                                                  Register index,
+                                                  int element_size) {
+  MemOperand element_address = Operand(data_pointer, index, times_1, 0);
+  StoreField(element_address, value, element_size);
+}
+
+inline void MaglevAssembler::LoadDataViewElement(Register result,
+                                                 Register data_pointer,
+                                                 Register index,
+                                                 int element_size) {
+  MemOperand element_address = Operand(data_pointer, index, times_1, 0);
+  LoadSignedField(result, element_address, element_size);
 }
 
 inline void MaglevAssembler::LoadTaggedFieldByIndex(Register result,
@@ -566,8 +577,6 @@ inline void MaglevAssembler::IncrementAddress(Register reg, int32_t delta) {
 inline void MaglevAssembler::LoadAddress(Register dst, MemOperand location) {
   leaq(dst, location);
 }
-
-inline void MaglevAssembler::Call(Label* target) { call(target); }
 
 inline void MaglevAssembler::EmitEnterExitFrame(int extra_slots,
                                                 StackFrame::Type frame_type,

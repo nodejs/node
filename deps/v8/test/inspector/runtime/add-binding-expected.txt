@@ -226,14 +226,31 @@ binding called in session1
 }
 Call binding in newly-created Bazz (binding should NOT be exposed)
 
-Running test: testErrors
+Running test: testAddBindingToDefaultContextByName
+Call binding in default context (binding should be exposed)
+binding called in session1
 {
-    error : {
-        code : -32602
-        message : Invalid executionContextName
+    method : Runtime.bindingCalled
+    params : {
+        executionContextId : <executionContextId>
+        name : frobnicate
+        payload : message
     }
-    id : <messageId>
 }
+Call binding in Foo (binding should NOT be exposed)
+Call binding in newly-created default context (binding should be exposed)
+binding called in session1
+{
+    method : Runtime.bindingCalled
+    params : {
+        executionContextId : <executionContextId>
+        name : frobnicate
+        payload : message
+    }
+}
+Call binding in newly-created Foo (binding should NOT be exposed)
+
+Running test: testErrors
 {
     error : {
         code : -32602

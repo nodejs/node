@@ -824,28 +824,23 @@ TEST(RunWasm_I16x16DotI8x32I7x32S) {
 }
 
 TEST(RunWasmTurbofan_F32x8RelaxedMin) {
-  RunF32x8BinOpRevecTest(kExprF32x4RelaxedMin, Minimum,
-                         compiler::IrOpcode::kF32x8RelaxedMin);
+  RunF32x8BinOpRevecTest(kExprF32x4RelaxedMin, Minimum);
 }
 
 TEST(RunWasmTurbofan_F32x8RelaxedMax) {
-  RunF32x8BinOpRevecTest(kExprF32x4RelaxedMax, Maximum,
-                         compiler::IrOpcode::kF32x8RelaxedMax);
+  RunF32x8BinOpRevecTest(kExprF32x4RelaxedMax, Maximum);
 }
 
 TEST(RunWasmTurbofan_F64x4RelaxedMin) {
-  RunF64x4BinOpRevecTest(kExprF64x2RelaxedMin, Minimum,
-                         compiler::IrOpcode::kF64x4RelaxedMin);
+  RunF64x4BinOpRevecTest(kExprF64x2RelaxedMin, Minimum);
 }
 
 TEST(RunWasmTurbofan_F64x4RelaxedMax) {
-  RunF64x4BinOpRevecTest(kExprF64x2RelaxedMax, Maximum,
-                         compiler::IrOpcode::kF64x4RelaxedMax);
+  RunF64x4BinOpRevecTest(kExprF64x2RelaxedMax, Maximum);
 }
 
 template <typename IntType>
-void I32x8RelaxedTruncF32x8RevecTest(WasmOpcode trunc_op,
-                                     compiler::IrOpcode::Value revec_opcode) {
+void I32x8RelaxedTruncF32x8RevecTest(WasmOpcode trunc_op) {
   if (!CpuFeatures::IsSupported(AVX2)) return;
   EXPERIMENTAL_FLAG_SCOPE(revectorize);
 
@@ -856,17 +851,16 @@ void I32x8RelaxedTruncF32x8RevecTest(WasmOpcode trunc_op,
   TSSimd256VerifyScope ts_scope(
       r.zone(), TSSimd256VerifyScope::VerifyHaveOpcode<
                     compiler::turboshaft::Opcode::kSimd256Unary>);
-  BUILD_AND_CHECK_REVEC_NODE(
-      r, revec_opcode,
-      WASM_SIMD_STORE_MEM(
-          WASM_ZERO,
-          WASM_SIMD_UNOP(trunc_op, WASM_SIMD_UNOP(kExprF32x4Splat,
-                                                  WASM_LOCAL_GET(param1)))),
-      WASM_SIMD_STORE_MEM_OFFSET(
-          16, WASM_ZERO,
-          WASM_SIMD_UNOP(trunc_op, WASM_SIMD_UNOP(kExprF32x4Splat,
-                                                  WASM_LOCAL_GET(param1)))),
-      WASM_ONE);
+  r.Build(
+      {WASM_SIMD_STORE_MEM(
+           WASM_ZERO,
+           WASM_SIMD_UNOP(trunc_op, WASM_SIMD_UNOP(kExprF32x4Splat,
+                                                   WASM_LOCAL_GET(param1)))),
+       WASM_SIMD_STORE_MEM_OFFSET(
+           16, WASM_ZERO,
+           WASM_SIMD_UNOP(trunc_op, WASM_SIMD_UNOP(kExprF32x4Splat,
+                                                   WASM_LOCAL_GET(param1)))),
+       WASM_ONE});
 
   for (float x : compiler::ValueHelper::GetVector<float>()) {
     if (ShouldSkipTestingConstant<IntType>(x)) continue;
@@ -879,15 +873,11 @@ void I32x8RelaxedTruncF32x8RevecTest(WasmOpcode trunc_op,
 }
 
 TEST(RunWasmTurbofan_I32x8RelaxedTruncF32x8U) {
-  I32x8RelaxedTruncF32x8RevecTest<uint32_t>(
-      kExprI32x4RelaxedTruncF32x4U,
-      compiler::IrOpcode::kI32x8RelaxedTruncF32x8U);
+  I32x8RelaxedTruncF32x8RevecTest<uint32_t>(kExprI32x4RelaxedTruncF32x4U);
 }
 
 TEST(RunWasmTurbofan_I32x8RelaxedTruncF32x8S) {
-  I32x8RelaxedTruncF32x8RevecTest<int32_t>(
-      kExprI32x4RelaxedTruncF32x4S,
-      compiler::IrOpcode::kI32x8RelaxedTruncF32x8S);
+  I32x8RelaxedTruncF32x8RevecTest<int32_t>(kExprI32x4RelaxedTruncF32x4S);
 }
 
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC

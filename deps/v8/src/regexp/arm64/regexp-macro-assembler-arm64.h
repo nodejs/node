@@ -20,7 +20,6 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerARM64
                             int registers_to_save);
   ~RegExpMacroAssemblerARM64() override;
   void AbortedCodeGeneration() override;
-  int stack_limit_slack_slot_count() override;
   void AdvanceCurrentPosition(int by) override;
   void AdvanceRegister(int reg, int by) override;
   void Backtrack() override;
@@ -71,7 +70,7 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerARM64
   // Checks whether the given offset from the current position is before
   // the end of the string.
   void CheckPosition(int cp_offset, Label* on_outside_input) override;
-  bool CheckSpecialClassRanges(StandardCharacterSet type,
+  void CheckSpecialClassRanges(StandardCharacterSet type,
                                Label* on_no_match) override;
   void BindJumpTarget(Label* label = nullptr) override;
   void Fail() override;
@@ -239,9 +238,6 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerARM64
   // twice. This is used for clearing more than one register at a time.
   static constexpr Register twice_non_position_value() { return x24; }
 
-  // Byte size of chars in the string to match (decided by the Mode argument)
-  int char_size() const { return static_cast<int>(mode_); }
-
   // Equivalent to a conditional branch to the label, unless the label
   // is nullptr, in which case it is a conditional Backtrack.
   void BranchOrBacktrack(Condition condition, Label* to);
@@ -315,9 +311,6 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerARM64
 
   const std::unique_ptr<MacroAssembler> masm_;
   const NoRootArrayScope no_root_array_scope_;
-
-  // Which mode to generate code for (LATIN1 or UC16).
-  const Mode mode_;
 
   // One greater than maximal register index actually used.
   int num_registers_;

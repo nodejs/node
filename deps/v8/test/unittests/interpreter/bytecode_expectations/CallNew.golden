@@ -16,9 +16,9 @@ frame size: 1
 parameter count: 1
 bytecode array length: 10
 bytecodes: [
-  /*   50 S> */ B(LdaGlobal), U8(0), U8(0),
+  /*   50 S> */ B(LdaGlobal), U8(0:"bar"), FBV(0),
                 B(Star0),
-  /*   57 E> */ B(Construct), R(0), R(0), U8(0), U8(2),
+  /*   57 E> */ B(Construct), R(0), R(0), RegCount8(0), FBV(2),
   /*   67 S> */ B(Return),
 ]
 constant pool: [
@@ -37,12 +37,12 @@ frame size: 2
 parameter count: 1
 bytecode array length: 15
 bytecodes: [
-  /*   63 S> */ B(LdaGlobal), U8(0), U8(0),
+  /*   63 S> */ B(LdaGlobal), U8(0:"bar"), FBV(0),
                 B(Star0),
                 B(LdaSmi), I8(3),
                 B(Star1),
                 B(Ldar), R(0),
-  /*   70 E> */ B(Construct), R(0), R(1), U8(1), U8(2),
+  /*   70 E> */ B(Construct), R(0), R(1), RegCount8(1), FBV(2),
   /*   81 S> */ B(Return),
 ]
 constant pool: [
@@ -66,7 +66,7 @@ frame size: 4
 parameter count: 1
 bytecode array length: 21
 bytecodes: [
-  /*  105 S> */ B(LdaGlobal), U8(0), U8(0),
+  /*  105 S> */ B(LdaGlobal), U8(0:"bar"), FBV(0),
                 B(Star0),
                 B(LdaSmi), I8(3),
                 B(Star1),
@@ -75,7 +75,7 @@ bytecodes: [
                 B(LdaSmi), I8(5),
                 B(Star3),
                 B(Ldar), R(0),
-  /*  112 E> */ B(Construct), R(0), R(1), U8(3), U8(2),
+  /*  112 E> */ B(Construct), R(0), R(1), RegCount8(3), FBV(2),
   /*  129 S> */ B(Return),
 ]
 constant pool: [
@@ -93,19 +93,19 @@ frame size: 5
 parameter count: 1
 bytecode array length: 33
 bytecodes: [
-  /*   15 S> */ B(CreateBlockContext), U8(0),
+  /*   15 S> */ B(CreateBlockContext), U8(0:SCOPE_INFO_TYPE),
                 B(PushContext), R(0),
                 B(LdaTheHole),
                 B(Star4),
-                B(CreateClosure), U8(2), U8(0), U8(2),
+                B(CreateClosure), U8(2:SHARED_FUNCTION_INFO_TYPE), FBV(0), Flag8(0x2),
                 B(Star1),
-                B(LdaConstant), U8(1),
+                B(LdaConstant), U8(1:CLASS_BOILERPLATE_TYPE),
                 B(Star2),
                 B(Mov), R(1), R(3),
-                B(CallRuntime), U16(Runtime::kDefineClass), R(2), U8(3),
+                B(CallRuntime), U16(Runtime::kDefineClass), R(2), RegCount8(3),
                 B(PopContext), R(0),
                 B(Ldar), R(3),
-  /*   15 E> */ B(Construct), R(3), R(0), U8(0), U8(0),
+  /*   15 E> */ B(Construct), R(3), R(0), RegCount8(0), FBV(0),
                 B(LdaUndefined),
   /*   29 S> */ B(Return),
 ]

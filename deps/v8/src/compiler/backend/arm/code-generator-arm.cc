@@ -680,11 +680,9 @@ void CodeGenerator::AssembleCodeStartRegisterCheck() {
   __ Assert(eq, AbortReason::kWrongFunctionCodeStart);
 }
 
-#ifdef V8_ENABLE_LEAPTIERING
 void CodeGenerator::AssembleDispatchHandleRegisterCheck() {
   CHECK(!V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE_BOOL);
 }
-#endif  // V8_ENABLE_LEAPTIERING
 
 // Check if the code object is marked for deoptimization. If it is, then it
 // jumps to the CompileLazyDeoptimizedCode builtin. In order to do this we need
@@ -693,7 +691,7 @@ void CodeGenerator::AssembleDispatchHandleRegisterCheck() {
 //       the flags in the referenced {Code} object;
 //    2. test kMarkedForDeoptimizationBit in those flags; and
 //    3. if it is not zero then it jumps to the builtin.
-void CodeGenerator::BailoutIfDeoptimized() { __ BailoutIfDeoptimized(); }
+void CodeGenerator::AssertNotDeoptimized() { __ AssertNotDeoptimized(); }
 
 // Assembles an instruction after register allocation, producing machine code.
 CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(

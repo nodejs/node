@@ -26,6 +26,20 @@
 #include "absl/base/prefetch.h"
 #include "absl/hash/internal/city.h"
 
+
+#ifdef ABSL_AES_INTERNAL_HAVE_X86_SIMD
+#error ABSL_AES_INTERNAL_HAVE_X86_SIMD cannot be directly set
+#elif defined(__SSE4_2__) && defined(__AES__)
+#define ABSL_AES_INTERNAL_HAVE_X86_SIMD
+#endif
+
+
+#ifdef ABSL_AES_INTERNAL_HAVE_X86_SIMD
+#include <smmintrin.h>
+#include <wmmintrin.h>
+#include <xmmintrin.h>
+#endif  // ABSL_AES_INTERNAL_HAVE_X86_SIMD
+
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace hash_internal {
@@ -43,47 +57,86 @@ uint64_t Mix32Bytes(const uint8_t* ptr, uint64_t current_state) {
   return cs0 ^ cs1;
 }
 
-[[maybe_unused]] uint64_t LowLevelHashLenGt32(const void* data, size_t len,
-                                              uint64_t seed) {
+#ifdef ABSL_AES_INTERNAL_HAVE_X86_SIMD
+uint64_t LowLevelHash33To64(const uint8_t* ptr, size_t len, uint64_t seed) {
   assert(len > 32);
+  assert(len <= 64);
+  __m128i state =
+      _mm_set_epi64x(static_cast<int64_t>(seed), static_cast<int64_t>(len));
+  auto a = _mm_loadu_si128(reinterpret_cast<const __m128i*>(ptr));
+  auto b = _mm_loadu_si128(reinterpret_cast<const __m128i*>(ptr + 16));
+  auto* last32_ptr = ptr + len - 32;
+  auto c = _mm_loadu_si128(reinterpret_cast<const __m128i*>(last32_ptr));
+  auto d = _mm_loadu_si128(reinterpret_cast<const __m128i*>(last32_ptr + 16));
+
+  // Bits of the second argument to _mm_aesdec_si128/_mm_aesenc_si128 are
+  // XORed with the state argument after encryption.
+  // We use each value as the first argument to shuffle all the bits around.
+  // We do not add any salt to the state or loaded data, instead we vary
+  // instructions used to mix bits _mm_aesdec_si128/_mm_aesenc_si128 and
+  // _mm_add_epi64/_mm_sub_epi64.
+  // _mm_add_epi64/_mm_sub_epi64 are combined to one instruction with data
+  // loading like `vpaddq  xmm1, xmm0, xmmword ptr [rdi]`.
+  auto na = _mm_aesdec_si128(_mm_add_epi64(state, a), state);
+  auto nb = _mm_aesdec_si128(_mm_sub_epi64(state, b), state);
+  auto nc = _mm_aesenc_si128(_mm_add_epi64(state, c), state);
+  auto nd = _mm_aesenc_si128(_mm_sub_epi64(state, d), state);
+
+  // We perform another round of encryption to mix bits between two halves of
+  // the input.
+  auto res128 = _mm_add_epi64(_mm_aesenc_si128(_mm_add_epi64(na, nc), nd),
+                              _mm_aesdec_si128(_mm_sub_epi64(nb, nd), na));
+  auto x64 = static_cast<uint64_t>(_mm_cvtsi128_si64(res128));
+  auto y64 = static_cast<uint64_t>(_mm_extract_epi64(res128, 1));
+  return x64 ^ y64;
+}
+#else
+uint64_t LowLevelHash33To64(const uint8_t* ptr, size_t len, uint64_t seed) {
+  assert(len > 32);
+  assert(len <= 64);
+  uint64_t current_state = seed ^ kStaticRandomData[0] ^ len;
+  const uint8_t* last_32_ptr = ptr + len - 32;
+  return Mix32Bytes(last_32_ptr, Mix32Bytes(ptr, current_state));
+}
+#endif  // ABSL_AES_INTERNAL_HAVE_X86_SIMD
+
+[[maybe_unused]] ABSL_ATTRIBUTE_NOINLINE uint64_t
+LowLevelHashLenGt64(const void* data, size_t len, uint64_t seed) {
+  assert(len > 64);
   const uint8_t* ptr = static_cast<const uint8_t*>(data);
   uint64_t current_state = seed ^ kStaticRandomData[0] ^ len;
   const uint8_t* last_32_ptr = ptr + len - 32;
+  // If we have more than 64 bytes, we're going to handle chunks of 64
+  // bytes at a time. We're going to build up four separate hash states
+  // which we will then hash together. This avoids short dependency chains.
+  uint64_t duplicated_state0 = current_state;
+  uint64_t duplicated_state1 = current_state;
+  uint64_t duplicated_state2 = current_state;
 
-  if (len > 64) {
-    // If we have more than 64 bytes, we're going to handle chunks of 64
-    // bytes at a time. We're going to build up four separate hash states
-    // which we will then hash together. This avoids short dependency chains.
-    uint64_t duplicated_state0 = current_state;
-    uint64_t duplicated_state1 = current_state;
-    uint64_t duplicated_state2 = current_state;
+  do {
+    PrefetchToLocalCache(ptr + 5 * ABSL_CACHELINE_SIZE);
 
-    do {
-      PrefetchToLocalCache(ptr + 5 * ABSL_CACHELINE_SIZE);
+    uint64_t a = absl::base_internal::UnalignedLoad64(ptr);
+    uint64_t b = absl::base_internal::UnalignedLoad64(ptr + 8);
+    uint64_t c = absl::base_internal::UnalignedLoad64(ptr + 16);
+    uint64_t d = absl::base_internal::UnalignedLoad64(ptr + 24);
+    uint64_t e = absl::base_internal::UnalignedLoad64(ptr + 32);
+    uint64_t f = absl::base_internal::UnalignedLoad64(ptr + 40);
+    uint64_t g = absl::base_internal::UnalignedLoad64(ptr + 48);
+    uint64_t h = absl::base_internal::UnalignedLoad64(ptr + 56);
 
-      uint64_t a = absl::base_internal::UnalignedLoad64(ptr);
-      uint64_t b = absl::base_internal::UnalignedLoad64(ptr + 8);
-      uint64_t c = absl::base_internal::UnalignedLoad64(ptr + 16);
-      uint64_t d = absl::base_internal::UnalignedLoad64(ptr + 24);
-      uint64_t e = absl::base_internal::UnalignedLoad64(ptr + 32);
-      uint64_t f = absl::base_internal::UnalignedLoad64(ptr + 40);
-      uint64_t g = absl::base_internal::UnalignedLoad64(ptr + 48);
-      uint64_t h = absl::base_internal::UnalignedLoad64(ptr + 56);
+    current_state = Mix(a ^ kStaticRandomData[1], b ^ current_state);
+    duplicated_state0 = Mix(c ^ kStaticRandomData[2], d ^ duplicated_state0);
 
-      current_state = Mix(a ^ kStaticRandomData[1], b ^ current_state);
-      duplicated_state0 = Mix(c ^ kStaticRandomData[2], d ^ duplicated_state0);
+    duplicated_state1 = Mix(e ^ kStaticRandomData[3], f ^ duplicated_state1);
+    duplicated_state2 = Mix(g ^ kStaticRandomData[4], h ^ duplicated_state2);
 
-      duplicated_state1 = Mix(e ^ kStaticRandomData[3], f ^ duplicated_state1);
-      duplicated_state2 = Mix(g ^ kStaticRandomData[4], h ^ duplicated_state2);
+    ptr += 64;
+    len -= 64;
+  } while (len > 64);
 
-      ptr += 64;
-      len -= 64;
-    } while (len > 64);
-
-    current_state = (current_state ^ duplicated_state0) ^
-                    (duplicated_state1 + duplicated_state2);
-  }
-
+  current_state = (current_state ^ duplicated_state0) ^
+                  (duplicated_state1 + duplicated_state2);
   // We now have a data `ptr` with at most 64 bytes and the current state
   // of the hashing state machine stored in current_state.
   if (len > 32) {
@@ -94,6 +147,15 @@ uint64_t Mix32Bytes(const uint8_t* ptr, uint64_t current_state) {
   // of the hashing state machine stored in current_state. But we can
   // safely read from `ptr + len - 32`.
   return Mix32Bytes(last_32_ptr, current_state);
+}
+
+[[maybe_unused]] uint64_t LowLevelHashLenGt32(const void* data, size_t len,
+                                              uint64_t seed) {
+  assert(len > 32);
+  if (ABSL_PREDICT_FALSE(len > 64)) {
+    return LowLevelHashLenGt64(data, len, seed);
+  }
+  return LowLevelHash33To64(static_cast<const uint8_t*>(data), len, seed);
 }
 
 ABSL_ATTRIBUTE_ALWAYS_INLINE inline uint64_t HashBlockOn32Bit(

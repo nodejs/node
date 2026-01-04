@@ -11,6 +11,7 @@ import sys
 import time
 import datetime
 import urllib.parse
+import textwrap
 
 from pathlib import Path
 
@@ -177,15 +178,17 @@ def main(sys_args=None):
   # original commit.
   print("Updating commit message...")
   original_commit = gerrit_util.GetChangeCommit(GERRIT_HOST, revision)
-  commit_msg = "\n".join([
-      "Version %s (cherry-pick)" % version_string,  #
-      "",  #
-      "Merged %s" % original_commit['commit'],  #
-      "",  #
-      "%s" % original_commit['subject'],  #
-      "",  #
-      "Change-Id: %s" % cherry_pick['change_id'],  #
-  ])
+  commit_msg = f"""\
+    Merge: {original_commit['subject']}
+
+    Version {version_string}
+
+    (Cherry-pick from commit {original_commit['commit']})
+
+    Change-Id: {cherry_pick['change_id']}
+    """
+  commit_msg = textwrap.dedent(commit_msg)
+
   gerrit_util.SetChangeEditMessage(GERRIT_HOST, cherry_pick_id, commit_msg)
 
   # Publish the change edit with the v8-version.h and commit message changes.

@@ -122,6 +122,11 @@ wheel: <
 >
 
 wheel: <
+  name: "infra/python/wheels/packaging-py2_py3"
+  version: "version:16.8"
+>
+
+wheel: <
   name: "infra/python/wheels/psutil/${vpython_platform}"
   version: "version:5.8.0.chromium.3"
 >

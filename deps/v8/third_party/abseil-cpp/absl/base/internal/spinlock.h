@@ -47,6 +47,7 @@ namespace tcmalloc {
 namespace tcmalloc_internal {
 
 class AllocationGuardSpinLockHolder;
+class Static;
 
 }  // namespace tcmalloc_internal
 }  // namespace tcmalloc
@@ -173,6 +174,16 @@ class ABSL_LOCKABLE ABSL_ATTRIBUTE_WARN_UNUSED SpinLock {
   // Provide access to protected method above.  Use for testing only.
   friend struct SpinLockTest;
   friend class tcmalloc::tcmalloc_internal::AllocationGuardSpinLockHolder;
+  friend class tcmalloc::tcmalloc_internal::Static;
+
+  static int GetAdaptiveSpinCount() {
+    return adaptive_spin_count_.load(std::memory_order_relaxed);
+  }
+  static void SetAdaptiveSpinCount(int count) {
+    adaptive_spin_count_.store(count, std::memory_order_relaxed);
+  }
+
+  static std::atomic<int> adaptive_spin_count_;
 
  private:
   // lockword_ is used to store the following:

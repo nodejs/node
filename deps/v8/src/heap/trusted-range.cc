@@ -62,12 +62,10 @@ bool TrustedRange::InitReservation(size_t requested) {
     // first pages of trusted space inaccessible so that any access is
     // guaranteed to crash safely.
     size_t guard_region_size = 1 * MB;
-#if COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL
-    if (v8_flags.reserve_contiguous_compressed_read_only_space) {
-      guard_region_size =
-          std::max(guard_region_size, kContiguousReadOnlyReservationSize);
-    }
-#endif  // COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL
+#if CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
+    guard_region_size =
+        std::max(guard_region_size, kContiguousReadOnlyReservationSize);
+#endif  // CONTIGUOUS_COMPRESSED_READ_ONLY_SPACE_BOOL
     DCHECK(IsAligned(guard_region_size, page_allocator_->AllocatePageSize()));
     CHECK(page_allocator_->AllocatePagesAt(base(), guard_region_size,
                                            PageAllocator::kNoAccess));

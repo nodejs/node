@@ -278,8 +278,11 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
                                          Register object);
   inline MemOperand TypedArrayElementOperand(Register data_pointer,
                                              Register index, int element_size);
-  inline MemOperand DataViewElementOperand(Register data_pointer,
-                                           Register index);
+
+  inline void StoreDataViewElement(Register value, Register data_pointer,
+                                   Register index, int element_size);
+  inline void LoadDataViewElement(Register result, Register data_pointer,
+                                  Register index, int element_size);
 
   enum class CharCodeMaskMode { kValueIsInRange, kMustApplyMask };
 
@@ -430,8 +433,6 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
   inline void ShiftLeft(Register reg, int amount);
   inline void IncrementAddress(Register reg, int32_t delta);
   inline void LoadAddress(Register dst, MemOperand location);
-
-  inline void Call(Label* target);
 
   inline void EmitEnterExitFrame(int extra_slots, StackFrame::Type frame_type,
                                  Register c_function, Register scratch);
@@ -626,6 +627,7 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
                                    int num_double_registers = 0);
 
   inline void CallSelf();
+  inline void CallJSBuiltin(Builtin builtin, uint16_t parameter_count);
   inline void CallBuiltin(Builtin builtin);
   template <Builtin kBuiltin, typename... Args>
   inline void CallBuiltin(Args&&... args);
@@ -856,6 +858,8 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
     return StandardFrameConstants::kExpressionsOffset -
            index * kSystemPointerSize;
   }
+
+  inline void CallBuiltinImpl(Builtin builtin);
 
   // Returns the condition code satisfied if tagging is successful. Only use
   // this when SmiValuesAre31Bits(); otherwise use SmiTag(dst, src).

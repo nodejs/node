@@ -21,19 +21,52 @@
 namespace v8 {
 namespace internal {
 
+namespace compiler {
+class AccessBuilder;
+}  // namespace compiler
+
+namespace maglev {
+class MaglevGraphBuilder;
+}  // namespace maglev
+
+class AccessorAssembler;
+class CodeStubAssembler;
+class ObjectBuiltinsAssembler;
+class ObjectEntriesValuesBuiltinsAssembler;
 class StructBodyDescriptor;
 
 #include "torque-generated/src/objects/descriptor-array-tq.inc"
 
 // An EnumCache is a pair used to hold keys and indices caches.
-class EnumCache : public TorqueGeneratedEnumCache<EnumCache, Struct> {
+V8_OBJECT class EnumCache : public StructLayout {
  public:
+  inline Tagged<FixedArray> keys() const;
+  inline void set_keys(Tagged<FixedArray> value,
+                       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<FixedArray> indices() const;
+  inline void set_indices(Tagged<FixedArray> value,
+                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  DECL_PRINTER(EnumCache)
   DECL_VERIFIER(EnumCache)
 
   using BodyDescriptor = StructBodyDescriptor;
 
-  TQ_OBJECT_CONSTRUCTORS(EnumCache)
-};
+ private:
+  friend class TorqueGeneratedEnumCacheAsserts;
+  friend class compiler::AccessBuilder;
+  friend class maglev::MaglevGraphBuilder;
+  friend class CodeStubAssembler;
+  friend class AccessorAssembler;
+  friend class ObjectBuiltinsAssembler;
+  friend class ObjectEntriesValuesBuiltinsAssembler;
+  friend class ObjectKeysAssembler;
+  friend class ObjectGetOwnPropertyNamesAssembler;
+
+  TaggedMember<FixedArray> keys_;
+  TaggedMember<FixedArray> indices_;
+} V8_OBJECT_END;
 
 // A DescriptorArray is a custom array that holds instance descriptors.
 // It has the following layout:
@@ -55,6 +88,10 @@ class EnumCache : public TorqueGeneratedEnumCache<EnumCache, Struct> {
 class DescriptorArray
     : public TorqueGeneratedDescriptorArray<DescriptorArray, HeapObject> {
  public:
+  // Do linear search for small arrays, and for searches in the background
+  // thread.
+  static constexpr int kMaxElementsForLinearSearch = 32;
+
   DECL_INT16_ACCESSORS(number_of_all_descriptors)
   DECL_INT16_ACCESSORS(number_of_descriptors)
   DECL_RELAXED_PRIMITIVE_ACCESSORS(flags, uint32_t)
@@ -137,7 +174,7 @@ class DescriptorArray
       int enumeration_index, PropertyAttributes attributes, int slack = 0);
 
   // Sort the instance descriptors by the hash codes of their keys.
-  V8_EXPORT_PRIVATE void Sort();
+  inline void Sort();
 
   // Iterate through Name hash collisions in the descriptor array starting from
   // insertion index checking for Name collisions. Note: If we ever add binary
@@ -252,6 +289,8 @@ class DescriptorArray
   using EntryValueField = TaggedField<MaybeObject, kEntryValueOffset>;
 
  private:
+  V8_EXPORT_PRIVATE void SortImpl(const int len);
+
   inline void SetKey(InternalIndex descriptor_number, Tagged<Name> key);
   inline void SetValue(InternalIndex descriptor_number,
                        Tagged<MaybeObject> value);

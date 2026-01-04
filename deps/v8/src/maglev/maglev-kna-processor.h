@@ -55,16 +55,14 @@ class RecomputeKnownNodeAspectsProcessor {
     // just skipping it.
     if (V8_UNLIKELY(block->IsUnreachable())) {
       // Ensure successors can also be unreachable.
-      AbortBlock(block);
-      return BlockProcessResult::kSkip;
+      return AbortBlock(block);
     }
 
     if (block->is_exception_handler_block()) {
       if (!reachable_exception_handlers_.contains(block)) {
         // This is an unreachable exception handler block.
         // Ensure successors can also be unreachable.
-        AbortBlock(block);
-        return BlockProcessResult::kSkip;
+        return AbortBlock(block);
       }
     }
 
@@ -175,12 +173,15 @@ class RecomputeKnownNodeAspectsProcessor {
     return known_node_aspects().GetType(broker(), node);
   }
 
-  void AbortBlock(BasicBlock* block) {
+  BlockProcessResult AbortBlock(BasicBlock* block) {
     ControlNode* control = block->reset_control_node();
     block->RemovePredecessorFollowing(control);
     control->OverwriteWith<Abort>()->set_reason(AbortReason::kUnreachable);
     block->set_deferred(true);
     block->set_control_node(control);
+    block->mark_dead();
+    graph_->set_may_have_unreachable_blocks();
+    return BlockProcessResult::kSkip;
   }
 
   void Merge(BasicBlock* block) {
@@ -214,7 +215,7 @@ class RecomputeKnownNodeAspectsProcessor {
 
 #define PROCESS_SAFE_CONV(Node, Alt, Type)                                     \
   ProcessResult ProcessNode(Node* node) {                                      \
-    NodeInfo* info = GetOrCreateInfoFor(node->input_node(0)->Unwrap());        \
+    NodeInfo* info = GetOrCreateInfoFor(node->input_node(0));                  \
     if (!info->alternative().Alt()) {                                          \
       /* TODO(victorgomes): What happens if we we have an alternative already? \
        * Should we remove this one as well? */                                 \
@@ -229,7 +230,7 @@ class RecomputeKnownNodeAspectsProcessor {
 // This happens for instance for LoadProperty.
 #define PROCESS_UNSAFE_CONV(Node, Alt, Type)                                   \
   ProcessResult ProcessNode(Node* node) {                                      \
-    NodeInfo* info = GetOrCreateInfoFor(node->input_node(0)->Unwrap());        \
+    NodeInfo* info = GetOrCreateInfoFor(node->input_node(0));                  \
     if (!info->alternative().Alt()) {                                          \
       /* TODO(victorgomes): What happens if we we have an alternative already? \
        * Should we remove this one as well? */                                 \
@@ -246,28 +247,29 @@ class RecomputeKnownNodeAspectsProcessor {
   PROCESS_UNSAFE_CONV(UnsafeSmiTagUint32, tagged, Smi)
   PROCESS_SAFE_CONV(CheckedSmiTagIntPtr, tagged, Smi)
   PROCESS_UNSAFE_CONV(UnsafeSmiTagIntPtr, tagged, Smi)
+  PROCESS_SAFE_CONV(CheckedSmiTagFloat64, tagged, Smi)
   PROCESS_SAFE_CONV(TruncateCheckedNumberOrOddballToInt32,
                     truncated_int32_to_number, NumberOrOddball)
   PROCESS_UNSAFE_CONV(TruncateUnsafeNumberOrOddballToInt32,
                       truncated_int32_to_number, NumberOrOddball)
   PROCESS_SAFE_CONV(CheckedUint32ToInt32, int32, Number)
-  PROCESS_UNSAFE_CONV(UnsafeInt32ToUint32, int32, Number)
   PROCESS_SAFE_CONV(CheckedIntPtrToInt32, int32, Number)
+  PROCESS_SAFE_CONV(CheckedFloat64ToInt32, int32, Number)
   PROCESS_SAFE_CONV(CheckedHoleyFloat64ToInt32, int32, Number)
+  PROCESS_UNSAFE_CONV(UnsafeFloat64ToInt32, int32, Number)
   PROCESS_UNSAFE_CONV(UnsafeHoleyFloat64ToInt32, int32, Number)
   PROCESS_SAFE_CONV(CheckedNumberToInt32, int32, Number)
   PROCESS_UNSAFE_CONV(ChangeIntPtrToFloat64, float64, Number)
-  PROCESS_SAFE_CONV(CheckedSmiTagFloat64, float64, Smi)
   // TODO(victorgomes): pass node->conversion_type() rather than always
   // NumberOrOddball for CheckedNumberOrOddballToFloat64.
   PROCESS_SAFE_CONV(CheckedNumberOrOddballToFloat64, float64, NumberOrOddball)
   PROCESS_SAFE_CONV(CheckedNumberToFloat64, float64, Number)
-  PROCESS_UNSAFE_CONV(UncheckedNumberOrOddballToFloat64, float64,
-                      NumberOrOddball)
-  PROCESS_UNSAFE_CONV(UncheckedNumberToFloat64, float64, Number)
+  PROCESS_UNSAFE_CONV(UnsafeNumberOrOddballToFloat64, float64, NumberOrOddball)
+  PROCESS_UNSAFE_CONV(UnsafeNumberToFloat64, float64, Number)
   PROCESS_SAFE_CONV(CheckedHoleyFloat64ToFloat64, float64, Number)
-  PROCESS_UNSAFE_CONV(HoleyFloat64ToMaybeNanFloat64, float64, Number)
+  PROCESS_UNSAFE_CONV(HoleyFloat64ToSilencedFloat64, float64, Number)
   PROCESS_SAFE_CONV(ChangeInt32ToFloat64, float64, Number)
+  PROCESS_SAFE_CONV(ChangeInt32ToHoleyFloat64, holey_float64, Number)
 #undef PROCESS_SAFE_CONV
 #undef PROCESS_UNSAFE_CONV
 
@@ -275,13 +277,33 @@ class RecomputeKnownNodeAspectsProcessor {
     if (!node->property_key().is_none()) {
       auto& props_for_key = known_node_aspects().GetLoadedPropertiesForKey(
           zone(), node->is_const(), node->property_key());
-      props_for_key[node->object_input().node()] = node;
+      props_for_key[node->ValueInput().node()] = node;
     }
     return ProcessResult::kContinue;
   }
 
+  ProcessResult ProcessNode(LoadDataViewByteLength* node) {
+    auto& props_for_key = known_node_aspects().GetLoadedPropertiesForKey(
+        zone(), true, PropertyKey::ArrayBufferViewByteLength());
+    props_for_key[node->ValueInput().node()] = node;
+    return ProcessResult::kContinue;
+  }
+
+  void ProcessStoreContextSlot(ValueNode* context, ValueNode* value,
+                               int offset) {
+    known_node_aspects().ClearAliasedContextSlotsFor(graph_, context, offset,
+                                                     value);
+    known_node_aspects().SetContextCachedValue(context, offset, value);
+  }
+
   template <typename NodeT>
   void ProcessStoreTaggedField(NodeT* node) {
+    // If a store to a context, we use the specialized context slot cache.
+    if (node->is_store_to_context()) {
+      return ProcessStoreContextSlot(node->ObjectInput().node(),
+                                     node->ValueInput().node(), node->offset());
+    }
+    // ... otherwise we try the properties cache.
     if (node->property_key().is_none()) return;
     auto& props_for_key = known_node_aspects().GetLoadedPropertiesForKey(
         zone(), false, node->property_key());
@@ -292,7 +314,7 @@ class RecomputeKnownNodeAspectsProcessor {
     // TODO(leszeks): Do some light aliasing analysis here, e.g. checking
     // whether there's an intersection of known maps.
     props_for_key.clear();
-    props_for_key[node->object_input().node()] = node->value_input().node();
+    props_for_key[node->ObjectInput().node()] = node->ValueInput().node();
   }
 
   ProcessResult ProcessNode(StoreTaggedFieldNoWriteBarrier* node) {
@@ -307,11 +329,15 @@ class RecomputeKnownNodeAspectsProcessor {
 
   template <typename NodeT>
   void ProcessLoadContextSlot(NodeT* node) {
-    if (node->is_const()) {
-      ValueNode*& cached_value = known_node_aspects().GetContextCachedValue(
-          node->input_node(0), node->offset(),
-          ContextSlotMutability::kImmutable);
-      if (!cached_value) cached_value = node;
+    ValueNode* context = node->input_node(0);
+    ValueNode*& cached_value = known_node_aspects().GetContextCachedValue(
+        context, node->offset(),
+        node->is_const() ? ContextSlotMutability::kImmutable
+                         : ContextSlotMutability::kMutable);
+    if (!cached_value) cached_value = node;
+    if (!node->is_const()) {
+      known_node_aspects().UpdateMayHaveAliasingContexts(
+          broker(), broker()->local_isolate(), context);
     }
   }
 
@@ -322,6 +348,30 @@ class RecomputeKnownNodeAspectsProcessor {
 
   ProcessResult ProcessNode(LoadContextSlotNoCells* node) {
     ProcessLoadContextSlot(node);
+    return ProcessResult::kContinue;
+  }
+
+  ProcessResult ProcessNode(StoreContextSlotWithWriteBarrier* node) {
+    ProcessStoreContextSlot(node->ContextInput().node(),
+                            node->NewValueInput().node(), node->offset());
+    return ProcessResult::kContinue;
+  }
+
+  ProcessResult ProcessNode(StoreSmiContextCell* node) {
+    ProcessStoreContextSlot(graph_->GetConstant(node->context()),
+                            node->ValueInput().node(), node->slot_offset());
+    return ProcessResult::kContinue;
+  }
+
+  ProcessResult ProcessNode(StoreInt32ContextCell* node) {
+    ProcessStoreContextSlot(graph_->GetConstant(node->context()),
+                            node->ValueInput().node(), node->slot_offset());
+    return ProcessResult::kContinue;
+  }
+
+  ProcessResult ProcessNode(StoreFloat64ContextCell* node) {
+    ProcessStoreContextSlot(graph_->GetConstant(node->context()),
+                            node->ValueInput().node(), node->slot_offset());
     return ProcessResult::kContinue;
   }
 

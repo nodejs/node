@@ -144,7 +144,7 @@
 
 ##############################################################################
 # Behavioural differences between Maglev and Turbofan when the former is used
-# for OptimizeFunctionOnNextCall  or as a frontend for Turboshaft.
+# for OptimizeFunctionOnNextCall or as a frontend for Turboshaft.
 ['variant in (stress_maglev, stress_maglev_non_eager_inlining, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan, turbolev, turbolev_future, stress_turbolev_future)', {
   # Maglev doesn't support inlining of Wasm code.
   'wasm-inlining-into-js': [FAIL],
@@ -154,9 +154,9 @@
 ##############################################################################
 # The output for Turbolev wrapper inlining tests can be different with these
 # variants.
-['variant in (stress_concurrent_inlining, stress_incremental_marking, stress_concurrent_allocation)', {
+['variant in (stress_concurrent_inlining, stress_incremental_marking, stress_concurrent_allocation, stress_js_bg_compile_wasm_code_gc)', {
   'js-wasm-wrapper-inlining-turbolev*': [SKIP],
-}],  # variant in (stress_concurrent_inlining, stress_incremental_marking, stress_concurrent_allocation)
+}],  # variant in (stress_concurrent_inlining, stress_incremental_marking, stress_concurrent_allocation, stress_js_bg_compile_wasm_code_gc)
 
 ##############################################################################
 # Tests that require optimizing compilers.
@@ -174,9 +174,16 @@
 }],
 
 ##############################################################################
-# On 32 bit platforms we can't inline JS-to_Wasm wrappers with I64 args.
+# There are two sources of output differences between 32 and 64 bit platforms:
+# First, on 32 bit platforms we can't inline JS-to-Wasm wrappers with i64 args,
+# and second, the wrapper inlining tests also enable Wasm-into-JS body inlining,
+# which is not supported on 32 bit platforms.
 ['arch != x64 and arch != arm64', {
   'js-wasm-wrapper-inlining-turbolev-64': [SKIP],
+  'wasm-in-js-inlining-turboshaft': [SKIP],
+}],
+['(arch != ia32 and arch != arm)', {
+  'js-wasm-wrapper-inlining-turbolev-32': [SKIP],
 }],
 
 ##############################################################################

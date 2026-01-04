@@ -390,7 +390,7 @@ DEF_GETTER(JSFunction, has_initial_map, bool) {
   DCHECK(has_prototype_slot(cage_base));
   Tagged<UnionOf<JSPrototype, Map, TheHole>> maybe_map =
       prototype_or_initial_map(cage_base, kAcquireLoad);
-  return !IsTheHole(maybe_map) && IsMap(maybe_map, cage_base);
+  return IsMap(maybe_map, cage_base);
 }
 
 DEF_GETTER(JSFunction, has_instance_prototype, bool) {

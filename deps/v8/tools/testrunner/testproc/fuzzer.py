@@ -66,6 +66,8 @@ EXTRA_FLAGS = [
     (0.1, '--turbo-instruction-scheduling'),
     (0.1, '--turbo-stress-instruction-scheduling'),
     (0.2, '--turboshaft-verify-load-elimination'),
+    (0.2, '--turboshaft-verify-load-store-taggedness'),
+    (0.1, '--turboshaft-verify-reductions'),
     (0.1, '--stress-wasm-memory-moving'),
     (0.1, '--stress-scavenger-conservative-object-pinning-random'),
     (0.1, '--conservative-stack-scanning'),
@@ -74,9 +76,9 @@ EXTRA_FLAGS = [
     (0.1, '--ephemeron-fixpoint-iterations=0'),
     (0.25, '--experimental-wasm-revectorize'),
     (0.1, '--no-memory-pool'),
-    (0.1, '--handle-weak-ref-weakly-in-minor-gc'),
     (0.1, '--wasm-assert-types'),
     (0.5, '--proto-assign-seq-opt'),
+    (0.1, '--proto-assign-seq-opt --proto-assign-seq-opt-count=1'),
 ]
 
 MIN_DEOPT = 1

@@ -494,6 +494,7 @@ Register LiftoffAssembler::LoadOldFramePointer() {
     return fp;
   }
   LiftoffRegister old_fp = GetUnusedRegister(RegClass::kGpReg, {});
+  FreezeCacheState frozen(*this);
   Label done, call_runtime;
   Ldr(old_fp.gp(), MemOperand(fp, TypedFrameConstants::kFrameTypeOffset));
   Cmp(old_fp.gp(),

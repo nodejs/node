@@ -15,6 +15,9 @@ function ref_err_if_hole(x) {
 
 %PrepareFunctionForOptimization(ref_err_if_hole);
 assertEquals(17, ref_err_if_hole(0));
+assertThrows(() => ref_err_if_hole(1), ReferenceError,
+            "Cannot access 'v' before initialization");
+
 %OptimizeFunctionOnNextCall(ref_err_if_hole);
 assertEquals(17, ref_err_if_hole(0));
 

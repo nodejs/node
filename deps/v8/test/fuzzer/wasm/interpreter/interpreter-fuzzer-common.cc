@@ -31,9 +31,9 @@
 #include "src/zone/accounting-allocator.h"
 #include "src/zone/zone.h"
 #include "test/common/wasm/flag-utils.h"
+#include "test/common/wasm/fuzzer-common.h"
 #include "test/common/wasm/wasm-module-runner.h"
 #include "test/fuzzer/fuzzer-support.h"
-#include "test/fuzzer/wasm/fuzzer-common.h"
 
 namespace v8::internal::wasm::fuzzing {
 
@@ -359,7 +359,7 @@ std::vector<WasmValue> FastMakeDefaultInterpreterArguments(
           canonical_type = CanonicalValueType{type};
         }
 
-        if (type.heap_representation() == HeapType::kExtern) {
+        if (type.AsNullable() == wasm::kWasmExternRef) {
           arguments[i] = WasmValue(
               Cast<Object>(isolate->factory()->NewHeapNumber(rand_num + 0.125)),
               canonical_type);
