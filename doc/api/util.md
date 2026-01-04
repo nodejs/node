@@ -2037,6 +2037,10 @@ added:
   - v16.17.0
 changes:
   - version:
+    - REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58875
+    description: Add support for help text in options and general help text.
+  - version:
     - v22.4.0
     - v20.16.0
     pr-url: https://github.com/nodejs/node/pull/53107
@@ -2076,6 +2080,7 @@ changes:
       `true`, it must be an array. No default value is applied when the option
       does appear in the arguments to be parsed, even if the provided value
       is falsy.
+    * `help` {string} Descriptive text to display in help output for this option.
   * `strict` {boolean} Should an error be thrown when unknown arguments
     are encountered, or when arguments are passed that do not match the
     `type` configured in `options`.
@@ -2090,11 +2095,13 @@ changes:
     the built-in behavior, from adding additional checks through to reprocessing
     the tokens in different ways.
     **Default:** `false`.
+  * `help` {string} General help text to display at the beginning of help output.
 
 * Returns: {Object} The parsed command line arguments:
   * `values` {Object} A mapping of parsed option names with their {string}
     or {boolean} values.
   * `positionals` {string\[]} Positional arguments.
+  * `helpText` {string | undefined} Formatted help text for all options provided.
   * `tokens` {Object\[] | undefined} See [parseArgs tokens](#parseargs-tokens)
     section. Only returned if `config` includes `tokens: true`.
 
@@ -2140,6 +2147,85 @@ const {
 } = parseArgs({ args, options });
 console.log(values, positionals);
 // Prints: [Object: null prototype] { foo: true, bar: 'b' } []
+```
+
+### `parseArgs` help text
+
+`parseArgs` supports automatic formatted help text generation for command-line options. When
+general help text is provided, a help option is automatically added unless already present.
+
+#### Simple usage
+
+By default, providing general help text automatically adds a help option (`-h, --help`) and
+returns formatted help text in `result.helpText`:
+
+```mjs
+import { parseArgs } from 'node:util';
+
+const options = {
+  foo: {
+    type: 'boolean',
+    short: 'f',
+    help: 'use the foo filter',
+  },
+  bar: {
+    type: 'string',
+    help: 'use the specified bar filter',
+  },
+};
+
+const result = parseArgs({
+  help: 'utility to control filters',
+  options,
+});
+
+if (result.values.help) {
+  console.log(result.helpText);
+  // Prints:
+  // utility to control filters
+  // -f, --foo                     use the foo filter
+  // --bar <arg>                   use the specified bar filter
+  // -h, --help                    Show help
+}
+```
+
+#### Custom help option
+
+You can override the auto-added help option by defining your own:
+
+```mjs
+import { parseArgs } from 'node:util';
+
+const options = {
+  foo: {
+    type: 'boolean',
+    short: 'f',
+    help: 'use the foo filter',
+  },
+  bar: {
+    type: 'string',
+    help: 'use the specified bar filter',
+  },
+  help: {
+    type: 'boolean',
+    short: '?',
+    help: 'display help',
+  },
+};
+
+const result = parseArgs({
+  help: 'utility to control filters',
+  options,
+});
+
+if (result.values.help) {
+  console.log(result.helpText);
+  // Prints:
+  // utility to control filters
+  // -f, --foo                     use the foo filter
+  // --bar <arg>                   use the specified bar filter
+  // -?, --help                    display help
+}
 ```
 
 ### `parseArgs` `tokens`
