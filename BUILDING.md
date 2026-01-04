@@ -889,7 +889,7 @@ cp c:\ccache\ccache.exe c:\ccache\cl.exe
 ```
 
 With newer version of Visual Studio, it may need the copy to be `clang-cl.exe`
-instead. If the output of `vcbuild.bat` suggestion missing `clang-cl.exe`, copy
+instead. If the output of `vcbuild.bat` suggests missing `clang-cl.exe`, copy
 it differently:
 
 ```powershell
@@ -1052,7 +1052,7 @@ configure option:
 ## Building Node.js with Temporal support
 
 Node.js supports the [Temporal](https://github.com/tc39/proposal-temporal) APIs, when
-linking statically or dynamically with a version [temporal\_rs](https://github.com/boa-dev/temporal).
+linking statically or dynamically with a version of [temporal\_rs](https://github.com/boa-dev/temporal).
 
 To build Node.js with Temporal support, a Rust toolchain is required:
 
