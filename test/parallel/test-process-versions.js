@@ -31,6 +31,7 @@ const expected_keys = [
 
 const hasUndici = process.config.variables.node_builtin_shareable_builtins.includes('deps/undici/undici.js');
 const hasAmaro = process.config.variables.node_builtin_shareable_builtins.includes('deps/amaro/dist/index.js');
+const hasLief = process.config.variables.node_use_lief;
 
 if (process.config.variables.node_use_amaro) {
   if (hasAmaro) {
@@ -39,6 +40,10 @@ if (process.config.variables.node_use_amaro) {
 }
 if (hasUndici) {
   expected_keys.push('undici');
+}
+
+if (hasLief) {
+  expected_keys.push('lief');
 }
 
 if (common.hasCrypto) {
@@ -75,6 +80,10 @@ assert.match(process.versions.uv, commonTemplate);
 assert.match(process.versions.nbytes, commonTemplate);
 assert.match(process.versions.zlib, /^\d+(?:\.\d+){1,3}(?:-.*)?$/);
 assert.match(process.versions.zstd, commonTemplate);
+
+if (process.config.variables.node_use_lief) {
+  assert.match(process.versions.lief, commonTemplate);
+}
 
 if (hasUndici) {
   assert.match(process.versions.undici, commonTemplate);

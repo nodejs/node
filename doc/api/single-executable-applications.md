@@ -7,6 +7,9 @@ added:
   - v19.7.0
   - v18.16.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/61167
+    description: Added built-in single executable application generation via the CLI flag `--build-sea`.
   - version: v20.6.0
     pr-url: https://github.com/nodejs/node/pull/46824
     description: Added support for "useSnapshot".
@@ -35,9 +38,6 @@ Users can create a single executable application from their bundled script
 with the `node` binary itself and any tool which can inject resources into the
 binary.
 
-Here are the steps for creating a single executable application using one such
-tool, [postject][]:
-
 1. Create a JavaScript file:
    ```bash
    echo 'console.log(`Hello, ${process.argv[2]}!`);' > hello.js
@@ -46,90 +46,27 @@ tool, [postject][]:
 2. Create a configuration file building a blob that can be injected into the
    single executable application (see
    [Generating single executable preparation blobs][] for details):
-   ```bash
-   echo '{ "main": "hello.js", "output": "sea-prep.blob" }' > sea-config.json
-   ```
-
-3. Generate the blob to be injected:
-   ```bash
-   node --experimental-sea-config sea-config.json
-   ```
-
-4. Create a copy of the `node` executable and name it according to your needs:
 
    * On systems other than Windows:
 
    ```bash
-   cp $(command -v node) hello
+   echo '{ "main": "hello.js", "output": "sea" }' > sea-config.json
    ```
 
    * On Windows:
 
-   ```text
-   node -e "require('fs').copyFileSync(process.execPath, 'hello.exe')"
+   ```bash
+   echo '{ "main": "hello.js", "output": "sea.exe" }' > sea-config.json
    ```
 
    The `.exe` extension is necessary.
 
-5. Remove the signature of the binary (macOS and Windows only):
-
-   * On macOS:
-
+3. Generate the target executable:
    ```bash
-   codesign --remove-signature hello
+   node --build-sea sea-config.json
    ```
 
-   * On Windows (optional):
-
-   [signtool][] can be used from the installed [Windows SDK][]. If this step is
-   skipped, ignore any signature-related warning from postject.
-
-   ```powershell
-   signtool remove /s hello.exe
-   ```
-
-6. Inject the blob into the copied binary by running `postject` with
-   the following options:
-
-   * `hello` / `hello.exe` - The name of the copy of the `node` executable
-     created in step 4.
-   * `NODE_SEA_BLOB` - The name of the resource / note / section in the binary
-     where the contents of the blob will be stored.
-   * `sea-prep.blob` - The name of the blob created in step 1.
-   * `--sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2` - The
-     [fuse][] used by the Node.js project to detect if a file has been injected.
-   * `--macho-segment-name NODE_SEA` (only needed on macOS) - The name of the
-     segment in the binary where the contents of the blob will be
-     stored.
-
-   To summarize, here is the required command for each platform:
-
-   * On Linux:
-     ```bash
-     npx postject hello NODE_SEA_BLOB sea-prep.blob \
-         --sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2
-     ```
-
-   * On Windows - PowerShell:
-     ```powershell
-     npx postject hello.exe NODE_SEA_BLOB sea-prep.blob `
-         --sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2
-     ```
-
-   * On Windows - Command Prompt:
-     ```text
-     npx postject hello.exe NODE_SEA_BLOB sea-prep.blob ^
-         --sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2
-     ```
-
-   * On macOS:
-     ```bash
-     npx postject hello NODE_SEA_BLOB sea-prep.blob \
-         --sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2 \
-         --macho-segment-name NODE_SEA
-     ```
-
-7. Sign the binary (macOS and Windows only):
+4. Sign the binary (macOS and Windows only):
 
    * On macOS:
 
@@ -146,7 +83,7 @@ tool, [postject][]:
    signtool sign /fd SHA256 hello.exe
    ```
 
-8. Run the binary:
+5. Run the binary:
 
    * On systems other than Windows
 
@@ -162,20 +99,19 @@ tool, [postject][]:
    Hello, world!
    ```
 
-## Generating single executable preparation blobs
+## Generating single executable applications with `--build-sea`
 
-Single executable preparation blobs that are injected into the application can
-be generated using the `--experimental-sea-config` flag of the Node.js binary
-that will be used to build the single executable. It takes a path to a
-configuration file in JSON format. If the path passed to it isn't absolute,
-Node.js will use the path relative to the current working directory.
+To generate a single executable application directly, the `--build-sea` flag can be
+used. It takes a path to a configuration file in JSON format. If the path passed to it
+isn't absolute, Node.js will use the path relative to the current working directory.
 
 The configuration currently reads the following top-level fields:
 
 ```json
 {
   "main": "/path/to/bundled/script.js",
-  "output": "/path/to/write/the/generated/blob.blob",
+  "executable": "/path/to/node/binary", // Optional, if not specified, uses the current Node.js binary
+  "output": "/path/to/write/the/generated/executable",
   "disableExperimentalSEAWarning": true, // Default: false
   "useSnapshot": false,  // Default: false
   "useCodeCache": true, // Default: false
@@ -210,7 +146,7 @@ executable, users can retrieve the assets using the [`sea.getAsset()`][] and
 ```json
 {
   "main": "/path/to/bundled/script.js",
-  "output": "/path/to/write/the/generated/blob.blob",
+  "output": "/path/to/write/the/generated/executable",
   "assets": {
     "a.jpg": "/path/to/a.jpg",
     "b.txt": "/path/to/b.txt"
@@ -294,7 +230,7 @@ For example, the following configuration:
 ```json
 {
   "main": "/path/to/bundled/script.js",
-  "output": "/path/to/write/the/generated/blob.blob",
+  "output": "/path/to/write/the/generated/executable",
   "execArgv": ["--no-warnings", "--max-old-space-size=2048"]
 }
 ```
@@ -336,7 +272,7 @@ For example, with `"execArgvExtension": "cli"`:
 ```json
 {
   "main": "/path/to/bundled/script.js",
-  "output": "/path/to/write/the/generated/blob.blob",
+  "output": "/path/to/write/the/generated/executable",
   "execArgv": ["--no-warnings"],
   "execArgvExtension": "cli"
 }
@@ -487,7 +423,7 @@ to a temporary file and loading it with `process.dlopen()`.
 ```json
 {
   "main": "/path/to/bundled/script.js",
-  "output": "/path/to/write/the/generated/blob.blob",
+  "output": "/path/to/write/the/generated/executable",
   "assets": {
     "myaddon.node": "/path/to/myaddon/build/Release/myaddon.node"
   }
@@ -517,18 +453,133 @@ a non-container Linux arm64 environment to work around this issue.
 
 ### Single executable application creation process
 
-A tool aiming to create a single executable Node.js application must
-inject the contents of the blob prepared with `--experimental-sea-config"`
-into:
+The process documented here is subject to change.
 
-* a resource named `NODE_SEA_BLOB` if the `node` binary is a [PE][] file
-* a section named `NODE_SEA_BLOB` in the `NODE_SEA` segment if the `node` binary
-  is a [Mach-O][] file
-* a note named `NODE_SEA_BLOB` if the `node` binary is an [ELF][] file
+#### 1. Generating single executable preparation blobs
 
-Search the binary for the
+To build a single executable application, Node.js would first generate a blob
+that contains all the necessary information to run the bundled script.
+When using `--build-sea`, this step is done internally along with the injection.
+
+##### Dumping the preparation blob to disk
+
+Before `--build-sea` was introduced, an older workflow was introduced to write the
+preparation blob to disk for injection by external tools. This can still
+be used for verification purposes.
+
+To dump the preparation blob to disk for verification, use `--experimental-sea-config`.
+This writes a file that can be injected into a Node.js binary using tools like [postject][].
+
+The configuration is similar to that of `--build-sea`, except that the
+`output` field specifies the path to write the generated blob file instead of
+the final executable.
+
+```json
+{
+  "main": "/path/to/bundled/script.js",
+  // Instead of the final executable, this is the path to write the blob.
+  "output": "/path/to/write/the/generated/blob.blob"
+}
+```
+
+#### 2. Injecting the preparation blob into the `node` binary
+
+To complete the creation of a single executable application, the generated blob
+needs to be injected into a copy of the `node` binary, as documented below.
+
+When using `--build-sea`, this step is done internally along with the blob generation.
+
+* If the `node` binary is a [PE][] file, the blob should be injected as a resource
+  named `NODE_SEA_BLOB`.
+* If the `node` binary is a [Mach-O][] file, the blob should be injected as a section
+  named `NODE_SEA_BLOB` in the `NODE_SEA` segment.
+* If the `node` binary is an [ELF][] file, the blob should be injected as a note
+  named `NODE_SEA_BLOB`.
+
+Then, the SEA building process searches the binary for the
 `NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2:0` [fuse][] string and flip the
 last character to `1` to indicate that a resource has been injected.
+
+##### Injecting the preparation blob manually
+
+Before `--build-sea` was introduced, an older workflow was introduced to allow
+external tools to inject the generated blob into a copy of the `node` binary.
+
+For example, with [postject][]:
+
+1. Create a copy of the `node` executable and name it according to your needs:
+
+   * On systems other than Windows:
+
+   ```bash
+   cp $(command -v node) hello
+   ```
+
+   * On Windows:
+
+   ```text
+   node -e "require('fs').copyFileSync(process.execPath, 'hello.exe')"
+   ```
+
+   The `.exe` extension is necessary.
+
+2. Remove the signature of the binary (macOS and Windows only):
+
+   * On macOS:
+
+   ```bash
+   codesign --remove-signature hello
+   ```
+
+   * On Windows (optional):
+
+   [signtool][] can be used from the installed [Windows SDK][]. If this step is
+   skipped, ignore any signature-related warning from postject.
+
+   ```powershell
+   signtool remove /s hello.exe
+   ```
+
+3. Inject the blob into the copied binary by running `postject` with
+   the following options:
+
+   * `hello` / `hello.exe` - The name of the copy of the `node` executable
+     created in step 4.
+   * `NODE_SEA_BLOB` - The name of the resource / note / section in the binary
+     where the contents of the blob will be stored.
+   * `sea-prep.blob` - The name of the blob created in step 1.
+   * `--sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2` - The
+     [fuse][] used by the Node.js project to detect if a file has been injected.
+   * `--macho-segment-name NODE_SEA` (only needed on macOS) - The name of the
+     segment in the binary where the contents of the blob will be
+     stored.
+
+   To summarize, here is the required command for each platform:
+
+   * On Linux:
+     ```bash
+     npx postject hello NODE_SEA_BLOB sea-prep.blob \
+         --sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2
+     ```
+
+   * On Windows - PowerShell:
+     ```powershell
+     npx postject hello.exe NODE_SEA_BLOB sea-prep.blob `
+         --sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2
+     ```
+
+   * On Windows - Command Prompt:
+     ```text
+     npx postject hello.exe NODE_SEA_BLOB sea-prep.blob ^
+         --sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2
+     ```
+
+   * On macOS:
+     ```bash
+     npx postject hello NODE_SEA_BLOB sea-prep.blob \
+         --sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2 \
+         --macho-segment-name NODE_SEA
+     ```
 
 ### Platform support
 
@@ -549,7 +600,7 @@ to help us document them.
 
 [CommonJS]: modules.md#modules-commonjs-modules
 [ELF]: https://en.wikipedia.org/wiki/Executable_and_Linkable_Format
-[Generating single executable preparation blobs]: #generating-single-executable-preparation-blobs
+[Generating single executable preparation blobs]: #1-generating-single-executable-preparation-blobs
 [Mach-O]: https://en.wikipedia.org/wiki/Mach-O
 [PE]: https://en.wikipedia.org/wiki/Portable_Executable
 [Windows SDK]: https://developer.microsoft.com/en-us/windows/downloads/windows-sdk/

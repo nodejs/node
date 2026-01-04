@@ -1,0 +1,77 @@
+/* Copyright 2017 - 2021 A. Guinet
+ * Copyright 2017 - 2025 Quarkslab
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#ifndef LIEF_CONFIG_H
+#define LIEF_CONFIG_H
+
+// Main formats
+#cmakedefine LIEF_PE_SUPPORT       @LIEF_PE_SUPPORT@
+#cmakedefine LIEF_ELF_SUPPORT      @LIEF_ELF_SUPPORT@
+#cmakedefine LIEF_MACHO_SUPPORT    @LIEF_MACHO_SUPPORT@
+#cmakedefine LIEF_COFF_SUPPORT     @LIEF_COFF_SUPPORT@
+
+// Android formats
+#cmakedefine LIEF_OAT_SUPPORT      @LIEF_OAT_SUPPORT@
+#cmakedefine LIEF_DEX_SUPPORT      @LIEF_DEX_SUPPORT@
+#cmakedefine LIEF_VDEX_SUPPORT     @LIEF_VDEX_SUPPORT@
+#cmakedefine LIEF_ART_SUPPORT      @LIEF_ART_SUPPORT@
+
+// Extended features
+#cmakedefine LIEF_DEBUG_INFO        @LIEF_DEBUG_INFO_SUPPORT@
+#cmakedefine LIEF_OBJC              @LIEF_OBJC_SUPPORT@
+#cmakedefine LIEF_DYLD_SHARED_CACHE @LIEF_DYLD_SHARED_CACHE_SUPPORT@
+#cmakedefine LIEF_ASM_SUPPORT       @LIEF_ASM_SUPPORT@
+#cmakedefine LIEF_EXTENDED          @LIEF_EXTENDED@
+
+// LIEF options
+#cmakedefine LIEF_JSON_SUPPORT      @ENABLE_JSON_SUPPORT@
+#cmakedefine LIEF_LOGGING_SUPPORT   @LIEF_LOGGING_SUPPORT@
+#cmakedefine LIEF_LOGGING_DEBUG     @LIEF_LOGGING_DEBUG_SUPPORT@
+#cmakedefine LIEF_FROZEN_ENABLED    @LIEF_FROZEN_ENABLED@
+#cmakedefine LIEF_EXTERNAL_EXPECTED @LIEF_EXTERNAL_EXPECTED@
+#cmakedefine LIEF_EXTERNAL_UTF8CPP  @LIEF_EXTERNAL_UTF8CPP@
+#cmakedefine LIEF_EXTERNAL_MBEDTLS  @LIEF_EXTERNAL_MBEDTLS@
+#cmakedefine LIEF_EXTERNAL_FROZEN   @LIEF_EXTERNAL_FROZEN@
+#cmakedefine LIEF_EXTERNAL_SPAN     @LIEF_EXTERNAL_SPAN@
+
+#cmakedefine LIEF_NLOHMANN_JSON_EXTERNAL  @LIEF_NLOHMANN_JSON_EXTERNAL@
+
+
+#ifdef __cplusplus
+
+static constexpr bool lief_pe_support      = @LIEF_PE_SUPPORT@;
+static constexpr bool lief_elf_support     = @LIEF_ELF_SUPPORT@;
+static constexpr bool lief_macho_support   = @LIEF_MACHO_SUPPORT@;
+static constexpr bool lief_coff_support    = @LIEF_COFF_SUPPORT@;
+
+static constexpr bool lief_oat_support     = @LIEF_OAT_SUPPORT@;
+static constexpr bool lief_dex_support     = @LIEF_DEX_SUPPORT@;
+static constexpr bool lief_vdex_support    = @LIEF_VDEX_SUPPORT@;
+static constexpr bool lief_art_support     = @LIEF_ART_SUPPORT@;
+
+static constexpr bool lief_debug_info      = @LIEF_DEBUG_INFO_SUPPORT@;
+static constexpr bool lief_objc            = @LIEF_OBJC_SUPPORT@;
+static constexpr bool lief_extended        = @LIEF_EXTENDED@;
+
+static constexpr bool lief_json_support    = @LIEF_JSON_SUPPORT@;
+static constexpr bool lief_logging_support = @LIEF_LOGGING_SUPPORT@;
+static constexpr bool lief_logging_debug   = @LIEF_LOGGING_DEBUG_SUPPORT@;
+static constexpr bool lief_frozen_enabled  = @LIEF_FROZEN_ENABLED@;
+
+
+#endif // __cplusplus
+
+#endif

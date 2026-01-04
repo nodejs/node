@@ -48,6 +48,10 @@
 #include <unicode/uversion.h>
 #endif  // NODE_HAVE_I18N_SUPPORT
 
+#if HAVE_LIEF
+#include "LIEF/version.h"
+#endif
+
 namespace node {
 
 namespace per_process {
@@ -110,6 +114,13 @@ Metadata::Versions::Versions() {
   modules = NODE_STRINGIFY(NODE_MODULE_VERSION);
   nghttp2 = NGHTTP2_VERSION;
   napi = NODE_STRINGIFY(NODE_API_SUPPORTED_VERSION_MAX);
+
+#if HAVE_LIEF
+  lief = (std::to_string(LIEF_VERSION_MAJOR) + "." +
+          std::to_string(LIEF_VERSION_MINOR) + "." +
+          std::to_string(LIEF_VERSION_PATCH));
+#endif
+
   llhttp =
       NODE_STRINGIFY(LLHTTP_VERSION_MAJOR)
       "."

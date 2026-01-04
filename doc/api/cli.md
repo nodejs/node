@@ -401,6 +401,21 @@ Error: Access to this API has been restricted
 }
 ```
 
+### `--build-sea=config`
+
+<!-- YAML
+added:
+  - REPLACEME
+-->
+
+Generates a [single executable application][] from a JSON
+configuration file. The argument must be a path to the configuration file. If
+the path is not absolute, it is resolved relative to the current working
+directory.
+
+For configuration fields, cross-platform notes, and asset APIs, see
+the [single executable application][] documentation.
+
 ### `--build-snapshot`
 
 <!-- YAML
@@ -4184,7 +4199,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`--disable-sigusr1`]: #--disable-sigusr1
 [`--env-file-if-exists`]: #--env-file-if-existsfile
 [`--env-file`]: #--env-filefile
-[`--experimental-sea-config`]: single-executable-applications.md#generating-single-executable-preparation-blobs
+[`--experimental-sea-config`]: single-executable-applications.md#1-generating-single-executable-preparation-blobs
 [`--heap-prof-dir`]: #--heap-prof-dir
 [`--import`]: #--importmodule
 [`--no-require-module`]: #--no-require-module
