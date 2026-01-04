@@ -88,13 +88,13 @@ suite('StatementSync.prototype.setAllowUnknownNamedParameters()', () => {
     );
     t.assert.strictEqual(setup, undefined);
     const stmt = db.prepare('INSERT INTO data (key, val) VALUES ($k, $v)');
-    t.assert.strictEqual(stmt.setAllowUnknownNamedParameters(true), undefined);
+    t.assert.strictEqual(stmt.setAllowUnknownNamedParameters(true), stmt);
     const params = { $a: 1, $b: 2, $k: 42, $y: 25, $v: 84, $z: 99 };
     t.assert.deepStrictEqual(
       stmt.run(params),
       { changes: 1, lastInsertRowid: 1 },
     );
-    t.assert.strictEqual(stmt.setAllowUnknownNamedParameters(false), undefined);
+    t.assert.strictEqual(stmt.setAllowUnknownNamedParameters(false), stmt);
     t.assert.throws(() => {
       stmt.run(params);
     }, {

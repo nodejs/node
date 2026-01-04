@@ -317,9 +317,9 @@ suite('StatementSync.prototype.setReadBigInts()', () => {
 
     const query = db.prepare('SELECT val FROM data');
     t.assert.deepStrictEqual(query.get(), { __proto__: null, val: 42 });
-    t.assert.strictEqual(query.setReadBigInts(true), undefined);
+    t.assert.strictEqual(query.setReadBigInts(true), query);
     t.assert.deepStrictEqual(query.get(), { __proto__: null, val: 42n });
-    t.assert.strictEqual(query.setReadBigInts(false), undefined);
+    t.assert.strictEqual(query.setReadBigInts(false), query);
     t.assert.deepStrictEqual(query.get(), { __proto__: null, val: 42 });
 
     const insert = db.prepare('INSERT INTO data (key) VALUES (?)');
@@ -327,12 +327,12 @@ suite('StatementSync.prototype.setReadBigInts()', () => {
       insert.run(10),
       { changes: 1, lastInsertRowid: 10 },
     );
-    t.assert.strictEqual(insert.setReadBigInts(true), undefined);
+    t.assert.strictEqual(insert.setReadBigInts(true), insert);
     t.assert.deepStrictEqual(
       insert.run(20),
       { changes: 1n, lastInsertRowid: 20n },
     );
-    t.assert.strictEqual(insert.setReadBigInts(false), undefined);
+    t.assert.strictEqual(insert.setReadBigInts(false), insert);
     t.assert.deepStrictEqual(
       insert.run(30),
       { changes: 1, lastInsertRowid: 30 },
@@ -365,8 +365,7 @@ suite('StatementSync.prototype.setReadBigInts()', () => {
       code: 'ERR_OUT_OF_RANGE',
       message: /^Value is too large to be represented as a JavaScript number: 9007199254740992$/,
     });
-    const good = db.prepare(`SELECT ${Number.MAX_SAFE_INTEGER} + 1`);
-    good.setReadBigInts(true);
+    const good = db.prepare(`SELECT ${Number.MAX_SAFE_INTEGER} + 1`).setReadBigInts(true);
     t.assert.deepStrictEqual(good.get(), {
       __proto__: null,
       [`${Number.MAX_SAFE_INTEGER} + 1`]: 2n ** 53n,
@@ -422,9 +421,7 @@ suite('StatementSync.prototype.get() with array output', () => {
     `);
     t.assert.strictEqual(setup, undefined);
 
-    const query = db.prepare('SELECT id, big_num FROM big_data');
-    query.setReturnArrays(true);
-    query.setReadBigInts(true);
+    const query = db.prepare('SELECT id, big_num FROM big_data').setReturnArrays(true).setReadBigInts(true);
 
     const row = query.get();
     t.assert.deepStrictEqual(row, expected);
@@ -488,8 +485,7 @@ suite('StatementSync.prototype.all() with array output', () => {
     `);
     t.assert.strictEqual(setup, undefined);
 
-    const query = db.prepare('SELECT * FROM wide_table');
-    query.setReturnArrays(true);
+    const query = db.prepare('SELECT * FROM wide_table').setReturnArrays(true);
 
     const results = query.all();
     t.assert.strictEqual(results.length, 1);
@@ -545,8 +541,7 @@ suite('StatementSync.prototype.iterate() with array output', () => {
       INSERT INTO test (key, val) VALUES ('key1', 'val1');
       INSERT INTO test (key, val) VALUES ('key2', 'val2');
     `);
-    const stmt = db.prepare('SELECT key, val FROM test');
-    stmt.setReturnArrays(true);
+    const stmt = db.prepare('SELECT key, val FROM test').setReturnArrays(true);
 
     const iterator = stmt.iterate();
     const results = [];
@@ -579,14 +574,14 @@ suite('StatementSync.prototype.setAllowBareNamedParameters()', () => {
       stmt.run({ k: 1, v: 2 }),
       { changes: 1, lastInsertRowid: 1 },
     );
-    t.assert.strictEqual(stmt.setAllowBareNamedParameters(false), undefined);
+    t.assert.strictEqual(stmt.setAllowBareNamedParameters(false), stmt);
     t.assert.throws(() => {
       stmt.run({ k: 2, v: 4 });
     }, {
       code: 'ERR_INVALID_STATE',
       message: /Unknown named parameter 'k'/,
     });
-    t.assert.strictEqual(stmt.setAllowBareNamedParameters(true), undefined);
+    t.assert.strictEqual(stmt.setAllowBareNamedParameters(true), stmt);
     t.assert.deepStrictEqual(
       stmt.run({ k: 3, v: 6 }),
       { changes: 1, lastInsertRowid: 3 },

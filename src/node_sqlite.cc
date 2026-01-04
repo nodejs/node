@@ -2603,6 +2603,7 @@ void StatementSync::SetAllowBareNamedParameters(
   }
 
   stmt->allow_bare_named_params_ = args[0]->IsTrue();
+  args.GetReturnValue().Set(stmt->object());
 }
 
 void StatementSync::SetAllowUnknownNamedParameters(
@@ -2620,6 +2621,7 @@ void StatementSync::SetAllowUnknownNamedParameters(
   }
 
   stmt->allow_unknown_named_params_ = args[0]->IsTrue();
+  args.GetReturnValue().Set(stmt->object());
 }
 
 void StatementSync::SetReadBigInts(const FunctionCallbackInfo<Value>& args) {
@@ -2636,6 +2638,7 @@ void StatementSync::SetReadBigInts(const FunctionCallbackInfo<Value>& args) {
   }
 
   stmt->use_big_ints_ = args[0]->IsTrue();
+  args.GetReturnValue().Set(stmt->object());
 }
 
 void StatementSync::SetReturnArrays(const FunctionCallbackInfo<Value>& args) {
@@ -2652,6 +2655,7 @@ void StatementSync::SetReturnArrays(const FunctionCallbackInfo<Value>& args) {
   }
 
   stmt->return_arrays_ = args[0]->IsTrue();
+  args.GetReturnValue().Set(stmt->object());
 }
 
 void IllegalConstructor(const FunctionCallbackInfo<Value>& args) {
