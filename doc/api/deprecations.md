@@ -3499,6 +3499,9 @@ const w = new Writable({
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/60820
+    description: Runtime deprecation.
   - version:
     - v17.5.0
     - v16.15.0
@@ -3506,7 +3509,7 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Documentation-only
+Type: Runtime
 
 This method was deprecated because it is not compatible with
 `Uint8Array.prototype.slice()`, which is a superclass of `Buffer`.
