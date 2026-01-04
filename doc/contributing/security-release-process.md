@@ -83,6 +83,8 @@ The current security stewards are documented in the main Node.js
   * Get volunteers for the upcoming security release on the affected release
     lines.
   * Make sure to sync nodejs-private (vN.x) branches with nodejs/node.
+  * **Important:** Ensure that all backport commits include the `PR-URL` metadata
+    in their commit messages. This is required for the security release automation.
 
 * [ ] 7\. **Preparing Pre and Post Release Blog Posts:**
   * [ ] Create a pre-release blog post using `git node security --pre-release`.
