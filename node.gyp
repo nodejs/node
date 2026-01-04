@@ -15,6 +15,7 @@
     'node_shared_brotli%': 'false',
     'node_shared_cares%': 'false',
     'node_shared_gtest%': 'false',
+    'node_shared_hdr_histogram%': 'false',
     'node_shared_http_parser%': 'false',
     'node_shared_libuv%': 'false',
     'node_shared_nghttp2%': 'false',
@@ -572,10 +573,6 @@
         'src/node_main.cc'
       ],
 
-      'dependencies': [
-        'deps/histogram/histogram.gyp:histogram',
-      ],
-
       'msvs_settings': {
         'VCLinkerTool': {
           'GenerateMapFile': 'true', # /MAP
@@ -597,6 +594,11 @@
       'msvs_disabled_warnings!': [4244],
 
       'conditions': [
+        [ 'node_shared_hdr_histogram=="false"', {
+          'dependencies': [
+            'deps/histogram/histogram.gyp:histogram',
+          ],
+        }],
         [ 'error_on_warn=="true"', {
           'cflags': ['-Werror'],
           'xcode_settings': {
@@ -866,7 +868,6 @@
         '<(SHARED_INTERMEDIATE_DIR)' # for node_natives.h
       ],
       'dependencies': [
-        'deps/histogram/histogram.gyp:histogram',
         'deps/nbytes/nbytes.gyp:nbytes',
         'tools/v8_gypfiles/abseil.gyp:abseil',
         'node_js2c#host',
@@ -932,6 +933,11 @@
         [ 'node_shared_gtest=="false"', {
           'dependencies': [
             'deps/googletest/googletest.gyp:gtest_prod',
+          ],
+        }],
+        [ 'node_shared_hdr_histogram=="false"', {
+          'dependencies': [
+            'deps/histogram/histogram.gyp:histogram',
           ],
         }],
         [ 'node_use_sqlite=="true"', {
@@ -1071,7 +1077,6 @@
       'type': 'executable',
       'dependencies': [
         '<(node_lib_target_name)',
-        'deps/histogram/histogram.gyp:histogram',
       ],
 
       'includes': [
@@ -1096,6 +1101,11 @@
         'test/fuzzers/fuzz_env.cc',
       ],
       'conditions': [
+        [ 'node_shared_hdr_histogram=="false"', {
+          'dependencies': [
+            'deps/histogram/histogram.gyp:histogram',
+          ],
+        }],
         ['OS=="linux" or OS=="openharmony"', {
           'ldflags': [ '-fsanitize=fuzzer' ]
         }],
@@ -1114,7 +1124,6 @@
       'type': 'executable',
       'dependencies': [
         '<(node_lib_target_name)',
-        'deps/histogram/histogram.gyp:histogram',
       ],
       'includes': [
         'node.gypi'
@@ -1137,6 +1146,11 @@
         'test/fuzzers/fuzz_ClientHelloParser.cc',
       ],
       'conditions': [
+        [ 'node_shared_hdr_histogram=="false"', {
+          'dependencies': [
+            'deps/histogram/histogram.gyp:histogram',
+          ],
+        }],
         [ 'node_shared_uvwasi=="false"', {
           'dependencies': [ 'deps/uvwasi/uvwasi.gyp:uvwasi' ],
           'include_dirs': [ 'deps/uvwasi/include' ],
@@ -1159,7 +1173,6 @@
       'type': 'executable',
       'dependencies': [
         '<(node_lib_target_name)',
-        'deps/histogram/histogram.gyp:histogram',
         'deps/nbytes/nbytes.gyp:nbytes',
       ],
       'includes': [
@@ -1188,6 +1201,11 @@
             'deps/googletest/googletest.gyp:gtest_prod',
           ],
         }],
+        [ 'node_shared_hdr_histogram=="false"', {
+          'dependencies': [
+            'deps/histogram/histogram.gyp:histogram',
+          ],
+        }],
         [ 'node_shared_uvwasi=="false"', {
           'dependencies': [ 'deps/uvwasi/uvwasi.gyp:uvwasi' ],
           'include_dirs': [ 'deps/uvwasi/include' ],
@@ -1211,7 +1229,6 @@
 
       'dependencies': [
         '<(node_lib_target_name)',
-        'deps/histogram/histogram.gyp:histogram',
         'deps/nbytes/nbytes.gyp:nbytes',
         'tools/v8_gypfiles/abseil.gyp:abseil',
       ],
@@ -1246,6 +1263,11 @@
         }],
         [ 'node_shared_gtest=="true"', {
           'libraries': [ '-lgtest_main' ],
+        }],
+        [ 'node_shared_hdr_histogram=="false"', {
+          'dependencies': [
+            'deps/histogram/histogram.gyp:histogram',
+          ],
         }],
         [ 'node_use_openssl=="true"', {
           'defines': [
@@ -1307,7 +1329,6 @@
 
       'dependencies': [
         '<(node_lib_target_name)',
-        'deps/histogram/histogram.gyp:histogram',
         'deps/nbytes/nbytes.gyp:nbytes',
       ],
 
@@ -1342,6 +1363,11 @@
           'xcode_settings': {
             'OTHER_LDFLAGS': [ '-Wl,-rpath,@loader_path', ],
           },
+        }],
+        [ 'node_shared_hdr_histogram=="false"', {
+          'dependencies': [
+            'deps/histogram/histogram.gyp:histogram',
+          ],
         }],
         ['OS=="win"', {
           'libraries': [
@@ -1429,7 +1455,6 @@
 
       'dependencies': [
         '<(node_lib_target_name)',
-        'deps/histogram/histogram.gyp:histogram',
         'deps/nbytes/nbytes.gyp:nbytes',
       ],
 
@@ -1461,6 +1486,11 @@
       'conditions': [
         ['node_write_snapshot_as_array_literals=="true"', {
           'defines': [ 'NODE_MKSNAPSHOT_USE_ARRAY_LITERALS=1' ],
+        }],
+        [ 'node_shared_hdr_histogram=="false"', {
+          'dependencies': [
+            'deps/histogram/histogram.gyp:histogram',
+          ],
         }],
         [ 'node_use_openssl=="true"', {
           'dependencies': [

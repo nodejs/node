@@ -19,6 +19,7 @@ on:
       - deps/crates/**
       - deps/corepack/**
       - deps/googletest/**
+      - deps/histogram/**
       - deps/icu-small/**
       - deps/icu-tmp/**
       - deps/llhttp/**
@@ -66,6 +67,7 @@ on:
       - deps/crates/**
       - deps/corepack/**
       - deps/googletest/**
+      - deps/histogram/**
       - deps/icu-small/**
       - deps/icu-tmp/**
       - deps/llhttp/**

@@ -20,6 +20,7 @@
     zlib
     zstd
     ;
+  hdr-histogram = pkgs.hdrhistogram_c;
   http-parser = pkgs.llhttp;
 }
 // (pkgs.lib.optionalAttrs withSQLite {

@@ -285,6 +285,28 @@ shared_optgroup.add_argument('--shared-gtest-libpath',
     dest='shared_gtest_libpath',
     help='a directory to search for the shared googletest DLL')
 
+shared_optgroup.add_argument('--shared-hdr-histogram',
+    action='store_true',
+    dest='shared_hdr_histogram',
+    default=None,
+    help='link to a shared HdrHistogram DLL instead of static linking')
+
+shared_optgroup.add_argument('--shared-hdr-histogram-includes',
+    action='store',
+    dest='shared_hdr_histogram_includes',
+    help='directory containing HdrHistogram header files')
+
+shared_optgroup.add_argument('--shared-hdr-histogram-libname',
+    action='store',
+    dest='shared_hdr_histogram_libname',
+    default='hdr_histogram',
+    help='alternative lib name to link to [default: %(default)s]')
+
+shared_optgroup.add_argument('--shared-hdr-histogram-libpath',
+    action='store',
+    dest='shared_hdr_histogram_libpath',
+    help='a directory to search for the shared HdrHistogram DLL')
+
 parser.add_argument('--experimental-http-parser',
     action='store_true',
     dest='experimental_http_parser',
@@ -2431,6 +2453,7 @@ configure_library('simdutf', output)
 configure_library('brotli', output, pkgname=['libbrotlidec', 'libbrotlienc'])
 configure_library('cares', output, pkgname='libcares')
 configure_library('gtest', output)
+configure_library('hdr_histogram', output)
 configure_library('nghttp2', output, pkgname='libnghttp2')
 configure_library('nghttp3', output, pkgname='libnghttp3')
 configure_library('ngtcp2', output, pkgname='libngtcp2')
