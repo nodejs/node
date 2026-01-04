@@ -4,4 +4,6 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 var logger_1 = __importDefault(require("logger"));
-new logger_1.default().log('import default');
+new logger_1.default.JSONConsumer().attach();
+var logger = logger_1.default.createLogger();
+logger.info('import default');
