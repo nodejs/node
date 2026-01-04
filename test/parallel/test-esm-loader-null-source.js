@@ -5,7 +5,7 @@ import path from 'path';
 // Test that ESM loader handles null/undefined source gracefully
 // and throws meaningful error instead of ERR_INTERNAL_ASSERTION.
 // Refs: https://github.com/nodejs/node/issues/60401
-const fixturePath = pathToFileURL(path.join(__dirname, '../fixtures/test-null-source.js')).href;
+const fixtureURL = fixtures.fileURL('test-null-source.js');
 const common = require('../common');
 const assert = require('assert');
 const { spawnSync } = require('child_process');
