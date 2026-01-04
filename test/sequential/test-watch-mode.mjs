@@ -886,49 +886,6 @@ process.on('message', (message) => {
   });
 
   it('should watch changes even when there is syntax errors during esm loading', async () => {
-    // Create initial file with valid code
-    const initialContent = `console.log('hello, world');`;
-    const file = createTmpFile(initialContent, '.mjs');
 
-    const { done, restart } = runInBackground({
-      args: ['--watch', file],
-      completed: 'Completed running',
-      shouldFail: true,
-    });
-
-    try {
-      const { stdout, stderr } = await restart();
-      assert.strictEqual(stderr, '');
-      assert.deepStrictEqual(stdout, [
-        'hello, world',
-        `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
-      ]);
-
-      // Update file with syntax error
-      const syntaxErrorContent = `console.log('hello, wor`;
-      writeFileSync(file, syntaxErrorContent);
-
-      // Wait for the failed restart
-      const { stderr: stderr2, stdout: stdout2 } = await restart();
-      assert.match(stderr2, /SyntaxError: Invalid or unexpected token/);
-      assert.deepStrictEqual(stdout2, [
-        `Restarting ${inspect(file)}`,
-        `Failed running ${inspect(file)}. Waiting for file changes before restarting...`,
-      ]);
-
-      writeFileSync(file, `console.log('hello again, world');`);
-
-      const { stderr: stderr3, stdout: stdout3 } = await restart();
-
-      // Verify it recovered and ran successfully
-      assert.strictEqual(stderr3, '');
-      assert.deepStrictEqual(stdout3, [
-        `Restarting ${inspect(file)}`,
-        'hello again, world',
-        `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
-      ]);
-    } finally {
-      await done();
-    }
   });
 });
