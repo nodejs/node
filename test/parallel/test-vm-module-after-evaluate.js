@@ -38,7 +38,7 @@ const microtaskMode = 'afterEvaluate';
   // onto the inner context microtask queue, but it will not be checkpointed,
   // therefore we never make progress.
   mustNotCall2();
-})().then(common.mustNotCall());
+})().then(common.mustNotCall('never settling promise expected'));
 
 (async () => {
   const mustNotCall1 = common.mustNotCall();

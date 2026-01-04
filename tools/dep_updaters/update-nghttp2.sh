@@ -50,12 +50,13 @@ echo "Fetching nghttp2 source archive"
 curl -sL -o "$NGHTTP2_TARBALL" "https://github.com/nghttp2/nghttp2/releases/download/$NGHTTP2_REF/$NGHTTP2_TARBALL"
 
 echo "Verifying PGP signature"
-curl -sL "https://github.com/nghttp2/nghttp2/releases/download/${NGHTTP2_REF}/${NGHTTP2_TARBALL}.asc" \
-| gpgv --keyring "$BASE_DIR/tools/dep_updaters/nghttp.kbx" "$NGHTTP2_TARBALL"
+curl -sL -o "${NGHTTP2_TARBALL}.asc" "https://github.com/nghttp2/nghttp2/releases/download/${NGHTTP2_REF}/${NGHTTP2_TARBALL}.asc"
+gpgv --keyring "$BASE_DIR/tools/dep_updaters/nghttp.kbx" "${NGHTTP2_TARBALL}.asc" "${NGHTTP2_TARBALL}"
 
 echo "Unpacking archive"
 tar xJf "$NGHTTP2_TARBALL"
 rm "$NGHTTP2_TARBALL"
+rm "${NGHTTP2_TARBALL}.asc"
 mv "nghttp2-$NEW_VERSION" nghttp2
 
 echo "Removing everything, except lib/ and COPYING"

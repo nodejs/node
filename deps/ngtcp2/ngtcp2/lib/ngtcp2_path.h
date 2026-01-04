@@ -32,14 +32,6 @@
 #include <ngtcp2/ngtcp2.h>
 
 /*
- * ngtcp2_path_init initializes |path| with the given addresses.  Note
- * that the buffer pointed by local->addr and remote->addr are not
- * copied.  Their pointer values are assigned instead.
- */
-void ngtcp2_path_init(ngtcp2_path *path, const ngtcp2_addr *local,
-                      const ngtcp2_addr *remote);
-
-/*
  * ngtcp2_path_storage_init2 initializes |ps| using |path| as initial
  * data.
  */

@@ -127,8 +127,7 @@ void AsyncHooks::push_async_context(
     std::variant<Local<Object>*, Global<Object>*> resource) {
   std::visit([](auto* ptr) { CHECK_IMPLIES(ptr != nullptr, !ptr->IsEmpty()); },
              resource);
-  // Since async_hooks is experimental, do only perform the check
-  // when async_hooks is enabled.
+
   if (fields_[kCheck] > 0) {
     CHECK_GE(async_id, -1);
     CHECK_GE(trigger_async_id, -1);
@@ -150,6 +149,8 @@ void AsyncHooks::push_async_context(
 
   // When this call comes from JS (as a way of increasing the stack size),
   // `resource` will be empty, because JS caches these values anyway.
+  // False positive: https://github.com/cpplint/cpplint/issues/410
+  // NOLINTNEXTLINE(whitespace/newline)
   if (std::visit([](auto* ptr) { return ptr != nullptr; }, resource)) {
     native_execution_async_resources_.resize(offset + 1);
     // Caveat: This is a v8::Local<>* assignment, we do not keep a v8::Global<>!
@@ -1754,7 +1755,7 @@ AsyncHooks::AsyncHooks(Isolate* isolate, const SerializeInfo* info)
     clear_async_id_stack();
 
     // Always perform async_hooks checks, not just when async_hooks is enabled.
-    // TODO(AndreasMadsen): Consider removing this for LTS releases.
+    // Can be disabled via CLI option --no-force-async-hooks-checks
     // See discussion in https://github.com/nodejs/node/pull/15454
     // When removing this, do it by reverting the commit. Otherwise the test
     // and flag changes won't be included.

@@ -74,6 +74,22 @@ If the field value you are querying for is a property of an object, you should r
 npm view express time'[4.8.0]'
 ```
 
+Note: When accessing object properties that contain special characters or numeric keys, you need to use quotes around the key name.
+For example, to get the publish time of a specific version:
+
+```bash
+npm view express "time[4.17.1]"
+```
+
+Without quotes, the shell may interpret the square brackets as glob patterns, causing the command to fail.
+You can also access the time field for a specific version by specifying the version in the package descriptor:
+
+```bash
+npm view express@4.17.1 time
+```
+
+This will return all version-time pairs, but the context will be for that specific version.
+
 Multiple fields may be specified, and will be printed one after another.
 For example, to get all the contributor names and email addresses, you can do this:
 
@@ -102,6 +118,56 @@ To show the `connect` package version history, you can do this:
 npm view connect versions
 ```
 
+### Field Access Patterns
+
+The `npm view` command supports different ways to access nested fields and array elements in package metadata. Understanding these patterns makes it easier to extract specific information.
+
+#### Nested Object Fields
+
+Use dot notation to access nested object fields:
+
+```bash
+# Access nested properties
+npm view npm repository.url
+npm view express bugs.url
+```
+
+#### Array Element Access
+
+For arrays, use numeric indices in square brackets to access specific elements:
+
+```bash
+# Get the first contributor's email
+npm view express contributors[0].email
+
+# Get the second maintainer's name
+npm view express maintainers[1].name
+```
+
+#### Object Property Access
+
+For object properties (like accessing specific versions in the `time` field), use bracket notation with the property name in quotes:
+
+```bash
+# Get publish time for a specific version
+npm view express "time[4.17.1]"
+
+# Get dist-tags
+npm view express "dist-tags.latest"
+```
+
+#### Extracting Fields from Arrays
+
+Request a non-numeric field on an array to get all values from objects in the list:
+
+```bash
+# Get all contributor emails
+npm view express contributors.email
+
+# Get all contributor names
+npm view express contributors.name
+```
+
 ### Configuration
 
 #### `json`
@@ -111,8 +177,8 @@ npm view connect versions
 
 Whether or not to output JSON data, rather than the normal output.
 
-* In `npm pkg set` it enables parsing set values with JSON.parse()
-  before saving them to your `package.json`.
+* In `npm pkg set` it enables parsing set values with JSON.parse() before
+  saving them to your `package.json`.
 
 Not supported by all npm commands.
 
@@ -123,9 +189,9 @@ Not supported by all npm commands.
 * Default:
 * Type: String (can be set multiple times)
 
-Enable running a command in the context of the configured workspaces
-of the current project while filtering by running only the workspaces
-defined by this configuration option.
+Enable running a command in the context of the configured workspaces of the
+current project while filtering by running only the workspaces defined by
+this configuration option.
 
 Valid values for the `workspace` config are either:
 
@@ -134,9 +200,9 @@ Valid values for the `workspace` config are either:
 * Path to a parent workspace directory (will result in selecting all
   workspaces within that folder)
 
-When set for the `npm init` command, this may be set to the folder of
-a workspace which does not yet exist, to create the folder and set it
-up as a brand new workspace within the project.
+When set for the `npm init` command, this may be set to the folder of a
+workspace which does not yet exist, to create the folder and set it up as a
+brand new workspace within the project.
 
 This value is not exported to the environment for child processes.
 
@@ -148,14 +214,13 @@ This value is not exported to the environment for child processes.
 Set to true to run the command in the context of **all** configured
 workspaces.
 
-Explicitly setting this to false will cause commands like `install`
-to ignore workspaces altogether. When not set explicitly:
+Explicitly setting this to false will cause commands like `install` to
+ignore workspaces altogether. When not set explicitly:
 
-- Commands that operate on the `node_modules` tree (install, update,
-etc.) will link workspaces into the `node_modules` folder. - Commands
-that do other things (test, exec, publish, etc.) will operate on the
-root project, _unless_ one or more workspaces are specified in the
-`workspace` config.
+- Commands that operate on the `node_modules` tree (install, update, etc.)
+will link workspaces into the `node_modules` folder. - Commands that do
+other things (test, exec, publish, etc.) will operate on the root project,
+_unless_ one or more workspaces are specified in the `workspace` config.
 
 This value is not exported to the environment for child processes.
 
@@ -166,10 +231,9 @@ This value is not exported to the environment for child processes.
 
 Include the workspace root when workspaces are enabled for a command.
 
-When false, specifying individual workspaces via the `workspace`
-config, or all workspaces via the `workspaces` flag, will cause npm
-to operate only on the specified workspaces, and not on the root
-project.
+When false, specifying individual workspaces via the `workspace` config, or
+all workspaces via the `workspaces` flag, will cause npm to operate only on
+the specified workspaces, and not on the root project.
 
 This value is not exported to the environment for child processes.
 

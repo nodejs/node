@@ -18,9 +18,9 @@ async function test() {
   assert.throws(() => {
     require('../fixtures/es-modules/tla/export-async.mjs');
   }, {
-    code: 'ERR_REQUIRE_ASYNC_MODULE'
+    code: 'ERR_REQUIRE_ASYNC_MODULE',
   });
 }
 
 // Run the test twice to check consistency after caching.
-test().then(common.mustCall(test));
+test().then(test).then(common.mustCall());

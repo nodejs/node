@@ -1,5 +1,5 @@
 import '../common/index.mjs';
-import { fileURL } from '../common/fixtures.mjs';
+import * as fixtures from '../common/fixtures.mjs';
 import assert from 'node:assert';
 import { registerHooks } from 'node:module';
 import process from 'node:process';
@@ -18,7 +18,7 @@ const hook = registerHooks({
       return nextLoad(specifier, context);
     }
     return {
-      url: fileURL(
+      url: fixtures.fileURL(
         'module-hooks',
         `redirected-${specifier.replace('node:', '')}.js`).href,
       shortCircuit: true,

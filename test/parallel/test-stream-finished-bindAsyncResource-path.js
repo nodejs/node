@@ -4,8 +4,8 @@
 const common = require('../common');
 const { Readable, finished } = require('stream');
 const { createHook, executionAsyncId } = require('async_hooks');
-const { strictEqual } = require('assert');
-const internalAsyncHooks = require('internal/async_hooks');
+const assert = require('assert');
+const { enabledHooksExist } = require('internal/async_hooks');
 
 // This test verifies that when there are active async hooks, stream.finished() uses
 // the bindAsyncResource path
@@ -27,9 +27,8 @@ const readable = new Readable();
 finished(readable, common.mustCall(() => {
   const currentAsyncId = executionAsyncId();
   const ctx = contextMap.get(currentAsyncId);
-  strictEqual(internalAsyncHooks.getHookArrays()[0].length > 0,
-              true, 'Should have active user async hook');
-  strictEqual(ctx, 'abc-123', 'Context should be preserved');
+  assert.ok(enabledHooksExist());
+  assert.strictEqual(ctx, 'abc-123');
 }));
 
 readable.destroy();

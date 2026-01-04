@@ -287,6 +287,8 @@ For information about the governance of the Node.js project, see
   **Yagiz Nizipli** <<yagiz@nizipli.com>> (he/him) - [Support me](https://github.com/sponsors/anonrig)
 * [atlowChemi](https://github.com/atlowChemi) -
   **Chemi Atlow** <<chemi@atlow.co.il>> (he/him)
+* [avivkeller](https://github.com/avivkeller) -
+  **Aviv Keller** <<me@aviv.sh>> (he/him) - [Support me](https://github.com/sponsors/avivkeller)
 * [Ayase-252](https://github.com/Ayase-252) -
   **Qingyu Deng** <<i@ayase-lab.com>>
 * [bengl](https://github.com/bengl) -
@@ -337,6 +339,8 @@ For information about the governance of the Node.js project, see
   **Geoffrey Booth** <<webadmin@geoffreybooth.com>> (he/him)
 * [gireeshpunathil](https://github.com/gireeshpunathil) -
   **Gireesh Punathil** <<gpunathi@in.ibm.com>> (he/him)
+* [gurgunday](https://github.com/gurgunday) -
+  **Gürgün Dayıoğlu** <<hey@gurgun.day>> (he/him)
 * [guybedford](https://github.com/guybedford) -
   **Guy Bedford** <<guybedford@gmail.com>> (he/him)
 * [H4ad](https://github.com/H4ad) -
@@ -379,8 +383,6 @@ For information about the governance of the Node.js project, see
   **Jordan Harband** <<ljharb@gmail.com>>
 * [lpinca](https://github.com/lpinca) -
   **Luigi Pinca** <<luigipinca@gmail.com>> (he/him)
-* [lukekarrys](https://github.com/lukekarrys) -
-  **Luke Karrys** <<luke@lukekarrys.com>> (he/him)
 * [Lxxyx](https://github.com/Lxxyx) -
   **Zijian Liu** <<lxxyxzj@gmail.com>> (he/him)
 * [marco-ippolito](https://github.com/marco-ippolito) -
@@ -505,7 +507,7 @@ For information about the governance of the Node.js project, see
   **Daniel Bevenius** <<daniel.bevenius@gmail.com>> (he/him)
 * [danielleadams](https://github.com/danielleadams) -
   **Danielle Adams** <<adamzdanielle@gmail.com>> (she/her)
-* [DavidCai1993](https://github.com/DavidCai1993) -
+* [DavidCai1111](https://github.com/DavidCai1111) -
   **David Cai** <<davidcai1993@yahoo.com>> (he/him)
 * [davisjam](https://github.com/davisjam) -
   **Jamie Davis** <<davisjam@vt.edu>> (he/him)
@@ -593,6 +595,8 @@ For information about the governance of the Node.js project, see
   **Nitzan Uziely** <<linkgoron@gmail.com>>
 * [lucamaraschi](https://github.com/lucamaraschi) -
   **Luca Maraschi** <<luca.maraschi@gmail.com>> (he/him)
+* [lukekarrys](https://github.com/lukekarrys) -
+  **Luke Karrys** <<luke@lukekarrys.com>> (he/him)
 * [lundibundi](https://github.com/lundibundi) -
   **Denys Otrishko** <<shishugi@gmail.com>> (he/him)
 * [lxe](https://github.com/lxe) -

@@ -141,9 +141,9 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="----npm-exec----1162">
+<h1 id="----npm-exec----1170">
     <span>npm-exec</span>
-    <span class="version">@11.6.2</span>
+    <span class="version">@11.7.0</span>
 </h1>
 <span class="description">Run a command from a local or remote npm package</span>
 </header>
@@ -213,9 +213,8 @@ The following command would thus be equivalent to the <code>npx</code> command a
 <li>Default: ""</li>
 <li>Type: String</li>
 </ul>
-<p>Optional companion option for <code>npm exec</code>, <code>npx</code> that allows for
-specifying a custom command to be run along with the installed
-packages.</p>
+<p>Optional companion option for <code>npm exec</code>, <code>npx</code> that allows for specifying a
+custom command to be run along with the installed packages.</p>
 <pre><code class="language-bash">npm exec --package yo --package generator-node --call "yo node"
 </code></pre>
 <h4 id="workspace"><code>workspace</code></h4>
@@ -223,9 +222,9 @@ packages.</p>
 <li>Default:</li>
 <li>Type: String (can be set multiple times)</li>
 </ul>
-<p>Enable running a command in the context of the configured workspaces
-of the current project while filtering by running only the workspaces
-defined by this configuration option.</p>
+<p>Enable running a command in the context of the configured workspaces of the
+current project while filtering by running only the workspaces defined by
+this configuration option.</p>
 <p>Valid values for the <code>workspace</code> config are either:</p>
 <ul>
 <li>Workspace names</li>
@@ -233,9 +232,9 @@ defined by this configuration option.</p>
 <li>Path to a parent workspace directory (will result in selecting all
 workspaces within that folder)</li>
 </ul>
-<p>When set for the <code>npm init</code> command, this may be set to the folder of
-a workspace which does not yet exist, to create the folder and set it
-up as a brand new workspace within the project.</p>
+<p>When set for the <code>npm init</code> command, this may be set to the folder of a
+workspace which does not yet exist, to create the folder and set it up as a
+brand new workspace within the project.</p>
 <p>This value is not exported to the environment for child processes.</p>
 <h4 id="workspaces"><code>workspaces</code></h4>
 <ul>
@@ -244,14 +243,13 @@ up as a brand new workspace within the project.</p>
 </ul>
 <p>Set to true to run the command in the context of <strong>all</strong> configured
 workspaces.</p>
-<p>Explicitly setting this to false will cause commands like <code>install</code>
-to ignore workspaces altogether. When not set explicitly:</p>
+<p>Explicitly setting this to false will cause commands like <code>install</code> to
+ignore workspaces altogether. When not set explicitly:</p>
 <ul>
-<li>Commands that operate on the <code>node_modules</code> tree (install, update,
-etc.) will link workspaces into the <code>node_modules</code> folder. - Commands
-that do other things (test, exec, publish, etc.) will operate on the
-root project, <em>unless</em> one or more workspaces are specified in the
-<code>workspace</code> config.</li>
+<li>Commands that operate on the <code>node_modules</code> tree (install, update, etc.)
+will link workspaces into the <code>node_modules</code> folder. - Commands that do
+other things (test, exec, publish, etc.) will operate on the root project,
+<em>unless</em> one or more workspaces are specified in the <code>workspace</code> config.</li>
 </ul>
 <p>This value is not exported to the environment for child processes.</p>
 <h4 id="include-workspace-root"><code>include-workspace-root</code></h4>
@@ -260,10 +258,9 @@ root project, <em>unless</em> one or more workspaces are specified in the
 <li>Type: Boolean</li>
 </ul>
 <p>Include the workspace root when workspaces are enabled for a command.</p>
-<p>When false, specifying individual workspaces via the <code>workspace</code>
-config, or all workspaces via the <code>workspaces</code> flag, will cause npm
-to operate only on the specified workspaces, and not on the root
-project.</p>
+<p>When false, specifying individual workspaces via the <code>workspace</code> config, or
+all workspaces via the <code>workspaces</code> flag, will cause npm to operate only on
+the specified workspaces, and not on the root project.</p>
 <p>This value is not exported to the environment for child processes.</p>
 <h3 id="examples">Examples</h3>
 <p>Run the version of <code>tap</code> in the local dependencies, with the provided arguments:</p>

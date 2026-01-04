@@ -55,7 +55,7 @@ valid_mips_fpu = ('fp32', 'fp64', 'fpxx')
 valid_mips_float_abi = ('soft', 'hard')
 valid_intl_modes = ('none', 'small-icu', 'full-icu', 'system-icu')
 icu_versions = json.loads((tools_path / 'icu' / 'icu_versions.json').read_text(encoding='utf-8'))
-maglev_enabled_architectures = ('x64', 'arm', 'arm64')
+maglev_enabled_architectures = ('x64', 'arm', 'arm64', 's390x')
 
 # builtins may be removed later if they have been disabled by options
 shareable_builtins = {'cjs_module_lexer/lexer': 'deps/cjs-module-lexer/lexer.js',
@@ -106,6 +106,12 @@ parser.add_argument('--debug-node',
     dest='debug_node',
     default=None,
     help='build the Node.js part of the binary with debugging symbols')
+
+parser.add_argument('--debug-symbols',
+    action='store_true',
+    dest='debug_symbols',
+    default=None,
+    help='add debugging symbols to release builds (adds -g without enabling DCHECKs)')
 
 parser.add_argument('--dest-cpu',
     action='store',
@@ -573,6 +579,28 @@ shared_optgroup.add_argument('--shared-sqlite-libpath',
     dest='shared_sqlite_libpath',
     help='a directory to search for the shared sqlite DLL')
 
+shared_optgroup.add_argument('--shared-temporal_capi',
+    action='store_true',
+    dest='shared_temporal_capi',
+    default=None,
+    help='link to a shared temporal_capi DLL instead of static linking')
+
+shared_optgroup.add_argument('--shared-temporal_capi-includes',
+    action='store',
+    dest='shared_temporal_capi_includes',
+    help='directory containing temporal_capi header files')
+
+shared_optgroup.add_argument('--shared-temporal_capi-libname',
+    action='store',
+    dest='shared_temporal_capi_libname',
+    default='temporal_capi',
+    help='alternative lib name to link to [default: %(default)s]')
+
+shared_optgroup.add_argument('--shared-temporal_capi-libpath',
+    action='store',
+    dest='shared_temporal_capi_libpath',
+    help='a directory to search for the shared temporal_capi DLL')
+
 shared_optgroup.add_argument('--shared-zstd',
     action='store_true',
     dest='shared_zstd',
@@ -1009,6 +1037,13 @@ parser.add_argument('--v8-enable-snapshot-compression',
     default=None,
     help='Enable the built-in snapshot compression in V8.')
 
+
+parser.add_argument('--v8-enable-temporal-support',
+    action='store_true',
+    dest='v8_enable_temporal_support',
+    default=None,
+    help='Enable Temporal support in V8.')
+
 parser.add_argument('--node-builtin-modules-path',
     action='store',
     dest='node_builtin_modules_path',
@@ -1217,7 +1252,8 @@ def get_openssl_version(o):
   """Parse OpenSSL version from opensslv.h header file.
 
   Returns the version as a number matching OPENSSL_VERSION_NUMBER format:
-  0xMNN00PPSL where M=major, NN=minor, PP=patch, S=status(0xf=release,0x0=pre), L=0
+  0xMNN00PPSL where M=major, NN=minor, PP=patch, S=status(0xf=release,0x0=pre),
+  L denotes as a long type literal
   """
 
   try:
@@ -1259,6 +1295,14 @@ def get_openssl_version(o):
     major = int(macros.get('OPENSSL_VERSION_MAJOR', '0'))
     minor = int(macros.get('OPENSSL_VERSION_MINOR', '0'))
     patch = int(macros.get('OPENSSL_VERSION_PATCH', '0'))
+
+    # If major, minor and patch are all 0, this is probably OpenSSL < 3.
+    if (major, minor, patch) == (0, 0, 0):
+      version_number = macros.get('OPENSSL_VERSION_NUMBER')
+      # Prior to OpenSSL 3 the value should be in the format 0xMNN00PPSL.
+      # If it is, we need to strip the `L` suffix prior to parsing.
+      if version_number[:2] == "0x" and version_number[-1] == "L":
+        return int(version_number[:-1], 16)
 
     # Check if it's a pre-release (has non-empty PRE_RELEASE string)
     pre_release = macros.get('OPENSSL_VERSION_PRE_RELEASE', '""').strip('"')
@@ -1440,8 +1484,8 @@ def host_arch_win():
   return matchup.get(arch, 'x64')
 
 def set_configuration_variable(configs, name, release=None, debug=None):
-  configs['Release'][name] = release
-  configs['Debug'][name] = debug
+  configs['Release']['variables'][name] = release
+  configs['Debug']['variables'][name] = debug
 
 def configure_arm(o):
   if options.arm_float_abi:
@@ -1522,6 +1566,10 @@ def configure_node(o):
   o['variables']['control_flow_guard'] = b(options.enable_cfg)
   o['variables']['node_use_amaro'] = b(not options.without_amaro)
   o['variables']['debug_node'] = b(options.debug_node)
+  o['variables']['debug_symbols'] = b(options.debug_symbols)
+  if options.debug_symbols:
+    o['cflags'] += ['-g']
+  o['variables']['build_type%'] = 'Debug' if options.debug else 'Release'
   o['default_configuration'] = 'Debug' if options.debug else 'Release'
   if options.error_on_warn and options.suppress_all_error_on_warn:
     raise Exception('--error_on_warn is incompatible with --suppress_all_error_on_warn.')
@@ -1772,6 +1820,11 @@ def configure_library(lib, output, pkgname=None):
       output['libraries'] += pkg_libs.split()
 
 
+def configure_rust(o, configs):
+  set_configuration_variable(configs, 'cargo_build_mode', release='release', debug='debug')
+  set_configuration_variable(configs, 'cargo_build_flags', release=['--release'], debug=[])
+
+
 def configure_v8(o, configs):
   set_configuration_variable(configs, 'v8_enable_v8_checks', release=1, debug=0)
 
@@ -1786,6 +1839,7 @@ def configure_v8(o, configs):
   o['variables']['v8_promise_internal_field_count'] = 1 # Add internal field to promises for async hooks.
   o['variables']['v8_use_siphash'] = 0 if options.without_siphash else 1
   o['variables']['v8_enable_maglev'] = B(not options.v8_disable_maglev and
+                                         flavor != 'zos' and
                                          o['variables']['target_arch'] in maglev_enabled_architectures)
   o['variables']['v8_enable_pointer_compression'] = 1 if options.enable_pointer_compression else 0
   # Using the sandbox requires always allocating array buffer backing stores in the sandbox.
@@ -1802,6 +1856,7 @@ def configure_v8(o, configs):
   o['variables']['v8_enable_external_code_space'] = 1 if options.enable_pointer_compression else 0
   o['variables']['v8_enable_31bit_smis_on_64bit_arch'] = 1 if options.enable_pointer_compression else 0
   o['variables']['v8_enable_extensible_ro_snapshot'] = 0
+  o['variables']['v8_enable_temporal_support'] = 1 if options.v8_enable_temporal_support else 0
   o['variables']['v8_trace_maps'] = 1 if options.trace_maps else 0
   o['variables']['node_use_v8_platform'] = b(not options.without_v8_platform)
   o['variables']['node_use_bundled_v8'] = b(not options.without_bundled_v8)
@@ -2325,6 +2380,7 @@ output = {
   'libraries': [],
   'defines': [],
   'cflags': [],
+  'conditions': [],
 }
 configurations = {
   'Release': { 'variables': {} },
@@ -2357,6 +2413,7 @@ configure_library('nghttp2', output, pkgname='libnghttp2')
 configure_library('nghttp3', output, pkgname='libnghttp3')
 configure_library('ngtcp2', output, pkgname='libngtcp2')
 configure_sqlite(output);
+configure_library('temporal_capi', output)
 configure_library('uvwasi', output)
 configure_library('zstd', output, pkgname='libzstd')
 configure_v8(output, configurations)
@@ -2365,6 +2422,7 @@ configure_intl(output)
 configure_static(output)
 configure_inspector(output)
 configure_section_file(output)
+configure_rust(output, configurations)
 
 # remove builtins that have been disabled
 if options.without_amaro:
@@ -2387,6 +2445,17 @@ output['variables']['ossfuzz'] = b(options.ossfuzz)
 variables = output['variables']
 del output['variables']
 
+# move configurations[*]['variables'] to conditions variables
+config_release_vars = configurations['Release']['variables']
+del configurations['Release']['variables']
+config_debug_vars = configurations['Debug']['variables']
+del configurations['Debug']['variables']
+output['conditions'].append(['build_type=="Release"', {
+  'variables': config_release_vars,
+}, {
+  'variables': config_debug_vars,
+}])
+
 # make_global_settings should be a root level element too
 if 'make_global_settings' in output:
   make_global_settings = output['make_global_settings']
@@ -2406,8 +2475,9 @@ if make_global_settings:
 
 print_verbose(output)
 
+# Dump as JSON to allow js2c.cc read it as a simple json file.
 write('config.gypi', do_not_edit +
-      pprint.pformat(output, indent=2, width=128) + '\n')
+      json.dumps(output, indent=2) + '\n')
 
 write('config.status', '#!/bin/sh\nset -x\nexec ./configure ' +
       ' '.join([shlex.quote(arg) for arg in original_argv]) + '\n')

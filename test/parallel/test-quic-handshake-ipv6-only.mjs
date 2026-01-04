@@ -1,8 +1,8 @@
 // Flags: --experimental-quic --no-warnings
 
-import { hasQuic, hasIPv6, skip } from '../common/index.mjs';
-import { ok, partialDeepStrictEqual } from 'node:assert';
-import { readKey } from '../common/fixtures.mjs';
+import { hasQuic, hasIPv6, skip, mustCall } from '../common/index.mjs';
+import assert from 'node:assert';
+import * as fixtures from '../common/fixtures.mjs';
 
 if (!hasQuic) {
   skip('QUIC is not enabled');
@@ -16,8 +16,8 @@ if (!hasIPv6) {
 const { listen, connect } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
 
-const keys = createPrivateKey(readKey('agent1-key.pem'));
-const certs = readKey('agent1-cert.pem');
+const keys = createPrivateKey(fixtures.readKey('agent1-key.pem'));
+const certs = fixtures.readKey('agent1-cert.pem');
 
 const check = {
   // The SNI value
@@ -34,12 +34,13 @@ const check = {
 const serverOpened = Promise.withResolvers();
 const clientOpened = Promise.withResolvers();
 
-const serverEndpoint = await listen(async (serverSession) => {
-  const info = await serverSession.opened;
-  partialDeepStrictEqual(info, check);
-  serverOpened.resolve();
-  serverSession.close();
-}, { keys, certs, endpoint: {
+const serverEndpoint = await listen(mustCall((serverSession) => {
+  serverSession.opened.then((info) => {
+    assert.partialDeepStrictEqual(info, check);
+    serverOpened.resolve();
+    serverSession.close();
+  }).then(mustCall());
+}), { keys, certs, endpoint: {
   address: {
     address: '::1',
     family: 'ipv6',
@@ -48,7 +49,7 @@ const serverEndpoint = await listen(async (serverSession) => {
 } });
 
 // The server must have an address to connect to after listen resolves.
-ok(serverEndpoint.address !== undefined);
+assert.ok(serverEndpoint.address !== undefined);
 
 const clientSession = await connect(serverEndpoint.address, {
   endpoint: {
@@ -59,9 +60,9 @@ const clientSession = await connect(serverEndpoint.address, {
   }
 });
 clientSession.opened.then((info) => {
-  partialDeepStrictEqual(info, check);
+  assert.partialDeepStrictEqual(info, check);
   clientOpened.resolve();
-});
+}).then(mustCall());
 
 await Promise.all([serverOpened.promise, clientOpened.promise]);
 clientSession.close();

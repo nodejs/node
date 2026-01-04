@@ -9,6 +9,7 @@ const cjsImport = fixtures.fileURL('es-modules', 'cjs-file.cjs');
 const mjsEntry = fixtures.path('es-modules', 'mjs-file.mjs');
 const mjsImport = fixtures.fileURL('es-modules', 'mjs-file.mjs');
 
+const onlyIfNodeOptionsSupport = { skip: process.config.variables.node_without_node_options };
 
 describe('import modules using --import', { concurrency: !process.env.TEST_PARALLEL }, () => {
   it('should import when using --eval', async () => {
@@ -199,7 +200,7 @@ describe('import modules using --import', { concurrency: !process.env.TEST_PARAL
     assert.strictEqual(signal, null);
   });
 
-  it('should import files from the env before ones from the CLI', async () => {
+  it('should import files from the env before ones from the CLI', onlyIfNodeOptionsSupport, async () => {
     const { code, signal, stderr, stdout } = await spawnPromisified(
       execPath,
       [

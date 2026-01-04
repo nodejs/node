@@ -25,11 +25,11 @@ jobs:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
         with:
           persist-credentials: false
       - name: Use Node.js ${{ env.NODE_VERSION }}
-        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903  # v6.0.0
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f  # v6.1.0
         with:
           node-version: ${{ env.NODE_VERSION }}
       - name: Environment Information
@@ -40,11 +40,11 @@ jobs:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
         with:
           persist-credentials: false
       - name: Set up Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c  # v6.0.0
+        uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548  # v6.1.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           allow-prereleases: true
@@ -56,16 +56,16 @@ jobs:
     if: ${{ github.event.pull_request && github.event.pull_request.draft == false && github.base_ref == github.event.repository.default_branch }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
       - name: Use Node.js ${{ env.NODE_VERSION }}
-        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903  # v6.0.0
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f  # v6.1.0
         with:
           node-version: ${{ env.NODE_VERSION }}
       - name: Set up Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c  # v6.0.0
+        uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548  # v6.1.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           allow-prereleases: true
@@ -95,11 +95,11 @@ jobs:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
         with:
           persist-credentials: false
       - name: Use Node.js ${{ env.NODE_VERSION }}
-        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903  # v6.0.0
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f  # v6.1.0
         with:
           node-version: ${{ env.NODE_VERSION }}
       - name: Environment Information
@@ -144,12 +144,12 @@ jobs:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
         with:
           persist-credentials: false
           sparse-checkout: '*.nix'
           sparse-checkout-cone-mode: false
-      - uses: cachix/install-nix-action@456688f15bc354bef6d396e4a35f4f89d40bf2b7  # v31.8.2
+      - uses: cachix/install-nix-action@4e002c8ec80594ecd40e759629461e26c8abed15  # v31.9.0
       - name: Lint Nix files
         run: |
           nix-shell -I nixpkgs=./tools/nix/pkgs.nix -p 'nixfmt-tree' --run '
@@ -160,11 +160,21 @@ jobs:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
         with:
           persist-credentials: false
+          sparse-checkout: |
+            /Makefile
+            /benchmark/
+            /doc/
+            /lib/
+            /src/node_version.h
+            /tools/
+            pyproject.toml
+            *.py
+          sparse-checkout-cone-mode: false
       - name: Set up Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c  # v6.0.0
+        uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548  # v6.1.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           allow-prereleases: true
@@ -178,11 +188,17 @@ jobs:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
         with:
           persist-credentials: false
+          sparse-checkout: |
+            /Makefile
+            /tools/pip/
+            *.yml
+            *.yaml
+          sparse-checkout-cone-mode: false
       - name: Use Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c  # v6.0.0
+        uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548  # v6.1.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           allow-prereleases: true
@@ -197,9 +213,13 @@ jobs:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
         with:
           persist-credentials: false
+          sparse-checkout: |
+            /tools/lint-sh.mjs
+            *.sh
+          sparse-checkout-cone-mode: false
       - run: shellcheck -V
       - name: Lint Shell scripts
         run: tools/lint-sh.mjs .
@@ -207,7 +227,7 @@ jobs:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
         with:
           persist-credentials: false
       - uses: mszostok/codeowners-validator@7f3f5e28c6d7b8dfae5731e54ce2272ca384592f
@@ -217,18 +237,26 @@ jobs:
     if: ${{ github.event.pull_request }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
         with:
           fetch-depth: 2
           persist-credentials: false
+          sparse-checkout: |
+            /tools/lint-pr-url.mjs
+            /doc/api/
+          sparse-checkout-cone-mode: false
       # GH Actions squashes all PR commits, HEAD^ refers to the base branch.
       - run: git diff HEAD^ HEAD -G"pr-url:" -- "*.md" | ./tools/lint-pr-url.mjs ${{ github.event.pull_request.html_url }}
   lint-readme:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
         with:
           persist-credentials: false
+          sparse-checkout: |
+            README.md
+            /tools/lint-readme-lists.mjs
+          sparse-checkout-cone-mode: false
       - name: Get team members if possible
         if: ${{ (github.event.pull_request && github.event.pull_request.base.ref == github.event.pull_request.base.repo.default_branch) || github.event.ref == github.event.repository.default_branch }}
         id: team_members

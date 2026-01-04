@@ -39,7 +39,7 @@ class ClientBase;
 
 class TLSClientSession : public TLSSessionBase {
 public:
-  TLSClientSession();
+  TLSClientSession() = default;
   ~TLSClientSession();
 
   int init(bool &early_data_enabled, TLSClientContext &tls_ctx,

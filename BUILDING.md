@@ -112,15 +112,15 @@ platforms. This is true regardless of entries in the table below.
 | GNU/Linux        | arm64            | kernel >= 4.18[^1], glibc >= 2.28 | Tier 1       | e.g. Ubuntu 20.04, Debian 10, RHEL 8 |
 | GNU/Linux        | armv7            | kernel >= 4.18[^1], glibc >= 2.28 | Experimental | Downgraded as of Node.js 24          |
 | GNU/Linux        | armv6            | kernel >= 4.14, glibc >= 2.24     | Experimental | Downgraded as of Node.js 12          |
-| GNU/Linux        | ppc64le >=power8 | kernel >= 4.18[^1], glibc >= 2.28 | Tier 2       | e.g. Ubuntu 20.04, RHEL 8            |
-| GNU/Linux        | s390x            | kernel >= 4.18[^1], glibc >= 2.28 | Tier 2       | e.g. RHEL 8                          |
+| GNU/Linux        | ppc64le >=power9 | kernel >= 4.18[^1], glibc >= 2.28 | Tier 2       | e.g. Ubuntu 20.04, RHEL 8            |
+| GNU/Linux        | s390x >=z14      | kernel >= 4.18[^1], glibc >= 2.28 | Tier 2       | e.g. RHEL 8                          |
 | GNU/Linux        | loong64          | kernel >= 5.19, glibc >= 2.36     | Experimental |                                      |
 | Windows          | x64              | >= Windows 10/Server 2016         | Tier 1       | [^2],[^3]                            |
 | Windows          | arm64            | >= Windows 10                     | Tier 2       |                                      |
 | macOS            | x64              | >= 13.5                           | Tier 1       | For notes about compilation see [^4] |
 | macOS            | arm64            | >= 13.5                           | Tier 1       |                                      |
 | SmartOS          | x64              | >= 18                             | Tier 2       |                                      |
-| AIX              | ppc64be >=power8 | >= 7.2 TL04                       | Tier 2       |                                      |
+| AIX              | ppc64be >=power9 | >= 7.2 TL04                       | Tier 2       |                                      |
 | FreeBSD          | x64              | >= 13.2                           | Experimental |                                      |
 | OpenHarmony      | arm64            | >= 5.0                            | Experimental |                                      |
 
@@ -443,7 +443,7 @@ tools/test.py parallel/test-stream-*  # The test/ prefix can be omitted
 tools/test.py "test/parallel/test-stream-*"
 ```
 
-The whildcard `*` can be used in any part of the path. For example, to run all tests
+The wildcard `*` can be used in any part of the path. For example, to run all tests
 with a name that starts with `test-inspector-`, regardless of the directory they are in:
 
 ```bash
@@ -870,6 +870,11 @@ To test if Node.js was built correctly:
 Release\node -e "console.log('Hello from Node.js', process.version)"
 ```
 
+> \[!TIP]
+> On Windows, creating symlinks requires [Developer Mode][] to be enabled or
+> running the command as Administrator. Tests that rely on creating symlinks
+> may fail with EPERM errors if symlink creation is not permitted.
+
 ##### Using ccache:
 
 Follow <https://github.com/ccache/ccache/wiki/MS-Visual-Studio>, and you
@@ -1044,6 +1049,16 @@ configure option:
 ./configure --openssl-conf-name=<some_conf_name>
 ```
 
+## Building Node.js with Temporal support
+
+Node.js supports the [Temporal](https://github.com/tc39/proposal-temporal) APIs, when
+linking statically or dynamically with a version [temporal\_rs](https://github.com/boa-dev/temporal).
+
+To build Node.js with Temporal support, a Rust toolchain is required:
+
+* rustc >= 1.82 (with LLVM >= 19)
+* cargo >= 1.82
+
 ## Building Node.js with FIPS-compliant OpenSSL
 
 Node.js supports FIPS when statically or dynamically linked with OpenSSL 3 via
@@ -1130,4 +1145,5 @@ by opening a pull request against the registry available at
 <https://github.com/nodejs/node/blob/HEAD/doc/abi_version_registry.json>.
 
 [AIX toolbox]: https://www.ibm.com/support/pages/aix-toolbox-open-source-software-overview
+[Developer Mode]: https://learn.microsoft.com/en-us/windows/advanced-settings/developer-mode
 [Python versions]: https://devguide.python.org/versions/

@@ -33,7 +33,7 @@
 
 class TLSClientContext {
 public:
-  TLSClientContext();
+  TLSClientContext() = default;
   ~TLSClientContext();
 
   int init(const char *private_key_file, const char *cert_file);
@@ -43,7 +43,7 @@ public:
   void enable_keylog();
 
 private:
-  SSL_CTX *ssl_ctx_;
+  SSL_CTX *ssl_ctx_{};
 };
 
 #endif // !defined(TLS_CLIENT_CONTEXT_QUICTLS_H)

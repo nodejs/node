@@ -487,17 +487,23 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             kAllowedInEnvvar,
             true);
   AddOption("--experimental-print-required-tla",
-            "Print pending top-level await. If --experimental-require-module "
+            "Print pending top-level await. If --require-module "
             "is true, evaluate asynchronous graphs loaded by `require()` but "
             "do not run the microtasks, in order to to find and print "
             "top-level await in the graph",
             &EnvironmentOptions::print_required_tla,
             kAllowedInEnvvar);
-  AddOption("--experimental-require-module",
+  AddOption("--require-module",
             "Allow loading synchronous ES Modules in require().",
             &EnvironmentOptions::require_module,
             kAllowedInEnvvar,
             true);
+  AddOption("--experimental-require-module",
+            "Legacy alias for --require-module",
+            &EnvironmentOptions::require_module,
+            kAllowedInEnvvar,
+            true);
+  Implies("--experimental-require-module", "--require-module");
   AddOption("--diagnostic-dir",
             "set dir for all output files"
             " (default: current working directory)",
@@ -571,7 +577,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "experimental Web Storage API",
             &EnvironmentOptions::webstorage,
             kAllowedInEnvvar,
-            true);
+            HAVE_SQLITE);
   AddAlias("--webstorage", "--experimental-webstorage");
   AddOption("--localstorage-file",
             "file used to persist localStorage data",
@@ -599,39 +605,54 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "enable the permission system",
             &EnvironmentOptions::permission,
             kAllowedInEnvvar,
-            false);
+            false,
+            OptionNamespaces::kPermissionNamespace);
   AddOption("--allow-fs-read",
             "allow permissions to read the filesystem",
             &EnvironmentOptions::allow_fs_read,
-            kAllowedInEnvvar);
+            kAllowedInEnvvar,
+            OptionNamespaces::kPermissionNamespace);
   AddOption("--allow-fs-write",
             "allow permissions to write in the filesystem",
             &EnvironmentOptions::allow_fs_write,
-            kAllowedInEnvvar);
+            kAllowedInEnvvar,
+            OptionNamespaces::kPermissionNamespace);
   AddOption("--allow-addons",
             "allow use of addons when any permissions are set",
             &EnvironmentOptions::allow_addons,
-            kAllowedInEnvvar);
+            kAllowedInEnvvar,
+            false,
+            OptionNamespaces::kPermissionNamespace);
   AddOption("--allow-child-process",
             "allow use of child process when any permissions are set",
             &EnvironmentOptions::allow_child_process,
-            kAllowedInEnvvar);
+            kAllowedInEnvvar,
+            false,
+            OptionNamespaces::kPermissionNamespace);
   AddOption("--allow-inspector",
             "allow use of inspector when any permissions are set",
             &EnvironmentOptions::allow_inspector,
-            kAllowedInEnvvar);
+            kAllowedInEnvvar,
+            false,
+            OptionNamespaces::kPermissionNamespace);
   AddOption("--allow-net",
             "allow use of network when any permissions are set",
             &EnvironmentOptions::allow_net,
-            kAllowedInEnvvar);
+            kAllowedInEnvvar,
+            false,
+            OptionNamespaces::kPermissionNamespace);
   AddOption("--allow-wasi",
             "allow wasi when any permissions are set",
             &EnvironmentOptions::allow_wasi,
-            kAllowedInEnvvar);
+            kAllowedInEnvvar,
+            false,
+            OptionNamespaces::kPermissionNamespace);
   AddOption("--allow-worker",
             "allow worker threads when any permissions are set",
             &EnvironmentOptions::allow_worker_threads,
-            kAllowedInEnvvar);
+            kAllowedInEnvvar,
+            false,
+            OptionNamespaces::kPermissionNamespace);
   AddOption("--experimental-repl-await",
             "experimental await keyword support in REPL",
             &EnvironmentOptions::experimental_repl_await,
@@ -825,7 +846,9 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddOption("--test",
             "launch test runner on startup",
             &EnvironmentOptions::test_runner,
-            kDisallowedInEnvvar);
+            kDisallowedInEnvvar,
+            false,
+            OptionNamespaces::kTestRunnerNamespace);
   AddOption("--test-concurrency",
             "specify test runner concurrency",
             &EnvironmentOptions::test_runner_concurrency,
@@ -1075,7 +1098,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "Type-stripping for TypeScript files.",
             &EnvironmentOptions::strip_types,
             kAllowedInEnvvar,
-            true);
+            HAVE_AMARO);
   AddAlias("--experimental-strip-types", "--strip-types");
   AddOption("--experimental-transform-types",
             "enable transformation of TypeScript-only"

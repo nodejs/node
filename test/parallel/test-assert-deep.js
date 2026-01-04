@@ -752,7 +752,18 @@ test('Additional tests', () => {
 
   assertNotDeepOrStrict(new Date(), new Date(2000, 3, 14));
 
-  assertDeepAndStrictEqual(new Date('foo'), new Date('bar'));
+  {
+    // Invalid dates deep comparison.
+    const date1 = new Date('foo');
+    const date2 = new Date('bar');
+    date1.foo = true;
+    date2.foo = true;
+    assertDeepAndStrictEqual(date1, date2);
+
+    date1.bar = false;
+    date2.bar = true;
+    assertNotDeepOrStrict(date1, date2);
+  }
 
   assertDeepAndStrictEqual(/a/, /a/);
   assertDeepAndStrictEqual(/a/g, /a/g);
@@ -1068,7 +1079,7 @@ test('Check proxies', () => {
   assert.throws(
     () => assert.deepStrictEqual(arrProxy, [1, 2, 3]),
     { message: `${defaultMsgStartFull}\n\n` +
-               '  [\n    1,\n    2,\n-   3\n  ]\n' }
+               '+ Proxy([\n- [\n    1,\n    2,\n+ ])\n-   3\n- ]\n' }
   );
   util.inspect.defaultOptions = tmp;
 

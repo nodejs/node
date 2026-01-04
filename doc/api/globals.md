@@ -274,7 +274,7 @@ added: v16.0.0
 
 Global alias for [`buffer.atob()`][].
 
-An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/util-is)):
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/buffer-atob-btoa)):
 
 ```bash
 npx codemod@latest @nodejs/buffer-atob-btoa
@@ -297,6 +297,12 @@ added: v16.0.0
 > Stability: 3 - Legacy. Use `buf.toString('base64')` instead.
 
 Global alias for [`buffer.btoa()`][].
+
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/buffer-atob-btoa)):
+
+```bash
+npx codemod@latest @nodejs/buffer-atob-btoa
+```
 
 ## `clearImmediate(immediateObject)`
 
@@ -1389,7 +1395,7 @@ A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 [`clearTimeout`]: timers.md#cleartimeouttimeout
 [`console`]: console.md
 [`exports`]: modules.md#exports
-[`fetch()`]: https://developer.mozilla.org/en-US/docs/Web/API/fetch
+[`fetch()`]: https://developer.mozilla.org/en-US/docs/Web/API/Window/fetch
 [`globalThis`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/globalThis
 [`localStorage`]: https://developer.mozilla.org/en-US/docs/Web/API/Window/localStorage
 [`module`]: modules.md#module
@@ -1401,7 +1407,7 @@ A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 [`setImmediate`]: timers.md#setimmediatecallback-args
 [`setInterval`]: timers.md#setintervalcallback-delay-args
 [`setTimeout`]: timers.md#settimeoutcallback-delay-args
-[`structuredClone`]: https://developer.mozilla.org/en-US/docs/Web/API/structuredClone
+[`structuredClone`]: https://developer.mozilla.org/en-US/docs/Web/API/Window/structuredClone
 [`window.navigator`]: https://developer.mozilla.org/en-US/docs/Web/API/Window/navigator
 [`worker_threads.locks`]: worker_threads.md#worker_threadslocks
 [browser `LockManager`]: https://developer.mozilla.org/en-US/docs/Web/API/LockManager

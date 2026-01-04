@@ -274,6 +274,16 @@ const definitions = {
     `,
     flatten,
   }),
+  'bypass-2fa': new Definition('bypass-2fa', {
+    default: false,
+    type: Boolean,
+    description: `
+      When creating a Granular Access Token with \`npm token create\`,
+      setting this to true will allow the token to bypass two-factor
+      authentication. This is useful for automation and CI/CD workflows.
+    `,
+    flatten,
+  }),
   ca: new Definition('ca', {
     default: null,
     type: [null, String, Array],
@@ -623,6 +633,16 @@ const definitions = {
       Tells npm whether or not to expect results from the command.
       Can be either true (expect some results) or false (expect no results).
     `,
+  }),
+  expires: new Definition('expires', {
+    default: null,
+    type: [null, Number],
+    description: `
+      When creating a Granular Access Token with \`npm token create\`,
+      this sets the expiration in days. If not specified, the server
+      will determine the default expiration.
+    `,
+    flatten,
   }),
   'fetch-retries': new Definition('fetch-retries', {
     default: 2,
@@ -1281,6 +1301,16 @@ const definitions = {
       Show extended information in \`ls\`, \`search\`, and \`help-search\`.
     `,
   }),
+  name: new Definition('name', {
+    default: null,
+    type: [null, String],
+    hint: '<name>',
+    description: `
+      When creating a Granular Access Token with \`npm token create\`,
+      this sets the name/description for the token.
+    `,
+    flatten,
+  }),
   maxsockets: new Definition('maxsockets', {
     default: 15,
     type: Number,
@@ -1409,6 +1439,15 @@ const definitions = {
       definitions.omit.flatten('omit', obj, flatOptions)
     },
   }),
+  orgs: new Definition('orgs', {
+    default: null,
+    type: [null, String, Array],
+    description: `
+      When creating a Granular Access Token with \`npm token create\`,
+      this limits the token access to specific organizations.
+    `,
+    flatten,
+  }),
   optional: new Definition('optional', {
     default: null,
     type: [null, Boolean],
@@ -1502,6 +1541,15 @@ const definitions = {
     type: String,
     description: `
       Directory in which \`npm pack\` will save tarballs.
+    `,
+    flatten,
+  }),
+  packages: new Definition('packages', {
+    default: [],
+    type: [null, String, Array],
+    description: `
+      When creating a Granular Access Token with \`npm token create\`,
+      this limits the token access to specific packages.
     `,
     flatten,
   }),
@@ -1899,6 +1947,63 @@ const definitions = {
       // projectScope is kept for compatibility with npm-registry-fetch
       flatOptions.projectScope = scope
     },
+  }),
+  scopes: new Definition('scopes', {
+    default: null,
+    type: [null, String, Array],
+    description: `
+      When creating a Granular Access Token with \`npm token create\`,
+      this limits the token access to specific scopes. Provide
+      a scope name (with or without @ prefix).
+    `,
+    flatten,
+  }),
+  'packages-all': new Definition('packages-all', {
+    default: false,
+    type: Boolean,
+    description: `
+      When creating a Granular Access Token with \`npm token create\`,
+      grants the token access to all packages instead of limiting to
+      specific packages.
+    `,
+    flatten,
+  }),
+  'packages-and-scopes-permission': new Definition('packages-and-scopes-permission', {
+    default: null,
+    type: [null, 'read-only', 'read-write', 'no-access'],
+    description: `
+      When creating a Granular Access Token with \`npm token create\`,
+      sets the permission level for packages and scopes. Options are
+      "read-only", "read-write", or "no-access".
+    `,
+    flatten,
+  }),
+  'orgs-permission': new Definition('orgs-permission', {
+    default: null,
+    type: [null, 'read-only', 'read-write', 'no-access'],
+    description: `
+      When creating a Granular Access Token with \`npm token create\`,
+      sets the permission level for organizations. Options are
+      "read-only", "read-write", or "no-access".
+    `,
+    flatten,
+  }),
+  password: new Definition('password', {
+    default: null,
+    type: [null, String],
+    description: `
+      Password for authentication. Can be provided via command line when
+      creating tokens, though it's generally safer to be prompted for it.
+    `,
+    flatten,
+  }),
+  'token-description': new Definition('token-description', {
+    default: null,
+    type: [null, String],
+    description: `
+      Description text for the token when using \`npm token create\`.
+    `,
+    flatten,
   }),
   'script-shell': new Definition('script-shell', {
     default: null,

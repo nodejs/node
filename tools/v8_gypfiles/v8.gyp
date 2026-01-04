@@ -27,6 +27,11 @@
           '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "torque_files =.*?v8_enable_i18n_support.*?torque_files \\+= ")',
         ],
       }],
+      ['v8_enable_temporal_support==1', {
+        'torque_files': [
+          '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "torque_files =.*?v8_enable_temporal_support.*?torque_files \\+= ")',
+        ],
+      }],
       ['v8_enable_webassembly==1', {
         'torque_files': [
           '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "torque_files =.*?v8_enable_webassembly.*?torque_files \\+= ")',
@@ -314,6 +319,11 @@
             '<(icu_gyp_path):icuuc',
           ],
         }],
+        ['v8_enable_temporal_support==1 and node_shared_temporal_capi=="false"', {
+          'dependencies': [
+            '../../deps/crates/crates.gyp:temporal_capi',
+          ],
+        }],
       ],
     },  # v8_initializers_slow
     {
@@ -349,6 +359,11 @@
           ],
           'sources': [
             '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_initializers.*?v8_enable_webassembly.*?sources \\+= ")',
+          ],
+        }],
+        ['v8_enable_temporal_support==1 and node_shared_temporal_capi=="false"', {
+          'dependencies': [
+            '../../deps/crates/crates.gyp:temporal_capi',
           ],
         }],
         ['v8_target_arch=="ia32"', {
@@ -658,6 +673,11 @@
           ['v8_enable_snapshot_compression==1', {
             'sources': [
               '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_header_set.\\"v8_internal_headers\\".*?v8_enable_snapshot_compression.*?sources \\+= ")',
+            ],
+          }],
+          ['v8_enable_temporal_support==1', {
+            'sources': [
+              '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "v8_header_set.\\"v8_internal_headers\\".*?v8_enable_temporal_support.*?sources \\+= ")',
             ],
           }],
           ['v8_enable_sparkplug==1', {
@@ -1115,6 +1135,18 @@
         ['v8_enable_snapshot_compression==1', {
           'sources': [
             '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_enable_snapshot_compression.*?sources \\+= ")',
+          ],
+        }],
+        ['v8_enable_temporal_support==1', {
+          'conditions': [
+            ['node_shared_temporal_capi=="false"', {
+              'dependencies': [
+                '../../deps/crates/crates.gyp:temporal_capi',
+              ],
+            }],
+          ],
+          'sources': [
+            '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_enable_temporal_support.*?sources \\+= ")',
           ],
         }],
         ['v8_enable_sparkplug==1', {

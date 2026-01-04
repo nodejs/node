@@ -37,7 +37,7 @@ function getAll(requestsRemaining) {
   const req = http.get({
     hostname: 'localhost',
     pathname: '/',
-    port: server.address().port
+    port: server.address().port,
   }, cb).on('error', onerror);
 
   count++;

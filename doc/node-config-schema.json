@@ -186,6 +186,9 @@
         "experimental-websocket": {
           "type": "boolean"
         },
+        "experimental-webstorage": {
+          "type": "boolean"
+        },
         "extra-info-on-fatal-exception": {
           "type": "boolean"
         },
@@ -594,16 +597,68 @@
         "watch-preserve-output": {
           "type": "boolean"
         },
-        "webstorage": {
-          "type": "boolean"
-        },
         "zero-fill-buffers": {
           "type": "boolean"
         }
       },
       "type": "object"
     },
-    "testRunner": {
+    "permission": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "allow-addons": {
+          "type": "boolean"
+        },
+        "allow-child-process": {
+          "type": "boolean"
+        },
+        "allow-fs-read": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string",
+                "minItems": 1
+              },
+              "type": "array"
+            }
+          ]
+        },
+        "allow-fs-write": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string",
+                "minItems": 1
+              },
+              "type": "array"
+            }
+          ]
+        },
+        "allow-inspector": {
+          "type": "boolean"
+        },
+        "allow-net": {
+          "type": "boolean"
+        },
+        "allow-wasi": {
+          "type": "boolean"
+        },
+        "allow-worker": {
+          "type": "boolean"
+        },
+        "permission": {
+          "type": "boolean"
+        }
+      }
+    },
+    "test": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -611,6 +666,9 @@
           "type": "boolean"
         },
         "experimental-test-module-mocks": {
+          "type": "boolean"
+        },
+        "test": {
           "type": "boolean"
         },
         "test-concurrency": {

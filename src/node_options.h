@@ -127,7 +127,7 @@ class EnvironmentOptions : public Options {
   bool experimental_fetch = true;
   bool experimental_websocket = true;
   bool experimental_sqlite = true;
-  bool webstorage = true;
+  bool webstorage = HAVE_SQLITE;
 #ifndef OPENSSL_NO_QUIC
   bool experimental_quic = false;
 #endif
@@ -259,7 +259,7 @@ class EnvironmentOptions : public Options {
 
   std::vector<std::string> preload_esm_modules;
 
-  bool strip_types = true;
+  bool strip_types = HAVE_AMARO;
   bool experimental_transform_types = false;
 
   std::vector<std::string> user_argv;
@@ -415,8 +415,9 @@ std::vector<std::string> MapAvailableNamespaces();
 // Define all namespace entries
 #define OPTION_NAMESPACE_LIST(V)                                               \
   V(kNoNamespace, "")                                                          \
-  V(kTestRunnerNamespace, "testRunner")                                        \
-  V(kWatchNamespace, "watch")
+  V(kTestRunnerNamespace, "test")                                              \
+  V(kWatchNamespace, "watch")                                                  \
+  V(kPermissionNamespace, "permission")
 
 enum class OptionNamespaces {
 #define V(name, _) name,

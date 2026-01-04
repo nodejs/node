@@ -18,11 +18,7 @@ process.on('warning', common.mustCall((warning) => {
     case 1:
       // Warning about rejection not being handled (will be next tick)
       assert.strictEqual(warning.name, 'UnhandledPromiseRejectionWarning');
-      assert(
-        /Unhandled promise rejection/.test(warning.message),
-        'Expected warning message to contain "Unhandled promise rejection" ' +
-        `but did not. Had "${warning.message}" instead.`
-      );
+      assert.match(warning.message, /Unhandled promise rejection/);
       break;
     case 2:
       // Number rejection error displayed. Note it's been stringified
@@ -31,17 +27,12 @@ process.on('warning', common.mustCall((warning) => {
     case 3:
       // Unhandled rejection warning (won't be handled next tick)
       assert.strictEqual(warning.name, 'UnhandledPromiseRejectionWarning');
-      assert(
-        /Unhandled promise rejection/.test(warning.message),
-        'Expected warning message to contain "Unhandled promise rejection" ' +
-        `but did not. Had "${warning.message}" instead.`
-      );
+      assert.match(warning.message, /Unhandled promise rejection/);
       break;
     case 4:
       // Rejection handled asynchronously.
       assert.strictEqual(warning.name, 'PromiseRejectionHandledWarning');
-      assert(/Promise rejection was handled asynchronously/
-        .test(warning.message));
+      assert.match(warning.message, /Promise rejection was handled asynchronously/);
   }
 }, 5));
 

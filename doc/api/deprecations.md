@@ -786,6 +786,9 @@ The [`domain`][] module is deprecated and should not be used.
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/60214
+    description: Deprecation revoked.
   - version:
     - v6.12.0
     - v4.8.6
@@ -796,10 +799,12 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Documentation-only
+Type: Revoked
 
-The [`events.listenerCount(emitter, eventName)`][] API is
-deprecated. Please use [`emitter.listenerCount(eventName)`][] instead.
+The [`events.listenerCount(emitter, eventName)`][] API was deprecated, as it
+provided identical fuctionality to [`emitter.listenerCount(eventName)`][]. The
+deprecation was revoked because this function has been repurposed to also
+accept {EventTarget} arguments.
 
 ### DEP0034: `fs.exists(path, callback)`
 
@@ -1033,6 +1038,12 @@ Type: Runtime
 
 The [`util.isArray()`][] API is deprecated. Please use `Array.isArray()`
 instead.
+
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/util-is)):
+
+```bash
+npx codemod@latest @nodejs/util-is
+```
 
 ### DEP0045: `util.isBoolean()`
 
@@ -1600,6 +1611,9 @@ instead.
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/60635
+    description: End-of-Life.
   - version: v25.0.0
     pr-url: https://github.com/nodejs/node/pull/59060
     description: Runtime deprecation.
@@ -1608,7 +1622,7 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
 The `node:http` module `ServerResponse.prototype.writeHeader()` API is
 deprecated. Please use `ServerResponse.prototype.writeHead()` instead.
@@ -2196,6 +2210,12 @@ Type: Runtime
 The [`crypto.fips`][] property is deprecated. Please use `crypto.setFips()`
 and `crypto.getFips()` instead.
 
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/crypto-fips-to-getFips)).
+
+```bash
+npx codemod@latest @nodejs/crypto-fips-to-getFips
+```
+
 ### DEP0094: Using `assert.fail()` with more than one argument
 
 <!-- YAML
@@ -2322,6 +2342,12 @@ Type: End-of-Life
 `process.assert()` is deprecated. Please use the [`assert`][] module instead.
 
 This was never a documented feature.
+
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/createCredentials-to-createSecureContext)).
+
+```bash
+npx codemod@latest @nodejs/createCredentials-to-createSecureContext
+```
 
 ### DEP0101: `--with-lttng`
 
@@ -3966,6 +3992,9 @@ Please use the [`crypto.createHmac()`][] method to create Hmac instances.
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/61084
+    description: End-of-Life.
   - version: v23.0.0
     pr-url: https://github.com/nodejs/node/pull/52552
     description: Runtime deprecation.
@@ -3974,15 +4003,15 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
-Applications that intend to use authentication tags that are shorter than the
-default authentication tag length must set the `authTagLength` option of the
+For ciphers in GCM mode, the [`decipher.setAuthTag()`][] function used to accept
+authentication tags of any valid length (see also [DEP0090](#DEP0090)). This
+exception has been removed to better align with recommendations per
+[NIST SP 800-38D][], and applications that intend to use authentication tags
+that are shorter than the default authentication tag length (i.e., shorter than
+16 bytes for AES-GCM) must explicitly set the `authTagLength` option of the
 [`crypto.createDecipheriv()`][] function to the appropriate length.
-
-For ciphers in GCM mode, the [`decipher.setAuthTag()`][] function accepts
-authentication tags of any valid length (see [DEP0090](#DEP0090)). This behavior
-is deprecated to better align with recommendations per [NIST SP 800-38D][].
 
 ### DEP0183: OpenSSL engine-based APIs
 
@@ -4045,6 +4074,12 @@ Type: End-of-Life
 Instantiating classes without the `new` qualifier exported by the `node:repl` module is deprecated.
 The `new` qualifier must be used instead. This applies to all REPL classes, including
 `REPLServer` and `Recoverable`.
+
+An automated migration is available ([source](https://github.com/nodejs/userland-migrations/tree/main/recipes/repl-classes-with-new)):
+
+```bash
+npx codemod@latest @nodejs/repl-classes-with-new
+```
 
 <!-- md-lint skip-deprecation DEP0186 -->
 
@@ -4150,6 +4185,7 @@ changes:
   - version:
       - v24.2.0
       - v22.17.0
+      - v20.19.6
     pr-url: https://github.com/nodejs/node/pull/57643
     description: Runtime deprecation.
 -->
@@ -4166,6 +4202,7 @@ changes:
   - version:
       - v24.2.0
       - v22.17.0
+      - v20.19.6
     pr-url: https://github.com/nodejs/node/pull/58337
     description: Runtime deprecation.
 -->
@@ -4186,6 +4223,7 @@ changes:
   - version:
       - v24.2.0
       - v22.17.0
+      - v20.19.6
     pr-url: https://github.com/nodejs/node/pull/58313
     description: Documentation-only deprecation.
 -->
@@ -4398,7 +4436,7 @@ import { opendir } from 'node:fs/promises';
 [`domain`]: domain.md
 [`ecdh.setPublicKey()`]: crypto.md#ecdhsetpublickeypublickey-encoding
 [`emitter.listenerCount(eventName)`]: events.md#emitterlistenercounteventname-listener
-[`events.listenerCount(emitter, eventName)`]: events.md#eventslistenercountemitter-eventname
+[`events.listenerCount(emitter, eventName)`]: events.md#eventslistenercountemitterortarget-eventname
 [`fs.Dir`]: fs.md#class-fsdir
 [`fs.FileHandle`]: fs.md#class-filehandle
 [`fs.access()`]: fs.md#fsaccesspath-mode-callback

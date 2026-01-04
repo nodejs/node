@@ -76,7 +76,7 @@
     "path": "url"
   },
   "urlpattern": {
-    "commit": "cff1ac112375b8089fe9f6bf434f602cf7ef98be",
+    "commit": "a2e15ad40518c30c4e7f649584dbda699a40d531",
     "path": "urlpattern"
   },
   "user-timing": {
@@ -96,7 +96,7 @@
     "path": "web-locks"
   },
   "WebCryptoAPI": {
-    "commit": "c58b6f4e0eaf8d3b9792f7add1d3dfcbef40053f",
+    "commit": "1e4933113d2028e092d07a9e865db8f606b21026",
     "path": "WebCryptoAPI"
   },
   "webidl/ecmascript-binding/es-exceptions": {

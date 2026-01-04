@@ -2286,6 +2286,13 @@ object such that no properties can be set on it, and no prototype.
 
 #### `napi_typedarray_type`
 
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58879
+    description: Added `napi_float16_array` for Float16Array support.
+-->
+
 ```c
 typedef enum {
   napi_int8_array,
@@ -2299,6 +2306,7 @@ typedef enum {
   napi_float64_array,
   napi_bigint64_array,
   napi_biguint64_array,
+  napi_float16_array,
 } napi_typedarray_type;
 ```
 
@@ -2640,7 +2648,9 @@ ECMAScript Language Specification.
 #### `napi_create_object_with_properties`
 
 <!-- YAML
-added: v25.2.0
+added:
+  - v25.2.0
+  - v24.12.0
 -->
 
 > Stability: 1 - Experimental
@@ -5048,6 +5058,28 @@ This method seals a given object. This prevents new properties from being
 added to it, as well as marking all existing properties as non-configurable.
 This is described in [Section 19.1.2.20](https://tc39.es/ecma262/#sec-object.seal)
 of the ECMA-262 specification.
+
+#### `node_api_set_prototype`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+```c
+napi_status node_api_set_prototype(napi_env env,
+                                   napi_value object,
+                                   napi_value value);
+```
+
+* `[in] env`: The environment that the Node-API call is invoked under.
+* `[in] object`: The object on which to set the prototype.
+* `[in] value`: The prototype value.
+
+Returns `napi_ok` if the API succeeded.
+
+This API sets the prototype of the `Object` passed in.
 
 ## Working with JavaScript functions
 

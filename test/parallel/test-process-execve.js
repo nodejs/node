@@ -1,7 +1,7 @@
 'use strict';
 
 const { isWindows, isIBMi, skip } = require('../common');
-const { deepStrictEqual, fail, strictEqual } = require('assert');
+const assert = require('assert');
 const { isMainThread } = require('worker_threads');
 
 if (!isMainThread) {
@@ -11,10 +11,10 @@ if (!isMainThread) {
 }
 
 if (process.argv[2] === 'replaced') {
-  deepStrictEqual(process.argv, [process.execPath, __filename, 'replaced']);
-  strictEqual(process.env.CWD, process.cwd());
-  strictEqual(process.env.EXECVE_A, 'FIRST');
-  strictEqual(process.env.EXECVE_B, 'SECOND');
+  assert.deepStrictEqual(process.argv, [process.execPath, __filename, 'replaced']);
+  assert.strictEqual(process.env.CWD, process.cwd());
+  assert.strictEqual(process.env.EXECVE_A, 'FIRST');
+  assert.strictEqual(process.env.EXECVE_B, 'SECOND');
 } else {
   process.execve(
     process.execPath,
@@ -23,5 +23,5 @@ if (process.argv[2] === 'replaced') {
   );
 
   // If process.execve succeed, this should never be executed.
-  fail('process.execve failed');
+  assert.fail('process.execve failed');
 }

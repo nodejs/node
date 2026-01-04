@@ -909,15 +909,15 @@ test('local mocks are auto restored after the test finishes', async (t) => {
   assert.notStrictEqual(originalFoo, obj.foo);
   assert.strictEqual(originalBar, obj.bar);
 
-  t.beforeEach(() => {
+  t.beforeEach(common.mustCallAtLeast(() => {
     assert.strictEqual(mockFoo, obj.foo);
     assert.strictEqual(originalBar, obj.bar);
-  });
+  }));
 
-  t.afterEach(() => {
+  t.afterEach(common.mustCallAtLeast(() => {
     assert.strictEqual(mockFoo, obj.foo);
     assert.notStrictEqual(originalBar, obj.bar);
-  });
+  }));
 
   await t.test('creates mocks that are auto restored', (t) => {
     const mockBar = t.mock.method(obj, 'bar');
@@ -1252,15 +1252,15 @@ test('local property mocks are auto restored after the test finishes', async (t)
   assert.strictEqual(obj.foo, 888);
   assert.strictEqual(obj.bar, 222);
 
-  t.beforeEach(() => {
+  t.beforeEach(common.mustCallAtLeast(() => {
     assert.strictEqual(obj.foo, 888);
     assert.strictEqual(obj.bar, 222);
-  });
+  }));
 
-  t.afterEach(() => {
+  t.afterEach(common.mustCallAtLeast(() => {
     assert.strictEqual(obj.foo, 888);
     assert.strictEqual(obj.bar, 999);
-  });
+  }));
 
   await t.test('creates property mocks that are auto restored', (t) => {
     t.mock.property(obj, 'bar', 999);

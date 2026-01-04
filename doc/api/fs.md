@@ -1231,7 +1231,8 @@ added: v10.0.0
 * `path` {string|Buffer|URL}
 * `options` {Object|integer}
   * `recursive` {boolean} **Default:** `false`
-  * `mode` {string|integer} Not supported on Windows. **Default:** `0o777`.
+  * `mode` {string|integer} Not supported on Windows. See [File modes][]
+    for more details. **Default:** `0o777`.
 * Returns: {Promise} Upon success, fulfills with `undefined` if `recursive`
   is `false`, or the first directory path created if `recursive` is `true`.
 
@@ -1366,7 +1367,8 @@ changes:
 * `flags` {string|number} See [support of file system `flags`][].
   **Default:** `'r'`.
 * `mode` {string|integer} Sets the file mode (permission and sticky bits)
-  if the file is created. **Default:** `0o666` (readable and writable)
+  if the file is created. See [File modes][] for more details.
+  **Default:** `0o666` (readable and writable)
 * Returns: {Promise} Fulfills with a {FileHandle} object.
 
 Opens a {FileHandle}.
@@ -3454,7 +3456,8 @@ changes:
 * `path` {string|Buffer|URL}
 * `options` {Object|integer}
   * `recursive` {boolean} **Default:** `false`
-  * `mode` {string|integer} Not supported on Windows. **Default:** `0o777`.
+  * `mode` {string|integer} Not supported on Windows. See [File modes][]
+    for more details. **Default:** `0o777`.
 * `callback` {Function}
   * `err` {Error}
   * `path` {string|undefined} Present only if a directory is created with
@@ -7736,9 +7739,9 @@ to allow continued writing.
 
 #### Event: `'drop'`
 
-The `'drop'` event is emitted when to maximal length is reached and that data
+The `'drop'` event is emitted when the maximal length is reached and that data
 will not be written. The data that was dropped is passed as the first argument
-to the event handle.
+to the event handler.
 
 #### Event: `'error'`
 
@@ -8697,8 +8700,9 @@ the file contents.
 [Common System Errors]: errors.md#common-system-errors
 [FS constants]: #fs-constants
 [File access constants]: #file-access-constants
+[File modes]: #file-modes
 [MDN-Date]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date
-[MDN-Number]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Number_type
+[MDN-Number]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Data_structures#number_type
 [MSDN-Rel-Path]: https://docs.microsoft.com/en-us/windows/desktop/FileIO/naming-a-file#fully-qualified-vs-relative-paths
 [MSDN-Using-Streams]: https://docs.microsoft.com/en-us/windows/desktop/FileIO/using-streams
 [Naming Files, Paths, and Namespaces]: https://docs.microsoft.com/en-us/windows/desktop/FileIO/naming-a-file

@@ -1,5 +1,7 @@
 'use strict';
-require('../common');
+const { skipIfSQLiteMissing } = require('../common');
+skipIfSQLiteMissing();
+
 const assert = require('assert');
 const { DatabaseSync } = require('node:sqlite');
 const { test, beforeEach } = require('node:test');
@@ -77,26 +79,48 @@ test('queries with no results', () => {
 
 test('TagStore capacity, size, and clear', () => {
   assert.strictEqual(sql.capacity, 10);
-  assert.strictEqual(sql.size(), 0);
+  assert.strictEqual(sql.size, 0);
 
   assert.strictEqual(sql.run`INSERT INTO foo (text) VALUES (${'one'})`.changes, 1);
-  assert.strictEqual(sql.size(), 1);
+  assert.strictEqual(sql.size, 1);
 
   assert.ok(sql.get`SELECT * FROM foo WHERE text = ${'one'}`);
-  assert.strictEqual(sql.size(), 2);
+  assert.strictEqual(sql.size, 2);
 
   // Using the same template string shouldn't increase the size
   assert.strictEqual(sql.get`SELECT * FROM foo WHERE text = ${'two'}`, undefined);
-  assert.strictEqual(sql.size(), 2);
+  assert.strictEqual(sql.size, 2);
 
   assert.strictEqual(sql.all`SELECT * FROM foo`.length, 1);
-  assert.strictEqual(sql.size(), 3);
+  assert.strictEqual(sql.size, 3);
 
   sql.clear();
-  assert.strictEqual(sql.size(), 0);
+  assert.strictEqual(sql.size, 0);
   assert.strictEqual(sql.capacity, 10);
 });
 
 test('sql.db returns the associated DatabaseSync instance', () => {
   assert.strictEqual(sql.db, db);
+});
+
+test('sql error messages are descriptive', () => {
+  assert.strictEqual(sql.run`INSERT INTO foo (text) VALUES (${'test'})`.changes, 1);
+
+  // Test with non-existent column
+  assert.throws(() => {
+    const result = sql.get`SELECT nonexistent_column FROM foo`;
+    assert.fail(`Expected error, got: ${JSON.stringify(result)}`);
+  }, {
+    code: 'ERR_SQLITE_ERROR',
+    message: /no such column/i,
+  });
+
+  // Test with non-existent table
+  assert.throws(() => {
+    const result = sql.get`SELECT * FROM nonexistent_table`;
+    assert.fail(`Expected error, got: ${JSON.stringify(result)}`);
+  }, {
+    code: 'ERR_SQLITE_ERROR',
+    message: /no such table/i,
+  });
 });

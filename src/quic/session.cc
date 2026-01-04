@@ -161,7 +161,9 @@ constexpr std::string to_string(ngtcp2_cc_algo cc_algorithm) {
 #define V(name, label)                                                         \
   case NGTCP2_CC_ALGO_##name:                                                  \
     return #label;
-  switch (cc_algorithm) { CC_ALGOS(V) }
+  switch (cc_algorithm) { /* NOLINT(whitespace/newline) */
+    CC_ALGOS(V)
+  }
   return "<unknown>";
 #undef V
 }

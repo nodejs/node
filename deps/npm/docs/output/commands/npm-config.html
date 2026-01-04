@@ -141,9 +141,9 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="----npm-config----1162">
+<h1 id="----npm-config----1170">
     <span>npm-config</span>
-    <span class="version">@11.6.2</span>
+    <span class="version">@11.7.0</span>
 </h1>
 <span class="description">Manage the npm configuration files</span>
 </header>
@@ -215,8 +215,8 @@ Usually this means attaching authentication config (i.e.
 </ul>
 <p>Whether or not to output JSON data, rather than the normal output.</p>
 <ul>
-<li>In <code>npm pkg set</code> it enables parsing set values with JSON.parse()
-before saving them to your <code>package.json</code>.</li>
+<li>In <code>npm pkg set</code> it enables parsing set values with JSON.parse() before
+saving them to your <code>package.json</code>.</li>
 </ul>
 <p>Not supported by all npm commands.</p>
 <h4 id="global"><code>global</code></h4>
@@ -224,13 +224,12 @@ before saving them to your <code>package.json</code>.</li>
 <li>Default: false</li>
 <li>Type: Boolean</li>
 </ul>
-<p>Operates in "global" mode, so that packages are installed into the
-<code>prefix</code> folder instead of the current working directory. See
-<a href="../configuring-npm/folders.html">folders</a> for more on the differences in
-behavior.</p>
+<p>Operates in "global" mode, so that packages are installed into the <code>prefix</code>
+folder instead of the current working directory. See
+<a href="../configuring-npm/folders.html">folders</a> for more on the differences in behavior.</p>
 <ul>
-<li>packages are installed into the <code>{prefix}/lib/node_modules</code> folder,
-instead of the current working directory.</li>
+<li>packages are installed into the <code>{prefix}/lib/node_modules</code> folder, instead
+of the current working directory.</li>
 <li>bin files are linked to <code>{prefix}/bin</code></li>
 <li>man pages are linked to <code>{prefix}/share/man</code></li>
 </ul>
@@ -243,18 +242,17 @@ instead of the current working directory.</li>
 <p>The command to run for <code>npm edit</code> and <code>npm config edit</code>.</p>
 <h4 id="location"><code>location</code></h4>
 <ul>
-<li>Default: "user" unless <code>--global</code> is passed, which will also set this
-value to "global"</li>
+<li>Default: "user" unless <code>--global</code> is passed, which will also set this value
+to "global"</li>
 <li>Type: "global", "user", or "project"</li>
 </ul>
 <p>When passed to <code>npm config</code> this refers to which config file to use.</p>
-<p>When set to "global" mode, packages are installed into the <code>prefix</code>
-folder instead of the current working directory. See
-<a href="../configuring-npm/folders.html">folders</a> for more on the differences in
-behavior.</p>
+<p>When set to "global" mode, packages are installed into the <code>prefix</code> folder
+instead of the current working directory. See
+<a href="../configuring-npm/folders.html">folders</a> for more on the differences in behavior.</p>
 <ul>
-<li>packages are installed into the <code>{prefix}/lib/node_modules</code> folder,
-instead of the current working directory.</li>
+<li>packages are installed into the <code>{prefix}/lib/node_modules</code> folder, instead
+of the current working directory.</li>
 <li>bin files are linked to <code>{prefix}/bin</code></li>
 <li>man pages are linked to <code>{prefix}/share/man</code></li>
 </ul>

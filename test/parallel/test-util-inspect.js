@@ -689,8 +689,57 @@ assert.strictEqual(util.inspect(-5e-324), '-5e-324');
 }
 
 {
-  const tmp = Error.stackTraceLimit;
+  // No own errors or cause property.
+  const { stackTraceLimit } = Error;
   Error.stackTraceLimit = 0;
+
+  const e1 = new Error('e1');
+  const e2 = new TypeError('e2');
+  const e3 = false;
+
+  const errors = [e1, e2, e3];
+  const aggregateError = new AggregateError(errors, 'Foobar');
+
+  assert.deepStrictEqual(aggregateError.errors, errors);
+  assert.strictEqual(
+    util.inspect(aggregateError),
+    '[AggregateError: Foobar] {\n  [errors]: [ [Error: e1], [TypeError: e2], false ]\n}'
+  );
+
+
+  const custom = new Error('No own errors property');
+  Object.setPrototypeOf(custom, aggregateError);
+
+  assert.strictEqual(
+    util.inspect(custom),
+    '[AggregateError: No own errors property]'
+  );
+
+  const cause = [new Error('cause')];
+  const causeError = new TypeError('Foobar', { cause: [new Error('cause')] });
+
+  assert.strictEqual(
+    util.inspect(causeError),
+    '[TypeError: Foobar] { [cause]: [ [Error: cause] ] }'
+  );
+
+  const custom2 = new Error('No own cause property');
+  Object.setPrototypeOf(custom2, causeError);
+
+  assert.deepStrictEqual(custom2.cause, cause);
+  assert.strictEqual(
+    util.inspect(custom2),
+    '[TypeError: No own cause property]'
+  );
+
+  Error.stackTraceLimit = stackTraceLimit;
+}
+
+{
+  const tmp = Error.stackTraceLimit;
+  // Force stackTraceLimit = 0 for this test, but make it non-enumerable
+  // so it doesn't appear in inspect() output when inspecting Error in other tests.
+  Object.defineProperty(Error, 'stackTraceLimit', { value: 0, enumerable: false });
   const err = new Error('foo');
   const err2 = new Error('foo\nbar');
   assert.strictEqual(util.inspect(err, { compact: true }), '[Error: foo]');
@@ -2527,14 +2576,10 @@ assert.strictEqual(
     set foo(val) { foo = val; },
     get inc() { return ++foo; }
   };
-  const thrower = { get foo() { throw new Error('Oops'); } };
   assert.strictEqual(
     inspect(get, { getters: true, colors: true }),
     '{ foo: \u001b[36m[Getter:\u001b[39m ' +
       '\u001b[33m1\u001b[39m\u001b[36m]\u001b[39m }');
-  assert.strictEqual(
-    inspect(thrower, { getters: true }),
-    '{ foo: [Getter: <Inspection threw (Oops)>] }');
   assert.strictEqual(
     inspect(getset, { getters: true }),
     '{ foo: [Getter/Setter: 1], inc: [Getter: 2] }');
@@ -2550,6 +2595,239 @@ assert.strictEqual(
     '{\n  foo: [Getter/Setter] Set(3) { [ [Object], 2, {} ], ' +
       "'foobar', { x: 1 } },\n  inc: [Getter: NaN]\n}");
 }
+
+// Property getter throwing an error.
+{
+  const error = new Error('Oops');
+  error.stack = [
+    'Error: Oops',
+    '    at get foo (/foo/node_modules/foo.js:2:7)',
+    '    at get bar (/foo/node_modules/bar.js:827:30)',
+  ].join('\n');
+
+  const thrower = {
+    get foo() { throw error; }
+  };
+
+  assert.strictEqual(
+    inspect(thrower, { getters: true }),
+    '{\n' +
+    '  foo: [Getter: <Inspection threw (Error: Oops\n' +
+    '      at get foo (/foo/node_modules/foo.js:2:7)\n' +
+    '      at get bar (/foo/node_modules/bar.js:827:30))>]\n' +
+    '}',
+  );
+};
+
+// Property getter throwing an error with getters that throws.
+// https://github.com/nodejs/node/issues/60683
+{
+  const badError = new Error();
+
+  const innerError = new Error('Oops');
+  innerError.stack = [
+    'Error: Oops',
+    '    at get foo (/foo/node_modules/foo.js:2:7)',
+    '    at get bar (/foo/node_modules/bar.js:827:30)',
+  ].join('\n');
+
+  const throwingGetter = {
+    __proto__: null,
+    get() {
+      throw innerError;
+    },
+    configurable: true,
+    enumerable: true,
+  };
+
+  Object.defineProperties(badError, {
+    name: throwingGetter,
+    message: throwingGetter,
+    stack: throwingGetter,
+    cause: throwingGetter,
+  });
+
+  const thrower = {
+    get foo() { throw badError; }
+  };
+
+  assert.strictEqual(
+    inspect(thrower, { getters: true }),
+    '{\n' +
+    '  foo: [Getter: <Inspection threw ([object Error] {\n' +
+    '    stack: [Getter/Setter: <Inspection threw (Error: Oops\n' +
+    '        at get foo (/foo/node_modules/foo.js:2:7)\n' +
+    '        at get bar (/foo/node_modules/bar.js:827:30))>],\n' +
+    '    name: [Getter: <Inspection threw (Error: Oops\n' +
+    '        at get foo (/foo/node_modules/foo.js:2:7)\n' +
+    '        at get bar (/foo/node_modules/bar.js:827:30))>],\n' +
+    '    message: [Getter: <Inspection threw (Error: Oops\n' +
+    '        at get foo (/foo/node_modules/foo.js:2:7)\n' +
+    '        at get bar (/foo/node_modules/bar.js:827:30))>],\n' +
+    '    cause: [Getter: <Inspection threw (Error: Oops\n' +
+    '        at get foo (/foo/node_modules/foo.js:2:7)\n' +
+    '        at get bar (/foo/node_modules/bar.js:827:30))>]\n' +
+    '  })>]\n' +
+    '}'
+  );
+}
+
+// Property getter throwing an error with getters that throws recursivly.
+{
+  const recursivelyThrowingErrorDesc = {
+    __proto__: null,
+    // eslint-disable-next-line no-restricted-syntax
+    get() { throw createRecursivelyThrowingError(); },
+    configurable: true,
+    enumerable: true,
+  };
+  const createRecursivelyThrowingError = () =>
+    Object.defineProperties(new Error(), {
+      cause: recursivelyThrowingErrorDesc,
+      name: recursivelyThrowingErrorDesc,
+      message: recursivelyThrowingErrorDesc,
+      stack: recursivelyThrowingErrorDesc,
+    });
+  const thrower = Object.defineProperty({}, 'foo', recursivelyThrowingErrorDesc);
+
+  assert.strictEqual(
+    inspect(thrower, { getters: true, depth: 1 }),
+    '{\n' +
+    '  foo: [Getter: <Inspection threw ([object Error] {\n' +
+    '    stack: [Getter/Setter: <Inspection threw ([Error])>],\n' +
+    '    cause: [Getter: <Inspection threw ([Error])>],\n' +
+    '    name: [Getter: <Inspection threw ([Error])>],\n' +
+    '    message: [Getter: <Inspection threw ([Error])>]\n' +
+    '  })>]\n' +
+    '}'
+  );
+
+  [{ getters: true, depth: 2 }, { getters: true }].forEach((options) => {
+    assert.strictEqual(
+      inspect(thrower, options),
+      '{\n' +
+      '  foo: [Getter: <Inspection threw ([object Error] {\n' +
+      '    stack: [Getter/Setter: <Inspection threw ([object Error] {\n' +
+      '      stack: [Getter/Setter: <Inspection threw ([Error])>],\n' +
+      '      cause: [Getter: <Inspection threw ([Error])>],\n' +
+      '      name: [Getter: <Inspection threw ([Error])>],\n' +
+      '      message: [Getter: <Inspection threw ([Error])>]\n' +
+      '    })>],\n' +
+      '    cause: [Getter: <Inspection threw ([object Error] {\n' +
+      '      stack: [Getter/Setter: <Inspection threw ([Error])>],\n' +
+      '      cause: [Getter: <Inspection threw ([Error])>],\n' +
+      '      name: [Getter: <Inspection threw ([Error])>],\n' +
+      '      message: [Getter: <Inspection threw ([Error])>]\n' +
+      '    })>],\n' +
+      '    name: [Getter: <Inspection threw ([object Error] {\n' +
+      '      stack: [Getter/Setter: <Inspection threw ([Error])>],\n' +
+      '      cause: [Getter: <Inspection threw ([Error])>],\n' +
+      '      name: [Getter: <Inspection threw ([Error])>],\n' +
+      '      message: [Getter: <Inspection threw ([Error])>]\n' +
+      '    })>],\n' +
+      '    message: [Getter: <Inspection threw ([object Error] {\n' +
+      '      stack: [Getter/Setter: <Inspection threw ([Error])>],\n' +
+      '      cause: [Getter: <Inspection threw ([Error])>],\n' +
+      '      name: [Getter: <Inspection threw ([Error])>],\n' +
+      '      message: [Getter: <Inspection threw ([Error])>]\n' +
+      '    })>]\n' +
+      '  })>]\n' +
+      '}'
+    );
+  });
+}
+
+// Property getter throwing an error whose own getters throw that same error (infinite recursion).
+{
+  const badError = new Error();
+
+  const throwingGetter = {
+    __proto__: null,
+    get() {
+      throw badError;
+    },
+    configurable: true,
+    enumerable: true,
+  };
+
+  Object.defineProperties(badError, {
+    name: throwingGetter,
+    message: throwingGetter,
+    stack: throwingGetter,
+    cause: throwingGetter,
+  });
+
+  const thrower = {
+    get foo() { throw badError; }
+  };
+
+  assert.strictEqual(
+    inspect(thrower, { getters: true, depth: Infinity }),
+    '{\n' +
+    '  foo: [Getter: <Inspection threw (<ref *1> [object Error] {\n' +
+    '    stack: [Getter/Setter: <Inspection threw ([Circular *1])>],\n' +
+    '    name: [Getter: <Inspection threw ([Circular *1])>],\n' +
+    '    message: [Getter: <Inspection threw ([Circular *1])>],\n' +
+    '    cause: [Getter: <Inspection threw ([Circular *1])>]\n' +
+    '  })>]\n' +
+    '}'
+  );
+}
+
+// Property getter throwing uncommon values.
+[
+  {
+    val: undefined,
+    expected: '{ foo: [Getter: <Inspection threw (undefined)>] }'
+  },
+  {
+    val: null,
+    expected: '{ foo: [Getter: <Inspection threw (null)>] }'
+  },
+  {
+    val: true,
+    expected: '{ foo: [Getter: <Inspection threw (true)>] }'
+  },
+  {
+    val: 1,
+    expected: '{ foo: [Getter: <Inspection threw (1)>] }'
+  },
+  {
+    val: 1n,
+    expected: '{ foo: [Getter: <Inspection threw (1n)>] }'
+  },
+  {
+    val: Symbol(),
+    expected: '{ foo: [Getter: <Inspection threw (Symbol())>] }'
+  },
+  {
+    val: () => {},
+    expected: '{ foo: [Getter: <Inspection threw ([Function: val])>] }'
+  },
+  {
+    val: 'string',
+    expected: "{ foo: [Getter: <Inspection threw ('string')>] }"
+  },
+  {
+    val: [],
+    expected: '{ foo: [Getter: <Inspection threw ([])>] }'
+  },
+  {
+    val: { get message() { return 'Oops'; } },
+    expected: "{ foo: [Getter: <Inspection threw ({ message: [Getter: 'Oops'] })>] }"
+  },
+  {
+    val: Error,
+    expected: '{ foo: [Getter: <Inspection threw ([Function: Error])>] }'
+  },
+].forEach(({ val, expected }) => {
+  assert.strictEqual(
+    inspect({
+      get foo() { throw val; }
+    }, { getters: true }),
+    expected,
+  );
+});
 
 // Check compact number mode.
 {
@@ -2912,11 +3190,10 @@ assert.strictEqual(
       frame.replaceAll('/', '\\'))
     ).join('\n');
   }
-  const escapedCWD = util.inspect(process.cwd()).slice(1, -1);
   util.inspect(err, { colors: true }).split('\n').forEach(common.mustCallAtLeast((line, i) => {
     let expected = stack[i].replace(/node_modules\/(@[^/]+\/[^/]+|[^/]+)/gi, (_, m) => {
       return `node_modules/\u001b[4m${m}\u001b[24m`;
-    }).replaceAll(new RegExp(`(\\(?${escapedCWD}(\\\\|/))`, 'gi'), (_, m) => {
+    }).replaceAll(new RegExp(`(\\(?${RegExp.escape(process.cwd())}(\\\\|/))`, 'gi'), (_, m) => {
       return `\x1B[90m${m}\x1B[39m`;
     });
     if (expected.includes(process.cwd()) && expected.endsWith(')')) {
@@ -3232,25 +3509,26 @@ assert.strictEqual(
       '\x1B[2mdef: \x1B[33m5\x1B[39m\x1B[22m }'
   );
 
-  assert.strictEqual(
+  assert.match(
     inspect(Object.getPrototypeOf(bar), { showHidden: true, getters: true }),
-    '<ref *1> Foo [Map] {\n' +
-    '    [constructor]: [class Bar extends Foo] {\n' +
-    '      [length]: 0,\n' +
-    "      [name]: 'Bar',\n" +
-    '      [prototype]: [Circular *1],\n' +
-    '      [Symbol(Symbol.species)]: [Getter: <Inspection threw ' +
-      "(Symbol.prototype.toString requires that 'this' be a Symbol)>]\n" +
-    '    },\n' +
-    "    [xyz]: [Getter: 'YES!'],\n" +
-    '    [Symbol(nodejs.util.inspect.custom)]: ' +
-      '[Function: [nodejs.util.inspect.custom]] {\n' +
-    '      [length]: 0,\n' +
-    "      [name]: '[nodejs.util.inspect.custom]'\n" +
-    '    },\n' +
-    '    [abc]: [Getter: true],\n' +
-    '    [def]: [Getter/Setter: false]\n' +
-    '  }'
+    new RegExp('^' + RegExp.escape(
+      '<ref *1> Foo [Map] {\n' +
+      '  [constructor]: [class Bar extends Foo] {\n' +
+      '    [length]: 0,\n' +
+      "    [name]: 'Bar',\n" +
+      '    [prototype]: [Circular *1],\n' +
+      '    [Symbol(Symbol.species)]: [Getter: <Inspection threw ' +
+      "(TypeError: Symbol.prototype.toString requires that 'this' be a Symbol") + '.*' + RegExp.escape(')>]\n' +
+      '  },\n' +
+      "  [xyz]: [Getter: 'YES!'],\n" +
+      '  [Symbol(nodejs.util.inspect.custom)]: [Function: [nodejs.util.inspect.custom]] {\n' +
+      '    [length]: 0,\n' +
+      "    [name]: '[nodejs.util.inspect.custom]'\n" +
+      '  },\n' +
+      '  [abc]: [Getter: true],\n' +
+      '  [def]: [Getter/Setter: false]\n' +
+      '}'
+    ) + '$', 's')
   );
 
   assert.strictEqual(

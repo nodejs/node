@@ -1,0 +1,26 @@
+# Partial support for IO domain of ChromeDevTools Protocol.
+# https://github.com/ChromeDevTools/devtools-protocol/blob/master/pdl/domains/Target.pdl
+
+experimental domain Target
+  type SessionID extends string
+  type TargetID extends string
+  type TargetInfo extends object
+    properties
+      TargetID targetId
+      string type
+      string title
+      string url
+      boolean attached
+      boolean canAccessOpener
+  event targetCreated
+    parameters
+      TargetInfo targetInfo
+  event attachedToTarget
+    parameters
+      SessionID sessionId
+      TargetInfo targetInfo
+      boolean waitingForDebugger
+  command setAutoAttach
+    parameters
+      boolean autoAttach
+      boolean waitForDebuggerOnStart

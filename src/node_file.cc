@@ -1634,9 +1634,9 @@ static void RmSync(const FunctionCallbackInfo<Value>& args) {
   ToNamespacedPath(env, &path);
   THROW_IF_INSUFFICIENT_PERMISSIONS(
       env, permission::PermissionScope::kFileSystemWrite, path.ToStringView());
-  auto file_path = std::filesystem::path(path.ToStringView());
+  auto file_path = path.ToPath();
   std::error_code error;
-  auto file_status = std::filesystem::status(file_path, error);
+  auto file_status = std::filesystem::symlink_status(file_path, error);
 
   if (file_status.type() == std::filesystem::file_type::not_found) {
     return;
@@ -1649,8 +1649,7 @@ static void RmSync(const FunctionCallbackInfo<Value>& args) {
   // File is a directory and recursive is false
   if (file_status.type() == std::filesystem::file_type::directory &&
       !recursive) {
-    return THROW_ERR_FS_EISDIR(
-        isolate, "Path is a directory: %s", file_path.c_str());
+    return THROW_ERR_FS_EISDIR(isolate, "Path is a directory: %s", path);
   }
 
   // Allowed errors are:

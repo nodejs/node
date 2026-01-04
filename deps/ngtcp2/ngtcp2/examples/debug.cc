@@ -283,7 +283,7 @@ void print_http_response_headers(int64_t stream_id, const nghttp3_nv *nva,
   }
 }
 
-void print_http_settings(const nghttp3_settings *settings) {
+void print_http_settings(const nghttp3_proto_settings *settings) {
   fprintf(outfile,
           "http: remote settings\n"
           "http: SETTINGS_MAX_FIELD_SECTION_SIZE=%" PRIu64 "\n"
@@ -315,6 +315,29 @@ std::string_view secret_title(ngtcp2_encryption_level level) {
     assert(0);
     abort();
   }
+}
+
+void print_conn_info(ngtcp2_conn *conn) {
+  ngtcp2_conn_info cinfo;
+
+  ngtcp2_conn_get_conn_info(conn, &cinfo);
+
+  std::cout << "# Connection Statistics (see ngtcp2_conn_info for details)\n"
+               "min_rtt="
+            << util::format_durationf(cinfo.min_rtt) << '\n'
+            << "smoothed_rtt=" << util::format_durationf(cinfo.smoothed_rtt)
+            << '\n'
+            << "rttvar=" << util::format_durationf(cinfo.rttvar) << '\n'
+            << "cwnd=" << cinfo.cwnd << '\n'
+            << "ssthresh=" << cinfo.ssthresh << '\n'
+            << "pkt_sent=" << cinfo.pkt_sent << '\n'
+            << "bytes_sent=" << cinfo.bytes_sent << '\n'
+            << "pkt_recv=" << cinfo.pkt_recv << '\n'
+            << "bytes_recv=" << cinfo.bytes_recv << '\n'
+            << "pkt_lost=" << cinfo.pkt_lost << '\n'
+            << "bytes_lost=" << cinfo.bytes_lost << '\n'
+            << "ping_recv=" << cinfo.ping_recv << '\n'
+            << "pkt_discarded=" << cinfo.pkt_discarded << std::endl;
 }
 
 } // namespace debug

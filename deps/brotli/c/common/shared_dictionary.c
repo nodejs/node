@@ -8,10 +8,6 @@
 
 #include <brotli/shared_dictionary.h>
 
-#include <memory.h>
-#include <stdlib.h>  /* malloc, free */
-#include <stdio.h>
-
 #include "dictionary.h"
 #include "platform.h"
 #include "shared_dictionary_internal.h"
@@ -279,7 +275,7 @@ static BROTLI_BOOL ParseDictionary(const uint8_t* encoded, size_t size,
   size_t pos = 0;
   uint32_t chunk_size = 0;
   size_t total_prefix_suffix_count = 0;
-  size_t trasform_list_start[SHARED_BROTLI_NUM_DICTIONARY_CONTEXTS];
+  size_t transform_list_start[SHARED_BROTLI_NUM_DICTIONARY_CONTEXTS];
   uint16_t temporary_prefix_suffix_table[256];
 
   /* Skip magic header bytes. */
@@ -333,7 +329,7 @@ static BROTLI_BOOL ParseDictionary(const uint8_t* encoded, size_t size,
   for (i = 0; i < dict->num_transform_lists; i++) {
     BROTLI_BOOL ok = BROTLI_FALSE;
     size_t prefix_suffix_count = 0;
-    trasform_list_start[i] = pos;
+    transform_list_start[i] = pos;
     dict->transforms_instances[i].prefix_suffix_map =
         temporary_prefix_suffix_table;
     ok = ParseTransformsList(
@@ -351,7 +347,7 @@ static BROTLI_BOOL ParseDictionary(const uint8_t* encoded, size_t size,
   total_prefix_suffix_count = 0;
   for (i = 0; i < dict->num_transform_lists; i++) {
     size_t prefix_suffix_count = 0;
-    size_t position = trasform_list_start[i];
+    size_t position = transform_list_start[i];
     uint16_t* prefix_suffix_map =
       &dict->prefix_suffix_maps[total_prefix_suffix_count];
     BROTLI_BOOL ok = ParsePrefixSuffixTable(

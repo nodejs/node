@@ -30,8 +30,7 @@ Note that, if `help-search` finds a single subject, then it will run `help` on t
 
 The program to use to view help content.
 
-Set to `"browser"` to view html help content in the default web
-browser.
+Set to `"browser"` to view html help content in the default web browser.
 
 
 

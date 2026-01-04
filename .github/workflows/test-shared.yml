@@ -5,12 +5,18 @@ name: Test Shared libraries
 on:
   pull_request:
     paths-ignore:
-      - .mailmap
       - '**.md'
-      - AUTHORS
+      - eslint.config.mjs
+      - '**/eslint.config_partial.mjs'
+      - android-configure
+      - android-configure.py
+      - android-patches/**
+      - benchmarks/**
+      - codecov.yml
       - deps/ada/**
       - deps/brotli/**
       - deps/cares/**
+      - deps/crates/**
       - deps/corepack/**
       - deps/icu-small/**
       - deps/icu-tmp/**
@@ -25,8 +31,17 @@ on:
       - deps/zlib/**
       - deps/zstd/**
       - doc/**
+      - pyproject.yml
+      - tsconfig.json
       - test/internet/**
-      - .github/**
+      - tools/**
+      - '!tools/gyp/**'
+      - '!tools/nix/**'
+      - '!tools/v8/**'
+      - '!tools/v8_gypfiles/**'
+      - typings/**
+      - vcbuild.bat
+      - .**
       - '!.github/workflows/test-shared.yml'
     types: [opened, synchronize, reopened, ready_for_review]
   push:
@@ -36,12 +51,18 @@ on:
       - v[0-9]+.x-staging
       - v[0-9]+.x
     paths-ignore:
-      - .mailmap
       - '**.md'
-      - AUTHORS
+      - eslint.config.mjs
+      - '**/eslint.config_partial.mjs'
+      - android-configure
+      - android-configure.py
+      - android-patches/**
+      - benchmarks/**
+      - codecov.yml
       - deps/ada/**
       - deps/brotli/**
       - deps/cares/**
+      - deps/crates/**
       - deps/corepack/**
       - deps/icu-small/**
       - deps/icu-tmp/**
@@ -56,8 +77,17 @@ on:
       - deps/zlib/**
       - deps/zstd/**
       - doc/**
+      - pyproject.yml
+      - tsconfig.json
       - test/internet/**
-      - .github/**
+      - tools/**
+      - '!tools/gyp/**'
+      - '!tools/nix/**'
+      - '!tools/v8/**'
+      - '!tools/v8_gypfiles/**'
+      - typings/**
+      - vcbuild.bat
+      - .**
       - '!.github/workflows/test-shared.yml'
 
 concurrency:
@@ -76,7 +106,7 @@ jobs:
     name: ${{ github.event_name == 'workflow_dispatch' && 'Skipped job' || 'Build slim tarball' }}
     runs-on: ubuntu-24.04-arm
     steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
         if: ${{ github.event_name != 'workflow_dispatch' }}
         with:
           persist-credentials: false
@@ -92,7 +122,7 @@ jobs:
 
       - name: Upload tarball artifact
         if: ${{ github.event_name != 'workflow_dispatch' }}
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4  # v5.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0
         with:
           name: tarballs
           path: '*.tar.gz'
@@ -115,7 +145,7 @@ jobs:
     name: '${{ matrix.system }}: with shared libraries'
     runs-on: ${{ matrix.runner }}
     steps:
-      - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53  # v6.0.0
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131  # v7.0.0
         if: ${{ github.event_name != 'workflow_dispatch' }}
         with:
           name: tarballs
@@ -127,11 +157,11 @@ jobs:
           tar xzf tarballs/*.tar.gz -C "$RUNNER_TEMP"
           echo "TAR_DIR=$RUNNER_TEMP/$(basename tarballs/*.tar.gz .tar.gz)" >> "$GITHUB_ENV"
 
-      - uses: cachix/install-nix-action@456688f15bc354bef6d396e4a35f4f89d40bf2b7  # v31.8.2
+      - uses: cachix/install-nix-action@4e002c8ec80594ecd40e759629461e26c8abed15  # v31.9.0
         with:
           extra_nix_config: sandbox = true
 
-      - uses: cachix/cachix-action@0fc020193b5a1fa3ac4575aa3a7d3aa6a35435ad # v16
+      - uses: cachix/cachix-action@0fc020193b5a1fa3ac4575aa3a7d3aa6a35435ad  # v16
         with:
           name: nodejs
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
@@ -162,7 +192,7 @@ jobs:
             --arg ccache '(import <nixpkgs> {}).sccache' \
             --arg devTools '[]' \
             --arg benchmarkTools '[]' \
-            ${{ endsWith(matrix.system, '-darwin') && '--arg extraConfigFlags ''["--without-inspector"]'' \' || '\' }}
+            ${{ endsWith(matrix.system, '-darwin') && '--arg withAmaro false --arg withSQLite false --arg extraConfigFlags ''["--without-inspector" "--without-node-options"]'' \' || '\' }}
             --run '
                 make -C "$TAR_DIR" run-ci -j4 V=1 TEST_CI_ARGS="-p actions --measure-flakiness 9 --skip-tests=$CI_SKIP_TESTS"
             '

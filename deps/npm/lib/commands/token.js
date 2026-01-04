@@ -1,14 +1,38 @@
-const { log, output } = require('proc-log')
-const { listTokens, createToken, removeToken } = require('npm-profile')
+const { log, output, META } = require('proc-log')
+const fetch = require('npm-registry-fetch')
 const { otplease } = require('../utils/auth.js')
 const readUserInfo = require('../utils/read-user-info.js')
 const BaseCommand = require('../base-cmd.js')
 
+async function paginate (href, opts, items = []) {
+  while (href) {
+    const result = await fetch.json(href, opts)
+    items = items.concat(result.objects)
+    href = result.urls.next
+  }
+  return items
+}
+
 class Token extends BaseCommand {
   static description = 'Manage your authentication tokens'
   static name = 'token'
-  static usage = ['list', 'revoke <id|token>', 'create [--read-only] [--cidr=list]']
-  static params = ['read-only', 'cidr', 'registry', 'otp']
+  static usage = ['list', 'revoke <id|token>', 'create']
+  static params = ['name',
+    'token-description',
+    'expires',
+    'packages',
+    'packages-all',
+    'scopes',
+    'orgs',
+    'packages-and-scopes-permission',
+    'orgs-permission',
+    'cidr',
+    'bypass-2fa',
+    'password',
+    'registry',
+    'otp',
+    'read-only',
+  ]
 
   static async completion (opts) {
     const argv = opts.conf.argv.remain
@@ -48,7 +72,7 @@ class Token extends BaseCommand {
     const json = this.npm.config.get('json')
     const parseable = this.npm.config.get('parseable')
     log.info('token', 'getting list')
-    const tokens = await listTokens(this.npm.flatOptions)
+    const tokens = await paginate('/-/npm/v1/tokens', this.npm.flatOptions)
     if (json) {
       output.buffer(tokens)
       return
@@ -71,9 +95,8 @@ class Token extends BaseCommand {
     this.generateTokenIds(tokens, 6)
     const chalk = this.npm.chalk
     for (const token of tokens) {
-      const level = token.readonly ? 'Read only token' : 'Publish token'
       const created = String(token.created).slice(0, 10)
-      output.standard(`${chalk.blue(level)} ${token.token}… with id ${chalk.cyan(token.id)} created ${created}`)
+      output.standard(`${chalk.blue('Token')} ${token.token}… with id ${chalk.cyan(token.id)} created ${created}`)
       if (token.cidr_whitelist) {
         output.standard(`with IP whitelist: ${chalk.green(token.cidr_whitelist.join(','))}`)
       }
@@ -89,10 +112,9 @@ class Token extends BaseCommand {
     const json = this.npm.config.get('json')
     const parseable = this.npm.config.get('parseable')
     const toRemove = []
-    const opts = { ...this.npm.flatOptions }
     log.info('token', `removing ${toRemove.length} tokens`)
-    const tokens = await listTokens(opts)
-    args.forEach(id => {
+    const tokens = await paginate('/-/npm/v1/tokens', this.npm.flatOptions)
+    for (const id of args) {
       const matches = tokens.filter(token => token.key.indexOf(id) === 0)
       if (matches.length === 1) {
         toRemove.push(matches[0].key)
@@ -108,12 +130,16 @@ class Token extends BaseCommand {
 
         toRemove.push(id)
       }
-    })
-    await Promise.all(
-      toRemove.map(key => {
-        return otplease(this.npm, opts, c => removeToken(key, c))
-      })
-    )
+    }
+    for (const tokenKey of toRemove) {
+      await otplease(this.npm, this.npm.flatOptions, opts =>
+        fetch(`/-/npm/v1/tokens/token/${tokenKey}`, {
+          ...opts,
+          method: 'DELETE',
+          ignoreBody: true,
+        })
+      )
+    }
     if (json) {
       output.buffer(toRemove)
     } else if (parseable) {
@@ -127,15 +153,74 @@ class Token extends BaseCommand {
     const json = this.npm.config.get('json')
     const parseable = this.npm.config.get('parseable')
     const cidr = this.npm.config.get('cidr')
-    const readonly = this.npm.config.get('read-only')
+    const name = this.npm.config.get('name')
+    const tokenDescription = this.npm.config.get('token-description')
+    const expires = this.npm.config.get('expires')
+    const packages = this.npm.config.get('packages')
+    const packagesAll = this.npm.config.get('packages-all')
+    const scopes = this.npm.config.get('scopes')
+    const orgs = this.npm.config.get('orgs')
+    const packagesAndScopesPermission = this.npm.config.get('packages-and-scopes-permission')
+    const orgsPermission = this.npm.config.get('orgs-permission')
+    const bypassTwoFactor = this.npm.config.get('bypass-2fa')
+    let password = this.npm.config.get('password')
 
     const validCIDR = await this.validateCIDRList(cidr)
-    const password = await readUserInfo.password()
+
+    /* istanbul ignore if - skip testing read input */
+    if (!password) {
+      password = await readUserInfo.password()
+    }
+
+    const tokenData = {
+      name: name,
+      password: password,
+    }
+
+    if (tokenDescription) {
+      tokenData.description = tokenDescription
+    }
+
+    if (packages?.length > 0) {
+      tokenData.packages = packages
+    }
+    if (packagesAll) {
+      tokenData.packages_all = true
+    }
+    if (scopes?.length > 0) {
+      tokenData.scopes = scopes
+    }
+    if (orgs?.length > 0) {
+      tokenData.orgs = orgs
+    }
+
+    if (packagesAndScopesPermission) {
+      tokenData.packages_and_scopes_permission = packagesAndScopesPermission
+    }
+    if (orgsPermission) {
+      tokenData.orgs_permission = orgsPermission
+    }
+
+    // Add expiration in days
+    if (expires) {
+      tokenData.expires = parseInt(expires, 10)
+    }
+
+    // Add optional fields
+    if (validCIDR?.length > 0) {
+      tokenData.cidr_whitelist = validCIDR
+    }
+    if (bypassTwoFactor) {
+      tokenData.bypass_2fa = true
+    }
+
     log.info('token', 'creating')
-    const result = await otplease(
-      this.npm,
-      { ...this.npm.flatOptions },
-      c => createToken(password, readonly, validCIDR, c)
+    const result = await otplease(this.npm, this.npm.flatOptions, opts =>
+      fetch.json('/-/npm/v1/tokens', {
+        ...opts,
+        method: 'POST',
+        body: tokenData,
+      })
     )
     delete result.key
     delete result.updated
@@ -145,11 +230,12 @@ class Token extends BaseCommand {
       Object.keys(result).forEach(k => output.standard(k + '\t' + result[k]))
     } else {
       const chalk = this.npm.chalk
-      // Identical to list
-      const level = result.readonly ? 'read only' : 'publish'
-      output.standard(`Created ${chalk.blue(level)} token ${result.token}`)
+      output.standard(`Created token ${result.token}`, { [META]: true, redact: false })
       if (result.cidr_whitelist?.length) {
         output.standard(`with IP whitelist: ${chalk.green(result.cidr_whitelist.join(','))}`)
+      }
+      if (result.expires) {
+        output.standard(`expires: ${result.expires}`)
       }
     }
   }
@@ -180,7 +266,7 @@ class Token extends BaseCommand {
     for (const cidr of list) {
       if (isCidrV6(cidr)) {
         throw this.invalidCIDRError(
-          `CIDR whitelist can only contain IPv4 addresses${cidr} is IPv6`
+          `CIDR whitelist can only contain IPv4 addresses, ${cidr} is IPv6`
         )
       }
 

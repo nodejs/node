@@ -157,6 +157,6 @@ function workerTest(opts, command, wantsError, test) {
     assert.strictEqual(code, wantsError ? 1 : 0);
     collectStream(worker.stdout).then((stdout) => {
       test(workerError, stdout);
-    });
+    }).then(common.mustCall());
   }));
 }

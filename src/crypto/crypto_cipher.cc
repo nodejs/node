@@ -549,26 +549,16 @@ void CipherBase::SetAuthTag(const FunctionCallbackInfo<Value>& args) {
   } else {
     // At this point, the tag length is already known and must match the
     // length of the given authentication tag.
-    CHECK(Cipher::FromCtx(cipher->ctx_).isSupportedAuthenticatedMode());
     CHECK_NE(cipher->auth_tag_len_, kNoAuthTagLength);
     is_valid = cipher->auth_tag_len_ == tag_len;
   }
 
-  if (!is_valid) {
+  // TODO(tniessen): refactor this check.
+  if (!is_valid ||
+      (cipher->ctx_.isGcmMode() && cipher->auth_tag_len_ == kNoAuthTagLength &&
+       tag_len != EVP_GCM_TLS_TAG_LEN)) {
     return THROW_ERR_CRYPTO_INVALID_AUTH_TAG(
       env, "Invalid authentication tag length: %u", tag_len);
-  }
-
-  if (cipher->ctx_.isGcmMode() && cipher->auth_tag_len_ == kNoAuthTagLength &&
-      tag_len != EVP_GCM_TLS_TAG_LEN && env->EmitProcessEnvWarning()) {
-    if (ProcessEmitDeprecationWarning(
-            env,
-            "Using AES-GCM authentication tags of less than 128 bits without "
-            "specifying the authTagLength option when initializing decryption "
-            "is deprecated.",
-            "DEP0182")
-            .IsNothing())
-      return;
   }
 
   cipher->auth_tag_len_ = tag_len;

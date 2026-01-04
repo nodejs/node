@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <nghttp2/nghttp2.h>
 #include "nghttp2_int.h"
@@ -121,4 +121,4 @@ int nghttp2_pq_each(nghttp2_pq *pq, nghttp2_pq_item_cb fun, void *arg);
  */
 void nghttp2_pq_remove(nghttp2_pq *pq, nghttp2_pq_entry *item);
 
-#endif /* NGHTTP2_PQ_H */
+#endif /* !defined(NGHTTP2_PQ_H) */

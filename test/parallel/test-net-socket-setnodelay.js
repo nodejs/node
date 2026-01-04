@@ -6,14 +6,14 @@ const net = require('net');
 
 const truthyValues = [true, 1, 'true', {}, []];
 const falseyValues = [false, 0, ''];
-const genSetNoDelay = (desiredArg) => (enable) => {
+const genSetNoDelay = common.mustCall((desiredArg) => common.mustCall((enable) => {
   assert.strictEqual(enable, desiredArg);
-};
+}), 2);
 
 // setNoDelay should default to true
 let socket = new net.Socket({
   handle: {
-    setNoDelay: common.mustCall(genSetNoDelay(true)),
+    setNoDelay: genSetNoDelay(true),
     readStart() {}
   }
 });
@@ -21,7 +21,7 @@ socket.setNoDelay();
 
 socket = new net.Socket({
   handle: {
-    setNoDelay: common.mustCall(genSetNoDelay(true), 1),
+    setNoDelay: genSetNoDelay(true),
     readStart() {}
   }
 });

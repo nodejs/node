@@ -41,6 +41,11 @@
 #endif
 #include <time.h>
 
+#ifdef USE_WINSOCK
+#  define DATABASEPATH         "DatabasePath"
+#  define WIN_PATH_HOSTS       "\\hosts"
+#endif
+
 /* HOSTS FILE PROCESSING OVERVIEW
  * ==============================
  * The hosts file on the system contains static entries to be processed locally

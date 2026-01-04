@@ -925,6 +925,11 @@ When passing a string as the `buffer`, please consider
 <!-- YAML
 added: v1.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/61084
+    description: Using GCM tag lengths other than 128 bits without specifying
+                 the `authTagLength` option when creating `decipher` is not
+                 allowed anymore.
   - version:
     - v22.0.0
     - v20.13.0
@@ -4526,12 +4531,13 @@ added:
  - v21.7.0
  - v20.12.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/60994
+    description: This API is no longer experimental.
   - version: v24.4.0
     pr-url: https://github.com/nodejs/node/pull/58121
     description: The `outputLength` option was added for XOF hash functions.
 -->
-
-> Stability: 1.2 - Release candidate
 
 * `algorithm` {string|undefined}
 * `data` {string|Buffer|TypedArray|DataView} When `data` is a

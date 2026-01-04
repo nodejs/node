@@ -1,6 +1,6 @@
 'use strict';
 require('../common');
-const { match, doesNotMatch, strictEqual } = require('node:assert');
+const assert = require('node:assert');
 const { spawnSync } = require('node:child_process');
 const fixtures = require('../common/fixtures');
 const fixture = fixtures.path('test-runner/throws_sync_and_async.js');
@@ -15,11 +15,11 @@ for (const isolation of ['none', 'process']) {
   ];
   const r = spawnSync(process.execPath, args);
 
-  strictEqual(r.status, 1);
-  strictEqual(r.signal, null);
-  strictEqual(r.stderr.toString(), '');
+  assert.strictEqual(r.status, 1);
+  assert.strictEqual(r.signal, null);
+  assert.strictEqual(r.stderr.toString(), '');
 
   const stdout = r.stdout.toString();
-  match(stdout, /Error: fails/);
-  doesNotMatch(stdout, /this should not have a chance to be thrown/);
+  assert.match(stdout, /Error: fails/);
+  assert.doesNotMatch(stdout, /this should not have a chance to be thrown/);
 }

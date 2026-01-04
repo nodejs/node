@@ -130,6 +130,7 @@ function regFetch (uri, /* istanbul ignore next */ opts_ = {}) {
       },
       strictSSL: opts.strictSSL,
       timeout: opts.timeout || 30 * 1000,
+      signal: opts.signal,
     }).then(res => checkResponse({
       method,
       uri,

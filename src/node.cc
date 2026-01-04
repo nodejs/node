@@ -1374,6 +1374,21 @@ ExitCode GenerateAndWriteSnapshotData(const SnapshotData** snapshot_data_ptr,
   DCHECK(snapshot_config.builder_script_path.has_value());
   const std::string& builder_script =
       snapshot_config.builder_script_path.value();
+
+  // For the special builder node:generate_default_snapshot_source, generate
+  // the snapshot as C++ source and write it to snapshot.cc (for testing).
+  if (builder_script == "node:generate_default_snapshot_source") {
+    // Reset to empty to generate from scratch.
+    snapshot_config.builder_script_path = {};
+    exit_code =
+        node::SnapshotBuilder::GenerateAsSource("snapshot.cc",
+                                                args_maybe_patched,
+                                                result->exec_args(),
+                                                snapshot_config,
+                                                true /* use_array_literals */);
+    return exit_code;
+  }
+
   // node:embedded_snapshot_main indicates that we are using the
   // embedded snapshot and we are not supposed to clean it up.
   if (builder_script == "node:embedded_snapshot_main") {

@@ -1,0 +1,5 @@
+---
+source: core/src/hir/attrs.rs
+expression: output
+---
+Lowering error in Foo: `generate_mocking_interface` not supported in backend tests

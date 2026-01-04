@@ -4,12 +4,29 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
     paths-ignore:
-      - .mailmap
       - '**.md'
-      - AUTHORS
+      - '**.nix'
+      - eslint.config.mjs
+      - '**/eslint.config_partial.mjs'
+      - android-configure
+      - android-configure.py
+      - android-patches/**
+      - benchmarks/**
+      - codecov.yml
       - doc/**
+      - pyproject.yml
+      - tsconfig.json
       - test/internet/**
-      - .github/**
+      - tools/actions/**
+      - tools/bootstrap/**
+      - tools/dep_updaters/**
+      - tools/doc/**
+      - tools/eslint-rules/**
+      - tools/eslint/**
+      - tools/lint-md/**
+      - typings/**
+      - vcbuild.bat
+      - .**
       - '!.github/workflows/build-tarball.yml'
   push:
     branches:
@@ -17,12 +34,29 @@ on:
       - v[0-9]+.x-staging
       - v[0-9]+.x
     paths-ignore:
-      - .mailmap
       - '**.md'
-      - AUTHORS
+      - '**.nix'
+      - eslint.config.mjs
+      - '**/eslint.config_partial.mjs'
+      - android-configure
+      - android-configure.py
+      - android-patches/**
+      - benchmarks/**
+      - codecov.yml
       - doc/**
+      - pyproject.yml
+      - tsconfig.json
       - test/internet/**
-      - .github/**
+      - tools/actions/**
+      - tools/bootstrap/**
+      - tools/dep_updaters/**
+      - tools/doc/**
+      - tools/eslint-rules/**
+      - tools/eslint/**
+      - tools/lint-md/**
+      - typings/**
+      - vcbuild.bat
+      - .**
       - '!.github/workflows/build-tarball.yml'
 
 concurrency:
@@ -42,11 +76,11 @@ jobs:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
         with:
           persist-credentials: false
       - name: Set up Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c  # v6.0.0
+        uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548  # v6.1.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           allow-prereleases: true
@@ -59,7 +93,7 @@ jobs:
           export COMMIT=$(git rev-parse --short=10 "$GITHUB_SHA")
           ./configure && make tar -j4 SKIP_XZ=1
       - name: Upload tarball artifact
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4  # v5.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0
         with:
           name: tarballs
           path: '*.tar.gz'
@@ -72,7 +106,7 @@ jobs:
       CXX: sccache clang++-19
       SCCACHE_GHA_ENABLED: 'true'
     steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
         with:
           persist-credentials: false
           sparse-checkout: .github/actions/install-clang
@@ -82,7 +116,7 @@ jobs:
         with:
           clang-version: ${{ env.CLANG_VERSION }}
       - name: Set up Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c  # v6.0.0
+        uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548  # v6.1.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           allow-prereleases: true
@@ -93,7 +127,7 @@ jobs:
       - name: Environment Information
         run: npx envinfo
       - name: Download tarball
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53  # v6.0.0
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131  # v7.0.0
         with:
           name: tarballs
           path: tarballs
@@ -104,4 +138,4 @@ jobs:
       - name: Build
         run: make -C "$TAR_DIR" build-ci -j4 V=1
       - name: Test
-        run: make -C "$TAR_DIR" run-ci -j4 V=1 TEST_CI_ARGS="-p dots --measure-flakiness 9"
+        run: make -C "$TAR_DIR" test-ci -j1 V=1 TEST_CI_ARGS="-p dots --measure-flakiness 9"

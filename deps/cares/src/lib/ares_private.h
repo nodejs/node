@@ -83,21 +83,7 @@
 #define CARES_INADDR_CAST(type, var) ((type)((const void *)var))
 
 #if defined(USE_WINSOCK)
-
-#  define WIN_NS_9X     "System\\CurrentControlSet\\Services\\VxD\\MSTCP"
 #  define WIN_NS_NT_KEY "System\\CurrentControlSet\\Services\\Tcpip\\Parameters"
-#  define WIN_DNSCLIENT "Software\\Policies\\Microsoft\\System\\DNSClient"
-#  define WIN_NT_DNSCLIENT \
-    "Software\\Policies\\Microsoft\\Windows NT\\DNSClient"
-#  define NAMESERVER           "NameServer"
-#  define DHCPNAMESERVER       "DhcpNameServer"
-#  define DATABASEPATH         "DatabasePath"
-#  define WIN_PATH_HOSTS       "\\hosts"
-#  define SEARCHLIST_KEY       "SearchList"
-#  define PRIMARYDNSSUFFIX_KEY "PrimaryDNSSuffix"
-#  define INTERFACES_KEY       "Interfaces"
-#  define DOMAIN_KEY           "Domain"
-#  define DHCPDOMAIN_KEY       "DhcpDomain"
 #  define PATH_RESOLV_CONF     ""
 #elif defined(WATT32)
 
@@ -144,6 +130,8 @@ W32_FUNC const char *_w32_GetHostsFile(void);
  */
 #define DEFAULT_SERVER_RETRY_CHANCE 10
 #define DEFAULT_SERVER_RETRY_DELAY  5000
+
+typedef void (*ares_query_enqueue_cb)(void *data);
 
 struct ares_query;
 typedef struct ares_query ares_query_t;
@@ -269,6 +257,9 @@ struct ares_channeldata {
   void                               *notify_pending_write_cb_data;
   ares_bool_t                         notify_pending_write;
 
+  ares_query_enqueue_cb               query_enqueue_cb;
+  void                               *query_enqueue_cb_data;
+
   /* Path for resolv.conf file, configurable via ares_options */
   char                               *resolvconf_path;
 
@@ -321,7 +312,7 @@ ares_status_t ares_send_query(ares_server_t *requested_server /* Optional */,
 ares_status_t ares_requeue_query(ares_query_t *query, const ares_timeval_t *now,
                                  ares_status_t            status,
                                  ares_bool_t              inc_try_count,
-                                 const ares_dns_record_t *dnsrec,
+                                 ares_dns_record_t       *dnsrec,
                                  ares_array_t           **requeue);
 
 /*! Count the number of labels (dots+1) in a domain */
@@ -367,6 +358,9 @@ ares_status_t  ares_init_servers_state(ares_channel_t *channel);
 ares_status_t  ares_init_by_options(ares_channel_t            *channel,
                                     const struct ares_options *options,
                                     int                        optmask);
+void ares_set_query_enqueue_cb(ares_channel_t       *channel,
+                               ares_query_enqueue_cb callback,
+                               void                 *user_data);
 ares_status_t  ares_init_by_sysconfig(ares_channel_t *channel);
 void           ares_set_socket_functions_def(ares_channel_t *channel);
 
@@ -594,10 +588,10 @@ ares_status_t ares_qcache_create(ares_rand_state *rand_state,
                                  unsigned int     max_ttl,
                                  ares_qcache_t  **cache_out);
 void          ares_qcache_flush(ares_qcache_t *cache);
-ares_status_t ares_qcache_insert(ares_channel_t       *channel,
-                                 const ares_timeval_t *now,
-                                 const ares_query_t   *query,
-                                 ares_dns_record_t    *dnsrec);
+ares_status_t ares_qcache_insert(ares_channel_t          *channel,
+                                 const ares_timeval_t    *now,
+                                 const ares_query_t      *query,
+                                 const ares_dns_record_t *dnsrec);
 ares_status_t ares_qcache_fetch(ares_channel_t           *channel,
                                 const ares_timeval_t     *now,
                                 const ares_dns_record_t  *dnsrec,

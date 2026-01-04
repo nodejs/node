@@ -30,6 +30,8 @@ async function setup() {
     'a/cb/e/f',
     'a/x/.y/b',
     'a/z/.y/b',
+    'a/.b',
+    'a/b/.b',
   ].map((f) => resolve(fixtureDir, f));
 
   const symlinkTo = resolve(fixtureDir, 'a/symlink/a/b/c');
@@ -188,6 +190,9 @@ const patterns = {
   ],
   '*/*/*/f': ['a/bc/e/f', 'a/cb/e/f'],
   './**/f': ['a/bc/e/f', 'a/cb/e/f'],
+  '**/.b': ['a/.b', 'a/b/.b'],
+  './**/.b': ['a/.b', 'a/b/.b'],
+  'a/**/.b': ['a/.b', 'a/b/.b'],
   'a/symlink/a/b/c/a/b/c/a/b/c//a/b/c////a/b/c/**/b/c/**': common.isWindows ? [] : [
     'a/symlink/a/b/c/a/b/c/a/b/c/a/b/c/a/b/c/a/b/c',
     'a/symlink/a/b/c/a/b/c/a/b/c/a/b/c/a/b/c/a/b/c/a',
@@ -529,7 +534,6 @@ describe('glob - with restricted directory', function() {
       for await (const match of asyncGlob('*', { cwd: restrictedDir })) {
         results.push(match);
       }
-      assert.ok(true, 'glob completed without throwing on readdir error');
     } finally {
       try {
         chmodSync(restrictedDir, 0o755);
