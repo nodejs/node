@@ -29,7 +29,7 @@ const {
   JSStream,
 } = internalBinding('js_stream');
 
-// Test 1: kStreamBase marker is attached to ReadableStream
+// kStreamBase marker is attached to ReadableStream
 {
   const stream = new JSStream();
   const readable = newReadableStreamFromStreamBase(stream);
@@ -40,7 +40,7 @@ const {
   stream.emitEOF();
 }
 
-// Test 2: kStreamBase marker is attached to WritableStream
+// kStreamBase marker is attached to WritableStream
 {
   const stream = new JSStream();
   stream.onwrite = common.mustNotCall();
@@ -54,7 +54,7 @@ const {
   writable.close();
 }
 
-// Test 3: Regular JS streams don't have kStreamBase
+// Regular JS streams don't have kStreamBase
 {
   const { ReadableStream, WritableStream } = require('stream/web');
 
@@ -76,7 +76,7 @@ const {
   rs.pipeTo(ws).then(common.mustCall());
 }
 
-// Test 4: Mixed streams (one internal, one JS) use standard path
+// Mixed streams (one internal, one JS) use standard path
 {
   const stream = new JSStream();
   stream.onshutdown = (req) => req.oncomplete();
@@ -104,7 +104,7 @@ const {
   }));
 }
 
-// Test 5: Verify kStreamBase is the correct symbol from util
+// Verify kStreamBase is the correct symbol from util
 {
   const {
     kStreamBase: kStreamBase2,
