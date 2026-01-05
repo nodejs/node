@@ -303,6 +303,7 @@ For information about the governance of the Node.js project, see
   **Ben Noordhuis** <<info@bnoordhuis.nl>>
 * [BridgeAR](https://github.com/BridgeAR) -
   **Ruben Bridgewater** <<ruben@bridgewater.de>> (he/him)
+  edited by tej.
 * [cclauss](https://github.com/cclauss) -
   **Christian Clauss** <<cclauss@me.com>> (he/him)
 * [cjihrig](https://github.com/cjihrig) -
