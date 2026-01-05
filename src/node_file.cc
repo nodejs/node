@@ -1990,11 +1990,18 @@ static void RealPath(const FunctionCallbackInfo<Value>& args) {
   if (argc > 2) {  // realpath(path, encoding, req)
     FSReqBase* req_wrap_async = GetReqWrap(args, 2);
     CHECK_NOT_NULL(req_wrap_async);
+    ASYNC_THROW_IF_INSUFFICIENT_PERMISSIONS(
+        env,
+        req_wrap_async,
+        permission::PermissionScope::kFileSystemRead,
+        path.ToStringView());
     FS_ASYNC_TRACE_BEGIN1(
         UV_FS_REALPATH, req_wrap_async, "path", TRACE_STR_COPY(*path))
     AsyncCall(env, req_wrap_async, args, "realpath", encoding, AfterStringPtr,
               uv_fs_realpath, *path);
   } else {  // realpath(path, encoding, undefined, ctx)
+    THROW_IF_INSUFFICIENT_PERMISSIONS(
+        env, permission::PermissionScope::kFileSystemRead, path.ToStringView());
     FSReqWrapSync req_wrap_sync("realpath", *path);
     FS_SYNC_TRACE_BEGIN(realpath);
     int err =
