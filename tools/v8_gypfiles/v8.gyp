@@ -53,6 +53,7 @@
       ['OS!="aix" and OS!="os400"', {
         'defines': [
           'BUILDING_V8_SHARED',  # Make V8_EXPORT visible.
+          'BUILDING_V8_PLATFORM_SHARED',  # Make V8_PLATFORM_EXPORT visible.
         ]
       }],
       ['node_shared=="true"', {
@@ -1284,6 +1285,7 @@
         ['component=="shared_library"', {
           'defines': [
             'BUILDING_V8_SHARED',
+            'BUILDING_V8_PLATFORM_SHARED',
           ],
         }],
         ['v8_enable_i18n_support==1', {
@@ -1353,6 +1355,7 @@
       'defines!': [
         '_HAS_EXCEPTIONS=0',
         'BUILDING_V8_SHARED=1',
+        'BUILDING_V8_PLATFORM_SHARED=1',
       ],
       'cflags_cc!': ['-fno-exceptions'],
       'cflags_cc': ['-fexceptions'],
@@ -1379,6 +1382,7 @@
       'defines!': [
         '_HAS_EXCEPTIONS=0',
         'BUILDING_V8_SHARED=1',
+        'BUILDING_V8_PLATFORM_SHARED=1',
       ],
       'cflags_cc!': ['-fno-exceptions'],
       'cflags_cc': ['-fexceptions'],
@@ -1720,6 +1724,7 @@
       ],
       'defines!': [
         'BUILDING_V8_SHARED=1',
+        'BUILDING_V8_PLATFORM_SHARED=1',
       ],
       'dependencies': [
         'v8_libbase',
@@ -1801,6 +1806,7 @@
       'defines!': [
         '_HAS_EXCEPTIONS=0',
         'BUILDING_V8_SHARED=1',
+        'BUILDING_V8_PLATFORM_SHARED=1',
       ],
       'cflags_cc!': ['-fno-exceptions'],
       'cflags_cc': ['-fexceptions'],
@@ -1844,6 +1850,7 @@
       'defines!': [
         '_HAS_EXCEPTIONS=0',
         'BUILDING_V8_SHARED=1',
+        'BUILDING_V8_PLATFORM_SHARED=1',
       ],
       'msvs_settings': {
         'VCCLCompilerTool': {
@@ -2058,10 +2065,12 @@
           ],
           'defines': [
             'BUILDING_V8_SHARED',
+            'BUILDING_V8_PLATFORM_SHARED',
           ],
           'direct_dependent_settings': {
             'defines': [
               'USING_V8_SHARED',
+              'USING_V8_PLATFORM_SHARED',
             ],
           },
           'conditions': [
