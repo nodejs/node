@@ -11362,23 +11362,25 @@ var require_fetch = __commonJS({
               if (status < 200) {
                 return;
               }
-              let codings = [];
               let location = "";
               const headersList = new HeadersList();
               for (let i = 0; i < rawHeaders.length; i += 2) {
                 headersList.append(bufferToLowerCasedHeaderName(rawHeaders[i]), rawHeaders[i + 1].toString("latin1"), true);
               }
-              const contentEncoding = headersList.get("content-encoding", true);
-              if (contentEncoding) {
-                codings = contentEncoding.toLowerCase().split(",").map((x) => x.trim());
-              }
               location = headersList.get("location", true);
               this.body = new Readable({ read: resume });
               const decoders = [];
               const willFollow = location && request.redirect === "follow" && redirectStatusSet.has(status);
-              if (codings.length !== 0 && request.method !== "HEAD" && request.method !== "CONNECT" && !nullBodyStatus.includes(status) && !willFollow) {
+              if (request.method !== "HEAD" && request.method !== "CONNECT" && !nullBodyStatus.includes(status) && !willFollow) {
+                const contentEncoding = headersList.get("content-encoding", true);
+                const codings = contentEncoding ? contentEncoding.toLowerCase().split(",") : [];
+                const maxContentEncodings = 5;
+                if (codings.length > maxContentEncodings) {
+                  reject(new Error(`too many content-encodings in response: ${codings.length}, maximum allowed is ${maxContentEncodings}`));
+                  return true;
+                }
                 for (let i = codings.length - 1; i >= 0; --i) {
-                  const coding = codings[i];
+                  const coding = codings[i].trim();
                   if (coding === "x-gzip" || coding === "gzip") {
                     decoders.push(zlib.createGunzip({
                       // Be less strict when decoding compressed responses, since sometimes

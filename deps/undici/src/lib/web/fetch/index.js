@@ -2111,20 +2111,12 @@ async function httpNetworkFetch (
             return
           }
 
-          /** @type {string[]} */
-          let codings = []
           let location = ''
 
           const headersList = new HeadersList()
 
           for (let i = 0; i < rawHeaders.length; i += 2) {
             headersList.append(bufferToLowerCasedHeaderName(rawHeaders[i]), rawHeaders[i + 1].toString('latin1'), true)
-          }
-          const contentEncoding = headersList.get('content-encoding', true)
-          if (contentEncoding) {
-            // https://www.rfc-editor.org/rfc/rfc7231#section-3.1.2.1
-            // "All content-coding values are case-insensitive..."
-            codings = contentEncoding.toLowerCase().split(',').map((x) => x.trim())
           }
           location = headersList.get('location', true)
 
@@ -2136,9 +2128,23 @@ async function httpNetworkFetch (
             redirectStatusSet.has(status)
 
           // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Encoding
-          if (codings.length !== 0 && request.method !== 'HEAD' && request.method !== 'CONNECT' && !nullBodyStatus.includes(status) && !willFollow) {
+          if (request.method !== 'HEAD' && request.method !== 'CONNECT' && !nullBodyStatus.includes(status) && !willFollow) {
+            // https://www.rfc-editor.org/rfc/rfc7231#section-3.1.2.1
+            const contentEncoding = headersList.get('content-encoding', true)
+            // "All content-coding values are case-insensitive..."
+            /** @type {string[]} */
+            const codings = contentEncoding ? contentEncoding.toLowerCase().split(',') : []
+
+            // Limit the number of content-encodings to prevent resource exhaustion.
+            // CVE fix similar to urllib3 (GHSA-gm62-xv2j-4w53) and curl (CVE-2022-32206).
+            const maxContentEncodings = 5
+            if (codings.length > maxContentEncodings) {
+              reject(new Error(`too many content-encodings in response: ${codings.length}, maximum allowed is ${maxContentEncodings}`))
+              return true
+            }
+
             for (let i = codings.length - 1; i >= 0; --i) {
-              const coding = codings[i]
+              const coding = codings[i].trim()
               // https://www.rfc-editor.org/rfc/rfc9112.html#section-7.2
               if (coding === 'x-gzip' || coding === 'gzip') {
                 decoders.push(zlib.createGunzip({
