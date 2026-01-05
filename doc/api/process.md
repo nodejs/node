@@ -2864,7 +2864,7 @@ console.log(memoryUsage.rss());
 added: v0.5.3
 -->
 
-* Returns: {string\[]}
+* Type: {string\[]}
 
 The `process.moduleLoadList` property returns an array of internal bindings and core modules that
 were loaded during the current Node.js process execution.
