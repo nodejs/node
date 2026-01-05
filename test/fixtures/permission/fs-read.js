@@ -497,3 +497,17 @@ const regularFile = __filename;
     assert.ifError(err);
   });
 }
+
+// fs.realpath.native
+{
+  fs.realpath.native(blockedFile, common.expectsError({
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemRead',
+    resource: path.toNamespacedPath(blockedFile),
+  }));
+
+  // doesNotThrow
+  fs.realpath.native(regularFile, (err) => {
+    assert.ifError(err);
+  });
+}
