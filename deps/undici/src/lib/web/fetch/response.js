@@ -9,9 +9,7 @@ const {
   isValidReasonPhrase,
   isCancelled,
   isAborted,
-  serializeJavascriptValueToJSONString,
   isErrorLike,
-  isomorphicEncode,
   environmentSettingsObject: relevantRealm
 } = require('./util')
 const {
@@ -22,6 +20,7 @@ const { webidl } = require('../webidl')
 const { URLSerializer } = require('./data-url')
 const { kConstruct } = require('../../core/symbols')
 const assert = require('node:assert')
+const { isomorphicEncode, serializeJavascriptValueToJSONString } = require('../infra')
 
 const textEncoder = new TextEncoder('utf-8')
 
@@ -454,7 +453,7 @@ function filterResponse (response, type) {
 
     return makeFilteredResponse(response, {
       type: 'opaque',
-      urlList: Object.freeze([]),
+      urlList: [],
       status: 0,
       statusText: '',
       body: null

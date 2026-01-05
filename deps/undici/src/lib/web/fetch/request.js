@@ -1094,6 +1094,12 @@ webidl.converters.RequestInit = webidl.dictionaryConverter([
   {
     key: 'dispatcher', // undici specific option
     converter: webidl.converters.any
+  },
+  {
+    key: 'priority',
+    converter: webidl.converters.DOMString,
+    allowedValues: ['high', 'low', 'auto'],
+    defaultValue: () => 'auto'
   }
 ])
 

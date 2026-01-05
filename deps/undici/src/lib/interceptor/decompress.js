@@ -3,6 +3,7 @@
 const { createInflate, createGunzip, createBrotliDecompress, createZstdDecompress } = require('node:zlib')
 const { pipeline } = require('node:stream')
 const DecoratorHandler = require('../handler/decorator-handler')
+const { runtimeFeatures } = require('../util/runtime-features')
 
 /** @typedef {import('node:stream').Transform} Transform */
 /** @typedef {import('node:stream').Transform} Controller */
@@ -16,7 +17,7 @@ const supportedEncodings = {
   deflate: createInflate,
   compress: createInflate,
   'x-compress': createInflate,
-  ...(createZstdDecompress ? { zstd: createZstdDecompress } : {})
+  ...(runtimeFeatures.has('zstd') ? { zstd: createZstdDecompress } : {})
 }
 
 const defaultSkipStatusCodes = /** @type {const} */ ([204, 304])
