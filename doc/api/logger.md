@@ -260,6 +260,30 @@ requestLogger.info('Processing request');
 // Log includes: service: 'my-app', requestId: 'abc123'
 ```
 
+### `logger.<level>.enabled`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {boolean} `true` if the level is enabled, `false` otherwise.
+
+Each log method (`trace`, `debug`, `info`, `warn`, `error`, `fatal`) has an
+`enabled` property that indicates whether that level is enabled for this logger.
+
+This is the recommended way to check if a level is enabled before performing
+expensive computations:
+
+```js
+if (logger.debug.enabled) {
+  // Perform expensive debug computation only if debug is enabled
+  logger.debug('Debug info', { expensiveData: computeDebugData() });
+}
+
+// Typos will throw a TypeError (safer than silent failure)
+// logger.debg.enabled → TypeError: Cannot read properties of undefined
+```
+
 ### `logger.enabled(level)`
 
 <!-- YAML
@@ -269,12 +293,19 @@ added: REPLACEME
 * `level` {string} The log level to check.
 * Returns: {boolean} `true` if the level is enabled, `false` otherwise.
 
-Checks if a specific log level is enabled for this logger.
+Checks if a specific log level is enabled for this logger. For most use cases,
+prefer using [`logger.<level>.enabled`][] instead, as it catches typos at
+runtime.
 
 ```js
+// Prefer this:
+if (logger.debug.enabled) {
+  logger.debug('message');
+}
+
+// Over this (typos won't throw):
 if (logger.enabled('debug')) {
-  // Perform expensive debug computation
-  logger.debug('Debug info', { expensiveData: computeDebugData() });
+  logger.debug('message');
 }
 ```
 
@@ -747,5 +778,4 @@ class ConsoleColorConsumer extends LogConsumer {
 const consumer = new ConsoleColorConsumer({ level: 'debug' });
 consumer.attach();
 ```
-
-[RFC 5424]: https://www.rfc-editor.org/rfc/rfc5424.html
+[`logger.<level>.enabled`]: #loggerlevelenabled
