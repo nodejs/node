@@ -205,7 +205,7 @@ void ForceAscii(const char *src, char *dst, size_t len) {
       ForceAsciiSlow(src, dst, unalign);
       src += unalign;
       dst += unalign;
-      len -= src_unalign;
+      len -= unalign;
     } else {
       ForceAsciiSlow(src, dst, len);
       return;
