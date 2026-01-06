@@ -49,7 +49,7 @@ static void PrintSourceLocation(const v8::SourceLocation& location) {
 }
 
 static void PlatformWorkerThread(void* data) {
-  uv_thread_setname("V8Worker");
+  uv_thread_setname("node-V8Worker");
   std::unique_ptr<PlatformWorkerData>
       worker_data(static_cast<PlatformWorkerData*>(data));
 
@@ -101,7 +101,7 @@ class WorkerThreadsTaskRunner::DelayedTaskScheduler {
 
   std::unique_ptr<uv_thread_t> Start() {
     auto start_thread = [](void* data) {
-      uv_thread_setname("DelayedTaskSchedulerWorker");
+      uv_thread_setname("node-DelayedTaskSchedulerWorker");
       static_cast<DelayedTaskScheduler*>(data)->Run();
     };
     std::unique_ptr<uv_thread_t> t { new uv_thread_t() };

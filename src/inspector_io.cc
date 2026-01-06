@@ -286,7 +286,7 @@ void InspectorIo::ThreadMain(void* io) {
 }
 
 void InspectorIo::ThreadMain() {
-  int thread_name_error = uv_thread_setname("InspectorIo");
+  int thread_name_error = uv_thread_setname("node-InspectorIo");
   if (!thread_name_error) [[unlikely]] {
     per_process::Debug(node::DebugCategory::INSPECTOR_SERVER,
                        "Failed to set thread name for Inspector\n");

@@ -12,11 +12,11 @@ const bindingPath = require.resolve(`./build/${common.buildType}/binding`);
 const binding = require(bindingPath);
 
 if (isMainThread) {
-  assert.strictEqual(binding.getThreadName(), 'MainThread');
+  assert.strictEqual(binding.getThreadName(), 'node-MainThread');
 
   const worker = new Worker(__filename);
   worker.on('message', common.mustCall((data) => {
-    assert.strictEqual(data, 'WorkerThread');
+    assert.strictEqual(data, 'node-WorkerThread');
   }));
   worker.on('error', common.mustNotCall());
   worker.on('exit', common.mustCall((code) => {
