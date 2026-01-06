@@ -4771,6 +4771,175 @@ stream that simply passes the input bytes across to the output. Its purpose is
 primarily for examples and testing, but there are some use cases where
 `stream.PassThrough` is useful as a building block for novel sorts of streams.
 
+#### Class: `stream.SyncTransform`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+The `stream.SyncTransform` class is a high-performance synchronous transform
+stream that enforces backpressure without internal buffering. Unlike the
+standard [`Transform`][] stream, the transformation function is synchronous
+(no callback), which results in significantly better performance (up to 10x
+faster).
+
+```js
+const { SyncTransform, pipeline } = require('node:stream');
+const { createReadStream } = require('node:fs');
+
+pipeline(
+  createReadStream('input.txt'),
+  SyncTransform((chunk) => {
+    return chunk.toString().toUpperCase();
+  }),
+  process.stdout,
+  (err) => {
+    if (err) console.error(err);
+  }
+);
+```
+
+##### `new stream.SyncTransform([transform[, flush]])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `transform` {Function} The synchronous transformation function.
+  * `chunk` {any} The chunk to be transformed.
+  * Returns: {any} The transformed chunk. Return `null` to end the stream,
+    or `undefined` to skip this chunk.
+* `flush` {Function} Optional function called before the stream ends.
+  * Returns: {any} Optional final chunk to write before ending.
+
+Creates a new `SyncTransform` stream. Can be called with or without `new`.
+
+```js
+const { SyncTransform } = require('node:stream');
+
+// Using as a function
+const upper = SyncTransform((chunk) => chunk.toString().toUpperCase());
+
+// Using with new
+const lower = new SyncTransform((chunk) => chunk.toString().toLowerCase());
+
+// With flush
+const withTrailer = SyncTransform(
+  (chunk) => chunk,
+  () => Buffer.from('END')
+);
+```
+
+##### `syncTransform.pipe(destination[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `destination` {stream.Writable} The destination for writing data.
+* `options` {Object}
+  * `end` {boolean} End the destination when the source ends. **Default:** `true`.
+* Returns: {stream.Writable} The destination stream.
+
+Pipes data to the destination. Unlike standard streams, `SyncTransform` only
+allows piping to a single destination. Attempting to pipe to multiple
+destinations will throw an error.
+
+##### `syncTransform.unpipe(destination)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `destination` {stream.Writable} The destination to unpipe.
+* Returns: {stream.SyncTransform} Returns `this`.
+
+Removes the pipe to the specified destination.
+
+##### `syncTransform.write(chunk)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `chunk` {any} The data to write.
+* Returns: {boolean} `false` if backpressure should be applied, `true` otherwise.
+
+Writes data to the stream. The transform function is called synchronously
+with the chunk. If no destination is piped, the transformed data is held
+until a destination is available (backpressure is enforced).
+
+##### `syncTransform.push(chunk)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `chunk` {any} The data to push to the destination.
+* Returns: {stream.SyncTransform} Returns `this`.
+
+Pushes a chunk directly to the destination. Can be called multiple times
+within the transform function to output multiple chunks from a single input.
+
+```js
+const { SyncTransform } = require('node:stream');
+
+const duplicator = SyncTransform(function(chunk) {
+  this.push(chunk);
+  this.push(chunk);
+  // Return undefined to skip the normal return path
+});
+```
+
+##### `syncTransform.end([chunk])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `chunk` {any} Optional final chunk to write.
+* Returns: {stream.SyncTransform} Returns `this`.
+
+Signals the end of the writable side of the stream. If a flush function was
+provided, it is called and its return value (if any) is written to the
+destination before ending.
+
+##### `syncTransform.destroy([error])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `error` {Error} Optional error to emit.
+* Returns: {stream.SyncTransform} Returns `this`.
+
+Destroys the stream. If an error is provided, an `'error'` event is emitted.
+A `'close'` event is always emitted.
+
+##### Caveats
+
+The `SyncTransform` stream has some important differences from standard
+streams:
+
+1. **Strict backpressure**: Writing to a `SyncTransform` before it's piped
+   will buffer exactly one chunk. Writing again before piping or before the
+   destination is ready will emit an error.
+
+2. **Single destination**: Only one `pipe()` destination is allowed. Attempting
+   to pipe to multiple destinations throws an error.
+
+3. **No `readable` event**: Data is pushed directly to the destination when
+   available, rather than being buffered for pull-based consumption.
+
+4. **Either `pipe()` or `'data'` event**: You can use `pipe()` or listen to
+   `'data'` events, but not both. Adding a `'data'` listener after calling
+   `pipe()` throws an error.
+
+5. **Object mode by default**: Unlike standard streams, `SyncTransform`
+   automatically handles objects without requiring explicit configuration.
+
 ## Additional notes
 
 <!--type=misc-->
