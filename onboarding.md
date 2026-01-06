@@ -286,7 +286,7 @@ needs to be pointed out separately during the onboarding.
 * If you are interested in helping to fix coverity reports consider requesting
   access to the projects coverity project as outlined in [static-analysis][].
 * If you are interested in helping out with CI reliability, check out the
-  [reliability respository][] and [guide on how to deal with CI flakes][].
+  [reliability repository][] and [guide on how to deal with CI flakes][].
 
 [Code of Conduct]: https://github.com/nodejs/admin/blob/HEAD/CODE_OF_CONDUCT.md
 [Labels]: doc/contributing/collaborator-guide.md#labels
@@ -299,7 +299,7 @@ needs to be pointed out separately during the onboarding.
 [`node-test-pull-request`]: https://ci.nodejs.org/job/node-test-pull-request/
 [guide on how to deal with CI flakes]: https://github.com/nodejs/test?tab=readme-ov-file#protocols-in-improving-ci-reliability
 [participants' expenses]: https://github.com/openjs-foundation/cross-project-council/blob/main/community-fund/COMMUNITY_FUND_POLICY.md#community-fund-rules
-[reliability respository]: https://github.com/nodejs/reliability
+[reliability repository]: https://github.com/nodejs/reliability
 [set up the credentials]: https://github.com/nodejs/node-core-utils#setting-up-github-credentials
 [static-analysis]: doc/contributing/static-analysis.md
 [two-factor authentication]: https://help.github.com/articles/securing-your-account-with-two-factor-authentication-2fa/
