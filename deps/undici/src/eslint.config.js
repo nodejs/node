@@ -16,6 +16,8 @@ module.exports = [
   }),
   {
     rules: {
+      'n/prefer-node-protocol': ['error'],
+      'n/no-process-exit': 'error',
       '@stylistic/comma-dangle': ['error', {
         arrays: 'never',
         objects: 'never',

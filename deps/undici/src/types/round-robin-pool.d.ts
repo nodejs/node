@@ -3,31 +3,31 @@ import TPoolStats from './pool-stats'
 import { URL } from 'node:url'
 import Dispatcher from './dispatcher'
 
-export default Pool
+export default RoundRobinPool
 
-type PoolConnectOptions = Omit<Dispatcher.ConnectOptions, 'origin'>
+type RoundRobinPoolConnectOptions = Omit<Dispatcher.ConnectOptions, 'origin'>
 
-declare class Pool extends Dispatcher {
-  constructor (url: string | URL, options?: Pool.Options)
+declare class RoundRobinPool extends Dispatcher {
+  constructor (url: string | URL, options?: RoundRobinPool.Options)
   /** `true` after `pool.close()` has been called. */
   closed: boolean
   /** `true` after `pool.destroyed()` has been called or `pool.close()` has been called and the pool shutdown has completed. */
   destroyed: boolean
-  /** Aggregate stats for a Pool. */
+  /** Aggregate stats for a RoundRobinPool. */
   readonly stats: TPoolStats
 
   // Override dispatcher APIs.
   override connect (
-    options: PoolConnectOptions
+    options: RoundRobinPoolConnectOptions
   ): Promise<Dispatcher.ConnectData>
   override connect (
-    options: PoolConnectOptions,
+    options: RoundRobinPoolConnectOptions,
     callback: (err: Error | null, data: Dispatcher.ConnectData) => void
   ): void
 }
 
-declare namespace Pool {
-  export type PoolStats = TPoolStats
+declare namespace RoundRobinPool {
+  export type RoundRobinPoolStats = TPoolStats
   export interface Options extends Client.Options {
     /** Default: `(origin, opts) => new Client(origin, opts)`. */
     factory?(origin: URL, opts: object): Dispatcher;
@@ -36,6 +36,6 @@ declare namespace Pool {
     /** The amount of time before a client is removed from the pool and closed. `null` if no time limit. Default `null` */
     clientTtl?: number | null;
 
-    interceptors?: { Pool?: readonly Dispatcher.DispatchInterceptor[] } & Client.Options['interceptors']
+    interceptors?: { RoundRobinPool?: readonly Dispatcher.DispatchInterceptor[] } & Client.Options['interceptors']
   }
 }

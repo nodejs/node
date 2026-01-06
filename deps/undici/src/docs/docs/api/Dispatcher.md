@@ -1043,6 +1043,7 @@ The `dns` interceptor enables you to cache DNS lookups for a given duration, per
   - The function should return a single record from the records array.
   - By default a simplified version of Round Robin is used.
   - The `records` property can be mutated to store the state of the balancing algorithm.
+- `storage: DNSStorage` - Custom storage for resolved DNS records
 
 > The `Dispatcher#options` also gets extended with the options `dns.affinity`, `dns.dualStack`, `dns.lookup` and `dns.pick` which can be used to configure the interceptor at a request-per-request basis.
 
@@ -1057,6 +1058,14 @@ It represents a map of DNS IP addresses records for a single origin.
 - `4.ips` - (`DNSInterceptorRecord[] | null`) The IPv4 addresses.
 - `6.ips` - (`DNSInterceptorRecord[] | null`) The IPv6 addresses.
 
+**DNSStorage**
+It represents a storage object for resolved DNS records.
+- `size` - (`number`) current size of the storage.
+- `get` - (`(origin: string) => DNSInterceptorOriginRecords | null`) method to get the records for a given origin.
+- `set` - (`(origin: string, records: DNSInterceptorOriginRecords | null, options: { ttl: number }) => void`) method to set the records for a given origin.
+- `delete` - (`(origin: string) => void`) method to delete records for a given origin.
+- `full` - (`() => boolean`) method to check if the storage is full, if returns `true`, DNS lookup will be skipped in this interceptor and new records will not be stored.
+
 **Example - Basic DNS Interceptor**
 
 ```js
@@ -1065,6 +1074,45 @@ const { dns } = interceptors;
 
 const client = new Agent().compose([
   dns({ ...opts })
+])
+
+const response = await client.request({
+  origin: `http://localhost:3030`,
+  ...requestOpts
+})
+```
+
+**Example - DNS Interceptor and LRU cache as a storage**
+
+```js
+const { Client, interceptors } = require("undici");
+const QuickLRU = require("quick-lru");
+const { dns } = interceptors;
+
+const lru = new QuickLRU({ maxSize: 100 });
+
+const lruAdapter = {
+  get size() {
+    return lru.size;
+  },
+  get(origin) {
+    return lru.get(origin);
+  },
+  set(origin, records, { ttl }) {
+    lru.set(origin, records, { maxAge: ttl });
+  },
+  delete(origin) {
+    lru.delete(origin);
+  },
+  full() {
+    // For LRU cache, we can always store new records,
+    // old records will be evicted automatically
+    return false;
+  }
+}
+
+const client = new Agent().compose([
+  dns({ storage: lruAdapter })
 ])
 
 const response = await client.request({
@@ -1164,6 +1212,44 @@ The `cache` interceptor implements client-side response caching as described in
 - `methods` - The [**safe** HTTP methods](https://www.rfc-editor.org/rfc/rfc9110#section-9.2.1) to cache the response of.
 - `cacheByDefault` - The default expiration time to cache responses by if they don't have an explicit expiration and cannot have an heuristic expiry computed. If this isn't present, responses neither with an explicit expiration nor heuristically cacheable will not be cached. Default `undefined`.
 - `type` - The [type of cache](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Caching#types_of_caches) for Undici to act as. Can be `shared` or `private`. Default `shared`. `private` implies privately cacheable responses will be cached and potentially shared with other users of your application.
+
+##### `Deduplicate Interceptor`
+
+The `deduplicate` interceptor deduplicates concurrent identical requests. When multiple identical requests are made while one is already in-flight, only one request is sent to the origin server, and all waiting handlers receive the same response. This reduces server load and improves performance.
+
+**Options**
+
+- `methods` - The [**safe** HTTP methods](https://www.rfc-editor.org/rfc/rfc9110#section-9.2.1) to deduplicate. Default `['GET']`.
+- `skipHeaderNames` - Header names that, if present in a request, will cause the request to skip deduplication entirely. Useful for headers like `idempotency-key` where presence indicates unique processing. Header name matching is case-insensitive. Default `[]`.
+- `excludeHeaderNames` - Header names to exclude from the deduplication key. Requests with different values for these headers will still be deduplicated together. Useful for headers like `x-request-id` that vary per request but shouldn't affect deduplication. Header name matching is case-insensitive. Default `[]`.
+
+**Usage**
+
+```js
+const { Client, interceptors } = require("undici");
+const { deduplicate, cache } = interceptors;
+
+// Deduplicate only
+const client = new Client("http://example.com").compose(
+  deduplicate()
+);
+
+// Deduplicate with caching
+const clientWithCache = new Client("http://example.com").compose(
+  deduplicate(),
+  cache()
+);
+```
+
+Requests are considered identical if they have the same:
+- Origin
+- HTTP method
+- Path
+- Request headers (excluding any headers specified in `excludeHeaderNames`)
+
+All deduplicated requests receive the complete response including status code, headers, and body.
+
+For observability, request deduplication events are published to the `undici:request:pending-requests` [diagnostic channel](/docs/docs/api/DiagnosticsChannel.md#undicirequestpending-requests).
 
 ## Instance Events
 

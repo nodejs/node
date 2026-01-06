@@ -1,6 +1,6 @@
 import Pool from './pool'
 import Dispatcher from './dispatcher'
-import { URL } from 'url'
+import { URL } from 'node:url'
 
 export default BalancedPool
 
@@ -11,6 +11,7 @@ declare class BalancedPool extends Dispatcher {
 
   addUpstream (upstream: string | URL): BalancedPool
   removeUpstream (upstream: string | URL): BalancedPool
+  getUpstream (upstream: string | URL): Pool | undefined
   upstreams: Array<string>
 
   /** `true` after `pool.close()` has been called. */

@@ -4,6 +4,7 @@ const Client = require('./lib/dispatcher/client')
 const Dispatcher = require('./lib/dispatcher/dispatcher')
 const Pool = require('./lib/dispatcher/pool')
 const BalancedPool = require('./lib/dispatcher/balanced-pool')
+const RoundRobinPool = require('./lib/dispatcher/round-robin-pool')
 const Agent = require('./lib/dispatcher/agent')
 const ProxyAgent = require('./lib/dispatcher/proxy-agent')
 const EnvHttpProxyAgent = require('./lib/dispatcher/env-http-proxy-agent')
@@ -31,6 +32,7 @@ module.exports.Dispatcher = Dispatcher
 module.exports.Client = Client
 module.exports.Pool = Pool
 module.exports.BalancedPool = BalancedPool
+module.exports.RoundRobinPool = RoundRobinPool
 module.exports.Agent = Agent
 module.exports.ProxyAgent = ProxyAgent
 module.exports.EnvHttpProxyAgent = EnvHttpProxyAgent
@@ -47,7 +49,8 @@ module.exports.interceptors = {
   dump: require('./lib/interceptor/dump'),
   dns: require('./lib/interceptor/dns'),
   cache: require('./lib/interceptor/cache'),
-  decompress: require('./lib/interceptor/decompress')
+  decompress: require('./lib/interceptor/decompress'),
+  deduplicate: require('./lib/interceptor/deduplicate')
 }
 
 module.exports.cacheStores = {

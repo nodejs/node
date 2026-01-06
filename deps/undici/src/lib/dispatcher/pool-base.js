@@ -52,7 +52,7 @@ class PoolBase extends DispatcherBase {
       for (let i = 0; i < this[kClients].length; i++) {
         closeAll[i] = this[kClients][i].close()
       }
-      Promise.all(closeAll)
+      return Promise.all(closeAll)
         .then(this[kClosedResolve])
     }
   }

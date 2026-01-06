@@ -5,14 +5,44 @@ const DecoratorHandler = require('../handler/decorator-handler')
 const { InvalidArgumentError, InformationalError } = require('../core/errors')
 const maxInt = Math.pow(2, 31) - 1
 
+class DNSStorage {
+  #maxItems = 0
+  #records = new Map()
+
+  constructor (opts) {
+    this.#maxItems = opts.maxItems
+  }
+
+  get size () {
+    return this.#records.size
+  }
+
+  get (hostname) {
+    return this.#records.get(hostname) ?? null
+  }
+
+  set (hostname, records) {
+    this.#records.set(hostname, records)
+  }
+
+  delete (hostname) {
+    this.#records.delete(hostname)
+  }
+
+  // Delegate to storage decide can we do more lookups or not
+  full () {
+    return this.size >= this.#maxItems
+  }
+}
+
 class DNSInstance {
   #maxTTL = 0
   #maxItems = 0
-  #records = new Map()
   dualStack = true
   affinity = null
   lookup = null
   pick = null
+  storage = null
 
   constructor (opts) {
     this.#maxTTL = opts.maxTTL
@@ -21,17 +51,14 @@ class DNSInstance {
     this.affinity = opts.affinity
     this.lookup = opts.lookup ?? this.#defaultLookup
     this.pick = opts.pick ?? this.#defaultPick
-  }
-
-  get full () {
-    return this.#records.size === this.#maxItems
+    this.storage = opts.storage ?? new DNSStorage(opts)
   }
 
   runLookup (origin, opts, cb) {
-    const ips = this.#records.get(origin.hostname)
+    const ips = this.storage.get(origin.hostname)
 
     // If full, we just return the origin
-    if (ips == null && this.full) {
+    if (ips == null && this.storage.full()) {
       cb(null, origin)
       return
     }
@@ -55,7 +82,7 @@ class DNSInstance {
         }
 
         this.setRecords(origin, addresses)
-        const records = this.#records.get(origin.hostname)
+        const records = this.storage.get(origin.hostname)
 
         const ip = this.pick(
           origin,
@@ -89,7 +116,7 @@ class DNSInstance {
 
       // If no IPs we lookup - deleting old records
       if (ip == null) {
-        this.#records.delete(origin.hostname)
+        this.storage.delete(origin.hostname)
         this.runLookup(origin, opts, cb)
         return
       }
@@ -193,7 +220,7 @@ class DNSInstance {
   }
 
   pickFamily (origin, ipFamily) {
-    const records = this.#records.get(origin.hostname)?.records
+    const records = this.storage.get(origin.hostname)?.records
     if (!records) {
       return null
     }
@@ -227,11 +254,13 @@ class DNSInstance {
   setRecords (origin, addresses) {
     const timestamp = Date.now()
     const records = { records: { 4: null, 6: null } }
+    let minTTL = this.#maxTTL
     for (const record of addresses) {
       record.timestamp = timestamp
       if (typeof record.ttl === 'number') {
         // The record TTL is expected to be in ms
         record.ttl = Math.min(record.ttl, this.#maxTTL)
+        minTTL = Math.min(minTTL, record.ttl)
       } else {
         record.ttl = this.#maxTTL
       }
@@ -242,11 +271,12 @@ class DNSInstance {
       records.records[record.family] = familyRecords
     }
 
-    this.#records.set(origin.hostname, records)
+    // We provide a default TTL if external storage will be used without TTL per record-level support
+    this.storage.set(origin.hostname, records, { ttl: minTTL })
   }
 
   deleteRecords (origin) {
-    this.#records.delete(origin.hostname)
+    this.storage.delete(origin.hostname)
   }
 
   getHandler (meta, opts) {
@@ -372,6 +402,17 @@ module.exports = interceptorOpts => {
     throw new InvalidArgumentError('Invalid pick. Must be a function')
   }
 
+  if (
+    interceptorOpts?.storage != null &&
+    (typeof interceptorOpts?.storage?.get !== 'function' ||
+      typeof interceptorOpts?.storage?.set !== 'function' ||
+      typeof interceptorOpts?.storage?.full !== 'function' ||
+      typeof interceptorOpts?.storage?.delete !== 'function'
+    )
+  ) {
+    throw new InvalidArgumentError('Invalid storage. Must be a object with methods: { get, set, full, delete }')
+  }
+
   const dualStack = interceptorOpts?.dualStack ?? true
   let affinity
   if (dualStack) {
@@ -386,7 +427,8 @@ module.exports = interceptorOpts => {
     pick: interceptorOpts?.pick ?? null,
     dualStack,
     affinity,
-    maxItems: interceptorOpts?.maxItems ?? Infinity
+    maxItems: interceptorOpts?.maxItems ?? Infinity,
+    storage: interceptorOpts?.storage
   }
 
   const instance = new DNSInstance(opts)

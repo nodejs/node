@@ -38,6 +38,7 @@ declare namespace CacheHandler {
      * @default 'shared'
      */
     type?: 'shared' | 'private'
+
   }
 
   export interface CacheControlDirectives {
