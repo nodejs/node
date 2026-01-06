@@ -325,7 +325,12 @@ git node release -S --prepare --security --filterLabel v20.x
 ```
 
 to automate the remaining steps until step 6 or you can perform it manually
-following the below steps.
+following the below steps. For semver-minors, you can pass the new version
+explicitly with `--newVersion` arg:
+
+```bash
+git node release -S --prepare --security --filterLabel v20.x --newVersion 20.20.0
+```
 
 <details>
 <summary>Security release</summary>
