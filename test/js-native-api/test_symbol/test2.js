@@ -1,9 +1,11 @@
 'use strict';
-const common = require('../../common');
+// Addons: test_symbol, test_symbol_vtable
+
+const { addonPath } = require('../../common/addon-test');
 const assert = require('assert');
 
 // Testing api calls for symbol
-const test_symbol = require(`./build/${common.buildType}/test_symbol`);
+const test_symbol = require(addonPath);
 
 const fooSym = test_symbol.New('foo');
 assert.strictEqual(fooSym.toString(), 'Symbol(foo)');

@@ -1,7 +1,10 @@
 'use strict';
+// Addons: test_async, test_async_vtable
+
 const common = require('../../common');
+const { addonPath } = require('../../common/addon-test');
 const assert = require('assert');
-const test_async = require(`./build/${common.buildType}/test_async`);
+const test_async = require(addonPath);
 const iterations = 500;
 
 let x = 0;

@@ -1,9 +1,11 @@
 'use strict';
-const common = require('../../common');
+// Addons: test_general, test_general_vtable
+
+const { addonPath } = require('../../common/addon-test');
 const assert = require('assert');
 
 // Addon is referenced through the eval expression in testFile
-const addon = require(`./build/${common.buildType}/test_general`);
+const addon = require(addonPath);
 
 // We can only perform this test if we have a working Symbol.hasInstance
 if (typeof Symbol !== 'undefined' && 'hasInstance' in Symbol &&

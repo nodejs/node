@@ -1,7 +1,9 @@
 'use strict';
-const common = require('../../common');
+// Addons: test_conversions, test_conversions_vtable
+
+const { addonPath } = require('../../common/addon-test');
 const assert = require('assert');
-const test = require(`./build/${common.buildType}/test_conversions`);
+const test = require(addonPath);
 
 const boolExpected = /boolean was expected/;
 const numberExpected = /number was expected/;

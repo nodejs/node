@@ -1,6 +1,8 @@
 'use strict';
+// Addons: binding, binding_vtable
 
 const common = require('../../common');
-const { testResolveAsync } = require(`./build/${common.buildType}/binding`);
+const { addonPath } = require('../../common/addon-test');
+const { testResolveAsync } = require(addonPath);
 
 testResolveAsync().then(common.mustCall());

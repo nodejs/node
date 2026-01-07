@@ -1,8 +1,9 @@
 'use strict';
 // Flags: --expose-gc
+// Addons: test_general, test_general_vtable
 
-const common = require('../../common');
-const test_general = require(`./build/${common.buildType}/test_general`);
+const { addonPath } = require('../../common/addon-test');
+const test_general = require(addonPath);
 const assert = require('assert');
 const { gcUntil } = require('../../common/gc');
 

@@ -1,12 +1,13 @@
 'use strict';
+// Addons: test_general, test_general_vtable
 
-const common = require('../../common');
+const { addonPath } = require('../../common/addon-test');
 const tmpdir = require('../../common/tmpdir');
 const child_process = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const url = require('url');
-const filename = require.resolve(`./build/${common.buildType}/test_general`);
+const filename = require.resolve(addonPath);
 const test_general = require(filename);
 const assert = require('assert');
 

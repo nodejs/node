@@ -1,11 +1,13 @@
 'use strict';
+// Addons: test_promise, test_promise_vtable
 
 const common = require('../../common');
+const { addonPath } = require('../../common/addon-test');
 
-// This tests the promise-related n-api calls
+// This tests the promise-related Node-API calls
 
 const assert = require('assert');
-const test_promise = require(`./build/${common.buildType}/test_promise`);
+const test_promise = require(addonPath);
 
 // A resolution
 {

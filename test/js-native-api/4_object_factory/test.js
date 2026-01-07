@@ -1,7 +1,9 @@
 'use strict';
-const common = require('../../common');
+// Addons: 4_object_factory, 4_object_factory_vtable
+
+const { addonPath } = require('../../common/addon-test');
 const assert = require('assert');
-const addon = require(`./build/${common.buildType}/4_object_factory`);
+const addon = require(addonPath);
 
 const obj1 = addon('hello');
 const obj2 = addon('world');

@@ -212,6 +212,15 @@ export default [
   },
   {
     files: [
+      'test/{js-native-api,node-api}/**/*.js',
+    ],
+    rules: {
+      'node-core/required-modules': 'off',
+      'node-core/require-common-first': 'off',
+    },
+  },
+  {
+    files: [
       'test/es-module/test-esm-example-loader.js',
       'test/es-module/test-esm-type-flag.js',
       'test/es-module/test-esm-type-flag-alias.js',

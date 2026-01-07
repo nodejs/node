@@ -1,13 +1,13 @@
 'use strict';
-const common = require('../../common');
-const assert = require('assert');
-const child_process = require('child_process');
+// Addons: binding, binding_vtable
 
-if (process.argv[2] === 'child') {
-  require(`./build/${common.buildType}/binding`);
+const { addonPath, isInvokedAsChild, spawnTestSync } = require('../../common/addon-test');
+const assert = require('assert');
+
+if (isInvokedAsChild) {
+  require(addonPath);
 } else {
-  const { stdout, status, signal } =
-    child_process.spawnSync(process.execPath, [__filename, 'child']);
+  const { stdout, status, signal } = spawnTestSync();
   assert.strictEqual(status, 0, `process exited with status(${status}) and signal(${signal})`);
   assert.strictEqual(stdout.toString().trim(), 'cleanup(42)');
 }

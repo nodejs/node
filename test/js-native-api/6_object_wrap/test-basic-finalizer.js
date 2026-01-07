@@ -1,9 +1,10 @@
-// Flags: --expose-gc
-
 'use strict';
-const common = require('../../common');
+// Flags: --expose-gc
+// Addons: myobject_basic_finalizer, myobject_basic_finalizer_vtable
+
+const { addonPath } = require('../../common/addon-test');
 const assert = require('assert');
-const addon = require(`./build/${common.buildType}/myobject_basic_finalizer`);
+const addon = require(addonPath);
 
 // This test verifies that ObjectWrap can be correctly finalized with a node_api_basic_finalizer
 // in the current JS loop tick

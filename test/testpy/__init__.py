@@ -33,6 +33,7 @@ from io import open
 
 
 FLAGS_PATTERN = re.compile(r"//\s+Flags:(.*)")
+ADDONS_PATTERN = re.compile(r"//\s+Addons:(.*)")
 LS_RE = re.compile(r'^test-.*\.m?js$')
 ENV_PATTERN = re.compile(r"//\s+Env:(.*)")
 NODE_TEST_PATTERN = re.compile(r"('|`|\")node:test\1")
@@ -154,6 +155,22 @@ class ParallelTestConfiguration(SimpleTestConfiguration):
       tst.parallel = True
     return result
 
+class AddonTestCase(SimpleTestCase):
+  def __init__(self, path, file, arch, mode, context, config, additional=None, addon_name=None):
+    super(AddonTestCase, self).__init__(path, file, arch, mode, context, config, additional)
+    self.addon_name = addon_name
+
+  def GetName(self):
+    # path format: ['node-api', 'folder', 'script', 'addon']
+    # Return: folder/script/addon (e.g., 1_hello_world/test/binding)
+    return '/'.join(self.path[-3:])
+
+  def GetRunConfiguration(self):
+    config = super(AddonTestCase, self).GetRunConfiguration()
+    # Append --addon=<name> after the script path so it's a script argument
+    config['command'].append(f'--addon={self.addon_name}')
+    return config
+
 class AddonTestConfiguration(SimpleTestConfiguration):
   def __init__(self, context, root, section, additional=None):
     super(AddonTestConfiguration, self).__init__(context, root, section, additional)
@@ -164,8 +181,26 @@ class AddonTestConfiguration(SimpleTestConfiguration):
 
     result = []
     for subpath in os.listdir(path):
-      if os.path.isdir(os.path.join(path, subpath)):
-        result.extend([subpath, f[:-3]] for f in os.listdir(os.path.join(path, subpath)) if SelectTest(f))
+      subdir = os.path.join(path, subpath)
+      if not os.path.isdir(subdir):
+        continue
+
+      for filename in os.listdir(subdir):
+        if not SelectTest(filename):
+          continue
+        filepath = os.path.join(subdir, filename)
+        try:
+          with open(filepath, 'r', encoding='utf8') as f:
+            content = f.read(1024)  # Read first 1KB for the comments
+          addons_matches = ADDONS_PATTERN.findall(content)
+          if addons_matches:
+            addons = [a.strip() for match in addons_matches for a in match.split(',') if a.strip()]
+            result.extend([subpath, filename[:-3], addon] for addon in addons)
+          else:
+            result.append([subpath, filename[:-3]])
+        except IOError as e:
+          print(f"Warning: Failed to read {filepath}: {e}")
+
     return result
 
   def ListTests(self, current_path, path, arch, mode):
@@ -173,9 +208,17 @@ class AddonTestConfiguration(SimpleTestConfiguration):
     result = []
     for tst in all_tests:
       if self.Contains(path, tst):
-        file_path = os.path.join(self.root, reduce(os.path.join, tst[1:], "") + ".js")
-        result.append(
-            SimpleTestCase(tst, file_path, arch, mode, self.context, self, self.additional_flags))
+        # Addons test: current_path + [subpath, script_name, addon_name]
+        # Default test: current_path + [subpath, script_name]
+        addon_name = tst[-1] if len(tst) == len(current_path) + 3 else None
+        parts = tst[1:-1] if addon_name else tst[1:]
+        file_path = os.path.join(self.root, reduce(os.path.join, parts, "") + ".js")
+        if addon_name:
+          result.append(AddonTestCase(tst, file_path, arch, mode, self.context,
+                                      self, self.additional_flags, addon_name))
+        else:
+          result.append(SimpleTestCase(tst, file_path, arch, mode, self.context,
+                                       self, self.additional_flags))
     return result
 
 class AbortTestConfiguration(SimpleTestConfiguration):

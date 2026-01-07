@@ -1,11 +1,13 @@
 'use strict';
 // Flags: --expose-gc
+// Addons: test_function, test_function_vtable
 
 const common = require('../../common');
+const { addonPath } = require('../../common/addon-test');
 const assert = require('assert');
 
 // Testing api calls for function
-const test_function = require(`./build/${common.buildType}/test_function`);
+const test_function = require(addonPath);
 
 function func1() {
   return 1;

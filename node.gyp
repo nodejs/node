@@ -894,8 +894,11 @@
         'NODE_PLATFORM="<(OS)"',
         'NODE_WANT_INTERNALS=1',
         # Define NAPI_EXPERIMENTAL to enable Node-API experimental function symbols being exposed.
-        'NAPI_EXPERIMENTAL=1',
-        'NODE_API_EXPERIMENTAL_NO_WARNING=1',
+        'NAPI_EXPERIMENTAL',
+        # Suppress warning about using experimental Node-API features.
+        'NODE_API_EXPERIMENTAL_NO_WARNING',
+        # Enable Node-API headers to support v-table.
+        'NODE_API_RUNTIME_USE_VTABLE',
         # Warn when using deprecated V8 APIs.
         'V8_DEPRECATION_WARNINGS=1',
         'NODE_OPENSSL_SYSTEM_CERT_PATH="<(openssl_system_ca_path)"',
@@ -1226,6 +1229,9 @@
         'NODE_ARCH="<(target_arch)"',
         'NODE_PLATFORM="<(OS)"',
         'NODE_WANT_INTERNALS=1',
+        'NAPI_EXPERIMENTAL',
+        'NODE_API_EXPERIMENTAL_NO_WARNING',
+        'NODE_API_RUNTIME_USE_VTABLE',
       ],
 
       'sources': [ '<@(node_cctest_sources)' ],

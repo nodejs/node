@@ -1,9 +1,11 @@
 'use strict';
-const common = require('../../common');
+// Addons: test_array, test_array_vtable
+
+const { addonPath } = require('../../common/addon-test');
 const assert = require('assert');
 
 // Testing api calls for arrays
-const test_array = require(`./build/${common.buildType}/test_array`);
+const test_array = require(addonPath);
 
 const array = [
   1,

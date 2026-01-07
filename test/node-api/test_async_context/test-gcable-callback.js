@@ -1,14 +1,16 @@
 'use strict';
 // Flags: --gc-interval=100 --gc-global
+// Addons: binding, binding_vtable
 
 const common = require('../../common');
+const { addonPath } = require('../../common/addon-test');
 const assert = require('assert');
 const async_hooks = require('async_hooks');
 const {
   createAsyncResource,
   destroyAsyncResource,
   makeCallback,
-} = require(`./build/${common.buildType}/binding`);
+} = require(addonPath);
 
 // Test for https://github.com/nodejs/node/issues/27218:
 // napi_async_destroy() can be called during a regular garbage collection run.

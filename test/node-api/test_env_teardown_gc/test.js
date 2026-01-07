@@ -1,10 +1,11 @@
 'use strict';
 // Flags: --expose-gc
+// Addons: binding, binding_vtable
 
 process.env.NODE_TEST_KNOWN_GLOBALS = 0;
 
-const common = require('../../common');
-const binding = require(`./build/${common.buildType}/binding`);
+const { addonPath } = require('../../common/addon-test');
+const binding = require(addonPath);
 
 global.it = new binding.MyObject();
 

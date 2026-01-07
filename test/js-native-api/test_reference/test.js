@@ -1,11 +1,12 @@
 'use strict';
 // Flags: --expose-gc
+// Addons: test_reference, test_reference_vtable
 
-const { buildType } = require('../../common');
+const { addonPath } = require('../../common/addon-test');
 const { gcUntil } = require('../../common/gc');
 const assert = require('assert');
 
-const test_reference = require(`./build/${buildType}/test_reference`);
+const test_reference = require(addonPath);
 
 // This test script uses external values with finalizer callbacks
 // in order to track when values get garbage-collected. Each invocation

@@ -1,9 +1,11 @@
 'use strict';
-const common = require('../../common');
+// Addons: test_object, test_object_vtable
+
+const { addonPath } = require('../../common/addon-test');
 const assert = require('assert');
 
-// Test passing NULL to object-related N-APIs.
-const { testNull } = require(`./build/${common.buildType}/test_object`);
+// Test passing NULL to object-related Node-APIs.
+const { testNull } = require(addonPath);
 
 const expectedForProperty = {
   envIsNull: 'Invalid argument',

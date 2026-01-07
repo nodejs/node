@@ -1,8 +1,9 @@
 'use strict';
-const common = require('../../common');
-const assert = require('assert');
-const test_number = require(`./build/${common.buildType}/test_number`);
+// Addons: test_number, test_number_vtable
 
+const { addonPath } = require('../../common/addon-test');
+const assert = require('assert');
+const test_number = require(addonPath);
 
 // Testing api calls for number
 function testNumber(num) {

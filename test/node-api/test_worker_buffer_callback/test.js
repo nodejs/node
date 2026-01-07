@@ -1,8 +1,10 @@
 'use strict';
-const common = require('../../common');
+// Addons: binding, binding_vtable
+
+const { addonPath } = require('../../common/addon-test');
 const assert = require('assert');
 const { MessageChannel } = require('worker_threads');
-const { buffer } = require(`./build/${common.buildType}/binding`);
+const { buffer } = require(addonPath);
 
 // Test that buffers allocated with a free callback through our APIs are not
 // transferred.

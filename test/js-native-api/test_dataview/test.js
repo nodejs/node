@@ -1,9 +1,11 @@
 'use strict';
-const common = require('../../common');
+// Addons: test_dataview, test_dataview_vtable
+
+const { addonPath } = require('../../common/addon-test');
 const assert = require('assert');
 
 // Testing api calls for arrays
-const test_dataview = require(`./build/${common.buildType}/test_dataview`);
+const test_dataview = require(addonPath);
 
 // Test for creating dataview with ArrayBuffer
 {

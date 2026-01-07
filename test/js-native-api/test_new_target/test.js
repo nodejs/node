@@ -1,8 +1,9 @@
 'use strict';
+// Addons: test_new_target, test_new_target_vtable
 
-const common = require('../../common');
+const { addonPath } = require('../../common/addon-test');
 const assert = require('assert');
-const binding = require(`./build/${common.buildType}/test_new_target`);
+const binding = require(addonPath);
 
 class Class extends binding.BaseClass {
   constructor() {

@@ -1,7 +1,9 @@
 'use strict';
-const common = require('../../common');
+// Addons: test_number, test_number_vtable
+
+const { addonPath } = require('../../common/addon-test');
 const assert = require('assert');
-const { testNull } = require(`./build/${common.buildType}/test_number`);
+const { testNull } = require(addonPath);
 
 const expectedCreateResult = {
   envIsNull: 'Invalid argument',

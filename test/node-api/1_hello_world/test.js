@@ -1,9 +1,12 @@
 'use strict';
+// Addons: binding, binding_vtable, binding_vtable_nofb
+
 const common = require('../../common');
+const { addonPath } = require('../../common/addon-test');
 const assert = require('assert');
 const { Worker } = require('worker_threads');
 
-const bindingPath = require.resolve(`./build/${common.buildType}/binding`);
+const bindingPath = require.resolve(addonPath);
 const binding = require(bindingPath);
 assert.strictEqual(binding.hello(), 'world');
 console.log('binding.hello() =', binding.hello());

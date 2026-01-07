@@ -1,11 +1,12 @@
 'use strict';
+// Addons: test_date, test_date_vtable
 
-const common = require('../../common');
+const { addonPath } = require('../../common/addon-test');
 
-// This tests the date-related n-api calls
+// This tests the date-related Node-API calls
 
 const assert = require('assert');
-const test_date = require(`./build/${common.buildType}/test_date`);
+const test_date = require(addonPath);
 
 const dateTypeTestDate = test_date.createDate(1549183351);
 assert.strictEqual(test_date.isDate(dateTypeTestDate), true);

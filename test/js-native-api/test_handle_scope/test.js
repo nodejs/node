@@ -1,10 +1,11 @@
 'use strict';
-const common = require('../../common');
+// Addons: test_handle_scope, test_handle_scope_vtable
+
+const { addonPath } = require('../../common/addon-test');
 const assert = require('assert');
 
 // Testing handle scope api calls
-const testHandleScope =
-    require(`./build/${common.buildType}/test_handle_scope`);
+const testHandleScope = require(addonPath);
 
 testHandleScope.NewScope();
 

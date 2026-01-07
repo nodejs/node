@@ -1,8 +1,9 @@
 'use strict';
+// Addons: test_sharedarraybuffer, test_sharedarraybuffer_vtable
 
-const common = require('../../common');
+const { addonPath } = require('../../common/addon-test');
 const assert = require('assert');
-const test_sharedarraybuffer = require(`./build/${common.buildType}/test_sharedarraybuffer`);
+const test_sharedarraybuffer = require(addonPath);
 
 {
   const sab = new SharedArrayBuffer(16);

@@ -1,8 +1,10 @@
 'use strict';
 // Flags: --expose-gc --no-concurrent-array-buffer-sweeping
+// Addons: test_buffer, test_buffer_vtable
 
 const common = require('../../common');
-const binding = require(`./build/${common.buildType}/test_buffer`);
+const { addonPath } = require('../../common/addon-test');
+const binding = require(addonPath);
 const assert = require('assert');
 const tick = require('util').promisify(require('../../common/tick'));
 

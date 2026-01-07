@@ -1,14 +1,16 @@
 'use strict';
 // Flags: --gc-interval=100 --gc-global
+// Addons: binding, binding_vtable
 
 const common = require('../../common');
+const { addonPath } = require('../../common/addon-test');
 const assert = require('assert');
 const async_hooks = require('async_hooks');
 const {
   makeCallback,
   createAsyncResource,
   destroyAsyncResource,
-} = require(`./build/${common.buildType}/binding`);
+} = require(addonPath);
 
 const hook_result = {
   id: null,

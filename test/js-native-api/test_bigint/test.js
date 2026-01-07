@@ -1,5 +1,7 @@
 'use strict';
-const common = require('../../common');
+// Addons: test_bigint, test_bigint_vtable
+
+const { addonPath } = require('../../common/addon-test');
 const assert = require('assert');
 const {
   IsLossless,
@@ -8,7 +10,7 @@ const {
   TestWords,
   CreateTooBigBigInt,
   MakeBigIntWordsThrow,
-} = require(`./build/${common.buildType}/test_bigint`);
+} = require(addonPath);
 
 [
   0n,

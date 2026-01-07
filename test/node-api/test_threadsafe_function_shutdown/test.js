@@ -1,17 +1,15 @@
 'use strict';
+// Addons: binding, binding_vtable
 
-const common = require('../../common');
-const process = require('process');
+const { addonPath, isInvokedAsChild, spawnTestSync } = require('../../common/addon-test');
 const assert = require('assert');
-const { fork } = require('child_process');
-const binding = require(`./build/${common.buildType}/binding`);
 
-if (process.argv[2] === 'child') {
+if (isInvokedAsChild) {
+  const binding = require(addonPath);
   binding();
   setTimeout(() => {}, 100);
 } else {
-  const child = fork(__filename, ['child']);
-  child.on('close', common.mustCall((code) => {
-    assert.strictEqual(code, 0);
-  }));
+  const { status, stderr } = spawnTestSync();
+  const stderrText = stderr ? stderr.toString().trim() : '';
+  assert.strictEqual(status, 0, stderrText);
 }
