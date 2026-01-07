@@ -9,6 +9,8 @@ const CacheRevalidationHandler = require('../handler/cache-revalidation-handler'
 const { assertCacheStore, assertCacheMethods, makeCacheKey, normalizeHeaders, parseCacheControlHeader } = require('../util/cache.js')
 const { AbortError } = require('../core/errors.js')
 
+const nop = () => {}
+
 /**
  * @typedef {(options: import('../../types/dispatcher.d.ts').default.DispatchOptions, handler: import('../../types/dispatcher.d.ts').default.DispatchHandler) => void} DispatchFn
  */
@@ -16,19 +18,34 @@ const { AbortError } = require('../core/errors.js')
 /**
  * @param {import('../../types/cache-interceptor.d.ts').default.GetResult} result
  * @param {import('../../types/cache-interceptor.d.ts').default.CacheControlDirectives | undefined} cacheControlDirectives
+ * @param {import('../../types/dispatcher.d.ts').default.RequestOptions} opts
  * @returns {boolean}
  */
-function needsRevalidation (result, cacheControlDirectives) {
+function needsRevalidation (result, cacheControlDirectives, { headers = {} }) {
+  // Always revalidate requests with the no-cache request directive.
   if (cacheControlDirectives?.['no-cache']) {
-    // Always revalidate requests with the no-cache request directive
     return true
   }
 
+  // Always revalidate requests with unqualified no-cache response directive.
   if (result.cacheControlDirectives?.['no-cache'] && !Array.isArray(result.cacheControlDirectives['no-cache'])) {
-    // Always revalidate requests with unqualified no-cache response directive
     return true
   }
 
+  // Always revalidate requests with conditional headers.
+  if (headers['if-modified-since'] || headers['if-none-match']) {
+    return true
+  }
+
+  return false
+}
+
+/**
+ * @param {import('../../types/cache-interceptor.d.ts').default.GetResult} result
+ * @param {import('../../types/cache-interceptor.d.ts').default.CacheControlDirectives | undefined} cacheControlDirectives
+ * @returns {boolean}
+ */
+function isStale (result, cacheControlDirectives) {
   const now = Date.now()
   if (now > result.staleAt) {
     // Response is stale
@@ -102,7 +119,7 @@ function handleUncachedResponse (
       }
 
       if (typeof handler.onHeaders === 'function') {
-        handler.onHeaders(504, [], () => {}, 'Gateway Timeout')
+        handler.onHeaders(504, [], nop, 'Gateway Timeout')
         if (aborted) {
           return
         }
@@ -239,8 +256,11 @@ function handleResult (
     return dispatch(opts, handler)
   }
 
+  const stale = isStale(result, reqCacheControl)
+  const revalidate = needsRevalidation(result, reqCacheControl, opts)
+
   // Check if the response is stale
-  if (needsRevalidation(result, reqCacheControl)) {
+  if (stale || revalidate) {
     if (util.isStream(opts.body) && util.bodyLength(opts.body) !== 0) {
       // If body is a stream we can't revalidate...
       // TODO (fix): This could be less strict...
@@ -248,8 +268,8 @@ function handleResult (
     }
 
     // RFC 5861: If we're within stale-while-revalidate window, serve stale immediately
-    // and revalidate in background
-    if (withinStaleWhileRevalidateWindow(result)) {
+    // and revalidate in background, unless immediate revalidation is necessary
+    if (!revalidate && withinStaleWhileRevalidateWindow(result)) {
       // Serve stale response immediately
       sendCachedValue(handler, opts, result, age, null, true)
 
@@ -323,9 +343,10 @@ function handleResult (
       new CacheRevalidationHandler(
         (success, context) => {
           if (success) {
-            sendCachedValue(handler, opts, result, age, context, true)
+            // TODO: successful revalidation should be considered fresh (not give stale warning).
+            sendCachedValue(handler, opts, result, age, context, stale)
           } else if (util.isStream(result.body)) {
-            result.body.on('error', () => {}).destroy()
+            result.body.on('error', nop).destroy()
           }
         },
         new CacheHandler(globalOpts, cacheKey, handler),
@@ -336,7 +357,7 @@ function handleResult (
 
   // Dump request body.
   if (util.isStream(opts.body)) {
-    opts.body.on('error', () => {}).destroy()
+    opts.body.on('error', nop).destroy()
   }
 
   sendCachedValue(handler, opts, result, age, null, false)
@@ -405,18 +426,17 @@ module.exports = (opts = {}) => {
       const result = store.get(cacheKey)
 
       if (result && typeof result.then === 'function') {
-        result.then(result => {
-          handleResult(dispatch,
+        return result
+          .then(result => handleResult(dispatch,
             globalOpts,
             cacheKey,
             handler,
             opts,
             reqCacheControl,
             result
-          )
-        })
+          ))
       } else {
-        handleResult(
+        return handleResult(
           dispatch,
           globalOpts,
           cacheKey,
@@ -426,8 +446,6 @@ module.exports = (opts = {}) => {
           result
         )
       }
-
-      return true
     }
   }
 }

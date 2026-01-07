@@ -107,7 +107,8 @@ class Client extends DispatcherBase {
     autoSelectFamilyAttemptTimeout,
     // h2
     maxConcurrentStreams,
-    allowH2
+    allowH2,
+    useH2c
   } = {}) {
     if (keepAlive !== undefined) {
       throw new InvalidArgumentError('unsupported keepAlive, use pipelining=0 instead')
@@ -199,6 +200,10 @@ class Client extends DispatcherBase {
       throw new InvalidArgumentError('maxConcurrentStreams must be a positive integer, greater than 0')
     }
 
+    if (useH2c != null && typeof useH2c !== 'boolean') {
+      throw new InvalidArgumentError('useH2c must be a valid boolean value')
+    }
+
     super()
 
     if (typeof connect !== 'function') {
@@ -206,6 +211,7 @@ class Client extends DispatcherBase {
         ...tls,
         maxCachedSessions,
         allowH2,
+        useH2c,
         socketPath,
         timeout: connectTimeout,
         ...(typeof autoSelectFamily === 'boolean' ? { autoSelectFamily, autoSelectFamilyAttemptTimeout } : undefined),
@@ -289,7 +295,6 @@ class Client extends DispatcherBase {
     )
   }
 
-  /* istanbul ignore: only used for test */
   [kConnect] (cb) {
     connect(this)
     this.once('connect', cb)

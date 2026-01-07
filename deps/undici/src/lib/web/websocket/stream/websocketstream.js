@@ -10,8 +10,8 @@ const { channels } = require('../../../core/diagnostics')
 const { WebsocketFrameSend } = require('../frame')
 const { ByteParser } = require('../receiver')
 const { WebSocketError, createUnvalidatedWebSocketError } = require('./websocketerror')
-const { utf8DecodeBytes } = require('../../fetch/util')
 const { kEnumerableProperty } = require('../../../core/util')
+const { utf8DecodeBytes } = require('../../../encoding')
 
 let emittedExperimentalWarning = false
 

@@ -2,9 +2,9 @@
 // and https://github.com/node-fetch/node-fetch/blob/914ce6be5ec67a8bab63d68510aabf07cb818b6d/index.d.ts (MIT license)
 /// <reference types="node" />
 
-import { Blob } from 'buffer'
-import { URL, URLSearchParams } from 'url'
-import { ReadableStream } from 'stream/web'
+import { Blob } from 'node:buffer'
+import { URL, URLSearchParams } from 'node:url'
+import { ReadableStream } from 'node:stream/web'
 import { FormData } from './formdata'
 import { HeaderRecord } from './header'
 import Dispatcher from './dispatcher'
@@ -207,5 +207,5 @@ export declare class Response extends BodyMixin {
 
   static error (): Response
   static json (data: any, init?: ResponseInit): Response
-  static redirect (url: string | URL, status: ResponseRedirectStatus): Response
+  static redirect (url: string | URL, status?: ResponseRedirectStatus): Response
 }

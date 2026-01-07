@@ -4,12 +4,13 @@ const { Transform } = require('node:stream')
 const zlib = require('node:zlib')
 const { redirectStatusSet, referrerPolicyTokens, badPortsSet } = require('./constants')
 const { getGlobalOrigin } = require('./global')
-const { collectASequenceOfCodePoints, collectAnHTTPQuotedString, removeChars, parseMIMEType } = require('./data-url')
+const { collectAnHTTPQuotedString, parseMIMEType } = require('./data-url')
 const { performance } = require('node:perf_hooks')
 const { ReadableStreamFrom, isValidHTTPToken, normalizedMethodRecordsBase } = require('../../core/util')
 const assert = require('node:assert')
 const { isUint8Array } = require('node:util/types')
 const { webidl } = require('../webidl')
+const { isomorphicEncode, collectASequenceOfCodePoints, removeChars } = require('../infra')
 
 function responseURL (response) {
   // https://fetch.spec.whatwg.org/#responses
@@ -721,23 +722,6 @@ function normalizeMethod (method) {
   return normalizedMethodRecordsBase[method.toLowerCase()] ?? method
 }
 
-// https://infra.spec.whatwg.org/#serialize-a-javascript-value-to-a-json-string
-function serializeJavascriptValueToJSONString (value) {
-  // 1. Let result be ? Call(%JSON.stringify%, undefined, « value »).
-  const result = JSON.stringify(value)
-
-  // 2. If result is undefined, then throw a TypeError.
-  if (result === undefined) {
-    throw new TypeError('Value is not JSON serializable')
-  }
-
-  // 3. Assert: result is a string.
-  assert(typeof result === 'string')
-
-  // 4. Return result.
-  return result
-}
-
 // https://tc39.es/ecma262/#sec-%25iteratorprototype%25-object
 const esIteratorPrototype = Object.getPrototypeOf(Object.getPrototypeOf([][Symbol.iterator]()))
 
@@ -991,22 +975,6 @@ function readableStreamClose (controller) {
       throw err
     }
   }
-}
-
-const invalidIsomorphicEncodeValueRegex = /[^\x00-\xFF]/ // eslint-disable-line
-
-/**
- * @see https://infra.spec.whatwg.org/#isomorphic-encode
- * @param {string} input
- */
-function isomorphicEncode (input) {
-  // 1. Assert: input contains no code points greater than U+00FF.
-  assert(!invalidIsomorphicEncodeValueRegex.test(input))
-
-  // 2. Return a byte sequence whose length is equal to input’s code
-  //    point length and whose bytes have the same values as the
-  //    values of input’s code points, in the same order
-  return input
 }
 
 /**
@@ -1461,34 +1429,6 @@ function getDecodeSplit (name, list) {
   return gettingDecodingSplitting(value)
 }
 
-const textDecoder = new TextDecoder()
-
-/**
- * @see https://encoding.spec.whatwg.org/#utf-8-decode
- * @param {Buffer} buffer
- */
-function utf8DecodeBytes (buffer) {
-  if (buffer.length === 0) {
-    return ''
-  }
-
-  // 1. Let buffer be the result of peeking three bytes from
-  //    ioQueue, converted to a byte sequence.
-
-  // 2. If buffer is 0xEF 0xBB 0xBF, then read three
-  //    bytes from ioQueue. (Do nothing with those bytes.)
-  if (buffer[0] === 0xEF && buffer[1] === 0xBB && buffer[2] === 0xBF) {
-    buffer = buffer.subarray(3)
-  }
-
-  // 3. Process a queue with an instance of UTF-8’s
-  //    decoder, ioQueue, output, and "replacement".
-  const output = textDecoder.decode(buffer)
-
-  // 4. Return output.
-  return output
-}
-
 class EnvironmentSettingsObjectBase {
   get baseUrl () {
     return getGlobalOrigin()
@@ -1534,7 +1474,6 @@ module.exports = {
   isValidReasonPhrase,
   sameOrigin,
   normalizeMethod,
-  serializeJavascriptValueToJSONString,
   iteratorMixin,
   createIterator,
   isValidHeaderName,
@@ -1542,7 +1481,6 @@ module.exports = {
   isErrorLike,
   fullyReadBody,
   readableStreamClose,
-  isomorphicEncode,
   urlIsLocal,
   urlHasHttpsScheme,
   urlIsHttpHttpsScheme,
@@ -1552,7 +1490,6 @@ module.exports = {
   createInflate,
   extractMimeType,
   getDecodeSplit,
-  utf8DecodeBytes,
   environmentSettingsObject,
   isOriginIPPotentiallyTrustworthy
 }
