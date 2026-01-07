@@ -4,36 +4,37 @@
     'v8_trace_maps%': 0,
     'v8_enable_pointer_compression%': 0,
     'v8_enable_31bit_smis_on_64bit_arch%': 0,
-    'node_no_browser_globals%': 'false',
-    'node_snapshot_main%': '',
-    'node_use_node_snapshot%': 'false',
-    'node_use_v8_platform%': 'true',
-    'node_use_bundled_v8%': 'true',
-    'node_shared%': 'false',
-    'node_write_snapshot_as_string_literals': 'true',
     'force_dynamic_crt%': 0,
-    'ossfuzz' : 'false',
+    'node_builtin_modules_path%': '',
+    'node_core_target_name%': 'node',
+    'node_enable_v8_vtunejit%': 'false',
+    'node_intermediate_lib_type%': 'static_library',
+    'node_lib_target_name%': 'libnode',
     'node_module_version%': '',
-    'node_use_amaro%': 'true',
+    'node_no_browser_globals%': 'false',
     'node_shared_brotli%': 'false',
-    'node_shared_zstd%': 'false',
-    'node_shared_zlib%': 'false',
-    'node_shared_http_parser%': 'false',
     'node_shared_cares%': 'false',
+    'node_shared_gtest%': 'false',
+    'node_shared_http_parser%': 'false',
     'node_shared_libuv%': 'false',
+    'node_shared_nghttp2%': 'false',
+    'node_shared_openssl%': 'false',
     'node_shared_sqlite%': 'false',
     'node_shared_temporal_capi%': 'false',
     'node_shared_uvwasi%': 'false',
-    'node_shared_nghttp2%': 'false',
+    'node_shared_zlib%': 'false',
+    'node_shared_zstd%': 'false',
+    'node_shared%': 'false',
+    'node_snapshot_main%': '',
+    'node_use_amaro%': 'true',
+    'node_use_bundled_v8%': 'true',
+    'node_use_node_snapshot%': 'false',
     'node_use_openssl%': 'true',
     'node_use_sqlite%': 'true',
-    'node_shared_openssl%': 'false',
+    'node_use_v8_platform%': 'true',
     'node_v8_options%': '',
-    'node_enable_v8_vtunejit%': 'false',
-    'node_core_target_name%': 'node',
-    'node_lib_target_name%': 'libnode',
-    'node_intermediate_lib_type%': 'static_library',
-    'node_builtin_modules_path%': '',
+    'node_write_snapshot_as_string_literals': 'true',
+    'ossfuzz' : 'false',
     'linked_module_files': [
     ],
     # We list the deps/ files out instead of globbing them in js2c.cc since we
@@ -865,7 +866,6 @@
         '<(SHARED_INTERMEDIATE_DIR)' # for node_natives.h
       ],
       'dependencies': [
-        'deps/googletest/googletest.gyp:gtest_prod',
         'deps/histogram/histogram.gyp:histogram',
         'deps/nbytes/nbytes.gyp:nbytes',
         'tools/v8_gypfiles/abseil.gyp:abseil',
@@ -928,6 +928,11 @@
           'sources': [
             'src/node_snapshot_stub.cc',
           ]
+        }],
+        [ 'node_shared_gtest=="false"', {
+          'dependencies': [
+            'deps/googletest/googletest.gyp:gtest_prod',
+          ],
         }],
         [ 'node_use_sqlite=="true"', {
           'sources': [
@@ -1154,7 +1159,6 @@
       'type': 'executable',
       'dependencies': [
         '<(node_lib_target_name)',
-        'deps/googletest/googletest.gyp:gtest_prod',
         'deps/histogram/histogram.gyp:histogram',
         'deps/nbytes/nbytes.gyp:nbytes',
       ],
@@ -1179,6 +1183,11 @@
         'test/fuzzers/fuzz_strings.cc',
       ],
       'conditions': [
+        [ 'node_shared_gtest=="false"', {
+          'dependencies': [
+            'deps/googletest/googletest.gyp:gtest_prod',
+          ],
+        }],
         [ 'node_shared_uvwasi=="false"', {
           'dependencies': [ 'deps/uvwasi/uvwasi.gyp:uvwasi' ],
           'include_dirs': [ 'deps/uvwasi/include' ],
@@ -1202,8 +1211,6 @@
 
       'dependencies': [
         '<(node_lib_target_name)',
-        'deps/googletest/googletest.gyp:gtest',
-        'deps/googletest/googletest.gyp:gtest_main',
         'deps/histogram/histogram.gyp:histogram',
         'deps/nbytes/nbytes.gyp:nbytes',
         'tools/v8_gypfiles/abseil.gyp:abseil',
@@ -1231,6 +1238,15 @@
       'sources': [ '<@(node_cctest_sources)' ],
 
       'conditions': [
+        [ 'node_shared_gtest=="false"', {
+          'dependencies': [
+            'deps/googletest/googletest.gyp:gtest',
+            'deps/googletest/googletest.gyp:gtest_main',
+          ],
+        }],
+        [ 'node_shared_gtest=="true"', {
+          'libraries': [ '-lgtest_main' ],
+        }],
         [ 'node_use_openssl=="true"', {
           'defines': [
             'HAVE_OPENSSL=1',
