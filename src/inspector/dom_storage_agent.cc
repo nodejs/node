@@ -1,6 +1,4 @@
 #include "dom_storage_agent.h"
-
-#include "crdtp/dispatch.h"
 #include "env-inl.h"
 #include "inspector/inspector_object_utils.h"
 #include "v8-isolate.h"
@@ -9,13 +7,15 @@ namespace node {
 namespace inspector {
 
 using v8::Array;
+using v8::Context;
 using v8::HandleScope;
+using v8::Isolate;
 using v8::Local;
 using v8::Object;
 using v8::Value;
 
 std::unique_ptr<protocol::DOMStorage::StorageId> createStorageIdFromObject(
-    v8::Local<v8::Context> context, v8::Local<v8::Object> storage_id_obj) {
+    Local<Context> context, Local<Object> storage_id_obj) {
   protocol::String security_origin;
   if (!ObjectGetProtocolString(context, storage_id_obj, "securityOrigin")
            .To(&security_origin)) {
@@ -44,16 +44,16 @@ void DOMStorageAgent::Wire(protocol::UberDispatcher* dispatcher) {
   frontend_ =
       std::make_unique<protocol::DOMStorage::Frontend>(dispatcher->channel());
   protocol::DOMStorage::Dispatcher::wire(dispatcher, this);
-  event_notifier_map_["domStorageItemAdded"] =
-      (EventNotifier)(&DOMStorageAgent::domStorageItemAdded);
-  event_notifier_map_["domStorageItemRemoved"] =
-      (EventNotifier)(&DOMStorageAgent::domStorageItemRemoved);
-  event_notifier_map_["domStorageItemUpdated"] =
-      (EventNotifier)(&DOMStorageAgent::domStorageItemUpdated);
-  event_notifier_map_["domStorageItemsCleared"] =
-      (EventNotifier)(&DOMStorageAgent::domStorageItemsCleared);
-  event_notifier_map_["registerStorage"] =
-      (EventNotifier)(&DOMStorageAgent::registerStorage);
+  addEventNotifier("domStorageItemAdded",
+                   (EventNotifier)(&DOMStorageAgent::domStorageItemAdded));
+  addEventNotifier("domStorageItemRemoved",
+                   (EventNotifier)(&DOMStorageAgent::domStorageItemRemoved));
+  addEventNotifier("domStorageItemUpdated",
+                   (EventNotifier)(&DOMStorageAgent::domStorageItemUpdated));
+  addEventNotifier("domStorageItemsCleared",
+                   (EventNotifier)(&DOMStorageAgent::domStorageItemsCleared));
+  addEventNotifier("registerStorage",
+                   (EventNotifier)(&DOMStorageAgent::registerStorage));
 }
 
 protocol::DispatchResponse DOMStorageAgent::enable() {
@@ -107,8 +107,8 @@ protocol::DispatchResponse DOMStorageAgent::clear(
   return protocol::DispatchResponse::ServerError("Not implemented");
 }
 
-void DOMStorageAgent::domStorageItemAdded(v8::Local<v8::Context> context,
-                                          v8::Local<v8::Object> params) {
+void DOMStorageAgent::domStorageItemAdded(Local<Context> context,
+                                          Local<Object> params) {
   Local<Object> storage_id_obj;
   if (!ObjectGetObject(context, params, "storageId").ToLocal(&storage_id_obj)) {
     return;
@@ -131,8 +131,8 @@ void DOMStorageAgent::domStorageItemAdded(v8::Local<v8::Context> context,
   frontend_->domStorageItemAdded(std::move(storage_id), key, new_value);
 }
 
-void DOMStorageAgent::domStorageItemRemoved(v8::Local<v8::Context> context,
-                                            v8::Local<v8::Object> params) {
+void DOMStorageAgent::domStorageItemRemoved(Local<Context> context,
+                                            Local<Object> params) {
   Local<Object> storage_id_obj;
   if (!ObjectGetObject(context, params, "storageId").ToLocal(&storage_id_obj)) {
     return;
@@ -151,8 +151,8 @@ void DOMStorageAgent::domStorageItemRemoved(v8::Local<v8::Context> context,
   frontend_->domStorageItemRemoved(std::move(storage_id), key);
 }
 
-void DOMStorageAgent::domStorageItemUpdated(v8::Local<v8::Context> context,
-                                            v8::Local<v8::Object> params) {
+void DOMStorageAgent::domStorageItemUpdated(Local<Context> context,
+                                            Local<Object> params) {
   Local<Object> storage_id_obj;
   if (!ObjectGetObject(context, params, "storageId").ToLocal(&storage_id_obj)) {
     return;
@@ -181,8 +181,8 @@ void DOMStorageAgent::domStorageItemUpdated(v8::Local<v8::Context> context,
       std::move(storage_id), key, old_value, new_value);
 }
 
-void DOMStorageAgent::domStorageItemsCleared(v8::Local<v8::Context> context,
-                                             v8::Local<v8::Object> params) {
+void DOMStorageAgent::domStorageItemsCleared(Local<Context> context,
+                                             Local<Object> params) {
   Local<Object> storage_id_obj;
   if (!ObjectGetObject(context, params, "storageId").ToLocal(&storage_id_obj)) {
     return;
@@ -196,9 +196,9 @@ void DOMStorageAgent::domStorageItemsCleared(v8::Local<v8::Context> context,
   frontend_->domStorageItemsCleared(std::move(storage_id));
 }
 
-void DOMStorageAgent::registerStorage(v8::Local<v8::Context> context,
-                                      v8::Local<v8::Object> params) {
-  v8::Isolate* isolate = env_->isolate();
+void DOMStorageAgent::registerStorage(Local<Context> context,
+                                      Local<Object> params) {
+  Isolate* isolate = env_->isolate();
   HandleScope handle_scope(isolate);
   bool is_local_storage;
   if (!ObjectGetBool(context, params, "isLocalStorage").To(&is_local_storage)) {

@@ -11,6 +11,8 @@ namespace inspector {
 
 class NotificationEmitter {
  public:
+  using EventNotifier = void (NotificationEmitter::*)(
+      v8::Local<v8::Context> context, v8::Local<v8::Object>);
   NotificationEmitter();
   virtual ~NotificationEmitter() = default;
 
@@ -23,8 +25,9 @@ class NotificationEmitter {
   NotificationEmitter& operator=(const NotificationEmitter&) = delete;
 
  protected:
-  using EventNotifier = void (NotificationEmitter::*)(
-      v8::Local<v8::Context> context, v8::Local<v8::Object>);
+  void addEventNotifier(const protocol::String& event, EventNotifier notifier);
+
+ private:
   std::unordered_map<protocol::String, EventNotifier> event_notifier_map_;
 };
 

@@ -1,11 +1,7 @@
 #include "inspector/storage_agent.h"
 #include <string>
 #include "env-inl.h"
-#include "inspector/protocol_helper.h"
 #include "node_url.h"
-#include "util-inl.h"
-#include "v8-isolate.h"
-#include "v8-local-handle.h"
 
 namespace node {
 namespace inspector {

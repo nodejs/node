@@ -16,5 +16,9 @@ void NotificationEmitter::emitNotification(v8::Local<v8::Context> context,
   }
 }
 
+void NotificationEmitter::addEventNotifier(const protocol::String& event,
+                                           EventNotifier notifier) {
+  event_notifier_map_[event] = notifier;
+}
 }  // namespace inspector
 }  // namespace node

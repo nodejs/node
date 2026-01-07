@@ -1,9 +1,7 @@
 #ifndef SRC_INSPECTOR_STORAGE_AGENT_H_
 #define SRC_INSPECTOR_STORAGE_AGENT_H_
 
-#include <string>
 #include "env.h"
-#include "inspector/notification_emitter.h"
 #include "node/inspector/protocol/Storage.h"
 
 namespace node {

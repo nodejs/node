@@ -2,6 +2,7 @@
 #include "inspector/protocol_helper.h"
 #include "util-inl.h"
 
+using v8::Boolean;
 using v8::Context;
 using v8::EscapableHandleScope;
 using v8::HandleScope;
@@ -14,6 +15,7 @@ using v8::MaybeLocal;
 using v8::Nothing;
 using v8::Number;
 using v8::Object;
+using v8::String;
 using v8::Value;
 
 namespace node {
@@ -21,13 +23,13 @@ namespace inspector {
 // Get a protocol string property from the object.
 Maybe<protocol::String> ObjectGetProtocolString(Local<Context> context,
                                                 Local<Object> object,
-                                                Local<v8::String> property) {
+                                                Local<String> property) {
   HandleScope handle_scope(Isolate::GetCurrent());
   Local<Value> value;
   if (!object->Get(context, property).ToLocal(&value) || !value->IsString()) {
     return Nothing<protocol::String>();
   }
-  Local<v8::String> str = value.As<v8::String>();
+  Local<String> str = value.As<String>();
   return Just(ToProtocolString(Isolate::GetCurrent(), str));
 }
 
@@ -79,13 +81,13 @@ Maybe<bool> ObjectGetBool(Local<Context> context,
       !value->IsBoolean()) {
     return Nothing<bool>();
   }
-  return Just(value.As<v8::Boolean>()->Value());
+  return Just(value.As<Boolean>()->Value());
 }
 
 // Get an object property from the object.
-MaybeLocal<v8::Object> ObjectGetObject(Local<Context> context,
-                                       Local<Object> object,
-                                       const char* property) {
+MaybeLocal<Object> ObjectGetObject(Local<Context> context,
+                                   Local<Object> object,
+                                   const char* property) {
   EscapableHandleScope handle_scope(Isolate::GetCurrent());
   Local<Value> value;
   if (!object->Get(context, OneByteString(Isolate::GetCurrent(), property))
@@ -93,7 +95,7 @@ MaybeLocal<v8::Object> ObjectGetObject(Local<Context> context,
       !value->IsObject()) {
     return {};
   }
-  return handle_scope.Escape(value.As<v8::Object>());
+  return handle_scope.Escape(value.As<Object>());
 }
 
 }  // namespace inspector
