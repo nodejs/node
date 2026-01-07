@@ -5,8 +5,7 @@ const {
   ReadableStreamFrom,
   readableStreamClose,
   fullyReadBody,
-  extractMimeType,
-  utf8DecodeBytes
+  extractMimeType
 } = require('./util')
 const { FormData, setFormDataState } = require('./formdata')
 const { webidl } = require('../webidl')
@@ -16,15 +15,13 @@ const { isArrayBuffer } = require('node:util/types')
 const { serializeAMimeType } = require('./data-url')
 const { multipartFormDataParser } = require('./formdata-parser')
 const { createDeferredPromise } = require('../../util/promise')
+const { parseJSONFromBytes } = require('../infra')
+const { utf8DecodeBytes } = require('../../encoding')
+const { runtimeFeatures } = require('../../util/runtime-features.js')
 
-let random
-
-try {
-  const crypto = require('node:crypto')
-  random = (max) => crypto.randomInt(0, max)
-} catch {
-  random = (max) => Math.floor(Math.random() * max)
-}
+const random = runtimeFeatures.has('crypto')
+  ? require('node:crypto').randomInt
+  : (max) => Math.floor(Math.random() * max)
 
 const textEncoder = new TextEncoder()
 function noop () {}
@@ -225,32 +222,33 @@ function extractBody (object, keepalive = false) {
     // Run action.
     let iterator
     stream = new ReadableStream({
-      async start () {
+      start () {
         iterator = action(object)[Symbol.asyncIterator]()
       },
-      async pull (controller) {
-        const { value, done } = await iterator.next()
-        if (done) {
-          // When running action is done, close stream.
-          queueMicrotask(() => {
-            controller.close()
-            controller.byobRequest?.respond(0)
-          })
-        } else {
-          // Whenever one or more bytes are available and stream is not errored,
-          // enqueue a Uint8Array wrapping an ArrayBuffer containing the available
-          // bytes into stream.
-          if (!isErrored(stream)) {
-            const buffer = new Uint8Array(value)
-            if (buffer.byteLength) {
-              controller.enqueue(buffer)
+      pull (controller) {
+        return iterator.next().then(({ value, done }) => {
+          if (done) {
+            // When running action is done, close stream.
+            queueMicrotask(() => {
+              controller.close()
+              controller.byobRequest?.respond(0)
+            })
+          } else {
+            // Whenever one or more bytes are available and stream is not errored,
+            // enqueue a Uint8Array wrapping an ArrayBuffer containing the available
+            // bytes into stream.
+            if (!isErrored(stream)) {
+              const buffer = new Uint8Array(value)
+              if (buffer.byteLength) {
+                controller.enqueue(buffer)
+              }
             }
           }
-        }
-        return controller.desiredSize > 0
+          return controller.desiredSize > 0
+        })
       },
-      async cancel (reason) {
-        await iterator.return()
+      cancel (reason) {
+        return iterator.return()
       },
       type: 'bytes'
     })
@@ -494,14 +492,6 @@ function bodyUnusable (object) {
   // said to be unusable if its body is non-null and
   // its body’s stream is disturbed or locked.
   return body != null && (body.stream.locked || util.isDisturbed(body.stream))
-}
-
-/**
- * @see https://infra.spec.whatwg.org/#parse-json-bytes-to-a-javascript-value
- * @param {Uint8Array} bytes
- */
-function parseJSONFromBytes (bytes) {
-  return JSON.parse(utf8DecodeBytes(bytes))
 }
 
 /**

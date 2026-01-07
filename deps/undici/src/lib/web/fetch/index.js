@@ -35,7 +35,6 @@ const {
   isErrorLike,
   fullyReadBody,
   readableStreamClose,
-  isomorphicEncode,
   urlIsLocal,
   urlIsHttpHttpsScheme,
   urlHasHttpsScheme,
@@ -63,8 +62,11 @@ const { webidl } = require('../webidl')
 const { STATUS_CODES } = require('node:http')
 const { bytesMatch } = require('../subresource-integrity/subresource-integrity')
 const { createDeferredPromise } = require('../../util/promise')
+const { isomorphicEncode } = require('../infra')
+const { runtimeFeatures } = require('../../util/runtime-features')
 
-const hasZstd = typeof zlib.createZstdDecompress === 'function'
+// Node.js v23.8.0+ and v22.15.0+ supports Zstandard
+const hasZstd = runtimeFeatures.has('zstd')
 
 const GET_OR_HEAD = ['GET', 'HEAD']
 
@@ -887,7 +889,7 @@ function schemeFetch (fetchParams) {
 
         // 8. Let slicedBlob be the result of invoking slice blob given blob, rangeStart,
         //    rangeEnd + 1, and type.
-        const slicedBlob = blob.slice(rangeStart, rangeEnd, type)
+        const slicedBlob = blob.slice(rangeStart, rangeEnd + 1, type)
 
         // 9. Let slicedBodyWithType be the result of safely extracting slicedBlob.
         // Note: same reason as mentioned above as to why we use extractBody
@@ -2128,6 +2130,15 @@ async function httpNetworkFetch (
             // "All content-coding values are case-insensitive..."
             /** @type {string[]} */
             const codings = contentEncoding ? contentEncoding.toLowerCase().split(',') : []
+
+            // Limit the number of content-encodings to prevent resource exhaustion.
+            // CVE fix similar to urllib3 (GHSA-gm62-xv2j-4w53) and curl (CVE-2022-32206).
+            const maxContentEncodings = 5
+            if (codings.length > maxContentEncodings) {
+              reject(new Error(`too many content-encodings in response: ${codings.length}, maximum allowed is ${maxContentEncodings}`))
+              return true
+            }
+
             for (let i = codings.length - 1; i >= 0; --i) {
               const coding = codings[i].trim()
               // https://www.rfc-editor.org/rfc/rfc9112.html#section-7.2
@@ -2151,7 +2162,6 @@ async function httpNetworkFetch (
                   finishFlush: zlib.constants.BROTLI_OPERATION_FLUSH
                 }))
               } else if (coding === 'zstd' && hasZstd) {
-              // Node.js v23.8.0+ and v22.15.0+ supports Zstandard
                 decoders.push(zlib.createZstdDecompress({
                   flush: zlib.constants.ZSTD_e_continue,
                   finishFlush: zlib.constants.ZSTD_e_end
@@ -2227,8 +2237,10 @@ async function httpNetworkFetch (
         },
 
         onUpgrade (status, rawHeaders, socket) {
-          if (status !== 101) {
-            return
+          // We need to support 200 for websocket over h2 as per RFC-8441
+          // Absence of session means H1
+          if ((socket.session != null && status !== 200) || (socket.session == null && status !== 101)) {
+            return false
           }
 
           const headersList = new HeadersList()

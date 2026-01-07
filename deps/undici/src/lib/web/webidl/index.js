@@ -1,7 +1,7 @@
 'use strict'
 
 const { types, inspect } = require('node:util')
-const { markAsUncloneable } = require('node:worker_threads')
+const { runtimeFeatures } = require('../../util/runtime-features')
 
 const UNDEFINED = 1
 const BOOLEAN = 2
@@ -157,7 +157,9 @@ webidl.util.TypeValueToString = function (o) {
   }
 }
 
-webidl.util.markAsUncloneable = markAsUncloneable || (() => {})
+webidl.util.markAsUncloneable = runtimeFeatures.has('markAsUncloneable')
+  ? require('node:worker_threads').markAsUncloneable
+  : () => {}
 
 // https://webidl.spec.whatwg.org/#abstract-opdef-converttoint
 webidl.util.ConvertToInt = function (V, bitLength, signedness, flags) {
