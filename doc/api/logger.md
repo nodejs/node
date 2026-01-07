@@ -785,4 +785,6 @@ class ConsoleColorConsumer extends LogConsumer {
 const consumer = new ConsoleColorConsumer({ level: 'debug' });
 consumer.attach();
 ```
+
+[RFC 5424]: https://www.rfc-editor.org/rfc/rfc5424.html
 [`logger.<level>.enabled`]: #loggerlevelenabled
