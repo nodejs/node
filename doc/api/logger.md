@@ -240,6 +240,13 @@ added: REPLACEME
 Creates a child logger with additional context bindings. Child loggers inherit
 the parent's configuration and add their own bindings to all log records.
 
+> **Note for library authors:** The `level` option in `child()` is intended for
+> application code only. Library and module authors should NOT override the log
+> level in child loggers. Instead, libraries should inherit the parent logger's
+> level to respect the application developer's log level configuration.
+> Application developers can use this feature to isolate specific components
+> or adjust verbosity for particular subsystems they directly control.
+
 ```mjs
 import { Logger } from 'node:logger';
 
