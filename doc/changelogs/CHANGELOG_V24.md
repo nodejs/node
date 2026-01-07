@@ -9,6 +9,7 @@
 </tr>
 <tr>
 <td>
+<a href="#24.13.0">24.13.0</a><br/>
 <a href="#24.12.0">24.12.0</a><br/>
 <a href="#24.11.1">24.11.1</a><br/>
 <a href="#24.11.0">24.11.0</a><br/>
@@ -57,6 +58,38 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="24.13.0"></a>
+
+## 2026-01-13, Version 24.13.0 'Krypton' (LTS), @marco-ippolito
+
+This is a security release.
+
+### Notable Changes
+
+lib:
+
+* (CVE-2025-59465) add TLSSocket default error handler (RafaelGSS) <https://github.com/nodejs-private/node-private/pull/797>
+* (CVE-2025-55132) disable futimes when permission model is enabled (RafaelGSS) <https://github.com/nodejs-private/node-private/pull/748>
+  lib,permission:
+* (CVE-2025-55130) require full read and write to symlink APIs (RafaelGSS) <https://github.com/nodejs-private/node-private/pull/760>
+  src:
+* (CVE-2025-59466) rethrow stack overflow exceptions in async\_hooks (Matteo Collina) <https://github.com/nodejs-private/node-private/pull/773>
+  src,lib:
+* (CVE-2025-55131) refactor unsafe buffer creation to remove zero-fill toggle (Сковорода Никита Андреевич) <https://github.com/nodejs-private/node-private/pull/759>
+  tls:
+* (CVE-2026-21637) route callback exceptions through error handlers (Matteo Collina) <https://github.com/nodejs-private/node-private/pull/796>
+
+### Commits
+
+* \[[`2092785d01`](https://github.com/nodejs/node/commit/2092785d01)] - **deps**: update c-ares to v1.34.6 (Node.js GitHub Bot) [#60997](https://github.com/nodejs/node/pull/60997)
+* \[[`3e58b7f2af`](https://github.com/nodejs/node/commit/3e58b7f2af)] - **deps**: update undici to 7.18.2 (Node.js GitHub Bot) [#61283](https://github.com/nodejs/node/pull/61283)
+* \[[`4ba536a5a6`](https://github.com/nodejs/node/commit/4ba536a5a6)] - **(CVE-2025-59465)** **lib**: add TLSSocket default error handler (RafaelGSS) [nodejs-private/node-private#797](https://github.com/nodejs-private/node-private/pull/797)
+* \[[`89adaa21fd`](https://github.com/nodejs/node/commit/89adaa21fd)] - **(CVE-2025-55132)** **lib**: disable futimes when permission model is enabled (RafaelGSS) [nodejs-private/node-private#748](https://github.com/nodejs-private/node-private/pull/748)
+* \[[`7302b4dae1`](https://github.com/nodejs/node/commit/7302b4dae1)] - **(CVE-2025-55130)** **lib,permission**: require full read and write to symlink APIs (RafaelGSS) [nodejs-private/node-private#760](https://github.com/nodejs-private/node-private/pull/760)
+* \[[`ac030753c4`](https://github.com/nodejs/node/commit/ac030753c4)] - **(CVE-2025-59466)** **src**: rethrow stack overflow exceptions in async\_hooks (Matteo Collina) [nodejs-private/node-private#773](https://github.com/nodejs-private/node-private/pull/773)
+* \[[`20075692fe`](https://github.com/nodejs/node/commit/20075692fe)] - **(CVE-2025-55131)** **src,lib**: refactor unsafe buffer creation to remove zero-fill toggle (Сковорода Никита Андреевич) [nodejs-private/node-private#759](https://github.com/nodejs-private/node-private/pull/759)
+* \[[`20591b0618`](https://github.com/nodejs/node/commit/20591b0618)] - **(CVE-2026-21637)** **tls**: route callback exceptions through error handlers (Matteo Collina) [nodejs-private/node-private#796](https://github.com/nodejs-private/node-private/pull/796)
 
 <a id="24.12.0"></a>
 
