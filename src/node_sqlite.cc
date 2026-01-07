@@ -1155,6 +1155,89 @@ void DatabaseSync::Prepare(const FunctionCallbackInfo<Value>& args) {
   BaseObjectPtr<StatementSync> stmt =
       StatementSync::Create(env, BaseObjectPtr<DatabaseSync>(db), s);
   db->statements_.insert(stmt.get());
+
+  if (args.Length() > 1 && !args[1]->IsUndefined()) {
+    if (!args[1]->IsObject()) {
+      THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
+                                 "The \"options\" argument must be an object.");
+      return;
+    }
+    Local<Object> options = args[1].As<Object>();
+
+    Local<Value> return_arrays_v;
+    if (!options
+             ->Get(env->context(),
+                   FIXED_ONE_BYTE_STRING(env->isolate(), "returnArrays"))
+             .ToLocal(&return_arrays_v)) {
+      return;
+    }
+    if (!return_arrays_v->IsUndefined()) {
+      if (!return_arrays_v->IsBoolean()) {
+        THROW_ERR_INVALID_ARG_TYPE(
+            env->isolate(),
+            "The \"options.returnArrays\" argument must be a boolean.");
+        return;
+      }
+      stmt->return_arrays_ = return_arrays_v->IsTrue();
+    }
+
+    Local<Value> read_big_ints_v;
+    if (!options
+             ->Get(env->context(),
+                   FIXED_ONE_BYTE_STRING(env->isolate(), "readBigInts"))
+             .ToLocal(&read_big_ints_v)) {
+      return;
+    }
+    if (!read_big_ints_v->IsUndefined()) {
+      if (!read_big_ints_v->IsBoolean()) {
+        THROW_ERR_INVALID_ARG_TYPE(
+            env->isolate(),
+            "The \"options.readBigInts\" argument must be a boolean.");
+        return;
+      }
+      stmt->use_big_ints_ = read_big_ints_v->IsTrue();
+    }
+
+    Local<Value> allow_bare_named_params_v;
+    if (!options
+             ->Get(env->context(),
+                   FIXED_ONE_BYTE_STRING(env->isolate(),
+                                         "allowBareNamedParameters"))
+             .ToLocal(&allow_bare_named_params_v)) {
+      return;
+    }
+    if (!allow_bare_named_params_v->IsUndefined()) {
+      if (!allow_bare_named_params_v->IsBoolean()) {
+        THROW_ERR_INVALID_ARG_TYPE(
+            env->isolate(),
+            "The \"options.allowBareNamedParameters\" argument must be a "
+            "boolean.");
+        return;
+      }
+      stmt->allow_bare_named_params_ = allow_bare_named_params_v->IsTrue();
+    }
+
+    Local<Value> allow_unknown_named_params_v;
+    if (!options
+             ->Get(env->context(),
+                   FIXED_ONE_BYTE_STRING(env->isolate(),
+                                         "allowUnknownNamedParameters"))
+             .ToLocal(&allow_unknown_named_params_v)) {
+      return;
+    }
+    if (!allow_unknown_named_params_v->IsUndefined()) {
+      if (!allow_unknown_named_params_v->IsBoolean()) {
+        THROW_ERR_INVALID_ARG_TYPE(
+            env->isolate(),
+            "The \"options.allowUnknownNamedParameters\" argument must be a "
+            "boolean.");
+        return;
+      }
+      stmt->allow_unknown_named_params_ =
+          allow_unknown_named_params_v->IsTrue();
+    }
+  }
+
   args.GetReturnValue().Set(stmt->object());
 }
 
@@ -2587,73 +2670,6 @@ void StatementSync::ExpandedSQLGetter(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(result);
 }
 
-void StatementSync::SetAllowBareNamedParameters(
-    const FunctionCallbackInfo<Value>& args) {
-  StatementSync* stmt;
-  ASSIGN_OR_RETURN_UNWRAP(&stmt, args.This());
-  Environment* env = Environment::GetCurrent(args);
-  THROW_AND_RETURN_ON_BAD_STATE(
-      env, stmt->IsFinalized(), "statement has been finalized");
-
-  if (!args[0]->IsBoolean()) {
-    THROW_ERR_INVALID_ARG_TYPE(
-        env->isolate(),
-        "The \"allowBareNamedParameters\" argument must be a boolean.");
-    return;
-  }
-
-  stmt->allow_bare_named_params_ = args[0]->IsTrue();
-}
-
-void StatementSync::SetAllowUnknownNamedParameters(
-    const FunctionCallbackInfo<Value>& args) {
-  StatementSync* stmt;
-  ASSIGN_OR_RETURN_UNWRAP(&stmt, args.This());
-  Environment* env = Environment::GetCurrent(args);
-  THROW_AND_RETURN_ON_BAD_STATE(
-      env, stmt->IsFinalized(), "statement has been finalized");
-
-  if (!args[0]->IsBoolean()) {
-    THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
-                               "The \"enabled\" argument must be a boolean.");
-    return;
-  }
-
-  stmt->allow_unknown_named_params_ = args[0]->IsTrue();
-}
-
-void StatementSync::SetReadBigInts(const FunctionCallbackInfo<Value>& args) {
-  StatementSync* stmt;
-  ASSIGN_OR_RETURN_UNWRAP(&stmt, args.This());
-  Environment* env = Environment::GetCurrent(args);
-  THROW_AND_RETURN_ON_BAD_STATE(
-      env, stmt->IsFinalized(), "statement has been finalized");
-
-  if (!args[0]->IsBoolean()) {
-    THROW_ERR_INVALID_ARG_TYPE(
-        env->isolate(), "The \"readBigInts\" argument must be a boolean.");
-    return;
-  }
-
-  stmt->use_big_ints_ = args[0]->IsTrue();
-}
-
-void StatementSync::SetReturnArrays(const FunctionCallbackInfo<Value>& args) {
-  StatementSync* stmt;
-  ASSIGN_OR_RETURN_UNWRAP(&stmt, args.This());
-  Environment* env = Environment::GetCurrent(args);
-  THROW_AND_RETURN_ON_BAD_STATE(
-      env, stmt->IsFinalized(), "statement has been finalized");
-
-  if (!args[0]->IsBoolean()) {
-    THROW_ERR_INVALID_ARG_TYPE(
-        env->isolate(), "The \"returnArrays\" argument must be a boolean.");
-    return;
-  }
-
-  stmt->return_arrays_ = args[0]->IsTrue();
-}
-
 void IllegalConstructor(const FunctionCallbackInfo<Value>& args) {
   THROW_ERR_ILLEGAL_CONSTRUCTOR(Environment::GetCurrent(args));
 }
@@ -3002,18 +3018,6 @@ Local<FunctionTemplate> StatementSync::GetConstructorTemplate(
                             tmpl,
                             FIXED_ONE_BYTE_STRING(isolate, "expandedSQL"),
                             StatementSync::ExpandedSQLGetter);
-    SetProtoMethod(isolate,
-                   tmpl,
-                   "setAllowBareNamedParameters",
-                   StatementSync::SetAllowBareNamedParameters);
-    SetProtoMethod(isolate,
-                   tmpl,
-                   "setAllowUnknownNamedParameters",
-                   StatementSync::SetAllowUnknownNamedParameters);
-    SetProtoMethod(
-        isolate, tmpl, "setReadBigInts", StatementSync::SetReadBigInts);
-    SetProtoMethod(
-        isolate, tmpl, "setReturnArrays", StatementSync::SetReturnArrays);
     env->set_sqlite_statement_sync_constructor_template(tmpl);
   }
   return tmpl;
