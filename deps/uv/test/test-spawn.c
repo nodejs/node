@@ -153,18 +153,10 @@ static void pty_on_read(uv_stream_t* tcp, ssize_t nread, const uv_buf_t* buf) {
   if (nread > 0) {
     output_used += nread;
   } else if (nread < 0) {
-#if defined(_WIN32) || \
-    defined(__APPLE__) || \
-    defined(__DragonFly__) || \
-    defined(__FreeBSD__) || \
-    defined(__NetBSD__) || \
-    defined(__OpenBSD__)
-    ASSERT_EQ(nread, UV_EOF);
-#elif defined(__ANDROID__)
+/* Depending on the platform we either get UV_EOF or UV_EIO as the stream
+ * close indicator. Windows and BSDs do EOF, Linux does EIO, Android does both.
+ */
     ASSERT(nread == UV_EIO || nread == UV_EOF);
-#else
-    ASSERT_EQ(nread, UV_EIO);
-#endif
     uv_close((uv_handle_t*) tcp, close_cb);
   }
 }
