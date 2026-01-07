@@ -5,7 +5,7 @@ const bench = common.createBenchmark(main, {
   bytes: [8, 128, 1024, 16384],
   type: ['buffer', 'uint8array', 'arraybuffer'],
   partial: ['true', 'false'],
-  n: [10],
+  n: [5e5],
 });
 
 function main({ n, bytes, type, partial }) {
