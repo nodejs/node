@@ -9,6 +9,7 @@
     ada
     brotli
     c-ares
+    gtest
     libuv
     nghttp2
     nghttp3

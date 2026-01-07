@@ -263,6 +263,28 @@ parser.add_argument('--openssl-system-ca-path',
     help='Use the specified path to system CA (PEM format) in addition to '
          'the OpenSSL supplied CA store or compiled-in Mozilla CA copy.')
 
+shared_optgroup.add_argument('--shared-gtest',
+    action='store_true',
+    dest='shared_gtest',
+    default=None,
+    help='link to a shared googletest DLL instead of static linking')
+
+shared_optgroup.add_argument('--shared-gtest-includes',
+    action='store',
+    dest='shared_gtest_includes',
+    help='directory containing googletest header files')
+
+shared_optgroup.add_argument('--shared-gtest-libname',
+    action='store',
+    dest='shared_gtest_libname',
+    default='gtest',
+    help='alternative lib name to link to [default: %(default)s]')
+
+shared_optgroup.add_argument('--shared-gtest-libpath',
+    action='store',
+    dest='shared_gtest_libpath',
+    help='a directory to search for the shared googletest DLL')
+
 parser.add_argument('--experimental-http-parser',
     action='store_true',
     dest='experimental_http_parser',
@@ -2408,6 +2430,7 @@ configure_library('simdjson', output)
 configure_library('simdutf', output)
 configure_library('brotli', output, pkgname=['libbrotlidec', 'libbrotlienc'])
 configure_library('cares', output, pkgname='libcares')
+configure_library('gtest', output)
 configure_library('nghttp2', output, pkgname='libnghttp2')
 configure_library('nghttp3', output, pkgname='libnghttp3')
 configure_library('ngtcp2', output, pkgname='libngtcp2')
