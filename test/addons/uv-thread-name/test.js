@@ -16,7 +16,7 @@ if (isMainThread) {
 
   const worker = new Worker(__filename);
   worker.on('message', common.mustCall((data) => {
-    assert.strictEqual(data, 'node-WorkerThread');
+    assert.strictEqual(data, 'WorkerThread');
   }));
   worker.on('error', common.mustNotCall());
   worker.on('exit', common.mustCall((code) => {
