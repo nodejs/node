@@ -337,8 +337,7 @@ function mockDispatch (opts, handler) {
       // synchronously throw the error, which breaks some tests.
       // Rather, we wait for the callback to resolve if it is a
       // promise, and then re-run handleReply with the new body.
-      body.then((newData) => handleReply(mockDispatches, newData))
-      return
+      return body.then((newData) => handleReply(mockDispatches, newData))
     }
 
     const responseData = getResponseData(body)

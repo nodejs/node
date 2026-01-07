@@ -1,8 +1,8 @@
 /// <reference types="node" />
 
-import type { Blob } from 'buffer'
-import type { ReadableStream, WritableStream } from 'stream/web'
-import type { MessagePort } from 'worker_threads'
+import type { Blob } from 'node:buffer'
+import type { ReadableStream, WritableStream } from 'node:stream/web'
+import type { MessagePort } from 'node:worker_threads'
 import {
   EventInit,
   EventListenerOptions,
@@ -96,16 +96,16 @@ interface MessageEventInit<T = any> extends EventInit {
   data?: T
   lastEventId?: string
   origin?: string
-  ports?: (typeof MessagePort)[]
-  source?: typeof MessagePort | null
+  ports?: MessagePort[]
+  source?: MessagePort | null
 }
 
 interface MessageEvent<T = any> extends Event {
   readonly data: T
   readonly lastEventId: string
   readonly origin: string
-  readonly ports: ReadonlyArray<typeof MessagePort>
-  readonly source: typeof MessagePort | null
+  readonly ports: readonly MessagePort[]
+  readonly source: MessagePort | null
   initMessageEvent(
     type: string,
     bubbles?: boolean,
@@ -113,8 +113,8 @@ interface MessageEvent<T = any> extends Event {
     data?: any,
     origin?: string,
     lastEventId?: string,
-    source?: typeof MessagePort | null,
-    ports?: (typeof MessagePort)[]
+    source?: MessagePort | null,
+    ports?: MessagePort[]
   ): void;
 }
 

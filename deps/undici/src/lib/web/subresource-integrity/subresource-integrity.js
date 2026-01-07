@@ -1,6 +1,7 @@
 'use strict'
 
 const assert = require('node:assert')
+const { runtimeFeatures } = require('../../util/runtime-features.js')
 
 /**
  * @typedef {object} Metadata
@@ -29,9 +30,10 @@ const assert = require('node:assert')
 const validSRIHashAlgorithmTokenSet = new Map([['sha256', 0], ['sha384', 1], ['sha512', 2]])
 
 // https://nodejs.org/api/crypto.html#determining-if-crypto-support-is-unavailable
-/** @type {import('crypto')} */
+/** @type {import('node:crypto')} */
 let crypto
-try {
+
+if (runtimeFeatures.has('crypto')) {
   crypto = require('node:crypto')
   const cryptoHashes = crypto.getHashes()
 
@@ -46,8 +48,7 @@ try {
       validSRIHashAlgorithmTokenSet.delete(algorithm)
     }
   }
-  /* c8 ignore next 4 */
-} catch {
+} else {
   // If crypto is not available, we cannot support SRI.
   validSRIHashAlgorithmTokenSet.clear()
 }
@@ -81,7 +82,7 @@ const isValidSRIHashAlgorithm = /** @type {IsValidSRIHashAlgorithm} */ (
  *
  * @see https://w3c.github.io/webappsec-subresource-integrity/#does-response-match-metadatalist
  */
-const bytesMatch = crypto === undefined || validSRIHashAlgorithmTokenSet.size === 0
+const bytesMatch = runtimeFeatures.has('crypto') === false || validSRIHashAlgorithmTokenSet.size === 0
   // If node is not built with OpenSSL support, we cannot check
   // a request's integrity, so allow it by default (the spec will
   // allow requests if an invalid hash is given, as precedence).
