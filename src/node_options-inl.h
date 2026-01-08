@@ -421,20 +421,20 @@ void OptionsParser<Options>::Parse(
     }
 
     {
-      std::string implied_name = name;
-      if (is_negation) {
-        // Implications for negated options are defined with "--no-".
-        implied_name.insert(2, "no-");
-      }
-      auto [f, l] = implications_.equal_range(implied_name);
+      auto [f, l] = implications_.equal_range(name);
       std::ranges::for_each(std::ranges::subrange(f, l) | std::views::values,
                             [&](const auto& value) {
                               if (value.type == kV8Option) {
                                 v8_args->push_back(value.name);
                               } else {
+                                bool target_value = value.target_value;
+                                if (is_negation && value.type == kBoolean) {
+                                  target_value = !value.target_value;
+                                }
                                 *value.target_field->template Lookup<bool>(
-                                    options) = value.target_value;
+                                    options) = target_value;
                               }
+                                
                             });
     }
 
