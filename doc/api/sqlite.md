@@ -452,10 +452,18 @@ Similar to the method above, but generates a more compact patchset. See [Changes
 in the documentation of SQLite. An exception is thrown if the database or the session is not open. This method is a
 wrapper around [`sqlite3session_patchset()`][].
 
-### `session.close()`.
+### `session.close()`
 
 Closes the session. An exception is thrown if the database or the session is not open. This method is a
 wrapper around [`sqlite3session_delete()`][].
+
+### `session[Symbol.dispose]()`
+
+<!-- YAML
+added: v24.9.0
+-->
+
+Closes the session. If the session is already closed, does nothing.
 
 ## Class: `StatementSync`
 
