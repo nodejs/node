@@ -1,4 +1,4 @@
-/* auto-generated on 2025-09-23 12:57:35 -0400. Do not edit! */
+/* auto-generated on 2026-01-08 10:25:21 -0500. Do not edit! */
 /* begin file src/ada.cpp */
 #include "ada.h"
 /* begin file src/checkers.cpp */
@@ -132,6 +132,7 @@ ada_really_inline constexpr bool verify_dns_length(
 }  // namespace ada::checkers
 /* end file src/checkers.cpp */
 /* begin file src/unicode.cpp */
+
 
 ADA_PUSH_DISABLE_ALL_WARNINGS
 /* begin file src/ada_idna.cpp */
@@ -10443,12 +10444,16 @@ bool valid_name_code_point(char32_t code_point, bool first) {
 ADA_POP_DISABLE_WARNINGS
 
 #include <algorithm>
-#if ADA_NEON
+#if ADA_SSSE3
+#include <tmmintrin.h>
+#elif ADA_NEON
 #include <arm_neon.h>
 #elif ADA_SSE2
 #include <emmintrin.h>
 #elif ADA_LSX
 #include <lsxintrin.h>
+#elif ADA_RVV
+#include <riscv_vector.h>
 #endif
 
 #include <ranges>
@@ -10488,7 +10493,39 @@ constexpr bool to_lower_ascii(char* input, size_t length) noexcept {
   }
   return non_ascii == 0;
 }
-#if ADA_NEON
+#if ADA_SSSE3
+ada_really_inline bool has_tabs_or_newline(
+    std::string_view user_input) noexcept {
+  // first check for short strings in which case we do it naively.
+  if (user_input.size() < 16) {  // slow path
+    return std::ranges::any_of(user_input, is_tabs_or_newline);
+  }
+  // fast path for long strings (expected to be common)
+  // Using SSSE3's _mm_shuffle_epi8 for table lookup (same approach as NEON)
+  size_t i = 0;
+  // Lookup table where positions 9, 10, 13 contain their own values
+  // Everything else is set to 1 so it won't match
+  const __m128i rnt =
+      _mm_setr_epi8(1, 0, 0, 0, 0, 0, 0, 0, 0, 9, 10, 0, 0, 13, 0, 0);
+  __m128i running = _mm_setzero_si128();
+  for (; i + 15 < user_input.size(); i += 16) {
+    __m128i word = _mm_loadu_si128((const __m128i*)(user_input.data() + i));
+    // Shuffle the lookup table using input bytes as indices
+    __m128i shuffled = _mm_shuffle_epi8(rnt, word);
+    // Compare: if shuffled value matches input, we found \t, \n, or \r
+    __m128i matches = _mm_cmpeq_epi8(shuffled, word);
+    running = _mm_or_si128(running, matches);
+  }
+  if (i < user_input.size()) {
+    __m128i word = _mm_loadu_si128(
+        (const __m128i*)(user_input.data() + user_input.length() - 16));
+    __m128i shuffled = _mm_shuffle_epi8(rnt, word);
+    __m128i matches = _mm_cmpeq_epi8(shuffled, word);
+    running = _mm_or_si128(running, matches);
+  }
+  return _mm_movemask_epi8(running) != 0;
+}
+#elif ADA_NEON
 ada_really_inline bool has_tabs_or_newline(
     std::string_view user_input) noexcept {
   // first check for short strings in which case we do it naively.
@@ -10588,6 +10625,22 @@ ada_really_inline bool has_tabs_or_newline(
   }
   if (__lsx_bz_v(running)) return false;
   return true;
+}
+#elif ADA_RVV
+ada_really_inline bool has_tabs_or_newline(
+    std::string_view user_input) noexcept {
+  uint8_t* src = (uint8_t*)user_input.data();
+  for (size_t vl, n = user_input.size(); n > 0; n -= vl, src += vl) {
+    vl = __riscv_vsetvl_e8m1(n);
+    vuint8m1_t v = __riscv_vle8_v_u8m1(src, vl);
+    vbool8_t m1 = __riscv_vmseq(v, '\r', vl);
+    vbool8_t m2 = __riscv_vmseq(v, '\n', vl);
+    vbool8_t m3 = __riscv_vmseq(v, '\t', vl);
+    vbool8_t m = __riscv_vmor(__riscv_vmor(m1, m2, vl), m3, vl);
+    long idx = __riscv_vfirst(m, vl);
+    if (idx >= 0) return true;
+  }
+  return false;
 }
 #else
 ada_really_inline bool has_tabs_or_newline(
@@ -11122,9 +11175,13 @@ ada_warn_unused std::string_view to_string(ada::encoding_type type) {
 }  // namespace ada
 /* end file src/implementation.cpp */
 /* begin file src/helpers.cpp */
-
 #include <cstring>
 #include <sstream>
+
+
+#if ADA_SSSE3
+#include <tmmintrin.h>
+#endif
 
 namespace ada::helpers {
 
@@ -11299,7 +11356,64 @@ ada_really_inline int trailing_zeroes(uint32_t input_num) noexcept {
 // starting at index location, this finds the next location of a character
 // :, /, \\, ? or [. If none is found, view.size() is returned.
 // For use within get_host_delimiter_location.
-#if ADA_NEON
+#if ADA_SSSE3
+ada_really_inline size_t find_next_host_delimiter_special(
+    std::string_view view, size_t location) noexcept {
+  // first check for short strings in which case we do it naively.
+  if (view.size() - location < 16) {  // slow path
+    for (size_t i = location; i < view.size(); i++) {
+      if (view[i] == ':' || view[i] == '/' || view[i] == '\\' ||
+          view[i] == '?' || view[i] == '[') {
+        return i;
+      }
+    }
+    return size_t(view.size());
+  }
+  // fast path for long strings (expected to be common)
+  // Using SSSE3's _mm_shuffle_epi8 for table lookup (same approach as NEON)
+  size_t i = location;
+  const __m128i low_mask =
+      _mm_setr_epi8(0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                    0x01, 0x04, 0x04, 0x00, 0x00, 0x03);
+  const __m128i high_mask =
+      _mm_setr_epi8(0x00, 0x00, 0x02, 0x01, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00,
+                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00);
+  const __m128i fmask = _mm_set1_epi8(0xf);
+  const __m128i zero = _mm_setzero_si128();
+  for (; i + 15 < view.size(); i += 16) {
+    __m128i word = _mm_loadu_si128((const __m128i*)(view.data() + i));
+    __m128i lowpart = _mm_shuffle_epi8(low_mask, _mm_and_si128(word, fmask));
+    __m128i highpart = _mm_shuffle_epi8(
+        high_mask, _mm_and_si128(_mm_srli_epi16(word, 4), fmask));
+    __m128i classify = _mm_and_si128(lowpart, highpart);
+    __m128i is_zero = _mm_cmpeq_epi8(classify, zero);
+    // _mm_movemask_epi8 returns a 16-bit mask in bits 0-15, with bits 16-31
+    // zero. After NOT (~), bits 16-31 become 1. We must mask to 16 bits to
+    // avoid false positives.
+    int mask = ~_mm_movemask_epi8(is_zero) & 0xFFFF;
+    if (mask != 0) {
+      return i + trailing_zeroes(static_cast<uint32_t>(mask));
+    }
+  }
+  if (i < view.size()) {
+    __m128i word =
+        _mm_loadu_si128((const __m128i*)(view.data() + view.length() - 16));
+    __m128i lowpart = _mm_shuffle_epi8(low_mask, _mm_and_si128(word, fmask));
+    __m128i highpart = _mm_shuffle_epi8(
+        high_mask, _mm_and_si128(_mm_srli_epi16(word, 4), fmask));
+    __m128i classify = _mm_and_si128(lowpart, highpart);
+    __m128i is_zero = _mm_cmpeq_epi8(classify, zero);
+    // _mm_movemask_epi8 returns a 16-bit mask in bits 0-15, with bits 16-31
+    // zero. After NOT (~), bits 16-31 become 1. We must mask to 16 bits to
+    // avoid false positives.
+    int mask = ~_mm_movemask_epi8(is_zero) & 0xFFFF;
+    if (mask != 0) {
+      return view.length() - 16 + trailing_zeroes(static_cast<uint32_t>(mask));
+    }
+  }
+  return size_t(view.size());
+}
+#elif ADA_NEON
 // The ada_make_uint8x16_t macro is necessary because Visual Studio does not
 // support direct initialization of uint8x16_t. See
 // https://developercommunity.visualstudio.com/t/error-C2078:-too-many-initializers-whe/402911?q=backend+neon
@@ -11476,6 +11590,42 @@ ada_really_inline size_t find_next_host_delimiter_special(
   }
   return size_t(view.length());
 }
+#elif ADA_RVV
+ada_really_inline size_t find_next_host_delimiter_special(
+    std::string_view view, size_t location) noexcept {
+  // The LUT approach was a bit slower on the SpacemiT X60, but I could see it
+  // being faster on future hardware.
+#if 0
+  // LUT generated using: s=":/\\?["; list(zip([((ord(c)>>2)&0xF)for c in s],s))
+  static const uint8_t tbl[16] = {
+    0xF, 0, 0, 0, 0, 0, '[', '\\', 0, 0, 0, '/', 0, 0, ':', '?'
+  };
+  vuint8m1_t vtbl = __riscv_vle8_v_u8m1(tbl, 16);
+#endif
+  uint8_t* src = (uint8_t*)view.data() + location;
+  for (size_t vl, n = view.size() - location; n > 0;
+       n -= vl, src += vl, location += vl) {
+    vl = __riscv_vsetvl_e8m1(n);
+    vuint8m1_t v = __riscv_vle8_v_u8m1(src, vl);
+#if 0
+    vuint8m1_t vidx = __riscv_vand(__riscv_vsrl(v, 2, vl), 0xF, vl);
+    vuint8m1_t vlut = __riscv_vrgather(vtbl, vidx, vl);
+    vbool8_t m = __riscv_vmseq(v, vlut, vl);
+#else
+    vbool8_t m1 = __riscv_vmseq(v, ':', vl);
+    vbool8_t m2 = __riscv_vmseq(v, '/', vl);
+    vbool8_t m3 = __riscv_vmseq(v, '?', vl);
+    vbool8_t m4 = __riscv_vmseq(v, '[', vl);
+    vbool8_t m5 = __riscv_vmseq(v, '\\', vl);
+    vbool8_t m = __riscv_vmor(
+        __riscv_vmor(__riscv_vmor(m1, m2, vl), __riscv_vmor(m3, m4, vl), vl),
+        m5, vl);
+#endif
+    long idx = __riscv_vfirst(m, vl);
+    if (idx >= 0) return location + idx;
+  }
+  return size_t(view.size());
+}
 #else
 // : / [ \\ ?
 static constexpr std::array<uint8_t, 256> special_host_delimiters =
@@ -11502,7 +11652,70 @@ ada_really_inline size_t find_next_host_delimiter_special(
 // starting at index location, this finds the next location of a character
 // :, /, ? or [. If none is found, view.size() is returned.
 // For use within get_host_delimiter_location.
-#if ADA_NEON
+#if ADA_SSSE3
+ada_really_inline size_t find_next_host_delimiter(std::string_view view,
+                                                  size_t location) noexcept {
+  // first check for short strings in which case we do it naively.
+  if (view.size() - location < 16) {  // slow path
+    for (size_t i = location; i < view.size(); i++) {
+      if (view[i] == ':' || view[i] == '/' || view[i] == '?' ||
+          view[i] == '[') {
+        return i;
+      }
+    }
+    return size_t(view.size());
+  }
+  // fast path for long strings (expected to be common)
+  size_t i = location;
+  // Lookup tables for bit classification:
+  // ':' (0x3A): low[0xA]=0x01, high[0x3]=0x01 -> match
+  // '/' (0x2F): low[0xF]=0x02, high[0x2]=0x02 -> match
+  // '?' (0x3F): low[0xF]=0x01, high[0x3]=0x01 -> match
+  // '[' (0x5B): low[0xB]=0x04, high[0x5]=0x04 -> match
+  const __m128i low_mask =
+      _mm_setr_epi8(0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                    0x01, 0x04, 0x00, 0x00, 0x00, 0x03);
+  const __m128i high_mask =
+      _mm_setr_epi8(0x00, 0x00, 0x02, 0x01, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00,
+                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00);
+  const __m128i fmask = _mm_set1_epi8(0xf);
+  const __m128i zero = _mm_setzero_si128();
+
+  for (; i + 15 < view.size(); i += 16) {
+    __m128i word = _mm_loadu_si128((const __m128i*)(view.data() + i));
+    __m128i lowpart = _mm_shuffle_epi8(low_mask, _mm_and_si128(word, fmask));
+    __m128i highpart = _mm_shuffle_epi8(
+        high_mask, _mm_and_si128(_mm_srli_epi16(word, 4), fmask));
+    __m128i classify = _mm_and_si128(lowpart, highpart);
+    __m128i is_zero = _mm_cmpeq_epi8(classify, zero);
+    // _mm_movemask_epi8 returns a 16-bit mask in bits 0-15, with bits 16-31
+    // zero. After NOT (~), bits 16-31 become 1. We must mask to 16 bits to
+    // avoid false positives.
+    int mask = ~_mm_movemask_epi8(is_zero) & 0xFFFF;
+    if (mask != 0) {
+      return i + trailing_zeroes(static_cast<uint32_t>(mask));
+    }
+  }
+
+  if (i < view.size()) {
+    __m128i word =
+        _mm_loadu_si128((const __m128i*)(view.data() + view.length() - 16));
+    __m128i lowpart = _mm_shuffle_epi8(low_mask, _mm_and_si128(word, fmask));
+    __m128i highpart = _mm_shuffle_epi8(
+        high_mask, _mm_and_si128(_mm_srli_epi16(word, 4), fmask));
+    __m128i classify = _mm_and_si128(lowpart, highpart);
+    __m128i is_zero = _mm_cmpeq_epi8(classify, zero);
+    // _mm_movemask_epi8 returns a 16-bit mask in bits 0-15, with bits 16-31
+    // zero. After NOT (~), bits 16-31 become 1. We must mask to 16 bits to
+    // avoid false positives.
+    int mask = ~_mm_movemask_epi8(is_zero) & 0xFFFF;
+    if (mask != 0) {
+      return view.length() - 16 + trailing_zeroes(static_cast<uint32_t>(mask));
+    }
+  }
+  return size_t(view.size());
+}
+#elif ADA_NEON
 ada_really_inline size_t find_next_host_delimiter(std::string_view view,
                                                   size_t location) noexcept {
   // first check for short strings in which case we do it naively.
@@ -11655,6 +11868,25 @@ ada_really_inline size_t find_next_host_delimiter(std::string_view view,
     }
   }
   return size_t(view.length());
+}
+#elif ADA_RVV
+ada_really_inline size_t find_next_host_delimiter(std::string_view view,
+                                                  size_t location) noexcept {
+  uint8_t* src = (uint8_t*)view.data() + location;
+  for (size_t vl, n = view.size() - location; n > 0;
+       n -= vl, src += vl, location += vl) {
+    vl = __riscv_vsetvl_e8m1(n);
+    vuint8m1_t v = __riscv_vle8_v_u8m1(src, vl);
+    vbool8_t m1 = __riscv_vmseq(v, ':', vl);
+    vbool8_t m2 = __riscv_vmseq(v, '/', vl);
+    vbool8_t m3 = __riscv_vmseq(v, '?', vl);
+    vbool8_t m4 = __riscv_vmseq(v, '[', vl);
+    vbool8_t m =
+        __riscv_vmor(__riscv_vmor(m1, m2, vl), __riscv_vmor(m3, m4, vl), vl);
+    long idx = __riscv_vfirst(m, vl);
+    if (idx >= 0) return location + idx;
+  }
+  return size_t(view.size());
 }
 #else
 // : / [ ?
@@ -11969,7 +12201,7 @@ static constexpr std::array<uint8_t, 256> authority_delimiter_special =
 ada_really_inline size_t
 find_authority_delimiter_special(std::string_view view) noexcept {
   // performance note: we might be able to gain further performance
-  // with SIMD instrinsics.
+  // with SIMD intrinsics.
   for (auto pos = view.begin(); pos != view.end(); ++pos) {
     if (authority_delimiter_special[(uint8_t)*pos]) {
       return pos - view.begin();
@@ -12456,6 +12688,20 @@ ada_really_inline bool url::parse_host(std::string_view input) {
   if (!is_special()) {
     return parse_opaque_host(input);
   }
+
+  // Fast path: try to parse as pure decimal IPv4(a.b.c.d) first.
+  const uint64_t fast_result = checkers::try_parse_ipv4_fast(input);
+  if (fast_result < checkers::ipv4_fast_fail) {
+    // Fast path succeeded - input is pure decimal IPv4
+    if (!input.empty() && input.back() == '.') {
+      host = input.substr(0, input.size() - 1);
+    } else {
+      host = input;
+    }
+    host_type = IPV4;
+    ada_log("parse_host fast path decimal ipv4");
+    return true;
+  }
   // Let domain be the result of running UTF-8 decode without BOM on the
   // percent-decoding of input. Let asciiDomain be the result of running domain
   // to ASCII with domain and false. The most common case is an ASCII input, in
@@ -12471,6 +12717,8 @@ ada_really_inline bool url::parse_host(std::string_view input) {
   if (is_forbidden == 0 && buffer.find("xn-") == std::string_view::npos) {
     // fast path
     host = std::move(buffer);
+
+    // Check for other IPv4 formats (hex, octal, etc.)
     if (checkers::is_ipv4(host.value())) {
       ada_log("parse_host fast path ipv4");
       return parse_ipv4(host.value());
@@ -14366,6 +14614,21 @@ ada_really_inline bool url_aggregator::parse_host(std::string_view input) {
   // Often, the input does not contain any forbidden code points, and no upper
   // case ASCII letter, then we can just copy it to the buffer. We want to
   // optimize for such a common case.
+
+  // Fast path: try to parse as pure decimal IPv4(a.b.c.d) first.
+  const uint64_t fast_result = checkers::try_parse_ipv4_fast(input);
+  if (fast_result < checkers::ipv4_fast_fail) {
+    // Fast path succeeded - input is pure decimal IPv4
+    if (!input.empty() && input.back() == '.') {
+      update_base_hostname(input.substr(0, input.size() - 1));
+    } else {
+      update_base_hostname(input);
+    }
+    host_type = IPV4;
+    ada_log("parse_host fast path decimal ipv4");
+    ADA_ASSERT_TRUE(validate());
+    return true;
+  }
   uint8_t is_forbidden_or_upper =
       unicode::contains_forbidden_domain_code_point_or_upper(input.data(),
                                                              input.size());
@@ -14379,6 +14642,8 @@ ada_really_inline bool url_aggregator::parse_host(std::string_view input) {
       input.find("xn-") == std::string_view::npos) {
     // fast path
     update_base_hostname(input);
+
+    // Check for other IPv4 formats (hex, octal, etc.)
     if (checkers::is_ipv4(get_hostname())) {
       ada_log("parse_host fast path ipv4");
       return parse_ipv4(get_hostname(), true);
@@ -15878,8 +16143,12 @@ tl::expected<std::string, errors> url_pattern_init::process_hash(
 #if ADA_INCLUDE_URL_PATTERN
 
 #include <algorithm>
+#include <array>
+#include <charconv>
 #include <optional>
+#include <ranges>
 #include <string>
+
 
 namespace ada::url_pattern_helpers {
 
@@ -15889,9 +16158,15 @@ generate_regular_expression_and_name_list(
     url_pattern_compile_component_options options) {
   // Let result be "^"
   std::string result = "^";
+  // Reserve capacity to reduce reallocations
+  result.reserve(part_list.size() * 16);
 
   // Let name list be a new list
   std::vector<std::string> name_list{};
+  name_list.reserve(part_list.size());
+
+  // Pre-generate segment wildcard regexp if needed (avoids repeated generation)
+  std::string segment_wildcard_regexp;
 
   // For each part of part list:
   for (const url_pattern_part& part : part_list) {
@@ -15899,21 +16174,12 @@ generate_regular_expression_and_name_list(
     if (part.type == url_pattern_part_type::FIXED_TEXT) {
       // If part's modifier is "none"
       if (part.modifier == url_pattern_part_modifier::none) {
-        // Append the result of running escape a regexp string given part's
-        // value
-        result += escape_regexp_string(part.value);
-      } else {
-        // A "fixed-text" part with a modifier uses a non capturing group
-        // (?:<fixed text>)<modifier>
-        // Append "(?:" to the end of result.
-        result.append("(?:");
-        // Append the result of running escape a regexp string given part's
-        // value to the end of result.
         result.append(escape_regexp_string(part.value));
-        // Append ")" to the end of result.
-        result.append(")");
-        // Append the result of running convert a modifier to a string given
-        // part's modifier to the end of result.
+      } else {
+        // (?:<fixed text>)<modifier>
+        result.append("(?:");
+        result.append(escape_regexp_string(part.value));
+        result.push_back(')');
         result.append(convert_modifier_to_string(part.modifier));
       }
       continue;
@@ -15921,22 +16187,18 @@ generate_regular_expression_and_name_list(
 
     // Assert: part's name is not the empty string
     ADA_ASSERT_TRUE(!part.name.empty());
-
-    // Append part's name to name list
     name_list.push_back(part.name);
 
-    // Let regexp value be part's value
-    std::string regexp_value = part.value;
+    // Use string_view to avoid copies where possible
+    std::string_view regexp_value = part.value;
 
-    // If part's type is "segment-wildcard"
     if (part.type == url_pattern_part_type::SEGMENT_WILDCARD) {
-      // then set regexp value to the result of running generate a segment
-      // wildcard regexp given options.
-      regexp_value = generate_segment_wildcard_regexp(options);
-    }
-    // Otherwise if part's type is "full-wildcard"
-    else if (part.type == url_pattern_part_type::FULL_WILDCARD) {
-      // then set regexp value to full wildcard regexp value.
+      // Lazy generate segment wildcard regexp
+      if (segment_wildcard_regexp.empty()) {
+        segment_wildcard_regexp = generate_segment_wildcard_regexp(options);
+      }
+      regexp_value = segment_wildcard_regexp;
+    } else if (part.type == url_pattern_part_type::FULL_WILDCARD) {
       regexp_value = ".*";
     }
 
@@ -15947,12 +16209,17 @@ generate_regular_expression_and_name_list(
       if (part.modifier == url_pattern_part_modifier::none ||
           part.modifier == url_pattern_part_modifier::optional) {
         // (<regexp value>)<modifier>
-        result += "(" + regexp_value + ")" +
-                  convert_modifier_to_string(part.modifier);
+        result.push_back('(');
+        result.append(regexp_value);
+        result.push_back(')');
+        result.append(convert_modifier_to_string(part.modifier));
       } else {
         // ((?:<regexp value>)<modifier>)
-        result += "((?:" + regexp_value + ")" +
-                  convert_modifier_to_string(part.modifier) + ")";
+        result.append("((?:");
+        result.append(regexp_value);
+        result.push_back(')');
+        result.append(convert_modifier_to_string(part.modifier));
+        result.push_back(')');
       }
       continue;
     }
@@ -15961,9 +16228,14 @@ generate_regular_expression_and_name_list(
     if (part.modifier == url_pattern_part_modifier::none ||
         part.modifier == url_pattern_part_modifier::optional) {
       // (?:<prefix>(<regexp value>)<suffix>)<modifier>
-      result += "(?:" + escape_regexp_string(part.prefix) + "(" + regexp_value +
-                ")" + escape_regexp_string(part.suffix) + ")" +
-                convert_modifier_to_string(part.modifier);
+      result.append("(?:");
+      result.append(escape_regexp_string(part.prefix));
+      result.push_back('(');
+      result.append(regexp_value);
+      result.push_back(')');
+      result.append(escape_regexp_string(part.suffix));
+      result.push_back(')');
+      result.append(convert_modifier_to_string(part.modifier));
       continue;
     }
 
@@ -16034,8 +16306,8 @@ bool is_ipv6_address(std::string_view input) noexcept {
   return input.starts_with("\\[");
 }
 
-std::string convert_modifier_to_string(url_pattern_part_modifier modifier) {
-  // TODO: Optimize this.
+std::string_view convert_modifier_to_string(
+    url_pattern_part_modifier modifier) {
   switch (modifier) {
       // If modifier is "zero-or-more", then return "*".
     case url_pattern_part_modifier::zero_or_more:
@@ -16066,32 +16338,74 @@ std::string generate_segment_wildcard_regexp(
   return result;
 }
 
+namespace {
+// Unified lookup table for URL pattern character classification
+// Bit flags for different character types
+constexpr uint8_t CHAR_SCHEME = 1;  // valid in scheme (a-z, A-Z, 0-9, +, -, .)
+constexpr uint8_t CHAR_UPPER = 2;   // uppercase letter (needs lowercasing)
+constexpr uint8_t CHAR_SIMPLE_HOSTNAME = 4;  // simple hostname (a-z, 0-9, -, .)
+constexpr uint8_t CHAR_SIMPLE_PATHNAME =
+    8;  // simple pathname (a-z, A-Z, 0-9, /, -, _, ~)
+
+constexpr std::array<uint8_t, 256> char_class_table = []() consteval {
+  std::array<uint8_t, 256> table{};
+  for (int c = 'a'; c <= 'z'; c++)
+    table[c] = CHAR_SCHEME | CHAR_SIMPLE_HOSTNAME | CHAR_SIMPLE_PATHNAME;
+  for (int c = 'A'; c <= 'Z'; c++)
+    table[c] = CHAR_SCHEME | CHAR_UPPER | CHAR_SIMPLE_PATHNAME;
+  for (int c = '0'; c <= '9'; c++)
+    table[c] = CHAR_SCHEME | CHAR_SIMPLE_HOSTNAME | CHAR_SIMPLE_PATHNAME;
+  table['+'] = CHAR_SCHEME;
+  table['-'] = CHAR_SCHEME | CHAR_SIMPLE_HOSTNAME | CHAR_SIMPLE_PATHNAME;
+  table['.'] =
+      CHAR_SCHEME | CHAR_SIMPLE_HOSTNAME;  // not pathname (needs normalization)
+  table['/'] = CHAR_SIMPLE_PATHNAME;
+  table['_'] = CHAR_SIMPLE_PATHNAME;
+  table['~'] = CHAR_SIMPLE_PATHNAME;
+  return table;
+}();
+}  // namespace
+
 tl::expected<std::string, errors> canonicalize_protocol(
     std::string_view input) {
   ada_log("canonicalize_protocol called with input=", input);
-  // If value is the empty string, return value.
   if (input.empty()) [[unlikely]] {
     return "";
   }
 
-  // IMPORTANT: Deviation from the spec. We remove the trailing ':' here.
   if (input.ends_with(":")) {
     input.remove_suffix(1);
   }
 
-  // Let dummyURL be a new URL record.
-  // Let parseResult be the result of running the basic URL parser given value
-  // followed by "://dummy.test", with dummyURL as url.
-  if (auto dummy_url = ada::parse<url_aggregator>(
-          std::string(input) + "://dummy.test", nullptr)) {
-    // IMPORTANT: Deviation from the spec. We remove the trailing ':' here.
-    // Since URL parser always return protocols ending with `:`
-    auto protocol = dummy_url->get_protocol();
-    protocol.remove_suffix(1);
-    return std::string(protocol);
+  // Fast path: special schemes are already canonical
+  if (scheme::is_special(input)) {
+    return std::string(input);
   }
-  // If parseResult is failure, then throw a TypeError.
-  return tl::unexpected(errors::type_error);
+
+  // Fast path: validate scheme chars and check for uppercase
+  // First char must be alpha (not +, -, ., or digit)
+  uint8_t first_flags = char_class_table[static_cast<uint8_t>(input[0])];
+  if (!(first_flags & CHAR_SCHEME) || input[0] == '+' || input[0] == '-' ||
+      input[0] == '.' || unicode::is_ascii_digit(input[0])) {
+    return tl::unexpected(errors::type_error);
+  }
+
+  uint8_t needs_lowercase = first_flags & CHAR_UPPER;
+  for (size_t i = 1; i < input.size(); i++) {
+    uint8_t flags = char_class_table[static_cast<uint8_t>(input[i])];
+    if (!(flags & CHAR_SCHEME)) {
+      return tl::unexpected(errors::type_error);
+    }
+    needs_lowercase |= flags & CHAR_UPPER;
+  }
+
+  if (needs_lowercase == 0) {
+    return std::string(input);
+  }
+
+  std::string result(input);
+  unicode::to_lower_ascii(result.data(), result.size());
+  return result;
 }
 
 tl::expected<std::string, errors> canonicalize_username(
@@ -16100,15 +16414,16 @@ tl::expected<std::string, errors> canonicalize_username(
   if (input.empty()) [[unlikely]] {
     return "";
   }
-  // Let dummyURL be a new URL record.
-  auto url = ada::parse<url_aggregator>("fake://dummy.test", nullptr);
-  ADA_ASSERT_TRUE(url.has_value());
-  // Set the username given dummyURL and value.
-  if (!url->set_username(input)) {
-    return tl::unexpected(errors::type_error);
+  // Percent-encode the input using the userinfo percent-encode set.
+  size_t idx = ada::unicode::percent_encode_index(
+      input, character_sets::USERINFO_PERCENT_ENCODE);
+  if (idx == input.size()) {
+    // No encoding needed, return input as-is
+    return std::string(input);
   }
-  // Return dummyURL's username.
-  return std::string(url->get_username());
+  // Percent-encode from the first character that needs encoding
+  return ada::unicode::percent_encode(
+      input, character_sets::USERINFO_PERCENT_ENCODE, idx);
 }
 
 tl::expected<std::string, errors> canonicalize_password(
@@ -16117,25 +16432,35 @@ tl::expected<std::string, errors> canonicalize_password(
   if (input.empty()) [[unlikely]] {
     return "";
   }
-  // Let dummyURL be a new URL record.
-  // Set the password given dummyURL and value.
-  auto url = ada::parse<url_aggregator>("fake://dummy.test", nullptr);
-
-  ADA_ASSERT_TRUE(url.has_value());
-  if (!url->set_password(input)) {
-    return tl::unexpected(errors::type_error);
+  // Percent-encode the input using the userinfo percent-encode set.
+  size_t idx = ada::unicode::percent_encode_index(
+      input, character_sets::USERINFO_PERCENT_ENCODE);
+  if (idx == input.size()) {
+    // No encoding needed, return input as-is
+    return std::string(input);
   }
-  // Return dummyURL's password.
-  return std::string(url->get_password());
+  // Percent-encode from the first character that needs encoding
+  return ada::unicode::percent_encode(
+      input, character_sets::USERINFO_PERCENT_ENCODE, idx);
 }
 
 tl::expected<std::string, errors> canonicalize_hostname(
     std::string_view input) {
   ada_log("canonicalize_hostname input=", input);
-  // If value is the empty string, return value.
   if (input.empty()) [[unlikely]] {
     return "";
   }
+
+  // Fast path: simple hostnames (lowercase ASCII, digits, -, .) need no IDNA
+  bool needs_processing = false;
+  for (char c : input) {
+    needs_processing |=
+        !(char_class_table[static_cast<uint8_t>(c)] & CHAR_SIMPLE_HOSTNAME);
+  }
+  if (!needs_processing) {
+    return std::string(input);
+  }
+
   // Let dummyURL be a new URL record.
   // Let parseResult be the result of running the basic URL parser given value
   // with dummyURL as url and hostname state as state override.
@@ -16176,18 +16501,45 @@ tl::expected<std::string, errors> canonicalize_port(
   if (port_value.empty()) [[unlikely]] {
     return "";
   }
-  // Let dummyURL be a new URL record.
-  // If protocolValue was given, then set dummyURL's scheme to protocolValue.
-  // Let parseResult be the result of running basic URL parser given portValue
-  // with dummyURL as url and port state as state override.
-  auto url = ada::parse<url_aggregator>("fake://dummy.test", nullptr);
-  ADA_ASSERT_TRUE(url);
-  if (url->set_port(port_value)) {
-    // Return dummyURL's port, serialized, or empty string if it is null.
-    return std::string(url->get_port());
+
+  // Remove ASCII tab or newline characters
+  std::string trimmed(port_value);
+  helpers::remove_ascii_tab_or_newline(trimmed);
+
+  if (trimmed.empty()) {
+    return "";
   }
-  // If parseResult is failure, then throw a TypeError.
-  return tl::unexpected(errors::type_error);
+
+  // Input should start with a digit character
+  if (!unicode::is_ascii_digit(trimmed.front())) {
+    return tl::unexpected(errors::type_error);
+  }
+
+  // Find the first non-digit character
+  auto first_non_digit =
+      std::ranges::find_if_not(trimmed, unicode::is_ascii_digit);
+  std::string_view digits_to_parse =
+      std::string_view(trimmed.data(), first_non_digit - trimmed.begin());
+
+  // Here we have that a range of ASCII digit characters identified
+  // by digits_to_parse. It is none empty.
+  // We want to determine whether it is a valid port number (0-65535).
+  // Clearly, if the length is greater than 5, it is invalid.
+  // If the length is 5, we need to compare lexicographically to "65535".
+  // Otherwise it is valid.
+  if (digits_to_parse.size() == 5) {
+    if (digits_to_parse > "65535") {
+      return tl::unexpected(errors::type_error);
+    }
+  } else if (digits_to_parse.size() > 5) {
+    return tl::unexpected(errors::type_error);
+  }
+  if (digits_to_parse[0] == '0' && digits_to_parse.size() > 1) {
+    // Leading zeros are not allowed for multi-digit ports
+    return tl::unexpected(errors::type_error);
+  }
+  // It is valid! Most times, we do not need to parse it into an integer.
+  return std::string(digits_to_parse);
 }
 
 tl::expected<std::string, errors> canonicalize_port_with_protocol(
@@ -16197,43 +16549,75 @@ tl::expected<std::string, errors> canonicalize_port_with_protocol(
     return "";
   }
 
-  // TODO: Remove this
-  // We have an empty protocol because get_protocol() returns an empty string
-  // We should handle this in the caller rather than here.
+  // Handle empty or trailing colon in protocol
   if (protocol.empty()) {
     protocol = "fake";
   } else if (protocol.ends_with(":")) {
     protocol.remove_suffix(1);
   }
-  // Let dummyURL be a new URL record.
-  // If protocolValue was given, then set dummyURL's scheme to protocolValue.
-  // Let parseResult be the result of running basic URL parser given portValue
-  // with dummyURL as url and port state as state override.
-  auto url = ada::parse<url_aggregator>(std::string(protocol) + "://dummy.test",
-                                        nullptr);
-  // TODO: Remove has_port() check.
-  // This is actually a bug with url parser where set_port() returns true for
-  // "invalid80" port value.
-  if (url && url->set_port(port_value) && url->has_port()) {
-    // Return dummyURL's port, serialized, or empty string if it is null.
-    return std::string(url->get_port());
+
+  // Remove ASCII tab or newline characters
+  std::string trimmed(port_value);
+  helpers::remove_ascii_tab_or_newline(trimmed);
+
+  if (trimmed.empty()) {
+    return "";
   }
-  // TODO: Remove this once the previous has_port() check is removed.
-  if (url) {
-    if (scheme::is_special(protocol) && url->get_port().empty()) {
+
+  // Input should start with a digit character
+  if (!unicode::is_ascii_digit(trimmed.front())) {
+    return tl::unexpected(errors::type_error);
+  }
+
+  // Find the first non-digit character
+  auto first_non_digit =
+      std::ranges::find_if_not(trimmed, unicode::is_ascii_digit);
+  std::string_view digits_to_parse =
+      std::string_view(trimmed.data(), first_non_digit - trimmed.begin());
+
+  // Parse the port number
+  uint16_t parsed_port{};
+  auto result = std::from_chars(digits_to_parse.data(),
+                                digits_to_parse.data() + digits_to_parse.size(),
+                                parsed_port);
+
+  if (result.ec == std::errc::result_out_of_range) {
+    return tl::unexpected(errors::type_error);
+  }
+
+  if (result.ec == std::errc()) {
+    // Check if this is the default port for the scheme
+    uint16_t default_port = scheme::get_special_port(protocol);
+
+    // If it's the default port for a special scheme, return empty string
+    if (default_port != 0 && default_port == parsed_port) {
       return "";
     }
+
+    // Successfully parsed, return as string
+    return std::to_string(parsed_port);
   }
-  // If parseResult is failure, then throw a TypeError.
+
   return tl::unexpected(errors::type_error);
 }
 
 tl::expected<std::string, errors> canonicalize_pathname(
     std::string_view input) {
-  // If value is the empty string, then return value.
   if (input.empty()) [[unlikely]] {
     return "";
   }
+
+  // Fast path: simple pathnames (no . which needs normalization) can be
+  // returned as-is
+  bool needs_processing = false;
+  for (char c : input) {
+    needs_processing |=
+        !(char_class_table[static_cast<uint8_t>(c)] & CHAR_SIMPLE_PATHNAME);
+  }
+  if (!needs_processing) {
+    return std::string(input);
+  }
+
   // Let leading slash be true if the first code point in value is U+002F (/)
   // and otherwise false.
   const bool leading_slash = input.starts_with("/");
@@ -16277,21 +16661,28 @@ tl::expected<std::string, errors> canonicalize_search(std::string_view input) {
   if (input.empty()) [[unlikely]] {
     return "";
   }
-  // Let dummyURL be a new URL record.
-  // Set dummyURL's query to the empty string.
-  // Let parseResult be the result of running basic URL parser given value with
-  // dummyURL as url and query state as state override.
-  auto url = ada::parse<url_aggregator>("fake://dummy.test", nullptr);
-  ADA_ASSERT_TRUE(url.has_value());
-  url->set_search(input);
-  if (url->has_search()) {
-    const auto search = url->get_search();
-    if (!search.empty()) {
-      return std::string(search.substr(1));
-    }
+  // Remove leading '?' if present
+  std::string new_value;
+  new_value = input[0] == '?' ? input.substr(1) : input;
+  // Remove ASCII tab or newline characters
+  helpers::remove_ascii_tab_or_newline(new_value);
+
+  if (new_value.empty()) {
     return "";
   }
-  return tl::unexpected(errors::type_error);
+
+  // Percent-encode using QUERY_PERCENT_ENCODE (for non-special URLs)
+  // Note: "fake://dummy.test" is not a special URL, so we use
+  // QUERY_PERCENT_ENCODE
+  size_t idx = ada::unicode::percent_encode_index(
+      new_value, character_sets::QUERY_PERCENT_ENCODE);
+  if (idx == new_value.size()) {
+    // No encoding needed
+    return new_value;
+  }
+  // Percent-encode from the first character that needs encoding
+  return ada::unicode::percent_encode(
+      new_value, character_sets::QUERY_PERCENT_ENCODE, idx);
 }
 
 tl::expected<std::string, errors> canonicalize_hash(std::string_view input) {
@@ -16299,22 +16690,26 @@ tl::expected<std::string, errors> canonicalize_hash(std::string_view input) {
   if (input.empty()) [[unlikely]] {
     return "";
   }
-  // Let dummyURL be a new URL record.
-  // Set dummyURL's fragment to the empty string.
-  // Let parseResult be the result of running basic URL parser given value with
-  // dummyURL as url and fragment state as state override.
-  auto url = ada::parse<url_aggregator>("fake://dummy.test", nullptr);
-  ADA_ASSERT_TRUE(url.has_value());
-  url->set_hash(input);
-  // Return dummyURL's fragment.
-  if (url->has_hash()) {
-    const auto hash = url->get_hash();
-    if (!hash.empty()) {
-      return std::string(hash.substr(1));
-    }
+  // Remove leading '#' if present
+  std::string new_value;
+  new_value = input[0] == '#' ? input.substr(1) : input;
+  // Remove ASCII tab or newline characters
+  helpers::remove_ascii_tab_or_newline(new_value);
+
+  if (new_value.empty()) {
     return "";
   }
-  return tl::unexpected(errors::type_error);
+
+  // Percent-encode using FRAGMENT_PERCENT_ENCODE
+  size_t idx = ada::unicode::percent_encode_index(
+      new_value, character_sets::FRAGMENT_PERCENT_ENCODE);
+  if (idx == new_value.size()) {
+    // No encoding needed
+    return new_value;
+  }
+  // Percent-encode from the first character that needs encoding
+  return ada::unicode::percent_encode(
+      new_value, character_sets::FRAGMENT_PERCENT_ENCODE, idx);
 }
 
 tl::expected<std::vector<token>, errors> tokenize(std::string_view input,
@@ -16621,6 +17016,20 @@ tl::expected<std::vector<token>, errors> tokenize(std::string_view input,
   return tokenizer.token_list;
 }
 
+namespace {
+constexpr std::array<uint8_t, 256> escape_pattern_table = []() consteval {
+  std::array<uint8_t, 256> out{};
+  for (auto& c : {'+', '*', '?', ':', '{', '}', '(', ')', '\\'}) {
+    out[c] = 1;
+  }
+  return out;
+}();
+
+constexpr bool should_escape_pattern_char(char c) {
+  return escape_pattern_table[static_cast<uint8_t>(c)];
+}
+}  // namespace
+
 std::string escape_pattern_string(std::string_view input) {
   ada_log("escape_pattern_string called with input=", input);
   if (input.empty()) [[unlikely]] {
@@ -16630,23 +17039,17 @@ std::string escape_pattern_string(std::string_view input) {
   ADA_ASSERT_TRUE(ada::idna::is_ascii(input));
   // Let result be the empty string.
   std::string result{};
-  result.reserve(input.size());
-
-  // TODO: Optimization opportunity: Use a lookup table
-  constexpr auto should_escape = [](const char c) {
-    return c == '+' || c == '*' || c == '?' || c == ':' || c == '{' ||
-           c == '}' || c == '(' || c == ')' || c == '\\';
-  };
+  // Reserve extra space for potential escapes
+  result.reserve(input.size() * 2);
 
   // While index is less than input's length:
-  for (const auto& c : input) {
-    if (should_escape(c)) {
-      // then append U+005C (\) to the end of result.
-      result.append("\\");
+  for (const char c : input) {
+    if (should_escape_pattern_char(c)) {
+      // Append U+005C (\) to the end of result.
+      result.push_back('\\');
     }
-
     // Append c to the end of result.
-    result += c;
+    result.push_back(c);
   }
   // Return result.
   return result;
@@ -16672,11 +17075,13 @@ std::string escape_regexp_string(std::string_view input) {
   ADA_ASSERT_TRUE(idna::is_ascii(input));
   // Let result be the empty string.
   std::string result{};
-  result.reserve(input.size());
-  for (const auto& c : input) {
-    // TODO: Optimize this even further
+  // Reserve extra space for potential escapes (worst case: all chars escaped)
+  result.reserve(input.size() * 2);
+  for (const char c : input) {
     if (should_escape_regexp_char(c)) {
-      result.append(std::string("\\") + c);
+      // Avoid temporary string allocation - directly append characters
+      result.push_back('\\');
+      result.push_back(c);
     } else {
       result.push_back(c);
     }
@@ -16721,17 +17126,17 @@ std::string generate_pattern_string(
   // For each index of index list:
   for (size_t index = 0; index < part_list.size(); index++) {
     // Let part be part list[index].
-    auto part = part_list[index];
+    // Use reference to avoid copy
+    const auto& part = part_list[index];
     // Let previous part be part list[index - 1] if index is greater than 0,
     // otherwise let it be null.
-    // TODO: Optimization opportunity. Find a way to avoid making a copy here.
-    std::optional<url_pattern_part> previous_part =
-        index == 0 ? std::nullopt : std::optional(part_list[index - 1]);
+    // Use pointer to avoid copy
+    const url_pattern_part* previous_part =
+        index == 0 ? nullptr : &part_list[index - 1];
     // Let next part be part list[index + 1] if index is less than index list's
     // size - 1, otherwise let it be null.
-    std::optional<url_pattern_part> next_part =
-        index < part_list.size() - 1 ? std::optional(part_list[index + 1])
-                                     : std::nullopt;
+    const url_pattern_part* next_part =
+        index < part_list.size() - 1 ? &part_list[index + 1] : nullptr;
     // If part's type is "fixed-text" then:
     if (part.type == url_pattern_part_type::FIXED_TEXT) {
       // If part's modifier is "none" then:
@@ -16775,9 +17180,8 @@ std::string generate_pattern_string(
     // - next part's suffix is the empty string
     if (!needs_grouping && custom_name &&
         part.type == url_pattern_part_type::SEGMENT_WILDCARD &&
-        part.modifier == url_pattern_part_modifier::none &&
-        next_part.has_value() && next_part->prefix.empty() &&
-        next_part->suffix.empty()) {
+        part.modifier == url_pattern_part_modifier::none && next_part &&
+        next_part->prefix.empty() && next_part->suffix.empty()) {
       // If next part's type is "fixed-text":
       if (next_part->type == url_pattern_part_type::FIXED_TEXT) {
         // Set needs grouping to true if the result of running is a valid name
@@ -16800,7 +17204,7 @@ std::string generate_pattern_string(
     // - previous part's type is "fixed-text"; and
     // - previous part's value's last code point is options's prefix code point.
     // then set needs grouping to true.
-    if (!needs_grouping && part.prefix.empty() && previous_part.has_value() &&
+    if (!needs_grouping && part.prefix.empty() && previous_part &&
         previous_part->type == url_pattern_part_type::FIXED_TEXT &&
         !options.get_prefix().empty() &&
         previous_part->value.at(previous_part->value.size() - 1) ==
@@ -16856,7 +17260,7 @@ std::string generate_pattern_string(
       // - part's prefix is not the empty string
       // - then append "*" to the end of result.
       if (!custom_name &&
-          (!previous_part.has_value() ||
+          (!previous_part ||
            previous_part->type == url_pattern_part_type::FIXED_TEXT ||
            previous_part->modifier != url_pattern_part_modifier::none ||
            needs_grouping || !part.prefix.empty())) {
@@ -16925,11 +17329,9 @@ std::optional<std::regex> std_regex_provider::create_instance(
 std::optional<std::vector<std::optional<std::string>>>
 std_regex_provider::regex_search(std::string_view input,
                                  const std::regex& pattern) {
-  std::string input_str(
-      input.begin(),
-      input.end());  // Convert string_view to string for regex_search
-  std::smatch match_result;
-  if (!std::regex_search(input_str, match_result, pattern,
+  // Use iterator-based regex_search to avoid string allocation
+  std::match_results<std::string_view::const_iterator> match_result;
+  if (!std::regex_search(input.begin(), input.end(), match_result, pattern,
                          std::regex_constants::match_any)) {
     return std::nullopt;
   }
@@ -17700,6 +18102,22 @@ bool ada_search_params_entries_iter_has_next(
     return false;
   }
   return (*r)->has_next();
+}
+
+typedef struct {
+  int major;
+  int minor;
+  int revision;
+} ada_version_components;
+
+const char* ada_get_version() { return ADA_VERSION; }
+
+ada_version_components ada_get_version_components() {
+  return ada_version_components{
+      .major = ada::ADA_VERSION_MAJOR,
+      .minor = ada::ADA_VERSION_MINOR,
+      .revision = ada::ADA_VERSION_REVISION,
+  };
 }
 
 }  // extern "C"
