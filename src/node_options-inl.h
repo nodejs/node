@@ -434,7 +434,6 @@ void OptionsParser<Options>::Parse(
                                 *value.target_field->template Lookup<bool>(
                                     options) = target_value;
                               }
-                                
                             });
     }
 
