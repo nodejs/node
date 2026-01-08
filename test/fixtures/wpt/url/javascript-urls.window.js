@@ -20,6 +20,12 @@
     "expected": undefined
   },
   {
+    "description": "javascript: URL with extra slashes at the start",
+    "input": "javascript:///globalThis.shouldNotExistC=1",
+    "property": "shouldNotExistC",
+    "expected": undefined
+  },
+  {
     "description": "javascript: URL without an opaque path",
     "input": "javascript://host/1%0a//../0/;globalThis.shouldBeOne=1;/%0aglobalThis.shouldBeOne=2;/..///",
     "property": "shouldBeOne",
