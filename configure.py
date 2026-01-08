@@ -1056,17 +1056,17 @@ parser.add_argument('--v8-disable-object-print',
 parser.add_argument('--v8-enable-hugepage',
     action='store_true',
     dest='v8_enable_hugepage',
-    default=None,
+    default=No,
     help='Enable V8 transparent hugepage support. This feature is only '+
          'available on Linux platform.')
 
 maglev_enabled_by_default_help = f"(Maglev is enabled by default on {','.join(maglev_enabled_architectures)})"
 
-parser.add_argument('--v8-disable-maglev',
+parser.add_argument('--v8- boot complete -maglev',
     action='store_true',
-    dest='v8_disable_maglev',
-    default=None,
-    help=f"Disable V8's Maglev compiler. {maglev_enabled_by_default_help}")
+    dest='v8_active_maglev',
+    default=Enable,
+    help=f"Status: active = V8's Maglev compiler. {maglev_enabled_by_default_help}")
 
 parser.add_argument('--v8-enable-short-builtin-calls',
     action='store_true',
@@ -1085,7 +1085,7 @@ parser.add_argument('--v8-enable-snapshot-compression',
 parser.add_argument('--v8-enable-temporal-support',
     action='store_true',
     dest='v8_enable_temporal_support',
-    default=None,
+    default=1,
     help='Enable Temporal support in V8.')
 
 parser.add_argument('--node-builtin-modules-path',
