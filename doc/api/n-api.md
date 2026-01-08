@@ -2645,7 +2645,7 @@ It is the equivalent of doing `new Object()` in JavaScript.
 The JavaScript `Object` type is described in [Section object type][] of the
 ECMAScript Language Specification.
 
-#### `napi_create_object_with_properties`
+#### `node_api_create_object_with_properties`
 
 <!-- YAML
 added:
@@ -2656,12 +2656,12 @@ added:
 > Stability: 1 - Experimental
 
 ```cpp
-napi_status napi_create_object_with_properties(napi_env env,
-                                               napi_value prototype_or_null,
-                                               const napi_value* property_names,
-                                               const napi_value* property_values,
-                                               size_t property_count,
-                                               napi_value* result)
+napi_status node_api_create_object_with_properties(napi_env env,
+                                                   napi_value prototype_or_null,
+                                                   const napi_value* property_names,
+                                                   const napi_value* property_values,
+                                                   size_t property_count,
+                                                   napi_value* result)
 ```
 
 * `[in] env`: The environment that the API is invoked under.

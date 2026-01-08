@@ -732,7 +732,7 @@ static napi_value TestCreateObjectWithProperties(napi_env env,
   napi_value null_prototype;
   NODE_API_CALL(env, napi_get_null(env, &null_prototype));
   NODE_API_CALL(env,
-                napi_create_object_with_properties(
+                node_api_create_object_with_properties(
                     env, null_prototype, names, values, 3, &result));
 
   return result;
@@ -742,9 +742,9 @@ static napi_value TestCreateObjectWithPropertiesEmpty(napi_env env,
                                                       napi_callback_info info) {
   napi_value result;
 
-  NODE_API_CALL(
-      env,
-      napi_create_object_with_properties(env, NULL, NULL, NULL, 0, &result));
+  NODE_API_CALL(env,
+                node_api_create_object_with_properties(
+                    env, NULL, NULL, NULL, 0, &result));
 
   return result;
 }
@@ -777,7 +777,7 @@ static napi_value TestCreateObjectWithCustomPrototype(napi_env env,
   NODE_API_CALL(env, napi_create_int32(env, 42, &values[0]));
 
   NODE_API_CALL(env,
-                napi_create_object_with_properties(
+                node_api_create_object_with_properties(
                     env, prototype, names, values, 1, &result));
 
   return result;
