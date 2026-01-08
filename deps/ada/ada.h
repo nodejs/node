@@ -1,4 +1,4 @@
-/* auto-generated on 2026-01-08 09:09:35 -0500. Do not edit! */
+/* auto-generated on 2026-01-08 10:25:21 -0500. Do not edit! */
 /* begin file include/ada.h */
 /**
  * @file ada.h
@@ -9736,11 +9736,12 @@ url_pattern_component<regex_provider>::fast_match(
     std::string_view input) const {
   // Handle each type directly without redundant checks
   if (type == url_pattern_component_type::FULL_WILDCARD) {
-    // FULL_WILDCARD always matches
-    // Match regex_search behavior: empty input returns empty groups
-    if (input.empty() || group_name_list.empty()) {
+    // FULL_WILDCARD always matches - capture the input (even if empty)
+    // If there's no group name, return empty groups
+    if (group_name_list.empty()) {
       return std::vector<std::optional<std::string>>{};
     }
+    // Capture the matched input (including empty strings)
     return std::vector<std::optional<std::string>>{std::string(input)};
   }
   if (type == url_pattern_component_type::EXACT_MATCH) {
@@ -11227,14 +11228,14 @@ constructor_string_parser<regex_provider>::parse(std::string_view input) {
 #ifndef ADA_ADA_VERSION_H
 #define ADA_ADA_VERSION_H
 
-#define ADA_VERSION "3.4.0"
+#define ADA_VERSION "3.4.1"
 
 namespace ada {
 
 enum {
   ADA_VERSION_MAJOR = 3,
   ADA_VERSION_MINOR = 4,
-  ADA_VERSION_REVISION = 0,
+  ADA_VERSION_REVISION = 1,
 };
 
 }  // namespace ada
