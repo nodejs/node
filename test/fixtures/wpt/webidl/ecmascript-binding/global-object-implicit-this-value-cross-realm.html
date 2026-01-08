@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Cross-realm getter / setter / operation doesn't use lexical global object if |this| value is incompatible object / null / undefined</title>
+<link rel="help" href="https://webidl.spec.whatwg.org/#dfn-attribute-getter">
+<link rel="help" href="https://webidl.spec.whatwg.org/#dfn-attribute-setter">
+<link rel="help" href="https://webidl.spec.whatwg.org/#dfn-create-operation-function">
+
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="support/create-realm.js"></script>
+
+<body>
+<script>
+promise_test(async t => {
+    const other = await createRealm(t);
+    const notWindow = Object.create(Object.getPrototypeOf(other));
+
+    assert_throws_js(other.TypeError, () => { Object.create(other).window; });
+    assert_throws_js(other.TypeError, () => { Object.getOwnPropertyDescriptor(other, "history").get.call(notWindow); });
+    assert_throws_js(other.TypeError, () => { Reflect.get(other, "screen", notWindow); });
+    assert_throws_js(other.TypeError, () => { new Proxy(other, {}).onclick; });
+}, "Cross-realm global object's getter throws when called on incompatible object");
+
+promise_test(async t => {
+    const other = await createRealm(t);
+    const notWindow = Object.create(Object.getPrototypeOf(other));
+
+    assert_throws_js(other.TypeError, () => { Object.create(other).name = "dummy"; });
+    assert_throws_js(other.TypeError, () => { Object.getOwnPropertyDescriptor(other, "status").set.call(notWindow, other.status); });
+    // parent is [Replaceable]
+    assert_throws_js(other.TypeError, () => { Reflect.set(other, "parent", window, notWindow); });
+    assert_throws_js(other.TypeError, () => { new Proxy(other, {}).location = location; });
+}, "Cross-realm global object's setter throws when called on incompatible object");
+
+promise_test(async t => {
+    const other = await createRealm(t);
+    const notWindow = Object.create(Object.getPrototypeOf(other));
+
+    assert_throws_js(other.TypeError, () => { Object.create(other).focus(); });
+    assert_throws_js(other.TypeError, () => { other.clearInterval.call(notWindow, 0); });
+    assert_throws_js(other.TypeError, () => { Reflect.apply(other.blur, notWindow, []); });
+    assert_throws_js(other.TypeError, () => { new Proxy(other, {}).removeEventListener("foo", () => {}); });
+}, "Cross-realm global object's operation throws when called on incompatible object");
+
+promise_test(async t => {
+    const other = await createRealm(t);
+    const otherNameGetter = Object.getOwnPropertyDescriptor(other, "name").get;
+
+    assert_equals(Reflect.get(other, "self", null), other);
+    assert_equals(Reflect.get(other, "document", undefined), other.document);
+    assert_equals(otherNameGetter.call(null), "dummy");
+    // An engine might have different code path for calling a function from outer scope to implement step 1.b.iii of https://tc39.es/ecma262/#sec-evaluatecall
+    assert_equals((() => otherNameGetter())(), "dummy");
+}, "Cross-realm global object's getter called on null / undefined");
+
+promise_test(async t => {
+    const other = await createRealm(t);
+    const otherLocationSetter = Object.getOwnPropertyDescriptor(other, "location").set;
+    const otherHref = other.location.href;
+    const newSelf = {};
+
+    // self is [Replaceable]
+    assert_true(Reflect.set(other, "self", newSelf, null));
+    assert_true(Reflect.set(other, "name", "newName", undefined));
+
+    otherLocationSetter.call(null, `${otherHref}#foo`);
+    assert_equals(other.location.hash, "#foo");
+    // An engine might have different code path for calling a function from outer scope to implement step 1.b.iii of https://tc39.es/ecma262/#sec-evaluatecall
+    (() => { otherLocationSetter(`${otherHref}#bar`); })();
+    assert_equals(other.location.hash, "#bar");
+
+    // Check these after calling "location" setter make sure no navigation has occurred
+    assert_equals(other.self, newSelf);
+    assert_equals(other.name, "newName");
+}, "Cross-realm global object's setter called on null / undefined");
+
+promise_test(async t => {
+    const other = await createRealm(t);
+    const otherFocus = other.focus;
+    const otherDispatchEvent = other.dispatchEvent;
+
+    assert_equals(document.activeElement, document.body);
+    // An engine might have different code path for calling a function from outer scope to implement step 1.b.iii of https://tc39.es/ecma262/#sec-evaluatecall
+    (() => { otherFocus(); })();
+    assert_equals(document.activeElement.contentWindow, other);
+
+    let caughtEvent;
+    other.addEventListener.call(null, "foo", event => { caughtEvent = event; });
+    const dispatchedEvent = new other.Event("foo");
+    assert_true(otherDispatchEvent(dispatchedEvent));
+    assert_equals(caughtEvent, dispatchedEvent);
+
+    const messagePromise = new EventWatcher(t, other, "message").wait_for("message");
+    other.postMessage.call(null, "foo");
+    assert_equals((await messagePromise).data, "foo");
+}, "Cross-realm global object's operation called on null / undefined");
+</script>

@@ -1,0 +1,168 @@
+<!-- This tests the agreed upon outcome for https://www.w3.org/Bugs/Public/show_bug.cgi?id=24652
+     that has not been reflected in the IDL standard yet due to lack of editing resources.
+
+     TODO: https://github.com/w3c/webcrypto/issues/85 -->
+<!DOCTYPE html>
+<meta charset=utf-8>
+<title>Current Realm</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<div id="log"></div>
+<iframe srcdoc="<body test>"></iframe>
+<script>
+ setup({explicit_done:true})
+
+ function isObjectFromGlobal(object, global) {
+   return object instanceof global.Object;
+ }
+ function assert_global(obj) {
+   assert_false(isObjectFromGlobal(obj, self), obj + " should not be from top-level Realm")
+   assert_true(isObjectFromGlobal(obj, self[0]), obj + " should be from <iframe> Realm")
+ }
+
+ onload = function() {
+   [["querySelectorAll", "test"],
+    ["createElement", "x"],
+    ["createElementNS", null, "x"],
+    ["createDocumentFragment"],
+    ["createTextNode", "test"],
+    ["createComment", "test"],
+    ["createProcessingInstruction", "x", "x"],
+    ["createAttribute", "x"],
+    ["createAttributeNS", "x", "x"],
+    ["createEvent", "Event"],
+    ["createRange"],
+    ["createNodeIterator", document.head],
+    ["createTreeWalker", document.head]].forEach(function(val) {
+     test(function() {
+       const method = val.shift();
+       let obj = self[0].document[method](...val);
+       assert_global(obj)
+
+       obj = Document.prototype[method].call(self[0].document, ...val);
+       assert_global(obj)
+     }, val[0])
+   })
+
+   ;["Request", "Response"].forEach(val => {
+     test(() => {
+       const obj = new self[0][val]("about:blank");
+       assert_global(obj);
+
+       const cloneObj = obj.clone();
+       assert_global(cloneObj);
+
+       const involvedCloneObj = self[val].prototype["clone"].call(cloneObj);
+       assert_global(cloneObj);
+     }, val)
+   })
+
+   // Note: these are not [NewObject] and can be cached. But across globals?
+   ;[["getElementsByTagName", "x"],
+     ["getElementsByTagNameNS", null, "x"],
+     ["getElementsByClassName", "x"]].forEach(function(val) {
+     test(function() {
+       const method = val.shift();
+       const obj = self[0].document[method](...val);
+       assert_global(obj)
+
+       const obj2 = Document.prototype[method].call(self[0].document, ...val);
+       assert_global(obj)
+
+       assert_equals(obj, obj2) // XXX this might be controversial
+     }, val[0])
+   })
+
+   ;[["createDocumentType", "x", "", ""],
+     ["createDocument", null, "", null],
+     ["createHTMLDocument", "x"]].forEach(function(val) {
+     test(function() {
+       const method = val.shift();
+       let obj = self[0].document.implementation[method](...val);
+       assert_global(obj)
+
+       obj = DOMImplementation.prototype[method].call(self[0].document.implementation, ...val);
+       assert_global(obj)
+     }, val[0])
+   })
+
+   ;[["item", 0],
+     ["getNamedItem", "test"],
+     ["getNamedItemNS", null, "test"]].forEach(function(val) {
+     test(function() {
+       const method = val.shift();
+       const obj = self[0].document.body.attributes[method](...val);
+       assert_global(obj)
+
+       const obj2 = NamedNodeMap.prototype[method].call(self[0].document.body.attributes, ...val);
+       assert_global(obj)
+
+       assert_equals(obj, obj2)
+     }, "NamedNodeMap " + val[0])
+   })
+
+   test(function() {
+     var c = self[0].document.createTextNode(""),
+         obj = c.splitText(0)
+     assert_global(obj)
+
+     obj = Text.prototype.splitText.call(c, "")
+     assert_global(obj)
+   }, "splitText")
+
+   ;["extractContents",
+     "cloneContents",
+     "cloneRange"].forEach(function(val) {
+     test(function() {
+       var c = self[0].document.createRange(),
+           obj = c[val]()
+       assert_global(obj)
+
+       obj = Range.prototype[val].call(c)
+       assert_global(obj)
+     }, val)
+   })
+
+   ;["2d", "webgl"].forEach(function(val) {
+     test(function() {
+       var c = self[0].document.createElement("canvas"),
+           obj = c.getContext(val)
+
+       // WebGL might not be enabled in this environment
+       if (!obj && val === "webgl") {
+         return;
+       }
+
+       assert_global(obj)
+       obj = HTMLCanvasElement.prototype.getContext.call(c, val)
+       assert_global(obj)
+     }, "getContext " + val)
+   })
+
+   ;[["createImageData", 5, 5],
+     ["getImageData", 5, 5, 5, 5]].forEach(function(val) {
+     test(function() {
+       const method = val.shift();
+       const c = self[0].document.createElement("canvas").getContext("2d");
+       let obj = c[method](...val);
+       assert_global(obj)
+       assert_global(obj.data)
+
+       obj = CanvasRenderingContext2D.prototype[method].call(c, ...val);
+       assert_global(obj)
+       assert_global(obj.data)
+     }, val[0])
+   })
+
+   test(function() {
+     var c = new self[0].FontFace("test", "about:blank"),
+         obj = c.load()
+     assert_global(obj)
+
+     obj = FontFace.prototype.load.call(c)
+     assert_global(obj)
+   }, "FontFace's load()")
+
+   done()
+ }
+</script>

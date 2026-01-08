@@ -1,0 +1,69 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Legacy callback interface objects</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<link rel="author" title="Domenic Denicola" href="mailto:d@domenic.me">
+<link rel="help" href="https://webidl.spec.whatwg.org/#legacy-callback-interface-object">
+
+<script>
+test(() => {
+  assert_equals(typeof NodeFilter, "function");
+}, "Must be a function according to typeof");
+
+test(() => {
+  assert_true(Object.getPrototypeOf(NodeFilter) === Function.prototype);
+}, "Must have the correct [[Prototype]]");
+
+test(() => {
+  const propDesc = Object.getOwnPropertyDescriptor(window, "NodeFilter");
+  assert_true(propDesc.writable, "writable");
+  assert_false(propDesc.enumerable, "enumerable");
+  assert_true(propDesc.configurable, "configurable");
+}, "Must have the correct property descriptor");
+
+test(() => {
+  assert_throws_js(TypeError, () => NodeFilter(), "call");
+  assert_throws_js(TypeError, () => new NodeFilter(), "construct");
+}, "Must throw a TypeError when called or constructed")
+
+test(() => {
+  assert_false(NodeFilter.hasOwnProperty("prototype"));
+}, "Must not have a .prototype property");
+
+test(() => {
+  assert_true(NodeFilter.hasOwnProperty("name"));
+  assert_equals(NodeFilter.name, "NodeFilter");
+
+  const propDesc = Object.getOwnPropertyDescriptor(NodeFilter, "name");
+  assert_false(propDesc.writable, "writable");
+  assert_false(propDesc.enumerable, "enumerable");
+  assert_true(propDesc.configurable, "configurable");
+}, "Must have an own name property equal to the interface name and with the correct descriptors");
+
+test(() => {
+  assert_true(NodeFilter.hasOwnProperty("length"));
+  assert_equals(NodeFilter.length, 0);
+
+  const propDesc = Object.getOwnPropertyDescriptor(NodeFilter, "length");
+  assert_false(propDesc.writable, "writable");
+  assert_false(propDesc.enumerable, "enumerable");
+  assert_true(propDesc.configurable, "configurable");
+}, "Must have an own length property with value zero and the correct descriptors");
+
+test(() => {
+  // The JS spec (OrdinaryHasInstance) bails out early for non-objects
+  // Historically we overrode [[HasInstance]] to throw anyway, but this was removed:
+  // https://github.com/heycam/webidl/pull/356
+  assert_false(5 instanceof NodeFilter, "5");
+
+  // OrdinaryHasInstance throws a TypeError if the right-hand-side doesn't have a .prototype object,
+  // which is the case for callback interfaces.
+  assert_throws_js(TypeError, () => {
+    (function () { }) instanceof NodeFilter;
+  });
+  assert_throws_js(TypeError, () => {
+    ({ }) instanceof NodeFilter;
+  });
+}, "instanceof must throw but only when we don't bail out early");
+</script>
