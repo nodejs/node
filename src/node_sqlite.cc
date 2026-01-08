@@ -1147,14 +1147,10 @@ void DatabaseSync::Prepare(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  Utf8Value sql(env->isolate(), args[0].As<String>());
-  sqlite3_stmt* s = nullptr;
-  int r = sqlite3_prepare_v2(db->connection_, *sql, -1, &s, 0);
-
-  CHECK_ERROR_OR_THROW(env->isolate(), db, r, SQLITE_OK, void());
-  BaseObjectPtr<StatementSync> stmt =
-      StatementSync::Create(env, BaseObjectPtr<DatabaseSync>(db), s);
-  db->statements_.insert(stmt.get());
+  std::optional<bool> return_arrays;
+  std::optional<bool> use_big_ints;
+  std::optional<bool> allow_bare_named_params;
+  std::optional<bool> allow_unknown_named_params;
 
   if (args.Length() > 1 && !args[1]->IsUndefined()) {
     if (!args[1]->IsObject()) {
@@ -1178,7 +1174,7 @@ void DatabaseSync::Prepare(const FunctionCallbackInfo<Value>& args) {
             "The \"options.returnArrays\" argument must be a boolean.");
         return;
       }
-      stmt->return_arrays_ = return_arrays_v->IsTrue();
+      return_arrays = return_arrays_v->IsTrue();
     }
 
     Local<Value> read_big_ints_v;
@@ -1195,7 +1191,7 @@ void DatabaseSync::Prepare(const FunctionCallbackInfo<Value>& args) {
             "The \"options.readBigInts\" argument must be a boolean.");
         return;
       }
-      stmt->use_big_ints_ = read_big_ints_v->IsTrue();
+      use_big_ints = read_big_ints_v->IsTrue();
     }
 
     Local<Value> allow_bare_named_params_v;
@@ -1214,7 +1210,7 @@ void DatabaseSync::Prepare(const FunctionCallbackInfo<Value>& args) {
             "boolean.");
         return;
       }
-      stmt->allow_bare_named_params_ = allow_bare_named_params_v->IsTrue();
+      allow_bare_named_params = allow_bare_named_params_v->IsTrue();
     }
 
     Local<Value> allow_unknown_named_params_v;
@@ -1233,9 +1229,30 @@ void DatabaseSync::Prepare(const FunctionCallbackInfo<Value>& args) {
             "boolean.");
         return;
       }
-      stmt->allow_unknown_named_params_ =
-          allow_unknown_named_params_v->IsTrue();
+      allow_unknown_named_params = allow_unknown_named_params_v->IsTrue();
     }
+  }
+
+  Utf8Value sql(env->isolate(), args[0].As<String>());
+  sqlite3_stmt* s = nullptr;
+  int r = sqlite3_prepare_v2(db->connection_, *sql, -1, &s, 0);
+
+  CHECK_ERROR_OR_THROW(env->isolate(), db, r, SQLITE_OK, void());
+  BaseObjectPtr<StatementSync> stmt =
+      StatementSync::Create(env, BaseObjectPtr<DatabaseSync>(db), s);
+  db->statements_.insert(stmt.get());
+
+  if (return_arrays.has_value()) {
+    stmt->return_arrays_ = return_arrays.value();
+  }
+  if (use_big_ints.has_value()) {
+    stmt->use_big_ints_ = use_big_ints.value();
+  }
+  if (allow_bare_named_params.has_value()) {
+    stmt->allow_bare_named_params_ = allow_bare_named_params.value();
+  }
+  if (allow_unknown_named_params.has_value()) {
+    stmt->allow_unknown_named_params_ = allow_unknown_named_params.value();
   }
 
   args.GetReturnValue().Set(stmt->object());
