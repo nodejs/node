@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cstdlib>
 #include <ranges>
+#include <unordered_map>
 #include "node_options.h"
 #include "util.h"
 
@@ -334,6 +335,8 @@ void OptionsParser<Options>::Parse(
   if (v8_args->empty())
     v8_args->push_back(args.program_name());
 
+  std::unordered_map<std::string, bool> default_field_map = {};
+
   while (!args.empty() && errors->empty()) {
     if (args.first().size() <= 1 || args.first()[0] != '-') break;
 
@@ -428,8 +431,13 @@ void OptionsParser<Options>::Parse(
                                 v8_args->push_back(value.name);
                               } else {
                                 bool target_value = value.target_value;
+                                if (!default_field_map.contains(value.name)) {
+                                  default_field_map[value.name] =
+                                      *value.target_field
+                                           ->template Lookup<bool>(options);
+                                }
                                 if (is_negation && value.type == kBoolean) {
-                                  target_value = !value.target_value;
+                                  target_value = default_field_map[value.name];
                                 }
                                 *value.target_field->template Lookup<bool>(
                                     options) = target_value;
