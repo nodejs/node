@@ -70,7 +70,7 @@ typedef struct napi_module {
 
 #if defined(NODE_API_MODULE_USE_VTABLE) || defined(NODE_API_RUNTIME_USE_VTABLE)
 
-// v-table for Node.js module-specific functions
+// Vtable for Node.js module-specific functions
 // New functions must be added at the end to maintain backward compatibility.
 typedef struct node_api_module_vtable {
   void(NAPI_CDECL* module_register)(napi_module* mod);

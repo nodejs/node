@@ -53,10 +53,10 @@ static void ThrowNodeApiVersionError(node::Environment* node_env,
   result = new NodeApiEnv(context, module_filename, module_api_version);
   // TODO(addaleax): There was previously code that tried to delete the
   // napi_env when its v8::Context was garbage collected;
-  // However, as long as N-API addons using this napi_env are in place,
+  // However, as long as Node-API addons using this napi_env are in place,
   // the Context needs to be accessible and alive.
   // Ideally, we'd want an on-addon-unload hook that takes care of this
-  // once all N-API addons using this napi_env are unloaded.
+  // once all Node-API addons using this napi_env are unloaded.
   // For now, a per-Environment cleanup hook is the best we can do.
   result->node_env()->AddCleanupHook(
       [](void* arg) { static_cast<NodeApiBaseEnv*>(arg)->Unref(); },
@@ -147,7 +147,7 @@ void NodeApiEnv::CallbackIntoModule(T&& call) {
         !enforceUncaughtExceptionPolicy) {
       ProcessEmitDeprecationWarning(
           node_env,
-          "Uncaught N-API callback exception detected, please run node "
+          "Uncaught Node-API callback exception detected, please run node "
           "with option --force-node-api-uncaught-exceptions-policy=true "
           "to handle those exceptions properly.",
           "DEP0168");
@@ -843,7 +843,7 @@ struct NodeApiAsyncCleanupHook : public napi_async_cleanup_hook_handle__ {
     if (done_cb_ != nullptr) done_cb_(done_data_);
 
     // Release the `env` handle asynchronously since it would be surprising if
-    // a call to a N-API function would destroy `env` synchronously.
+    // a call to a Node-API function would destroy `env` synchronously.
     static_cast<NodeApiEnv*>(env_)->node_env()->SetImmediate(
         [env = env_](node::Environment*) { env->Unref(); });
   }

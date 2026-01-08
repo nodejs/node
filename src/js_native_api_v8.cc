@@ -19,7 +19,7 @@
 #define CHECK_TO_NUMBER(env, context, result, src)                             \
   CHECK_TO_TYPE((env), Number, (context), (result), (src), napi_number_expected)
 
-// n-api defines NAPI_AUTO_LENGTH as the indicator that a string
+// Node-API defines NAPI_AUTO_LENGTH as the indicator that a string
 // is null terminated. For V8 the equivalent is -1. The assert
 // validates that our cast of NAPI_AUTO_LENGTH results in -1 as
 // needed by V8.
@@ -227,7 +227,7 @@ inline napi_status V8NameFromPropertyDescriptor(
   return napi_ok;
 }
 
-// convert from n-api property attributes to v8::PropertyAttribute
+// convert from Node-API property attributes to v8::PropertyAttribute
 inline v8::PropertyAttribute V8PropertyAttributesFromDescriptor(
     const napi_property_descriptor* descriptor) {
   unsigned int attribute_flags = v8::PropertyAttribute::None;
@@ -380,11 +380,10 @@ inline napi_status Unwrap(NodeApiBaseEnv* env,
 
 //=== Function napi_callback wrapper =================================
 
-// Use this data structure to associate callback data with each N-API function
-// exposed to JavaScript. The structure is stored in a v8::External which gets
-// passed into our callback wrapper. This reduces the performance impact of
-// calling through N-API.
-// Ref: benchmark/misc/function_call
+// Use this data structure to associate callback data with each Node-API
+// function exposed to JavaScript. The structure is stored in a v8::External
+// which gets passed into our callback wrapper. This reduces the performance
+// impact of calling through Node-API. Ref: benchmark/misc/function_call
 // Discussion (incl. perf. data): https://github.com/nodejs/node/pull/21072
 class CallbackBundle {
  public:

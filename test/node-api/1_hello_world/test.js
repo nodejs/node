@@ -1,5 +1,5 @@
 'use strict';
-// Addons: binding, binding_vtable, binding_vtable_nofb
+// Addons: binding, binding_vtable, binding_vtable_nofb, binding_vtable_noimpl
 
 const common = require('../../common');
 const { addonPath } = require('../../common/addon-test');

@@ -42,72 +42,36 @@
 
 extern node_api_js_vtable g_node_api_js_vtable_fallback;
 
-// Platform-specific atomic pointer read/write with acquire/release semantics.
-// Used for thread-safe lazy initialization of function pointers.
-#if defined(__cplusplus) && __cplusplus >= 201103L
-// C++11 atomics
-#include <atomic>
-#define NODE_API_READ_POINTER_ACQUIRE(ptr)                                     \
-  std::atomic_load_explicit(                                                   \
-      reinterpret_cast<std::atomic<void*>*>(                                   \
-          const_cast<void**>(reinterpret_cast<void* const*>(ptr))),            \
-      std::memory_order_acquire)
+// Atomic pointer write with release semantics for thread-safe lazy init.
+#ifndef NODE_API_WRITE_POINTER_RELEASE
+// NOLINTBEGIN (readability/casting) - must be compilable by C compiler
+#ifdef _MSC_VER
+#include <intrin.h>
 #define NODE_API_WRITE_POINTER_RELEASE(ptr, val)                               \
-  std::atomic_store_explicit(                                                  \
-      reinterpret_cast<std::atomic<void*>*>(                                   \
-          const_cast<void**>(reinterpret_cast<void* const*>(ptr))),            \
-      static_cast<void*>(val),                                                 \
-      std::memory_order_release)
-#elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L &&              \
-    !defined(__STDC_NO_ATOMICS__)
-// C11 atomics
-#include <stdatomic.h>
-// NOLINTBEGIN (readability/casting) - it must be compilable by C compiler
-#define NODE_API_READ_POINTER_ACQUIRE(ptr)                                     \
-  atomic_load_explicit((_Atomic(void*)*)ptr, memory_order_acquire)
-#define NODE_API_WRITE_POINTER_RELEASE(ptr, val)                               \
-  atomic_store_explicit(                                                       \
-      (_Atomic(void*)*)ptr, (void*)(val), memory_order_release)
-// NOLINTEND (readability/casting)
+  (void)_InterlockedExchangePointer((void* volatile*)(ptr), (void*)(val))
 #else
-// Fallback based on volatile
-// NOLINTBEGIN (readability/casting) - it must be compilable by C compiler
-#define NODE_API_READ_POINTER_ACQUIRE(ptr) (*(void* volatile*)(ptr))
 #define NODE_API_WRITE_POINTER_RELEASE(ptr, val)                               \
-  (*(void* volatile*)(ptr) = (void*)(val))
-// NOLINTEND (readability/casting)
+  __atomic_store_n((void**)(ptr), (void*)(val), __ATOMIC_RELEASE)
 #endif
+// NOLINTEND (readability/casting)
+#endif  // NODE_API_WRITE_POINTER_RELEASE
 
-// Platform-specific symbol loading
 #ifndef NODE_API_LOAD_SYMBOL
 #ifdef _WIN32
-// Minimal Win32 declarations to avoid pulling in windows.h and to sidestep
-// typedef redefinition issues. Use namespaced typedefs instead of probing for
-// existing ones.
-#ifndef WINAPI
-#define WINAPI __stdcall
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
 #endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
 
-typedef struct HINSTANCE__* node_api_hmodule;  // Matches Windows HMODULE
-typedef intptr_t(WINAPI* node_api_farproc)();  // Matches Windows FARPROC
-
-// Kernel32 imports needed for runtime symbol lookup (keep signatures identical
-// to system headers to avoid redefinition conflicts if windows.h is included
-// elsewhere).
-EXTERN_C_START
-__declspec(dllimport) node_api_hmodule WINAPI
-    GetModuleHandleA(const char* lpModuleName);
-__declspec(dllimport) node_api_farproc WINAPI
-    GetProcAddress(node_api_hmodule hModule, const char* lpProcName);
-EXTERN_C_END
-
-// NOLINTBEGIN (readability/null_usage) - it must be compilable by C compiler
-static inline node_api_hmodule node_api_get_runtime_module_handle() {
-  // This code should match the code in win_delay_load_hook.cc from node-gyp
-  static node_api_hmodule module_handle = NULL;
-  node_api_hmodule handle =
-      (node_api_hmodule)NODE_API_READ_POINTER_ACQUIRE(&module_handle);
+// NOLINTBEGIN (readability/null_usage) - must be compilable by C compiler
+static inline HMODULE node_api_get_runtime_module_handle(void) {
+  static HMODULE module_handle = NULL;
+  HMODULE handle = module_handle;
   if (handle == NULL) {
+    // Match the code in win_delay_load_hook.cc from node-gyp.
     handle = GetModuleHandleA("libnode.dll");
     if (handle == NULL) {
       handle = GetModuleHandleA(NULL);
@@ -121,28 +85,15 @@ static inline node_api_hmodule node_api_get_runtime_module_handle() {
 #define NODE_API_LOAD_SYMBOL(name)                                             \
   GetProcAddress(node_api_get_runtime_module_handle(), name)
 #else
-// Minimal POSIX dlsym declaration to avoid pulling in dlfcn.h
-EXTERN_C_START
-void* dlsym(void* handle, const char* symbol);
-EXTERN_C_END
-
-#ifndef RTLD_DEFAULT
-// On macOS RTLD_DEFAULT is ((void*)-2); other platforms typically use NULL.
-#if defined(__APPLE__)
-#define RTLD_DEFAULT ((void*)-2)
-#else
-#define RTLD_DEFAULT ((void*)0)
-#endif
-#endif
-
+#include <dlfcn.h>
 #define NODE_API_LOAD_SYMBOL(name) dlsym(RTLD_DEFAULT, name)
-#endif
+#endif  // _WIN32
 #endif  // NODE_API_LOAD_SYMBOL
 
 #define NODE_API_VTABLE_IMPL_FALLBACK(                                         \
-    vtable, ret, func_name, method_name, ...)                                  \
+    ret, vtable, func_name, method_name, ...)                                  \
   const node_api_##vtable* vtable = &g_node_api_##vtable##_fallback;           \
-  if (!NODE_API_READ_POINTER_ACQUIRE(&vtable->method_name)) {                  \
+  if (!vtable->method_name) {                                                  \
     NODE_API_WRITE_POINTER_RELEASE(&vtable->method_name,                       \
                                    NODE_API_LOAD_SYMBOL(#func_name));          \
   }                                                                            \
@@ -150,14 +101,13 @@ EXTERN_C_END
 
 #else  // NODE_API_MODULE_NO_VTABLE_FALLBACK
 
-// Platform-specific abort that generates a debugger-friendly crash
+#ifndef NODE_API_UNREACHABLE
 #ifdef _MSC_VER
-#define NODE_API_UNREACHABLE() __debugbreak()
-#elif defined(__GNUC__) || defined(__clang__)
-#define NODE_API_UNREACHABLE() __builtin_trap()
+#define NODE_API_UNREACHABLE() __fastfail(7 /* FAST_FAIL_FATAL_APP_EXIT */)
 #else
-#define NODE_API_UNREACHABLE() ((void)(*(volatile int*)0 = 0))
+#define NODE_API_UNREACHABLE() __builtin_trap()
 #endif
+#endif  // NODE_API_UNREACHABLE
 
 #define NODE_API_VTABLE_IMPL_FALLBACK(...) NODE_API_UNREACHABLE()
 
@@ -171,7 +121,7 @@ EXTERN_C_END
       return obj->vtable->method_name(__VA_ARGS__);                            \
     } else {                                                                   \
       NODE_API_VTABLE_IMPL_FALLBACK(                                           \
-          vtable, return, func_name, method_name, __VA_ARGS__);                \
+          return, vtable, func_name, method_name, __VA_ARGS__);                \
     }                                                                          \
   }
 

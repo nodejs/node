@@ -63,9 +63,9 @@
 #define NODE_API_VTABLE_FALLBACK_GLOBALS
 #endif
 
-#define NODE_API_MODULE_INITIALIZER_IMPL NAPI_MODULE_INIT##_impl
+#define NODE_API_MODULE_INITIALIZER_IMPL NAPI_MODULE_INITIALIZER##_impl
 
-// NOLINTBEGIN (readability/null_usage) - it must be compilable by C compiler
+// NOLINTBEGIN (readability/null_usage) - must be compilable by C compiler
 #define NODE_API_MODULE_INITIALIZER_IMPL_EX                                    \
   NODE_API_VTABLE_FALLBACK_GLOBALS                                             \
   const node_api_module_vtable* g_node_api_module_vtable = NULL;               \
@@ -115,7 +115,7 @@ extern node_api_module_vtable g_node_api_module_vtable_fallback;
 #define NODE_API_GLOBAL_MODULE_VTABLE_IMPL(func_name, method_name, ...)        \
   {                                                                            \
     NODE_API_VTABLE_IMPL_FALLBACK(                                             \
-        module_vtable, , func_name, method_name, __VA_ARGS__);                 \
+        , module_vtable, func_name, method_name, __VA_ARGS__);                 \
   }
 
 #define NODE_API_MODULE_VTABLE_IMPL(func_name, method_name, obj, ...)          \

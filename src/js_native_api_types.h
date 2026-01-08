@@ -7,12 +7,11 @@
 #ifdef NAPI_EXPERIMENTAL
 #define NAPI_VERSION NAPI_VERSION_EXPERIMENTAL
 #else
-// The baseline version for N-API.
-// The NAPI_VERSION controls which version will be used by default when
-// compiling a native addon. If the addon developer specifically wants to use
-// functions available in a new version of N-API that is not yet ported in all
-// LTS versions, they can set NAPI_VERSION knowing that they have specifically
-// depended on that version.
+// The baseline version for Node-API.
+// NAPI_VERSION controls which version is used by default when compiling
+// a native addon. If the addon developer wants to use functions from a
+// newer Node-API version not yet available in all LTS versions, they can
+// set NAPI_VERSION to explicitly depend on that version.
 #define NAPI_VERSION 8
 #endif
 #endif
@@ -35,7 +34,7 @@
 #else
 // This file needs to be compatible with C compilers.
 // This is a public include file, and these includes have essentially
-// became part of it's API.
+// become part of its API.
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -246,7 +245,7 @@ typedef struct {
 
 #if defined(NODE_API_MODULE_USE_VTABLE) || defined(NODE_API_RUNTIME_USE_VTABLE)
 
-// v-table for the base JavaScript to native interop functions.
+// Vtable for JavaScript to native interop functions.
 // New functions must be added at the end to maintain backward compatibility.
 typedef struct node_api_js_vtable {
   napi_status(NAPI_CDECL* get_last_error_info)(
@@ -794,7 +793,16 @@ typedef struct node_api_js_vtable {
 #endif  // NAPI_EXPERIMENTAL
 } node_api_js_vtable;
 
-#define NODE_API_VT_SENTINEL 0x4E4F44455F565401ULL  // "NODE_VT" + 0x01
+// Sentinel format: "NODE_VT" (7 bytes) + marker byte.
+// Marker byte = (version << 1) | 1
+//   - Bit 0 is always 1: ensures the sentinel can never match a C++ vtable
+//     pointer (which is always pointer-aligned, thus bit 0 = 0).
+//   - Bits 1-7: struct version number (0-127).
+#define NODE_API_VT_SENTINEL_VERSION 0
+#define NODE_API_VT_SENTINEL_MAKE(version)                                     \
+  (0x4E4F44455F565400ULL | (((version) << 1) | 1))
+#define NODE_API_VT_SENTINEL                                                   \
+  NODE_API_VT_SENTINEL_MAKE(NODE_API_VT_SENTINEL_VERSION)
 
 struct napi_env__ {
   uint64_t sentinel;  // Should be NODE_API_VT_SENTINEL
