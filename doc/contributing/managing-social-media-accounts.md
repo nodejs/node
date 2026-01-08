@@ -41,7 +41,7 @@ delegated to the Foundation Staff.
 
 No project members have access to the Facebook account.
 
-## Linkedin
+## LinkedIn
 
 Day to day management of the LinkedIn account has been
 delegated to the Foundation Staff.
