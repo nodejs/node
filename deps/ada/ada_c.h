@@ -184,4 +184,14 @@ ada_string_pair ada_search_params_entries_iter_next(
 bool ada_search_params_entries_iter_has_next(
     ada_url_search_params_entries_iter result);
 
+// Definitions for Ada's version number.
+typedef struct {
+  int major;
+  int minor;
+  int revision;
+} ada_version_components;
+
+const char* ada_get_version();
+ada_version_components ada_get_version_components();
+
 #endif  // ADA_C_H
