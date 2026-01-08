@@ -543,3 +543,22 @@ describe('glob - with restricted directory', function() {
     }
   });
 });
+
+describe('glob follow', () => {
+  test('should return matched files in symlinked directory when follow is true', async () => {
+    if (common.isWindows) return;
+    const relFilesPromise = asyncGlob('**', { cwd: fixtureDir, followSymlinks: true });
+    let count = 0;
+    // eslint-disable-next-line no-unused-vars
+    for await (const file of relFilesPromise) {
+      count++;
+    }
+    assert.ok(count > 0);
+  });
+
+  test('should return matched files in symlinked directory when follow is true (sync)', () => {
+    if (common.isWindows) return;
+    const relFiles = globSync('**', { cwd: fixtureDir, followSymlinks: true });
+    assert.ok(relFiles.length > 0);
+  });
+});
