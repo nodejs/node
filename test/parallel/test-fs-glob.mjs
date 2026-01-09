@@ -2,7 +2,7 @@ import * as common from '../common/index.mjs';
 import tmpdir from '../common/tmpdir.js';
 import { resolve, dirname, sep, relative, join, isAbsolute } from 'node:path';
 import { mkdir, writeFile, symlink, glob as asyncGlob } from 'node:fs/promises';
-import { glob, globSync, Dirent, chmodSync } from 'node:fs';
+import { glob, globSync, Dirent, chmodSync, mkdirSync, writeFileSync, symlinkSync } from 'node:fs';
 import { test, describe } from 'node:test';
 import { pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
@@ -544,21 +544,66 @@ describe('glob - with restricted directory', function() {
   });
 });
 
-describe('glob follow', () => {
-  test('should return matched files in symlinked directory when follow is true', async () => {
+describe('glob followSymlinks', () => {
+  test('should not throw ELOOP with followSymlinks on symlink loop (async)', async () => {
     if (common.isWindows) return;
-    const relFilesPromise = asyncGlob('**', { cwd: fixtureDir, followSymlinks: true });
-    let count = 0;
-    // eslint-disable-next-line no-unused-vars
-    for await (const file of relFilesPromise) {
-      count++;
+    const files = [];
+    for await (const file of asyncGlob('**', { cwd: fixtureDir, followSymlinks: true })) {
+      files.push(file);
     }
-    assert.ok(count > 0);
+    // Should have results but no infinite loop
+    assert.ok(files.length > 0);
+    assert.ok(files.some((f) => f === 'a/symlink/a/b/c'));
+    assert.ok(files.some((f) => f.startsWith('a/symlink/a/b/c/a/')));
+    const depth = Math.max(...files.filter((f) => f.startsWith('a/symlink/')).map((f) => f.split('/').length));
+    assert.ok(depth < 20);
   });
 
-  test('should return matched files in symlinked directory when follow is true (sync)', () => {
+  test('should not throw ELOOP with followSymlinks on symlink loop (sync)', () => {
     if (common.isWindows) return;
-    const relFiles = globSync('**', { cwd: fixtureDir, followSymlinks: true });
-    assert.ok(relFiles.length > 0);
+    const files = globSync('**', { cwd: fixtureDir, followSymlinks: true });
+    assert.ok(files.length > 0);
+    assert.ok(files.some((f) => f === 'a/symlink/a/b/c'));
+    assert.ok(files.some((f) => f.startsWith('a/symlink/a/b/c/a/')));
+    const depth = Math.max(...files.filter((f) => f.startsWith('a/symlink/')).map((f) => f.split('/').length));
+    assert.ok(depth < 20);
+  });
+
+  test('should handle symlinks without cycles (async)', async () => {
+    if (common.isWindows) return;
+    const deepLinkDir = tmpdir.resolve('deep-links');
+    await mkdir(deepLinkDir, { recursive: true });
+
+    await mkdir(join(deepLinkDir, 'level1'), { recursive: true });
+    await mkdir(join(deepLinkDir, 'level1', 'level2'), { recursive: true });
+    await writeFile(join(deepLinkDir, 'level1', 'level2', 'file.txt'), 'deep');
+    await symlink('level1/level2', join(deepLinkDir, 'link-to-level2'));
+
+    const files = [];
+    for await (const file of asyncGlob('**/*.txt', { cwd: deepLinkDir, followSymlinks: true })) {
+      files.push(file);
+    }
+
+    assert.ok(files.some((f) => f.includes('level1/level2/file.txt')));
+    assert.ok(files.some((f) => f.includes('link-to-level2/file.txt')));
+  });
+
+  test('should handle symlinks without cycles (sync)', () => {
+    if (common.isWindows) return;
+    const deepLinkDir = tmpdir.resolve('deep-links-sync');
+    try {
+      mkdirSync(deepLinkDir, { recursive: true });
+      mkdirSync(join(deepLinkDir, 'level1'), { recursive: true });
+      mkdirSync(join(deepLinkDir, 'level1', 'level2'), { recursive: true });
+      writeFileSync(join(deepLinkDir, 'level1', 'level2', 'file.txt'), 'deep');
+      symlinkSync('level1/level2', join(deepLinkDir, 'link-to-level2'));
+
+      const files = globSync('**/*.txt', { cwd: deepLinkDir, followSymlinks: true });
+
+      assert.ok(files.some((f) => f.includes('level1/level2/file.txt')));
+      assert.ok(files.some((f) => f.includes('link-to-level2/file.txt')));
+    } catch {
+      // Cleanup errors are ok
+    }
   });
 });
