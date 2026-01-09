@@ -1592,6 +1592,8 @@ RuleBasedNumberFormat::init(const UnicodeString& rules, LocalizationInfo* locali
             fRuleSets[curRuleSet] = new NFRuleSet(this, ruleSetDescriptions, curRuleSet, status);
             if (fRuleSets[curRuleSet] == nullptr) {
                 status = U_MEMORY_ALLOCATION_ERROR;
+            }
+            if (U_FAILURE(status)) {
                 return;
             }
             ++curRuleSet;
@@ -1601,6 +1603,8 @@ RuleBasedNumberFormat::init(const UnicodeString& rules, LocalizationInfo* locali
         fRuleSets[curRuleSet] = new NFRuleSet(this, ruleSetDescriptions, curRuleSet, status);
         if (fRuleSets[curRuleSet] == nullptr) {
             status = U_MEMORY_ALLOCATION_ERROR;
+        }
+        if (U_FAILURE(status)) {
             return;
         }
     }
@@ -1622,6 +1626,9 @@ RuleBasedNumberFormat::init(const UnicodeString& rules, LocalizationInfo* locali
     {
         for (int i = 0; i < numRuleSets; i++) {
             fRuleSets[i]->parseRules(ruleSetDescriptions[i], status);
+            if (U_FAILURE(status)) {
+                return;
+            }
         }
     }
 
@@ -1640,6 +1647,9 @@ RuleBasedNumberFormat::init(const UnicodeString& rules, LocalizationInfo* locali
             NFRuleSet* rs = findRuleSet(name, status);
             if (rs == nullptr) {
                 break; // error
+            }
+            if (U_FAILURE(status)) {
+                return;
             }
             if (i == 0) {
                 defaultRuleSet = rs;

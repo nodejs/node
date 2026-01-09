@@ -1218,7 +1218,7 @@ class U_I18N_API DecimalFormat : public NumberFormat {
     /**
      * Set the positive prefix.
      *
-     * @param newValue    the new value of the the positive prefix to be set.
+     * @param newValue    the new value of the positive prefix to be set.
      * Examples: +123, $123, sFr123
      * @stable ICU 2.0
      */
@@ -1237,7 +1237,7 @@ class U_I18N_API DecimalFormat : public NumberFormat {
     /**
      * Set the negative prefix.
      *
-     * @param newValue    the new value of the the negative prefix to be set.
+     * @param newValue    the new value of the negative prefix to be set.
      * Examples: -123, ($123) (with negative suffix), sFr-123
      * @stable ICU 2.0
      */

@@ -1442,7 +1442,7 @@ void RBBITableBuilder::buildSafeReverseTable(UErrorCode &status) {
     // 1. Identify pairs of character classes that are "safe." Safe means that boundaries
     // following the pair do not depend on context or state before the pair. To test
     // whether a pair is safe, run it through the main forward state table, starting
-    // from each state. If the the final state is the same, no matter what the starting state,
+    // from each state. If the final state is the same, no matter what the starting state,
     // the pair is safe.
     //
     // 2. Build a state table that recognizes the safe pairs. It's similar to their

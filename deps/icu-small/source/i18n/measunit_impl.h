@@ -11,6 +11,7 @@
 #include "unicode/measunit.h"
 #include "cmemory.h"
 #include "charstr.h"
+#include "fixedstring.h"
 
 U_NAMESPACE_BEGIN
 
@@ -39,12 +40,12 @@ CharString U_I18N_API getUnitQuantity(const MeasureUnitImpl &baseMeasureUnitImpl
 /**
  * A struct representing a single unit (optional SI or binary prefix, and dimensionality).
  */
-struct U_I18N_API SingleUnitImpl : public UMemory {
+struct U_I18N_API_CLASS SingleUnitImpl : public UMemory {
     /**
      * Gets a single unit from the MeasureUnit. If there are multiple single units, sets an error
      * code and returns the base dimensionless unit. Parses if necessary.
      */
-    static SingleUnitImpl forMeasureUnit(const MeasureUnit& measureUnit, UErrorCode& status);
+    U_I18N_API static SingleUnitImpl forMeasureUnit(const MeasureUnit& measureUnit, UErrorCode& status);
 
     /** Transform this SingleUnitImpl into a MeasureUnit, simplifying if possible. */
     MeasureUnit build(UErrorCode& status) const;
@@ -57,7 +58,7 @@ struct U_I18N_API SingleUnitImpl : public UMemory {
      * The returned pointer points at memory that exists for the duration of the
      * program's running.
      */
-    const char *getSimpleUnitID() const;
+    U_I18N_API const char* getSimpleUnitID() const;
 
     /**
      * Generates and append a neutral identifier string for a single unit which means we do not include
@@ -196,20 +197,11 @@ struct U_I18N_API SingleUnitImpl : public UMemory {
 // Forward declaration
 struct MeasureUnitImplWithIndex;
 
-// Export explicit template instantiations of MaybeStackArray, MemoryPool and
-// MaybeStackVector. This is required when building DLLs for Windows. (See
-// datefmt.h, collationiterator.h, erarules.h and others for similar examples.)
-#if U_PF_WINDOWS <= U_PLATFORM && U_PLATFORM <= U_PF_CYGWIN
-template class U_I18N_API MaybeStackArray<SingleUnitImpl *, 8>;
-template class U_I18N_API MemoryPool<SingleUnitImpl, 8>;
-template class U_I18N_API MaybeStackVector<SingleUnitImpl, 8>;
-#endif
-
 /**
  * Internal representation of measurement units. Capable of representing all complexities of units,
  * including mixed and compound units.
  */
-class U_I18N_API MeasureUnitImpl : public UMemory {
+class U_I18N_API_CLASS MeasureUnitImpl : public UMemory {
   public:
     MeasureUnitImpl() = default;
     MeasureUnitImpl(MeasureUnitImpl &&other) = default;
@@ -232,7 +224,7 @@ class U_I18N_API MeasureUnitImpl : public UMemory {
      * @return A newly parsed value object. Behaviour of this unit is
      * unspecified if an error is returned via status.
      */
-    static MeasureUnitImpl forIdentifier(StringPiece identifier, UErrorCode& status);
+    U_I18N_API static MeasureUnitImpl forIdentifier(StringPiece identifier, UErrorCode& status);
 
     /**
      * Extract the MeasureUnitImpl from a MeasureUnit, or parse if it is not present.
@@ -242,7 +234,7 @@ class U_I18N_API MeasureUnitImpl : public UMemory {
      * @param status Set if an error occurs.
      * @return A reference to either measureUnit.fImpl or memory.
      */
-    static const MeasureUnitImpl& forMeasureUnit(
+    U_I18N_API static const MeasureUnitImpl& forMeasureUnit(
         const MeasureUnit& measureUnit, MeasureUnitImpl& memory, UErrorCode& status);
 
     /**
@@ -258,16 +250,19 @@ class U_I18N_API MeasureUnitImpl : public UMemory {
     /**
      * Used for currency units.
      */
-    static inline MeasureUnitImpl forCurrencyCode(StringPiece currencyCode) {
+    static inline MeasureUnitImpl forCurrencyCode(StringPiece currencyCode, UErrorCode& status) {
         MeasureUnitImpl result;
-        UErrorCode localStatus = U_ZERO_ERROR;
-        result.identifier.append(currencyCode, localStatus);
-        // localStatus is not expected to fail since currencyCode should be 3 chars long
+        if (U_SUCCESS(status)) {
+            result.identifier = currencyCode;
+            if (result.identifier.isEmpty() != currencyCode.empty()) {
+                status = U_MEMORY_ALLOCATION_ERROR;
+            }
+        }
         return result;
     }
 
     /** Transform this MeasureUnitImpl into a MeasureUnit, simplifying if possible. */
-    MeasureUnit build(UErrorCode& status) &&;
+    U_I18N_API MeasureUnit build(UErrorCode& status) &&;
 
     /**
      * Create a copy of this MeasureUnitImpl. Don't use copy constructor to make this explicit.
@@ -304,7 +299,7 @@ class U_I18N_API MeasureUnitImpl : public UMemory {
      * @return true if a new item was added. If unit is the dimensionless unit,
      * it is never added: the return value will always be false.
      */
-    bool appendSingleUnit(const SingleUnitImpl& singleUnit, UErrorCode& status);
+    U_I18N_API bool appendSingleUnit(const SingleUnitImpl& singleUnit, UErrorCode& status);
 
     /**
      * Normalizes a MeasureUnitImpl and generate the identifier string in place.
@@ -326,7 +321,7 @@ class U_I18N_API MeasureUnitImpl : public UMemory {
     /**
      * The full unit identifier.  Owned by the MeasureUnitImpl.  Empty if not computed.
      */
-    CharString identifier;
+    FixedString identifier;
 
     /**
      * Represents the unit constant denominator.
@@ -341,7 +336,7 @@ class U_I18N_API MeasureUnitImpl : public UMemory {
     friend class number::impl::LongNameHandler;
 };
 
-struct U_I18N_API MeasureUnitImplWithIndex : public UMemory {
+struct MeasureUnitImplWithIndex : public UMemory {
     const int32_t index;
     MeasureUnitImpl unitImpl;
     // Makes a copy of unitImpl.
@@ -352,21 +347,6 @@ struct U_I18N_API MeasureUnitImplWithIndex : public UMemory {
         : index(index), unitImpl(MeasureUnitImpl(singleUnitImpl, status)) {
     }
 };
-
-// Export explicit template instantiations of MaybeStackArray, MemoryPool and
-// MaybeStackVector. This is required when building DLLs for Windows. (See
-// datefmt.h, collationiterator.h, erarules.h and others for similar examples.)
-#if U_PF_WINDOWS <= U_PLATFORM && U_PLATFORM <= U_PF_CYGWIN
-template class U_I18N_API MaybeStackArray<MeasureUnitImplWithIndex *, 8>;
-template class U_I18N_API MemoryPool<MeasureUnitImplWithIndex, 8>;
-template class U_I18N_API MaybeStackVector<MeasureUnitImplWithIndex, 8>;
-
-// Export an explicit template instantiation of the LocalPointer that is used as a
-// data member of MeasureUnitImpl.
-// (When building DLLs for Windows this is required.)
-template class U_I18N_API LocalPointerBase<MeasureUnitImpl>;
-template class U_I18N_API LocalPointer<MeasureUnitImpl>;
-#endif
 
 U_NAMESPACE_END
 

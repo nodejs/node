@@ -197,14 +197,13 @@ public:
      * @return   a copy of the object
      * @stable ICU 4.0
      */
-    virtual DateIntervalInfo* clone() const;
+    DateIntervalInfo* clone() const;
 
     /**
      * Destructor.
-     * It is virtual to be safe, but it is not designed to be subclassed.
      * @stable ICU 4.0
      */
-    virtual ~DateIntervalInfo();
+    ~DateIntervalInfo();
 
 
     /**
@@ -214,7 +213,7 @@ public:
      * @return         true if other is semantically equal to this.
      * @stable ICU 4.0
      */
-    virtual bool operator==(const DateIntervalInfo& other) const;
+    bool operator==(const DateIntervalInfo& other) const;
 
     /**
      * Return true if another object is semantically unequal to this one.

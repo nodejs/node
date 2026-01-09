@@ -142,7 +142,7 @@ ulocdata_setNoSubstitute(ULocaleData *uld, UBool setting);
  * data available for that method, given the locale ID
  * supplied to ulocdata_open().
  *
- * @param uld       Pointer to the The locale data object to set.
+ * @param uld       Pointer to the locale data object to set.
  * @return UBool    Value of the "no substitute" attribute.
  * @stable ICU 3.4
  */

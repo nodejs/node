@@ -195,4 +195,21 @@ void PlusSignMatcher::accept(StringSegment& segment, ParsedNumber& result) const
 }
 
 
+ApproximatelySignMatcher::ApproximatelySignMatcher(
+        const DecimalFormatSymbols& dfs, bool allowTrailing) :
+            SymbolMatcher(
+                dfs.getConstSymbol(DecimalFormatSymbols::kApproximatelySignSymbol),
+                unisets::APPROXIMATELY_SIGN),
+            fAllowTrailing(allowTrailing) {
+}
+
+bool ApproximatelySignMatcher::isDisabled(const ParsedNumber& result) const {
+    return !fAllowTrailing && result.seenNumber();
+}
+
+void ApproximatelySignMatcher::accept(StringSegment& segment, ParsedNumber& result) const {
+    result.setCharsConsumed(segment);
+}
+
+
 #endif /* #if !UCONFIG_NO_FORMATTING */

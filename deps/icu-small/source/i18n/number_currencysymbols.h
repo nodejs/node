@@ -14,8 +14,8 @@
 U_NAMESPACE_BEGIN
 namespace number::impl {
 
-// Exported as U_I18N_API for tests
-class U_I18N_API CurrencySymbols : public UMemory {
+// Exported as U_I18N_API_CLASS for tests
+class U_I18N_API_CLASS CurrencySymbols : public UMemory {
   public:
     CurrencySymbols() = default; // default constructor: leaves class in valid but undefined state
 
@@ -23,8 +23,10 @@ class U_I18N_API CurrencySymbols : public UMemory {
     CurrencySymbols(CurrencyUnit currency, const Locale& locale, UErrorCode& status);
 
     /** Creates an instance in which some symbols might be pre-populated. */
-    CurrencySymbols(CurrencyUnit currency, const Locale& locale, const DecimalFormatSymbols& symbols,
-                    UErrorCode& status);
+    U_I18N_API CurrencySymbols(CurrencyUnit currency,
+                               const Locale& locale,
+                               const DecimalFormatSymbols& symbols,
+                               UErrorCode& status);
 
     const char16_t* getIsoCode() const;
 

@@ -438,6 +438,7 @@ void getMeasureData(const Locale &locale,
     subKey.append(unit.getType(), status);
     subKey.append("/", status);
 
+    // TODO(ICU-23226): Refactor LongNameHandler to use gUnitAliases and gUnitReplacements measunit_extra.cpp instead of local reasource bundle.
     // Check if unitSubType is an alias or not.
     LocalUResourceBundlePointer aliasBundle(ures_open(U_ICUDATA_ALIAS, "metadata", &status));
 
@@ -1152,13 +1153,13 @@ void LongNameHandler::processPatternTimes(MeasureUnitImpl &&productUnit,
     if (U_FAILURE(status)) {
         return;
     }
-    if (productUnit.identifier.length() == 0) {
+    if (productUnit.identifier.isEmpty()) {
         // MeasureUnit(): no units: return empty strings.
         return;
     }
 
     MeasureUnit builtinUnit;
-    if (MeasureUnit::findBySubType(productUnit.identifier.toStringPiece(), &builtinUnit)) {
+    if (MeasureUnit::findBySubType(productUnit.identifier.data(), &builtinUnit)) {
         // TODO(icu-units#145): spec doesn't cover builtin-per-builtin, it
         // breaks them all down. Do we want to drop this?
         // - findBySubType isn't super efficient, if we skip it and go to basic

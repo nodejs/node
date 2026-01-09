@@ -27,44 +27,50 @@ namespace number::impl {
  *
  * @see NumberFormatter
  */
-class U_I18N_API LocalizedNumberFormatterAsFormat : public Format {
+class U_I18N_API_CLASS LocalizedNumberFormatterAsFormat : public Format {
   public:
-    LocalizedNumberFormatterAsFormat(const LocalizedNumberFormatter& formatter, const Locale& locale);
+    U_I18N_API LocalizedNumberFormatterAsFormat(const LocalizedNumberFormatter& formatter,
+                                                const Locale& locale);
 
     /**
      * Destructor.
      */
-    ~LocalizedNumberFormatterAsFormat() override;
+    U_I18N_API ~LocalizedNumberFormatterAsFormat() override;
 
     /**
      * Equals operator.
      */
-    bool operator==(const Format& other) const override;
+    U_I18N_API bool operator==(const Format& other) const override;
 
     /**
      * Creates a copy of this object.
      */
-    LocalizedNumberFormatterAsFormat* clone() const override;
+    U_I18N_API LocalizedNumberFormatterAsFormat* clone() const override;
 
     /**
      * Formats a Number using the wrapped LocalizedNumberFormatter. The provided formattable must be a
      * number type.
      */
-    UnicodeString& format(const Formattable& obj, UnicodeString& appendTo, FieldPosition& pos,
-                          UErrorCode& status) const override;
+    U_I18N_API UnicodeString& format(const Formattable& obj,
+                                     UnicodeString& appendTo,
+                                     FieldPosition& pos,
+                                     UErrorCode& status) const override;
 
     /**
      * Formats a Number using the wrapped LocalizedNumberFormatter. The provided formattable must be a
      * number type.
      */
-    UnicodeString& format(const Formattable& obj, UnicodeString& appendTo, FieldPositionIterator* posIter,
-                          UErrorCode& status) const override;
+    U_I18N_API UnicodeString& format(const Formattable& obj,
+                                     UnicodeString& appendTo,
+                                     FieldPositionIterator* posIter,
+                                     UErrorCode& status) const override;
 
     /**
      * Not supported: sets an error index and returns.
      */
-    void parseObject(const UnicodeString& source, Formattable& result,
-                     ParsePosition& parse_pos) const override;
+    U_I18N_API void parseObject(const UnicodeString& source,
+                                Formattable& result,
+                                ParsePosition& parse_pos) const override;
 
     /**
      * Gets the LocalizedNumberFormatter that this wrapper class uses to format numbers.
@@ -84,10 +90,10 @@ class U_I18N_API LocalizedNumberFormatterAsFormat : public Format {
      *
      * @return The unwrapped LocalizedNumberFormatter.
      */
-    const LocalizedNumberFormatter& getNumberFormatter() const;
+    U_I18N_API const LocalizedNumberFormatter& getNumberFormatter() const;
 
-    UClassID getDynamicClassID() const override;
-    static UClassID U_EXPORT2 getStaticClassID();
+    U_I18N_API UClassID getDynamicClassID() const override;
+    U_I18N_API static UClassID getStaticClassID();
 
   private:
     LocalizedNumberFormatter fFormatter;
