@@ -1627,6 +1627,15 @@ def set_configuration_variable(configs, name, release=None, debug=None):
   configs['Release']['variables'][name] = release
   configs['Debug']['variables'][name] = debug
 
+def set_configuration_variable_and_defines(configs, name, define, release=None, debug=None):
+  set_configuration_variable(configs, name, release, debug)
+  if configs['Debug'].get('defines') is None:
+      configs['Debug']['defines'] = []
+  if configs['Release'].get('defines') is None:
+      configs['Release']['defines'] = []
+  configs['Debug']['defines'].append(define)
+  configs['Release']['defines'].append(define)
+
 def configure_arm(o):
   if options.arm_float_abi:
     arm_float_abi = options.arm_float_abi
@@ -1969,8 +1978,14 @@ def configure_library(lib, output, pkgname=None):
 
 
 def configure_v8(o, configs):
-  set_configuration_variable(configs, 'v8_enable_v8_checks', release=1, debug=0)
-
+  set_configuration_variable_and_defines(
+      configs,
+      'v8_enable_v8_checks',
+      'V8_ENABLE_CHECKS',
+      release='0',
+      debug='1'
+  )
+ 
   o['variables']['v8_enable_webassembly'] = 0 if options.v8_lite_mode else 1
   o['variables']['v8_enable_javascript_promise_hooks'] = 1
   o['variables']['v8_enable_lite_mode'] = 1 if options.v8_lite_mode else 0
