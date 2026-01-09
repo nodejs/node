@@ -1,6 +1,9 @@
 'use strict';
 
 const common = require('../common');
+
+common.skipIfInspectorDisabled();
+
 const assert = require('assert');
 const { describe, it } = require('node:test');
 
