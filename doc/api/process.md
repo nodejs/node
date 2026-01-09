@@ -2858,7 +2858,7 @@ console.log(memoryUsage.rss());
 // 35655680
 ```
 
-## `process.moduleLoadList`
+## `process.loadedModules`
 
 <!-- YAML
 added: v0.5.3
@@ -2866,21 +2866,21 @@ added: v0.5.3
 
 * Type: {string\[]}
 
-The `process.moduleLoadList` property returns an array of internal bindings and core modules that
+The `process.loadedModules` property returns an array of core modules that
 were loaded during the current Node.js process execution.
 
 ```mjs
-import { moduleLoadList } from 'node:process';
+import { loadedModules } from 'node:process';
 
-console.log(moduleLoadList);
-// ['Internal Binding builtins', 'Internal Binding module_wrap', 'Internal Binding errors', ...]
+console.log(loadedModules);
+// ['events', 'buffer', 'diagnostics_channel', 'async_hooks', ...]
 ```
 
 ```cjs
-const { moduleLoadList } = require('node:process');
+const { loadedModules } = require('node:process');
 
-console.log(moduleLoadList);
-// ['Internal Binding builtins', 'Internal Binding module_wrap', 'Internal Binding errors', ...]
+console.log(loadedModules);
+// ['events', 'buffer', 'diagnostics_channel', 'async_hooks', ...]
 ```
 
 ## `process.nextTick(callback[, ...args])`
