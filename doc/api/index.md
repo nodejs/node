@@ -1,5 +1,5 @@
 <!--
-  NB(chrisdickinson): if you move this file, be sure to update
+  NB(chrisdickinson): if you move this file, be sure to utpdate
   tools/doc/html.mjs to point at the new location.
 -->
 
