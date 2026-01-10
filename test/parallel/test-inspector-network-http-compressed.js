@@ -68,6 +68,12 @@ const handleRequest = (req, res) => {
       res.writeHead(200);
       res.end(plainTextBody);
       break;
+    case '/invalid-gzip':
+      // Send invalid data with gzip content-encoding to trigger decompression error
+      setResponseHeaders(res, 'gzip');
+      res.writeHead(200);
+      res.end('this is not valid gzip data');
+      break;
     default:
       assert.fail(`Unexpected path: ${path}`);
   }
@@ -101,6 +107,36 @@ function verifyLoadingFinished({ method, params }) {
   assert.strictEqual(method, 'Network.loadingFinished');
   assert.ok(params.requestId.startsWith('node-network-event-'));
   return params;
+}
+
+async function testInvalidCompressedResponse(server) {
+  const port = server.address().port;
+  const protocol = server === httpsServer ? 'https' : 'http';
+  const path = '/invalid-gzip';
+  const url = `${protocol}://127.0.0.1:${port}${path}`;
+
+  const responseReceivedFuture = once(session, 'Network.responseReceived')
+    .then(([event]) => verifyResponseReceived(event, { url }));
+
+  const client = protocol === 'https' ? https : http;
+
+  await new Promise((resolve) => {
+    const req = client.get({
+      host: '127.0.0.1',
+      port,
+      path,
+      rejectUnauthorized: false,
+    }, (res) => {
+      // Consume the response to trigger the decompression error in inspector
+      res.on('data', () => {});
+      res.on('end', resolve);
+    });
+    req.on('error', resolve);
+  });
+
+  await responseReceivedFuture;
+  // Note: loadingFinished is not emitted when decompression fails,
+  // but this test ensures the error handler is triggered for coverage.
 }
 
 async function testCompressedResponse(server, encoding, path) {
@@ -164,89 +200,47 @@ async function testCompressedResponse(server, encoding, path) {
   assert.strictEqual(responseBody.body, plainTextBody);
 }
 
-async function testGzipHttp() {
-  await testCompressedResponse(httpServer, 'gzip', '/gzip');
-}
-
-async function testGzipHttps() {
-  await testCompressedResponse(httpsServer, 'gzip', '/gzip');
-}
-
-async function testXGzipHttp() {
-  await testCompressedResponse(httpServer, 'x-gzip', '/x-gzip');
-}
-
-async function testXGzipHttps() {
-  await testCompressedResponse(httpsServer, 'x-gzip', '/x-gzip');
-}
-
-async function testDeflateHttp() {
-  await testCompressedResponse(httpServer, 'deflate', '/deflate');
-}
-
-async function testDeflateHttps() {
-  await testCompressedResponse(httpsServer, 'deflate', '/deflate');
-}
-
-async function testBrotliHttp() {
-  await testCompressedResponse(httpServer, 'br', '/br');
-}
-
-async function testBrotliHttps() {
-  await testCompressedResponse(httpsServer, 'br', '/br');
-}
-
-async function testZstdHttp() {
-  await testCompressedResponse(httpServer, 'zstd', '/zstd');
-}
-
-async function testZstdHttps() {
-  await testCompressedResponse(httpsServer, 'zstd', '/zstd');
-}
-
-async function testPlainHttp() {
-  await testCompressedResponse(httpServer, null, '/plain');
-}
-
-async function testPlainHttps() {
-  await testCompressedResponse(httpsServer, null, '/plain');
-}
-
 const testNetworkInspection = async () => {
   // Test gzip
-  await testGzipHttp();
+  await testCompressedResponse(httpServer, 'gzip', '/gzip');
   session.removeAllListeners();
-  await testGzipHttps();
+  await testCompressedResponse(httpsServer, 'gzip', '/gzip');
   session.removeAllListeners();
 
   // Test x-gzip (alternate gzip encoding)
-  await testXGzipHttp();
+  await testCompressedResponse(httpServer, 'x-gzip', '/x-gzip');
   session.removeAllListeners();
-  await testXGzipHttps();
+  await testCompressedResponse(httpsServer, 'x-gzip', '/x-gzip');
   session.removeAllListeners();
 
   // Test deflate
-  await testDeflateHttp();
+  await testCompressedResponse(httpServer, 'deflate', '/deflate');
   session.removeAllListeners();
-  await testDeflateHttps();
+  await testCompressedResponse(httpsServer, 'deflate', '/deflate');
   session.removeAllListeners();
 
   // Test brotli
-  await testBrotliHttp();
+  await testCompressedResponse(httpServer, 'br', '/br');
   session.removeAllListeners();
-  await testBrotliHttps();
+  await testCompressedResponse(httpsServer, 'br', '/br');
   session.removeAllListeners();
 
   // Test zstd
-  await testZstdHttp();
+  await testCompressedResponse(httpServer, 'zstd', '/zstd');
   session.removeAllListeners();
-  await testZstdHttps();
+  await testCompressedResponse(httpsServer, 'zstd', '/zstd');
   session.removeAllListeners();
 
   // Test plain (no compression)
-  await testPlainHttp();
+  await testCompressedResponse(httpServer, null, '/plain');
   session.removeAllListeners();
-  await testPlainHttps();
+  await testCompressedResponse(httpsServer, null, '/plain');
+  session.removeAllListeners();
+
+  // Test invalid compressed data (triggers decompression error handler)
+  await testInvalidCompressedResponse(httpServer);
+  session.removeAllListeners();
+  await testInvalidCompressedResponse(httpsServer);
   session.removeAllListeners();
 };
 

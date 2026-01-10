@@ -65,6 +65,12 @@ const handleStream = common.mustCallAtLeast((stream, headers) => {
       stream.respond(responseHeaders);
       stream.end(plainTextBody);
       break;
+    case '/invalid-gzip':
+      // Send invalid data with gzip content-encoding to trigger decompression error
+      responseHeaders[http2.constants.HTTP2_HEADER_CONTENT_ENCODING] = 'gzip';
+      stream.respond(responseHeaders);
+      stream.end('this is not valid gzip data');
+      break;
     default:
       assert.fail(`Unexpected path: ${path}`);
   }
@@ -100,6 +106,44 @@ function verifyLoadingFinished({ method, params }) {
   assert.strictEqual(method, 'Network.loadingFinished');
   assert.ok(params.requestId.startsWith('node-network-event-'));
   return params;
+}
+
+async function testInvalidCompressedResponse(server) {
+  const port = server.address().port;
+  const secure = server === http2SecureServer;
+  const origin = (secure ? 'https' : 'http') + `://localhost:${port}`;
+  const path = '/invalid-gzip';
+  const url = `${origin}${path}`;
+
+  const responseReceivedFuture = once(session, 'Network.responseReceived')
+    .then(([event]) => verifyResponseReceived(event, { url }));
+
+  await new Promise((resolve) => {
+    const client = http2.connect(origin, {
+      rejectUnauthorized: false,
+    });
+
+    const req = client.request({
+      [http2.constants.HTTP2_HEADER_PATH]: path,
+      [http2.constants.HTTP2_HEADER_METHOD]: 'GET',
+    });
+
+    // Consume the response to trigger the decompression error in inspector
+    req.on('data', () => {});
+    req.on('end', () => {
+      client.close();
+      resolve();
+    });
+    req.on('error', () => {
+      client.close();
+      resolve();
+    });
+    req.end();
+  });
+
+  await responseReceivedFuture;
+  // Note: loadingFinished is not emitted when decompression fails,
+  // but this test ensures the error handler is triggered for coverage.
 }
 
 async function testCompressedResponse(server, encoding, path) {
@@ -179,89 +223,47 @@ async function testCompressedResponse(server, encoding, path) {
   assert.strictEqual(responseBody.body, plainTextBody);
 }
 
-async function testGzipHttp2() {
-  await testCompressedResponse(http2Server, 'gzip', '/gzip');
-}
-
-async function testGzipHttp2Secure() {
-  await testCompressedResponse(http2SecureServer, 'gzip', '/gzip');
-}
-
-async function testXGzipHttp2() {
-  await testCompressedResponse(http2Server, 'x-gzip', '/x-gzip');
-}
-
-async function testXGzipHttp2Secure() {
-  await testCompressedResponse(http2SecureServer, 'x-gzip', '/x-gzip');
-}
-
-async function testDeflateHttp2() {
-  await testCompressedResponse(http2Server, 'deflate', '/deflate');
-}
-
-async function testDeflateHttp2Secure() {
-  await testCompressedResponse(http2SecureServer, 'deflate', '/deflate');
-}
-
-async function testBrotliHttp2() {
-  await testCompressedResponse(http2Server, 'br', '/br');
-}
-
-async function testBrotliHttp2Secure() {
-  await testCompressedResponse(http2SecureServer, 'br', '/br');
-}
-
-async function testZstdHttp2() {
-  await testCompressedResponse(http2Server, 'zstd', '/zstd');
-}
-
-async function testZstdHttp2Secure() {
-  await testCompressedResponse(http2SecureServer, 'zstd', '/zstd');
-}
-
-async function testPlainHttp2() {
-  await testCompressedResponse(http2Server, null, '/plain');
-}
-
-async function testPlainHttp2Secure() {
-  await testCompressedResponse(http2SecureServer, null, '/plain');
-}
-
 const testNetworkInspection = async () => {
   // Test gzip
-  await testGzipHttp2();
+  await testCompressedResponse(http2Server, 'gzip', '/gzip');
   session.removeAllListeners();
-  await testGzipHttp2Secure();
+  await testCompressedResponse(http2SecureServer, 'gzip', '/gzip');
   session.removeAllListeners();
 
   // Test x-gzip (alternate gzip encoding)
-  await testXGzipHttp2();
+  await testCompressedResponse(http2Server, 'x-gzip', '/x-gzip');
   session.removeAllListeners();
-  await testXGzipHttp2Secure();
+  await testCompressedResponse(http2SecureServer, 'x-gzip', '/x-gzip');
   session.removeAllListeners();
 
   // Test deflate
-  await testDeflateHttp2();
+  await testCompressedResponse(http2Server, 'deflate', '/deflate');
   session.removeAllListeners();
-  await testDeflateHttp2Secure();
+  await testCompressedResponse(http2SecureServer, 'deflate', '/deflate');
   session.removeAllListeners();
 
   // Test brotli
-  await testBrotliHttp2();
+  await testCompressedResponse(http2Server, 'br', '/br');
   session.removeAllListeners();
-  await testBrotliHttp2Secure();
+  await testCompressedResponse(http2SecureServer, 'br', '/br');
   session.removeAllListeners();
 
   // Test zstd
-  await testZstdHttp2();
+  await testCompressedResponse(http2Server, 'zstd', '/zstd');
   session.removeAllListeners();
-  await testZstdHttp2Secure();
+  await testCompressedResponse(http2SecureServer, 'zstd', '/zstd');
   session.removeAllListeners();
 
   // Test plain (no compression)
-  await testPlainHttp2();
+  await testCompressedResponse(http2Server, null, '/plain');
   session.removeAllListeners();
-  await testPlainHttp2Secure();
+  await testCompressedResponse(http2SecureServer, null, '/plain');
+  session.removeAllListeners();
+
+  // Test invalid compressed data (triggers decompression error handler)
+  await testInvalidCompressedResponse(http2Server);
+  session.removeAllListeners();
+  await testInvalidCompressedResponse(http2SecureServer);
   session.removeAllListeners();
 };
 
