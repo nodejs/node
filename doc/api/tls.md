@@ -925,6 +925,7 @@ changes:
   * `rejectUnauthorized`: See [`tls.createServer()`][]
   * `ALPNProtocols`: See [`tls.createServer()`][]
   * `SNICallback`: See [`tls.createServer()`][]
+  * `ALPNCallback`: See [`tls.createServer()`][]
   * `session` {Buffer} A `Buffer` instance containing a TLS session.
   * `requestOCSP` {boolean} If `true`, specifies that the OCSP status request
     extension will be added to the client hello and an `'OCSPResponse'` event
