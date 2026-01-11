@@ -100,11 +100,13 @@ subSystemLabels:
   /^lib\/.*http2/: http2
   /^lib\/worker_threads.js$/: worker
   /^lib\/test.js$/: test_runner
+  /^lib\/v8.js$/: v8 module
   /^lib\/internal\/url\.js$/: whatwg-url
   /^lib\/internal\/modules\/esm/: esm
   /^lib\/internal\/modules/: module
   /^lib\/internal\/webstreams/: web streams
   /^lib\/internal\/test_runner/: test_runner
+  /^lib\/internal\/v8\//: v8 module
 
   # All other lib/ files map directly
   /^lib\/_(\w+)_\w+\.js?$/: $1  # e.g. _(stream)_wrap
