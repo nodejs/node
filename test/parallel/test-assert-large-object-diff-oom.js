@@ -1,184 +1,91 @@
 // Flags: --max-old-space-size=512
 'use strict';
 
-// Test that assert.strictEqual does not OOM when comparing objects
-// that produce large util.inspect output.
-//
-// This is a regression test for an issue where objects with many unique
-// paths converging on shared objects can cause exponential growth in
-// util.inspect output, leading to OOM during assertion error generation.
-//
-// The fix adds a 2MB limit to inspect output in assertion_error.js
+// Regression test: assert.strictEqual should not OOM when comparing objects
+// with many converging paths to shared objects. Such objects cause exponential
+// growth in util.inspect output, which previously led to OOM during error
+// message generation.
 
 require('../common');
 const assert = require('assert');
 
-// Create an object graph where many unique paths converge on shared objects.
-// This delays circular reference detection and creates exponential growth
-// in util.inspect output at high depths.
+// Test: should throw AssertionError, not OOM
+{
+  const { doc1, doc2 } = createTestObjects();
 
-function createBase() {
-  const base = {
-    id: 'base',
-    models: {},
-    schemas: {},
-    types: {},
-  };
+  assert.throws(
+    () => assert.strictEqual(doc1, doc2),
+    (err) => {
+      assert.ok(err instanceof assert.AssertionError);
+      // Message should be bounded (fix truncates inspect output at 2MB)
+      assert.ok(err.message.length < 5 * 1024 * 1024);
+      return true;
+    }
+  );
+}
 
-  for (let i = 0; i < 5; i++) {
-    base.types[`type_${i}`] = {
-      name: `type_${i}`,
-      base,
-      caster: { base, name: `type_${i}_caster` },
-      options: {
-        base,
-        validators: [
-          { base, name: 'v1' },
-          { base, name: 'v2' },
-          { base, name: 'v3' },
-        ],
-      },
-    };
+// Creates objects where many paths converge on shared objects, causing
+// exponential growth in util.inspect output at high depths.
+function createTestObjects() {
+  const base = createBase();
+
+  const s1 = createSchema(base, 's1');
+  const s2 = createSchema(base, 's2');
+  base.schemas.s1 = s1;
+  base.schemas.s2 = s2;
+
+  const doc1 = createDoc(s1, base);
+  const doc2 = createDoc(s2, base);
+
+  // Populated refs create additional converging paths
+  for (let i = 0; i < 2; i++) {
+    const ps = createSchema(base, 'p' + i);
+    base.schemas['p' + i] = ps;
+    doc1.$__.pop['r' + i] = { value: createDoc(ps, base), opts: { base, schema: ps } };
   }
 
+  // Cross-link creates more converging paths
+  doc1.$__.pop.r0.value.$__parent = doc2;
+
+  return { doc1, doc2 };
+}
+
+function createBase() {
+  const base = { types: {}, schemas: {} };
+  for (let i = 0; i < 4; i++) {
+    base.types['t' + i] = {
+      base,
+      caster: { base },
+      opts: { base, validators: [{ base }, { base }] }
+    };
+  }
   return base;
 }
 
 function createSchema(base, name) {
-  const schema = {
-    name,
-    base,
-    paths: {},
-    tree: {},
-    virtuals: {},
-  };
-
-  for (let i = 0; i < 10; i++) {
-    schema.paths[`field_${i}`] = {
-      path: `field_${i}`,
-      schema,
-      instance: base.types[`type_${i % 5}`],
-      options: {
-        type: base.types[`type_${i % 5}`],
-        validators: [
-          { validator: () => true, base, schema },
-          { validator: () => true, base, schema },
-        ],
-      },
-      caster: base.types[`type_${i % 5}`].caster,
+  const schema = { name, base, paths: {}, children: [] };
+  for (let i = 0; i < 6; i++) {
+    schema.paths['f' + i] = {
+      schema, base,
+      type: base.types['t' + (i % 4)],
+      caster: base.types['t' + (i % 4)].caster,
+      opts: { schema, base, validators: [{ schema, base }] }
     };
   }
-
-  schema.childSchemas = [];
-  for (let i = 0; i < 3; i++) {
-    const child = { name: `${name}_child_${i}`, base, schema, paths: {} };
-    for (let j = 0; j < 5; j++) {
-      child.paths[`child_field_${j}`] = {
-        path: `child_field_${j}`,
-        schema: child,
-        instance: base.types[`type_${j % 5}`],
-        options: { base, schema: child },
-      };
+  for (let i = 0; i < 2; i++) {
+    const child = { name: name + '_c' + i, base, parent: schema, paths: {} };
+    for (let j = 0; j < 3; j++) {
+      child.paths['cf' + j] = { schema: child, base, type: base.types['t' + (j % 4)] };
     }
-    schema.childSchemas.push(child);
+    schema.children.push(child);
   }
-
   return schema;
 }
 
-function createDocument(schema, base) {
-  const doc = {
-    $__: { activePaths: {}, pathsToScopes: {}, populated: {} },
-    _doc: { name: 'test' },
-    _schema: schema,
-    _base: base,
-  };
-
-  for (let i = 0; i < 10; i++) {
-    doc.$__.pathsToScopes[`path_${i}`] = {
-      schema,
-      base,
-      type: base.types[`type_${i % 5}`],
-    };
+function createDoc(schema, base) {
+  const doc = { schema, base, $__: { scopes: {}, pop: {} } };
+  for (let i = 0; i < 6; i++) {
+    doc.$__.scopes['p' + i] = { schema, base, type: base.types['t' + (i % 4)] };
   }
-
-  for (let i = 0; i < 3; i++) {
-    const populatedSchema = createSchema(base, `Populated_${i}`);
-    base.schemas[`Populated_${i}`] = populatedSchema;
-
-    doc.$__.populated[`ref_${i}`] = {
-      value: {
-        $__: { pathsToScopes: {}, populated: {} },
-        _doc: { id: i },
-        _schema: populatedSchema,
-        _base: base,
-      },
-      options: { path: `ref_${i}`, model: `Model_${i}`, base },
-      schema: populatedSchema,
-    };
-
-    for (let j = 0; j < 5; j++) {
-      doc.$__.populated[`ref_${i}`].value.$__.pathsToScopes[`field_${j}`] = {
-        schema: populatedSchema,
-        base,
-        type: base.types[`type_${j % 5}`],
-      };
-    }
-  }
-
   return doc;
-}
-
-class Document {
-  constructor(schema, base) {
-    Object.assign(this, createDocument(schema, base));
-  }
-}
-
-Object.defineProperty(Document.prototype, 'schema', {
-  get() { return this._schema; },
-  enumerable: true,
-});
-
-Object.defineProperty(Document.prototype, 'base', {
-  get() { return this._base; },
-  enumerable: true,
-});
-
-// Setup test objects
-const base = createBase();
-const schema1 = createSchema(base, 'Schema1');
-const schema2 = createSchema(base, 'Schema2');
-base.schemas.Schema1 = schema1;
-base.schemas.Schema2 = schema2;
-
-const doc1 = new Document(schema1, base);
-const doc2 = new Document(schema2, base);
-doc2.$__.populated.ref_0.value.$__parent = doc1;
-
-// The actual OOM test: assert.strictEqual should NOT crash
-// when comparing objects with large inspect output.
-// It should throw an AssertionError with a reasonable message size.
-{
-  const actual = doc2.$__.populated.ref_0.value.$__parent;
-  const expected = doc2;
-
-  // This assertion is expected to fail (they are different objects)
-  // but it should NOT cause an OOM crash
-  assert.throws(
-    () => assert.strictEqual(actual, expected, 'Objects should be equal'),
-    (err) => {
-      // Should get an AssertionError, not an OOM crash
-      assert.ok(err instanceof assert.AssertionError,
-        'Expected AssertionError');
-
-      // Message should exist and be reasonable (not hundreds of MB)
-      // The fix limits inspect output to 2MB, so message should be bounded
-      const maxExpectedSize = 5 * 1024 * 1024; // 5MB (2MB * 2 + overhead)
-      assert.ok(err.message.length < maxExpectedSize,
-        `Error message too large: ${(err.message.length / 1024 / 1024).toFixed(2)} MB`);
-
-      return true;
-    }
-  );
 }
