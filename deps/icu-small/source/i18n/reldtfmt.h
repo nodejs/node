@@ -199,7 +199,7 @@ public:
     virtual UnicodeString& toPattern(UnicodeString& result, UErrorCode& status) const;
 
     /**
-     * Get the date pattern for the the date formatter associated with this object.
+     * Get the date pattern for the date formatter associated with this object.
      * @param result Output param to receive the date pattern.
      * @return       A reference to 'result'.
      * @internal ICU 4.2 technology preview
@@ -207,7 +207,7 @@ public:
     virtual UnicodeString& toPatternDate(UnicodeString& result, UErrorCode& status) const;
 
     /**
-     * Get the time pattern for the the time formatter associated with this object.
+     * Get the time pattern for the time formatter associated with this object.
      * @param result Output param to receive the time pattern.
      * @return       A reference to 'result'.
      * @internal ICU 4.2 technology preview

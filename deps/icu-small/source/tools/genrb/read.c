@@ -453,6 +453,7 @@ static UBool isWhitespace(UChar32 c) {
     case 0x000A:
     case 0x2029:
         lineCount++;
+        U_FALLTHROUGH;
     case 0x000D:
     case 0x0020:
     case 0x0009:
@@ -470,6 +471,7 @@ static UBool isNewline(UChar32 c) {
     case 0x000A:
     case 0x2029:
         lineCount++;
+        U_FALLTHROUGH;
     case 0x000D:
         return true;
 

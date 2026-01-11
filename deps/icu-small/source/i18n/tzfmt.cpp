@@ -1559,11 +1559,6 @@ TimeZoneFormat::formatOffsetLocalizedGMT(int32_t offset, UBool isShort, UnicodeS
         return result;
     }
 
-    if (offset == 0) {
-        result.setTo(fGMTZeroFormat);
-        return result;
-    }
-
     UBool positive = true;
     if (offset < 0) {
         offset = -offset;

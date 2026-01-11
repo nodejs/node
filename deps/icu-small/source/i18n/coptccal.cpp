@@ -78,53 +78,30 @@ CopticCalendar::handleGetExtendedYear(UErrorCode& status)
     return 0;
 }
 
-void
-CopticCalendar::handleComputeFields(int32_t julianDay, UErrorCode& status)
-{
-    int32_t eyear, month, day, era, year;
-    jdToCE(julianDay, getJDEpochOffset(), eyear, month, day, status);
-    if (U_FAILURE(status)) return;
-
-    if (eyear <= 0) {
-        era = BCE;
-        year = 1 - eyear;
-    } else {
-        era = CE;
-        year = eyear;
-    }
-
-    internalSet(UCAL_EXTENDED_YEAR, eyear);
-    internalSet(UCAL_ERA, era);
-    internalSet(UCAL_YEAR, year);
-    internalSet(UCAL_MONTH, month);
-    internalSet(UCAL_ORDINAL_MONTH, month);
-    internalSet(UCAL_DATE, day);
-    internalSet(UCAL_DAY_OF_YEAR, (30 * month) + day);
-}
-
-constexpr uint32_t kCopticRelatedYearDiff = 284;
-
-int32_t CopticCalendar::getRelatedYear(UErrorCode &status) const
-{
-    int32_t year = get(UCAL_EXTENDED_YEAR, status);
-    if (U_FAILURE(status)) {
-        return 0;
-    }
-    return year + kCopticRelatedYearDiff;
-}
-
-void CopticCalendar::setRelatedYear(int32_t year)
-{
-    // set extended year
-    set(UCAL_EXTENDED_YEAR, year - kCopticRelatedYearDiff);
-}
-
 IMPL_SYSTEM_DEFAULT_CENTURY(CopticCalendar, "@calendar=coptic")
 
 int32_t
 CopticCalendar::getJDEpochOffset() const
 {
     return COPTIC_JD_EPOCH_OFFSET;
+}
+
+int32_t CopticCalendar::extendedYearToEra(int32_t extendedYear) const {
+    return extendedYear <= 0 ? BCE : CE;
+}
+
+int32_t CopticCalendar::extendedYearToYear(int32_t extendedYear) const {
+    return extendedYear <= 0 ? 1 - extendedYear : extendedYear;
+}
+
+bool CopticCalendar::isEra0CountingBackward() const {
+    return true;
+}
+
+int32_t
+CopticCalendar::getRelatedYearDifference() const {
+    constexpr int32_t kCopticCalendarRelatedYearDifference = 284;
+    return kCopticCalendarRelatedYearDifference;
 }
 
 
