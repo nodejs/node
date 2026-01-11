@@ -412,7 +412,7 @@
               'conditions': [
                 ['OS in "linux freebsd openharmony" and node_shared=="false"', {
                   'ldflags': [
-                    '-Wl,--whole-archive,'
+                    '-Wl,--whole-archive',
                       '<(obj_dir)/deps/openssl/<(openssl_product)',
                     '-Wl,--no-whole-archive',
                   ],
