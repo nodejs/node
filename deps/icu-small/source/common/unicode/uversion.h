@@ -125,7 +125,6 @@ typedef uint8_t UVersionInfo[U_MAX_VERSION_LENGTH];
         U_NAMESPACE_USE
 #   endif
 
-#ifndef U_FORCE_HIDE_DRAFT_API
 /**
  * \def U_HEADER_NESTED_NAMESPACE
  * Nested namespace used inside U_ICU_NAMESPACE for header-only APIs.
@@ -136,7 +135,7 @@ typedef uint8_t UVersionInfo[U_MAX_VERSION_LENGTH];
  * this is always "header". Header-only types are not marked for export,
  * which on Windows already avoids callers linking with library instantiations.
  *
- * @draft ICU 76
+ * @stable ICU 76
  * @see U_HEADER_ONLY_NAMESPACE
  */
 
@@ -147,9 +146,10 @@ typedef uint8_t UVersionInfo[U_MAX_VERSION_LENGTH];
  * "U_ICU_NAMESPACE::header" or "U_ICU_NAMESPACE::internal",
  * see U_HEADER_NESTED_NAMESPACE for details.
  *
- * @draft ICU 76
+ * @stable ICU 76
  */
 
+#ifndef U_FORCE_HIDE_DRAFT_API
 /**
  * \def U_ICU_NAMESPACE_OR_INTERNAL
  * Namespace used for header-only APIs that used to be regular C++ APIs.
@@ -159,6 +159,7 @@ typedef uint8_t UVersionInfo[U_MAX_VERSION_LENGTH];
  *
  * @draft ICU 77
  */
+#endif  // U_FORCE_HIDE_DRAFT_API
 
 // The first test is the same as for defining U_EXPORT for Windows.
 #if defined(_MSC_VER) || (UPRV_HAS_DECLSPEC_ATTRIBUTE(__dllexport__) && \
@@ -180,7 +181,6 @@ typedef uint8_t UVersionInfo[U_MAX_VERSION_LENGTH];
 #define U_HEADER_ONLY_NAMESPACE U_ICU_NAMESPACE::U_HEADER_NESTED_NAMESPACE
 
 namespace U_HEADER_ONLY_NAMESPACE {}
-#endif  // U_FORCE_HIDE_DRAFT_API
 
 #endif /* __cplusplus */
 

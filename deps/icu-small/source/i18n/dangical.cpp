@@ -32,12 +32,6 @@ static icu::CalendarCache *gNewYearCache = nullptr;
 static icu::TimeZone *gAstronomerTimeZone = nullptr;
 static icu::UInitOnce gAstronomerTimeZoneInitOnce {};
 
-/**
- * The start year of the Korean traditional calendar (Dan-gi) is the inaugural
- * year of Dan-gun (BC 2333).
- */
-static const int32_t DANGI_EPOCH_YEAR = -2332; // Gregorian year
-
 U_CDECL_BEGIN
 static UBool calendar_dangi_cleanup() {
     if (gWinterSolsticeCache) {
@@ -158,29 +152,8 @@ const TimeZone* getAstronomerTimeZone(UErrorCode &status) {
     return gAstronomerTimeZone;
 }
 
-constexpr uint32_t kDangiRelatedYearDiff = -2333;
-
-int32_t DangiCalendar::getRelatedYear(UErrorCode &status) const
-{
-    int32_t year = get(UCAL_EXTENDED_YEAR, status);
-    if (U_FAILURE(status)) {
-        return 0;
-    }
-    if (uprv_add32_overflow(year, kDangiRelatedYearDiff, &year)) {
-        status = U_ILLEGAL_ARGUMENT_ERROR;
-        return 0;
-    }
-    return year;
-}
-
-void DangiCalendar::setRelatedYear(int32_t year)
-{
-    // set extended year
-    set(UCAL_EXTENDED_YEAR, year - kDangiRelatedYearDiff);
-}
-
 ChineseCalendar::Setting DangiCalendar::getSetting(UErrorCode& status) const {
-  return { DANGI_EPOCH_YEAR,
+  return {
     getAstronomerTimeZone(status),
     &gWinterSolsticeCache, &gNewYearCache
   };

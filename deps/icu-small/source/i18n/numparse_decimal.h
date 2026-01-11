@@ -61,6 +61,7 @@ class DecimalMatcher : public NumberParseMatcher, public UMemory {
     // Make this class the owner of a few objects that could be allocated.
     // The first three LocalPointers are used for assigning ownership only.
     LocalPointer<const UnicodeSet> fLocalDecimalUniSet;
+    LocalPointer<const UnicodeSet> fLocalGroupingUniSet;
     LocalPointer<const UnicodeSet> fLocalSeparatorSet;
     LocalArray<const UnicodeString> fLocalDigitStrings;
 

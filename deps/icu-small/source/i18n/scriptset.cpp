@@ -40,7 +40,9 @@ ScriptSet::ScriptSet(const ScriptSet &other) {
 }
 
 ScriptSet & ScriptSet::operator =(const ScriptSet &other) {
-    uprv_memcpy(bits, other.bits, sizeof(bits));
+    if (this != &other) {
+        uprv_memcpy(bits, other.bits, sizeof(bits));
+    }
     return *this;
 }
 

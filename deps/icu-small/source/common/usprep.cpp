@@ -666,11 +666,12 @@ usprep_prepare(   const UStringPrepProfile* profile,
         *status = U_MEMORY_ALLOCATION_ERROR;
         return 0;
     }
+    UErrorCode bufferStatus = U_ZERO_ERROR;
     int32_t b1Len = usprep_map(profile, src, srcLength,
-                               b1, s1.getCapacity(), options, parseError, status);
-    s1.releaseBuffer(U_SUCCESS(*status) ? b1Len : 0);
+                               b1, s1.getCapacity(), options, parseError, &bufferStatus);
+    s1.releaseBuffer(U_SUCCESS(bufferStatus) ? b1Len : 0);
 
-    if(*status == U_BUFFER_OVERFLOW_ERROR){
+    if(bufferStatus == U_BUFFER_OVERFLOW_ERROR){
         // redo processing of string
         /* we do not have enough room so grow the buffer*/
         b1 = s1.getBuffer(b1Len);
@@ -679,12 +680,13 @@ usprep_prepare(   const UStringPrepProfile* profile,
             return 0;
         }
 
-        *status = U_ZERO_ERROR; // reset error
+        bufferStatus = U_ZERO_ERROR; // reset error
         b1Len = usprep_map(profile, src, srcLength,
-                           b1, s1.getCapacity(), options, parseError, status);
-        s1.releaseBuffer(U_SUCCESS(*status) ? b1Len : 0);
+                           b1, s1.getCapacity(), options, parseError, &bufferStatus);
+        s1.releaseBuffer(U_SUCCESS(bufferStatus) ? b1Len : 0);
     }
-    if(U_FAILURE(*status)){
+    if(U_FAILURE(bufferStatus)){
+        *status = bufferStatus;
         return 0;
     }
 

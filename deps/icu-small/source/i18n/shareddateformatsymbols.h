@@ -22,13 +22,12 @@
 U_NAMESPACE_BEGIN
 
 
-class U_I18N_API SharedDateFormatSymbols : public SharedObject {
+class U_I18N_API_CLASS SharedDateFormatSymbols : public SharedObject {
 public:
-    SharedDateFormatSymbols(
-            const Locale &loc, const char *type, UErrorCode &status)
-            : dfs(loc, type, status) { }
-    virtual ~SharedDateFormatSymbols();
-    const DateFormatSymbols &get() const { return dfs; }
+    U_I18N_API SharedDateFormatSymbols(const Locale& loc, const char* type, UErrorCode& status)
+        : dfs(loc, type, status) {}
+    U_I18N_API virtual ~SharedDateFormatSymbols();
+    U_I18N_API const DateFormatSymbols& get() const { return dfs; }
 private:
     DateFormatSymbols dfs;
     SharedDateFormatSymbols(const SharedDateFormatSymbols &) = delete;

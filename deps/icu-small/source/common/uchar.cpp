@@ -616,6 +616,33 @@ uscript_getScriptExtensions(UChar32 c,
     return length;
 }
 
+namespace {
+
+UBool U_CALLCONV
+_scxRange(const void *context, UChar32 start, UChar32 end, uint32_t value) {
+    // From u_getUnicodeProperties(start, 0).
+    uint32_t vecWord = propsVectors[value];  // vecIndex=value, column 0
+    uint32_t scriptX = vecWord & UPROPS_SCRIPT_X_MASK;
+    if (scriptX >= UPROPS_SCRIPT_X_WITH_COMMON) {
+        // Code points start..end have Script_Extensions.
+        const USetAdder* sa = static_cast<const USetAdder*>(context);
+        sa->addRange(sa->set, start, end);
+    }
+    (void) value;
+    return true;
+}
+
+}
+
+// for icuexportdata
+U_CAPI void U_EXPORT2
+uprv_addScriptExtensionsCodePoints(const USetAdder *sa, UErrorCode *pErrorCode) {
+    if(U_FAILURE(*pErrorCode)) {
+        return;
+    }
+    utrie2_enum(&propsVectorsTrie, nullptr, _scxRange, sa);
+}
+
 U_CAPI UBlockCode U_EXPORT2
 ublock_getCode(UChar32 c) {
     // We store Block values indexed by the code point shifted right 4 bits

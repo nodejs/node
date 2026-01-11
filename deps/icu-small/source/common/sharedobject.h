@@ -51,28 +51,28 @@ private:
  * Either stack-allocate, use LocalPointer, or use addRef()/removeRef().
  * Sharing requires reference-counting.
  */
-class U_COMMON_API SharedObject : public UObject {
+class U_COMMON_API_CLASS SharedObject : public UObject {
 public:
     /** Initializes totalRefCount, softRefCount to 0. */
-    SharedObject() :
+    U_COMMON_API SharedObject() :
             softRefCount(0),
             hardRefCount(0),
             cachePtr(nullptr) {}
 
     /** Initializes totalRefCount, softRefCount to 0. */
-    SharedObject(const SharedObject &other) :
+    U_COMMON_API SharedObject(const SharedObject &other) :
             UObject(other),
             softRefCount(0),
             hardRefCount(0),
             cachePtr(nullptr) {}
 
-    virtual ~SharedObject();
+    U_COMMON_API virtual ~SharedObject();
 
     /**
      * Increments the number of hard references to this object. Thread-safe.
      * Not for use from within the Unified Cache implementation.
      */
-    void addRef() const;
+    U_COMMON_API void addRef() const;
 
     /**
      * Decrements the number of hard references to this object, and
@@ -81,32 +81,32 @@ public:
      * 
      * Not for use from within the UnifiedCache implementation.
      */
-    void removeRef() const;
+    U_COMMON_API void removeRef() const;
 
     /**
      * Returns the number of hard references for this object.
      * Uses a memory barrier.
      */
-    int32_t getRefCount() const;
+    U_COMMON_API int32_t getRefCount() const;
 
     /**
      * If noHardReferences() == true then this object has no hard references.
      * Must be called only from within the internals of UnifiedCache.
      */
-    inline UBool noHardReferences() const { return getRefCount() == 0; }
+    U_COMMON_API inline UBool noHardReferences() const { return getRefCount() == 0; }
 
     /**
      * If hasHardReferences() == true then this object has hard references.
      * Must be called only from within the internals of UnifiedCache.
      */
-    inline UBool hasHardReferences() const { return getRefCount() != 0; }
+    U_COMMON_API inline UBool hasHardReferences() const { return getRefCount() != 0; }
 
     /**
      * Deletes this object if it has no references.
      * Available for non-cached SharedObjects only. Ownership of cached objects
      * is with the UnifiedCache, which is solely responsible for eviction and deletion.
      */
-    void deleteIfZeroRefCount() const;
+    U_COMMON_API void deleteIfZeroRefCount() const;
 
         
     /**

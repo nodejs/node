@@ -353,7 +353,9 @@ inline void Regex8BitSet::init(const UnicodeSet *s) {
 }
 
 inline void Regex8BitSet::operator = (const Regex8BitSet &s) {
-   uprv_memcpy(d, s.d, sizeof(d));
+    if (this != &s) {
+        uprv_memcpy(d, s.d, sizeof(d));
+    }     
 }
 
 

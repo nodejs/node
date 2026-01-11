@@ -163,7 +163,7 @@ main(int argc,
     }
     if(options[FORMAT_VERSION].doesOccur) {
         const char *s = options[FORMAT_VERSION].value;
-        if(uprv_strlen(s) != 1 || (s[0] < '1' && '3' < s[0])) {
+        if(uprv_strlen(s) != 1 || (s[0] < '1' || '3' < s[0])) {
             fprintf(stderr, "%s: unsupported --formatVersion %s\n", argv[0], s);
             illegalArg = true;
         } else if(s[0] == '1' &&

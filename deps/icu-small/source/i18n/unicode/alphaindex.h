@@ -647,7 +647,6 @@ public:
 private:
      /**
       * No Copy constructor.
-      * @internal (private)
       */
      AlphabeticIndex(const AlphabeticIndex &other) = delete;
 
@@ -658,13 +657,11 @@ private:
 
     /**
      * No Equality operators.
-     * @internal (private)
      */
      virtual bool operator==(const AlphabeticIndex& other) const;
 
     /**
      * Inequality operator.
-     * @internal (private)
      */
      virtual bool operator!=(const AlphabeticIndex& other) const;
 
@@ -723,7 +720,6 @@ private:
     /**
      * Holds all user records before they are distributed into buckets.
      * Type of contents is (Record *)
-     * @internal (private)
      */
     UVector  *inputList_;
 

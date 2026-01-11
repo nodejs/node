@@ -17,24 +17,6 @@
 
 U_NAMESPACE_BEGIN
 
-// Export explicit template instantiations of MaybeStackArray, MemoryPool and
-// MaybeStackVector. This is required when building DLLs for Windows. (See
-// datefmt.h, collationiterator.h, erarules.h and others for similar examples.)
-//
-// Note: These need to be outside of the units namespace, or Clang will generate
-// a compile error.
-#if U_PF_WINDOWS <= U_PLATFORM && U_PLATFORM <= U_PF_CYGWIN
-template class U_I18N_API MaybeStackArray<units::UnitsConverter*, 8>;
-template class U_I18N_API MemoryPool<units::UnitsConverter, 8>;
-template class U_I18N_API MaybeStackVector<units::UnitsConverter, 8>;
-template class U_I18N_API MaybeStackArray<MeasureUnitImpl*, 8>;
-template class U_I18N_API MemoryPool<MeasureUnitImpl, 8>;
-template class U_I18N_API MaybeStackVector<MeasureUnitImpl, 8>;
-template class U_I18N_API MaybeStackArray<MeasureUnit*, 8>;
-template class U_I18N_API MemoryPool<MeasureUnit, 8>;
-template class U_I18N_API MaybeStackVector<MeasureUnit, 8>;
-#endif
-
 namespace units {
 
 /**
@@ -46,7 +28,7 @@ namespace units {
  *    single unit to another single unit). Therefore, `ComplexUnitsConverter` class contains multiple
  *    instances of the `UnitsConverter` to perform the conversion.
  */
-class U_I18N_API ComplexUnitsConverter : public UMemory {
+class U_I18N_API_CLASS ComplexUnitsConverter : public UMemory {
   public:
     /**
      * Constructs `ComplexUnitsConverter` for an `targetUnit` that could be Single, Compound or Mixed.
@@ -75,8 +57,9 @@ class U_I18N_API ComplexUnitsConverter : public UMemory {
      * @param outputUnits represents the output unit. could be any type. (single, compound or mixed).
      * @param status
      */
-    ComplexUnitsConverter(StringPiece inputUnitIdentifier, StringPiece outputUnitsIdentifier,
-                          UErrorCode &status);
+    U_I18N_API ComplexUnitsConverter(StringPiece inputUnitIdentifier,
+                                     StringPiece outputUnitsIdentifier,
+                                     UErrorCode &status);
 
     /**
      * Constructor of `ComplexUnitsConverter`.
@@ -89,8 +72,10 @@ class U_I18N_API ComplexUnitsConverter : public UMemory {
      * @param ratesInfo a ConversionRates instance containing the unit conversion rates.
      * @param status
      */
-    ComplexUnitsConverter(const MeasureUnitImpl &inputUnit, const MeasureUnitImpl &outputUnits,
-                          const ConversionRates &ratesInfo, UErrorCode &status);
+    U_I18N_API ComplexUnitsConverter(const MeasureUnitImpl &inputUnit,
+                                     const MeasureUnitImpl &outputUnits,
+                                     const ConversionRates &ratesInfo,
+                                     UErrorCode &status);
 
     // Returns true if the specified `quantity` of the `inputUnit`, expressed in terms of the biggest
     // unit in the MeasureUnit `outputUnit`, is greater than or equal to `limit`.
@@ -105,7 +90,7 @@ class U_I18N_API ComplexUnitsConverter : public UMemory {
     //         NOTE:
     //           the smallest element is the only element that could have fractional values. And all
     //           other elements are floored to the nearest integer
-    MaybeStackVector<Measure>
+    U_I18N_API MaybeStackVector<Measure>
     convert(double quantity, icu::number::impl::RoundingImpl *rounder, UErrorCode &status) const;
 
     // TODO(ICU-21937): Make it private after submitting the public units conversion API.

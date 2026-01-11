@@ -46,18 +46,6 @@ class TimeZone;
 class DateTimePatternGenerator;
 
 /**
- * \cond
- * Export an explicit template instantiation. (See digitlst.h, datefmt.h, and others.)
- * (When building DLLs for Windows this is required.)
- */
-#if U_PF_WINDOWS <= U_PLATFORM && U_PLATFORM <= U_PF_CYGWIN && !defined(U_IN_DOXYGEN)
-template class U_I18N_API EnumSet<UDateFormatBooleanAttribute,
-            0, 
-            UDAT_BOOLEAN_ATTRIBUTE_COUNT>;
-#endif
-/** \endcond */
-
-/**
  * DateFormat is an abstract class for a family of classes that convert dates and
  * times from their internal representations to textual form and back again in a
  * language-independent manner. Converting from the internal representation (milliseconds
@@ -153,7 +141,7 @@ template class U_I18N_API EnumSet<UDateFormatBooleanAttribute,
  * subclasses, such code will not necessarily work and will not be
  * guaranteed to work stably from release to release.
  */
-class U_I18N_API DateFormat : public Format {
+class U_I18N_API_CLASS DateFormat : public Format {
 public:
 
     /**
@@ -221,7 +209,7 @@ public:
      * Destructor.
      * @stable ICU 2.0
      */
-    virtual ~DateFormat();
+    U_I18N_API virtual ~DateFormat();
 
     /**
      * Clones this object polymorphically.
@@ -229,13 +217,13 @@ public:
      * @return clone, or nullptr if an error occurred
      * @stable ICU 2.0
      */
-    virtual DateFormat* clone() const override = 0;
+    U_I18N_API virtual DateFormat* clone() const override = 0;
 
     /**
      * Equality operator.  Returns true if the two formats have the same behavior.
      * @stable ICU 2.0
      */
-    virtual bool operator==(const Format&) const override;
+    U_I18N_API virtual bool operator==(const Format&) const override;
 
 
     using Format::format;
@@ -254,10 +242,10 @@ public:
      * @return          Reference to 'appendTo' parameter.
      * @stable ICU 2.0
      */
-    virtual UnicodeString& format(const Formattable& obj,
-                                  UnicodeString& appendTo,
-                                  FieldPosition& pos,
-                                  UErrorCode& status) const override;
+    U_I18N_API virtual UnicodeString& format(const Formattable& obj,
+                                             UnicodeString& appendTo,
+                                             FieldPosition& pos,
+                                             UErrorCode& status) const override;
 
     /**
      * Format an object to produce a string. This method handles Formattable
@@ -274,10 +262,10 @@ public:
      * @return          Reference to 'appendTo' parameter.
      * @stable ICU 4.4
      */
-    virtual UnicodeString& format(const Formattable& obj,
-                                  UnicodeString& appendTo,
-                                  FieldPositionIterator* posIter,
-                                  UErrorCode& status) const override;
+    U_I18N_API virtual UnicodeString& format(const Formattable& obj,
+                                             UnicodeString& appendTo,
+                                             FieldPositionIterator* posIter,
+                                             UErrorCode& status) const override;
     /**
      * Formats a date into a date/time string. This is an abstract method which
      * concrete subclasses must implement.
@@ -311,9 +299,9 @@ public:
      * @return              Reference to 'appendTo' parameter.
      * @stable ICU 2.1
      */
-    virtual UnicodeString& format(  Calendar& cal,
-                                    UnicodeString& appendTo,
-                                    FieldPosition& fieldPosition) const = 0;
+    U_I18N_API virtual UnicodeString& format(Calendar& cal,
+                                             UnicodeString& appendTo,
+                                             FieldPosition& fieldPosition) const = 0;
 
     /**
      * Formats a date into a date/time string. Subclasses should implement this method.
@@ -333,10 +321,10 @@ public:
      * @return          Reference to 'appendTo' parameter.
      * @stable ICU 4.4
      */
-    virtual UnicodeString& format(Calendar& cal,
-                                  UnicodeString& appendTo,
-                                  FieldPositionIterator* posIter,
-                                  UErrorCode& status) const;
+    U_I18N_API virtual UnicodeString& format(Calendar& cal,
+                                             UnicodeString& appendTo,
+                                             FieldPositionIterator* posIter,
+                                             UErrorCode& status) const;
     /**
      * Formats a UDate into a date/time string.
      * <P>
@@ -364,9 +352,9 @@ public:
      * @return              Reference to 'appendTo' parameter.
      * @stable ICU 2.0
      */
-    UnicodeString& format(  UDate date,
-                            UnicodeString& appendTo,
-                            FieldPosition& fieldPosition) const;
+    U_I18N_API UnicodeString& format(UDate date,
+                                     UnicodeString& appendTo,
+                                     FieldPosition& fieldPosition) const;
 
     /**
      * Formats a UDate into a date/time string.
@@ -381,10 +369,10 @@ public:
      * @return          Reference to 'appendTo' parameter.
      * @stable ICU 4.4
      */
-    UnicodeString& format(UDate date,
-                          UnicodeString& appendTo,
-                          FieldPositionIterator* posIter,
-                          UErrorCode& status) const;
+    U_I18N_API UnicodeString& format(UDate date,
+                                     UnicodeString& appendTo,
+                                     FieldPositionIterator* posIter,
+                                     UErrorCode& status) const;
     /**
      * Formats a UDate into a date/time string. If there is a problem, you won't
      * know, using this method. Use the overloaded format() method which takes a
@@ -396,7 +384,7 @@ public:
      * @return          Reference to 'appendTo' parameter.
      * @stable ICU 2.0
      */
-    UnicodeString& format(UDate date, UnicodeString& appendTo) const;
+    U_I18N_API UnicodeString& format(UDate date, UnicodeString& appendTo) const;
 
     /**
      * Parse a date/time string. For example, a time text "07/10/96 4:5 PM, PDT"
@@ -432,8 +420,7 @@ public:
      * @return          The parsed UDate value, if successful.
      * @stable ICU 2.0
      */
-    virtual UDate parse( const UnicodeString& text,
-                        UErrorCode& status) const;
+    U_I18N_API virtual UDate parse(const UnicodeString& text, UErrorCode& status) const;
 
     /**
      * Parse a date/time string beginning at the given parse position. For
@@ -461,9 +448,9 @@ public:
      *              start position if the parse failed.
      * @stable ICU 2.1
      */
-    virtual void parse( const UnicodeString& text,
-                        Calendar& cal,
-                        ParsePosition& pos) const = 0;
+    U_I18N_API virtual void parse(const UnicodeString& text,
+                                  Calendar& cal,
+                                  ParsePosition& pos) const = 0;
 
     /**
      * Parse a date/time string beginning at the given parse position. For
@@ -495,8 +482,7 @@ public:
      * @return      A valid UDate if the input could be parsed.
      * @stable ICU 2.0
      */
-    UDate parse( const UnicodeString& text,
-                 ParsePosition& pos) const;
+    U_I18N_API UDate parse(const UnicodeString& text, ParsePosition& pos) const;
 
     /**
      * Parse a string to produce an object. This methods handles parsing of
@@ -521,9 +507,9 @@ public:
      *                  will remain unchanged.
      * @stable ICU 2.0
      */
-    virtual void parseObject(const UnicodeString& source,
-                             Formattable& result,
-                             ParsePosition& parse_pos) const override;
+    U_I18N_API virtual void parseObject(const UnicodeString& source,
+                                        Formattable& result,
+                                        ParsePosition& parse_pos) const override;
 
     /**
      * Create a default date/time formatter that uses the SHORT style for both
@@ -532,7 +518,7 @@ public:
      * @return A date/time formatter which the caller owns.
      * @stable ICU 2.0
      */
-    static DateFormat* U_EXPORT2 createInstance();
+    U_I18N_API static DateFormat* U_EXPORT2 createInstance();
 
     /**
      * Creates a time formatter with the given formatting style for the given
@@ -545,8 +531,8 @@ public:
      * @return          A time formatter which the caller owns.
      * @stable ICU 2.0
      */
-    static DateFormat* U_EXPORT2 createTimeInstance(EStyle style = kDefault,
-                                          const Locale& aLocale = Locale::getDefault());
+    U_I18N_API static DateFormat* U_EXPORT2
+    createTimeInstance(EStyle style = kDefault, const Locale& aLocale = Locale::getDefault());
 
     /**
      * Creates a date formatter with the given formatting style for the given
@@ -563,8 +549,8 @@ public:
      * @return          A date formatter which the caller owns.
      * @stable ICU 2.0
      */
-    static DateFormat* U_EXPORT2 createDateInstance(EStyle style = kDefault,
-                                          const Locale& aLocale = Locale::getDefault());
+    U_I18N_API static DateFormat* U_EXPORT2
+    createDateInstance(EStyle style = kDefault, const Locale& aLocale = Locale::getDefault());
 
     /**
      * Creates a date/time formatter with the given formatting styles for the
@@ -584,9 +570,10 @@ public:
      * @return          A date/time formatter which the caller owns.
      * @stable ICU 2.0
      */
-    static DateFormat* U_EXPORT2 createDateTimeInstance(EStyle dateStyle = kDefault,
-                                              EStyle timeStyle = kDefault,
-                                              const Locale& aLocale = Locale::getDefault());
+    U_I18N_API static DateFormat* U_EXPORT2
+    createDateTimeInstance(EStyle dateStyle = kDefault,
+                           EStyle timeStyle = kDefault,
+                           const Locale& aLocale = Locale::getDefault());
 
 #ifndef U_HIDE_INTERNAL_API
     /**
@@ -597,10 +584,9 @@ public:
      * @return the best pattern.
      * @internal For ICU use only.
      */
-    static UnicodeString getBestPattern(
-            const Locale &locale,
-            const UnicodeString &skeleton,
-            UErrorCode &status);
+    U_I18N_API static UnicodeString getBestPattern(const Locale& locale,
+                                                   const UnicodeString& skeleton,
+                                                   UErrorCode& status);
 #endif  /* U_HIDE_INTERNAL_API */
 
     /**
@@ -616,9 +602,8 @@ public:
      * @return         A date/time formatter which the caller owns.
      * @stable ICU 55
      */
-    static DateFormat* U_EXPORT2 createInstanceForSkeleton(
-            const UnicodeString& skeleton,
-            UErrorCode &status);
+    U_I18N_API static DateFormat* U_EXPORT2 createInstanceForSkeleton(const UnicodeString& skeleton,
+                                                                      UErrorCode& status);
 
     /**
      * Creates a date/time formatter for the given skeleton and locale.
@@ -633,10 +618,9 @@ public:
      * @return         A date/time formatter which the caller owns.
      * @stable ICU 55
      */
-    static DateFormat* U_EXPORT2 createInstanceForSkeleton(
-            const UnicodeString& skeleton,
-            const Locale &locale,
-            UErrorCode &status);
+    U_I18N_API static DateFormat* U_EXPORT2 createInstanceForSkeleton(const UnicodeString& skeleton,
+                                                                      const Locale& locale,
+                                                                      UErrorCode& status);
 
     /**
      * Creates a date/time formatter for the given skeleton and locale.
@@ -652,12 +636,10 @@ public:
      * @return         A date/time formatter which the caller owns.
      * @stable ICU 55
      */
-    static DateFormat* U_EXPORT2 createInstanceForSkeleton(
-            Calendar *calendarToAdopt,
-            const UnicodeString& skeleton,
-            const Locale &locale,
-            UErrorCode &status);
-
+    U_I18N_API static DateFormat* U_EXPORT2 createInstanceForSkeleton(Calendar* calendarToAdopt,
+                                                                      const UnicodeString& skeleton,
+                                                                      const Locale& locale,
+                                                                      UErrorCode& status);
 
     /**
      * Gets the set of locales for which DateFormats are installed.
@@ -666,14 +648,14 @@ public:
      *  does NOT own this list and must not delete it.
      * @stable ICU 2.0
      */
-    static const Locale* U_EXPORT2 getAvailableLocales(int32_t& count);
+    U_I18N_API static const Locale* U_EXPORT2 getAvailableLocales(int32_t& count);
 
     /**
      * Returns whether both date/time parsing in the encapsulated Calendar object and DateFormat whitespace &
      * numeric processing is lenient.
      * @stable ICU 2.0
      */
-    virtual UBool isLenient() const;
+    U_I18N_API virtual UBool isLenient() const;
 
     /**
      * Specifies whether date/time parsing is to be lenient.  With
@@ -695,14 +677,14 @@ public:
      * @see Calendar::setLenient
      * @stable ICU 2.0     
      */
-    virtual void setLenient(UBool lenient);
+    U_I18N_API virtual void setLenient(UBool lenient);
 
 
     /**
      * Returns whether date/time parsing in the encapsulated Calendar object processing is lenient.
      * @stable ICU 53
      */
-    virtual UBool isCalendarLenient() const;
+    U_I18N_API virtual UBool isCalendarLenient() const;
 
     /**
      * Specifies whether encapsulated Calendar date/time parsing is to be lenient.  With
@@ -713,7 +695,7 @@ public:
      * @see com.ibm.icu.util.Calendar#setLenient
      * @stable ICU 53
      */
-    virtual void setCalendarLenient(UBool lenient);
+    U_I18N_API virtual void setCalendarLenient(UBool lenient);
 
 
     /**
@@ -724,7 +706,7 @@ public:
      * @return the calendar associated with this date/time formatter.
      * @stable ICU 2.0
      */
-    virtual const Calendar* getCalendar() const;
+    U_I18N_API virtual const Calendar* getCalendar() const;
 
     /**
      * Set the calendar to be used by this date format. Initially, the default
@@ -735,7 +717,7 @@ public:
      * @param calendarToAdopt    Calendar object to be adopted.
      * @stable ICU 2.0
      */
-    virtual void adoptCalendar(Calendar* calendarToAdopt);
+    U_I18N_API virtual void adoptCalendar(Calendar* calendarToAdopt);
 
     /**
      * Set the calendar to be used by this date format. Initially, the default
@@ -744,8 +726,7 @@ public:
      * @param newCalendar Calendar object to be set.
      * @stable ICU 2.0
      */
-    virtual void setCalendar(const Calendar& newCalendar);
-
+    U_I18N_API virtual void setCalendar(const Calendar& newCalendar);
 
     /**
      * Gets the number formatter which this date/time formatter uses to format
@@ -753,7 +734,7 @@ public:
      * @return the number formatter which this date/time formatter uses.
      * @stable ICU 2.0
      */
-    virtual const NumberFormat* getNumberFormat() const;
+    U_I18N_API virtual const NumberFormat* getNumberFormat() const;
 
     /**
      * Allows you to set the number formatter.  The caller should
@@ -761,21 +742,21 @@ public:
      * @param formatToAdopt     NumberFormat object to be adopted.
      * @stable ICU 2.0
      */
-    virtual void adoptNumberFormat(NumberFormat* formatToAdopt);
+    U_I18N_API virtual void adoptNumberFormat(NumberFormat* formatToAdopt);
 
     /**
      * Allows you to set the number formatter.
      * @param newNumberFormat  NumberFormat object to be set.
      * @stable ICU 2.0
      */
-    virtual void setNumberFormat(const NumberFormat& newNumberFormat);
+    U_I18N_API virtual void setNumberFormat(const NumberFormat& newNumberFormat);
 
     /**
      * Returns a reference to the TimeZone used by this DateFormat's calendar.
      * @return the time zone associated with the calendar of DateFormat.
      * @stable ICU 2.0
      */
-    virtual const TimeZone& getTimeZone() const;
+    U_I18N_API virtual const TimeZone& getTimeZone() const;
 
     /**
      * Sets the time zone for the calendar of this DateFormat object. The caller
@@ -783,14 +764,14 @@ public:
      * @param zoneToAdopt the TimeZone to be adopted.
      * @stable ICU 2.0
      */
-    virtual void adoptTimeZone(TimeZone* zoneToAdopt);
+    U_I18N_API virtual void adoptTimeZone(TimeZone* zoneToAdopt);
 
     /**
      * Sets the time zone for the calendar of this DateFormat object.
      * @param zone the new time zone.
      * @stable ICU 2.0
      */
-    virtual void setTimeZone(const TimeZone& zone);
+    U_I18N_API virtual void setTimeZone(const TimeZone& zone);
 
     /**
      * Set a particular UDisplayContext value in the formatter, such as
@@ -801,7 +782,7 @@ public:
      *               updated with any new status from the function. 
      * @stable ICU 53
      */
-    virtual void setContext(UDisplayContext value, UErrorCode& status);
+    U_I18N_API virtual void setContext(UDisplayContext value, UErrorCode& status);
 
     /**
      * Get the formatter's UDisplayContext value for the specified UDisplayContextType,
@@ -813,9 +794,9 @@ public:
      * @return The UDisplayContextValue for the specified type.
      * @stable ICU 53
      */
-    virtual UDisplayContext getContext(UDisplayContextType type, UErrorCode& status) const;
+    U_I18N_API virtual UDisplayContext getContext(UDisplayContextType type, UErrorCode& status) const;
 
-   /**
+    /**
      * Sets an boolean attribute on this DateFormat.
      * May return U_UNSUPPORTED_ERROR if this instance does not support
      * the specified attribute.
@@ -825,10 +806,8 @@ public:
      * @return *this - for chaining (example: format.setAttribute(...).setAttribute(...) )
      * @stable ICU 53
      */
-
-    virtual DateFormat&  U_EXPORT2 setBooleanAttribute(UDateFormatBooleanAttribute attr,
-    									UBool newvalue,
-    									UErrorCode &status);
+    U_I18N_API virtual DateFormat& U_EXPORT2 setBooleanAttribute(UDateFormatBooleanAttribute attr,
+                                                                 UBool newvalue, UErrorCode& status);
 
     /**
      * Returns a boolean from this DateFormat
@@ -839,7 +818,8 @@ public:
      * @return the attribute value. Undefined if there is an error.
      * @stable ICU 53
      */
-    virtual UBool U_EXPORT2 getBooleanAttribute(UDateFormatBooleanAttribute attr, UErrorCode &status) const;
+    U_I18N_API virtual UBool U_EXPORT2 getBooleanAttribute(UDateFormatBooleanAttribute attr,
+                                                           UErrorCode& status) const;
 
 protected:
     /**
@@ -848,19 +828,19 @@ protected:
      * the calendar and numberFormat fields.
      * @stable ICU 2.0
      */
-    DateFormat();
+    U_I18N_API DateFormat();
 
     /**
      * Copy constructor.
      * @stable ICU 2.0
      */
-    DateFormat(const DateFormat&);
+    U_I18N_API DateFormat(const DateFormat&);
 
     /**
      * Default assignment operator.
      * @stable ICU 2.0
      */
-    DateFormat& operator=(const DateFormat&);
+    U_I18N_API DateFormat& operator=(const DateFormat&);
 
     /**
      * The calendar that DateFormat uses to produce the time field values needed

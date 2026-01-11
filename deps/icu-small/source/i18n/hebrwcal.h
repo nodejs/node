@@ -40,7 +40,7 @@ U_NAMESPACE_BEGIN
  * solar year (approximately 365.24 days) is not an even multiple of
  * the lunar month (approximately 29.53 days) an extra "leap month" is
  * inserted in 7 out of every 19 years.  To make matters even more
- * interesting, the start of a year can be delayed by up to three days
+ * interesting, the start of a year can be delayed by up to two days
  * in order to prevent certain holidays from falling on the Sabbath and
  * to prevent certain illegal year lengths.  Finally, the lengths of certain
  * months can vary depending on the number of days in the year.
@@ -273,21 +273,11 @@ public:
      */
     static UBool isLeapYear(int32_t year) ;
 
-    /**
-     * @return      The related Gregorian year; will be obtained by modifying the value
-     *              obtained by get from UCAL_EXTENDED_YEAR field
-     * @internal
-     */
-    virtual int32_t getRelatedYear(UErrorCode &status) const override;
-
-    /**
-     * @param year  The related Gregorian year to set; will be modified as necessary then
-     *              set in UCAL_EXTENDED_YEAR field
-     * @internal
-     */
-    virtual void setRelatedYear(int32_t year) override;
-
  protected:
+    /**
+     * @internal
+     */
+    int32_t getRelatedYearDifference() const override;
 
     /**
      * Subclass API for defining limits of different types.

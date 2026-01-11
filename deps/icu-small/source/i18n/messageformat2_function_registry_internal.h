@@ -23,6 +23,54 @@ U_NAMESPACE_BEGIN
 
 namespace message2 {
 
+// Constants for option names
+namespace options {
+static constexpr std::u16string_view ALWAYS = u"always";
+static constexpr std::u16string_view COMPACT = u"compact";
+static constexpr std::u16string_view COMPACT_DISPLAY = u"compactDisplay";
+static constexpr std::u16string_view DATE_STYLE = u"dateStyle";
+static constexpr std::u16string_view DAY = u"day";
+static constexpr std::u16string_view DECIMAL_PLACES = u"decimalPlaces";
+static constexpr std::u16string_view DEFAULT_UPPER = u"DEFAULT";
+static constexpr std::u16string_view ENGINEERING = u"engineering";
+static constexpr std::u16string_view EXACT = u"exact";
+static constexpr std::u16string_view EXCEPT_ZERO = u"exceptZero";
+static constexpr std::u16string_view FAILS = u"fails";
+static constexpr std::u16string_view FULL_UPPER = u"FULL";
+static constexpr std::u16string_view HOUR = u"hour";
+static constexpr std::u16string_view LONG = u"long";
+static constexpr std::u16string_view LONG_UPPER = u"LONG";
+static constexpr std::u16string_view MAXIMUM_FRACTION_DIGITS = u"maximumFractionDigits";
+static constexpr std::u16string_view MAXIMUM_SIGNIFICANT_DIGITS = u"maximumSignificantDigits";
+static constexpr std::u16string_view MEDIUM_UPPER = u"MEDIUM";
+static constexpr std::u16string_view MIN2 = u"min2";
+static constexpr std::u16string_view MINIMUM_FRACTION_DIGITS = u"minimumFractionDigits";
+static constexpr std::u16string_view MINIMUM_INTEGER_DIGITS = u"minimumIntegerDigits";
+static constexpr std::u16string_view MINIMUM_SIGNIFICANT_DIGITS = u"minimumSignificantDigits";
+static constexpr std::u16string_view MINUTE = u"minute";
+static constexpr std::u16string_view MONTH = u"month";
+static constexpr std::u16string_view NARROW = u"narrow";
+static constexpr std::u16string_view NEGATIVE = u"negative";
+static constexpr std::u16string_view NEVER = u"never";
+static constexpr std::u16string_view NOTATION = u"notation";
+static constexpr std::u16string_view NUMBERING_SYSTEM = u"numberingSystem";
+static constexpr std::u16string_view NUMERIC = u"numeric";
+static constexpr std::u16string_view ORDINAL = u"ordinal";
+static constexpr std::u16string_view PERCENT_STRING = u"percent";
+static constexpr std::u16string_view SCIENTIFIC = u"scientific";
+static constexpr std::u16string_view SECOND = u"second";
+static constexpr std::u16string_view SELECT = u"select";
+static constexpr std::u16string_view SHORT = u"short";
+static constexpr std::u16string_view SHORT_UPPER = u"SHORT";
+static constexpr std::u16string_view SIGN_DISPLAY = u"signDisplay";
+static constexpr std::u16string_view STYLE = u"style";
+static constexpr std::u16string_view TIME_STYLE = u"timeStyle";
+static constexpr std::u16string_view TWO_DIGIT = u"2-digit";
+static constexpr std::u16string_view USE_GROUPING = u"useGrouping";
+static constexpr std::u16string_view WEEKDAY = u"weekday";
+static constexpr std::u16string_view YEAR = u"year";
+} // namespace options
+
     // Built-in functions
     /*
       The standard functions are :datetime, :date, :time,
@@ -33,8 +81,15 @@ namespace message2 {
     class StandardFunctions {
         friend class MessageFormatter;
 
+        public:
+        // Used for normalizing variable names and keys for comparison
+        static UnicodeString normalizeNFC(const UnicodeString&);
+
+        private:
+        static void validateDigitSizeOptions(const FunctionOptions&, UErrorCode&);
+        static void checkSelectOption(const FunctionOptions&, UErrorCode&);
         static UnicodeString getStringOption(const FunctionOptions& opts,
-                                             const UnicodeString& optionName,
+                                             std::u16string_view optionName,
                                              UErrorCode& errorCode);
 
         class DateTime;
@@ -70,8 +125,14 @@ namespace message2 {
             const Locale& locale;
             const DateTimeFactory::DateTimeType type;
             friend class DateTimeFactory;
-            DateTime(const Locale& l, DateTimeFactory::DateTimeType t) : locale(l), type(t) {}
+            DateTime(const Locale& l, DateTimeFactory::DateTimeType t)
+                : locale(l), type(t) {}
             const LocalPointer<icu::DateFormat> icuFormatter;
+
+            // Methods for parsing date literals
+            UDate tryPatterns(const UnicodeString&, UErrorCode&) const;
+            UDate tryTimeZonePatterns(const UnicodeString&, UErrorCode&) const;
+            DateInfo createDateInfoFromString(const UnicodeString&, UErrorCode&) const;
 
             /*
               Looks up an option by name, first checking `opts`, then the cached options
@@ -81,12 +142,12 @@ namespace message2 {
              */
             UnicodeString getFunctionOption(const FormattedPlaceholder& toFormat,
                                             const FunctionOptions& opts,
-                                            const UnicodeString& optionName) const;
+                                            std::u16string_view optionName) const;
             // Version for options that don't have defaults; sets the error
             // code instead of returning a default value
             UnicodeString getFunctionOption(const FormattedPlaceholder& toFormat,
                                             const FunctionOptions& opts,
-                                            const UnicodeString& optionName,
+                                            std::u16string_view optionName,
                                             UErrorCode& errorCode) const;
 
         };
@@ -267,7 +328,7 @@ namespace message2 {
 
     };
 
-    extern void formatDateWithDefaults(const Locale& locale, UDate date, UnicodeString&, UErrorCode& errorCode);
+    extern void formatDateWithDefaults(const Locale& locale, const DateInfo& date, UnicodeString&, UErrorCode& errorCode);
     extern number::FormattedNumber formatNumberWithDefaults(const Locale& locale, double toFormat, UErrorCode& errorCode);
     extern number::FormattedNumber formatNumberWithDefaults(const Locale& locale, int32_t toFormat, UErrorCode& errorCode);
     extern number::FormattedNumber formatNumberWithDefaults(const Locale& locale, int64_t toFormat, UErrorCode& errorCode);
