@@ -914,8 +914,9 @@ MessagePattern::parseArgNumber(const UnicodeString &s, int32_t start, int32_t li
         if(0x30<=c && c<=0x39) {
             if(number>=INT32_MAX/10) {
                 badNumber=true;  // overflow
+            } else {
+                number=number*10+(c-0x30);
             }
-            number=number*10+(c-0x30);
         } else {
             return UMSGPAT_ARG_NAME_NOT_NUMBER;
         }

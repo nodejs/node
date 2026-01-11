@@ -297,7 +297,7 @@ static char *getInvariantString(ParseState* state, uint32_t *line, struct UStrin
 
     if(!uprv_isInvariantUString(tokenValue->fChars, tokenValue->fLength)) {
         *status = U_INVALID_FORMAT_ERROR;
-        error(*line, "invariant characters required for table keys, binary data, etc.");
+        error((line == nullptr) ? 0 : *line, "invariant characters required for table keys, binary data, etc.");
         return nullptr;
     }
 
@@ -320,9 +320,8 @@ parseUCARules(ParseState* state, char *tag, uint32_t startline, const struct USt
     struct SResource *result = nullptr;
     struct UString   *tokenValue;
     FileStream       *file          = nullptr;
-    char              filename[256] = { '\0' };
-    char              cs[128]       = { '\0' };
-    uint32_t          line;
+    CharString       filename;
+    uint32_t         line;
     UBool quoted = false;
     UCHARBUF *ucbuf=nullptr;
     UChar32   c     = 0;
@@ -345,15 +344,15 @@ parseUCARules(ParseState* state, char *tag, uint32_t startline, const struct USt
     /* make the filename including the directory */
     if (state->inputdir != nullptr)
     {
-        uprv_strcat(filename, state->inputdir);
+        filename.append(state->inputdir, -1, *status);
 
         if (state->inputdir[state->inputdirLength - 1] != U_FILE_SEP_CHAR)
         {
-            uprv_strcat(filename, U_FILE_SEP_STRING);
+            filename.append(U_FILE_SEP_CHAR, *status);
         }
     }
 
-    u_UCharsToChars(tokenValue->fChars, cs, tokenValue->fLength);
+    filename.appendInvariantChars(tokenValue->fChars, tokenValue->fLength, *status);
 
     expect(state, TOK_CLOSE_BRACE, nullptr, nullptr, nullptr, status);
 
@@ -361,16 +360,15 @@ parseUCARules(ParseState* state, char *tag, uint32_t startline, const struct USt
     {
         return nullptr;
     }
-    uprv_strcat(filename, cs);
 
     if(state->omitCollationRules) {
         return res_none();
     }
 
-    ucbuf = ucbuf_open(filename, &cp, getShowWarning(),false, status);
+    ucbuf = ucbuf_open(filename.data(), &cp, getShowWarning(),false, status);
 
     if (U_FAILURE(*status)) {
-        error(line, "An error occurred while opening the input file %s\n", filename);
+        error(line, "An error occurred while opening the input file %s\n", filename.data());
         return nullptr;
     }
 
@@ -1034,6 +1032,7 @@ writeCollationSpecialPrimariesTOML(const char* outputdir, const char* name, cons
     }
 
     usrc_writeArray(f, "last_primaries = [\n  ", lastPrimaries, 16, 4, "  ", "\n]\n");
+    usrc_writeArray(f, "compressible_bytes = [\n  ", data->compressibleBytes, 1, 256, "  ", "\n]\n");
     fprintf(f, "numeric_primary = 0x%X\n", numericPrimary >> 24);
     fclose(f);
 }

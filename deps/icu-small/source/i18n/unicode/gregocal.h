@@ -676,13 +676,6 @@ public:
     int32_t             fCutoverJulianDay;
 
     /**
-     * Midnight, local time (using this Calendar's TimeZone) at or before the
-     * gregorianCutover. This is a pure date value with no time of day or
-     * timezone component.
-     */
-    UDate                 fNormalizedGregorianCutover;// = gregorianCutover;
-
-    /**
      * The year of the gregorianCutover, with 0 representing
      * 1 BC, -1 representing 2 BC, etc.
      */

@@ -7757,22 +7757,22 @@ class lexer : public lexer_base<BasicJsonType>
                                     }
                                     else
                                     {
-                                        error_message = "invalid string: surrogate U+D800..U+DBFF must be followed by U+DC00..U+DFFF";
-                                        return token_type::parse_error;
+                                        // ICU PATCH - See ICU-23090
+                                        codepoint = codepoint1;
                                     }
                                 }
                                 else
                                 {
-                                    error_message = "invalid string: surrogate U+D800..U+DBFF must be followed by U+DC00..U+DFFF";
-                                    return token_type::parse_error;
+                                    // ICU PATCH - See ICU-23090
+                                    codepoint = codepoint1;
                                 }
                             }
                             else
                             {
                                 if (JSON_HEDLEY_UNLIKELY(0xDC00 <= codepoint1 && codepoint1 <= 0xDFFF))
                                 {
-                                    error_message = "invalid string: surrogate U+DC00..U+DFFF must follow U+D800..U+DBFF";
-                                    return token_type::parse_error;
+                                    // ICU PATCH - See ICU-23090
+                                    codepoint = codepoint1;
                                 }
                             }
 
