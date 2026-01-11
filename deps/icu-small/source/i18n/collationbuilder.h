@@ -353,7 +353,7 @@ private:
      * (&[before 2] resets to an explicit secondary node so that
      * the following addRelation(secondary) tailors right after that.
      * If we did not have this node and instead were to reset on the primary node,
-     * then addRelation(secondary) would skip forward to the the COMMON_WEIGHT16 node.)
+     * then addRelation(secondary) would skip forward to the COMMON_WEIGHT16 node.)
      *
      * If the flag is not set, then there are no explicit secondary nodes
      * with the common or lower weights.

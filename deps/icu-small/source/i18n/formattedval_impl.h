@@ -125,18 +125,6 @@ struct U_I18N_API SpanInfo {
     int32_t length;
 };
 
-// Export an explicit template instantiation of the MaybeStackArray that
-//    is used as a data member of CEBuffer.
-//
-//    When building DLLs for Windows this is required even though
-//    no direct access to the MaybeStackArray leaks out of the i18n library.
-//
-// See digitlst.h, pluralaffix.h, datefmt.h, and others for similar examples.
-//
-#if U_PF_WINDOWS <= U_PLATFORM && U_PLATFORM <= U_PF_CYGWIN
-template class U_I18N_API MaybeStackArray<SpanInfo, 8>;
-#endif
-
 /**
  * Implementation of FormattedValue based on FormattedStringBuilder.
  *
@@ -145,13 +133,12 @@ template class U_I18N_API MaybeStackArray<SpanInfo, 8>;
  *
  * @author sffc (Shane Carr)
  */
-// Exported as U_I18N_API for tests
-class U_I18N_API FormattedValueStringBuilderImpl : public UMemory, public FormattedValue {
+// Exported as U_I18N_API_CLASS for tests
+class U_I18N_API_CLASS FormattedValueStringBuilderImpl : public UMemory, public FormattedValue {
 public:
+    U_I18N_API FormattedValueStringBuilderImpl(FormattedStringBuilder::Field numericField);
 
-    FormattedValueStringBuilderImpl(FormattedStringBuilder::Field numericField);
-
-    virtual ~FormattedValueStringBuilderImpl();
+    U_I18N_API virtual ~FormattedValueStringBuilderImpl();
 
     FormattedValueStringBuilderImpl(FormattedValueStringBuilderImpl&&) = default;
     FormattedValueStringBuilderImpl& operator=(FormattedValueStringBuilderImpl&&) = default;
@@ -164,8 +151,8 @@ public:
     UBool nextPosition(ConstrainedFieldPosition& cfpos, UErrorCode& status) const override;
 
     // Additional helper functions:
-    UBool nextFieldPosition(FieldPosition& fp, UErrorCode& status) const;
-    void getAllFieldPositions(FieldPositionIteratorHandler& fpih, UErrorCode& status) const;
+    U_I18N_API UBool nextFieldPosition(FieldPosition& fp, UErrorCode& status) const;
+    U_I18N_API void getAllFieldPositions(FieldPositionIteratorHandler& fpih, UErrorCode& status) const;
     inline FormattedStringBuilder& getStringRef() {
         return fString;
     }

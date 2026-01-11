@@ -1726,12 +1726,15 @@ SimpleDateFormat::subFormat(UnicodeString &appendTo,
 
     // for "a" symbol, write out the whole AM/PM string
     case UDAT_AM_PM_FIELD:
-        if (count < 5) {
-            _appendSymbol(appendTo, value, fSymbols->fAmPms,
-                          fSymbols->fAmPmsCount);
-        } else {
+        if (count == 4) {
+            _appendSymbol(appendTo, value, fSymbols->fWideAmPms,
+                          fSymbols->fWideAmPmsCount);
+        } else if (count == 5) {
             _appendSymbol(appendTo, value, fSymbols->fNarrowAmPms,
                           fSymbols->fNarrowAmPmsCount);
+        } else {
+            _appendSymbol(appendTo, value, fSymbols->fAmPms,
+                          fSymbols->fAmPmsCount);
         }
         break;
 
@@ -3483,8 +3486,14 @@ int32_t SimpleDateFormat::subParse(const UnicodeString& text, int32_t& start, ch
         {
             // optionally try both wide/abbrev and narrow forms
             int32_t newStart = 0;
-            // try wide/abbrev
-            if( getBooleanAttribute(UDAT_PARSE_MULTIPLE_PATTERNS_FOR_MATCH, status) || count < 5 ) {
+            // try wide
+            if( getBooleanAttribute(UDAT_PARSE_MULTIPLE_PATTERNS_FOR_MATCH, status) || count == 4 ) {
+                if ((newStart = matchString(text, start, UCAL_AM_PM, fSymbols->fWideAmPms, fSymbols->fWideAmPmsCount, nullptr, cal)) > 0) {
+                    return newStart;
+                }
+            }
+            // try abbreviated
+            if( getBooleanAttribute(UDAT_PARSE_MULTIPLE_PATTERNS_FOR_MATCH, status) || count <= 3 ) {
                 if ((newStart = matchString(text, start, UCAL_AM_PM, fSymbols->fAmPms, fSymbols->fAmPmsCount, nullptr, cal)) > 0) {
                     return newStart;
                 }

@@ -65,6 +65,7 @@ NumberParserImpl::createSimpleParser(const Locale& locale, const UnicodeString& 
     parser->addMatcher(parser->fLocalMatchers.decimal = {symbols, grouper, parseFlags});
     parser->addMatcher(parser->fLocalMatchers.minusSign = {symbols, false});
     parser->addMatcher(parser->fLocalMatchers.plusSign = {symbols, false});
+    parser->addMatcher(parser->fLocalMatchers.approximatelySign = {symbols, false});
     parser->addMatcher(parser->fLocalMatchers.percent = {symbols});
     parser->addMatcher(parser->fLocalMatchers.permille = {symbols});
     parser->addMatcher(parser->fLocalMatchers.nan = {symbols});
@@ -164,6 +165,7 @@ NumberParserImpl::createParserFromProperties(const number::impl::DecimalFormatPr
     if (!isStrict) {
         parser->addMatcher(parser->fLocalMatchers.plusSign = {symbols, false});
         parser->addMatcher(parser->fLocalMatchers.minusSign = {symbols, false});
+        parser->addMatcher(parser->fLocalMatchers.approximatelySign = {symbols, false});
     }
     parser->addMatcher(parser->fLocalMatchers.nan = {symbols});
     parser->addMatcher(parser->fLocalMatchers.infinity = {symbols});

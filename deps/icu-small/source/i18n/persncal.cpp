@@ -319,30 +319,14 @@ void PersianCalendar::handleComputeFields(int32_t julianDay, UErrorCode& status)
     internalSet(UCAL_DAY_OF_YEAR, dayOfYear);
 }    
 
-constexpr uint32_t kPersianRelatedYearDiff = 622;
-
-int32_t PersianCalendar::getRelatedYear(UErrorCode &status) const
-{
-    int32_t year = get(UCAL_EXTENDED_YEAR, status);
-    if (U_FAILURE(status)) {
-        return 0;
-    }
-    if (uprv_add32_overflow(year, kPersianRelatedYearDiff, &year)) {
-        status = U_ILLEGAL_ARGUMENT_ERROR;
-        return 0;
-    }
-    return year;
-}
-
-void PersianCalendar::setRelatedYear(int32_t year)
-{
-    // set extended year
-    set(UCAL_EXTENDED_YEAR, year - kPersianRelatedYearDiff);
-}
-
 IMPL_SYSTEM_DEFAULT_CENTURY(PersianCalendar, "@calendar=persian")
 
 UOBJECT_DEFINE_RTTI_IMPLEMENTATION(PersianCalendar)
+int32_t
+PersianCalendar::getRelatedYearDifference() const {
+    constexpr int32_t kPersianCalendarRelatedYearDifference = 622;
+    return kPersianCalendarRelatedYearDifference;
+}
 
 U_NAMESPACE_END
 
