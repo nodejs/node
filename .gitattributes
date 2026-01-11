@@ -1,5 +1,7 @@
 test/fixtures/* -text
 vcbuild.bat text eol=crlf
+# disable eol conversion in vendored files.
+deps/crates/vendor/**/* -text
 deps/npm/bin/npm text eol=lf
 deps/npm/bin/npx text eol=lf
 deps/corepack/shims/corepack text eol=lf
