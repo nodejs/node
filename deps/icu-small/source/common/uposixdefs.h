@@ -74,4 +74,9 @@
 #define _POSIX_C_SOURCE 200809L
 #endif
 
+/* Prevent _XOPEN_SOURCE from breaking build on macOS when aligned_alloc exists. */
+#if defined(__APPLE__) && !defined(_DARWIN_C_SOURCE)
+#   define _DARWIN_C_SOURCE
+#endif
+
 #endif  /* __UPOSIXDEFS_H__ */

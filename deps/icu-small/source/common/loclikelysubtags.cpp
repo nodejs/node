@@ -715,13 +715,29 @@ LSR LikelySubtags::maximize(StringPiece language, StringPiece script, StringPiec
             } else {
                 iter.resetToState64(state);
                 value = trieNext(iter, "", 0);
-                U_ASSERT(value > 0);
+                U_ASSERT(value != 0);
+                // For the case of und_Latn
+                if (value < 0) {
+                    retainLanguage = !language.empty();
+                    retainScript = !script.empty();
+                    retainRegion = !region.empty();
+                    // Fallback to und_$region =>
+                    iter.resetToState64(trieUndState);  // "und" ("*")
+                    value = trieNext(iter, "", 0);
+                    U_ASSERT(value == 0);
+                    int64_t trieUndEmptyState = iter.getState64();
+                    value = trieNext(iter, region, 0);
+                    // Fallback to und =>
+                    if (value < 0) {
+                        iter.resetToState64(trieUndEmptyState);
+                        value = trieNext(iter, "", 0);
+                        U_ASSERT(value > 0);
+                    }
+                }
             }
         }
     }
     U_ASSERT(value < lsrsLength);
-    const LSR &matched = lsrs[value];
-
     if (returnInputIfUnmatch &&
         (!(matchLanguage || matchScript || (matchRegion && language.empty())))) {
       return LSR("", "", "", LSR::EXPLICIT_LSR, errorCode);  // no matching.
@@ -731,18 +747,23 @@ LSR LikelySubtags::maximize(StringPiece language, StringPiece script, StringPiec
     }
 
     if (!(retainLanguage || retainScript || retainRegion)) {
+        U_ASSERT(value >= 0);
         // Quickly return a copy of the lookup-result LSR
         // without new allocation of the subtags.
+        const LSR &matched = lsrs[value];
         return LSR(matched.language, matched.script, matched.region, matched.flags);
     }
     if (!retainLanguage) {
-        language = matched.language;
+        U_ASSERT(value >= 0);
+        language = lsrs[value].language;
     }
     if (!retainScript) {
-        script = matched.script;
+        U_ASSERT(value >= 0);
+        script = lsrs[value].script;
     }
     if (!retainRegion) {
-        region = matched.region;
+        U_ASSERT(value >= 0);
+        region = lsrs[value].region;
     }
     int32_t retainMask = (retainLanguage ? 4 : 0) + (retainScript ? 2 : 0) + (retainRegion ? 1 : 0);
     // retainOldMask flags = LSR explicit-subtag flags

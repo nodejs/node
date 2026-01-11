@@ -22,22 +22,17 @@
 
 U_NAMESPACE_BEGIN
 
-// Export an explicit template instantiation of the MaybeStackArray that is used as a data member of NumberParserImpl.
-// When building DLLs for Windows this is required even though no direct access to the MaybeStackArray leaks out of the i18n library.
-// (See numparse_compositions.h, numparse_affixes.h, datefmt.h, and others for similar examples.)
-#if U_PF_WINDOWS <= U_PLATFORM && U_PLATFORM <= U_PF_CYGWIN
-template class U_I18N_API MaybeStackArray<const numparse::impl::NumberParseMatcher*, 10>;
-#endif
-
 namespace numparse::impl {
 
-// Exported as U_I18N_API for tests
-class U_I18N_API NumberParserImpl : public MutableMatcherCollection, public UMemory {
+// Exported as U_I18N_API_CLASS for tests
+class U_I18N_API_CLASS NumberParserImpl : public MutableMatcherCollection, public UMemory {
   public:
     virtual ~NumberParserImpl();
 
-    static NumberParserImpl* createSimpleParser(const Locale& locale, const UnicodeString& patternString,
-                                                parse_flags_t parseFlags, UErrorCode& status);
+    U_I18N_API static NumberParserImpl *createSimpleParser(const Locale& locale,
+                                                           const UnicodeString& patternString,
+                                                           parse_flags_t parseFlags,
+                                                           UErrorCode& status);
 
     static NumberParserImpl* createParserFromProperties(
             const number::impl::DecimalFormatProperties& properties, const DecimalFormatSymbols& symbols,
@@ -54,12 +49,13 @@ class U_I18N_API NumberParserImpl : public MutableMatcherCollection, public UMem
 
     parse_flags_t getParseFlags() const;
 
-    void parse(const UnicodeString& input, bool greedy, ParsedNumber& result, UErrorCode& status) const;
+    U_I18N_API void parse(const UnicodeString& input, bool greedy, ParsedNumber& result,
+                          UErrorCode& status) const;
 
     void parse(const UnicodeString& input, int32_t start, bool greedy, ParsedNumber& result,
                UErrorCode& status) const;
 
-    UnicodeString toString() const;
+    U_I18N_API UnicodeString toString() const;
 
   private:
     parse_flags_t fParseFlags;
@@ -79,6 +75,7 @@ class U_I18N_API NumberParserImpl : public MutableMatcherCollection, public UMem
         PercentMatcher percent;
         PermilleMatcher permille;
         PlusSignMatcher plusSign;
+        ApproximatelySignMatcher approximatelySign;
         DecimalMatcher decimal;
         ScientificMatcher scientific;
         CombinedCurrencyMatcher currency;

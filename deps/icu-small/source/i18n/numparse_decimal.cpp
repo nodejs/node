@@ -33,12 +33,32 @@ DecimalMatcher::DecimalMatcher(const DecimalFormatSymbols& symbols, const Groupe
         decimalSeparator = symbols.getConstSymbol(DecimalFormatSymbols::kDecimalSeparatorSymbol);
     }
     bool strictSeparators = 0 != (parseFlags & PARSE_FLAG_STRICT_SEPARATORS);
-    unisets::Key groupingKey = strictSeparators ? unisets::STRICT_ALL_SEPARATORS
-                                                : unisets::ALL_SEPARATORS;
 
-    // Attempt to find separators in the static cache
+    // Parsing is very lenient even in strict mode, almost any dot or comma is a
+    // grouping separator. Parsing strings like "1.234" in French was treating '.'
+    // like an ignorable grouping separator, and we want it to be excluded.
+    // We keep the public behavior when strictParse is false, but when it is true
+    // we restrict grouping separators to the smaller set of equivalents.
+    unisets::Key groupingKey = unisets::chooseFrom(groupingSeparator,
+            strictSeparators ? unisets::STRICT_COMMA : unisets::ALL_SEPARATORS,
+            strictSeparators ? unisets::STRICT_PERIOD : unisets::ALL_SEPARATORS);
+    if (groupingKey < 0) {
+        groupingKey = unisets::chooseFrom(
+            groupingSeparator, unisets::OTHER_GROUPING_SEPARATORS);
+    }
+    if (groupingKey >= 0) {
+        // Attempt to find separators in the static cache
+        groupingUniSet = unisets::get(groupingKey);
+    } else if (!groupingSeparator.isEmpty()) {
+        auto* set = new UnicodeSet();
+        set->add(groupingSeparator.char32At(0));
+        set->freeze();
+        groupingUniSet = set;
+        fLocalGroupingUniSet.adoptInstead(set);
+    } else {
+        groupingUniSet = unisets::get(unisets::EMPTY);
+    }
 
-    groupingUniSet = unisets::get(groupingKey);
     unisets::Key decimalKey = unisets::chooseFrom(
             decimalSeparator,
             strictSeparators ? unisets::STRICT_COMMA : unisets::COMMA,

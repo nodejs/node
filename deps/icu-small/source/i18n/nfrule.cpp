@@ -113,11 +113,17 @@ NFRule::makeRules(UnicodeString& description,
                   NFRuleList& rules,
                   UErrorCode& status)
 {
+    if (U_FAILURE(status)) {
+        return;
+    }
     // we know we're making at least one rule, so go ahead and
     // new it up and initialize its basevalue and divisor
     // (this also strips the rule descriptor, if any, off the
     // description string)
     LocalPointer<NFRule> rule1(new NFRule(rbnf, description, status));
+    if (U_FAILURE(status)) {
+        return;
+    }
     /* test for nullptr */
     if (rule1.isNull()) {
         status = U_MEMORY_ALLOCATION_ERROR;
@@ -141,6 +147,9 @@ NFRule::makeRules(UnicodeString& description,
         || rule1->getType() == kNaNRule)
     {
         rule1->extractSubstitutions(owner, description, predecessor, status);
+        if (U_FAILURE(status)) {
+            return;
+        }
     }
     else {
         // if the description does contain a matched pair of brackets,
@@ -153,6 +162,7 @@ NFRule::makeRules(UnicodeString& description,
         // base value is an even multiple of its divisor (or it's one
         // of the special rules)
         if ((rule1->baseValue > 0
+            && (rule1->radix != 0) // ICU-23109 Ensure next line won't "% 0"
             && (rule1->baseValue % util64_pow(rule1->radix, rule1->exponent)) == 0)
             || rule1->getType() == kImproperFractionRule
             || rule1->getType() == kDefaultRule) {
@@ -163,6 +173,9 @@ NFRule::makeRules(UnicodeString& description,
             // increment the original rule's base value ("rule1" actually
             // goes SECOND in the rule set's rule list)
             rule2.adoptInstead(new NFRule(rbnf, UnicodeString(), status));
+            if (U_FAILURE(status)) {
+                return;
+            }
             /* test for nullptr */
             if (rule2.isNull()) {
                 status = U_MEMORY_ALLOCATION_ERROR;
@@ -206,6 +219,9 @@ NFRule::makeRules(UnicodeString& description,
                 sbuf.append(description, brack2 + 1, description.length() - brack2 - 1);
             }
             rule2->extractSubstitutions(owner, sbuf, predecessor, status);
+            if (U_FAILURE(status)) {
+                return;
+            }
         }
 
         // rule1's text includes the text in the brackets but omits
@@ -222,6 +238,9 @@ NFRule::makeRules(UnicodeString& description,
             sbuf.append(description, brack2 + 1, description.length() - brack2 - 1);
         }
         rule1->extractSubstitutions(owner, sbuf, predecessor, status);
+        if (U_FAILURE(status)) {
+            return;
+        }
 
         // if we only have one rule, return it; if we have two, return
         // a two-element array containing them (notice that rule2 goes

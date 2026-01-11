@@ -334,9 +334,7 @@ public:
     // No heap allocation. Use only on the stack.
     static void* U_EXPORT2 operator new(size_t) noexcept = delete;
     static void* U_EXPORT2 operator new[](size_t) noexcept = delete;
-#if U_HAVE_PLACEMENT_NEW
     static void* U_EXPORT2 operator new(size_t, void*) noexcept = delete;
-#endif
 
     /**
      * Default constructor initializes with internal T[stackCapacity] buffer.
@@ -570,9 +568,7 @@ public:
     // No heap allocation. Use only on the stack.
     static void* U_EXPORT2 operator new(size_t) noexcept = delete;
     static void* U_EXPORT2 operator new[](size_t) noexcept = delete;
-#if U_HAVE_PLACEMENT_NEW
     static void* U_EXPORT2 operator new(size_t, void*) noexcept = delete;
-#endif
 
     /**
      * Default constructor initializes with internal H+T[stackCapacity] buffer.

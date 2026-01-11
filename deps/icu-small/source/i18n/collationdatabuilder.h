@@ -254,6 +254,12 @@ private:
     int32_t contextsEra = 0;
 protected:
     UnicodeSet unsafeBackwardSet;
+    /**
+     * For ICU4X only: The starters that occur in some contraction
+     * in a position that is neither the first nor the last code point
+     * of the contraction.
+     */
+    UnicodeSet contractionMiddleStarter;
     UBool modified;
     UBool icu4xMode;
 

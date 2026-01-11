@@ -135,7 +135,7 @@ struct RBBIStateTable {
     uint32_t         fNumStates;            // Number of states.
     uint32_t         fRowLen;               // Length of a state table row, in bytes.
     uint32_t         fDictCategoriesStart;  // Char category number of the first dictionary
-                                            //   char class, or the the largest category number + 1
+                                            //   char class, or the largest category number + 1
                                             //   if there are no dictionary categories.
     uint32_t         fLookAheadResultsSize; // Size of run-time array required for holding
                                             //   look-ahead results. Indexed by row.fLookAhead.

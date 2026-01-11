@@ -100,6 +100,9 @@ enum PowerPart {
 // "fluid-ounce-imperial".
 constexpr int32_t kSimpleUnitOffset = 512;
 
+// Trie value offset for aliases, e.g. "portion" replaced by "part"
+constexpr int32_t kAliasOffset = 51200; // This will give a very big space for the units ids.
+
 const struct UnitPrefixStrings {
     const char* const string;
     UMeasurePrefix value;
@@ -255,6 +258,58 @@ class SimpleUnitIdentifiersSink : public icu::ResourceSink {
     int32_t outIndex;
 };
 
+class UnitAliasesSink : public icu::ResourceSink {
+  public:
+    /**
+     * Constructor.
+     * @param unitAliases The output vector of unit alias identifiers (CharString).
+     * @param unitReplacements The output vector of replacements for the unit aliases (CharString).
+     */
+    explicit UnitAliasesSink(MaybeStackVector<CharString> &unitAliases,
+                             MaybeStackVector<CharString> &unitReplacements)
+        : unitAliases(unitAliases), unitReplacements(unitReplacements) {}
+
+    /**
+     * Adds the unit alias key and its replacement to the unitAliases and unitReplacements vectors.
+     * @param key The unit alias identifier (e.g., "meter-and-liter").
+     * @param value Should be a ResourceTable value containing the replacement,
+     *     when ures_getAllChildrenWithFallback() is called correctly for this sink.
+     * @param noFallback Ignored.
+     * @param status The standard ICU error code output parameter.
+     */
+    void put(const char *key, ResourceValue &value, UBool /*noFallback*/,
+             UErrorCode &status) override {
+        if (U_FAILURE(status)) return;
+
+        // Add the unit alias key to the unitAliases vector
+        int32_t keyLen = static_cast<int32_t>(uprv_strlen(key));
+        unitAliases.emplaceBackAndCheckErrorCode(status)->append(key, keyLen, status);
+        if (U_FAILURE(status)) {
+            return;
+        }
+
+        // Find the replacement for this unit alias from the alias table resource.
+        ResourceTable aliasTable = value.getTable(status);
+        if (U_FAILURE(status)) {
+            return;
+        }
+
+        if (!aliasTable.findValue("replacement", value)) {
+            status = U_MISSING_RESOURCE_ERROR;
+            return;
+        }
+
+        int32_t len;
+        const char16_t *uReplacement = value.getString(len, status);
+        unitReplacements.emplaceBackAndCheckErrorCode(status)->appendInvariantChars(uReplacement,
+                                                                                    len, status);
+    }
+
+  private:
+    MaybeStackVector<CharString> &unitAliases;
+    MaybeStackVector<CharString> &unitReplacements;
+};
+
 /**
  * A ResourceSink that collects information from `unitQuantities` in the `units`
  * resource to provide key->value lookups from base unit to category, as well as
@@ -321,6 +376,11 @@ class CategoriesSink : public icu::ResourceSink {
 
 icu::UInitOnce gUnitExtrasInitOnce {};
 
+// Array of unit aliases.
+const char** gUnitReplacements;
+const char* gUnitReplacementStrings;
+int32_t gNumUnitReplacements;
+
 // Array of simple unit IDs.
 //
 // The array memory itself is owned by this pointer, but the individual char* in
@@ -355,6 +415,11 @@ UBool U_CALLCONV cleanupUnitExtras() {
     gSimpleUnitCategories = nullptr;
     uprv_free(gSimpleUnits);
     gSimpleUnits = nullptr;
+    uprv_free((void*)gUnitReplacementStrings);
+    gUnitReplacementStrings = nullptr;
+    uprv_free(gUnitReplacements);
+    gUnitReplacements = nullptr;
+    gNumUnitReplacements = 0;
     gUnitExtrasInitOnce.reset();
     return true;
 }
@@ -453,6 +518,45 @@ void U_CALLCONV initUnitExtras(UErrorCode& status) {
                                              simpleUnitsCount, b, kSimpleUnitOffset);
     ures_getAllItemsWithFallback(unitsBundle.getAlias(), "convertUnits", identifierSink, status);
 
+    // Populate gUnitReplacements and its associated data structures.
+    LocalUResourceBundlePointer aliasBundle(ures_open(U_ICUDATA_ALIAS, "metadata", &status));
+    if (U_FAILURE(status)) {
+        return;
+    }
+    MaybeStackVector<CharString> unitAliases;
+    MaybeStackVector<CharString> unitReplacements;
+    
+    UnitAliasesSink aliasSink(unitAliases, unitReplacements);
+    ures_getAllChildrenWithFallback(aliasBundle.getAlias(), "alias/unit", aliasSink, status);
+    if (U_FAILURE(status)) {
+        return;
+    }
+
+    for (int32_t i = 0; i < unitAliases.length(); i++) {
+        b.add(unitAliases[i]->data(), i + kAliasOffset, status);
+        if (U_FAILURE(status)) {
+            return;
+        }
+    }
+    
+    int32_t unitReplacementStringLength = 0;
+    for (int32_t i = 0; i < unitReplacements.length(); i++) {
+        unitReplacementStringLength += unitReplacements[i]->length() + 1;
+    }
+    gUnitReplacementStrings = (const char*)uprv_malloc(unitReplacementStringLength * sizeof(char));
+    gUnitReplacements = (const char**)uprv_malloc(unitReplacements.length() * sizeof(const char**));
+    if (gUnitReplacementStrings == nullptr || gUnitReplacements == nullptr) {
+		status = U_MEMORY_ALLOCATION_ERROR;
+		return;
+    }
+    gNumUnitReplacements = unitReplacements.length();
+    char* p = const_cast<char*>(gUnitReplacementStrings);
+    for (int32_t i = 0; i < unitReplacements.length(); i++) {
+        gUnitReplacements[i] = p;
+        uprv_strcpy(p, unitReplacements[i]->data());
+        p += unitReplacements[i]->length() + 1;
+    }
+    
     // Build the CharsTrie
     // TODO: Use SLOW or FAST here?
     StringPiece result = b.buildStringPiece(USTRINGTRIE_BUILD_FAST, status);
@@ -479,8 +583,10 @@ public:
           this->fType = TYPE_INITIAL_COMPOUND_PART;
       } else if (fMatch < kSimpleUnitOffset) {
           this->fType = TYPE_POWER_PART;
-      } else {
+      } else if (fMatch < kAliasOffset) {
           this->fType = TYPE_SIMPLE_UNIT;
+      } else {
+          this->fType = TYPE_ALIAS;
       }
   }
 
@@ -505,6 +611,7 @@ public:
       TYPE_POWER_PART,
       TYPE_SIMPLE_UNIT,
       TYPE_CONSTANT_DENOMINATOR,
+      TYPE_ALIAS,
   };
 
   // Calling getType() is invalid, resulting in an assertion failure, if Token
@@ -549,6 +656,11 @@ public:
     int32_t getSimpleUnitIndex() const {
         U_ASSERT(getType() == TYPE_SIMPLE_UNIT);
         return fMatch - kSimpleUnitOffset;
+    }
+
+    int32_t getAliasIndex() const {
+        U_ASSERT(getType() == TYPE_ALIAS);
+        return static_cast<int32_t>(fMatch - kAliasOffset);
     }
 
     // TODO: Consider moving this to a separate utility class.
@@ -673,6 +785,10 @@ public:
             }
 
             if (singleUnitOrConstant.isConstantDenominator()) {
+                if (result.constantDenominator > 0) {
+                    status = kUnitIdentifierSyntaxError;
+                    return result;
+                }
                 result.constantDenominator = singleUnitOrConstant.getConstantDenominator();
                 result.complexity = UMEASURE_UNIT_COMPOUND;
                 continue;
@@ -727,6 +843,9 @@ private:
     // references to that string.
     StringPiece fSource;
     BytesTrie fTrie;
+
+    // Storage for modified source string when aliases are expanded
+    CharString fModifiedSource;
 
     // Set to true when we've seen a "-per-" or a "per-", after which all units
     // are in the denominator. Until we find an "-and-", at which point the
@@ -830,6 +949,19 @@ private:
             return {};
         }
 
+        // Handles the case where the alias replacement begins with "per-".
+        // For example:
+        //    if the alias is "permeter" and the replacement is "per-meter".
+        // NOTE: This case does not currently exist in CLDR, but this code anticipates possible future
+        // additions.
+        if (token.getType() == Token::TYPE_ALIAS) {
+            processAlias(token, status);
+            token = nextToken(status);
+            if (U_FAILURE(status)) {
+                return {};
+            }
+        }
+
         fJustSawPer = false;
 
         if (atStart) {
@@ -923,6 +1055,10 @@ private:
                 singleUnitResult.index = token.getSimpleUnitIndex();
                 break;
 
+            case Token::TYPE_ALIAS:
+                processAlias(token, status);
+                break;
+
             default:
                 status = kUnitIdentifierSyntaxError;
                 return {};
@@ -944,6 +1080,46 @@ private:
         }
 
         return SingleUnitOrConstant::singleUnitValue(singleUnitResult);
+    }
+
+  private:
+    /**
+     * Helper function to process alias replacement.
+     *
+     * @param token The token of TYPE_ALIAS to process
+     * @param status ICU error code
+     */
+    void processAlias(const Token &token, UErrorCode &status) {
+        if (U_FAILURE(status)) {
+            return;
+        }
+
+        auto aliasIndex = token.getAliasIndex();
+        if (aliasIndex < 0 || aliasIndex >= gNumUnitReplacements) {
+            status = kUnitIdentifierSyntaxError;
+            return;
+        }
+        const char* replacement = gUnitReplacements[aliasIndex];
+        
+        // Create new source string: replacement + remaining unparsed portion
+        fModifiedSource.clear();
+        fModifiedSource.append(StringPiece(replacement), status);
+        
+        // Add the remaining unparsed portion of fSource which starts from fIndex
+        if (fIndex < fSource.length()) {
+            StringPiece remaining = fSource.substr(fIndex);
+            fModifiedSource.append(remaining.data(), remaining.length(), status);
+        }
+
+        if (U_FAILURE(status)) {
+            return;
+        }
+
+        // Update parser state with new source and reset index
+        fSource = StringPiece(fModifiedSource.data(), fModifiedSource.length());
+        fIndex = 0;
+
+        return;
     }
 };
 
@@ -1386,7 +1562,10 @@ void MeasureUnitImpl::serialize(UErrorCode &status) {
     if (U_FAILURE(status)) {
         return;
     }
-    this->identifier = CharString(result, status);
+    this->identifier = result.toStringPiece();
+    if (this->identifier.isEmpty() != result.isEmpty()) {
+        status = U_MEMORY_ALLOCATION_ERROR;
+    }
 }
 
 MeasureUnit MeasureUnitImpl::build(UErrorCode &status) && {
@@ -1415,21 +1594,21 @@ MeasureUnit MeasureUnit::withPrefix(UMeasurePrefix prefix,
 }
 
 uint64_t MeasureUnit::getConstantDenominator(UErrorCode &status) const {
-    auto complexity = this->getComplexity(status);
+    // TODO(ICU-23219)
+    auto measureUnitImpl = MeasureUnitImpl::forMeasureUnitMaybeCopy(*this, status);
     if (U_FAILURE(status)) {
         return 0;
     }
+
+    auto complexity = measureUnitImpl.complexity;
 
     if (complexity != UMEASURE_UNIT_SINGLE && complexity != UMEASURE_UNIT_COMPOUND) {
         status = U_ILLEGAL_ARGUMENT_ERROR;
         return 0;
     }
 
-    if (this->fImpl == nullptr) {
-        return 0;
-    }
 
-    return this->fImpl->constantDenominator;
+    return measureUnitImpl.constantDenominator;
 }
 
 MeasureUnit MeasureUnit::withConstantDenominator(uint64_t denominator, UErrorCode &status) const {
@@ -1498,8 +1677,8 @@ MeasureUnit MeasureUnit::product(const MeasureUnit& other, UErrorCode& status) c
         impl.appendSingleUnit(*otherImpl.singleUnits[i], status);
     }
 
-    uint64_t currentConstatDenominator = this->getConstantDenominator(status);
-    uint64_t otherConstantDenominator = other.getConstantDenominator(status);
+    uint64_t currentConstatDenominator = impl.constantDenominator;
+    uint64_t otherConstantDenominator = otherImpl.constantDenominator;
 
     // TODO: we can also multiply the constant denominators instead of returning an error.
     if (currentConstatDenominator != 0 && otherConstantDenominator != 0) {
