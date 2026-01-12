@@ -238,27 +238,27 @@ In the following, `doTheThing()` returns _currently_ `false` (`false` does not e
 `strictEqual` to throw, so the test-case passes).
 
 ```js
-it.xfail('should do the thing', () => {
+it.expectFailure('should do the thing', () => {
   assert.strictEqual(doTheThing(), true);
 });
 
-it('should do the thing', { xfail: true }, () => {
+it('should do the thing', { expectFailure: true }, () => {
   assert.strictEqual(doTheThing(), true);
 });
 ```
 
-`skip` and/or `todo` are mutually exclusive to `xfail`, and `skip` or `todo`
+`skip` and/or `todo` are mutually exclusive to `expectFailure`, and `skip` or `todo`
 will "win" when both are applied (`skip` wins against both, and `todo` wins
-against `xfail`).
+against `expectFailure`).
 
 These tests will be skipped (and not run):
 
 ```js
-it.xfail('should do the thing', { skip: true }, () => {
+it.expectFailure('should do the thing', { skip: true }, () => {
   assert.strictEqual(doTheThing(), true);
 });
 
-it.skip('should do the thing', { xfail: true }, () => {
+it.skip('should do the thing', { expectFailure: true }, () => {
   assert.strictEqual(doTheThing(), true);
 });
 ```
@@ -266,11 +266,11 @@ it.skip('should do the thing', { xfail: true }, () => {
 These tests will be marked "todo" (silencing errors):
 
 ```js
-it.xfail('should do the thing', { todo: true }, () => {
+it.expectFailure('should do the thing', { todo: true }, () => {
   assert.strictEqual(doTheThing(), true);
 });
 
-it.todo('should do the thing', { xfail: true }, () => {
+it.todo('should do the thing', { expectFailure: true }, () => {
   assert.strictEqual(doTheThing(), true);
 });
 ```

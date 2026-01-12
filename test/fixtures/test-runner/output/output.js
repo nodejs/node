@@ -5,27 +5,27 @@ const assert = require('node:assert');
 const test = require('node:test');
 const util = require('util');
 
-test.xfail('sync expect fail (method)', () => {
+test.expectFailure('sync expect fail (method)', () => {
   throw new Error('should pass');
 });
 
-test('sync expect fail (options)', { xfail: true }, () => {
+test('sync expect fail (options)', { expectFailure: true }, () => {
   throw new Error('should pass');
 });
 
-test.xfail('async expect fail (method)', async () => {
+test.expectFailure('async expect fail (method)', async () => {
   throw new Error('should pass');
 });
 
-test('async expect fail (options)', { xfail: true }, async () => {
+test('async expect fail (options)', { expectFailure: true }, async () => {
   throw new Error('should pass');
 });
 
-test.todo('sync todo with expect fail', { xfail: true }, () => {
+test.todo('sync todo with expect fail', { expectFailure: true }, () => {
   throw new Error('should not count as an expected failure');
 });
 
-test.skip('sync skip expect fail', { xfail: true }, () => {
+test.skip('sync skip expect fail', { expectFailure: true }, () => {
   throw new Error('should not fail');
 });
 

@@ -5,19 +5,19 @@ const { describe, it, test } = require('node:test');
 const util = require('util');
 
 
-it.xfail('sync expect fail (method)', () => {
+it.expectFailure('sync expect fail (method)', () => {
   throw new Error('should pass');
 });
 
-it('sync expect fail (options)', { xfail: true }, () => {
+it('sync expect fail (options)', { expectFailure: true }, () => {
   throw new Error('should pass');
 });
 
-it.xfail('async expect fail (method)', async () => {
+it.expectFailure('async expect fail (method)', async () => {
   throw new Error('should pass');
 });
 
-it('async expect fail (options)', { xfail: true }, async () => {
+it('async expect fail (options)', { expectFailure: true }, async () => {
   throw new Error('should pass');
 });
 
@@ -31,7 +31,7 @@ it.todo('sync todo', () => {
   throw new Error('should not count as a failure');
 });
 
-it.todo('sync todo with expect fail', { xfail: true }, () => {
+it.todo('sync todo with expect fail', { expectFailure: true }, () => {
   throw new Error('should not count as an expected failure');
 });
 
@@ -42,7 +42,7 @@ it('sync todo with message', { todo: 'this is a failing todo' }, () => {
 it.skip('sync skip pass', () => {
 });
 
-it.skip('sync skip expect fail', { xfail: true }, () => {
+it.skip('sync skip expect fail', { expectFailure: true }, () => {
   throw new Error('should not fail');
 });
 
