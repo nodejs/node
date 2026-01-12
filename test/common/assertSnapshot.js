@@ -33,8 +33,28 @@ function replaceWindowsPaths(str) {
 
 function transformProjectRoot(replacement = '') {
   const projectRoot = path.resolve(__dirname, '../..');
+  const fsRoot = path.parse(projectRoot).root;
+
+  // If the project root is the filesystem root (e.g. "/"), do not attempt to
+  // strip it. Stripping "/" would mangle unrelated strings like URLs
+  // ("https://") and break snapshots.
+  if (projectRoot === fsRoot) {
+    return (str) => str.replaceAll('\\\'', "'");
+  }
+
+  // Some outputs can already contain POSIX separators even on Windows.
+  const projectRootPosix = projectRoot.replaceAll(path.win32.sep, path.posix.sep);
+  const reProjectRoot = new RegExp(`${RegExp.escape(projectRoot)}(?=[\\\\/]|$)`, 'g');
+  const reProjectRootPosix =
+    projectRootPosix === projectRoot ?
+      null :
+      new RegExp(`${RegExp.escape(projectRootPosix)}(?=[\\\\/]|$)`, 'g');
+
   return (str) => {
-    return str.replaceAll('\\\'', "'").replaceAll(projectRoot, replacement);
+    let out = str.replaceAll('\\\'', "'");
+    out = out.replaceAll(reProjectRoot, replacement);
+    if (reProjectRootPosix) out = out.replaceAll(reProjectRootPosix, replacement);
+    return out;
   };
 }
 
