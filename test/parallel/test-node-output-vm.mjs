@@ -8,9 +8,13 @@ function replaceNodeVersion(str) {
 }
 
 describe('vm output', { concurrency: !process.env.TEST_PARALLEL }, () => {
-  function normalize(str) {
-    return str.replaceAll(snapshot.replaceWindowsPaths(process.cwd()), '').replaceAll('//', '*').replaceAll(/\/(\w)/g, '*$1').replaceAll('*test*', '*').replaceAll(/node:vm:\d+:\d+/g, 'node:vm:*');
-  }
+  const normalize = snapshot.transform(
+    snapshot.transformProjectRoot(''),
+    (str) => str.replaceAll('//', '*')
+      .replaceAll(/\/(\w)/g, '*$1')
+      .replaceAll('*test*', '*')
+      .replaceAll(/node:vm:\d+:\d+/g, 'node:vm:*'),
+  );
 
   const defaultTransform = snapshot
     .transform(snapshot.replaceWindowsLineEndings, snapshot.replaceWindowsPaths, normalize, replaceNodeVersion);

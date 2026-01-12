@@ -1,5 +1,7 @@
 import '../common/index.mjs';
 import assert from 'assert';
+import path from 'path';
+import { fileURLToPath, pathToFileURL } from 'url';
 
 assert.strictEqual(Object.getPrototypeOf(import.meta), null);
 
@@ -16,18 +18,14 @@ for (const descriptor of Object.values(descriptors)) {
   });
 }
 
-const urlReg = /^file:\/\/\/.*\/test\/es-module\/test-esm-import-meta\.mjs$/;
-assert.match(import.meta.url, urlReg);
+const filePath = fileURLToPath(import.meta.url);
+assert.ok(path.isAbsolute(filePath));
+assert.strictEqual(import.meta.url, pathToFileURL(filePath).href);
 
-// Match *nix paths: `/some/path/test/es-module`
-// Match Windows paths: `d:\\some\\path\\test\\es-module`
-const dirReg = /^(\/|\w:\\).*(\/|\\)test(\/|\\)es-module$/;
-assert.match(import.meta.dirname, dirReg);
-
-// Match *nix paths: `/some/path/test/es-module/test-esm-import-meta.mjs`
-// Match Windows paths: `d:\\some\\path\\test\\es-module\\test-esm-import-meta.js`
-const fileReg = /^(\/|\w:\\).*(\/|\\)test(\/|\\)es-module(\/|\\)test-esm-import-meta\.mjs$/;
-assert.match(import.meta.filename, fileReg);
+const suffix = path.join('test', 'es-module', 'test-esm-import-meta.mjs');
+assert.ok(filePath.endsWith(suffix));
+assert.strictEqual(import.meta.filename, filePath);
+assert.strictEqual(import.meta.dirname, path.dirname(filePath));
 
 // Verify that `data:` imports do not behave like `file:` imports.
 import dataDirname from 'data:text/javascript,export default "dirname" in import.meta';

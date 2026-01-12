@@ -132,9 +132,10 @@ const path = require('path');
 }
 
 {
-  const { root } = path.parse(process.cwd());
-  const abs = (p) => path.join(root, p);
-  const firstPath = abs(path.sep + process.cwd().split(path.sep, 2)[1]);
+  const repoRoot = path.resolve(process.cwd());
+  const root = path.parse(repoRoot).root;
+  const [firstDir] = path.relative(root, repoRoot).split(path.sep);
+  const firstPath = firstDir ? path.join(root, firstDir) : path.join(root, 'test');
   if (firstPath.startsWith('/etc')) {
     common.skip('/etc as firstPath');
   }

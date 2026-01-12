@@ -4,6 +4,7 @@ const path = require('node:path');
 const test = require('node:test');
 const fs = require('node:fs/promises');
 const assert = require('node:assert/strict');
+const { pathToFileURL } = require('node:url');
 const { hostname } = require('node:os');
 
 const stackFramesRegexp = /(?<=\n)(\s+)((.+?)\s+\()?(?:\(?(.+?):(\d+)(?::(\d+))?)\)?(\s+\{)?(\[\d+m)?(\n|$)/g;
@@ -33,8 +34,60 @@ function replaceWindowsPaths(str) {
 
 function transformProjectRoot(replacement = '') {
   const projectRoot = path.resolve(__dirname, '../..');
+  const fsRoot = path.parse(projectRoot).root;
+
+  // If projectRoot is fs root, skip stripping to avoid corrupting URL separators.
+  if (projectRoot === fsRoot) {
+    return (str) => str.replaceAll('\\\'', "'");
+  }
+
+  // Stack output may use '/' on Windows; handle both separators.
+  const projectRootPosix = projectRoot.replaceAll(path.win32.sep, path.posix.sep);
+  const fileUrlPrefix = 'file:///';
+  const fileUrl = pathToFileURL(projectRoot).href;
+  const fileUrlRoot = fileUrl.startsWith(fileUrlPrefix) ?
+    fileUrl.slice(fileUrlPrefix.length) :
+    null;
+
+  const stripPrefixAtBoundary = (str, prefix) => {
+    if (!prefix) return str;
+    let out = '';
+    let index = 0;
+    while (true) {
+      const match = str.indexOf(prefix, index);
+      if (match === -1) return out + str.slice(index);
+      const after = match + prefix.length;
+      const nextChar = str[after];
+      const isBoundary = after === str.length || nextChar === '/' || nextChar === '\\';
+      out += str.slice(index, match);
+      out += isBoundary ? replacement : prefix;
+      index = after;
+    }
+  };
+
+  // Strip repo prefix from file:// URLs only; keep other schemes intact.
+  const stripFileUrlRoot = (str) => {
+    if (!fileUrlRoot) return str;
+    const needle = `${fileUrlPrefix}${fileUrlRoot}`;
+    let out = '';
+    let index = 0;
+    while (true) {
+      const match = str.indexOf(needle, index);
+      if (match === -1) return out + str.slice(index);
+      const after = match + needle.length;
+      const nextChar = str[after];
+      const isBoundary = after === str.length || nextChar === '/';
+      out += str.slice(index, match);
+      out += isBoundary ? `${fileUrlPrefix}${replacement}` : needle;
+      index = after;
+    }
+  };
   return (str) => {
-    return str.replaceAll('\\\'', "'").replaceAll(projectRoot, replacement);
+    let out = str.replaceAll('\\\'', "'");
+    out = stripFileUrlRoot(out);
+    out = stripPrefixAtBoundary(out, projectRoot);
+    if (projectRootPosix !== projectRoot) out = stripPrefixAtBoundary(out, projectRootPosix);
+    return out;
   };
 }
 
