@@ -2,7 +2,7 @@
   "ecmascript-binding/class-string-named-properties-object.window.js": {
     "fail": {
       "expected": [
-        "evaluation in WPTRunner.runJsTests()"
+        "ReferenceError: Window is not defined"
       ]
     }
   },
@@ -28,7 +28,7 @@
         "Global object's operation throws when called on incompatible object",
         "Global object's getter works when called on null / undefined",
         "Global object's setter works when called on null / undefined",
-        "evaluation in WPTRunner.runJsTests()"
+        "ReferenceError: addEventListener is not defined"
       ]
     }
   },
