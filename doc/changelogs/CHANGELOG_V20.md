@@ -89,17 +89,11 @@ This is a security release.
 
 ### Notable Changes
 
-lib:
-
 * (CVE-2025-55132) disable futimes when permission model is enabled (RafaelGSS) <https://github.com/nodejs-private/node-private/pull/802>
 * (CVE-2025-59465) add TLSSocket default error handler (RafaelGSS) <https://github.com/nodejs-private/node-private/pull/797>
-  lib,permission:
 * (CVE-2025-55130) require full read and write to symlink APIs (RafaelGSS) <https://github.com/nodejs-private/node-private/pull/760>
-  src:
 * (CVE-2025-59466) rethrow stack overflow exceptions in async\_hooks (Matteo Collina) <https://github.com/nodejs-private/node-private/pull/773>
-  src,lib:
 * (CVE-2025-55131) refactor unsafe buffer creation to remove zero-fill toggle (Сковорода Никита Андреевич) <https://github.com/nodejs-private/node-private/pull/759>
-  tls:
 * (CVE-2026-21637) route callback exceptions through error handlers (Matteo Collina) <https://github.com/nodejs-private/node-private/pull/796>
 
 ### Commits
