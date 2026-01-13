@@ -79,7 +79,13 @@ function transformProjectRoot(replacement = '') {
       const isBoundary = after === str.length || nextChar === '/';
       out += str.slice(index, match);
       out += isBoundary ? `${fileUrlPrefix}${replacement}` : needle;
-      index = after;
+
+      // If the next character is a '/' and the replacement is empty, skip the next character.
+      if (isBoundary && replacement === '' && nextChar === '/') {
+        index = after + 1;
+      } else {
+        index = after;
+      }
     }
   };
   return (str) => {
