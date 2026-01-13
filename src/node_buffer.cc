@@ -1354,6 +1354,15 @@ static void Atob(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(error_code);
 }
 
+static void SetDetachKey(const FunctionCallbackInfo<Value>& args) {
+  CHECK_EQ(args.Length(), 2);
+  CHECK(args[0]->IsArrayBuffer());
+
+  Local<ArrayBuffer> ab = args[0].As<ArrayBuffer>();
+  Local<Value> key = args[1];
+  ab->SetDetachKey(key);
+}
+
 namespace {
 
 std::pair<void*, size_t> DecomposeBufferToParts(Local<Value> buffer) {
@@ -1638,6 +1647,8 @@ void Initialize(Local<Object> target,
                 "utf8WriteStatic",
                 SlowWriteString<UTF8>,
                 &fast_write_string_utf8);
+
+  SetMethod(context, target, "setDetachKey", SetDetachKey);
 }
 
 }  // anonymous namespace
@@ -1692,6 +1703,8 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 
   registry->Register(Atob);
   registry->Register(Btoa);
+
+  registry->Register(SetDetachKey);
 }
 
 }  // namespace Buffer
