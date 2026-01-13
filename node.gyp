@@ -18,6 +18,7 @@
     'node_shared_hdr_histogram%': 'false',
     'node_shared_http_parser%': 'false',
     'node_shared_libuv%': 'false',
+    'node_shared_nbytes%': 'false',
     'node_shared_nghttp2%': 'false',
     'node_shared_openssl%': 'false',
     'node_shared_sqlite%': 'false',
@@ -873,7 +874,6 @@
         '<(SHARED_INTERMEDIATE_DIR)' # for node_natives.h
       ],
       'dependencies': [
-        'deps/nbytes/nbytes.gyp:nbytes',
         'tools/v8_gypfiles/abseil.gyp:abseil',
         'node_js2c#host',
       ],
@@ -943,6 +943,11 @@
         [ 'node_shared_hdr_histogram=="false"', {
           'dependencies': [
             'deps/histogram/histogram.gyp:histogram',
+          ],
+        }],
+        [ 'node_shared_nbytes=="false"', {
+          'dependencies': [
+            'deps/nbytes/nbytes.gyp:nbytes',
           ],
         }],
         [ 'node_use_sqlite=="true"', {
@@ -1183,7 +1188,6 @@
       'type': 'executable',
       'dependencies': [
         '<(node_lib_target_name)',
-        'deps/nbytes/nbytes.gyp:nbytes',
       ],
       'includes': [
         'node.gypi'
@@ -1216,6 +1220,11 @@
             'deps/histogram/histogram.gyp:histogram',
           ],
         }],
+        [ 'node_shared_nbytes=="false"', {
+          'dependencies': [
+            'deps/nbytes/nbytes.gyp:nbytes',
+          ],
+        }],
         [ 'node_shared_uvwasi=="false"', {
           'dependencies': [ 'deps/uvwasi/uvwasi.gyp:uvwasi' ],
           'include_dirs': [ 'deps/uvwasi/include' ],
@@ -1239,7 +1248,6 @@
 
       'dependencies': [
         '<(node_lib_target_name)',
-        'deps/nbytes/nbytes.gyp:nbytes',
         'tools/v8_gypfiles/abseil.gyp:abseil',
       ],
 
@@ -1277,6 +1285,11 @@
         [ 'node_shared_hdr_histogram=="false"', {
           'dependencies': [
             'deps/histogram/histogram.gyp:histogram',
+          ],
+        }],
+        [ 'node_shared_nbytes=="false"', {
+          'dependencies': [
+            'deps/nbytes/nbytes.gyp:nbytes',
           ],
         }],
         [ 'node_use_openssl=="true"', {
@@ -1346,7 +1359,6 @@
 
       'dependencies': [
         '<(node_lib_target_name)',
-        'deps/nbytes/nbytes.gyp:nbytes',
       ],
 
       'includes': [
@@ -1384,6 +1396,11 @@
         [ 'node_shared_hdr_histogram=="false"', {
           'dependencies': [
             'deps/histogram/histogram.gyp:histogram',
+          ],
+        }],
+        [ 'node_shared_nbytes=="false"', {
+          'dependencies': [
+            'deps/nbytes/nbytes.gyp:nbytes',
           ],
         }],
         ['OS=="win"', {
@@ -1472,7 +1489,6 @@
 
       'dependencies': [
         '<(node_lib_target_name)',
-        'deps/nbytes/nbytes.gyp:nbytes',
       ],
 
       'includes': [
@@ -1507,6 +1523,11 @@
         [ 'node_shared_hdr_histogram=="false"', {
           'dependencies': [
             'deps/histogram/histogram.gyp:histogram',
+          ],
+        }],
+        [ 'node_shared_nbytes=="false"', {
+          'dependencies': [
+            'deps/nbytes/nbytes.gyp:nbytes',
           ],
         }],
         [ 'node_use_openssl=="true"', {

@@ -22,6 +22,16 @@
   cares = pkgs.c-ares;
   hdr-histogram = pkgs.hdrhistogram_c;
   http-parser = pkgs.llhttp;
+  nbytes = pkgs.callPackage "${
+    pkgs.fetchgit {
+      url = "https://github.com/NixOS/nixpkgs.git";
+      rev = "3146c6aa9995e7351a398e17470e15305e6e18ff";
+      sparseCheckout = [
+        "/pkgs/by-name/nb/nbytes/"
+      ];
+      hash = "sha256-8cbu4ftn5ke7vd4cniwxuyKl6FRxwdToBj77oyYmsfk=";
+    }
+  }/pkgs/by-name/nb/nbytes/package.nix" { };
 }
 // (pkgs.lib.optionalAttrs withSQLite {
   inherit (pkgs) sqlite;
