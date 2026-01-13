@@ -51,6 +51,7 @@ expected.beforePreExec = new Set([
   'NativeModule events',
   'Internal Binding buffer',
   'Internal Binding string_decoder',
+  'NativeModule util/types',
   'NativeModule internal/buffer',
   'NativeModule buffer',
   'Internal Binding messaging',
