@@ -124,61 +124,69 @@ class BindingData : public BaseObject {
 
 // helper class for the Parser
 struct StringPtr {
-  StringPtr() {
-    on_heap_ = false;
-    Reset();
-  }
+  // Memory impact: ~8KB per parser (66 StringPtr × 128 bytes).
+  static constexpr size_t kSlabSize = 128;
 
+  StringPtr() = default;
+  ~StringPtr() { Reset(); }
 
-  ~StringPtr() {
-    Reset();
-  }
-
+  StringPtr(const StringPtr&) = delete;
+  StringPtr& operator=(const StringPtr&) = delete;
 
   // If str_ does not point to a heap string yet, this function makes it do
   // so. This is called at the end of each http_parser_execute() so as not
   // to leak references. See issue #2438 and test-http-parser-bad-ref.js.
   void Save() {
-    if (!on_heap_ && size_ > 0) {
-      char* s = new char[size_];
-      memcpy(s, str_, size_);
-      str_ = s;
-      on_heap_ = true;
+    if (!on_heap_ && !using_slab_ && size_ > 0) {
+      if (size_ <= kSlabSize) {
+        memcpy(slab_, str_, size_);
+        str_ = slab_;
+        using_slab_ = true;
+      } else {
+        char* s = new char[size_];
+        memcpy(s, str_, size_);
+        str_ = s;
+        on_heap_ = true;
+      }
     }
   }
-
 
   void Reset() {
     if (on_heap_) {
       delete[] str_;
       on_heap_ = false;
     }
-
+    using_slab_ = false;
     str_ = nullptr;
     size_ = 0;
   }
 
-
   void Update(const char* str, size_t size) {
     if (str_ == nullptr) {
       str_ = str;
-    } else if (on_heap_ || str_ + size_ != str) {
-      // Non-consecutive input, make a copy on the heap.
-      // TODO(bnoordhuis) Use slab allocation, O(n) allocs is bad.
-      char* s = new char[size_ + size];
-      memcpy(s, str_, size_);
-      memcpy(s + size_, str, size);
+    } else if (on_heap_ || using_slab_ || str_ + size_ != str) {
+      const size_t total = size_ + size;
 
-      if (on_heap_)
-        delete[] str_;
-      else
+      if (!on_heap_ && total <= kSlabSize) {
+        if (!using_slab_) {
+          memcpy(slab_, str_, size_);
+          using_slab_ = true;
+        }
+        memcpy(slab_ + size_, str, size);
+        str_ = slab_;
+      } else {
+        char* s = new char[total];
+        memcpy(s, str_, size_);
+        memcpy(s + size_, str, size);
+        if (on_heap_)
+          delete[] str_;
         on_heap_ = true;
-
-      str_ = s;
+        using_slab_ = false;
+        str_ = s;
+      }
     }
     size_ += size;
   }
-
 
   Local<String> ToString(Environment* env) const {
     if (size_ != 0)
@@ -186,7 +194,6 @@ struct StringPtr {
     else
       return String::Empty(env->isolate());
   }
-
 
   // Strip trailing OWS (SPC or HTAB) from string.
   Local<String> ToTrimmedString(Environment* env) {
@@ -196,10 +203,11 @@ struct StringPtr {
     return ToString(env);
   }
 
-
-  const char* str_;
-  bool on_heap_;
-  size_t size_;
+  const char* str_ = nullptr;
+  bool on_heap_ = false;
+  bool using_slab_ = false;
+  size_t size_ = 0;
+  char slab_[kSlabSize];
 };
 
 class Parser;
