@@ -178,8 +178,7 @@ struct StringPtr {
         char* s = new char[total];
         memcpy(s, str_, size_);
         memcpy(s + size_, str, size);
-        if (on_heap_)
-          delete[] str_;
+        if (on_heap_) delete[] str_;
         on_heap_ = true;
         using_slab_ = false;
         str_ = s;
