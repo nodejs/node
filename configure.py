@@ -1627,17 +1627,6 @@ def set_configuration_variable(configs, name, release=None, debug=None):
   configs['Release']['variables'][name] = release
   configs['Debug']['variables'][name] = debug
 
-def set_configuration_variable_and_defines(configs, name, release=None, debug=None, release_define=None, debug_define=None):
-  set_configuration_variable(configs, name, release, debug)
-  if configs['Debug'].get('defines') is None:
-      configs['Debug']['defines'] = []
-  if configs['Release'].get('defines') is None:
-      configs['Release']['defines'] = []
-  if debug_define:
-      configs['Debug']['defines'].append(debug_define)
-  if release_define:
-      configs['Release']['defines'].append(release_define)
-
 def configure_arm(o):
   if options.arm_float_abi:
     arm_float_abi = options.arm_float_abi
@@ -1980,14 +1969,7 @@ def configure_library(lib, output, pkgname=None):
 
 
 def configure_v8(o, configs):
-  set_configuration_variable_and_defines(
-      configs,
-      'v8_enable_v8_checks',
-      release='0',
-      debug='1',
-      release_define=None,
-      debug_define='V8_ENABLE_CHECKS',
-  )
+  set_configuration_variable(configs, 'v8_enable_v8_checks', release=0, debug=1)
 
   o['variables']['v8_enable_webassembly'] = 0 if options.v8_lite_mode else 1
   o['variables']['v8_enable_javascript_promise_hooks'] = 1
@@ -2618,11 +2600,10 @@ config_release_vars = configurations['Release']['variables']
 del configurations['Release']['variables']
 config_debug_vars = configurations['Debug']['variables']
 del configurations['Debug']['variables']
-output['conditions'].append(['build_type=="Release"', {
-  'variables': config_release_vars,
-}, {
-  'variables': config_debug_vars,
-}])
+if options.debug:
+  variables = variables | config_debug_vars
+else:
+  variables = variables | config_release_vars
 
 # make_global_settings should be a root level element too
 if 'make_global_settings' in output:
