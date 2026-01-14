@@ -3286,6 +3286,14 @@ The WASI instance has already started.
 
 The WASI instance has not been started.
 
+<a id="ERR_WEBASSEMBLY_NOT_SUPPORTED"></a>
+
+### `ERR_WEBASSEMBLY_NOT_SUPPORTED`
+
+A feature requiring WebAssembly was used, but WebAssembly is not supported or
+has been disabled in the current environment (for example, when running with
+`--jitless`). The error message specifies which feature requires WebAssembly.
+
 <a id="ERR_WEBASSEMBLY_RESPONSE"></a>
 
 ### `ERR_WEBASSEMBLY_RESPONSE`
