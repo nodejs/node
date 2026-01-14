@@ -10,11 +10,13 @@ spawnSyncAndAssert(
   [
     '--no-warnings',
     '--import',
-    fixtures.fileURL('es-module-loaders/register-hooks-with-register.mjs'),
+    fixtures.fileURL('es-module-loaders/register-hooks-with-current-cwd-parent-url.mjs'),
     fixtures.path('es-module-loaders/register-loader-with-url-parenturl.mjs'),
   ],
   {
     cwd: fixtures.path('es-module-loaders/'),
+  },
+  {
     stdout(output) {
       assert.deepStrictEqual(output.split('\n').sort(), ['hooks initialize 1', '{"default":"foo"}'].sort());
     },
