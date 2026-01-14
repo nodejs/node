@@ -11,6 +11,7 @@
     c-ares
     gtest
     libuv
+    nbytes
     nghttp3
     ngtcp2
     simdjson
