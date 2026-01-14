@@ -32,7 +32,7 @@ const snapshot = require('../common/assertSnapshot');
   const fileUrlWithSpace = pathToFileURL(path.join(projectRoot, 'spaced dir')).href;
   assert.strictEqual(stripProjectRoot(fileUrlWithSpace), 'file:///spaced%20dir');
 
-  if (process.platform === 'win32') {
+  if (common.isWindows) {
     const projectRootPosix = projectRoot.replaceAll(path.win32.sep, path.posix.sep);
 
     assert.strictEqual(
