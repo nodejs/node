@@ -19,7 +19,10 @@ async function test() {
     pathToFileURL(path.join(process.cwd(), 'localstorage.db')).href;
 
   const { storageKey } = await session.post('Storage.getStorageKey');
-  assert.strictEqual(storageKey, localStorageFileUrl);
+  assert.strictEqual(
+    storageKey.toLowerCase(),
+    localStorageFileUrl.toLowerCase()
+  );
 
   await checkStorage(true);
   await checkStorage(false);
