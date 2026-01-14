@@ -1,0 +1,38 @@
+            - name: terraform-plan-storage
+  # You may pin to the exact commit or the version.
+  # uses: cloudposse/github-action-terraform-plan-storage@55b5d342c1eefee79e661b2709e91b19b4361c6d
+  uses: cloudposse/github-action-terraform-plan-storage@1.14.0
+  with:
+    # which action to perform. Valid values are: 'storePlan', 'getPlan', 'taintPlan'
+    action: 'getPlan' # default is storePlan
+    # the name of the Azure Blob Storage account to store the plan file
+    blobAccountName: # optional
+    # the name of the Azure Blob Storage container to store the plan file
+    blobContainerName: # optional
+    # the name of the S3 bucket to store the plan file
+    bucketName: # optional, default is terraform-plan-storage
+    # Commit SHA to use for fetching plan
+    commitSHA: # optional, default is 
+    # the name of the component corresponding to the plan file
+    component: # optional
+    # the connection string to the CosmosDB account to store the metadata
+    cosmosConnectionString: # optional
+    # the name of the CosmosDB container to store the metadata
+    cosmosContainerName: # optional
+    # the name of the CosmosDB database to store the metadata
+    cosmosDatabaseName: # optional
+    # the endpoint of the CosmosDB account to store the metadata
+    cosmosEndpoint: # optional
+    # Fail if plan is missing
+    failOnMissingPlan: # optional, default is true
+    # the type of repository where the plan file is stored. Valid values are: 'dynamo', 'cosmodb'
+    metadataRepositoryType: # optional, default is dynamo
+    # path to the Terraform plan file. Required for 'storePlan' and 'getPlan' actions
+    planPath: # optional
+    # the type of repository where the metadata is stored. Valid values are: 's3', 'azureblob'
+    planRepositoryType: # optional, default is s3
+    # the name of the stack corresponding to the plan file
+    stack: # optional
+    # the name of the dynamodb table to store metadata
+    tableName: # optional, default is terraform-plan-storage
+          
