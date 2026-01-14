@@ -715,7 +715,8 @@ Tagged<Object> ArrayBufferTransfer(Isolate* isolate,
   // 8. If arrayBuffer.[[ArrayBufferDetachKey]] is not undefined, throw a
   //     TypeError exception.
 
-  if (!array_buffer->is_detachable()) {
+  if (!IsUndefined(array_buffer->detach_key()) ||
+      !array_buffer->is_detachable()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate,
         NewTypeError(MessageTemplate::kDataCloneErrorNonDetachableArrayBuffer));
