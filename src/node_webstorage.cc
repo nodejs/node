@@ -177,6 +177,7 @@ Maybe<void> Storage::Open() {
   sqlite3_stmt* s = nullptr;
   r = sqlite3_prepare_v2(
       db, get_schema_version_sql.data(), get_schema_version_sql.size(), &s, 0);
+  CHECK_ERROR_OR_THROW(env(), r, SQLITE_OK, Nothing<void>());
   r = sqlite3_exec(db, init_sql_v0.data(), 0, 0, nullptr);
   CHECK_ERROR_OR_THROW(env(), r, SQLITE_OK, Nothing<void>());
   auto stmt = stmt_unique_ptr(s);

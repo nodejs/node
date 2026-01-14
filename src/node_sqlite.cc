@@ -97,7 +97,11 @@ using v8::Value;
       case SQLITE_TEXT: {                                                      \
         const char* v =                                                        \
             reinterpret_cast<const char*>(sqlite3_##from##_text(__VA_ARGS__)); \
-        (result) = String::NewFromUtf8((isolate), v).As<Value>();              \
+        if (v == nullptr) {                                                    \
+            (result) = Null((isolate));                                        \
+        } else {                                                               \
+            (result) = String::NewFromUtf8((isolate), v).As<Value>();          \
+        }                                                                      \
         break;                                                                 \
       }                                                                        \
       case SQLITE_NULL: {                                                      \
@@ -246,7 +250,7 @@ inline void THROW_ERR_SQLITE_ERROR(Isolate* isolate, int errcode) {
 
   Environment* env = Environment::GetCurrent(isolate);
   Local<Object> error;
-  if (CreateSQLiteError(isolate, errstr).ToLocal(&error) &&
+  if (env && CreateSQLiteError(isolate, errstr).ToLocal(&error) &&
       error
           ->Set(isolate->GetCurrentContext(),
                 env->errcode_string(),
