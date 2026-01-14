@@ -423,3 +423,14 @@ test('check transform types warning', async () => {
   match(result.stdout, /Hello, TypeScript!/);
   strictEqual(result.code, 0);
 });
+
+test('expect error when executing a TypeScript file with --jitless', async () => {
+  const result = await spawnPromisified(process.execPath, [
+    '--jitless',
+    fixtures.path('typescript/ts/test-typescript.ts'),
+  ]);
+
+  match(result.stderr, /ERR_WEBASSEMBLY_NOT_SUPPORTED/);
+  match(result.stderr, /WebAssembly is not supported in this environment, but is required for TypeScript/);
+  strictEqual(result.code, 1);
+});
