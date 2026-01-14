@@ -16,7 +16,7 @@ concurrency:
 env:
   PYTHON_VERSION: '3.14'
   NODE_VERSION: lts/*
-
+  TERRAFORM_VERSION: '1.14.3'
 permissions:
   contents: read
 
