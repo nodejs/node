@@ -263,6 +263,7 @@ v8_source_set("v8_unittests_sources") {
     "api/remote-object-unittest.cc",
     "api/resource-constraints-unittest.cc",
     "api/smi-tagging-unittest.cc",
+    "api/v8-array-buffer-unittest.cc",
     "api/v8-array-unittest.cc",
     "api/v8-maybe-unittest.cc",
     "api/v8-memory-span-unittest.cc",
