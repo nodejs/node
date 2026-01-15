@@ -1318,6 +1318,10 @@ void Database::CustomFunction(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&db, args.This());
   Environment* env = Environment::GetCurrent(args);
   THROW_AND_RETURN_ON_BAD_STATE(env, !db->IsOpen(), "database is not open");
+  THROW_AND_RETURN_ON_BAD_STATE(
+      env,
+      db->is_async(),
+      "Custom functions are not supported in async mode");
 
   if (!args[0]->IsString()) {
     THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
@@ -1491,6 +1495,10 @@ void Database::AggregateFunction(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&db, args.This());
   Environment* env = Environment::GetCurrent(args);
   THROW_AND_RETURN_ON_BAD_STATE(env, !db->IsOpen(), "database is not open");
+  THROW_AND_RETURN_ON_BAD_STATE(
+      env,
+      db->is_async(),
+      "Aggregate functions are not supported in async mode");
   Utf8Value name(env->isolate(), args[0].As<String>());
   Local<Object> options = args[1].As<Object>();
   Local<Value> start_v;
@@ -2055,6 +2063,10 @@ void Database::SetAuthorizer(const FunctionCallbackInfo<Value>& args) {
   Database* db;
   ASSIGN_OR_RETURN_UNWRAP(&db, args.This());
   Environment* env = Environment::GetCurrent(args);
+  THROW_AND_RETURN_ON_BAD_STATE(
+      env,
+      db->is_async(),
+      "Authorizer callbacks are not supported in async mode");
   Isolate* isolate = env->isolate();
 
   if (args[0]->IsNull()) {

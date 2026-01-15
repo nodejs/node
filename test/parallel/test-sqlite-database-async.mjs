@@ -524,3 +524,41 @@ suite('Database.prototype.location()', () => {
     t.assert.strictEqual(db.location('other'), otherPath);
   });
 });
+
+suite('Async mode restrictions', () => {
+  test('throws when defining a custom function', (t) => {
+    const db = new Database(':memory:');
+    t.after(() => { db.close(); });
+
+    t.assert.throws(() => {
+      db.function('test', () => 1);
+    }, {
+      code: 'ERR_INVALID_STATE',
+      message: /Custom functions are not supported in async mode/,
+    });
+  });
+
+  test('throws when defining an aggregate function', (t) => {
+    const db = new Database(':memory:');
+    t.after(() => { db.close(); });
+
+    t.assert.throws(() => {
+      db.aggregate('test', { start: 0, step: (acc) => acc });
+    }, {
+      code: 'ERR_INVALID_STATE',
+      message: /Aggregate functions are not supported in async mode/,
+    });
+  });
+
+  test('throws when setting an authorizer callback', (t) => {
+    const db = new Database(':memory:');
+    t.after(() => { db.close(); });
+
+    t.assert.throws(() => {
+      db.setAuthorizer(() => 0);
+    }, {
+      code: 'ERR_INVALID_STATE',
+      message: /Authorizer callbacks are not supported in async mode/,
+    });
+  });
+});
