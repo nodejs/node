@@ -481,6 +481,7 @@ class SQLiteAsyncTask : public ThreadPoolWork {
           .FromJust();
       Finalize();
       db_->ProcessNextAsyncTask();
+      db_->MaybeCloseConnection();
       return;
     }
 
@@ -777,6 +778,15 @@ void Database::ProcessNextAsyncTask() {
     ThreadPoolWork* next_work = task_queue_.front();
     task_queue_.pop();
     next_work->ScheduleWork();
+  }
+}
+
+void Database::MaybeCloseConnection() {
+  // Close the connection if Close() was called while async tasks were running.
+  // This is called after the last task completes.
+  if (IsClosing() && !has_running_task_ && connection_ != nullptr) {
+    sqlite3_close_v2(connection_);
+    connection_ = nullptr;
   }
 }
 
@@ -1222,6 +1232,13 @@ void Database::Close(const FunctionCallbackInfo<Value>& args) {
   db->is_closing_.store(true, std::memory_order_release);
   db->FinalizeStatements();
   db->DeleteSessions();
+
+  // If there are running async tasks, defer closing the connection until
+  // they complete to avoid use-after-free in the thread pool.
+  if (db->has_running_task_) {
+    return;
+  }
+
   int r = sqlite3_close_v2(db->connection_);
   CHECK_ERROR_OR_THROW(env->isolate(), db, r, SQLITE_OK, void());
   db->connection_ = nullptr;

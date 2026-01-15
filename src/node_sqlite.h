@@ -198,6 +198,7 @@ class Database : public BaseObject {
   void RemoveAsyncTask(ThreadPoolWork* async_task);
   void ScheduleAsyncTask(ThreadPoolWork* async_task);
   void ProcessNextAsyncTask();
+  void MaybeCloseConnection();
   void FinalizeBackups();
   void UntrackStatement(Statement* statement);
   bool IsOpen();

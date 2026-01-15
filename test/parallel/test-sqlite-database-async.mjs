@@ -126,10 +126,10 @@ suite('Database() constructor', () => {
     `);
     t.after(() => { db.close(); });
     await t.assert.rejects(db.exec('INSERT INTO bar (foo_id) VALUES (1)'),
-                           {
-                             code: 'ERR_SQLITE_ERROR',
-                             message: 'FOREIGN KEY constraint failed',
-                           });
+      {
+        code: 'ERR_SQLITE_ERROR',
+        message: 'FOREIGN KEY constraint failed',
+      });
   });
 
   test('allows disabling foreign key constraints', async (t) => {
@@ -563,18 +563,72 @@ suite('Async mode restrictions', () => {
   });
 });
 
-suite('Database close behavior', () => {
+suite('Async operation ordering', () => {
+  test('executes operations sequentially per database', async (t) => {
+    const db = new Database(':memory:');
+    t.after(() => { db.close(); });
+    await db.exec('CREATE TABLE test (id INTEGER PRIMARY KEY, seq INTEGER)');
+
+    // Launch multiple operations concurrently
+    const ops = [];
+    for (let i = 0; i < 10; i++) {
+      ops.push(db.exec(`INSERT INTO test (seq) VALUES (${i})`));
+    }
+
+    await Promise.all(ops);
+
+    // Check they were inserted in order (sequential execution)
+    const stmt = db.prepare('SELECT id, seq FROM test ORDER BY id');
+    const rows = await stmt.all();
+
+    // Verify sequential: id should match seq + 1 (autoincrement starts at 1)
+    t.assert.strictEqual(rows.length, 10);
+    for (const row of rows) {
+      t.assert.strictEqual(row.id, row.seq + 1);
+    }
+  });
+
+  test('different connections can execute in parallel', async (t) => {
+    const db1 = new Database(':memory:');
+    const db2 = new Database(':memory:');
+    t.after(() => { db1.close(); db2.close(); });
+    const times = {};
+    const now = () => process.hrtime.bigint();
+    const LONG_QUERY = `
+      WITH RECURSIVE cnt(x) AS (
+        SELECT 1
+        UNION ALL
+        SELECT x + 1 FROM cnt WHERE x < 300000
+      )
+      SELECT sum(x) FROM cnt;
+  `;
+
+    const op = async (db, label) => {
+      times[label] = { start: now() };
+
+      await db.exec(LONG_QUERY);
+
+      times[label].end = now();
+    };
+
+    // Start both operations
+    await Promise.all([op(db1, 'db1'), op(db2, 'db2')]);
+
+    // Verify that their execution times overlap
+    t.assert.ok(
+      times.db1.start < times.db2.end &&
+      times.db2.start < times.db1.end
+    );
+  });
+});
+
+suite('Database.prototype.close', () => {
   test('rejects pending operations when database is closed', async (t) => {
     const db = new Database(':memory:');
     await db.exec('CREATE TABLE test (id INTEGER PRIMARY KEY, value TEXT)');
-
-    // Start an async operation but don't await it yet
     const pendingOp = db.exec('INSERT INTO test (value) VALUES (\'test\')');
-
-    // Close the database immediately
     db.close();
 
-    // The pending operation should be rejected
     await t.assert.rejects(pendingOp, {
       code: 'ERR_INVALID_STATE',
       message: /database is closing/,
@@ -584,18 +638,14 @@ suite('Database close behavior', () => {
   test('rejects multiple pending operations when database is closed', async (t) => {
     const db = new Database(':memory:');
     await db.exec('CREATE TABLE test (id INTEGER PRIMARY KEY, value TEXT)');
-
-    // Queue multiple operations
     const ops = [
       db.exec('INSERT INTO test (value) VALUES (\'test1\')'),
       db.exec('INSERT INTO test (value) VALUES (\'test2\')'),
       db.exec('INSERT INTO test (value) VALUES (\'test3\')'),
     ];
 
-    // Close the database
     db.close();
 
-    // All operations should be rejected
     const results = await Promise.allSettled(ops);
     for (const result of results) {
       t.assert.strictEqual(result.status, 'rejected');
