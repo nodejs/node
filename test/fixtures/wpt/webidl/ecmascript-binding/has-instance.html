@@ -1,0 +1,26 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>instanceof behavior</title>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+
+<iframe></iframe>
+
+<script>
+test(function() {
+  var obj = Object.create(Element.prototype);
+  assert_true(obj instanceof Element);
+  assert_true(obj instanceof Node);
+  assert_false(obj instanceof Attr);
+}, "Manually-constructed prototype chains are correctly handled by instanceof");
+
+test(() => {
+  // This tests that the historical override of [[HasInstance]] was removed:
+  // https://github.com/heycam/webidl/pull/356
+  assert_false(document.body instanceof frames[0].Element);
+}, "instanceof must return false across different globals, for platform objects");
+
+test(() => {
+  assert_false(EventTarget.hasOwnProperty(Symbol.hasInstance));
+}, "platform objects do not have Symbol.hasInstance installed");
+</script>

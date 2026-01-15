@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Interface prototype objects</title>
+<link rel="help" href="https://webidl.spec.whatwg.org/#interface-prototype-object">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script>
+test(function() {
+  // https://webidl.spec.whatwg.org/#create-an-interface-prototype-object
+  assert_own_property(Element.prototype, Symbol.unscopables, "Element.prototype has @@unscopables.");
+  let unscopables = Element.prototype[Symbol.unscopables];
+  assert_equals(typeof unscopables, "object", "@@unscopables is an Object.");
+  assert_equals(Object.getPrototypeOf(unscopables), null, "@@unscopables's prototype is null.");
+}, "[Unscopable] extended attribute makes @@unscopables object on the prototype object, whose prototype is null.");
+</script>
