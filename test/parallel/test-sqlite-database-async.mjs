@@ -125,7 +125,8 @@ suite('Database() constructor', () => {
       CREATE TABLE bar (foo_id INTEGER REFERENCES foo(id));
     `);
     t.after(() => { db.close(); });
-    await t.assert.rejects(db.exec('INSERT INTO bar (foo_id) VALUES (1)'),
+    await t.assert.rejects(
+      db.exec('INSERT INTO bar (foo_id) VALUES (1)'),
       {
         code: 'ERR_SQLITE_ERROR',
         message: 'FOREIGN KEY constraint failed',
