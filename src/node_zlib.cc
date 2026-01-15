@@ -732,6 +732,7 @@ class ZlibStream final : public CompressionStream<ZlibContext> {
 
     CHECK(args[4]->IsUint32Array());
     Local<Uint32Array> array = args[4].As<Uint32Array>();
+    CHECK_GE(array->Length(), 2);
     Local<ArrayBuffer> ab = array->Buffer();
     uint32_t* write_result = static_cast<uint32_t*>(ab->Data());
 
@@ -805,6 +806,7 @@ class BrotliCompressionStream final :
     CHECK(args.Length() == 3 && "init(params, writeResult, writeCallback)");
 
     CHECK(args[1]->IsUint32Array());
+    CHECK_GE(args[1].As<Uint32Array>()->Length(), 2);
     uint32_t* write_result = reinterpret_cast<uint32_t*>(Buffer::Data(args[1]));
 
     CHECK(args[2]->IsFunction());
@@ -886,6 +888,7 @@ class ZstdStream final : public CompressionStream<CompressionContext> {
     ASSIGN_OR_RETURN_UNWRAP(&wrap, args.This());
 
     CHECK(args[2]->IsUint32Array());
+    CHECK_GE(args[2].As<Uint32Array>()->Length(), 2);
     uint32_t* write_result = reinterpret_cast<uint32_t*>(Buffer::Data(args[2]));
 
     CHECK(args[3]->IsFunction());
