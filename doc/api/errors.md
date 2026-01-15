@@ -3292,7 +3292,7 @@ The WASI instance has not been started.
 
 A feature requiring WebAssembly was used, but WebAssembly is not supported or
 has been disabled in the current environment (for example, when running with
-`--jitless`). The error message specifies which feature requires WebAssembly.
+`--jitless`).
 
 <a id="ERR_WEBASSEMBLY_RESPONSE"></a>
 
