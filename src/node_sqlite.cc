@@ -459,6 +459,10 @@ class SQLiteAsyncTask : public ThreadPoolWork {
   }
 
   void DoThreadPoolWork() override {
+    if (db_->IsClosing()) {
+      cancelled_ = true;
+      return;
+    }
     if (work_) {
       result_ = work_();
     }
@@ -469,6 +473,16 @@ class SQLiteAsyncTask : public ThreadPoolWork {
     HandleScope handle_scope(isolate);
     Local<Promise::Resolver> resolver =
         Local<Promise::Resolver>::New(isolate, resolver_);
+
+    if (cancelled_ || db_->IsClosing()) {
+      resolver
+          ->Reject(env_->context(),
+                   ERR_INVALID_STATE(isolate, "database is closing"))
+          .FromJust();
+      Finalize();
+      db_->ProcessNextAsyncTask();
+      return;
+    }
 
     if (after_) {
       after_(result_, resolver);
@@ -486,6 +500,7 @@ class SQLiteAsyncTask : public ThreadPoolWork {
   std::function<T()> work_ = nullptr;
   std::function<void(T, Local<Promise::Resolver>)> after_ = nullptr;
   T result_;
+  bool cancelled_ = false;
 };
 
 // TODO(geeksilva97): Replace BackupJob usage with SQLiteAsyncTask
@@ -1204,6 +1219,7 @@ void Database::Close(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&db, args.This());
   Environment* env = Environment::GetCurrent(args);
   THROW_AND_RETURN_ON_BAD_STATE(env, !db->IsOpen(), "database is not open");
+  db->is_closing_.store(true, std::memory_order_release);
   db->FinalizeStatements();
   db->DeleteSessions();
   int r = sqlite3_close_v2(db->connection_);

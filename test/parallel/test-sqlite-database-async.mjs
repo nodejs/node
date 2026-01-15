@@ -562,3 +562,44 @@ suite('Async mode restrictions', () => {
     });
   });
 });
+
+suite('Database close behavior', () => {
+  test('rejects pending operations when database is closed', async (t) => {
+    const db = new Database(':memory:');
+    await db.exec('CREATE TABLE test (id INTEGER PRIMARY KEY, value TEXT)');
+
+    // Start an async operation but don't await it yet
+    const pendingOp = db.exec('INSERT INTO test (value) VALUES (\'test\')');
+
+    // Close the database immediately
+    db.close();
+
+    // The pending operation should be rejected
+    await t.assert.rejects(pendingOp, {
+      code: 'ERR_INVALID_STATE',
+      message: /database is closing/,
+    });
+  });
+
+  test('rejects multiple pending operations when database is closed', async (t) => {
+    const db = new Database(':memory:');
+    await db.exec('CREATE TABLE test (id INTEGER PRIMARY KEY, value TEXT)');
+
+    // Queue multiple operations
+    const ops = [
+      db.exec('INSERT INTO test (value) VALUES (\'test1\')'),
+      db.exec('INSERT INTO test (value) VALUES (\'test2\')'),
+      db.exec('INSERT INTO test (value) VALUES (\'test3\')'),
+    ];
+
+    // Close the database
+    db.close();
+
+    // All operations should be rejected
+    const results = await Promise.allSettled(ops);
+    for (const result of results) {
+      t.assert.strictEqual(result.status, 'rejected');
+      t.assert.strictEqual(result.reason.code, 'ERR_INVALID_STATE');
+    }
+  });
+});

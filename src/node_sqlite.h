@@ -10,6 +10,7 @@
 #include "threadpoolwork-inl.h"
 #include "util.h"
 
+#include <atomic>
 #include <list>
 #include <map>
 #include <queue>
@@ -200,6 +201,7 @@ class Database : public BaseObject {
   void FinalizeBackups();
   void UntrackStatement(Statement* statement);
   bool IsOpen();
+  bool IsClosing() const { return is_closing_.load(std::memory_order_acquire); }
   bool is_async() { return open_config_.get_async(); }
   bool use_big_ints() const { return open_config_.get_use_big_ints(); }
   bool return_arrays() const { return open_config_.get_return_arrays(); }
@@ -231,6 +233,7 @@ class Database : public BaseObject {
   bool enable_load_extension_;
   sqlite3* connection_;
   bool ignore_next_sqlite_error_;
+  std::atomic<bool> is_closing_{false};
 
   std::set<ThreadPoolWork*> async_tasks_;
   std::queue<ThreadPoolWork*> task_queue_;
