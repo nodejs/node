@@ -11,7 +11,7 @@ if /i "%arg:~-4%"=="help" goto help
 cd %~dp0
 
 set JS_SUITES=default
-set NATIVE_SUITES=addons js-native-api node-api
+set NATIVE_SUITES=addons js-native-api node-api embedding
 @rem CI_* variables should be kept synchronized with the ones in Makefile
 set "CI_NATIVE_SUITES=%NATIVE_SUITES% benchmark"
 set "CI_JS_SUITES=%JS_SUITES% pummel"
@@ -735,9 +735,6 @@ if defined no_cctest echo Skipping cctest because no-cctest was specified && got
 if not exist "%config%\cctest.exe" echo cctest.exe not found. Run "vcbuild test" or "vcbuild cctest" to build it. && goto run-test-py
 echo running 'cctest %cctest_args%'
 "%config%\cctest" %cctest_args%
-if %errorlevel% neq 0 set exit_code=%errorlevel%
-echo running '%node_exe% test\embedding\test-embedding.js'
-"%node_exe%" test\embedding\test-embedding.js
 if %errorlevel% neq 0 set exit_code=%errorlevel%
 :run-test-py
 echo running 'python tools\test.py %test_args%'
