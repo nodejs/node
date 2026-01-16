@@ -727,7 +727,7 @@ if errorlevel 1 goto exit
 goto lint-cpp
 
 :lint-cpp
-if not defined lint_cpp goto lint-js
+if not defined lint_cpp goto lint-js-build
 if defined NODEJS_MAKE goto run-make-lint
 where make > NUL 2>&1 && make -v | findstr /C:"GNU Make" 1> NUL
 if "%ERRORLEVEL%"=="0" set "NODEJS_MAKE=make PYTHON=python" & goto run-make-lint
@@ -735,7 +735,7 @@ where wsl > NUL 2>&1
 if "%ERRORLEVEL%"=="0" set "NODEJS_MAKE=wsl make" & goto run-make-lint
 echo Could not find GNU Make, needed for linting C/C++
 echo Alternatively, you can use WSL
-goto lint-js
+goto lint-js-build
 
 :run-make-lint
 %NODEJS_MAKE% lint-cpp
