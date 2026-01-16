@@ -4367,7 +4367,7 @@ Set the maximum number of idle HTTP parsers.
 
 <!-- YAML
 added:
-  - REPLACEME
+  - v25.4.0
 -->
 
 * `proxyEnv` {Object} An object containing proxy configuration. This accepts the

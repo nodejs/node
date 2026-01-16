@@ -224,7 +224,7 @@ added:
   - v22.15.0
 changes:
   - version:
-    - REPLACEME
+    - v25.4.0
     pr-url: https://github.com/nodejs/node/pull/60960
     description: Synchronous and in-thread hooks are now release candidate.
 -->
@@ -460,7 +460,7 @@ separately if the same base directory is used to persist the cache, so they can 
 <!-- YAML
 added: v22.8.0
 changes:
-  - version: REPLACEME
+  - version: v25.4.0
     pr-url: https://github.com/nodejs/node/pull/60971
     description: This feature is no longer experimental.
 -->
@@ -515,7 +515,7 @@ The following constants are returned as the `status` field in the object returne
 <!-- YAML
 added: v22.8.0
 changes:
-  - version: REPLACEME
+  - version: v25.4.0
     pr-url: https://github.com/nodejs/node/pull/60971
     description: This feature is no longer experimental.
   - version:
@@ -575,7 +575,7 @@ added:
  - v23.0.0
  - v22.10.0
 changes:
-  - version: REPLACEME
+  - version: v25.4.0
     pr-url: https://github.com/nodejs/node/pull/60971
     description: This feature is no longer experimental.
 -->
@@ -591,7 +591,7 @@ interfere with the actual operation of the application.
 <!-- YAML
 added: v22.8.0
 changes:
-  - version: REPLACEME
+  - version: v25.4.0
     pr-url: https://github.com/nodejs/node/pull/60971
     description: This feature is no longer experimental.
 -->
@@ -607,7 +607,7 @@ changes:
 added: v8.8.0
 changes:
   - version:
-    - REPLACEME
+    - v25.4.0
     pr-url: https://github.com/nodejs/node/pull/60960
     description: Synchronous and in-thread hooks are now release candidate.
   - version:

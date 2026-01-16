@@ -528,7 +528,7 @@ added:
   - v14.6.0
   - v12.19.0
 changes:
-  - version: REPLACEME
+  - version: v25.4.0
     pr-url: https://github.com/nodejs/node/pull/60864
     description: Allow subpath imports that start with `#/`.
 -->
