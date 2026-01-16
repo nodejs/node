@@ -185,7 +185,7 @@ int process_wait(process_info_t *vec, int n, int timeout) {
   if (n == 0)
     return 0;
 
-  ASSERT(n <= MAXIMUM_WAIT_OBJECTS);
+  ASSERT_LE(n, MAXIMUM_WAIT_OBJECTS);
 
   for (i = 0; i < n; i++)
     handles[i] = vec[i].process;
@@ -219,6 +219,7 @@ long int process_output_size(process_info_t *p) {
 
 int process_copy_output(process_info_t* p, FILE* stream) {
   char buf[1024];
+  int partial;
   int fd, r;
 
   fd = _open_osfhandle((intptr_t)p->stdio_out, _O_RDONLY | _O_TEXT);
@@ -229,8 +230,9 @@ int process_copy_output(process_info_t* p, FILE* stream) {
   if (r < 0)
     return -1;
 
+  partial = 0;
   while ((r = _read(fd, buf, sizeof(buf))) != 0)
-    print_lines(buf, r, stream);
+    partial = print_lines(buf, r, stream, partial);
 
   _close(fd);
   return 0;
@@ -245,7 +247,7 @@ int process_read_last_line(process_info_t *p,
   DWORD start;
   OVERLAPPED overlapped;
 
-  ASSERT(buffer_len > 0);
+  ASSERT_GT(buffer_len, 0);
 
   size = GetFileSize(p->stdio_out, NULL);
   if (size == INVALID_FILE_SIZE)
@@ -310,7 +312,7 @@ static int clear_line(void) {
   COORD coord;
   DWORD written;
 
-  handle = (HANDLE)_get_osfhandle(fileno(stderr));
+  handle = (HANDLE)_get_osfhandle(_fileno(stderr));
   if (handle == INVALID_HANDLE_VALUE)
     return -1;
 

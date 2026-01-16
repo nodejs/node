@@ -50,11 +50,16 @@ static void sv_recv_cb(uv_udp_t* handle,
                        const uv_buf_t* rcvbuf,
                        const struct sockaddr* addr,
                        unsigned flags) {
-  if (++ recv_cnt < N) {
-    ASSERT_EQ(sizeof(send_data), nread);
-  } else {
-    ASSERT_EQ(0, nread);
-  }
+  /* |nread| can be zero when the kernel drops an incoming datagram after
+   * marking the file descriptor as readable but before libuv has a chance
+   * to receive it. Libuv still invokes the uv_udp_recv_cb callback to give
+   * back the memory from the uv_alloc_cb callback.
+   *
+   * See https://github.com/libuv/libuv/issues/4219.
+   */
+  recv_cnt++;
+  if (nread > 0)
+    ASSERT_EQ(nread, sizeof(send_data));
 }
 
 static void check_cb(uv_check_t* handle) {
@@ -63,13 +68,15 @@ static void check_cb(uv_check_t* handle) {
   /**
    * sv_recv_cb() is called with nread set to zero to indicate
    * there is no more udp packet in the kernel, so the actual
-   * recv_cnt is one larger than N.
+   * recv_cnt is up to one larger than N. UDP being what it is,
+   * packets can get dropped so don't assume an exact count.
    */
-  ASSERT_EQ(N+1, recv_cnt);
+  ASSERT_GE(recv_cnt, 1);
+  ASSERT_LE(recv_cnt, N+1);
   check_cb_called = 1;
 
   /* we are done */
-  ASSERT_EQ(0, uv_check_stop(handle));
+  ASSERT_OK(uv_check_stop(handle));
   uv_close((uv_handle_t*) &client, NULL);
   uv_close((uv_handle_t*) &check_handle, NULL);
   uv_close((uv_handle_t*) &server, NULL);
@@ -79,16 +86,16 @@ static void check_cb(uv_check_t* handle) {
 TEST_IMPL(udp_recv_in_a_row) {
   int i, r;
   
-  ASSERT_EQ(0, uv_check_init(uv_default_loop(), &check_handle));
-  ASSERT_EQ(0, uv_check_start(&check_handle, check_cb));
+  ASSERT_OK(uv_check_init(uv_default_loop(), &check_handle));
+  ASSERT_OK(uv_check_start(&check_handle, check_cb));
 
-  ASSERT_EQ(0, uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
+  ASSERT_OK(uv_ip4_addr("127.0.0.1", TEST_PORT, &addr));
 
-  ASSERT_EQ(0, uv_udp_init(uv_default_loop(), &server));
-  ASSERT_EQ(0, uv_udp_bind(&server, (const struct sockaddr*) &addr, 0));
-  ASSERT_EQ(0, uv_udp_recv_start(&server, alloc_cb, sv_recv_cb));
+  ASSERT_OK(uv_udp_init(uv_default_loop(), &server));
+  ASSERT_OK(uv_udp_bind(&server, (const struct sockaddr*) &addr, 0));
+  ASSERT_OK(uv_udp_recv_start(&server, alloc_cb, sv_recv_cb));
 
-  ASSERT_EQ(0, uv_udp_init(uv_default_loop(), &client));
+  ASSERT_OK(uv_udp_init(uv_default_loop(), &client));
 
   /* send N-1 udp packets */
   buf = uv_buf_init(send_data, sizeof(send_data));
@@ -106,13 +113,13 @@ TEST_IMPL(udp_recv_in_a_row) {
                       &buf,
                       1,
                       (const struct sockaddr*) &addr);
-  ASSERT_EQ(0, r);
+  ASSERT_OK(r);
 
   /* check_cb() asserts that the N packets can be received
    * before it gets called. 
    */
 
-  ASSERT_EQ(0, uv_run(uv_default_loop(), UV_RUN_DEFAULT));
+  ASSERT_OK(uv_run(uv_default_loop(), UV_RUN_DEFAULT));
 
   ASSERT(check_cb_called);
 

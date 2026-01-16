@@ -51,7 +51,7 @@ struct poll_ctx {
 static int statbuf_eq(const uv_stat_t* a, const uv_stat_t* b);
 static void poll_cb(uv_fs_t* req);
 static void timer_cb(uv_timer_t* timer);
-static void timer_close_cb(uv_handle_t* handle);
+static void timer_close_cb(uv_handle_t* timer);
 
 static uv_stat_t zero_statbuf;
 
@@ -138,6 +138,9 @@ int uv_fs_poll_stop(uv_fs_poll_t* handle) {
 int uv_fs_poll_getpath(uv_fs_poll_t* handle, char* buffer, size_t* size) {
   struct poll_ctx* ctx;
   size_t required_len;
+
+  if (buffer == NULL || size == NULL || *size == 0)
+    return UV_EINVAL;
 
   if (!uv_is_active((uv_handle_t*)handle)) {
     *size = 0;
