@@ -5,7 +5,7 @@ const assert = require('assert');
 const async_hooks = require('async_hooks');
 
 // The async_hook that we enable would register the process.emitWarning()
-// call from loading the N-API addon as asynchronous activity because
+// call from loading the Node-API addon as asynchronous activity because
 // it contains a process.nextTick() call. Monkey patch it to be a no-op
 // before we load the addon in order to avoid this.
 process.emitWarning = () => {};
