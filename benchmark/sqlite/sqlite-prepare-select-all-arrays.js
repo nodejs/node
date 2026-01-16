@@ -9,16 +9,24 @@ const bench = common.createBenchmark(main, {
   statement: [
     'SELECT 1',
     'SELECT * FROM foo LIMIT 1',
+    'SELECT * FROM foo LIMIT 100',
     'SELECT text_column FROM foo LIMIT 1',
+    'SELECT text_column FROM foo LIMIT 100',
     'SELECT text_column, integer_column FROM foo LIMIT 1',
+    'SELECT text_column, integer_column FROM foo LIMIT 100',
     'SELECT text_column, integer_column, real_column FROM foo LIMIT 1',
+    'SELECT text_column, integer_column, real_column FROM foo LIMIT 100',
     'SELECT text_column, integer_column, real_column, blob_column FROM foo LIMIT 1',
+    'SELECT text_column, integer_column, real_column, blob_column FROM foo LIMIT 100',
     'SELECT text_8kb_column FROM foo_large LIMIT 1',
+    'SELECT text_8kb_column FROM foo_large LIMIT 100',
   ],
 });
 
 function main(conf) {
-  const db = new sqlite.DatabaseSync(':memory:');
+  const db = new sqlite.DatabaseSync(':memory:', {
+    returnArrays: true,
+  });
 
   // Create only the necessary table for the benchmark type.
   // If the statement includes 'foo_large', create the foo_large table; otherwise, create the foo table.
@@ -55,7 +63,7 @@ function main(conf) {
   const stmt = db.prepare(conf.statement);
 
   bench.start();
-  for (i = 0; i < conf.n; i += 1) deadCodeElimination = stmt.get();
+  for (i = 0; i < conf.n; i += 1) deadCodeElimination = stmt.all();
   bench.end(conf.n);
 
   assert.ok(deadCodeElimination !== undefined);
