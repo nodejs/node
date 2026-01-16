@@ -26,7 +26,7 @@ const bench = common.createBenchmark(main, {
 function main(conf) {
   const db = new sqlite.DatabaseSync(':memory:', {
     returnArrays: true,
-    readBigInts: true
+    readBigInts: true,
   });
 
   // Create only the necessary table for the benchmark type.

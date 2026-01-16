@@ -17,7 +17,7 @@ const bench = common.createBenchmark(main, {
 
 function main(conf) {
   const db = new sqlite.DatabaseSync(':memory:', {
-    readBigInts: true
+    readBigInts: true,
   });
 
   db.exec('CREATE TABLE foo (integer_column INTEGER)');
