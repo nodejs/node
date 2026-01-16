@@ -2305,8 +2305,10 @@ static void WriteBuffer(const FunctionCallbackInfo<Value>& args) {
   const int argc = args.Length();
   CHECK_GE(argc, 4);
 
-  CHECK(args[0]->IsInt32());
-  const int fd = args[0].As<Int32>()->Value();
+  int fd;
+  if (!GetValidatedFd(env, args[0]).To(&fd)) {
+    return;
+  }
 
   CHECK(Buffer::HasInstance(args[1]));
   Local<Object> buffer_obj = args[1].As<Object>();
@@ -2372,8 +2374,10 @@ static void WriteBuffers(const FunctionCallbackInfo<Value>& args) {
   const int argc = args.Length();
   CHECK_GE(argc, 3);
 
-  CHECK(args[0]->IsInt32());
-  const int fd = args[0].As<Int32>()->Value();
+  int fd;
+  if (!GetValidatedFd(env, args[0]).To(&fd)) {
+    return;
+  }
 
   CHECK(args[1]->IsArray());
   Local<Array> chunks = args[1].As<Array>();
@@ -2432,8 +2436,10 @@ static void WriteString(const FunctionCallbackInfo<Value>& args) {
 
   const int argc = args.Length();
   CHECK_GE(argc, 4);
-  CHECK(args[0]->IsInt32());
-  const int fd = args[0].As<Int32>()->Value();
+  int fd;
+  if (!GetValidatedFd(env, args[0]).To(&fd)) {
+    return;
+  }
 
   const int64_t pos = GetOffset(args[2]);
 
@@ -2625,8 +2631,10 @@ static void Read(const FunctionCallbackInfo<Value>& args) {
   const int argc = args.Length();
   CHECK_GE(argc, 5);
 
-  CHECK(args[0]->IsInt32());
-  const int fd = args[0].As<Int32>()->Value();
+  int fd;
+  if (!GetValidatedFd(env, args[0]).To(&fd)) {
+    return;
+  }
 
   CHECK(Buffer::HasInstance(args[1]));
   Local<Object> buffer_obj = args[1].As<Object>();
@@ -2756,8 +2764,10 @@ static void ReadBuffers(const FunctionCallbackInfo<Value>& args) {
   const int argc = args.Length();
   CHECK_GE(argc, 3);
 
-  CHECK(args[0]->IsInt32());
-  const int fd = args[0].As<Int32>()->Value();
+  int fd;
+  if (!GetValidatedFd(env, args[0]).To(&fd)) {
+    return;
+  }
 
   CHECK(args[1]->IsArray());
   Local<Array> buffers = args[1].As<Array>();
