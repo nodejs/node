@@ -15,10 +15,16 @@ const bench = common.createBenchmark(main, {
     'SELECT text_column, integer_column, real_column, blob_column FROM foo LIMIT 1',
     'SELECT text_8kb_column FROM foo_large LIMIT 1',
   ],
+  options: ['none', 'readBigInts', 'returnArrays', 'readBigInts|returnArrays'],
 });
 
 function main(conf) {
-  const db = new sqlite.DatabaseSync(':memory:');
+  const optionsObj = conf.options === 'none' ? {} : conf.options.split('|').reduce((acc, key) => {
+    acc[key] = true;
+    return acc;
+  }, {});
+
+  const db = new sqlite.DatabaseSync(':memory:', optionsObj);
 
   // Create only the necessary table for the benchmark type.
   // If the statement includes 'foo_large', create the foo_large table; otherwise, create the foo table.
