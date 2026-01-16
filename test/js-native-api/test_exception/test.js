@@ -1,7 +1,9 @@
 'use strict';
 // Flags: --expose-gc
+// Addons: test_exception, test_exception_vtable
 
 const common = require('../../common');
+const { addonPath } = require('../../common/addon-test');
 const assert = require('assert');
 const theError = new Error('Some error');
 
@@ -13,7 +15,7 @@ const theError = new Error('Some error');
 const test_exception = (function() {
   let resultingException;
   try {
-    require(`./build/${common.buildType}/test_exception`);
+    require(addonPath);
   } catch (anException) {
     resultingException = anException;
   }

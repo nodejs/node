@@ -1,4 +1,6 @@
 'use strict';
+// Addons: test_pending_exception, test_pending_exception_vtable
+// Addons: test_cannot_run_js, test_cannot_run_js_vtable
 
 // Test that `napi_call_function()` returns `napi_cannot_run_js` in experimental
 // mode and `napi_pending_exception` otherwise. This test calls the add-on's
@@ -8,17 +10,8 @@
 // a property of the global object and will abort the process if the API doesn't
 // return the correct status.
 
-const { buildType, mustNotCall } = require('../../common');
-const addon_v8 = require(`./build/${buildType}/test_pending_exception`);
-const addon_new = require(`./build/${buildType}/test_cannot_run_js`);
+const { mustNotCall } = require('../../common');
+const { addonPath } = require('../../common/addon-test');
+const addon = require(addonPath);
 
-function runTests(addon, isVersion8) {
-  addon.createRef(mustNotCall());
-}
-
-function runAllTests() {
-  runTests(addon_v8, /* isVersion8 */ true);
-  runTests(addon_new, /* isVersion8 */ false);
-}
-
-runAllTests();
+addon.createRef(mustNotCall());

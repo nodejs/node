@@ -1,9 +1,11 @@
 'use strict';
-const common = require('../../common');
+// Addons: test_object, test_object_vtable
+
+const { addonPath } = require('../../common/addon-test');
 const assert = require('assert');
 
 // Testing api calls for objects
-const test_object = require(`./build/${common.buildType}/test_object`);
+const test_object = require(addonPath);
 
 const object = {
   hello: 'world',

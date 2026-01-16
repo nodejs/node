@@ -1,9 +1,10 @@
 'use strict';
 // Flags: --expose-gc
+// Addons: test_exception, test_exception_vtable
 
-const common = require('../../common');
 const assert = require('assert');
-const test_exception = require(`./build/${common.buildType}/test_exception`);
+const { addonPath } = require('../../common/addon-test');
+const test_exception = require(addonPath);
 
 // Make sure that exceptions that occur during finalization are propagated.
 function testFinalize(binding) {

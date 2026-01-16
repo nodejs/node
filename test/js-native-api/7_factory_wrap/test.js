@@ -1,9 +1,10 @@
 'use strict';
 // Flags: --expose-gc
+// Addons: 7_factory_wrap, 7_factory_wrap_vtable
 
-const common = require('../../common');
+const { addonPath } = require('../../common/addon-test');
 const assert = require('assert');
-const test = require(`./build/${common.buildType}/7_factory_wrap`);
+const test = require(addonPath);
 const { gcUntil } = require('../../common/gc');
 
 assert.strictEqual(test.finalizeCount, 0);

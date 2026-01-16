@@ -1,3 +1,6 @@
+'use strict';
+// Addons: test_general, test_general_vtable
+
 // This test is adopted from V8's test suite.
 // See deps/v8/test/mjsunit/instanceof.js in Node.js source repository.
 //
@@ -27,10 +30,9 @@
 // THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-'use strict';
 
-const common = require('../../common');
-const addon = require(`./build/${common.buildType}/test_general`);
+const { addonPath } = require('../../common/addon-test');
+const addon = require(addonPath);
 const assert = require('assert');
 
 assert.ok(addon.doInstanceOf({}, Object));

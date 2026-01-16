@@ -146,7 +146,12 @@ NAPI_MODULE_INIT() {
   finalizeCount = 0;
   NODE_API_CALL(env, InitRefArray(env));
 
+  napi_value isVersion8Value;
+  NODE_API_CALL(env,
+                napi_get_boolean(env, NAPI_VERSION <= 9, &isVersion8Value));
+
   napi_property_descriptor properties[] = {
+      DECLARE_NODE_API_PROPERTY_VALUE("isVersion8", isVersion8Value),
       DECLARE_NODE_API_PROPERTY("createExternal", CreateExternal),
       DECLARE_NODE_API_PROPERTY("createRef", CreateRef),
       DECLARE_NODE_API_PROPERTY("getRefValue", GetRefValue),

@@ -1,13 +1,15 @@
 'use strict';
+// Addons: test_instance_data, test_instance_data_vtable
+
 // Test API calls for instance data.
 
 const common = require('../../common');
+const { addonPath, isInvokedAsChild, spawnTestSync } = require('../../common/addon-test');
 const assert = require('assert');
 
-if (module !== require.main) {
+if (isInvokedAsChild) {
   // When required as a module, run the tests.
-  const test_instance_data =
-    require(`./build/${common.buildType}/test_instance_data`);
+  const test_instance_data = require(addonPath);
 
   // Print to stdout when the environment deletes the instance data. This output
   // is checked by the parent process.
@@ -22,8 +24,6 @@ if (module !== require.main) {
 } else {
   // When launched as a script, run tests in either a child process or in a
   // worker thread.
-  const requireAs = require('../../common/require-as');
-  const runOptions = { stdio: ['inherit', 'pipe', 'inherit'] };
 
   function checkOutput(child) {
     assert.strictEqual(child.status, 0);
@@ -33,8 +33,8 @@ if (module !== require.main) {
   }
 
   // Run tests in a child process.
-  checkOutput(requireAs(__filename, ['--expose-gc'], runOptions, 'child'));
+  checkOutput(spawnTestSync(['--expose-gc']));
 
   // Run tests in a worker thread in a child process.
-  checkOutput(requireAs(__filename, ['--expose-gc'], runOptions, 'worker'));
+  checkOutput(spawnTestSync(['--expose-gc'], { useWorkerThread: true }));
 }

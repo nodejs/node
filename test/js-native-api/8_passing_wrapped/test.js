@@ -1,9 +1,10 @@
 'use strict';
 // Flags: --expose-gc
+// Addons: 8_passing_wrapped, 8_passing_wrapped_vtable
 
-const common = require('../../common');
+const { addonPath } = require('../../common/addon-test');
 const assert = require('assert');
-const addon = require(`./build/${common.buildType}/8_passing_wrapped`);
+const addon = require(addonPath);
 const { gcUntil } = require('../../common/gc');
 
 async function runTest() {

@@ -1,9 +1,11 @@
 'use strict';
+// Addons: binding, binding_vtable
 
 const common = require('../../common');
+const { addonPath } = require('../../common/addon-test');
 const assert = require('assert');
 const vm = require('vm');
-const binding = require(`./build/${common.buildType}/binding`);
+const binding = require(addonPath);
 const makeCallback = binding.makeCallback;
 
 function myMultiArgFunc(arg1, arg2, arg3) {
@@ -61,19 +63,19 @@ assert.strictEqual(makeCallback(resource, this,
 
 // Check that the callback is made in the context of the receiver.
 const target = vm.runInNewContext(`
-    (function($Object) {
-      if (Object === $Object)
-        throw new Error('bad');
-      return Object;
-    })
+  (function($Object) {
+    if (Object === $Object)
+      throw new Error('bad');
+    return Object;
+  })
 `);
 assert.notStrictEqual(makeCallback(resource, process, target, Object), Object);
 
 // Runs in inner context.
 const forward = vm.runInNewContext(`
-    (function(forward) {
-      return forward(Object);
-    })
+  (function(forward) {
+    return forward(Object);
+  })
 `);
 
 // Runs in outer context.

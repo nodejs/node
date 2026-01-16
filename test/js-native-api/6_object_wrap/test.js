@@ -1,7 +1,9 @@
 'use strict';
-const common = require('../../common');
+// Addons: myobject, myobject_vtable
+
+const { addonPath } = require('../../common/addon-test');
 const assert = require('assert');
-const addon = require(`./build/${common.buildType}/myobject`);
+const addon = require(addonPath);
 
 const getterOnlyErrorRE =
   /^TypeError: Cannot set property .* of #<.*> which has only a getter$/;

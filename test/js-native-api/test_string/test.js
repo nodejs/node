@@ -1,9 +1,11 @@
 'use strict';
-const common = require('../../common');
+// Addons: test_string, test_string_vtable
+
+const { addonPath } = require('../../common/addon-test');
 const assert = require('assert');
 
 // Testing api calls for string
-const test_string = require(`./build/${common.buildType}/test_string`);
+const test_string = require(addonPath);
 // The insufficient buffer test case allocates a buffer of size 4, including
 // the null terminator.
 const kInsufficientIdx = 3;

@@ -1,8 +1,9 @@
-// Flags: --expose-gc
-
 'use strict';
-const common = require('../../common');
-const addon = require(`./build/${common.buildType}/myobject`);
+// Flags: --expose-gc
+// Addons: myobject, myobject_vtable
+
+const { addonPath } = require('../../common/addon-test');
+const addon = require(addonPath);
 const { gcUntil } = require('../../common/gc');
 
 (function scope() {

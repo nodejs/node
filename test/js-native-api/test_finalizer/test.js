@@ -1,10 +1,10 @@
 'use strict';
 // Flags: --expose-gc
+// Addons: test_finalizer, test_finalizer_vtable
 
-const common = require('../../common');
-const test_finalizer = require(`./build/${common.buildType}/test_finalizer`);
+const { addonPath } = require('../../common/addon-test');
+const test_finalizer = require(addonPath);
 const assert = require('assert');
-
 const { gcUntil } = require('../../common/gc');
 
 // The goal of this test is to show that we can run "pure" finalizers in the

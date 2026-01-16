@@ -1,8 +1,10 @@
 'use strict';
-const common = require('../../common');
+// Addons: test_general, test_general_vtable
+
+const { addonPath } = require('../../common/addon-test');
 const assert = require('assert');
 
-const test_globals = require(`./build/${common.buildType}/test_general`);
+const test_globals = require(addonPath);
 
 assert.strictEqual(test_globals.getUndefined(), undefined);
 assert.strictEqual(test_globals.getNull(), null);

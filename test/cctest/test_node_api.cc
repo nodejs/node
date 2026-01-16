@@ -37,6 +37,7 @@ TEST_F(NodeApiTest, CreateNodeApiEnv) {
   napi_module_register_by_symbol(
       exports_obj, module_obj, env->context(), init, NAPI_VERSION);
   ASSERT_NE(addon_env, nullptr);
-  node_napi_env internal_env = reinterpret_cast<node_napi_env>(addon_env);
+  v8impl::NodeApiEnv* internal_env =
+      static_cast<v8impl::NodeApiEnv*>(addon_env);
   EXPECT_EQ(internal_env->node_env(), env);
 }

@@ -1,7 +1,8 @@
 'use strict';
+// Addons: test_buffer, test_buffer_vtable
 
-const common = require('../../common');
-const binding = require(`./build/${common.buildType}/test_buffer`);
+const { addonPath } = require('../../common/addon-test');
+const binding = require(addonPath);
 const assert = require('assert');
 
 // Regression test for https://github.com/nodejs/node/issues/31134

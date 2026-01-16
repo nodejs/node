@@ -1,17 +1,19 @@
 'use strict';
 // Flags: --expose-gc
-//
+// Addons: test_reference_all_types, test_reference_all_types_vtable
+// Addons: test_reference_obj_only, test_reference_obj_only_vtable
+
 // Testing API calls for Node-API references.
 // We compare their behavior between Node-API version 8 and later.
 // In version 8 references can be created only for object, function,
 // and symbol types, while in newer versions they can be created for
 // any value type.
-//
-const { mustCall, buildType } = require('../../common');
+
+const { mustCall } = require('../../common');
+const { addonPath } = require('../../common/addon-test');
 const { gcUntil } = require('../../common/gc');
 const assert = require('assert');
-const addon_v8 = require(`./build/${buildType}/test_reference_obj_only`);
-const addon_new = require(`./build/${buildType}/test_reference_all_types`);
+const addon = require(addonPath);
 
 async function runTests(addon, isVersion8, isLocalSymbol) {
   let allEntries = [];
@@ -116,10 +118,8 @@ async function runTests(addon, isVersion8, isLocalSymbol) {
 }
 
 async function runAllTests() {
-  await runTests(addon_v8, /* isVersion8 */ true, /* isLocalSymbol */ true);
-  await runTests(addon_v8, /* isVersion8 */ true, /* isLocalSymbol */ false);
-  await runTests(addon_new, /* isVersion8 */ false, /* isLocalSymbol */ true);
-  await runTests(addon_new, /* isVersion8 */ false, /* isLocalSymbol */ false);
+  await runTests(addon, addon.isVersion8, /* isLocalSymbol */ true);
+  await runTests(addon, addon.isVersion8, /* isLocalSymbol */ false);
 }
 
 runAllTests().then(mustCall());
