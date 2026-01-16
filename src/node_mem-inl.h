@@ -8,6 +8,8 @@
 
 namespace node {
 namespace mem {
+static constexpr size_t kReserveSizeAndAlign =
+    std::max(sizeof(size_t), alignof(max_align_t));
 
 template <typename Class, typename AllocatorStruct>
 AllocatorStruct NgLibMemoryManager<Class, AllocatorStruct>::MakeAllocator() {
@@ -30,19 +32,18 @@ void* NgLibMemoryManager<Class, T>::ReallocImpl(void* ptr,
   char* original_ptr = nullptr;
 
   // We prepend each allocated buffer with a size_t containing the full
-  // size of the allocation.
-  if (size > 0) size += sizeof(size_t);
+  // size of the allocation, while keeping the returned pointer aligned.
+  if (size > 0) size += kReserveSizeAndAlign;
 
   if (ptr != nullptr) {
     // We are free()ing or re-allocating.
-    original_ptr = static_cast<char*>(ptr) - sizeof(size_t);
+    original_ptr = static_cast<char*>(ptr) - kReserveSizeAndAlign;
     previous_size = *reinterpret_cast<size_t*>(original_ptr);
     // This means we called StopTracking() on this pointer before.
     if (previous_size == 0) {
       // Fall back to the standard Realloc() function.
       char* ret = UncheckedRealloc(original_ptr, size);
-      if (ret != nullptr)
-        ret += sizeof(size_t);
+      if (ret != nullptr) ret += kReserveSizeAndAlign;
       return ret;
     }
   }
@@ -62,7 +63,7 @@ void* NgLibMemoryManager<Class, T>::ReallocImpl(void* ptr,
     manager->env()->isolate()->AdjustAmountOfExternalAllocatedMemory(
         new_size);
     *reinterpret_cast<size_t*>(mem) = size;
-    mem += sizeof(size_t);
+    mem += kReserveSizeAndAlign;
   } else if (size == 0) {
     manager->DecreaseAllocatedSize(previous_size);
     manager->env()->isolate()->AdjustAmountOfExternalAllocatedMemory(
@@ -95,8 +96,8 @@ void* NgLibMemoryManager<Class, T>::CallocImpl(size_t nmemb,
 
 template <typename Class, typename T>
 void NgLibMemoryManager<Class, T>::StopTrackingMemory(void* ptr) {
-  size_t* original_ptr = reinterpret_cast<size_t*>(
-      static_cast<char*>(ptr) - sizeof(size_t));
+  size_t* original_ptr =
+      reinterpret_cast<size_t*>(static_cast<char*>(ptr) - kReserveSizeAndAlign);
   Class* manager = static_cast<Class*>(this);
   manager->DecreaseAllocatedSize(*original_ptr);
   manager->env()->isolate()->AdjustAmountOfExternalAllocatedMemory(
