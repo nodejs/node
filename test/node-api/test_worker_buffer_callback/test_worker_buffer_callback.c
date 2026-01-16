@@ -25,9 +25,9 @@ NAPI_MODULE_INIT() {
   NODE_API_CALL(env, napi_define_properties(
       env, exports, sizeof(properties) / sizeof(*properties), properties));
 
-  // This is a slight variation on the non-N-API test: We create an ArrayBuffer
-  // rather than a Node.js Buffer, since testing the latter would only test
-  // the same code paths and not the ones specific to N-API.
+  // This is a slight variation on the non-Node-API test: We create an
+  // ArrayBuffer rather than a Node.js Buffer, since testing the latter would
+  // only test the same code paths and not the ones specific to Node-API.
   napi_value buffer;
 
   char* data = malloc(sizeof(char));
