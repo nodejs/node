@@ -3,7 +3,7 @@
 const common = require('../common');
 
 if (common.isWindows) {
-  common.skip('vcbuild.bat doesn\'t build the n-api benchmarks yet');
+  common.skip('vcbuild.bat doesn\'t build the Node-API benchmarks yet');
 }
 
 const { isMainThread } = require('worker_threads');

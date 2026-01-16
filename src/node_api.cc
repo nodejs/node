@@ -56,10 +56,10 @@ static void ThrowNodeApiVersionError(node::Environment* node_env,
   result = new node_napi_env__(context, module_filename, module_api_version);
   // TODO(addaleax): There was previously code that tried to delete the
   // napi_env when its v8::Context was garbage collected;
-  // However, as long as N-API addons using this napi_env are in place,
+  // However, as long as Node-API addons using this napi_env are in place,
   // the Context needs to be accessible and alive.
   // Ideally, we'd want an on-addon-unload hook that takes care of this
-  // once all N-API addons using this napi_env are unloaded.
+  // once all Node-API addons using this napi_env are unloaded.
   // For now, a per-Environment cleanup hook is the best we can do.
   result->node_env()->AddCleanupHook(
       [](void* arg) { static_cast<napi_env>(arg)->Unref(); },
@@ -150,7 +150,7 @@ void node_napi_env__::CallbackIntoModule(T&& call) {
         !enforceUncaughtExceptionPolicy) {
       ProcessEmitDeprecationWarning(
           node_env,
-          "Uncaught N-API callback exception detected, please run node "
+          "Uncaught Node-API callback exception detected, please run node "
           "with option --force-node-api-uncaught-exceptions-policy=true "
           "to handle those exceptions properly.",
           "DEP0168");
@@ -645,8 +645,8 @@ class AsyncContext {
 }  // end of namespace v8impl
 
 // Intercepts the Node-V8 module registration callback. Converts parameters
-// to NAPI equivalents and then calls the registration callback specified
-// by the NAPI module.
+// to Node-API equivalents and then calls the registration callback specified
+// by the Node-API module.
 static void napi_module_register_cb(v8::Local<v8::Object> exports,
                                     v8::Local<v8::Value> module,
                                     v8::Local<v8::Context> context,
@@ -766,7 +766,7 @@ node_module napi_module_to_node_module(const napi_module* mod) {
 }
 }  // namespace node
 
-// Registers a NAPI module.
+// Registers a Node-API module.
 void NAPI_CDECL napi_module_register(napi_module* mod) {
   node::node_module* nm =
       new node::node_module(node::napi_module_to_node_module(mod));
@@ -809,7 +809,7 @@ struct napi_async_cleanup_hook_handle__ {
     if (done_cb_ != nullptr) done_cb_(done_data_);
 
     // Release the `env` handle asynchronously since it would be surprising if
-    // a call to a N-API function would destroy `env` synchronously.
+    // a call to a Node-API function would destroy `env` synchronously.
     static_cast<node_napi_env>(env_)->node_env()->SetImmediate(
         [env = env_](node::Environment*) { env->Unref(); });
   }

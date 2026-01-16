@@ -7,19 +7,18 @@
 #ifdef NAPI_EXPERIMENTAL
 #define NAPI_VERSION NAPI_VERSION_EXPERIMENTAL
 #else
-// The baseline version for N-API.
-// The NAPI_VERSION controls which version will be used by default when
-// compilling a native addon. If the addon developer specifically wants to use
-// functions available in a new version of N-API that is not yet ported in all
-// LTS versions, they can set NAPI_VERSION knowing that they have specifically
-// depended on that version.
+// The baseline version for Node-API.
+// NAPI_VERSION controls which version is used by default when compiling
+// a native addon. If the addon developer wants to use functions from a
+// newer Node-API version not yet available in all LTS versions, they can
+// set NAPI_VERSION to explicitly depend on that version.
 #define NAPI_VERSION 8
 #endif
 #endif
 
 // This file needs to be compatible with C compilers.
 // This is a public include file, and these includes have essentially
-// became part of it's API.
+// become part of its API.
 #include <stddef.h>  // NOLINT(modernize-deprecated-headers)
 #include <stdint.h>  // NOLINT(modernize-deprecated-headers)
 

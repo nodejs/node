@@ -523,7 +523,7 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
       }
     }
 
-    // -1 is used for N-API modules
+    // -1 is used for Node-API modules
     if ((mp->nm_version != -1) && (mp->nm_version != NODE_MODULE_VERSION)) {
       // Even if the module did self-register, it may have done so with the
       // wrong version. We must only give up after having checked to see if it
