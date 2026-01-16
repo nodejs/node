@@ -446,30 +446,6 @@ describe('Loader hooks', { concurrency: !process.env.TEST_PARALLEL }, () => {
     });
   });
 
-  describe('globalPreload', () => {
-    it('should emit warning', async () => {
-      const { stderr } = await spawnPromisified(execPath, [
-        '--experimental-loader',
-        'data:text/javascript,export function globalPreload(){}',
-        '--experimental-loader',
-        'data:text/javascript,export function globalPreload(){return""}',
-        fixtures.path('empty.js'),
-      ]);
-
-      assert.strictEqual(stderr.match(/`globalPreload` has been removed; use `initialize` instead/g).length, 1);
-    });
-
-    it('should not emit warning when initialize is supplied', async () => {
-      const { stderr } = await spawnPromisified(execPath, [
-        '--experimental-loader',
-        'data:text/javascript,export function globalPreload(){}export function initialize(){}',
-        fixtures.path('empty.js'),
-      ]);
-
-      assert.doesNotMatch(stderr, /`globalPreload` has been removed; use `initialize` instead/);
-    });
-  });
-
   it('should be fine to call `process.removeAllListeners("beforeExit")` from the main thread', async () => {
     const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
       '--no-warnings',
