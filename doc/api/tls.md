@@ -978,6 +978,18 @@ The listener callback is passed a single argument when called:
 Typically, the `response` is a digitally signed object from the server's CA that
 contains information about server's certificate revocation status.
 
+### Event: `'secure'`
+
+<!-- YAML
+added: v0.11.4
+-->
+
+The `'secure'` event is emitted after the TLS handshake has successfully
+completed and a secure connection has been established.
+
+This event is emitted on both client and server {tls.TLSSocket} instances,
+including sockets created using the `new tls.TLSSocket()` constructor.
+
 ### Event: `'secureConnect'`
 
 <!-- YAML
@@ -1556,7 +1568,7 @@ changes:
   * `requestCert`
 
 * `callback` {Function} If `renegotiate()` returned `true`, callback is
-  attached once to the `'secure'` event. If `renegotiate()` returned `false`,
+  attached once to the [`'secure'`][] event. If `renegotiate()` returned `false`,
   `callback` will be called in the next tick with an error, unless the
   `tlsSocket` has been destroyed, in which case `callback` will not be called
   at all.
@@ -2538,6 +2550,7 @@ added: v0.11.3
 [TLS recommendations]: https://wiki.mozilla.org/Security/Server_Side_TLS
 [`'newSession'`]: #event-newsession
 [`'resumeSession'`]: #event-resumesession
+[`'secure'`]: #event-secure
 [`'secureConnect'`]: #event-secureconnect
 [`'secureConnection'`]: #event-secureconnection
 [`'session'`]: #event-session
