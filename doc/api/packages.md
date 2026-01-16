@@ -617,7 +617,7 @@ import featureY from 'es-module-package/features/y/y.js';
 // Loads ./node_modules/es-module-package/src/features/y/y.js
 
 import internalZ from '#internal/z.js';
-// Loads ./node_modules/es-module-package/src/internal/z.js
+// Loads ./src/internal/z.js
 ```
 
 This is a direct static matching and replacement without any special handling
