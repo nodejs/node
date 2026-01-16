@@ -17,6 +17,7 @@ import { OSBinding } from './internalBinding/os';
 import { ProcessBinding } from './internalBinding/process';
 import { SeaBinding } from './internalBinding/sea';
 import { SerdesBinding } from './internalBinding/serdes';
+import { StringDecoderBinding } from './internalBinding/string_decoder';
 import { SymbolsBinding } from './internalBinding/symbols';
 import { TimersBinding } from './internalBinding/timers';
 import { TypesBinding } from './internalBinding/types';
@@ -49,6 +50,7 @@ interface InternalBindingMap {
   process: ProcessBinding;
   sea: SeaBinding;
   serdes: SerdesBinding;
+  string_decoder: StringDecoderBinding;
   symbols: SymbolsBinding;
   timers: TimersBinding;
   types: TypesBinding;
