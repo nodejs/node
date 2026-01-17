@@ -2,7 +2,7 @@ import * as common from '../common/index.mjs';
 import tmpdir from '../common/tmpdir.js';
 import { resolve, dirname, sep, relative, join, isAbsolute } from 'node:path';
 import { mkdir, writeFile, symlink, glob as asyncGlob } from 'node:fs/promises';
-import { glob, globSync, Dirent, chmodSync } from 'node:fs';
+import { glob, globSync, Dirent, chmodSync, writeFileSync, rmSync } from 'node:fs';
 import { test, describe } from 'node:test';
 import { pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
@@ -538,6 +538,24 @@ describe('glob - with restricted directory', function() {
     } finally {
       try {
         chmodSync(restrictedDir, 0o755);
+      } catch {
+        // ignore
+      }
+    }
+  });
+});
+
+describe('globSync - ENOTDIR', function() {
+  test('should return empty array when a file is treated as a directory', () => {
+    const file = tmpdir.resolve('foo');
+    writeFileSync(file, '');
+    try {
+      const pattern = 'foo{,/bar}';
+      const actual = globSync(pattern, { cwd: tmpdir.path }).sort();
+      assert.deepStrictEqual(actual, ['foo']);
+    } finally {
+      try {
+        rmSync(file);
       } catch {
         // ignore
       }
