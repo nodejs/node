@@ -4536,6 +4536,7 @@ cases:
 [Duplex]: stream.md#duplex-and-transform-streams
 [Event Loop]: https://nodejs.org/en/learn/asynchronous-work/event-loop-timers-and-nexttick#understanding-processnexttick
 [LTS]: https://github.com/nodejs/Release
+[program entry point]: https://nodejs.org/api/cli.html#program-entry-point
 [Permission Model]: permissions.md#permission-model
 [Readable]: stream.md#readable-streams
 [Signal Events]: #signal-events
@@ -4577,7 +4578,6 @@ cases:
 [`process.hrtime.bigint()`]: #processhrtimebigint
 [`process.kill()`]: #processkillpid-signal
 [`process.setUncaughtExceptionCaptureCallback()`]: #processsetuncaughtexceptioncapturecallbackfn
-[program entry point]: https://nodejs.org/api/cli.html#program-entry-point
 [`promise.catch()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/catch
 [`queueMicrotask()`]: globals.md#queuemicrotaskcallback
 [`readable.read()`]: stream.md#readablereadsize
