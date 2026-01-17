@@ -103,7 +103,7 @@ function runWithOrphanListeners(limit, done) {
 const limit = 10_000;
 
 describe('when there is a long-lived signal', () => {
-  it('drops settled dependant signals', (t, done) => {
+  it('drops settled dependent signals', (t, done) => {
     makeSubsequentCalls(limit, (signal, dependantSignalsKey) => {
       setImmediate(() => {
         t.assert.strictEqual(signal[dependantSignalsKey].size, 0);
@@ -112,7 +112,7 @@ describe('when there is a long-lived signal', () => {
     });
   });
 
-  it('keeps all active dependant signals', (t, done) => {
+  it('keeps all active dependent signals', (t, done) => {
     makeSubsequentCalls(limit, (signal, dependantSignalsKey) => {
       t.assert.strictEqual(signal[dependantSignalsKey].size, limit);
 
@@ -132,7 +132,7 @@ it('does not prevent source signal from being GCed if it is short-lived', (t, do
   });
 });
 
-it('drops settled dependant signals when signal is composite', (t, done) => {
+it('drops settled dependent signals when signal is composite', (t, done) => {
   const controllers = Array.from({ length: 2 }, () => new AbortController());
 
   // Using WeakRefs to avoid this test to retain information that will make the test fail
