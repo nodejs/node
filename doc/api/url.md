@@ -1828,6 +1828,15 @@ npx codemod@latest @nodejs/node-url-to-whatwg-url
 added: v0.1.25
 changes:
   - version:
+      - v24.0.0
+    pr-url: https://github.com/nodejs/node/pull/55017
+    description: Application deprecation.
+  - version:
+      - v19.9.0
+      - v18.17.0
+    pr-url: https://github.com/nodejs/node/pull/47203
+    description: Added support for `--pending-deprecation`.
+  - version:
       - v19.0.0
       - v18.13.0
     pr-url: https://github.com/nodejs/node/pull/44919
