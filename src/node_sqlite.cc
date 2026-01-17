@@ -1149,7 +1149,7 @@ void DatabaseSync::Prepare(const FunctionCallbackInfo<Value>& args) {
 
   Utf8Value sql(env->isolate(), args[0].As<String>());
   sqlite3_stmt* s = nullptr;
-  int r = sqlite3_prepare_v2(db->connection_, *sql, -1, &s, 0);
+  int r = sqlite3_prepare_v2(db->connection_, *sql, -1, &s, nullptr);
 
   CHECK_ERROR_OR_THROW(env->isolate(), db, r, SQLITE_OK, void());
   BaseObjectPtr<StatementSync> stmt =
@@ -2943,7 +2943,7 @@ BaseObjectPtr<StatementSync> SQLTagStore::PrepareStatement(
   if (stmt == nullptr) {
     sqlite3_stmt* s = nullptr;
     int r = sqlite3_prepare_v2(
-        session->database_->connection_, sql.data(), sql.size(), &s, 0);
+        session->database_->connection_, sql.data(), sql.size(), &s, nullptr);
 
     if (r != SQLITE_OK) {
       THROW_ERR_SQLITE_ERROR(isolate, session->database_.get());
