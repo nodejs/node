@@ -153,7 +153,7 @@ jobs:
       - name: Lint Nix files
         run: |
           nix-shell -I nixpkgs=./tools/nix/pkgs.nix -p 'nixfmt-tree' --run '
-            treefmt --ci
+            treefmt --quiet --ci
           ' || git --no-pager diff --exit-code
 
   lint-py:
