@@ -1,4 +1,4 @@
-import * as common from  '../common/index.mjs';
+import * as common from '../common/index.mjs';
 
 import assert from 'node:assert';
 import { existsSync } from 'node:fs';
