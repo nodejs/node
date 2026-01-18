@@ -736,7 +736,7 @@ Refs:
 ##### Option 1: Manual install
 
 * The current [version of Python][Python downloads] by following the instructions in
-  [Using Python on Windows][Using Python on Windows]
+  [Using Python on Windows][].
 * The "Desktop development with C++" workload from
   [Visual Studio 2022 (17.13 or newer)](https://visualstudio.microsoft.com/downloads/)
   or the "C++ build tools" workload from the
