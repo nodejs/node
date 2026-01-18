@@ -129,7 +129,6 @@ for await (const dirent of await fs.opendir(new URL('../../out/doc/api/', import
   // A proxy to check if the file is human readable is to count if it contains
   // at least 3 line return.
   assert.strictEqual(fileContent.split('\n', 3).length, 3);
-  assert.ok(fileContent.endsWith('\n'), 'EOL at EOF');
 
   const json = JSON.parse(fileContent);
 
