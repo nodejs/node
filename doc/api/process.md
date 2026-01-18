@@ -4536,8 +4536,8 @@ cases:
 [Duplex]: stream.md#duplex-and-transform-streams
 [Event Loop]: https://nodejs.org/en/learn/asynchronous-work/event-loop-timers-and-nexttick#understanding-processnexttick
 [LTS]: https://github.com/nodejs/Release
-[program entry point]: https://nodejs.org/api/cli.html#program-entry-point
 [Permission Model]: permissions.md#permission-model
+[program entry point]: https://nodejs.org/api/cli.html#program-entry-point
 [Readable]: stream.md#readable-streams
 [Signal Events]: #signal-events
 [Source Map]: https://tc39.es/ecma426/
