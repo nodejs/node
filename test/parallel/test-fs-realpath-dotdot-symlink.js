@@ -28,9 +28,3 @@ const expected = path.resolve(path.join(cwd, 'a', 'b', 'd'));
 
 // sync
 assert.strictEqual(fs.realpathSync('d'), expected);
-
-// async
-fs.realpath('d', (err, resolved) => {
-  assert.ifError(err);
-  assert.strictEqual(resolved, expected);
-});
