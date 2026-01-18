@@ -8,15 +8,15 @@ namespace inspector {
 NotificationEmitter::NotificationEmitter() {}
 
 void NotificationEmitter::emitNotification(v8::Local<v8::Context> context,
-                                           const std::string& event,
+                                           const EventKey& event,
                                            v8::Local<v8::Object> params) {
   auto it = event_notifier_map_.find(event);
-  if (it != event_notifier_map_.end()) {
-    (this->*(it->second))(context, params);
+  if (it != event_notifier_map_.end() && it->second) {
+    it->second(context, params);
   }
 }
 
-void NotificationEmitter::addEventNotifier(const protocol::String& event,
+void NotificationEmitter::addEventNotifier(const EventKey& event,
                                            EventNotifier notifier) {
   event_notifier_map_[event] = notifier;
 }

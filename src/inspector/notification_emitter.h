@@ -3,7 +3,6 @@
 
 #include <string>
 #include <unordered_map>
-#include "node/inspector/protocol/Protocol.h"
 #include "v8.h"
 
 namespace node {
@@ -11,13 +10,15 @@ namespace inspector {
 
 class NotificationEmitter {
  public:
-  using EventNotifier = void (NotificationEmitter::*)(
-      v8::Local<v8::Context> context, v8::Local<v8::Object>);
+  using EventKey = std::string;
+  using EventNotifier =
+      std::function<void(v8::Local<v8::Context>, v8::Local<v8::Object>)>;
+
   NotificationEmitter();
   virtual ~NotificationEmitter() = default;
 
   void emitNotification(v8::Local<v8::Context> context,
-                        const protocol::String& event,
+                        const EventKey& event,
                         v8::Local<v8::Object> params);
   virtual bool canEmit(const std::string& domain) = 0;
 
@@ -25,10 +26,10 @@ class NotificationEmitter {
   NotificationEmitter& operator=(const NotificationEmitter&) = delete;
 
  protected:
-  void addEventNotifier(const protocol::String& event, EventNotifier notifier);
+  void addEventNotifier(const EventKey& event, EventNotifier notifier);
 
  private:
-  std::unordered_map<protocol::String, EventNotifier> event_notifier_map_;
+  std::unordered_map<EventKey, EventNotifier> event_notifier_map_ = {};
 };
 
 }  // namespace inspector

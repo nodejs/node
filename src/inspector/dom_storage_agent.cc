@@ -45,15 +45,25 @@ void DOMStorageAgent::Wire(protocol::UberDispatcher* dispatcher) {
       std::make_unique<protocol::DOMStorage::Frontend>(dispatcher->channel());
   protocol::DOMStorage::Dispatcher::wire(dispatcher, this);
   addEventNotifier("domStorageItemAdded",
-                   (EventNotifier)(&DOMStorageAgent::domStorageItemAdded));
+                   [this](v8::Local<v8::Context> ctx, v8::Local<v8::Object> p) {
+                     this->domStorageItemAdded(ctx, p);
+                   });
   addEventNotifier("domStorageItemRemoved",
-                   (EventNotifier)(&DOMStorageAgent::domStorageItemRemoved));
+                   [this](v8::Local<v8::Context> ctx, v8::Local<v8::Object> p) {
+                     this->domStorageItemRemoved(ctx, p);
+                   });
   addEventNotifier("domStorageItemUpdated",
-                   (EventNotifier)(&DOMStorageAgent::domStorageItemUpdated));
+                   [this](v8::Local<v8::Context> ctx, v8::Local<v8::Object> p) {
+                     this->domStorageItemUpdated(ctx, p);
+                   });
   addEventNotifier("domStorageItemsCleared",
-                   (EventNotifier)(&DOMStorageAgent::domStorageItemsCleared));
+                   [this](v8::Local<v8::Context> ctx, v8::Local<v8::Object> p) {
+                     this->domStorageItemsCleared(ctx, p);
+                   });
   addEventNotifier("registerStorage",
-                   (EventNotifier)(&DOMStorageAgent::registerStorage));
+                   [this](v8::Local<v8::Context> ctx, v8::Local<v8::Object> p) {
+                     this->registerStorage(ctx, p);
+                   });
 }
 
 protocol::DispatchResponse DOMStorageAgent::enable() {
