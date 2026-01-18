@@ -1,4 +1,4 @@
-import '../common/index.mjs';
+import * as common from  '../common/index.mjs';
 
 import assert from 'node:assert';
 import { existsSync } from 'node:fs';
@@ -7,6 +7,10 @@ import path from 'node:path';
 
 // This tests that `make doc` generates the JSON documentation properly.
 // Note that for this test to pass, `make doc` must be run first.
+
+if (common.isWindows) {
+  common.skip('`make doc` does not run on Windows');
+}
 
 function validateModule(module) {
   assert.strictEqual(typeof module, 'object');
@@ -120,7 +124,14 @@ for await (const dirent of await fs.opendir(new URL('../../out/doc/api/', import
   }
 
   console.log('testing', jsonPath, 'based on', expectedSource);
-  const json = JSON.parse(await fs.readFile(jsonPath, 'utf8'));
+
+  const fileContent = await fs.readFile(jsonPath, 'utf8');
+  // A proxy to check if the file is human readable is to count if it contains
+  // at least 3 line return.
+  assert.strictEqual(fileContent.split('\n', 3).length, 3);
+  assert.ok(fileContent.endsWith('\n'), 'EOL at EOF');
+
+  const json = JSON.parse(fileContent);
 
   assert.strictEqual(json.type, 'module');
   assert.strictEqual(json.source, expectedSource);
