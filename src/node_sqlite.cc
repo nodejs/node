@@ -2305,7 +2305,7 @@ MaybeLocal<Object> StatementExecutionHelper::Run(Environment* env,
   sqlite3_step(stmt);
   int r = sqlite3_reset(stmt);
   CHECK_ERROR_OR_THROW(isolate, db, r, SQLITE_OK, MaybeLocal<Object>());
-  Local<Object> result = Object::New(isolate);
+
   sqlite3_int64 last_insert_rowid = sqlite3_last_insert_rowid(db->Connection());
   sqlite3_int64 changes = sqlite3_changes64(db->Connection());
   Local<Value> last_insert_rowid_val;
@@ -2319,13 +2319,18 @@ MaybeLocal<Object> StatementExecutionHelper::Run(Environment* env,
     changes_val = Number::New(isolate, changes);
   }
 
-  if (result
-          ->Set(env->context(),
-                env->last_insert_rowid_string(),
-                last_insert_rowid_val)
-          .IsNothing() ||
-      result->Set(env->context(), env->changes_string(), changes_val)
-          .IsNothing()) {
+  auto run_result_template = env->sqlite_run_result_template();
+  if (run_result_template.IsEmpty()) {
+    static constexpr std::string_view run_result_keys[] = {"changes",
+                                                           "lastInsertRowid"};
+    run_result_template = DictionaryTemplate::New(isolate, run_result_keys);
+    env->set_sqlite_run_result_template(run_result_template);
+  }
+
+  MaybeLocal<Value> values[] = {changes_val, last_insert_rowid_val};
+  Local<Object> result;
+  if (!NewDictionaryInstance(env->context(), run_result_template, values)
+           .ToLocal(&result)) {
     return MaybeLocal<Object>();
   }
 
