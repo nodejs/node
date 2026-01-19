@@ -72,6 +72,7 @@ jobs:
             . \
             ':(exclude)CHANGELOG.md' \
             ':(exclude)src/node_version.h' \
+            ':(exclude)test/parallel/test-process-release.js' \
             ':(exclude)doc/api/' \
             ":(exclude)doc/changelogs/CHANGELOG_V$MAJOR.md") ]
       - name: Validate CHANGELOG
