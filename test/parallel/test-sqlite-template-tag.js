@@ -15,6 +15,17 @@ beforeEach(() => {
   sql.clear();
 });
 
+test('throws error if database is not open', () => {
+  const db = new DatabaseSync(':memory:', { open: false });
+
+  assert.throws(() => {
+    db.createTagStore(10);
+  }, {
+    code: 'ERR_INVALID_STATE',
+    message: 'database is not open'
+  });
+});
+
 test('sql.run inserts data', () => {
   assert.strictEqual(sql.run`INSERT INTO foo (text) VALUES (${'bob'})`.changes, 1);
   assert.strictEqual(sql.run`INSERT INTO foo (text) VALUES (${'mac'})`.changes, 1);
