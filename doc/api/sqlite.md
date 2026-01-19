@@ -451,13 +451,23 @@ Opens the database specified in the `path` argument of the `DatabaseSync`
 constructor. This method should only be used when the database is not opened via
 the constructor. An exception is thrown if the database is already open.
 
-### `database.prepare(sql)`
+### `database.prepare(sql[, options])`
 
 <!-- YAML
 added: v22.5.0
 -->
 
 * `sql` {string} A SQL string to compile to a prepared statement.
+* `options` {Object} Optional configuration for the prepared statement.
+  * `readBigInts` {boolean} If `true`, integer fields are read as `BigInt`s.
+    **Default:** inherited from database options or `false`.
+  * `returnArrays` {boolean} If `true`, results are returned as arrays.
+    **Default:** inherited from database options or `false`.
+  * `allowBareNamedParameters` {boolean} If `true`, allows binding named
+    parameters without the prefix character. **Default:** inherited from
+    database options or `true`.
+  * `allowUnknownNamedParameters` {boolean} If `true`, unknown named parameters
+    are ignored. **Default:** inherited from database options or `false`.
 * Returns: {StatementSync} The prepared statement.
 
 Compiles a SQL statement into a [prepared statement][]. This method is a wrapper
