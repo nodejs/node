@@ -34,7 +34,7 @@ tmpdir.refresh();
 
   let seenFile = false;
   let seenIgnored = false;
-  let watcherClosed = false;
+  let interval;
 
   watcher.on('change', common.mustCallAtLeast((event, filename) => {
     // On recursive watch, filename includes relative path from watched dir
@@ -45,18 +45,22 @@ tmpdir.refresh();
       seenIgnored = true;
     }
     if (seenFile) {
+      clearInterval(interval);
+      interval = null;
       watcher.close();
-      watcherClosed = true;
     }
   }, 1));
 
-  setTimeout(() => {
-    fs.writeFileSync(ignoredFile, 'ignored');
-    fs.writeFileSync(testFile, 'content');
-  }, common.platformTimeout(200));
+  // Use setInterval to handle potential event delays on macOS FSEvents
+  process.nextTick(common.mustCall(() => {
+    interval = setInterval(() => {
+      fs.writeFileSync(ignoredFile, 'ignored');
+      fs.writeFileSync(testFile, 'content-' + Date.now());
+    }, 100);
+  }));
 
   process.on('exit', () => {
-    assert.strictEqual(watcherClosed, true);
+    assert.strictEqual(interval, null);
     assert.strictEqual(seenFile, true);
     assert.strictEqual(seenIgnored, false);
   });
@@ -80,7 +84,7 @@ tmpdir.refresh();
 
   let seenFile = false;
   let seenIgnored = false;
-  let watcherClosed = false;
+  let interval;
 
   watcher.on('change', common.mustCallAtLeast((event, filename) => {
     if (filename && filename.endsWith('keep.txt')) {
@@ -90,18 +94,22 @@ tmpdir.refresh();
       seenIgnored = true;
     }
     if (seenFile) {
+      clearInterval(interval);
+      interval = null;
       watcher.close();
-      watcherClosed = true;
     }
   }, 1));
 
-  setTimeout(() => {
-    fs.writeFileSync(ignoredFile, 'ignored');
-    fs.writeFileSync(testFile, 'content');
-  }, common.platformTimeout(200));
+  // Use setInterval to handle potential event delays on macOS FSEvents
+  process.nextTick(common.mustCall(() => {
+    interval = setInterval(() => {
+      fs.writeFileSync(ignoredFile, 'ignored');
+      fs.writeFileSync(testFile, 'content-' + Date.now());
+    }, 100);
+  }));
 
   process.on('exit', () => {
-    assert.strictEqual(watcherClosed, true);
+    assert.strictEqual(interval, null);
     assert.strictEqual(seenFile, true);
     assert.strictEqual(seenIgnored, false);
   });
@@ -127,7 +135,7 @@ tmpdir.refresh();
 
   let seenFile = false;
   let seenIgnored = false;
-  let watcherClosed = false;
+  let interval;
 
   watcher.on('change', common.mustCallAtLeast((event, filename) => {
     if (filename && filename.endsWith('app.js')) {
@@ -137,18 +145,22 @@ tmpdir.refresh();
       seenIgnored = true;
     }
     if (seenFile) {
+      clearInterval(interval);
+      interval = null;
       watcher.close();
-      watcherClosed = true;
     }
   }, 1));
 
-  setTimeout(() => {
-    fs.writeFileSync(ignoredFile, '{}');
-    fs.writeFileSync(testFile, 'console.log("hello")');
-  }, common.platformTimeout(200));
+  // Use setInterval to handle potential event delays on macOS FSEvents
+  process.nextTick(common.mustCall(() => {
+    interval = setInterval(() => {
+      fs.writeFileSync(ignoredFile, '{}');
+      fs.writeFileSync(testFile, 'console.log("hello-' + Date.now() + '")');
+    }, 100);
+  }));
 
   process.on('exit', () => {
-    assert.strictEqual(watcherClosed, true);
+    assert.strictEqual(interval, null);
     assert.strictEqual(seenFile, true);
     assert.strictEqual(seenIgnored, false);
   });
@@ -180,7 +192,7 @@ tmpdir.refresh();
   let seenLog = false;
   let seenTmp = false;
   let seenHidden = false;
-  let watcherClosed = false;
+  let interval;
 
   watcher.on('change', common.mustCallAtLeast((event, filename) => {
     if (filename && filename.endsWith('visible.txt')) {
@@ -191,20 +203,24 @@ tmpdir.refresh();
     if (filename && filename.endsWith('.gitignore')) seenHidden = true;
 
     if (seenFile) {
+      clearInterval(interval);
+      interval = null;
       watcher.close();
-      watcherClosed = true;
     }
   }, 1));
 
-  setTimeout(() => {
-    fs.writeFileSync(ignoredLog, 'ignored');
-    fs.writeFileSync(ignoredTmp, 'ignored');
-    fs.writeFileSync(ignoredHidden, 'ignored');
-    fs.writeFileSync(testFile, 'content');
-  }, common.platformTimeout(200));
+  // Use setInterval to handle potential event delays on macOS FSEvents
+  process.nextTick(common.mustCall(() => {
+    interval = setInterval(() => {
+      fs.writeFileSync(ignoredLog, 'ignored');
+      fs.writeFileSync(ignoredTmp, 'ignored');
+      fs.writeFileSync(ignoredHidden, 'ignored');
+      fs.writeFileSync(testFile, 'content-' + Date.now());
+    }, 100);
+  }));
 
   process.on('exit', () => {
-    assert.strictEqual(watcherClosed, true);
+    assert.strictEqual(interval, null);
     assert.strictEqual(seenFile, true);
     assert.strictEqual(seenLog, false);
     assert.strictEqual(seenTmp, false);
