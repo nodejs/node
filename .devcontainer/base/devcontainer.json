@@ -7,5 +7,6 @@
   "mounts": [
     "source=node-devcontainer-cache,target=/home/developer/nodejs/node/out,type=volume"
   ],
-  "postCreateCommand": "git restore-mtime"
+  "postCreateCommand": "git restore-mtime",
+  "postStartCommand": "cp /home/developer/envrc/static-libs.envrc /home/developer/nodejs/node/.envrc && direnv allow /home/developer/nodejs/node"
 }
