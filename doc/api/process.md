@@ -4543,7 +4543,6 @@ cases:
 [Stream compatibility]: stream.md#compatibility-with-older-nodejs-versions
 [TTY]: tty.md#tty
 [Writable]: stream.md#writable-streams
-[program entry point]: https://nodejs.org/api/cli.html#program-entry-point
 [`'exit'`]: #event-exit
 [`'message'`]: child_process.md#event-message
 [`'uncaughtException'`]: #event-uncaughtexception
@@ -4595,6 +4594,7 @@ cases:
 [process.cpuUsage]: #processcpuusagepreviousvalue
 [process_emit_warning]: #processemitwarningwarning-type-code-ctor
 [process_warning]: #event-warning
+[program entry point]: https://nodejs.org/api/cli.html#program-entry-point
 [report documentation]: report.md
 [terminal raw mode]: tty.md#readstreamsetrawmodemode
 [uv_get_available_memory]: https://docs.libuv.org/en/v1.x/misc.html#c.uv_get_available_memory
