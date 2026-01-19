@@ -1886,11 +1886,6 @@ def configure_library(lib, output, pkgname=None):
       output['libraries'] += pkg_libs.split()
 
 
-def configure_rust(o, configs):
-  set_configuration_variable(configs, 'cargo_build_mode', release='release', debug='debug')
-  set_configuration_variable(configs, 'cargo_build_flags', release=['--release'], debug=[])
-
-
 def configure_v8(o, configs):
   set_configuration_variable(configs, 'v8_enable_v8_checks', release=1, debug=0)
 
@@ -2491,7 +2486,6 @@ configure_intl(output)
 configure_static(output)
 configure_inspector(output)
 configure_section_file(output)
-configure_rust(output, configurations)
 
 # remove builtins that have been disabled
 if options.without_amaro:
