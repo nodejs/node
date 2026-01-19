@@ -1,0 +1,15 @@
+Checks that restarting the top frame hits a debugger statement twice
+Paused at (after evaluation):
+  const x = 1;
+  #debugger;
+  const y = 2;
+
+Pause stack:
+  foo:3 (canBeRestarted = true)
+
+Restarting function "foo" ...
+Paused at (after restart):
+function foo() {
+  const x = #1;
+  debugger;
+

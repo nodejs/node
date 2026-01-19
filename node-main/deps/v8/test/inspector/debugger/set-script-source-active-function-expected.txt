@@ -1,0 +1,16 @@
+Checks that setScriptSource fails for editing functions that are below the top-most frame on the stack
+Paused at (before live edit):
+function foo(b) {
+  #debugger;
+  return b + 25;
+
+Debugger.setScriptSource result:
+{
+    status : BlockedByActiveFunction
+}
+Evaluation result:
+{
+    description : 33
+    type : number
+    value : 33
+}

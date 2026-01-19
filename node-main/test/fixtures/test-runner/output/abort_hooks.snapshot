@@ -1,0 +1,206 @@
+before
+2.1
+2.2
+after
+beforeEach
+4.1
+afterEach
+4.2
+TAP version 13
+# Subtest: 1 before describe
+    # Subtest: test 1
+    not ok 1 - test 1
+      ---
+      duration_ms: *
+      type: 'test'
+      location: '/test/fixtures/test-runner/output/abort_hooks.js:(LINE):3'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    # Subtest: test 2
+    not ok 2 - test 2
+      ---
+      duration_ms: *
+      type: 'test'
+      location: '/test/fixtures/test-runner/output/abort_hooks.js:(LINE):3'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    1..2
+not ok 1 - 1 before describe
+  ---
+  duration_ms: *
+  type: 'suite'
+  location: '/test/fixtures/test-runner/output/abort_hooks.js:(LINE):1'
+  failureType: 'hookFailed'
+  error: 'This operation was aborted'
+  code: 20
+  name: 'AbortError'
+  stack: |-
+    *
+    *
+    *
+    *
+    *
+    *
+    *
+    *
+    *
+    *
+  ...
+# Subtest: 2 after describe
+    # Subtest: test 1
+    ok 1 - test 1
+      ---
+      duration_ms: *
+      type: 'test'
+      ...
+    # Subtest: test 2
+    ok 2 - test 2
+      ---
+      duration_ms: *
+      type: 'test'
+      ...
+    1..2
+not ok 2 - 2 after describe
+  ---
+  duration_ms: *
+  type: 'suite'
+  location: '/test/fixtures/test-runner/output/abort_hooks.js:(LINE):1'
+  failureType: 'hookFailed'
+  error: 'This operation was aborted'
+  code: 20
+  name: 'AbortError'
+  stack: |-
+    *
+    *
+    *
+    *
+    *
+    *
+    *
+    *
+    *
+    *
+  ...
+# Subtest: 3 beforeEach describe
+    # Subtest: test 1
+    not ok 1 - test 1
+      ---
+      duration_ms: *
+      type: 'test'
+      location: '/test/fixtures/test-runner/output/abort_hooks.js:(LINE):3'
+      failureType: 'hookFailed'
+      error: 'This operation was aborted'
+      code: 20
+      name: 'AbortError'
+      stack: |-
+        *
+        *
+        *
+        *
+        *
+        *
+        *
+        *
+        *
+        *
+      ...
+    # Subtest: test 2
+    not ok 2 - test 2
+      ---
+      duration_ms: *
+      type: 'test'
+      location: '/test/fixtures/test-runner/output/abort_hooks.js:(LINE):3'
+      failureType: 'hookFailed'
+      error: 'This operation was aborted'
+      code: 20
+      name: 'AbortError'
+      stack: |-
+        *
+        *
+        *
+        *
+        *
+        *
+        *
+        *
+        *
+        *
+      ...
+    1..2
+not ok 3 - 3 beforeEach describe
+  ---
+  duration_ms: *
+  type: 'suite'
+  location: '/test/fixtures/test-runner/output/abort_hooks.js:(LINE):1'
+  failureType: 'subtestsFailed'
+  error: '2 subtests failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# Subtest: 4 afterEach describe
+    # Subtest: test 1
+    not ok 1 - test 1
+      ---
+      duration_ms: *
+      type: 'test'
+      location: '/test/fixtures/test-runner/output/abort_hooks.js:(LINE):3'
+      failureType: 'hookFailed'
+      error: 'This operation was aborted'
+      code: 20
+      name: 'AbortError'
+      stack: |-
+        *
+        *
+        *
+        *
+        *
+        *
+        *
+        *
+        *
+        *
+      ...
+    # Subtest: test 2
+    not ok 2 - test 2
+      ---
+      duration_ms: *
+      type: 'test'
+      location: '/test/fixtures/test-runner/output/abort_hooks.js:(LINE):3'
+      failureType: 'hookFailed'
+      error: 'This operation was aborted'
+      code: 20
+      name: 'AbortError'
+      stack: |-
+        *
+        *
+        *
+        *
+        *
+        *
+        *
+        *
+        *
+        *
+      ...
+    1..2
+not ok 4 - 4 afterEach describe
+  ---
+  duration_ms: *
+  type: 'suite'
+  location: '/test/fixtures/test-runner/output/abort_hooks.js:(LINE):1'
+  failureType: 'subtestsFailed'
+  error: '2 subtests failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+1..4
+# tests 8
+# suites 4
+# pass 2
+# fail 4
+# cancelled 2
+# skipped 0
+# todo 0
+# duration_ms *

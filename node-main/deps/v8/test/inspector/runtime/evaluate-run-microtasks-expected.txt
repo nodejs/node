@@ -1,0 +1,39 @@
+Tests that microtasks run before the Runtime.evaluate response is sent
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                description : 42
+                type : number
+                value : 42
+            }
+        ]
+        executionContextId : <executionContextId>
+        stackTrace : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 37
+                    functionName : 
+                    lineNumber : 0
+                    scriptId : <scriptId>
+                    url : 
+                }
+            ]
+        }
+        timestamp : <timestamp>
+        type : log
+    }
+}
+{
+    id : <messageId>
+    result : {
+        result : {
+            className : Promise
+            description : Promise
+            objectId : <objectId>
+            subtype : promise
+            type : object
+        }
+    }
+}

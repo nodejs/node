@@ -1,0 +1,6 @@
+*%(basename)s:7: TypeError: %%Array%%.from requires that the property of the first argument, items[Symbol.iterator], when exists, be a function
+Array.from(x);
+      ^
+TypeError: %%Array%%.from requires that the property of the first argument, items[Symbol.iterator], when exists, be a function
+    at Array.from (<anonymous>)
+    at *%(basename)s:7:7

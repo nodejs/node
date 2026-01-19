@@ -1,0 +1,479 @@
+<!DOCTYPE html><html><head>
+<meta charset="utf-8">
+<title>npm-audit</title>
+<style>
+body {
+    background-color: #ffffff;
+    color: #24292e;
+
+    margin: 0;
+
+    line-height: 1.5;
+
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+}
+#rainbar {
+    height: 10px;
+    background-image: linear-gradient(139deg, #fb8817, #ff4b01, #c12127, #e02aff);
+}
+
+a {
+    text-decoration: none;
+    color: #0366d6;
+}
+a:hover {
+    text-decoration: underline;
+}
+
+pre {
+    margin: 1em 0px;
+    padding: 1em;
+    border: solid 1px #e1e4e8;
+    border-radius: 6px;
+
+    display: block;
+    overflow: auto;
+
+    white-space: pre;
+
+    background-color: #f6f8fa;
+    color: #393a34;
+}
+code {
+    font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, Courier, monospace;
+    font-size: 85%;
+    padding: 0.2em 0.4em;
+    background-color: #f6f8fa;
+    color: #393a34;
+}
+pre > code {
+    padding: 0;
+    background-color: inherit;
+    color: inherit;
+}
+h1, h2, h3 {
+    font-weight: 600;
+}
+
+#logobar {
+    background-color: #333333;
+    margin: 0 auto;
+    padding: 1em 4em;
+}
+#logobar .logo {
+    float: left;
+}
+#logobar .title {
+    font-weight: 600;
+    color: #dddddd;
+    float: left;
+    margin: 5px 0 0 1em;
+}
+#logobar:after {
+    content: "";
+    display: block;
+    clear: both;
+}
+
+#content {
+    margin: 0 auto;
+    padding: 0 4em;
+}
+
+#table_of_contents > h2 {
+    font-size: 1.17em;
+}
+#table_of_contents ul:first-child {
+    border: solid 1px #e1e4e8;
+    border-radius: 6px;
+    padding: 1em;
+    background-color: #f6f8fa;
+    color: #393a34;
+}
+#table_of_contents ul {
+    list-style-type: none;
+    padding-left: 1.5em;
+}
+#table_of_contents li {
+    font-size: 0.9em;
+}
+#table_of_contents li a {
+    color: #000000;
+}
+
+header.title {
+    border-bottom: solid 1px #e1e4e8;
+}
+header.title > h1 {
+    margin-bottom: 0.25em;
+}
+header.title > .description {
+    display: block;
+    margin-bottom: 0.5em;
+    line-height: 1;
+}
+
+header.title .version {
+    font-size: 0.8em;
+    color: #666666;
+}
+
+footer#edit {
+    border-top: solid 1px #e1e4e8;
+    margin: 3em 0 4em 0;
+    padding-top: 2em;
+}
+</style>
+</head>
+<body>
+<div id="banner">
+<div id="rainbar"></div>
+<div id="logobar">
+<svg class="logo" role="img" height="32" width="32" viewBox="0 0 700 700">
+<polygon fill="#cb0000" points="0,700 700,700 700,0 0,0"></polygon>
+<polygon fill="#ffffff" points="150,550 350,550 350,250 450,250 450,550 550,550 550,150 150,150"></polygon>
+</svg>
+<div class="title">
+npm command-line interface
+</div>
+</div>
+</div>
+
+<section id="content">
+<header class="title">
+<h1 id="----npm-audit----1162">
+    <span>npm-audit</span>
+    <span class="version">@11.6.2</span>
+</h1>
+<span class="description">Run a security audit</span>
+</header>
+
+<section id="table_of_contents">
+<h2 id="table-of-contents">Table of contents</h2>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#package-lock">Package lock</a></li><li><a href="#audit-signatures">Audit Signatures</a></li><li><a href="#audit-endpoints">Audit Endpoints</a></li><ul><li><a href="#bulk-advisory-endpoint">Bulk Advisory Endpoint</a></li><li><a href="#quick-audit-endpoint">Quick Audit Endpoint</a></li><li><a href="#scrubbing">Scrubbing</a></li><li><a href="#calculating-meta-vulnerabilities-and-remediations">Calculating Meta-Vulnerabilities and Remediations</a></li></ul><li><a href="#exit-code">Exit Code</a></li><li><a href="#examples">Examples</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#audit-level"><code>audit-level</code></a></li><li><a href="#dry-run"><code>dry-run</code></a></li><li><a href="#force"><code>force</code></a></li><li><a href="#json"><code>json</code></a></li><li><a href="#package-lock-only"><code>package-lock-only</code></a></li><li><a href="#package-lock2"><code>package-lock</code></a></li><li><a href="#omit"><code>omit</code></a></li><li><a href="#include"><code>include</code></a></li><li><a href="#foreground-scripts"><code>foreground-scripts</code></a></li><li><a href="#ignore-scripts"><code>ignore-scripts</code></a></li><li><a href="#workspace"><code>workspace</code></a></li><li><a href="#workspaces"><code>workspaces</code></a></li><li><a href="#include-workspace-root"><code>include-workspace-root</code></a></li><li><a href="#install-links"><code>install-links</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
+</section>
+
+<div id="_content"><h3 id="synopsis">Synopsis</h3>
+<pre><code class="language-bash">npm audit [fix|signatures]
+</code></pre>
+<h3 id="description">Description</h3>
+<p>The audit command submits a description of the dependencies configured in your project to your default registry and asks for a report of known vulnerabilities.
+If any vulnerabilities are found, then the impact and appropriate remediation will be calculated.
+If the <code>fix</code> argument is provided, then remediations will be applied to the package tree.</p>
+<p>The command will exit with a 0 exit code if no vulnerabilities were found.</p>
+<p>Note that some vulnerabilities cannot be fixed automatically and will require manual intervention or review.
+Also note that since <code>npm audit fix</code> runs a full-fledged <code>npm install</code> under the hood, all configs that apply to the installer will also apply to <code>npm install</code> -- so things like <code>npm audit fix --package-lock-only</code> will work as expected.</p>
+<p>By default, the audit command will exit with a non-zero code if any vulnerability is found.
+It may be useful in CI environments to include the <code>--audit-level</code> parameter to specify the minimum vulnerability level that will cause the command to fail.
+This option does not filter the report output, it simply changes the command's failure threshold.</p>
+<h3 id="package-lock">Package lock</h3>
+<p>By default npm requires a package-lock or shrinkwrap in order to run the audit.
+You can bypass the package lock with <code>--no-package-lock</code> but be aware the results may be different with every run, since npm will re-build the dependency tree each time.</p>
+<h3 id="audit-signatures">Audit Signatures</h3>
+<p>To ensure the integrity of packages you download from the public npm registry, or any registry that supports signatures, you can verify the registry signatures of downloaded packages using the npm CLI.</p>
+<p>Registry signatures can be verified using the following <code>audit</code> command:</p>
+<pre><code class="language-bash">$ npm audit signatures
+</code></pre>
+<p>The <code>audit signatures</code> command will also verify the provenance attestations of downloaded packages.
+Because provenance attestations are such a new feature, security features may be added to (or changed in) the attestation format over time.
+To ensure that you're always able to verify attestation signatures check that you're running the latest version of the npm CLI. Please note this often means updating npm beyond the version that ships with Node.js.</p>
+<p>The npm CLI supports registry signatures and signing keys provided by any registry if the following conventions are followed:</p>
+<ol>
+<li>Signatures are provided in the package's <code>packument</code> in each published version within the <code>dist</code> object:</li>
+</ol>
+<pre><code class="language-json">"dist":{
+  "..omitted..": "..omitted..",
+  "signatures": [{
+    "keyid": "SHA256:{{SHA256_PUBLIC_KEY}}",
+    "sig": "a312b9c3cb4a1b693e8ebac5ee1ca9cc01f2661c14391917dcb111517f72370809..."
+  }]
+}
+</code></pre>
+<p>See this <a href="https://registry.npmjs.org/light-cycle/1.4.3">example</a> of a signed package from the public npm registry.</p>
+<p>The <code>sig</code> is generated using the following template: <code>${package.name}@${package.version}:${package.dist.integrity}</code> and the <code>keyid</code> has to match one of the public signing keys below.</p>
+<ol start="2">
+<li>Public signing keys are provided at <code>registry-host.tld/-/npm/v1/keys</code> in the following format:</li>
+</ol>
+<pre><code>{
+  "keys": [{
+    "expires": null,
+    "keyid": "SHA256:{{SHA256_PUBLIC_KEY}}",
+    "keytype": "ecdsa-sha2-nistp256",
+    "scheme": "ecdsa-sha2-nistp256",
+    "key": "{{B64_PUBLIC_KEY}}"
+  }]
+}
+</code></pre>
+<p>Keys response:</p>
+<ul>
+<li><code>expires</code>: null or a simplified extended <a href="https://en.wikipedia.org/wiki/ISO_8601">ISO 8601 format</a>: <code>YYYY-MM-DDTHH:mm:ss.sssZ</code></li>
+<li><code>keyid</code>: sha256 fingerprint of the public key</li>
+<li><code>keytype</code>: only <code>ecdsa-sha2-nistp256</code> is currently supported by the npm CLI</li>
+<li><code>scheme</code>: only <code>ecdsa-sha2-nistp256</code> is currently supported by the npm CLI</li>
+<li><code>key</code>: base64 encoded public key</li>
+</ul>
+<p>See this <a href="https://registry.npmjs.org/-/npm/v1/keys">example key's response from the public npm registry</a>.</p>
+<h3 id="audit-endpoints">Audit Endpoints</h3>
+<p>There are two audit endpoints that npm may use to fetch vulnerability information: the <code>Bulk Advisory</code> endpoint and the <code>Quick Audit</code> endpoint.</p>
+<h4 id="bulk-advisory-endpoint">Bulk Advisory Endpoint</h4>
+<p>As of version 7, npm uses the much faster <code>Bulk Advisory</code> endpoint to optimize the speed of calculating audit results.</p>
+<p>npm will generate a JSON payload with the name and list of versions of each package in the tree, and POST it to the default configured registry at the path <code>/-/npm/v1/security/advisories/bulk</code>.</p>
+<p>Any packages in the tree that do not have a <code>version</code> field in their package.json file will be ignored.
+If any <code>--omit</code> options are specified (either via the <a href="../using-npm/config#omit.html"><code>--omit</code> config</a>, or one of the shorthands such as <code>--production</code>, <code>--only=dev</code>, and so on), then packages will be omitted from the submitted payload as appropriate.</p>
+<p>If the registry responds with an error, or with an invalid response, then npm will attempt to load advisory data from the <code>Quick Audit</code> endpoint.</p>
+<p>The expected result will contain a set of advisory objects for each dependency that matches the advisory range.
+Each advisory object contains a <code>name</code>, <code>url</code>, <code>id</code>, <code>severity</code>, <code>vulnerable_versions</code>, and <code>title</code>.</p>
+<p>npm then uses these advisory objects to calculate vulnerabilities and meta-vulnerabilities of the dependencies within the tree.</p>
+<h4 id="quick-audit-endpoint">Quick Audit Endpoint</h4>
+<p>If the <code>Bulk Advisory</code> endpoint returns an error, or invalid data, npm will attempt to load advisory data from the <code>Quick Audit</code> endpoint, which is considerably slower in most cases.</p>
+<p>The full package tree as found in <code>package-lock.json</code> is submitted, along with the following pieces of additional metadata:</p>
+<ul>
+<li><code>npm_version</code></li>
+<li><code>node_version</code></li>
+<li><code>platform</code></li>
+<li><code>arch</code></li>
+<li><code>node_env</code></li>
+</ul>
+<p>All packages in the tree are submitted to the Quick Audit endpoint.
+Omitted dependency types are skipped when generating the report.</p>
+<h4 id="scrubbing">Scrubbing</h4>
+<p>Out of an abundance of caution, npm versions 5 and 6 would "scrub" any packages from the submitted report if their name contained a <code>/</code> character, so as to avoid leaking the names of potentially private packages or git URLs.</p>
+<p>However, in practice, this resulted in audits often failing to properly detect meta-vulnerabilities, because the tree would appear to be invalid due to missing dependencies, and prevented the detection of vulnerabilities in package trees that used git dependencies or private modules.</p>
+<p>This scrubbing has been removed from npm as of version 7.</p>
+<h4 id="calculating-meta-vulnerabilities-and-remediations">Calculating Meta-Vulnerabilities and Remediations</h4>
+<p>npm uses the <a href="http://npm.im/@npmcli/metavuln-calculator"><code>@npmcli/metavuln-calculator</code></a> module to turn a set of security advisories into a set of "vulnerability" objects.
+A "meta-vulnerability" is a dependency that is vulnerable by virtue of dependence on vulnerable versions of a vulnerable package.</p>
+<p>For example, if the package <code>foo</code> is vulnerable in the range <code>&gt;=1.0.2 &lt;2.0.0</code>, and the package <code>bar</code> depends on <code>foo@^1.1.0</code>, then that version of <code>bar</code> can only be installed by installing a vulnerable version of <code>foo</code>.
+In this case, <code>bar</code> is a "metavulnerability".</p>
+<p>Once metavulnerabilities for a given package are calculated, they are cached in the <code>~/.npm</code> folder and only re-evaluated if the advisory range changes, or a new version of the package is published (in which case, the new version is checked for metavulnerable status as well).</p>
+<p>If the chain of metavulnerabilities extends all the way to the root project, and it cannot be updated without changing its dependency ranges, then <code>npm audit fix</code> will require the <code>--force</code> option to apply the remediation.
+If remediations do not require changes to the dependency ranges, then all vulnerable packages will be updated to a version that does not have an advisory or metavulnerability posted against it.</p>
+<h3 id="exit-code">Exit Code</h3>
+<p>The <code>npm audit</code> command will exit with a 0 exit code if no vulnerabilities were found.
+The <code>npm audit fix</code> command will exit with 0 exit code if no vulnerabilities are found <em>or</em> if the remediation is able to successfully fix all vulnerabilities.</p>
+<p>If vulnerabilities were found the exit code will depend on the <a href="../using-npm/config#audit-level.html"><code>audit-level</code> config</a>.</p>
+<h3 id="examples">Examples</h3>
+<p>Scan your project for vulnerabilities and automatically install any compatible updates to vulnerable dependencies:</p>
+<pre><code class="language-bash">$ npm audit fix
+</code></pre>
+<p>Run <code>audit fix</code> without modifying <code>node_modules</code>, but still updating the pkglock:</p>
+<pre><code class="language-bash">$ npm audit fix --package-lock-only
+</code></pre>
+<p>Skip updating <code>devDependencies</code>:</p>
+<pre><code class="language-bash">$ npm audit fix --only=prod
+</code></pre>
+<p>Have <code>audit fix</code> install SemVer-major updates to toplevel dependencies, not just SemVer-compatible ones:</p>
+<pre><code class="language-bash">$ npm audit fix --force
+</code></pre>
+<p>Do a dry run to get an idea of what <code>audit fix</code> will do, and <em>also</em> output install information in JSON format:</p>
+<pre><code class="language-bash">$ npm audit fix --dry-run --json
+</code></pre>
+<p>Scan your project for vulnerabilities and just show the details, without fixing anything:</p>
+<pre><code class="language-bash">$ npm audit
+</code></pre>
+<p>Get the detailed audit report in JSON format:</p>
+<pre><code class="language-bash">$ npm audit --json
+</code></pre>
+<p>Fail an audit only if the results include a vulnerability with a level of moderate or higher:</p>
+<pre><code class="language-bash">$ npm audit --audit-level=moderate
+</code></pre>
+<h3 id="configuration">Configuration</h3>
+<h4 id="audit-level"><code>audit-level</code></h4>
+<ul>
+<li>Default: null</li>
+<li>Type: null, "info", "low", "moderate", "high", "critical", or "none"</li>
+</ul>
+<p>The minimum level of vulnerability for <code>npm audit</code> to exit with a
+non-zero exit code.</p>
+<h4 id="dry-run"><code>dry-run</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Indicates that you don't want npm to make any changes and that it
+should only report what it would have done. This can be passed into
+any of the commands that modify your local installation, eg,
+<code>install</code>, <code>update</code>, <code>dedupe</code>, <code>uninstall</code>, as well as <code>pack</code> and
+<code>publish</code>.</p>
+<p>Note: This is NOT honored by other network related commands, eg
+<code>dist-tags</code>, <code>owner</code>, etc.</p>
+<h4 id="force"><code>force</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Removes various protections against unfortunate side effects, common
+mistakes, unnecessary performance degradation, and malicious input.</p>
+<ul>
+<li>Allow clobbering non-npm files in global installs.</li>
+<li>Allow the <code>npm version</code> command to work on an unclean git repository.</li>
+<li>Allow deleting the cache folder with <code>npm cache clean</code>.</li>
+<li>Allow installing packages that have an <code>engines</code> declaration
+requiring a different version of npm.</li>
+<li>Allow installing packages that have an <code>engines</code> declaration
+requiring a different version of <code>node</code>, even if <code>--engine-strict</code> is
+enabled.</li>
+<li>Allow <code>npm audit fix</code> to install modules outside your stated
+dependency range (including SemVer-major changes).</li>
+<li>Allow unpublishing all versions of a published package.</li>
+<li>Allow conflicting peerDependencies to be installed in the root
+project.</li>
+<li>Implicitly set <code>--yes</code> during <code>npm init</code>.</li>
+<li>Allow clobbering existing values in <code>npm pkg</code></li>
+<li>Allow unpublishing of entire packages (not just a single version).</li>
+</ul>
+<p>If you don't have a clear idea of what you want to do, it is strongly
+recommended that you do not use this option!</p>
+<h4 id="json"><code>json</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Whether or not to output JSON data, rather than the normal output.</p>
+<ul>
+<li>In <code>npm pkg set</code> it enables parsing set values with JSON.parse()
+before saving them to your <code>package.json</code>.</li>
+</ul>
+<p>Not supported by all npm commands.</p>
+<h4 id="package-lock-only"><code>package-lock-only</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>If set to true, the current operation will only use the
+<code>package-lock.json</code>, ignoring <code>node_modules</code>.</p>
+<p>For <code>update</code> this means only the <code>package-lock.json</code> will be updated,
+instead of checking <code>node_modules</code> and downloading dependencies.</p>
+<p>For <code>list</code> this means the output will be based on the tree described
+by the <code>package-lock.json</code>, rather than the contents of
+<code>node_modules</code>.</p>
+<h4 id="package-lock2"><code>package-lock</code></h4>
+<ul>
+<li>Default: true</li>
+<li>Type: Boolean</li>
+</ul>
+<p>If set to false, then ignore <code>package-lock.json</code> files when
+installing. This will also prevent <em>writing</em> <code>package-lock.json</code> if
+<code>save</code> is true.</p>
+<h4 id="omit"><code>omit</code></h4>
+<ul>
+<li>Default: 'dev' if the <code>NODE_ENV</code> environment variable is set to
+'production'; otherwise, empty.</li>
+<li>Type: "dev", "optional", or "peer" (can be set multiple times)</li>
+</ul>
+<p>Dependency types to omit from the installation tree on disk.</p>
+<p>Note that these dependencies <em>are</em> still resolved and added to the
+<code>package-lock.json</code> or <code>npm-shrinkwrap.json</code> file. They are just not
+physically installed on disk.</p>
+<p>If a package type appears in both the <code>--include</code> and <code>--omit</code> lists,
+then it will be included.</p>
+<p>If the resulting omit list includes <code>'dev'</code>, then the <code>NODE_ENV</code>
+environment variable will be set to <code>'production'</code> for all lifecycle
+scripts.</p>
+<h4 id="include"><code>include</code></h4>
+<ul>
+<li>Default:</li>
+<li>Type: "prod", "dev", "optional", or "peer" (can be set multiple
+times)</li>
+</ul>
+<p>Option that allows for defining which types of dependencies to
+install.</p>
+<p>This is the inverse of <code>--omit=&lt;type&gt;</code>.</p>
+<p>Dependency types specified in <code>--include</code> will not be omitted,
+regardless of the order in which omit/include are specified on the
+command-line.</p>
+<h4 id="foreground-scripts"><code>foreground-scripts</code></h4>
+<ul>
+<li>Default: <code>false</code> unless when using <code>npm pack</code> or <code>npm publish</code> where
+it defaults to <code>true</code></li>
+<li>Type: Boolean</li>
+</ul>
+<p>Run all build scripts (ie, <code>preinstall</code>, <code>install</code>, and
+<code>postinstall</code>) scripts for installed packages in the foreground
+process, sharing standard input, output, and error with the main npm
+process.</p>
+<p>Note that this will generally make installs run slower, and be much
+noisier, but can be useful for debugging.</p>
+<h4 id="ignore-scripts"><code>ignore-scripts</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>If true, npm does not run scripts specified in package.json files.</p>
+<p>Note that commands explicitly intended to run a particular script,
+such as <code>npm start</code>, <code>npm stop</code>, <code>npm restart</code>, <code>npm test</code>, and <code>npm run</code> will still run their intended script if <code>ignore-scripts</code> is set,
+but they will <em>not</em> run any pre- or post-scripts.</p>
+<h4 id="workspace"><code>workspace</code></h4>
+<ul>
+<li>Default:</li>
+<li>Type: String (can be set multiple times)</li>
+</ul>
+<p>Enable running a command in the context of the configured workspaces
+of the current project while filtering by running only the workspaces
+defined by this configuration option.</p>
+<p>Valid values for the <code>workspace</code> config are either:</p>
+<ul>
+<li>Workspace names</li>
+<li>Path to a workspace directory</li>
+<li>Path to a parent workspace directory (will result in selecting all
+workspaces within that folder)</li>
+</ul>
+<p>When set for the <code>npm init</code> command, this may be set to the folder of
+a workspace which does not yet exist, to create the folder and set it
+up as a brand new workspace within the project.</p>
+<p>This value is not exported to the environment for child processes.</p>
+<h4 id="workspaces"><code>workspaces</code></h4>
+<ul>
+<li>Default: null</li>
+<li>Type: null or Boolean</li>
+</ul>
+<p>Set to true to run the command in the context of <strong>all</strong> configured
+workspaces.</p>
+<p>Explicitly setting this to false will cause commands like <code>install</code>
+to ignore workspaces altogether. When not set explicitly:</p>
+<ul>
+<li>Commands that operate on the <code>node_modules</code> tree (install, update,
+etc.) will link workspaces into the <code>node_modules</code> folder. - Commands
+that do other things (test, exec, publish, etc.) will operate on the
+root project, <em>unless</em> one or more workspaces are specified in the
+<code>workspace</code> config.</li>
+</ul>
+<p>This value is not exported to the environment for child processes.</p>
+<h4 id="include-workspace-root"><code>include-workspace-root</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Include the workspace root when workspaces are enabled for a command.</p>
+<p>When false, specifying individual workspaces via the <code>workspace</code>
+config, or all workspaces via the <code>workspaces</code> flag, will cause npm
+to operate only on the specified workspaces, and not on the root
+project.</p>
+<p>This value is not exported to the environment for child processes.</p>
+<h4 id="install-links"><code>install-links</code></h4>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>When set file: protocol dependencies will be packed and installed as
+regular dependencies instead of creating a symlink. This option has
+no effect on workspaces.</p>
+<h3 id="see-also">See Also</h3>
+<ul>
+<li><a href="../commands/npm-install.html">npm install</a></li>
+<li><a href="../using-npm/config.html">config</a></li>
+</ul></div>
+
+<footer id="edit">
+<a href="https://github.com/npm/cli/edit/latest/docs/lib/content/commands/npm-audit.md">
+<svg role="img" viewBox="0 0 16 16" width="16" height="16" fill="currentcolor" style="vertical-align: text-bottom; margin-right: 0.3em;">
+<path fill-rule="evenodd" d="M11.013 1.427a1.75 1.75 0 012.474 0l1.086 1.086a1.75 1.75 0 010 2.474l-8.61 8.61c-.21.21-.47.364-.756.445l-3.251.93a.75.75 0 01-.927-.928l.929-3.25a1.75 1.75 0 01.445-.758l8.61-8.61zm1.414 1.06a.25.25 0 00-.354 0L10.811 3.75l1.439 1.44 1.263-1.263a.25.25 0 000-.354l-1.086-1.086zM11.189 6.25L9.75 4.81l-6.286 6.287a.25.25 0 00-.064.108l-.558 1.953 1.953-.558a.249.249 0 00.108-.064l6.286-6.286z"></path>
+</svg>
+Edit this page on GitHub
+</a>
+</footer>
+</section>
+
+
+
+</body></html>
