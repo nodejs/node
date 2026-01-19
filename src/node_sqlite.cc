@@ -3389,12 +3389,8 @@ static void Initialize(Local<Object> target,
 
   target->Set(context, env->constants_string(), constants).Check();
 
-  Local<Function> backup_function;
-
-  if (!Function::New(context, Backup, Local<Value>(), 2)
-           .ToLocal(&backup_function)) {
-    return;
-  }
+  Local<Function> backup_function =
+      Function::New(context, Backup, Local<Value>(), 2).ToLocalChecked();
   backup_function->SetName(env->backup_string());
 
   target->Set(context, env->backup_string(), backup_function).Check();
