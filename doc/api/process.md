@@ -4537,13 +4537,13 @@ cases:
 [Event Loop]: https://nodejs.org/en/learn/asynchronous-work/event-loop-timers-and-nexttick#understanding-processnexttick
 [LTS]: https://github.com/nodejs/Release
 [Permission Model]: permissions.md#permission-model
-[program entry point]: https://nodejs.org/api/cli.html#program-entry-point
 [Readable]: stream.md#readable-streams
 [Signal Events]: #signal-events
 [Source Map]: https://tc39.es/ecma426/
 [Stream compatibility]: stream.md#compatibility-with-older-nodejs-versions
 [TTY]: tty.md#tty
 [Writable]: stream.md#writable-streams
+[program entry point]: https://nodejs.org/api/cli.html#program-entry-point
 [`'exit'`]: #event-exit
 [`'message'`]: child_process.md#event-message
 [`'uncaughtException'`]: #event-uncaughtexception
