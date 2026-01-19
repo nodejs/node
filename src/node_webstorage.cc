@@ -172,14 +172,17 @@ Maybe<void> Storage::Open() {
 
   int r = sqlite3_open(location_.c_str(), &db);
   CHECK_ERROR_OR_THROW(env(), r, SQLITE_OK, Nothing<void>());
-  r = sqlite3_exec(db, init_sql_v0.data(), 0, 0, nullptr);
+  r = sqlite3_exec(db, init_sql_v0.data(), nullptr, nullptr, nullptr);
   CHECK_ERROR_OR_THROW(env(), r, SQLITE_OK, Nothing<void>());
 
   // Get the current schema version, used to determine schema migrations.
   sqlite3_stmt* s = nullptr;
-  r = sqlite3_prepare_v2(
-      db, get_schema_version_sql.data(), get_schema_version_sql.size(), &s, 0);
-  r = sqlite3_exec(db, init_sql_v0.data(), 0, 0, nullptr);
+  r = sqlite3_prepare_v2(db,
+                         get_schema_version_sql.data(),
+                         get_schema_version_sql.size(),
+                         &s,
+                         nullptr);
+  r = sqlite3_exec(db, init_sql_v0.data(), nullptr, nullptr, nullptr);
   CHECK_ERROR_OR_THROW(env(), r, SQLITE_OK, Nothing<void>());
   auto stmt = stmt_unique_ptr(s);
   CHECK_ERROR_OR_THROW(
@@ -199,7 +202,8 @@ Maybe<void> Storage::Open() {
     std::string set_user_version_sql =
         "UPDATE nodejs_webstorage_state SET schema_version = " +
         std::to_string(kCurrentSchemaVersion) + ";";
-    r = sqlite3_exec(db, set_user_version_sql.c_str(), 0, 0, nullptr);
+    r = sqlite3_exec(
+        db, set_user_version_sql.c_str(), nullptr, nullptr, nullptr);
     CHECK_ERROR_OR_THROW(env(), r, SQLITE_OK, Nothing<void>());
   }
 
@@ -238,7 +242,7 @@ Maybe<void> Storage::Clear() {
   sqlite3_stmt* s = nullptr;
   CHECK_ERROR_OR_THROW(
       env(),
-      sqlite3_prepare_v2(db_.get(), sql.data(), sql.size(), &s, 0),
+      sqlite3_prepare_v2(db_.get(), sql.data(), sql.size(), &s, nullptr),
       SQLITE_OK,
       Nothing<void>());
   auto stmt = stmt_unique_ptr(s);
@@ -254,7 +258,7 @@ MaybeLocal<Array> Storage::Enumerate() {
 
   static constexpr std::string_view sql = "SELECT key FROM nodejs_webstorage";
   sqlite3_stmt* s = nullptr;
-  int r = sqlite3_prepare_v2(db_.get(), sql.data(), sql.size(), &s, 0);
+  int r = sqlite3_prepare_v2(db_.get(), sql.data(), sql.size(), &s, nullptr);
   CHECK_ERROR_OR_THROW(env(), r, SQLITE_OK, Local<Array>());
   auto stmt = stmt_unique_ptr(s);
   LocalVector<Value> values(env()->isolate());
@@ -284,7 +288,7 @@ MaybeLocal<Value> Storage::Length() {
   static constexpr std::string_view sql =
       "SELECT count(*) FROM nodejs_webstorage";
   sqlite3_stmt* s = nullptr;
-  int r = sqlite3_prepare_v2(db_.get(), sql.data(), sql.size(), &s, 0);
+  int r = sqlite3_prepare_v2(db_.get(), sql.data(), sql.size(), &s, nullptr);
   CHECK_ERROR_OR_THROW(env(), r, SQLITE_OK, Local<Value>());
   auto stmt = stmt_unique_ptr(s);
   CHECK_ERROR_OR_THROW(
@@ -307,7 +311,7 @@ MaybeLocal<Value> Storage::Load(Local<Name> key) {
   static constexpr std::string_view sql =
       "SELECT value FROM nodejs_webstorage WHERE key = ? LIMIT 1";
   sqlite3_stmt* s = nullptr;
-  int r = sqlite3_prepare_v2(db_.get(), sql.data(), sql.size(), &s, 0);
+  int r = sqlite3_prepare_v2(db_.get(), sql.data(), sql.size(), &s, nullptr);
   CHECK_ERROR_OR_THROW(env(), r, SQLITE_OK, Local<Value>());
   auto stmt = stmt_unique_ptr(s);
   TwoByteValue utf16key(env()->isolate(), key);
@@ -340,7 +344,7 @@ MaybeLocal<Value> Storage::LoadKey(const int index) {
   static constexpr std::string_view sql =
       "SELECT key FROM nodejs_webstorage LIMIT 1 OFFSET ?";
   sqlite3_stmt* s = nullptr;
-  int r = sqlite3_prepare_v2(db_.get(), sql.data(), sql.size(), &s, 0);
+  int r = sqlite3_prepare_v2(db_.get(), sql.data(), sql.size(), &s, nullptr);
   CHECK_ERROR_OR_THROW(env(), r, SQLITE_OK, Local<Value>());
   auto stmt = stmt_unique_ptr(s);
   r = sqlite3_bind_int(stmt.get(), 1, index);
@@ -378,7 +382,7 @@ Maybe<void> Storage::Remove(Local<Name> key) {
   static constexpr std::string_view sql =
       "DELETE FROM nodejs_webstorage WHERE key = ?";
   sqlite3_stmt* s = nullptr;
-  int r = sqlite3_prepare_v2(db_.get(), sql.data(), sql.size(), &s, 0);
+  int r = sqlite3_prepare_v2(db_.get(), sql.data(), sql.size(), &s, nullptr);
   CHECK_ERROR_OR_THROW(env(), r, SQLITE_OK, Nothing<void>());
   auto stmt = stmt_unique_ptr(s);
   TwoByteValue utf16key(env()->isolate(), key);
@@ -413,7 +417,7 @@ Maybe<void> Storage::Store(Local<Name> key, Local<Value> value) {
   sqlite3_stmt* s = nullptr;
   TwoByteValue utf16key(env()->isolate(), key);
   TwoByteValue utf16val(env()->isolate(), val);
-  int r = sqlite3_prepare_v2(db_.get(), sql.data(), sql.size(), &s, 0);
+  int r = sqlite3_prepare_v2(db_.get(), sql.data(), sql.size(), &s, nullptr);
   CHECK_ERROR_OR_THROW(env(), r, SQLITE_OK, Nothing<void>());
   auto stmt = stmt_unique_ptr(s);
   auto key_size = utf16key.length() * sizeof(uint16_t);
