@@ -735,8 +735,8 @@ Refs:
 
 ##### Option 1: Manual install
 
-* The current [version of Python][Python versions] from the
-  [Microsoft Store](https://apps.microsoft.com/store/search?publisher=Python+Software+Foundation)
+* The current [version of Python][Python downloads] by following the instructions in
+  [Using Python on Windows][].
 * The "Desktop development with C++" workload from
   [Visual Studio 2022 (17.13 or newer)](https://visualstudio.microsoft.com/downloads/)
   or the "C++ build tools" workload from the
@@ -1146,4 +1146,6 @@ by opening a pull request against the registry available at
 
 [AIX toolbox]: https://www.ibm.com/support/pages/aix-toolbox-open-source-software-overview
 [Developer Mode]: https://learn.microsoft.com/en-us/windows/advanced-settings/developer-mode
+[Python downloads]: https://www.python.org/downloads/
 [Python versions]: https://devguide.python.org/versions/
+[Using Python on Windows]: https://docs.python.org/3/using/windows.html
