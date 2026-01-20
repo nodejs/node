@@ -7,6 +7,10 @@ if (!common.hasCrypto) common.skip('missing crypto');
 const assert = require('assert');
 const crypto = require('crypto');
 
+if (process.features.openssl_is_boringssl) {
+  common.skip('BoringSSL does not support XOF hash functions');
+}
+
 // Test XOF hash functions and the outputLength option.
 {
   // Default outputLengths.
