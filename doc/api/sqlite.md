@@ -172,7 +172,7 @@ changes:
     * `vdbeOp` {number} Maximum number of VDBE instructions.
     * `functionArg` {number} Maximum number of function arguments.
     * `attach` {number} Maximum number of attached databases.
-    * `likePatternLength` {number} Maximum length of LIKE pattern.
+    * `likePatternLength` {number} Maximum length of a LIKE pattern.
     * `variableNumber` {number} Maximum number of SQL variables.
     * `triggerDepth` {number} Maximum trigger recursion depth.
 
