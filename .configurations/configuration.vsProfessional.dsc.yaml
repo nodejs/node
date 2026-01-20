@@ -5,11 +5,11 @@ properties:
     - resource: Microsoft.WinGet.DSC/WinGetPackage
       id: pythonPackage
       directives:
-        description: Install Python 3.12
+        description: Install Python 3.14
         module: Microsoft.WinGet.DSC
         allowPrerelease: true
       settings:
-        id: Python.Python.3.12
+        id: Python.Python.3.14
         source: winget
     - resource: Microsoft.WinGet.DSC/WinGetPackage
       id: vsPackage
@@ -51,4 +51,4 @@ properties:
       settings:
         id: Nasm.Nasm
         source: winget
-  configurationVersion: 0.1.0
+  configurationVersion: 0.1.1
