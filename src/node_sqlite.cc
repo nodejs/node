@@ -766,7 +766,7 @@ Intercepted DatabaseSyncLimits::LimitsSetter(
   Utf8Value prop_name(isolate, property);
   const LimitInfo* limit_info = GetLimitInfoFromName(*prop_name);
 
-  if (!limit_info) {
+  if (limit_info == nullptr) {
     return Intercepted::kNo;
   }
 
