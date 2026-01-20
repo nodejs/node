@@ -664,10 +664,20 @@ typedef struct _RTL_CRITICAL_SECTION GTEST_CRITICAL_SECTION;
      defined(GTEST_OS_NETBSD) || defined(GTEST_OS_FUCHSIA) ||         \
      defined(GTEST_OS_DRAGONFLY) || defined(GTEST_OS_GNU_KFREEBSD) || \
      defined(GTEST_OS_HAIKU) || defined(GTEST_OS_GNU_HURD))
+
 // Death tests require a file system to work properly.
 #if GTEST_HAS_FILE_SYSTEM
 #define GTEST_HAS_DEATH_TEST 1
 #endif  // GTEST_HAS_FILE_SYSTEM
+#endif
+
+// Determines whether the Premature Exit file can be created.
+// Created by default when Death tests are supported, but other platforms can
+// use the Premature exit file without Death test support (e.g. for detecting
+// crashes).
+#if GTEST_HAS_DEATH_TEST || \
+    (defined(GTEST_OS_EMSCRIPTEN) && GTEST_HAS_FILE_SYSTEM)
+#define GTEST_INTERNAL_HAS_PREMATURE_EXIT_FILE 1
 #endif
 
 // Determines whether to support type-driven tests.
@@ -822,10 +832,10 @@ typedef struct _RTL_CRITICAL_SECTION GTEST_CRITICAL_SECTION;
 #ifndef GTEST_API_
 
 #ifdef _MSC_VER
-#if defined(GTEST_LINKED_AS_SHARED_LIBRARY) && GTEST_LINKED_AS_SHARED_LIBRARY
-#define GTEST_API_ __declspec(dllimport)
-#elif defined(GTEST_CREATE_SHARED_LIBRARY) && GTEST_CREATE_SHARED_LIBRARY
+#if defined(GTEST_CREATE_SHARED_LIBRARY) && GTEST_CREATE_SHARED_LIBRARY
 #define GTEST_API_ __declspec(dllexport)
+#elif defined(GTEST_LINKED_AS_SHARED_LIBRARY) && GTEST_LINKED_AS_SHARED_LIBRARY
+#define GTEST_API_ __declspec(dllimport)
 #endif
 #elif GTEST_INTERNAL_HAVE_CPP_ATTRIBUTE(gnu::visibility)
 #define GTEST_API_ [[gnu::visibility("default")]]
@@ -2242,11 +2252,11 @@ using TimeInMillis = int64_t;  // Represents time in milliseconds.
 
 // Macros for declaring flags.
 #define GTEST_DECLARE_bool_(name) \
-  ABSL_DECLARE_FLAG(bool, GTEST_FLAG_NAME_(name))
+  GTEST_API_ ABSL_DECLARE_FLAG(bool, GTEST_FLAG_NAME_(name))
 #define GTEST_DECLARE_int32_(name) \
-  ABSL_DECLARE_FLAG(int32_t, GTEST_FLAG_NAME_(name))
+  GTEST_API_ ABSL_DECLARE_FLAG(int32_t, GTEST_FLAG_NAME_(name))
 #define GTEST_DECLARE_string_(name) \
-  ABSL_DECLARE_FLAG(std::string, GTEST_FLAG_NAME_(name))
+  GTEST_API_ ABSL_DECLARE_FLAG(std::string, GTEST_FLAG_NAME_(name))
 
 #define GTEST_FLAG_SAVER_ ::absl::FlagSaver
 
