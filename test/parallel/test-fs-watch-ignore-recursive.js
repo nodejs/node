@@ -130,7 +130,9 @@ tmpdir.refresh();
 
   const watcher = fs.watch(testDirectory, {
     recursive: true,
-    ignore: '**/node_modules/**',
+    // Use array to match both the directory itself and files inside it
+    // On macOS, FSEvents may report events for the directory when files change inside it
+    ignore: ['**/node_modules/**', '**/node_modules'],
   });
 
   let seenFile = false;
