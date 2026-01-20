@@ -274,10 +274,6 @@ void Realm::VerifyNoStrongBaseObjects() {
   });
 }
 
-v8::Local<v8::Context> Realm::context() const {
-  return PersistentToLocal::Strong(context_);
-}
-
 // Per-realm strong value accessors. The per-realm values should avoid being
 // accessed across realms.
 #define V(PropertyName, TypeName)                                              \

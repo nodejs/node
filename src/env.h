@@ -900,7 +900,7 @@ class Environment final : public MemoryRetainer {
   // Get the context with an explicit realm instead when possible.
   // Deprecate soon.
   inline v8::Local<v8::Context> context() const;
-  inline Realm* principal_realm() const;
+  inline PrincipalRealm* principal_realm() const;
 
 #if HAVE_INSPECTOR
   inline inspector::Agent* inspector_agent() const {

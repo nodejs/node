@@ -923,7 +923,7 @@ v8::Local<v8::Context> Environment::context() const {
   return principal_realm()->context();
 }
 
-Realm* Environment::principal_realm() const {
+PrincipalRealm* Environment::principal_realm() const {
   return principal_realm_.get();
 }
 
