@@ -24,3 +24,7 @@ test_sea_addon/test: SKIP
 [$system==macos && $arch==x64]
 # https://github.com/nodejs/node/issues/59553
 test_sea_addon/test: SKIP
+
+[$system==aix]
+# https://github.com/nodejs/node/issues/61439
+test_threadsafe_function/test: PASS, FLAKY
