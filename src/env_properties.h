@@ -235,8 +235,8 @@
   V(kill_signal_string, "killSignal")                                          \
   V(kind_string, "kind")                                                       \
   V(last_insert_rowid_string, "lastInsertRowid")                               \
-  V(limits_string, "limits")                                                   \
   V(length_string, "length")                                                   \
+  V(limits_string, "limits")                                                   \
   V(library_string, "library")                                                 \
   V(loop_count, "loopCount")                                                   \
   V(max_buffer_string, "maxBuffer")                                            \
