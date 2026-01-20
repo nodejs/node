@@ -951,8 +951,11 @@ bool DatabaseSync::Open() {
   sqlite3_busy_timeout(connection_, open_config_.get_timeout());
 
   // Apply initial limits
-  for (const auto& [limit_id, limit_value] : open_config_.initial_limits()) {
-    sqlite3_limit(connection_, limit_id, limit_value);
+  const auto& limits = open_config_.initial_limits();
+  for (size_t i = 0; i < kLimitMapping.size(); ++i) {
+    if (limits[i].has_value()) {
+      sqlite3_limit(connection_, kLimitMapping[i].sqlite_limit_id, *limits[i]);
+    }
   }
 
   if (allow_load_extension_) {
@@ -1298,7 +1301,8 @@ void DatabaseSync::New(const FunctionCallbackInfo<Value>& args) {
       Local<Object> limits_obj = limits_v.As<Object>();
 
       // Iterate through known limit names and extract values
-      for (const auto& [js_name, sqlite_limit_id] : kLimitMapping) {
+      for (size_t i = 0; i < kLimitMapping.size(); ++i) {
+        const auto& js_name = kLimitMapping[i].js_name;
         Local<String> key;
         if (!String::NewFromUtf8(env->isolate(),
                                  js_name.data(),
@@ -1329,7 +1333,7 @@ void DatabaseSync::New(const FunctionCallbackInfo<Value>& args) {
             return;
           }
 
-          open_config.set_initial_limit(sqlite_limit_id, limit_val);
+          open_config.set_initial_limit(i, limit_val);
         }
       }
     }
