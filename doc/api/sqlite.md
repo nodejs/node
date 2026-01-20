@@ -167,7 +167,7 @@ changes:
     * `length` {number} Maximum length of a string or BLOB.
     * `sqlLength` {number} Maximum length of an SQL statement.
     * `column` {number} Maximum number of columns.
-    * `exprDepth` {number} Maximum depth of expression tree.
+    * `exprDepth` {number} Maximum depth of an expression tree.
     * `compoundSelect` {number} Maximum number of terms in compound SELECT.
     * `vdbeOp` {number} Maximum number of VDBE instructions.
     * `functionArg` {number} Maximum number of function arguments.
