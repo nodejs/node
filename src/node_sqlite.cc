@@ -819,7 +819,7 @@ Intercepted DatabaseSyncLimits::LimitsQuery(
   }
 
   // Property exists and is writable
-  info.GetReturnValue().Set(Integer::New(isolate, v8::PropertyAttribute::None));
+  info.GetReturnValue().Set(Integer::New(isolate, v8::PropertyAttribute::DontDelete));
   return Intercepted::kYes;
 }
 
