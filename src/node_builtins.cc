@@ -169,7 +169,7 @@ BuiltinLoader::BuiltinCategories BuiltinLoader::GetBuiltinCategories() const {
       if (prefix.length() > id.length()) {
         continue;
       }
-      if (id.find(prefix) == 0 &&
+      if (id.starts_with(prefix) &&
           builtin_categories.can_be_required.count(id) == 0) {
         builtin_categories.cannot_be_required.emplace(id);
       }
