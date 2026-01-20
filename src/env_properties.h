@@ -235,6 +235,7 @@
   V(kill_signal_string, "killSignal")                                          \
   V(kind_string, "kind")                                                       \
   V(last_insert_rowid_string, "lastInsertRowid")                               \
+  V(limits_string, "limits")                                                   \
   V(length_string, "length")                                                   \
   V(library_string, "library")                                                 \
   V(loop_count, "loopCount")                                                   \
@@ -436,6 +437,7 @@
   V(sqlite_column_template, v8::DictionaryTemplate)                            \
   V(sqlite_statement_sync_constructor_template, v8::FunctionTemplate)          \
   V(sqlite_statement_sync_iterator_constructor_template, v8::FunctionTemplate) \
+  V(sqlite_limits_template, v8::ObjectTemplate)                                \
   V(sqlite_session_constructor_template, v8::FunctionTemplate)                 \
   V(srv_record_template, v8::DictionaryTemplate)                               \
   V(streambaseoutputstream_constructor_template, v8::ObjectTemplate)           \
