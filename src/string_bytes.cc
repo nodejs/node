@@ -539,9 +539,10 @@ MaybeLocal<Value> StringBytes::Encode(Isolate* isolate,
         return ExternOneByteString::NewFromCopy(isolate, buf, buflen);
       }
 
-      if (simdutf::validate_utf8(buf, buflen)) {
+      if (buflen >= 32 && simdutf::validate_utf8(buf, buflen)) {
         // We know that we are non-ASCII (and are unlikely Latin1), use 2-byte
         // In the most likely case of valid UTF-8, we can use this fast impl
+        // For very short input, it is slower, so we limit min size
         size_t u16size = simdutf::utf16_length_from_utf8(buf, buflen);
         if (u16size > static_cast<size_t>(v8::String::kMaxLength)) {
           isolate->ThrowException(ERR_STRING_TOO_LONG(isolate));
