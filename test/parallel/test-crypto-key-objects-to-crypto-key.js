@@ -26,9 +26,14 @@ function assertCryptoKey(cryptoKey, keyObject, algorithm, extractable, usages) {
 {
   for (const length of [128, 192, 256]) {
     const key = createSecretKey(randomBytes(length >> 3));
-    const algorithms = ['AES-CTR', 'AES-CBC', 'AES-GCM', 'AES-KW'];
+    let algorithms = ['AES-CTR', 'AES-CBC', 'AES-GCM', 'AES-KW'];
     if (length === 256)
       algorithms.push('ChaCha20-Poly1305');
+
+    if (process.features.openssl_is_boringssl) {
+      algorithms = algorithms.filter((a) => a !== 'AES-KW' && a !== 'ChaCha20-Poly1305');
+    }
+
     for (const algorithm of algorithms) {
       const usages = algorithm === 'AES-KW' ? ['wrapKey', 'unwrapKey'] : ['encrypt', 'decrypt'];
       for (const extractable of [true, false]) {
@@ -97,7 +102,13 @@ function assertCryptoKey(cryptoKey, keyObject, algorithm, extractable, usages) {
 }
 
 {
-  for (const algorithm of ['Ed25519', 'Ed448', 'X25519', 'X448']) {
+  const algorithms = ['Ed25519', 'X25519'];
+
+  if (!process.features.openssl_is_boringssl) {
+    algorithms.push('X448', 'Ed448');
+  }
+
+  for (const algorithm of algorithms) {
     const { publicKey, privateKey } = generateKeyPairSync(algorithm.toLowerCase());
     assert.throws(() => {
       publicKey.toCryptoKey(algorithm === 'Ed25519' ? 'X25519' : 'Ed25519', true, []);

@@ -65,13 +65,14 @@ test('RSA-PSS+SHA256:RSA-PSS+SHA512:ECDSA+SHA256',
      'RSA-PSS+SHA256:ECDSA+SHA256',
      ['RSA-PSS+SHA256', 'ECDSA+SHA256']);
 
+const cerr = process.features.openssl_is_boringssl ?
+  'ERR_SSL_NO_COMMON_SIGNATURE_ALGORITHMS' : 'ERR_SSL_NO_SHARED_SIGNATURE_ALGORITHMS';
+
 // Do not have shared sigalgs.
 const handshakeErr = hasOpenSSL(3, 2) ?
   'ERR_SSL_SSL/TLS_ALERT_HANDSHAKE_FAILURE' : 'ERR_SSL_SSLV3_ALERT_HANDSHAKE_FAILURE';
 test('RSA-PSS+SHA384', 'ECDSA+SHA256',
-     undefined, handshakeErr,
-     'ERR_SSL_NO_SHARED_SIGNATURE_ALGORITHMS');
+     undefined, handshakeErr, cerr);
 
 test('RSA-PSS+SHA384:ECDSA+SHA256', 'ECDSA+SHA384:RSA-PSS+SHA256',
-     undefined, handshakeErr,
-     'ERR_SSL_NO_SHARED_SIGNATURE_ALGORITHMS');
+     undefined, handshakeErr, cerr);
