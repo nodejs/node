@@ -833,10 +833,8 @@ void DatabaseSyncLimits::LimitsEnumerator(
 
   for (const auto& [js_name, sqlite_limit_id] : kLimitMapping) {
     Local<String> name;
-    if (!String::NewFromUtf8(isolate,
-                             js_name.data(),
-                             NewStringType::kNormal,
-                             js_name.size())
+    if (!String::NewFromUtf8(
+             isolate, js_name.data(), NewStringType::kNormal, js_name.size())
              .ToLocal(&name)) {
       return;
     }
@@ -1323,8 +1321,7 @@ void DatabaseSync::New(const FunctionCallbackInfo<Value>& args) {
 
         if (!val->IsUndefined()) {
           if (!val->IsInt32()) {
-            std::string msg = "The \"options.limits." +
-                              std::string(js_name) +
+            std::string msg = "The \"options.limits." + std::string(js_name) +
                               "\" argument must be an integer.";
             THROW_ERR_INVALID_ARG_TYPE(env->isolate(), msg);
             return;
@@ -1332,8 +1329,7 @@ void DatabaseSync::New(const FunctionCallbackInfo<Value>& args) {
 
           int limit_val = val.As<Int32>()->Value();
           if (limit_val < 0) {
-            std::string msg = "The \"options.limits." +
-                              std::string(js_name) +
+            std::string msg = "The \"options.limits." + std::string(js_name) +
                               "\" argument must be non-negative.";
             THROW_ERR_OUT_OF_RANGE(env->isolate(), msg);
             return;
