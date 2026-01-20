@@ -243,7 +243,7 @@ changes:
 -->
 
 `Buffer` instances are also JavaScript {Uint8Array} and {TypedArray}
-instances. All {TypedArray} methods are available on `Buffer`s. There are,
+instances. All {TypedArray} methods and properties are available on `Buffer`s. There are,
 however, subtle incompatibilities between the `Buffer` API and the
 {TypedArray} API.
 
