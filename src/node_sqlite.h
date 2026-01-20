@@ -93,11 +93,10 @@ class DatabaseOpenConfiguration {
   inline bool get_enable_defensive() const { return defensive_; }
 
   inline void set_initial_limit(int limit_id, int value) {
-    initial_limits_.at(limit_id) = value;
+    initial_limits_[limit_id] = value;
   }
 
-  inline const std::array<std::optional<int>, kLimitMapping.size()>&
-  initial_limits() const {
+  inline const std::map<int, int>& initial_limits() const {
     return initial_limits_;
   }
 
@@ -112,7 +111,7 @@ class DatabaseOpenConfiguration {
   bool allow_bare_named_params_ = true;
   bool allow_unknown_named_params_ = false;
   bool defensive_ = true;
-  std::array<std::optional<int>, kLimitMapping.size()> initial_limits_;
+  std::map<int, int> initial_limits_;
 };
 
 class DatabaseSync;

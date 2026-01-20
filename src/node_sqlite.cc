@@ -819,7 +819,8 @@ Intercepted DatabaseSyncLimits::LimitsQuery(
   }
 
   // Property exists and is writable
-  info.GetReturnValue().Set(Integer::New(isolate, v8::PropertyAttribute::DontDelete));
+  info.GetReturnValue().Set(
+      Integer::New(isolate, v8::PropertyAttribute::DontDelete));
   return Intercepted::kYes;
 }
 
@@ -950,12 +951,8 @@ bool DatabaseSync::Open() {
   sqlite3_busy_timeout(connection_, open_config_.get_timeout());
 
   // Apply initial limits
-  const auto& limits = open_config_.initial_limits();
-  for (size_t limit_id = 0; limit_id < limits.size(); ++limit_id) {
-    if (limits[limit_id].has_value()) {
-      sqlite3_limit(
-          connection_, static_cast<int>(limit_id), limits[limit_id].value());
-    }
+  for (const auto& [limit_id, limit_value] : open_config_.initial_limits()) {
+    sqlite3_limit(connection_, limit_id, limit_value);
   }
 
   if (allow_load_extension_) {
