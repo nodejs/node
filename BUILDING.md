@@ -715,12 +715,12 @@ easily. These files will install the following
 [WinGet](https://learn.microsoft.com/en-us/windows/package-manager/winget/) packages:
 
 * Git for Windows with the `git` and Unix tools added to the `PATH`
-* `Python 3.12`
+* `Python 3.14`
 * `Visual Studio 2022` (Community, Enterprise or Professional)
 * `Visual Studio 2022 Build Tools` with Visual C++ workload, Clang and ClangToolset
 * `NetWide Assembler`
 
-To install Node.js prerequisites from Powershell Terminal:
+To install Node.js prerequisites from PowerShell Terminal:
 
 ```powershell
 winget configure .\.configurations\configuration.dsc.yaml
