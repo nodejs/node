@@ -2337,7 +2337,8 @@ int SecureContext::TicketCompatibilityCallback(SSL* ssl,
 void SecureContext::CtxGetter(const FunctionCallbackInfo<Value>& info) {
   SecureContext* sc;
   ASSIGN_OR_RETURN_UNWRAP(&sc, info.This());
-  Local<External> ext = External::New(info.GetIsolate(), sc->ctx_.get());
+  Local<External> ext = External::New(
+      info.GetIsolate(), sc->ctx_.get(), v8::kExternalPointerTypeTagDefault);
   info.GetReturnValue().Set(ext);
 }
 
