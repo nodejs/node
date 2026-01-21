@@ -379,6 +379,8 @@ void BindingData::DecodeUTF8(const FunctionCallbackInfo<Value>& args) {
       return node::THROW_ERR_ENCODING_INVALID_ENCODED_DATA(
           env->isolate(), "The encoded data was not valid for encoding utf-8");
     }
+
+    // TODO(chalker): save on utf8 validity recheck in StringBytes::Encode()
   }
 
   if (length == 0) return args.GetReturnValue().SetEmptyString();
