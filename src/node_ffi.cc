@@ -191,7 +191,8 @@ MaybeLocal<Function> DynamicLibrary::CreateFunction(
 
   FFIFunctionInfo* info = new FFIFunctionInfo();
   info->fn = fn;
-  Local<External> data = External::New(isolate, info);
+  Local<External> data =
+      External::New(isolate, info, v8::kExternalPointerTypeTagDefault);
   MaybeLocal<Function> maybe_ret =
       Function::New(env->context(), DynamicLibrary::InvokeFunction, data);
   Local<Function> ret;
@@ -274,8 +275,8 @@ void DynamicLibrary::Close(const FunctionCallbackInfo<Value>& args) {
 
 void DynamicLibrary::InvokeFunction(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  FFIFunctionInfo* info =
-      static_cast<FFIFunctionInfo*>(args.Data().As<External>()->Value());
+  FFIFunctionInfo* info = static_cast<FFIFunctionInfo*>(
+      args.Data().As<External>()->Value(v8::kExternalPointerTypeTagDefault));
   FFIFunction* fn = info->fn.get();
 
   if (fn == nullptr || fn->closed || fn->ptr == nullptr) {
