@@ -129,27 +129,29 @@ class StringPtrAllocator {
   // Memory impact: ~8KB per parser (66 StringPtr × 128 bytes).
   static constexpr size_t kSlabSize = 8192;
 
-  StringPtrAllocator() { buffer_.SetLength(0); }
+  StringPtrAllocator() = default;
 
   // Allocate memory from the slab. Returns nullptr if full.
   char* TryAllocate(size_t size) {
-    const size_t current = buffer_.length();
-    if (current + size > kSlabSize) {
+    if (length_ + size > kSlabSize) {
       return nullptr;
     }
-    buffer_.SetLength(current + size);
-    return buffer_.out() + current;
+    char* ptr = buffer_ + length_;
+    length_ += size;
+    return ptr;
   }
 
   // Check if pointer is within this allocator's buffer.
   bool Contains(const char* ptr) const {
-    return ptr >= buffer_.out() && ptr < buffer_.out() + buffer_.capacity();
+    return ptr >= buffer_ && ptr < buffer_ + kSlabSize;
   }
+
   // Reset allocator for new message.
-  void Reset() { buffer_.SetLength(0); }
+  void Reset() { length_ = 0; }
 
  private:
-  MaybeStackBuffer<char, kSlabSize> buffer_;
+  char buffer_[kSlabSize];
+  size_t length_ = 0;
 };
 
 struct StringPtr {
