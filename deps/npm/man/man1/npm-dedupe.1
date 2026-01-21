@@ -1,4 +1,4 @@
-.TH "NPM-DEDUPE" "1" "December 2025" "NPM@11.7.0" ""
+.TH "NPM-DEDUPE" "1" "January 2026" "NPM@11.8.0" ""
 .SH "NAME"
 \fBnpm-dedupe\fR - Reduce duplication in the package tree
 .SS "Synopsis"
@@ -51,7 +51,7 @@ a
 .fi
 .RE
 .P
-During the installation process, the \fBc@1.0.3\fR dependency for \fBb\fR was placed in the root of the tree. Though \fBd\fR's dependency on \fBc@1.x\fR could have been satisfied by \fBc@1.0.3\fR, the newer \fBc@1.9.0\fR dependency was used, because npm favors updates by default, even when doing so causes duplication.
+During the installation process, the \fBc@1.0.3\fR dependency for \fBb\fR was placed in the root of the tree. Though \fBd\fR's dependency on \fBc@1.x\fR could have been satisfied by \fBc@1.0.3\fR, the newer \fBc@1.9.9\fR dependency was used, because npm favors updates by default, even when doing so causes duplication.
 .P
 Running \fBnpm dedupe\fR will cause npm to note the duplication and re-evaluate, deleting the nested \fBc\fR module, because the one in the root is sufficient.
 .P

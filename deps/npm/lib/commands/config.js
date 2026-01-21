@@ -4,7 +4,7 @@ const { spawn } = require('node:child_process')
 const { EOL } = require('node:os')
 const localeCompare = require('@isaacs/string-locale-compare')('en')
 const pkgJson = require('@npmcli/package-json')
-const { defaults, definitions, nerfDarts } = require('@npmcli/config/lib/definitions')
+const { defaults, definitions, nerfDarts, proxyEnv } = require('@npmcli/config/lib/definitions')
 const { log, output } = require('proc-log')
 const BaseCommand = require('../base-cmd.js')
 const { redact } = require('@npmcli/redact')
@@ -350,6 +350,23 @@ ${defData}
     }
 
     if (!long) {
+      const envVars = []
+
+      const foundEnvVars = new Set()
+      for (const key of Object.keys(process.env)) {
+        const lowerKey = key.toLowerCase()
+        if (proxyEnv.includes(lowerKey) && !foundEnvVars.has(lowerKey)) {
+          foundEnvVars.add(lowerKey)
+          envVars.push(`; ${key} = ${JSON.stringify(process.env[key])}`)
+        }
+      }
+
+      if (envVars.length > 0) {
+        msg.push('; environment-related config', '')
+        msg.push(...envVars)
+        msg.push('')
+      }
+
       msg.push(
         `; node bin location = ${process.execPath}`,
         `; node version = ${process.version}`,
