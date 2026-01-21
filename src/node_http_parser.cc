@@ -161,19 +161,17 @@ struct StringPtr {
   StringPtr(const StringPtr&) = delete;
   StringPtr& operator=(const StringPtr&) = delete;
 
-  void SetAllocator(StringPtrAllocator* allocator) { allocator_ = allocator; }
-
   // If str_ does not point to owned storage yet, this function makes it do
   // so. This is called at the end of each http_parser_execute() so as not
   // to leak references. See issue #2438 and test-http-parser-bad-ref.js.
-  void Save() {
+  void Save(StringPtrAllocator* allocator) {
     if (str_ == nullptr || on_heap_ ||
-        (allocator_ != nullptr && allocator_->Contains(str_))) {
+        (allocator != nullptr && allocator->Contains(str_))) {
       return;
     }
     // Try allocator first, fall back to heap
-    if (allocator_ != nullptr) {
-      char* ptr = allocator_->TryAllocate(size_);
+    if (allocator != nullptr) {
+      char* ptr = allocator->TryAllocate(size_);
       if (ptr != nullptr) {
         memcpy(ptr, str_, size_);
         str_ = ptr;
@@ -195,19 +193,19 @@ struct StringPtr {
     size_ = 0;
   }
 
-  void Update(const char* str, size_t size) {
+  void Update(const char* str, size_t size, StringPtrAllocator* allocator) {
     if (str_ == nullptr) {
       str_ = str;
     } else if (on_heap_ ||
-               (allocator_ != nullptr && allocator_->Contains(str_)) ||
+               (allocator != nullptr && allocator->Contains(str_)) ||
                str_ + size_ != str) {
       // Non-consecutive input, make a copy
       const size_t new_size = size_ + size;
       char* new_str = nullptr;
 
       // Try allocator first (if not already on heap)
-      if (!on_heap_ && allocator_ != nullptr) {
-        new_str = allocator_->TryAllocate(new_size);
+      if (!on_heap_ && allocator != nullptr) {
+        new_str = allocator->TryAllocate(new_size);
       }
 
       if (new_str != nullptr) {
@@ -245,7 +243,6 @@ struct StringPtr {
   const char* str_ = nullptr;
   bool on_heap_ = false;
   size_t size_ = 0;
-  StringPtrAllocator* allocator_ = nullptr;
 };
 
 struct ParserComparator {
@@ -303,15 +300,7 @@ class Parser : public AsyncWrap, public StreamListener {
       : AsyncWrap(binding_data->env(), wrap),
         current_buffer_len_(0),
         current_buffer_data_(nullptr),
-        binding_data_(binding_data) {
-    // Wire up all StringPtrs to use the shared allocator
-    for (size_t i = 0; i < kMaxHeaderFieldsCount; i++) {
-      fields_[i].SetAllocator(&allocator_);
-      values_[i].SetAllocator(&allocator_);
-    }
-    url_.SetAllocator(&allocator_);
-    status_message_.SetAllocator(&allocator_);
-  }
+        binding_data_(binding_data) {}
 
   SET_NO_MEMORY_INFO()
   SET_MEMORY_INFO_NAME(Parser)
@@ -360,7 +349,7 @@ class Parser : public AsyncWrap, public StreamListener {
       return rv;
     }
 
-    url_.Update(at, length);
+    url_.Update(at, length, &allocator_);
     return 0;
   }
 
@@ -371,7 +360,7 @@ class Parser : public AsyncWrap, public StreamListener {
       return rv;
     }
 
-    status_message_.Update(at, length);
+    status_message_.Update(at, length, &allocator_);
     return 0;
   }
 
@@ -397,7 +386,7 @@ class Parser : public AsyncWrap, public StreamListener {
     CHECK_LT(num_fields_, kMaxHeaderFieldsCount);
     CHECK_EQ(num_fields_, num_values_ + 1);
 
-    fields_[num_fields_ - 1].Update(at, length);
+    fields_[num_fields_ - 1].Update(at, length, &allocator_);
 
     return 0;
   }
@@ -418,7 +407,7 @@ class Parser : public AsyncWrap, public StreamListener {
     CHECK_LT(num_values_, arraysize(values_));
     CHECK_EQ(num_values_, num_fields_);
 
-    values_[num_values_ - 1].Update(at, length);
+    values_[num_values_ - 1].Update(at, length, &allocator_);
 
     return 0;
   }
@@ -646,15 +635,15 @@ class Parser : public AsyncWrap, public StreamListener {
   }
 
   void Save() {
-    url_.Save();
-    status_message_.Save();
+    url_.Save(&allocator_);
+    status_message_.Save(&allocator_);
 
     for (size_t i = 0; i < num_fields_; i++) {
-      fields_[i].Save();
+      fields_[i].Save(&allocator_);
     }
 
     for (size_t i = 0; i < num_values_; i++) {
-      values_[i].Save();
+      values_[i].Save(&allocator_);
     }
   }
 
