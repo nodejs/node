@@ -31,6 +31,8 @@ tmpdir.refresh();
 
   let seenFile = false;
   let seenIgnored = false;
+  let interval;
+
   watcher.on('change', common.mustCallAtLeast((event, filename) => {
     if (filename === 'file.txt') {
       seenFile = true;
@@ -38,18 +40,22 @@ tmpdir.refresh();
     if (filename === 'file.log') {
       seenIgnored = true;
     }
-    // Close watcher after we've seen the non-ignored file
     if (seenFile) {
+      clearInterval(interval);
+      interval = null;
       watcher.close();
     }
   }, 1));
 
-  setTimeout(() => {
-    fs.writeFileSync(ignoredFile, 'ignored');
-    fs.writeFileSync(testFile, 'content');
-  }, common.platformTimeout(200));
+  process.nextTick(common.mustCall(() => {
+    interval = setInterval(() => {
+      fs.writeFileSync(ignoredFile, 'ignored');
+      fs.writeFileSync(testFile, 'content-' + Date.now());
+    }, 100);
+  }));
 
   process.on('exit', () => {
+    assert.strictEqual(interval, null);
     assert.strictEqual(seenFile, true);
     assert.strictEqual(seenIgnored, false);
   });
@@ -70,6 +76,8 @@ tmpdir.refresh();
 
   let seenFile = false;
   let seenIgnored = false;
+  let interval;
+
   watcher.on('change', common.mustCallAtLeast((event, filename) => {
     if (filename === 'keep.txt') {
       seenFile = true;
@@ -78,16 +86,21 @@ tmpdir.refresh();
       seenIgnored = true;
     }
     if (seenFile) {
+      clearInterval(interval);
+      interval = null;
       watcher.close();
     }
   }, 1));
 
-  setTimeout(() => {
-    fs.writeFileSync(ignoredFile, 'ignored');
-    fs.writeFileSync(testFile, 'content');
-  }, common.platformTimeout(200));
+  process.nextTick(common.mustCall(() => {
+    interval = setInterval(() => {
+      fs.writeFileSync(ignoredFile, 'ignored');
+      fs.writeFileSync(testFile, 'content-' + Date.now());
+    }, 100);
+  }));
 
   process.on('exit', () => {
+    assert.strictEqual(interval, null);
     assert.strictEqual(seenFile, true);
     assert.strictEqual(seenIgnored, false);
   });
@@ -108,6 +121,8 @@ tmpdir.refresh();
 
   let seenFile = false;
   let seenIgnored = false;
+  let interval;
+
   watcher.on('change', common.mustCallAtLeast((event, filename) => {
     if (filename === 'visible.txt') {
       seenFile = true;
@@ -116,16 +131,21 @@ tmpdir.refresh();
       seenIgnored = true;
     }
     if (seenFile) {
+      clearInterval(interval);
+      interval = null;
       watcher.close();
     }
   }, 1));
 
-  setTimeout(() => {
-    fs.writeFileSync(ignoredFile, 'ignored');
-    fs.writeFileSync(testFile, 'content');
-  }, common.platformTimeout(200));
+  process.nextTick(common.mustCall(() => {
+    interval = setInterval(() => {
+      fs.writeFileSync(ignoredFile, 'ignored');
+      fs.writeFileSync(testFile, 'content-' + Date.now());
+    }, 100);
+  }));
 
   process.on('exit', () => {
+    assert.strictEqual(interval, null);
     assert.strictEqual(seenFile, true);
     assert.strictEqual(seenIgnored, false);
   });
@@ -154,6 +174,8 @@ tmpdir.refresh();
   let seenLog = false;
   let seenTmp = false;
   let seenHidden = false;
+  let interval;
+
   watcher.on('change', common.mustCallAtLeast((event, filename) => {
     if (filename === 'keep.txt') {
       seenFile = true;
@@ -163,18 +185,23 @@ tmpdir.refresh();
     if (filename === '.secret') seenHidden = true;
 
     if (seenFile) {
+      clearInterval(interval);
+      interval = null;
       watcher.close();
     }
   }, 1));
 
-  setTimeout(() => {
-    fs.writeFileSync(ignoredLog, 'ignored');
-    fs.writeFileSync(ignoredTmp, 'ignored');
-    fs.writeFileSync(ignoredHidden, 'ignored');
-    fs.writeFileSync(testFile, 'content');
-  }, common.platformTimeout(200));
+  process.nextTick(common.mustCall(() => {
+    interval = setInterval(() => {
+      fs.writeFileSync(ignoredLog, 'ignored');
+      fs.writeFileSync(ignoredTmp, 'ignored');
+      fs.writeFileSync(ignoredHidden, 'ignored');
+      fs.writeFileSync(testFile, 'content-' + Date.now());
+    }, 100);
+  }));
 
   process.on('exit', () => {
+    assert.strictEqual(interval, null);
     assert.strictEqual(seenFile, true);
     assert.strictEqual(seenLog, false);
     assert.strictEqual(seenTmp, false);
