@@ -152,7 +152,7 @@ function spawnPromisified(...args) {
 }
 
 function spawnOptions(envExtension) {
-  // Cleanup the environment to not interfere with the client proxy tests.
+  // Cleanup the environment to avoid interference with client proxy tests.
   const {
     http_proxy: _http_proxy,
     https_proxy: _https_proxy,
