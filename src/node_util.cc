@@ -93,7 +93,7 @@ static void GetExternalValue(
   Isolate* isolate = args.GetIsolate();
   Local<External> external = args[0].As<External>();
 
-  void* ptr = external->Value();
+  void* ptr = external->Value(v8::kExternalPointerTypeTagDefault);
   uint64_t value = reinterpret_cast<uint64_t>(ptr);
   Local<BigInt> ret = BigInt::NewFromUnsigned(isolate, value);
   args.GetReturnValue().Set(ret);
