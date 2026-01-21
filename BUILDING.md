@@ -726,14 +726,6 @@ To install Node.js prerequisites from PowerShell Terminal:
 winget configure .\.configurations\configuration.dsc.yaml
 ```
 
-Alternatively, you can use [Dev Home](https://learn.microsoft.com/en-us/windows/dev-home/)
-to install the prerequisites:
-
-* Switch to `Machine Configuration` tab
-* Click on `Configuration File`
-* Choose the corresponding WinGet configuration file
-* Click on `Set up as admin`
-
 ##### Option 3: Automated install with Boxstarter
 
 A [Boxstarter](https://boxstarter.org/) script can be used for easy setup of
