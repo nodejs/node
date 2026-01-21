@@ -4455,7 +4455,7 @@ Will generate an object similar to:
   ares: '1.28.1',
   base64: '0.5.2',
   brotli: '1.1.0',
-  cjs_module_lexer: '1.2.2',
+  merve: '1.0.0',
   cldr: '45.0',
   icu: '75.1',
   llhttp: '9.2.1',
