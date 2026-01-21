@@ -39,6 +39,20 @@ inline constexpr std::array<LimitInfo, 11> kLimitMapping = {{
     {"triggerDepth", SQLITE_LIMIT_TRIGGER_DEPTH},
 }};
 
+// Static assertion to ensure all limit IDs fit in the array
+constexpr bool CheckLimitBounds() {
+  for (const auto& info : kLimitMapping) {
+    if (info.sqlite_limit_id < 0 ||
+        info.sqlite_limit_id > SQLITE_LIMIT_TRIGGER_DEPTH) {
+      return false;
+    }
+  }
+  return true;
+}
+static_assert(
+    CheckLimitBounds(),
+    "All kLimitMapping entries must be <= SQLITE_LIMIT_TRIGGER_DEPTH");
+
 class DatabaseOpenConfiguration {
  public:
   explicit DatabaseOpenConfiguration(std::string&& location)
@@ -92,11 +106,11 @@ class DatabaseOpenConfiguration {
 
   inline bool get_enable_defensive() const { return defensive_; }
 
-  inline void set_initial_limit(size_t mapping_index, int value) {
-    initial_limits_[mapping_index] = value;
+  inline void set_initial_limit(int sqlite_limit_id, int value) {
+    initial_limits_[sqlite_limit_id] = value;
   }
 
-  inline const std::array<std::optional<int>, kLimitMapping.size()>&
+  inline const std::array<std::optional<int>, SQLITE_LIMIT_TRIGGER_DEPTH + 1>&
   initial_limits() const {
     return initial_limits_;
   }
@@ -112,7 +126,8 @@ class DatabaseOpenConfiguration {
   bool allow_bare_named_params_ = true;
   bool allow_unknown_named_params_ = false;
   bool defensive_ = true;
-  std::array<std::optional<int>, kLimitMapping.size()> initial_limits_{};
+  std::array<std::optional<int>, SQLITE_LIMIT_TRIGGER_DEPTH + 1>
+      initial_limits_{};
 };
 
 class DatabaseSync;
