@@ -95,7 +95,7 @@ class CallbackInfo : public Cleanable {
   CallbackInfo& operator=(const CallbackInfo&) = delete;
 
  private:
-  void Clean();
+  void Clean() override;
   inline void OnBackingStoreFree();
   inline void CallAndResetCallback();
   inline CallbackInfo(Environment* env,
