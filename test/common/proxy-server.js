@@ -152,12 +152,17 @@ function spawnPromisified(...args) {
 }
 
 function spawnOptions(envExtension) {
-  /*
-   * Cleanup the environment to not interfere with the client proxy tests.
-   */
-  const { http_proxy, https_proxy, HTTP_PROXY, HTTPS_PROXY,
-      no_proxy, NO_PROXY, ...env } = process.env;
-  return { env: {...env, ...envExtension} };
+  // Cleanup the environment to not interfere with the client proxy tests.
+  const {
+    http_proxy: _http_proxy,
+    https_proxy: _https_proxy,
+    HTTP_PROXY: _HTTP_PROXY,
+    HTTPS_PROXY: _HTTPS_PROXY,
+    no_proxy: _no_proxy,
+    NO_PROXY: _NO_PROXY,
+    ...env
+  } = process.env;
+  return { env: { ...env, ...envExtension } };
 }
 
 async function checkProxied(type, envExtension, expectation, cliArgsExtension = []) {
@@ -165,7 +170,7 @@ async function checkProxied(type, envExtension, expectation, cliArgsExtension = 
   const { code, signal, stdout, stderr } = await spawnPromisified(
     process.execPath,
     [...cliArgsExtension, script],
-    spawnOptions({...envExtension, NO_LOG_REQUEST: '1'}));
+    spawnOptions({ ...envExtension, NO_LOG_REQUEST: '1' }));
 
   assert.deepStrictEqual({
     stderr: stderr.trim(),
