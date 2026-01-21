@@ -26,6 +26,7 @@ jobs:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
         with:
           persist-credentials: false
+          fetch-depth: 2
       - name: Lint release commit title format
         run: |
           EXPECTED_TITLE='^[[:digit:]]{4}-[[:digit:]]{2}-[[:digit:]]{2}, Version [[:digit:]]+\.[[:digit:]]+\.[[:digit:]]+ (\(Current|'.+' \(LTS)\)$'
@@ -51,6 +52,29 @@ jobs:
       - name: Verify it's release-ready
         run: |
           SKIP_XZ=1 make release-only
+      - name: Lint release commit content
+        run: |
+          MAJOR="$(awk '/^#define NODE_MAJOR_VERSION / { print $3 }' src/node_version.h)"
+
+          echo "Checking for expected files in the release commit:"
+          missing_expected=
+          for expected in CHANGELOG.md src/node_version.h doc/changelogs/; do
+            if git diff --exit-code --quiet --diff-filter=M HEAD^ -- "$expected"; then
+              echo "Missing expected file in diff: $expected"
+              missing_expected=1
+            fi
+          done
+          [ -z "$missing_expected" ] || exit 1
+
+          echo "Checking for unexpected files in the release commit:"
+          set -ex
+          [ -z "$(git diff-tree --no-commit-id --name-only -r HEAD --\
+            . \
+            ':(exclude)CHANGELOG.md' \
+            ':(exclude)src/node_version.h' \
+            ':(exclude)test/parallel/test-process-release.js' \
+            ':(exclude)doc/api/' \
+            ":(exclude)doc/changelogs/CHANGELOG_V$MAJOR.md")" ]
       - name: Validate CHANGELOG
         id: releaser-info
         run: |
