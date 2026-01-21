@@ -385,13 +385,9 @@
           'defines': [ 'OPENSSL_API_COMPAT=0x10100000L', ],
           'dependencies': [
             './deps/openssl/openssl.gyp:openssl',
-            './deps/ngtcp2/ngtcp2.gyp:ngtcp2',
-            './deps/ngtcp2/ngtcp2.gyp:nghttp3',
 
             # For tests
             './deps/openssl/openssl.gyp:openssl-cli',
-            './deps/ngtcp2/ngtcp2.gyp:ngtcp2_test_server',
-            './deps/ngtcp2/ngtcp2.gyp:ngtcp2_test_client',
           ],
           'conditions': [
             # -force_load or --whole-archive are not applicable for
@@ -442,6 +438,23 @@
       'defines': [ 'HAVE_SQLITE=1' ],
     }, {
       'defines': [ 'HAVE_SQLITE=0' ]
+    }],
+    [ 'node_use_quic=="true"', {
+      'defines': [ 'HAVE_QUIC=1' ],
+      'conditions': [
+        [ 'node_shared_openssl=="false"', {
+          'dependencies': [
+            './deps/ngtcp2/ngtcp2.gyp:ngtcp2',
+            './deps/ngtcp2/ngtcp2.gyp:nghttp3',
+
+            # For tests
+            './deps/ngtcp2/ngtcp2.gyp:ngtcp2_test_server',
+            './deps/ngtcp2/ngtcp2.gyp:ngtcp2_test_client',
+          ],
+        }],
+      ],
+    }, {
+      'defines': [ 'HAVE_QUIC=0' ]
     }],
   ],
 }

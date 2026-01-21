@@ -32,6 +32,7 @@
     'node_use_bundled_v8%': 'true',
     'node_use_node_snapshot%': 'false',
     'node_use_openssl%': 'true',
+    'node_use_quic%': 'false',
     'node_use_sqlite%': 'true',
     'node_use_v8_platform%': 'true',
     'node_v8_options%': '',
@@ -190,22 +191,6 @@
       'src/udp_wrap.cc',
       'src/util.cc',
       'src/uv.cc',
-      'src/quic/bindingdata.cc',
-      'src/quic/cid.cc',
-      'src/quic/data.cc',
-      'src/quic/logstream.cc',
-      'src/quic/packet.cc',
-      'src/quic/preferredaddress.cc',
-      'src/quic/sessionticket.cc',
-      'src/quic/tokens.cc',
-      'src/quic/application.cc',
-      'src/quic/endpoint.cc',
-      'src/quic/http3.cc',
-      'src/quic/session.cc',
-      'src/quic/streams.cc',
-      'src/quic/tlscontext.cc',
-      'src/quic/transportparams.cc',
-      'src/quic/quic.cc',
       # headers to make for a more pleasant IDE experience
       'src/aliased_buffer.h',
       'src/aliased_buffer-inl.h',
@@ -343,6 +328,24 @@
       'src/udp_wrap.h',
       'src/util.h',
       'src/util-inl.h',
+    ],
+    'node_quic_sources': [
+      'src/quic/bindingdata.cc',
+      'src/quic/cid.cc',
+      'src/quic/data.cc',
+      'src/quic/logstream.cc',
+      'src/quic/packet.cc',
+      'src/quic/preferredaddress.cc',
+      'src/quic/sessionticket.cc',
+      'src/quic/tokens.cc',
+      'src/quic/application.cc',
+      'src/quic/endpoint.cc',
+      'src/quic/http3.cc',
+      'src/quic/session.cc',
+      'src/quic/streams.cc',
+      'src/quic/tlscontext.cc',
+      'src/quic/transportparams.cc',
+      'src/quic/quic.cc',
       'src/quic/bindingdata.h',
       'src/quic/cid.h',
       'src/quic/data.h',
@@ -425,6 +428,8 @@
       'test/cctest/test_crypto_clienthello.cc',
       'test/cctest/test_node_crypto.cc',
       'test/cctest/test_node_crypto_env.cc',
+    ],
+    'node_cctest_quic_sources': [
       'test/cctest/test_quic_cid.cc',
       'test/cctest/test_quic_error.cc',
       'test/cctest/test_quic_preferredaddress.cc',
@@ -998,6 +1003,11 @@
             '<@(node_sqlite_sources)',
           ],
         }],
+        [ 'node_use_quic=="true"', {
+          'sources': [
+            '<@(node_quic_sources)',
+          ],
+        }],
         [ 'OS in "linux freebsd mac solaris openharmony" and '
           'target_arch=="x64" and '
           'node_target_type=="executable"', {
@@ -1291,6 +1301,13 @@
           ],
         }, {
           'sources!': [ '<@(node_cctest_openssl_sources)' ],
+        }],
+        [ 'node_use_quic=="true"', {
+          'defines': [
+            'HAVE_QUIC=1',
+          ],
+        }, {
+          'sources!': [ '<@(node_cctest_quic_sources)' ],
         }],
         ['v8_enable_inspector==1', {
           'defines': [

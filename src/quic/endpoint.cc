@@ -1,4 +1,4 @@
-#if HAVE_OPENSSL
+#if HAVE_OPENSSL && HAVE_QUIC
 #include "guard.h"
 #ifndef OPENSSL_NO_QUIC
 #include "endpoint.h"
@@ -1740,4 +1740,4 @@ JS_METHOD_IMPL(Endpoint::Ref) {
 }  // namespace quic
 }  // namespace node
 #endif  // OPENSSL_NO_QUIC
-#endif  // HAVE_OPENSSL
+#endif  // HAVE_OPENSSL && HAVE_QUIC

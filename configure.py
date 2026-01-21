@@ -970,6 +970,12 @@ parser.add_argument('--without-sqlite',
     default=None,
     help='build without SQLite (disables SQLite and Web Storage API)')
 
+parser.add_argument('--experimental-quic',
+    action='store_true',
+    dest='experimental_quic',
+    default=None,
+    help='build with experimental QUIC support')
+
 parser.add_argument('--ninja',
     action='store_true',
     dest='use_ninja',
@@ -2030,6 +2036,10 @@ def configure_sqlite(o):
 
   configure_library('sqlite', o, pkgname='sqlite3')
 
+def configure_quic(o):
+  o['variables']['node_use_quic'] = b(options.experimental_quic and
+                                      not options.without_ssl)
+
 def configure_static(o):
   if options.fully_static or options.partly_static:
     if flavor == 'mac':
@@ -2482,6 +2492,7 @@ configure_library('uvwasi', output)
 configure_library('zstd', output, pkgname='libzstd')
 configure_v8(output, configurations)
 configure_openssl(output)
+configure_quic(output)
 configure_intl(output)
 configure_static(output)
 configure_inspector(output)
