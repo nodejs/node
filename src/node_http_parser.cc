@@ -132,7 +132,7 @@ class StringPtrAllocator {
   StringPtrAllocator() { buffer_.SetLength(0); }
 
   // Allocate memory from the slab. Returns nullptr if full.
-  char* Allocate(size_t size) {
+  char* TryAllocate(size_t size) {
     const size_t current = buffer_.length();
     if (current + size > kSlabSize) {
       return nullptr;
@@ -171,7 +171,7 @@ struct StringPtr {
     }
     // Try allocator first, fall back to heap
     if (allocator_ != nullptr) {
-      char* ptr = allocator_->Allocate(size_);
+      char* ptr = allocator_->TryAllocate(size_);
       if (ptr != nullptr) {
         memcpy(ptr, str_, size_);
         str_ = ptr;
@@ -205,7 +205,7 @@ struct StringPtr {
 
       // Try allocator first (if not already on heap)
       if (!on_heap_ && allocator_ != nullptr) {
-        new_str = allocator_->Allocate(new_size);
+        new_str = allocator_->TryAllocate(new_size);
       }
 
       if (new_str != nullptr) {
