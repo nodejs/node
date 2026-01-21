@@ -1,4 +1,4 @@
-#if HAVE_OPENSSL
+#if HAVE_OPENSSL && HAVE_QUIC
 #include "quic/guard.h"
 #ifndef OPENSSL_NO_QUIC
 #include <env-inl.h>
@@ -81,4 +81,4 @@ TEST(PreferredAddress, SetTransportParams) {
   CHECK_EQ(std::string(ipv4_2.host), "123.123.123.123");
 }
 #endif  // OPENSSL_NO_QUIC
-#endif  // HAVE_OPENSSL
+#endif  // HAVE_OPENSSL && HAVE_QUIC
