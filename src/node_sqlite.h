@@ -109,7 +109,7 @@ class DatabaseOpenConfiguration {
   inline bool get_enable_defensive() const { return defensive_; }
 
   inline void set_initial_limit(int sqlite_limit_id, int value) {
-    initial_limits_[sqlite_limit_id] = value;
+    initial_limits_.at(sqlite_limit_id) = value;
   }
 
   inline const std::array<std::optional<int>, kLimitMapping.size()>&
