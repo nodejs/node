@@ -26,7 +26,7 @@ const WebSocketServer = require('../common/websocket-server');
     const ws = new WebSocket(`wss://localhost:${server.address().port}`, {
       dispatcher: new undici.EnvHttpProxyAgent({
         connect: { rejectUnauthorized: false },
-        noProxy: 'localhost',
+        noProxy: '*',
       })
     });
     ws.addEventListener('open', common.mustCall(() => {
