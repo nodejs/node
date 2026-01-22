@@ -1272,6 +1272,23 @@ generated as part of the test runner output. If no tests are run, a coverage
 report is not generated. See the documentation on
 [collecting code coverage from tests][] for more details.
 
+### `--experimental-test-fs-mocks`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.0 - Early development
+
+Enable file system mocking in the test runner.
+
+This feature allows tests to mock file system operations without actually
+reading from or writing to the disk. By default, virtual files take precedence
+but real file system operations are still allowed for paths not defined in
+the virtual file system. Use the `isolate: true` option to completely isolate
+tests from the real file system. See the documentation on
+[mocking the file system][] for more details.
+
 ### `--experimental-test-module-mocks`
 
 <!-- YAML
@@ -1293,23 +1310,6 @@ changes:
 Enable module mocking in the test runner.
 
 This feature requires `--allow-worker` if used with the [Permission Model][].
-
-### `--experimental-test-fs-mocks`
-
-<!-- YAML
-added: REPLACEME
--->
-
-> Stability: 1.0 - Early development
-
-Enable file system mocking in the test runner.
-
-This feature allows tests to mock file system operations without actually
-reading from or writing to the disk. By default, virtual files take precedence
-but real file system operations are still allowed for paths not defined in
-the virtual file system. Use the `isolate: true` option to completely isolate
-tests from the real file system. See the documentation on
-[mocking the file system][] for more details.
 
 ### `--experimental-transform-types`
 
