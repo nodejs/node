@@ -905,6 +905,12 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             kDisallowedInEnvvar,
             false,
             OptionNamespaces::kTestRunnerNamespace);
+  AddOption("--experimental-test-fs-mocks",
+            "enable file system mocking in the test runner",
+            &EnvironmentOptions::test_runner_fs_mocks,
+            kDisallowedInEnvvar,
+            false,
+            OptionNamespaces::kTestRunnerNamespace);
   AddOption("--experimental-test-snapshots",
             "",
             NoOp{},
