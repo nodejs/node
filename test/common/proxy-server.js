@@ -152,16 +152,12 @@ function spawnPromisified(...args) {
 }
 
 function spawnOptions(envExtension) {
+  const env = { ...process.env };
   // Cleanup the environment to avoid interference with client proxy tests.
-  const {
-    http_proxy: _http_proxy,
-    https_proxy: _https_proxy,
-    HTTP_PROXY: _HTTP_PROXY,
-    HTTPS_PROXY: _HTTPS_PROXY,
-    no_proxy: _no_proxy,
-    NO_PROXY: _NO_PROXY,
-    ...env
-  } = process.env;
+  for (const key of ["http_proxy", "https_proxy", "no_proxy"]) {
+    delete env[key];
+    delete env[key.toUpper()];
+  }
   return { env: { ...env, ...envExtension } };
 }
 
