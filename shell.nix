@@ -6,7 +6,6 @@
   loadJSBuiltinsDynamically ? true, # Load `lib/**.js` from disk instead of embedding
   ninja ? pkgs.ninja,
   extraConfigFlags ? [
-    "--without-npm"
     "--debug-node"
   ],
 
@@ -87,13 +86,9 @@ pkgs.mkShell {
     ++ pkgs.lib.optional (ninja != null) "--ninja"
     ++ pkgs.lib.optional loadJSBuiltinsDynamically "--node-builtin-modules-path=${builtins.toString ./.}"
     ++ pkgs.lib.concatMap (name: [
-      "--shared-${builtins.replaceStrings [ "c-ares" ] [ "cares" ] name}"
-      "--shared-${builtins.replaceStrings [ "c-ares" ] [ "cares" ] name}-libpath=${
-        pkgs.lib.getLib sharedLibDeps.${name}
-      }/lib"
-      "--shared-${builtins.replaceStrings [ "c-ares" ] [ "cares" ] name}-include=${
-        pkgs.lib.getInclude sharedLibDeps.${name}
-      }/include"
+      "--shared-${name}"
+      "--shared-${name}-libpath=${pkgs.lib.getLib sharedLibDeps.${name}}/lib"
+      "--shared-${name}-include=${pkgs.lib.getInclude sharedLibDeps.${name}}/include"
     ]) (builtins.attrNames sharedLibDeps)
   );
   NOSQLITE = pkgs.lib.optionalString (!withSQLite) "1";

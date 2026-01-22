@@ -8,7 +8,6 @@
   inherit (pkgs)
     ada
     brotli
-    c-ares
     gtest
     libuv
     nghttp2
@@ -20,6 +19,7 @@
     zlib
     zstd
     ;
+  cares = pkgs.c-ares;
   hdr-histogram = pkgs.hdrhistogram_c;
   http-parser = pkgs.llhttp;
 }
