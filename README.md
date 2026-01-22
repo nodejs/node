@@ -889,15 +889,15 @@ releases on a rotation basis as outlined in the
   * [bengl](https://github.com/bengl) -
     **Bryan English** <<bryan@bryanenglish.com>> (he/him)
 * [HeroDevs](https://www.herodevs.com/)
-  * [marco-ippolito](https://github.com/marco-ippolito) -
+  * [marco-ippolito](https://github.com/marco-ippolito) - OpenJSF handle: `Marco Ippolito`
     **Marco Ippolito** <<marcoippolito54@gmail.com>> (he/him)
 * [NodeSource](https://nodesource.com/)
   * [juanarbol](https://github.com/juanarbol) -
     **Juan José Arboleda** <<soyjuanarbol@gmail.com>> (he/him)
-  * [RafaelGSS](https://github.com/RafaelGSS) -
+  * [RafaelGSS](https://github.com/RafaelGSS) - OpenJSF handle: `RafaelGSS`
     **Rafael Gonzaga** <<rafael.nunu@hotmail.com>> (he/him)
 * [Platformatic](https://platformatic.dev/)
-  * [mcollina](https://github.com/mcollina) -
+  * [mcollina](https://github.com/mcollina) - OpenJSF handle: `mcollina`
     **Matteo Collina** <<matteo.collina@gmail.com>> (he/him)
 * [Red Hat](https://redhat.com) / [IBM](https://ibm.com)
   * [joesepi](https://github.com/joesepi) -
