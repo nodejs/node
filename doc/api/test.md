@@ -1044,6 +1044,156 @@ test('runs timers as setTime passes ticks', (context) => {
 });
 ```
 
+### File system
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.0 - Early development
+
+Mocking the file system is a technique commonly used in software testing to
+simulate file operations without actually writing to or reading from the disk.
+This allows for safer, faster, and more predictable tests when working with
+file system operations.
+
+Refer to the [`MockFileSystem`][] class for a full list of methods and features.
+
+**Note:** This feature requires the `--experimental-test-fs-mocks` flag.
+
+The example below shows how to mock file system operations. Using
+`.enable({ files: {...} })` it will mock the file system methods in the
+[node:fs](./fs.md) and [node:fs/promises](./fs.md#promises-api) modules.
+
+```mjs
+import assert from 'node:assert';
+import fs from 'node:fs';
+import { test } from 'node:test';
+
+test('mocks file system operations', (context) => {
+  // Enable file system mocking with virtual files
+  context.mock.fs.enable({
+    files: {
+      '/virtual/test.txt': 'Hello, World!',
+      '/virtual/data.json': '{"key": "value"}',
+    },
+  });
+
+  // Read virtual files
+  const content = fs.readFileSync('/virtual/test.txt', 'utf8');
+  assert.strictEqual(content, 'Hello, World!');
+
+  // Write to virtual file system
+  fs.writeFileSync('/virtual/new.txt', 'New content');
+  assert.strictEqual(fs.readFileSync('/virtual/new.txt', 'utf8'), 'New content');
+
+  // Check if virtual file exists
+  assert.strictEqual(fs.existsSync('/virtual/test.txt'), true);
+});
+```
+
+```cjs
+const assert = require('node:assert');
+const fs = require('node:fs');
+const { test } = require('node:test');
+
+test('mocks file system operations', (context) => {
+  // Enable file system mocking with virtual files
+  context.mock.fs.enable({
+    files: {
+      '/virtual/test.txt': 'Hello, World!',
+      '/virtual/data.json': '{"key": "value"}',
+    },
+  });
+
+  // Read virtual files
+  const content = fs.readFileSync('/virtual/test.txt', 'utf8');
+  assert.strictEqual(content, 'Hello, World!');
+
+  // Write to virtual file system
+  fs.writeFileSync('/virtual/new.txt', 'New content');
+  assert.strictEqual(fs.readFileSync('/virtual/new.txt', 'utf8'), 'New content');
+
+  // Check if virtual file exists
+  assert.strictEqual(fs.existsSync('/virtual/test.txt'), true);
+});
+```
+
+By default, the mock file system allows access to both virtual and real files,
+with virtual files taking precedence. When file system mocking is enabled,
+**all write operations go to the virtual file system**, regardless of whether
+the path exists in the real file system. This prevents tests from accidentally
+modifying the real file system.
+
+You can enable isolation mode to completely isolate tests from the real file
+system for read operations as well:
+
+```mjs
+import assert from 'node:assert';
+import fs from 'node:fs';
+import { test } from 'node:test';
+
+test('complete file system isolation', (context) => {
+  context.mock.fs.enable({
+    files: {
+      '/virtual/only.txt': 'Only this file exists',
+    },
+    isolate: true, // Enable full isolation mode
+  });
+
+  // Virtual file works
+  assert.strictEqual(fs.readFileSync('/virtual/only.txt', 'utf8'), 'Only this file exists');
+
+  // Real files are not accessible
+  assert.throws(() => {
+    fs.readFileSync('/etc/passwd');
+  }, {
+    code: 'ENOENT',
+  });
+});
+```
+
+```cjs
+const assert = require('node:assert');
+const fs = require('node:fs');
+const { test } = require('node:test');
+
+test('complete file system isolation', (context) => {
+  context.mock.fs.enable({
+    files: {
+      '/virtual/only.txt': 'Only this file exists',
+    },
+    isolate: true, // Enable full isolation mode
+  });
+
+  // Virtual file works
+  assert.strictEqual(fs.readFileSync('/virtual/only.txt', 'utf8'), 'Only this file exists');
+
+  // Real files are not accessible
+  assert.throws(() => {
+    fs.readFileSync('/etc/passwd');
+  }, {
+    code: 'ENOENT',
+  });
+});
+```
+
+#### Windows path handling
+
+On Windows, use appropriate path separators or forward slashes:
+
+```js
+test('Windows path handling', (t) => {
+  t.mock.fs.enable({
+    files: {
+      'C:/virtual/test.txt': 'Hello, World!',
+      // or using backslashes
+      // 'C:\\virtual\\test.txt': 'Hello, World!',
+    },
+  });
+});
+```
+
 ## Snapshot testing
 
 <!-- YAML
@@ -3106,6 +3256,190 @@ test('runAll functions following the given order', (context) => {
 });
 ```
 
+## Class: `MockFileSystem`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.0 - Early development
+
+Mocking the file system allows tests to simulate file operations without
+actually reading from or writing to the disk. This makes tests safer, faster,
+and more predictable.
+
+The [`MockTracker`][] provides a top-level `fs` export
+which is a `MockFileSystem` instance.
+
+**Note:** This class requires the `--experimental-test-fs-mocks` flag.
+
+### `fs.enable([options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Enables file system mocking.
+
+* `options` {Object} Optional configuration options for enabling file system
+  mocking. The following properties are supported:
+  * `files` {Object} An object mapping file paths to their content. Content
+    can be a string, `Buffer`, or `Uint8Array`. Strings are automatically
+    converted to `Buffer` using UTF-8 encoding. **Default:** `{}`.
+  * `isolate` {boolean} If `true`, only virtual files are accessible and
+    any access to paths not in `files` will throw `ENOENT`. If `false`
+    (the default), virtual files take precedence but real file system
+    operations are still allowed for other paths. **Note:** When mocking is
+    enabled, write operations always go to the virtual file system regardless
+    of this setting. **Default:** `false`.
+  * `apis` {Array} An optional array specifying which fs API families to mock.
+    Each value mocks the synchronous, callback, and promise versions of that
+    API (e.g., `'readFile'` mocks `fs.readFileSync()`, `fs.readFile()`, and
+    `fsPromises.readFile()`). The supported values are `'readFile'`,
+    `'writeFile'`, `'appendFile'`, `'stat'`, `'lstat'`, `'access'`, `'exists'`,
+    `'unlink'`, `'mkdir'`, `'rmdir'`, and `'readdir'`. **Default:** all
+    supported APIs.
+
+**Note:** When file system mocking is enabled, the mock automatically
+creates parent directories for all virtual files.
+
+Example usage:
+
+```mjs
+import { mock } from 'node:test';
+import { Buffer } from 'node:buffer';
+
+mock.fs.enable({
+  files: {
+    '/path/to/file.txt': 'file content',
+    '/path/to/binary.bin': Buffer.from([0x00, 0x01, 0x02]),
+  },
+});
+```
+
+```cjs
+const { mock } = require('node:test');
+
+mock.fs.enable({
+  files: {
+    '/path/to/file.txt': 'file content',
+    '/path/to/binary.bin': Buffer.from([0x00, 0x01, 0x02]),
+  },
+});
+```
+
+### `fs.reset()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Restores the original file system functions and clears all virtual files.
+This function is automatically called when a test using the mock file system
+completes.
+
+### Supported `fs` methods
+
+The following methods are intercepted by the mock file system:
+
+**Synchronous methods:**
+
+* `fs.readFileSync()`
+* `fs.writeFileSync()`
+* `fs.appendFileSync()`
+* `fs.statSync()`
+* `fs.lstatSync()`
+* `fs.existsSync()`
+* `fs.accessSync()`
+* `fs.unlinkSync()`
+* `fs.mkdirSync()`
+* `fs.rmdirSync()`
+* `fs.readdirSync()`
+
+**Callback methods:**
+
+* `fs.readFile()`
+* `fs.writeFile()`
+* `fs.appendFile()`
+* `fs.stat()`
+* `fs.lstat()`
+* `fs.exists()`
+* `fs.access()`
+* `fs.unlink()`
+* `fs.mkdir()`
+* `fs.rmdir()`
+* `fs.readdir()`
+
+**Promise methods (`fs/promises`):**
+
+* `fsPromises.readFile()`
+* `fsPromises.writeFile()`
+* `fsPromises.appendFile()`
+* `fsPromises.stat()`
+* `fsPromises.lstat()`
+* `fsPromises.access()`
+* `fsPromises.unlink()`
+* `fsPromises.mkdir()`
+* `fsPromises.rmdir()`
+* `fsPromises.readdir()`
+
+### Limitations
+
+The mock file system has the following limitations:
+
+* **Symbolic links are not supported.** `lstat()` behaves identically to
+  `stat()`, and `isSymbolicLink()` always returns `false`.
+* **Dirent objects are not `fs.Dirent` instances.** The objects returned by
+  `readdir({ withFileTypes: true })` have the same properties and methods as
+  `fs.Dirent`, but `dirent instanceof fs.Dirent` will return `false`.
+* **The following methods are not mocked:**
+  * `fs.copyFile()` / `fs.copyFileSync()`
+  * `fs.rename()` / `fs.renameSync()`
+  * `fs.chmod()` / `fs.chmodSync()` / `fs.chown()` / `fs.chownSync()`
+  * `fs.realpath()` / `fs.realpathSync()`
+  * `fs.watch()` / `fs.watchFile()` / `fs.unwatchFile()`
+  * `fs.open()` / `fs.openSync()` and file descriptor operations
+  * `fs.createReadStream()` / `fs.createWriteStream()`
+* **File permissions are not enforced.** All virtual files are created with
+  mode `0o644` and permission checks are not performed.
+* **File descriptors are not supported.** Operations that require file
+  descriptors will not work with virtual files.
+* **`mkdir()` return value.** When called with `{ recursive: true }`,
+  `mkdir()` returns the first directory path created (matching real `fs`
+  behavior). Without `recursive`, it returns `undefined`.
+* **Recursive `readdir()` is not supported.** Calling `readdir()` with
+  `{ recursive: true }` will throw `ERR_INVALID_ARG_VALUE`.
+
+### Stats object
+
+Mock stats objects have the following properties with default values:
+
+| Property                                    | Type     | Default                          |
+| ------------------------------------------- | -------- | -------------------------------- |
+| `dev`                                       | `number` | `0`                              |
+| `ino`                                       | `number` | `0`                              |
+| `mode`                                      | `number` | File: `0o100644`, Dir: `0o40644` |
+| `nlink`                                     | `number` | `1`                              |
+| `uid`                                       | `number` | `0`                              |
+| `gid`                                       | `number` | `0`                              |
+| `rdev`                                      | `number` | `0`                              |
+| `size`                                      | `number` | Content length                   |
+| `blksize`                                   | `number` | `4096`                           |
+| `blocks`                                    | `number` | `ceil(size / 512)`               |
+| `atime`/`mtime`/`ctime`/`birthtime`         | `Date`   | Creation time                    |
+| `atimeMs`/`mtimeMs`/`ctimeMs`/`birthtimeMs` | `number` | Creation time (ms)               |
+
+The stats object includes the following methods that return the expected
+values for virtual files and directories:
+
+* `isFile()`
+* `isDirectory()`
+* `isBlockDevice()` - always returns `false`
+* `isCharacterDevice()` - always returns `false`
+* `isSymbolicLink()` - always returns `false`
+* `isFIFO()` - always returns `false`
+* `isSocket()` - always returns `false`
+
 ## Class: `TestsStream`
 
 <!-- YAML
@@ -4056,6 +4390,7 @@ Can be used to abort test subtasks when the test has been aborted.
 [`--test-skip-pattern`]: cli.md#--test-skip-pattern
 [`--test-update-snapshots`]: cli.md#--test-update-snapshots
 [`--test`]: cli.md#--test
+[`MockFileSystem`]: #class-mockfilesystem
 [`MockFunctionContext`]: #class-mockfunctioncontext
 [`MockPropertyContext`]: #class-mockpropertycontext
 [`MockTimers`]: #class-mocktimers

@@ -1294,6 +1294,23 @@ Enable module mocking in the test runner.
 
 This feature requires `--allow-worker` if used with the [Permission Model][].
 
+### `--experimental-test-fs-mocks`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.0 - Early development
+
+Enable file system mocking in the test runner.
+
+This feature allows tests to mock file system operations without actually
+reading from or writing to the disk. By default, virtual files take precedence
+but real file system operations are still allowed for paths not defined in
+the virtual file system. Use the `isolate: true` option to completely isolate
+tests from the real file system. See the documentation on
+[mocking the file system][] for more details.
+
 ### `--experimental-transform-types`
 
 <!-- YAML
@@ -4234,6 +4251,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [global setup and teardown]: test.md#global-setup-and-teardown
 [jitless]: https://v8.dev/blog/jitless
 [libuv threadpool documentation]: https://docs.libuv.org/en/latest/threadpool.html
+[mocking the file system]: test.md#file-system
 [module compile cache]: module.md#module-compile-cache
 [preloading asynchronous module customization hooks]: module.md#registration-of-asynchronous-customization-hooks
 [remote code execution]: https://www.owasp.org/index.php/Code_Injection
