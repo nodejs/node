@@ -71,11 +71,10 @@ const hasSQLite = Boolean(process.versions.sqlite);
 const hasQuic = hasCrypto && !!process.features.quic;
 
 const hasLocalStorage = (() => {
-  try {
-    return hasSQLite && globalThis.localStorage !== undefined;
-  } catch {
-    return false;
-  }
+  // Check enumerable property to avoid triggering the getter which emits a warning.
+  // localStorage is enumerable only when --localstorage-file is provided.
+  const desc = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+  return hasSQLite && desc?.enumerable === true;
 })();
 
 /**
