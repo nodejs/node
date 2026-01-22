@@ -247,7 +247,7 @@ call :getnodeversion || exit /b 1
 set NODE_MAJOR_VERSION=
 for /F "tokens=1 delims=." %%i in ("%NODE_VERSION%") do set "NODE_MAJOR_VERSION=%%i"
 if %NODE_MAJOR_VERSION% GEQ 24 (
-  echo Using ClangCL because the Node.js version being compiled is ^>= 24.
+  echo ClangCL is required because the Node.js version being compiled is ^>= 24.
   set clang_cl=1
 )
 
@@ -298,7 +298,7 @@ goto msbuild-found
 
 :msbuild-not-found
 set "clang_echo="
-if defined clang_cl set "clang_echo= or Clang compiler/LLVM toolset"
+if defined clang_cl set "clang_echo= with Clang compiler/LLVM toolset"
 echo Failed to find a suitable Visual Studio installation%clang_echo%.
 echo Try to run in a "Developer Command Prompt" or consult
 echo https://github.com/nodejs/node/blob/HEAD/BUILDING.md#windows
