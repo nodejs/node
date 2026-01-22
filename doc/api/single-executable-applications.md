@@ -518,7 +518,7 @@ a non-container Linux arm64 environment to work around this issue.
 ### Single executable application creation process
 
 A tool aiming to create a single executable Node.js application must
-inject the contents of the blob prepared with `--experimental-sea-config"`
+inject the contents of the blob prepared with `--experimental-sea-config`
 into:
 
 * a resource named `NODE_SEA_BLOB` if the `node` binary is a [PE][] file
