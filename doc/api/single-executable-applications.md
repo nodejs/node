@@ -174,6 +174,94 @@ const raw = getRawAsset('a.jpg');
 See documentation of the [`sea.getAsset()`][], [`sea.getAssetAsBlob()`][],
 [`sea.getRawAsset()`][] and [`sea.getAssetKeys()`][] APIs for more information.
 
+### Virtual File System (VFS) for assets
+
+> Stability: 1 - Experimental
+
+Instead of using the `node:sea` API to access individual assets, you can use
+the Virtual File System (VFS) to access bundled assets through standard `fs`
+APIs. The VFS automatically populates itself with all assets defined in the
+SEA configuration and mounts them at a virtual path (default: `/sea`).
+
+To use the VFS with SEA:
+
+```cjs
+const fs = require('node:fs');
+const sea = require('node:sea');
+
+// Check if SEA assets are available
+if (sea.hasAssets()) {
+  // Initialize and mount the SEA VFS
+  const vfs = sea.getVfs();
+
+  // Now you can use standard fs APIs to read bundled assets
+  const config = JSON.parse(fs.readFileSync('/sea/config.json', 'utf8'));
+  const data = fs.readFileSync('/sea/data/file.txt');
+
+  // Directory operations work too
+  const files = fs.readdirSync('/sea/assets');
+
+  // Check if a bundled file exists
+  if (fs.existsSync('/sea/optional.json')) {
+    // ...
+  }
+}
+```
+
+The VFS supports the following `fs` operations on bundled assets:
+
+* `readFileSync()` / `readFile()` / `promises.readFile()`
+* `statSync()` / `stat()` / `promises.stat()`
+* `lstatSync()` / `lstat()` / `promises.lstat()`
+* `readdirSync()` / `readdir()` / `promises.readdir()`
+* `existsSync()`
+* `realpathSync()` / `realpath()` / `promises.realpath()`
+* `accessSync()` / `access()` / `promises.access()`
+* `openSync()` / `open()` - for reading
+* `createReadStream()`
+
+#### Loading modules from VFS in SEA
+
+The default `require()` function in a SEA only supports loading Node.js
+built-in modules. To load JavaScript modules bundled as assets, you must use
+[`module.createRequire()`][]:
+
+```cjs
+const { createRequire } = require('node:module');
+const sea = require('node:sea');
+
+// Initialize VFS
+sea.getVfs();
+
+// Create a require function that works with VFS
+const seaRequire = createRequire('/sea/');
+
+// Now you can require bundled modules
+const myModule = seaRequire('/sea/lib/mymodule.js');
+const utils = seaRequire('/sea/utils/helpers.js');
+```
+
+This is necessary because SEA uses a special embedder require that doesn't go
+through the standard module resolution hooks that VFS registers.
+
+#### Custom mount prefix
+
+By default, the VFS is mounted at `/sea`. You can specify a custom prefix
+when initializing the VFS:
+
+```cjs
+const fs = require('node:fs');
+const sea = require('node:sea');
+
+const vfs = sea.getSeaVfs({ prefix: '/app' });
+
+// Assets are now accessible under /app
+const config = fs.readFileSync('/app/config.json', 'utf8');
+```
+
+Note: `sea.getVfs()` returns a singleton. The `prefix` option is only used
+on the first call; subsequent calls return the same cached instance.
+
 ### Startup snapshot support
 
 The `useSnapshot` field can be used to enable startup snapshot support. In this
@@ -604,6 +692,7 @@ to help us document them.
 [Mach-O]: https://en.wikipedia.org/wiki/Mach-O
 [PE]: https://en.wikipedia.org/wiki/Portable_Executable
 [Windows SDK]: https://developer.microsoft.com/en-us/windows/downloads/windows-sdk/
+[`module.createRequire()`]: module.md#modulecreaterequirefilename
 [`process.execPath`]: process.md#processexecpath
 [`require()`]: modules.md#requireid
 [`require.main`]: modules.md#accessing-the-main-module
