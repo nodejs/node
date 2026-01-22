@@ -8,6 +8,9 @@ if (common.isIBMi)
 if (common.isAIX)
   common.skip('folder watch capability is limited in AIX.');
 
+if (common.isSunOS)
+  common.skip('fs.watch is not reliable on SunOS.');
+
 const assert = require('assert');
 const path = require('path');
 const fs = require('fs/promises');
