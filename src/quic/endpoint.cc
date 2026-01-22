@@ -154,10 +154,7 @@ bool SetOption(Environment* env,
           env, "The %s option must be an ArrayBufferView", nameStr);
       return false;
     }
-    Store store;
-    if (!Store::From(value.As<ArrayBufferView>()).To(&store)) {
-      return false;
-    }
+    Store store = Store::CopyFrom(value.As<ArrayBufferView>());
     if (store.length() != TokenSecret::QUIC_TOKENSECRET_LEN) {
       Utf8Value nameStr(env->isolate(), name);
       THROW_ERR_INVALID_ARG_VALUE(

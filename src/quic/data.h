@@ -70,6 +70,14 @@ class Store final : public MemoryRetainer {
       v8::Local<v8::ArrayBufferView> view,
       v8::Local<v8::Value> detach_key = v8::Local<v8::Value>());
 
+  // Creates a Store from the contents of an ArrayBuffer, always copying the
+  // content.
+  static Store CopyFrom(v8::Local<v8::ArrayBuffer> buffer);
+
+  // Creates a Store from the contents of an ArrayBufferView, always copying the
+  // content.
+  static Store CopyFrom(v8::Local<v8::ArrayBufferView> view);
+
   v8::Local<v8::Uint8Array> ToUint8Array(Environment* env) const;
   inline v8::Local<v8::Uint8Array> ToUint8Array(Realm* realm) const {
     return ToUint8Array(realm->env());
