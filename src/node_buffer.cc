@@ -59,6 +59,7 @@ using v8::ArrayBuffer;
 using v8::ArrayBufferView;
 using v8::BackingStore;
 using v8::BackingStoreInitializationMode;
+using v8::BackingStoreOnFailureMode;
 using v8::CFunction;
 using v8::Context;
 using v8::EscapableHandleScope;
@@ -304,17 +305,20 @@ MaybeLocal<Object> New(Isolate* isolate,
   EscapableHandleScope scope(isolate);
 
   size_t length;
-  if (!StringBytes::Size(isolate, string, enc).To(&length))
-    return Local<Object>();
+  if (!StringBytes::Size(isolate, string, enc).To(&length)) return {};
   size_t actual = 0;
   std::unique_ptr<BackingStore> store;
 
   if (length > 0) {
-    store = ArrayBuffer::NewBackingStore(isolate, length);
+    store = ArrayBuffer::NewBackingStore(
+        isolate,
+        length,
+        BackingStoreInitializationMode::kZeroInitialized,
+        BackingStoreOnFailureMode::kReturnNull);
 
     if (!store) [[unlikely]] {
       THROW_ERR_MEMORY_ALLOCATION_FAILED(isolate);
-      return Local<Object>();
+      return {};
     }
 
     actual = StringBytes::Write(
@@ -329,7 +333,14 @@ MaybeLocal<Object> New(Isolate* isolate,
       if (actual < length) {
         std::unique_ptr<BackingStore> old_store = std::move(store);
         store = ArrayBuffer::NewBackingStore(
-            isolate, actual, BackingStoreInitializationMode::kUninitialized);
+            isolate,
+            actual,
+            BackingStoreInitializationMode::kUninitialized,
+            BackingStoreOnFailureMode::kReturnNull);
+        if (!store) [[unlikely]] {
+          THROW_ERR_MEMORY_ALLOCATION_FAILED(isolate);
+          return {};
+        }
         memcpy(store->Data(), old_store->Data(), actual);
       }
       Local<ArrayBuffer> buf = ArrayBuffer::New(isolate, std::move(store));
@@ -372,7 +383,14 @@ MaybeLocal<Object> New(Environment* env, size_t length) {
   Local<ArrayBuffer> ab;
   {
     std::unique_ptr<BackingStore> bs = ArrayBuffer::NewBackingStore(
-        isolate, length, BackingStoreInitializationMode::kUninitialized);
+        isolate,
+        length,
+        BackingStoreInitializationMode::kUninitialized,
+        BackingStoreOnFailureMode::kReturnNull);
+    if (!bs) [[unlikely]] {
+      THROW_ERR_MEMORY_ALLOCATION_FAILED(isolate);
+      return {};
+    }
 
     CHECK(bs);
 
@@ -412,9 +430,14 @@ MaybeLocal<Object> Copy(Environment* env, const char* data, size_t length) {
   }
 
   std::unique_ptr<BackingStore> bs = ArrayBuffer::NewBackingStore(
-      isolate, length, BackingStoreInitializationMode::kUninitialized);
-
-  CHECK(bs);
+      isolate,
+      length,
+      BackingStoreInitializationMode::kUninitialized,
+      BackingStoreOnFailureMode::kReturnNull);
+  if (!bs) [[unlikely]] {
+    THROW_ERR_MEMORY_ALLOCATION_FAILED(isolate);
+    return {};
+  }
 
   if (length > 0) memcpy(bs->Data(), data, length);
 
@@ -1449,8 +1472,8 @@ void CreateUnsafeArrayBuffer(const FunctionCallbackInfo<Value>& args) {
         BackingStoreInitializationMode::kUninitialized,
         v8::BackingStoreOnFailureMode::kReturnNull);
 
-    if (!store) {
-      env->ThrowRangeError("Array buffer allocation failed");
+    if (!store) [[unlikely]] {
+      THROW_ERR_MEMORY_ALLOCATION_FAILED(env);
       return;
     }
 
