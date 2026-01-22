@@ -156,7 +156,7 @@ function spawnOptions(envExtension) {
   // Cleanup the environment to avoid interference with client proxy tests.
   for (const key of ['http_proxy', 'https_proxy', 'no_proxy']) {
     delete env[key];
-    delete env[key.toUpper()];
+    delete env[key.toUpperCase()];
   }
   return { env: { ...env, ...envExtension } };
 }
