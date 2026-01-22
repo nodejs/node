@@ -525,6 +525,8 @@ var require_symbols = __commonJS({
       kListeners: Symbol("listeners"),
       kHTTPContext: Symbol("http context"),
       kMaxConcurrentStreams: Symbol("max concurrent streams"),
+      kHTTP2InitialWindowSize: Symbol("http2 initial window size"),
+      kHTTP2ConnectionWindowSize: Symbol("http2 connection window size"),
       kEnableConnectProtocol: Symbol("http2session connect protocol"),
       kRemoteSettings: Symbol("http2session remote settings"),
       kHTTP2Stream: Symbol("http2session client stream"),
@@ -1220,6 +1222,8 @@ var require_util = __commonJS({
         return body;
       } else if (body && typeof body.pipeTo === "function") {
         return new BodyAsyncIterable(body);
+      } else if (body && isFormDataLike(body)) {
+        return body;
       } else if (body && typeof body !== "string" && !ArrayBuffer.isView(body) && isIterable(body)) {
         return new BodyAsyncIterable(body);
       } else {
@@ -6022,6 +6026,18 @@ var require_util2 = __commonJS({
       return gettingDecodingSplitting(value);
     }
     __name(getDecodeSplit, "getDecodeSplit");
+    function hasAuthenticationEntry(request) {
+      return false;
+    }
+    __name(hasAuthenticationEntry, "hasAuthenticationEntry");
+    function includesCredentials(url) {
+      return !!(url.username && url.password);
+    }
+    __name(includesCredentials, "includesCredentials");
+    function isTraversableNavigable(navigable) {
+      return true;
+    }
+    __name(isTraversableNavigable, "isTraversableNavigable");
     var EnvironmentSettingsObjectBase = class {
       static {
         __name(this, "EnvironmentSettingsObjectBase");
@@ -6085,7 +6101,10 @@ var require_util2 = __commonJS({
       extractMimeType,
       getDecodeSplit,
       environmentSettingsObject,
-      isOriginIPPotentiallyTrustworthy
+      isOriginIPPotentiallyTrustworthy,
+      hasAuthenticationEntry,
+      includesCredentials,
+      isTraversableNavigable
     };
   }
 });
@@ -8127,6 +8146,8 @@ var require_client_h2 = __commonJS({
       kOnError,
       kMaxConcurrentStreams,
       kHTTP2Session,
+      kHTTP2InitialWindowSize,
+      kHTTP2ConnectionWindowSize,
       kResume,
       kSize,
       kHTTPContext,
@@ -8175,12 +8196,15 @@ var require_client_h2 = __commonJS({
     __name(parseH2Headers, "parseH2Headers");
     function connectH2(client, socket) {
       client[kSocket] = socket;
+      const http2InitialWindowSize = client[kHTTP2InitialWindowSize];
+      const http2ConnectionWindowSize = client[kHTTP2ConnectionWindowSize];
       const session = http2.connect(client[kUrl], {
         createConnection: /* @__PURE__ */ __name(() => socket, "createConnection"),
         peerMaxConcurrentStreams: client[kMaxConcurrentStreams],
         settings: {
           // TODO(metcoder95): add support for PUSH
-          enablePush: false
+          enablePush: false,
+          ...http2InitialWindowSize != null ? { initialWindowSize: http2InitialWindowSize } : null
         }
       });
       session[kOpenStreams] = 0;
@@ -8189,6 +8213,9 @@ var require_client_h2 = __commonJS({
       session[kHTTP2Session] = null;
       session[kEnableConnectProtocol] = false;
       session[kRemoteSettings] = false;
+      if (http2ConnectionWindowSize) {
+        util.addListener(session, "connect", applyConnectionWindowSize.bind(session, http2ConnectionWindowSize));
+      }
       util.addListener(session, "error", onHttp2SessionError);
       util.addListener(session, "frameError", onHttp2FrameError);
       util.addListener(session, "end", onHttp2SessionEnd);
@@ -8268,6 +8295,15 @@ var require_client_h2 = __commonJS({
       }
     }
     __name(resumeH2, "resumeH2");
+    function applyConnectionWindowSize(connectionWindowSize) {
+      try {
+        if (typeof this.setLocalWindowSize === "function") {
+          this.setLocalWindowSize(connectionWindowSize);
+        }
+      } catch {
+      }
+    }
+    __name(applyConnectionWindowSize, "applyConnectionWindowSize");
     function onHttp2RemoteSettings(settings) {
       this[kClient][kMaxConcurrentStreams] = settings.maxConcurrentStreams ?? this[kClient][kMaxConcurrentStreams];
       if (this[kRemoteSettings] === true && this[kEnableConnectProtocol] === true && settings.enableConnectProtocol === false) {
@@ -8854,6 +8890,8 @@ var require_client = __commonJS({
       kOnError,
       kHTTPContext,
       kMaxConcurrentStreams,
+      kHTTP2InitialWindowSize,
+      kHTTP2ConnectionWindowSize,
       kResume
     } = require_symbols();
     var connectH1 = require_client_h1();
@@ -8904,7 +8942,9 @@ var require_client = __commonJS({
         // h2
         maxConcurrentStreams,
         allowH2,
-        useH2c
+        useH2c,
+        initialWindowSize,
+        connectionWindowSize
       } = {}) {
         if (keepAlive !== void 0) {
           throw new InvalidArgumentError("unsupported keepAlive, use pipelining=0 instead");
@@ -8973,6 +9013,12 @@ var require_client = __commonJS({
         if (useH2c != null && typeof useH2c !== "boolean") {
           throw new InvalidArgumentError("useH2c must be a valid boolean value");
         }
+        if (initialWindowSize != null && (!Number.isInteger(initialWindowSize) || initialWindowSize < 1)) {
+          throw new InvalidArgumentError("initialWindowSize must be a positive integer, greater than 0");
+        }
+        if (connectionWindowSize != null && (!Number.isInteger(connectionWindowSize) || connectionWindowSize < 1)) {
+          throw new InvalidArgumentError("connectionWindowSize must be a positive integer, greater than 0");
+        }
         super();
         if (typeof connect2 !== "function") {
           connect2 = buildConnector({
@@ -9007,6 +9053,8 @@ var require_client = __commonJS({
         this[kClosedResolve] = null;
         this[kMaxResponseSize] = maxResponseSize > -1 ? maxResponseSize : -1;
         this[kMaxConcurrentStreams] = maxConcurrentStreams != null ? maxConcurrentStreams : 100;
+        this[kHTTP2InitialWindowSize] = initialWindowSize != null ? initialWindowSize : 262144;
+        this[kHTTP2ConnectionWindowSize] = connectionWindowSize != null ? connectionWindowSize : 524288;
         this[kHTTPContext] = null;
         this[kQueue] = [];
         this[kRunningIdx] = 0;
@@ -10808,7 +10856,7 @@ var require_response = __commonJS({
       setResponseHeaders(response, headers);
       setHeadersList(headers, innerResponse.headersList);
       setHeadersGuard(headers, guard);
-      if (innerResponse.body?.stream) {
+      if (innerResponse.urlList.length !== 0 && innerResponse.body?.stream) {
         streamRegistry.register(response, new WeakRef(innerResponse.body.stream));
       }
       return response;
@@ -11473,6 +11521,8 @@ var require_request2 = __commonJS({
         preventNoCacheCacheControlHeaderModification: init.preventNoCacheCacheControlHeaderModification ?? false,
         done: init.done ?? false,
         timingAllowFailed: init.timingAllowFailed ?? false,
+        useURLCredentials: init.useURLCredentials ?? void 0,
+        traversableForUserPrompts: init.traversableForUserPrompts ?? "client",
         urlList: init.urlList,
         url: init.urlList[0],
         headersList: init.headersList ? new HeadersList(init.headersList) : new HeadersList()
@@ -11820,7 +11870,10 @@ var require_fetch = __commonJS({
       simpleRangeHeaderValue,
       buildContentRange,
       createInflate,
-      extractMimeType
+      extractMimeType,
+      hasAuthenticationEntry,
+      includesCredentials,
+      isTraversableNavigable
     } = require_util2();
     var assert = require("node:assert");
     var { safelyExtractBody, extractBody } = require_body();
@@ -12492,6 +12545,17 @@ var require_fetch = __commonJS({
       }
       httpRequest.headersList.delete("host", true);
       if (includeCredentials) {
+        if (!httpRequest.headersList.contains("authorization", true)) {
+          let authorizationValue = null;
+          if (hasAuthenticationEntry(httpRequest) && (httpRequest.useURLCredentials === void 0 || !includesCredentials(requestCurrentURL(httpRequest)))) {
+          } else if (includesCredentials(requestCurrentURL(httpRequest)) && isAuthenticationFetch) {
+            const { username, password } = requestCurrentURL(httpRequest);
+            authorizationValue = `Basic ${Buffer.from(`${username}:${password}`).toString("base64")}`;
+          }
+          if (authorizationValue !== null) {
+            httpRequest.headersList.append("Authorization", authorizationValue, false);
+          }
+        }
       }
       if (httpCache == null) {
         httpRequest.cache = "no-store";
@@ -12520,6 +12584,21 @@ var require_fetch = __commonJS({
         response.rangeRequested = true;
       }
       response.requestIncludesCredentials = includeCredentials;
+      if (response.status === 401 && httpRequest.responseTainting !== "cors" && includeCredentials && isTraversableNavigable(request.traversableForUserPrompts)) {
+        if (request.body != null) {
+          if (request.body.source == null) {
+            return makeNetworkError("expected non-null body source");
+          }
+          request.body = safelyExtractBody(request.body.source)[0];
+        }
+        if (request.useURLCredentials === void 0 || isAuthenticationFetch) {
+          if (isCancelled(fetchParams)) {
+            return makeAppropriateNetworkError(fetchParams);
+          }
+        }
+        fetchParams.controller.connection.destroy();
+        response = await httpNetworkOrCacheFetch(fetchParams, true);
+      }
       if (response.status === 407) {
         if (request.window === "no-window") {
           return makeNetworkError();
@@ -13520,7 +13599,8 @@ var require_connection = __commonJS({
         mode: "websocket",
         credentials: "include",
         cache: "no-store",
-        redirect: "error"
+        redirect: "error",
+        useURLCredentials: true
       });
       if (options.headers) {
         const headersList = getHeadersList(new Headers(options.headers));

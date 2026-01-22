@@ -370,7 +370,7 @@ class WebSocketStream {
       this.#openedPromise.reject(new WebSocketError('Socket never opened'))
     }
 
-    const result = this.#parser.closingInfo
+    const result = this.#parser?.closingInfo
 
     // 4. Let code be the WebSocket connection close code .
     // https://datatracker.ietf.org/doc/html/rfc6455#section-7.1.5
@@ -411,10 +411,10 @@ class WebSocketStream {
       const error = createUnvalidatedWebSocketError('unclean close', code, reason)
 
       // 7.2. Error stream ’s readable stream with error .
-      this.#readableStreamController.error(error)
+      this.#readableStreamController?.error(error)
 
       // 7.3. Error stream ’s writable stream with error .
-      this.#writableStream.abort(error)
+      this.#writableStream?.abort(error)
 
       // 7.4. Reject stream ’s closed promise with error .
       this.#closedPromise.reject(error)
