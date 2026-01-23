@@ -9,3 +9,5 @@ include domain_node_runtime.pdl
 include domain_node_tracing.pdl
 include domain_node_worker.pdl
 include domain_target.pdl
+include domain_dom_storage.pdl
+include domain_storage.pdl
