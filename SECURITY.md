@@ -348,6 +348,21 @@ Security notifications will be distributed via the following methods.
 * <https://groups.google.com/group/nodejs-sec>
 * <https://nodejs.org/en/blog/vulnerability>
 
+### CVE publication timeline
+
+When security releases are published, there is a built-in delay before the
+corresponding CVEs are publicly disclosed. This delay occurs because:
+
+1. After the security release, we request the vulnerability reporter to disclose
+   the details on HackerOne.
+2. If the reporter does not disclose within one day, we proceed with forced
+   disclosure to publish the CVEs.
+3. The disclosure then goes through HackerOne's approval process before the CVEs
+   become publicly available.
+
+As a result, CVEs may not be immediately available when security releases are
+published, but will typically be disclosed within a few days of the release.
+
 ## Comments on this policy
 
 If you have suggestions on how this process could be improved, please visit
