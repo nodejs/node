@@ -307,8 +307,7 @@ void BindingData::EncodeInto(const FunctionCallbackInfo<Value>& args) {
 // Encode a single string to a UTF-8 Uint8Array (not Buffer).
 // Used in TextEncoder.prototype.encode.
 //
-// Optimized using simdutf, adapted from Cloudflare workerd:
-// https://github.com/cloudflare/workerd/pull/5448
+
 void BindingData::EncodeUtf8String(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
   CHECK_GE(args.Length(), 1);
