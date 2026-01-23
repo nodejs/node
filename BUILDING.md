@@ -217,9 +217,9 @@ Supported platforms and toolchains change with each major version of Node.js.
 This document is only valid for the current major version of Node.js.
 Consult previous versions of this document for older versions of Node.js:
 
-* [Node.js 21](https://github.com/nodejs/node/blob/v21.x/BUILDING.md)
+* [Node.js 24](https://github.com/nodejs/node/blob/v24.x/BUILDING.md)
+* [Node.js 22](https://github.com/nodejs/node/blob/v22.x/BUILDING.md)
 * [Node.js 20](https://github.com/nodejs/node/blob/v20.x/BUILDING.md)
-* [Node.js 18](https://github.com/nodejs/node/blob/v18.x/BUILDING.md)
 
 ## Building Node.js on supported platforms
 
