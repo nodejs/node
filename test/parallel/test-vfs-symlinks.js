@@ -1,6 +1,6 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
 
@@ -60,7 +60,7 @@ const fs = require('fs');
 
   const lstat = vfs.lstatSync('/virtual/link.txt');
 
-  // lstat should show it's a symlink
+  // Lstat should show it's a symlink
   assert.strictEqual(lstat.isSymbolicLink(), true);
   assert.strictEqual(lstat.isFile(), false);
 
@@ -126,7 +126,7 @@ const fs = require('fs');
   const content = vfs.readFileSync('/virtual/dir/link.txt', 'utf8');
   assert.strictEqual(content, 'content');
 
-  // readlink should return the relative target as-is
+  // Readlink should return the relative target as-is
   const target = vfs.readlinkSync('/virtual/dir/link.txt');
   assert.strictEqual(target, 'file.txt');
 
@@ -229,11 +229,10 @@ const fs = require('fs');
   vfs.addSymlink('/link', '/target');
   vfs.mount('/virtual');
 
-  vfs.readlink('/virtual/link', (err, target) => {
-    assert.ifError(err);
+  vfs.readlink('/virtual/link', common.mustSucceed((target) => {
     assert.strictEqual(target, '/target');
     vfs.unmount();
-  });
+  }));
 }
 
 // Test async realpath with symlinks
@@ -243,11 +242,10 @@ const fs = require('fs');
   vfs.addSymlink('/link', '/real');
   vfs.mount('/virtual');
 
-  vfs.realpath('/virtual/link/file.txt', (err, resolvedPath) => {
-    assert.ifError(err);
+  vfs.realpath('/virtual/link/file.txt', common.mustSucceed((resolvedPath) => {
     assert.strictEqual(resolvedPath, '/virtual/real/file.txt');
     vfs.unmount();
-  });
+  }));
 }
 
 // Test promises API - stat follows symlinks
@@ -262,7 +260,7 @@ const fs = require('fs');
     assert.strictEqual(stat.isFile(), true);
     assert.strictEqual(stat.size, 50);
     vfs.unmount();
-  })();
+  })().then(common.mustCall());
 }
 
 // Test promises API - lstat does not follow symlinks
@@ -276,7 +274,7 @@ const fs = require('fs');
     const lstat = await vfs.promises.lstat('/virtual/link.txt');
     assert.strictEqual(lstat.isSymbolicLink(), true);
     vfs.unmount();
-  })();
+  })().then(common.mustCall());
 }
 
 // Test promises API - readlink
@@ -290,7 +288,7 @@ const fs = require('fs');
     const target = await vfs.promises.readlink('/virtual/link');
     assert.strictEqual(target, '/target');
     vfs.unmount();
-  })();
+  })().then(common.mustCall());
 }
 
 // Test promises API - realpath resolves symlinks
@@ -304,7 +302,7 @@ const fs = require('fs');
     const resolved = await vfs.promises.realpath('/virtual/link/file.txt');
     assert.strictEqual(resolved, '/virtual/real/file.txt');
     vfs.unmount();
-  })();
+  })().then(common.mustCall());
 }
 
 // Test broken symlink (target doesn't exist)
