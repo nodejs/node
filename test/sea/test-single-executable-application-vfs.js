@@ -23,7 +23,6 @@ const outputFile = tmpdir.resolve(process.platform === 'win32' ? 'sea.exe' : 'se
 const seaMain = `
 'use strict';
 const fs = require('fs');
-const { createRequire } = require('module');
 const sea = require('node:sea');
 const assert = require('assert');
 
@@ -70,13 +69,12 @@ assert.ok(entries.includes('config.json'), 'Should include config.json');
 assert.ok(entries.includes('data'), 'Should include data directory');
 console.log('readdirSync tests passed, entries:', entries);
 
-// Test requiring a module from SEA VFS using module.createRequire()
-// (SEA's built-in require only supports built-in modules)
-const seaRequire = createRequire('/sea/');
-const mathModule = seaRequire('/sea/modules/math.js');
+// Test requiring a module from SEA VFS using direct require()
+// (SEA's require now supports VFS paths automatically)
+const mathModule = require('/sea/modules/math.js');
 assert.strictEqual(mathModule.add(2, 3), 5, 'math.add should work');
 assert.strictEqual(mathModule.multiply(4, 5), 20, 'math.multiply should work');
-console.log('require from VFS tests passed');
+console.log('direct require from VFS tests passed');
 
 // Test getSeaVfs with custom prefix
 const customVfs = sea.getVfs({ prefix: '/custom' });
