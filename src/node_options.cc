@@ -799,6 +799,9 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddOption("--experimental-network-inspection",
             "experimental network inspection support",
             &EnvironmentOptions::experimental_network_inspection);
+  AddOption("--experimental-storage-inspection",
+            "experimental storage inspection support",
+            &EnvironmentOptions::experimental_storage_inspection);
   AddOption("--experimental-worker-inspection",
             "experimental worker inspection support",
             &EnvironmentOptions::experimental_worker_inspection);
