@@ -48,7 +48,7 @@ a
 ```
 
 During the installation process, the `c@1.0.3` dependency for `b` was placed in the root of the tree.
-Though `d`'s dependency on `c@1.x` could have been satisfied by `c@1.0.3`, the newer `c@1.9.0` dependency was used, because npm favors updates by default, even when doing so causes duplication.
+Though `d`'s dependency on `c@1.x` could have been satisfied by `c@1.0.3`, the newer `c@1.9.9` dependency was used, because npm favors updates by default, even when doing so causes duplication.
 
 Running `npm dedupe` will cause npm to note the duplication and re-evaluate, deleting the nested `c` module, because the one in the root is sufficient.
 

@@ -1,4 +1,4 @@
-.TH "NPM-INSTALL" "1" "December 2025" "NPM@11.7.0" ""
+.TH "NPM-INSTALL" "1" "January 2026" "NPM@11.8.0" ""
 .SH "NAME"
 \fBnpm-install\fR - Install a package
 .SS "Synopsis"
@@ -24,6 +24,20 @@ This command installs a package and any packages that it depends on. If the pack
 
 .P
 See \fBpackage-lock.json\fR \fI\(la/configuring-npm/package-lock-json\(ra\fR and npm help shrinkwrap.
+.SS "How \fBnpm install\fR uses \fBpackage-lock.json\fR"
+.P
+When you run \fBnpm install\fR without arguments, npm compares \fBpackage.json\fR and \fBpackage-lock.json\fR:
+.RS 0
+.IP \(bu 4
+\fBIf the lockfile's resolved versions satisfy the \fBpackage.json\fB ranges:\fR npm uses the exact versions from \fBpackage-lock.json\fR to ensure reproducible builds across environments.
+.IP \(bu 4
+\fBIf the ranges don't match:\fR npm resolves new versions that satisfy the \fBpackage.json\fR ranges and updates \fBpackage-lock.json\fR accordingly. This happens when you modify version ranges in \fBpackage.json\fR (e.g., changing \fB^7.0.0\fR to \fB^8.0.0\fR). Note that changing a range within the same major version (e.g., \fB^7.0.0\fR to \fB^7.1.0\fR) will only update the metadata in the lockfile if the currently installed version still satisfies the new range.
+.RE 0
+
+.P
+In essence, \fBpackage-lock.json\fR locks your dependencies to specific versions, but \fBpackage.json\fR is the source of truth for acceptable version ranges. When the lockfile's versions satisfy the \fBpackage.json\fR ranges, the lockfile wins. When they conflict, \fBpackage.json\fR wins and the lockfile is updated.
+.P
+If you want to install packages while ensuring that \fBpackage.json\fR is not modified and that both files are strictly in sync, use npm help ci instead.
 .P
 A \fBpackage\fR is:
 .RS 0

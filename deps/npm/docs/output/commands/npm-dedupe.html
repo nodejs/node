@@ -141,9 +141,9 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="----npm-dedupe----1170">
+<h1 id="----npm-dedupe----1180">
     <span>npm-dedupe</span>
-    <span class="version">@11.7.0</span>
+    <span class="version">@11.8.0</span>
 </h1>
 <span class="description">Reduce duplication in the package tree</span>
 </header>
@@ -182,7 +182,7 @@ alias: ddp
     `-- c@1.9.9
 </code></pre>
 <p>During the installation process, the <code>c@1.0.3</code> dependency for <code>b</code> was placed in the root of the tree.
-Though <code>d</code>'s dependency on <code>c@1.x</code> could have been satisfied by <code>c@1.0.3</code>, the newer <code>c@1.9.0</code> dependency was used, because npm favors updates by default, even when doing so causes duplication.</p>
+Though <code>d</code>'s dependency on <code>c@1.x</code> could have been satisfied by <code>c@1.0.3</code>, the newer <code>c@1.9.9</code> dependency was used, because npm favors updates by default, even when doing so causes duplication.</p>
 <p>Running <code>npm dedupe</code> will cause npm to note the duplication and re-evaluate, deleting the nested <code>c</code> module, because the one in the root is sufficient.</p>
 <p>To prefer deduplication over novelty during the installation process, run <code>npm install --prefer-dedupe</code> or <code>npm config set prefer-dedupe true</code>.</p>
 <p>Arguments are ignored.
