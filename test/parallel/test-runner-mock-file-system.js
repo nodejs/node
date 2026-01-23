@@ -102,6 +102,7 @@ describe('MockFileSystem', () => {
       });
       assert.strictEqual(Object.prototype.polluted, undefined);
     });
+
   });
 
   describe('readFile', () => {
@@ -609,6 +610,25 @@ describe('MockFileSystem', () => {
         () => fs.readFileSync('/virtual/manual-reset.txt'),
         { code: 'ENOENT' }
       );
+    });
+  });
+
+  // This test MUST be the last test in this file because it makes a property
+  // non-configurable which cannot be undone in the same process.
+  describe('non-configurable property handling', () => {
+    it('should throw when trying to mock non-configurable fs property', (t) => {
+      // Make the property non-configurable.
+      Object.defineProperty(fs, 'readFileSync', {
+        value: fs.readFileSync,
+        writable: true,
+        enumerable: true,
+        configurable: false,
+      });
+
+      assert.throws(() => t.mock.fs.enable({ files: { '/test.txt': 'content' }, apis: ['readFile'] }), {
+        code: 'ERR_INVALID_STATE',
+        message: /Cannot mock fs\.readFileSync because it is non-configurable/,
+      });
     });
   });
 });
