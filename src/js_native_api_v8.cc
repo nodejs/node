@@ -1613,12 +1613,12 @@ napi_status NAPI_CDECL napi_create_object(napi_env env, napi_value* result) {
 }
 
 napi_status NAPI_CDECL
-napi_create_object_with_properties(napi_env env,
-                                   napi_value prototype_or_null,
-                                   napi_value* property_names,
-                                   napi_value* property_values,
-                                   size_t property_count,
-                                   napi_value* result) {
+node_api_create_object_with_properties(napi_env env,
+                                       napi_value prototype_or_null,
+                                       napi_value* property_names,
+                                       napi_value* property_values,
+                                       size_t property_count,
+                                       napi_value* result) {
   CHECK_ENV_NOT_IN_GC(env);
   CHECK_ARG(env, result);
 
