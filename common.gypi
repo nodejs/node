@@ -614,7 +614,7 @@
             ],
           }, {                                             # else it's `AIX`
             'variables': {
-              'gcc_major': '<!(<(python) -c "import os; import subprocess; CXX=os.environ.get(\'CXX\', \'g++\'); subprocess.run([CXX, \'-dumpversion\'])")'
+              'gcc_major': '<!(sh -c "${CXX:-g++} -dumpversion")'
             },
             # Disable the following compiler warning:
             #
