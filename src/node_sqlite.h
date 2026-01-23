@@ -52,8 +52,9 @@ constexpr bool CheckLimitIndices() {
   }
   return true;
 }
-static_assert(CheckLimitIndices(),
-              "Each kLimitMapping entry's sqlite_limit_id must match its index");
+static_assert(
+    CheckLimitIndices(),
+    "Each kLimitMapping entry's sqlite_limit_id must match its index");
 
 class DatabaseOpenConfiguration {
  public:
