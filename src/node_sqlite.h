@@ -44,18 +44,16 @@ static_assert(kLimitMapping.size() ==
                   static_cast<size_t>(SQLITE_LIMIT_TRIGGER_DEPTH + 1),
               "kLimitMapping must cover all SQLite limits");
 
-constexpr bool CheckLimitBounds() {
-  for (const auto& info : kLimitMapping) {
-    if (info.sqlite_limit_id < 0 ||
-        info.sqlite_limit_id > SQLITE_LIMIT_TRIGGER_DEPTH) {
+constexpr bool CheckLimitIndices() {
+  for (size_t i = 0; i < kLimitMapping.size(); ++i) {
+    if (kLimitMapping[i].sqlite_limit_id != static_cast<int>(i)) {
       return false;
     }
   }
   return true;
 }
-static_assert(
-    CheckLimitBounds(),
-    "All kLimitMapping entries must be <= SQLITE_LIMIT_TRIGGER_DEPTH");
+static_assert(CheckLimitIndices(),
+              "Each kLimitMapping entry's sqlite_limit_id must match its index");
 
 class DatabaseOpenConfiguration {
  public:
