@@ -222,27 +222,23 @@ The VFS supports the following `fs` operations on bundled assets:
 
 #### Loading modules from VFS in SEA
 
-The default `require()` function in a SEA only supports loading Node.js
-built-in modules. To load JavaScript modules bundled as assets, you must use
-[`module.createRequire()`][]:
+Once the VFS is initialized with `sea.getVfs()`, you can use `require()` directly
+with absolute VFS paths:
 
 ```cjs
-const { createRequire } = require('node:module');
 const sea = require('node:sea');
 
-// Initialize VFS
+// Initialize VFS - this must be called first
 sea.getVfs();
 
-// Create a require function that works with VFS
-const seaRequire = createRequire('/sea/');
-
-// Now you can require bundled modules
-const myModule = seaRequire('/sea/lib/mymodule.js');
-const utils = seaRequire('/sea/utils/helpers.js');
+// Now you can require bundled modules directly
+const myModule = require('/sea/lib/mymodule.js');
+const utils = require('/sea/utils/helpers.js');
 ```
 
-This is necessary because SEA uses a special embedder require that doesn't go
-through the standard module resolution hooks that VFS registers.
+The SEA's `require()` function automatically detects VFS paths (paths starting
+with the VFS mount point, e.g., `/sea/`) and loads modules from the virtual
+file system.
 
 #### Custom mount prefix
 
@@ -692,7 +688,6 @@ to help us document them.
 [Mach-O]: https://en.wikipedia.org/wiki/Mach-O
 [PE]: https://en.wikipedia.org/wiki/Portable_Executable
 [Windows SDK]: https://developer.microsoft.com/en-us/windows/downloads/windows-sdk/
-[`module.createRequire()`]: module.md#modulecreaterequirefilename
 [`process.execPath`]: process.md#processexecpath
 [`require()`]: modules.md#requireid
 [`require.main`]: modules.md#accessing-the-main-module
