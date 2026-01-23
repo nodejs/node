@@ -71,10 +71,18 @@ const nerfDarts = [
   'username', // Does not have a config
 ]
 
+const proxyEnv = [
+  'http_proxy',
+  'https_proxy',
+  'proxy',
+  'no_proxy',
+]
+
 module.exports = {
   defaults: definitionProps.defaults,
   definitions,
   flatten,
   nerfDarts,
+  proxyEnv,
   shorthands,
 }

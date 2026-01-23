@@ -1,6 +1,6 @@
 {
   "name": "@npmcli/arborist",
-  "version": "9.1.9",
+  "version": "9.1.10",
   "description": "Manage node_modules trees",
   "dependencies": {
     "@isaacs/string-locale-compare": "^1.1.0",
@@ -16,7 +16,7 @@
     "@npmcli/run-script": "^10.0.0",
     "bin-links": "^6.0.0",
     "cacache": "^20.0.1",
-    "common-ancestor-path": "^1.0.1",
+    "common-ancestor-path": "^2.0.0",
     "hosted-git-info": "^9.0.0",
     "json-stringify-nice": "^1.1.4",
     "lru-cache": "^11.2.1",
