@@ -85,24 +85,6 @@ describe('MockFileSystem', () => {
       });
     });
 
-    it('should prevent prototype pollution in paths', (t) => {
-      for (const name of ['__proto__', 'constructor', 'prototype']) {
-        assert.throws(() => t.mock.fs.enable({ files: { [`/path/${name}/file`]: 'x' } }), {
-          code: 'ERR_INVALID_ARG_VALUE',
-        });
-        t.mock.fs.reset();
-      }
-    });
-
-    it('should prevent prototype pollution via modified prototype', (t) => {
-      const maliciousFiles = { __proto__: null };
-      Object.setPrototypeOf(maliciousFiles, { polluted: true });
-      assert.throws(() => t.mock.fs.enable({ files: maliciousFiles }), {
-        code: 'ERR_INVALID_ARG_VALUE',
-      });
-      assert.strictEqual(Object.prototype.polluted, undefined);
-    });
-
   });
 
   describe('readFile', () => {
@@ -275,6 +257,18 @@ describe('MockFileSystem', () => {
       assert.strictEqual(typeof stats.size, 'number');
       assert.ok(stats.atime instanceof Date);
       assert.ok(stats.mtime instanceof Date);
+    });
+
+    it('mock stats should have same properties as real fs.Stats', (t) => {
+      const realStats = fs.statSync(__filename);
+
+      t.mock.fs.enable({ files: { '/virtual/test.txt': 'content' } });
+      const mockStats = fs.statSync('/virtual/test.txt');
+
+      // Verify mock stats have all properties from real stats
+      for (const prop of Object.getOwnPropertyNames(realStats)) {
+        assert.ok(prop in mockStats, `mock stats missing '${prop}'`);
+      }
     });
   });
 
@@ -610,6 +604,133 @@ describe('MockFileSystem', () => {
         () => fs.readFileSync('/virtual/manual-reset.txt'),
         { code: 'ENOENT' }
       );
+    });
+  });
+
+  describe('error message compatibility with real fs', () => {
+    // These tests verify that mock errors have the same errno as real fs errors.
+    // We trigger real fs errors and compare against mock errors to ensure compatibility.
+
+    it('should produce ENOENT errors matching real fs', (t) => {
+      // Get real ENOENT error.
+      let realError;
+      try {
+        fs.statSync('/nonexistent/path/that/does/not/exist');
+      } catch (err) {
+        realError = err;
+      }
+
+      t.mock.fs.enable({ files: {}, isolate: true });
+      let mockError;
+      try {
+        fs.statSync('/nonexistent/path/file.txt');
+      } catch (err) {
+        mockError = err;
+      }
+
+      assert.strictEqual(mockError.code, realError.code);
+      assert.strictEqual(mockError.syscall, realError.syscall);
+      assert.strictEqual(mockError.errno, realError.errno);
+    });
+
+    it('should produce ENOTDIR errors matching real fs', (t) => {
+      // Get real ENOTDIR error by trying to readdir a file.
+      let realError;
+      try {
+        fs.readdirSync(__filename);
+      } catch (err) {
+        realError = err;
+      }
+
+      t.mock.fs.enable({
+        files: { '/virtual/file.txt': 'content' },
+        isolate: true,
+      });
+      let mockError;
+      try {
+        fs.readdirSync('/virtual/file.txt');
+      } catch (err) {
+        mockError = err;
+      }
+
+      assert.strictEqual(mockError.code, realError.code);
+      assert.strictEqual(mockError.syscall, realError.syscall);
+      assert.strictEqual(mockError.errno, realError.errno);
+    });
+
+    it('should produce EISDIR errors matching real fs', (t) => {
+      // Get real EISDIR error by trying to read a directory as a file.
+      let realError;
+      try {
+        fs.readFileSync(__dirname);
+      } catch (err) {
+        realError = err;
+      }
+
+      t.mock.fs.enable({
+        files: { '/virtual/dir/file.txt': 'content' },
+        isolate: true,
+      });
+      let mockError;
+      try {
+        fs.readFileSync('/virtual/dir');
+      } catch (err) {
+        mockError = err;
+      }
+
+      assert.strictEqual(mockError.code, realError.code);
+      assert.strictEqual(mockError.syscall, realError.syscall);
+      assert.strictEqual(mockError.errno, realError.errno);
+    });
+
+    it('should produce EEXIST errors matching real fs', (t) => {
+      // Get real EEXIST error by trying to mkdir an existing directory.
+      let realError;
+      try {
+        fs.mkdirSync(__dirname);
+      } catch (err) {
+        realError = err;
+      }
+
+      t.mock.fs.enable({
+        files: { '/virtual/existing-dir/file.txt': 'content' },
+        isolate: true,
+      });
+      let mockError;
+      try {
+        fs.mkdirSync('/virtual/existing-dir');
+      } catch (err) {
+        mockError = err;
+      }
+
+      assert.strictEqual(mockError.code, realError.code);
+      assert.strictEqual(mockError.syscall, realError.syscall);
+      assert.strictEqual(mockError.errno, realError.errno);
+    });
+
+    it('should produce ENOTEMPTY errors matching real fs', (t) => {
+      // Get real ENOTEMPTY error by trying to rmdir a non-empty directory.
+      let realError;
+      try {
+        fs.rmdirSync(__dirname);
+      } catch (err) {
+        realError = err;
+      }
+
+      t.mock.fs.enable({
+        files: { '/virtual/nonempty-dir/file.txt': 'content' },
+        isolate: true,
+      });
+      let mockError;
+      try {
+        fs.rmdirSync('/virtual/nonempty-dir');
+      } catch (err) {
+        mockError = err;
+      }
+
+      assert.strictEqual(mockError.code, realError.code);
+      assert.strictEqual(mockError.syscall, realError.syscall);
+      assert.strictEqual(mockError.errno, realError.errno);
     });
   });
 

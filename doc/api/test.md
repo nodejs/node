@@ -3262,7 +3262,8 @@ test('runAll functions following the given order', (context) => {
 added: REPLACEME
 -->
 
-> Stability: 1.0 - Early development
+> Stability: 1.0 - Early development. Enable this API via the
+> `--experimental-test-fs-mocks` CLI flag.
 
 Mocking the file system allows tests to simulate file operations without
 actually reading from or writing to the disk. This makes tests safer, faster,
@@ -3271,15 +3272,13 @@ and more predictable.
 The [`MockTracker`][] provides a top-level `fs` export
 which is a `MockFileSystem` instance.
 
-**Note:** This class requires the `--experimental-test-fs-mocks` flag.
+This class requires the `--experimental-test-fs-mocks` flag.
 
 ### `fs.enable([options])`
 
 <!-- YAML
 added: REPLACEME
 -->
-
-Enables file system mocking.
 
 * `options` {Object} Optional configuration options for enabling file system
   mocking. The following properties are supported:
@@ -3300,7 +3299,7 @@ Enables file system mocking.
     `'unlink'`, `'mkdir'`, `'rmdir'`, and `'readdir'`. **Default:** all
     supported APIs.
 
-**Note:** When file system mocking is enabled, the mock automatically
+When file system mocking is enabled, the mock automatically
 creates parent directories for all virtual files.
 
 Example usage:
