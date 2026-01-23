@@ -58,7 +58,7 @@ static napi_value CreateObjectWithPropertiesNew(napi_env env,
 
   for (uint32_t i = 0; i < params.count; i++) {
     napi_value obj;
-    napi_create_object_with_properties(
+    node_api_create_object_with_properties(
         env, null_prototype, global_names, global_values, 20, &obj);
   }
 
