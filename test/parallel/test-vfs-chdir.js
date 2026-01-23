@@ -165,8 +165,10 @@ const fs = require('fs');
   const originalCwd = process.cwd();
 
   // Change to a real directory (not under /virtual)
+  // Use realpathSync because /tmp may be a symlink (e.g., /tmp -> /private/tmp on macOS)
+  const tmpDir = fs.realpathSync('/tmp');
   process.chdir('/tmp');
-  assert.strictEqual(process.cwd(), '/tmp');
+  assert.strictEqual(process.cwd(), tmpDir);
   // vfs.cwd() should still be null (not set)
   assert.strictEqual(vfs.cwd(), null);
 
