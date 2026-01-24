@@ -33,7 +33,7 @@ function establishWebSocketConnection (url, protocols, client, handler, options)
   // 2. Let request be a new request, whose URL is requestURL, client is client,
   //    service-workers mode is "none", referrer is "no-referrer", mode is
   //    "websocket", credentials mode is "include", cache mode is "no-store" ,
-  //    and redirect mode is "error".
+  //    redirect mode is "error", and use-URL-credentials flag is set.
   const request = makeRequest({
     urlList: [requestURL],
     client,
@@ -42,7 +42,8 @@ function establishWebSocketConnection (url, protocols, client, handler, options)
     mode: 'websocket',
     credentials: 'include',
     cache: 'no-store',
-    redirect: 'error'
+    redirect: 'error',
+    useURLCredentials: true
   })
 
   // Note: undici extension, allow setting custom headers.
