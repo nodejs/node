@@ -1461,6 +1461,25 @@ If `timeout` is 0, then the existing idle timeout is disabled.
 The optional `callback` parameter will be added as a one-time listener for the
 [`'timeout'`][] event.
 
+### `socket.getTOS()`
+
+<!-- YAML
+added: v22.0.0
+-->
+
+* Returns: {integer} The current TOS value.
+
+Returns the current Type of Service (TOS) field for IPv4 packets or Traffic
+Class for IPv6 packets for this socket.
+
+### `socket.setTOS(tos)`
+
+* `tos` {integer} The TOS value to set (0-255).
+* Returns: {net.Socket} The socket itself.
+
+Sets the Type of Service (TOS) field for IPv4 packets or Traffic Class for IPv6
+Packets sent from this socket. This can be used to prioritize network traffic.
+
 ### `socket.timeout`
 
 <!-- YAML
