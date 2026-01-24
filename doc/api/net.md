@@ -1464,7 +1464,7 @@ The optional `callback` parameter will be added as a one-time listener for the
 ### `socket.getTOS()`
 
 <!-- YAML
-added: v22.0.0
+added: REPLACEME
 -->
 
 * Returns: {integer} The current TOS value.
@@ -1473,6 +1473,10 @@ Returns the current Type of Service (TOS) field for IPv4 packets or Traffic
 Class for IPv6 packets for this socket.
 
 ### `socket.setTOS(tos)`
+
+<!-- YAML
+added: REPLACEME
+-->
 
 * `tos` {integer} The TOS value to set (0-255).
 * Returns: {net.Socket} The socket itself.
