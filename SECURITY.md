@@ -399,8 +399,6 @@ includes a fix, documentation, an informational CVE or blog post.
 * [@vdeturckheim](https://github.com/vdeturckheim) - Vladimir de Turckheim
 * [@BethGriggs](https://github.com/BethGriggs) - Beth Griggs
 
-<!-- ncu-team-sync end -->
-
 ## Team with access to private security reports against Node.js
 
 [TSC voting members](https://github.com/nodejs/node#tsc-voting-members)
