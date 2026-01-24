@@ -1429,6 +1429,28 @@ function getDecodeSplit (name, list) {
   return gettingDecodingSplitting(value)
 }
 
+function hasAuthenticationEntry (request) {
+  return false
+}
+
+/**
+ * @see https://url.spec.whatwg.org/#include-credentials
+ * @param {URL} url
+ */
+function includesCredentials (url) {
+  // A URL includes credentials if its username or password is not the empty string.
+  return !!(url.username && url.password)
+}
+
+/**
+ * @see https://html.spec.whatwg.org/multipage/document-sequences.html#traversable-navigable
+ * @param {object|string} navigable
+ */
+function isTraversableNavigable (navigable) {
+  // TODO
+  return true
+}
+
 class EnvironmentSettingsObjectBase {
   get baseUrl () {
     return getGlobalOrigin()
@@ -1491,5 +1513,8 @@ module.exports = {
   extractMimeType,
   getDecodeSplit,
   environmentSettingsObject,
-  isOriginIPPotentiallyTrustworthy
+  isOriginIPPotentiallyTrustworthy,
+  hasAuthenticationEntry,
+  includesCredentials,
+  isTraversableNavigable
 }
