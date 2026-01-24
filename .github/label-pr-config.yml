@@ -80,7 +80,7 @@ subSystemLabels:
   /^deps\/v8\/tools\/gen-postmortem-metadata\.py/: v8 engine, python, post-mortem
   /^deps\/v8\//: v8 engine
   /^deps\/uvwasi\//: wasi
-  /^deps\/npm\//: npm, fast-track
+  /^deps\/npm\//: npm
   /^deps\/nghttp2\/nghttp2\.gyp/: build, http2
   /^deps\/nghttp2\//: http2
   /^deps\/ngtcp2\//: quic
