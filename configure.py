@@ -1397,6 +1397,50 @@ def get_openssl_version(o):
     warn(f'Failed to determine OpenSSL version from header: {e}')
     return 0
 
+def get_cargo_version(cargo):
+  try:
+    proc = subprocess.Popen(shlex.split(cargo) + ['--version'],
+                            stdin=subprocess.PIPE, stderr=subprocess.PIPE,
+                            stdout=subprocess.PIPE)
+  except OSError:
+    error('''No acceptable cargo found!
+
+       Please make sure you have cargo installed on your system.''')
+
+  with proc:
+    cargo_ret = to_utf8(proc.communicate()[0])
+
+  match = re.match(r"cargo ([0-9]+\.[0-9]+\.[0-9]+)", cargo_ret)
+
+  if match:
+    return match.group(1)
+
+  warn(f'Could not recognize `cargo`: {cargo_ret}')
+  return '0.0'
+
+def get_rustc_version(rustc):
+  try:
+    proc = subprocess.Popen(shlex.split(rustc) + ['--version'],
+                            stdin=subprocess.PIPE, stderr=subprocess.PIPE,
+                            stdout=subprocess.PIPE)
+  except OSError:
+    error('''No acceptable rustc compiler found!
+
+       Please make sure you have a rust compiler installed on your system and/or
+       consider adjusting the RUSTC environment variable if you have installed
+       it in a non-standard prefix.''')
+
+  with proc:
+    rustc_ret = to_utf8(proc.communicate()[0])
+
+  match = re.match(r"rustc ([0-9]+\.[0-9]+\.[0-9]+)", rustc_ret)
+
+  if match:
+    return match.group(1)
+
+  warn(f'Could not recognize `rustc`: {rustc_ret}')
+  return '0.0'
+
 # Note: Apple clang self-reports as clang 4.2.0 and gcc 4.2.1.  It passes
 # the version check more by accident than anything else but a more rigorous
 # check involves checking the build number against an allowlist.  I'm not
@@ -1443,6 +1487,24 @@ def check_compiler(o):
     warn(f'C compiler (CC={CC}, {version_str}) too old, need gcc 4.2 or clang 3.2')
 
   o['variables']['llvm_version'] = get_llvm_version(CC) if is_clang else '0.0'
+
+  # cargo and rustc are needed for Temporal.
+  if options.v8_enable_temporal_support and not options.shared_temporal_capi:
+    # Minimum cargo and rustc versions should match values in BUILDING.md.
+    min_cargo_ver_tuple = (1, 82)
+    min_rustc_ver_tuple = (1, 82)
+    cargo_ver = get_cargo_version('cargo')
+    print_verbose(f'Detected cargo: {cargo_ver}')
+    cargo_ver_tuple = tuple(map(int, cargo_ver.split('.')))
+    if cargo_ver_tuple < min_cargo_ver_tuple:
+      warn(f'cargo {cargo_ver} too old, need cargo {".".join(map(str, min_cargo_ver_tuple))}')
+    # cargo supports RUSTC environment variable to override "rustc".
+    rustc = os.environ.get('RUSTC', 'rustc')
+    rustc_ver = get_rustc_version(rustc)
+    print_verbose(f'Detected rustc (RUSTC={rustc}): {rustc_ver}')
+    rust_ver_tuple = tuple(map(int, rustc_ver.split('.')))
+    if rust_ver_tuple < min_rustc_ver_tuple:
+      warn(f'rustc {rustc_ver} too old, need rustc {".".join(map(str, min_rustc_ver_tuple))}')
 
   # Need xcode_version or gas_version when openssl asm files are compiled.
   if options.without_ssl or options.openssl_no_asm or options.shared_openssl:
