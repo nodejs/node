@@ -396,6 +396,18 @@ function checkNetConnect (netConnect, origin) {
   return false
 }
 
+function normalizeOrigin (origin) {
+  if (typeof origin !== 'string' && !(origin instanceof URL)) {
+    return origin
+  }
+
+  if (origin instanceof URL) {
+    return origin.origin
+  }
+
+  return origin.toLowerCase()
+}
+
 function buildAndValidateMockOptions (opts) {
   const { agent, ...mockOptions } = opts
 
@@ -430,5 +442,6 @@ module.exports = {
   buildAndValidateMockOptions,
   getHeaderByName,
   buildHeadersFromArray,
-  normalizeSearchParams
+  normalizeSearchParams,
+  normalizeOrigin
 }
