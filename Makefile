@@ -26,12 +26,8 @@ FIND ?= find
 
 ifdef JOBS
 	PARALLEL_ARGS = -j $(JOBS)
-
-	# Amount of worker threads to create for generating documentation files
-	DOC_JOBS = $(JOBS)
 else
 	PARALLEL_ARGS =
-	DOC_JOBS = 12
 endif
 
 ifdef ENABLE_V8_TAP
@@ -397,7 +393,13 @@ test/addons/.docbuildstamp: $(DOCBUILDSTAMP_PREREQS) tools/doc/node_modules
 		echo "Skipping .docbuildstamp (no crypto and/or no ICU)"; \
 	else \
 		$(RM) -r test/addons/??_*/; \
-		$(call available-node, $(DOC_KIT) generate -t addon-verify -i doc/api/addons.md -o test/addons/ --type-map doc/type-map.json) \
+		$(call available-node, \
+			$(DOC_KIT) generate \
+			-t addon-verify \
+			-i doc/api/addons.md \
+			-o test/addons/ \
+			--type-map doc/type-map.json
+		) \
 		[ $$? -eq 0 ] && touch $@; \
 	fi
 
