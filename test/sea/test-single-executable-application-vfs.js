@@ -15,6 +15,8 @@ const tmpdir = require('../common/tmpdir');
 const { writeFileSync } = require('fs');
 const { spawnSyncAndAssert } = require('../common/child_process');
 
+tmpdir.refresh();
+
 const configFile = tmpdir.resolve('sea-config.json');
 const seaPrepBlob = tmpdir.resolve('sea-prep.blob');
 const outputFile = tmpdir.resolve(process.platform === 'win32' ? 'sea.exe' : 'sea');
