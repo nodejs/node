@@ -32,7 +32,8 @@
 #include "stream_base-inl.h"
 #include "stream_wrap.h"
 #include "util-inl.h"
-
+#include <cerrno>
+#include <cstdlib>
 #ifndef _WIN32
 #include <netinet/in.h>
 #include <sys/socket.h>
