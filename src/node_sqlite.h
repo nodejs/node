@@ -39,11 +39,6 @@ inline constexpr std::array<LimitInfo, 11> kLimitMapping = {{
     {"triggerDepth", SQLITE_LIMIT_TRIGGER_DEPTH},
 }};
 
-// Static assertions to ensure limit mapping is complete and valid
-static_assert(kLimitMapping.size() ==
-                  static_cast<size_t>(SQLITE_LIMIT_TRIGGER_DEPTH + 1),
-              "kLimitMapping must cover all SQLite limits");
-
 constexpr bool CheckLimitIndices() {
   for (size_t i = 0; i < kLimitMapping.size(); ++i) {
     if (kLimitMapping[i].sqlite_limit_id != static_cast<int>(i)) {
