@@ -32,6 +32,8 @@ Returns: `Client`
 * **allowH2**: `boolean` - Default: `false`. Enables support for H2 if the server has assigned bigger priority to it through ALPN negotiation.
 * **useH2c**: `boolean` - Default: `false`. Enforces h2c for non-https connections.
 * **maxConcurrentStreams**: `number` - Default: `100`. Dictates the maximum number of concurrent streams for a single H2 session. It can be overridden by a SETTINGS remote frame.
+* **initialWindowSize**: `number` (optional) - Default: `262144` (256KB). Sets the HTTP/2 stream-level flow-control window size (SETTINGS_INITIAL_WINDOW_SIZE). Must be a positive integer greater than 0. This default is higher than Node.js core's default (65535 bytes) to improve throughput, Node's choice is very conservative for current high-bandwith networks. See [RFC 7540 Section 6.9.2](https://datatracker.ietf.org/doc/html/rfc7540#section-6.9.2) for more details.
+* **connectionWindowSize**: `number` (optional) - Default `524288` (512KB). Sets the HTTP/2 connection-level flow-control window size using `ClientHttp2Session.setLocalWindowSize()`. Must be a positive integer greater than 0. This provides better flow control for the entire connection across multiple streams. See [Node.js HTTP/2 documentation](https://nodejs.org/api/http2.html#clienthttp2sessionsetlocalwindowsize) for more details.
 
 > **Notes about HTTP/2**
 > - It only works under TLS connections. h2c is not supported.
