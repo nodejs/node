@@ -3,8 +3,6 @@ const common = require('../common');
 const assert = require('assert');
 const net = require('net');
 
-// 1. Check if the platform supports TOS
-// Your implementation returns UV_ENOSYS on Windows, so we expect an error there.
 const isWindows = common.isWindows;
 
 const server = net.createServer(common.mustCall((socket) => {
