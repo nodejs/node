@@ -1,4 +1,4 @@
-'use strict';
+﻿'use strict';
 const common = require('.');
 const path = require('node:path');
 const test = require('node:test');
@@ -33,8 +33,15 @@ function replaceWindowsPaths(str) {
 
 function transformProjectRoot(replacement = '') {
   const projectRoot = path.resolve(__dirname, '../..');
+  // Fix for issue #61303: Use a regex to only match projectRoot when it appears
+  // as an actual path prefix, not as a substring within URLs (like nodejs.org)
+  // or other paths (like /node_modules) when CWD happens to be /node.
+  // Match projectRoot followed by: path separator, colon (for line numbers),
+  // whitespace, or end of string.
+  const escapedRoot = projectRoot.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const projectRootRegex = new RegExp(escapedRoot + '(?=[/\\\\:\\s]|$)', 'g');
   return (str) => {
-    return str.replaceAll('\\\'', "'").replaceAll(projectRoot, replacement);
+    return str.replaceAll('\\\'', "'").replace(projectRootRegex, replacement);
   };
 }
 
