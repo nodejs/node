@@ -33,7 +33,10 @@
 #include "stream_wrap.h"
 #include "util-inl.h"
 
-#include <cstdlib>
+#ifndef _WIN32
+#include <sys/socket.h>
+#include <netinet/in.h>
+#endif
 
 
 namespace node {
@@ -106,6 +109,8 @@ void TCPWrap::Initialize(Local<Object> target,
                  GetSockOrPeerName<TCPWrap, uv_tcp_getpeername>);
   SetProtoMethod(isolate, t, "setNoDelay", SetNoDelay);
   SetProtoMethod(isolate, t, "setKeepAlive", SetKeepAlive);
+  SetProtoMethod(isolate, t, "setTOS", SetTOS);
+  SetProtoMethod(isolate, t, "getTOS", GetTOS);
   SetProtoMethod(isolate, t, "reset", Reset);
 
 #ifdef _WIN32
@@ -145,6 +150,8 @@ void TCPWrap::RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(GetSockOrPeerName<TCPWrap, uv_tcp_getpeername>);
   registry->Register(SetNoDelay);
   registry->Register(SetKeepAlive);
+  registry->Register(SetTOS);
+  registry->Register(GetTOS);
   registry->Register(Reset);
 #ifdef _WIN32
   registry->Register(SetSimultaneousAccepts);
@@ -206,6 +213,78 @@ void TCPWrap::SetKeepAlive(const FunctionCallbackInfo<Value>& args) {
   unsigned int delay = static_cast<unsigned int>(args[1].As<Uint32>()->Value());
   int err = uv_tcp_keepalive(&wrap->handle_, enable, delay);
   args.GetReturnValue().Set(err);
+}
+
+
+void TCPWrap::SetTOS(const FunctionCallbackInfo<Value>& args) {
+  TCPWrap* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(
+      &wrap, args.This(), args.GetReturnValue().Set(UV_EBADF));
+  Environment* env = wrap->env();
+  int tos;
+  if (!args[0]->Int32Value(env->context()).To(&tos)) return;
+
+  int fd;
+  int err = uv_fileno(reinterpret_cast<uv_handle_t*>(&wrap->handle_), &fd);
+  if (err != 0) {
+    args.GetReturnValue().Set(err);
+    return;
+  }
+
+#ifdef _WIN32
+  args.GetReturnValue().Set(UV_ENOSYS);
+#else
+  // Try IPv4 first
+  if (setsockopt(fd, IPPROTO_IP, IP_TOS, &tos, sizeof(tos)) == 0) {
+    args.GetReturnValue().Set(0);
+    return;
+  }
+
+  // If IPv4 failed, try IPv6
+  if (setsockopt(fd, IPPROTO_IPV6, IPV6_TCLASS, &tos, sizeof(tos)) == 0) {
+    args.GetReturnValue().Set(0);
+    return;
+  }
+
+  // If both failed, return the negative errno
+  args.GetReturnValue().Set(-errno);
+#endif
+}
+
+
+void TCPWrap::GetTOS(const FunctionCallbackInfo<Value>& args) {
+  TCPWrap* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(
+      &wrap, args.This(), args.GetReturnValue().Set(UV_EBADF));
+
+  int fd;
+  int err = uv_fileno(reinterpret_cast<uv_handle_t*>(&wrap->handle_), &fd);
+  if (err != 0) {
+    args.GetReturnValue().Set(err);
+    return;
+  }
+
+  int tos = 0;
+  socklen_t len = sizeof(tos);
+
+#ifdef _WIN32
+  args.GetReturnValue().Set(UV_ENOSYS);
+#else
+  // Try IPv4 first
+  if (getsockopt(fd, IPPROTO_IP, IP_TOS, &tos, &len) == 0) {
+    args.GetReturnValue().Set(tos);
+    return;
+  }
+
+  // If IPv4 failed, try IPv6
+  if (getsockopt(fd, IPPROTO_IPV6, IPV6_TCLASS, &tos, &len) == 0) {
+    args.GetReturnValue().Set(tos);
+    return;
+  }
+
+  // If both failed, return the negative errno
+  args.GetReturnValue().Set(-errno);
+#endif
 }
 
 
