@@ -1,4 +1,4 @@
-'use strict';
+﻿'use strict';
 const common = require('.');
 const path = require('node:path');
 const test = require('node:test');
@@ -64,12 +64,26 @@ function transformProjectRoot(replacement = '<project-root>') {
   const winPath = replaceWindowsPaths(projectRoot);
   // Handles URL encoded project root in file URL strings as well.
   const urlEncoded = pathToFileURL(projectRoot).pathname;
+
+  // Fix for issue #61303: Use a regex to only match projectRoot when it appears
+  // as an actual path prefix, not as a substring within URLs (like nodejs.org)
+  // or other paths (like /node_modules) when CWD happens to be /node.
+  // Match projectRoot followed by: path separator, colon (for line numbers),
+  // whitespace, or end of string.
+  const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const createPathRegex = (p) => new RegExp(escapeRegex(p) + '(?=[/\\\\:\\s]|$)', 'g');
+
+  const projectRootRegex = createPathRegex(projectRoot);
+  const winPathRegex = createPathRegex(winPath);
+  // URL encoded paths need the same treatment
+  const urlEncodedRegex = createPathRegex(urlEncoded);
+
   return (str) => {
     return str.replaceAll('\\\'', "'")
       // Replace fileUrl first as `winPath` could be a substring of the fileUrl.
-      .replaceAll(urlEncoded, replacement)
-      .replaceAll(projectRoot, replacement)
-      .replaceAll(winPath, replacement);
+      .replace(urlEncodedRegex, replacement)
+      .replace(projectRootRegex, replacement)
+      .replace(winPathRegex, replacement);
   };
 }
 
