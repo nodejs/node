@@ -34,10 +34,9 @@
 #include "util-inl.h"
 
 #ifndef _WIN32
-#include <sys/socket.h>
 #include <netinet/in.h>
+#include <sys/socket.h>
 #endif
-
 
 namespace node {
 
@@ -215,7 +214,6 @@ void TCPWrap::SetKeepAlive(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(err);
 }
 
-
 void TCPWrap::SetTOS(const FunctionCallbackInfo<Value>& args) {
   TCPWrap* wrap;
   ASSIGN_OR_RETURN_UNWRAP(
@@ -251,7 +249,6 @@ void TCPWrap::SetTOS(const FunctionCallbackInfo<Value>& args) {
 #endif
 }
 
-
 void TCPWrap::GetTOS(const FunctionCallbackInfo<Value>& args) {
   TCPWrap* wrap;
   ASSIGN_OR_RETURN_UNWRAP(
@@ -286,7 +283,6 @@ void TCPWrap::GetTOS(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(-errno);
 #endif
 }
-
 
 #ifdef _WIN32
 void TCPWrap::SetSimultaneousAccepts(const FunctionCallbackInfo<Value>& args) {
