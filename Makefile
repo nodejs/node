@@ -398,7 +398,7 @@ test/addons/.docbuildstamp: $(DOCBUILDSTAMP_PREREQS) tools/doc/node_modules
 			-t addon-verify \
 			-i doc/api/addons.md \
 			-o test/addons/ \
-			--type-map doc/type-map.json
+			--type-map doc/type-map.json \
 		) \
 		[ $$? -eq 0 ] && touch $@; \
 	fi
