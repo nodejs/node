@@ -1,0 +1,9 @@
+{
+  "main": "sea.js",
+  "output": "sea-prep.blob",
+  "assets": {
+    "config.json": "config.json",
+    "data/greeting.txt": "greeting.txt",
+    "modules/math.js": "math.js"
+  }
+}
