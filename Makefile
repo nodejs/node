@@ -818,6 +818,7 @@ RAWVER=$(shell $(PYTHON) tools/getnodeversion.py)
 VERSION=v$(RAWVER)
 
 .PHONY: doc-only
+.NOTPARALLEL: doc-only
 doc-only: tools/doc/node_modules \
 	$(apidoc_dirs) $(apidocs_html) $(apidocs_json) out/doc/api/all.html out/doc/api/all.json out/doc/apilinks.json  ## Builds the docs with the local or the global Node.js binary.
 	@if [ "$(shell $(node_use_openssl_and_icu))" != "true" ]; then \
@@ -873,7 +874,7 @@ docserve: doc-only ## Serve the documentation on localhost:8000.
 	@$(PYTHON) -m http.server 8000 --bind 127.0.0.1 --directory out/doc/api
 
 .PHONY: docclean
-.NOTPARALLEL: docclean doc-only out/doc
+.NOTPARALLEL: docclean
 docclean: ## Remove the generated documentation.
 	$(RM) -r out/doc
 
