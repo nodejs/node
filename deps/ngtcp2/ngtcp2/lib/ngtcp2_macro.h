@@ -52,6 +52,13 @@
  */
 #define ngtcp2_arraylen(A) (sizeof(A) / sizeof(A[0]))
 
+/*
+ * ngtcp2_strlen_lit returns the length of string literal |S|.  This
+ * macro assumes |S| is NULL-terminated string literal.  It must not
+ * be used with pointers.
+ */
+#define ngtcp2_strlen_lit(S) (sizeof(S) - 1)
+
 #define ngtcp2_max_def(SUFFIX, T)                                              \
   static inline T ngtcp2_max_##SUFFIX(T a, T b) { return a < b ? b : a; }
 
