@@ -373,3 +373,100 @@ repository.
 
 In the event of a security incident, please refer to the
 [Security Incident Response Plan](https://github.com/nodejs/security-wg/blob/main/INCIDENT_RESPONSE_PLAN.md).
+
+## Node.js Security Team
+
+Node.js security team members are expected to keep all information that they
+have privileged access to by being on the team completely private to the team.
+This includes agreeing to not notify anyone outside the team of issues that have
+not yet been disclosed publicly, including the existence of issues, expectations
+of upcoming releases, and patching of any issues other than in the process of
+their work as a member of the security team.
+
+### Node.js Security Team Membership Policy
+
+The Node.js Security Team has access to security-sensitive issues and patches
+that aren't appropriate for public availability.
+
+The policy for inclusion is as follows:
+
+1. All members of @nodejs/TSC have access to private security reports and
+   private patches.
+2. Members of the @nodejs/releasers team
+   have access to private security patches in order to produce releases.
+3. On a case-by-case basis, individuals outside the Technical Steering
+   Committee are invited by the TSC to have access to private security reports
+   or private patches so that their expertise can be applied to an issue or
+   patch. This access may be temporary or permanent, as decided by the TSC.
+
+Membership on the security teams can be requested via an issue in the TSC repo.
+
+## Team responsible for Triaging security reports
+
+The responsibility of Triage is to determine whether Node.js must take any
+action to mitigate the issue, and if so, to ensure that the action is taken.
+
+Mitigation may take many forms, for example, a Node.js security release that
+includes a fix, documentation, an informational CVE or blog post.
+
+* [@mcollina](https://github.com/mcollina) - Matteo Collina
+* [@RafaelGSS](https://github.com/RafaelGSS) - Rafael Gonzaga
+* [@vdeturckheim](https://github.com/vdeturckheim) - Vladimir de Turckheim
+* [@BethGriggs](https://github.com/BethGriggs) - Beth Griggs
+
+## Team with access to private security reports against Node.js
+
+[TSC voting members](https://github.com/nodejs/node#tsc-voting-members)
+have access.
+
+In addition, these individuals have access:
+
+* [BethGriggs](https://github.com/BethGriggs) - **Beth Griggs**
+* [MylesBorins](https://github.com/MylesBorins) -  **Myles Borins**
+* [bengl](https://github.com/bengl)- **Bryan English**
+* [bnoordhuis](https://github.com/bnoordhuis) **Ben Noordhuis**
+* [cjihrig](https://github.com/cjihrig) **Colin Ihrig**
+* [joesepi](https://github.com/joesepi) - **Joe Sepi**
+* [juanarbol](https://github.com/juanarbol) **Juan Jose Arboleda**
+* [ulisesgascon](https://github.com/ulisesgascon) **Ulises Gascón**
+* [vdeturckheim](https://github.com/vdeturckheim) - **Vladimir de Turckheim**
+
+The list is from the [member page](https://hackerone.com/organizations/nodejs/settings/users) for
+the Node.js program on HackerOne.
+
+## Team with access to private security patches to Node.js
+
+<!-- ncu-team-sync.team(nodejs-private/security) -->
+
+* [@aduh95](https://github.com/aduh95) - Antoine du Hamel
+* [@anonrig](https://github.com/anonrig) - Yagiz Nizipli
+* [@bengl](https://github.com/bengl) - Bryan English
+* [@benjamingr](https://github.com/benjamingr) - Benjamin Gruenbaum
+* [@bmeck](https://github.com/bmeck) - Bradley Farias
+* [@bnoordhuis](https://github.com/bnoordhuis) - Ben Noordhuis
+* [@BridgeAR](https://github.com/BridgeAR) - Ruben Bridgewater
+* [@gireeshpunathil](https://github.com/gireeshpunathil) - Gireesh Punathil
+* [@guybedford](https://github.com/guybedford) - Guy Bedford
+* [@indutny](https://github.com/indutny) - Fedor Indutny
+* [@jasnell](https://github.com/jasnell) - James M Snell
+* [@joaocgreis](https://github.com/joaocgreis) - João Reis
+* [@joesepi](https://github.com/joesepi) - Joe Sepi
+* [@joyeecheung](https://github.com/joyeecheung) - Joyee Cheung
+* [@juanarbol](https://github.com/juanarbol) - Juan José
+* [@legendecas](https://github.com/legendecas) - Chengzhong Wu
+* [@marco-ippolito](https://github.com/marco-ippolito) - Marco Ippolito
+* [@mcollina](https://github.com/mcollina) - Matteo Collina
+* [@MoLow](https://github.com/MoLow) - Moshe Atlow
+* [@panva](https://github.com/panva) - Filip Skokan
+* [@RafaelGSS](https://github.com/RafaelGSS) - Rafael Gonzaga
+* [@richardlau](https://github.com/richardlau) - Richard Lau
+* [@ronag](https://github.com/ronag) - Robert Nagy
+* [@ruyadorno](https://github.com/ruyadorno) - Ruy Adorno
+* [@santigimeno](https://github.com/santigimeno) - Santiago Gimeno
+* [@ShogunPanda](https://github.com/ShogunPanda) - Paolo Insogna
+* [@targos](https://github.com/targos) - Michaël Zasso
+* [@tniessen](https://github.com/tniessen) - Tobias Nießen
+* [@UlisesGascon](https://github.com/UlisesGascon) - Ulises Gascón
+* [@vdeturckheim](https://github.com/vdeturckheim) - Vladimir de Turckheim
+
+<!-- ncu-team-sync end -->
