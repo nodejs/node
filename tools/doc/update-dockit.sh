@@ -16,4 +16,4 @@ latest_commit=$("$NODE" "$BASE_DIR/tools/doc/get-latest-commit.mjs")
 
 rm -rf node_modules/ package-lock.json
 
-"$NODE" "$NPM" install "git://github.com/nodejs/doc-kit#$latest_commit"
+"$NODE" "$NPM" install "git://github.com/nodejs/doc-kit#$latest_commit" --omit=dev
