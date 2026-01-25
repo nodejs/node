@@ -3,8 +3,6 @@ const common = require('../common');
 const assert = require('assert');
 const net = require('net');
 
-const isWindows = common.isWindows;
-
 const server = net.createServer(
   common.mustCall((socket) => {
     socket.end();
@@ -38,25 +36,18 @@ server.listen(
         // TEST 2: setting and getting TOS
         const tosValue = 0x10; // IPTOS_LOWDELAY (16)
 
-        if (isWindows) {
-          // On Windows, your implementation returns UV_ENOSYS, which throws in JS
-          assert.throws(() => client.setTOS(tosValue), {
-            code: 'ENOSYS',
-          });
-        } else {
-          // On POSIX (Linux/macOS), this should succeed
-          client.setTOS(tosValue);
+        // On all platforms, this should succeed (tries both IPv4 and IPv6)
+        client.setTOS(tosValue);
 
-          // Verify values
-          // Note: Some OSs might mask the value (e.g. Linux sometimes masks ECN bits),
-          // but usually 0x10 should return 0x10.
-          const got = client.getTOS();
-          assert.strictEqual(
-            got,
-            tosValue,
-            `Expected TOS ${tosValue}, got ${got}`,
-          );
-        }
+        // Verify values
+        // Note: Some OSs might mask the value (e.g. Linux sometimes masks ECN bits),
+        // but usually 0x10 should return 0x10.
+        const got = client.getTOS();
+        assert.strictEqual(
+          got,
+          tosValue,
+          `Expected TOS ${tosValue}, got ${got}`,
+        );
 
         client.end();
       }),

@@ -225,7 +225,6 @@ void TCPWrap::SetTOS(const FunctionCallbackInfo<Value>& args) {
   int tos;
   if (!args[0]->Int32Value(env->context()).To(&tos)) return;
 
-  // Use uv_os_fd_t (it handles int vs void* automatically)
   uv_os_fd_t fd;
   int err = uv_fileno(reinterpret_cast<uv_handle_t*>(&wrap->handle_), &fd);
   if (err != 0) {
@@ -233,39 +232,43 @@ void TCPWrap::SetTOS(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
+  bool successful_at_least_once = false;
+
 #ifdef _WIN32
-  // Windows implementation
-  // Windows setsockopt expects 'const char*' for value and 'SOCKET' for fd
+  // Windows: Try IPv4
   if (setsockopt(reinterpret_cast<SOCKET>(fd),
                  IPPROTO_IP,
                  IP_TOS,
                  reinterpret_cast<const char*>(&tos),
-                 sizeof(tos)) == 0) {
-    args.GetReturnValue().Set(0);
-    return;
+                 static_cast<int>(sizeof(tos))) == 0) {
+    successful_at_least_once = true;
   }
-  // Windows does not typically support IPV6_TCLASS in the same way,
-  // or it might fallback. If you need IPv6 support on Windows,
-  // you often need explicit version checks or specific headers.
-  // For now, let's return the error if IPv4 failed.
-  args.GetReturnValue().Set(UV_EINVAL);
+  // Windows: Try IPv6 (Best effort)
+  if (setsockopt(reinterpret_cast<SOCKET>(fd),
+                 IPPROTO_IPV6,
+                 IPV6_TCLASS,
+                 reinterpret_cast<const char*>(&tos),
+                 static_cast<int>(sizeof(tos))) == 0) {
+    successful_at_least_once = true;
+  }
 #else
-  // Linux/macOS implementation
-  // Try IPv4 first
+  // POSIX (Linux/macOS): Try IPv4
   if (setsockopt(fd, IPPROTO_IP, IP_TOS, &tos, sizeof(tos)) == 0) {
-    args.GetReturnValue().Set(0);
-    return;
+    successful_at_least_once = true;
   }
-
-  // If IPv4 failed, try IPv6
+  // POSIX (Linux/macOS): Try IPv6
   if (setsockopt(fd, IPPROTO_IPV6, IPV6_TCLASS, &tos, sizeof(tos)) == 0) {
-    args.GetReturnValue().Set(0);
-    return;
+    successful_at_least_once = true;
   }
-
-  // If both failed, return the negative errno
-  args.GetReturnValue().Set(-errno);
 #endif
+
+  // If we set it on at least one protocol (v4 or v6), consider it a success.
+  if (successful_at_least_once) {
+    args.GetReturnValue().Set(0);
+  } else {
+    // If both failed, return the generic error
+    args.GetReturnValue().Set(UV_EINVAL);
+  }
 }
 
 void TCPWrap::GetTOS(const FunctionCallbackInfo<Value>& args) {
@@ -273,7 +276,6 @@ void TCPWrap::GetTOS(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(
       &wrap, args.This(), args.GetReturnValue().Set(UV_EBADF));
 
-  // Use uv_os_fd_t
   uv_os_fd_t fd;
   int err = uv_fileno(reinterpret_cast<uv_handle_t*>(&wrap->handle_), &fd);
   if (err != 0) {
@@ -286,7 +288,6 @@ void TCPWrap::GetTOS(const FunctionCallbackInfo<Value>& args) {
 
 #ifdef _WIN32
   // Windows implementation
-  // Windows getsockopt expects 'char*' and 'SOCKET'
   if (getsockopt(reinterpret_cast<SOCKET>(fd),
                  IPPROTO_IP,
                  IP_TOS,
