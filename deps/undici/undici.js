@@ -12595,6 +12595,7 @@ var require_fetch = __commonJS({
           if (isCancelled(fetchParams)) {
             return makeAppropriateNetworkError(fetchParams);
           }
+          return makeNetworkError();
         }
         fetchParams.controller.connection.destroy();
         response = await httpNetworkOrCacheFetch(fetchParams, true);
