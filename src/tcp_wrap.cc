@@ -20,7 +20,6 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "tcp_wrap.h"
-
 #include "connect_wrap.h"
 #include "connection_wrap.h"
 #include "env-inl.h"
@@ -34,6 +33,9 @@
 #include "util-inl.h"
 #include <cerrno>
 #include <cstdlib>
+#ifdef _WIN32
+#include <ws2tcpip.h>
+#endif
 #ifndef _WIN32
 #include <netinet/in.h>
 #include <sys/socket.h>
@@ -223,7 +225,8 @@ void TCPWrap::SetTOS(const FunctionCallbackInfo<Value>& args) {
   int tos;
   if (!args[0]->Int32Value(env->context()).To(&tos)) return;
 
-  int fd;
+  // Use uv_os_fd_t (it handles int vs void* automatically)
+  uv_os_fd_t fd;
   int err = uv_fileno(reinterpret_cast<uv_handle_t*>(&wrap->handle_), &fd);
   if (err != 0) {
     args.GetReturnValue().Set(err);
@@ -231,8 +234,23 @@ void TCPWrap::SetTOS(const FunctionCallbackInfo<Value>& args) {
   }
 
 #ifdef _WIN32
-  args.GetReturnValue().Set(UV_ENOSYS);
+  // Windows implementation
+  // Windows setsockopt expects 'const char*' for value and 'SOCKET' for fd
+  if (setsockopt(reinterpret_cast<SOCKET>(fd),
+                 IPPROTO_IP,
+                 IP_TOS,
+                 reinterpret_cast<const char*>(&tos),
+                 sizeof(tos)) == 0) {
+    args.GetReturnValue().Set(0);
+    return;
+  }
+  // Windows does not typically support IPV6_TCLASS in the same way,
+  // or it might fallback. If you need IPv6 support on Windows,
+  // you often need explicit version checks or specific headers.
+  // For now, let's return the error if IPv4 failed.
+  args.GetReturnValue().Set(UV_EINVAL);
 #else
+  // Linux/macOS implementation
   // Try IPv4 first
   if (setsockopt(fd, IPPROTO_IP, IP_TOS, &tos, sizeof(tos)) == 0) {
     args.GetReturnValue().Set(0);
@@ -255,7 +273,8 @@ void TCPWrap::GetTOS(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(
       &wrap, args.This(), args.GetReturnValue().Set(UV_EBADF));
 
-  int fd;
+  // Use uv_os_fd_t
+  uv_os_fd_t fd;
   int err = uv_fileno(reinterpret_cast<uv_handle_t*>(&wrap->handle_), &fd);
   if (err != 0) {
     args.GetReturnValue().Set(err);
@@ -266,8 +285,19 @@ void TCPWrap::GetTOS(const FunctionCallbackInfo<Value>& args) {
   socklen_t len = sizeof(tos);
 
 #ifdef _WIN32
-  args.GetReturnValue().Set(UV_ENOSYS);
+  // Windows implementation
+  // Windows getsockopt expects 'char*' and 'SOCKET'
+  if (getsockopt(reinterpret_cast<SOCKET>(fd),
+                 IPPROTO_IP,
+                 IP_TOS,
+                 reinterpret_cast<char*>(&tos),
+                 &len) == 0) {
+    args.GetReturnValue().Set(tos);
+    return;
+  }
+  args.GetReturnValue().Set(UV_EINVAL);
 #else
+  // Linux/macOS implementation
   // Try IPv4 first
   if (getsockopt(fd, IPPROTO_IP, IP_TOS, &tos, &len) == 0) {
     args.GetReturnValue().Set(tos);
