@@ -808,7 +808,7 @@ apidocs_json = $(addprefix out/,$(apidoc_sources:.md=.json))
 run-npm-ci = $(PWD)/$(NPM) ci --omit=dev
 
 tools/doc/node_modules: tools/doc/package.json
-	if [ "$(shell $(node_use_openssl_and_icu))" != "true" ]; then \
+	@if [ "$(shell $(node_use_openssl_and_icu))" != "true" ]; then \
 		echo "Skipping tools/doc/node_modules (no crypto and/or no ICU)"; \
 	else \
 		cd tools/doc && $(call available-node,$(run-npm-ci)) \
@@ -853,7 +853,7 @@ $(apidocs_html) $(apidocs_json) out/doc/api/all.html out/doc/api/all.json &: $(a
 		--type-map doc/type-map.json \
 	)
 
-out/doc/apilinks.json: $(wildcard lib/*.js) | out/doc
+out/doc/apilinks.json: $(wildcard lib/*.js) tools/doc/node_modules | out/doc
 	$(call available-node, \
 		$(DOC_KIT) generate \
 		-t api-links \
