@@ -997,6 +997,21 @@ be used to read `INTEGER` data using JavaScript `BigInt`s. This method has no
 impact on database write operations where numbers and `BigInt`s are both
 supported at all times.
 
+### `statement.setReadNullAsUndefined(enabled)`
+
+<!-- YAML
+added:
+-->
+
+* `enabled` {boolean} Enables or disables returning SQL `NULL` values as
+  JavaScript `undefined` when reading from the database.
+
+When reading from the database, SQLite `NULL` values are mapped to JavaScript
+`null` by default. This method can be used to instead return `undefined` for
+`NULL` values when materialising result rows. This setting only affects how
+result rows are returned and does not impact values passed to user-defined
+functions or aggregate functions.
+
 ### `statement.sourceSQL`
 
 <!-- YAML
