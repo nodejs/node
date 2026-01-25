@@ -873,7 +873,7 @@ docserve: doc-only ## Serve the documentation on localhost:8000.
 	@$(PYTHON) -m http.server 8000 --bind 127.0.0.1 --directory out/doc/api
 
 .PHONY: docclean
-.NOTPARALLEL: docclean
+.NOTPARALLEL: docclean doc-only out/doc
 docclean: ## Remove the generated documentation.
 	$(RM) -r out/doc
 
