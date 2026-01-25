@@ -39,7 +39,15 @@
 
 #define nghttp3_arraylen(A) (sizeof(A) / sizeof(*(A)))
 
-#define lstreq(A, B, N) ((sizeof((A)) - 1) == (N) && memcmp((A), (B), (N)) == 0)
+/*
+ * nghttp3_strlen_lit returns the length of string literal |S|.  This
+ * macro assumes |S| is NULL-terminated string literal.  It must not
+ * be used with pointers.
+ */
+#define nghttp3_strlen_lit(S) (sizeof(S) - 1)
+
+#define lstreq(A, B, N)                                                        \
+  (nghttp3_strlen_lit((A)) == (N) && memcmp((A), (B), (N)) == 0)
 
 /* NGHTTP3_MAX_VARINT` is the maximum value which can be encoded in
    variable-length integer encoding. */
