@@ -106,7 +106,7 @@ void OOMErrorHandler(const char* location, const v8::OOMDetails& details);
   V(ERR_INVALID_URL_PATTERN, TypeError)                                        \
   V(ERR_INVALID_URL_SCHEME, TypeError)                                         \
   V(ERR_LOAD_SQLITE_EXTENSION, Error)                                          \
-  V(ERR_MEMORY_ALLOCATION_FAILED, Error)                                       \
+  V(ERR_MEMORY_ALLOCATION_FAILED, RangeError)                                  \
   V(ERR_MESSAGE_TARGET_CONTEXT_UNAVAILABLE, Error)                             \
   V(ERR_MISSING_ARGS, TypeError)                                               \
   V(ERR_MISSING_PASSPHRASE, TypeError)                                         \
