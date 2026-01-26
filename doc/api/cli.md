@@ -4054,7 +4054,7 @@ Wed May 12 2021 20:30:48 GMT+0100 (Irish Standard Time)
 <!-- YAML
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/XXXX
+    pr-url: https://github.com/nodejs/node/pull/61533
     description: Node.js now automatically sets `UV_THREADPOOL_SIZE` to the
                  available CPU parallelism (with a minimum of 4 and a maximum
                  of 1024) when the environment variable is not already set.
