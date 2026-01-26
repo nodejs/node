@@ -19,7 +19,7 @@ on:
           - amaro
           - brotli
           - c-ares
-          - cjs-module-lexer
+          - merve
           - corepack
           - googletest
           - gyp-next
@@ -105,11 +105,11 @@ jobs:
               cat temp-output
               tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
               rm temp-output
-          - id: cjs-module-lexer
+          - id: merve
             subsystem: deps
             label: dependencies
             run: |
-              ./tools/dep_updaters/update-cjs-module-lexer.sh > temp-output
+              ./tools/dep_updaters/update-merve.sh > temp-output
               cat temp-output
               tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
               rm temp-output

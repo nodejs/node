@@ -104,7 +104,7 @@ The externally maintained libraries used by Node.js are:
     SOFTWARE.
   """
 
-- commonjs-lexer, located at deps/commonjs-lexer, is licensed as follows:
+- merve, located at deps/merve, is licensed as follows:
   """
     Copyright 2026 Yagiz Nizipli
 
