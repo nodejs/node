@@ -5,9 +5,6 @@ const { skipIfNoWatch } = require('../common/watch.js');
 
 skipIfNoWatch();
 
-// if (common.isSunOS)
-//   common.skip('`fs.watch()` is not reliable on SunOS.');
-
 const assert = require('assert');
 const path = require('path');
 const fs = require('fs');
@@ -50,11 +47,17 @@ watcher.on('change', common.mustCallAtLeast((event, filename) => {
   }
 }, 1));
 
-// Do the write with a delay to ensure that the OS is ready to notify us. See
-// https://github.com/nodejs/node/issues/52601.
-setTimeout(() => {
+function writeFiles() {
   fs.writeFileSync(ignoredLogPath, 'ignored');
   fs.writeFileSync(ignoredTmpPath, 'ignored');
   fs.writeFileSync(ignoredHiddenPath, 'ignored');
   fs.writeFileSync(testFilePath, 'content');
-}, common.platformTimeout(100));
+}
+
+if (common.isMacOS) {
+  // Do the write with a delay to ensure that the OS is ready to notify us. See
+  // https://github.com/nodejs/node/issues/52601.
+  setTimeout(writeFiles, common.platformTimeout(100));
+} else {
+  writeFiles();
+}

@@ -3,12 +3,10 @@ import { skipIfNoWatch } from '../common/watch.js';
 
 skipIfNoWatch();
 
-// if (common.isSunOS)
-//   common.skip('`fs.watch()` is not reliable on SunOS.');
-
 const assert = await import('node:assert');
 const path = await import('node:path');
 const tmpdir = await import('../common/tmpdir.js');
+const { setTimeout } = await import('node:timers/promises');
 const { watch } = await import('node:fs/promises');
 const { writeFileSync } = await import('node:fs');
 
@@ -20,21 +18,29 @@ const ignoreFile = '.hidden';
 const keepFilePath = path.join(testDir, keepFile);
 const ignoreFilePath = path.join(testDir, ignoreFile);
 
-const watcher = watch(testDir, {
-  ignore: (filename) => filename.startsWith('.'),
-});
+async function watchDir() {
+  const watcher = watch(testDir, {
+    ignore: (filename) => filename.startsWith('.'),
+  });
 
-// Do the write with a delay to ensure that the OS is ready to notify us. See
-// https://github.com/nodejs/node/issues/52601.
-setTimeout(() => {
-  writeFileSync(ignoreFilePath, 'ignored');
-  writeFileSync(keepFilePath, 'content');
-}, common.platformTimeout(100));
+  for await (const { filename } of watcher) {
+    assert.notStrictEqual(filename, ignoreFile);
 
-for await (const { filename } of watcher) {
-  assert.notStrictEqual(filename, ignoreFile);
-
-  if (filename === keepFile) {
-    break;
+    if (filename === keepFile) {
+      break;
+    }
   }
 }
+
+async function writeFiles() {
+  if (common.isMacOS) {
+    // Do the write with a delay to ensure that the OS is ready to notify us.
+    // See https://github.com/nodejs/node/issues/52601.
+    await setTimeout(common.platformTimeout(100));
+  }
+
+  writeFileSync(ignoreFilePath, 'ignored');
+  writeFileSync(keepFilePath, 'content');
+}
+
+await Promise.all([watchDir(), writeFiles()]);
