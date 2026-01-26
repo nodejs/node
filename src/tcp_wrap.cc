@@ -284,7 +284,11 @@ void TCPWrap::GetTOS(const FunctionCallbackInfo<Value>& args) {
   }
 
   int tos = 0;
+#ifdef _WIN32
+  int len = sizeof(tos);
+#else
   socklen_t len = sizeof(tos);
+#endif
 #ifdef _WIN32
   // Try IPv4 first
   if (getsockopt(reinterpret_cast<SOCKET>(fd),

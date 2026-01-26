@@ -43,10 +43,12 @@ server.listen(
         // Note: Some OSs might mask the value (e.g. Linux sometimes masks ECN bits),
         // but usually 0x10 should return 0x10.
         const got = client.getTOS();
+        // Only compare the upper 6 bits (DSCP, bits 7-2) to avoid ECN/OS-masked bits
+        const mask = 0xFC;
         assert.strictEqual(
-          got,
-          tosValue,
-          `Expected TOS ${tosValue}, got ${got}`,
+          got & mask,
+          tosValue & mask,
+          `Expected TOS ${tosValue & mask}, got ${got & mask}`,
         );
 
         client.end();
