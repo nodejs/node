@@ -35,7 +35,8 @@ server.listen(
           code: 'ERR_OUT_OF_RANGE',
         });
 
-        // TEST 2a: pre-connect TOS caching
+        // TEST 2a: verify pre-connect TOS was cached and applied on connect
+        // by checking client.getTOS() in the 'connect' event handler
         const mask = 0xFC;
         const preConnectGot = client.getTOS();
         assert.strictEqual(
