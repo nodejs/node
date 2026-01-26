@@ -313,13 +313,10 @@ void TCPWrap::GetTOS(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(UV_EINVAL);
 #else
   // Linux/macOS implementation
-  int errno_val = 0;
   // Try IPv4 first
   if (getsockopt(fd, IPPROTO_IP, IP_TOS, &tos, &len) == 0) {
     args.GetReturnValue().Set(tos);
     return;
-  } else {
-    errno_val = errno;
   }
 
   // If IPv4 failed, try IPv6
@@ -327,8 +324,6 @@ void TCPWrap::GetTOS(const FunctionCallbackInfo<Value>& args) {
   if (getsockopt(fd, IPPROTO_IPV6, IPV6_TCLASS, &tos, &len) == 0) {
     args.GetReturnValue().Set(tos);
     return;
-  } else {
-    errno_val = errno;
   }
 
   // If both failed, return the generic error
