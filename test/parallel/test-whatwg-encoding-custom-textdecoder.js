@@ -67,32 +67,34 @@ assert(TextDecoder);
 }
 
 // Test TextDecoder, UTF-8, fatal: true, ignoreBOM: false
-if (common.hasIntl) {
-  ['unicode-1-1-utf-8', 'utf8', 'utf-8'].forEach((i) => {
-    const dec = new TextDecoder(i, { fatal: true });
-    assert.throws(() => dec.decode(buf.slice(0, 8)),
-                  {
-                    code: 'ERR_ENCODING_INVALID_ENCODED_DATA',
-                    name: 'TypeError',
-                    message: 'The encoded data was not valid ' +
-                          'for encoding utf-8'
-                  });
-  });
+['unicode-1-1-utf-8', 'utf8', 'utf-8'].forEach((i) => {
+  const dec = new TextDecoder(i, { fatal: true });
+  assert.throws(() => dec.decode(buf.slice(0, 8)),
+                {
+                  code: 'ERR_ENCODING_INVALID_ENCODED_DATA',
+                  name: 'TypeError',
+                  message: 'The encoded data was not valid ' +
+                        'for encoding utf-8'
+                });
+});
 
-  ['unicode-1-1-utf-8', 'utf8', 'utf-8'].forEach((i) => {
-    const dec = new TextDecoder(i, { fatal: true });
+['unicode-1-1-utf-8', 'utf8', 'utf-8'].forEach((i) => {
+  const dec = new TextDecoder(i, { fatal: true });
+  if (common.hasIntl) {
     dec.decode(buf.slice(0, 8), { stream: true });
     dec.decode(buf.slice(8));
-  });
-} else {
-  assert.throws(
-    () => new TextDecoder('utf-8', { fatal: true }),
-    {
-      code: 'ERR_NO_ICU',
-      name: 'TypeError',
-      message: '"fatal" option is not supported on Node.js compiled without ICU'
-    });
-}
+  } else {
+    assert.throws(
+      () => {
+        dec.decode(buf.slice(0, 8), { stream: true });
+      },
+      {
+        code: 'ERR_NO_ICU',
+        name: 'TypeError',
+        message: '"fatal" option is not supported on Node.js compiled without ICU'
+      });
+  }
+});
 
 // Test TextDecoder, label undefined, options null
 {
@@ -132,6 +134,7 @@ if (common.hasIntl) {
       '}'
     );
   } else {
+    dec.decode(Uint8Array.of(0), { stream: true });
     assert.strictEqual(
       util.inspect(dec, { showHidden: true }),
       'TextDecoder {\n' +
