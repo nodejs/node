@@ -331,8 +331,8 @@ void TCPWrap::GetTOS(const FunctionCallbackInfo<Value>& args) {
     errno_val = errno;
   }
 
-  // If both failed, return the negative errno
-  args.GetReturnValue().Set(-errno_val);
+  // If both failed, return the generic error
+  args.GetReturnValue().Set(UV_EINVAL);
 #endif
 }
 
