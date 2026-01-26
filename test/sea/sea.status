@@ -13,10 +13,12 @@ test-single-executable-application*: SKIP
 [$system==linux && $arch==ppc64]
 # https://github.com/nodejs/node/issues/59561
 test-single-executable-application*: SKIP
+test-build-sea*: SKIP
 
 [$system==linux && $arch==riscv64]
 # https://github.com/nodejs/node/issues/61110
 test-single-executable-application*: SKIP
+test-build-sea*: SKIP
 
 [$system==win32]
 # https://github.com/nodejs/node/issues/49630
