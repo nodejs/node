@@ -18,6 +18,7 @@
     'node_shared_hdr_histogram%': 'false',
     'node_shared_http_parser%': 'false',
     'node_shared_libuv%': 'false',
+    'node_shared_lief%': 'false',
     'node_shared_nbytes%': 'false',
     'node_shared_nghttp2%': 'false',
     'node_shared_openssl%': 'false',
@@ -1001,9 +1002,12 @@
             'deps/ncrypto/ncrypto.gyp:ncrypto',
           ],
         }],
-        [ 'node_use_lief=="true"', {
+        [ 'node_use_lief=="true" and node_shared_lief=="false"', {
           'defines': [ 'HAVE_LIEF=1' ],
           'dependencies': [ 'deps/LIEF/lief.gyp:liblief' ],
+        }],
+        [ 'node_use_lief=="true" and node_shared_lief=="true"', {
+          'defines': [ 'HAVE_LIEF=1' ],
         }],
         [ 'node_use_sqlite=="true"', {
           'sources': [
