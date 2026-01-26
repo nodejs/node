@@ -807,3 +807,164 @@ TEST_F(EnvironmentTest, EmbedderPreload) {
   node::Utf8Value main_ret_str(isolate_, main_ret);
   EXPECT_EQ(std::string(*main_ret_str), "preload");
 }
+
+TEST_F(EnvironmentTest, LoadEnvironmentWithESModule) {
+  const v8::HandleScope handle_scope(isolate_);
+  const Argv argv;
+  Env env{handle_scope, argv};
+
+  node::ModuleData entry_point;
+  std::string source =
+      "import importedProcess from 'process';\n"
+      "export const process = importedProcess;\n"
+      "const stack = new Error().stack.split('\\n');\n"
+      "export const frame = stack.filter(line => /at /.test(line))[0];\n";
+  entry_point.set_source(source);
+  entry_point.set_format(node::ModuleFormat::kModule);
+  entry_point.set_resource_name("embedded:esm.mjs");
+
+  v8::Local<v8::Value> result =
+      node::LoadEnvironment(*env, &entry_point).ToLocalChecked();
+
+  // The ESM entry point returns the module namespace object.
+  EXPECT_TRUE(result->IsObject());
+  v8::Local<v8::Context> context = isolate_->GetCurrentContext();
+  v8::Local<v8::String> process_str =
+      v8::String::NewFromUtf8Literal(isolate_, "process");
+  v8::Local<v8::Value> process_value =
+      result.As<v8::Object>()->Get(context, process_str).ToLocalChecked();
+  EXPECT_TRUE(process_value->IsObject());
+  v8::Local<v8::Value> global_process_value =
+      context->Global()->Get(context, process_str).ToLocalChecked();
+  EXPECT_TRUE(global_process_value->IsObject());
+  EXPECT_TRUE(process_value->StrictEquals(global_process_value));
+
+  v8::Local<v8::Value> frame_value =
+      result.As<v8::Object>()
+          ->Get(context, v8::String::NewFromUtf8Literal(isolate_, "frame"))
+          .ToLocalChecked();
+  EXPECT_TRUE(frame_value->IsString());
+  node::Utf8Value frame_str(isolate_, frame_value);
+  printf("Frame: %s\n", *frame_str);
+  EXPECT_EQ(frame_str.ToString(), "    at embedded:esm.mjs:3:15");
+}
+
+TEST_F(EnvironmentTest, LoadEnvironmentWithCallbackWithCommonJSModule) {
+  const v8::HandleScope handle_scope(isolate_);
+  const Argv argv;
+  Env env{handle_scope, argv};
+
+  v8::Local<v8::Context> context = isolate_->GetCurrentContext();
+
+  v8::MaybeLocal<v8::Value> maybe = node::LoadEnvironment(
+      *env,
+      [&](const node::StartExecutionCallbackInfoWithModule& info)
+          -> v8::MaybeLocal<v8::Value> {
+        EXPECT_NE(nullptr, info.env());
+        EXPECT_TRUE(info.process_object()->IsObject());
+        EXPECT_TRUE(info.native_require()->IsFunction());
+        EXPECT_TRUE(info.run_module()->IsFunction());
+
+        // require("process") === process
+        v8::Local<v8::String> process_str =
+            v8::String::NewFromUtf8Literal(isolate_, "process");
+        v8::Local<v8::Value> require_args[] = {process_str};
+        v8::Local<v8::Value> required_process =
+            info.native_require()
+                ->Call(context, v8::Null(isolate_), 1, require_args)
+                .ToLocalChecked();
+        EXPECT_TRUE(required_process->IsObject());
+        EXPECT_TRUE(required_process->StrictEquals(info.process_object()));
+
+        // Test running a CJS entry point via run_module.
+        v8::Local<v8::Value> cjs_source = v8::String::NewFromUtf8Literal(
+            isolate_,
+            "globalThis.processInModule = require('process');\n"
+            "const stack = new Error().stack.split('\\n');\n"
+            "globalThis.frame = stack.filter(line => /at /.test(line))[0];\n"
+            "return 42;\n");
+        v8::Local<v8::Value> format = v8::Integer::New(
+            isolate_, static_cast<int32_t>(node::ModuleFormat::kCommonJS));
+        v8::Local<v8::Value> resource_name =
+            v8::String::NewFromUtf8Literal(isolate_, "/test-cjs.js");
+        v8::Local<v8::Value> args[] = {cjs_source, format, resource_name};
+        v8::Local<v8::Value> result =
+            info.run_module()
+                ->Call(context, v8::Null(isolate_), 3, args)
+                .ToLocalChecked();
+        EXPECT_TRUE(result->IsUint32());
+        EXPECT_EQ(result.As<v8::Uint32>()->Value(), static_cast<uint32_t>(42));
+        v8::Local<v8::Value> process_in_module =
+            context->Global()
+                ->Get(
+                    context,
+                    v8::String::NewFromUtf8Literal(isolate_, "processInModule"))
+                .ToLocalChecked();
+        EXPECT_TRUE(process_in_module->IsObject());
+        EXPECT_TRUE(process_in_module->StrictEquals(info.process_object()));
+        return result;
+      },
+      nullptr);
+
+  EXPECT_TRUE(!maybe.IsEmpty());
+  v8::Local<v8::Value> frame_value =
+      context->Global()
+          ->Get(context, v8::String::NewFromUtf8Literal(isolate_, "frame"))
+          .ToLocalChecked();
+  EXPECT_TRUE(frame_value->IsString());
+  node::Utf8Value frame_str(isolate_, frame_value);
+  printf("Frame: %s\n", *frame_str);
+  EXPECT_EQ(frame_str.ToString(), "    at /test-cjs.js:2:15");
+}
+
+TEST_F(EnvironmentTest, LoadEnvironmentWithCallbackWithESModule) {
+  const v8::HandleScope handle_scope(isolate_);
+  const Argv argv;
+  Env env{handle_scope, argv};
+
+  v8::Local<v8::Context> context = isolate_->GetCurrentContext();
+
+  v8::MaybeLocal<v8::Value> maybe = node::LoadEnvironment(
+      *env,
+      [&](const node::StartExecutionCallbackInfoWithModule& info)
+          -> v8::MaybeLocal<v8::Value> {
+        // Test running an ESM entry point via run_module.
+        v8::Local<v8::Value> source_str = v8::String::NewFromUtf8Literal(
+            isolate_,
+            "import importedProcess from 'process';\n"
+            "export const process = importedProcess;\n"
+            "const stack = new Error().stack.split('\\n');\n"
+            "export const frame = stack.filter(line => /at "
+            "/.test(line))[0];\n");
+        v8::Local<v8::Value> format = v8::Integer::New(
+            isolate_, static_cast<int32_t>(node::ModuleFormat::kModule));
+        v8::Local<v8::Value> resource_name =
+            v8::String::NewFromUtf8Literal(isolate_, "embedded:esm.mjs");
+        v8::Local<v8::Value> args[] = {source_str, format, resource_name};
+        return info.run_module()->Call(context, v8::Null(isolate_), 3, args);
+      },
+      nullptr);
+
+  v8::Local<v8::Value> result = maybe.ToLocalChecked();
+
+  v8::Local<v8::String> process_str =
+      v8::String::NewFromUtf8Literal(isolate_, "process");
+  // The ESM entry point returns the module namespace object.
+  EXPECT_TRUE(result->IsObject());
+  v8::Local<v8::Value> process_value =
+      result.As<v8::Object>()->Get(context, process_str).ToLocalChecked();
+  EXPECT_TRUE(process_value->IsObject());
+  v8::Local<v8::Value> global_process_value =
+      context->Global()->Get(context, process_str).ToLocalChecked();
+  EXPECT_TRUE(global_process_value->IsObject());
+  EXPECT_TRUE(process_value->StrictEquals(global_process_value));
+
+  v8::Local<v8::Value> frame_value =
+      result.As<v8::Object>()
+          ->Get(context, v8::String::NewFromUtf8Literal(isolate_, "frame"))
+          .ToLocalChecked();
+  EXPECT_TRUE(frame_value->IsString());
+  node::Utf8Value frame_str(isolate_, frame_value);
+  printf("Frame: %s\n", *frame_str);
+  EXPECT_EQ(frame_str.ToString(), "    at embedded:esm.mjs:3:15");
+}
