@@ -222,6 +222,7 @@ void TCPWrap::SetTOS(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(
       &wrap, args.This(), args.GetReturnValue().Set(UV_EBADF));
   Environment* env = wrap->env();
+
   int tos = 0;
   if (!args[0]->Int32Value(env->context()).To(&tos)) return;
 
@@ -232,43 +233,53 @@ void TCPWrap::SetTOS(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  bool successful_at_least_once = false;
+  // 1. Detect the socket family (IPv4 vs IPv6)
+  sockaddr_storage storage;
+  int addrlen = sizeof(storage);
+  int sock_err = uv_tcp_getsockname(&wrap->handle_,
+                                    reinterpret_cast<sockaddr*>(&storage),
+                                    &addrlen);
 
+  // If we can't determine the family (e.g. closed socket), fail gracefully.
+  if (sock_err != 0) {
+    args.GetReturnValue().Set(sock_err);
+    return;
+  }
+
+  // 2. Select the correct protocol level and option name
+  int level;
+  int option;
+
+  if (storage.ss_family == AF_INET) {
+    level = IPPROTO_IP;
+    option = IP_TOS;
+  } else if (storage.ss_family == AF_INET6) {
+    level = IPPROTO_IPV6;
+    option = IPV6_TCLASS;
+  } else {
+    // Unsupported socket family (e.g. AF_UNIX)
+    args.GetReturnValue().Set(UV_EINVAL);
+    return;
+  }
+
+  // 3. Perform the system call (Platform specific casting)
 #ifdef _WIN32
-  // Windows: Try IPv4
   if (setsockopt(reinterpret_cast<SOCKET>(fd),
-                 IPPROTO_IP,
-                 IP_TOS,
+                 level,
+                 option,
                  reinterpret_cast<const char*>(&tos),
                  static_cast<int>(sizeof(tos))) == 0) {
-    successful_at_least_once = true;
-  }
-  // Windows: Try IPv6 (Best effort)
-  if (setsockopt(reinterpret_cast<SOCKET>(fd),
-                 IPPROTO_IPV6,
-                 IPV6_TCLASS,
-                 reinterpret_cast<const char*>(&tos),
-                 static_cast<int>(sizeof(tos))) == 0) {
-    successful_at_least_once = true;
-  }
-#else
-  // POSIX (Linux/macOS): Try IPv4
-  if (setsockopt(fd, IPPROTO_IP, IP_TOS, &tos, sizeof(tos)) == 0) {
-    successful_at_least_once = true;
-  }
-  // POSIX (Linux/macOS): Try IPv6
-  if (setsockopt(fd, IPPROTO_IPV6, IPV6_TCLASS, &tos, sizeof(tos)) == 0) {
-    successful_at_least_once = true;
-  }
-#endif
-
-  // If we set it on at least one protocol (v4 or v6), consider it a success.
-  if (successful_at_least_once) {
     args.GetReturnValue().Set(0);
   } else {
-    // If both failed, return the generic error
-    args.GetReturnValue().Set(UV_EINVAL);
+    args.GetReturnValue().Set(uv_translate_sys_error(WSAGetLastError()));
   }
+#else
+  if (setsockopt(fd, level, option, &tos, sizeof(tos)) == 0) {
+    args.GetReturnValue().Set(0);
+  } else {
+    args.GetReturnValue().Set(uv_translate_sys_error(errno));
+  }
+#endif
 }
 
 void TCPWrap::GetTOS(const FunctionCallbackInfo<Value>& args) {
@@ -283,51 +294,56 @@ void TCPWrap::GetTOS(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
+  // Detect socket family explicitly
+  sockaddr_storage storage;
+  int addrlen = sizeof(storage);
+  int sock_err = uv_tcp_getsockname(&wrap->handle_,
+                                    reinterpret_cast<sockaddr*>(&storage),
+                                    &addrlen);
+
+  int level;
+  int option;
+
+  // Select the correct constant based on family
+  if (sock_err == 0) {
+    if (storage.ss_family == AF_INET) {
+      level = IPPROTO_IP;
+      option = IP_TOS;
+    } else if (storage.ss_family == AF_INET6) {
+      level = IPPROTO_IPV6;
+      option = IPV6_TCLASS;
+    } else {
+      // Unknown or unsupported family
+      args.GetReturnValue().Set(UV_EINVAL);
+      return;
+    }
+  } else {
+    // If we can't determine the family, we can't safely get the TOS
+    args.GetReturnValue().Set(sock_err);
+    return;
+  }
+
   int tos = 0;
+
+  // Perform the system call with platform-specific casting
 #ifdef _WIN32
   int len = sizeof(tos);
+  if (getsockopt(reinterpret_cast<SOCKET>(fd),
+                 level,
+                 option,
+                 reinterpret_cast<char*>(&tos),
+                 &len) == 0) {
+    args.GetReturnValue().Set(tos);
+  } else {
+    args.GetReturnValue().Set(uv_translate_sys_error(WSAGetLastError()));
+  }
 #else
   socklen_t len = sizeof(tos);
-#endif
-#ifdef _WIN32
-  // Try IPv4 first
-  if (getsockopt(reinterpret_cast<SOCKET>(fd),
-                 IPPROTO_IP,
-                 IP_TOS,
-                 reinterpret_cast<char*>(&tos),
-                 &len) == 0) {
+  if (getsockopt(fd, level, option, &tos, &len) == 0) {
     args.GetReturnValue().Set(tos);
-    return;
+  } else {
+    args.GetReturnValue().Set(uv_translate_sys_error(errno));
   }
-  // If IPv4 failed, try IPv6
-  len = sizeof(tos);
-  if (getsockopt(reinterpret_cast<SOCKET>(fd),
-                 IPPROTO_IPV6,
-                 IPV6_TCLASS,
-                 reinterpret_cast<char*>(&tos),
-                 &len) == 0) {
-    args.GetReturnValue().Set(tos);
-    return;
-  }
-  // If both failed, return the generic error
-  args.GetReturnValue().Set(UV_EINVAL);
-#else
-  // Linux/macOS implementation
-  // Try IPv4 first
-  if (getsockopt(fd, IPPROTO_IP, IP_TOS, &tos, &len) == 0) {
-    args.GetReturnValue().Set(tos);
-    return;
-  }
-
-  // If IPv4 failed, try IPv6
-  len = sizeof(tos);
-  if (getsockopt(fd, IPPROTO_IPV6, IPV6_TCLASS, &tos, &len) == 0) {
-    args.GetReturnValue().Set(tos);
-    return;
-  }
-
-  // If both failed, return the generic error
-  args.GetReturnValue().Set(UV_EINVAL);
 #endif
 }
 
