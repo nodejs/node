@@ -4066,6 +4066,15 @@ Wed May 12 2021 20:30:48 GMT+0100 (Irish Standard Time)
 
 ### `UV_THREADPOOL_SIZE=size`
 
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/61533
+    description: Node.js now automatically sets `UV_THREADPOOL_SIZE` to the
+                 available CPU parallelism (with a minimum of 4 and a maximum
+                 of 1024) when the environment variable is not already set.
+-->
+
 Set the number of threads used in libuv's threadpool to `size` threads.
 
 Asynchronous system APIs are used by Node.js whenever possible, but where they
