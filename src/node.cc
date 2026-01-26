@@ -255,37 +255,35 @@ MaybeLocal<Value> StartExecution(Environment* env, const char* main_script_id) {
 }
 
 // Convert the result returned by an intermediate main script into
-// StartExecutionCallbackInfo. Currently the result is an array containing
-// [process, requireFunction, cjsRunner]
-std::optional<StartExecutionCallbackInfo> CallbackInfoFromArray(
-    Local<Context> context, Local<Value> result) {
+// StartExecutionCallbackInfoWithModule. Currently the result is an array
+// containing [process, requireFunction, runModule].
+std::optional<StartExecutionCallbackInfoWithModule> CallbackInfoFromArray(
+    Environment* env, Local<Value> result, void* callback_data) {
   CHECK(result->IsArray());
   Local<Array> args = result.As<Array>();
   CHECK_EQ(args->Length(), 3);
-  Local<Value> process_obj, require_fn, runcjs_fn;
+  Local<Value> process_obj, require_fn, run_module;
+  Local<Context> context = env->context();
   if (!args->Get(context, 0).ToLocal(&process_obj) ||
       !args->Get(context, 1).ToLocal(&require_fn) ||
-      !args->Get(context, 2).ToLocal(&runcjs_fn)) {
+      !args->Get(context, 2).ToLocal(&run_module)) {
     return std::nullopt;
   }
   CHECK(process_obj->IsObject());
   CHECK(require_fn->IsFunction());
-  CHECK(runcjs_fn->IsFunction());
-  // TODO(joyeecheung): some support for running ESM as an entrypoint
-  // is needed. The simplest API would be to add a run_esm to
-  // StartExecutionCallbackInfo which compiles, links (to builtins)
-  // and evaluates a SourceTextModule.
-  // TODO(joyeecheung): the env pointer should be part of
-  // StartExecutionCallbackInfo, otherwise embedders are forced to use
-  // lambdas to pass it into the callback, which can make the code
-  // difficult to read.
-  node::StartExecutionCallbackInfo info{process_obj.As<Object>(),
-                                        require_fn.As<Function>(),
-                                        runcjs_fn.As<Function>()};
+  CHECK(run_module->IsFunction());
+  StartExecutionCallbackInfoWithModule info;
+  info.set_env(env);
+  info.set_process_object(process_obj.As<Object>());
+  info.set_native_require(require_fn.As<Function>());
+  info.set_run_module(run_module.As<Function>());
+  info.set_data(callback_data);
   return info;
 }
 
-MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
+MaybeLocal<Value> StartExecution(Environment* env,
+                                 StartExecutionCallbackWithModule cb,
+                                 void* callback_data) {
   InternalCallbackScope callback_scope(
       env,
       Object::New(env->isolate()),
@@ -308,7 +306,7 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
       }
     }
 
-    auto info = CallbackInfoFromArray(env->context(), result);
+    auto info = CallbackInfoFromArray(env, result, callback_data);
     if (!info.has_value()) {
       MaybeLocal<Value>();
     }
