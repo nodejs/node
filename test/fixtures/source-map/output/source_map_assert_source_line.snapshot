@@ -10,7 +10,6 @@ AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
     *
     *
     *
-    *
   generatedMessage: true,
   code: 'ERR_ASSERTION',
   actual: false,
