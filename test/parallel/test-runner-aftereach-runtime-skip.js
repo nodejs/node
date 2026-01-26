@@ -1,13 +1,16 @@
 'use strict';
 
-const assert = require('node:assert');
 const common = require('../common');
+const assert = require('node:assert');
 const { beforeEach, afterEach, test } = require('node:test');
 
+let beforeEachTotal = 0;
 let afterEachRuntimeSkip = 0;
 let afterEachTotal = 0;
 
-beforeEach(common.mustCall(() => {}, 2));
+beforeEach(common.mustCall(() => {
+  beforeEachTotal++;
+}, 2));
 
 afterEach(common.mustCall((t) => {
   afterEachTotal++;
@@ -27,6 +30,7 @@ test('runtime skip', (t) => {
 test('static skip', { skip: true }, common.mustNotCall());
 
 process.on('exit', () => {
+  assert.strictEqual(beforeEachTotal, 2);
   assert.strictEqual(afterEachRuntimeSkip, 1);
   assert.strictEqual(afterEachTotal, 2);
 });
