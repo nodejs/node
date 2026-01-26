@@ -7,7 +7,7 @@ added:
   - v19.7.0
   - v18.16.0
 changes:
-  - version: REPLACEME
+  - version: v25.5.0
     pr-url: https://github.com/nodejs/node/pull/61167
     description: Added built-in single executable application generation via the CLI flag `--build-sea`.
   - version: v20.6.0
