@@ -1461,7 +1461,7 @@ If `timeout` is 0, then the existing idle timeout is disabled.
 The optional `callback` parameter will be added as a one-time listener for the
 [`'timeout'`][] event.
 
-### `socket.getTOS()`
+### `socket.getTypeOfService()`
 
 <!-- YAML
 added: REPLACEME
@@ -1472,15 +1472,15 @@ added: REPLACEME
 Returns the current Type of Service (TOS) field for IPv4 packets or Traffic
 Class for IPv6 packets for this socket.
 
-`setTOS()` may be called before the socket is connected; the value
-will be cached and applied when the socket establishes a connection. `getTOS()`
-will return the currently set value even before connection.
+`setTypeOfService()` may be called before the socket is connected; the value
+will be cached and applied when the socket establishes a connection.
+`getTypeOfService()` will return the currently set value even before connection.
 
 On some platforms (e.g., Linux), certain TOS/ECN bits may be masked or ignored,
 and behavior can differ between IPv4 and IPv6 or dual-stack sockets. Callers
 should verify platform-specific semantics.
 
-### `socket.setTOS(tos)`
+### `socket.setTypeOfService(tos)`
 
 <!-- YAML
 added: REPLACEME
@@ -1492,9 +1492,9 @@ added: REPLACEME
 Sets the Type of Service (TOS) field for IPv4 packets or Traffic Class for IPv6
 Packets sent from this socket. This can be used to prioritize network traffic.
 
-`setTOS()` may be called before the socket is connected; the value
-will be cached and applied when the socket establishes a connection. `getTOS()`
-will return the currently set value even before connection.
+`setTypeOfService()` may be called before the socket is connected; the value
+will be cached and applied when the socket establishes a connection.
+`getTypeOfService()` will return the currently set value even before connection.
 
 On some platforms (e.g., Linux), certain TOS/ECN bits may be masked or ignored,
 and behavior can differ between IPv4 and IPv6 or dual-stack sockets. Callers

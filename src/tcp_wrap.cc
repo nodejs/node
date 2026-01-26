@@ -115,8 +115,8 @@ void TCPWrap::Initialize(Local<Object> target,
                  GetSockOrPeerName<TCPWrap, uv_tcp_getpeername>);
   SetProtoMethod(isolate, t, "setNoDelay", SetNoDelay);
   SetProtoMethod(isolate, t, "setKeepAlive", SetKeepAlive);
-  SetProtoMethod(isolate, t, "setTOS", SetTOS);
-  SetProtoMethod(isolate, t, "getTOS", GetTOS);
+  SetProtoMethod(isolate, t, "setTypeOfService", SetTOS);
+  SetProtoMethod(isolate, t, "getTypeOfService", GetTOS);
   SetProtoMethod(isolate, t, "reset", Reset);
 
 #ifdef _WIN32
