@@ -1003,6 +1003,10 @@ changes:
 Asynchronously copies `src` to `dest`. By default, `dest` is overwritten if it
 already exists.
 
+If `src` is a symbolic link, the link is dereferenced and the contents of the
+target file are copied, rather than creating a new symbolic link.
+
+
 No guarantees are made about the atomicity of the copy operation. If an
 error occurs after the destination file has been opened for writing, an attempt
 will be made to remove the destination.
@@ -2466,6 +2470,10 @@ already exists. No arguments other than a possible exception are given to the
 callback function. Node.js makes no guarantees about the atomicity of the copy
 operation. If an error occurs after the destination file has been opened for
 writing, Node.js will attempt to remove the destination.
+
+If `src` is a symbolic link, the link is dereferenced and the contents of the
+target file are copied, rather than creating a new symbolic link.
+
 
 `mode` is an optional integer that specifies the behavior
 of the copy operation. It is possible to create a mask consisting of the bitwise
@@ -5537,6 +5545,10 @@ Synchronously copies `src` to `dest`. By default, `dest` is overwritten if it
 already exists. Returns `undefined`. Node.js makes no guarantees about the
 atomicity of the copy operation. If an error occurs after the destination file
 has been opened for writing, Node.js will attempt to remove the destination.
+
+If `src` is a symbolic link, the link is dereferenced and the contents of the
+target file are copied.
+
 
 `mode` is an optional integer that specifies the behavior
 of the copy operation. It is possible to create a mask consisting of the bitwise

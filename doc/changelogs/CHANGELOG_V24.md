@@ -1812,6 +1812,10 @@ Several APIs have been deprecated or removed in this release:
 * Deprecation of using Zlib classes without `new` ([#55718](https://github.com/nodejs/node/pull/55718))
 * Deprecation of passing `args` to `spawn` and `execFile` in child\_process ([#57199](https://github.com/nodejs/node/pull/57199))
 
+### Documentation
+
+* Documented that `fs.copyFile()` dereferences symbolic links when copying files.
+
 ### Semver-Major Commits
 
 * \[[`c6b934380a`](https://github.com/nodejs/node/commit/c6b934380a)] - **(SEMVER-MAJOR)** **src**: enable `Float16Array` on global object (Michaël Zasso) [#58154](https://github.com/nodejs/node/pull/58154)
