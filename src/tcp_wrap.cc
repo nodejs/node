@@ -222,7 +222,7 @@ void TCPWrap::SetTOS(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(
       &wrap, args.This(), args.GetReturnValue().Set(UV_EBADF));
   Environment* env = wrap->env();
-  int tos;
+  int tos = 0;
   if (!args[0]->Int32Value(env->context()).To(&tos)) return;
 
   uv_os_fd_t fd;
@@ -285,9 +285,8 @@ void TCPWrap::GetTOS(const FunctionCallbackInfo<Value>& args) {
 
   int tos = 0;
   socklen_t len = sizeof(tos);
-
 #ifdef _WIN32
-  // Windows implementation
+  // Try IPv4 first
   if (getsockopt(reinterpret_cast<SOCKET>(fd),
                  IPPROTO_IP,
                  IP_TOS,
@@ -296,23 +295,40 @@ void TCPWrap::GetTOS(const FunctionCallbackInfo<Value>& args) {
     args.GetReturnValue().Set(tos);
     return;
   }
+  // If IPv4 failed, try IPv6
+  len = sizeof(tos);
+  if (getsockopt(reinterpret_cast<SOCKET>(fd),
+                 IPPROTO_IPV6,
+                 IPV6_TCLASS,
+                 reinterpret_cast<char*>(&tos),
+                 &len) == 0) {
+    args.GetReturnValue().Set(tos);
+    return;
+  }
+  // If both failed, return the generic error
   args.GetReturnValue().Set(UV_EINVAL);
 #else
   // Linux/macOS implementation
+  int errno_val = 0;
   // Try IPv4 first
   if (getsockopt(fd, IPPROTO_IP, IP_TOS, &tos, &len) == 0) {
     args.GetReturnValue().Set(tos);
     return;
+  } else {
+    errno_val = errno;
   }
 
   // If IPv4 failed, try IPv6
+  len = sizeof(tos);
   if (getsockopt(fd, IPPROTO_IPV6, IPV6_TCLASS, &tos, &len) == 0) {
     args.GetReturnValue().Set(tos);
     return;
+  } else {
+    errno_val = errno;
   }
 
   // If both failed, return the negative errno
-  args.GetReturnValue().Set(-errno);
+  args.GetReturnValue().Set(-errno_val);
 #endif
 }
 
