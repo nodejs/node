@@ -406,6 +406,7 @@
   V(free_list_statistics_template, v8::DictionaryTemplate)                     \
   V(fsreqpromise_constructor_template, v8::ObjectTemplate)                     \
   V(handle_wrap_ctor_template, v8::FunctionTemplate)                           \
+  V(memory_usage_template, v8::DictionaryTemplate)                          \
   V(heap_statistics_template, v8::DictionaryTemplate)                          \
   V(v8_heap_statistics_template, v8::DictionaryTemplate)                       \
   V(histogram_ctor_template, v8::FunctionTemplate)                             \
@@ -449,6 +450,7 @@
   V(write_wrap_template, v8::ObjectTemplate)                                   \
   V(worker_cpu_profile_taker_template, v8::ObjectTemplate)                     \
   V(worker_cpu_usage_taker_template, v8::ObjectTemplate)                       \
+  V(worker_memory_usage_taker_template, v8::ObjectTemplate)                    \
   V(worker_heap_profile_taker_template, v8::ObjectTemplate)                    \
   V(worker_heap_snapshot_taker_template, v8::ObjectTemplate)                   \
   V(worker_heap_statistics_taker_template, v8::ObjectTemplate)                 \
