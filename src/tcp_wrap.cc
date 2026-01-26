@@ -19,15 +19,11 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "tcp_wrap.h"  // 1. Implementation header first
-
-// 2. Windows System Headers (MUST BE BEFORE Node.js internals)
+#include "tcp_wrap.h"
 #ifdef _WIN32
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #endif
-
-// 3. Node.js Internal Headers
 #include "connect_wrap.h"
 #include "connection_wrap.h"
 #include "env-inl.h"
@@ -39,15 +35,13 @@
 #include "stream_base-inl.h"
 #include "stream_wrap.h"
 #include "util-inl.h"
-
-// 4. Standard C++ & POSIX Headers
 #include <cerrno>
 #include <cstdlib>
 
 #ifndef _WIN32
-#include <netinet/in.h> // Required for IPPROTO_IP
-#include <netinet/ip.h> // Required for IP_TOS
-#include <netinet/ip6.h> // Required for IPV6_TCLASS
+#include <netinet/in.h>
+#include <netinet/ip.h>
+#include <netinet/ip6.h>
 #include <sys/socket.h>
 #endif
 
