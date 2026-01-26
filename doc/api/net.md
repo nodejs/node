@@ -1472,6 +1472,14 @@ added: REPLACEME
 Returns the current Type of Service (TOS) field for IPv4 packets or Traffic
 Class for IPv6 packets for this socket.
 
+Note that `setTOS()` may be called before the socket is connected; the value
+will be cached and applied when the socket establishes a connection. `getTOS()`
+will return the currently set value even before connection.
+
+On some platforms (e.g., Linux), certain TOS/ECN bits may be masked or ignored,
+and behavior can differ between IPv4 and IPv6 or dual-stack sockets. Callers
+should verify platform-specific semantics.
+
 ### `socket.setTOS(tos)`
 
 <!-- YAML
@@ -1483,6 +1491,14 @@ added: REPLACEME
 
 Sets the Type of Service (TOS) field for IPv4 packets or Traffic Class for IPv6
 Packets sent from this socket. This can be used to prioritize network traffic.
+
+Note that `setTOS()` may be called before the socket is connected; the value
+will be cached and applied when the socket establishes a connection. `getTOS()`
+will return the currently set value even before connection.
+
+On some platforms (e.g., Linux), certain TOS/ECN bits may be masked or ignored,
+and behavior can differ between IPv4 and IPv6 or dual-stack sockets. Callers
+should verify platform-specific semantics.
 
 ### `socket.timeout`
 
