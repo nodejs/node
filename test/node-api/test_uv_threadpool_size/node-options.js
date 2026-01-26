@@ -19,10 +19,14 @@ const code = `
    assert.strictEqual(size, 4);
    test(size);
  `.trim();
+// Strip UV_THREADPOOL_SIZE from the inherited environment so that the
+// --env-file value is not shadowed by the dynamic default set by the parent.
+const env = { ...process.env };
+delete env.UV_THREADPOOL_SIZE;
 const child = spawnSync(
   process.execPath,
   [ `--env-file=${uvThreadPoolPath}`, '--eval', code ],
-  { cwd: __dirname, encoding: 'utf-8' },
+  { cwd: __dirname, encoding: 'utf-8', env },
 );
 assert.strictEqual(child.stderr, '');
 assert.strictEqual(child.status, 0);
