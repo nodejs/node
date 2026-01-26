@@ -405,7 +405,7 @@ Error: Access to this API has been restricted
 
 <!-- YAML
 added:
-  - REPLACEME
+  - v25.5.0
 -->
 
 > Stability: 1.1 - Active development
@@ -1274,7 +1274,7 @@ Use this flag to enable [ShadowRealm][] support.
 
 <!-- YAML
 added:
-  - REPLACEME
+  - v25.5.0
 -->
 
 > Stability: 1.1 - Active Development

@@ -228,7 +228,7 @@ test('todo() method with message', (t) => {
 
 <!-- YAML
 added:
- - REPLACEME
+ - v25.5.0
 -->
 
 This flips the pass/fail reporting for a specific test or suite: A flagged test/test-case must throw
