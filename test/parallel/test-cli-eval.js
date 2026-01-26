@@ -115,6 +115,12 @@ child.exec(...common.escapePOSIXShell`"${process.execPath}" -p "\\-42"`, common.
   assert.strictEqual(stderr, '');
 }));
 
+// Long output should not be truncated.
+child.exec(...common.escapePOSIXShell`"${process.execPath}" -p "'1'.repeat(1e5)"`, common.mustSucceed((stdout, stderr) => {
+  assert.strictEqual(stdout, `${'1'.repeat(1e5)}\n`);
+  assert.strictEqual(stderr, '');
+}));
+
 child.exec(...common.escapePOSIXShell`"${process.execPath}" --use-strict -p process.execArgv`,
            common.mustSucceed((stdout, stderr) => {
              assert.strictEqual(
