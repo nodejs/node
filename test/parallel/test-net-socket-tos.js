@@ -14,6 +14,8 @@ server.listen(
   common.mustCall(() => {
     const port = server.address().port;
     const client = new net.Socket();
+
+    // Set TOS before connection to test caching behavior
     client.setTOS(0x10);
     client.connect(port);
 
@@ -21,7 +23,7 @@ server.listen(
       'connect',
       common.mustCall(() => {
         // TEST 1: setTOS validation
-        // Should throw if value is not a number or out of range
+        // Should throw if value is not a number, is NaN, or is out of range (0-255)
         assert.throws(() => client.setTOS('invalid'), {
           code: 'ERR_INVALID_ARG_TYPE',
         });
@@ -35,8 +37,10 @@ server.listen(
           code: 'ERR_OUT_OF_RANGE',
         });
 
-        // TEST 2a: verify pre-connect TOS was cached and applied on connect
-        // by checking client.getTOS() in the 'connect' event handler
+        // TEST 2a: Verify deferred application
+        // Check if the TOS value set before connect() was cached and applied.
+        // We mask with 0xFC to check only the high 6 bits (DSCP),
+        // ignoring the lowest 2 bits (ECN) which the OS may modify or zero out.
         const mask = 0xFC;
         const preConnectGot = client.getTOS();
         assert.strictEqual(
@@ -45,24 +49,24 @@ server.listen(
           `Pre-connect TOS should be ${0x10 & mask}, got ${preConnectGot & mask}`,
         );
 
-        // TEST 2: setting and getting TOS
+        // TEST 2b: Setting and getting TOS on an active connection
         const tosValue = 0x10; // IPTOS_LOWDELAY (16)
 
         // On all platforms, this should succeed (tries both IPv4 and IPv6)
         client.setTOS(tosValue);
 
         // Verify values
-        // Note: Some OSs might mask the value (e.g. Linux sometimes masks ECN bits),
-        // but usually 0x10 should return 0x10.
         const got = client.getTOS();
-        // Only compare the upper 6 bits (DSCP, bits 7-2) to avoid ECN/OS-masked bits
+
+        // Compare only the DSCP bits (7-2) using the mask defined above
         assert.strictEqual(
           got & mask,
           tosValue & mask,
           `Expected TOS ${tosValue & mask}, got ${got & mask}`,
         );
 
-        // Test boundary values
+        // TEST 3: Boundary values
+        // Check min (0x00), max (0xFF), and arbitrary intermediate values
         for (const boundaryValue of [0x00, 0xFF, 0x3F]) {
           client.setTOS(boundaryValue);
           const gotBoundary = client.getTOS();
