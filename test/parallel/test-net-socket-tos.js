@@ -13,7 +13,9 @@ server.listen(
   0,
   common.mustCall(() => {
     const port = server.address().port;
-    const client = net.connect(port);
+    const client = new net.Socket();
+    client.setTOS(0x10);
+    client.connect(port);
 
     client.on(
       'connect',
@@ -32,6 +34,15 @@ server.listen(
         assert.throws(() => client.setTOS(-1), {
           code: 'ERR_OUT_OF_RANGE',
         });
+
+        // TEST 2a: pre-connect TOS caching
+        const preConnectGot = client.getTOS();
+        const mask = 0xFC;
+        assert.strictEqual(
+          preConnectGot & mask,
+          0x10 & mask,
+          `Pre-connect TOS should be ${0x10 & mask}, got ${preConnectGot & mask}`,
+        );
 
         // TEST 2: setting and getting TOS
         const tosValue = 0x10; // IPTOS_LOWDELAY (16)
