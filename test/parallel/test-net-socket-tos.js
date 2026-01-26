@@ -36,8 +36,8 @@ server.listen(
         });
 
         // TEST 2a: pre-connect TOS caching
-        const preConnectGot = client.getTOS();
         const mask = 0xFC;
+        const preConnectGot = client.getTOS();
         assert.strictEqual(
           preConnectGot & mask,
           0x10 & mask,
@@ -55,7 +55,6 @@ server.listen(
         // but usually 0x10 should return 0x10.
         const got = client.getTOS();
         // Only compare the upper 6 bits (DSCP, bits 7-2) to avoid ECN/OS-masked bits
-        const mask = 0xFC;
         assert.strictEqual(
           got & mask,
           tosValue & mask,
