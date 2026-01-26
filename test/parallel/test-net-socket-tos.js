@@ -51,6 +51,17 @@ server.listen(
           `Expected TOS ${tosValue & mask}, got ${got & mask}`,
         );
 
+        // Test boundary values
+        for (const boundaryValue of [0x00, 0xFF, 0x3F]) {
+          client.setTOS(boundaryValue);
+          const gotBoundary = client.getTOS();
+          assert.strictEqual(
+            gotBoundary & mask,
+            boundaryValue & mask,
+            `Expected TOS ${boundaryValue & mask}, got ${gotBoundary & mask}`,
+          );
+        }
+
         client.end();
       }),
     );
