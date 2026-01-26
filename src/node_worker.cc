@@ -409,7 +409,7 @@ void Worker::Run() {
 
         Debug(this, "Created message port for worker %llu", thread_id_.id);
         if (LoadEnvironment(env_.get(),
-                            StartExecutionCallback{},
+                            StartExecutionCallbackWithModule{},
                             std::move(embedder_preload_))
                 .IsEmpty()) {
           return;
