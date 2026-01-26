@@ -1233,6 +1233,24 @@ InitializeOncePerProcessInternal(const std::vector<std::string>& args,
 #endif  // HAVE_OPENSSL
   }
 
+  // Set UV_THREADPOOL_SIZE based on available parallelism if not already set
+  // by the user. The libuv threadpool defaults to 4 threads, which can be
+  // suboptimal on machines with many CPU cores. Use uv_available_parallelism()
+  // as a heuristic, with a minimum of 4 (the previous default) and a maximum
+  // of 1024 (libuv's upper bound).
+  {
+    char buf[64];
+    size_t buf_size = sizeof(buf);
+    int rc = uv_os_getenv("UV_THREADPOOL_SIZE", buf, &buf_size);
+    if (rc == UV_ENOENT) {
+      unsigned int parallelism = uv_available_parallelism();
+      unsigned int threadpool_size = std::min(std::max(4u, parallelism), 1024u);
+      char size_str[16];
+      snprintf(size_str, sizeof(size_str), "%u", threadpool_size);
+      uv_os_setenv("UV_THREADPOOL_SIZE", size_str);
+    }
+  }
+
   if (!(flags & ProcessInitializationFlags::kNoInitializeNodeV8Platform)) {
     uv_thread_setname("node-MainThread");
     per_process::v8_platform.Initialize(
