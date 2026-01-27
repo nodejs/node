@@ -1,5 +1,6 @@
 {
   pkgs ? import ./pkgs.nix { },
+  withQuic ? false,
   withSQLite ? true,
   withSSL ? true,
   withTemporal ? false,
@@ -11,8 +12,6 @@
     gtest
     libuv
     nghttp2
-    nghttp3
-    ngtcp2
     simdjson
     simdutf
     uvwasi
@@ -33,6 +32,12 @@
     }
   }/pkgs/by-name/nb/nbytes/package.nix" { };
 }
+// (pkgs.lib.optionalAttrs withQuic {
+  inherit (pkgs)
+    nghttp3
+    ngtcp2
+    ;
+})
 // (pkgs.lib.optionalAttrs withSQLite {
   inherit (pkgs) sqlite;
 })
