@@ -10,27 +10,29 @@
  * https://www.openssl.org/source/license.html
  */
 
+/* clang-format off */
 
+/* clang-format on */
 
 #ifndef OPENSSL_ESS_H
-# define OPENSSL_ESS_H
-# pragma once
+#define OPENSSL_ESS_H
+#pragma once
 
-# include <openssl/opensslconf.h>
+#include <openssl/opensslconf.h>
 
-# include <openssl/safestack.h>
-# include <openssl/x509.h>
-# include <openssl/esserr.h>
+#include <openssl/safestack.h>
+#include <openssl/x509.h>
+#include <openssl/esserr.h>
 
-# ifdef  __cplusplus
+#ifdef __cplusplus
 extern "C" {
-# endif
-
+#endif
 
 typedef struct ESS_issuer_serial ESS_ISSUER_SERIAL;
 typedef struct ESS_cert_id ESS_CERT_ID;
 typedef struct ESS_signing_cert ESS_SIGNING_CERT;
 
+/* clang-format off */
 SKM_DEFINE_STACK_OF_INTERNAL(ESS_CERT_ID, ESS_CERT_ID, ESS_CERT_ID)
 #define sk_ESS_CERT_ID_num(sk) OPENSSL_sk_num(ossl_check_const_ESS_CERT_ID_sk_type(sk))
 #define sk_ESS_CERT_ID_value(sk, idx) ((ESS_CERT_ID *)OPENSSL_sk_value(ossl_check_const_ESS_CERT_ID_sk_type(sk), (idx)))
@@ -58,11 +60,12 @@ SKM_DEFINE_STACK_OF_INTERNAL(ESS_CERT_ID, ESS_CERT_ID, ESS_CERT_ID)
 #define sk_ESS_CERT_ID_deep_copy(sk, copyfunc, freefunc) ((STACK_OF(ESS_CERT_ID) *)OPENSSL_sk_deep_copy(ossl_check_const_ESS_CERT_ID_sk_type(sk), ossl_check_ESS_CERT_ID_copyfunc_type(copyfunc), ossl_check_ESS_CERT_ID_freefunc_type(freefunc)))
 #define sk_ESS_CERT_ID_set_cmp_func(sk, cmp) ((sk_ESS_CERT_ID_compfunc)OPENSSL_sk_set_cmp_func(ossl_check_ESS_CERT_ID_sk_type(sk), ossl_check_ESS_CERT_ID_compfunc_type(cmp)))
 
-
+/* clang-format on */
 
 typedef struct ESS_signing_cert_v2_st ESS_SIGNING_CERT_V2;
 typedef struct ESS_cert_id_v2_st ESS_CERT_ID_V2;
 
+/* clang-format off */
 SKM_DEFINE_STACK_OF_INTERNAL(ESS_CERT_ID_V2, ESS_CERT_ID_V2, ESS_CERT_ID_V2)
 #define sk_ESS_CERT_ID_V2_num(sk) OPENSSL_sk_num(ossl_check_const_ESS_CERT_ID_V2_sk_type(sk))
 #define sk_ESS_CERT_ID_V2_value(sk, idx) ((ESS_CERT_ID_V2 *)OPENSSL_sk_value(ossl_check_const_ESS_CERT_ID_V2_sk_type(sk), (idx)))
@@ -90,6 +93,7 @@ SKM_DEFINE_STACK_OF_INTERNAL(ESS_CERT_ID_V2, ESS_CERT_ID_V2, ESS_CERT_ID_V2)
 #define sk_ESS_CERT_ID_V2_deep_copy(sk, copyfunc, freefunc) ((STACK_OF(ESS_CERT_ID_V2) *)OPENSSL_sk_deep_copy(ossl_check_const_ESS_CERT_ID_V2_sk_type(sk), ossl_check_ESS_CERT_ID_V2_copyfunc_type(copyfunc), ossl_check_ESS_CERT_ID_V2_freefunc_type(freefunc)))
 #define sk_ESS_CERT_ID_V2_set_cmp_func(sk, cmp) ((sk_ESS_CERT_ID_V2_compfunc)OPENSSL_sk_set_cmp_func(ossl_check_ESS_CERT_ID_V2_sk_type(sk), ossl_check_ESS_CERT_ID_V2_compfunc_type(cmp)))
 
+/* clang-format on */
 
 DECLARE_ASN1_ALLOC_FUNCTIONS(ESS_ISSUER_SERIAL)
 DECLARE_ASN1_ENCODE_FUNCTIONS_only(ESS_ISSUER_SERIAL, ESS_ISSUER_SERIAL)
@@ -110,19 +114,18 @@ DECLARE_ASN1_FUNCTIONS(ESS_SIGNING_CERT_V2)
 DECLARE_ASN1_DUP_FUNCTION(ESS_SIGNING_CERT_V2)
 
 ESS_SIGNING_CERT *OSSL_ESS_signing_cert_new_init(const X509 *signcert,
-                                                 const STACK_OF(X509) *certs,
-                                                 int set_issuer_serial);
+    const STACK_OF(X509) *certs,
+    int set_issuer_serial);
 ESS_SIGNING_CERT_V2 *OSSL_ESS_signing_cert_v2_new_init(const EVP_MD *hash_alg,
-                                                       const X509 *signcert,
-                                                       const
-                                                       STACK_OF(X509) *certs,
-                                                       int set_issuer_serial);
+    const X509 *signcert,
+    const STACK_OF(X509) *certs,
+    int set_issuer_serial);
 int OSSL_ESS_check_signing_certs(const ESS_SIGNING_CERT *ss,
-                                 const ESS_SIGNING_CERT_V2 *ssv2,
-                                 const STACK_OF(X509) *chain,
-                                 int require_signing_cert);
+    const ESS_SIGNING_CERT_V2 *ssv2,
+    const STACK_OF(X509) *chain,
+    int require_signing_cert);
 
-# ifdef  __cplusplus
+#ifdef __cplusplus
 }
-# endif
+#endif
 #endif

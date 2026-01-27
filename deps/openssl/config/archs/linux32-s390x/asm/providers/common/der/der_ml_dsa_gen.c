@@ -13,6 +13,7 @@
 #include "prov/der_ml_dsa.h"
 
 /* Well known OIDs precompiled */
+/* clang-format off */
 
 /*
  * id-ml-dsa-44 OBJECT IDENTIFIER ::= { sigAlgs 17 }
@@ -35,3 +36,4 @@ const unsigned char ossl_der_oid_id_ml_dsa_87[DER_OID_SZ_id_ml_dsa_87] = {
     DER_OID_V_id_ml_dsa_87
 };
 
+/* clang-format on */
