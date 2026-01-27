@@ -651,7 +651,7 @@ ecInfos.forEach((info) => {
       code: 'ERR_CRYPTO_INCOMPATIBLE_KEY_OPTIONS'
     });
   } else {
-    common.skip('Skipping unsupported RSA-PSS key test');
+    common.printSkipMessage('Skipping unsupported RSA-PSS key test');
   }
 
   {
