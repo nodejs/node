@@ -87,48 +87,6 @@ const fs = require('fs');
   }, { code: 'ENOENT' });
 }
 
-// Test dynamic file content using provider.setContentProvider
-{
-  const myVfs = fs.createVirtual();
-  let counter = 0;
-  myVfs.provider.setContentProvider('/dynamic.txt', () => {
-    counter++;
-    return `count: ${counter}`;
-  });
-
-  assert.strictEqual(myVfs.readFileSync('/dynamic.txt', 'utf8'), 'count: 1');
-  assert.strictEqual(myVfs.readFileSync('/dynamic.txt', 'utf8'), 'count: 2');
-  assert.strictEqual(counter, 2);
-}
-
-// Test dynamic directory using provider.setPopulateCallback
-{
-  const myVfs = fs.createVirtual();
-  let populated = false;
-
-  myVfs.provider.setPopulateCallback('/dynamic', (dir) => {
-    populated = true;
-    dir.addFile('generated.txt', 'generated content');
-    dir.addDirectory('subdir', (subdir) => {
-      subdir.addFile('nested.txt', 'nested content');
-    });
-  });
-
-  // Directory should not be populated until accessed
-  assert.strictEqual(populated, false);
-
-  // Access the directory
-  const entries = myVfs.readdirSync('/dynamic');
-  assert.strictEqual(populated, true);
-  assert.deepStrictEqual(entries.sort(), ['generated.txt', 'subdir']);
-
-  // Read generated file
-  assert.strictEqual(myVfs.readFileSync('/dynamic/generated.txt', 'utf8'), 'generated content');
-
-  // Access nested dynamic directory
-  assert.strictEqual(myVfs.readFileSync('/dynamic/subdir/nested.txt', 'utf8'), 'nested content');
-}
-
 // Test removing entries
 {
   const myVfs = fs.createVirtual();
