@@ -59,7 +59,8 @@ static int memieq(const void *a, const void *b, size_t n) {
   return 1;
 }
 
-#define lstrieq(A, B, N) ((sizeof((A)) - 1) == (N) && memieq((A), (B), (N)))
+#define lstrieq(A, B, N)                                                       \
+  (nghttp3_strlen_lit((A)) == (N) && memieq((A), (B), (N)))
 
 static int64_t parse_uint(const uint8_t *s, size_t len) {
   int64_t n = 0;
