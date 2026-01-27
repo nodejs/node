@@ -95,7 +95,7 @@ uint64_t LinkConfig::compute_expected_goodput(Timestamp::duration rtt) const {
     return g;
   }
 
-  constexpr double margin = 0.95;
+  constexpr double margin = 0.9;
 
   return std::min(g,
                   static_cast<uint64_t>(MAX_UDP_PAYLOAD_SIZE * NGTCP2_SECONDS /
@@ -657,6 +657,12 @@ Event Channel::get_next_event() {
   };
 }
 
+void Channel::run_eventcb(Timestamp ts) {
+  if (link_config_.eventcb) {
+    link_config_.eventcb(ts, link_config_);
+  }
+}
+
 Simulator::Simulator(Endpoint client, Endpoint server)
   : client_{std::move(client)}, server_{std::move(server)} {}
 
@@ -726,6 +732,9 @@ int Simulator::run() {
 
     client_chan.pop_tx_queue();
     server_chan.pop_tx_queue();
+
+    client_chan.run_eventcb(ts);
+    server_chan.run_eventcb(ts);
 
     switch (event.type) {
     case EVENT_TYPE_TIMEOUT: {

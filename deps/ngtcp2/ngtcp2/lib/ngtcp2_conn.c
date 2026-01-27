@@ -2174,18 +2174,14 @@ static uint8_t conn_pkt_flags_short(ngtcp2_conn *conn) {
 }
 
 /*
- * conn_cut_crypto_frame splits (*pfrc)->fr.stream by removing
- * |removed_data| from (*pfrc)->fr.stream.data[0].
- * (*pfrc)->fr.stream.data[0] must contain |removed_data|, and
- * (*pfrc)->fr.stream.datacnt >= 1.  New ngtcp2_frame_chain object
- * that contains |removed_data| is created, and pushed to
- * |crypto_strm| via ngtcp2_strm_streamfrq_push.  Because
- * (*pfrc)->fr.stream.datacnt cannot be changed, if it is not 1, new
- * ngtcp2_frame_chain object is created to contain the data before
- * |removed_data|.  Then *pfrc is deleted, and the newly created
- * object is assigned to *pfrc instead.  If there are data following
- * the removed part of data, new ngtcp2_frame_chain object is created
- * for it, and (*pfrc)->next points to the object.
+ * conn_cut_crypto_frame splits frc->fr.stream by removing
+ * |removed_data| from frc->fr.stream.data[0].  frc->fr.stream.data[0]
+ * must contain |removed_data|, and frc->fr.stream.datacnt >= 1.  New
+ * ngtcp2_frame_chain object that contains |removed_data| is created,
+ * and pushed to |crypto_strm| via ngtcp2_strm_streamfrq_push.  If
+ * there are data following the removed part of data, new
+ * ngtcp2_frame_chain object is created for it, and frc->next points
+ * to the object.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -2193,13 +2189,13 @@ static uint8_t conn_pkt_flags_short(ngtcp2_conn *conn) {
  * NGTCP2_ERR_NOMEM
  *     Out of memory
  */
-static int conn_cut_crypto_frame(ngtcp2_conn *conn, ngtcp2_frame_chain **pfrc,
+static int conn_cut_crypto_frame(ngtcp2_conn *conn, ngtcp2_frame_chain *frc,
                                  ngtcp2_strm *crypto_strm,
                                  const ngtcp2_vec *removed_data) {
-  ngtcp2_vec *data = (*pfrc)->fr.stream.data;
-  size_t datacnt = (*pfrc)->fr.stream.datacnt;
+  ngtcp2_vec *data = frc->fr.stream.data;
+  size_t datacnt = frc->fr.stream.datacnt;
   size_t ndatacnt;
-  ngtcp2_frame_chain *left_frc, *right_frc = NULL, *removed_frc;
+  ngtcp2_frame_chain *right_frc = NULL, *removed_frc;
   size_t offset;
   int rv;
 
@@ -2220,7 +2216,7 @@ static int conn_cut_crypto_frame(ngtcp2_conn *conn, ngtcp2_frame_chain **pfrc,
   removed_frc->fr.stream.flags = 0;
   removed_frc->fr.stream.fin = 0;
   removed_frc->fr.stream.stream_id = 0;
-  removed_frc->fr.stream.offset = (*pfrc)->fr.stream.offset + offset;
+  removed_frc->fr.stream.offset = frc->fr.stream.offset + offset;
   removed_frc->fr.stream.datacnt = 1;
   removed_frc->fr.stream.data[0] = (ngtcp2_vec){
     .base = data->base + offset,
@@ -2259,35 +2255,9 @@ static int conn_cut_crypto_frame(ngtcp2_conn *conn, ngtcp2_frame_chain **pfrc,
     assert(1 == datacnt);
   }
 
-  /* We cannot change (*pfrc)->fr.stream.datacnt.  If it changes,
-     create new ngtcp2_frame_chain. */
-  if ((*pfrc)->fr.stream.datacnt == 1) {
-    (*pfrc)->fr.stream.data[0].len = offset;
-    (*pfrc)->next = right_frc;
-    return 0;
-  }
-
-  rv = ngtcp2_frame_chain_stream_datacnt_objalloc_new(
-    &left_frc, 1, &conn->frc_objalloc, conn->mem);
-  if (rv != 0) {
-    ngtcp2_frame_chain_objalloc_del(right_frc, &conn->frc_objalloc, conn->mem);
-    return rv;
-  }
-
-  left_frc->fr.stream.type = NGTCP2_FRAME_CRYPTO;
-  left_frc->fr.stream.flags = 0;
-  left_frc->fr.stream.fin = 0;
-  left_frc->fr.stream.stream_id = 0;
-  left_frc->fr.stream.offset = (*pfrc)->fr.stream.offset;
-  left_frc->fr.stream.datacnt = 1;
-  left_frc->fr.stream.data[0] = (ngtcp2_vec){
-    .base = data[0].base,
-    .len = offset,
-  };
-  left_frc->next = right_frc;
-
-  ngtcp2_frame_chain_objalloc_del(*pfrc, &conn->frc_objalloc, conn->mem);
-  *pfrc = left_frc;
+  frc->fr.stream.datacnt = 1;
+  frc->fr.stream.data[0].len = offset;
+  frc->next = right_frc;
 
   return 0;
 }
@@ -2371,7 +2341,7 @@ conn_crumble_initial_crypto(ngtcp2_conn *conn, ngtcp2_frame_chain **pfrc,
       datacnt = ngtcp2_pkt_remove_vec_partial(
         &removed_data, data, datacnt, offsets, &conn->pcg, &server_name);
 
-      rv = conn_cut_crypto_frame(conn, pfrc, crypto_strm, &removed_data);
+      rv = conn_cut_crypto_frame(conn, *pfrc, crypto_strm, &removed_data);
       if (rv != 0) {
         ngtcp2_frame_chain_objalloc_del(*pfrc, &conn->frc_objalloc, conn->mem);
         return rv;
@@ -2635,7 +2605,9 @@ conn_write_handshake_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi, uint8_t *dest,
 
     if (!(rtb_entry_flags & NGTCP2_RTB_ENTRY_FLAG_ACK_ELICITING) &&
         pktns->rtb.num_retransmittable && pktns->rtb.probe_pkt_left) {
-      num_reclaimed = ngtcp2_rtb_reclaim_on_pto(&pktns->rtb, conn, pktns, 1);
+      num_reclaimed = ngtcp2_rtb_reclaim_on_pto(
+        &pktns->rtb, conn, pktns,
+        !conn->server && type == NGTCP2_PKT_INITIAL ? 2 : 1);
       if (num_reclaimed < 0) {
         ngtcp2_frame_chain_list_objalloc_del(frq, &conn->frc_objalloc,
                                              conn->mem);
@@ -5566,12 +5538,8 @@ static int conn_recv_ack(ngtcp2_conn *conn, ngtcp2_pktns *pktns, ngtcp2_ack *fr,
 
   num_acked =
     ngtcp2_rtb_recv_ack(&pktns->rtb, fr, &conn->cstat, conn, pktns, pkt_ts, ts);
-  if (num_acked < 0) {
+  if (num_acked <= 0) {
     return (int)num_acked;
-  }
-
-  if (num_acked == 0) {
-    return 0;
   }
 
   pktns->rtb.probe_pkt_left = 0;
@@ -11744,21 +11712,18 @@ int ngtcp2_conn_set_0rtt_remote_transport_params(
   /* These parameters are treated specially.  If server accepts early
      data, it must not set values for these parameters that are
      smaller than these remembered values. */
-  conn->early.transport_params.initial_max_streams_bidi =
-    params->initial_max_streams_bidi;
-  conn->early.transport_params.initial_max_streams_uni =
-    params->initial_max_streams_uni;
-  conn->early.transport_params.initial_max_stream_data_bidi_local =
-    params->initial_max_stream_data_bidi_local;
-  conn->early.transport_params.initial_max_stream_data_bidi_remote =
-    params->initial_max_stream_data_bidi_remote;
-  conn->early.transport_params.initial_max_stream_data_uni =
-    params->initial_max_stream_data_uni;
-  conn->early.transport_params.initial_max_data = params->initial_max_data;
-  conn->early.transport_params.active_connection_id_limit =
-    params->active_connection_id_limit;
-  conn->early.transport_params.max_datagram_frame_size =
-    params->max_datagram_frame_size;
+  conn->early.transport_params = (ngtcp2_early_transport_params){
+    .initial_max_streams_bidi = params->initial_max_streams_bidi,
+    .initial_max_streams_uni = params->initial_max_streams_uni,
+    .initial_max_stream_data_bidi_local =
+      params->initial_max_stream_data_bidi_local,
+    .initial_max_stream_data_bidi_remote =
+      params->initial_max_stream_data_bidi_remote,
+    .initial_max_stream_data_uni = params->initial_max_stream_data_uni,
+    .initial_max_data = params->initial_max_data,
+    .active_connection_id_limit = params->active_connection_id_limit,
+    .max_datagram_frame_size = params->max_datagram_frame_size,
+  };
 
   conn_sync_stream_id_limit(conn);
 
@@ -12003,12 +11968,17 @@ ngtcp2_ssize ngtcp2_conn_writev_stream_versioned(
         return NGTCP2_ERR_INVALID_ARGUMENT;
       }
 
-      vmsg.type = NGTCP2_VMSG_TYPE_STREAM;
-      vmsg.stream.strm = strm;
-      vmsg.stream.flags = flags;
-      vmsg.stream.data = datav;
-      vmsg.stream.datacnt = datavcnt;
-      vmsg.stream.pdatalen = pdatalen;
+      vmsg = (ngtcp2_vmsg){
+        .type = NGTCP2_VMSG_TYPE_STREAM,
+        .stream =
+          {
+            .strm = strm,
+            .data = datav,
+            .datacnt = datavcnt,
+            .pdatalen = pdatalen,
+            .flags = flags,
+          },
+      };
 
       pvmsg = &vmsg;
     }
@@ -12081,12 +12051,17 @@ ngtcp2_ssize ngtcp2_conn_writev_datagram_versioned(
     return NGTCP2_ERR_INVALID_ARGUMENT;
   }
 
-  vmsg.type = NGTCP2_VMSG_TYPE_DATAGRAM;
-  vmsg.datagram.dgram_id = dgram_id;
-  vmsg.datagram.flags = flags;
-  vmsg.datagram.data = datav;
-  vmsg.datagram.datacnt = datavcnt;
-  vmsg.datagram.paccepted = paccepted;
+  vmsg = (ngtcp2_vmsg){
+    .type = NGTCP2_VMSG_TYPE_DATAGRAM,
+    .datagram =
+      {
+        .data = datav,
+        .datacnt = datavcnt,
+        .dgram_id = dgram_id,
+        .paccepted = paccepted,
+        .flags = flags,
+      },
+  };
 
   if (flags & NGTCP2_WRITE_DATAGRAM_FLAG_PADDING) {
     wflags = NGTCP2_WRITE_PKT_FLAG_PADDING_IF_NOT_EMPTY;

@@ -33,10 +33,10 @@
 
 /* NGTCP2_DEFAULT_GLITCH_RATELIM_BURST is the maximum number of tokens
    in glitch rate limiter.  It is also the initial value. */
-#define NGTCP2_DEFAULT_GLITCH_RATELIM_BURST 4000
+#define NGTCP2_DEFAULT_GLITCH_RATELIM_BURST 10000
 /* NGTCP2_DEFAULT_GLITCH_RATELIM_RATE is the rate of tokens generated
    per second for glitch rate limiter. */
-#define NGTCP2_DEFAULT_GLITCH_RATELIM_RATE 132
+#define NGTCP2_DEFAULT_GLITCH_RATELIM_RATE 330
 
 /*
  * ngtcp2_settings_convert_to_latest converts |src| of version

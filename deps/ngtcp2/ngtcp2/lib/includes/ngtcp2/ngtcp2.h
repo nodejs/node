@@ -5919,9 +5919,9 @@ NGTCP2_EXTERN void ngtcp2_path_storage_zero(ngtcp2_path_storage *ps);
  * * :member:`handshake_timeout <ngtcp2_settings.handshake_timeout>` =
  *   ``UINT64_MAX``
  * * :member:`glitch_ratelim_burst
- *   <ngtcp2_settings.glitch_ratelim_burst>` = 4000
+ *   <ngtcp2_settings.glitch_ratelim_burst>` = 10000
  * * :member:`glitch_ratelim_rate
- *   <ngtcp2_settings.glitch_ratelim_rate>` = 132
+ *   <ngtcp2_settings.glitch_ratelim_rate>` = 330
  */
 NGTCP2_EXTERN void ngtcp2_settings_default_versioned(int settings_version,
                                                      ngtcp2_settings *settings);

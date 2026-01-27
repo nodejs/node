@@ -35,6 +35,7 @@
 #include <picotls.h>
 #include <picotls/openssl.h>
 
+#include "ngtcp2_macro.h"
 #include "shared.h"
 
 ngtcp2_crypto_aead *ngtcp2_crypto_aead_aes_128_gcm(ngtcp2_crypto_aead *aead) {
@@ -357,7 +358,7 @@ int ngtcp2_crypto_hp_mask(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
   (void)hp;
 
   ptls_cipher_init(actx, sample);
-  ptls_cipher_encrypt(actx, dest, PLAINTEXT, sizeof(PLAINTEXT) - 1);
+  ptls_cipher_encrypt(actx, dest, PLAINTEXT, ngtcp2_strlen_lit(PLAINTEXT));
 
   return 0;
 }

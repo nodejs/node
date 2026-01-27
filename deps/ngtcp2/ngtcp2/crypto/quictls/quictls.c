@@ -40,6 +40,7 @@
 #  include <openssl/core_names.h>
 #endif /* OPENSSL_VERSION_NUMBER >= 0x30000000L */
 
+#include "ngtcp2_macro.h"
 #include "shared.h"
 
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
@@ -785,8 +786,9 @@ int ngtcp2_crypto_hp_mask(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
   (void)hp;
 
   if (!EVP_EncryptInit_ex(actx, NULL, NULL, NULL, sample) ||
-      !EVP_EncryptUpdate(actx, dest, &len, PLAINTEXT, sizeof(PLAINTEXT) - 1) ||
-      !EVP_EncryptFinal_ex(actx, dest + sizeof(PLAINTEXT) - 1, &len)) {
+      !EVP_EncryptUpdate(actx, dest, &len, PLAINTEXT,
+                         ngtcp2_strlen_lit(PLAINTEXT)) ||
+      !EVP_EncryptFinal_ex(actx, dest + ngtcp2_strlen_lit(PLAINTEXT), &len)) {
     return -1;
   }
 
