@@ -181,6 +181,29 @@ added: v26.0.0
 
 Creates a new `VirtualFileSystem` instance.
 
+### `vfs.provider`
+
+<!-- YAML
+added: v26.0.0
+-->
+
+* {VirtualProvider}
+
+The underlying provider for this VFS instance. Can be used to access
+provider-specific methods like `setContentProvider()` and `setPopulateCallback()`
+for `MemoryProvider`.
+
+```cjs
+const vfs = require('node:vfs');
+
+const myVfs = vfs.create();
+
+// Access the provider for advanced features
+myVfs.provider.setContentProvider('/dynamic.txt', () => {
+  return `Time: ${Date.now()}`;
+});
+```
+
 ### `vfs.mount(prefix)`
 
 <!-- YAML
@@ -213,13 +236,13 @@ added: v26.0.0
 Unmounts the virtual file system. After unmounting, virtual files are no longer
 accessible through the `fs` module.
 
-### `vfs.isMounted()`
+### `vfs.isMounted`
 
 <!-- YAML
 added: v26.0.0
 -->
 
-* Returns: {boolean}
+* {boolean}
 
 Returns `true` if the VFS is currently mounted.
 
@@ -232,6 +255,16 @@ added: v26.0.0
 * {string | null}
 
 The current mount point, or `null` if not mounted.
+
+### `vfs.readonly`
+
+<!-- YAML
+added: v26.0.0
+-->
+
+* {boolean}
+
+Returns `true` if the underlying provider is read-only.
 
 ### `vfs.chdir(path)`
 
@@ -298,111 +331,6 @@ async function example() {
   console.log(content); // 'Hello'
 }
 ```
-
-### Backward Compatibility Methods
-
-These methods are provided for backward compatibility and convenience:
-
-#### `vfs.addFile(path, content[, options])`
-
-<!-- YAML
-added: v26.0.0
--->
-
-* `path` {string} The file path.
-* `content` {string | Buffer | Function} The file content or a function that
-  returns content.
-* `options` {Object} Optional configuration.
-
-Adds a file to the VFS. If `content` is a function, it will be called each time
-the file is read (dynamic content).
-
-```cjs
-const vfs = require('node:vfs');
-
-const myVfs = vfs.create();
-
-// Static content
-myVfs.addFile('/static.txt', 'Static content');
-
-// Dynamic content - function is called on each read
-let counter = 0;
-myVfs.addFile('/counter.txt', () => {
-  counter++;
-  return `Count: ${counter}`;
-});
-
-myVfs.mount('/v');
-const fs = require('node:fs');
-console.log(fs.readFileSync('/v/counter.txt', 'utf8')); // Count: 1
-console.log(fs.readFileSync('/v/counter.txt', 'utf8')); // Count: 2
-```
-
-#### `vfs.addDirectory(path[, populate][, options])`
-
-<!-- YAML
-added: v26.0.0
--->
-
-* `path` {string} The directory path.
-* `populate` {Function} Optional callback to lazily populate the directory.
-* `options` {Object} Optional configuration.
-
-Adds a directory to the VFS. If `populate` is provided, it will be called
-lazily when the directory is first accessed.
-
-```cjs
-const vfs = require('node:vfs');
-
-const myVfs = vfs.create();
-
-// Lazy directory - populated on first access
-myVfs.addDirectory('/lazy', (dir) => {
-  dir.addFile('generated.txt', 'Generated on demand');
-  dir.addDirectory('subdir', (subdir) => {
-    subdir.addFile('nested.txt', 'Nested content');
-  });
-});
-
-myVfs.mount('/v');
-const fs = require('node:fs');
-
-// Directory is populated when first accessed
-console.log(fs.readdirSync('/v/lazy')); // ['generated.txt', 'subdir']
-```
-
-#### `vfs.addSymlink(path, target[, options])`
-
-<!-- YAML
-added: v26.0.0
--->
-
-* `path` {string} The symlink path.
-* `target` {string} The symlink target (can be relative or absolute).
-* `options` {Object} Optional configuration.
-
-Adds a symbolic link to the VFS.
-
-#### `vfs.has(path)`
-
-<!-- YAML
-added: v26.0.0
--->
-
-* `path` {string} The path to check.
-* Returns: {boolean}
-
-Returns `true` if the path exists in the VFS.
-
-#### `vfs.remove(path)`
-
-<!-- YAML
-added: v26.0.0
--->
-
-* `path` {string} The path to remove.
-
-Removes a file or directory from the VFS.
 
 ## Class: `VirtualProvider`
 
@@ -477,6 +405,115 @@ const { create, MemoryProvider } = require('node:vfs');
 
 const myVfs = create(new MemoryProvider());
 ```
+
+### `memoryProvider.setReadOnly()`
+
+<!-- YAML
+added: v26.0.0
+-->
+
+Sets the provider to read-only mode. Once set to read-only, the provider
+cannot be changed back to writable. This is useful for finalizing a VFS
+after initial population.
+
+```cjs
+const vfs = require('node:vfs');
+
+const myVfs = vfs.create();
+
+// Populate the VFS
+myVfs.mkdirSync('/app');
+myVfs.writeFileSync('/app/config.json', '{"readonly": true}');
+
+// Make it read-only
+myVfs.provider.setReadOnly();
+
+// This would now throw an error
+// myVfs.writeFileSync('/app/config.json', 'new content');
+```
+
+### `memoryProvider.setContentProvider(path, provider)`
+
+<!-- YAML
+added: v26.0.0
+-->
+
+* `path` {string} The file path.
+* `provider` {Function} A function that returns the file content.
+
+Sets a dynamic content provider for a file. The provider function will be
+called each time the file is read, allowing for dynamic content generation.
+
+```cjs
+const vfs = require('node:vfs');
+
+const myVfs = vfs.create();
+
+// Dynamic content - function is called on each read
+let counter = 0;
+myVfs.provider.setContentProvider('/counter.txt', () => {
+  counter++;
+  return `Count: ${counter}`;
+});
+
+myVfs.mount('/v');
+const fs = require('node:fs');
+console.log(fs.readFileSync('/v/counter.txt', 'utf8')); // Count: 1
+console.log(fs.readFileSync('/v/counter.txt', 'utf8')); // Count: 2
+```
+
+The provider function can also be async:
+
+```cjs
+const vfs = require('node:vfs');
+
+const myVfs = vfs.create();
+
+myVfs.provider.setContentProvider('/async-data.txt', async () => {
+  // Simulate async operation
+  await new Promise(resolve => setTimeout(resolve, 100));
+  return 'Async content';
+});
+
+// Use promises API for async content providers
+const content = await myVfs.promises.readFile('/async-data.txt', 'utf8');
+```
+
+### `memoryProvider.setPopulateCallback(path, callback)`
+
+<!-- YAML
+added: v26.0.0
+-->
+
+* `path` {string} The directory path.
+* `callback` {Function} A function that populates the directory contents.
+
+Sets a lazy populate callback for a directory. The callback will be called
+the first time the directory is accessed (e.g., via `readdirSync` or when
+accessing a child path).
+
+```cjs
+const vfs = require('node:vfs');
+
+const myVfs = vfs.create();
+
+// Lazy directory - populated on first access
+myVfs.provider.setPopulateCallback('/lazy', (dir) => {
+  dir.addFile('generated.txt', 'Generated on demand');
+  dir.addDirectory('subdir', (subdir) => {
+    subdir.addFile('nested.txt', 'Nested content');
+  });
+});
+
+myVfs.mount('/v');
+const fs = require('node:fs');
+
+// Directory is populated when first accessed
+console.log(fs.readdirSync('/v/lazy')); // ['generated.txt', 'subdir']
+```
+
+The callback receives a scoped VFS object with `addFile()`, `addDirectory()`,
+and `addSymlink()` methods for populating the directory.
 
 ## Class: `SEAProvider`
 
