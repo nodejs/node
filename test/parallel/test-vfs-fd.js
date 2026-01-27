@@ -7,7 +7,7 @@ const fs = require('fs');
 // Test openSync and closeSync
 {
   const myVfs = fs.createVirtual();
-  myVfs.addFile('/file.txt', 'hello world');
+  myVfs.writeFileSync('/file.txt', 'hello world');
 
   const fd = myVfs.openSync('/file.txt');
   assert.ok(fd >= 10000, 'VFS fd should be >= 10000');
@@ -26,7 +26,7 @@ const fs = require('fs');
 // Test openSync with directory
 {
   const myVfs = fs.createVirtual();
-  myVfs.addDirectory('/mydir');
+  myVfs.mkdirSync('/mydir', { recursive: true });
 
   assert.throws(() => {
     myVfs.openSync('/mydir');
@@ -45,7 +45,7 @@ const fs = require('fs');
 // Test readSync
 {
   const myVfs = fs.createVirtual();
-  myVfs.addFile('/file.txt', 'hello world');
+  myVfs.writeFileSync('/file.txt', 'hello world');
 
   const fd = myVfs.openSync('/file.txt');
   const buffer = Buffer.alloc(5);
@@ -60,7 +60,7 @@ const fs = require('fs');
 // Test readSync with position tracking
 {
   const myVfs = fs.createVirtual();
-  myVfs.addFile('/file.txt', 'hello world');
+  myVfs.writeFileSync('/file.txt', 'hello world');
 
   const fd = myVfs.openSync('/file.txt');
   const buffer1 = Buffer.alloc(5);
@@ -82,7 +82,7 @@ const fs = require('fs');
 // Test readSync with explicit position
 {
   const myVfs = fs.createVirtual();
-  myVfs.addFile('/file.txt', 'hello world');
+  myVfs.writeFileSync('/file.txt', 'hello world');
 
   const fd = myVfs.openSync('/file.txt');
   const buffer = Buffer.alloc(5);
@@ -98,7 +98,7 @@ const fs = require('fs');
 // Test readSync at end of file
 {
   const myVfs = fs.createVirtual();
-  myVfs.addFile('/file.txt', 'short');
+  myVfs.writeFileSync('/file.txt', 'short');
 
   const fd = myVfs.openSync('/file.txt');
   const buffer = Buffer.alloc(10);
@@ -123,7 +123,7 @@ const fs = require('fs');
 // Test fstatSync
 {
   const myVfs = fs.createVirtual();
-  myVfs.addFile('/file.txt', 'hello world');
+  myVfs.writeFileSync('/file.txt', 'hello world');
 
   const fd = myVfs.openSync('/file.txt');
   const stats = myVfs.fstatSync(fd);
@@ -147,7 +147,7 @@ const fs = require('fs');
 // Test async open and close
 {
   const myVfs = fs.createVirtual();
-  myVfs.addFile('/async-file.txt', 'async content');
+  myVfs.writeFileSync('/async-file.txt', 'async content');
 
   myVfs.open('/async-file.txt', common.mustCall((err, fd) => {
     assert.strictEqual(err, null);
@@ -181,7 +181,7 @@ const fs = require('fs');
 // Test async read
 {
   const myVfs = fs.createVirtual();
-  myVfs.addFile('/read-test.txt', 'read content');
+  myVfs.writeFileSync('/read-test.txt', 'read content');
 
   myVfs.open('/read-test.txt', common.mustCall((err, fd) => {
     assert.strictEqual(err, null);
@@ -201,7 +201,7 @@ const fs = require('fs');
 // Test async read with position tracking
 {
   const myVfs = fs.createVirtual();
-  myVfs.addFile('/track-test.txt', 'ABCDEFGHIJ');
+  myVfs.writeFileSync('/track-test.txt', 'ABCDEFGHIJ');
 
   myVfs.open('/track-test.txt', common.mustCall((err, fd) => {
     assert.strictEqual(err, null);
@@ -239,7 +239,7 @@ const fs = require('fs');
 // Test async fstat
 {
   const myVfs = fs.createVirtual();
-  myVfs.addFile('/fstat-test.txt', '12345');
+  myVfs.writeFileSync('/fstat-test.txt', '12345');
 
   myVfs.open('/fstat-test.txt', common.mustCall((err, fd) => {
     assert.strictEqual(err, null);
@@ -268,8 +268,8 @@ const fs = require('fs');
   const vfs1 = fs.createVirtual();
   const vfs2 = fs.createVirtual();
 
-  vfs1.addFile('/file1.txt', 'content1');
-  vfs2.addFile('/file2.txt', 'content2');
+  vfs1.writeFileSync('/file1.txt', 'content1');
+  vfs2.writeFileSync('/file2.txt', 'content2');
 
   const fd1 = vfs1.openSync('/file1.txt');
   const fd2 = vfs2.openSync('/file2.txt');
@@ -297,7 +297,7 @@ const fs = require('fs');
 // Test multiple opens of same file
 {
   const myVfs = fs.createVirtual();
-  myVfs.addFile('/multi.txt', 'multi content');
+  myVfs.writeFileSync('/multi.txt', 'multi content');
 
   const fd1 = myVfs.openSync('/multi.txt');
   const fd2 = myVfs.openSync('/multi.txt');
