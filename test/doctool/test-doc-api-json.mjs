@@ -133,7 +133,7 @@ for await (const dirent of await fs.opendir(new URL('../../out/doc/api/', import
 
   assert.strictEqual(json.type, 'module');
   assert.strictEqual(json.source, expectedSource);
-  
+
   if (dirent.name !== 'index.md') {
     assert.ok(json.introduced_in || Object.values(json).at(-1)?.[0].introduced_in);
     assert.partialDeepStrictEqual(allExpectedKeys, findAllKeys(json));
