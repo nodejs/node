@@ -11,25 +11,24 @@
  */
 
 #ifndef OSSL_CRYPTO_EC_CURVE448_ED448_H
-# define OSSL_CRYPTO_EC_CURVE448_ED448_H
+#define OSSL_CRYPTO_EC_CURVE448_ED448_H
 
-# include "point_448.h"
+#include "point_448.h"
 
 /* Number of bytes in an EdDSA public key. */
-# define EDDSA_448_PUBLIC_BYTES 57
+#define EDDSA_448_PUBLIC_BYTES 57
 
 /* Number of bytes in an EdDSA private key. */
-# define EDDSA_448_PRIVATE_BYTES EDDSA_448_PUBLIC_BYTES
+#define EDDSA_448_PRIVATE_BYTES EDDSA_448_PUBLIC_BYTES
 
 /* Number of bytes in an EdDSA signature. */
-# define EDDSA_448_SIGNATURE_BYTES (EDDSA_448_PUBLIC_BYTES + \
-                                    EDDSA_448_PRIVATE_BYTES)
+#define EDDSA_448_SIGNATURE_BYTES (EDDSA_448_PUBLIC_BYTES + EDDSA_448_PRIVATE_BYTES)
 
 /* EdDSA encoding ratio. */
-# define C448_EDDSA_ENCODE_RATIO 4
+#define C448_EDDSA_ENCODE_RATIO 4
 
 /* EdDSA decoding ratio. */
-# define C448_EDDSA_DECODE_RATIO (4 / 4)
+#define C448_EDDSA_DECODE_RATIO (4 / 4)
 
 /*
  * EdDSA key generation.  This function uses a different (non-Decaf) encoding.
@@ -39,10 +38,10 @@
  */
 c448_error_t
 ossl_c448_ed448_derive_public_key(
-                              OSSL_LIB_CTX *ctx,
-                              uint8_t pubkey [EDDSA_448_PUBLIC_BYTES],
-                              const uint8_t privkey [EDDSA_448_PRIVATE_BYTES],
-                              const char *propq);
+    OSSL_LIB_CTX *ctx,
+    uint8_t pubkey[EDDSA_448_PUBLIC_BYTES],
+    const uint8_t privkey[EDDSA_448_PRIVATE_BYTES],
+    const char *propq);
 
 /*
  * EdDSA signing.
@@ -63,13 +62,13 @@ ossl_c448_ed448_derive_public_key(
  */
 c448_error_t
 ossl_c448_ed448_sign(OSSL_LIB_CTX *ctx,
-                     uint8_t signature[EDDSA_448_SIGNATURE_BYTES],
-                     const uint8_t privkey[EDDSA_448_PRIVATE_BYTES],
-                     const uint8_t pubkey[EDDSA_448_PUBLIC_BYTES],
-                     const uint8_t *message, size_t message_len,
-                     uint8_t prehashed, const uint8_t *context,
-                     size_t context_len,
-                     const char *propq);
+    uint8_t signature[EDDSA_448_SIGNATURE_BYTES],
+    const uint8_t privkey[EDDSA_448_PRIVATE_BYTES],
+    const uint8_t pubkey[EDDSA_448_PUBLIC_BYTES],
+    const uint8_t *message, size_t message_len,
+    uint8_t prehashed, const uint8_t *context,
+    size_t context_len,
+    const char *propq);
 
 /*
  * EdDSA signing with prehash.
@@ -89,13 +88,13 @@ ossl_c448_ed448_sign(OSSL_LIB_CTX *ctx,
  */
 c448_error_t
 ossl_c448_ed448_sign_prehash(OSSL_LIB_CTX *ctx,
-                             uint8_t signature[EDDSA_448_SIGNATURE_BYTES],
-                             const uint8_t privkey[EDDSA_448_PRIVATE_BYTES],
-                             const uint8_t pubkey[EDDSA_448_PUBLIC_BYTES],
-                             const uint8_t hash[64],
-                             const uint8_t *context,
-                             size_t context_len,
-                             const char *propq);
+    uint8_t signature[EDDSA_448_SIGNATURE_BYTES],
+    const uint8_t privkey[EDDSA_448_PRIVATE_BYTES],
+    const uint8_t pubkey[EDDSA_448_PUBLIC_BYTES],
+    const uint8_t hash[64],
+    const uint8_t *context,
+    size_t context_len,
+    const char *propq);
 
 /*
  * EdDSA signature verification.
@@ -117,14 +116,14 @@ ossl_c448_ed448_sign_prehash(OSSL_LIB_CTX *ctx,
  */
 c448_error_t
 ossl_c448_ed448_verify(OSSL_LIB_CTX *ctx,
-                       const uint8_t
-                       signature[EDDSA_448_SIGNATURE_BYTES],
-                       const uint8_t
-                       pubkey[EDDSA_448_PUBLIC_BYTES],
-                       const uint8_t *message, size_t message_len,
-                       uint8_t prehashed, const uint8_t *context,
-                       uint8_t context_len,
-                       const char *propq);
+    const uint8_t
+        signature[EDDSA_448_SIGNATURE_BYTES],
+    const uint8_t
+        pubkey[EDDSA_448_PUBLIC_BYTES],
+    const uint8_t *message, size_t message_len,
+    uint8_t prehashed, const uint8_t *context,
+    uint8_t context_len,
+    const char *propq);
 
 /*
  * EdDSA signature verification.
@@ -145,13 +144,13 @@ ossl_c448_ed448_verify(OSSL_LIB_CTX *ctx,
  */
 c448_error_t
 ossl_c448_ed448_verify_prehash(
-                            OSSL_LIB_CTX *ctx,
-                            const uint8_t signature[EDDSA_448_SIGNATURE_BYTES],
-                            const uint8_t pubkey[EDDSA_448_PUBLIC_BYTES],
-                            const uint8_t hash[64],
-                            const uint8_t *context,
-                            uint8_t context_len,
-                            const char *propq);
+    OSSL_LIB_CTX *ctx,
+    const uint8_t signature[EDDSA_448_SIGNATURE_BYTES],
+    const uint8_t pubkey[EDDSA_448_PUBLIC_BYTES],
+    const uint8_t hash[64],
+    const uint8_t *context,
+    uint8_t context_len,
+    const char *propq);
 
 /*
  * EdDSA point encoding.  Used internally, exposed externally.
@@ -176,10 +175,9 @@ ossl_c448_ed448_verify_prehash(
  * enc (out): The encoded point.
  * p (in): The point.
  */
-void
-ossl_curve448_point_mul_by_ratio_and_encode_like_eddsa(
-                                    uint8_t enc [EDDSA_448_PUBLIC_BYTES],
-                                    const curve448_point_t p);
+void ossl_curve448_point_mul_by_ratio_and_encode_like_eddsa(
+    uint8_t enc[EDDSA_448_PUBLIC_BYTES],
+    const curve448_point_t p);
 
 /*
  * EdDSA point decoding.  Multiplies by C448_EDDSA_DECODE_RATIO, and
@@ -192,8 +190,8 @@ ossl_curve448_point_mul_by_ratio_and_encode_like_eddsa(
  */
 c448_error_t
 ossl_curve448_point_decode_like_eddsa_and_mul_by_ratio(
-                            curve448_point_t p,
-                            const uint8_t enc[EDDSA_448_PUBLIC_BYTES]);
+    curve448_point_t p,
+    const uint8_t enc[EDDSA_448_PUBLIC_BYTES]);
 
 /*
  * EdDSA to ECDH private key conversion
@@ -205,9 +203,9 @@ ossl_curve448_point_decode_like_eddsa_and_mul_by_ratio(
  */
 c448_error_t
 ossl_c448_ed448_convert_private_key_to_x448(
-                                    OSSL_LIB_CTX *ctx,
-                                    uint8_t x[X448_PRIVATE_BYTES],
-                                    const uint8_t ed[EDDSA_448_PRIVATE_BYTES],
-                                    const char *propq);
+    OSSL_LIB_CTX *ctx,
+    uint8_t x[X448_PRIVATE_BYTES],
+    const uint8_t ed[EDDSA_448_PRIVATE_BYTES],
+    const char *propq);
 
-#endif                          /* OSSL_CRYPTO_EC_CURVE448_ED448_H */
+#endif /* OSSL_CRYPTO_EC_CURVE448_ED448_H */

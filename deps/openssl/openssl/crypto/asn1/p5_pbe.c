@@ -17,8 +17,8 @@
 /* PKCS#5 password based encryption structure */
 
 ASN1_SEQUENCE(PBEPARAM) = {
-        ASN1_SIMPLE(PBEPARAM, salt, ASN1_OCTET_STRING),
-        ASN1_SIMPLE(PBEPARAM, iter, ASN1_INTEGER)
+    ASN1_SIMPLE(PBEPARAM, salt, ASN1_OCTET_STRING),
+    ASN1_SIMPLE(PBEPARAM, iter, ASN1_INTEGER)
 } ASN1_SEQUENCE_END(PBEPARAM)
 
 IMPLEMENT_ASN1_FUNCTIONS(PBEPARAM)
@@ -26,8 +26,8 @@ IMPLEMENT_ASN1_FUNCTIONS(PBEPARAM)
 /* Set an algorithm identifier for a PKCS#5 PBE algorithm */
 
 int PKCS5_pbe_set0_algor_ex(X509_ALGOR *algor, int alg, int iter,
-                            const unsigned char *salt, int saltlen,
-                            OSSL_LIB_CTX *ctx)
+    const unsigned char *salt, int saltlen,
+    OSSL_LIB_CTX *ctx)
 {
     PBEPARAM *pbe = NULL;
     ASN1_STRING *pbe_str = NULL;
@@ -72,7 +72,7 @@ int PKCS5_pbe_set0_algor_ex(X509_ALGOR *algor, int alg, int iter,
     if (X509_ALGOR_set0(algor, OBJ_nid2obj(alg), V_ASN1_SEQUENCE, pbe_str))
         return 1;
 
- err:
+err:
     OPENSSL_free(sstr);
     PBEPARAM_free(pbe);
     ASN1_STRING_free(pbe_str);
@@ -80,7 +80,7 @@ int PKCS5_pbe_set0_algor_ex(X509_ALGOR *algor, int alg, int iter,
 }
 
 int PKCS5_pbe_set0_algor(X509_ALGOR *algor, int alg, int iter,
-                         const unsigned char *salt, int saltlen)
+    const unsigned char *salt, int saltlen)
 {
     return PKCS5_pbe_set0_algor_ex(algor, alg, iter, salt, saltlen, NULL);
 }
@@ -88,8 +88,8 @@ int PKCS5_pbe_set0_algor(X509_ALGOR *algor, int alg, int iter,
 /* Return an algorithm identifier for a PKCS#5 PBE algorithm */
 
 X509_ALGOR *PKCS5_pbe_set_ex(int alg, int iter,
-                             const unsigned char *salt, int saltlen,
-                             OSSL_LIB_CTX *ctx)
+    const unsigned char *salt, int saltlen,
+    OSSL_LIB_CTX *ctx)
 {
     X509_ALGOR *ret;
     ret = X509_ALGOR_new();
@@ -106,8 +106,7 @@ X509_ALGOR *PKCS5_pbe_set_ex(int alg, int iter,
 }
 
 X509_ALGOR *PKCS5_pbe_set(int alg, int iter,
-                          const unsigned char *salt, int saltlen)
+    const unsigned char *salt, int saltlen)
 {
     return PKCS5_pbe_set_ex(alg, iter, salt, saltlen, NULL);
 }
-

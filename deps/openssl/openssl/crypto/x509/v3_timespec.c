@@ -125,8 +125,8 @@ IMPLEMENT_ASN1_FUNCTIONS(OSSL_TIME_SPEC)
 IMPLEMENT_ASN1_FUNCTIONS(OSSL_TIME_PERIOD)
 
 static int i2r_OSSL_TIME_SPEC_ABSOLUTE(X509V3_EXT_METHOD *method,
-                                       OSSL_TIME_SPEC_ABSOLUTE *time,
-                                       BIO *out, int indent)
+    OSSL_TIME_SPEC_ABSOLUTE *time,
+    BIO *out, int indent)
 {
     if (time->startTime != NULL && time->endTime != NULL) {
         if (!BIO_puts(out, "Any time between "))
@@ -156,8 +156,8 @@ static int i2r_OSSL_TIME_SPEC_ABSOLUTE(X509V3_EXT_METHOD *method,
 }
 
 static int i2r_OSSL_DAY_TIME(X509V3_EXT_METHOD *method,
-                             OSSL_DAY_TIME *dt,
-                             BIO *out, int indent)
+    OSSL_DAY_TIME *dt,
+    BIO *out, int indent)
 {
     int64_t h = 0;
     int64_t m = 0;
@@ -170,12 +170,13 @@ static int i2r_OSSL_DAY_TIME(X509V3_EXT_METHOD *method,
     if (dt->minute && !ASN1_INTEGER_get_int64(&s, dt->second))
         return 0;
     return BIO_printf(out, "%02lld:%02lld:%02lld",
-                      (long long int)h, (long long int)m, (long long int)s) > 0;
+               (long long int)h, (long long int)m, (long long int)s)
+        > 0;
 }
 
 static int i2r_OSSL_DAY_TIME_BAND(X509V3_EXT_METHOD *method,
-                                  OSSL_DAY_TIME_BAND *band,
-                                  BIO *out, int indent)
+    OSSL_DAY_TIME_BAND *band,
+    BIO *out, int indent)
 {
     if (band->startDayTime) {
         if (!i2r_OSSL_DAY_TIME(method, band->startDayTime, out, indent))
@@ -335,8 +336,8 @@ static int print_bit_named_day(BIO *out, ASN1_BIT_STRING *bs)
 }
 
 static int i2r_OSSL_PERIOD(X509V3_EXT_METHOD *method,
-                           OSSL_TIME_PERIOD *p,
-                           BIO *out, int indent)
+    OSSL_TIME_PERIOD *p,
+    BIO *out, int indent)
 {
     int i;
     OSSL_DAY_TIME_BAND *band;
@@ -534,8 +535,8 @@ static int i2r_OSSL_PERIOD(X509V3_EXT_METHOD *method,
 }
 
 static int i2r_OSSL_TIME_SPEC_TIME(X509V3_EXT_METHOD *method,
-                                   OSSL_TIME_SPEC_TIME *time,
-                                   BIO *out, int indent)
+    OSSL_TIME_SPEC_TIME *time,
+    BIO *out, int indent)
 {
     OSSL_TIME_PERIOD *tp;
     int i;
@@ -565,8 +566,8 @@ static int i2r_OSSL_TIME_SPEC_TIME(X509V3_EXT_METHOD *method,
 }
 
 static int i2r_OSSL_TIME_SPEC(X509V3_EXT_METHOD *method,
-                              OSSL_TIME_SPEC *time,
-                              BIO *out, int indent)
+    OSSL_TIME_SPEC *time,
+    BIO *out, int indent)
 {
     int64_t tz;
 

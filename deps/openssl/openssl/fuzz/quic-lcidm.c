@@ -48,7 +48,7 @@ enum {
     CMD_LOOKUP
 };
 
-#define MAX_CMDS    10000
+#define MAX_CMDS 5000
 
 static int get_cid(PACKET *pkt, QUIC_CONN_ID *cid)
 {
@@ -106,7 +106,7 @@ int FuzzerTestOneInput(const uint8_t *buf, size_t len)
             }
 
             ossl_quic_lcidm_enrol_odcid(lcidm, (void *)(uintptr_t)arg_opaque,
-                                        &arg_cid);
+                &arg_cid);
             break;
 
         case CMD_RETIRE_ODCID:
@@ -125,7 +125,7 @@ int FuzzerTestOneInput(const uint8_t *buf, size_t len)
             }
 
             ossl_quic_lcidm_generate_initial(lcidm, (void *)(uintptr_t)arg_opaque,
-                                             &cid_out);
+                &cid_out);
             break;
 
         case CMD_GENERATE:
@@ -135,7 +135,7 @@ int FuzzerTestOneInput(const uint8_t *buf, size_t len)
             }
 
             ossl_quic_lcidm_generate(lcidm, (void *)(uintptr_t)arg_opaque,
-                                     &ncid_frame);
+                &ncid_frame);
             break;
 
         case CMD_RETIRE:
@@ -146,9 +146,9 @@ int FuzzerTestOneInput(const uint8_t *buf, size_t len)
             }
 
             ossl_quic_lcidm_retire(lcidm, (void *)(uintptr_t)arg_opaque,
-                                   arg_retire_prior_to,
-                                   NULL, &cid_out,
-                                   &seq_num_out, &did_retire);
+                arg_retire_prior_to,
+                NULL, &cid_out,
+                &seq_num_out, &did_retire);
             break;
 
         case CMD_CULL:

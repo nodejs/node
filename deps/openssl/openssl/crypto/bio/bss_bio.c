@@ -43,11 +43,11 @@ static const BIO_METHOD methods_biop = {
     bread_conv,
     bio_read,
     bio_puts,
-    NULL /* no bio_gets */ ,
+    NULL /* no bio_gets */,
     bio_ctrl,
     bio_new,
     bio_free,
-    NULL                        /* no bio_callback_ctrl */
+    NULL /* no bio_callback_ctrl */
 };
 
 const BIO_METHOD *BIO_s_bio(void)
@@ -56,21 +56,21 @@ const BIO_METHOD *BIO_s_bio(void)
 }
 
 struct bio_bio_st {
-    BIO *peer;                  /* NULL if buf == NULL. If peer != NULL, then
-                                 * peer->ptr is also a bio_bio_st, and its
-                                 * "peer" member points back to us. peer !=
-                                 * NULL iff init != 0 in the BIO. */
+    BIO *peer; /* NULL if buf == NULL. If peer != NULL, then
+                * peer->ptr is also a bio_bio_st, and its
+                * "peer" member points back to us. peer !=
+                * NULL iff init != 0 in the BIO. */
     /* This is for what we write (i.e. reading uses peer's struct): */
-    int closed;                 /* valid iff peer != NULL */
-    size_t len;                 /* valid iff buf != NULL; 0 if peer == NULL */
-    size_t offset;              /* valid iff buf != NULL; 0 if len == 0 */
+    int closed; /* valid iff peer != NULL */
+    size_t len; /* valid iff buf != NULL; 0 if peer == NULL */
+    size_t offset; /* valid iff buf != NULL; 0 if len == 0 */
     size_t size;
-    char *buf;                  /* "size" elements (if != NULL) */
-    size_t request;             /* valid iff peer != NULL; 0 if len != 0,
-                                 * otherwise set by peer to number of bytes
-                                 * it (unsuccessfully) tried to read, never
-                                 * more than buffer space (size-len)
-                                 * warrants. */
+    char *buf; /* "size" elements (if != NULL) */
+    size_t request; /* valid iff peer != NULL; 0 if len != 0,
+                     * otherwise set by peer to number of bytes
+                     * it (unsuccessfully) tried to read, never
+                     * more than buffer space (size-len)
+                     * warrants. */
 };
 
 static int bio_new(BIO *bio)
@@ -124,14 +124,14 @@ static int bio_read(BIO *bio, char *buf, int size_)
     assert(peer_b != NULL);
     assert(peer_b->buf != NULL);
 
-    peer_b->request = 0;        /* will be set in "retry_read" situation */
+    peer_b->request = 0; /* will be set in "retry_read" situation */
 
     if (buf == NULL || size == 0)
         return 0;
 
     if (peer_b->len == 0) {
         if (peer_b->closed)
-            return 0;           /* writer has closed, and no data is left */
+            return 0; /* writer has closed, and no data is left */
         else {
             BIO_set_retry_read(bio); /* buffer is empty */
             if (size <= peer_b->size)
@@ -154,7 +154,7 @@ static int bio_read(BIO *bio, char *buf, int size_)
     rest = size;
 
     assert(rest > 0);
-    do {                        /* one or two iterations */
+    do { /* one or two iterations */
         size_t chunk;
 
         assert(rest <= peer_b->len);
@@ -180,8 +180,7 @@ static int bio_read(BIO *bio, char *buf, int size_)
             peer_b->offset = 0;
         }
         rest -= chunk;
-    }
-    while (rest);
+    } while (rest);
 
     return size;
 }
@@ -242,7 +241,7 @@ static ossl_ssize_t bio_nread(BIO *bio, char **buf, size_t num_)
     if (num_ > OSSL_SSIZE_MAX)
         num = OSSL_SSIZE_MAX;
     else
-        num = (ossl_ssize_t) num_;
+        num = (ossl_ssize_t)num_;
 
     available = bio_nread0(bio, buf);
     if (num > available)
@@ -304,7 +303,7 @@ static int bio_write(BIO *bio, const char *buf, int num_)
     rest = num;
 
     assert(rest > 0);
-    do {                        /* one or two iterations */
+    do { /* one or two iterations */
         size_t write_offset;
         size_t chunk;
 
@@ -329,8 +328,7 @@ static int bio_write(BIO *bio, const char *buf, int num_)
 
         rest -= chunk;
         buf += chunk;
-    }
-    while (rest);
+    } while (rest);
 
     return num;
 }
@@ -398,7 +396,7 @@ static ossl_ssize_t bio_nwrite(BIO *bio, char **buf, size_t num_)
     if (num_ > OSSL_SSIZE_MAX)
         num = OSSL_SSIZE_MAX;
     else
-        num = (ossl_ssize_t) num_;
+        num = (ossl_ssize_t)num_;
 
     space = bio_nwrite0(bio, buf);
     if (num > space)
@@ -446,16 +444,14 @@ static long bio_ctrl(BIO *bio, int cmd, long num, void *ptr)
         ret = (long)b->size;
         break;
 
-    case BIO_C_MAKE_BIO_PAIR:
-        {
-            BIO *other_bio = ptr;
+    case BIO_C_MAKE_BIO_PAIR: {
+        BIO *other_bio = ptr;
 
-            if (bio_make_pair(bio, other_bio))
-                ret = 1;
-            else
-                ret = 0;
-        }
-        break;
+        if (bio_make_pair(bio, other_bio))
+            ret = 1;
+        else
+            ret = 0;
+    } break;
 
     case BIO_C_DESTROY_BIO_PAIR:
         /*
@@ -677,7 +673,7 @@ static void bio_destroy_pair(BIO *bio)
 
 /* Exported convenience functions */
 int BIO_new_bio_pair(BIO **bio1_p, size_t writebuf1,
-                     BIO **bio2_p, size_t writebuf2)
+    BIO **bio2_p, size_t writebuf2)
 {
     BIO *bio1 = NULL, *bio2 = NULL;
     long r;
@@ -706,7 +702,7 @@ int BIO_new_bio_pair(BIO **bio1_p, size_t writebuf1,
         goto err;
     ret = 1;
 
- err:
+err:
     if (ret == 0) {
         BIO_free(bio1);
         bio1 = NULL;

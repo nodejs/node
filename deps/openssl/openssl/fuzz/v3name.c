@@ -19,7 +19,8 @@ int FuzzerInitialize(int *argc, char ***argv)
     return 1;
 }
 
-int FuzzerTestOneInput(const uint8_t* data, size_t size){
+int FuzzerTestOneInput(const uint8_t *data, size_t size)
+{
     GENERAL_NAME *namesa;
     GENERAL_NAME *namesb;
 

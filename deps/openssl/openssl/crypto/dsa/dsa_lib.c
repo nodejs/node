@@ -15,7 +15,7 @@
 
 #include <openssl/bn.h>
 #ifndef FIPS_MODULE
-# include <openssl/engine.h>
+#include <openssl/engine.h>
 #endif
 #include "internal/cryptlib.h"
 #include "internal/refcount.h"
@@ -37,7 +37,7 @@ void *DSA_get_ex_data(const DSA *d, int idx)
     return CRYPTO_get_ex_data(&d->ex_data, idx);
 }
 
-# ifndef OPENSSL_NO_DH
+#ifndef OPENSSL_NO_DH
 DH *DSA_dup_DH(const DSA *r)
 {
     /*
@@ -75,13 +75,13 @@ DH *DSA_dup_DH(const DSA *r)
 
     return ret;
 
- err:
+err:
     BN_free(pub_key);
     BN_free(priv_key);
     DH_free(ret);
     return NULL;
 }
-# endif /*  OPENSSL_NO_DH */
+#endif /*  OPENSSL_NO_DH */
 
 void DSA_clear_flags(DSA *d, int flags)
 {
@@ -123,7 +123,6 @@ int DSA_set_method(DSA *dsa, const DSA_METHOD *meth)
     return 1;
 }
 #endif /* FIPS_MODULE */
-
 
 const DSA_METHOD *DSA_get_method(DSA *d)
 {
@@ -175,7 +174,7 @@ static DSA *dsa_new_intern(ENGINE *engine, OSSL_LIB_CTX *libctx)
 
 #ifndef FIPS_MODULE
     if (!ossl_crypto_new_ex_data_ex(libctx, CRYPTO_EX_INDEX_DSA, ret,
-                                    &ret->ex_data))
+            &ret->ex_data))
         goto err;
 #endif
 
@@ -188,7 +187,7 @@ static DSA *dsa_new_intern(ENGINE *engine, OSSL_LIB_CTX *libctx)
 
     return ret;
 
- err:
+err:
     DSA_free(ret);
     return NULL;
 }
@@ -260,7 +259,7 @@ void ossl_dsa_set0_libctx(DSA *d, OSSL_LIB_CTX *libctx)
 }
 
 void DSA_get0_pqg(const DSA *d,
-                  const BIGNUM **p, const BIGNUM **q, const BIGNUM **g)
+    const BIGNUM **p, const BIGNUM **q, const BIGNUM **g)
 {
     ossl_ffc_params_get0_pqg(&d->params, p, q, g);
 }
@@ -307,7 +306,7 @@ const BIGNUM *DSA_get0_priv_key(const DSA *d)
 }
 
 void DSA_get0_key(const DSA *d,
-                  const BIGNUM **pub_key, const BIGNUM **priv_key)
+    const BIGNUM **pub_key, const BIGNUM **priv_key)
 {
     if (pub_key != NULL)
         *pub_key = d->pub_key;
@@ -334,7 +333,7 @@ int DSA_security_bits(const DSA *d)
 {
     if (d->params.p != NULL && d->params.q != NULL)
         return BN_security_bits(BN_num_bits(d->params.p),
-                                BN_num_bits(d->params.q));
+            BN_num_bits(d->params.q));
     return -1;
 }
 

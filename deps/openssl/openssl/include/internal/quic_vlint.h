@@ -1,19 +1,19 @@
 /*
-* Copyright 2022-2023 The OpenSSL Project Authors. All Rights Reserved.
-*
-* Licensed under the Apache License 2.0 (the "License").  You may not use
-* this file except in compliance with the License.  You can obtain a copy
-* in the file LICENSE in the source distribution or at
-* https://www.openssl.org/source/license.html
-*/
+ * Copyright 2022-2023 The OpenSSL Project Authors. All Rights Reserved.
+ *
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
+ */
 
 #ifndef OSSL_INTERNAL_QUIC_VLINT_H
-# define OSSL_INTERNAL_QUIC_VLINT_H
-# pragma once
+#define OSSL_INTERNAL_QUIC_VLINT_H
+#pragma once
 
-# include "internal/e_os.h"
+#include "internal/e_os.h"
 
-# ifndef OPENSSL_NO_QUIC
+#ifndef OPENSSL_NO_QUIC
 
 /* The smallest value requiring a 1, 2, 4, or 8-byte representation. */
 #define OSSL_QUIC_VLINT_1B_MIN 0
@@ -28,7 +28,7 @@
 #define OSSL_QUIC_VLINT_8B_MAX (((uint64_t)1 << 62) - 1)
 
 /* The largest value representable as a variable-length integer. */
-#define OSSL_QUIC_VLINT_MAX    OSSL_QUIC_VLINT_8B_MAX
+#define OSSL_QUIC_VLINT_MAX OSSL_QUIC_VLINT_8B_MAX
 
 /*
  * Returns the number of bytes needed to encode v in the QUIC variable-length
@@ -122,6 +122,6 @@ uint64_t ossl_quic_vlint_decode_unchecked(const unsigned char *buf);
  */
 int ossl_quic_vlint_decode(const unsigned char *buf, size_t buf_len, uint64_t *v);
 
-# endif
+#endif
 
 #endif

@@ -7,7 +7,7 @@
  * https://www.openssl.org/source/license.html
  */
 
-#define KEM_MODE_UNDEFINED   0
-#define KEM_MODE_DHKEM       1
+#define KEM_MODE_UNDEFINED 0
+#define KEM_MODE_DHKEM 1
 
 int ossl_eckem_modename2id(const char *name);

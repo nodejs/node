@@ -68,8 +68,9 @@ void ossl_dh_cache_named_group(DH *dh)
         return;
 
     if ((group = ossl_ffc_numbers_to_dh_named_group(dh->params.p,
-                                                    dh->params.q,
-                                                    dh->params.g)) != NULL) {
+             dh->params.q,
+             dh->params.g))
+        != NULL) {
         if (dh->params.q == NULL)
             dh->params.q = (BIGNUM *)ossl_ffc_named_group_get_q(group);
         /* cache the nid and default key length */
