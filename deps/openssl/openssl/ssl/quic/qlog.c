@@ -34,13 +34,13 @@ static ossl_unused ossl_inline void bit_set(size_t *p, uint32_t bit_no, int enab
 struct qlog_st {
     QLOG_TRACE_INFO info;
 
-    BIO             *bio;
-    size_t          enabled[NUM_ENABLED_W];
-    uint32_t        event_type;
-    const char      *event_cat, *event_name, *event_combined_name;
-    OSSL_TIME       event_time, prev_event_time;
-    OSSL_JSON_ENC   json;
-    int             header_done, first_event_done;
+    BIO *bio;
+    size_t enabled[NUM_ENABLED_W];
+    uint32_t event_type;
+    const char *event_cat, *event_name, *event_combined_name;
+    OSSL_TIME event_time, prev_event_time;
+    OSSL_JSON_ENC json;
+    int header_done, first_event_done;
 };
 
 static OSSL_TIME default_now(void *arg)
@@ -59,11 +59,11 @@ QLOG *ossl_qlog_new(const QLOG_TRACE_INFO *info)
     if (qlog == NULL)
         return NULL;
 
-    qlog->info.odcid                = info->odcid;
-    qlog->info.is_server            = info->is_server;
-    qlog->info.now_cb               = info->now_cb;
-    qlog->info.now_cb_arg           = info->now_cb_arg;
-    qlog->info.override_process_id  = info->override_process_id;
+    qlog->info.odcid = info->odcid;
+    qlog->info.is_server = info->is_server;
+    qlog->info.now_cb = info->now_cb;
+    qlog->info.now_cb_arg = info->now_cb_arg;
+    qlog->info.override_process_id = info->override_process_id;
 
     if (info->title != NULL
         && (qlog->info.title = OPENSSL_strdup(info->title)) == NULL)
@@ -79,11 +79,12 @@ QLOG *ossl_qlog_new(const QLOG_TRACE_INFO *info)
 
     if (info->override_impl_name != NULL
         && (qlog->info.override_impl_name
-                = OPENSSL_strdup(info->override_impl_name)) == NULL)
+               = OPENSSL_strdup(info->override_impl_name))
+            == NULL)
         goto err;
 
     if (!ossl_json_init(&qlog->json, NULL,
-                        OSSL_JSON_FLAG_IJSON | OSSL_JSON_FLAG_SEQ))
+            OSSL_JSON_FLAG_IJSON | OSSL_JSON_FLAG_SEQ))
         goto err;
 
     if (qlog->info.now_cb == NULL)
@@ -133,7 +134,7 @@ QLOG *ossl_qlog_new_from_env(const QLOG_TRACE_INFO *info)
         l += BIO_snprintf(filename + l, strl - l, "%02x", info->odcid.id[i]);
 
     l += BIO_snprintf(filename + l, strl - l, "_%s.sqlog",
-                      info->is_server ? "server" : "client");
+        info->is_server ? "server" : "client");
 
     qlog = ossl_qlog_new(info);
     if (qlog == NULL)
@@ -242,7 +243,7 @@ int ossl_qlog_flush(QLOG *qlog)
 }
 
 int ossl_qlog_set_event_type_enabled(QLOG *qlog, uint32_t event_type,
-                                     int enabled)
+    int enabled)
 {
     if (qlog == NULL || event_type >= QLOG_EVENT_TYPE_NUM)
         return 0;
@@ -339,13 +340,13 @@ static void qlog_event_seq_header(QLOG *qlog)
                     p = qlog->info.override_impl_name;
                 } else {
                     BIO_snprintf(buf, sizeof(buf), "OpenSSL/%s (%s)",
-                                 OpenSSL_version(OPENSSL_FULL_VERSION_STRING),
-                                 OpenSSL_version(OPENSSL_PLATFORM) + 10);
+                        OpenSSL_version(OPENSSL_FULL_VERSION_STRING),
+                        OpenSSL_version(OPENSSL_PLATFORM) + 10);
                 }
 
                 ossl_json_key(&qlog->json, "type");
                 ossl_json_str(&qlog->json,
-                              qlog->info.is_server ? "server" : "client");
+                    qlog->info.is_server ? "server" : "client");
 
                 ossl_json_key(&qlog->json, "name");
                 ossl_json_str(&qlog->json, p);
@@ -383,7 +384,7 @@ static void qlog_event_epilogue(QLOG *qlog)
         qlog->first_event_done = 1;
     } else {
         OSSL_TIME delta = ossl_time_subtract(qlog->event_time,
-                                             qlog->prev_event_time);
+            qlog->prev_event_time);
 
         ossl_json_u64(&qlog->json, ossl_time2ms(delta));
         qlog->prev_event_time = qlog->event_time;
@@ -393,10 +394,10 @@ static void qlog_event_epilogue(QLOG *qlog)
 }
 
 int ossl_qlog_event_try_begin(QLOG *qlog,
-                              uint32_t event_type,
-                              const char *event_cat,
-                              const char *event_name,
-                              const char *event_combined_name)
+    uint32_t event_type,
+    const char *event_cat,
+    const char *event_name,
+    const char *event_combined_name)
 {
     if (qlog == NULL)
         return 0;
@@ -405,11 +406,11 @@ int ossl_qlog_event_try_begin(QLOG *qlog,
         || !ossl_qlog_enabled(qlog, event_type))
         return 0;
 
-    qlog->event_type            = event_type;
-    qlog->event_cat             = event_cat;
-    qlog->event_name            = event_name;
-    qlog->event_combined_name   = event_combined_name;
-    qlog->event_time            = qlog->info.now_cb(qlog->info.now_cb_arg);
+    qlog->event_type = event_type;
+    qlog->event_cat = event_cat;
+    qlog->event_name = event_name;
+    qlog->event_combined_name = event_combined_name;
+    qlog->event_time = qlog->info.now_cb(qlog->info.now_cb_arg);
 
     qlog_event_prologue(qlog);
     return 1;
@@ -468,7 +469,7 @@ void ossl_qlog_str(QLOG *qlog, const char *name, const char *value)
 }
 
 void ossl_qlog_str_len(QLOG *qlog, const char *name,
-                       const char *value, size_t value_len)
+    const char *value, size_t value_len)
 {
     if (name != NULL)
         ossl_json_key(&qlog->json, name);
@@ -501,7 +502,7 @@ void ossl_qlog_bool(QLOG *qlog, const char *name, int value)
 }
 
 void ossl_qlog_bin(QLOG *qlog, const char *name,
-                   const void *value, size_t value_len)
+    const void *value, size_t value_len)
 {
     if (name != NULL)
         ossl_json_key(&qlog->json, name);
@@ -532,9 +533,9 @@ static int lex_init(struct lexer *lex, const char *in, size_t in_len)
     if (in == NULL)
         return 0;
 
-    lex->p          = in;
-    lex->term_end   = in;
-    lex->end        = in + in_len;
+    lex->p = in;
+    lex->term_end = in;
+    lex->end = in + in_len;
     return 1;
 }
 
@@ -542,18 +543,20 @@ static int lex_do(struct lexer *lex)
 {
     const char *p = lex->term_end, *end = lex->end, *term_end;
 
-    for (; is_term_sep_ws(*p) && p < end; ++p);
+    for (; is_term_sep_ws(*p) && p < end; ++p)
+        ;
 
     if (p == end) {
-        lex->p          = end;
-        lex->term_end   = end;
+        lex->p = end;
+        lex->term_end = end;
         return 0;
     }
 
-    for (term_end = p; !is_term_sep_ws(*term_end) && term_end < end; ++term_end);
+    for (term_end = p; !is_term_sep_ws(*term_end) && term_end < end; ++term_end)
+        ;
 
-    lex->p          = p;
-    lex->term_end   = term_end;
+    lex->p = p;
+    lex->term_end = term_end;
     return 1;
 }
 
@@ -589,29 +592,30 @@ static int lex_match(struct lexer *lex, const char *s, size_t s_len)
 
 static void lex_get_rest(struct lexer *lex, const char **str, size_t *str_l)
 {
-    *str    = lex->p;
-    *str_l  = lex->term_end - lex->p;
+    *str = lex->p;
+    *str_l = lex->term_end - lex->p;
 }
 
 static int lex_extract_to(struct lexer *lex, char c,
-                          const char **str, size_t *str_l)
+    const char **str, size_t *str_l)
 {
     const char *p = lex->p, *term_end = lex->term_end, *s;
 
-    for (s = p; s < term_end && *s != c; ++s);
+    for (s = p; s < term_end && *s != c; ++s)
+        ;
     if (s == term_end)
         return 0;
 
-    *str    = p;
-    *str_l  = s - p;
-    lex->p  = ++s;
+    *str = p;
+    *str_l = s - p;
+    lex->p = ++s;
     return 1;
 }
 
 static int ossl_unused filter_match_event(const char *cat, size_t cat_l,
-                                          const char *event, size_t event_l,
-                                          const char *expect_cat,
-                                          const char *expect_event)
+    const char *event, size_t event_l,
+    const char *expect_cat,
+    const char *expect_event)
 {
     size_t expect_cat_l = strlen(expect_cat);
     size_t expect_event_l = strlen(expect_event);
@@ -634,16 +638,16 @@ static int ossl_unused filter_match_event(const char *cat, size_t cat_l,
  *        NULL to match any.
  */
 static void filter_apply(size_t *enabled, int add,
-                         const char *cat, size_t cat_l,
-                         const char *event, size_t event_l)
+    const char *cat, size_t cat_l,
+    const char *event, size_t event_l)
 {
     /* Find events which match the given filters. */
-# define QLOG_EVENT(e_cat, e_name)                          \
+#define QLOG_EVENT(e_cat, e_name)                      \
     if (filter_match_event(cat, cat_l, event, event_l, \
-                                #e_cat, #e_name))           \
+            #e_cat, #e_name))                          \
         bit_set(enabled, QLOG_EVENT_TYPE_##e_cat##_##e_name, add);
-# include "internal/qlog_events.h"
-# undef QLOG_EVENT
+#include "internal/qlog_events.h"
+#undef QLOG_EVENT
 }
 
 static int lex_fail(struct lexer *lex, const char *msg)
@@ -679,7 +683,7 @@ static int validate_name(const char **p, size_t *l)
 
 int ossl_qlog_set_filter(QLOG *qlog, const char *filter)
 {
-    struct lexer lex = {0};
+    struct lexer lex = { 0 };
     char c;
     const char *cat, *event;
     size_t cat_l, event_l, enabled[NUM_ENABLED_W];
@@ -699,7 +703,7 @@ int ossl_qlog_set_filter(QLOG *qlog, const char *filter)
             c = lex_peek_char(&lex);
             if (!is_name_char(c) && c != '*')
                 return lex_fail(&lex, "expected alphanumeric name or '*'"
-                                " after +/-");
+                                      " after +/-");
         } else if (!is_name_char(c) && c != '*') {
             return lex_fail(&lex, "expected +/- or alphanumeric name or '*'");
         } else {

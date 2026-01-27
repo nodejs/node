@@ -13,10 +13,12 @@
 #include "crypto/ml_dsa.h"
 
 /* Well known OIDs precompiled */
+/* clang-format off */
 {-
     $OUT = oids_to_c::process_leaves('providers/common/der/ML_DSA.asn1',
                                      { dir => $config{sourcedir},
                                        filter => \&oids_to_c::filter_to_H });
 -}
+/* clang-format on */
 
 int ossl_DER_w_algorithmIdentifier_ML_DSA(WPACKET *pkt, int tag, ML_DSA_KEY *key);

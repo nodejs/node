@@ -36,7 +36,7 @@ void ossl_ml_dsa_key_compress_power2_round(uint32_t r, uint32_t *r1, uint32_t *r
     unsigned int mask;
     uint32_t r0_adjusted, r1_adjusted;
 
-    *r1 = r >> ML_DSA_D_BITS;         /* top 13 bits */
+    *r1 = r >> ML_DSA_D_BITS; /* top 13 bits */
     *r0 = r - (*r1 << ML_DSA_D_BITS); /* The remainder mod q */
 
     r0_adjusted = mod_sub(*r0, 1 << ML_DSA_D_BITS);
@@ -84,7 +84,7 @@ uint32_t ossl_ml_dsa_key_compress_high_bits(uint32_t r, uint32_t gamma2)
  * @param r0 The returned low order bits
  */
 void ossl_ml_dsa_key_compress_decompose(uint32_t r, uint32_t gamma2,
-                                        uint32_t *r1, int32_t *r0)
+    uint32_t *r1, int32_t *r0)
 {
     *r1 = ossl_ml_dsa_key_compress_high_bits(r, gamma2);
 
@@ -131,13 +131,13 @@ int32_t ossl_ml_dsa_key_compress_low_bits(uint32_t r, uint32_t gamma2)
  * @returns The hint bit.
  */
 int32_t ossl_ml_dsa_key_compress_make_hint(uint32_t ct0, uint32_t cs2,
-                                           uint32_t gamma2, uint32_t w)
+    uint32_t gamma2, uint32_t w)
 {
     uint32_t r_plus_z = mod_sub(w, cs2);
     uint32_t r = reduce_once(r_plus_z + ct0);
 
-    return  ossl_ml_dsa_key_compress_high_bits(r, gamma2)
-        !=  ossl_ml_dsa_key_compress_high_bits(r_plus_z, gamma2);
+    return ossl_ml_dsa_key_compress_high_bits(r, gamma2)
+        != ossl_ml_dsa_key_compress_high_bits(r_plus_z, gamma2);
 }
 
 /*
@@ -152,7 +152,7 @@ int32_t ossl_ml_dsa_key_compress_make_hint(uint32_t ct0, uint32_t cs2,
  * @returns The adjusted high bits or r.
  */
 uint32_t ossl_ml_dsa_key_compress_use_hint(uint32_t hint, uint32_t r,
-                                           uint32_t gamma2)
+    uint32_t gamma2)
 {
     uint32_t r1;
     int32_t r0;

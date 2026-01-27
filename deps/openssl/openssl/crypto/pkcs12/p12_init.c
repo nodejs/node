@@ -46,7 +46,7 @@ PKCS12 *PKCS12_init_ex(int mode, OSSL_LIB_CTX *ctx, const char *propq)
     }
     return pkcs12;
 
- err:
+err:
     PKCS12_free(pkcs12);
     return NULL;
 }

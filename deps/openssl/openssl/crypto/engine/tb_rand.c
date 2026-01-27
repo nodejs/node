@@ -29,8 +29,8 @@ int ENGINE_register_RAND(ENGINE *e)
 {
     if (e->rand_meth)
         return engine_table_register(&rand_table,
-                                     engine_unregister_all_RAND, e,
-                                     &dummy_nid, 1, 0);
+            engine_unregister_all_RAND, e,
+            &dummy_nid, 1, 0);
     return 1;
 }
 
@@ -46,8 +46,8 @@ int ENGINE_set_default_RAND(ENGINE *e)
 {
     if (e->rand_meth)
         return engine_table_register(&rand_table,
-                                     engine_unregister_all_RAND, e,
-                                     &dummy_nid, 1, 1);
+            engine_unregister_all_RAND, e,
+            &dummy_nid, 1, 1);
     return 1;
 }
 
@@ -59,7 +59,7 @@ int ENGINE_set_default_RAND(ENGINE *e)
 ENGINE *ENGINE_get_default_RAND(void)
 {
     return ossl_engine_table_select(&rand_table, dummy_nid,
-                                    OPENSSL_FILE, OPENSSL_LINE);
+        OPENSSL_FILE, OPENSSL_LINE);
 }
 
 /* Obtains an RAND implementation from an ENGINE functional reference */

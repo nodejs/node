@@ -22,9 +22,9 @@
  */
 
 void DES_ede3_cfb64_encrypt(const unsigned char *in, unsigned char *out,
-                            long length, DES_key_schedule *ks1,
-                            DES_key_schedule *ks2, DES_key_schedule *ks3,
-                            DES_cblock *ivec, int *num, int enc)
+    long length, DES_key_schedule *ks1,
+    DES_key_schedule *ks2, DES_key_schedule *ks3,
+    DES_cblock *ivec, int *num, int enc)
 {
     register DES_LONG v0, v1;
     register long l = length;
@@ -89,9 +89,9 @@ void DES_ede3_cfb64_encrypt(const unsigned char *in, unsigned char *out,
  */
 
 void DES_ede3_cfb_encrypt(const unsigned char *in, unsigned char *out,
-                          int numbits, long length, DES_key_schedule *ks1,
-                          DES_key_schedule *ks2, DES_key_schedule *ks3,
-                          DES_cblock *ivec, int enc)
+    int numbits, long length, DES_key_schedule *ks1,
+    DES_key_schedule *ks2, DES_key_schedule *ks3,
+    DES_cblock *ivec, int enc)
 {
     register DES_LONG d0, d1, v0, v1;
     register unsigned long l = length, n = ((unsigned int)numbits + 7) / 8;

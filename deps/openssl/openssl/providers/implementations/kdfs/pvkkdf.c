@@ -11,7 +11,7 @@
 #include <openssl/core_names.h>
 #include <openssl/proverr.h>
 #include <openssl/err.h>
-#include "internal/numbers.h"    /* SIZE_MAX */
+#include "internal/numbers.h" /* SIZE_MAX */
 #include "prov/provider_ctx.h"
 #include "prov/providercommon.h"
 #include "prov/implementations.h"
@@ -79,14 +79,14 @@ static void *kdf_pvk_dup(void *vctx)
     dest = kdf_pvk_new(src->provctx);
     if (dest != NULL)
         if (!ossl_prov_memdup(src->salt, src->salt_len,
-                              &dest->salt, &dest->salt_len)
-                || !ossl_prov_memdup(src->pass, src->pass_len,
-                                     &dest->pass , &dest->pass_len)
-                || !ossl_prov_digest_copy(&dest->digest, &src->digest))
+                &dest->salt, &dest->salt_len)
+            || !ossl_prov_memdup(src->pass, src->pass_len,
+                &dest->pass, &dest->pass_len)
+            || !ossl_prov_digest_copy(&dest->digest, &src->digest))
             goto err;
     return dest;
 
- err:
+err:
     kdf_pvk_free(dest);
     return NULL;
 }
@@ -107,14 +107,14 @@ static void kdf_pvk_init(KDF_PVK *ctx)
     OSSL_LIB_CTX *provctx = PROV_LIBCTX_OF(ctx->provctx);
 
     params[0] = OSSL_PARAM_construct_utf8_string(OSSL_KDF_PARAM_DIGEST,
-                                                 SN_sha1, 0);
+        SN_sha1, 0);
     if (!ossl_prov_digest_load_from_params(&ctx->digest, params, provctx))
         /* This is an error, but there is no way to indicate such directly */
         ossl_prov_digest_reset(&ctx->digest);
 }
 
 static int pvk_set_membuf(unsigned char **buffer, size_t *buflen,
-                             const OSSL_PARAM *p)
+    const OSSL_PARAM *p)
 {
     OPENSSL_clear_free(*buffer, *buflen);
     *buffer = NULL;
@@ -131,7 +131,7 @@ static int pvk_set_membuf(unsigned char **buffer, size_t *buflen,
 }
 
 static int kdf_pvk_derive(void *vctx, unsigned char *key, size_t keylen,
-                             const OSSL_PARAM params[])
+    const OSSL_PARAM params[])
 {
     KDF_PVK *ctx = (KDF_PVK *)vctx;
     const EVP_MD *md;
@@ -168,10 +168,10 @@ static int kdf_pvk_derive(void *vctx, unsigned char *key, size_t keylen,
 
     mctx = EVP_MD_CTX_new();
     res = mctx != NULL
-          && EVP_DigestInit_ex(mctx, md, NULL)
-          && EVP_DigestUpdate(mctx, ctx->salt, ctx->salt_len)
-          && EVP_DigestUpdate(mctx, ctx->pass, ctx->pass_len)
-          && EVP_DigestFinal_ex(mctx, key, NULL);
+        && EVP_DigestInit_ex(mctx, md, NULL)
+        && EVP_DigestUpdate(mctx, ctx->salt, ctx->salt_len)
+        && EVP_DigestUpdate(mctx, ctx->pass, ctx->pass_len)
+        && EVP_DigestFinal_ex(mctx, key, NULL);
     EVP_MD_CTX_free(mctx);
     return res;
 }
@@ -201,7 +201,7 @@ static int kdf_pvk_set_ctx_params(void *vctx, const OSSL_PARAM params[])
 }
 
 static const OSSL_PARAM *kdf_pvk_settable_ctx_params(ossl_unused void *ctx,
-                                                        ossl_unused void *p_ctx)
+    ossl_unused void *p_ctx)
 {
     static const OSSL_PARAM known_settable_ctx_params[] = {
         OSSL_PARAM_utf8_string(OSSL_KDF_PARAM_PROPERTIES, NULL, 0),
@@ -223,7 +223,7 @@ static int kdf_pvk_get_ctx_params(void *vctx, OSSL_PARAM params[])
 }
 
 static const OSSL_PARAM *kdf_pvk_gettable_ctx_params(ossl_unused void *ctx,
-                                                        ossl_unused void *p_ctx)
+    ossl_unused void *p_ctx)
 {
     static const OSSL_PARAM known_gettable_ctx_params[] = {
         OSSL_PARAM_size_t(OSSL_KDF_PARAM_SIZE, NULL),
@@ -233,16 +233,16 @@ static const OSSL_PARAM *kdf_pvk_gettable_ctx_params(ossl_unused void *ctx,
 }
 
 const OSSL_DISPATCH ossl_kdf_pvk_functions[] = {
-    { OSSL_FUNC_KDF_NEWCTX, (void(*)(void))kdf_pvk_new },
-    { OSSL_FUNC_KDF_DUPCTX, (void(*)(void))kdf_pvk_dup },
-    { OSSL_FUNC_KDF_FREECTX, (void(*)(void))kdf_pvk_free },
-    { OSSL_FUNC_KDF_RESET, (void(*)(void))kdf_pvk_reset },
-    { OSSL_FUNC_KDF_DERIVE, (void(*)(void))kdf_pvk_derive },
+    { OSSL_FUNC_KDF_NEWCTX, (void (*)(void))kdf_pvk_new },
+    { OSSL_FUNC_KDF_DUPCTX, (void (*)(void))kdf_pvk_dup },
+    { OSSL_FUNC_KDF_FREECTX, (void (*)(void))kdf_pvk_free },
+    { OSSL_FUNC_KDF_RESET, (void (*)(void))kdf_pvk_reset },
+    { OSSL_FUNC_KDF_DERIVE, (void (*)(void))kdf_pvk_derive },
     { OSSL_FUNC_KDF_SETTABLE_CTX_PARAMS,
-      (void(*)(void))kdf_pvk_settable_ctx_params },
-    { OSSL_FUNC_KDF_SET_CTX_PARAMS, (void(*)(void))kdf_pvk_set_ctx_params },
+        (void (*)(void))kdf_pvk_settable_ctx_params },
+    { OSSL_FUNC_KDF_SET_CTX_PARAMS, (void (*)(void))kdf_pvk_set_ctx_params },
     { OSSL_FUNC_KDF_GETTABLE_CTX_PARAMS,
-      (void(*)(void))kdf_pvk_gettable_ctx_params },
-    { OSSL_FUNC_KDF_GET_CTX_PARAMS, (void(*)(void))kdf_pvk_get_ctx_params },
+        (void (*)(void))kdf_pvk_gettable_ctx_params },
+    { OSSL_FUNC_KDF_GET_CTX_PARAMS, (void (*)(void))kdf_pvk_get_ctx_params },
     OSSL_DISPATCH_END
 };

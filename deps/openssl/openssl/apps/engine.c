@@ -24,32 +24,39 @@
 
 typedef enum OPTION_choice {
     OPT_COMMON,
-    OPT_C, OPT_T, OPT_TT, OPT_PRE, OPT_POST,
-    OPT_V = 100, OPT_VV, OPT_VVV, OPT_VVVV
+    OPT_C,
+    OPT_T,
+    OPT_TT,
+    OPT_PRE,
+    OPT_POST,
+    OPT_V = 100,
+    OPT_VV,
+    OPT_VVV,
+    OPT_VVVV
 } OPTION_CHOICE;
 
 const OPTIONS engine_options[] = {
-    {OPT_HELP_STR, 1, '-', "Usage: %s [options] engine...\n"},
+    { OPT_HELP_STR, 1, '-', "Usage: %s [options] engine...\n" },
 
     OPT_SECTION("General"),
-    {"help", OPT_HELP, '-', "Display this summary"},
-    {"t", OPT_T, '-', "Check that specified engine is available"},
-    {"pre", OPT_PRE, 's', "Run command against the ENGINE before loading it"},
-    {"post", OPT_POST, 's', "Run command against the ENGINE after loading it"},
+    { "help", OPT_HELP, '-', "Display this summary" },
+    { "t", OPT_T, '-', "Check that specified engine is available" },
+    { "pre", OPT_PRE, 's', "Run command against the ENGINE before loading it" },
+    { "post", OPT_POST, 's', "Run command against the ENGINE after loading it" },
 
     OPT_SECTION("Output"),
-    {"v", OPT_V, '-', "List 'control commands' For each specified engine"},
-    {"vv", OPT_VV, '-', "Also display each command's description"},
-    {"vvv", OPT_VVV, '-', "Also add the input flags for each command"},
-    {"vvvv", OPT_VVVV, '-', "Also show internal input flags"},
-    {"c", OPT_C, '-', "List the capabilities of specified engine"},
-    {"tt", OPT_TT, '-', "Display error trace for unavailable engines"},
-    {OPT_MORE_STR, OPT_EOF, 1,
-     "Commands are like \"SO_PATH:/lib/libdriver.so\""},
+    { "v", OPT_V, '-', "List 'control commands' For each specified engine" },
+    { "vv", OPT_VV, '-', "Also display each command's description" },
+    { "vvv", OPT_VVV, '-', "Also add the input flags for each command" },
+    { "vvvv", OPT_VVVV, '-', "Also show internal input flags" },
+    { "c", OPT_C, '-', "List the capabilities of specified engine" },
+    { "tt", OPT_TT, '-', "Display error trace for unavailable engines" },
+    { OPT_MORE_STR, OPT_EOF, 1,
+        "Commands are like \"SO_PATH:/lib/libdriver.so\"" },
 
     OPT_PARAMETERS(),
-    {"engine", 0, 0, "ID of engine(s) to load"},
-    {NULL}
+    { "engine", 0, 0, "ID of engine(s) to load" },
+    { NULL }
 };
 
 static int append_buf(char **buf, int *size, const char *s)
@@ -133,9 +140,7 @@ static int util_flags(BIO *out, unsigned int flags, const char *indent)
         started = 1;
     }
     /* Check for unknown flags */
-    flags = flags & ~ENGINE_CMD_FLAG_NUMERIC &
-        ~ENGINE_CMD_FLAG_STRING &
-        ~ENGINE_CMD_FLAG_NO_INPUT & ~ENGINE_CMD_FLAG_INTERNAL;
+    flags = flags & ~ENGINE_CMD_FLAG_NUMERIC & ~ENGINE_CMD_FLAG_STRING & ~ENGINE_CMD_FLAG_NO_INPUT & ~ENGINE_CMD_FLAG_INTERNAL;
     if (flags) {
         if (started)
             BIO_printf(out, "|");
@@ -157,9 +162,7 @@ static int util_verbose(ENGINE *e, int verbose, BIO *out, const char *indent)
     int flags;
     int xpos = 0;
     STACK_OF(OPENSSL_STRING) *cmds = NULL;
-    if (!ENGINE_ctrl(e, ENGINE_CTRL_HAS_CTRL_FUNCTION, 0, NULL, NULL) ||
-        ((num = ENGINE_ctrl(e, ENGINE_CTRL_GET_FIRST_CMD_TYPE,
-                            0, NULL, NULL)) <= 0)) {
+    if (!ENGINE_ctrl(e, ENGINE_CTRL_HAS_CTRL_FUNCTION, 0, NULL, NULL) || ((num = ENGINE_ctrl(e, ENGINE_CTRL_GET_FIRST_CMD_TYPE, 0, NULL, NULL)) <= 0)) {
         return 1;
     }
 
@@ -171,25 +174,30 @@ static int util_verbose(ENGINE *e, int verbose, BIO *out, const char *indent)
         int len;
         /* Get the command input flags */
         if ((flags = ENGINE_ctrl(e, ENGINE_CTRL_GET_CMD_FLAGS, num,
-                                 NULL, NULL)) < 0)
+                 NULL, NULL))
+            < 0)
             goto err;
         if (!(flags & ENGINE_CMD_FLAG_INTERNAL) || verbose >= 4) {
             /* Get the command name */
             if ((len = ENGINE_ctrl(e, ENGINE_CTRL_GET_NAME_LEN_FROM_CMD, num,
-                                   NULL, NULL)) <= 0)
+                     NULL, NULL))
+                <= 0)
                 goto err;
             name = app_malloc(len + 1, "name buffer");
             if (ENGINE_ctrl(e, ENGINE_CTRL_GET_NAME_FROM_CMD, num, name,
-                            NULL) <= 0)
+                    NULL)
+                <= 0)
                 goto err;
             /* Get the command description */
             if ((len = ENGINE_ctrl(e, ENGINE_CTRL_GET_DESC_LEN_FROM_CMD, num,
-                                   NULL, NULL)) < 0)
+                     NULL, NULL))
+                < 0)
                 goto err;
             if (len > 0) {
                 desc = app_malloc(len + 1, "description buffer");
                 if (ENGINE_ctrl(e, ENGINE_CTRL_GET_DESC_FROM_CMD, num, desc,
-                                NULL) <= 0)
+                        NULL)
+                    <= 0)
                     goto err;
             }
             /* Now decide on the output */
@@ -203,8 +211,7 @@ static int util_verbose(ENGINE *e, int verbose, BIO *out, const char *indent)
                 /*
                  * We're just listing names, comma-delimited
                  */
-                if ((xpos > (int)strlen(indent)) &&
-                    (xpos + (int)strlen(name) > line_wrap)) {
+                if ((xpos > (int)strlen(indent)) && (xpos + (int)strlen(name) > line_wrap)) {
                     BIO_printf(out, "\n");
                     xpos = BIO_puts(out, indent);
                 }
@@ -212,7 +219,7 @@ static int util_verbose(ENGINE *e, int verbose, BIO *out, const char *indent)
             } else {
                 /* We're listing names plus descriptions */
                 BIO_printf(out, "%s: %s\n", name,
-                           (desc == NULL) ? "<no description>" : desc);
+                    (desc == NULL) ? "<no description>" : desc);
                 /* ... and sometimes input flags */
                 if ((verbose >= 3) && !util_flags(out, flags, indent))
                     goto err;
@@ -229,7 +236,7 @@ static int util_verbose(ENGINE *e, int verbose, BIO *out, const char *indent)
     if (xpos > 0)
         BIO_printf(out, "\n");
     ret = 1;
- err:
+err:
     sk_OPENSSL_STRING_free(cmds);
     OPENSSL_free(name);
     OPENSSL_free(desc);
@@ -237,7 +244,7 @@ static int util_verbose(ENGINE *e, int verbose, BIO *out, const char *indent)
 }
 
 static void util_do_cmds(ENGINE *e, STACK_OF(OPENSSL_STRING) *cmds,
-                         BIO *out, const char *indent)
+    BIO *out, const char *indent)
 {
     int loop, res, num = sk_OPENSSL_STRING_num(cmds);
 
@@ -249,7 +256,7 @@ static void util_do_cmds(ENGINE *e, STACK_OF(OPENSSL_STRING) *cmds,
         char buf[256];
         const char *cmd, *arg;
         cmd = sk_OPENSSL_STRING_value(cmds, loop);
-        res = 1;                /* assume success */
+        res = 1; /* assume success */
         /* Check if this command has no ":arg" */
         if ((arg = strchr(cmd, ':')) == NULL) {
             if (!ENGINE_ctrl_cmd_string(e, cmd, NULL, 0))
@@ -261,7 +268,7 @@ static void util_do_cmds(ENGINE *e, STACK_OF(OPENSSL_STRING) *cmds,
             }
             memcpy(buf, cmd, (int)(arg - cmd));
             buf[arg - cmd] = '\0';
-            arg++;              /* Move past the ":" */
+            arg++; /* Move past the ":" */
             /* Call the command with the argument */
             if (!ENGINE_ctrl_cmd_string(e, buf, arg, 0))
                 res = 0;
@@ -288,7 +295,7 @@ static void util_store_cap(const OSSL_STORE_LOADER *loader, void *arg)
     if (OSSL_STORE_LOADER_get0_engine(loader) == ctx->engine) {
         char buf[256];
         BIO_snprintf(buf, sizeof(buf), "STORE(%s)",
-                     OSSL_STORE_LOADER_get0_scheme(loader));
+            OSSL_STORE_LOADER_get0_scheme(loader));
         if (!append_buf(ctx->cap_buf, ctx->cap_size, buf))
             ctx->ok = 0;
     }
@@ -366,10 +373,10 @@ int engine_main(int argc, char **argv)
     /* Any remaining arguments are engine names. */
     argc = opt_num_rest();
     argv = opt_rest();
-    for ( ; *argv; argv++) {
+    for (; *argv; argv++) {
         if (**argv == '-') {
             BIO_printf(bio_err, "%s: Cannot mix flags and engine names.\n",
-                       prog);
+                prog);
             BIO_printf(bio_err, "%s: Use -help for summary.\n", prog);
             goto end;
         }
@@ -396,7 +403,7 @@ int engine_main(int argc, char **argv)
             util_do_cmds(e, pre_cmds, out, indent);
             if (strcmp(ENGINE_get_id(e), id) != 0) {
                 BIO_printf(out, "Loaded: (%s) %s\n",
-                           ENGINE_get_id(e), ENGINE_get_name(e));
+                    ENGINE_get_id(e), ENGINE_get_name(e));
             }
             if (list_cap) {
                 int cap_size = 256;
@@ -431,7 +438,7 @@ int engine_main(int argc, char **argv)
                     if (!append_buf(&cap_buf, &cap_size, OBJ_nid2sn(nids[k])))
                         goto end;
 
- skip_ciphers:
+            skip_ciphers:
                 fn_d = ENGINE_get_digests(e);
                 if (fn_d == NULL)
                     goto skip_digests;
@@ -440,7 +447,7 @@ int engine_main(int argc, char **argv)
                     if (!append_buf(&cap_buf, &cap_size, OBJ_nid2sn(nids[k])))
                         goto end;
 
- skip_digests:
+            skip_digests:
                 fn_pk = ENGINE_get_pkey_meths(e);
                 if (fn_pk == NULL)
                     goto skip_pmeths;
@@ -448,19 +455,18 @@ int engine_main(int argc, char **argv)
                 for (k = 0; k < n; ++k)
                     if (!append_buf(&cap_buf, &cap_size, OBJ_nid2sn(nids[k])))
                         goto end;
- skip_pmeths:
-                {
-                    struct util_store_cap_data store_ctx;
+            skip_pmeths: {
+                struct util_store_cap_data store_ctx;
 
-                    store_ctx.engine = e;
-                    store_ctx.cap_buf = &cap_buf;
-                    store_ctx.cap_size = &cap_size;
-                    store_ctx.ok = 1;
+                store_ctx.engine = e;
+                store_ctx.cap_buf = &cap_buf;
+                store_ctx.cap_size = &cap_size;
+                store_ctx.ok = 1;
 
-                    OSSL_STORE_do_all_loaders(util_store_cap, &store_ctx);
-                    if (!store_ctx.ok)
-                        goto end;
-                }
+                OSSL_STORE_do_all_loaders(util_store_cap, &store_ctx);
+                if (!store_ctx.ok)
+                    goto end;
+            }
                 if (cap_buf != NULL && (*cap_buf != '\0'))
                     BIO_printf(out, " [%s]\n", cap_buf);
 
@@ -490,7 +496,7 @@ int engine_main(int argc, char **argv)
         }
     }
 
- end:
+end:
 
     ERR_print_errors(bio_err);
     sk_OPENSSL_CSTRING_free(engines);

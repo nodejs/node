@@ -47,7 +47,7 @@ static void sm4_ccm_freectx(void *vctx)
 {
     PROV_SM4_CCM_CTX *ctx = (PROV_SM4_CCM_CTX *)vctx;
 
-    OPENSSL_clear_free(ctx,  sizeof(*ctx));
+    OPENSSL_clear_free(ctx, sizeof(*ctx));
 }
 
 /* sm4128ccm functions */

@@ -13,8 +13,8 @@
 
 typedef struct self_test_post_params_st {
     /* FIPS module integrity check parameters */
-    const char *module_filename;            /* Module file to perform MAC on */
-    const char *module_checksum_data;       /* Expected module MAC integrity */
+    const char *module_filename; /* Module file to perform MAC on */
+    const char *module_checksum_data; /* Expected module MAC integrity */
 
     /* Used for continuous tests */
     const char *conditional_error_check;

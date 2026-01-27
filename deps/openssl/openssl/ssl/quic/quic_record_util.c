@@ -20,11 +20,11 @@
  * =============================
  */
 int ossl_quic_hkdf_extract(OSSL_LIB_CTX *libctx,
-                           const char *propq,
-                           const EVP_MD *md,
-                           const unsigned char *salt, size_t salt_len,
-                           const unsigned char *ikm, size_t ikm_len,
-                           unsigned char *out, size_t out_len)
+    const char *propq,
+    const EVP_MD *md,
+    const unsigned char *salt, size_t salt_len,
+    const unsigned char *ikm, size_t ikm_len,
+    unsigned char *out, size_t out_len)
 {
     int ret = 0;
     EVP_KDF *kdf = NULL;
@@ -44,17 +44,17 @@ int ossl_quic_hkdf_extract(OSSL_LIB_CTX *libctx,
      * at least 8 bytes. It means that the length of destination connection ID
      * may be less than the minimum length for HKDF required by FIPS provider.
      *
-     * Therefore, we need to set `key-check` to zero to allow using destionation
+     * Therefore, we need to set `key-check` to zero to allow using destination
      * connection ID as IKM.
      */
     *p++ = OSSL_PARAM_construct_int(OSSL_KDF_PARAM_FIPS_KEY_CHECK, &key_check);
     *p++ = OSSL_PARAM_construct_int(OSSL_KDF_PARAM_MODE, &mode);
     *p++ = OSSL_PARAM_construct_utf8_string(OSSL_KDF_PARAM_DIGEST,
-                                            (char *)md_name, 0);
+        (char *)md_name, 0);
     *p++ = OSSL_PARAM_construct_octet_string(OSSL_KDF_PARAM_SALT,
-                                             (unsigned char *)salt, salt_len);
+        (unsigned char *)salt, salt_len);
     *p++ = OSSL_PARAM_construct_octet_string(OSSL_KDF_PARAM_KEY,
-                                             (unsigned char *)ikm, ikm_len);
+        (unsigned char *)ikm, ikm_len);
     *p++ = OSSL_PARAM_construct_end();
 
     ret = EVP_KDF_derive(kctx, out, out_len, params);
@@ -80,11 +80,11 @@ static const unsigned char quic_v1_initial_salt[] = {
 };
 
 int ossl_quic_provide_initial_secret(OSSL_LIB_CTX *libctx,
-                                     const char *propq,
-                                     const QUIC_CONN_ID *dst_conn_id,
-                                     int is_server,
-                                     struct ossl_qrx_st *qrx,
-                                     struct ossl_qtx_st *qtx)
+    const char *propq,
+    const QUIC_CONN_ID *dst_conn_id,
+    int is_server,
+    struct ossl_qrx_st *qrx,
+    struct ossl_qtx_st *qtx)
 {
     unsigned char initial_secret[32];
     unsigned char client_initial_secret[32], server_initial_secret[32];
@@ -108,48 +108,48 @@ int ossl_quic_provide_initial_secret(OSSL_LIB_CTX *libctx,
 
     /* Derive initial secret from destination connection ID. */
     if (!ossl_quic_hkdf_extract(libctx, propq,
-                                sha256,
-                                quic_v1_initial_salt,
-                                sizeof(quic_v1_initial_salt),
-                                dst_conn_id->id,
-                                dst_conn_id->id_len,
-                                initial_secret,
-                                sizeof(initial_secret)))
+            sha256,
+            quic_v1_initial_salt,
+            sizeof(quic_v1_initial_salt),
+            dst_conn_id->id,
+            dst_conn_id->id_len,
+            initial_secret,
+            sizeof(initial_secret)))
         goto err;
 
     /* Derive "client in" secret. */
     if (((qtx != NULL && tx_secret == client_initial_secret)
-         || (qrx != NULL && rx_secret == client_initial_secret))
+            || (qrx != NULL && rx_secret == client_initial_secret))
         && !tls13_hkdf_expand_ex(libctx, propq,
-                                 sha256,
-                                 initial_secret,
-                                 quic_client_in_label,
-                                 sizeof(quic_client_in_label),
-                                 NULL, 0,
-                                 client_initial_secret,
-                                 sizeof(client_initial_secret), 1))
+            sha256,
+            initial_secret,
+            quic_client_in_label,
+            sizeof(quic_client_in_label),
+            NULL, 0,
+            client_initial_secret,
+            sizeof(client_initial_secret), 1))
         goto err;
 
     /* Derive "server in" secret. */
     if (((qtx != NULL && tx_secret == server_initial_secret)
-         || (qrx != NULL && rx_secret == server_initial_secret))
+            || (qrx != NULL && rx_secret == server_initial_secret))
         && !tls13_hkdf_expand_ex(libctx, propq,
-                                 sha256,
-                                 initial_secret,
-                                 quic_server_in_label,
-                                 sizeof(quic_server_in_label),
-                                 NULL, 0,
-                                 server_initial_secret,
-                                 sizeof(server_initial_secret), 1))
+            sha256,
+            initial_secret,
+            quic_server_in_label,
+            sizeof(quic_server_in_label),
+            NULL, 0,
+            server_initial_secret,
+            sizeof(server_initial_secret), 1))
         goto err;
 
     /* Setup RX EL. Initial encryption always uses AES-128-GCM. */
     if (qrx != NULL
         && !ossl_qrx_provide_secret(qrx, QUIC_ENC_LEVEL_INITIAL,
-                                    QRL_SUITE_AES128GCM,
-                                    sha256,
-                                    rx_secret,
-                                    sizeof(server_initial_secret)))
+            QRL_SUITE_AES128GCM,
+            sha256,
+            rx_secret,
+            sizeof(server_initial_secret)))
         goto err;
 
     /*
@@ -165,10 +165,10 @@ int ossl_quic_provide_initial_secret(OSSL_LIB_CTX *libctx,
     /* Setup TX cipher. */
     if (qtx != NULL
         && !ossl_qtx_provide_secret(qtx, QUIC_ENC_LEVEL_INITIAL,
-                                    QRL_SUITE_AES128GCM,
-                                    sha256,
-                                    tx_secret,
-                                    sizeof(server_initial_secret)))
+            QRL_SUITE_AES128GCM,
+            sha256,
+            tx_secret,
+            sizeof(server_initial_secret)))
         goto err;
 
     return 1;
@@ -191,38 +191,56 @@ struct suite_info {
 };
 
 static const struct suite_info suite_aes128gcm = {
-    "AES-128-GCM", "SHA256", 32, 16, 12, 16, 16,
+    "AES-128-GCM",
+    "SHA256",
+    32,
+    16,
+    12,
+    16,
+    16,
     QUIC_HDR_PROT_CIPHER_AES_128,
     ((uint64_t)1) << 23, /* Limits as prescribed by RFC 9001 */
     ((uint64_t)1) << 52,
 };
 
 static const struct suite_info suite_aes256gcm = {
-    "AES-256-GCM", "SHA384", 48, 32, 12, 16, 32,
+    "AES-256-GCM",
+    "SHA384",
+    48,
+    32,
+    12,
+    16,
+    32,
     QUIC_HDR_PROT_CIPHER_AES_256,
     ((uint64_t)1) << 23, /* Limits as prescribed by RFC 9001 */
     ((uint64_t)1) << 52,
 };
 
 static const struct suite_info suite_chacha20poly1305 = {
-    "ChaCha20-Poly1305", "SHA256", 32, 32, 12, 16, 32,
+    "ChaCha20-Poly1305",
+    "SHA256",
+    32,
+    32,
+    12,
+    16,
+    32,
     QUIC_HDR_PROT_CIPHER_CHACHA,
     /* Do not use UINT64_MAX here as this represents an invalid value */
-    UINT64_MAX - 1,         /* No applicable limit for this suite (RFC 9001) */
-    ((uint64_t)1) << 36,    /* Limit as prescribed by RFC 9001 */
+    UINT64_MAX - 1, /* No applicable limit for this suite (RFC 9001) */
+    ((uint64_t)1) << 36, /* Limit as prescribed by RFC 9001 */
 };
 
 static const struct suite_info *get_suite(uint32_t suite_id)
 {
     switch (suite_id) {
-        case QRL_SUITE_AES128GCM:
-            return &suite_aes128gcm;
-        case QRL_SUITE_AES256GCM:
-            return &suite_aes256gcm;
-        case QRL_SUITE_CHACHA20POLY1305:
-            return &suite_chacha20poly1305;
-        default:
-            return NULL;
+    case QRL_SUITE_AES128GCM:
+        return &suite_aes128gcm;
+    case QRL_SUITE_AES256GCM:
+        return &suite_aes256gcm;
+    case QRL_SUITE_CHACHA20POLY1305:
+        return &suite_chacha20poly1305;
+    default:
+        return NULL;
     }
 }
 

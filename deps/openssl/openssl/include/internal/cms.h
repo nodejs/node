@@ -7,16 +7,16 @@
  * https://www.openssl.org/source/license.html
  */
 #ifndef OSSL_INTERNAL_CMS_H
-# define OSSL_INTERNAL_CMS_H
-# pragma once
+#define OSSL_INTERNAL_CMS_H
+#pragma once
 
-# include <openssl/cms.h>
+#include <openssl/cms.h>
 
-# ifndef OPENSSL_NO_CMS
+#ifndef OPENSSL_NO_CMS
 CMS_EnvelopedData *ossl_cms_sign_encrypt(BIO *data, X509 *sign_cert, STACK_OF(X509) *certs,
-                                         EVP_PKEY *sign_key, unsigned int sign_flags,
-                                         STACK_OF(X509) *enc_recip, const EVP_CIPHER *cipher,
-                                         unsigned int enc_flags, OSSL_LIB_CTX *libctx,
-                                         const char *propq);
-# endif /* OPENSSL_NO_CMS */
+    EVP_PKEY *sign_key, unsigned int sign_flags,
+    STACK_OF(X509) *enc_recip, const EVP_CIPHER *cipher,
+    unsigned int enc_flags, OSSL_LIB_CTX *libctx,
+    const char *propq);
+#endif /* OPENSSL_NO_CMS */
 #endif /* OSSL_INTERNAL_CMS_H */

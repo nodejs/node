@@ -11,7 +11,7 @@
 #include "prov/ciphercommon.h"
 
 typedef struct prov_blowfish_ctx_st {
-    PROV_CIPHER_CTX base;      /* Must be first */
+    PROV_CIPHER_CTX base; /* Must be first */
     union {
         OSSL_UNION_ALIGN;
         BF_KEY ks;

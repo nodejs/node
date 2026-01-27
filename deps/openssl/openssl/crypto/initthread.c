@@ -83,10 +83,10 @@ static GLOBAL_TEVENT_REGISTER *get_global_tevent_register(void)
 #endif
 
 #ifndef FIPS_MODULE
-static int  init_thread_push_handlers(THREAD_EVENT_HANDLER **hands);
+static int init_thread_push_handlers(THREAD_EVENT_HANDLER **hands);
 static void init_thread_remove_handlers(THREAD_EVENT_HANDLER **handsin);
 static void init_thread_destructor(void *hands);
-static int  init_thread_deregister(void *arg, int all);
+static int init_thread_deregister(void *arg, int all);
 #endif
 static void init_thread_stop(void *arg, THREAD_EVENT_HANDLER **hands);
 
@@ -199,12 +199,27 @@ static void init_thread_destructor(void *hands)
     OPENSSL_free(hands);
 }
 
-int ossl_init_thread(void)
+static CRYPTO_ONCE ossl_init_thread_runonce = CRYPTO_ONCE_STATIC_INIT;
+static CRYPTO_THREAD_ID recursion_guard = (CRYPTO_THREAD_ID)-1;
+
+DEFINE_RUN_ONCE_STATIC(ossl_init_thread_once)
 {
+    recursion_guard = CRYPTO_THREAD_get_current_id();
     if (!CRYPTO_THREAD_init_local(&destructor_key.value,
-                                  init_thread_destructor))
+            init_thread_destructor))
         return 0;
 
+    recursion_guard = (CRYPTO_THREAD_ID)0;
+    return 1;
+}
+
+int ossl_init_thread(void)
+{
+    if (CRYPTO_THREAD_compare_id(recursion_guard,
+            CRYPTO_THREAD_get_current_id()))
+        return 1;
+    if (!RUN_ONCE(&ossl_init_thread_runonce, ossl_init_thread_once))
+        return 0;
     return 1;
 }
 
@@ -255,7 +270,7 @@ static void ossl_arg_thread_stop(void *arg);
 int ossl_thread_register_fips(OSSL_LIB_CTX *libctx)
 {
     return c_thread_start(FIPS_get_core_handle(libctx), ossl_arg_thread_stop,
-                          libctx);
+        libctx);
 }
 
 void *ossl_thread_event_ctx_new(OSSL_LIB_CTX *libctx)
@@ -287,10 +302,10 @@ void *ossl_thread_event_ctx_new(OSSL_LIB_CTX *libctx)
      */
 
     return tlocal;
- err:
+err:
     OPENSSL_free(hands);
     CRYPTO_THREAD_cleanup_local(tlocal);
- deinit:
+deinit:
     OPENSSL_free(tlocal);
     return NULL;
 }
@@ -319,7 +334,6 @@ void ossl_ctx_thread_stop(OSSL_LIB_CTX *ctx)
     OPENSSL_free(hands);
 }
 #endif /* FIPS_MODULE */
-
 
 static void init_thread_stop(void *arg, THREAD_EVENT_HANDLER **hands)
 {
@@ -365,7 +379,7 @@ static void init_thread_stop(void *arg, THREAD_EVENT_HANDLER **hands)
 }
 
 int ossl_init_thread_start(const void *index, void *arg,
-                           OSSL_thread_stop_handler_fn handfn)
+    OSSL_thread_stop_handler_fn handfn)
 {
     THREAD_EVENT_HANDLER **hands;
     THREAD_EVENT_HANDLER *hand;
