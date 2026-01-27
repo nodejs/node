@@ -1,15 +1,11 @@
 import '../common/index.mjs';
 import assert from 'assert';
-import path from 'path';
 import fs from 'fs';
-import { fileURLToPath } from 'url';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Test importing a simple virtual ES module
 {
   const myVfs = fs.createVirtual();
-  myVfs.addFile('/hello.mjs', 'export const message = "hello from vfs";');
+  myVfs.writeFileSync('/hello.mjs', 'export const message = "hello from vfs";');
   myVfs.mount('/virtual');
 
   const { message } = await import('/virtual/hello.mjs');
@@ -21,7 +17,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // Test importing a virtual module with default export
 {
   const myVfs = fs.createVirtual();
-  myVfs.addFile('/default.mjs', 'export default { name: "test", value: 42 };');
+  myVfs.writeFileSync('/default.mjs', 'export default { name: "test", value: 42 };');
   myVfs.mount('/virtual2');
 
   const mod = await import('/virtual2/default.mjs');
@@ -34,8 +30,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // Test importing a virtual module that imports another virtual module
 {
   const myVfs = fs.createVirtual();
-  myVfs.addFile('/utils.mjs', 'export function add(a, b) { return a + b; }');
-  myVfs.addFile('/main.mjs', `
+  myVfs.writeFileSync('/utils.mjs', 'export function add(a, b) { return a + b; }');
+  myVfs.writeFileSync('/main.mjs', `
     import { add } from '/virtual3/utils.mjs';
     export const result = add(10, 20);
   `);
@@ -50,8 +46,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // Test importing with relative paths
 {
   const myVfs = fs.createVirtual();
-  myVfs.addFile('/lib/helper.mjs', 'export const helper = () => "helped";');
-  myVfs.addFile('/lib/index.mjs', `
+  myVfs.mkdirSync('/lib', { recursive: true });
+  myVfs.writeFileSync('/lib/helper.mjs', 'export const helper = () => "helped";');
+  myVfs.writeFileSync('/lib/index.mjs', `
     import { helper } from './helper.mjs';
     export const output = helper();
   `);
@@ -66,7 +63,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // Test importing JSON from VFS (with import assertion)
 {
   const myVfs = fs.createVirtual();
-  myVfs.addFile('/data.json', JSON.stringify({ items: [1, 2, 3], enabled: true }));
+  myVfs.writeFileSync('/data.json', JSON.stringify({ items: [1, 2, 3], enabled: true }));
   myVfs.mount('/virtual5');
 
   const data = await import('/virtual5/data.json', { with: { type: 'json' } });
@@ -76,25 +73,10 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
   myVfs.unmount();
 }
 
-// Test overlay mode with import
-{
-  const myVfs = fs.createVirtual();
-  const testPath = path.join(__dirname, '../fixtures/vfs-test/overlay-module.mjs');
-
-  // Create a virtual module at a path that doesn't exist on disk
-  myVfs.addFile(testPath, 'export const overlayValue = "from overlay";');
-  myVfs.overlay();
-
-  const { overlayValue } = await import(testPath);
-  assert.strictEqual(overlayValue, 'from overlay');
-
-  myVfs.unmount();
-}
-
 // Test that real modules still work when VFS is mounted
 {
   const myVfs = fs.createVirtual();
-  myVfs.addFile('/test.mjs', 'export const x = 1;');
+  myVfs.writeFileSync('/test.mjs', 'export const x = 1;');
   myVfs.mount('/virtual6');
 
   // Import from node: should still work
@@ -109,7 +91,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
   const myVfs = fs.createVirtual();
   let counter = 0;
 
-  myVfs.addFile('/dynamic.mjs', () => {
+  myVfs.provider.setContentProvider('/dynamic.mjs', () => {
     counter++;
     return `export const count = ${counter};`;
   });
@@ -130,8 +112,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // Test mixed CJS and ESM - ESM importing from VFS while CJS also works
 {
   const myVfs = fs.createVirtual();
-  myVfs.addFile('/esm-module.mjs', 'export const esmValue = "esm";');
-  myVfs.addFile('/cjs-module.js', 'module.exports = { cjsValue: "cjs" };');
+  myVfs.writeFileSync('/esm-module.mjs', 'export const esmValue = "esm";');
+  myVfs.writeFileSync('/cjs-module.js', 'module.exports = { cjsValue: "cjs" };');
   myVfs.mount('/virtual8');
 
   const { esmValue } = await import('/virtual8/esm-module.mjs');
