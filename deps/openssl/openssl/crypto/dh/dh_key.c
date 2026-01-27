@@ -21,15 +21,15 @@
 #include "crypto/security_bits.h"
 
 #ifdef FIPS_MODULE
-# define MIN_STRENGTH 112
+#define MIN_STRENGTH 112
 #else
-# define MIN_STRENGTH 80
+#define MIN_STRENGTH 80
 #endif
 
 static int generate_key(DH *dh);
 static int dh_bn_mod_exp(const DH *dh, BIGNUM *r,
-                         const BIGNUM *a, const BIGNUM *p,
-                         const BIGNUM *m, BN_CTX *ctx, BN_MONT_CTX *m_ctx);
+    const BIGNUM *a, const BIGNUM *p,
+    const BIGNUM *m, BN_CTX *ctx, BN_MONT_CTX *m_ctx);
 static int dh_init(DH *dh);
 static int dh_finish(DH *dh);
 
@@ -76,7 +76,7 @@ int ossl_dh_compute_key(unsigned char *key, const BIGNUM *pub_key, DH *dh)
 
     if (dh->flags & DH_FLAG_CACHE_MONT_P) {
         mont = BN_MONT_CTX_set_locked(&dh->method_mont_p,
-                                      dh->lock, dh->params.p, ctx);
+            dh->lock, dh->params.p, ctx);
         BN_set_flags(dh->priv_key, BN_FLG_CONSTTIME);
         if (!mont)
             goto err;
@@ -84,7 +84,7 @@ int ossl_dh_compute_key(unsigned char *key, const BIGNUM *pub_key, DH *dh)
 
     /* (Step 1) Z = pub_key^priv_key mod p */
     if (!dh->meth->bn_mod_exp(dh, z, pub_key, dh->priv_key, dh->params.p, ctx,
-                              mont)) {
+            mont)) {
         ERR_raise(ERR_LIB_DH, ERR_R_BN_LIB);
         goto err;
     }
@@ -100,7 +100,7 @@ int ossl_dh_compute_key(unsigned char *key, const BIGNUM *pub_key, DH *dh)
 
     /* return the padded key, i.e. same number of bytes as the modulus */
     ret = BN_bn2binpad(z, key, BN_num_bytes(dh->params.p));
- err:
+err:
     BN_clear(z); /* (Step 2) destroy intermediate values */
     BN_CTX_end(ctx);
     BN_CTX_free(ctx);
@@ -187,8 +187,8 @@ const DH_METHOD *DH_get_default_method(void)
 }
 
 static int dh_bn_mod_exp(const DH *dh, BIGNUM *r,
-                         const BIGNUM *a, const BIGNUM *p,
-                         const BIGNUM *m, BN_CTX *ctx, BN_MONT_CTX *m_ctx)
+    const BIGNUM *a, const BIGNUM *p,
+    const BIGNUM *m, BN_CTX *ctx, BN_MONT_CTX *m_ctx)
 {
 #ifdef S390X_MOD_EXP
     return s390x_mod_exp(r, a, p, m, ctx, m_ctx);
@@ -227,7 +227,7 @@ int DH_generate_key(DH *dh)
 }
 
 int ossl_dh_generate_public_key(BN_CTX *ctx, const DH *dh,
-                                const BIGNUM *priv_key, BIGNUM *pub_key)
+    const BIGNUM *priv_key, BIGNUM *pub_key)
 {
     int ret = 0;
     BIGNUM *prk = BN_new();
@@ -254,7 +254,7 @@ int ossl_dh_generate_public_key(BN_CTX *ctx, const DH *dh,
 
     /* pub_key = g^priv_key mod p */
     if (!dh->meth->bn_mod_exp(dh, pub_key, dh->params.g, prk, dh->params.p,
-                              ctx, mont))
+            ctx, mont))
         goto err;
     ret = 1;
 err:
@@ -311,15 +311,14 @@ static int generate_key(DH *dh)
     if (generate_new_key) {
         /* Is it an approved safe prime ?*/
         if (DH_get_nid(dh) != NID_undef) {
-            int max_strength =
-                    ossl_ifc_ffc_compute_security_bits(BN_num_bits(dh->params.p));
+            int max_strength = ossl_ifc_ffc_compute_security_bits(BN_num_bits(dh->params.p));
 
             if (dh->params.q == NULL
                 || dh->length > BN_num_bits(dh->params.q))
                 goto err;
             /* dh->length = maximum bit length of generated private key */
             if (!ossl_ffc_generate_private_key(ctx, &dh->params, dh->length,
-                                               max_strength, priv_key))
+                    max_strength, priv_key))
                 goto err;
         } else {
 #ifdef FIPS_MODULE
@@ -335,7 +334,7 @@ static int generate_key(DH *dh)
                 if (dh->length != 0 && dh->length < l)
                     l = dh->length;
                 if (!BN_priv_rand_ex(priv_key, l, BN_RAND_TOP_ONE,
-                                     BN_RAND_BOTTOM_ANY, 0, ctx))
+                        BN_RAND_BOTTOM_ANY, 0, ctx))
                     goto err;
                 /*
                  * We handle just one known case where g is a quadratic non-residue:
@@ -352,7 +351,7 @@ static int generate_key(DH *dh)
             {
                 /* Do a partial check for invalid p, q, g */
                 if (!ossl_ffc_params_simple_validate(dh->libctx, &dh->params,
-                                                     FFC_PARAM_TYPE_DH, NULL))
+                        FFC_PARAM_TYPE_DH, NULL))
                     goto err;
                 /*
                  * For FFC FIPS 186-4 keygen
@@ -360,9 +359,9 @@ static int generate_key(DH *dh)
                  * Max Private key size N = len(q)
                  */
                 if (!ossl_ffc_generate_private_key(ctx, &dh->params,
-                                                   BN_num_bits(dh->params.q),
-                                                   MIN_STRENGTH,
-                                                   priv_key))
+                        BN_num_bits(dh->params.q),
+                        MIN_STRENGTH,
+                        priv_key))
                     goto err;
             }
         }
@@ -375,7 +374,7 @@ static int generate_key(DH *dh)
     dh->priv_key = priv_key;
     dh->dirty_cnt++;
     ok = 1;
- err:
+err:
     if (ok != 1)
         ERR_raise(ERR_LIB_DH, ERR_R_BN_LIB);
 
@@ -416,7 +415,7 @@ err:
 }
 
 size_t ossl_dh_key2buf(const DH *dh, unsigned char **pbuf_out, size_t size,
-                       int alloc)
+    int alloc)
 {
     const BIGNUM *pubkey;
     unsigned char *pbuf = NULL;
@@ -426,8 +425,8 @@ size_t ossl_dh_key2buf(const DH *dh, unsigned char **pbuf_out, size_t size,
     DH_get0_pqg(dh, &p, NULL, NULL);
     DH_get0_key(dh, &pubkey, NULL);
     if (p == NULL || pubkey == NULL
-            || (p_size = BN_num_bytes(p)) == 0
-            || BN_num_bytes(pubkey) == 0) {
+        || (p_size = BN_num_bytes(p)) == 0
+        || BN_num_bytes(pubkey) == 0) {
         ERR_raise(ERR_LIB_DH, DH_R_INVALID_PUBKEY);
         return 0;
     }

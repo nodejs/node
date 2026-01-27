@@ -8,4 +8,3 @@
  */
 
 extern const OSSL_ALGORITHM ossl_any_to_obj_algorithm[];
-

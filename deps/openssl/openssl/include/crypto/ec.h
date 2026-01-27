@@ -10,21 +10,21 @@
 /* Internal EC functions for other submodules: not for application use */
 
 #ifndef OSSL_CRYPTO_EC_H
-# define OSSL_CRYPTO_EC_H
-# pragma once
+#define OSSL_CRYPTO_EC_H
+#pragma once
 
-# include <openssl/opensslconf.h>
-# include <openssl/evp.h>
+#include <openssl/opensslconf.h>
+#include <openssl/evp.h>
 
 int ossl_ec_curve_name2nid(const char *name);
 const char *ossl_ec_curve_nid2nist_int(int nid);
 int ossl_ec_curve_nist2nid_int(const char *name);
 int evp_pkey_ctx_set_ec_param_enc_prov(EVP_PKEY_CTX *ctx, int param_enc);
 
-# ifndef OPENSSL_NO_EC
-#  include <openssl/core.h>
-#  include <openssl/ec.h>
-#  include "crypto/types.h"
+#ifndef OPENSSL_NO_EC
+#include <openssl/core.h>
+#include <openssl/ec.h>
+#include "crypto/types.h"
 
 /*-
  * Computes the multiplicative inverse of x in the range
@@ -48,16 +48,16 @@ int evp_pkey_ctx_set_ec_param_enc_prov(EVP_PKEY_CTX *ctx, int param_enc);
  * implementations for better SCA properties on regular input values).
  */
 __owur int ossl_ec_group_do_inverse_ord(const EC_GROUP *group, BIGNUM *res,
-                                        const BIGNUM *x, BN_CTX *ctx);
+    const BIGNUM *x, BN_CTX *ctx);
 
 /*-
  * ECDH Key Derivation Function as defined in ANSI X9.63
  */
 int ossl_ecdh_kdf_X9_63(unsigned char *out, size_t outlen,
-                        const unsigned char *Z, size_t Zlen,
-                        const unsigned char *sinfo, size_t sinfolen,
-                        const EVP_MD *md, OSSL_LIB_CTX *libctx,
-                        const char *propq);
+    const unsigned char *Z, size_t Zlen,
+    const unsigned char *sinfo, size_t sinfolen,
+    const EVP_MD *md, OSSL_LIB_CTX *libctx,
+    const char *propq);
 
 int ossl_ec_key_public_check(const EC_KEY *eckey, BN_CTX *ctx);
 int ossl_ec_key_public_check_quick(const EC_KEY *eckey, BN_CTX *ctx);
@@ -69,22 +69,22 @@ void ossl_ec_key_set0_libctx(EC_KEY *key, OSSL_LIB_CTX *libctx);
 
 /* Backend support */
 int ossl_ec_group_todata(const EC_GROUP *group, OSSL_PARAM_BLD *tmpl,
-                         OSSL_PARAM params[], OSSL_LIB_CTX *libctx,
-                         const char *propq,
-                         BN_CTX *bnctx, unsigned char **genbuf);
+    OSSL_PARAM params[], OSSL_LIB_CTX *libctx,
+    const char *propq,
+    BN_CTX *bnctx, unsigned char **genbuf);
 int ossl_ec_group_fromdata(EC_KEY *ec, const OSSL_PARAM params[]);
 int ossl_ec_group_set_params(EC_GROUP *group, const OSSL_PARAM params[]);
 int ossl_ec_key_fromdata(EC_KEY *ecx, const OSSL_PARAM params[],
-                         int include_private);
+    int include_private);
 int ossl_ec_key_otherparams_fromdata(EC_KEY *ec, const OSSL_PARAM params[]);
 int ossl_ec_key_is_foreign(const EC_KEY *ec);
 EC_KEY *ossl_ec_key_dup(const EC_KEY *key, int selection);
 int ossl_x509_algor_is_sm2(const X509_ALGOR *palg);
 EC_KEY *ossl_ec_key_param_from_x509_algor(const X509_ALGOR *palg,
-                                          OSSL_LIB_CTX *libctx,
-                                          const char *propq);
+    OSSL_LIB_CTX *libctx,
+    const char *propq);
 EC_KEY *ossl_ec_key_from_pkcs8(const PKCS8_PRIV_KEY_INFO *p8inf,
-                               OSSL_LIB_CTX *libctx, const char *propq);
+    OSSL_LIB_CTX *libctx, const char *propq);
 
 int ossl_ec_set_ecdh_cofactor_mode(EC_KEY *ec, int mode);
 int ossl_ec_encoding_name2id(const char *name);
@@ -96,11 +96,11 @@ char *ossl_ec_pt_format_id2name(int id);
 char *ossl_ec_check_group_type_id2name(int flags);
 int ossl_ec_set_check_group_type_from_name(EC_KEY *ec, const char *name);
 int ossl_ec_generate_key_dhkem(EC_KEY *eckey,
-                               const unsigned char *ikm, size_t ikmlen);
+    const unsigned char *ikm, size_t ikmlen);
 int ossl_ecdsa_deterministic_sign(const unsigned char *dgst, int dlen,
-                                  unsigned char *sig, unsigned int *siglen,
-                                  EC_KEY *eckey, unsigned int nonce_type,
-                                  const char *digestname,
-                                  OSSL_LIB_CTX *libctx, const char *propq);
-# endif /* OPENSSL_NO_EC */
+    unsigned char *sig, unsigned int *siglen,
+    EC_KEY *eckey, unsigned int nonce_type,
+    const char *digestname,
+    OSSL_LIB_CTX *libctx, const char *propq);
+#endif /* OPENSSL_NO_EC */
 #endif

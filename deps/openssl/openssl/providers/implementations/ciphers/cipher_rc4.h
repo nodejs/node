@@ -11,7 +11,7 @@
 #include "prov/ciphercommon.h"
 
 typedef struct prov_rc4_ctx_st {
-    PROV_CIPHER_CTX base;      /* Must be first */
+    PROV_CIPHER_CTX base; /* Must be first */
     union {
         OSSL_UNION_ALIGN;
         RC4_KEY ks;

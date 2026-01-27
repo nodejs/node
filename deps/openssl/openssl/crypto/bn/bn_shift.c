@@ -120,8 +120,8 @@ int bn_lshift_fixed_top(BIGNUM *r, const BIGNUM *a, int n)
     if (a->top != 0) {
         lb = (unsigned int)n % BN_BITS2;
         rb = BN_BITS2 - lb;
-        rb %= BN_BITS2;            /* say no to undefined behaviour */
-        rmask = (BN_ULONG)0 - rb;  /* rmask = 0 - (rb != 0) */
+        rb %= BN_BITS2; /* say no to undefined behaviour */
+        rmask = (BN_ULONG)0 - rb; /* rmask = 0 - (rb != 0) */
         rmask |= rmask >> 8;
         f = &(a->d[0]);
         t = &(r->d[nw]);
@@ -191,8 +191,8 @@ int bn_rshift_fixed_top(BIGNUM *r, const BIGNUM *a, int n)
 
     rb = (unsigned int)n % BN_BITS2;
     lb = BN_BITS2 - rb;
-    lb %= BN_BITS2;            /* say no to undefined behaviour */
-    mask = (BN_ULONG)0 - lb;   /* mask = 0 - (lb != 0) */
+    lb %= BN_BITS2; /* say no to undefined behaviour */
+    mask = (BN_ULONG)0 - lb; /* mask = 0 - (lb != 0) */
     mask |= mask >> 8;
     top = a->top - nw;
     if (r != a && bn_wexpand(r, top) == NULL)

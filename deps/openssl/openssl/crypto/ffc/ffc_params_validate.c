@@ -21,9 +21,9 @@
 
 /* FIPS186-4 A.2.2 Unverifiable partial validation of Generator g */
 int ossl_ffc_params_validate_unverifiable_g(BN_CTX *ctx, BN_MONT_CTX *mont,
-                                            const BIGNUM *p, const BIGNUM *q,
-                                            const BIGNUM *g, BIGNUM *tmp,
-                                            int *ret)
+    const BIGNUM *p, const BIGNUM *q,
+    const BIGNUM *g, BIGNUM *tmp,
+    int *ret)
 {
     /*
      * A.2.2 Step (1) AND
@@ -50,8 +50,8 @@ int ossl_ffc_params_validate_unverifiable_g(BN_CTX *ctx, BN_MONT_CTX *mont,
 }
 
 int ossl_ffc_params_FIPS186_4_validate(OSSL_LIB_CTX *libctx,
-                                       const FFC_PARAMS *params, int type,
-                                       int *res, BN_GENCB *cb)
+    const FFC_PARAMS *params, int type,
+    int *res, BN_GENCB *cb)
 {
     size_t L, N;
 
@@ -62,14 +62,14 @@ int ossl_ffc_params_FIPS186_4_validate(OSSL_LIB_CTX *libctx,
     L = BN_num_bits(params->p);
     N = BN_num_bits(params->q);
     return ossl_ffc_params_FIPS186_4_gen_verify(libctx, (FFC_PARAMS *)params,
-                                                FFC_PARAM_MODE_VERIFY, type,
-                                                L, N, res, cb);
+        FFC_PARAM_MODE_VERIFY, type,
+        L, N, res, cb);
 }
 
 /* This may be used in FIPS mode to validate deprecated FIPS-186-2 Params */
 int ossl_ffc_params_FIPS186_2_validate(OSSL_LIB_CTX *libctx,
-                                       const FFC_PARAMS *params, int type,
-                                       int *res, BN_GENCB *cb)
+    const FFC_PARAMS *params, int type,
+    int *res, BN_GENCB *cb)
 {
     size_t L, N;
 
@@ -82,8 +82,8 @@ int ossl_ffc_params_FIPS186_2_validate(OSSL_LIB_CTX *libctx,
     L = BN_num_bits(params->p);
     N = BN_num_bits(params->q);
     return ossl_ffc_params_FIPS186_2_gen_verify(libctx, (FFC_PARAMS *)params,
-                                                FFC_PARAM_MODE_VERIFY, type,
-                                                L, N, res, cb);
+        FFC_PARAM_MODE_VERIFY, type,
+        L, N, res, cb);
 }
 
 /*
@@ -93,11 +93,11 @@ int ossl_ffc_params_FIPS186_2_validate(OSSL_LIB_CTX *libctx,
  * this test.
  */
 int ossl_ffc_params_simple_validate(OSSL_LIB_CTX *libctx, const FFC_PARAMS *params,
-                                    int paramstype, int *res)
+    int paramstype, int *res)
 {
     int ret;
     int tmpres = 0;
-    FFC_PARAMS tmpparams = {0};
+    FFC_PARAMS tmpparams = { 0 };
 
     if (params == NULL)
         return 0;
@@ -114,11 +114,11 @@ int ossl_ffc_params_simple_validate(OSSL_LIB_CTX *libctx, const FFC_PARAMS *para
 #ifndef FIPS_MODULE
     if (params->flags & FFC_PARAM_FLAG_VALIDATE_LEGACY)
         ret = ossl_ffc_params_FIPS186_2_validate(libctx, &tmpparams, paramstype,
-                                                 res, NULL);
+            res, NULL);
     else
 #endif
         ret = ossl_ffc_params_FIPS186_4_validate(libctx, &tmpparams, paramstype,
-                                                 res, NULL);
+            res, NULL);
 #ifndef OPENSSL_NO_DH
     if (ret == FFC_PARAM_RET_STATUS_FAILED
         && (*res & FFC_ERROR_NOT_SUITABLE_GENERATOR) != 0) {
@@ -137,7 +137,7 @@ int ossl_ffc_params_simple_validate(OSSL_LIB_CTX *libctx, const FFC_PARAMS *para
  * p and q.
  */
 int ossl_ffc_params_full_validate(OSSL_LIB_CTX *libctx, const FFC_PARAMS *params,
-                                  int paramstype, int *res)
+    int paramstype, int *res)
 {
     int tmpres = 0;
 
@@ -149,15 +149,15 @@ int ossl_ffc_params_full_validate(OSSL_LIB_CTX *libctx, const FFC_PARAMS *params
 
 #ifdef FIPS_MODULE
     return ossl_ffc_params_FIPS186_4_validate(libctx, params, paramstype,
-                                              res, NULL);
+        res, NULL);
 #else
     if (params->seed != NULL) {
         if (params->flags & FFC_PARAM_FLAG_VALIDATE_LEGACY)
             return ossl_ffc_params_FIPS186_2_validate(libctx, params, paramstype,
-                                                      res, NULL);
+                res, NULL);
         else
             return ossl_ffc_params_FIPS186_4_validate(libctx, params, paramstype,
-                                                      res, NULL);
+                res, NULL);
     } else {
         int ret = 0;
 
@@ -168,15 +168,15 @@ int ossl_ffc_params_full_validate(OSSL_LIB_CTX *libctx, const FFC_PARAMS *params
             if ((ctx = BN_CTX_new_ex(libctx)) == NULL)
                 return 0;
             if (BN_check_prime(params->q, ctx, NULL) != 1) {
-# ifndef OPENSSL_NO_DSA
+#ifndef OPENSSL_NO_DSA
                 ERR_raise(ERR_LIB_DSA, DSA_R_Q_NOT_PRIME);
-# endif
+#endif
                 ret = 0;
             }
             if (ret && BN_check_prime(params->p, ctx, NULL) != 1) {
-# ifndef OPENSSL_NO_DSA
+#ifndef OPENSSL_NO_DSA
                 ERR_raise(ERR_LIB_DSA, DSA_R_P_NOT_PRIME);
-# endif
+#endif
                 ret = 0;
             }
             BN_CTX_free(ctx);

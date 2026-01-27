@@ -46,30 +46,30 @@ int ossl_rsa_check_crt_components(const RSA *rsa, BN_CTX *ctx)
         ret = 0;
     }
     ret = ret
-          /* p1 = p -1 */
-          && (BN_copy(p1, rsa->p) != NULL)
-          && BN_sub_word(p1, 1)
-          /* q1 = q - 1 */
-          && (BN_copy(q1, rsa->q) != NULL)
-          && BN_sub_word(q1, 1)
-          /* (a) 1 < dP < (p – 1). */
-          && (BN_cmp(rsa->dmp1, BN_value_one()) > 0)
-          && (BN_cmp(rsa->dmp1, p1) < 0)
-          /* (b) 1 < dQ < (q - 1). */
-          && (BN_cmp(rsa->dmq1, BN_value_one()) > 0)
-          && (BN_cmp(rsa->dmq1, q1) < 0)
-          /* (c) 1 < qInv < p */
-          && (BN_cmp(rsa->iqmp, BN_value_one()) > 0)
-          && (BN_cmp(rsa->iqmp, rsa->p) < 0)
-          /* (d) 1 = (dP . e) mod (p - 1)*/
-          && BN_mod_mul(r, rsa->dmp1, rsa->e, p1, ctx)
-          && BN_is_one(r)
-          /* (e) 1 = (dQ . e) mod (q - 1) */
-          && BN_mod_mul(r, rsa->dmq1, rsa->e, q1, ctx)
-          && BN_is_one(r)
-          /* (f) 1 = (qInv . q) mod p */
-          && BN_mod_mul(r, rsa->iqmp, rsa->q, rsa->p, ctx)
-          && BN_is_one(r);
+        /* p1 = p -1 */
+        && (BN_copy(p1, rsa->p) != NULL)
+        && BN_sub_word(p1, 1)
+        /* q1 = q - 1 */
+        && (BN_copy(q1, rsa->q) != NULL)
+        && BN_sub_word(q1, 1)
+        /* (a) 1 < dP < (p – 1). */
+        && (BN_cmp(rsa->dmp1, BN_value_one()) > 0)
+        && (BN_cmp(rsa->dmp1, p1) < 0)
+        /* (b) 1 < dQ < (q - 1). */
+        && (BN_cmp(rsa->dmq1, BN_value_one()) > 0)
+        && (BN_cmp(rsa->dmq1, q1) < 0)
+        /* (c) 1 < qInv < p */
+        && (BN_cmp(rsa->iqmp, BN_value_one()) > 0)
+        && (BN_cmp(rsa->iqmp, rsa->p) < 0)
+        /* (d) 1 = (dP . e) mod (p - 1)*/
+        && BN_mod_mul(r, rsa->dmp1, rsa->e, p1, ctx)
+        && BN_is_one(r)
+        /* (e) 1 = (dQ . e) mod (q - 1) */
+        && BN_mod_mul(r, rsa->dmq1, rsa->e, q1, ctx)
+        && BN_is_one(r)
+        /* (f) 1 = (qInv . q) mod p */
+        && BN_mod_mul(r, rsa->iqmp, rsa->q, rsa->p, ctx)
+        && BN_is_one(r);
     BN_clear(r);
     BN_clear(p1);
     BN_clear(q1);
@@ -140,8 +140,8 @@ int ossl_rsa_check_prime_factor(BIGNUM *p, BIGNUM *e, int nbits, BN_CTX *ctx)
 
     /* (Steps 5 a-b) prime test */
     if (BN_check_prime(p, ctx, NULL) != 1
-            /* (Step 5c) (√2)(2^(nbits/2 - 1) <= p <= 2^(nbits/2 - 1) */
-            || ossl_rsa_check_prime_factor_range(p, nbits, ctx) != 1)
+        /* (Step 5c) (√2)(2^(nbits/2 - 1) <= p <= 2^(nbits/2 - 1) */
+        || ossl_rsa_check_prime_factor_range(p, nbits, ctx) != 1)
         return 0;
 
     BN_CTX_start(ctx);
@@ -155,11 +155,11 @@ int ossl_rsa_check_prime_factor(BIGNUM *p, BIGNUM *e, int nbits, BN_CTX *ctx)
         ret = 0;
     }
     ret = ret
-          /* (Step 5d) GCD(p-1, e) = 1 */
-          && (BN_copy(p1, p) != NULL)
-          && BN_sub_word(p1, 1)
-          && BN_gcd(gcd, p1, e, ctx)
-          && BN_is_one(gcd);
+        /* (Step 5d) GCD(p-1, e) = 1 */
+        && (BN_copy(p1, p) != NULL)
+        && BN_sub_word(p1, 1)
+        && BN_gcd(gcd, p1, e, ctx)
+        && BN_is_one(gcd);
 
     BN_clear(p1);
     BN_CTX_end(ctx);
@@ -200,14 +200,15 @@ int ossl_rsa_check_private_exponent(const RSA *rsa, int nbits, BN_CTX *ctx)
         ret = 0;
     }
     ret = (ret
-          /* LCM(p - 1, q - 1) */
-          && (ossl_rsa_get_lcm(ctx, rsa->p, rsa->q, lcm, gcd, p1, q1,
-                               p1q1) == 1)
-          /* (Step 6a) d < LCM(p - 1, q - 1) */
-          && (BN_cmp(rsa->d, lcm) < 0)
-          /* (Step 6b) 1 = (e . d) mod LCM(p - 1, q - 1) */
-          && BN_mod_mul(r, rsa->e, rsa->d, lcm, ctx)
-          && BN_is_one(r));
+        /* LCM(p - 1, q - 1) */
+        && (ossl_rsa_get_lcm(ctx, rsa->p, rsa->q, lcm, gcd, p1, q1,
+                p1q1)
+            == 1)
+        /* (Step 6a) d < LCM(p - 1, q - 1) */
+        && (BN_cmp(rsa->d, lcm) < 0)
+        /* (Step 6b) 1 = (e . d) mod LCM(p - 1, q - 1) */
+        && BN_mod_mul(r, rsa->e, rsa->d, lcm, ctx)
+        && BN_is_one(r));
 
     BN_clear(r);
     BN_clear(p1);
@@ -240,7 +241,7 @@ int ossl_rsa_check_public_exponent(const BIGNUM *e)
  * i.e- numbits(p-q-1) > (nbits/2 -100)
  */
 int ossl_rsa_check_pminusq_diff(BIGNUM *diff, const BIGNUM *p, const BIGNUM *q,
-                           int nbits)
+    int nbits)
 {
     int bitlen = (nbits >> 1) - 100;
 
@@ -263,14 +264,14 @@ int ossl_rsa_check_pminusq_diff(BIGNUM *diff, const BIGNUM *p, const BIGNUM *q,
  * BN_FLG_CONSTTIME.
  */
 int ossl_rsa_get_lcm(BN_CTX *ctx, const BIGNUM *p, const BIGNUM *q,
-                     BIGNUM *lcm, BIGNUM *gcd, BIGNUM *p1, BIGNUM *q1,
-                     BIGNUM *p1q1)
+    BIGNUM *lcm, BIGNUM *gcd, BIGNUM *p1, BIGNUM *q1,
+    BIGNUM *p1q1)
 {
-    return BN_sub(p1, p, BN_value_one())    /* p-1 */
-           && BN_sub(q1, q, BN_value_one()) /* q-1 */
-           && BN_mul(p1q1, p1, q1, ctx)     /* (p-1)(q-1) */
-           && BN_gcd(gcd, p1, q1, ctx)
-           && BN_div(lcm, NULL, p1q1, gcd, ctx); /* LCM((p-1, q-1)) */
+    return BN_sub(p1, p, BN_value_one()) /* p-1 */
+        && BN_sub(q1, q, BN_value_one()) /* q-1 */
+        && BN_mul(p1q1, p1, q1, ctx) /* (p-1)(q-1) */
+        && BN_gcd(gcd, p1, q1, ctx)
+        && BN_div(lcm, NULL, p1q1, gcd, ctx); /* LCM((p-1, q-1)) */
 }
 
 /*
@@ -334,9 +335,7 @@ int ossl_rsa_sp800_56b_check_public(const RSA *rsa)
 #ifdef FIPS_MODULE
     if (ret != 1 || status != BN_PRIMETEST_COMPOSITE_NOT_POWER_OF_PRIME) {
 #else
-    if (ret != 1 || (status != BN_PRIMETEST_COMPOSITE_NOT_POWER_OF_PRIME
-                     && (nbits >= RSA_MIN_MODULUS_BITS
-                         || status != BN_PRIMETEST_COMPOSITE_WITH_FACTOR))) {
+    if (ret != 1 || (status != BN_PRIMETEST_COMPOSITE_NOT_POWER_OF_PRIME && (nbits >= RSA_MIN_MODULUS_BITS || status != BN_PRIMETEST_COMPOSITE_WITH_FACTOR))) {
 #endif
         ERR_raise(ERR_LIB_RSA, RSA_R_INVALID_MODULUS);
         ret = 0;
@@ -372,17 +371,17 @@ int ossl_rsa_sp800_56b_check_private(const RSA *rsa)
  *     6.4.1.3.3 "rsakpv2 - crt"
  */
 int ossl_rsa_sp800_56b_check_keypair(const RSA *rsa, const BIGNUM *efixed,
-                                     int strength, int nbits)
+    int strength, int nbits)
 {
     int ret = 0;
     BN_CTX *ctx = NULL;
     BIGNUM *r = NULL;
 
     if (rsa->p == NULL
-            || rsa->q == NULL
-            || rsa->e == NULL
-            || rsa->d == NULL
-            || rsa->n == NULL) {
+        || rsa->q == NULL
+        || rsa->e == NULL
+        || rsa->d == NULL
+        || rsa->n == NULL) {
         ERR_raise(ERR_LIB_RSA, RSA_R_INVALID_REQUEST);
         return 0;
     }
@@ -431,12 +430,12 @@ int ossl_rsa_sp800_56b_check_keypair(const RSA *rsa, const BIGNUM *efixed,
 
     /* (Step 5): check prime factors p & q */
     ret = ossl_rsa_check_prime_factor(rsa->p, rsa->e, nbits, ctx)
-          && ossl_rsa_check_prime_factor(rsa->q, rsa->e, nbits, ctx)
-          && (ossl_rsa_check_pminusq_diff(r, rsa->p, rsa->q, nbits) > 0)
-          /* (Step 6): Check the private exponent d */
-          && ossl_rsa_check_private_exponent(rsa, nbits, ctx)
-          /* 6.4.1.2.3 (Step 7): Check the CRT components */
-          && ossl_rsa_check_crt_components(rsa, ctx);
+        && ossl_rsa_check_prime_factor(rsa->q, rsa->e, nbits, ctx)
+        && (ossl_rsa_check_pminusq_diff(r, rsa->p, rsa->q, nbits) > 0)
+        /* (Step 6): Check the private exponent d */
+        && ossl_rsa_check_private_exponent(rsa, nbits, ctx)
+        /* 6.4.1.2.3 (Step 7): Check the CRT components */
+        && ossl_rsa_check_crt_components(rsa, ctx);
     if (ret != 1)
         ERR_raise(ERR_LIB_RSA, RSA_R_INVALID_KEYPAIR);
 

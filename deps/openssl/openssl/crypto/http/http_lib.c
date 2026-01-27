@@ -7,7 +7,7 @@
  * https://www.openssl.org/source/license.html
  */
 
-#include <stdio.h>       /* for sscanf() */
+#include <stdio.h> /* for sscanf() */
 #include <string.h>
 #include <openssl/http.h>
 #include <openssl/httperr.h>
@@ -15,10 +15,10 @@
 #include <openssl/err.h>
 #include "internal/cryptlib.h" /* for ossl_assert() */
 #ifndef OPENSSL_NO_SOCK
-# include "internal/bio_addr.h" /* for NI_MAXHOST */
+#include "internal/bio_addr.h" /* for NI_MAXHOST */
 #endif
 #ifndef NI_MAXHOST
-# define NI_MAXHOST 255
+#define NI_MAXHOST 255
 #endif
 #include "crypto/ctype.h" /* for ossl_isspace() */
 
@@ -51,8 +51,8 @@ static void free_pstring(char **pstr)
 }
 
 int OSSL_parse_url(const char *url, char **pscheme, char **puser, char **phost,
-                   char **pport, int *pport_num,
-                   char **ppath, char **pquery, char **pfrag)
+    char **pport, int *pport_num,
+    char **ppath, char **pquery, char **pfrag)
 {
     const char *p, *tmp;
     const char *scheme, *scheme_end;
@@ -156,11 +156,11 @@ int OSSL_parse_url(const char *url, char **pscheme, char **puser, char **phost,
     }
 
     if (!copy_substring(pscheme, scheme, scheme_end)
-            || !copy_substring(phost, host, host_end)
-            || !copy_substring(pport, port, port_end)
-            || !copy_substring(puser, user, user_end)
-            || !copy_substring(pquery, query, query_end)
-            || !copy_substring(pfrag, frag, frag_end))
+        || !copy_substring(phost, host, host_end)
+        || !copy_substring(pport, port, port_end)
+        || !copy_substring(puser, user, user_end)
+        || !copy_substring(pquery, query, query_end)
+        || !copy_substring(pfrag, frag, frag_end))
         goto err;
     if (pport_num != NULL)
         *pport_num = (int)portnum;
@@ -176,10 +176,10 @@ int OSSL_parse_url(const char *url, char **pscheme, char **puser, char **phost,
     }
     return 1;
 
- parse_err:
+parse_err:
     ERR_raise(ERR_LIB_HTTP, HTTP_R_ERROR_PARSING_URL);
 
- err:
+err:
     free_pstring(pscheme);
     free_pstring(puser);
     free_pstring(phost);
@@ -193,8 +193,8 @@ int OSSL_parse_url(const char *url, char **pscheme, char **puser, char **phost,
 #ifndef OPENSSL_NO_HTTP
 
 int OSSL_HTTP_parse_url(const char *url, int *pssl, char **puser, char **phost,
-                        char **pport, int *pport_num,
-                        char **ppath, char **pquery, char **pfrag)
+    char **pport, int *pport_num,
+    char **ppath, char **pquery, char **pfrag)
 {
     char *scheme, *port;
     int ssl = 0, portnum;
@@ -203,7 +203,7 @@ int OSSL_HTTP_parse_url(const char *url, int *pssl, char **puser, char **phost,
     if (pssl != NULL)
         *pssl = 0;
     if (!OSSL_parse_url(url, &scheme, puser, phost, &port, pport_num,
-                        ppath, pquery, pfrag))
+            ppath, pquery, pfrag))
         return 0;
 
     /* check for optional HTTP scheme "http[s]" */
@@ -240,7 +240,7 @@ int OSSL_HTTP_parse_url(const char *url, int *pssl, char **puser, char **phost,
     }
     return 1;
 
- err:
+err:
     free_pstring(puser);
     free_pstring(phost);
     free_pstring(ppath);
@@ -279,15 +279,15 @@ static int use_proxy(const char *no_proxy, const char *server)
     if (no_proxy != NULL)
         found = strstr(no_proxy, server);
     while (found != NULL
-           && ((found != no_proxy && !ossl_isspace(found[-1]) && found[-1] != ',')
-               || (found[sl] != '\0' && !ossl_isspace(found[sl]) && found[sl] != ',')))
+        && ((found != no_proxy && !ossl_isspace(found[-1]) && found[-1] != ',')
+            || (found[sl] != '\0' && !ossl_isspace(found[sl]) && found[sl] != ',')))
         found = strstr(found + 1, server);
     return found == NULL;
 }
 
 /* Take default value from environment variable(s), respect no_proxy */
 const char *OSSL_HTTP_adapt_proxy(const char *proxy, const char *no_proxy,
-                                  const char *server, int use_ssl)
+    const char *server, int use_ssl)
 {
     /*
      * using environment variable names, both lowercase and uppercase variants,

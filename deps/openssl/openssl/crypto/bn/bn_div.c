@@ -87,22 +87,22 @@ int BN_div(BIGNUM *dv, BIGNUM *rem, const BIGNUM *m, const BIGNUM *d,
 
 #else
 
-# if defined(BN_DIV3W)
+#if defined(BN_DIV3W)
 BN_ULONG bn_div_3_words(const BN_ULONG *m, BN_ULONG d1, BN_ULONG d0);
-# elif 0
+#elif 0
 /*
  * This is #if-ed away, because it's a reference for assembly implementations,
  * where it can and should be made constant-time. But if you want to test it,
  * just replace 0 with 1.
  */
-#  if BN_BITS2 == 64 && defined(__SIZEOF_INT128__) && __SIZEOF_INT128__==16
-#   undef BN_ULLONG
-#   define BN_ULLONG uint128_t
-#   define BN_LLONG
-#  endif
+#if BN_BITS2 == 64 && defined(__SIZEOF_INT128__) && __SIZEOF_INT128__ == 16
+#undef BN_ULLONG
+#define BN_ULLONG uint128_t
+#define BN_LLONG
+#endif
 
-#  ifdef BN_LLONG
-#   define BN_DIV3W
+#ifdef BN_LLONG
+#define BN_DIV3W
 /*
  * Interface is somewhat quirky, |m| is pointer to most significant limb,
  * and less significant limb is referred at |m[-1]|. This means that caller
@@ -128,15 +128,15 @@ static BN_ULONG bn_div_3_words(const BN_ULONG *m, BN_ULONG d1, BN_ULONG d0)
         D >>= 1;
     }
 
-    mask = 0 - (Q >> (BN_BITS2 - 1));   /* does it overflow? */
+    mask = 0 - (Q >> (BN_BITS2 - 1)); /* does it overflow? */
 
     Q <<= 1;
     Q |= (R >= D);
 
     return (Q | mask) & BN_MASK2;
 }
-#  endif
-# endif
+#endif
+#endif
 
 static int bn_left_align(BIGNUM *num)
 {
@@ -145,8 +145,8 @@ static int bn_left_align(BIGNUM *num)
     int rshift = BN_num_bits_word(d[top - 1]), lshift, i;
 
     lshift = BN_BITS2 - rshift;
-    rshift %= BN_BITS2;            /* say no to undefined behaviour */
-    rmask = (BN_ULONG)0 - rshift;  /* rmask = 0 - (rshift != 0) */
+    rshift %= BN_BITS2; /* say no to undefined behaviour */
+    rmask = (BN_ULONG)0 - rshift; /* rmask = 0 - (rshift != 0) */
     rmask |= rmask >> 8;
 
     for (i = 0, m = 0; i < top; i++) {
@@ -158,45 +158,47 @@ static int bn_left_align(BIGNUM *num)
     return lshift;
 }
 
-# if !defined(OPENSSL_NO_ASM) && !defined(OPENSSL_NO_INLINE_ASM) \
+#if !defined(OPENSSL_NO_ASM) && !defined(OPENSSL_NO_INLINE_ASM) \
     && !defined(PEDANTIC) && !defined(BN_DIV3W)
-#  if defined(__GNUC__) && __GNUC__>=2
-#   if defined(__i386) || defined (__i386__)
-   /*-
-    * There were two reasons for implementing this template:
-    * - GNU C generates a call to a function (__udivdi3 to be exact)
-    *   in reply to ((((BN_ULLONG)n0)<<BN_BITS2)|n1)/d0 (I fail to
-    *   understand why...);
-    * - divl doesn't only calculate quotient, but also leaves
-    *   remainder in %edx which we can definitely use here:-)
-    */
-#    undef bn_div_words
-#    define bn_div_words(n0,n1,d0)                \
-        ({  asm volatile (                      \
-                "divl   %4"                     \
-                : "=a"(q), "=d"(rem)            \
-                : "a"(n1), "d"(n0), "r"(d0)     \
-                : "cc");                        \
-            q;                                  \
-        })
-#    define REMAINDER_IS_ALREADY_CALCULATED
-#   elif defined(__x86_64) && defined(SIXTY_FOUR_BIT_LONG)
-   /*
-    * Same story here, but it's 128-bit by 64-bit division. Wow!
-    */
-#    undef bn_div_words
-#    define bn_div_words(n0,n1,d0)                \
-        ({  asm volatile (                      \
-                "divq   %4"                     \
-                : "=a"(q), "=d"(rem)            \
-                : "a"(n1), "d"(n0), "r"(d0)     \
-                : "cc");                        \
-            q;                                  \
-        })
-#    define REMAINDER_IS_ALREADY_CALCULATED
-#   endif                       /* __<cpu> */
-#  endif                        /* __GNUC__ */
-# endif                         /* OPENSSL_NO_ASM */
+#if defined(__GNUC__) && __GNUC__ >= 2
+#if defined(__i386) || defined(__i386__)
+/*-
+ * There were two reasons for implementing this template:
+ * - GNU C generates a call to a function (__udivdi3 to be exact)
+ *   in reply to ((((BN_ULLONG)n0)<<BN_BITS2)|n1)/d0 (I fail to
+ *   understand why...);
+ * - divl doesn't only calculate quotient, but also leaves
+ *   remainder in %edx which we can definitely use here:-)
+ */
+#undef bn_div_words
+#define bn_div_words(n0, n1, d0)        \
+    ({                                  \
+        asm volatile(                   \
+            "divl   %4"                 \
+            : "=a"(q), "=d"(rem)        \
+            : "a"(n1), "d"(n0), "r"(d0) \
+            : "cc");                    \
+        q;                              \
+    })
+#define REMAINDER_IS_ALREADY_CALCULATED
+#elif defined(__x86_64) && defined(SIXTY_FOUR_BIT_LONG)
+/*
+ * Same story here, but it's 128-bit by 64-bit division. Wow!
+ */
+#undef bn_div_words
+#define bn_div_words(n0, n1, d0)        \
+    ({                                  \
+        asm volatile(                   \
+            "divq   %4"                 \
+            : "=a"(q), "=d"(rem)        \
+            : "a"(n1), "d"(n0), "r"(d0) \
+            : "cc");                    \
+        q;                              \
+    })
+#define REMAINDER_IS_ALREADY_CALCULATED
+#endif /* __<cpu> */
+#endif /* __GNUC__ */
+#endif /* OPENSSL_NO_ASM */
 
 /*-
  * BN_div computes  dv := num / divisor, rounding towards
@@ -207,7 +209,7 @@ static int bn_left_align(BIGNUM *num)
  * If 'dv' or 'rm' is NULL, the respective value is not returned.
  */
 int BN_div(BIGNUM *dv, BIGNUM *rm, const BIGNUM *num, const BIGNUM *divisor,
-           BN_CTX *ctx)
+    BN_CTX *ctx)
 {
     int ret;
 
@@ -262,7 +264,7 @@ int BN_div(BIGNUM *dv, BIGNUM *rm, const BIGNUM *num, const BIGNUM *divisor,
  *       divisor's length is considered public;
  */
 int bn_div_fixed_top(BIGNUM *dv, BIGNUM *rm, const BIGNUM *num,
-                     const BIGNUM *divisor, BN_CTX *ctx)
+    const BIGNUM *divisor, BN_CTX *ctx)
 {
     int norm_shift, i, j, loop;
     BIGNUM *tmp, *snum, *sdiv, *res;
@@ -342,58 +344,58 @@ int bn_div_fixed_top(BIGNUM *dv, BIGNUM *rm, const BIGNUM *num,
          * the first part of the loop uses the top two words of snum and sdiv
          * to calculate a BN_ULONG q such that | wnum - sdiv * q | < sdiv
          */
-# if defined(BN_DIV3W)
+#if defined(BN_DIV3W)
         q = bn_div_3_words(wnumtop, d1, d0);
-# else
+#else
         BN_ULONG n0, n1, rem = 0;
 
         n0 = wnumtop[0];
         n1 = wnumtop[-1];
         if (n0 == d0)
             q = BN_MASK2;
-        else {                  /* n0 < d0 */
+        else { /* n0 < d0 */
             BN_ULONG n2 = (wnumtop == wnum) ? 0 : wnumtop[-2];
-#  ifdef BN_LLONG
+#ifdef BN_LLONG
             BN_ULLONG t2;
 
-#   if defined(BN_LLONG) && defined(BN_DIV2W) && !defined(bn_div_words)
-            q = (BN_ULONG)(((((BN_ULLONG) n0) << BN_BITS2) | n1) / d0);
-#   else
+#if defined(BN_LLONG) && defined(BN_DIV2W) && !defined(bn_div_words)
+            q = (BN_ULONG)(((((BN_ULLONG)n0) << BN_BITS2) | n1) / d0);
+#else
             q = bn_div_words(n0, n1, d0);
-#   endif
+#endif
 
-#   ifndef REMAINDER_IS_ALREADY_CALCULATED
+#ifndef REMAINDER_IS_ALREADY_CALCULATED
             /*
              * rem doesn't have to be BN_ULLONG. The least we
              * know it's less that d0, isn't it?
              */
             rem = (n1 - q * d0) & BN_MASK2;
-#   endif
-            t2 = (BN_ULLONG) d1 *q;
+#endif
+            t2 = (BN_ULLONG)d1 * q;
 
             for (;;) {
-                if (t2 <= ((((BN_ULLONG) rem) << BN_BITS2) | n2))
+                if (t2 <= ((((BN_ULLONG)rem) << BN_BITS2) | n2))
                     break;
                 q--;
                 rem += d0;
                 if (rem < d0)
-                    break;      /* don't let rem overflow */
+                    break; /* don't let rem overflow */
                 t2 -= d1;
             }
-#  else                         /* !BN_LLONG */
+#else /* !BN_LLONG */
             BN_ULONG t2l, t2h;
 
             q = bn_div_words(n0, n1, d0);
-#   ifndef REMAINDER_IS_ALREADY_CALCULATED
+#ifndef REMAINDER_IS_ALREADY_CALCULATED
             rem = (n1 - q * d0) & BN_MASK2;
-#   endif
+#endif
 
-#   if defined(BN_UMULT_LOHI)
+#if defined(BN_UMULT_LOHI)
             BN_UMULT_LOHI(t2l, t2h, d1, q);
-#   elif defined(BN_UMULT_HIGH)
+#elif defined(BN_UMULT_HIGH)
             t2l = d1 * q;
             t2h = BN_UMULT_HIGH(d1, q);
-#   else
+#else
             {
                 BN_ULONG ql, qh;
                 t2l = LBITS(d1);
@@ -402,7 +404,7 @@ int bn_div_fixed_top(BIGNUM *dv, BIGNUM *rm, const BIGNUM *num,
                 qh = HBITS(q);
                 mul64(t2l, t2h, ql, qh); /* t2=(BN_ULLONG)d1*q; */
             }
-#   endif
+#endif
 
             for (;;) {
                 if ((t2h < rem) || ((t2h == rem) && (t2l <= n2)))
@@ -410,14 +412,14 @@ int bn_div_fixed_top(BIGNUM *dv, BIGNUM *rm, const BIGNUM *num,
                 q--;
                 rem += d0;
                 if (rem < d0)
-                    break;      /* don't let rem overflow */
+                    break; /* don't let rem overflow */
                 if (t2l < d1)
                     t2h--;
                 t2l -= d1;
             }
-#  endif                        /* !BN_LLONG */
+#endif /* !BN_LLONG */
         }
-# endif                         /* !BN_DIV3W */
+#endif /* !BN_DIV3W */
 
         l0 = bn_mul_words(tmp->d, sdiv->d, div_n, q);
         tmp->d[div_n] = l0;
@@ -452,7 +454,7 @@ int bn_div_fixed_top(BIGNUM *dv, BIGNUM *rm, const BIGNUM *num,
 
     BN_CTX_end(ctx);
     return 1;
- err:
+err:
     bn_check_top(rm);
     BN_CTX_end(ctx);
     return 0;

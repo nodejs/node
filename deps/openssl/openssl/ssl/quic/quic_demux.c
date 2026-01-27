@@ -13,47 +13,47 @@
 #include <openssl/lhash.h>
 #include <openssl/err.h>
 
-#define URXE_DEMUX_STATE_FREE       0 /* on urx_free list */
-#define URXE_DEMUX_STATE_PENDING    1 /* on urx_pending list */
-#define URXE_DEMUX_STATE_ISSUED     2 /* on neither list */
+#define URXE_DEMUX_STATE_FREE 0 /* on urx_free list */
+#define URXE_DEMUX_STATE_PENDING 1 /* on urx_pending list */
+#define URXE_DEMUX_STATE_ISSUED 2 /* on neither list */
 
-#define DEMUX_MAX_MSGS_PER_CALL    32
+#define DEMUX_MAX_MSGS_PER_CALL 32
 
-#define DEMUX_DEFAULT_MTU        1500
+#define DEMUX_DEFAULT_MTU 1500
 
 struct quic_demux_st {
     /* The underlying transport BIO with datagram semantics. */
-    BIO                        *net_bio;
+    BIO *net_bio;
 
     /*
      * QUIC short packets do not contain the length of the connection ID field,
      * therefore it must be known contextually. The demuxer requires connection
      * IDs of the same length to be used for all incoming packets.
      */
-    size_t                      short_conn_id_len;
+    size_t short_conn_id_len;
 
     /*
      * Our current understanding of the upper bound on an incoming datagram size
      * in bytes.
      */
-    size_t                      mtu;
+    size_t mtu;
 
     /* The datagram_id to use for the next datagram we receive. */
-    uint64_t                    next_datagram_id;
+    uint64_t next_datagram_id;
 
     /* Time retrieval callback. */
-    OSSL_TIME                 (*now)(void *arg);
-    void                       *now_arg;
+    OSSL_TIME (*now)(void *arg);
+    void *now_arg;
 
     /* The default packet handler, if any. */
-    ossl_quic_demux_cb_fn      *default_cb;
-    void                       *default_cb_arg;
+    ossl_quic_demux_cb_fn *default_cb;
+    void *default_cb_arg;
 
     /*
      * List of URXEs which are not currently in use (i.e., not filled with
      * unconsumed data). These are moved to the pending list as they are filled.
      */
-    QUIC_URXE_LIST              urx_free;
+    QUIC_URXE_LIST urx_free;
 
     /*
      * List of URXEs which are filled with received encrypted data. These are
@@ -62,16 +62,16 @@ struct quic_demux_st {
      * user calls ossl_quic_demux_release_urxe to return the URXE to us, at
      * which point we add it to the free list.
      */
-    QUIC_URXE_LIST              urx_pending;
+    QUIC_URXE_LIST urx_pending;
 
     /* Whether to use local address support. */
-    char                        use_local_addr;
+    char use_local_addr;
 };
 
 QUIC_DEMUX *ossl_quic_demux_new(BIO *net_bio,
-                                size_t short_conn_id_len,
-                                OSSL_TIME (*now)(void *arg),
-                                void *now_arg)
+    size_t short_conn_id_len,
+    OSSL_TIME (*now)(void *arg),
+    void *now_arg)
 {
     QUIC_DEMUX *demux;
 
@@ -79,12 +79,12 @@ QUIC_DEMUX *ossl_quic_demux_new(BIO *net_bio,
     if (demux == NULL)
         return NULL;
 
-    demux->net_bio                  = net_bio;
-    demux->short_conn_id_len        = short_conn_id_len;
+    demux->net_bio = net_bio;
+    demux->short_conn_id_len = short_conn_id_len;
     /* We update this if possible when we get a BIO. */
-    demux->mtu                      = DEMUX_DEFAULT_MTU;
-    demux->now                      = now;
-    demux->now_arg                  = now_arg;
+    demux->mtu = DEMUX_DEFAULT_MTU;
+    demux->now = now;
+    demux->now_arg = now_arg;
 
     if (net_bio != NULL
         && BIO_dgram_get_local_addr_cap(net_bio)
@@ -145,11 +145,11 @@ int ossl_quic_demux_set_mtu(QUIC_DEMUX *demux, unsigned int mtu)
 }
 
 void ossl_quic_demux_set_default_handler(QUIC_DEMUX *demux,
-                                         ossl_quic_demux_cb_fn *cb,
-                                         void *cb_arg)
+    ossl_quic_demux_cb_fn *cb,
+    void *cb_arg)
 {
-    demux->default_cb       = cb;
-    demux->default_cb_arg   = cb_arg;
+    demux->default_cb = cb;
+    demux->default_cb_arg = cb_arg;
 }
 
 static QUIC_URXE *demux_alloc_urxe(size_t alloc_len)
@@ -164,13 +164,13 @@ static QUIC_URXE *demux_alloc_urxe(size_t alloc_len)
         return NULL;
 
     ossl_list_urxe_init_elem(e);
-    e->alloc_len   = alloc_len;
-    e->data_len    = 0;
+    e->alloc_len = alloc_len;
+    e->data_len = 0;
     return e;
 }
 
 static QUIC_URXE *demux_resize_urxe(QUIC_DEMUX *demux, QUIC_URXE *e,
-                                    size_t new_alloc_len)
+    size_t new_alloc_len)
 {
     QUIC_URXE *e2, *prev;
 
@@ -180,6 +180,9 @@ static QUIC_URXE *demux_resize_urxe(QUIC_DEMUX *demux, QUIC_URXE *e,
 
     prev = ossl_list_urxe_prev(e);
     ossl_list_urxe_remove(&demux->urx_free, e);
+
+    if (new_alloc_len >= SIZE_MAX - sizeof(QUIC_URXE))
+        return NULL;
 
     e2 = OPENSSL_realloc(e, sizeof(QUIC_URXE) + new_alloc_len);
     if (e2 == NULL) {
@@ -202,7 +205,7 @@ static QUIC_URXE *demux_resize_urxe(QUIC_DEMUX *demux, QUIC_URXE *e,
 }
 
 static QUIC_URXE *demux_reserve_urxe(QUIC_DEMUX *demux, QUIC_URXE *e,
-                                     size_t alloc_len)
+    size_t alloc_len)
 {
     return e->alloc_len < alloc_len ? demux_resize_urxe(demux, e, alloc_len) : e;
 }
@@ -253,7 +256,7 @@ static int demux_recv(QUIC_DEMUX *demux)
      * syscall, determined by how many free URXEs are available.
      */
     for (i = 0; i < (ossl_ssize_t)OSSL_NELEM(msg);
-            ++i, urxe = ossl_list_urxe_next(urxe)) {
+        ++i, urxe = ossl_list_urxe_next(urxe)) {
         if (urxe == NULL) {
             /* We need at least one URXE to receive into. */
             if (!ossl_assert(i > 0))
@@ -270,9 +273,9 @@ static int demux_recv(QUIC_DEMUX *demux)
 
         /* Ensure we zero any fields added to BIO_MSG at a later date. */
         memset(&msg[i], 0, sizeof(BIO_MSG));
-        msg[i].data     = ossl_quic_urxe_data(urxe);
+        msg[i].data = ossl_quic_urxe_data(urxe);
         msg[i].data_len = urxe->alloc_len;
-        msg[i].peer     = &urxe->peer;
+        msg[i].peer = &urxe->peer;
         BIO_ADDR_clear(&urxe->peer);
         if (demux->use_local_addr)
             msg[i].local = &urxe->local;
@@ -300,10 +303,10 @@ static int demux_recv(QUIC_DEMUX *demux)
     for (i = 0; i < rd; ++i, urxe = unext) {
         unext = ossl_list_urxe_next(urxe);
         /* Set URXE with actual length of received datagram. */
-        urxe->data_len      = msg[i].data_len;
+        urxe->data_len = msg[i].data_len;
         /* Time we received datagram. */
-        urxe->time          = now;
-        urxe->datagram_id   = demux->next_datagram_id++;
+        urxe->time = now;
+        urxe->datagram_id = demux->next_datagram_id++;
         /* Move from free list to pending list. */
         ossl_list_urxe_remove(&demux->urx_free, urxe);
         ossl_list_urxe_insert_tail(&demux->urx_pending, urxe);
@@ -315,13 +318,13 @@ static int demux_recv(QUIC_DEMUX *demux)
 
 /* Extract destination connection ID from the first packet in a datagram. */
 static int demux_identify_conn_id(QUIC_DEMUX *demux,
-                                  QUIC_URXE *e,
-                                  QUIC_CONN_ID *dst_conn_id)
+    QUIC_URXE *e,
+    QUIC_CONN_ID *dst_conn_id)
 {
     return ossl_quic_wire_get_pkt_hdr_dst_conn_id(ossl_quic_urxe_data(e),
-                                                  e->data_len,
-                                                  demux->short_conn_id_len,
-                                                  dst_conn_id);
+        e->data_len,
+        demux->short_conn_id_len,
+        dst_conn_id);
 }
 
 /*
@@ -350,7 +353,7 @@ static int demux_process_pending_urxe(QUIC_DEMUX *demux, QUIC_URXE *e)
          */
         e->demux_state = URXE_DEMUX_STATE_ISSUED;
         demux->default_cb(e, demux->default_cb_arg,
-                          dst_conn_id_ok ? &dst_conn_id : NULL);
+            dst_conn_id_ok ? &dst_conn_id : NULL);
     } else {
         /* Discard. */
         ossl_list_urxe_insert_tail(&demux->urx_free, e);
@@ -404,10 +407,10 @@ int ossl_quic_demux_pump(QUIC_DEMUX *demux)
 
 /* Artificially inject a packet into the demuxer for testing purposes. */
 int ossl_quic_demux_inject(QUIC_DEMUX *demux,
-                           const unsigned char *buf,
-                           size_t buf_len,
-                           const BIO_ADDR *peer,
-                           const BIO_ADDR *local)
+    const unsigned char *buf,
+    size_t buf_len,
+    const BIO_ADDR *peer,
+    const BIO_ADDR *local)
 {
     int ret;
     QUIC_URXE *urxe;
@@ -451,7 +454,7 @@ int ossl_quic_demux_inject(QUIC_DEMUX *demux,
 
 /* Called by our user to return a URXE to the free list. */
 void ossl_quic_demux_release_urxe(QUIC_DEMUX *demux,
-                                  QUIC_URXE *e)
+    QUIC_URXE *e)
 {
     assert(ossl_list_urxe_prev(e) == NULL && ossl_list_urxe_next(e) == NULL);
     assert(e->demux_state == URXE_DEMUX_STATE_ISSUED);
@@ -460,7 +463,7 @@ void ossl_quic_demux_release_urxe(QUIC_DEMUX *demux,
 }
 
 void ossl_quic_demux_reinject_urxe(QUIC_DEMUX *demux,
-                                   QUIC_URXE *e)
+    QUIC_URXE *e)
 {
     assert(ossl_list_urxe_prev(e) == NULL && ossl_list_urxe_next(e) == NULL);
     assert(e->demux_state == URXE_DEMUX_STATE_ISSUED);

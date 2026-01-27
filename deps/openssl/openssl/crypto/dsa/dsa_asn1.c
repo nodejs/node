@@ -23,7 +23,7 @@
 
 /* Override the default free and new methods */
 static int dsa_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
-                  void *exarg)
+    void *exarg)
 {
     if (operation == ASN1_OP_NEW_PRE) {
         *pval = (ASN1_VALUE *)DSA_new();
@@ -39,32 +39,32 @@ static int dsa_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
 }
 
 ASN1_SEQUENCE_cb(DSAPrivateKey, dsa_cb) = {
-        ASN1_EMBED(DSA, version, INT32),
-        ASN1_SIMPLE(DSA, params.p, BIGNUM),
-        ASN1_SIMPLE(DSA, params.q, BIGNUM),
-        ASN1_SIMPLE(DSA, params.g, BIGNUM),
-        ASN1_SIMPLE(DSA, pub_key, BIGNUM),
-        ASN1_SIMPLE(DSA, priv_key, CBIGNUM)
+    ASN1_EMBED(DSA, version, INT32),
+    ASN1_SIMPLE(DSA, params.p, BIGNUM),
+    ASN1_SIMPLE(DSA, params.q, BIGNUM),
+    ASN1_SIMPLE(DSA, params.g, BIGNUM),
+    ASN1_SIMPLE(DSA, pub_key, BIGNUM),
+    ASN1_SIMPLE(DSA, priv_key, CBIGNUM)
 } static_ASN1_SEQUENCE_END_cb(DSA, DSAPrivateKey)
 
-IMPLEMENT_ASN1_ENCODE_FUNCTIONS_fname(DSA, DSAPrivateKey, DSAPrivateKey)
+    IMPLEMENT_ASN1_ENCODE_FUNCTIONS_fname(DSA, DSAPrivateKey, DSAPrivateKey)
 
 ASN1_SEQUENCE_cb(DSAparams, dsa_cb) = {
-        ASN1_SIMPLE(DSA, params.p, BIGNUM),
-        ASN1_SIMPLE(DSA, params.q, BIGNUM),
-        ASN1_SIMPLE(DSA, params.g, BIGNUM),
+    ASN1_SIMPLE(DSA, params.p, BIGNUM),
+    ASN1_SIMPLE(DSA, params.q, BIGNUM),
+    ASN1_SIMPLE(DSA, params.g, BIGNUM),
 } static_ASN1_SEQUENCE_END_cb(DSA, DSAparams)
 
-IMPLEMENT_ASN1_ENCODE_FUNCTIONS_fname(DSA, DSAparams, DSAparams)
+    IMPLEMENT_ASN1_ENCODE_FUNCTIONS_fname(DSA, DSAparams, DSAparams)
 
 ASN1_SEQUENCE_cb(DSAPublicKey, dsa_cb) = {
-        ASN1_SIMPLE(DSA, pub_key, BIGNUM),
-        ASN1_SIMPLE(DSA, params.p, BIGNUM),
-        ASN1_SIMPLE(DSA, params.q, BIGNUM),
-        ASN1_SIMPLE(DSA, params.g, BIGNUM)
+    ASN1_SIMPLE(DSA, pub_key, BIGNUM),
+    ASN1_SIMPLE(DSA, params.p, BIGNUM),
+    ASN1_SIMPLE(DSA, params.q, BIGNUM),
+    ASN1_SIMPLE(DSA, params.g, BIGNUM)
 } static_ASN1_SEQUENCE_END_cb(DSA, DSAPublicKey)
 
-IMPLEMENT_ASN1_ENCODE_FUNCTIONS_fname(DSA, DSAPublicKey, DSAPublicKey)
+    IMPLEMENT_ASN1_ENCODE_FUNCTIONS_fname(DSA, DSAPublicKey, DSAPublicKey)
 
 DSA *DSAparams_dup(const DSA *dsa)
 {

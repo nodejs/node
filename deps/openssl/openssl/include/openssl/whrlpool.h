@@ -8,29 +8,29 @@
  */
 
 #ifndef OPENSSL_WHRLPOOL_H
-# define OPENSSL_WHRLPOOL_H
-# pragma once
+#define OPENSSL_WHRLPOOL_H
+#pragma once
 
-# include <openssl/macros.h>
-# ifndef OPENSSL_NO_DEPRECATED_3_0
-#  define HEADER_WHRLPOOL_H
-# endif
+#include <openssl/macros.h>
+#ifndef OPENSSL_NO_DEPRECATED_3_0
+#define HEADER_WHRLPOOL_H
+#endif
 
-# include <openssl/opensslconf.h>
+#include <openssl/opensslconf.h>
 
-# ifndef OPENSSL_NO_WHIRLPOOL
-#  include <openssl/e_os2.h>
-#  include <stddef.h>
-#  ifdef __cplusplus
+#ifndef OPENSSL_NO_WHIRLPOOL
+#include <openssl/e_os2.h>
+#include <stddef.h>
+#ifdef __cplusplus
 extern "C" {
-#  endif
+#endif
 
-#  define WHIRLPOOL_DIGEST_LENGTH (512/8)
+#define WHIRLPOOL_DIGEST_LENGTH (512 / 8)
 
-#  if !defined(OPENSSL_NO_DEPRECATED_3_0)
+#if !defined(OPENSSL_NO_DEPRECATED_3_0)
 
-#   define WHIRLPOOL_BBLOCK        512
-#   define WHIRLPOOL_COUNTER       (256/8)
+#define WHIRLPOOL_BBLOCK 512
+#define WHIRLPOOL_COUNTER (256 / 8)
 
 typedef struct {
     union {
@@ -42,21 +42,21 @@ typedef struct {
     unsigned int bitoff;
     size_t bitlen[WHIRLPOOL_COUNTER / sizeof(size_t)];
 } WHIRLPOOL_CTX;
-#  endif
-#  ifndef OPENSSL_NO_DEPRECATED_3_0
+#endif
+#ifndef OPENSSL_NO_DEPRECATED_3_0
 OSSL_DEPRECATEDIN_3_0 int WHIRLPOOL_Init(WHIRLPOOL_CTX *c);
 OSSL_DEPRECATEDIN_3_0 int WHIRLPOOL_Update(WHIRLPOOL_CTX *c,
-                                           const void *inp, size_t bytes);
+    const void *inp, size_t bytes);
 OSSL_DEPRECATEDIN_3_0 void WHIRLPOOL_BitUpdate(WHIRLPOOL_CTX *c,
-                                               const void *inp, size_t bits);
+    const void *inp, size_t bits);
 OSSL_DEPRECATEDIN_3_0 int WHIRLPOOL_Final(unsigned char *md, WHIRLPOOL_CTX *c);
 OSSL_DEPRECATEDIN_3_0 unsigned char *WHIRLPOOL(const void *inp, size_t bytes,
-                                               unsigned char *md);
-#  endif
+    unsigned char *md);
+#endif
 
-#  ifdef __cplusplus
+#ifdef __cplusplus
 }
-#  endif
-# endif
+#endif
+#endif
 
 #endif

@@ -20,7 +20,7 @@
  * anything encountered in practice.
  */
 
-#define NAME_ONELINE_MAX    (1024 * 1024)
+#define NAME_ONELINE_MAX (1024 * 1024)
 
 char *X509_NAME_oneline(const X509_NAME *a, char *buf, int len)
 {
@@ -58,7 +58,7 @@ char *X509_NAME_oneline(const X509_NAME *a, char *buf, int len)
         return buf;
     }
 
-    len--;                      /* space for '\0' */
+    len--; /* space for '\0' */
     l = 0;
     for (i = 0; i < sk_X509_NAME_ENTRY_num(a->entries); i++) {
         ne = sk_X509_NAME_ENTRY_value(a->entries, i);
@@ -77,11 +77,7 @@ char *X509_NAME_oneline(const X509_NAME *a, char *buf, int len)
         }
         q = ne->value->data;
 #ifdef CHARSET_EBCDIC
-        if (type == V_ASN1_GENERALSTRING ||
-            type == V_ASN1_VISIBLESTRING ||
-            type == V_ASN1_PRINTABLESTRING ||
-            type == V_ASN1_TELETEXSTRING ||
-            type == V_ASN1_IA5STRING) {
+        if (type == V_ASN1_GENERALSTRING || type == V_ASN1_VISIBLESTRING || type == V_ASN1_PRINTABLESTRING || type == V_ASN1_TELETEXSTRING || type == V_ASN1_IA5STRING) {
             if (num > (int)sizeof(ebcdic_buf))
                 num = sizeof(ebcdic_buf);
             ascii2ebcdic(ebcdic_buf, q, num);
@@ -110,8 +106,7 @@ char *X509_NAME_oneline(const X509_NAME *a, char *buf, int len)
             l2++;
             if (q[j] == '/' || q[j] == '+')
                 l2++; /* char needs to be escaped */
-            else if ((ossl_toascii(q[j]) < ossl_toascii(' ')) ||
-                     (ossl_toascii(q[j]) > ossl_toascii('~')))
+            else if ((ossl_toascii(q[j]) < ossl_toascii(' ')) || (ossl_toascii(q[j]) > ossl_toascii('~')))
                 l2 += 3;
         }
 
@@ -134,7 +129,7 @@ char *X509_NAME_oneline(const X509_NAME *a, char *buf, int len)
         p += l1;
         *(p++) = '=';
 
-#ifndef CHARSET_EBCDIC          /* q was assigned above already. */
+#ifndef CHARSET_EBCDIC /* q was assigned above already. */
         q = ne->value->data;
 #endif
 
@@ -176,9 +171,9 @@ char *X509_NAME_oneline(const X509_NAME *a, char *buf, int len)
     if (i == 0)
         *p = '\0';
     return p;
- buferr:
+buferr:
     ERR_raise(ERR_LIB_X509, ERR_R_BUF_LIB);
- end:
+end:
     BUF_MEM_free(b);
     return NULL;
 }

@@ -8,49 +8,49 @@
  */
 
 #ifndef OSSL_QLOG_EVENT_HELPERS_H
-# define OSSL_QLOG_EVENT_HELPERS_H
+#define OSSL_QLOG_EVENT_HELPERS_H
 
-# include <openssl/ssl.h>
-# include "internal/qlog.h"
-# include "internal/quic_types.h"
-# include "internal/quic_channel.h"
-# include "internal/quic_txpim.h"
-# include "internal/quic_record_tx.h"
-# include "internal/quic_wire_pkt.h"
+#include <openssl/ssl.h>
+#include "internal/qlog.h"
+#include "internal/quic_types.h"
+#include "internal/quic_channel.h"
+#include "internal/quic_txpim.h"
+#include "internal/quic_record_tx.h"
+#include "internal/quic_wire_pkt.h"
 
 /* connectivity:connection_started */
 void ossl_qlog_event_connectivity_connection_started(QLOG *qlog,
-                                                     const QUIC_CONN_ID *init_dcid);
+    const QUIC_CONN_ID *init_dcid);
 
 /* connectivity:connection_state_updated */
 void ossl_qlog_event_connectivity_connection_state_updated(QLOG *qlog,
-                                                           uint32_t old_state,
-                                                           uint32_t new_state,
-                                                           int handshake_complete,
-                                                           int handshake_confirmed);
+    uint32_t old_state,
+    uint32_t new_state,
+    int handshake_complete,
+    int handshake_confirmed);
 
 /* connectivity:connection_closed */
 void ossl_qlog_event_connectivity_connection_closed(QLOG *qlog,
-                                                    const QUIC_TERMINATE_CAUSE *tcause);
+    const QUIC_TERMINATE_CAUSE *tcause);
 
 /* recovery:packet_lost */
 void ossl_qlog_event_recovery_packet_lost(QLOG *qlog,
-                                          const QUIC_TXPIM_PKT *tpkt);
+    const QUIC_TXPIM_PKT *tpkt);
 
 /* transport:packet_sent */
 void ossl_qlog_event_transport_packet_sent(QLOG *qlog,
-                                           const QUIC_PKT_HDR *hdr,
-                                           QUIC_PN pn,
-                                           const OSSL_QTX_IOVEC *iovec,
-                                           size_t numn_iovec,
-                                           uint64_t datagram_id);
+    const QUIC_PKT_HDR *hdr,
+    QUIC_PN pn,
+    const OSSL_QTX_IOVEC *iovec,
+    size_t numn_iovec,
+    uint64_t datagram_id);
 
 /* transport:packet_received */
 void ossl_qlog_event_transport_packet_received(QLOG *qlog,
-                                               const QUIC_PKT_HDR *hdr,
-                                               QUIC_PN pn,
-                                               const OSSL_QTX_IOVEC *iovec,
-                                               size_t numn_iovec,
-                                               uint64_t datagram_id);
+    const QUIC_PKT_HDR *hdr,
+    QUIC_PN pn,
+    const OSSL_QTX_IOVEC *iovec,
+    size_t numn_iovec,
+    uint64_t datagram_id);
 
 #endif

@@ -19,7 +19,8 @@ int FuzzerInitialize(int *argc, char ***argv)
 {
     FuzzerSetRand();
     OPENSSL_init_crypto(OPENSSL_INIT_LOAD_CRYPTO_STRINGS
-       | OPENSSL_INIT_ADD_ALL_CIPHERS | OPENSSL_INIT_ADD_ALL_DIGESTS, NULL);
+            | OPENSSL_INIT_ADD_ALL_CIPHERS | OPENSSL_INIT_ADD_ALL_DIGESTS,
+        NULL);
     ERR_clear_error();
     CRYPTO_free_ex_index(0, -1);
     return 1;
@@ -130,7 +131,7 @@ int FuzzerTestOneInput(const uint8_t *buf, size_t len)
         if (id == NULL)
             goto err;
         OCSP_resp_find_status(bs, id, &status, &reason, &revtime, &thisupd,
-                              &nextupd);
+            &nextupd);
     }
 
 err:
