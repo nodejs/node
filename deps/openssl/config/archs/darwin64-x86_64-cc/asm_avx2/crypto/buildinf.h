@@ -11,7 +11,7 @@
  */
 
 #define PLATFORM "platform: darwin64-x86_64-cc"
-#define DATE "built on: Wed Oct  1 18:54:22 2025 UTC"
+#define DATE "built on: Tue Jan 27 17:27:50 2026 UTC"
 
 /*
  * Generate compiler_flags as an array of individual characters. This is a
