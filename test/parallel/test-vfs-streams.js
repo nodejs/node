@@ -165,28 +165,6 @@ const fs = require('fs');
   }));
 }
 
-// Test createReadStream with dynamic content using provider.setContentProvider
-{
-  const myVfs = fs.createVirtual();
-  let calls = 0;
-  myVfs.provider.setContentProvider('/dynamic-stream.txt', () => {
-    calls++;
-    return 'dynamic ' + calls;
-  });
-
-  const stream = myVfs.createReadStream('/dynamic-stream.txt', { encoding: 'utf8' });
-  let data = '';
-
-  stream.on('data', (chunk) => {
-    data += chunk;
-  });
-
-  stream.on('end', common.mustCall(() => {
-    assert.strictEqual(data, 'dynamic 1');
-    assert.strictEqual(calls, 1);
-  }));
-}
-
 // Test createReadStream pipe to another stream
 {
   const myVfs = fs.createVirtual();

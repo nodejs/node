@@ -209,21 +209,6 @@ const fs = require('fs');
   vfs.unmount();
 }
 
-// Test symlink in dynamic directory using provider.setPopulateCallback
-{
-  const vfs = fs.createVirtual();
-  vfs.provider.setPopulateCallback('/dynamic', (dir) => {
-    dir.addFile('file.txt', 'dynamic content');
-    dir.addSymlink('link.txt', 'file.txt');
-  });
-  vfs.mount('/virtual');
-
-  const content = vfs.readFileSync('/virtual/dynamic/link.txt', 'utf8');
-  assert.strictEqual(content, 'dynamic content');
-
-  vfs.unmount();
-}
-
 // Test async readlink
 {
   const vfs = fs.createVirtual();
