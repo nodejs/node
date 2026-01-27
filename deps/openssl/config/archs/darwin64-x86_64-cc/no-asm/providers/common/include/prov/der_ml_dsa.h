@@ -14,6 +14,7 @@
 #include "crypto/ml_dsa.h"
 
 /* Well known OIDs precompiled */
+/* clang-format off */
 
 /*
  * id-ml-dsa-44 OBJECT IDENTIFIER ::= { sigAlgs 17 }
@@ -36,5 +37,6 @@ extern const unsigned char ossl_der_oid_id_ml_dsa_65[DER_OID_SZ_id_ml_dsa_65];
 #define DER_OID_SZ_id_ml_dsa_87 11
 extern const unsigned char ossl_der_oid_id_ml_dsa_87[DER_OID_SZ_id_ml_dsa_87];
 
+/* clang-format on */
 
 int ossl_DER_w_algorithmIdentifier_ML_DSA(WPACKET *pkt, int tag, ML_DSA_KEY *key);
