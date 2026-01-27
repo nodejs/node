@@ -174,13 +174,13 @@ static nghttp3_qpack_static_entry token_stable[] = {
     .name =                                                                    \
       {                                                                        \
         .base = (uint8_t *)(N),                                                \
-        .len = sizeof((N)) - 1,                                                \
+        .len = nghttp3_strlen_lit((N)),                                        \
         .ref = -1,                                                             \
       },                                                                       \
     .value =                                                                   \
       {                                                                        \
         .base = (uint8_t *)(V),                                                \
-        .len = sizeof((V)) - 1,                                                \
+        .len = nghttp3_strlen_lit((V)),                                        \
         .ref = -1,                                                             \
       },                                                                       \
     .token = T,                                                                \
