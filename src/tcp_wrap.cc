@@ -114,8 +114,8 @@ void TCPWrap::Initialize(Local<Object> target,
                  GetSockOrPeerName<TCPWrap, uv_tcp_getpeername>);
   SetProtoMethod(isolate, t, "setNoDelay", SetNoDelay);
   SetProtoMethod(isolate, t, "setKeepAlive", SetKeepAlive);
-  SetProtoMethod(isolate, t, "setTypeOfService", SetTOS);
-  SetProtoMethod(isolate, t, "getTypeOfService", GetTOS);
+  SetProtoMethod(isolate, t, "setTypeOfService", SetTypeOfService);
+  SetProtoMethod(isolate, t, "getTypeOfService", GetTypeOfService);
   SetProtoMethod(isolate, t, "reset", Reset);
 
 #ifdef _WIN32
@@ -153,8 +153,8 @@ void TCPWrap::RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(GetSockOrPeerName<TCPWrap, uv_tcp_getpeername>);
   registry->Register(SetNoDelay);
   registry->Register(SetKeepAlive);
-  registry->Register(SetTOS);
-  registry->Register(GetTOS);
+  registry->Register(SetTypeOfService);
+  registry->Register(GetTypeOfService);
   registry->Register(Reset);
 #ifdef _WIN32
   registry->Register(SetSimultaneousAccepts);
@@ -220,7 +220,7 @@ void TCPWrap::SetKeepAlive(const FunctionCallbackInfo<Value>& args) {
 // https://github.com/libuv/libuv/issues/5011.
 // Once uv_tcp_set_tos and uv_tcp_get_tos are available in libuv,
 // this should be refactored to use those APIs.
-void TCPWrap::SetTOS(const FunctionCallbackInfo<Value>& args) {
+void TCPWrap::SetTypeOfService(const FunctionCallbackInfo<Value>& args) {
   TCPWrap* wrap;
   ASSIGN_OR_RETURN_UNWRAP(
       &wrap, args.This(), args.GetReturnValue().Set(UV_EBADF));
@@ -284,7 +284,7 @@ void TCPWrap::SetTOS(const FunctionCallbackInfo<Value>& args) {
 #endif
 }
 
-void TCPWrap::GetTOS(const FunctionCallbackInfo<Value>& args) {
+void TCPWrap::GetTypeOfService(const FunctionCallbackInfo<Value>& args) {
   TCPWrap* wrap;
   ASSIGN_OR_RETURN_UNWRAP(
       &wrap, args.This(), args.GetReturnValue().Set(UV_EBADF));
