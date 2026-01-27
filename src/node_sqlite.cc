@@ -321,7 +321,8 @@ class CustomAggregate {
     }
 
     auto recv = Undefined(isolate);
-    LocalVector<Value> js_argv(isolate);
+    LocalVector<Value> js_argv(isolate, argc + 1);
+
     js_argv.emplace_back(Local<Value>::New(isolate, agg->value));
 
     for (int i = 0; i < argc; ++i) {
@@ -624,7 +625,7 @@ void UserDefinedFunction::xFunc(sqlite3_context* ctx,
   Isolate* isolate = env->isolate();
   auto recv = Undefined(isolate);
   auto fn = self->fn_.Get(isolate);
-  LocalVector<Value> js_argv(isolate);
+  LocalVector<Value> js_argv(isolate, argc);
 
   for (int i = 0; i < argc; ++i) {
     sqlite3_value* value = argv[i];
@@ -2063,7 +2064,7 @@ int DatabaseSync::AuthorizerCallback(void* user_data,
   CHECK(cb->IsFunction());
 
   Local<Function> callback = cb.As<Function>();
-  LocalVector<Value> js_argv(isolate);
+  LocalVector<Value> js_argv(isolate, 5);
 
   // Convert SQLite authorizer parameters to JavaScript values
   js_argv.emplace_back(Integer::New(isolate, action_code));
