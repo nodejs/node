@@ -268,7 +268,7 @@ void TCPWrap::SetTOS(const FunctionCallbackInfo<Value>& args) {
 
   // 3. Perform the system call (Platform specific casting)
 #ifdef _WIN32
-  if (setsockopt(reinterpret_cast<SOCKET>(fd),
+  if (setsockopt(reinterpret_cast<::SOCKET>(fd),
                  level,
                  option,
                  reinterpret_cast<const char*>(&tos),
@@ -332,7 +332,7 @@ void TCPWrap::GetTOS(const FunctionCallbackInfo<Value>& args) {
   // Perform the system call with platform-specific casting
 #ifdef _WIN32
   int len = sizeof(tos);
-  if (getsockopt(reinterpret_cast<SOCKET>(fd),
+  if (getsockopt(reinterpret_cast<::SOCKET>(fd),
                  level,
                  option,
                  reinterpret_cast<char*>(&tos),
