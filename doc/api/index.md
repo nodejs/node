@@ -63,6 +63,7 @@
 * [URL](url.md)
 * [Utilities](util.md)
 * [V8](v8.md)
+* [Virtual File System](vfs.md)
 * [VM](vm.md)
 * [WASI](wasi.md)
 * [Web Crypto API](webcrypto.md)
