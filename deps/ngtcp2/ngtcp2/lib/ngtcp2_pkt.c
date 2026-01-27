@@ -2308,11 +2308,11 @@ ngtcp2_ssize ngtcp2_pkt_write_retry(
   case NGTCP2_PROTO_VER_V1:
   default:
     nonce = (const uint8_t *)NGTCP2_RETRY_NONCE_V1;
-    noncelen = sizeof(NGTCP2_RETRY_NONCE_V1) - 1;
+    noncelen = ngtcp2_strlen_lit(NGTCP2_RETRY_NONCE_V1);
     break;
   case NGTCP2_PROTO_VER_V2:
     nonce = (const uint8_t *)NGTCP2_RETRY_NONCE_V2;
-    noncelen = sizeof(NGTCP2_RETRY_NONCE_V2) - 1;
+    noncelen = ngtcp2_strlen_lit(NGTCP2_RETRY_NONCE_V2);
     break;
   }
 
@@ -2398,11 +2398,11 @@ int ngtcp2_pkt_verify_retry_tag(uint32_t version, const ngtcp2_pkt_retry *retry,
   case NGTCP2_PROTO_VER_V1:
   default:
     nonce = (const uint8_t *)NGTCP2_RETRY_NONCE_V1;
-    noncelen = sizeof(NGTCP2_RETRY_NONCE_V1) - 1;
+    noncelen = ngtcp2_strlen_lit(NGTCP2_RETRY_NONCE_V1);
     break;
   case NGTCP2_PROTO_VER_V2:
     nonce = (const uint8_t *)NGTCP2_RETRY_NONCE_V2;
-    noncelen = sizeof(NGTCP2_RETRY_NONCE_V2) - 1;
+    noncelen = ngtcp2_strlen_lit(NGTCP2_RETRY_NONCE_V2);
     break;
   }
 

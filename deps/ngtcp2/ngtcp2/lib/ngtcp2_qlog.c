@@ -40,7 +40,7 @@ void ngtcp2_qlog_init(ngtcp2_qlog *qlog, ngtcp2_qlog_write write,
   qlog->user_data = user_data;
 }
 
-#define write_verbatim(DEST, S) ngtcp2_cpymem((DEST), (S), sizeof(S) - 1)
+#define write_verbatim(DEST, S) ngtcp2_cpymem((DEST), (S), ngtcp2_strlen_lit(S))
 
 static uint8_t *write_string_impl(uint8_t *p, const uint8_t *data,
                                   size_t datalen) {
@@ -53,7 +53,7 @@ static uint8_t *write_string_impl(uint8_t *p, const uint8_t *data,
 }
 
 #define write_string(DEST, S)                                                  \
-  write_string_impl((DEST), (const uint8_t *)(S), sizeof(S) - 1)
+  write_string_impl((DEST), (const uint8_t *)(S), ngtcp2_strlen_lit(S))
 
 static uint8_t *write_hex(uint8_t *p, const uint8_t *data, size_t datalen) {
   *p++ = '"';
@@ -76,9 +76,9 @@ static uint8_t *write_duration(uint8_t *p, ngtcp2_duration duration) {
 
 static uint8_t *write_bool(uint8_t *p, int b) {
   if (b) {
-    return ngtcp2_cpymem(p, "true", sizeof("true") - 1);
+    return ngtcp2_cpymem(p, "true", ngtcp2_strlen_lit("true"));
   }
-  return ngtcp2_cpymem(p, "false", sizeof("false") - 1);
+  return ngtcp2_cpymem(p, "false", ngtcp2_strlen_lit("false"));
 }
 
 static uint8_t *write_pair_impl(uint8_t *p, const uint8_t *name, size_t namelen,
@@ -89,7 +89,8 @@ static uint8_t *write_pair_impl(uint8_t *p, const uint8_t *name, size_t namelen,
 }
 
 #define write_pair(DEST, NAME, VALUE)                                          \
-  write_pair_impl((DEST), (const uint8_t *)(NAME), sizeof(NAME) - 1, (VALUE))
+  write_pair_impl((DEST), (const uint8_t *)(NAME), ngtcp2_strlen_lit(NAME),    \
+                  (VALUE))
 
 static uint8_t *write_pair_hex_impl(uint8_t *p, const uint8_t *name,
                                     size_t namelen, const uint8_t *value,
@@ -100,8 +101,8 @@ static uint8_t *write_pair_hex_impl(uint8_t *p, const uint8_t *name,
 }
 
 #define write_pair_hex(DEST, NAME, VALUE, VALUELEN)                            \
-  write_pair_hex_impl((DEST), (const uint8_t *)(NAME), sizeof(NAME) - 1,       \
-                      (VALUE), (VALUELEN))
+  write_pair_hex_impl((DEST), (const uint8_t *)(NAME),                         \
+                      ngtcp2_strlen_lit(NAME), (VALUE), (VALUELEN))
 
 static uint8_t *write_pair_number_impl(uint8_t *p, const uint8_t *name,
                                        size_t namelen, uint64_t value) {
@@ -111,8 +112,8 @@ static uint8_t *write_pair_number_impl(uint8_t *p, const uint8_t *name,
 }
 
 #define write_pair_number(DEST, NAME, VALUE)                                   \
-  write_pair_number_impl((DEST), (const uint8_t *)(NAME), sizeof(NAME) - 1,    \
-                         (VALUE))
+  write_pair_number_impl((DEST), (const uint8_t *)(NAME),                      \
+                         ngtcp2_strlen_lit(NAME), (VALUE))
 
 static uint8_t *write_pair_duration_impl(uint8_t *p, const uint8_t *name,
                                          size_t namelen,
@@ -123,8 +124,8 @@ static uint8_t *write_pair_duration_impl(uint8_t *p, const uint8_t *name,
 }
 
 #define write_pair_duration(DEST, NAME, VALUE)                                 \
-  write_pair_duration_impl((DEST), (const uint8_t *)(NAME), sizeof(NAME) - 1,  \
-                           (VALUE))
+  write_pair_duration_impl((DEST), (const uint8_t *)(NAME),                    \
+                           ngtcp2_strlen_lit(NAME), (VALUE))
 
 static uint8_t *write_pair_tstamp_impl(uint8_t *p, const uint8_t *name,
                                        size_t namelen, ngtcp2_tstamp ts) {
@@ -134,8 +135,8 @@ static uint8_t *write_pair_tstamp_impl(uint8_t *p, const uint8_t *name,
 }
 
 #define write_pair_tstamp(DEST, NAME, VALUE)                                   \
-  write_pair_tstamp_impl((DEST), (const uint8_t *)(NAME), sizeof(NAME) - 1,    \
-                         (VALUE))
+  write_pair_tstamp_impl((DEST), (const uint8_t *)(NAME),                      \
+                         ngtcp2_strlen_lit(NAME), (VALUE))
 
 static uint8_t *write_pair_bool_impl(uint8_t *p, const uint8_t *name,
                                      size_t namelen, int b) {
@@ -145,8 +146,8 @@ static uint8_t *write_pair_bool_impl(uint8_t *p, const uint8_t *name,
 }
 
 #define write_pair_bool(DEST, NAME, VALUE)                                     \
-  write_pair_bool_impl((DEST), (const uint8_t *)(NAME), sizeof(NAME) - 1,      \
-                       (VALUE))
+  write_pair_bool_impl((DEST), (const uint8_t *)(NAME),                        \
+                       ngtcp2_strlen_lit(NAME), (VALUE))
 
 static uint8_t *write_pair_cid_impl(uint8_t *p, const uint8_t *name,
                                     size_t namelen, const ngtcp2_cid *cid) {
@@ -156,10 +157,10 @@ static uint8_t *write_pair_cid_impl(uint8_t *p, const uint8_t *name,
 }
 
 #define write_pair_cid(DEST, NAME, VALUE)                                      \
-  write_pair_cid_impl((DEST), (const uint8_t *)(NAME), sizeof(NAME) - 1,       \
-                      (VALUE))
+  write_pair_cid_impl((DEST), (const uint8_t *)(NAME),                         \
+                      ngtcp2_strlen_lit(NAME), (VALUE))
 
-#define ngtcp2_make_vec_lit(S) {(uint8_t *)(S), sizeof((S)) - 1}
+#define ngtcp2_make_vec_lit(S) {(uint8_t *)(S), ngtcp2_strlen_lit((S))}
 
 static uint8_t *write_common_fields(uint8_t *p, const ngtcp2_cid *odcid) {
   p = write_verbatim(
@@ -1173,8 +1174,8 @@ void ngtcp2_qlog_version_negotiation_pkt_received(ngtcp2_qlog *qlog,
   buf.last = write_verbatim(buf.last, ",\"supported_versions\":[");
 
   if (nsv) {
-    if (ngtcp2_buf_left(&buf) <
-        (sizeof("\"xxxxxxxx\",") - 1) * nsv - 1 + sizeof("]}}\n") - 1) {
+    if (ngtcp2_buf_left(&buf) < ngtcp2_strlen_lit("\"xxxxxxxx\",") * nsv - 1 +
+                                  ngtcp2_strlen_lit("]}}\n")) {
       return;
     }
 
