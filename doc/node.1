@@ -512,10 +512,6 @@ priority than \fB--dns-result-order\fR.
 Enable FIPS-compliant crypto at startup. (Requires Node.js to be built
 against FIPS-compatible OpenSSL.)
 .
-.It Fl -enable-network-family-autoselection
-Enables the family autoselection algorithm unless connection options explicitly
-disables it.
-.
 .It Fl -enable-source-maps
 Enable Source Map support for stack traces.
 When using a transpiler, such as TypeScript, stack traces thrown by an
@@ -1189,7 +1185,7 @@ Write reports in a compact format, single-line JSON, more easily consumable
 by log processing systems than the default multi-line format designed for
 human consumption.
 .
-.It Fl -report-dir Ns = Ns Ar directory , Fl eport-directory Ns = Ns Ar directory
+.It Fl -report-dir Ns = Ns Ar directory , Fl -report-directory Ns = Ns Ar directory
 Location at which the report will be generated.
 .
 .It Fl -report-exclude-env
