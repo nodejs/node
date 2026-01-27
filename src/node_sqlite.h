@@ -397,9 +397,7 @@ class VirtualTableModule {
                      sqlite3_value** argv);
   static int xNext(sqlite3_vtab_cursor* pCursor);
   static int xEof(sqlite3_vtab_cursor* pCursor);
-  static int xColumn(sqlite3_vtab_cursor* pCursor,
-                     sqlite3_context* ctx,
-                     int i);
+  static int xColumn(sqlite3_vtab_cursor* pCursor, sqlite3_context* ctx, int i);
   static int xRowid(sqlite3_vtab_cursor* pCursor, sqlite3_int64* pRowid);
   static void xDestroyModule(void* pAux);
 

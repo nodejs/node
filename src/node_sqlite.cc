@@ -2010,8 +2010,7 @@ void DatabaseSync::CreateModule(const FunctionCallbackInfo<Value>& args) {
 
   if (!rows_v->IsFunction()) {
     THROW_ERR_INVALID_ARG_TYPE(
-        env->isolate(),
-        "The \"options.rows\" argument must be a function.");
+        env->isolate(), "The \"options.rows\" argument must be a function.");
     return;
   }
 
@@ -2083,8 +2082,7 @@ void DatabaseSync::CreateModule(const FunctionCallbackInfo<Value>& args) {
 
     if (!col_name_v->IsString()) {
       THROW_ERR_INVALID_ARG_TYPE(
-          env->isolate(),
-          "The column \"name\" property must be a string.");
+          env->isolate(), "The column \"name\" property must be a string.");
       return;
     }
 
@@ -2098,8 +2096,7 @@ void DatabaseSync::CreateModule(const FunctionCallbackInfo<Value>& args) {
 
     if (!col_type_v->IsString()) {
       THROW_ERR_INVALID_ARG_TYPE(
-          env->isolate(),
-          "The column \"type\" property must be a string.");
+          env->isolate(), "The column \"type\" property must be a string.");
       return;
     }
 
@@ -4040,8 +4037,7 @@ static void Initialize(Local<Object> target,
       isolate, db_tmpl, "loadExtension", DatabaseSync::LoadExtension);
   SetProtoMethod(
       isolate, db_tmpl, "setAuthorizer", DatabaseSync::SetAuthorizer);
-  SetProtoMethod(
-      isolate, db_tmpl, "createModule", DatabaseSync::CreateModule);
+  SetProtoMethod(isolate, db_tmpl, "createModule", DatabaseSync::CreateModule);
   SetSideEffectFreeGetter(isolate,
                           db_tmpl,
                           FIXED_ONE_BYTE_STRING(isolate, "isOpen"),
