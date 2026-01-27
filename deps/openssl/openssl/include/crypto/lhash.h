@@ -8,9 +8,9 @@
  */
 
 #ifndef OSSL_CRYPTO_LHASH_H
-# define OSSL_CRYPTO_LHASH_H
-# pragma once
+#define OSSL_CRYPTO_LHASH_H
+#pragma once
 
 unsigned long ossl_lh_strcasehash(const char *);
 
-#endif  /* OSSL_CRYPTO_LHASH_H */
+#endif /* OSSL_CRYPTO_LHASH_H */

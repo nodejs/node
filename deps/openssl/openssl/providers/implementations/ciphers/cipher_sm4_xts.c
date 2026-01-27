@@ -34,8 +34,8 @@ static OSSL_FUNC_cipher_settable_ctx_params_fn sm4_xts_settable_ctx_params;
  * Provider dispatch functions
  */
 static int sm4_xts_init(void *vctx, const unsigned char *key, size_t keylen,
-                        const unsigned char *iv, size_t ivlen,
-                        const OSSL_PARAM params[], int enc)
+    const unsigned char *iv, size_t ivlen,
+    const OSSL_PARAM params[], int enc)
 {
     PROV_SM4_XTS_CTX *xctx = (PROV_SM4_XTS_CTX *)vctx;
     PROV_CIPHER_CTX *ctx = &xctx->base;
@@ -61,28 +61,28 @@ static int sm4_xts_init(void *vctx, const unsigned char *key, size_t keylen,
 }
 
 static int sm4_xts_einit(void *vctx, const unsigned char *key, size_t keylen,
-                         const unsigned char *iv, size_t ivlen,
-                         const OSSL_PARAM params[])
+    const unsigned char *iv, size_t ivlen,
+    const OSSL_PARAM params[])
 {
     return sm4_xts_init(vctx, key, keylen, iv, ivlen, params, 1);
 }
 
 static int sm4_xts_dinit(void *vctx, const unsigned char *key, size_t keylen,
-                         const unsigned char *iv, size_t ivlen,
-                         const OSSL_PARAM params[])
+    const unsigned char *iv, size_t ivlen,
+    const OSSL_PARAM params[])
 {
     return sm4_xts_init(vctx, key, keylen, iv, ivlen, params, 0);
 }
 
 static void *sm4_xts_newctx(void *provctx, unsigned int mode, uint64_t flags,
-                            size_t kbits, size_t blkbits, size_t ivbits)
+    size_t kbits, size_t blkbits, size_t ivbits)
 {
     PROV_SM4_XTS_CTX *ctx = OPENSSL_zalloc(sizeof(*ctx));
 
     if (ctx != NULL) {
         ossl_cipher_generic_initkey(&ctx->base, kbits, blkbits, ivbits, mode,
-                                    flags, ossl_prov_cipher_hw_sm4_xts(kbits),
-                                    NULL);
+            flags, ossl_prov_cipher_hw_sm4_xts(kbits),
+            NULL);
     }
     return ctx;
 }
@@ -119,17 +119,17 @@ static void *sm4_xts_dupctx(void *vctx)
 }
 
 static int sm4_xts_cipher(void *vctx, unsigned char *out, size_t *outl,
-                          size_t outsize, const unsigned char *in, size_t inl)
+    size_t outsize, const unsigned char *in, size_t inl)
 {
     PROV_SM4_XTS_CTX *ctx = (PROV_SM4_XTS_CTX *)vctx;
 
     if (!ossl_prov_is_running()
-            || ctx->xts.key1 == NULL
-            || ctx->xts.key2 == NULL
-            || !ctx->base.iv_set
-            || out == NULL
-            || in == NULL
-            || inl < SM4_BLOCK_SIZE)
+        || ctx->xts.key1 == NULL
+        || ctx->xts.key2 == NULL
+        || !ctx->base.iv_set
+        || out == NULL
+        || in == NULL
+        || inl < SM4_BLOCK_SIZE)
         return 0;
 
     /*
@@ -145,16 +145,16 @@ static int sm4_xts_cipher(void *vctx, unsigned char *out, size_t *outl,
     if (ctx->xts_standard) {
         if (ctx->stream != NULL)
             (*ctx->stream)(in, out, inl, ctx->xts.key1, ctx->xts.key2,
-                           ctx->base.iv, ctx->base.enc);
+                ctx->base.iv, ctx->base.enc);
         else if (CRYPTO_xts128_encrypt(&ctx->xts, ctx->base.iv, in, out, inl,
-                                       ctx->base.enc))
+                     ctx->base.enc))
             return 0;
     } else {
         if (ctx->stream_gb != NULL)
             (*ctx->stream_gb)(in, out, inl, ctx->xts.key1, ctx->xts.key2,
-                              ctx->base.iv, ctx->base.enc);
+                ctx->base.iv, ctx->base.enc);
         else if (ossl_crypto_xts128gb_encrypt(&ctx->xts, ctx->base.iv, in, out,
-                                              inl, ctx->base.enc))
+                     inl, ctx->base.enc))
             return 0;
     }
     *outl = inl;
@@ -162,8 +162,8 @@ static int sm4_xts_cipher(void *vctx, unsigned char *out, size_t *outl,
 }
 
 static int sm4_xts_stream_update(void *vctx, unsigned char *out, size_t *outl,
-                                 size_t outsize, const unsigned char *in,
-                                 size_t inl)
+    size_t outsize, const unsigned char *in,
+    size_t inl)
 {
     PROV_SM4_XTS_CTX *ctx = (PROV_SM4_XTS_CTX *)vctx;
 
@@ -181,7 +181,7 @@ static int sm4_xts_stream_update(void *vctx, unsigned char *out, size_t *outl,
 }
 
 static int sm4_xts_stream_final(void *vctx, unsigned char *out, size_t *outl,
-                                size_t outsize)
+    size_t outsize)
 {
     if (!ossl_prov_is_running())
         return 0;
@@ -195,7 +195,7 @@ static const OSSL_PARAM sm4_xts_known_settable_ctx_params[] = {
 };
 
 static const OSSL_PARAM *sm4_xts_settable_ctx_params(ossl_unused void *cctx,
-                                                     ossl_unused void *provctx)
+    ossl_unused void *provctx)
 {
     return sm4_xts_known_settable_ctx_params;
 }
@@ -240,42 +240,42 @@ static int sm4_xts_set_ctx_params(void *vxctx, const OSSL_PARAM params[])
     return 1;
 }
 
-#define IMPLEMENT_cipher(lcmode, UCMODE, kbits, flags)                         \
-static OSSL_FUNC_cipher_get_params_fn sm4_##kbits##_##lcmode##_get_params;     \
-static int sm4_##kbits##_##lcmode##_get_params(OSSL_PARAM params[])            \
-{                                                                              \
-    return ossl_cipher_generic_get_params(params, EVP_CIPH_##UCMODE##_MODE,    \
-                                          flags, 2 * kbits, SM4_XTS_BLOCK_BITS,\
-                                          SM4_XTS_IV_BITS);                    \
-}                                                                              \
-static OSSL_FUNC_cipher_newctx_fn sm4_##kbits##_xts_newctx;                    \
-static void *sm4_##kbits##_xts_newctx(void *provctx)                           \
-{                                                                              \
-    return sm4_xts_newctx(provctx, EVP_CIPH_##UCMODE##_MODE, flags, 2 * kbits, \
-                          SM4_XTS_BLOCK_BITS, SM4_XTS_IV_BITS);                \
-}                                                                              \
-const OSSL_DISPATCH ossl_sm4##kbits##xts_functions[] = {                       \
-    { OSSL_FUNC_CIPHER_NEWCTX, (void (*)(void))sm4_##kbits##_xts_newctx },     \
-    { OSSL_FUNC_CIPHER_ENCRYPT_INIT, (void (*)(void))sm4_xts_einit },          \
-    { OSSL_FUNC_CIPHER_DECRYPT_INIT, (void (*)(void))sm4_xts_dinit },          \
-    { OSSL_FUNC_CIPHER_UPDATE, (void (*)(void))sm4_xts_stream_update },        \
-    { OSSL_FUNC_CIPHER_FINAL, (void (*)(void))sm4_xts_stream_final },          \
-    { OSSL_FUNC_CIPHER_CIPHER, (void (*)(void))sm4_xts_cipher },               \
-    { OSSL_FUNC_CIPHER_FREECTX, (void (*)(void))sm4_xts_freectx },             \
-    { OSSL_FUNC_CIPHER_DUPCTX, (void (*)(void))sm4_xts_dupctx },               \
-    { OSSL_FUNC_CIPHER_GET_PARAMS,                                             \
-      (void (*)(void))sm4_##kbits##_##lcmode##_get_params },                   \
-    { OSSL_FUNC_CIPHER_GETTABLE_PARAMS,                                        \
-      (void (*)(void))ossl_cipher_generic_gettable_params },                   \
-    { OSSL_FUNC_CIPHER_GET_CTX_PARAMS,                                         \
-      (void (*)(void))ossl_cipher_generic_get_ctx_params },                    \
-    { OSSL_FUNC_CIPHER_GETTABLE_CTX_PARAMS,                                    \
-      (void (*)(void))ossl_cipher_generic_gettable_ctx_params },               \
-    { OSSL_FUNC_CIPHER_SET_CTX_PARAMS,                                         \
-      (void (*)(void))sm4_xts_set_ctx_params },                                \
-    { OSSL_FUNC_CIPHER_SETTABLE_CTX_PARAMS,                                    \
-     (void (*)(void))sm4_xts_settable_ctx_params },                            \
-    OSSL_DISPATCH_END                                                          \
-}
+#define IMPLEMENT_cipher(lcmode, UCMODE, kbits, flags)                             \
+    static OSSL_FUNC_cipher_get_params_fn sm4_##kbits##_##lcmode##_get_params;     \
+    static int sm4_##kbits##_##lcmode##_get_params(OSSL_PARAM params[])            \
+    {                                                                              \
+        return ossl_cipher_generic_get_params(params, EVP_CIPH_##UCMODE##_MODE,    \
+            flags, 2 * kbits, SM4_XTS_BLOCK_BITS,                                  \
+            SM4_XTS_IV_BITS);                                                      \
+    }                                                                              \
+    static OSSL_FUNC_cipher_newctx_fn sm4_##kbits##_xts_newctx;                    \
+    static void *sm4_##kbits##_xts_newctx(void *provctx)                           \
+    {                                                                              \
+        return sm4_xts_newctx(provctx, EVP_CIPH_##UCMODE##_MODE, flags, 2 * kbits, \
+            SM4_XTS_BLOCK_BITS, SM4_XTS_IV_BITS);                                  \
+    }                                                                              \
+    const OSSL_DISPATCH ossl_sm4##kbits##xts_functions[] = {                       \
+        { OSSL_FUNC_CIPHER_NEWCTX, (void (*)(void))sm4_##kbits##_xts_newctx },     \
+        { OSSL_FUNC_CIPHER_ENCRYPT_INIT, (void (*)(void))sm4_xts_einit },          \
+        { OSSL_FUNC_CIPHER_DECRYPT_INIT, (void (*)(void))sm4_xts_dinit },          \
+        { OSSL_FUNC_CIPHER_UPDATE, (void (*)(void))sm4_xts_stream_update },        \
+        { OSSL_FUNC_CIPHER_FINAL, (void (*)(void))sm4_xts_stream_final },          \
+        { OSSL_FUNC_CIPHER_CIPHER, (void (*)(void))sm4_xts_cipher },               \
+        { OSSL_FUNC_CIPHER_FREECTX, (void (*)(void))sm4_xts_freectx },             \
+        { OSSL_FUNC_CIPHER_DUPCTX, (void (*)(void))sm4_xts_dupctx },               \
+        { OSSL_FUNC_CIPHER_GET_PARAMS,                                             \
+            (void (*)(void))sm4_##kbits##_##lcmode##_get_params },                 \
+        { OSSL_FUNC_CIPHER_GETTABLE_PARAMS,                                        \
+            (void (*)(void))ossl_cipher_generic_gettable_params },                 \
+        { OSSL_FUNC_CIPHER_GET_CTX_PARAMS,                                         \
+            (void (*)(void))ossl_cipher_generic_get_ctx_params },                  \
+        { OSSL_FUNC_CIPHER_GETTABLE_CTX_PARAMS,                                    \
+            (void (*)(void))ossl_cipher_generic_gettable_ctx_params },             \
+        { OSSL_FUNC_CIPHER_SET_CTX_PARAMS,                                         \
+            (void (*)(void))sm4_xts_set_ctx_params },                              \
+        { OSSL_FUNC_CIPHER_SETTABLE_CTX_PARAMS,                                    \
+            (void (*)(void))sm4_xts_settable_ctx_params },                         \
+        OSSL_DISPATCH_END                                                          \
+    }
 /* ossl_sm4128xts_functions */
 IMPLEMENT_cipher(xts, XTS, 128, SM4_XTS_FLAGS);

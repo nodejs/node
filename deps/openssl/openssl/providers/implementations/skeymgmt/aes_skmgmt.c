@@ -17,7 +17,7 @@ static OSSL_FUNC_skeymgmt_import_fn aes_import;
 static OSSL_FUNC_skeymgmt_export_fn aes_export;
 
 static void *aes_import(void *provctx, int selection,
-                        const OSSL_PARAM params[])
+    const OSSL_PARAM params[])
 {
     PROV_SKEY *aes = generic_import(provctx, selection, params);
 
@@ -34,7 +34,7 @@ static void *aes_import(void *provctx, int selection,
 }
 
 static int aes_export(void *keydata, int selection,
-                      OSSL_CALLBACK *param_callback, void *cbarg)
+    OSSL_CALLBACK *param_callback, void *cbarg)
 {
     PROV_SKEY *aes = keydata;
 

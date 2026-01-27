@@ -8,12 +8,12 @@
  */
 
 #ifndef OPENSSL_E_OSTIME_H
-# define OPENSSL_E_OSTIME_H
-# pragma once
+#define OPENSSL_E_OSTIME_H
+#pragma once
 
-# include <openssl/macros.h>
-# include <openssl/opensslconf.h>
-# include <openssl/e_os2.h>
+#include <openssl/macros.h>
+#include <openssl/opensslconf.h>
+#include <openssl/e_os2.h>
 
 /*
  * This header guarantees that 'struct timeval' will be available. It includes
@@ -21,18 +21,18 @@
  * substantial set of headers on some platforms (e.g. <winsock2.h> on Win32).
  */
 
-# if defined(OPENSSL_SYS_WINDOWS)
-#  if !defined(_WINSOCKAPI_)
-    /*
-     * winsock2.h defines _WINSOCK2API_ and both winsock2.h and winsock.h define
-     * _WINSOCKAPI_. Both of these provide struct timeval. Don't include
-     * winsock2.h if either header has been included to avoid breakage with
-     * applications that prefer to use <winsock.h> over <winsock2.h>.
-     */
-#   include <winsock2.h>
-#  endif
-# else
-#  include <sys/time.h>
-# endif
+#if defined(OPENSSL_SYS_WINDOWS)
+#if !defined(_WINSOCKAPI_)
+/*
+ * winsock2.h defines _WINSOCK2API_ and both winsock2.h and winsock.h define
+ * _WINSOCKAPI_. Both of these provide struct timeval. Don't include
+ * winsock2.h if either header has been included to avoid breakage with
+ * applications that prefer to use <winsock.h> over <winsock2.h>.
+ */
+#include <winsock2.h>
+#endif
+#else
+#include <sys/time.h>
+#endif
 
 #endif

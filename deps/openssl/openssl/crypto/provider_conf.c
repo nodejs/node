@@ -48,7 +48,7 @@ void ossl_prov_conf_ctx_free(void *vpcgbl)
     PROVIDER_CONF_GLOBAL *pcgbl = vpcgbl;
 
     sk_OSSL_PROVIDER_pop_free(pcgbl->activated_providers,
-                              ossl_provider_free);
+        ossl_provider_free);
 
     OSSL_TRACE(CONF, "Cleaned up providers\n");
     CRYPTO_THREAD_lock_free(pcgbl->lock);
@@ -72,10 +72,10 @@ static const char *skip_dot(const char *name)
  * < 0 for fatal errors
  */
 static int provider_conf_params_internal(OSSL_PROVIDER *prov,
-                                         OSSL_PROVIDER_INFO *provinfo,
-                                         const char *name, const char *value,
-                                         const CONF *cnf,
-                                         STACK_OF(OPENSSL_CSTRING) *visited)
+    OSSL_PROVIDER_INFO *provinfo,
+    const char *name, const char *value,
+    const CONF *cnf,
+    STACK_OF(OPENSSL_CSTRING) *visited)
 {
     STACK_OF(CONF_VALUE) *sect;
     int ok = 1;
@@ -124,7 +124,7 @@ static int provider_conf_params_internal(OSSL_PROVIDER *prov,
             buffer[buffer_len] = '\0';
             OPENSSL_strlcat(buffer, sectconf->name, sizeof(buffer));
             rc = provider_conf_params_internal(prov, provinfo, buffer,
-                                               sectconf->value, cnf, visited);
+                sectconf->value, cnf, visited);
             if (rc < 0) {
                 sk_OPENSSL_CSTRING_pop(visited);
                 return rc;
@@ -146,16 +146,16 @@ static int provider_conf_params_internal(OSSL_PROVIDER *prov,
 
 /*
  * recursively parse the provider configuration section
- * of the config file. 
+ * of the config file.
  * Returns
  * 1 on success
  * 0 on non-fatal error
  * < 0 on fatal errors
  */
 static int provider_conf_params(OSSL_PROVIDER *prov,
-                                OSSL_PROVIDER_INFO *provinfo,
-                                const char *name, const char *value,
-                                const CONF *cnf)
+    OSSL_PROVIDER_INFO *provinfo,
+    const char *name, const char *value,
+    const CONF *cnf)
 {
     int rc;
     STACK_OF(OPENSSL_CSTRING) *visited = sk_OPENSSL_CSTRING_new_null();
@@ -164,7 +164,7 @@ static int provider_conf_params(OSSL_PROVIDER *prov,
         return -1;
 
     rc = provider_conf_params_internal(prov, provinfo, name,
-                                       value, cnf, visited);
+        value, cnf, visited);
 
     sk_OPENSSL_CSTRING_free(visited);
 
@@ -172,7 +172,7 @@ static int provider_conf_params(OSSL_PROVIDER *prov,
 }
 
 static int prov_already_activated(const char *name,
-                                  STACK_OF(OSSL_PROVIDER) *activated)
+    STACK_OF(OSSL_PROVIDER) *activated)
 {
     int i, max;
 
@@ -199,8 +199,8 @@ static int prov_already_activated(const char *name,
  * < 0 on failed activation for fatal errors
  */
 static int provider_conf_activate(OSSL_LIB_CTX *libctx, const char *name,
-                                  const char *value, const char *path,
-                                  int soft, const CONF *cnf)
+    const char *value, const char *path,
+    int soft, const CONF *cnf)
 {
     PROVIDER_CONF_GLOBAL *pcgbl
         = ossl_lib_ctx_get_data(libctx, OSSL_LIB_CTX_PROVIDER_CONF_INDEX);
@@ -213,12 +213,12 @@ static int provider_conf_activate(OSSL_LIB_CTX *libctx, const char *name,
     }
     if (!prov_already_activated(name, pcgbl->activated_providers)) {
         /*
-        * There is an attempt to activate a provider, so we should disable
-        * loading of fallbacks. Otherwise a misconfiguration could mean the
-        * intended provider does not get loaded. Subsequent fetches could
-        * then fallback to the default provider - which may be the wrong
-        * thing.
-        */
+         * There is an attempt to activate a provider, so we should disable
+         * loading of fallbacks. Otherwise a misconfiguration could mean the
+         * intended provider does not get loaded. Subsequent fetches could
+         * then fallback to the default provider - which may be the wrong
+         * thing.
+         */
         if (!ossl_provider_disable_fallback_loading(libctx)) {
             CRYPTO_THREAD_unlock(pcgbl->lock);
             ERR_raise(ERR_LIB_CRYPTO, ERR_R_INTERNAL_ERROR);
@@ -246,7 +246,7 @@ static int provider_conf_activate(OSSL_LIB_CTX *libctx, const char *name,
                 ossl_provider_deactivate(prov, 1);
                 ok = 0;
             } else if (actual != prov
-                       && !ossl_provider_activate(actual, 1, 0)) {
+                && !ossl_provider_activate(actual, 1, 0)) {
                 ossl_provider_free(actual);
                 ok = 0;
             } else {
@@ -254,7 +254,7 @@ static int provider_conf_activate(OSSL_LIB_CTX *libctx, const char *name,
                     pcgbl->activated_providers = sk_OSSL_PROVIDER_new_null();
                 if (pcgbl->activated_providers == NULL
                     || !sk_OSSL_PROVIDER_push(pcgbl->activated_providers,
-                                              actual)) {
+                        actual)) {
                     ossl_provider_deactivate(actual, 1);
                     ossl_provider_free(actual);
                     ok = 0;
@@ -273,13 +273,13 @@ static int provider_conf_activate(OSSL_LIB_CTX *libctx, const char *name,
 }
 
 static int provider_conf_parse_bool_setting(const char *confname,
-                                            const char *confvalue, int *val)
+    const char *confvalue, int *val)
 {
 
     if (confvalue == NULL) {
         ERR_raise_data(ERR_LIB_CRYPTO, CRYPTO_R_PROVIDER_SECTION_ERROR,
-                               "directive %s set to unrecognized value",
-                               confname);
+            "directive %s set to unrecognized value",
+            confname);
         return 0;
     }
     if ((strcmp(confvalue, "1") == 0)
@@ -289,19 +289,19 @@ static int provider_conf_parse_bool_setting(const char *confname,
         || (strcmp(confvalue, "TRUE") == 0)
         || (strcmp(confvalue, "on") == 0)
         || (strcmp(confvalue, "ON") == 0)) {
-            *val = 1;
+        *val = 1;
     } else if ((strcmp(confvalue, "0") == 0)
-               || (strcmp(confvalue, "no") == 0)
-               || (strcmp(confvalue, "NO") == 0)
-               || (strcmp(confvalue, "false") == 0)
-               || (strcmp(confvalue, "FALSE") == 0)
-               || (strcmp(confvalue, "off") == 0)
-               || (strcmp(confvalue, "OFF") == 0)) {
-            *val = 0;
+        || (strcmp(confvalue, "no") == 0)
+        || (strcmp(confvalue, "NO") == 0)
+        || (strcmp(confvalue, "false") == 0)
+        || (strcmp(confvalue, "FALSE") == 0)
+        || (strcmp(confvalue, "off") == 0)
+        || (strcmp(confvalue, "OFF") == 0)) {
+        *val = 0;
     } else {
         ERR_raise_data(ERR_LIB_CRYPTO, CRYPTO_R_PROVIDER_SECTION_ERROR,
-                               "directive %s set to unrecognized value",
-                               confname);
+            "directive %s set to unrecognized value",
+            confname);
         return 0;
     }
 
@@ -309,7 +309,7 @@ static int provider_conf_parse_bool_setting(const char *confname,
 }
 
 static int provider_conf_load(OSSL_LIB_CTX *libctx, const char *name,
-                              const char *value, const CONF *cnf)
+    const char *value, const CONF *cnf)
 {
     int i;
     STACK_OF(CONF_VALUE) *ecmds;
@@ -326,7 +326,7 @@ static int provider_conf_load(OSSL_LIB_CTX *libctx, const char *name,
 
     if (!ecmds) {
         ERR_raise_data(ERR_LIB_CRYPTO, CRYPTO_R_PROVIDER_SECTION_ERROR,
-                       "section=%s not found", value);
+            "section=%s not found", value);
         return 0;
     }
 
@@ -337,7 +337,7 @@ static int provider_conf_load(OSSL_LIB_CTX *libctx, const char *name,
         const char *confvalue = ecmd->value;
 
         OSSL_TRACE2(CONF, "Provider command: %s = %s\n",
-                    confname, confvalue);
+            confname, confvalue);
 
         /* First handle some special pseudo confs */
 
@@ -346,14 +346,14 @@ static int provider_conf_load(OSSL_LIB_CTX *libctx, const char *name,
             name = confvalue;
         } else if (strcmp(confname, "soft_load") == 0) {
             if (!provider_conf_parse_bool_setting(confname,
-                                                  confvalue, &soft))
+                    confvalue, &soft))
                 return 0;
-        /* Load a dynamic PROVIDER */
+            /* Load a dynamic PROVIDER */
         } else if (strcmp(confname, "module") == 0) {
             path = confvalue;
         } else if (strcmp(confname, "activate") == 0) {
             if (!provider_conf_parse_bool_setting(confname,
-                                                  confvalue, &activate))
+                    confvalue, &activate))
                 return 0;
         }
     }
@@ -403,7 +403,7 @@ static int provider_conf_init(CONF_IMODULE *md, const CONF *cnf)
     int i;
 
     OSSL_TRACE1(CONF, "Loading providers module: section %s\n",
-                CONF_imodule_get_value(md));
+        CONF_imodule_get_value(md));
 
     /* Value is a section containing PROVIDERs to configure */
     elist = NCONF_get_section(cnf, CONF_imodule_get_value(md));
@@ -416,7 +416,7 @@ static int provider_conf_init(CONF_IMODULE *md, const CONF *cnf)
     for (i = 0; i < sk_CONF_VALUE_num(elist); i++) {
         cval = sk_CONF_VALUE_value(elist, i);
         if (!provider_conf_load(NCONF_get0_libctx((CONF *)cnf),
-                                cval->name, cval->value, cnf))
+                cval->name, cval->value, cnf))
             return 0;
     }
 

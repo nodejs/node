@@ -31,7 +31,7 @@ static OSSL_FUNC_provider_query_operation_fn legacy_query;
 
 #ifdef STATIC_LEGACY
 OSSL_provider_init_fn ossl_legacy_provider_init;
-# define OSSL_provider_init ossl_legacy_provider_init
+#define OSSL_provider_init ossl_legacy_provider_init
 #endif
 
 #ifndef STATIC_LEGACY
@@ -139,9 +139,9 @@ static const OSSL_ALGORITHM legacy_ciphers[] = {
 #ifndef OPENSSL_NO_RC4
     ALG(PROV_NAMES_RC4, ossl_rc4128_functions),
     ALG(PROV_NAMES_RC4_40, ossl_rc440_functions),
-# ifndef OPENSSL_NO_MD5
+#ifndef OPENSSL_NO_MD5
     ALG(PROV_NAMES_RC4_HMAC_MD5, ossl_rc4_hmac_ossl_md5_functions),
-# endif /* OPENSSL_NO_MD5 */
+#endif /* OPENSSL_NO_MD5 */
 #endif /* OPENSSL_NO_RC4 */
 #ifndef OPENSSL_NO_RC5
     ALG(PROV_NAMES_RC5_ECB, ossl_rc5128ecb_functions),
@@ -168,7 +168,7 @@ static const OSSL_ALGORITHM legacy_kdfs[] = {
 };
 
 static const OSSL_ALGORITHM *legacy_query(void *provctx, int operation_id,
-                                          int *no_cache)
+    int *no_cache)
 {
     *no_cache = 0;
     switch (operation_id) {
@@ -198,9 +198,9 @@ static const OSSL_DISPATCH legacy_dispatch_table[] = {
 };
 
 int OSSL_provider_init(const OSSL_CORE_HANDLE *handle,
-                       const OSSL_DISPATCH *in,
-                       const OSSL_DISPATCH **out,
-                       void **provctx)
+    const OSSL_DISPATCH *in,
+    const OSSL_DISPATCH **out,
+    void **provctx)
 {
     OSSL_LIB_CTX *libctx = NULL;
 #ifndef STATIC_LEGACY
@@ -214,7 +214,11 @@ int OSSL_provider_init(const OSSL_CORE_HANDLE *handle,
          * multiple versions of libcrypto (e.g. one static and one dynamic),
          * but sharing a single legacy.so. We do a simple sanity check here.
          */
-#define set_func(c, f) if (c == NULL) c = f; else if (c != f) return 0;
+#define set_func(c, f) \
+    if (c == NULL)     \
+        c = f;         \
+    else if (c != f)   \
+        return 0;
         switch (tmp->function_id) {
         case OSSL_FUNC_CORE_NEW_ERROR:
             set_func(c_new_error, OSSL_FUNC_core_new_error(tmp));
@@ -230,7 +234,7 @@ int OSSL_provider_init(const OSSL_CORE_HANDLE *handle,
             break;
         case OSSL_FUNC_CORE_CLEAR_LAST_ERROR_MARK:
             set_func(c_clear_last_error_mark,
-                     OSSL_FUNC_core_clear_last_error_mark(tmp));
+                OSSL_FUNC_core_clear_last_error_mark(tmp));
             break;
         case OSSL_FUNC_CORE_POP_ERROR_TO_MARK:
             set_func(c_pop_error_to_mark, OSSL_FUNC_core_pop_error_to_mark(tmp));

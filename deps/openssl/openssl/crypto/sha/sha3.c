@@ -9,7 +9,7 @@
 
 #include <string.h>
 #if defined(__s390x__) && defined(OPENSSL_CPUID_OBJ)
-# include "crypto/s390x_arch.h"
+#include "crypto/s390x_arch.h"
 #endif
 #include "internal/sha3.h"
 
@@ -62,7 +62,7 @@ int ossl_sha3_update(KECCAK1600_CTX *ctx, const void *_inp, size_t len)
         || ctx->xof_state == XOF_STATE_FINAL)
         return 0;
 
-    if ((num = ctx->bufsz) != 0) {      /* process intermediate buffer? */
+    if ((num = ctx->bufsz) != 0) { /* process intermediate buffer? */
         rem = bsz - num;
 
         if (len < rem) {

@@ -18,8 +18,8 @@
 #include "rc5_local.h"
 
 void RC5_32_cbc_encrypt(const unsigned char *in, unsigned char *out,
-                        long length, RC5_32_KEY *ks, unsigned char *iv,
-                        int encrypt)
+    long length, RC5_32_KEY *ks, unsigned char *iv,
+    int encrypt)
 {
     register unsigned long tin0, tin1;
     register unsigned long tout0, tout1, xor0, xor1;

@@ -49,8 +49,7 @@ BIGNUM *BN_mpi2bn(const unsigned char *d, int n, BIGNUM *ain)
         ERR_raise(ERR_LIB_BN, BN_R_INVALID_LENGTH);
         return NULL;
     }
-    len = ((long)d[0] << 24) | ((long)d[1] << 16) | ((int)d[2] << 8) | (int)
-        d[3];
+    len = ((long)d[0] << 24) | ((long)d[1] << 16) | ((int)d[2] << 8) | (int)d[3];
     if ((len + 4) != n) {
         ERR_raise(ERR_LIB_BN, BN_R_ENCODING_ERROR);
         return NULL;
