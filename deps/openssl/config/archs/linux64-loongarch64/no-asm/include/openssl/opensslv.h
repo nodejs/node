@@ -11,12 +11,12 @@
  */
 
 #ifndef OPENSSL_OPENSSLV_H
-# define OPENSSL_OPENSSLV_H
-# pragma once
+#define OPENSSL_OPENSSLV_H
+#pragma once
 
-# ifdef  __cplusplus
+#ifdef __cplusplus
 extern "C" {
-# endif
+#endif
 
 /*
  * SECTION 1: VERSION DATA.  These will change for each release
@@ -27,9 +27,15 @@ extern "C" {
  *
  * These macros express version number MAJOR.MINOR.PATCH exactly
  */
+/* clang-format off */
 # define OPENSSL_VERSION_MAJOR  3
+/* clang-format on */
+/* clang-format off */
 # define OPENSSL_VERSION_MINOR  5
-# define OPENSSL_VERSION_PATCH  4
+/* clang-format on */
+/* clang-format off */
+# define OPENSSL_VERSION_PATCH  5
+/* clang-format on */
 
 /*
  * Additional version information
@@ -39,10 +45,14 @@ extern "C" {
  */
 
 /* Could be: #define OPENSSL_VERSION_PRE_RELEASE "-alpha.1" */
+/* clang-format off */
 # define OPENSSL_VERSION_PRE_RELEASE ""
+/* clang-format on */
 /* Could be: #define OPENSSL_VERSION_BUILD_METADATA "+fips" */
 /* Could be: #define OPENSSL_VERSION_BUILD_METADATA "+vendor.1" */
+/* clang-format off */
 # define OPENSSL_VERSION_BUILD_METADATA ""
+/* clang-format on */
 
 /*
  * Note: The OpenSSL Project will never define OPENSSL_VERSION_BUILD_METADATA
@@ -57,14 +67,16 @@ extern "C" {
  * be related to the API version expressed with the macros above.
  * This is defined in free form.
  */
+/* clang-format off */
 # define OPENSSL_SHLIB_VERSION 3
+/* clang-format on */
 
 /*
  * SECTION 2: USEFUL MACROS
  */
 
 /* For checking general API compatibility when preprocessing */
-# define OPENSSL_VERSION_PREREQ(maj,min)                                \
+#define OPENSSL_VERSION_PREREQ(maj, min) \
     ((OPENSSL_VERSION_MAJOR << 16) + OPENSSL_VERSION_MINOR >= ((maj) << 16) + (min))
 
 /*
@@ -74,36 +86,46 @@ extern "C" {
  * longer variant with OPENSSL_VERSION_PRE_RELEASE_STR and
  * OPENSSL_VERSION_BUILD_METADATA_STR appended.
  */
-# define OPENSSL_VERSION_STR "3.5.4"
-# define OPENSSL_FULL_VERSION_STR "3.5.4"
+/* clang-format off */
+# define OPENSSL_VERSION_STR "3.5.5"
+/* clang-format on */
+/* clang-format off */
+# define OPENSSL_FULL_VERSION_STR "3.5.5"
+/* clang-format on */
 
 /*
  * SECTION 3: ADDITIONAL METADATA
  *
  * These strings are defined separately to allow them to be parsable.
  */
-# define OPENSSL_RELEASE_DATE "30 Sep 2025"
+/* clang-format off */
+# define OPENSSL_RELEASE_DATE "27 Jan 2026"
+/* clang-format on */
 
 /*
  * SECTION 4: BACKWARD COMPATIBILITY
  */
 
-# define OPENSSL_VERSION_TEXT "OpenSSL 3.5.4 30 Sep 2025"
+/* clang-format off */
+# define OPENSSL_VERSION_TEXT "OpenSSL 3.5.5 27 Jan 2026"
+/* clang-format on */
 
+/* clang-format off */
 /* Synthesize OPENSSL_VERSION_NUMBER with the layout 0xMNN00PP0L */
 # define OPENSSL_VERSION_NUMBER          \
     ( (OPENSSL_VERSION_MAJOR<<28)        \
       |(OPENSSL_VERSION_MINOR<<20)       \
       |(OPENSSL_VERSION_PATCH<<4)        \
       |0x0L )
+/* clang-format on */
 
-# ifdef  __cplusplus
+#ifdef __cplusplus
 }
-# endif
+#endif
 
-# include <openssl/macros.h>
-# ifndef OPENSSL_NO_DEPRECATED_3_0
-#  define HEADER_OPENSSLV_H
-# endif
+#include <openssl/macros.h>
+#ifndef OPENSSL_NO_DEPRECATED_3_0
+#define HEADER_OPENSSLV_H
+#endif
 
-#endif                          /* OPENSSL_OPENSSLV_H */
+#endif /* OPENSSL_OPENSSLV_H */
