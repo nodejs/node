@@ -43,11 +43,16 @@ server.listen(
         // ignoring the lowest 2 bits (ECN) which the OS may modify or zero out.
         const mask = 0xFC;
         const preConnectGot = client.getTypeOfService();
-        assert.strictEqual(
-          preConnectGot & mask,
-          0x10 & mask,
-          `Pre-connect TOS should be ${0x10 & mask}, got ${preConnectGot & mask}`,
-        );
+
+        // Windows often resets TOS or ignores it without admin/registry tweaks.
+        // We only assert strict equality on non-Windows platforms.
+        if (!common.isWindows) {
+          assert.strictEqual(
+            preConnectGot & mask,
+            0x10 & mask,
+            `Pre-connect TOS should be ${0x10 & mask}, got ${preConnectGot & mask}`,
+          );
+        }
 
         // TEST 2b: Setting and getting TOS on an active connection
         const tosValue = 0x10; // IPTOS_LOWDELAY (16)
@@ -58,23 +63,27 @@ server.listen(
         // Verify values
         const got = client.getTypeOfService();
 
-        // Compare only the DSCP bits (7-2) using the mask defined above
-        assert.strictEqual(
-          got & mask,
-          tosValue & mask,
-          `Expected TOS ${tosValue & mask}, got ${got & mask}`,
-        );
+        if (!common.isWindows) {
+          assert.strictEqual(
+            got & mask,
+            tosValue & mask,
+            `Expected TOS ${tosValue & mask}, got ${got & mask}`,
+          );
+        }
 
         // TEST 3: Boundary values
         // Check min (0x00), max (0xFF), and arbitrary intermediate values
         for (const boundaryValue of [0x00, 0xFF, 0x3F]) {
           client.setTypeOfService(boundaryValue);
           const gotBoundary = client.getTypeOfService();
-          assert.strictEqual(
-            gotBoundary & mask,
-            boundaryValue & mask,
-            `Expected TOS ${boundaryValue & mask}, got ${gotBoundary & mask}`,
-          );
+
+          if (!common.isWindows) {
+            assert.strictEqual(
+              gotBoundary & mask,
+              boundaryValue & mask,
+              `Expected TOS ${boundaryValue & mask}, got ${gotBoundary & mask}`,
+            );
+          }
         }
 
         client.end();
