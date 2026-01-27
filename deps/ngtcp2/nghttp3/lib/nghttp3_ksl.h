@@ -39,10 +39,10 @@
 #define NGHTTP3_KSL_DEGR 16
 /* NGHTTP3_KSL_MAX_NBLK is the maximum number of nodes which a single
    block can contain. */
-#define NGHTTP3_KSL_MAX_NBLK (2 * NGHTTP3_KSL_DEGR - 1)
+#define NGHTTP3_KSL_MAX_NBLK (2 * NGHTTP3_KSL_DEGR)
 /* NGHTTP3_KSL_MIN_NBLK is the minimum number of nodes which a single
    block other than root must contain. */
-#define NGHTTP3_KSL_MIN_NBLK (NGHTTP3_KSL_DEGR - 1)
+#define NGHTTP3_KSL_MIN_NBLK NGHTTP3_KSL_DEGR
 
 /*
  * nghttp3_ksl_key represents key in nghttp3_ksl.
@@ -76,16 +76,19 @@ struct nghttp3_ksl_blk {
       /* prev points to the previous block if leaf field is
          nonzero. */
       nghttp3_ksl_blk *prev;
-      /* n is the number of nodes this object contains in nodes. */
-      uint32_t n;
-      /* leaf is nonzero if this block contains leaf nodes. */
-      uint32_t leaf;
       nghttp3_ksl_node nodes[NGHTTP3_KSL_MAX_NBLK];
       /* keys is a pointer to the buffer to include
          NGHTTP3_KSL_MAX_NBLK keys.  Because the length of key is
          unknown until nghttp3_ksl_init is called, the actual buffer
-         will be allocated after this field. */
+         will be allocated after this object. */
       uint8_t *keys;
+      /* n is the number of nodes this object contains in nodes. */
+      uint32_t n;
+      /* aligned_keylen is the length of the single key including
+         alignment. */
+      uint16_t aligned_keylen;
+      /* leaf is nonzero if this block contains leaf nodes. */
+      uint8_t leaf;
     };
 
     nghttp3_opl_entry oplent;
@@ -137,7 +140,6 @@ typedef struct nghttp3_ksl_it nghttp3_ksl_it;
  * nghttp3_ksl_it is a bidirectional iterator to iterate nodes.
  */
 struct nghttp3_ksl_it {
-  const nghttp3_ksl *ksl;
   nghttp3_ksl_blk *blk;
   size_t i;
 };
@@ -147,8 +149,8 @@ struct nghttp3_ksl_it {
  */
 struct nghttp3_ksl {
   nghttp3_objalloc blkalloc;
-  /* head points to the root block. */
-  nghttp3_ksl_blk *head;
+  /* root points to the root block. */
+  nghttp3_ksl_blk *root;
   /* front points to the first leaf block. */
   nghttp3_ksl_blk *front;
   /* back points to the last leaf block. */
@@ -278,12 +280,11 @@ size_t nghttp3_ksl_len(const nghttp3_ksl *ksl);
 void nghttp3_ksl_clear(nghttp3_ksl *ksl);
 
 /*
- * nghttp3_ksl_nth_key returns the |n|th key under |blk|.
+ * nghttp3_ksl_blk_nth_key returns the |n|th key under |blk|.
  */
 static inline const nghttp3_ksl_key *
-nghttp3_ksl_nth_key(const nghttp3_ksl *ksl, const nghttp3_ksl_blk *blk,
-                    size_t n) {
-  return blk->keys + n * ksl->aligned_keylen;
+nghttp3_ksl_blk_nth_key(const nghttp3_ksl_blk *blk, size_t n) {
+  return blk->keys + n * blk->aligned_keylen;
 }
 
 #ifndef WIN32
@@ -298,8 +299,7 @@ void nghttp3_ksl_print(const nghttp3_ksl *ksl);
 /*
  * nghttp3_ksl_it_init initializes |it|.
  */
-void nghttp3_ksl_it_init(nghttp3_ksl_it *it, const nghttp3_ksl *ksl,
-                         nghttp3_ksl_blk *blk, size_t i);
+void nghttp3_ksl_it_init(nghttp3_ksl_it *it, nghttp3_ksl_blk *blk, size_t i);
 
 /*
  * nghttp3_ksl_it_get returns the data associated to the node which
@@ -351,7 +351,7 @@ int nghttp3_ksl_it_begin(const nghttp3_ksl_it *it);
  */
 static inline const nghttp3_ksl_key *
 nghttp3_ksl_it_key(const nghttp3_ksl_it *it) {
-  return nghttp3_ksl_nth_key(it->ksl, it->blk, it->i);
+  return nghttp3_ksl_blk_nth_key(it->blk, it->i);
 }
 
 /*
