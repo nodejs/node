@@ -1,10 +1,10 @@
 .text
 .align	4
 __x86_AES_encrypt_compact:
-	%ifdef __CET__
+	#ifdef __CET__
 
 .byte	243,15,30,251
-	%endif
+	#endif
 
 	movl	%edi,20(%esp)
 	xorl	(%edi),%eax
@@ -263,10 +263,10 @@ L000loop:
 	ret
 .align	4
 __sse_AES_encrypt_compact:
-	%ifdef __CET__
+	#ifdef __CET__
 
 .byte	243,15,30,251
-	%endif
+	#endif
 
 	pxor	(%edi),%mm0
 	pxor	8(%edi),%mm4
@@ -423,10 +423,10 @@ L002out:
 	ret
 .align	4
 __x86_AES_encrypt:
-	%ifdef __CET__
+	#ifdef __CET__
 
 .byte	243,15,30,251
-	%endif
+	#endif
 
 	movl	%edi,20(%esp)
 	xorl	(%edi),%eax
@@ -976,10 +976,10 @@ LAES_Te:
 .align	4
 _AES_encrypt:
 L_AES_encrypt_begin:
-	%ifdef __CET__
+	#ifdef __CET__
 
 .byte	243,15,30,251
-	%endif
+	#endif
 
 	pushl	%ebp
 	pushl	%ebx
@@ -1042,10 +1042,10 @@ L005x86:
 	ret
 .align	4
 __x86_AES_decrypt_compact:
-	%ifdef __CET__
+	#ifdef __CET__
 
 .byte	243,15,30,251
-	%endif
+	#endif
 
 	movl	%edi,20(%esp)
 	xorl	(%edi),%eax
@@ -1400,10 +1400,10 @@ L006loop:
 	ret
 .align	4
 __sse_AES_decrypt_compact:
-	%ifdef __CET__
+	#ifdef __CET__
 
 .byte	243,15,30,251
-	%endif
+	#endif
 
 	pxor	(%edi),%mm0
 	pxor	8(%edi),%mm4
@@ -1619,10 +1619,10 @@ L008out:
 	ret
 .align	4
 __x86_AES_decrypt:
-	%ifdef __CET__
+	#ifdef __CET__
 
 .byte	243,15,30,251
-	%endif
+	#endif
 
 	movl	%edi,20(%esp)
 	xorl	(%edi),%eax
@@ -2176,10 +2176,10 @@ LAES_Td:
 .align	4
 _AES_decrypt:
 L_AES_decrypt_begin:
-	%ifdef __CET__
+	#ifdef __CET__
 
 .byte	243,15,30,251
-	%endif
+	#endif
 
 	pushl	%ebp
 	pushl	%ebx
@@ -2244,10 +2244,10 @@ L011x86:
 .align	4
 _AES_cbc_encrypt:
 L_AES_cbc_encrypt_begin:
-	%ifdef __CET__
+	#ifdef __CET__
 
 .byte	243,15,30,251
-	%endif
+	#endif
 
 	pushl	%ebp
 	pushl	%ebx
@@ -2778,10 +2778,10 @@ L039slow_dec_partial_x86:
 	ret
 .align	4
 __x86_AES_set_encrypt_key:
-	%ifdef __CET__
+	#ifdef __CET__
 
 .byte	243,15,30,251
-	%endif
+	#endif
 
 	pushl	%ebp
 	pushl	%ebx
@@ -3013,10 +3013,10 @@ L045exit:
 .align	4
 _AES_set_encrypt_key:
 L_AES_set_encrypt_key_begin:
-	%ifdef __CET__
+	#ifdef __CET__
 
 .byte	243,15,30,251
-	%endif
+	#endif
 
 	call	__x86_AES_set_encrypt_key
 	ret
@@ -3024,10 +3024,10 @@ L_AES_set_encrypt_key_begin:
 .align	4
 _AES_set_decrypt_key:
 L_AES_set_decrypt_key_begin:
-	%ifdef __CET__
+	#ifdef __CET__
 
 .byte	243,15,30,251
-	%endif
+	#endif
 
 	call	__x86_AES_set_encrypt_key
 	cmpl	$0,%eax

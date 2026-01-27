@@ -3,10 +3,10 @@
 .align	4
 _sha1_block_data_order:
 L_sha1_block_data_order_begin:
-	%ifdef __CET__
+	#ifdef __CET__
 
 .byte	243,15,30,251
-	%endif
+	#endif
 
 	pushl	%ebp
 	pushl	%ebx
@@ -1400,10 +1400,10 @@ L002loop:
 	ret
 .align	4
 __sha1_block_data_order_shaext:
-	%ifdef __CET__
+	#ifdef __CET__
 
 .byte	243,15,30,251
-	%endif
+	#endif
 
 	pushl	%ebp
 	pushl	%ebx
@@ -1573,10 +1573,10 @@ L004loop_shaext:
 	ret
 .align	4
 __sha1_block_data_order_ssse3:
-	%ifdef __CET__
+	#ifdef __CET__
 
 .byte	243,15,30,251
-	%endif
+	#endif
 
 	pushl	%ebp
 	pushl	%ebx
@@ -2795,10 +2795,10 @@ L007done:
 	ret
 .align	4
 __sha1_block_data_order_avx:
-	%ifdef __CET__
+	#ifdef __CET__
 
 .byte	243,15,30,251
-	%endif
+	#endif
 
 	pushl	%ebp
 	pushl	%ebx
