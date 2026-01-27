@@ -951,4 +951,4 @@ Stop allowing multiple `__proto__` properties on an object literal in strict mod
 
 Don't allow rest parameters to be non-identifier patterns.
 
-Check for duplicate paramter names in arrow functions.
+Check for duplicate parameter names in arrow functions.
