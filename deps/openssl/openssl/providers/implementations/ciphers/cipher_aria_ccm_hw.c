@@ -14,13 +14,13 @@
 #include "cipher_aria_ccm.h"
 
 static int ccm_aria_initkey(PROV_CCM_CTX *ctx,
-                            const unsigned char *key, size_t keylen)
+    const unsigned char *key, size_t keylen)
 {
     PROV_ARIA_CCM_CTX *actx = (PROV_ARIA_CCM_CTX *)ctx;
 
     ossl_aria_set_encrypt_key(key, keylen * 8, &actx->ks.ks);
     CRYPTO_ccm128_init(&ctx->ccm_ctx, ctx->m, ctx->l, &actx->ks.ks,
-                       (block128_f)ossl_aria_encrypt);
+        (block128_f)ossl_aria_encrypt);
     ctx->str = NULL;
     ctx->key_set = 1;
     return 1;

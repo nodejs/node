@@ -45,7 +45,7 @@ int bn_sqr_fixed_top(BIGNUM *r, const BIGNUM *a, BN_CTX *ctx)
     if (rr == NULL || tmp == NULL)
         goto err;
 
-    max = 2 * al;               /* Non-zero (from above) */
+    max = 2 * al; /* Non-zero (from above) */
     if (bn_wexpand(rr, max) == NULL)
         goto err;
 
@@ -98,7 +98,7 @@ int bn_sqr_fixed_top(BIGNUM *r, const BIGNUM *a, BN_CTX *ctx)
         goto err;
 
     ret = 1;
- err:
+err:
     bn_check_top(rr);
     bn_check_top(tmp);
     BN_CTX_end(ctx);
@@ -160,18 +160,18 @@ void bn_sqr_recursive(BN_ULONG *r, const BN_ULONG *a, int n2, BN_ULONG *t)
     BN_ULONG ln, lo, *p;
 
     if (n2 == 4) {
-# ifndef BN_SQR_COMBA
+#ifndef BN_SQR_COMBA
         bn_sqr_normal(r, a, 4, t);
-# else
+#else
         bn_sqr_comba4(r, a);
-# endif
+#endif
         return;
     } else if (n2 == 8) {
-# ifndef BN_SQR_COMBA
+#ifndef BN_SQR_COMBA
         bn_sqr_normal(r, a, 8, t);
-# else
+#else
         bn_sqr_comba8(r, a);
-# endif
+#endif
         return;
     }
     if (n2 < BN_SQR_RECURSIVE_SIZE_NORMAL) {

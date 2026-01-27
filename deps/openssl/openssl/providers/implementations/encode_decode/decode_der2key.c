@@ -20,13 +20,13 @@
 #include <openssl/crypto.h>
 #include <openssl/err.h>
 #include <openssl/params.h>
-#include <openssl/pem.h>         /* PEM_BUFSIZE and public PEM functions */
+#include <openssl/pem.h> /* PEM_BUFSIZE and public PEM functions */
 #include <openssl/pkcs12.h>
 #include <openssl/provider.h>
 #include <openssl/x509.h>
 #include <openssl/proverr.h>
 #include <openssl/asn1t.h>
-#include "internal/cryptlib.h"   /* ossl_assert() */
+#include "internal/cryptlib.h" /* ossl_assert() */
 #include "crypto/dh.h"
 #include "crypto/dsa.h"
 #include "crypto/ec.h"
@@ -65,14 +65,14 @@ ASN1_SEQUENCE(BARE_PUBKEY) = {
 } static_ASN1_SEQUENCE_END(BARE_PUBKEY)
 #endif /* OPENSSL_NO_SLH_DSA */
 
-struct der2key_ctx_st;           /* Forward declaration */
+struct der2key_ctx_st; /* Forward declaration */
 typedef int check_key_fn(void *, struct der2key_ctx_st *ctx);
 typedef void adjust_key_fn(void *, struct der2key_ctx_st *ctx);
 typedef void free_key_fn(void *);
 typedef void *d2i_PKCS8_fn(const unsigned char **, long,
-                           struct der2key_ctx_st *);
+    struct der2key_ctx_st *);
 typedef void *d2i_PUBKEY_fn(const unsigned char **, long,
-                            struct der2key_ctx_st *);
+    struct der2key_ctx_st *);
 struct keytype_desc_st {
     const char *keytype_name;
     const OSSL_DISPATCH *fns; /* Keymgmt (to pilfer functions from) */
@@ -93,10 +93,10 @@ struct keytype_desc_st {
 
     /* For type specific decoders, we use the corresponding d2i */
     d2i_of_void *d2i_private_key; /* From type-specific DER */
-    d2i_of_void *d2i_public_key;  /* From type-specific DER */
-    d2i_of_void *d2i_key_params;  /* From type-specific DER */
-    d2i_PKCS8_fn *d2i_PKCS8;      /* Wrapped in a PrivateKeyInfo */
-    d2i_PUBKEY_fn *d2i_PUBKEY;    /* Wrapped in a SubjectPublicKeyInfo */
+    d2i_of_void *d2i_public_key; /* From type-specific DER */
+    d2i_of_void *d2i_key_params; /* From type-specific DER */
+    d2i_PKCS8_fn *d2i_PKCS8; /* Wrapped in a PrivateKeyInfo */
+    d2i_PUBKEY_fn *d2i_PUBKEY; /* Wrapped in a SubjectPublicKeyInfo */
 
     /*
      * For any key, we may need to check that the key meets expectations.
@@ -128,10 +128,10 @@ struct der2key_ctx_st {
 };
 
 typedef void *key_from_pkcs8_t(const PKCS8_PRIV_KEY_INFO *p8inf,
-                               OSSL_LIB_CTX *libctx, const char *propq);
+    OSSL_LIB_CTX *libctx, const char *propq);
 static void *der2key_decode_p8(const unsigned char **input_der,
-                               long input_der_len, struct der2key_ctx_st *ctx,
-                               key_from_pkcs8_t *key_from_pkcs8)
+    long input_der_len, struct der2key_ctx_st *ctx,
+    key_from_pkcs8_t *key_from_pkcs8)
 {
     PKCS8_PRIV_KEY_INFO *p8inf = NULL;
     const X509_ALGOR *alg = NULL;
@@ -199,7 +199,7 @@ static void der2key_freectx(void *vctx)
 }
 
 static int der2key_check_selection(int selection,
-                                   const struct keytype_desc_st *desc)
+    const struct keytype_desc_st *desc)
 {
     /*
      * The selections are kinda sorta "levels", i.e. each selection given
@@ -233,8 +233,8 @@ static int der2key_check_selection(int selection,
 }
 
 static int der2key_decode(void *vctx, OSSL_CORE_BIO *cin, int selection,
-                          OSSL_CALLBACK *data_cb, void *data_cbarg,
-                          OSSL_PASSPHRASE_CALLBACK *pw_cb, void *pw_cbarg)
+    OSSL_CALLBACK *data_cb, void *data_cbarg,
+    OSSL_PASSPHRASE_CALLBACK *pw_cb, void *pw_cbarg)
 {
     struct der2key_ctx_st *ctx = vctx;
     unsigned char *der = NULL;
@@ -324,7 +324,7 @@ static int der2key_decode(void *vctx, OSSL_CORE_BIO *cin, int selection,
     if (key != NULL && ctx->desc->adjust_key != NULL)
         ctx->desc->adjust_key(key, ctx);
 
- next:
+next:
     /*
      * Indicated that we successfully decoded something, or not at all.
      * Ending up "empty handed" is not an error.
@@ -343,31 +343,27 @@ static int der2key_decode(void *vctx, OSSL_CORE_BIO *cin, int selection,
         OSSL_PARAM params[4];
         int object_type = OSSL_OBJECT_PKEY;
 
-        params[0] =
-            OSSL_PARAM_construct_int(OSSL_OBJECT_PARAM_TYPE, &object_type);
+        params[0] = OSSL_PARAM_construct_int(OSSL_OBJECT_PARAM_TYPE, &object_type);
 
 #ifndef OPENSSL_NO_SM2
         if (strcmp(ctx->desc->keytype_name, "EC") == 0
             && (EC_KEY_get_flags(key) & EC_FLAG_SM2_RANGE) != 0)
-            params[1] =
-                OSSL_PARAM_construct_utf8_string(OSSL_OBJECT_PARAM_DATA_TYPE,
-                                                 "SM2", 0);
+            params[1] = OSSL_PARAM_construct_utf8_string(OSSL_OBJECT_PARAM_DATA_TYPE,
+                "SM2", 0);
         else
 #endif
-            params[1] =
-                OSSL_PARAM_construct_utf8_string(OSSL_OBJECT_PARAM_DATA_TYPE,
-                                                 (char *)ctx->desc->keytype_name,
-                                                 0);
+            params[1] = OSSL_PARAM_construct_utf8_string(OSSL_OBJECT_PARAM_DATA_TYPE,
+                (char *)ctx->desc->keytype_name,
+                0);
         /* The address of the key becomes the octet string */
-        params[2] =
-            OSSL_PARAM_construct_octet_string(OSSL_OBJECT_PARAM_REFERENCE,
-                                              &key, sizeof(key));
+        params[2] = OSSL_PARAM_construct_octet_string(OSSL_OBJECT_PARAM_REFERENCE,
+            &key, sizeof(key));
         params[3] = OSSL_PARAM_construct_end();
 
         ok = data_cb(params, data_cbarg);
     }
 
- end:
+end:
     ctx->desc->free_key(key);
     OPENSSL_free(der);
 
@@ -375,12 +371,11 @@ static int der2key_decode(void *vctx, OSSL_CORE_BIO *cin, int selection,
 }
 
 static int der2key_export_object(void *vctx,
-                                 const void *reference, size_t reference_sz,
-                                 OSSL_CALLBACK *export_cb, void *export_cbarg)
+    const void *reference, size_t reference_sz,
+    OSSL_CALLBACK *export_cb, void *export_cbarg)
 {
     struct der2key_ctx_st *ctx = vctx;
-    OSSL_FUNC_keymgmt_export_fn *export =
-        ossl_prov_get_keymgmt_export(ctx->desc->fns);
+    OSSL_FUNC_keymgmt_export_fn *export = ossl_prov_get_keymgmt_export(ctx->desc->fns);
     void *keydata;
 
     if (reference_sz == sizeof(keydata) && export != NULL) {
@@ -399,7 +394,7 @@ static int der2key_export_object(void *vctx,
 #define D2I_PUBKEY_NOCTX(n, f)                              \
     static void *                                           \
     n##_d2i_PUBKEY(const unsigned char **der, long der_len, \
-                   ossl_unused struct der2key_ctx_st *ctx)  \
+        ossl_unused struct der2key_ctx_st *ctx)             \
     {                                                       \
         return f(NULL, der, der_len);                       \
     }
@@ -407,18 +402,18 @@ static int der2key_export_object(void *vctx,
 /* ---------------------------------------------------------------------- */
 
 #ifndef OPENSSL_NO_DH
-# define dh_evp_type                    EVP_PKEY_DH
-# define dh_d2i_private_key             NULL
-# define dh_d2i_public_key              NULL
-# define dh_d2i_key_params              (d2i_of_void *)d2i_DHparams
-# define dh_free                        (free_key_fn *)DH_free
-# define dh_check                       NULL
+#define dh_evp_type EVP_PKEY_DH
+#define dh_d2i_private_key NULL
+#define dh_d2i_public_key NULL
+#define dh_d2i_key_params (d2i_of_void *)d2i_DHparams
+#define dh_free (free_key_fn *)DH_free
+#define dh_check NULL
 
 static void *dh_d2i_PKCS8(const unsigned char **der, long der_len,
-                          struct der2key_ctx_st *ctx)
+    struct der2key_ctx_st *ctx)
 {
     return der2key_decode_p8(der, der_len, ctx,
-                             (key_from_pkcs8_t *)ossl_dh_key_from_pkcs8);
+        (key_from_pkcs8_t *)ossl_dh_key_from_pkcs8);
 }
 
 D2I_PUBKEY_NOCTX(dh, ossl_d2i_DH_PUBKEY)
@@ -429,31 +424,31 @@ static void dh_adjust(void *key, struct der2key_ctx_st *ctx)
     ossl_dh_set0_libctx(key, PROV_LIBCTX_OF(ctx->provctx));
 }
 
-# define dhx_evp_type                   EVP_PKEY_DHX
-# define dhx_d2i_private_key            NULL
-# define dhx_d2i_public_key             NULL
-# define dhx_d2i_key_params             (d2i_of_void *)d2i_DHxparams
-# define dhx_d2i_PKCS8                  dh_d2i_PKCS8
-# define dhx_free                       (free_key_fn *)DH_free
-# define dhx_check                      NULL
-# define dhx_adjust                     dh_adjust
+#define dhx_evp_type EVP_PKEY_DHX
+#define dhx_d2i_private_key NULL
+#define dhx_d2i_public_key NULL
+#define dhx_d2i_key_params (d2i_of_void *)d2i_DHxparams
+#define dhx_d2i_PKCS8 dh_d2i_PKCS8
+#define dhx_free (free_key_fn *)DH_free
+#define dhx_check NULL
+#define dhx_adjust dh_adjust
 #endif
 
 /* ---------------------------------------------------------------------- */
 
 #ifndef OPENSSL_NO_DSA
-# define dsa_evp_type                   EVP_PKEY_DSA
-# define dsa_d2i_private_key            (d2i_of_void *)d2i_DSAPrivateKey
-# define dsa_d2i_public_key             (d2i_of_void *)d2i_DSAPublicKey
-# define dsa_d2i_key_params             (d2i_of_void *)d2i_DSAparams
-# define dsa_free                       (free_key_fn *)DSA_free
-# define dsa_check                      NULL
+#define dsa_evp_type EVP_PKEY_DSA
+#define dsa_d2i_private_key (d2i_of_void *)d2i_DSAPrivateKey
+#define dsa_d2i_public_key (d2i_of_void *)d2i_DSAPublicKey
+#define dsa_d2i_key_params (d2i_of_void *)d2i_DSAparams
+#define dsa_free (free_key_fn *)DSA_free
+#define dsa_check NULL
 
 static void *dsa_d2i_PKCS8(const unsigned char **der, long der_len,
-                           struct der2key_ctx_st *ctx)
+    struct der2key_ctx_st *ctx)
 {
     return der2key_decode_p8(der, der_len, ctx,
-                             (key_from_pkcs8_t *)ossl_dsa_key_from_pkcs8);
+        (key_from_pkcs8_t *)ossl_dsa_key_from_pkcs8);
 }
 
 D2I_PUBKEY_NOCTX(dsa, ossl_d2i_DSA_PUBKEY)
@@ -467,17 +462,17 @@ static void dsa_adjust(void *key, struct der2key_ctx_st *ctx)
 /* ---------------------------------------------------------------------- */
 
 #ifndef OPENSSL_NO_EC
-# define ec_evp_type                    EVP_PKEY_EC
-# define ec_d2i_private_key             (d2i_of_void *)d2i_ECPrivateKey
-# define ec_d2i_public_key              NULL
-# define ec_d2i_key_params              (d2i_of_void *)d2i_ECParameters
-# define ec_free                        (free_key_fn *)EC_KEY_free
+#define ec_evp_type EVP_PKEY_EC
+#define ec_d2i_private_key (d2i_of_void *)d2i_ECPrivateKey
+#define ec_d2i_public_key NULL
+#define ec_d2i_key_params (d2i_of_void *)d2i_ECParameters
+#define ec_free (free_key_fn *)EC_KEY_free
 
 static void *ec_d2i_PKCS8(const unsigned char **der, long der_len,
-                          struct der2key_ctx_st *ctx)
+    struct der2key_ctx_st *ctx)
 {
     return der2key_decode_p8(der, der_len, ctx,
-                             (key_from_pkcs8_t *)ossl_ec_key_from_pkcs8);
+        (key_from_pkcs8_t *)ossl_ec_key_from_pkcs8);
 }
 
 D2I_PUBKEY_NOCTX(ec, d2i_EC_PUBKEY)
@@ -502,17 +497,17 @@ static void ec_adjust(void *key, struct der2key_ctx_st *ctx)
     ossl_ec_key_set0_libctx(key, PROV_LIBCTX_OF(ctx->provctx));
 }
 
-# ifndef OPENSSL_NO_ECX
+#ifndef OPENSSL_NO_ECX
 /*
  * ED25519, ED448, X25519, X448 only implement PKCS#8 and SubjectPublicKeyInfo,
  * so no d2i functions to be had.
  */
 
 static void *ecx_d2i_PKCS8(const unsigned char **der, long der_len,
-                           struct der2key_ctx_st *ctx)
+    struct der2key_ctx_st *ctx)
 {
     return der2key_decode_p8(der, der_len, ctx,
-                             (key_from_pkcs8_t *)ossl_ecx_key_from_pkcs8);
+        (key_from_pkcs8_t *)ossl_ecx_key_from_pkcs8);
 }
 
 D2I_PUBKEY_NOCTX(ed25519, ossl_d2i_ED25519_PUBKEY)
@@ -525,60 +520,60 @@ static void ecx_key_adjust(void *key, struct der2key_ctx_st *ctx)
     ossl_ecx_key_set0_libctx(key, PROV_LIBCTX_OF(ctx->provctx));
 }
 
-#  define ed25519_evp_type               EVP_PKEY_ED25519
-#  define ed25519_d2i_private_key        NULL
-#  define ed25519_d2i_public_key         NULL
-#  define ed25519_d2i_key_params         NULL
-#  define ed25519_d2i_PKCS8              ecx_d2i_PKCS8
-#  define ed25519_free                   (free_key_fn *)ossl_ecx_key_free
-#  define ed25519_check                  NULL
-#  define ed25519_adjust                 ecx_key_adjust
+#define ed25519_evp_type EVP_PKEY_ED25519
+#define ed25519_d2i_private_key NULL
+#define ed25519_d2i_public_key NULL
+#define ed25519_d2i_key_params NULL
+#define ed25519_d2i_PKCS8 ecx_d2i_PKCS8
+#define ed25519_free (free_key_fn *)ossl_ecx_key_free
+#define ed25519_check NULL
+#define ed25519_adjust ecx_key_adjust
 
-#  define ed448_evp_type                 EVP_PKEY_ED448
-#  define ed448_d2i_private_key          NULL
-#  define ed448_d2i_public_key           NULL
-#  define ed448_d2i_key_params           NULL
-#  define ed448_d2i_PKCS8                ecx_d2i_PKCS8
-#  define ed448_free                     (free_key_fn *)ossl_ecx_key_free
-#  define ed448_check                    NULL
-#  define ed448_adjust                   ecx_key_adjust
+#define ed448_evp_type EVP_PKEY_ED448
+#define ed448_d2i_private_key NULL
+#define ed448_d2i_public_key NULL
+#define ed448_d2i_key_params NULL
+#define ed448_d2i_PKCS8 ecx_d2i_PKCS8
+#define ed448_free (free_key_fn *)ossl_ecx_key_free
+#define ed448_check NULL
+#define ed448_adjust ecx_key_adjust
 
-#  define x25519_evp_type                EVP_PKEY_X25519
-#  define x25519_d2i_private_key         NULL
-#  define x25519_d2i_public_key          NULL
-#  define x25519_d2i_key_params          NULL
-#  define x25519_d2i_PKCS8               ecx_d2i_PKCS8
-#  define x25519_free                    (free_key_fn *)ossl_ecx_key_free
-#  define x25519_check                   NULL
-#  define x25519_adjust                  ecx_key_adjust
+#define x25519_evp_type EVP_PKEY_X25519
+#define x25519_d2i_private_key NULL
+#define x25519_d2i_public_key NULL
+#define x25519_d2i_key_params NULL
+#define x25519_d2i_PKCS8 ecx_d2i_PKCS8
+#define x25519_free (free_key_fn *)ossl_ecx_key_free
+#define x25519_check NULL
+#define x25519_adjust ecx_key_adjust
 
-#  define x448_evp_type                  EVP_PKEY_X448
-#  define x448_d2i_private_key           NULL
-#  define x448_d2i_public_key            NULL
-#  define x448_d2i_key_params            NULL
-#  define x448_d2i_PKCS8                 ecx_d2i_PKCS8
-#  define x448_free                      (free_key_fn *)ossl_ecx_key_free
-#  define x448_check                     NULL
-#  define x448_adjust                    ecx_key_adjust
-# endif /* OPENSSL_NO_ECX */
+#define x448_evp_type EVP_PKEY_X448
+#define x448_d2i_private_key NULL
+#define x448_d2i_public_key NULL
+#define x448_d2i_key_params NULL
+#define x448_d2i_PKCS8 ecx_d2i_PKCS8
+#define x448_free (free_key_fn *)ossl_ecx_key_free
+#define x448_check NULL
+#define x448_adjust ecx_key_adjust
+#endif /* OPENSSL_NO_ECX */
 
-# ifndef OPENSSL_NO_SM2
-#  define sm2_evp_type                  EVP_PKEY_SM2
-#  define sm2_d2i_private_key           (d2i_of_void *)d2i_ECPrivateKey
-#  define sm2_d2i_public_key            NULL
-#  define sm2_d2i_key_params            (d2i_of_void *)d2i_ECParameters
-#  define sm2_d2i_PUBKEY                ec_d2i_PUBKEY
-#  define sm2_free                      (free_key_fn *)EC_KEY_free
-#  define sm2_check                     ec_check
-#  define sm2_adjust                    ec_adjust
+#ifndef OPENSSL_NO_SM2
+#define sm2_evp_type EVP_PKEY_SM2
+#define sm2_d2i_private_key (d2i_of_void *)d2i_ECPrivateKey
+#define sm2_d2i_public_key NULL
+#define sm2_d2i_key_params (d2i_of_void *)d2i_ECParameters
+#define sm2_d2i_PUBKEY ec_d2i_PUBKEY
+#define sm2_free (free_key_fn *)EC_KEY_free
+#define sm2_check ec_check
+#define sm2_adjust ec_adjust
 
 static void *sm2_d2i_PKCS8(const unsigned char **der, long der_len,
-                           struct der2key_ctx_st *ctx)
+    struct der2key_ctx_st *ctx)
 {
     return der2key_decode_p8(der, der_len, ctx,
-                             (key_from_pkcs8_t *)ossl_ec_key_from_pkcs8);
+        (key_from_pkcs8_t *)ossl_ec_key_from_pkcs8);
 }
-# endif
+#endif
 
 #endif
 
@@ -591,7 +586,7 @@ ml_kem_d2i_PKCS8(const uint8_t **der, long der_len, struct der2key_ctx_st *ctx)
     ML_KEM_KEY *key;
 
     key = ossl_ml_kem_d2i_PKCS8(*der, der_len, ctx->desc->evp_type,
-                                ctx->provctx, ctx->propq);
+        ctx->provctx, ctx->propq);
     if (key != NULL)
         *der += der_len;
     return key;
@@ -599,46 +594,46 @@ ml_kem_d2i_PKCS8(const uint8_t **der, long der_len, struct der2key_ctx_st *ctx)
 
 static ossl_inline void *
 ml_kem_d2i_PUBKEY(const uint8_t **der, long der_len,
-                  struct der2key_ctx_st *ctx)
+    struct der2key_ctx_st *ctx)
 {
     ML_KEM_KEY *key;
 
     key = ossl_ml_kem_d2i_PUBKEY(*der, der_len, ctx->desc->evp_type,
-                                 ctx->provctx, ctx->propq);
+        ctx->provctx, ctx->propq);
     if (key != NULL)
         *der += der_len;
     return key;
 }
 
-# define ml_kem_512_evp_type                EVP_PKEY_ML_KEM_512
-# define ml_kem_512_d2i_private_key         NULL
-# define ml_kem_512_d2i_public_key          NULL
-# define ml_kem_512_d2i_key_params          NULL
-# define ml_kem_512_d2i_PUBKEY              ml_kem_d2i_PUBKEY
-# define ml_kem_512_d2i_PKCS8               ml_kem_d2i_PKCS8
-# define ml_kem_512_free                    (free_key_fn *)ossl_ml_kem_key_free
-# define ml_kem_512_check                   NULL
-# define ml_kem_512_adjust                  NULL
+#define ml_kem_512_evp_type EVP_PKEY_ML_KEM_512
+#define ml_kem_512_d2i_private_key NULL
+#define ml_kem_512_d2i_public_key NULL
+#define ml_kem_512_d2i_key_params NULL
+#define ml_kem_512_d2i_PUBKEY ml_kem_d2i_PUBKEY
+#define ml_kem_512_d2i_PKCS8 ml_kem_d2i_PKCS8
+#define ml_kem_512_free (free_key_fn *)ossl_ml_kem_key_free
+#define ml_kem_512_check NULL
+#define ml_kem_512_adjust NULL
 
-# define ml_kem_768_evp_type                EVP_PKEY_ML_KEM_768
-# define ml_kem_768_d2i_private_key         NULL
-# define ml_kem_768_d2i_public_key          NULL
-# define ml_kem_768_d2i_key_params          NULL
-# define ml_kem_768_d2i_PUBKEY              ml_kem_d2i_PUBKEY
-# define ml_kem_768_d2i_PKCS8               ml_kem_d2i_PKCS8
-# define ml_kem_768_free                    (free_key_fn *)ossl_ml_kem_key_free
-# define ml_kem_768_check                   NULL
-# define ml_kem_768_adjust                  NULL
+#define ml_kem_768_evp_type EVP_PKEY_ML_KEM_768
+#define ml_kem_768_d2i_private_key NULL
+#define ml_kem_768_d2i_public_key NULL
+#define ml_kem_768_d2i_key_params NULL
+#define ml_kem_768_d2i_PUBKEY ml_kem_d2i_PUBKEY
+#define ml_kem_768_d2i_PKCS8 ml_kem_d2i_PKCS8
+#define ml_kem_768_free (free_key_fn *)ossl_ml_kem_key_free
+#define ml_kem_768_check NULL
+#define ml_kem_768_adjust NULL
 
-# define ml_kem_1024_evp_type               EVP_PKEY_ML_KEM_1024
-# define ml_kem_1024_d2i_private_key        NULL
-# define ml_kem_1024_d2i_public_key         NULL
-# define ml_kem_1024_d2i_PUBKEY             ml_kem_d2i_PUBKEY
-# define ml_kem_1024_d2i_PKCS8              ml_kem_d2i_PKCS8
-# define ml_kem_1024_d2i_key_params         NULL
-# define ml_kem_1024_free                   (free_key_fn *)ossl_ml_kem_key_free
-# define ml_kem_1024_check                  NULL
-# define ml_kem_1024_adjust                 NULL
+#define ml_kem_1024_evp_type EVP_PKEY_ML_KEM_1024
+#define ml_kem_1024_d2i_private_key NULL
+#define ml_kem_1024_d2i_public_key NULL
+#define ml_kem_1024_d2i_PUBKEY ml_kem_d2i_PUBKEY
+#define ml_kem_1024_d2i_PKCS8 ml_kem_d2i_PKCS8
+#define ml_kem_1024_d2i_key_params NULL
+#define ml_kem_1024_free (free_key_fn *)ossl_ml_kem_key_free
+#define ml_kem_1024_check NULL
+#define ml_kem_1024_adjust NULL
 
 #endif
 
@@ -660,20 +655,21 @@ slh_dsa_d2i_PKCS8(const uint8_t **der, long der_len, struct der2key_ctx_st *ctx)
     /* Algorithm parameters must be absent. */
     if ((X509_ALGOR_get0(NULL, &ptype, NULL, alg), ptype != V_ASN1_UNDEF)) {
         ERR_raise_data(ERR_LIB_PROV, PROV_R_UNEXPECTED_KEY_PARAMETERS,
-                       "unexpected parameters with a PKCS#8 %s private key",
-                       ctx->desc->keytype_name);
+            "unexpected parameters with a PKCS#8 %s private key",
+            ctx->desc->keytype_name);
         goto end;
     }
     if (OBJ_obj2nid(alg->algorithm) != ctx->desc->evp_type)
         goto end;
     if ((key = ossl_slh_dsa_key_new(libctx, ctx->propq,
-                                    ctx->desc->keytype_name)) == NULL)
+             ctx->desc->keytype_name))
+        == NULL)
         goto end;
 
     if (!ossl_slh_dsa_set_priv(key, p, plen))
         goto end;
     ret = key;
- end:
+end:
     PKCS8_PRIV_KEY_INFO_free(p8inf);
     if (ret == NULL)
         ossl_slh_dsa_key_free(key);
@@ -681,7 +677,7 @@ slh_dsa_d2i_PKCS8(const uint8_t **der, long der_len, struct der2key_ctx_st *ctx)
 }
 
 static ossl_inline void *slh_dsa_d2i_PUBKEY(const uint8_t **der, long der_len,
-                                            struct der2key_ctx_st *ctx)
+    struct der2key_ctx_st *ctx)
 {
     int ok = 0;
     OSSL_LIB_CTX *libctx = PROV_LIBCTX_OF(ctx->provctx);
@@ -711,9 +707,9 @@ static ossl_inline void *slh_dsa_d2i_PUBKEY(const uint8_t **der, long der_len,
      */
     if (der_len != 18 + (long)len) {
         ERR_raise_data(ERR_LIB_PROV, PROV_R_BAD_ENCODING,
-                       "unexpected %s public key length: %ld != %ld",
-                       ctx->desc->keytype_name, der_len,
-                       18 + (long)len);
+            "unexpected %s public key length: %ld != %ld",
+            ctx->desc->keytype_name, der_len,
+            18 + (long)len);
         goto err;
     }
 
@@ -722,35 +718,36 @@ static ossl_inline void *slh_dsa_d2i_PUBKEY(const uint8_t **der, long der_len,
 
     /* The spki storage is freed on error */
     if (ASN1_item_d2i_ex((ASN1_VALUE **)&spki, &end, der_len,
-                         ASN1_ITEM_rptr(BARE_PUBKEY), NULL, NULL) == NULL) {
+            ASN1_ITEM_rptr(BARE_PUBKEY), NULL, NULL)
+        == NULL) {
         ERR_raise_data(ERR_LIB_PROV, PROV_R_BAD_ENCODING,
-                       "malformed %s public key ASN.1 encoding",
-                       ossl_slh_dsa_key_get_name(ret));
+            "malformed %s public key ASN.1 encoding",
+            ossl_slh_dsa_key_get_name(ret));
         goto err;
     }
 
     /* The spki structure now owns some memory */
     if ((spki->pubkey->flags & 0x7) != 0 || end != *der + der_len) {
         ERR_raise_data(ERR_LIB_PROV, PROV_R_BAD_ENCODING,
-                       "malformed %s public key ASN.1 encoding",
-                       ossl_slh_dsa_key_get_name(ret));
+            "malformed %s public key ASN.1 encoding",
+            ossl_slh_dsa_key_get_name(ret));
         goto err;
     }
     if (OBJ_cmp(OBJ_nid2obj(ctx->desc->evp_type), spki->algor.oid) != 0) {
         ERR_raise_data(ERR_LIB_PROV, PROV_R_BAD_ENCODING,
-                       "unexpected algorithm OID for an %s public key",
-                       ossl_slh_dsa_key_get_name(ret));
+            "unexpected algorithm OID for an %s public key",
+            ossl_slh_dsa_key_get_name(ret));
         goto err;
     }
 
     if (!ossl_slh_dsa_set_pub(ret, spki->pubkey->data, spki->pubkey->length)) {
         ERR_raise_data(ERR_LIB_PROV, PROV_R_BAD_ENCODING,
-                       "failed to parse %s public key from the input data",
-                       ossl_slh_dsa_key_get_name(ret));
+            "failed to parse %s public key from the input data",
+            ossl_slh_dsa_key_get_name(ret));
         goto err;
     }
     ok = 1;
- err:
+err:
     if (spki != NULL) {
         ASN1_OBJECT_free(spki->algor.oid);
         ASN1_BIT_STRING_free(spki->pubkey);
@@ -763,145 +760,145 @@ static ossl_inline void *slh_dsa_d2i_PUBKEY(const uint8_t **der, long der_len,
     return ret;
 }
 
-# define slh_dsa_sha2_128s_evp_type        EVP_PKEY_SLH_DSA_SHA2_128S
-# define slh_dsa_sha2_128s_d2i_private_key NULL
-# define slh_dsa_sha2_128s_d2i_public_key  NULL
-# define slh_dsa_sha2_128s_d2i_key_params  NULL
-# define slh_dsa_sha2_128s_d2i_PKCS8       slh_dsa_d2i_PKCS8
-# define slh_dsa_sha2_128s_d2i_PUBKEY      slh_dsa_d2i_PUBKEY
-# define slh_dsa_sha2_128s_free            (free_key_fn *)ossl_slh_dsa_key_free
-# define slh_dsa_sha2_128s_check           NULL
-# define slh_dsa_sha2_128s_adjust          NULL
+#define slh_dsa_sha2_128s_evp_type EVP_PKEY_SLH_DSA_SHA2_128S
+#define slh_dsa_sha2_128s_d2i_private_key NULL
+#define slh_dsa_sha2_128s_d2i_public_key NULL
+#define slh_dsa_sha2_128s_d2i_key_params NULL
+#define slh_dsa_sha2_128s_d2i_PKCS8 slh_dsa_d2i_PKCS8
+#define slh_dsa_sha2_128s_d2i_PUBKEY slh_dsa_d2i_PUBKEY
+#define slh_dsa_sha2_128s_free (free_key_fn *)ossl_slh_dsa_key_free
+#define slh_dsa_sha2_128s_check NULL
+#define slh_dsa_sha2_128s_adjust NULL
 
-# define slh_dsa_sha2_128f_evp_type        EVP_PKEY_SLH_DSA_SHA2_128F
-# define slh_dsa_sha2_128f_d2i_private_key NULL
-# define slh_dsa_sha2_128f_d2i_public_key  NULL
-# define slh_dsa_sha2_128f_d2i_key_params  NULL
-# define slh_dsa_sha2_128f_d2i_PKCS8       slh_dsa_d2i_PKCS8
-# define slh_dsa_sha2_128f_d2i_PUBKEY      slh_dsa_d2i_PUBKEY
-# define slh_dsa_sha2_128f_free            (free_key_fn *)ossl_slh_dsa_key_free
-# define slh_dsa_sha2_128f_check           NULL
-# define slh_dsa_sha2_128f_adjust          NULL
+#define slh_dsa_sha2_128f_evp_type EVP_PKEY_SLH_DSA_SHA2_128F
+#define slh_dsa_sha2_128f_d2i_private_key NULL
+#define slh_dsa_sha2_128f_d2i_public_key NULL
+#define slh_dsa_sha2_128f_d2i_key_params NULL
+#define slh_dsa_sha2_128f_d2i_PKCS8 slh_dsa_d2i_PKCS8
+#define slh_dsa_sha2_128f_d2i_PUBKEY slh_dsa_d2i_PUBKEY
+#define slh_dsa_sha2_128f_free (free_key_fn *)ossl_slh_dsa_key_free
+#define slh_dsa_sha2_128f_check NULL
+#define slh_dsa_sha2_128f_adjust NULL
 
-# define slh_dsa_sha2_192s_evp_type        EVP_PKEY_SLH_DSA_SHA2_192S
-# define slh_dsa_sha2_192s_d2i_private_key NULL
-# define slh_dsa_sha2_192s_d2i_public_key  NULL
-# define slh_dsa_sha2_192s_d2i_key_params  NULL
-# define slh_dsa_sha2_192s_d2i_PKCS8       slh_dsa_d2i_PKCS8
-# define slh_dsa_sha2_192s_d2i_PUBKEY      slh_dsa_d2i_PUBKEY
-# define slh_dsa_sha2_192s_free            (free_key_fn *)ossl_slh_dsa_key_free
-# define slh_dsa_sha2_192s_check           NULL
-# define slh_dsa_sha2_192s_adjust          NULL
+#define slh_dsa_sha2_192s_evp_type EVP_PKEY_SLH_DSA_SHA2_192S
+#define slh_dsa_sha2_192s_d2i_private_key NULL
+#define slh_dsa_sha2_192s_d2i_public_key NULL
+#define slh_dsa_sha2_192s_d2i_key_params NULL
+#define slh_dsa_sha2_192s_d2i_PKCS8 slh_dsa_d2i_PKCS8
+#define slh_dsa_sha2_192s_d2i_PUBKEY slh_dsa_d2i_PUBKEY
+#define slh_dsa_sha2_192s_free (free_key_fn *)ossl_slh_dsa_key_free
+#define slh_dsa_sha2_192s_check NULL
+#define slh_dsa_sha2_192s_adjust NULL
 
-# define slh_dsa_sha2_192f_evp_type        EVP_PKEY_SLH_DSA_SHA2_192F
-# define slh_dsa_sha2_192f_d2i_private_key NULL
-# define slh_dsa_sha2_192f_d2i_public_key  NULL
-# define slh_dsa_sha2_192f_d2i_key_params  NULL
-# define slh_dsa_sha2_192f_d2i_PKCS8       slh_dsa_d2i_PKCS8
-# define slh_dsa_sha2_192f_d2i_PUBKEY      slh_dsa_d2i_PUBKEY
-# define slh_dsa_sha2_192f_free            (free_key_fn *)ossl_slh_dsa_key_free
-# define slh_dsa_sha2_192f_check           NULL
-# define slh_dsa_sha2_192f_adjust          NULL
+#define slh_dsa_sha2_192f_evp_type EVP_PKEY_SLH_DSA_SHA2_192F
+#define slh_dsa_sha2_192f_d2i_private_key NULL
+#define slh_dsa_sha2_192f_d2i_public_key NULL
+#define slh_dsa_sha2_192f_d2i_key_params NULL
+#define slh_dsa_sha2_192f_d2i_PKCS8 slh_dsa_d2i_PKCS8
+#define slh_dsa_sha2_192f_d2i_PUBKEY slh_dsa_d2i_PUBKEY
+#define slh_dsa_sha2_192f_free (free_key_fn *)ossl_slh_dsa_key_free
+#define slh_dsa_sha2_192f_check NULL
+#define slh_dsa_sha2_192f_adjust NULL
 
-# define slh_dsa_sha2_256s_evp_type        EVP_PKEY_SLH_DSA_SHA2_256S
-# define slh_dsa_sha2_256s_d2i_private_key NULL
-# define slh_dsa_sha2_256s_d2i_public_key  NULL
-# define slh_dsa_sha2_256s_d2i_key_params  NULL
-# define slh_dsa_sha2_256s_d2i_PKCS8       slh_dsa_d2i_PKCS8
-# define slh_dsa_sha2_256s_d2i_PUBKEY      slh_dsa_d2i_PUBKEY
-# define slh_dsa_sha2_256s_free            (free_key_fn *)ossl_slh_dsa_key_free
-# define slh_dsa_sha2_256s_check           NULL
-# define slh_dsa_sha2_256s_adjust          NULL
+#define slh_dsa_sha2_256s_evp_type EVP_PKEY_SLH_DSA_SHA2_256S
+#define slh_dsa_sha2_256s_d2i_private_key NULL
+#define slh_dsa_sha2_256s_d2i_public_key NULL
+#define slh_dsa_sha2_256s_d2i_key_params NULL
+#define slh_dsa_sha2_256s_d2i_PKCS8 slh_dsa_d2i_PKCS8
+#define slh_dsa_sha2_256s_d2i_PUBKEY slh_dsa_d2i_PUBKEY
+#define slh_dsa_sha2_256s_free (free_key_fn *)ossl_slh_dsa_key_free
+#define slh_dsa_sha2_256s_check NULL
+#define slh_dsa_sha2_256s_adjust NULL
 
-# define slh_dsa_sha2_256f_evp_type        EVP_PKEY_SLH_DSA_SHA2_256F
-# define slh_dsa_sha2_256f_d2i_private_key NULL
-# define slh_dsa_sha2_256f_d2i_public_key  NULL
-# define slh_dsa_sha2_256f_d2i_key_params  NULL
-# define slh_dsa_sha2_256f_d2i_PKCS8       slh_dsa_d2i_PKCS8
-# define slh_dsa_sha2_256f_d2i_PUBKEY      slh_dsa_d2i_PUBKEY
-# define slh_dsa_sha2_256f_free            (free_key_fn *)ossl_slh_dsa_key_free
-# define slh_dsa_sha2_256f_check           NULL
-# define slh_dsa_sha2_256f_adjust          NULL
+#define slh_dsa_sha2_256f_evp_type EVP_PKEY_SLH_DSA_SHA2_256F
+#define slh_dsa_sha2_256f_d2i_private_key NULL
+#define slh_dsa_sha2_256f_d2i_public_key NULL
+#define slh_dsa_sha2_256f_d2i_key_params NULL
+#define slh_dsa_sha2_256f_d2i_PKCS8 slh_dsa_d2i_PKCS8
+#define slh_dsa_sha2_256f_d2i_PUBKEY slh_dsa_d2i_PUBKEY
+#define slh_dsa_sha2_256f_free (free_key_fn *)ossl_slh_dsa_key_free
+#define slh_dsa_sha2_256f_check NULL
+#define slh_dsa_sha2_256f_adjust NULL
 
-# define slh_dsa_shake_128s_evp_type        EVP_PKEY_SLH_DSA_SHAKE_128S
-# define slh_dsa_shake_128s_d2i_private_key NULL
-# define slh_dsa_shake_128s_d2i_public_key  NULL
-# define slh_dsa_shake_128s_d2i_key_params  NULL
-# define slh_dsa_shake_128s_d2i_PKCS8       slh_dsa_d2i_PKCS8
-# define slh_dsa_shake_128s_d2i_PUBKEY      slh_dsa_d2i_PUBKEY
-# define slh_dsa_shake_128s_free            (free_key_fn *)ossl_slh_dsa_key_free
-# define slh_dsa_shake_128s_check           NULL
-# define slh_dsa_shake_128s_adjust          NULL
+#define slh_dsa_shake_128s_evp_type EVP_PKEY_SLH_DSA_SHAKE_128S
+#define slh_dsa_shake_128s_d2i_private_key NULL
+#define slh_dsa_shake_128s_d2i_public_key NULL
+#define slh_dsa_shake_128s_d2i_key_params NULL
+#define slh_dsa_shake_128s_d2i_PKCS8 slh_dsa_d2i_PKCS8
+#define slh_dsa_shake_128s_d2i_PUBKEY slh_dsa_d2i_PUBKEY
+#define slh_dsa_shake_128s_free (free_key_fn *)ossl_slh_dsa_key_free
+#define slh_dsa_shake_128s_check NULL
+#define slh_dsa_shake_128s_adjust NULL
 
-# define slh_dsa_shake_128f_evp_type        EVP_PKEY_SLH_DSA_SHAKE_128F
-# define slh_dsa_shake_128f_d2i_private_key NULL
-# define slh_dsa_shake_128f_d2i_public_key  NULL
-# define slh_dsa_shake_128f_d2i_key_params  NULL
-# define slh_dsa_shake_128f_d2i_PKCS8       slh_dsa_d2i_PKCS8
-# define slh_dsa_shake_128f_d2i_PUBKEY      slh_dsa_d2i_PUBKEY
-# define slh_dsa_shake_128f_free            (free_key_fn *)ossl_slh_dsa_key_free
-# define slh_dsa_shake_128f_check           NULL
-# define slh_dsa_shake_128f_adjust          NULL
+#define slh_dsa_shake_128f_evp_type EVP_PKEY_SLH_DSA_SHAKE_128F
+#define slh_dsa_shake_128f_d2i_private_key NULL
+#define slh_dsa_shake_128f_d2i_public_key NULL
+#define slh_dsa_shake_128f_d2i_key_params NULL
+#define slh_dsa_shake_128f_d2i_PKCS8 slh_dsa_d2i_PKCS8
+#define slh_dsa_shake_128f_d2i_PUBKEY slh_dsa_d2i_PUBKEY
+#define slh_dsa_shake_128f_free (free_key_fn *)ossl_slh_dsa_key_free
+#define slh_dsa_shake_128f_check NULL
+#define slh_dsa_shake_128f_adjust NULL
 
-# define slh_dsa_shake_192s_evp_type        EVP_PKEY_SLH_DSA_SHAKE_192S
-# define slh_dsa_shake_192s_d2i_private_key NULL
-# define slh_dsa_shake_192s_d2i_public_key  NULL
-# define slh_dsa_shake_192s_d2i_key_params  NULL
-# define slh_dsa_shake_192s_d2i_PKCS8       slh_dsa_d2i_PKCS8
-# define slh_dsa_shake_192s_d2i_PUBKEY      slh_dsa_d2i_PUBKEY
-# define slh_dsa_shake_192s_free            (free_key_fn *)ossl_slh_dsa_key_free
-# define slh_dsa_shake_192s_check           NULL
-# define slh_dsa_shake_192s_adjust          NULL
+#define slh_dsa_shake_192s_evp_type EVP_PKEY_SLH_DSA_SHAKE_192S
+#define slh_dsa_shake_192s_d2i_private_key NULL
+#define slh_dsa_shake_192s_d2i_public_key NULL
+#define slh_dsa_shake_192s_d2i_key_params NULL
+#define slh_dsa_shake_192s_d2i_PKCS8 slh_dsa_d2i_PKCS8
+#define slh_dsa_shake_192s_d2i_PUBKEY slh_dsa_d2i_PUBKEY
+#define slh_dsa_shake_192s_free (free_key_fn *)ossl_slh_dsa_key_free
+#define slh_dsa_shake_192s_check NULL
+#define slh_dsa_shake_192s_adjust NULL
 
-# define slh_dsa_shake_192f_evp_type        EVP_PKEY_SLH_DSA_SHAKE_192F
-# define slh_dsa_shake_192f_d2i_private_key NULL
-# define slh_dsa_shake_192f_d2i_public_key  NULL
-# define slh_dsa_shake_192f_d2i_key_params  NULL
-# define slh_dsa_shake_192f_d2i_PKCS8       slh_dsa_d2i_PKCS8
-# define slh_dsa_shake_192f_d2i_PUBKEY      slh_dsa_d2i_PUBKEY
-# define slh_dsa_shake_192f_free            (free_key_fn *)ossl_slh_dsa_key_free
-# define slh_dsa_shake_192f_check           NULL
-# define slh_dsa_shake_192f_adjust          NULL
+#define slh_dsa_shake_192f_evp_type EVP_PKEY_SLH_DSA_SHAKE_192F
+#define slh_dsa_shake_192f_d2i_private_key NULL
+#define slh_dsa_shake_192f_d2i_public_key NULL
+#define slh_dsa_shake_192f_d2i_key_params NULL
+#define slh_dsa_shake_192f_d2i_PKCS8 slh_dsa_d2i_PKCS8
+#define slh_dsa_shake_192f_d2i_PUBKEY slh_dsa_d2i_PUBKEY
+#define slh_dsa_shake_192f_free (free_key_fn *)ossl_slh_dsa_key_free
+#define slh_dsa_shake_192f_check NULL
+#define slh_dsa_shake_192f_adjust NULL
 
-# define slh_dsa_shake_256s_evp_type        EVP_PKEY_SLH_DSA_SHAKE_256S
-# define slh_dsa_shake_256s_d2i_private_key NULL
-# define slh_dsa_shake_256s_d2i_public_key  NULL
-# define slh_dsa_shake_256s_d2i_key_params  NULL
-# define slh_dsa_shake_256s_d2i_PKCS8       slh_dsa_d2i_PKCS8
-# define slh_dsa_shake_256s_d2i_PUBKEY      slh_dsa_d2i_PUBKEY
-# define slh_dsa_shake_256s_free            (free_key_fn *)ossl_slh_dsa_key_free
-# define slh_dsa_shake_256s_check           NULL
-# define slh_dsa_shake_256s_adjust          NULL
+#define slh_dsa_shake_256s_evp_type EVP_PKEY_SLH_DSA_SHAKE_256S
+#define slh_dsa_shake_256s_d2i_private_key NULL
+#define slh_dsa_shake_256s_d2i_public_key NULL
+#define slh_dsa_shake_256s_d2i_key_params NULL
+#define slh_dsa_shake_256s_d2i_PKCS8 slh_dsa_d2i_PKCS8
+#define slh_dsa_shake_256s_d2i_PUBKEY slh_dsa_d2i_PUBKEY
+#define slh_dsa_shake_256s_free (free_key_fn *)ossl_slh_dsa_key_free
+#define slh_dsa_shake_256s_check NULL
+#define slh_dsa_shake_256s_adjust NULL
 
-# define slh_dsa_shake_256f_evp_type        EVP_PKEY_SLH_DSA_SHAKE_256F
-# define slh_dsa_shake_256f_d2i_private_key NULL
-# define slh_dsa_shake_256f_d2i_public_key  NULL
-# define slh_dsa_shake_256f_d2i_key_params  NULL
-# define slh_dsa_shake_256f_d2i_PKCS8       slh_dsa_d2i_PKCS8
-# define slh_dsa_shake_256f_d2i_PUBKEY      slh_dsa_d2i_PUBKEY
-# define slh_dsa_shake_256f_free            (free_key_fn *)ossl_slh_dsa_key_free
-# define slh_dsa_shake_256f_check           NULL
-# define slh_dsa_shake_256f_adjust          NULL
+#define slh_dsa_shake_256f_evp_type EVP_PKEY_SLH_DSA_SHAKE_256F
+#define slh_dsa_shake_256f_d2i_private_key NULL
+#define slh_dsa_shake_256f_d2i_public_key NULL
+#define slh_dsa_shake_256f_d2i_key_params NULL
+#define slh_dsa_shake_256f_d2i_PKCS8 slh_dsa_d2i_PKCS8
+#define slh_dsa_shake_256f_d2i_PUBKEY slh_dsa_d2i_PUBKEY
+#define slh_dsa_shake_256f_free (free_key_fn *)ossl_slh_dsa_key_free
+#define slh_dsa_shake_256f_check NULL
+#define slh_dsa_shake_256f_adjust NULL
 #endif /* OPENSSL_NO_SLH_DSA */
 
 /* ---------------------------------------------------------------------- */
 
-#define rsa_evp_type                    EVP_PKEY_RSA
-#define rsa_d2i_private_key             (d2i_of_void *)d2i_RSAPrivateKey
-#define rsa_d2i_public_key              (d2i_of_void *)d2i_RSAPublicKey
-#define rsa_d2i_key_params              NULL
-#define rsa_free                        (free_key_fn *)RSA_free
+#define rsa_evp_type EVP_PKEY_RSA
+#define rsa_d2i_private_key (d2i_of_void *)d2i_RSAPrivateKey
+#define rsa_d2i_public_key (d2i_of_void *)d2i_RSAPublicKey
+#define rsa_d2i_key_params NULL
+#define rsa_free (free_key_fn *)RSA_free
 
 static void *rsa_d2i_PKCS8(const unsigned char **der, long der_len,
-                           struct der2key_ctx_st *ctx)
+    struct der2key_ctx_st *ctx)
 {
     return der2key_decode_p8(der, der_len, ctx,
-                             (key_from_pkcs8_t *)ossl_rsa_key_from_pkcs8);
+        (key_from_pkcs8_t *)ossl_rsa_key_from_pkcs8);
 }
 
 static void *
 rsa_d2i_PUBKEY(const unsigned char **der, long der_len,
-               ossl_unused struct der2key_ctx_st *ctx)
+    ossl_unused struct der2key_ctx_st *ctx)
 {
     return d2i_RSA_PUBKEY(NULL, der, der_len);
 }
@@ -932,15 +929,15 @@ static void rsa_adjust(void *key, struct der2key_ctx_st *ctx)
     ossl_rsa_set0_libctx(key, PROV_LIBCTX_OF(ctx->provctx));
 }
 
-#define rsapss_evp_type                 EVP_PKEY_RSA_PSS
-#define rsapss_d2i_private_key          (d2i_of_void *)d2i_RSAPrivateKey
-#define rsapss_d2i_public_key           (d2i_of_void *)d2i_RSAPublicKey
-#define rsapss_d2i_key_params           NULL
-#define rsapss_d2i_PKCS8                rsa_d2i_PKCS8
-#define rsapss_d2i_PUBKEY               rsa_d2i_PUBKEY
-#define rsapss_free                     (free_key_fn *)RSA_free
-#define rsapss_check                    rsa_check
-#define rsapss_adjust                   rsa_adjust
+#define rsapss_evp_type EVP_PKEY_RSA_PSS
+#define rsapss_d2i_private_key (d2i_of_void *)d2i_RSAPrivateKey
+#define rsapss_d2i_public_key (d2i_of_void *)d2i_RSAPublicKey
+#define rsapss_d2i_key_params NULL
+#define rsapss_d2i_PKCS8 rsa_d2i_PKCS8
+#define rsapss_d2i_PUBKEY rsa_d2i_PUBKEY
+#define rsapss_free (free_key_fn *)RSA_free
+#define rsapss_check rsa_check
+#define rsapss_adjust rsa_adjust
 
 /* ---------------------------------------------------------------------- */
 
@@ -951,53 +948,53 @@ ml_dsa_d2i_PKCS8(const uint8_t **der, long der_len, struct der2key_ctx_st *ctx)
     ML_DSA_KEY *key;
 
     key = ossl_ml_dsa_d2i_PKCS8(*der, der_len, ctx->desc->evp_type,
-                                ctx->provctx, ctx->propq);
+        ctx->provctx, ctx->propq);
     if (key != NULL)
         *der += der_len;
     return key;
 }
 
-static ossl_inline void * ml_dsa_d2i_PUBKEY(const uint8_t **der, long der_len,
-                                            struct der2key_ctx_st *ctx)
+static ossl_inline void *ml_dsa_d2i_PUBKEY(const uint8_t **der, long der_len,
+    struct der2key_ctx_st *ctx)
 {
     ML_DSA_KEY *key;
 
     key = ossl_ml_dsa_d2i_PUBKEY(*der, der_len, ctx->desc->evp_type,
-                                 ctx->provctx, ctx->propq);
+        ctx->provctx, ctx->propq);
     if (key != NULL)
         *der += der_len;
     return key;
 }
 
-# define ml_dsa_44_evp_type                EVP_PKEY_ML_DSA_44
-# define ml_dsa_44_d2i_private_key         NULL
-# define ml_dsa_44_d2i_public_key          NULL
-# define ml_dsa_44_d2i_key_params          NULL
-# define ml_dsa_44_d2i_PUBKEY              ml_dsa_d2i_PUBKEY
-# define ml_dsa_44_d2i_PKCS8               ml_dsa_d2i_PKCS8
-# define ml_dsa_44_free                    (free_key_fn *)ossl_ml_dsa_key_free
-# define ml_dsa_44_check                   NULL
-# define ml_dsa_44_adjust                  NULL
+#define ml_dsa_44_evp_type EVP_PKEY_ML_DSA_44
+#define ml_dsa_44_d2i_private_key NULL
+#define ml_dsa_44_d2i_public_key NULL
+#define ml_dsa_44_d2i_key_params NULL
+#define ml_dsa_44_d2i_PUBKEY ml_dsa_d2i_PUBKEY
+#define ml_dsa_44_d2i_PKCS8 ml_dsa_d2i_PKCS8
+#define ml_dsa_44_free (free_key_fn *)ossl_ml_dsa_key_free
+#define ml_dsa_44_check NULL
+#define ml_dsa_44_adjust NULL
 
-# define ml_dsa_65_evp_type                EVP_PKEY_ML_DSA_65
-# define ml_dsa_65_d2i_private_key         NULL
-# define ml_dsa_65_d2i_public_key          NULL
-# define ml_dsa_65_d2i_key_params          NULL
-# define ml_dsa_65_d2i_PUBKEY              ml_dsa_d2i_PUBKEY
-# define ml_dsa_65_d2i_PKCS8               ml_dsa_d2i_PKCS8
-# define ml_dsa_65_free                    (free_key_fn *)ossl_ml_dsa_key_free
-# define ml_dsa_65_check                   NULL
-# define ml_dsa_65_adjust                  NULL
+#define ml_dsa_65_evp_type EVP_PKEY_ML_DSA_65
+#define ml_dsa_65_d2i_private_key NULL
+#define ml_dsa_65_d2i_public_key NULL
+#define ml_dsa_65_d2i_key_params NULL
+#define ml_dsa_65_d2i_PUBKEY ml_dsa_d2i_PUBKEY
+#define ml_dsa_65_d2i_PKCS8 ml_dsa_d2i_PKCS8
+#define ml_dsa_65_free (free_key_fn *)ossl_ml_dsa_key_free
+#define ml_dsa_65_check NULL
+#define ml_dsa_65_adjust NULL
 
-# define ml_dsa_87_evp_type               EVP_PKEY_ML_DSA_87
-# define ml_dsa_87_d2i_private_key        NULL
-# define ml_dsa_87_d2i_public_key         NULL
-# define ml_dsa_87_d2i_PUBKEY             ml_dsa_d2i_PUBKEY
-# define ml_dsa_87_d2i_PKCS8              ml_dsa_d2i_PKCS8
-# define ml_dsa_87_d2i_key_params         NULL
-# define ml_dsa_87_free                   (free_key_fn *)ossl_ml_dsa_key_free
-# define ml_dsa_87_check                  NULL
-# define ml_dsa_87_adjust                 NULL
+#define ml_dsa_87_evp_type EVP_PKEY_ML_DSA_87
+#define ml_dsa_87_d2i_private_key NULL
+#define ml_dsa_87_d2i_public_key NULL
+#define ml_dsa_87_d2i_PUBKEY ml_dsa_d2i_PUBKEY
+#define ml_dsa_87_d2i_PKCS8 ml_dsa_d2i_PKCS8
+#define ml_dsa_87_d2i_key_params NULL
+#define ml_dsa_87_free (free_key_fn *)ossl_ml_dsa_key_free
+#define ml_dsa_87_check NULL
+#define ml_dsa_87_adjust NULL
 
 #endif
 
@@ -1007,162 +1004,162 @@ static ossl_inline void * ml_dsa_d2i_PUBKEY(const uint8_t **der, long der_len,
  * The DO_ macros help define the selection mask and the method functions
  * for each kind of object we want to decode.
  */
-#define DO_type_specific_keypair(keytype)               \
-    "type-specific", keytype##_evp_type,                \
-        ( OSSL_KEYMGMT_SELECT_KEYPAIR ),                \
-        keytype##_d2i_private_key,                      \
-        keytype##_d2i_public_key,                       \
-        NULL,                                           \
-        NULL,                                           \
-        NULL,                                           \
-        keytype##_check,                                \
-        keytype##_adjust,                               \
+#define DO_type_specific_keypair(keytype) \
+    "type-specific", keytype##_evp_type,  \
+        (OSSL_KEYMGMT_SELECT_KEYPAIR),    \
+        keytype##_d2i_private_key,        \
+        keytype##_d2i_public_key,         \
+        NULL,                             \
+        NULL,                             \
+        NULL,                             \
+        keytype##_check,                  \
+        keytype##_adjust,                 \
         keytype##_free
 
-#define DO_type_specific_pub(keytype)                   \
-    "type-specific", keytype##_evp_type,                \
-        ( OSSL_KEYMGMT_SELECT_PUBLIC_KEY ),             \
-        NULL,                                           \
-        keytype##_d2i_public_key,                       \
-        NULL,                                           \
-        NULL,                                           \
-        NULL,                                           \
-        keytype##_check,                                \
-        keytype##_adjust,                               \
+#define DO_type_specific_pub(keytype)     \
+    "type-specific", keytype##_evp_type,  \
+        (OSSL_KEYMGMT_SELECT_PUBLIC_KEY), \
+        NULL,                             \
+        keytype##_d2i_public_key,         \
+        NULL,                             \
+        NULL,                             \
+        NULL,                             \
+        keytype##_check,                  \
+        keytype##_adjust,                 \
         keytype##_free
 
-#define DO_type_specific_priv(keytype)                  \
-    "type-specific", keytype##_evp_type,                \
-        ( OSSL_KEYMGMT_SELECT_PRIVATE_KEY ),            \
-        keytype##_d2i_private_key,                      \
-        NULL,                                           \
-        NULL,                                           \
-        NULL,                                           \
-        NULL,                                           \
-        keytype##_check,                                \
-        keytype##_adjust,                               \
+#define DO_type_specific_priv(keytype)     \
+    "type-specific", keytype##_evp_type,   \
+        (OSSL_KEYMGMT_SELECT_PRIVATE_KEY), \
+        keytype##_d2i_private_key,         \
+        NULL,                              \
+        NULL,                              \
+        NULL,                              \
+        NULL,                              \
+        keytype##_check,                   \
+        keytype##_adjust,                  \
         keytype##_free
 
-#define DO_type_specific_params(keytype)                \
-    "type-specific", keytype##_evp_type,                \
-        ( OSSL_KEYMGMT_SELECT_ALL_PARAMETERS ),         \
-        NULL,                                           \
-        NULL,                                           \
-        keytype##_d2i_key_params,                       \
-        NULL,                                           \
-        NULL,                                           \
-        keytype##_check,                                \
-        keytype##_adjust,                               \
+#define DO_type_specific_params(keytype)      \
+    "type-specific", keytype##_evp_type,      \
+        (OSSL_KEYMGMT_SELECT_ALL_PARAMETERS), \
+        NULL,                                 \
+        NULL,                                 \
+        keytype##_d2i_key_params,             \
+        NULL,                                 \
+        NULL,                                 \
+        keytype##_check,                      \
+        keytype##_adjust,                     \
         keytype##_free
 
-#define DO_type_specific(keytype)                       \
-    "type-specific", keytype##_evp_type,                \
-        ( OSSL_KEYMGMT_SELECT_ALL ),                    \
-        keytype##_d2i_private_key,                      \
-        keytype##_d2i_public_key,                       \
-        keytype##_d2i_key_params,                       \
-        NULL,                                           \
-        NULL,                                           \
-        keytype##_check,                                \
-        keytype##_adjust,                               \
+#define DO_type_specific(keytype)        \
+    "type-specific", keytype##_evp_type, \
+        (OSSL_KEYMGMT_SELECT_ALL),       \
+        keytype##_d2i_private_key,       \
+        keytype##_d2i_public_key,        \
+        keytype##_d2i_key_params,        \
+        NULL,                            \
+        NULL,                            \
+        keytype##_check,                 \
+        keytype##_adjust,                \
         keytype##_free
 
-#define DO_type_specific_no_pub(keytype)                \
-    "type-specific", keytype##_evp_type,                \
-        ( OSSL_KEYMGMT_SELECT_PRIVATE_KEY               \
-          | OSSL_KEYMGMT_SELECT_ALL_PARAMETERS ),       \
-        keytype##_d2i_private_key,                      \
-        NULL,                                           \
-        keytype##_d2i_key_params,                       \
-        NULL,                                           \
-        NULL,                                           \
-        keytype##_check,                                \
-        keytype##_adjust,                               \
+#define DO_type_specific_no_pub(keytype)           \
+    "type-specific", keytype##_evp_type,           \
+        (OSSL_KEYMGMT_SELECT_PRIVATE_KEY           \
+            | OSSL_KEYMGMT_SELECT_ALL_PARAMETERS), \
+        keytype##_d2i_private_key,                 \
+        NULL,                                      \
+        keytype##_d2i_key_params,                  \
+        NULL,                                      \
+        NULL,                                      \
+        keytype##_check,                           \
+        keytype##_adjust,                          \
         keytype##_free
 
-#define DO_PrivateKeyInfo(keytype)                      \
-    "PrivateKeyInfo", keytype##_evp_type,               \
-        ( OSSL_KEYMGMT_SELECT_PRIVATE_KEY ),            \
-        NULL,                                           \
-        NULL,                                           \
-        NULL,                                           \
-        keytype##_d2i_PKCS8,                            \
-        NULL,                                           \
-        keytype##_check,                                \
-        keytype##_adjust,                               \
+#define DO_PrivateKeyInfo(keytype)         \
+    "PrivateKeyInfo", keytype##_evp_type,  \
+        (OSSL_KEYMGMT_SELECT_PRIVATE_KEY), \
+        NULL,                              \
+        NULL,                              \
+        NULL,                              \
+        keytype##_d2i_PKCS8,               \
+        NULL,                              \
+        keytype##_check,                   \
+        keytype##_adjust,                  \
         keytype##_free
 
-#define DO_SubjectPublicKeyInfo(keytype)                \
-    "SubjectPublicKeyInfo", keytype##_evp_type,         \
-        ( OSSL_KEYMGMT_SELECT_PUBLIC_KEY ),             \
-        NULL,                                           \
-        NULL,                                           \
-        NULL,                                           \
-        NULL,                                           \
-        keytype##_d2i_PUBKEY,                           \
-        keytype##_check,                                \
-        keytype##_adjust,                               \
+#define DO_SubjectPublicKeyInfo(keytype)        \
+    "SubjectPublicKeyInfo", keytype##_evp_type, \
+        (OSSL_KEYMGMT_SELECT_PUBLIC_KEY),       \
+        NULL,                                   \
+        NULL,                                   \
+        NULL,                                   \
+        NULL,                                   \
+        keytype##_d2i_PUBKEY,                   \
+        keytype##_check,                        \
+        keytype##_adjust,                       \
         keytype##_free
 
-#define DO_DH(keytype)                                  \
-    "DH", keytype##_evp_type,                           \
-        ( OSSL_KEYMGMT_SELECT_ALL_PARAMETERS ),         \
-        NULL,                                           \
-        NULL,                                           \
-        keytype##_d2i_key_params,                       \
-        NULL,                                           \
-        NULL,                                           \
-        keytype##_check,                                \
-        keytype##_adjust,                               \
+#define DO_DH(keytype)                        \
+    "DH", keytype##_evp_type,                 \
+        (OSSL_KEYMGMT_SELECT_ALL_PARAMETERS), \
+        NULL,                                 \
+        NULL,                                 \
+        keytype##_d2i_key_params,             \
+        NULL,                                 \
+        NULL,                                 \
+        keytype##_check,                      \
+        keytype##_adjust,                     \
         keytype##_free
 
-#define DO_DHX(keytype)                                 \
-    "DHX", keytype##_evp_type,                          \
-        ( OSSL_KEYMGMT_SELECT_ALL_PARAMETERS ),         \
-        NULL,                                           \
-        NULL,                                           \
-        keytype##_d2i_key_params,                       \
-        NULL,                                           \
-        NULL,                                           \
-        keytype##_check,                                \
-        keytype##_adjust,                               \
+#define DO_DHX(keytype)                       \
+    "DHX", keytype##_evp_type,                \
+        (OSSL_KEYMGMT_SELECT_ALL_PARAMETERS), \
+        NULL,                                 \
+        NULL,                                 \
+        keytype##_d2i_key_params,             \
+        NULL,                                 \
+        NULL,                                 \
+        keytype##_check,                      \
+        keytype##_adjust,                     \
         keytype##_free
 
-#define DO_DSA(keytype)                                 \
-    "DSA", keytype##_evp_type,                          \
-        ( OSSL_KEYMGMT_SELECT_ALL ),                    \
-        keytype##_d2i_private_key,                      \
-        keytype##_d2i_public_key,                       \
-        keytype##_d2i_key_params,                       \
-        NULL,                                           \
-        NULL,                                           \
-        keytype##_check,                                \
-        keytype##_adjust,                               \
+#define DO_DSA(keytype)            \
+    "DSA", keytype##_evp_type,     \
+        (OSSL_KEYMGMT_SELECT_ALL), \
+        keytype##_d2i_private_key, \
+        keytype##_d2i_public_key,  \
+        keytype##_d2i_key_params,  \
+        NULL,                      \
+        NULL,                      \
+        keytype##_check,           \
+        keytype##_adjust,          \
         keytype##_free
 
-#define DO_EC(keytype)                                  \
-    "EC", keytype##_evp_type,                           \
-        ( OSSL_KEYMGMT_SELECT_PRIVATE_KEY               \
-          | OSSL_KEYMGMT_SELECT_ALL_PARAMETERS ),       \
-        keytype##_d2i_private_key,                      \
-        NULL,                                           \
-        keytype##_d2i_key_params,                       \
-        NULL,                                           \
-        NULL,                                           \
-        keytype##_check,                                \
-        keytype##_adjust,                               \
+#define DO_EC(keytype)                             \
+    "EC", keytype##_evp_type,                      \
+        (OSSL_KEYMGMT_SELECT_PRIVATE_KEY           \
+            | OSSL_KEYMGMT_SELECT_ALL_PARAMETERS), \
+        keytype##_d2i_private_key,                 \
+        NULL,                                      \
+        keytype##_d2i_key_params,                  \
+        NULL,                                      \
+        NULL,                                      \
+        keytype##_check,                           \
+        keytype##_adjust,                          \
         keytype##_free
 
-#define DO_RSA(keytype)                                 \
-    "RSA", keytype##_evp_type,                          \
-        ( OSSL_KEYMGMT_SELECT_KEYPAIR ),                \
-        keytype##_d2i_private_key,                      \
-        keytype##_d2i_public_key,                       \
-        NULL,                                           \
-        NULL,                                           \
-        NULL,                                           \
-        keytype##_check,                                \
-        keytype##_adjust,                               \
+#define DO_RSA(keytype)                \
+    "RSA", keytype##_evp_type,         \
+        (OSSL_KEYMGMT_SELECT_KEYPAIR), \
+        keytype##_d2i_private_key,     \
+        keytype##_d2i_public_key,      \
+        NULL,                          \
+        NULL,                          \
+        NULL,                          \
+        keytype##_check,               \
+        keytype##_adjust,              \
         keytype##_free
 
 /*
@@ -1182,41 +1179,41 @@ static ossl_inline void * ml_dsa_d2i_PUBKEY(const uint8_t **der, long der_len,
  *              the DO_##kind macros above, to populate the keytype_desc_st
  *              structure.
  */
-#define MAKE_DECODER(keytype_name, keytype, type, kind)                 \
-    static const struct keytype_desc_st kind##_##keytype##_desc =       \
-        { keytype_name, ossl_##keytype##_keymgmt_functions,             \
-          DO_##kind(keytype) };                                         \
-                                                                        \
-    static OSSL_FUNC_decoder_newctx_fn kind##_der2##keytype##_newctx;   \
-                                                                        \
-    static void *kind##_der2##keytype##_newctx(void *provctx)           \
-    {                                                                   \
-        return der2key_newctx(provctx, &kind##_##keytype##_desc);       \
-    }                                                                   \
-    static int kind##_der2##keytype##_does_selection(void *provctx,     \
-                                                     int selection)     \
-    {                                                                   \
-        return der2key_check_selection(selection,                       \
-                                       &kind##_##keytype##_desc);       \
-    }                                                                   \
-    const OSSL_DISPATCH                                                 \
-    ossl_##kind##_der_to_##keytype##_decoder_functions[] = {            \
-        { OSSL_FUNC_DECODER_NEWCTX,                                     \
-          (void (*)(void))kind##_der2##keytype##_newctx },              \
-        { OSSL_FUNC_DECODER_FREECTX,                                    \
-          (void (*)(void))der2key_freectx },                            \
-        { OSSL_FUNC_DECODER_DOES_SELECTION,                             \
-          (void (*)(void))kind##_der2##keytype##_does_selection },      \
-        { OSSL_FUNC_DECODER_DECODE,                                     \
-          (void (*)(void))der2key_decode },                             \
-        { OSSL_FUNC_DECODER_EXPORT_OBJECT,                              \
-          (void (*)(void))der2key_export_object },                      \
-        { OSSL_FUNC_DECODER_SETTABLE_CTX_PARAMS,                        \
-          (void (*)(void))der2key_settable_ctx_params },                \
-        { OSSL_FUNC_DECODER_SET_CTX_PARAMS,                             \
-          (void (*)(void))der2key_set_ctx_params },                     \
-        OSSL_DISPATCH_END                                               \
-    }
+#define MAKE_DECODER(keytype_name, keytype, type, kind)                                                               \
+    static const struct keytype_desc_st kind##_##keytype##_desc = { keytype_name, ossl_##keytype##_keymgmt_functions, \
+        DO_##kind(keytype) };                                                                                         \
+                                                                                                                      \
+    static OSSL_FUNC_decoder_newctx_fn kind##_der2##keytype##_newctx;                                                 \
+                                                                                                                      \
+    static void *kind##_der2##keytype##_newctx(void *provctx)                                                         \
+    {                                                                                                                 \
+        return der2key_newctx(provctx, &kind##_##keytype##_desc);                                                     \
+    }                                                                                                                 \
+    static int kind##_der2##keytype##_does_selection(void *provctx,                                                   \
+        int selection)                                                                                                \
+    {                                                                                                                 \
+        return der2key_check_selection(selection,                                                                     \
+            &kind##_##keytype##_desc);                                                                                \
+    }                                                                                                                 \
+    const OSSL_DISPATCH                                                                                               \
+        ossl_##kind##_der_to_##keytype##_decoder_functions[]                                                          \
+        = {                                                                                                           \
+              { OSSL_FUNC_DECODER_NEWCTX,                                                                             \
+                  (void (*)(void))kind##_der2##keytype##_newctx },                                                    \
+              { OSSL_FUNC_DECODER_FREECTX,                                                                            \
+                  (void (*)(void))der2key_freectx },                                                                  \
+              { OSSL_FUNC_DECODER_DOES_SELECTION,                                                                     \
+                  (void (*)(void))kind##_der2##keytype##_does_selection },                                            \
+              { OSSL_FUNC_DECODER_DECODE,                                                                             \
+                  (void (*)(void))der2key_decode },                                                                   \
+              { OSSL_FUNC_DECODER_EXPORT_OBJECT,                                                                      \
+                  (void (*)(void))der2key_export_object },                                                            \
+              { OSSL_FUNC_DECODER_SETTABLE_CTX_PARAMS,                                                                \
+                  (void (*)(void))der2key_settable_ctx_params },                                                      \
+              { OSSL_FUNC_DECODER_SET_CTX_PARAMS,                                                                     \
+                  (void (*)(void))der2key_set_ctx_params },                                                           \
+              OSSL_DISPATCH_END                                                                                       \
+          }
 
 #ifndef OPENSSL_NO_DH
 MAKE_DECODER("DH", dh, dh, PrivateKeyInfo);
@@ -1239,7 +1236,7 @@ MAKE_DECODER("EC", ec, ec, PrivateKeyInfo);
 MAKE_DECODER("EC", ec, ec, SubjectPublicKeyInfo);
 MAKE_DECODER("EC", ec, ec, type_specific_no_pub);
 MAKE_DECODER("EC", ec, ec, EC);
-# ifndef OPENSSL_NO_ECX
+#ifndef OPENSSL_NO_ECX
 MAKE_DECODER("X25519", x25519, ecx, PrivateKeyInfo);
 MAKE_DECODER("X25519", x25519, ecx, SubjectPublicKeyInfo);
 MAKE_DECODER("X448", x448, ecx, PrivateKeyInfo);
@@ -1248,12 +1245,12 @@ MAKE_DECODER("ED25519", ed25519, ecx, PrivateKeyInfo);
 MAKE_DECODER("ED25519", ed25519, ecx, SubjectPublicKeyInfo);
 MAKE_DECODER("ED448", ed448, ecx, PrivateKeyInfo);
 MAKE_DECODER("ED448", ed448, ecx, SubjectPublicKeyInfo);
-# endif
-# ifndef OPENSSL_NO_SM2
+#endif
+#ifndef OPENSSL_NO_SM2
 MAKE_DECODER("SM2", sm2, ec, PrivateKeyInfo);
 MAKE_DECODER("SM2", sm2, ec, SubjectPublicKeyInfo);
 MAKE_DECODER("SM2", sm2, sm2, type_specific_no_pub);
-# endif
+#endif
 #endif
 #ifndef OPENSSL_NO_ML_KEM
 MAKE_DECODER("ML-KEM-512", ml_kem_512, ml_kem_512, PrivateKeyInfo);

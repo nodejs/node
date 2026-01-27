@@ -30,7 +30,7 @@ struct st_engine_pile {
 /* The type exposed in eng_local.h */
 struct st_engine_table {
     LHASH_OF(ENGINE_PILE) piles;
-};                              /* ENGINE_TABLE */
+}; /* ENGINE_TABLE */
 
 typedef struct st_engine_pile_doall {
     engine_table_doall_cb *cb;
@@ -81,8 +81,8 @@ static int int_table_check(ENGINE_TABLE **t, int create)
  * ENGINEs from the implementation table
  */
 int engine_table_register(ENGINE_TABLE **table, ENGINE_CLEANUP_CB *cleanup,
-                          ENGINE *e, const int *nids, int num_nids,
-                          int setdefault)
+    ENGINE *e, const int *nids, int num_nids,
+    int setdefault)
 {
     int ret = 0, added = 0;
     ENGINE_PILE tmplate, *fnd;
@@ -143,7 +143,7 @@ int engine_table_register(ENGINE_TABLE **table, ENGINE_CLEANUP_CB *cleanup,
         nids++;
     }
     ret = 1;
- end:
+end:
     CRYPTO_THREAD_unlock(global_engine_lock);
     return ret;
 }
@@ -198,7 +198,7 @@ void engine_table_cleanup(ENGINE_TABLE **table)
 
 /* return a functional reference for a given 'nid' */
 ENGINE *ossl_engine_table_select(ENGINE_TABLE **table, int nid,
-                                 const char *f, int l)
+    const char *f, int l)
 {
     ENGINE *ret = NULL;
     ENGINE_PILE tmplate, *fnd = NULL;
@@ -211,8 +211,8 @@ ENGINE *ossl_engine_table_select(ENGINE_TABLE **table, int nid,
 
     if (!(*table)) {
         OSSL_TRACE3(ENGINE_TABLE,
-                   "%s:%d, nid=%d, nothing registered!\n",
-                   f, l, nid);
+            "%s:%d, nid=%d, nothing registered!\n",
+            f, l, nid);
         return NULL;
     }
 
@@ -232,8 +232,8 @@ ENGINE *ossl_engine_table_select(ENGINE_TABLE **table, int nid,
         goto end;
     if (fnd->funct && engine_unlocked_init(fnd->funct)) {
         OSSL_TRACE4(ENGINE_TABLE,
-                   "%s:%d, nid=%d, using ENGINE '%s' cached\n",
-                   f, l, nid, fnd->funct->id);
+            "%s:%d, nid=%d, using ENGINE '%s' cached\n",
+            f, l, nid, fnd->funct->id);
         ret = fnd->funct;
         goto end;
     }
@@ -241,13 +241,13 @@ ENGINE *ossl_engine_table_select(ENGINE_TABLE **table, int nid,
         ret = fnd->funct;
         goto end;
     }
- trynext:
+trynext:
     ret = sk_ENGINE_value(fnd->sk, loop++);
     if (!ret) {
         OSSL_TRACE3(ENGINE_TABLE,
-                    "%s:%d, nid=%d, "
-                    "no registered implementations would initialise\n",
-                    f, l, nid);
+            "%s:%d, nid=%d, "
+            "no registered implementations would initialise\n",
+            f, l, nid);
         goto end;
     }
     /* Try to initialise the ENGINE? */
@@ -263,16 +263,16 @@ ENGINE *ossl_engine_table_select(ENGINE_TABLE **table, int nid,
                 engine_unlocked_finish(fnd->funct, 0);
             fnd->funct = ret;
             OSSL_TRACE4(ENGINE_TABLE,
-                        "%s:%d, nid=%d, setting default to '%s'\n",
-                        f, l, nid, ret->id);
+                "%s:%d, nid=%d, setting default to '%s'\n",
+                f, l, nid, ret->id);
         }
         OSSL_TRACE4(ENGINE_TABLE,
-                    "%s:%d, nid=%d, using newly initialised '%s'\n",
-                    f, l, nid, ret->id);
+            "%s:%d, nid=%d, using newly initialised '%s'\n",
+            f, l, nid, ret->id);
         goto end;
     }
     goto trynext;
- end:
+end:
     /*
      * If it failed, it is unlikely to succeed again until some future
      * registrations have taken place. In all cases, we cache.
@@ -281,12 +281,12 @@ ENGINE *ossl_engine_table_select(ENGINE_TABLE **table, int nid,
         fnd->uptodate = 1;
     if (ret)
         OSSL_TRACE4(ENGINE_TABLE,
-                   "%s:%d, nid=%d, caching ENGINE '%s'\n",
-                   f, l, nid, ret->id);
+            "%s:%d, nid=%d, caching ENGINE '%s'\n",
+            f, l, nid, ret->id);
     else
         OSSL_TRACE3(ENGINE_TABLE,
-                    "%s:%d, nid=%d, caching 'no matching ENGINE'\n",
-                    f, l, nid);
+            "%s:%d, nid=%d, caching 'no matching ENGINE'\n",
+            f, l, nid);
     CRYPTO_THREAD_unlock(global_engine_lock);
     /*
      * Whatever happened, any failed init()s are not failures in this
@@ -306,7 +306,7 @@ static void int_dall(const ENGINE_PILE *pile, ENGINE_PILE_DOALL *dall)
 IMPLEMENT_LHASH_DOALL_ARG_CONST(ENGINE_PILE, ENGINE_PILE_DOALL);
 
 void engine_table_doall(ENGINE_TABLE *table, engine_table_doall_cb *cb,
-                        void *arg)
+    void *arg)
 {
     ENGINE_PILE_DOALL dall;
     dall.cb = cb;

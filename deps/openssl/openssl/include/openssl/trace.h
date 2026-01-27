@@ -8,16 +8,16 @@
  */
 
 #ifndef OPENSSL_TRACE_H
-# define OPENSSL_TRACE_H
-# pragma once
+#define OPENSSL_TRACE_H
+#pragma once
 
-# include <stdarg.h>
+#include <stdarg.h>
 
-# include <openssl/bio.h>
+#include <openssl/bio.h>
 
-# ifdef  __cplusplus
+#ifdef __cplusplus
 extern "C" {
-# endif
+#endif
 
 /*
  * TRACE CATEGORIES
@@ -37,28 +37,28 @@ extern "C" {
  * it is better to register channels for all categories separately.
  * (This is how the openssl application does it.)
  */
-# define OSSL_TRACE_CATEGORY_ALL                 0 /* The fallback */
-# define OSSL_TRACE_CATEGORY_TRACE               1
-# define OSSL_TRACE_CATEGORY_INIT                2
-# define OSSL_TRACE_CATEGORY_TLS                 3
-# define OSSL_TRACE_CATEGORY_TLS_CIPHER          4
-# define OSSL_TRACE_CATEGORY_CONF                5
-# define OSSL_TRACE_CATEGORY_ENGINE_TABLE        6
-# define OSSL_TRACE_CATEGORY_ENGINE_REF_COUNT    7
-# define OSSL_TRACE_CATEGORY_PKCS5V2             8
-# define OSSL_TRACE_CATEGORY_PKCS12_KEYGEN       9
-# define OSSL_TRACE_CATEGORY_PKCS12_DECRYPT     10
-# define OSSL_TRACE_CATEGORY_X509V3_POLICY      11
-# define OSSL_TRACE_CATEGORY_BN_CTX             12
-# define OSSL_TRACE_CATEGORY_CMP                13
-# define OSSL_TRACE_CATEGORY_STORE              14
-# define OSSL_TRACE_CATEGORY_DECODER            15
-# define OSSL_TRACE_CATEGORY_ENCODER            16
-# define OSSL_TRACE_CATEGORY_REF_COUNT          17
-# define OSSL_TRACE_CATEGORY_HTTP               18
-# define OSSL_TRACE_CATEGORY_PROVIDER           19
-# define OSSL_TRACE_CATEGORY_QUERY              20
-# define OSSL_TRACE_CATEGORY_NUM                21
+#define OSSL_TRACE_CATEGORY_ALL 0 /* The fallback */
+#define OSSL_TRACE_CATEGORY_TRACE 1
+#define OSSL_TRACE_CATEGORY_INIT 2
+#define OSSL_TRACE_CATEGORY_TLS 3
+#define OSSL_TRACE_CATEGORY_TLS_CIPHER 4
+#define OSSL_TRACE_CATEGORY_CONF 5
+#define OSSL_TRACE_CATEGORY_ENGINE_TABLE 6
+#define OSSL_TRACE_CATEGORY_ENGINE_REF_COUNT 7
+#define OSSL_TRACE_CATEGORY_PKCS5V2 8
+#define OSSL_TRACE_CATEGORY_PKCS12_KEYGEN 9
+#define OSSL_TRACE_CATEGORY_PKCS12_DECRYPT 10
+#define OSSL_TRACE_CATEGORY_X509V3_POLICY 11
+#define OSSL_TRACE_CATEGORY_BN_CTX 12
+#define OSSL_TRACE_CATEGORY_CMP 13
+#define OSSL_TRACE_CATEGORY_STORE 14
+#define OSSL_TRACE_CATEGORY_DECODER 15
+#define OSSL_TRACE_CATEGORY_ENCODER 16
+#define OSSL_TRACE_CATEGORY_REF_COUNT 17
+#define OSSL_TRACE_CATEGORY_HTTP 18
+#define OSSL_TRACE_CATEGORY_PROVIDER 19
+#define OSSL_TRACE_CATEGORY_QUERY 20
+#define OSSL_TRACE_CATEGORY_NUM 21
 /* KEEP THIS LIST IN SYNC with trace_categories[] in crypto/trace.c */
 
 /* Returns the trace category number for the given |name| */
@@ -78,7 +78,7 @@ const char *OSSL_trace_get_category_name(int num);
  *
  * Returns 1 on success and 0 on failure
  */
-int OSSL_trace_set_channel(int category, BIO* channel);
+int OSSL_trace_set_channel(int category, BIO *channel);
 
 /*
  * Attach a prefix and a suffix to the given |category|, to be printed at the
@@ -104,13 +104,13 @@ int OSSL_trace_set_suffix(int category, const char *suffix);
  * The |category| number is given, as well as a |cmd| number, described below.
  */
 typedef size_t (*OSSL_trace_cb)(const char *buffer, size_t count,
-                                int category, int cmd, void *data);
+    int category, int cmd, void *data);
 /*
  * Possible |cmd| numbers.
  */
-# define OSSL_TRACE_CTRL_BEGIN  0
-# define OSSL_TRACE_CTRL_WRITE  1
-# define OSSL_TRACE_CTRL_END    2
+#define OSSL_TRACE_CTRL_BEGIN 0
+#define OSSL_TRACE_CTRL_WRITE 1
+#define OSSL_TRACE_CTRL_END 2
 
 /*
  * Enables tracing for the given |category| by creating an internal
@@ -199,35 +199,37 @@ void OSSL_trace_end(int category, BIO *channel);
  * call OSSL_TRACE_CANCEL(category).
  */
 
-# if !defined OPENSSL_NO_TRACE && !defined FIPS_MODULE
+#if !defined OPENSSL_NO_TRACE && !defined FIPS_MODULE
 
-#  define OSSL_TRACE_BEGIN(category) \
-    do { \
+#define OSSL_TRACE_BEGIN(category)                                       \
+    do {                                                                 \
         BIO *trc_out = OSSL_trace_begin(OSSL_TRACE_CATEGORY_##category); \
- \
+                                                                         \
         if (trc_out != NULL)
 
-#  define OSSL_TRACE_END(category) \
-        OSSL_trace_end(OSSL_TRACE_CATEGORY_##category, trc_out); \
-    } while (0)
+#define OSSL_TRACE_END(category)                             \
+    OSSL_trace_end(OSSL_TRACE_CATEGORY_##category, trc_out); \
+    }                                                        \
+    while (0)
 
-#  define OSSL_TRACE_CANCEL(category) \
-        OSSL_trace_end(OSSL_TRACE_CATEGORY_##category, trc_out) \
+#define OSSL_TRACE_CANCEL(category) \
+    OSSL_trace_end(OSSL_TRACE_CATEGORY_##category, trc_out)
 
-# else
+#else
 
-#  define OSSL_TRACE_BEGIN(category)           \
-    do {                                        \
-        BIO *trc_out = NULL;                    \
+#define OSSL_TRACE_BEGIN(category) \
+    do {                           \
+        BIO *trc_out = NULL;       \
         if (0)
 
-#  define OSSL_TRACE_END(category)             \
-    } while(0)
+#define OSSL_TRACE_END(category) \
+    }                            \
+    while (0)
 
-#  define OSSL_TRACE_CANCEL(category)          \
+#define OSSL_TRACE_CANCEL(category) \
     ((void)0)
 
-# endif
+#endif
 
 /*
  * OSSL_TRACE_ENABLED() - Check whether tracing is enabled for |category|
@@ -238,16 +240,16 @@ void OSSL_trace_end(int category, BIO *channel);
  *         ...
  *     }
  */
-# if !defined OPENSSL_NO_TRACE && !defined FIPS_MODULE
+#if !defined OPENSSL_NO_TRACE && !defined FIPS_MODULE
 
-#  define OSSL_TRACE_ENABLED(category) \
+#define OSSL_TRACE_ENABLED(category) \
     OSSL_trace_enabled(OSSL_TRACE_CATEGORY_##category)
 
-# else
+#else
 
-#  define OSSL_TRACE_ENABLED(category) (0)
+#define OSSL_TRACE_ENABLED(category) (0)
 
-# endif
+#endif
 
 /*
  * OSSL_TRACE*() - OneShot Trace Macros
@@ -271,51 +273,53 @@ void OSSL_trace_end(int category, BIO *channel);
  *                42, "What do you get when you multiply six by nine?");
  */
 
-# if !defined OPENSSL_NO_TRACE && !defined FIPS_MODULE
+#if !defined OPENSSL_NO_TRACE && !defined FIPS_MODULE
 
-#  define OSSL_TRACEV(category, args) \
-    OSSL_TRACE_BEGIN(category) \
-        BIO_printf args; \
+#define OSSL_TRACEV(category, args) \
+    OSSL_TRACE_BEGIN(category)      \
+    BIO_printf args;                \
     OSSL_TRACE_END(category)
 
-# else
+#else
 
-#  define OSSL_TRACEV(category, args) ((void)0)
+#define OSSL_TRACEV(category, args) ((void)0)
 
-# endif
+#endif
 
-# define OSSL_TRACE(category, text) \
+#define OSSL_TRACE(category, text) \
     OSSL_TRACEV(category, (trc_out, "%s", text))
 
-# define OSSL_TRACE1(category, format, arg1) \
+#define OSSL_TRACE1(category, format, arg1) \
     OSSL_TRACEV(category, (trc_out, format, arg1))
-# define OSSL_TRACE2(category, format, arg1, arg2) \
+#define OSSL_TRACE2(category, format, arg1, arg2) \
     OSSL_TRACEV(category, (trc_out, format, arg1, arg2))
-# define OSSL_TRACE3(category, format, arg1, arg2, arg3) \
+#define OSSL_TRACE3(category, format, arg1, arg2, arg3) \
     OSSL_TRACEV(category, (trc_out, format, arg1, arg2, arg3))
-# define OSSL_TRACE4(category, format, arg1, arg2, arg3, arg4) \
+#define OSSL_TRACE4(category, format, arg1, arg2, arg3, arg4) \
     OSSL_TRACEV(category, (trc_out, format, arg1, arg2, arg3, arg4))
-# define OSSL_TRACE5(category, format, arg1, arg2, arg3, arg4, arg5) \
+#define OSSL_TRACE5(category, format, arg1, arg2, arg3, arg4, arg5) \
     OSSL_TRACEV(category, (trc_out, format, arg1, arg2, arg3, arg4, arg5))
-# define OSSL_TRACE6(category, format, arg1, arg2, arg3, arg4, arg5, arg6) \
+#define OSSL_TRACE6(category, format, arg1, arg2, arg3, arg4, arg5, arg6) \
     OSSL_TRACEV(category, (trc_out, format, arg1, arg2, arg3, arg4, arg5, arg6))
-# define OSSL_TRACE7(category, format, arg1, arg2, arg3, arg4, arg5, arg6, arg7) \
+#define OSSL_TRACE7(category, format, arg1, arg2, arg3, arg4, arg5, arg6, arg7) \
     OSSL_TRACEV(category, (trc_out, format, arg1, arg2, arg3, arg4, arg5, arg6, arg7))
-# define OSSL_TRACE8(category, format, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8) \
+#define OSSL_TRACE8(category, format, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8) \
     OSSL_TRACEV(category, (trc_out, format, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8))
-# define OSSL_TRACE9(category, format, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9) \
+#define OSSL_TRACE9(category, format, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9) \
     OSSL_TRACEV(category, (trc_out, format, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9))
 
 #define OSSL_TRACE_STRING_MAX 80
 int OSSL_trace_string(BIO *out, int text, int full,
-                      const unsigned char *data, size_t size);
+    const unsigned char *data, size_t size);
 #define OSSL_TRACE_STRING(category, text, full, data, len) \
-    OSSL_TRACE_BEGIN(category) { \
-        OSSL_trace_string(trc_out, text, full, data, len);  \
-    } OSSL_TRACE_END(category)
+    OSSL_TRACE_BEGIN(category)                             \
+    {                                                      \
+        OSSL_trace_string(trc_out, text, full, data, len); \
+    }                                                      \
+    OSSL_TRACE_END(category)
 
-# ifdef  __cplusplus
+#ifdef __cplusplus
 }
-# endif
+#endif
 
 #endif

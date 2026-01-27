@@ -13,14 +13,16 @@
 #include "internal/der.h"
 
 /* Well known OIDs precompiled */
+/* clang-format off */
 {-
     $OUT = oids_to_c::process_leaves('providers/common/der/EC.asn1',
                                      { dir => $config{sourcedir},
                                        filter => \&oids_to_c::filter_to_H });
 -}
+/* clang-format on */
 
 /* Subject Public Key Info */
 int ossl_DER_w_algorithmIdentifier_EC(WPACKET *pkt, int cont, EC_KEY *ec);
 /* Signature */
 int ossl_DER_w_algorithmIdentifier_ECDSA_with_MD(WPACKET *pkt, int cont,
-                                                 EC_KEY *ec, int mdnid);
+    EC_KEY *ec, int mdnid);

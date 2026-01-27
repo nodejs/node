@@ -81,8 +81,8 @@ void CAST_decrypt(CAST_LONG *data, const CAST_KEY *key)
 }
 
 void CAST_cbc_encrypt(const unsigned char *in, unsigned char *out,
-                      long length, const CAST_KEY *ks, unsigned char *iv,
-                      int enc)
+    long length, const CAST_KEY *ks, unsigned char *iv,
+    int enc)
 {
     register CAST_LONG tin0, tin1;
     register CAST_LONG tout0, tout1, xor0, xor1;

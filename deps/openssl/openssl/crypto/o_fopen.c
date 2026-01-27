@@ -7,7 +7,7 @@
  * https://www.openssl.org/source/license.html
  */
 
-# if defined(__linux) || defined(__sun) || defined(__hpux)
+#if defined(__linux) || defined(__sun) || defined(__hpux)
 /*
  * Following definition aliases fopen to fopen64 on above mentioned
  * platforms. This makes it possible to open and sequentially access files
@@ -20,32 +20,32 @@
  * of 32-bit platforms which allow for sequential access of large files
  * without extra "magic" comprise *BSD, Darwin, IRIX...
  */
-#  ifndef _FILE_OFFSET_BITS
-#   define _FILE_OFFSET_BITS 64
-#  endif
-# endif
+#ifndef _FILE_OFFSET_BITS
+#define _FILE_OFFSET_BITS 64
+#endif
+#endif
 
 #include "internal/e_os.h"
 #include "internal/cryptlib.h"
 
 #if !defined(OPENSSL_NO_STDIO)
 
-# include <stdio.h>
-# ifdef __DJGPP__
-#  include <unistd.h>
-# endif
+#include <stdio.h>
+#ifdef __DJGPP__
+#include <unistd.h>
+#endif
 
 FILE *openssl_fopen(const char *filename, const char *mode)
 {
     FILE *file = NULL;
-# if defined(_WIN32) && defined(CP_UTF8)
+#if defined(_WIN32) && defined(CP_UTF8)
     int sz, len_0;
     DWORD flags;
-# endif
+#endif
 
     if (filename == NULL)
         return NULL;
-# if defined(_WIN32) && defined(CP_UTF8)
+#if defined(_WIN32) && defined(CP_UTF8)
     len_0 = (int)strlen(filename) + 1;
 
     /*
@@ -61,21 +61,17 @@ FILE *openssl_fopen(const char *filename, const char *mode)
      * back to fopen...
      */
     if ((sz = MultiByteToWideChar(CP_UTF8, (flags = MB_ERR_INVALID_CHARS),
-                                  filename, len_0, NULL, 0)) > 0 ||
-        (GetLastError() == ERROR_INVALID_FLAGS &&
-         (sz = MultiByteToWideChar(CP_UTF8, (flags = 0),
-                                   filename, len_0, NULL, 0)) > 0)
-        ) {
+             filename, len_0, NULL, 0))
+            > 0
+        || (GetLastError() == ERROR_INVALID_FLAGS && (sz = MultiByteToWideChar(CP_UTF8, (flags = 0), filename, len_0, NULL, 0)) > 0)) {
         WCHAR wmode[8];
         WCHAR *wfilename = _alloca(sz * sizeof(WCHAR));
 
         if (MultiByteToWideChar(CP_UTF8, flags,
-                                filename, len_0, wfilename, sz) &&
-            MultiByteToWideChar(CP_UTF8, 0, mode, strlen(mode) + 1,
-                                wmode, OSSL_NELEM(wmode)) &&
-            (file = _wfopen(wfilename, wmode)) == NULL &&
-            (errno == ENOENT || errno == EBADF)
-            ) {
+                filename, len_0, wfilename, sz)
+            && MultiByteToWideChar(CP_UTF8, 0, mode, strlen(mode) + 1,
+                wmode, OSSL_NELEM(wmode))
+            && (file = _wfopen(wfilename, wmode)) == NULL && (errno == ENOENT || errno == EBADF)) {
             /*
              * UTF-8 decode succeeded, but no file, filename
              * could still have been locale-ized...
@@ -85,11 +81,11 @@ FILE *openssl_fopen(const char *filename, const char *mode)
     } else if (GetLastError() == ERROR_NO_UNICODE_TRANSLATION) {
         file = fopen(filename, mode);
     }
-# elif defined(__DJGPP__)
+#elif defined(__DJGPP__)
     {
         char *newname = NULL;
 
-        if (pathconf(filename, _PC_NAME_MAX) <= 12) {  /* 8.3 file system? */
+        if (pathconf(filename, _PC_NAME_MAX) <= 12) { /* 8.3 file system? */
             char *iterator;
             char lastchar;
 
@@ -114,9 +110,9 @@ FILE *openssl_fopen(const char *filename, const char *mode)
 
         OPENSSL_free(newname);
     }
-# else
+#else
     file = fopen(filename, mode);
-# endif
+#endif
     return file;
 }
 

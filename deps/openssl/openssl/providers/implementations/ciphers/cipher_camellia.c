@@ -27,7 +27,7 @@ static void camellia_freectx(void *vctx)
     PROV_CAMELLIA_CTX *ctx = (PROV_CAMELLIA_CTX *)vctx;
 
     ossl_cipher_generic_reset_ctx((PROV_CIPHER_CTX *)vctx);
-    OPENSSL_clear_free(ctx,  sizeof(*ctx));
+    OPENSSL_clear_free(ctx, sizeof(*ctx));
 }
 
 static void *camellia_dupctx(void *ctx)
@@ -65,11 +65,11 @@ IMPLEMENT_generic_cipher(camellia, CAMELLIA, ofb, OFB, 0, 192, 8, 128, stream)
 /* ossl_camellia128ofb_functions */
 IMPLEMENT_generic_cipher(camellia, CAMELLIA, ofb, OFB, 0, 128, 8, 128, stream)
 /* ossl_camellia256cfb_functions */
-IMPLEMENT_generic_cipher(camellia, CAMELLIA, cfb,  CFB, 0, 256, 8, 128, stream)
+IMPLEMENT_generic_cipher(camellia, CAMELLIA, cfb, CFB, 0, 256, 8, 128, stream)
 /* ossl_camellia192cfb_functions */
-IMPLEMENT_generic_cipher(camellia, CAMELLIA, cfb,  CFB, 0, 192, 8, 128, stream)
+IMPLEMENT_generic_cipher(camellia, CAMELLIA, cfb, CFB, 0, 192, 8, 128, stream)
 /* ossl_camellia128cfb_functions */
-IMPLEMENT_generic_cipher(camellia, CAMELLIA, cfb,  CFB, 0, 128, 8, 128, stream)
+IMPLEMENT_generic_cipher(camellia, CAMELLIA, cfb, CFB, 0, 128, 8, 128, stream)
 /* ossl_camellia256cfb1_functions */
 IMPLEMENT_generic_cipher(camellia, CAMELLIA, cfb1, CFB, 0, 256, 8, 128, stream)
 /* ossl_camellia192cfb1_functions */

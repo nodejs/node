@@ -66,7 +66,7 @@ end:
 }
 
 int generic_export(void *keydata, int selection,
-                   OSSL_CALLBACK *param_callback, void *cbarg)
+    OSSL_CALLBACK *param_callback, void *cbarg)
 {
     PROV_SKEY *gen = keydata;
     OSSL_PARAM params[2];
@@ -79,7 +79,7 @@ int generic_export(void *keydata, int selection,
         return 0;
 
     params[0] = OSSL_PARAM_construct_octet_string(OSSL_SKEY_PARAM_RAW_BYTES,
-                                                  gen->data, gen->length);
+        gen->data, gen->length);
     params[1] = OSSL_PARAM_construct_end();
 
     return param_callback(params, cbarg);

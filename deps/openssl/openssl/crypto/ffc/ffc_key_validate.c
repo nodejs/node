@@ -17,7 +17,7 @@
  * ret contains 0 on success, or error flags (see FFC_ERROR_PUBKEY_TOO_SMALL)
  */
 int ossl_ffc_validate_public_key_partial(const FFC_PARAMS *params,
-                                         const BIGNUM *pub_key, int *ret)
+    const BIGNUM *pub_key, int *ret)
 {
     int ok = 0;
     BIGNUM *tmp = NULL;
@@ -48,7 +48,7 @@ int ossl_ffc_validate_public_key_partial(const FFC_PARAMS *params,
     if (BN_cmp(pub_key, tmp) >= 0)
         *ret |= FFC_ERROR_PUBKEY_TOO_LARGE;
     ok = 1;
- err:
+err:
     if (ctx != NULL) {
         BN_CTX_end(ctx);
         BN_CTX_free(ctx);
@@ -60,7 +60,7 @@ int ossl_ffc_validate_public_key_partial(const FFC_PARAMS *params,
  * See SP800-56Ar3 Section 5.6.2.3.1 : FFC Full public key validation.
  */
 int ossl_ffc_validate_public_key(const FFC_PARAMS *params,
-                                 const BIGNUM *pub_key, int *ret)
+    const BIGNUM *pub_key, int *ret)
 {
     int ok = 0;
     BIGNUM *tmp = NULL;
@@ -85,7 +85,7 @@ int ossl_ffc_validate_public_key(const FFC_PARAMS *params,
     }
 
     ok = 1;
- err:
+err:
     if (ctx != NULL) {
         BN_CTX_end(ctx);
         BN_CTX_free(ctx);
@@ -100,7 +100,7 @@ int ossl_ffc_validate_public_key(const FFC_PARAMS *params,
  * Note: This assumes that the domain parameters are valid.
  */
 int ossl_ffc_validate_private_key(const BIGNUM *upper, const BIGNUM *priv,
-                                  int *ret)
+    int *ret)
 {
     int ok = 0;
 

@@ -311,6 +311,7 @@ CMS_R_ATTRIBUTE_ERROR:161:attribute error
 CMS_R_CERTIFICATE_ALREADY_PRESENT:175:certificate already present
 CMS_R_CERTIFICATE_HAS_NO_KEYID:160:certificate has no keyid
 CMS_R_CERTIFICATE_VERIFY_ERROR:100:certificate verify error
+CMS_R_CIPHER_AEAD_IN_ENVELOPED_DATA:200:cipher aead in enveloped data
 CMS_R_CIPHER_AEAD_SET_TAG_ERROR:184:cipher aead set tag error
 CMS_R_CIPHER_GET_TAG:185:cipher get tag
 CMS_R_CIPHER_INITIALISATION_ERROR:101:cipher initialisation error
