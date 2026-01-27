@@ -1070,7 +1070,7 @@ class V8_EXPORT_PRIVATE TopLevelLiveRange final : public LiveRange {
   void SetSpillRange(SpillRange* spill_range);
 
   // Encodes whether a range is also available from a memory location:
-  //   kNoSpillType: not availble in memory location.
+  //   kNoSpillType: not available in memory location.
   //   kSpillOperand: computed in a memory location at range start.
   //   kSpillRange: copied (spilled) to memory location at the definition,
   //                or at the beginning of some later blocks if
