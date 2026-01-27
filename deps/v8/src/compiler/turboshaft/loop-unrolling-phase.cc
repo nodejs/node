@@ -28,7 +28,7 @@ void LoopUnrollingPhase::Run(PipelineData* data, Zone* temp_zone) {
     // now somewhat out-dated).
     DCHECK(!data->graph().has_loop_unrolling_analyzer());
     // The LoopUnrollingAnalyzer should not be copied to the output_graph during
-    // CopyingPhase, since it's refering to the input_graph.
+    // CopyingPhase, since it's referring to the input_graph.
     DCHECK(!data->graph().GetOrCreateCompanion().has_loop_unrolling_analyzer());
   }
 }
