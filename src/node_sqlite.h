@@ -415,6 +415,9 @@ class VirtualTableModule {
   std::vector<int> col_index_map_;
   bool use_bigint_args_;
   bool direct_only_;
+  sqlite3_module module_def_;
+
+  friend class DatabaseSync;
 };
 
 }  // namespace sqlite

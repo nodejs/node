@@ -684,7 +684,24 @@ VirtualTableModule::VirtualTableModule(Environment* env,
       num_columns_(num_columns),
       hidden_col_indices_(std::move(hidden_col_indices)),
       use_bigint_args_(use_bigint_args),
-      direct_only_(direct_only) {
+      direct_only_(direct_only),
+      module_def_({}) {
+  // Initialize the sqlite3_module definition. Each VirtualTableModule instance
+  // gets its own copy to avoid thread-safety issues with worker threads.
+  module_def_.iVersion = 1;
+  module_def_.xCreate = VirtualTableModule::xCreate;
+  module_def_.xConnect = VirtualTableModule::xCreate;
+  module_def_.xBestIndex = VirtualTableModule::xBestIndex;
+  module_def_.xDisconnect = VirtualTableModule::xDisconnect;
+  module_def_.xDestroy = VirtualTableModule::xDestroy;
+  module_def_.xOpen = VirtualTableModule::xOpen;
+  module_def_.xClose = VirtualTableModule::xClose;
+  module_def_.xFilter = VirtualTableModule::xFilter;
+  module_def_.xNext = VirtualTableModule::xNext;
+  module_def_.xEof = VirtualTableModule::xEof;
+  module_def_.xColumn = VirtualTableModule::xColumn;
+  module_def_.xRowid = VirtualTableModule::xRowid;
+
   // Build mapping from schema column index to row array index.
   // Visible columns are numbered sequentially; hidden columns map to -1.
   col_index_map_.assign(num_columns, 0);
@@ -2146,36 +2163,6 @@ void DatabaseSync::CreateModule(const FunctionCallbackInfo<Value>& args) {
 
   schema_sql += ")";
 
-  // Create the static module definition.
-  // This must be static or heap-allocated because SQLite retains a pointer.
-  static sqlite3_module vtab_module_def = {
-      1,                                // iVersion
-      VirtualTableModule::xCreate,      // xCreate
-      VirtualTableModule::xCreate,      // xConnect (same as xCreate)
-      VirtualTableModule::xBestIndex,   // xBestIndex
-      VirtualTableModule::xDisconnect,  // xDisconnect
-      VirtualTableModule::xDestroy,     // xDestroy
-      VirtualTableModule::xOpen,        // xOpen
-      VirtualTableModule::xClose,       // xClose
-      VirtualTableModule::xFilter,      // xFilter
-      VirtualTableModule::xNext,        // xNext
-      VirtualTableModule::xEof,         // xEof
-      VirtualTableModule::xColumn,      // xColumn
-      VirtualTableModule::xRowid,       // xRowid
-      nullptr,                          // xUpdate
-      nullptr,                          // xBegin
-      nullptr,                          // xSync
-      nullptr,                          // xCommit
-      nullptr,                          // xRollback
-      nullptr,                          // xFindFunction
-      nullptr,                          // xRename
-      nullptr,                          // xSavepoint
-      nullptr,                          // xRelease
-      nullptr,                          // xRollbackTo
-      nullptr,                          // xShadowName
-      nullptr,                          // xIntegrity
-  };
-
   VirtualTableModule* vtab_mod =
       new VirtualTableModule(env,
                              db,
@@ -2188,7 +2175,7 @@ void DatabaseSync::CreateModule(const FunctionCallbackInfo<Value>& args) {
 
   int r = sqlite3_create_module_v2(db->connection_,
                                    *name,
-                                   &vtab_module_def,
+                                   &vtab_mod->module_def_,
                                    vtab_mod,
                                    VirtualTableModule::xDestroyModule);
   CHECK_ERROR_OR_THROW(env->isolate(), db, r, SQLITE_OK, void());
