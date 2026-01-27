@@ -39,7 +39,7 @@ char *i2s_ASN1_IA5STRING(X509V3_EXT_METHOD *method, ASN1_IA5STRING *ia5)
 }
 
 ASN1_IA5STRING *s2i_ASN1_IA5STRING(X509V3_EXT_METHOD *method,
-                                   X509V3_CTX *ctx, const char *str)
+    X509V3_CTX *ctx, const char *str)
 {
     ASN1_IA5STRING *ia5;
     if (str == NULL) {
@@ -56,6 +56,6 @@ ASN1_IA5STRING *s2i_ASN1_IA5STRING(X509V3_EXT_METHOD *method,
     }
 #ifdef CHARSET_EBCDIC
     ebcdic2ascii(ia5->data, ia5->data, ia5->length);
-#endif                          /* CHARSET_EBCDIC */
+#endif /* CHARSET_EBCDIC */
     return ia5;
 }

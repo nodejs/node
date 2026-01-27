@@ -35,14 +35,14 @@ OSSL_SAFE_MATH_UNSIGNED(size_t, size_t)
  */
 
 struct pq_heap_st {
-    void *data;     /* User supplied data pointer */
-    size_t index;   /* Constant index in elements[] */
+    void *data; /* User supplied data pointer */
+    size_t index; /* Constant index in elements[] */
 };
 
 struct pq_elem_st {
-    size_t posn;    /* Current index in heap[] or link in free list */
+    size_t posn; /* Current index in heap[] or link in free list */
 #ifndef NDEBUG
-    int used;       /* Debug flag indicating that this is in use */
+    int used; /* Debug flag indicating that this is in use */
 #endif
 };
 
@@ -50,29 +50,27 @@ struct ossl_pqueue_st {
     struct pq_heap_st *heap;
     struct pq_elem_st *elements;
     int (*compare)(const void *, const void *);
-    size_t htop;        /* Highest used heap element */
-    size_t hmax;        /* Allocated heap & element space */
-    size_t freelist;    /* Index into elements[], start of free element list */
+    size_t htop; /* Highest used heap element */
+    size_t hmax; /* Allocated heap & element space */
+    size_t freelist; /* Index into elements[], start of free element list */
 };
 
 /*
  * The initial and maximum number of elements in the heap.
  */
 static const size_t min_nodes = 8;
-static const size_t max_nodes =
-        SIZE_MAX / (sizeof(struct pq_heap_st) > sizeof(struct pq_elem_st)
-                    ? sizeof(struct pq_heap_st) : sizeof(struct pq_elem_st));
+static const size_t max_nodes = SIZE_MAX / (sizeof(struct pq_heap_st) > sizeof(struct pq_elem_st) ? sizeof(struct pq_heap_st) : sizeof(struct pq_elem_st));
 
 #ifndef NDEBUG
 /* Some basic sanity checking of the data structure */
-# define ASSERT_USED(pq, idx)                                               \
-    assert(pq->elements[pq->heap[idx].index].used);                         \
+#define ASSERT_USED(pq, idx)                        \
+    assert(pq->elements[pq->heap[idx].index].used); \
     assert(pq->elements[pq->heap[idx].index].posn == idx)
-# define ASSERT_ELEM_USED(pq, elem)                                         \
+#define ASSERT_ELEM_USED(pq, elem) \
     assert(pq->elements[elem].used)
 #else
-# define ASSERT_USED(pq, idx)
-# define ASSERT_ELEM_USED(pq, elem)
+#define ASSERT_USED(pq, idx)
+#define ASSERT_ELEM_USED(pq, elem)
 #endif
 
 /*

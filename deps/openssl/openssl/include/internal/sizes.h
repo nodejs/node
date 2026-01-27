@@ -8,16 +8,16 @@
  */
 
 #ifndef OSSL_INTERNAL_SIZES_H
-# define OSSL_INTERNAL_SIZES_H
-# pragma once
+#define OSSL_INTERNAL_SIZES_H
+#pragma once
 
 /*
  * Max sizes used to allocate buffers with a fixed sizes, for example for
  * stack allocations, structure fields, ...
  */
-# define OSSL_MAX_NAME_SIZE           50 /* Algorithm name */
-# define OSSL_MAX_PROPQUERY_SIZE     256 /* Property query strings */
-# define OSSL_MAX_ALGORITHM_ID_SIZE  256 /* AlgorithmIdentifier DER */
-# define OSSL_MAX_CODEC_STRUCT_SIZE   32 /* DATA_STRUCTURE name */
+#define OSSL_MAX_NAME_SIZE 50 /* Algorithm name */
+#define OSSL_MAX_PROPQUERY_SIZE 256 /* Property query strings */
+#define OSSL_MAX_ALGORITHM_ID_SIZE 256 /* AlgorithmIdentifier DER */
+#define OSSL_MAX_CODEC_STRUCT_SIZE 32 /* DATA_STRUCTURE name */
 
 #endif

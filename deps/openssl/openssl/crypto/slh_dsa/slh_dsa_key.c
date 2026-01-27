@@ -61,7 +61,7 @@ static int slh_dsa_key_hash_init(SLH_DSA_KEY *key)
     key->adrs_func = ossl_slh_get_adrs_fn(is_shake == 0);
     key->hash_func = ossl_slh_get_hash_fn(is_shake);
     return 1;
- err:
+err:
     slh_dsa_key_hash_cleanup(key);
     return 0;
 }
@@ -96,7 +96,7 @@ OSSL_LIB_CTX *ossl_slh_dsa_key_get0_libctx(const SLH_DSA_KEY *key)
  * @returns The new SLH_DSA_KEY object on success, or NULL on malloc failure
  */
 SLH_DSA_KEY *ossl_slh_dsa_key_new(OSSL_LIB_CTX *libctx, const char *propq,
-                                  const char *alg)
+    const char *alg)
 {
     SLH_DSA_KEY *ret;
     const SLH_DSA_PARAMS *params = ossl_slh_dsa_params_get(alg);
@@ -117,7 +117,7 @@ SLH_DSA_KEY *ossl_slh_dsa_key_new(OSSL_LIB_CTX *libctx, const char *propq,
             goto err;
     }
     return ret;
- err:
+err:
     ossl_slh_dsa_key_free(ret);
     return NULL;
 }
@@ -171,7 +171,7 @@ SLH_DSA_KEY *ossl_slh_dsa_key_dup(const SLH_DSA_KEY *src, int selection)
         }
     }
     return ret;
- err:
+err:
     ossl_slh_dsa_key_free(ret);
     return NULL;
 }
@@ -187,7 +187,7 @@ SLH_DSA_KEY *ossl_slh_dsa_key_dup(const SLH_DSA_KEY *src, int selection)
  * @returns 1 if the keys are equal otherwise it returns 0.
  */
 int ossl_slh_dsa_key_equal(const SLH_DSA_KEY *key1, const SLH_DSA_KEY *key2,
-                           int selection)
+    int selection)
 {
     int key_checked = 0;
 
@@ -204,10 +204,11 @@ int ossl_slh_dsa_key_equal(const SLH_DSA_KEY *key1, const SLH_DSA_KEY *key2,
             }
         }
         if (!key_checked
-                && (selection & OSSL_KEYMGMT_SELECT_PRIVATE_KEY) != 0) {
+            && (selection & OSSL_KEYMGMT_SELECT_PRIVATE_KEY) != 0) {
             if (key1->has_priv && key2->has_priv) {
                 if (memcmp(key1->priv, key2->priv,
-                           key1->params->pk_len) != 0)
+                        key1->params->pk_len)
+                    != 0)
                     return 0;
                 key_checked = 1;
             }
@@ -223,7 +224,7 @@ int ossl_slh_dsa_key_has(const SLH_DSA_KEY *key, int selection)
         if (key->pub == NULL)
             return 0; /* No public key */
         if ((selection & OSSL_KEYMGMT_SELECT_PRIVATE_KEY) != 0
-                && key->has_priv == 0)
+            && key->has_priv == 0)
             return 0; /* No private key */
         return 1;
     }
@@ -265,7 +266,7 @@ void ossl_slh_dsa_key_reset(SLH_DSA_KEY *key)
  * @returns 1 on success, or 0 on failure.
  */
 int ossl_slh_dsa_key_fromdata(SLH_DSA_KEY *key, const OSSL_PARAM params[],
-                              int include_private)
+    int include_private)
 {
     size_t priv_len, key_len, data_len = 0;
     const OSSL_PARAM *param_priv = NULL, *param_pub = NULL;
@@ -307,12 +308,12 @@ int ossl_slh_dsa_key_fromdata(SLH_DSA_KEY *key, const OSSL_PARAM params[],
     p = SLH_DSA_PUB(key);
     param_pub = OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_PUB_KEY);
     if (param_pub == NULL
-            || !OSSL_PARAM_get_octet_string(param_pub, &p, key_len, &data_len)
-            || data_len != key_len)
+        || !OSSL_PARAM_get_octet_string(param_pub, &p, key_len, &data_len)
+        || data_len != key_len)
         goto err;
     key->pub = p;
     return 1;
- err:
+err:
     ossl_slh_dsa_key_reset(key);
     return 0;
 }
@@ -329,7 +330,7 @@ int ossl_slh_dsa_key_fromdata(SLH_DSA_KEY *key, const OSSL_PARAM params[],
  * @returns 1 if the root key is generated or compared successfully, or 0 on error.
  */
 static int slh_dsa_compute_pk_root(SLH_DSA_HASH_CTX *ctx, SLH_DSA_KEY *out,
-                                   int validate)
+    int validate)
 {
     const SLH_DSA_KEY *key = ctx->key;
     SLH_ADRS_FUNC_DECLARE(key, adrsf);
@@ -345,7 +346,7 @@ static int slh_dsa_compute_pk_root(SLH_DSA_HASH_CTX *ctx, SLH_DSA_KEY *out,
 
     /* Generate the ROOT public key */
     return ossl_slh_xmss_node(ctx, SLH_DSA_SK_SEED(key), 0, params->hm,
-                              SLH_DSA_PK_SEED(key), adrs, dst, n)
+               SLH_DSA_PK_SEED(key), adrs, dst, n)
         && (validate == 0 || memcmp(dst, SLH_DSA_PK_ROOT(out), n) == 0);
 }
 
@@ -364,12 +365,12 @@ static int slh_dsa_compute_pk_root(SLH_DSA_HASH_CTX *ctx, SLH_DSA_KEY *out,
  * @returns 1 if the key is generated or 0 otherwise.
  */
 int ossl_slh_dsa_generate_key(SLH_DSA_HASH_CTX *ctx, SLH_DSA_KEY *out,
-                              OSSL_LIB_CTX *lib_ctx,
-                              const uint8_t *entropy, size_t entropy_len)
+    OSSL_LIB_CTX *lib_ctx,
+    const uint8_t *entropy, size_t entropy_len)
 {
     size_t n = out->params->n;
     size_t secret_key_len = 2 * n; /* The length of SK_SEED + SK_PRF */
-    size_t pk_seed_len = n;        /* The length of PK_SEED */
+    size_t pk_seed_len = n; /* The length of PK_SEED */
     size_t entropy_len_expected = secret_key_len + pk_seed_len;
     uint8_t *priv = SLH_DSA_PRIV(out);
     uint8_t *pub = SLH_DSA_PUB(out);
@@ -380,7 +381,7 @@ int ossl_slh_dsa_generate_key(SLH_DSA_HASH_CTX *ctx, SLH_DSA_KEY *out,
         memcpy(priv, entropy, entropy_len_expected);
     } else {
         if (RAND_priv_bytes_ex(lib_ctx, priv, secret_key_len, 0) <= 0
-                || RAND_bytes_ex(lib_ctx, pub, pk_seed_len, 0) <= 0)
+            || RAND_bytes_ex(lib_ctx, pub, pk_seed_len, 0) <= 0)
             goto err;
     }
     if (!slh_dsa_compute_pk_root(ctx, out, 0))
@@ -489,20 +490,20 @@ int ossl_slh_dsa_key_to_text(BIO *out, const SLH_DSA_KEY *key, int selection)
     if (ossl_slh_dsa_key_get_pub(key) == NULL) {
         /* Regardless of the |selection|, there must be a public key */
         ERR_raise_data(ERR_LIB_PROV, PROV_R_MISSING_KEY,
-                       "no %s key material available", name);
+            "no %s key material available", name);
         return 0;
     }
 
     if ((selection & OSSL_KEYMGMT_SELECT_PRIVATE_KEY) != 0) {
         if (ossl_slh_dsa_key_get_priv(key) == NULL) {
             ERR_raise_data(ERR_LIB_PROV, PROV_R_MISSING_KEY,
-                           "no %s key material available", name);
+                "no %s key material available", name);
             return 0;
         }
         if (BIO_printf(out, "%s Private-Key:\n", name) <= 0)
             return 0;
         if (!ossl_bio_print_labeled_buf(out, "priv:", ossl_slh_dsa_key_get_priv(key),
-                                        ossl_slh_dsa_key_get_priv_len(key)))
+                ossl_slh_dsa_key_get_priv_len(key)))
             return 0;
     } else if ((selection & OSSL_KEYMGMT_SELECT_PUBLIC_KEY) != 0) {
         if (BIO_printf(out, "%s Public-Key:\n", name) <= 0)
@@ -510,7 +511,7 @@ int ossl_slh_dsa_key_to_text(BIO *out, const SLH_DSA_KEY *key, int selection)
     }
 
     if (!ossl_bio_print_labeled_buf(out, "pub:", ossl_slh_dsa_key_get_pub(key),
-                                    ossl_slh_dsa_key_get_pub_len(key)))
+            ossl_slh_dsa_key_get_pub_len(key)))
         return 0;
 
     return 1;

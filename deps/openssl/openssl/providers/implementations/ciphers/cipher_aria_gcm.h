@@ -12,7 +12,7 @@
 #include "prov/ciphercommon_gcm.h"
 
 typedef struct prov_aria_gcm_ctx_st {
-    PROV_GCM_CTX base;              /* must be first entry in struct */
+    PROV_GCM_CTX base; /* must be first entry in struct */
     union {
         OSSL_UNION_ALIGN;
         ARIA_KEY ks;

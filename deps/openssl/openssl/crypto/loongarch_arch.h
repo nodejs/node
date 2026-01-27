@@ -7,13 +7,13 @@
  * https://www.openssl.org/source/license.html
  */
 #ifndef OSSL_CRYPTO_LOONGARCH_ARCH_H
-# define OSSL_CRYPTO_LOONGARCH_ARCH_H
+#define OSSL_CRYPTO_LOONGARCH_ARCH_H
 
-# ifndef __ASSEMBLER__
+#ifndef __ASSEMBLER__
 extern unsigned int OPENSSL_loongarch_hwcap_P;
-# endif
+#endif
 
-# define LOONGARCH_HWCAP_LSX  (1 << 4)
-# define LOONGARCH_HWCAP_LASX (1 << 5)
+#define LOONGARCH_HWCAP_LSX (1 << 4)
+#define LOONGARCH_HWCAP_LASX (1 << 5)
 
 #endif

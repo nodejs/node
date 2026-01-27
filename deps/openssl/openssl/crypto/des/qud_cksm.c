@@ -23,16 +23,16 @@
 #include "des_local.h"
 
 #define Q_B0(a) (((DES_LONG)(a)))
-#define Q_B1(a) (((DES_LONG)(a))<<8)
-#define Q_B2(a) (((DES_LONG)(a))<<16)
-#define Q_B3(a) (((DES_LONG)(a))<<24)
+#define Q_B1(a) (((DES_LONG)(a)) << 8)
+#define Q_B2(a) (((DES_LONG)(a)) << 16)
+#define Q_B3(a) (((DES_LONG)(a)) << 24)
 
 /* used to scramble things a bit */
 /* Got the value MIT uses via brute force :-) 2/10/90 eay */
-#define NOISE   ((DES_LONG)83653421L)
+#define NOISE ((DES_LONG)83653421L)
 
 DES_LONG DES_quad_cksum(const unsigned char *input, DES_cblock output[],
-                        long length, int out_count, DES_cblock *seed)
+    long length, int out_count, DES_cblock *seed)
 {
     DES_LONG z0, z1, t0, t1;
     int i;
@@ -44,10 +44,8 @@ DES_LONG DES_quad_cksum(const unsigned char *input, DES_cblock output[],
         out_count = 1;
     lp = (DES_LONG *)&(output[0])[0];
 
-    z0 = Q_B0((*seed)[0]) | Q_B1((*seed)[1]) | Q_B2((*seed)[2]) |
-        Q_B3((*seed)[3]);
-    z1 = Q_B0((*seed)[4]) | Q_B1((*seed)[5]) | Q_B2((*seed)[6]) |
-        Q_B3((*seed)[7]);
+    z0 = Q_B0((*seed)[0]) | Q_B1((*seed)[1]) | Q_B2((*seed)[2]) | Q_B3((*seed)[3]);
+    z1 = Q_B0((*seed)[4]) | Q_B1((*seed)[5]) | Q_B2((*seed)[6]) | Q_B3((*seed)[7]);
 
     for (i = 0; ((i < 4) && (i < out_count)); i++) {
         cp = input;
@@ -66,9 +64,9 @@ DES_LONG DES_quad_cksum(const unsigned char *input, DES_cblock output[],
             t1 = z1;
             /* square, well sort of square */
             z0 = ((((t0 * t0) & 0xffffffffL) + ((t1 * t1) & 0xffffffffL))
-                  & 0xffffffffL) % 0x7fffffffL;
-            z1 = ((t0 * ((t1 + NOISE) & 0xffffffffL)) & 0xffffffffL) %
-                0x7fffffffL;
+                     & 0xffffffffL)
+                % 0x7fffffffL;
+            z1 = ((t0 * ((t1 + NOISE) & 0xffffffffL)) & 0xffffffffL) % 0x7fffffffL;
         }
         if (lp != NULL) {
             /*

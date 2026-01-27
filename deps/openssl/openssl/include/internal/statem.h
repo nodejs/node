@@ -7,7 +7,7 @@
  * https://www.openssl.org/source/license.html
  */
 #ifndef OSSL_INTERNAL_STATEM_H
-# define OSSL_INTERNAL_STATEM_H
+#define OSSL_INTERNAL_STATEM_H
 
 /*****************************************************************************
  *                                                                           *
@@ -82,10 +82,10 @@ typedef enum {
 } CON_FUNC_RETURN;
 
 typedef int (*ossl_statem_mutate_handshake_cb)(const unsigned char *msgin,
-                                               size_t inlen,
-                                               unsigned char **msgout,
-                                               size_t *outlen,
-                                               void *arg);
+    size_t inlen,
+    unsigned char **msgout,
+    size_t *outlen,
+    void *arg);
 
 typedef void (*ossl_statem_finish_mutate_handshake_cb)(void *arg);
 
@@ -143,13 +143,13 @@ void ossl_statem_clear(SSL_CONNECTION *s);
 void ossl_statem_set_renegotiate(SSL_CONNECTION *s);
 void ossl_statem_send_fatal(SSL_CONNECTION *s, int al);
 void ossl_statem_fatal(SSL_CONNECTION *s, int al, int reason,
-                       const char *fmt, ...);
-# define SSLfatal_alert(s, al) ossl_statem_send_fatal((s), (al))
-# define SSLfatal(s, al, r) SSLfatal_data((s), (al), (r), NULL)
-# define SSLfatal_data                                          \
-    (ERR_new(),                                                 \
-     ERR_set_debug(OPENSSL_FILE, OPENSSL_LINE, OPENSSL_FUNC),   \
-     ossl_statem_fatal)
+    const char *fmt, ...);
+#define SSLfatal_alert(s, al) ossl_statem_send_fatal((s), (al))
+#define SSLfatal(s, al, r) SSLfatal_data((s), (al), (r), NULL)
+#define SSLfatal_data                                            \
+    (ERR_new(),                                                  \
+        ERR_set_debug(OPENSSL_FILE, OPENSSL_LINE, OPENSSL_FUNC), \
+        ossl_statem_fatal)
 
 int ossl_statem_in_error(const SSL_CONNECTION *s);
 void ossl_statem_set_in_init(SSL_CONNECTION *s, int init);
@@ -166,8 +166,8 @@ __owur int ossl_statem_export_early_allowed(SSL_CONNECTION *s);
 int statem_flush(SSL_CONNECTION *s);
 
 int ossl_statem_set_mutator(SSL *s,
-                            ossl_statem_mutate_handshake_cb mutate_handshake_cb,
-                            ossl_statem_finish_mutate_handshake_cb finish_mutate_handshake_cb,
-                            void *mutatearg);
+    ossl_statem_mutate_handshake_cb mutate_handshake_cb,
+    ossl_statem_finish_mutate_handshake_cb finish_mutate_handshake_cb,
+    void *mutatearg);
 
 #endif

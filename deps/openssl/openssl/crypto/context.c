@@ -219,7 +219,7 @@ static int context_init(OSSL_LIB_CTX *ctx)
 
     return 1;
 
- err:
+err:
     context_deinit_objs(ctx);
 
     if (exdata_done)
@@ -264,7 +264,6 @@ static void context_deinit_objs(OSSL_LIB_CTX *ctx)
         ossl_decoder_cache_free(ctx->decoder_cache);
         ctx->decoder_cache = NULL;
     }
-
 
     /* P2. We want encoder_store to be cleaned up before the provider store */
     if (ctx->encoder_store != NULL) {
@@ -363,7 +362,6 @@ static void context_deinit_objs(OSSL_LIB_CTX *ctx)
         ctx->comp_methods = NULL;
     }
 #endif
-
 }
 
 static int context_deinit(OSSL_LIB_CTX *ctx)
@@ -456,7 +454,7 @@ OSSL_LIB_CTX *OSSL_LIB_CTX_new(void)
 
 #ifndef FIPS_MODULE
 OSSL_LIB_CTX *OSSL_LIB_CTX_new_from_dispatch(const OSSL_CORE_HANDLE *handle,
-                                             const OSSL_DISPATCH *in)
+    const OSSL_DISPATCH *in)
 {
     OSSL_LIB_CTX *ctx = OSSL_LIB_CTX_new();
 
@@ -472,7 +470,7 @@ OSSL_LIB_CTX *OSSL_LIB_CTX_new_from_dispatch(const OSSL_CORE_HANDLE *handle,
 }
 
 OSSL_LIB_CTX *OSSL_LIB_CTX_new_child(const OSSL_CORE_HANDLE *handle,
-                                     const OSSL_DISPATCH *in)
+    const OSSL_DISPATCH *in)
 {
     OSSL_LIB_CTX *ctx = OSSL_LIB_CTX_new_from_dispatch(handle, in);
 

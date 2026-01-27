@@ -8,7 +8,7 @@
  */
 
 #ifdef OPENSSL_NO_CT
-# error "CT disabled"
+#error "CT disabled"
 #endif
 
 #include <openssl/ct.h>
@@ -109,7 +109,6 @@ int SCT_set1_log_id(SCT *sct, const unsigned char *log_id, size_t log_id_len)
     }
     return 1;
 }
-
 
 void SCT_set_timestamp(SCT *sct, uint64_t timestamp)
 {
@@ -248,8 +247,7 @@ int SCT_is_complete(const SCT *sct)
 
 int SCT_signature_is_complete(const SCT *sct)
 {
-    return SCT_get_signature_nid(sct) != NID_undef &&
-        sct->sig != NULL && sct->sig_len > 0;
+    return SCT_get_signature_nid(sct) != NID_undef && sct->sig != NULL && sct->sig_len > 0;
 }
 
 sct_source_t SCT_get_source(const SCT *sct)
@@ -296,7 +294,7 @@ int SCT_validate(SCT *sct, const CT_POLICY_EVAL_CTX *ctx)
     }
 
     log = CTLOG_STORE_get0_log_by_id(ctx->log_store,
-                                     sct->log_id, sct->log_id_len);
+        sct->log_id, sct->log_id_len);
 
     /* Similarly, an SCT from an unknown log also cannot be validated. */
     if (log == NULL) {
@@ -352,8 +350,7 @@ int SCT_validate(SCT *sct, const CT_POLICY_EVAL_CTX *ctx)
     if (SCT_CTX_set1_cert(sctx, ctx->cert, NULL) != 1)
         sct->validation_status = SCT_VALIDATION_STATUS_UNVERIFIED;
     else
-        sct->validation_status = SCT_CTX_verify(sctx, sct) == 1 ?
-            SCT_VALIDATION_STATUS_VALID : SCT_VALIDATION_STATUS_INVALID;
+        sct->validation_status = SCT_CTX_verify(sctx, sct) == 1 ? SCT_VALIDATION_STATUS_VALID : SCT_VALIDATION_STATUS_INVALID;
 
 end:
     is_sct_valid = sct->validation_status == SCT_VALIDATION_STATUS_VALID;

@@ -8,35 +8,35 @@
  */
 
 #ifndef OSSL_HTTP_SERVER_H
-# define OSSL_HTTP_SERVER_H
+#define OSSL_HTTP_SERVER_H
 
-# include "apps.h"
-# include "log.h"
+#include "apps.h"
+#include "log.h"
 
-# ifndef HAVE_FORK
-#  if defined(OPENSSL_SYS_VMS) || defined(OPENSSL_SYS_WINDOWS)
-#   define HAVE_FORK 0
-#  else
-#   define HAVE_FORK 1
-#  endif
-# endif
+#ifndef HAVE_FORK
+#if defined(OPENSSL_SYS_VMS) || defined(OPENSSL_SYS_WINDOWS)
+#define HAVE_FORK 0
+#else
+#define HAVE_FORK 1
+#endif
+#endif
 
-# if HAVE_FORK
-#  undef NO_FORK
-# else
-#  define NO_FORK
-# endif
+#if HAVE_FORK
+#undef NO_FORK
+#else
+#define NO_FORK
+#endif
 
-# if !defined(NO_FORK) && !defined(OPENSSL_NO_SOCK) \
+#if !defined(NO_FORK) && !defined(OPENSSL_NO_SOCK) \
     && !defined(OPENSSL_NO_POSIX_IO)
-#  define HTTP_DAEMON
-#  include <sys/types.h>
-#  include <sys/wait.h>
-#  include <signal.h>
-#  define MAXERRLEN 1000 /* limit error text sent to syslog to 1000 bytes */
-# endif
+#define HTTP_DAEMON
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <signal.h>
+#define MAXERRLEN 1000 /* limit error text sent to syslog to 1000 bytes */
+#endif
 
-# ifndef OPENSSL_NO_SOCK
+#ifndef OPENSSL_NO_SOCK
 /*-
  * Initialize an HTTP server, setting up its listening BIO
  * prog: the name of the current app
@@ -66,9 +66,9 @@ BIO *http_server_init(const char *prog, const char *port, int verbosity);
  * The caller must free any non-NULL *preq, *ppath, and *pcbio pointers.
  */
 int http_server_get_asn1_req(const ASN1_ITEM *it, ASN1_VALUE **preq,
-                             char **ppath, BIO **pcbio, BIO *acbio,
-                             int *found_keep_alive,
-                             const char *prog, int accept_get, int timeout);
+    char **ppath, BIO **pcbio, BIO *acbio,
+    int *found_keep_alive,
+    const char *prog, int accept_get, int timeout);
 
 /*-
  * Send an ASN.1-formatted HTTP response
@@ -82,8 +82,8 @@ int http_server_get_asn1_req(const ASN1_ITEM *it, ASN1_VALUE **preq,
  * returns 1 on success, 0 on failure
  */
 int http_server_send_asn1_resp(const char *prog, BIO *cbio, int keep_alive,
-                               const char *content_type,
-                               const ASN1_ITEM *it, const ASN1_VALUE *resp);
+    const char *content_type,
+    const ASN1_ITEM *it, const ASN1_VALUE *resp);
 
 /*-
  * Send a trivial HTTP response, typically to report an error or OK
@@ -94,16 +94,16 @@ int http_server_send_asn1_resp(const char *prog, BIO *cbio, int keep_alive,
  * returns 1 on success, 0 on failure
  */
 int http_server_send_status(const char *prog, BIO *cbio,
-                            int status, const char *reason);
+    int status, const char *reason);
 
-# endif
+#endif
 
-# ifdef HTTP_DAEMON
+#ifdef HTTP_DAEMON
 extern int n_responders;
 extern int acfd;
 
 void socket_timeout(int signum);
 void spawn_loop(const char *prog);
-# endif
+#endif
 
 #endif

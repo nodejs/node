@@ -8,9 +8,9 @@
  */
 
 #ifndef OSSL_APPS_LIBCTX_H
-# define OSSL_APPS_LIBCTX_H
+#define OSSL_APPS_LIBCTX_H
 
-# include <openssl/types.h>
+#include <openssl/types.h>
 
 OSSL_LIB_CTX *app_create_libctx(void);
 OSSL_LIB_CTX *app_get0_libctx(void);

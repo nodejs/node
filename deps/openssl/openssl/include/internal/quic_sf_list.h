@@ -8,7 +8,7 @@
  */
 
 #ifndef OSSL_QUIC_SF_LIST_H
-# define OSSL_QUIC_SF_LIST_H
+#define OSSL_QUIC_SF_LIST_H
 
 #include "internal/common.h"
 #include "internal/uint_set.h"
@@ -35,12 +35,12 @@
  *            able to mark an empty frame.
  * Invariant: The offset never points further than into the first frame.
  */
-# ifndef OPENSSL_NO_QUIC
+#ifndef OPENSSL_NO_QUIC
 
 typedef struct stream_frame_st STREAM_FRAME;
 
 typedef struct sframe_list_st {
-    STREAM_FRAME  *head, *tail;
+    STREAM_FRAME *head, *tail;
     /* Is the tail frame final. */
     unsigned int fin;
     /* Number of stream frames in the list. */
@@ -75,8 +75,8 @@ void ossl_sframe_list_destroy(SFRAME_LIST *fl);
  * check it on its own too).
  */
 int ossl_sframe_list_insert(SFRAME_LIST *fl, UINT_RANGE *range,
-                            OSSL_QRX_PKT *pkt,
-                            const unsigned char *data, int fin);
+    OSSL_QRX_PKT *pkt,
+    const unsigned char *data, int fin);
 
 /*
  * Iterator to peek at the contiguous frames at the beginning
@@ -91,8 +91,8 @@ int ossl_sframe_list_insert(SFRAME_LIST *fl, UINT_RANGE *range,
  * case *fin is set, if the end of the stream is reached.
  */
 int ossl_sframe_list_peek(const SFRAME_LIST *fl, void **iter,
-                          UINT_RANGE *range, const unsigned char **data,
-                          int *fin);
+    UINT_RANGE *range, const unsigned char **data,
+    int *fin);
 
 /*
  * Drop all frames up to the offset limit.
@@ -114,8 +114,8 @@ int ossl_sframe_list_drop_frames(SFRAME_LIST *fl, uint64_t limit);
  * frame is already locked.
  */
 int ossl_sframe_list_lock_head(SFRAME_LIST *fl, UINT_RANGE *range,
-                               const unsigned char **data,
-                               int *fin);
+    const unsigned char **data,
+    int *fin);
 
 /*
  * Just returns whether the head frame is locked by previous
@@ -130,10 +130,10 @@ int ossl_sframe_list_is_head_locked(SFRAME_LIST *fl);
  * It should return 1 on success or 0 if there is not enough
  * space available in the side storage.
  */
-typedef int (sframe_list_write_at_cb)(uint64_t logical_offset,
-                                      const unsigned char *buf,
-                                      size_t buf_len,
-                                      void *cb_arg);
+typedef int(sframe_list_write_at_cb)(uint64_t logical_offset,
+    const unsigned char *buf,
+    size_t buf_len,
+    void *cb_arg);
 
 /*
  * Move the frame data in all the stream frames in the list fl
@@ -144,8 +144,8 @@ typedef int (sframe_list_write_at_cb)(uint64_t logical_offset,
  * frames and returns 0.
  */
 int ossl_sframe_list_move_data(SFRAME_LIST *fl,
-                               sframe_list_write_at_cb *write_at_cb,
-                               void *cb_arg);
-# endif
+    sframe_list_write_at_cb *write_at_cb,
+    void *cb_arg);
+#endif
 
 #endif

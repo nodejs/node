@@ -26,7 +26,7 @@
 #ifndef OPENSSL_NO_DEPRECATED_3_0
 
 int ASN1_digest(i2d_of_void *i2d, const EVP_MD *type, char *data,
-                unsigned char *md, unsigned int *len)
+    unsigned char *md, unsigned int *len)
 {
     int inl;
     unsigned char *str, *p;
@@ -52,8 +52,8 @@ int ASN1_digest(i2d_of_void *i2d, const EVP_MD *type, char *data,
 #endif
 
 int ossl_asn1_item_digest_ex(const ASN1_ITEM *it, const EVP_MD *md, void *asn,
-                             unsigned char *data, unsigned int *len,
-                             OSSL_LIB_CTX *libctx, const char *propq)
+    unsigned char *data, unsigned int *len,
+    OSSL_LIB_CTX *libctx, const char *propq)
 {
     int i, ret = 0;
     unsigned char *str = NULL;
@@ -85,8 +85,7 @@ err:
 }
 
 int ASN1_item_digest(const ASN1_ITEM *it, const EVP_MD *md, void *asn,
-                     unsigned char *data, unsigned int *len)
+    unsigned char *data, unsigned int *len)
 {
     return ossl_asn1_item_digest_ex(it, md, asn, data, len, NULL, NULL);
 }
-
