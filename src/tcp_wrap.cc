@@ -221,6 +221,11 @@ void TCPWrap::SetKeepAlive(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(err);
 }
 
+// TODO(amyssnippet): This implementation uses raw setsockopt/getsockopt calls
+// as a temporary measure. Upstream support is tracked in
+// https://github.com/libuv/libuv/issues/5011.
+// Once uv_tcp_set_tos and uv_tcp_get_tos are available in libuv,
+// this should be refactored to use those APIs.
 void TCPWrap::SetTOS(const FunctionCallbackInfo<Value>& args) {
   TCPWrap* wrap;
   ASSIGN_OR_RETURN_UNWRAP(
