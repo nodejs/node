@@ -747,6 +747,9 @@ it to interact with the client.
 <!-- YAML
 added: v0.3.4
 changes:
+  - version: ADDME
+    pr-url: https://github.com/nodejs/node/pull/61503
+    description: Added `typeOfService` option.
   - version: v15.14.0
     pr-url: https://github.com/nodejs/node/pull/37735
     description: AbortSignal support was added.
@@ -788,6 +791,7 @@ changes:
     otherwise ignored. **Default:** `false`.
   * `signal` {AbortSignal} An Abort signal that may be used to destroy the
     socket.
+  * `typeOfService` {number} The initial Type of Service (TOS) value.
   * `writable` {boolean} Allow writes on the socket when an `fd` is passed,
     otherwise ignored. **Default:** `false`.
 * Returns: {net.Socket}
