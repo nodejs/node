@@ -3973,7 +3973,7 @@ Contributed by Joyee Cheung in [#38905](https://github.com/nodejs/node/pull/3890
 * \[[`f98020138a`](https://github.com/nodejs/node/commit/f98020138a)] - **test\_runner**: validate `timeout` option (Antoine du Hamel) [#43843](https://github.com/nodejs/node/pull/43843)
 * \[[`58d15b3687`](https://github.com/nodejs/node/commit/58d15b3687)] - **test\_runner**: pass signal on timeout (Moshe Atlow) [#43911](https://github.com/nodejs/node/pull/43911)
 * \[[`8b0248506f`](https://github.com/nodejs/node/commit/8b0248506f)] - **test\_runner**: do not report an error when tests are passing (Antoine du Hamel) [#43919](https://github.com/nodejs/node/pull/43919)
-* \[[`aa8053e1fa`](https://github.com/nodejs/node/commit/aa8053e1fa)] - **test\_runner**: recieve and pass AbortSignal (Moshe Atlow) [#43554](https://github.com/nodejs/node/pull/43554)
+* \[[`aa8053e1fa`](https://github.com/nodejs/node/commit/aa8053e1fa)] - **test\_runner**: receive and pass AbortSignal (Moshe Atlow) [#43554](https://github.com/nodejs/node/pull/43554)
 * \[[`f13e4c1be9`](https://github.com/nodejs/node/commit/f13e4c1be9)] - **test\_runner**: fix `it` concurrency (Moshe Atlow) [#43757](https://github.com/nodejs/node/pull/43757)
 * \[[`e404a3ef6d`](https://github.com/nodejs/node/commit/e404a3ef6d)] - **test\_runner**: support timeout for tests (Moshe Atlow) [#43505](https://github.com/nodejs/node/pull/43505)
 * \[[`f28198cc05`](https://github.com/nodejs/node/commit/f28198cc05)] - **test\_runner**: catch errors thrown within `describe` (Moshe Atlow) [#43729](https://github.com/nodejs/node/pull/43729)

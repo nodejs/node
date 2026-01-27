@@ -1099,7 +1099,7 @@ Contributed by Filip Skokan - [#42507](https://github.com/nodejs/node/pull/42507
 * \[[`e33f6bd384`](https://github.com/nodejs/node/commit/e33f6bd384)] - **test\_runner**: validate `timeout` option (Antoine du Hamel) [#43843](https://github.com/nodejs/node/pull/43843)
 * \[[`a167daa311`](https://github.com/nodejs/node/commit/a167daa311)] - **test\_runner**: pass signal on timeout (Moshe Atlow) [#43911](https://github.com/nodejs/node/pull/43911)
 * \[[`b1db85023e`](https://github.com/nodejs/node/commit/b1db85023e)] - **test\_runner**: do not report an error when tests are passing (Antoine du Hamel) [#43919](https://github.com/nodejs/node/pull/43919)
-* \[[`f193ac6cd5`](https://github.com/nodejs/node/commit/f193ac6cd5)] - **test\_runner**: recieve and pass AbortSignal (Moshe Atlow) [#43554](https://github.com/nodejs/node/pull/43554)
+* \[[`f193ac6cd5`](https://github.com/nodejs/node/commit/f193ac6cd5)] - **test\_runner**: receive and pass AbortSignal (Moshe Atlow) [#43554](https://github.com/nodejs/node/pull/43554)
 * \[[`f8f1d16097`](https://github.com/nodejs/node/commit/f8f1d16097)] - **test\_runner**: fix `it` concurrency (Moshe Atlow) [#43757](https://github.com/nodejs/node/pull/43757)
 * \[[`e9ca1efe67`](https://github.com/nodejs/node/commit/e9ca1efe67)] - **test\_runner**: support timeout for tests (Moshe Atlow) [#43505](https://github.com/nodejs/node/pull/43505)
 * \[[`5dca44d5eb`](https://github.com/nodejs/node/commit/5dca44d5eb)] - **test\_runner**: catch errors thrown within `describe` (Moshe Atlow) [#43729](https://github.com/nodejs/node/pull/43729)
