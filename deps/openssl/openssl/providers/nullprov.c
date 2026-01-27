@@ -52,8 +52,8 @@ static int null_get_params(const OSSL_PROVIDER *provctx, OSSL_PARAM params[])
 }
 
 static const OSSL_ALGORITHM *null_query(OSSL_PROVIDER *prov,
-                                          int operation_id,
-                                          int *no_cache)
+    int operation_id,
+    int *no_cache)
 {
     *no_cache = 0;
     return NULL;
@@ -68,9 +68,9 @@ static const OSSL_DISPATCH null_dispatch_table[] = {
 };
 
 int ossl_null_provider_init(const OSSL_CORE_HANDLE *handle,
-                            const OSSL_DISPATCH *in,
-                            const OSSL_DISPATCH **out,
-                            void **provctx)
+    const OSSL_DISPATCH *in,
+    const OSSL_DISPATCH **out,
+    void **provctx)
 {
     *out = null_dispatch_table;
 

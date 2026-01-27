@@ -15,11 +15,11 @@
 #ifndef OPENSSL_NO_ERR
 
 static const ERR_STRING_DATA OBJ_str_reasons[] = {
-    {ERR_PACK(ERR_LIB_OBJ, 0, OBJ_R_OID_EXISTS), "oid exists"},
-    {ERR_PACK(ERR_LIB_OBJ, 0, OBJ_R_UNKNOWN_NID), "unknown nid"},
-    {ERR_PACK(ERR_LIB_OBJ, 0, OBJ_R_UNKNOWN_OBJECT_NAME),
-    "unknown object name"},
-    {0, NULL}
+    { ERR_PACK(ERR_LIB_OBJ, 0, OBJ_R_OID_EXISTS), "oid exists" },
+    { ERR_PACK(ERR_LIB_OBJ, 0, OBJ_R_UNKNOWN_NID), "unknown nid" },
+    { ERR_PACK(ERR_LIB_OBJ, 0, OBJ_R_UNKNOWN_OBJECT_NAME),
+        "unknown object name" },
+    { 0, NULL }
 };
 
 #endif

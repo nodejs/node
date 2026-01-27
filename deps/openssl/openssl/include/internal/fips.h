@@ -8,14 +8,14 @@
  */
 
 #ifndef OSSL_INTERNAL_FIPS_H
-# define OSSL_INTERNAL_FIPS_H
-# pragma once
+#define OSSL_INTERNAL_FIPS_H
+#pragma once
 
-# ifdef FIPS_MODULE
+#ifdef FIPS_MODULE
 
 /* Return 1 if the FIPS self tests are running and 0 otherwise */
 int ossl_fips_self_testing(void);
 
-# endif /* FIPS_MODULE */
+#endif /* FIPS_MODULE */
 
 #endif

@@ -11,9 +11,9 @@
 
 OSSL_provider_init_fn OSSL_provider_init_int;
 int OSSL_provider_init(const OSSL_CORE_HANDLE *handle,
-                       const OSSL_DISPATCH *in,
-                       const OSSL_DISPATCH **out,
-                       void **provctx)
+    const OSSL_DISPATCH *in,
+    const OSSL_DISPATCH **out,
+    void **provctx)
 {
     return OSSL_provider_init_int(handle, in, out, provctx);
 }

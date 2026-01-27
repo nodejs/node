@@ -8,15 +8,13 @@
  */
 
 #ifndef OSSL_INTERNAL_CONF_H
-# define OSSL_INTERNAL_CONF_H
-# pragma once
+#define OSSL_INTERNAL_CONF_H
+#pragma once
 
-# include <openssl/conf.h>
+#include <openssl/conf.h>
 
-# define DEFAULT_CONF_MFLAGS \
-    (CONF_MFLAGS_DEFAULT_SECTION | \
-     CONF_MFLAGS_IGNORE_MISSING_FILE | \
-     CONF_MFLAGS_IGNORE_RETURN_CODES)
+#define DEFAULT_CONF_MFLAGS \
+    (CONF_MFLAGS_DEFAULT_SECTION | CONF_MFLAGS_IGNORE_MISSING_FILE | CONF_MFLAGS_IGNORE_RETURN_CODES)
 
 struct ossl_init_settings_st {
     char *filename;

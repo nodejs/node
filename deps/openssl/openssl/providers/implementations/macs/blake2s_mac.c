@@ -29,4 +29,6 @@
 /* OSSL_DISPATCH symbol */
 #define BLAKE2_FUNCTIONS ossl_blake2smac_functions
 
+/* clang-format off */
 #include "blake2_mac_impl.c"
+/* clang-format on */

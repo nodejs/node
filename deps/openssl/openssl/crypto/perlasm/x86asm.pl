@@ -174,9 +174,9 @@ sub ::vprotd
 
 sub ::endbranch
 {
-    &::generic("%ifdef __CET__\n");
+    &::generic("#ifdef __CET__\n");
     &::data_byte(0xf3,0x0f,0x1e,0xfb);
-    &::generic("%endif\n");
+    &::generic("#endif\n");
 }
 
 # label management

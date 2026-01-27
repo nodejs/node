@@ -12,10 +12,10 @@
 #include "internal/packet.h"
 #include "prov/der_slh_dsa.h"
 
-#define CASE_OID(nid, name)                  \
-    case nid:                                \
-        alg = ossl_der_oid_##name;           \
-        len = sizeof(ossl_der_oid_##name);   \
+#define CASE_OID(nid, name)                \
+    case nid:                              \
+        alg = ossl_der_oid_##name;         \
+        len = sizeof(ossl_der_oid_##name); \
         break
 
 int ossl_DER_w_algorithmIdentifier_SLH_DSA(WPACKET *pkt, int tag, SLH_DSA_KEY *key)
@@ -37,8 +37,8 @@ int ossl_DER_w_algorithmIdentifier_SLH_DSA(WPACKET *pkt, int tag, SLH_DSA_KEY *k
         CASE_OID(NID_SLH_DSA_SHAKE_192f, id_slh_dsa_shake_192f);
         CASE_OID(NID_SLH_DSA_SHAKE_256s, id_slh_dsa_shake_256s);
         CASE_OID(NID_SLH_DSA_SHAKE_256f, id_slh_dsa_shake_256f);
-        default:
-            return 0;
+    default:
+        return 0;
     }
     return ossl_DER_w_begin_sequence(pkt, tag)
         /* No parameters */

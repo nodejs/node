@@ -30,14 +30,14 @@ DEFINE_STACK_OF(NAMES)
 
 struct ossl_namemap_st {
     /* Flags */
-    unsigned int stored:1; /* If 1, it's stored in a library context */
+    unsigned int stored : 1; /* If 1, it's stored in a library context */
 
-    HT *namenum_ht;        /* Name->number mapping */
+    HT *namenum_ht; /* Name->number mapping */
 
     CRYPTO_RWLOCK *lock;
     STACK_OF(NAMES) *numnames;
 
-    TSAN_QUALIFIER int max_number;     /* Current max number */
+    TSAN_QUALIFIER int max_number; /* Current max number */
 };
 
 static void name_string_free(char *name)
@@ -104,8 +104,8 @@ int ossl_namemap_empty(OSSL_NAMEMAP *namemap)
  * return value of 0 means that the callback was not called for any names.
  */
 int ossl_namemap_doall_names(const OSSL_NAMEMAP *namemap, int number,
-                             void (*fn)(const char *name, void *data),
-                             void *data)
+    void (*fn)(const char *name, void *data),
+    void *data)
 {
     int i;
     NAMES *names;
@@ -164,7 +164,7 @@ int ossl_namemap_name2num(const OSSL_NAMEMAP *namemap, const char *name)
 }
 
 int ossl_namemap_name2num_n(const OSSL_NAMEMAP *namemap,
-                            const char *name, size_t name_len)
+    const char *name, size_t name_len)
 {
     int number = 0;
     HT_VALUE *val;
@@ -191,7 +191,7 @@ int ossl_namemap_name2num_n(const OSSL_NAMEMAP *namemap,
 }
 
 const char *ossl_namemap_num2name(const OSSL_NAMEMAP *namemap, int number,
-                                  size_t idx)
+    size_t idx)
 {
     NAMES *names;
     const char *ret = NULL;
@@ -213,7 +213,7 @@ const char *ossl_namemap_num2name(const OSSL_NAMEMAP *namemap, int number,
 
 /* This function is not thread safe, the namemap must be locked */
 static int numname_insert(OSSL_NAMEMAP *namemap, int number,
-                          const char *name)
+    const char *name)
 {
     NAMES *names;
     char *tmpname;
@@ -245,7 +245,7 @@ static int numname_insert(OSSL_NAMEMAP *namemap, int number,
     }
     return number;
 
- err:
+err:
     if (number <= 0)
         sk_OPENSSL_STRING_pop_free(names, name_string_free);
     OPENSSL_free(tmpname);
@@ -254,7 +254,7 @@ static int numname_insert(OSSL_NAMEMAP *namemap, int number,
 
 /* This function is not thread safe, the namemap must be locked */
 static int namemap_add_name(OSSL_NAMEMAP *namemap, int number,
-                            const char *name)
+    const char *name)
 {
     int ret;
     HT_VALUE val = { 0 };
@@ -285,7 +285,7 @@ static int namemap_add_name(OSSL_NAMEMAP *namemap, int number,
 }
 
 int ossl_namemap_add_name(OSSL_NAMEMAP *namemap, int number,
-                          const char *name)
+    const char *name)
 {
     int tmp_number;
 
@@ -305,7 +305,7 @@ int ossl_namemap_add_name(OSSL_NAMEMAP *namemap, int number,
 }
 
 int ossl_namemap_add_names(OSSL_NAMEMAP *namemap, int number,
-                           const char *names, const char separator)
+    const char *names, const char separator)
 {
     char *tmp, *p, *q, *endp;
 
@@ -331,10 +331,10 @@ int ossl_namemap_add_names(OSSL_NAMEMAP *namemap, int number,
         size_t l;
 
         if ((q = strchr(p, separator)) == NULL) {
-            l = strlen(p);       /* offset to \0 */
+            l = strlen(p); /* offset to \0 */
             q = p + l;
         } else {
-            l = q - p;           /* offset to the next separator */
+            l = q - p; /* offset to the next separator */
             *q++ = '\0';
         }
 
@@ -350,8 +350,8 @@ int ossl_namemap_add_names(OSSL_NAMEMAP *namemap, int number,
             number = this_number;
         } else if (this_number != 0 && this_number != number) {
             ERR_raise_data(ERR_LIB_CRYPTO, CRYPTO_R_CONFLICTING_NAMES,
-                           "\"%s\" has an existing different identity %d (from \"%s\")",
-                           p, this_number, names);
+                "\"%s\" has an existing different identity %d (from \"%s\")",
+                p, this_number, names);
             number = 0;
             goto end;
         }
@@ -369,14 +369,14 @@ int ossl_namemap_add_names(OSSL_NAMEMAP *namemap, int number,
             number = this_number;
         } else if (this_number != number) {
             ERR_raise_data(ERR_LIB_CRYPTO, ERR_R_INTERNAL_ERROR,
-                           "Got number %d when expecting %d",
-                           this_number, number);
+                "Got number %d when expecting %d",
+                this_number, number);
             number = 0;
             goto end;
         }
     }
 
- end:
+end:
     CRYPTO_THREAD_unlock(namemap->lock);
     OPENSSL_free(tmp);
     return number;
@@ -392,7 +392,7 @@ int ossl_namemap_add_names(OSSL_NAMEMAP *namemap, int number,
 
 /* Creates an initial namemap with names found in the legacy method db */
 static void get_legacy_evp_names(int base_nid, int nid, const char *pem_name,
-                                 void *arg)
+    void *arg)
 {
     int num = 0;
     ASN1_OBJECT *obj;
@@ -433,7 +433,7 @@ static void get_legacy_md_names(const OBJ_NAME *on, void *arg)
 }
 
 static void get_legacy_pkey_meth_names(const EVP_PKEY_ASN1_METHOD *ameth,
-                                       void *arg)
+    void *arg)
 {
     int nid = 0, base_nid = 0, flags = 0;
     const char *pem_name = NULL;
@@ -482,8 +482,7 @@ OSSL_NAMEMAP *ossl_namemap_stored(OSSL_LIB_CTX *libctx)
 #ifndef FIPS_MODULE
     int nms;
 #endif
-    OSSL_NAMEMAP *namemap =
-        ossl_lib_ctx_get_data(libctx, OSSL_LIB_CTX_NAMEMAP_INDEX);
+    OSSL_NAMEMAP *namemap = ossl_lib_ctx_get_data(libctx, OSSL_LIB_CTX_NAMEMAP_INDEX);
 
     if (namemap == NULL)
         return NULL;
@@ -502,12 +501,13 @@ OSSL_NAMEMAP *ossl_namemap_stored(OSSL_LIB_CTX *libctx)
 
         /* Before pilfering, we make sure the legacy database is populated */
         OPENSSL_init_crypto(OPENSSL_INIT_ADD_ALL_CIPHERS
-                            | OPENSSL_INIT_ADD_ALL_DIGESTS, NULL);
+                | OPENSSL_INIT_ADD_ALL_DIGESTS,
+            NULL);
 
         OBJ_NAME_do_all(OBJ_NAME_TYPE_CIPHER_METH,
-                        get_legacy_cipher_names, namemap);
+            get_legacy_cipher_names, namemap);
         OBJ_NAME_do_all(OBJ_NAME_TYPE_MD_METH,
-                        get_legacy_md_names, namemap);
+            get_legacy_md_names, namemap);
 
         /* We also pilfer data from the legacy EVP_PKEY_ASN1_METHODs */
         for (i = 0, end = EVP_PKEY_asn1_get_count(); i < end; i++)
@@ -539,7 +539,7 @@ OSSL_NAMEMAP *ossl_namemap_new(OSSL_LIB_CTX *libctx)
 
     return namemap;
 
- err:
+err:
     ossl_namemap_free(namemap);
     return NULL;
 }

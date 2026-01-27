@@ -8,50 +8,50 @@
  */
 
 #ifndef OSSL_QUIC_RECORD_TX_H
-# define OSSL_QUIC_RECORD_TX_H
+#define OSSL_QUIC_RECORD_TX_H
 
-# include <openssl/ssl.h>
-# include "internal/quic_wire_pkt.h"
-# include "internal/quic_types.h"
-# include "internal/quic_predef.h"
-# include "internal/quic_record_util.h"
-# include "internal/qlog.h"
+#include <openssl/ssl.h>
+#include "internal/quic_wire_pkt.h"
+#include "internal/quic_types.h"
+#include "internal/quic_predef.h"
+#include "internal/quic_record_util.h"
+#include "internal/qlog.h"
 
-# ifndef OPENSSL_NO_QUIC
+#ifndef OPENSSL_NO_QUIC
 
 /*
  * QUIC Record Layer - TX
  * ======================
  */
 typedef struct ossl_qtx_iovec_st {
-    const unsigned char    *buf;
-    size_t                  buf_len;
+    const unsigned char *buf;
+    size_t buf_len;
 } OSSL_QTX_IOVEC;
 
 typedef struct ossl_qtx_st OSSL_QTX;
 
 typedef int (*ossl_mutate_packet_cb)(const QUIC_PKT_HDR *hdrin,
-                                     const OSSL_QTX_IOVEC *iovecin, size_t numin,
-                                     QUIC_PKT_HDR **hdrout,
-                                     const OSSL_QTX_IOVEC **iovecout,
-                                     size_t *numout,
-                                     void *arg);
+    const OSSL_QTX_IOVEC *iovecin, size_t numin,
+    QUIC_PKT_HDR **hdrout,
+    const OSSL_QTX_IOVEC **iovecout,
+    size_t *numout,
+    void *arg);
 
 typedef void (*ossl_finish_mutate_cb)(void *arg);
 
 typedef struct ossl_qtx_args_st {
-    OSSL_LIB_CTX   *libctx;
-    const char     *propq;
+    OSSL_LIB_CTX *libctx;
+    const char *propq;
 
     /* BIO to transmit to. */
-    BIO            *bio;
+    BIO *bio;
 
     /* Maximum datagram payload length (MDPL) for TX purposes. */
-    size_t          mdpl;
+    size_t mdpl;
 
     /* Callback returning QLOG instance to use, or NULL. */
-    QLOG           *(*get_qlog_cb)(void *arg);
-    void           *get_qlog_cb_arg;
+    QLOG *(*get_qlog_cb)(void *arg);
+    void *get_qlog_cb_arg;
 } OSSL_QTX_ARGS;
 
 /* Instantiates a new QTX. */
@@ -62,16 +62,16 @@ void ossl_qtx_free(OSSL_QTX *qtx);
 
 /* Set mutator callbacks for test framework support */
 void ossl_qtx_set_mutator(OSSL_QTX *qtx, ossl_mutate_packet_cb mutatecb,
-                          ossl_finish_mutate_cb finishmutatecb, void *mutatearg);
+    ossl_finish_mutate_cb finishmutatecb, void *mutatearg);
 
 /* Setters for the msg_callback and the msg_callback_arg */
 void ossl_qtx_set_msg_callback(OSSL_QTX *qtx, ossl_msg_cb msg_callback,
-                               SSL *msg_callback_ssl);
+    SSL *msg_callback_ssl);
 void ossl_qtx_set_msg_callback_arg(OSSL_QTX *qtx, void *msg_callback_arg);
 
 /* Change QLOG instance retrieval callback in use after instantiation. */
 void ossl_qtx_set_qlog_cb(OSSL_QTX *qtx, QLOG *(*get_qlog_cb)(void *arg),
-                          void *get_qlog_cb_arg);
+    void *get_qlog_cb_arg);
 
 /*
  * Secret Management
@@ -111,12 +111,12 @@ void ossl_qtx_set_qlog_cb(OSSL_QTX *qtx, QLOG *(*get_qlog_cb)(void *arg),
  *
  * Returns 1 on success or 0 on failure.
  */
-int ossl_qtx_provide_secret(OSSL_QTX              *qtx,
-                            uint32_t               enc_level,
-                            uint32_t               suite_id,
-                            EVP_MD                *md,
-                            const unsigned char   *secret,
-                            size_t                 secret_len);
+int ossl_qtx_provide_secret(OSSL_QTX *qtx,
+    uint32_t enc_level,
+    uint32_t suite_id,
+    EVP_MD *md,
+    const unsigned char *secret,
+    size_t secret_len);
 
 /*
  * Informs the QTX that it can now discard key material for a given EL. The QTX
@@ -137,8 +137,8 @@ int ossl_qtx_is_enc_level_provisioned(OSSL_QTX *qtx, uint32_t enc_level);
  * small. The result is written to *plaintext_len.
  */
 int ossl_qtx_calculate_plaintext_payload_len(OSSL_QTX *qtx, uint32_t enc_level,
-                                             size_t ciphertext_len,
-                                             size_t *plaintext_len);
+    size_t ciphertext_len,
+    size_t *plaintext_len);
 
 /*
  * Given the value plaintext_len represented a plaintext packet payload length
@@ -147,11 +147,10 @@ int ossl_qtx_calculate_plaintext_payload_len(OSSL_QTX *qtx, uint32_t enc_level,
  * provisioned. The result is written to *ciphertext_len.
  */
 int ossl_qtx_calculate_ciphertext_payload_len(OSSL_QTX *qtx, uint32_t enc_level,
-                                              size_t plaintext_len,
-                                              size_t *ciphertext_len);
+    size_t plaintext_len,
+    size_t *ciphertext_len);
 
 uint32_t ossl_qrl_get_suite_cipher_tag_len(uint32_t suite_id);
-
 
 /*
  * Packet Transmission
@@ -160,32 +159,32 @@ uint32_t ossl_qrl_get_suite_cipher_tag_len(uint32_t suite_id);
 
 struct ossl_qtx_pkt_st {
     /* Logical packet header to be serialized. */
-    QUIC_PKT_HDR               *hdr;
+    QUIC_PKT_HDR *hdr;
 
     /*
      * iovecs expressing the logical packet payload buffer. Zero-length entries
      * are permitted.
      */
-    const OSSL_QTX_IOVEC       *iovec;
-    size_t                      num_iovec;
+    const OSSL_QTX_IOVEC *iovec;
+    size_t num_iovec;
 
     /* Destination address. Will be passed through to the BIO if non-NULL. */
-    const BIO_ADDR             *peer;
+    const BIO_ADDR *peer;
 
     /*
      * Local address (optional). Specify as non-NULL only if TX BIO
      * has local address support enabled.
      */
-    const BIO_ADDR             *local;
+    const BIO_ADDR *local;
 
     /*
      * Logical PN. Used for encryption. This will automatically be encoded to
      * hdr->pn, which need not be initialized.
      */
-    QUIC_PN                     pn;
+    QUIC_PN pn;
 
     /* Packet flags. Zero or more OSSL_QTX_PKT_FLAG_* values. */
-    uint32_t                    flags;
+    uint32_t flags;
 };
 
 /*
@@ -201,7 +200,7 @@ struct ossl_qtx_pkt_st {
  * COALESCE after having passed it to this function but without writing another
  * packet, it should call ossl_qtx_flush_pkt().
  */
-#define OSSL_QTX_PKT_FLAG_COALESCE       (1U << 0)
+#define OSSL_QTX_PKT_FLAG_COALESCE (1U << 0)
 
 /*
  * Writes a packet.
@@ -265,9 +264,9 @@ void ossl_qtx_finish_dgram(OSSL_QTX *qtx);
  *      or the underlying network write BIO indicated a non-transient
  *      error.
  */
-#define QTX_FLUSH_NET_RES_OK                1
-#define QTX_FLUSH_NET_RES_TRANSIENT_FAIL    (-1)
-#define QTX_FLUSH_NET_RES_PERMANENT_FAIL    (-2)
+#define QTX_FLUSH_NET_RES_OK 1
+#define QTX_FLUSH_NET_RES_TRANSIENT_FAIL (-1)
+#define QTX_FLUSH_NET_RES_PERMANENT_FAIL (-2)
 
 int ossl_qtx_flush_net(OSSL_QTX *qtx);
 
@@ -313,7 +312,6 @@ int ossl_qtx_set_mdpl(OSSL_QTX *qtx, size_t mdpl);
 /* Retrieves the current MDPL. */
 size_t ossl_qtx_get_mdpl(OSSL_QTX *qtx);
 
-
 /*
  * Key Update
  * ----------
@@ -343,7 +341,6 @@ size_t ossl_qtx_get_mdpl(OSSL_QTX *qtx);
  * coupling the RX and TX QUIC record layers in this way.
  */
 int ossl_qtx_trigger_key_update(OSSL_QTX *qtx);
-
 
 /*
  * Key Expiration
@@ -388,6 +385,6 @@ uint64_t ossl_qtx_get_max_epoch_pkt_count(OSSL_QTX *qtx, uint32_t enc_level);
  */
 uint64_t ossl_qtx_get_key_epoch(OSSL_QTX *qtx);
 
-# endif
+#endif
 
 #endif

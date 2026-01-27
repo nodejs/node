@@ -18,6 +18,6 @@ int ossl_DER_w_algorithmIdentifier_SM2(WPACKET *pkt, int cont, EC_KEY *ec)
         /* No parameters (yet?) */
         /* It seems SM2 identifier is the same as id_ecPublidKey */
         && ossl_DER_w_precompiled(pkt, -1, ossl_der_oid_id_ecPublicKey,
-                                  sizeof(ossl_der_oid_id_ecPublicKey))
+            sizeof(ossl_der_oid_id_ecPublicKey))
         && ossl_DER_w_end_sequence(pkt, cont);
 }

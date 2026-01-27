@@ -14,14 +14,14 @@
 #include "recmethod_local.h"
 
 static int tls13_set_crypto_state(OSSL_RECORD_LAYER *rl, int level,
-                                  unsigned char *key, size_t keylen,
-                                  unsigned char *iv, size_t ivlen,
-                                  unsigned char *mackey, size_t mackeylen,
-                                  const EVP_CIPHER *ciph,
-                                  size_t taglen,
-                                  int mactype,
-                                  const EVP_MD *md,
-                                  COMP_METHOD *comp)
+    unsigned char *key, size_t keylen,
+    unsigned char *iv, size_t ivlen,
+    unsigned char *mackey, size_t mackeylen,
+    const EVP_CIPHER *ciph,
+    size_t taglen,
+    int mactype,
+    const EVP_MD *md,
+    COMP_METHOD *comp)
 {
     EVP_CIPHER_CTX *ciph_ctx;
     EVP_MAC_CTX *mac_ctx;
@@ -51,7 +51,7 @@ static int tls13_set_crypto_state(OSSL_RECORD_LAYER *rl, int level,
         }
         EVP_MAC_free(mac);
         *p++ = OSSL_PARAM_construct_utf8_string(OSSL_MAC_PARAM_DIGEST,
-                                                (char *)EVP_MD_name(md), 0);
+            (char *)EVP_MD_name(md), 0);
         *p = OSSL_PARAM_construct_end();
         if (!EVP_MAC_init(mac_ctx, key, keylen, params)) {
             ERR_raise(ERR_LIB_SSL, ERR_R_INTERNAL_ERROR);
@@ -70,21 +70,23 @@ static int tls13_set_crypto_state(OSSL_RECORD_LAYER *rl, int level,
 
     if (EVP_CipherInit_ex(ciph_ctx, ciph, NULL, NULL, NULL, enc) <= 0
         || EVP_CIPHER_CTX_ctrl(ciph_ctx, EVP_CTRL_AEAD_SET_IVLEN, ivlen,
-                               NULL) <= 0
+               NULL)
+            <= 0
         || (mode == EVP_CIPH_CCM_MODE
             && EVP_CIPHER_CTX_ctrl(ciph_ctx, EVP_CTRL_AEAD_SET_TAG, taglen,
-                                   NULL) <= 0)
+                   NULL)
+                <= 0)
         || EVP_CipherInit_ex(ciph_ctx, NULL, NULL, key, NULL, enc) <= 0) {
         ERR_raise(ERR_LIB_SSL, ERR_R_INTERNAL_ERROR);
         return OSSL_RECORD_RETURN_FATAL;
     }
- end:
+end:
     return OSSL_RECORD_RETURN_SUCCESS;
 }
 
 static int tls13_cipher(OSSL_RECORD_LAYER *rl, TLS_RL_RECORD *recs,
-                        size_t n_recs, int sending, SSL_MAC_BUF *mac,
-                        size_t macsize)
+    size_t n_recs, int sending, SSL_MAC_BUF *mac,
+    size_t macsize)
 {
     EVP_CIPHER_CTX *enc_ctx;
     unsigned char recheader[SSL3_RT_HEADER_LENGTH];
@@ -169,12 +171,12 @@ static int tls13_cipher(OSSL_RECORD_LAYER *rl, TLS_RL_RECORD *recs,
 
     /* Set up the AAD */
     if (!WPACKET_init_static_len(&wpkt, recheader, sizeof(recheader), 0)
-            || !WPACKET_put_bytes_u8(&wpkt, rec->type)
-            || !WPACKET_put_bytes_u16(&wpkt, rec->rec_version)
-            || !WPACKET_put_bytes_u16(&wpkt, rec->length + rl->taglen)
-            || !WPACKET_get_total_written(&wpkt, &hdrlen)
-            || hdrlen != SSL3_RT_HEADER_LENGTH
-            || !WPACKET_finish(&wpkt)) {
+        || !WPACKET_put_bytes_u8(&wpkt, rec->type)
+        || !WPACKET_put_bytes_u16(&wpkt, rec->rec_version)
+        || !WPACKET_put_bytes_u16(&wpkt, rec->length + rl->taglen)
+        || !WPACKET_get_total_written(&wpkt, &hdrlen)
+        || hdrlen != SSL3_RT_HEADER_LENGTH
+        || !WPACKET_finish(&wpkt)) {
         RLAYERfatal(rl, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
         WPACKET_cleanup(&wpkt);
         return 0;
@@ -196,7 +198,8 @@ static int tls13_cipher(OSSL_RECORD_LAYER *rl, TLS_RL_RECORD *recs,
             memcpy(rec->data + rec->length, tag, rl->taglen);
             rec->length += rl->taglen;
         } else if (CRYPTO_memcmp(tag, rec->data + rec->length,
-                                 rl->taglen) != 0) {
+                       rl->taglen)
+            != 0) {
             goto end_mac;
         }
         ret = 1;
@@ -213,9 +216,7 @@ static int tls13_cipher(OSSL_RECORD_LAYER *rl, TLS_RL_RECORD *recs,
     mode = EVP_CIPHER_get_mode(cipher);
 
     if (EVP_CipherInit_ex(enc_ctx, NULL, NULL, NULL, nonce, sending) <= 0
-        || (!sending && EVP_CIPHER_CTX_ctrl(enc_ctx, EVP_CTRL_AEAD_SET_TAG,
-                                            rl->taglen,
-                                            rec->data + rec->length) <= 0)) {
+        || (!sending && EVP_CIPHER_CTX_ctrl(enc_ctx, EVP_CTRL_AEAD_SET_TAG, rl->taglen, rec->data + rec->length) <= 0)) {
         RLAYERfatal(rl, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
         return 0;
     }
@@ -225,20 +226,24 @@ static int tls13_cipher(OSSL_RECORD_LAYER *rl, TLS_RL_RECORD *recs,
      * any AAD.
      */
     if ((mode == EVP_CIPH_CCM_MODE
-                 && EVP_CipherUpdate(enc_ctx, NULL, &lenu, NULL,
-                                     (unsigned int)rec->length) <= 0)
-            || EVP_CipherUpdate(enc_ctx, NULL, &lenu, recheader,
-                                sizeof(recheader)) <= 0
-            || EVP_CipherUpdate(enc_ctx, rec->data, &lenu, rec->input,
-                                (unsigned int)rec->length) <= 0
-            || EVP_CipherFinal_ex(enc_ctx, rec->data + lenu, &lenf) <= 0
-            || (size_t)(lenu + lenf) != rec->length) {
+            && EVP_CipherUpdate(enc_ctx, NULL, &lenu, NULL,
+                   (unsigned int)rec->length)
+                <= 0)
+        || EVP_CipherUpdate(enc_ctx, NULL, &lenu, recheader,
+               sizeof(recheader))
+            <= 0
+        || EVP_CipherUpdate(enc_ctx, rec->data, &lenu, rec->input,
+               (unsigned int)rec->length)
+            <= 0
+        || EVP_CipherFinal_ex(enc_ctx, rec->data + lenu, &lenf) <= 0
+        || (size_t)(lenu + lenf) != rec->length) {
         return 0;
     }
     if (sending) {
         /* Add the tag */
         if (EVP_CIPHER_CTX_ctrl(enc_ctx, EVP_CTRL_AEAD_GET_TAG, rl->taglen,
-                                rec->data + rec->length) <= 0) {
+                rec->data + rec->length)
+            <= 0) {
             RLAYERfatal(rl, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
             return 0;
         }
@@ -249,12 +254,12 @@ static int tls13_cipher(OSSL_RECORD_LAYER *rl, TLS_RL_RECORD *recs,
 }
 
 static int tls13_validate_record_header(OSSL_RECORD_LAYER *rl,
-                                        TLS_RL_RECORD *rec)
+    TLS_RL_RECORD *rec)
 {
     if (rec->type != SSL3_RT_APPLICATION_DATA
-            && (rec->type != SSL3_RT_CHANGE_CIPHER_SPEC
-                || !rl->is_first_handshake)
-            && (rec->type != SSL3_RT_ALERT || !rl->allow_plain_alerts)) {
+        && (rec->type != SSL3_RT_CHANGE_CIPHER_SPEC
+            || !rl->is_first_handshake)
+        && (rec->type != SSL3_RT_ALERT || !rl->allow_plain_alerts)) {
         RLAYERfatal(rl, SSL_AD_UNEXPECTED_MESSAGE, SSL_R_BAD_RECORD_TYPE);
         return 0;
     }
@@ -266,7 +271,7 @@ static int tls13_validate_record_header(OSSL_RECORD_LAYER *rl,
 
     if (rec->length > SSL3_RT_MAX_TLS13_ENCRYPTED_LENGTH) {
         RLAYERfatal(rl, SSL_AD_RECORD_OVERFLOW,
-                    SSL_R_ENCRYPTED_LENGTH_TOO_LONG);
+            SSL_R_ENCRYPTED_LENGTH_TOO_LONG);
         return 0;
     }
     return 1;
@@ -279,9 +284,9 @@ static int tls13_post_process_record(OSSL_RECORD_LAYER *rl, TLS_RL_RECORD *rec)
         size_t end;
 
         if (rec->length == 0
-                || rec->type != SSL3_RT_APPLICATION_DATA) {
+            || rec->type != SSL3_RT_APPLICATION_DATA) {
             RLAYERfatal(rl, SSL_AD_UNEXPECTED_MESSAGE,
-                        SSL_R_BAD_RECORD_TYPE);
+                SSL_R_BAD_RECORD_TYPE);
             return 0;
         }
 
@@ -307,7 +312,7 @@ static int tls13_post_process_record(OSSL_RECORD_LAYER *rl, TLS_RL_RECORD *rec)
 }
 
 static uint8_t tls13_get_record_type(OSSL_RECORD_LAYER *rl,
-                                     OSSL_RECORD_TEMPLATE *template)
+    OSSL_RECORD_TEMPLATE *template)
 {
     if (rl->allow_plain_alerts && template->type == SSL3_RT_ALERT)
         return SSL3_RT_ALERT;
@@ -321,9 +326,9 @@ static uint8_t tls13_get_record_type(OSSL_RECORD_LAYER *rl,
 }
 
 static int tls13_add_record_padding(OSSL_RECORD_LAYER *rl,
-                                    OSSL_RECORD_TEMPLATE *thistempl,
-                                    WPACKET *thispkt,
-                                    TLS_RL_RECORD *thiswr)
+    OSSL_RECORD_TEMPLATE *thistempl,
+    WPACKET *thispkt,
+    TLS_RL_RECORD *thiswr)
 {
     size_t rlen;
 
@@ -353,7 +358,7 @@ static int tls13_add_record_padding(OSSL_RECORD_LAYER *rl,
          * a change that could break some application that has
          * a client and server that both know what padding they
          * like, and that dislike any other padding. That'd need
-         * one of those to have been updated though so the 
+         * one of those to have been updated though so the
          * probability may be low enough that we could change
          * the "else if" below to just an "if" and pick the
          * larger of the library and callback's idea of padding.
@@ -373,7 +378,7 @@ static int tls13_add_record_padding(OSSL_RECORD_LAYER *rl,
             else if (thistempl->type == SSL3_RT_ALERT && rl->hs_padding > 0)
                 bp = rl->hs_padding;
             else if (thistempl->type == SSL3_RT_APPLICATION_DATA
-                     && rl->block_padding > 0)
+                && rl->block_padding > 0)
                 bp = rl->block_padding;
             if (bp > 0) {
                 mask = bp - 1;
@@ -395,7 +400,7 @@ static int tls13_add_record_padding(OSSL_RECORD_LAYER *rl,
                 padding = max_padding;
             if (!WPACKET_memset(thispkt, 0, padding)) {
                 RLAYERfatal(rl, SSL_AD_INTERNAL_ERROR,
-                            ERR_R_INTERNAL_ERROR);
+                    ERR_R_INTERNAL_ERROR);
                 return 0;
             }
             TLS_RL_RECORD_add_length(thiswr, padding);

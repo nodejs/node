@@ -11,17 +11,17 @@
 
 #ifdef DSO_DL
 
-# include <dl.h>
+#include <dl.h>
 
 /* Part of the hack in "dl_load" ... */
-# define DSO_MAX_TRANSLATED_SIZE 256
+#define DSO_MAX_TRANSLATED_SIZE 256
 
 static int dl_load(DSO *dso);
 static int dl_unload(DSO *dso);
 static DSO_FUNC_TYPE dl_bind_func(DSO *dso, const char *symname);
 static char *dl_name_converter(DSO *dso, const char *filename);
 static char *dl_merger(DSO *dso, const char *filespec1,
-                       const char *filespec2);
+    const char *filespec2);
 static int dl_pathbyaddr(void *addr, char *path, int sz);
 static void *dl_globallookup(const char *name);
 
@@ -30,11 +30,11 @@ static DSO_METHOD dso_meth_dl = {
     dl_load,
     dl_unload,
     dl_bind_func,
-    NULL,                       /* ctrl */
+    NULL, /* ctrl */
     dl_name_converter,
     dl_merger,
-    NULL,                       /* init */
-    NULL,                       /* finish */
+    NULL, /* init */
+    NULL, /* finish */
     dl_pathbyaddr,
     dl_globallookup
 };
@@ -64,18 +64,16 @@ static int dl_load(DSO *dso)
         ERR_raise(ERR_LIB_DSO, DSO_R_NO_FILENAME);
         goto err;
     }
-    ptr = shl_load(filename, BIND_IMMEDIATE |
-                   (dso->flags & DSO_FLAG_NO_NAME_TRANSLATION ? 0 :
-                    DYNAMIC_PATH), 0L);
+    ptr = shl_load(filename, BIND_IMMEDIATE | (dso->flags & DSO_FLAG_NO_NAME_TRANSLATION ? 0 : DYNAMIC_PATH), 0L);
     if (ptr == NULL) {
         char errbuf[160];
 
         if (openssl_strerror_r(errno, errbuf, sizeof(errbuf)))
             ERR_raise_data(ERR_LIB_DSO, DSO_R_LOAD_FAILED,
-                           "filename(%s): %s", filename, errbuf);
+                "filename(%s): %s", filename, errbuf);
         else
             ERR_raise_data(ERR_LIB_DSO, DSO_R_LOAD_FAILED,
-                           "filename(%s): errno %d", filename, errno);
+                "filename(%s): errno %d", filename, errno);
         goto err;
     }
     if (!sk_push(dso->meth_data, (char *)ptr)) {
@@ -88,7 +86,7 @@ static int dl_load(DSO *dso)
      */
     dso->loaded_filename = filename;
     return 1;
- err:
+err:
     /* Cleanup! */
     OPENSSL_free(filename);
     if (ptr != NULL)
@@ -106,7 +104,7 @@ static int dl_unload(DSO *dso)
     if (sk_num(dso->meth_data) < 1)
         return 1;
     /* Is this statement legal? */
-    ptr = (shl_t) sk_pop(dso->meth_data);
+    ptr = (shl_t)sk_pop(dso->meth_data);
     if (ptr == NULL) {
         ERR_raise(ERR_LIB_DSO, DSO_R_NULL_HANDLE);
         /*
@@ -132,7 +130,7 @@ static DSO_FUNC_TYPE dl_bind_func(DSO *dso, const char *symname)
         ERR_raise(ERR_LIB_DSO, DSO_R_STACK_ERROR);
         return NULL;
     }
-    ptr = (shl_t) sk_value(dso->meth_data, sk_num(dso->meth_data) - 1);
+    ptr = (shl_t)sk_value(dso->meth_data, sk_num(dso->meth_data) - 1);
     if (ptr == NULL) {
         ERR_raise(ERR_LIB_DSO, DSO_R_NULL_HANDLE);
         return NULL;
@@ -142,10 +140,10 @@ static DSO_FUNC_TYPE dl_bind_func(DSO *dso, const char *symname)
 
         if (openssl_strerror_r(errno, errbuf, sizeof(errbuf)))
             ERR_raise_data(ERR_LIB_DSO, DSO_R_SYM_FAILURE,
-                           "symname(%s): %s", symname, errbuf);
+                "symname(%s): %s", symname, errbuf);
         else
             ERR_raise_data(ERR_LIB_DSO, DSO_R_SYM_FAILURE,
-                           "symname(%s): errno %d", symname, errno);
+                "symname(%s): errno %d", symname, errno);
         return NULL;
     }
     return (DSO_FUNC_TYPE)sym;
@@ -176,13 +174,13 @@ static char *dl_merger(DSO *dso, const char *filespec1, const char *filespec2)
         if (merged == NULL)
             return NULL;
     } else
-        /*
-         * This part isn't as trivial as it looks.  It assumes that the
-         * second file specification really is a directory, and makes no
-         * checks whatsoever.  Therefore, the result becomes the
-         * concatenation of filespec2 followed by a slash followed by
-         * filespec1.
-         */
+    /*
+     * This part isn't as trivial as it looks.  It assumes that the
+     * second file specification really is a directory, and makes no
+     * checks whatsoever.  Therefore, the result becomes the
+     * concatenation of filespec2 followed by a slash followed by
+     * filespec1.
+     */
     {
         int spec2len, len;
 
@@ -222,7 +220,7 @@ static char *dl_name_converter(DSO *dso, const char *filename)
         /* We will convert this to "%s.s?" or "lib%s.s?" */
         rsize += strlen(DSO_EXTENSION); /* The length of ".s?" */
         if ((DSO_flags(dso) & DSO_FLAG_NAME_TRANSLATION_EXT_ONLY) == 0)
-            rsize += 3;         /* The length of "lib" */
+            rsize += 3; /* The length of "lib" */
     }
     translated = OPENSSL_malloc(rsize);
     if (translated == NULL) {
@@ -231,8 +229,10 @@ static char *dl_name_converter(DSO *dso, const char *filename)
     }
     if (transform)
         BIO_snprintf(translated, rsize,
-                     (DSO_flags(dso) & DSO_FLAG_NAME_TRANSLATION_EXT_ONLY) == 0
-                     ? "lib%s%s" : "%s%s", filename, DSO_EXTENSION);
+            (DSO_flags(dso) & DSO_FLAG_NAME_TRANSLATION_EXT_ONLY) == 0
+                ? "lib%s%s"
+                : "%s%s",
+            filename, DSO_EXTENSION);
     else
         BIO_snprintf(translated, rsize, "%s", filename);
     return translated;
@@ -245,7 +245,7 @@ static int dl_pathbyaddr(void *addr, char *path, int sz)
 
     if (addr == NULL) {
         union {
-            int (*f) (void *, char *, int);
+            int (*f)(void *, char *, int);
             void *p;
         } t = {
             dl_pathbyaddr
@@ -254,8 +254,7 @@ static int dl_pathbyaddr(void *addr, char *path, int sz)
     }
 
     for (i = -1; shl_get_r(i, &inf) == 0; i++) {
-        if (((size_t)addr >= inf.tstart && (size_t)addr < inf.tend) ||
-            ((size_t)addr >= inf.dstart && (size_t)addr < inf.dend)) {
+        if (((size_t)addr >= inf.tstart && (size_t)addr < inf.tend) || ((size_t)addr >= inf.dstart && (size_t)addr < inf.dend)) {
             len = (int)strlen(inf.filename);
             if (sz <= 0)
                 return len + 1;
@@ -277,4 +276,4 @@ static void *dl_globallookup(const char *name)
 
     return shl_findsym(&h, name, TYPE_UNDEFINED, &ret) ? NULL : ret;
 }
-#endif                          /* DSO_DL */
+#endif /* DSO_DL */

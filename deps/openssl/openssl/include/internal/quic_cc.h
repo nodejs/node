@@ -7,28 +7,28 @@
  * https://www.openssl.org/source/license.html
  */
 #ifndef OSSL_QUIC_CC_H
-# define OSSL_QUIC_CC_H
+#define OSSL_QUIC_CC_H
 
 #include "openssl/params.h"
 #include "internal/time.h"
 #include "internal/quic_predef.h"
 
-# ifndef OPENSSL_NO_QUIC
+#ifndef OPENSSL_NO_QUIC
 
 typedef struct ossl_cc_ack_info_st {
     /* The time the packet being acknowledged was originally sent. */
-    OSSL_TIME   tx_time;
+    OSSL_TIME tx_time;
 
     /* The size in bytes of the packet being acknowledged. */
-    size_t      tx_size;
+    size_t tx_size;
 } OSSL_CC_ACK_INFO;
 
 typedef struct ossl_cc_loss_info_st {
     /* The time the packet being lost was originally sent. */
-    OSSL_TIME   tx_time;
+    OSSL_TIME tx_time;
 
     /* The size in bytes of the packet which has been determined lost. */
-    size_t      tx_size;
+    size_t tx_size;
 } OSSL_CC_LOSS_INFO;
 
 typedef struct ossl_cc_ecn_info_st {
@@ -36,23 +36,23 @@ typedef struct ossl_cc_ecn_info_st {
      * The time at which the largest acked PN (in the incoming ACK frame) was
      * sent.
      */
-    OSSL_TIME   largest_acked_time;
+    OSSL_TIME largest_acked_time;
 } OSSL_CC_ECN_INFO;
 
 /* Parameter (read-write): Maximum datagram payload length in bytes. */
-#define OSSL_CC_OPTION_MAX_DGRAM_PAYLOAD_LEN        "max_dgram_payload_len"
+#define OSSL_CC_OPTION_MAX_DGRAM_PAYLOAD_LEN "max_dgram_payload_len"
 
 /* Diagnostic (read-only): current congestion window size in bytes. */
-#define OSSL_CC_OPTION_CUR_CWND_SIZE                "cur_cwnd_size"
+#define OSSL_CC_OPTION_CUR_CWND_SIZE "cur_cwnd_size"
 
 /* Diagnostic (read-only): minimum congestion window size in bytes. */
-#define OSSL_CC_OPTION_MIN_CWND_SIZE                "min_cwnd_size"
+#define OSSL_CC_OPTION_MIN_CWND_SIZE "min_cwnd_size"
 
 /* Diagnostic (read-only): current net bytes in flight. */
-#define OSSL_CC_OPTION_CUR_BYTES_IN_FLIGHT          "bytes_in_flight"
+#define OSSL_CC_OPTION_CUR_BYTES_IN_FLIGHT "bytes_in_flight"
 
 /* Diagnostic (read-only): method-specific state value. */
-#define OSSL_CC_OPTION_CUR_STATE                    "cur_state"
+#define OSSL_CC_OPTION_CUR_STATE "cur_state"
 
 /*
  * Congestion control abstract interface.
@@ -77,14 +77,14 @@ typedef struct ossl_cc_ecn_info_st {
  * All of these changes are intended to avoid having a congestion controller
  * have to access ACKM internal state.
  */
-#define OSSL_CC_LOST_FLAG_PERSISTENT_CONGESTION     (1U << 0)
+#define OSSL_CC_LOST_FLAG_PERSISTENT_CONGESTION (1U << 0)
 
 struct ossl_cc_method_st {
     /*
      * Instantiation.
      */
     OSSL_CC_DATA *(*new)(OSSL_TIME (*now_cb)(void *arg),
-                         void *now_cb_arg);
+        void *now_cb_arg);
 
     void (*free)(OSSL_CC_DATA *ccdata);
 
@@ -101,7 +101,7 @@ struct ossl_cc_method_st {
      * Returns 1 on success and 0 on failure.
      */
     int (*set_input_params)(OSSL_CC_DATA *ccdata,
-                            const OSSL_PARAM *params);
+        const OSSL_PARAM *params);
 
     /*
      * (Re)bind output (diagnostic) information.
@@ -118,7 +118,7 @@ struct ossl_cc_method_st {
      * Returns 1 on success and 0 on failure.
      */
     int (*bind_diagnostics)(OSSL_CC_DATA *ccdata,
-                            OSSL_PARAM *params);
+        OSSL_PARAM *params);
 
     /*
      * Unbind diagnostic information. The parameters with the given names are
@@ -130,7 +130,7 @@ struct ossl_cc_method_st {
      * Returns 1 on success or 0 on failure.
      */
     int (*unbind_diagnostics)(OSSL_CC_DATA *ccdata,
-                              OSSL_PARAM *params);
+        OSSL_PARAM *params);
 
     /*
      * Returns the amount of additional data (above and beyond the data
@@ -154,14 +154,14 @@ struct ossl_cc_method_st {
      * sent).
      */
     int (*on_data_sent)(OSSL_CC_DATA *ccdata,
-                        uint64_t num_bytes);
+        uint64_t num_bytes);
 
     /*
      * The On Data Acked event. See OSSL_CC_ACK_INFO structure for details
      * of the information to be passed.
      */
     int (*on_data_acked)(OSSL_CC_DATA *ccdata,
-                         const OSSL_CC_ACK_INFO *info);
+        const OSSL_CC_ACK_INFO *info);
 
     /*
      * The On Data Lost event. See OSSL_CC_LOSS_INFO structure for details
@@ -177,7 +177,7 @@ struct ossl_cc_method_st {
      * calls to on_data_lost().
      */
     int (*on_data_lost)(OSSL_CC_DATA *ccdata,
-                        const OSSL_CC_LOSS_INFO *info);
+        const OSSL_CC_LOSS_INFO *info);
 
     /*
      * To be called after a sequence of one or more on_data_lost() calls
@@ -193,7 +193,7 @@ struct ossl_cc_method_st {
      * Only the size of the packet is needed.
      */
     int (*on_data_invalidated)(OSSL_CC_DATA *ccdata,
-                               uint64_t num_bytes);
+        uint64_t num_bytes);
 
     /*
      * Called from the ACKM when detecting an increased ECN-CE value in an ACK
@@ -207,12 +207,12 @@ struct ossl_cc_method_st {
      * narrower interface between the ACKM and CC.
      */
     int (*on_ecn)(OSSL_CC_DATA *ccdata,
-                  const OSSL_CC_ECN_INFO *info);
+        const OSSL_CC_ECN_INFO *info);
 };
 
 extern const OSSL_CC_METHOD ossl_cc_dummy_method;
 extern const OSSL_CC_METHOD ossl_cc_newreno_method;
 
-# endif
+#endif
 
 #endif
