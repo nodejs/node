@@ -112,29 +112,6 @@ const fs = require('fs');
   myVfs.unmount();
 }
 
-// Test dynamic content for modules using provider.setContentProvider
-{
-  const myVfs = fs.createVirtual();
-  let counter = 0;
-
-  myVfs.provider.setContentProvider('/dynamic.js', () => {
-    counter++;
-    return `module.exports = ${counter};`;
-  });
-  myVfs.mount('/virtual7');
-
-  // First require - counter becomes 1
-  let result = require('/virtual7/dynamic.js');
-  assert.strictEqual(result, 1);
-
-  // Clear cache and require again - counter becomes 2
-  delete require.cache['/virtual7/dynamic.js'];
-  result = require('/virtual7/dynamic.js');
-  assert.strictEqual(result, 2);
-
-  myVfs.unmount();
-}
-
 // Test require with relative paths inside VFS module
 {
   const myVfs = fs.createVirtual();

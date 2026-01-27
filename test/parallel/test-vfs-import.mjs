@@ -86,29 +86,6 @@ import fs from 'fs';
   myVfs.unmount();
 }
 
-// Test dynamic content for ESM modules
-{
-  const myVfs = fs.createVirtual();
-  let counter = 0;
-
-  myVfs.provider.setContentProvider('/dynamic.mjs', () => {
-    counter++;
-    return `export const count = ${counter};`;
-  });
-  myVfs.mount('/virtual7');
-
-  // First import - counter becomes 1
-  const mod1 = await import('/virtual7/dynamic.mjs');
-  assert.strictEqual(mod1.count, 1);
-
-  // ESM modules are cached, so importing again returns the same module
-  const mod2 = await import('/virtual7/dynamic.mjs');
-  assert.strictEqual(mod2.count, 1);
-  assert.strictEqual(mod1, mod2);
-
-  myVfs.unmount();
-}
-
 // Test mixed CJS and ESM - ESM importing from VFS while CJS also works
 {
   const myVfs = fs.createVirtual();

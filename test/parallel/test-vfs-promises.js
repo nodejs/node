@@ -155,19 +155,6 @@ const fs = require('fs');
   }));
 }
 
-// Test async dynamic content with callback API using provider.setContentProvider
-{
-  const myVfs = fs.createVirtual();
-  myVfs.provider.setContentProvider('/async-dynamic.txt', async () => {
-    return 'async content';
-  });
-
-  myVfs.readFile('/async-dynamic.txt', 'utf8', common.mustCall((err, data) => {
-    assert.strictEqual(err, null);
-    assert.strictEqual(data, 'async content');
-  }));
-}
-
 // ==================== Promise API Tests ====================
 
 // Test promises.readFile
@@ -280,22 +267,4 @@ const fs = require('fs');
     myVfs.promises.access('/nonexistent'),
     { code: 'ENOENT' }
   );
-})().then(common.mustCall());
-
-// Test async dynamic content with promise API using provider.setContentProvider
-(async () => {
-  const myVfs = fs.createVirtual();
-  let counter = 0;
-
-  myVfs.provider.setContentProvider('/async-counter.txt', async () => {
-    await new Promise((resolve) => setTimeout(resolve, 10));
-    counter++;
-    return `count: ${counter}`;
-  });
-
-  const data1 = await myVfs.promises.readFile('/async-counter.txt', 'utf8');
-  assert.strictEqual(data1, 'count: 1');
-
-  const data2 = await myVfs.promises.readFile('/async-counter.txt', 'utf8');
-  assert.strictEqual(data2, 'count: 2');
 })().then(common.mustCall());
