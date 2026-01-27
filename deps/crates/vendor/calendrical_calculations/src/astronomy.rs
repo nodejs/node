@@ -8,7 +8,7 @@
 // package root or at http://www.apache.org/licenses/LICENSE-2.0.
 
 //! This file contains important structs and functions relating to location,
-//! time, and astronomy; these are intended for calender calculations and based off
+//! time, and astronomy; these are intended for calendar calculations and based off
 //! _Calendrical Calculations_ by Reingold & Dershowitz.
 
 // TODO(#3709): Address inconcistencies with existing ICU code for extreme dates.
