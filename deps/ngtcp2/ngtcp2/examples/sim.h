@@ -91,6 +91,10 @@ struct LinkConfig {
   double loss{};
   // seed is a seed value for the random number generator.
   std::mt19937::result_type seed{};
+  // eventcb is an optional callback that is invoked before processing
+  // each event.  In this callback, LinkConfig can be dynamically
+  // adjusted to simulate dynamic network conditions.
+  std::function<void(Timestamp, LinkConfig &)> eventcb;
 };
 
 struct EndpointConfig {
@@ -174,6 +178,7 @@ public:
   Timestamp get_next_timestamp() const;
   Event get_next_event();
   void pop_tx_queue();
+  void run_eventcb(Timestamp ts);
 
 private:
   bool decide_pkt_lost();

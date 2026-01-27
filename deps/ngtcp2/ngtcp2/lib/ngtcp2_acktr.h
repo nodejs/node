@@ -120,8 +120,6 @@ typedef struct ngtcp2_acktr {
      packet number. */
   ngtcp2_ksl ents;
   ngtcp2_log *log;
-  /* flags is bitwise OR of zero, or more of NGTCP2_ACKTR_FLAG_*. */
-  uint16_t flags;
   /* first_unacked_ts is timestamp when ngtcp2_acktr_entry is added
      first time after the last outgoing ACK frame. */
   ngtcp2_tstamp first_unacked_ts;
@@ -148,6 +146,9 @@ typedef struct ngtcp2_acktr {
       uint64_t ce;
     } ack;
   } ecn;
+
+  /* flags is bitwise OR of zero, or more of NGTCP2_ACKTR_FLAG_*. */
+  uint16_t flags;
 } ngtcp2_acktr;
 
 /*

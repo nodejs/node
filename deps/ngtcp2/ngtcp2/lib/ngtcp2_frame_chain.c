@@ -36,7 +36,7 @@ int ngtcp2_frame_chain_objalloc_new(ngtcp2_frame_chain **pfrc,
     return NGTCP2_ERR_NOMEM;
   }
 
-  ngtcp2_frame_chain_init(*pfrc);
+  ngtcp2_frame_chain_init(*pfrc, NGTCP2_FRAME_CHAIN_FLAG_NONE);
 
   return 0;
 }
@@ -48,7 +48,7 @@ int ngtcp2_frame_chain_extralen_new(ngtcp2_frame_chain **pfrc, size_t extralen,
     return NGTCP2_ERR_NOMEM;
   }
 
-  ngtcp2_frame_chain_init(*pfrc);
+  ngtcp2_frame_chain_init(*pfrc, NGTCP2_FRAME_CHAIN_FLAG_MALLOC);
 
   return 0;
 }
@@ -110,21 +110,6 @@ int ngtcp2_frame_chain_new_token_objalloc_new(ngtcp2_frame_chain **pfrc,
   return 0;
 }
 
-void ngtcp2_frame_chain_del(ngtcp2_frame_chain *frc, const ngtcp2_mem *mem) {
-  ngtcp2_frame_chain_binder *binder;
-
-  if (frc == NULL) {
-    return;
-  }
-
-  binder = frc->binder;
-  if (binder && --binder->refcount == 0) {
-    ngtcp2_mem_free(mem, binder);
-  }
-
-  ngtcp2_mem_free(mem, frc);
-}
-
 void ngtcp2_frame_chain_objalloc_del(ngtcp2_frame_chain *frc,
                                      ngtcp2_objalloc *objalloc,
                                      const ngtcp2_mem *mem) {
@@ -134,39 +119,23 @@ void ngtcp2_frame_chain_objalloc_del(ngtcp2_frame_chain *frc,
     return;
   }
 
-  switch (frc->fr.hd.type) {
-  case NGTCP2_FRAME_CRYPTO:
-  case NGTCP2_FRAME_STREAM:
-    if (frc->fr.stream.datacnt > NGTCP2_FRAME_CHAIN_STREAM_DATACNT_THRES) {
-      ngtcp2_frame_chain_del(frc, mem);
-
-      return;
-    }
-
-    break;
-  case NGTCP2_FRAME_NEW_TOKEN:
-    if (frc->fr.new_token.tokenlen > NGTCP2_FRAME_CHAIN_NEW_TOKEN_THRES) {
-      ngtcp2_frame_chain_del(frc, mem);
-
-      return;
-    }
-
-    break;
-  }
-
   binder = frc->binder;
   if (binder && --binder->refcount == 0) {
     ngtcp2_mem_free(mem, binder);
   }
 
-  frc->binder = NULL;
+  if (frc->flags & NGTCP2_FRAME_CHAIN_FLAG_MALLOC) {
+    ngtcp2_mem_free(mem, frc);
+    return;
+  }
 
   ngtcp2_objalloc_frame_chain_release(objalloc, frc);
 }
 
-void ngtcp2_frame_chain_init(ngtcp2_frame_chain *frc) {
+void ngtcp2_frame_chain_init(ngtcp2_frame_chain *frc, uint32_t flags) {
   frc->next = NULL;
   frc->binder = NULL;
+  frc->flags = flags;
 }
 
 void ngtcp2_frame_chain_list_objalloc_del(ngtcp2_frame_chain *frc,

@@ -39,6 +39,7 @@
 #include <openssl/chacha.h>
 #include <openssl/rand.h>
 
+#include "ngtcp2_macro.h"
 #include "shared.h"
 
 typedef enum ngtcp2_crypto_boringssl_cipher_type {
@@ -419,7 +420,7 @@ int ngtcp2_crypto_hp_mask(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
 #else  /* !defined(WORDS_BIGENDIAN) */
     memcpy(&counter, sample, sizeof(counter));
 #endif /* !defined(WORDS_BIGENDIAN) */
-    CRYPTO_chacha_20(dest, PLAINTEXT, sizeof(PLAINTEXT) - 1, ctx->key,
+    CRYPTO_chacha_20(dest, PLAINTEXT, ngtcp2_strlen_lit(PLAINTEXT), ctx->key,
                      sample + sizeof(counter), counter);
     return 0;
   default:
