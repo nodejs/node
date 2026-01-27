@@ -313,7 +313,7 @@ This change does not affect third-party builds of Node.js that link to an extern
 * \[[`18ceefbabd`](https://github.com/nodejs/node/commit/18ceefbabd)] - **doc**: clarify experimental platform vulnerability policy (Matteo Collina) [#59591](https://github.com/nodejs/node/pull/59591)
 * \[[`66cdd00368`](https://github.com/nodejs/node/commit/66cdd00368)] - **doc**: link to `TypedArray.from()` in signature (Aviv Keller) [#59226](https://github.com/nodejs/node/pull/59226)
 * \[[`9f058ce7c0`](https://github.com/nodejs/node/commit/9f058ce7c0)] - **doc**: fix typos in `environment_variables.md` (PhistucK) [#59536](https://github.com/nodejs/node/pull/59536)
-* \[[`3cfec820e9`](https://github.com/nodejs/node/commit/3cfec820e9)] - **doc**: add security incident reponse plan (Rafael Gonzaga) [#59470](https://github.com/nodejs/node/pull/59470)
+* \[[`3cfec820e9`](https://github.com/nodejs/node/commit/3cfec820e9)] - **doc**: add security incident response plan (Rafael Gonzaga) [#59470](https://github.com/nodejs/node/pull/59470)
 * \[[`46aa3434e6`](https://github.com/nodejs/node/commit/46aa3434e6)] - **doc**: clarify maxRSS unit in `process.resourceUsage()` (Alex Yang) [#59511](https://github.com/nodejs/node/pull/59511)
 * \[[`adf98f600a`](https://github.com/nodejs/node/commit/adf98f600a)] - **doc**: add missing Zstd strategy constants (RANDRIAMANANTENA Narindra Tiana Annaick) [#59312](https://github.com/nodejs/node/pull/59312)
 * \[[`f335989942`](https://github.com/nodejs/node/commit/f335989942)] - **doc**: fix the version tls.DEFAULT\_CIPHERS was added (Allon Murienik) [#59247](https://github.com/nodejs/node/pull/59247)

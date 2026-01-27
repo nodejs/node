@@ -554,7 +554,7 @@ change that introduced the regression.
 #### Add fetch API
 
 Adds experimental support to the fetch API. This adds a `--experimental-fetch`
-flag that installs the `fetch`, `Request`, `Reponse` and `Headers` globals.
+flag that installs the `fetch`, `Request`, `Response` and `Headers` globals.
 
 * \[[`76a229c4ff`](https://github.com/nodejs/node/commit/76a229c4ff)] - **(SEMVER-MINOR)** **lib**: add fetch (Michaël Zasso) [#41749](https://github.com/nodejs/node/pull/41749)
 

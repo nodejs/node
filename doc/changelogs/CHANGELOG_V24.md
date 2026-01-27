@@ -818,7 +818,7 @@ Certificates removed:
 * \[[`40b217a2f9`](https://github.com/nodejs/node/commit/40b217a2f9)] - **doc**: clarify experimental platform vulnerability policy (Matteo Collina) [#59591](https://github.com/nodejs/node/pull/59591)
 * \[[`cf84fffea5`](https://github.com/nodejs/node/commit/cf84fffea5)] - **doc**: link to `TypedArray.from()` in signature (Aviv Keller) [#59226](https://github.com/nodejs/node/pull/59226)
 * \[[`4bf6ed0bf5`](https://github.com/nodejs/node/commit/4bf6ed0bf5)] - **doc**: fix typos in `environment_variables.md` (PhistucK) [#59536](https://github.com/nodejs/node/pull/59536)
-* \[[`1784c35a49`](https://github.com/nodejs/node/commit/1784c35a49)] - **doc**: add security incident reponse plan (Rafael Gonzaga) [#59470](https://github.com/nodejs/node/pull/59470)
+* \[[`1784c35a49`](https://github.com/nodejs/node/commit/1784c35a49)] - **doc**: add security incident response plan (Rafael Gonzaga) [#59470](https://github.com/nodejs/node/pull/59470)
 * \[[`b962560240`](https://github.com/nodejs/node/commit/b962560240)] - **doc**: clarify maxRSS unit in `process.resourceUsage()` (Alex Yang) [#59511](https://github.com/nodejs/node/pull/59511)
 * \[[`e6a6cdb9df`](https://github.com/nodejs/node/commit/e6a6cdb9df)] - **doc**: add missing Zstd strategy constants (RANDRIAMANANTENA Narindra Tiana Annaick) [#59312](https://github.com/nodejs/node/pull/59312)
 * \[[`a6a31cb467`](https://github.com/nodejs/node/commit/a6a31cb467)] - **(SEMVER-MINOR)** **doc**: compress Web Cryptography Algorithm matrix (Filip Skokan) [#59365](https://github.com/nodejs/node/pull/59365)

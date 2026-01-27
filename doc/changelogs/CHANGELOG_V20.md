@@ -141,7 +141,7 @@ This is a security release.
 * \[[`e51ef3f48b`](https://github.com/nodejs/node/commit/e51ef3f48b)] - **doc**: update install\_tools.bat free disk space (Stefan Stojanovic) [#59579](https://github.com/nodejs/node/pull/59579)
 * \[[`8a504d900a`](https://github.com/nodejs/node/commit/8a504d900a)] - **doc**: fix missing link to the Error documentation in the `http` page (Alexander Makarenko) [#59080](https://github.com/nodejs/node/pull/59080)
 * \[[`8c5c8aa71d`](https://github.com/nodejs/node/commit/8c5c8aa71d)] - **doc**: clarify experimental platform vulnerability policy (Matteo Collina) [#59591](https://github.com/nodejs/node/pull/59591)
-* \[[`109c4bff77`](https://github.com/nodejs/node/commit/109c4bff77)] - **doc**: add security incident reponse plan (Rafael Gonzaga) [#59470](https://github.com/nodejs/node/pull/59470)
+* \[[`109c4bff77`](https://github.com/nodejs/node/commit/109c4bff77)] - **doc**: add security incident response plan (Rafael Gonzaga) [#59470](https://github.com/nodejs/node/pull/59470)
 * \[[`4f004efdf3`](https://github.com/nodejs/node/commit/4f004efdf3)] - **doc**: add RafaelGSS as performance strategic lead (Rafael Gonzaga) [#59445](https://github.com/nodejs/node/pull/59445)
 * \[[`caa2db4bac`](https://github.com/nodejs/node/commit/caa2db4bac)] - **doc**: fix links in test.md (Vas Sudanagunta) [#58876](https://github.com/nodejs/node/pull/58876)
 * \[[`082e50d4a2`](https://github.com/nodejs/node/commit/082e50d4a2)] - **doc**: update the instruction on how to verify releases (Antoine du Hamel) [#59113](https://github.com/nodejs/node/pull/59113)

@@ -717,7 +717,7 @@ This is a special release to fix potentially Semver-Major regression that was re
   * ICU 60.2 bump (Steven R. Loomis) [#17687](https://github.com/nodejs/node/pull/17687)
   * Introduce ScriptOrModule and HostDefinedOptions to V8 (Jan Krems) [#16889](https://github.com/nodejs/node/pull/16889)
 * **http**:
-  * add options to http.createServer() for `IncomingMessage` and `ServerReponse` (Peter Marton) [#15752](https://github.com/nodejs/node/pull/15752)
+  * add options to http.createServer() for `IncomingMessage` and `ServerResponse` (Peter Marton) [#15752](https://github.com/nodejs/node/pull/15752)
 * **http2**:
   * add http fallback options to .createServer (Peter Marton) [#15752](https://github.com/nodejs/node/pull/15752)
 * **https**:
