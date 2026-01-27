@@ -7,8 +7,8 @@ const fs = require('fs');
 // Test basic symlink creation
 {
   const vfs = fs.createVirtual();
-  vfs.addFile('/target.txt', 'Hello, World!');
-  vfs.addSymlink('/link.txt', '/target.txt');
+  vfs.writeFileSync('/target.txt', 'Hello, World!');
+  vfs.symlinkSync('/target.txt', '/link.txt');
   vfs.mount('/virtual');
 
   // Verify symlink exists
@@ -20,8 +20,9 @@ const fs = require('fs');
 // Test reading file through symlink
 {
   const vfs = fs.createVirtual();
-  vfs.addFile('/data/file.txt', 'File content');
-  vfs.addSymlink('/shortcut', '/data/file.txt');
+  vfs.mkdirSync('/data', { recursive: true });
+  vfs.writeFileSync('/data/file.txt', 'File content');
+  vfs.symlinkSync('/data/file.txt', '/shortcut');
   vfs.mount('/virtual');
 
   const content = vfs.readFileSync('/virtual/shortcut', 'utf8');
@@ -33,8 +34,8 @@ const fs = require('fs');
 // Test statSync follows symlinks (returns target's stats)
 {
   const vfs = fs.createVirtual();
-  vfs.addFile('/real.txt', 'x'.repeat(100));
-  vfs.addSymlink('/link.txt', '/real.txt');
+  vfs.writeFileSync('/real.txt', 'x'.repeat(100));
+  vfs.symlinkSync('/real.txt', '/link.txt');
   vfs.mount('/virtual');
 
   const statLink = vfs.statSync('/virtual/link.txt');
@@ -54,8 +55,8 @@ const fs = require('fs');
 // Test lstatSync does NOT follow symlinks
 {
   const vfs = fs.createVirtual();
-  vfs.addFile('/real.txt', 'x'.repeat(100));
-  vfs.addSymlink('/link.txt', '/real.txt');
+  vfs.writeFileSync('/real.txt', 'x'.repeat(100));
+  vfs.symlinkSync('/real.txt', '/link.txt');
   vfs.mount('/virtual');
 
   const lstat = vfs.lstatSync('/virtual/link.txt');
@@ -73,8 +74,8 @@ const fs = require('fs');
 // Test readlinkSync returns symlink target
 {
   const vfs = fs.createVirtual();
-  vfs.addFile('/target.txt', 'content');
-  vfs.addSymlink('/link.txt', '/target.txt');
+  vfs.writeFileSync('/target.txt', 'content');
+  vfs.symlinkSync('/target.txt', '/link.txt');
   vfs.mount('/virtual');
 
   const target = vfs.readlinkSync('/virtual/link.txt');
@@ -86,7 +87,7 @@ const fs = require('fs');
 // Test readlinkSync throws EINVAL for non-symlinks
 {
   const vfs = fs.createVirtual();
-  vfs.addFile('/file.txt', 'content');
+  vfs.writeFileSync('/file.txt', 'content');
   vfs.mount('/virtual');
 
   assert.throws(() => {
@@ -99,9 +100,9 @@ const fs = require('fs');
 // Test symlink to directory
 {
   const vfs = fs.createVirtual();
-  vfs.addDirectory('/data');
-  vfs.addFile('/data/file.txt', 'content');
-  vfs.addSymlink('/shortcut', '/data');
+  vfs.mkdirSync('/data', { recursive: true });
+  vfs.writeFileSync('/data/file.txt', 'content');
+  vfs.symlinkSync('/data', '/shortcut');
   vfs.mount('/virtual');
 
   // Reading through symlink directory
@@ -118,9 +119,9 @@ const fs = require('fs');
 // Test relative symlinks
 {
   const vfs = fs.createVirtual();
-  vfs.addDirectory('/dir');
-  vfs.addFile('/dir/file.txt', 'content');
-  vfs.addSymlink('/dir/link.txt', 'file.txt'); // Relative target
+  vfs.mkdirSync('/dir', { recursive: true });
+  vfs.writeFileSync('/dir/file.txt', 'content');
+  vfs.symlinkSync('file.txt', '/dir/link.txt'); // Relative target
   vfs.mount('/virtual');
 
   const content = vfs.readFileSync('/virtual/dir/link.txt', 'utf8');
@@ -136,10 +137,10 @@ const fs = require('fs');
 // Test symlink chains (symlink pointing to another symlink)
 {
   const vfs = fs.createVirtual();
-  vfs.addFile('/file.txt', 'chained');
-  vfs.addSymlink('/link1', '/file.txt');
-  vfs.addSymlink('/link2', '/link1');
-  vfs.addSymlink('/link3', '/link2');
+  vfs.writeFileSync('/file.txt', 'chained');
+  vfs.symlinkSync('/file.txt', '/link1');
+  vfs.symlinkSync('/link1', '/link2');
+  vfs.symlinkSync('/link2', '/link3');
   vfs.mount('/virtual');
 
   // Should resolve through all symlinks
@@ -152,8 +153,9 @@ const fs = require('fs');
 // Test realpathSync resolves symlinks
 {
   const vfs = fs.createVirtual();
-  vfs.addFile('/actual/file.txt', 'content');
-  vfs.addSymlink('/link', '/actual');
+  vfs.mkdirSync('/actual', { recursive: true });
+  vfs.writeFileSync('/actual/file.txt', 'content');
+  vfs.symlinkSync('/actual', '/link');
   vfs.mount('/virtual');
 
   const realpath = vfs.realpathSync('/virtual/link/file.txt');
@@ -165,8 +167,8 @@ const fs = require('fs');
 // Test symlink loop detection (ELOOP)
 {
   const vfs = fs.createVirtual();
-  vfs.addSymlink('/loop1', '/loop2');
-  vfs.addSymlink('/loop2', '/loop1');
+  vfs.symlinkSync('/loop2', '/loop1');
+  vfs.symlinkSync('/loop1', '/loop2');
   vfs.mount('/virtual');
 
   // statSync should throw ELOOP
@@ -189,9 +191,9 @@ const fs = require('fs');
 // Test readdirSync with withFileTypes includes symlinks
 {
   const vfs = fs.createVirtual();
-  vfs.addFile('/dir/file.txt', 'content');
-  vfs.addDirectory('/dir/subdir');
-  vfs.addSymlink('/dir/link', '/dir/file.txt');
+  vfs.mkdirSync('/dir/subdir', { recursive: true });
+  vfs.writeFileSync('/dir/file.txt', 'content');
+  vfs.symlinkSync('/dir/file.txt', '/dir/link');
   vfs.mount('/virtual');
 
   const entries = vfs.readdirSync('/virtual/dir', { withFileTypes: true });
@@ -207,10 +209,10 @@ const fs = require('fs');
   vfs.unmount();
 }
 
-// Test symlink in dynamic directory
+// Test symlink in dynamic directory using provider.setPopulateCallback
 {
   const vfs = fs.createVirtual();
-  vfs.addDirectory('/dynamic', (dir) => {
+  vfs.provider.setPopulateCallback('/dynamic', (dir) => {
     dir.addFile('file.txt', 'dynamic content');
     dir.addSymlink('link.txt', 'file.txt');
   });
@@ -225,8 +227,8 @@ const fs = require('fs');
 // Test async readlink
 {
   const vfs = fs.createVirtual();
-  vfs.addFile('/target', 'content');
-  vfs.addSymlink('/link', '/target');
+  vfs.writeFileSync('/target', 'content');
+  vfs.symlinkSync('/target', '/link');
   vfs.mount('/virtual');
 
   vfs.readlink('/virtual/link', common.mustSucceed((target) => {
@@ -238,8 +240,9 @@ const fs = require('fs');
 // Test async realpath with symlinks
 {
   const vfs = fs.createVirtual();
-  vfs.addFile('/real/file.txt', 'content');
-  vfs.addSymlink('/link', '/real');
+  vfs.mkdirSync('/real', { recursive: true });
+  vfs.writeFileSync('/real/file.txt', 'content');
+  vfs.symlinkSync('/real', '/link');
   vfs.mount('/virtual');
 
   vfs.realpath('/virtual/link/file.txt', common.mustSucceed((resolvedPath) => {
@@ -251,8 +254,8 @@ const fs = require('fs');
 // Test promises API - stat follows symlinks
 {
   const vfs = fs.createVirtual();
-  vfs.addFile('/file.txt', 'x'.repeat(50));
-  vfs.addSymlink('/link.txt', '/file.txt');
+  vfs.writeFileSync('/file.txt', 'x'.repeat(50));
+  vfs.symlinkSync('/file.txt', '/link.txt');
   vfs.mount('/virtual');
 
   (async () => {
@@ -266,8 +269,8 @@ const fs = require('fs');
 // Test promises API - lstat does not follow symlinks
 {
   const vfs = fs.createVirtual();
-  vfs.addFile('/file.txt', 'x'.repeat(50));
-  vfs.addSymlink('/link.txt', '/file.txt');
+  vfs.writeFileSync('/file.txt', 'x'.repeat(50));
+  vfs.symlinkSync('/file.txt', '/link.txt');
   vfs.mount('/virtual');
 
   (async () => {
@@ -280,8 +283,8 @@ const fs = require('fs');
 // Test promises API - readlink
 {
   const vfs = fs.createVirtual();
-  vfs.addFile('/target', 'content');
-  vfs.addSymlink('/link', '/target');
+  vfs.writeFileSync('/target', 'content');
+  vfs.symlinkSync('/target', '/link');
   vfs.mount('/virtual');
 
   (async () => {
@@ -294,8 +297,9 @@ const fs = require('fs');
 // Test promises API - realpath resolves symlinks
 {
   const vfs = fs.createVirtual();
-  vfs.addFile('/real/file.txt', 'content');
-  vfs.addSymlink('/link', '/real');
+  vfs.mkdirSync('/real', { recursive: true });
+  vfs.writeFileSync('/real/file.txt', 'content');
+  vfs.symlinkSync('/real', '/link');
   vfs.mount('/virtual');
 
   (async () => {
@@ -308,7 +312,7 @@ const fs = require('fs');
 // Test broken symlink (target doesn't exist)
 {
   const vfs = fs.createVirtual();
-  vfs.addSymlink('/broken', '/nonexistent');
+  vfs.symlinkSync('/nonexistent', '/broken');
   vfs.mount('/virtual');
 
   // statSync should throw ENOENT for broken symlink
@@ -330,9 +334,10 @@ const fs = require('fs');
 // Test symlink with parent traversal (..)
 {
   const vfs = fs.createVirtual();
-  vfs.addFile('/a/file.txt', 'content');
-  vfs.addDirectory('/b');
-  vfs.addSymlink('/b/link', '../a/file.txt');
+  vfs.mkdirSync('/a', { recursive: true });
+  vfs.mkdirSync('/b', { recursive: true });
+  vfs.writeFileSync('/a/file.txt', 'content');
+  vfs.symlinkSync('../a/file.txt', '/b/link');
   vfs.mount('/virtual');
 
   const content = vfs.readFileSync('/virtual/b/link', 'utf8');

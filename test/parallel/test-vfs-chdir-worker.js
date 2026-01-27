@@ -9,7 +9,7 @@ if (isMainThread) {
   // Test 1: Verify that VFS setup in main thread doesn't automatically apply to workers
   {
     const vfs = fs.createVirtual({ virtualCwd: true });
-    vfs.addDirectory('/project');
+    vfs.mkdirSync('/project', { recursive: true });
     vfs.mount('/virtual');
 
     // Set virtual cwd in main thread
@@ -76,7 +76,7 @@ if (isMainThread) {
   } else if (test === 'worker-independent-vfs') {
     // Set up VFS independently in worker
     const vfs = fs.createVirtual({ virtualCwd: true });
-    vfs.addDirectory('/data');
+    vfs.mkdirSync('/data', { recursive: true });
     vfs.mount('/worker-virtual');
 
     process.chdir('/worker-virtual/data');
@@ -88,9 +88,8 @@ if (isMainThread) {
   } else if (test === 'worker-create-vfs') {
     // Test VFS creation and chdir in worker
     const vfs = fs.createVirtual({ virtualCwd: true });
-    vfs.addDirectory('/project');
-    vfs.addDirectory('/project/src');
-    vfs.overlay();
+    vfs.mkdirSync('/project/src', { recursive: true });
+    vfs.mount('/');
 
     vfs.chdir('/project/src');
 

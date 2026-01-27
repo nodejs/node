@@ -7,7 +7,7 @@ const fs = require('fs');
 // Test callback-based readFile
 {
   const myVfs = fs.createVirtual();
-  myVfs.addFile('/test.txt', 'hello world');
+  myVfs.writeFileSync('/test.txt', 'hello world');
 
   myVfs.readFile('/test.txt', common.mustCall((err, data) => {
     assert.strictEqual(err, null);
@@ -39,7 +39,7 @@ const fs = require('fs');
 // Test callback-based readFile with directory
 {
   const myVfs = fs.createVirtual();
-  myVfs.addDirectory('/mydir');
+  myVfs.mkdirSync('/mydir', { recursive: true });
 
   myVfs.readFile('/mydir', common.mustCall((err, data) => {
     assert.strictEqual(err.code, 'EISDIR');
@@ -50,8 +50,8 @@ const fs = require('fs');
 // Test callback-based stat
 {
   const myVfs = fs.createVirtual();
-  myVfs.addFile('/file.txt', 'content');
-  myVfs.addDirectory('/dir');
+  myVfs.mkdirSync('/dir', { recursive: true });
+  myVfs.writeFileSync('/file.txt', 'content');
 
   myVfs.stat('/file.txt', common.mustCall((err, stats) => {
     assert.strictEqual(err, null);
@@ -75,7 +75,7 @@ const fs = require('fs');
 // Test callback-based lstat (same as stat for VFS)
 {
   const myVfs = fs.createVirtual();
-  myVfs.addFile('/file.txt', 'content');
+  myVfs.writeFileSync('/file.txt', 'content');
 
   myVfs.lstat('/file.txt', common.mustCall((err, stats) => {
     assert.strictEqual(err, null);
@@ -86,9 +86,9 @@ const fs = require('fs');
 // Test callback-based readdir
 {
   const myVfs = fs.createVirtual();
-  myVfs.addFile('/dir/file1.txt', 'a');
-  myVfs.addFile('/dir/file2.txt', 'b');
-  myVfs.addDirectory('/dir/subdir');
+  myVfs.mkdirSync('/dir/subdir', { recursive: true });
+  myVfs.writeFileSync('/dir/file1.txt', 'a');
+  myVfs.writeFileSync('/dir/file2.txt', 'b');
 
   myVfs.readdir('/dir', common.mustCall((err, entries) => {
     assert.strictEqual(err, null);
@@ -122,7 +122,8 @@ const fs = require('fs');
 // Test callback-based realpath
 {
   const myVfs = fs.createVirtual();
-  myVfs.addFile('/path/to/file.txt', 'content');
+  myVfs.mkdirSync('/path/to', { recursive: true });
+  myVfs.writeFileSync('/path/to/file.txt', 'content');
 
   myVfs.realpath('/path/to/file.txt', common.mustCall((err, resolved) => {
     assert.strictEqual(err, null);
@@ -143,7 +144,7 @@ const fs = require('fs');
 // Test callback-based access
 {
   const myVfs = fs.createVirtual();
-  myVfs.addFile('/accessible.txt', 'content');
+  myVfs.writeFileSync('/accessible.txt', 'content');
 
   myVfs.access('/accessible.txt', common.mustCall((err) => {
     assert.strictEqual(err, null);
@@ -154,10 +155,10 @@ const fs = require('fs');
   }));
 }
 
-// Test async dynamic content with callback API
+// Test async dynamic content with callback API using provider.setContentProvider
 {
   const myVfs = fs.createVirtual();
-  myVfs.addFile('/async-dynamic.txt', async () => {
+  myVfs.provider.setContentProvider('/async-dynamic.txt', async () => {
     return 'async content';
   });
 
@@ -172,7 +173,7 @@ const fs = require('fs');
 // Test promises.readFile
 (async () => {
   const myVfs = fs.createVirtual();
-  myVfs.addFile('/promise-test.txt', 'promise content');
+  myVfs.writeFileSync('/promise-test.txt', 'promise content');
 
   const bufferData = await myVfs.promises.readFile('/promise-test.txt');
   assert.ok(Buffer.isBuffer(bufferData));
@@ -189,7 +190,7 @@ const fs = require('fs');
     { code: 'ENOENT' }
   );
 
-  myVfs.addDirectory('/promisedir');
+  myVfs.mkdirSync('/promisedir', { recursive: true });
   await assert.rejects(
     myVfs.promises.readFile('/promisedir'),
     { code: 'EISDIR' }
@@ -199,8 +200,8 @@ const fs = require('fs');
 // Test promises.stat
 (async () => {
   const myVfs = fs.createVirtual();
-  myVfs.addFile('/stat-file.txt', 'hello');
-  myVfs.addDirectory('/stat-dir');
+  myVfs.mkdirSync('/stat-dir', { recursive: true });
+  myVfs.writeFileSync('/stat-file.txt', 'hello');
 
   const fileStats = await myVfs.promises.stat('/stat-file.txt');
   assert.strictEqual(fileStats.isFile(), true);
@@ -218,7 +219,7 @@ const fs = require('fs');
 // Test promises.lstat
 (async () => {
   const myVfs = fs.createVirtual();
-  myVfs.addFile('/lstat-file.txt', 'content');
+  myVfs.writeFileSync('/lstat-file.txt', 'content');
 
   const stats = await myVfs.promises.lstat('/lstat-file.txt');
   assert.strictEqual(stats.isFile(), true);
@@ -227,9 +228,9 @@ const fs = require('fs');
 // Test promises.readdir
 (async () => {
   const myVfs = fs.createVirtual();
-  myVfs.addFile('/pdir/a.txt', 'a');
-  myVfs.addFile('/pdir/b.txt', 'b');
-  myVfs.addDirectory('/pdir/sub');
+  myVfs.mkdirSync('/pdir/sub', { recursive: true });
+  myVfs.writeFileSync('/pdir/a.txt', 'a');
+  myVfs.writeFileSync('/pdir/b.txt', 'b');
 
   const names = await myVfs.promises.readdir('/pdir');
   assert.deepStrictEqual(names.sort(), ['a.txt', 'b.txt', 'sub']);
@@ -253,7 +254,8 @@ const fs = require('fs');
 // Test promises.realpath
 (async () => {
   const myVfs = fs.createVirtual();
-  myVfs.addFile('/real/path/file.txt', 'content');
+  myVfs.mkdirSync('/real/path', { recursive: true });
+  myVfs.writeFileSync('/real/path/file.txt', 'content');
 
   const resolved = await myVfs.promises.realpath('/real/path/file.txt');
   assert.strictEqual(resolved, '/real/path/file.txt');
@@ -270,7 +272,7 @@ const fs = require('fs');
 // Test promises.access
 (async () => {
   const myVfs = fs.createVirtual();
-  myVfs.addFile('/access-test.txt', 'content');
+  myVfs.writeFileSync('/access-test.txt', 'content');
 
   await myVfs.promises.access('/access-test.txt');
 
@@ -280,12 +282,12 @@ const fs = require('fs');
   );
 })().then(common.mustCall());
 
-// Test async dynamic content with promise API
+// Test async dynamic content with promise API using provider.setContentProvider
 (async () => {
   const myVfs = fs.createVirtual();
   let counter = 0;
 
-  myVfs.addFile('/async-counter.txt', async () => {
+  myVfs.provider.setContentProvider('/async-counter.txt', async () => {
     await new Promise((resolve) => setTimeout(resolve, 10));
     counter++;
     return `count: ${counter}`;

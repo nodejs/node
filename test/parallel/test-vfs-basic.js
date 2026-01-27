@@ -8,16 +8,15 @@ const fs = require('fs');
 {
   const myVfs = fs.createVirtual();
   assert.ok(myVfs);
-  assert.strictEqual(typeof myVfs.addFile, 'function');
+  assert.strictEqual(typeof myVfs.writeFileSync, 'function');
   assert.strictEqual(myVfs.isMounted, false);
-  assert.strictEqual(myVfs.isOverlay, false);
-  assert.strictEqual(myVfs.fallthrough, true);
 }
 
 // Test adding and reading a static file
 {
   const myVfs = fs.createVirtual();
-  myVfs.addFile('/test/file.txt', 'hello world');
+  myVfs.mkdirSync('/test', { recursive: true });
+  myVfs.writeFileSync('/test/file.txt', 'hello world');
 
   assert.strictEqual(myVfs.existsSync('/test/file.txt'), true);
   assert.strictEqual(myVfs.existsSync('/test'), true);
@@ -35,8 +34,8 @@ const fs = require('fs');
 // Test statSync
 {
   const myVfs = fs.createVirtual();
-  myVfs.addFile('/test/file.txt', 'content');
-  myVfs.addDirectory('/test/dir');
+  myVfs.mkdirSync('/test/dir', { recursive: true });
+  myVfs.writeFileSync('/test/file.txt', 'content');
 
   const fileStat = myVfs.statSync('/test/file.txt');
   assert.strictEqual(fileStat.isFile(), true);
@@ -56,9 +55,9 @@ const fs = require('fs');
 // Test readdirSync
 {
   const myVfs = fs.createVirtual();
-  myVfs.addFile('/dir/a.txt', 'a');
-  myVfs.addFile('/dir/b.txt', 'b');
-  myVfs.addDirectory('/dir/subdir');
+  myVfs.mkdirSync('/dir/subdir', { recursive: true });
+  myVfs.writeFileSync('/dir/a.txt', 'a');
+  myVfs.writeFileSync('/dir/b.txt', 'b');
 
   const entries = myVfs.readdirSync('/dir');
   assert.deepStrictEqual(entries.sort(), ['a.txt', 'b.txt', 'subdir']);
@@ -88,11 +87,11 @@ const fs = require('fs');
   }, { code: 'ENOENT' });
 }
 
-// Test dynamic file content
+// Test dynamic file content using provider.setContentProvider
 {
   const myVfs = fs.createVirtual();
   let counter = 0;
-  myVfs.addFile('/dynamic.txt', () => {
+  myVfs.provider.setContentProvider('/dynamic.txt', () => {
     counter++;
     return `count: ${counter}`;
   });
@@ -102,12 +101,12 @@ const fs = require('fs');
   assert.strictEqual(counter, 2);
 }
 
-// Test dynamic directory
+// Test dynamic directory using provider.setPopulateCallback
 {
   const myVfs = fs.createVirtual();
   let populated = false;
 
-  myVfs.addDirectory('/dynamic', (dir) => {
+  myVfs.provider.setPopulateCallback('/dynamic', (dir) => {
     populated = true;
     dir.addFile('generated.txt', 'generated content');
     dir.addDirectory('subdir', (subdir) => {
@@ -133,20 +132,24 @@ const fs = require('fs');
 // Test removing entries
 {
   const myVfs = fs.createVirtual();
-  myVfs.addFile('/test/file.txt', 'content');
+  myVfs.mkdirSync('/test', { recursive: true });
+  myVfs.writeFileSync('/test/file.txt', 'content');
 
-  assert.strictEqual(myVfs.has('/test/file.txt'), true);
-  assert.strictEqual(myVfs.remove('/test/file.txt'), true);
-  assert.strictEqual(myVfs.has('/test/file.txt'), false);
+  assert.strictEqual(myVfs.existsSync('/test/file.txt'), true);
+  myVfs.unlinkSync('/test/file.txt');
+  assert.strictEqual(myVfs.existsSync('/test/file.txt'), false);
 
-  // Cannot remove non-existent entry
-  assert.strictEqual(myVfs.remove('/nonexistent'), false);
+  // Unlinking non-existent entry throws ENOENT
+  assert.throws(() => {
+    myVfs.unlinkSync('/nonexistent');
+  }, { code: 'ENOENT' });
 }
 
 // Test mount mode
 {
   const myVfs = fs.createVirtual();
-  myVfs.addFile('/data/file.txt', 'mounted content');
+  myVfs.mkdirSync('/data', { recursive: true });
+  myVfs.writeFileSync('/data/file.txt', 'mounted content');
 
   assert.strictEqual(myVfs.isMounted, false);
   myVfs.mount('/app/virtual');
@@ -161,28 +164,11 @@ const fs = require('fs');
   assert.strictEqual(myVfs.isMounted, false);
 }
 
-// Test overlay mode
-{
-  const myVfs = fs.createVirtual();
-  myVfs.addFile('/overlay/file.txt', 'overlay content');
-
-  assert.strictEqual(myVfs.isOverlay, false);
-  myVfs.overlay();
-  assert.strictEqual(myVfs.isOverlay, true);
-
-  // shouldHandle based on existence
-  assert.strictEqual(myVfs.shouldHandle('/overlay/file.txt'), true);
-  assert.strictEqual(myVfs.shouldHandle('/nonexistent'), false);
-
-  myVfs.unmount();
-  assert.strictEqual(myVfs.isOverlay, false);
-}
-
 // Test internalModuleStat (used by Module._stat)
 {
   const myVfs = fs.createVirtual();
-  myVfs.addFile('/module.js', 'module.exports = {}');
-  myVfs.addDirectory('/dir');
+  myVfs.mkdirSync('/dir', { recursive: true });
+  myVfs.writeFileSync('/module.js', 'module.exports = {}');
 
   assert.strictEqual(myVfs.internalModuleStat('/module.js'), 0); // file
   assert.strictEqual(myVfs.internalModuleStat('/dir'), 1); // directory
@@ -192,7 +178,7 @@ const fs = require('fs');
 // Test reading directory as file throws EISDIR
 {
   const myVfs = fs.createVirtual();
-  myVfs.addDirectory('/mydir');
+  myVfs.mkdirSync('/mydir', { recursive: true });
 
   assert.throws(() => {
     myVfs.readFileSync('/mydir');
@@ -202,7 +188,8 @@ const fs = require('fs');
 // Test realpathSync
 {
   const myVfs = fs.createVirtual();
-  myVfs.addFile('/test/file.txt', 'content');
+  myVfs.mkdirSync('/test', { recursive: true });
+  myVfs.writeFileSync('/test/file.txt', 'content');
 
   const realpath = myVfs.realpathSync('/test/file.txt');
   assert.strictEqual(realpath, '/test/file.txt');

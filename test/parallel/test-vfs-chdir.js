@@ -32,9 +32,8 @@ const fs = require('fs');
 // Test basic chdir functionality
 {
   const vfs = fs.createVirtual({ virtualCwd: true });
-  vfs.addDirectory('/project');
-  vfs.addDirectory('/project/src');
-  vfs.addFile('/project/src/index.js', 'module.exports = "hello";');
+  vfs.mkdirSync('/project/src', { recursive: true });
+  vfs.writeFileSync('/project/src/index.js', 'module.exports = "hello";');
   vfs.mount('/virtual');
 
   // Change to a directory that exists
@@ -51,7 +50,7 @@ const fs = require('fs');
 // Test chdir with non-existent path throws ENOENT
 {
   const vfs = fs.createVirtual({ virtualCwd: true });
-  vfs.addDirectory('/project');
+  vfs.mkdirSync('/project', { recursive: true });
   vfs.mount('/virtual');
 
   assert.throws(() => {
@@ -64,7 +63,7 @@ const fs = require('fs');
 // Test chdir with file path throws ENOTDIR
 {
   const vfs = fs.createVirtual({ virtualCwd: true });
-  vfs.addFile('/file.txt', 'content');
+  vfs.writeFileSync('/file.txt', 'content');
   vfs.mount('/virtual');
 
   assert.throws(() => {
@@ -77,9 +76,8 @@ const fs = require('fs');
 // Test resolvePath with virtual cwd
 {
   const vfs = fs.createVirtual({ virtualCwd: true });
-  vfs.addDirectory('/project');
-  vfs.addDirectory('/project/src');
-  vfs.addFile('/project/src/index.js', 'module.exports = "hello";');
+  vfs.mkdirSync('/project/src', { recursive: true });
+  vfs.writeFileSync('/project/src/index.js', 'module.exports = "hello";');
   vfs.mount('/virtual');
 
   // Before setting cwd, relative paths use real cwd
@@ -115,27 +113,10 @@ const fs = require('fs');
   vfs.unmount();
 }
 
-// Test chdir in overlay mode
-{
-  const vfs = fs.createVirtual({ virtualCwd: true });
-  vfs.addDirectory('/project');
-  vfs.addDirectory('/project/lib');
-  vfs.overlay();
-
-  vfs.chdir('/project');
-  assert.strictEqual(vfs.cwd(), '/project');
-
-  vfs.chdir('/project/lib');
-  assert.strictEqual(vfs.cwd(), '/project/lib');
-
-  vfs.unmount();
-}
-
 // Test process.chdir() interception
 {
   const vfs = fs.createVirtual({ virtualCwd: true });
-  vfs.addDirectory('/project');
-  vfs.addDirectory('/project/src');
+  vfs.mkdirSync('/project/src', { recursive: true });
   vfs.mount('/virtual');
 
   const originalCwd = process.cwd();
@@ -159,7 +140,7 @@ const fs = require('fs');
 // Test process.chdir() to real path falls through
 {
   const vfs = fs.createVirtual({ virtualCwd: true });
-  vfs.addDirectory('/project');
+  vfs.mkdirSync('/project', { recursive: true });
   vfs.mount('/virtual');
 
   const originalCwd = process.cwd();
@@ -181,7 +162,7 @@ const fs = require('fs');
 // Test process.cwd() returns virtual cwd when set
 {
   const vfs = fs.createVirtual({ virtualCwd: true });
-  vfs.addDirectory('/project');
+  vfs.mkdirSync('/project', { recursive: true });
   vfs.mount('/virtual');
 
   const originalCwd = process.cwd();
@@ -205,7 +186,7 @@ const fs = require('fs');
   const originalCwd = process.cwd;
 
   const vfs = fs.createVirtual({ virtualCwd: false });
-  vfs.addDirectory('/project');
+  vfs.mkdirSync('/project', { recursive: true });
   vfs.mount('/virtual');
 
   // process.chdir and process.cwd should not be modified
@@ -218,7 +199,7 @@ const fs = require('fs');
 // Test virtual cwd is reset on unmount
 {
   const vfs = fs.createVirtual({ virtualCwd: true });
-  vfs.addDirectory('/project');
+  vfs.mkdirSync('/project', { recursive: true });
   vfs.mount('/virtual');
 
   vfs.chdir('/virtual/project');
