@@ -411,7 +411,7 @@
 * \[[`c08afc5712`](https://github.com/nodejs/node/commit/c08afc5712)] - **test**: check util.parseArgs argv parsing with actual process execution (René) [#61089](https://github.com/nodejs/node/pull/61089)
 * \[[`182f2e4b5a`](https://github.com/nodejs/node/commit/182f2e4b5a)] - **test**: update WPT for urlpattern to a2e15ad405 (Node.js GitHub Bot) [#61134](https://github.com/nodejs/node/pull/61134)
 * \[[`9f7cc779f5`](https://github.com/nodejs/node/commit/9f7cc779f5)] - **test**: make buffer sizes 32bit-aware in test-internal-util-construct-sab (René) [#61026](https://github.com/nodejs/node/pull/61026)
-* \[[`c6a8234963`](https://github.com/nodejs/node/commit/c6a8234963)] - **test**: remove unneccessary repl magic\_mode tests (Dario Piotrowicz) [#61053](https://github.com/nodejs/node/pull/61053)
+* \[[`c6a8234963`](https://github.com/nodejs/node/commit/c6a8234963)] - **test**: remove unnecessary repl magic\_mode tests (Dario Piotrowicz) [#61053](https://github.com/nodejs/node/pull/61053)
 * \[[`fa2fe0930f`](https://github.com/nodejs/node/commit/fa2fe0930f)] - **test**: skip sea tests on riscv64 (Stewart X Addison) [#61111](https://github.com/nodejs/node/pull/61111)
 * \[[`b209f6ba19`](https://github.com/nodejs/node/commit/b209f6ba19)] - **test**: simplify `test-cli-node-options-docs` (Antoine du Hamel) [#61006](https://github.com/nodejs/node/pull/61006)
 * \[[`c9153c7d4f`](https://github.com/nodejs/node/commit/c9153c7d4f)] - **test**: mark stringbytes-external-max flaky on AIX (Stewart X Addison) [#60995](https://github.com/nodejs/node/pull/60995)

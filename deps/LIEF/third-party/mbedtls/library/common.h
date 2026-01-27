@@ -337,7 +337,7 @@ static inline void mbedtls_xor_no_simd(unsigned char *r,
  * asm( "ldr x4, [%x0], #8" ... : "+r" (uptr) : : )
  * ptr = (void*) uptr;
  *
- * Note that the "x" in "%x0" is neccessary; writing "%0" will cause warnings.
+ * Note that the "x" in "%x0" is necessary; writing "%0" will cause warnings.
  */
 #if defined(__aarch64__) && defined(MBEDTLS_HAVE_ASM)
 #if UINTPTR_MAX == 0xfffffffful
