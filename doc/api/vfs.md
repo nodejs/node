@@ -114,6 +114,19 @@ added: v26.0.0
 Creates a new `VirtualFileSystem` instance. If no provider is specified, a
 `MemoryProvider` is used, which stores files in memory.
 
+```mjs
+import vfs from 'node:vfs';
+
+// Create with default MemoryProvider
+const memoryVfs = vfs.create();
+
+// Create with explicit provider
+const customVfs = vfs.create(new vfs.MemoryProvider());
+
+// Create with options only
+const vfsWithOptions = vfs.create({ moduleHooks: false });
+```
+
 ```cjs
 const vfs = require('node:vfs');
 
@@ -159,18 +172,17 @@ added: v26.0.0
 * {VirtualProvider}
 
 The underlying provider for this VFS instance. Can be used to access
-provider-specific methods like `setContentProvider()` and `setPopulateCallback()`
-for `MemoryProvider`.
+provider-specific methods like `setReadOnly()` for `MemoryProvider`.
 
 ```cjs
 const vfs = require('node:vfs');
 
 const myVfs = vfs.create();
 
-// Access the provider for advanced features
-myVfs.provider.setContentProvider('/dynamic.txt', () => {
-  return `Time: ${Date.now()}`;
-});
+// Access the provider
+console.log(myVfs.provider.readonly); // false
+myVfs.provider.setReadOnly();
+console.log(myVfs.provider.readonly); // true
 ```
 
 ### `vfs.mount(prefix)`
@@ -203,7 +215,9 @@ added: v26.0.0
 -->
 
 Unmounts the virtual file system. After unmounting, virtual files are no longer
-accessible through the `fs` module.
+accessible through the `fs` module. The VFS can be remounted at the same or a
+different path by calling `mount()` again. Unmounting also resets the virtual
+working directory if one was set.
 
 ### `vfs.isMounted`
 
@@ -244,7 +258,14 @@ added: v26.0.0
 * `path` {string} The new working directory path within the VFS.
 
 Changes the virtual working directory. This only affects path resolution within
-the VFS when `virtualCwd` is enabled.
+the VFS when `virtualCwd` is enabled in the constructor options.
+
+Throws `ERR_INVALID_STATE` if `virtualCwd` was not enabled during construction.
+
+When mounted with `virtualCwd` enabled, the VFS also hooks `process.chdir()` and
+`process.cwd()` to support virtual paths transparently. Since `process.chdir()`
+is not available in Worker threads, virtual cwd should only be used in the main
+thread.
 
 ### `vfs.cwd()`
 
@@ -252,9 +273,12 @@ the VFS when `virtualCwd` is enabled.
 added: v26.0.0
 -->
 
-* Returns: {string}
+* Returns: {string|null}
 
-Returns the current virtual working directory.
+Returns the current virtual working directory, or `null` if no virtual directory
+has been set yet.
+
+Throws `ERR_INVALID_STATE` if `virtualCwd` was not enabled during construction.
 
 ### File System Methods
 
@@ -288,6 +312,16 @@ All paths are relative to the VFS root (not the mount point).
 
 All synchronous methods have promise-based equivalents available through
 `vfs.promises`:
+
+```mjs
+import vfs from 'node:vfs';
+
+const myVfs = vfs.create();
+
+await myVfs.promises.writeFile('/data.txt', 'Hello');
+const content = await myVfs.promises.readFile('/data.txt', 'utf8');
+console.log(content); // 'Hello'
+```
 
 ```cjs
 const vfs = require('node:vfs');
@@ -427,6 +461,23 @@ try {
 When a VFS is mounted, the standard `fs` module automatically routes operations
 to the VFS for paths that match the mount prefix:
 
+```mjs
+import vfs from 'node:vfs';
+import fs from 'node:fs';
+
+const myVfs = vfs.create();
+myVfs.writeFileSync('/hello.txt', 'Hello from VFS!');
+myVfs.mount('/virtual');
+
+// These all work transparently
+fs.readFileSync('/virtual/hello.txt', 'utf8');        // Sync
+await fs.promises.readFile('/virtual/hello.txt', 'utf8');   // Promise
+fs.createReadStream('/virtual/hello.txt');            // Stream
+
+// Real file system is still accessible
+fs.readFileSync('/etc/passwd');  // Real file
+```
+
 ```cjs
 const vfs = require('node:vfs');
 const fs = require('node:fs');
@@ -476,6 +527,25 @@ myVfs.mount('/modules');
 const { default: greet } = await import('/modules/greet.mjs');
 console.log(greet('World')); // Hello, World!
 ```
+
+## Implementation details
+
+### Stats objects
+
+The VFS returns real `fs.Stats` objects from `stat()`, `lstat()`, and `fstat()`
+operations. These Stats objects behave identically to those returned by the real
+file system:
+
+* `stats.isFile()`, `stats.isDirectory()`, `stats.isSymbolicLink()` work correctly
+* `stats.size` reflects the actual content size
+* `stats.mtime`, `stats.ctime`, `stats.birthtime` are tracked per file
+* `stats.mode` includes the file type bits and permissions
+
+### File descriptors
+
+Virtual file descriptors start at 10000 to avoid conflicts with real operating
+system file descriptors. This allows the VFS to coexist with real file system
+operations without file descriptor collisions.
 
 ## Use with Single Executable Applications
 
