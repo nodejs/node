@@ -66,7 +66,7 @@ const customTypesMap = {
 
   'AsyncLocalStorage': 'async_context.html#class-asynclocalstorage',
 
-  'AsyncHook': 'async_hooks.html#async_hookscreatehookcallbacks',
+  'AsyncHook': 'async_hooks.html#async_hookscreatehookoptions',
   'AsyncResource': 'async_hooks.html#class-asyncresource',
 
   'brotli options': 'zlib.html#class-brotlioptions',
