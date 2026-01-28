@@ -119,7 +119,7 @@ class MockUnzipListener final {
 class MockWriterDelegate : public zip::WriterDelegate {
  public:
   MOCK_METHOD0(PrepareOutput, bool());
-  MOCK_METHOD2(WriteBytes, bool(const char*, int));
+  MOCK_METHOD1(WriteBytes, bool(base::span<const uint8_t>));
   MOCK_METHOD1(SetTimeModified, void(const base::Time&));
   MOCK_METHOD1(SetPosixFilePermissions, void(int));
   MOCK_METHOD0(OnError, void());
@@ -896,7 +896,7 @@ TEST_F(ZipReaderTest, ExtractCurrentEntryWriteBytesFailure) {
   testing::StrictMock<MockWriterDelegate> mock_writer;
 
   EXPECT_CALL(mock_writer, PrepareOutput()).WillOnce(Return(true));
-  EXPECT_CALL(mock_writer, WriteBytes(_, _)).WillOnce(Return(false));
+  EXPECT_CALL(mock_writer, WriteBytes).WillOnce(Return(false));
   EXPECT_CALL(mock_writer, OnError());
 
   base::FilePath target_path(FILE_PATH_LITERAL("foo/bar/quux.txt"));
@@ -912,7 +912,7 @@ TEST_F(ZipReaderTest, ExtractCurrentEntrySuccess) {
   testing::StrictMock<MockWriterDelegate> mock_writer;
 
   EXPECT_CALL(mock_writer, PrepareOutput()).WillOnce(Return(true));
-  EXPECT_CALL(mock_writer, WriteBytes(_, _)).WillRepeatedly(Return(true));
+  EXPECT_CALL(mock_writer, WriteBytes).WillRepeatedly(Return(true));
   EXPECT_CALL(mock_writer, SetPosixFilePermissions(_));
   EXPECT_CALL(mock_writer, SetTimeModified(_));
 
@@ -1002,7 +1002,7 @@ TEST_F(FileWriterDelegateTest, WriteToEnd) {
     FileWriterDelegate writer(&file_);
     EXPECT_EQ(0, writer.file_length());
     ASSERT_TRUE(writer.PrepareOutput());
-    ASSERT_TRUE(writer.WriteBytes(payload.data(), payload.size()));
+    ASSERT_TRUE(writer.WriteBytes(base::as_byte_span(payload)));
     EXPECT_EQ(payload.size(), writer.file_length());
   }
 
@@ -1016,7 +1016,7 @@ TEST_F(FileWriterDelegateTest, EmptyOnError) {
     FileWriterDelegate writer(&file_);
     EXPECT_EQ(0, writer.file_length());
     ASSERT_TRUE(writer.PrepareOutput());
-    ASSERT_TRUE(writer.WriteBytes(payload.data(), payload.size()));
+    ASSERT_TRUE(writer.WriteBytes(base::as_byte_span(payload)));
     EXPECT_EQ(payload.size(), writer.file_length());
     EXPECT_EQ(payload.size(), file_.GetLength());
     writer.OnError();
