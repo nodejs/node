@@ -127,37 +127,6 @@ const customVfs = vfs.create(new vfs.MemoryProvider());
 const vfsWithOptions = vfs.create({ moduleHooks: false });
 ```
 
-## `vfs.createSEA([options])`
-
-<!-- YAML
-added: v26.0.0
--->
-
-* `options` {Object}
-  * `mountPoint` {string} The path prefix where SEA assets will be mounted.
-    **Default:** `'/sea'`.
-  * `moduleHooks` {boolean} Whether to enable module loading hooks.
-    **Default:** `true`.
-  * `virtualCwd` {boolean} Whether to enable virtual working directory.
-    **Default:** `false`.
-* Returns: {VirtualFileSystem | null} Returns `null` if not running as a
-  Single Executable Application.
-
-Creates a `VirtualFileSystem` pre-configured with SEA (Single Executable
-Application) assets. This is a convenience method for accessing bundled assets
-in SEA builds.
-
-```cjs
-const vfs = require('node:vfs');
-const fs = require('node:fs');
-
-const seaVfs = vfs.createSEA({ mountPoint: '/assets' });
-if (seaVfs) {
-  // Running as SEA - assets are available
-  const data = fs.readFileSync('/assets/config.json', 'utf8');
-}
-```
-
 ## Class: `VirtualFileSystem`
 
 <!-- YAML
@@ -510,20 +479,16 @@ console.log(greet('World')); // Hello, World!
 
 ## Use with Single Executable Applications
 
-The VFS integrates with Node.js Single Executable Applications to provide
-access to bundled assets:
+When running as a Single Executable Application (SEA), bundled assets are
+automatically mounted at `/sea`. No additional setup is required:
 
 ```cjs
 // In your SEA entry script
-const vfs = require('node:vfs');
 const fs = require('node:fs');
 
-const seaVfs = vfs.createSEA();
-if (seaVfs) {
-  // Access bundled assets
-  const config = JSON.parse(fs.readFileSync('/sea/config.json', 'utf8'));
-  const template = fs.readFileSync('/sea/templates/index.html', 'utf8');
-}
+// Access bundled assets directly - they are automatically available at /sea
+const config = JSON.parse(fs.readFileSync('/sea/config.json', 'utf8'));
+const template = fs.readFileSync('/sea/templates/index.html', 'utf8');
 ```
 
 See the [Single Executable Applications][] documentation for more information
