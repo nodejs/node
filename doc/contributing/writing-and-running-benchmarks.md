@@ -735,6 +735,63 @@ Supported options keys are:
 * `benchmarker` - benchmarker to use, defaults to the first available http
   benchmarker
 
+### Creating Benchmark Tests
+
+It is recommended to create a new test file when a new benchmark is introduced
+so it can be easily made creating the new test file in `test/benchmark`.
+
+When calling the `runBenchmark`, provide the benchmark group name
+(which is the folder name in the `benchmark/` folder) as the first parameter,
+and optionally pass environment variables as the second parameter.
+
+```js
+'use strict';
+
+require('../common'); // Import the common module - required for all benchmark files
+
+const runBenchmark = require('../common/benchmark');
+
+runBenchmark('buffers', { NODEJS_BENCHMARK_ZERO_ALLOWED: 1 });
+```
+
+The environment variable `NODEJS_BENCHMARK_ZERO_ALLOWED` is required
+when tests execute so quickly that they may produce errors or inconsistent results.
+Setting this variable instructs the benchmark to disregard such issues.
+
+Test execution behavior depends on the `NODE_RUN_ALL_BENCH_TESTS` environment variable.
+When set to **true**, benchmarks run with minimal iterations (`n=1`, `rounds=1`).
+This approach bypasses performance analysis to verify that tests can complete without failures.
+Despite the minimal iterations, execution remains time-consuming
+as all configurations must be tested.
+
+When `NODE_RUN_ALL_BENCH_TESTS` is not set,
+only a single configuration per benchmark executes.
+While this dramatically reduces execution time, it provides limited coverage
+and cannot guarantee that all configurations function properly.
+
+This PR introduces the usage of a new environment variable `NODE_RUN_ALL_BENCH_TESTS`,
+which can be set to run all benchmark configurations in tests to cover more scenarios where benchmarks might fail.
+This PR also documents how to write benchmark tests and provides more details about the environment variables:
+
+* NODE\_RUN\_ALL\_BENCH\_TESTS
+* NODEJS\_BENCHMARK\_ZERO\_ALLOWED
+
+Benchmark tests were added for the following groups:
+
+* abort\_controller
+* error
+* https
+* perf\_hooks
+* permission
+* sqlite
+* test\_runner
+* websocket
+
+Additionally, some inconsistent test files were renamed:
+
+test/benchmark/test-benchmark-async-hooks.js → test/benchmark/test-benchmark-async\_hooks.js
+test/benchmark/test-benchmark-child-process.js → test/benchmark/test-benchmark-child\_process.js
+
 [autocannon]: https://github.com/mcollina/autocannon
 [benchmark-ci]: https://github.com/nodejs/benchmarking/blob/HEAD/docs/core_benchmarks.md
 [git-for-windows]: https://git-scm.com/download/win

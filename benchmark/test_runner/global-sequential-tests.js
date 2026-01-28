@@ -2,14 +2,20 @@
 const common = require('../common');
 const { it } = require('node:test');
 
-
-const bench = common.createBenchmark(main, {
-  n: [100, 1000, 1e4],
-  type: ['sync', 'async'],
-}, {
-  // We don't want to test the reporter here
-  flags: ['--test-reporter=./benchmark/fixtures/empty-test-reporter.js'],
-});
+const bench = common.createBenchmark(
+  main,
+  {
+    n: [100, 1000, 1e4],
+    type: ['sync', 'async'],
+  },
+  {
+    // We don't want to test the reporter here
+    flags: [
+      '--test-reporter=./benchmark/fixtures/empty-test-reporter.js',
+      '--test-reporter-destination=stdout',
+    ],
+  },
+);
 
 async function run(n, type) {
   // eslint-disable-next-line no-unused-vars

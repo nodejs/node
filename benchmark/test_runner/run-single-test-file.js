@@ -31,13 +31,20 @@ function setup(numberOfTestFiles) {
  * Specifically, it compares the performance of running tests in the
  * same process versus creating multiple processes.
  */
-const bench = common.createBenchmark(main, {
-  numberOfTestFiles: [1, 10, 100],
-  isolation: ['none', 'process'],
-}, {
-  // We don't want to test the reporter here
-  flags: ['--test-reporter=./benchmark/fixtures/empty-test-reporter.js'],
-});
+const bench = common.createBenchmark(
+  main,
+  {
+    numberOfTestFiles: [1, 10, 100],
+    isolation: ['none', 'process'],
+  },
+  {
+    // We don't want to test the reporter here
+    flags: [
+      '--test-reporter=./benchmark/fixtures/empty-test-reporter.js',
+      '--test-reporter-destination=stdout',
+    ],
+  },
+);
 
 async function runBenchmark({ numberOfTestFiles, isolation }) {
   const dirPath = getTestDirPath(numberOfTestFiles);
