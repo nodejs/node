@@ -258,7 +258,7 @@ static void GetCallSites(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(context);
 
   CHECK_EQ(args.Length(), 1);
-  CHECK(args[0]->IsNumber());
+  CHECK(args[0]->IsUint32());
   const uint32_t frames = args[0].As<Uint32>()->Value();
   CHECK(frames >= 1 && frames <= 200);
 
