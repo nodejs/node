@@ -34,8 +34,11 @@ class WatchTestCase {
     }
   }
   async writeFiles() {
-    // Do the write with a delay to ensure that the OS is ready to notify us.
-    await setTimeout(common.platformTimeout(100));
+    if (common.isMacOS) {
+      // Do the write with a delay to ensure that the OS is ready to notify us.
+      // See https://github.com/nodejs/node/issues/52601.
+      await setTimeout(common.platformTimeout(100));
+    }
 
     for (const fileName of [...this.files]) {
       await writeFile(this.filePath(fileName), Date.now() + fileName.repeat(1e4));
