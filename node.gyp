@@ -114,6 +114,7 @@
       'src/node_config.cc',
       'src/node_config_file.cc',
       'src/node_constants.cc',
+      'src/node_cjs_lexer.cc',
       'src/node_contextify.cc',
       'src/node_credentials.cc',
       'src/node_debug.cc',
