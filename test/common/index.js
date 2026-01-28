@@ -62,6 +62,8 @@ if (isMainThread)
 
 const noop = () => {};
 
+// Whether the executable is linked against the shared library i.e. libnode.
+const usesSharedLibrary = process.config.variables.node_shared;
 const hasCrypto = Boolean(process.versions.openssl) &&
                   !process.env.NODE_SKIP_CRYPTO;
 
@@ -949,6 +951,13 @@ function sleepSync(ms) {
   Atomics.wait(i32, 0, 0, ms);
 }
 
+function resolveBuiltBinary(binary) {
+  if (isWindows) {
+    binary += '.exe';
+  }
+  return path.join(path.dirname(process.execPath), binary);
+}
+
 const common = {
   allowGlobals,
   buildType,
@@ -994,6 +1003,7 @@ const common = {
   printSkipMessage,
   pwdCommand,
   requireNoPackageJSONAbove,
+  resolveBuiltBinary,
   runWithInvalidFD,
   skip,
   skipIf32Bits,
@@ -1002,6 +1012,7 @@ const common = {
   skipIfSQLiteMissing,
   spawnPromisified,
   sleepSync,
+  usesSharedLibrary,
 
   get enoughTestMem() {
     return require('os').totalmem() > 0x70000000; /* 1.75 Gb */

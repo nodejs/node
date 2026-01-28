@@ -8,7 +8,6 @@ const {
   spawnSyncAndExit,
   spawnSyncAndExitWithoutError,
 } = require('../common/child_process');
-const path = require('path');
 const fs = require('fs');
 const os = require('os');
 
@@ -16,14 +15,7 @@ tmpdir.refresh();
 common.allowGlobals(global.require);
 common.allowGlobals(global.embedVars);
 
-function resolveBuiltBinary(binary) {
-  if (common.isWindows) {
-    binary += '.exe';
-  }
-  return path.join(path.dirname(process.execPath), binary);
-}
-
-const binary = resolveBuiltBinary('embedtest');
+const binary = common.resolveBuiltBinary('embedtest');
 
 spawnSyncAndAssert(
   binary,
