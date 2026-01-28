@@ -270,7 +270,7 @@ if %target_arch%==%msvs_host_arch% set vcvarsall_arg=%target_arch%
 
 @rem Look for Visual Studio 2026
 :vs-set-2026
-if defined target_env if "%target_env%" NEQ "vs2026" goto msbuild-not-found
+if defined target_env if "%target_env%" NEQ "vs2026" goto vs-set-2022
 echo Looking for Visual Studio 2026
 @rem VCINSTALLDIR may be set if run from a VS Command Prompt and needs to be
 @rem cleared first as vswhere_usability_wrapper.cmd doesn't when it fails to
