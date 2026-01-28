@@ -4,7 +4,6 @@ const assert = require('assert');
 
 // Import of pure js (non-shared) deps for comparison
 const acorn = require('../../deps/acorn/acorn/package.json');
-const cjs_module_lexer = require('../../deps/cjs-module-lexer/src/package.json');
 
 const expected_keys = [
   'ares',
@@ -24,13 +23,14 @@ const expected_keys = [
   'simdjson',
   'simdutf',
   'ada',
-  'cjs_module_lexer',
   'nbytes',
+  'merve',
 ];
 
 
 const hasUndici = process.config.variables.node_builtin_shareable_builtins.includes('deps/undici/undici.js');
 const hasAmaro = process.config.variables.node_builtin_shareable_builtins.includes('deps/amaro/dist/index.js');
+const hasLief = process.config.variables.node_use_lief;
 
 if (process.config.variables.node_use_amaro) {
   if (hasAmaro) {
@@ -39,6 +39,10 @@ if (process.config.variables.node_use_amaro) {
 }
 if (hasUndici) {
   expected_keys.push('undici');
+}
+
+if (hasLief) {
+  expected_keys.push('lief');
 }
 
 if (common.hasCrypto) {
@@ -70,11 +74,16 @@ assert.match(process.versions.acorn, commonTemplate);
 assert.match(process.versions.ares, commonTemplate);
 assert.match(process.versions.brotli, commonTemplate);
 assert.match(process.versions.llhttp, commonTemplate);
+assert.match(process.versions.merve, commonTemplate);
 assert.match(process.versions.node, commonTemplate);
 assert.match(process.versions.uv, commonTemplate);
 assert.match(process.versions.nbytes, commonTemplate);
 assert.match(process.versions.zlib, /^\d+(?:\.\d+){1,3}(?:-.*)?$/);
 assert.match(process.versions.zstd, commonTemplate);
+
+if (process.config.variables.node_use_lief) {
+  assert.match(process.versions.lief, commonTemplate);
+}
 
 if (hasUndici) {
   assert.match(process.versions.undici, commonTemplate);
@@ -85,7 +94,6 @@ assert.match(
   /^\d+\.\d+\.\d+(?:\.\d+)?-node\.\d+(?: \(candidate\))?$/
 );
 assert.match(process.versions.modules, /^\d+$/);
-assert.match(process.versions.cjs_module_lexer, commonTemplate);
 
 if (common.hasCrypto) {
   const { hasOpenSSL3 } = require('../common/crypto');
@@ -120,5 +128,3 @@ if (hasUndici) {
 
 const expectedAcornVersion = acorn.version;
 assert.strictEqual(process.versions.acorn, expectedAcornVersion);
-const expectedCjsModuleLexerVersion = cjs_module_lexer.version;
-assert.strictEqual(process.versions.cjs_module_lexer, expectedCjsModuleLexerVersion);

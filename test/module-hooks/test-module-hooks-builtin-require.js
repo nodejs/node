@@ -12,10 +12,13 @@ const { registerHooks } = require('module');
 
 const schemelessBlockList = new Set([
   'sea',
-  'sqlite',
   'test',
   'test/reporters',
 ]);
+
+if (common.hasSQLite) {
+  schemelessBlockList.add('sqlite');
+}
 
 const testModules = [];
 for (const mod of schemelessBlockList) {

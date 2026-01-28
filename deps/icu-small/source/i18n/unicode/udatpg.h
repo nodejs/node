@@ -543,7 +543,7 @@ udatpg_getDateTimeFormat(const UDateTimePatternGenerator *dtpg,
  * @param style
  *              one of UDAT_FULL..UDAT_SHORT. Error if out of range.
  * @param dateTimeFormat
- *              the new dateTimeFormat to set for the the specified style
+ *              the new dateTimeFormat to set for the specified style
  * @param length
  *              the length of dateTimeFormat, or -1 if unknown and pattern
  *              is null-terminated

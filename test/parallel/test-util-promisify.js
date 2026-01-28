@@ -27,7 +27,7 @@ promisify(async (callback) => { callback(); })().then(common.mustCall(() => {
     'DeprecationWarning',
     'Calling promisify on a function that returns a Promise is likely a mistake.',
     'DEP0174');
-  promisify(async () => {})().then(common.mustNotCall());
+  promisify(async () => {})().then(common.mustNotCall('never settling promise expected'));
 }));
 
 const stat = promisify(fs.stat);
@@ -166,7 +166,7 @@ const stat = promisify(fs.stat);
 
   o.fn = fn;
 
-  o.fn().then(common.mustCall((val) => assert(val)));
+  o.fn().then(common.mustCall((val) => { assert(val); }));
 }
 
 {
@@ -201,7 +201,8 @@ const stat = promisify(fs.stat);
   });
   thrower(1, 2, 3)
     .then(assert.fail)
-    .then(assert.fail, (e) => assert.strictEqual(e, errToThrow));
+    .then(assert.fail, (e) => assert.strictEqual(e, errToThrow))
+    .then(common.mustCall());
 }
 
 {

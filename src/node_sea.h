@@ -37,6 +37,16 @@ enum class SeaExecArgvExtension : uint8_t {
   kCli = 2,
 };
 
+struct SeaConfig {
+  std::string main_path;
+  std::string output_path;
+  std::string executable_path;
+  SeaFlags flags = SeaFlags::kDefault;
+  SeaExecArgvExtension exec_argv_extension = SeaExecArgvExtension::kEnv;
+  std::unordered_map<std::string, std::string> assets;
+  std::vector<std::string> exec_argv;
+};
+
 struct SeaResource {
   SeaFlags flags = SeaFlags::kDefault;
   SeaExecArgvExtension exec_argv_extension = SeaExecArgvExtension::kEnv;
@@ -54,9 +64,10 @@ struct SeaResource {
 };
 
 bool IsSingleExecutable();
+std::string_view FindSingleExecutableBlob();
 SeaResource FindSingleExecutableResource();
 std::tuple<int, char**> FixupArgsForSEA(int argc, char** argv);
-node::ExitCode BuildSingleExecutableBlob(
+node::ExitCode WriteSingleExecutableBlob(
     const std::string& config_path,
     const std::vector<std::string>& args,
     const std::vector<std::string>& exec_args);
@@ -66,6 +77,16 @@ node::ExitCode BuildSingleExecutableBlob(
 // Otherwise returns false and the caller is expected to call LoadEnvironment()
 // differently.
 bool MaybeLoadSingleExecutableApplication(Environment* env);
+std::optional<SeaConfig> ParseSingleExecutableConfig(
+    const std::string& config_path);
+ExitCode BuildSingleExecutable(const std::string& sea_config_path,
+                               const std::vector<std::string>& args,
+                               const std::vector<std::string>& exec_args);
+ExitCode GenerateSingleExecutableBlob(
+    std::vector<char>* out,
+    const SeaConfig& config,
+    const std::vector<std::string>& args,
+    const std::vector<std::string>& exec_args);
 }  // namespace sea
 }  // namespace node
 

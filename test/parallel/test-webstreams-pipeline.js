@@ -126,7 +126,7 @@ const http = require('http');
   });
 
   pipeline(r, ws, common.mustSucceed(() => {
-    assert.deepStrictEqual(values, ['helloworld']);
+    assert.deepStrictEqual(values, ['hello', 'world']);
   }));
 
   r.push('hello');
@@ -181,7 +181,7 @@ const http = require('http');
   });
 
   pipeline(rs, t, ws, common.mustSucceed(() => {
-    assert.deepStrictEqual(values, ['HELLOWORLD']);
+    assert.deepStrictEqual(values, ['HELLO', 'WORLD']);
   }));
 
   c.enqueue('hello');

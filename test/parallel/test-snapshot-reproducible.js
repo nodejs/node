@@ -21,7 +21,7 @@ function generateSnapshot() {
       '--random_seed=42',
       '--predictable',
       '--build-snapshot',
-      'node:generate_default_snapshot',
+      'node:generate_default_snapshot_source',
     ],
     {
       env: { ...process.env, NODE_DEBUG_NATIVE: 'SNAPSHOT_SERDES' },
@@ -38,33 +38,10 @@ function generateSnapshot() {
       },
     }
   );
-  const blobPath = tmpdir.resolve('snapshot.blob');
-  return fs.readFileSync(blobPath);
+  const outputPath = tmpdir.resolve('snapshot.cc');
+  return fs.readFileSync(outputPath, 'utf-8').split('\n');
 }
 
-const buf1 = generateSnapshot();
-const buf2 = generateSnapshot();
-
-const diff = [];
-let offset = 0;
-const step = 16;
-do {
-  const length = Math.min(buf1.length - offset, step);
-  const slice1 = buf1.slice(offset, offset + length).toString('hex');
-  const slice2 = buf2.slice(offset, offset + length).toString('hex');
-  if (slice1 !== slice2) {
-    diff.push({ offset: '0x' + (offset).toString(16), slice1, slice2 });
-  }
-  offset += length;
-} while (offset < buf1.length);
-
-assert.strictEqual(offset, buf1.length);
-if (offset < buf2.length) {
-  const length = Math.min(buf2.length - offset, step);
-  const slice2 = buf2.slice(offset, offset + length).toString('hex');
-  diff.push({ offset, slice1: '', slice2 });
-  offset += length;
-} while (offset < buf2.length);
-
-assert.deepStrictEqual(diff, []);
-assert.strictEqual(buf1.length, buf2.length);
+const source1 = generateSnapshot();
+const source2 = generateSnapshot();
+assert.deepStrictEqual(source1, source2);

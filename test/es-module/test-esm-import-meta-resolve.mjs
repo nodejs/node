@@ -1,11 +1,11 @@
 // Flags: --experimental-import-meta-resolve
 import { spawnPromisified } from '../common/index.mjs';
-import { fileURL as fixturesFileURL } from '../common/fixtures.mjs';
+import * as fixtures from '../common/fixtures.mjs';
 import assert from 'assert';
 import { spawn } from 'child_process';
 import { execPath } from 'process';
 
-const fixtures = `${fixturesFileURL()}/`;
+const fixturesDir = `${fixtures.fileURL()}/`;
 
 assert.strictEqual(import.meta.resolve('./test-esm-import-meta.mjs'),
                    new URL('./test-esm-import-meta.mjs', import.meta.url).href);
@@ -18,14 +18,14 @@ assert.throws(() => {
 });
 assert.strictEqual(
   import.meta.resolve('../fixtures/empty-with-bom.txt'),
-  fixtures + 'empty-with-bom.txt');
-assert.strictEqual(import.meta.resolve('../fixtures/'), fixtures);
+  fixturesDir + 'empty-with-bom.txt');
+assert.strictEqual(import.meta.resolve('../fixtures/'), fixturesDir);
 assert.strictEqual(
   import.meta.resolve('../fixtures/', import.meta.url),
-  fixtures);
+  fixturesDir);
 assert.strictEqual(
   import.meta.resolve('../fixtures/', new URL(import.meta.url)),
-  fixtures);
+  fixturesDir);
 [[], {}, Symbol(), 0, 1, 1n, 1.1, () => {}, true, false].forEach((arg) =>
   assert.throws(() => import.meta.resolve('../fixtures/', arg), {
     code: 'ERR_INVALID_ARG_TYPE',
@@ -33,8 +33,8 @@ assert.strictEqual(
 );
 assert.strictEqual(import.meta.resolve('http://some-absolute/url'), 'http://some-absolute/url');
 assert.strictEqual(import.meta.resolve('some://weird/protocol'), 'some://weird/protocol');
-assert.strictEqual(import.meta.resolve('baz/', fixtures),
-                   fixtures + 'node_modules/baz/');
+assert.strictEqual(import.meta.resolve('baz/', fixturesDir),
+                   fixturesDir + 'node_modules/baz/');
 assert.deepStrictEqual(
   { ...await import('data:text/javascript,export default import.meta.resolve("http://some-absolute/url")') },
   { default: 'http://some-absolute/url' },
@@ -44,8 +44,8 @@ assert.deepStrictEqual(
   { default: 'some://weird/protocol' },
 );
 assert.deepStrictEqual(
-  { ...await import(`data:text/javascript,export default import.meta.resolve("baz/", ${encodeURIComponent(JSON.stringify(fixtures))})`) },
-  { default: fixtures + 'node_modules/baz/' },
+  { ...await import(`data:text/javascript,export default import.meta.resolve("baz/", ${encodeURIComponent(JSON.stringify(fixturesDir))})`) },
+  { default: fixturesDir + 'node_modules/baz/' },
 );
 assert.deepStrictEqual(
   { ...await import('data:text/javascript,export default import.meta.resolve("fs")') },

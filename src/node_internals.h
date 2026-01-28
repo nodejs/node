@@ -124,8 +124,6 @@ v8::MaybeLocal<v8::Object> InitializePrivateSymbols(
 
 class NodeArrayBufferAllocator : public ArrayBufferAllocator {
  public:
-  inline uint32_t* zero_fill_field() { return &zero_fill_field_; }
-
   void* Allocate(size_t size) override;  // Defined in src/node.cc
   void* AllocateUninitialized(size_t size) override;
   void Free(void* data, size_t size) override;
@@ -142,7 +140,6 @@ class NodeArrayBufferAllocator : public ArrayBufferAllocator {
   }
 
  private:
-  uint32_t zero_fill_field_ = 1;  // Boolean but exposed as uint32 to JS land.
   std::atomic<size_t> total_mem_usage_ {0};
 
   // Delegate to V8's allocator for compatibility with the V8 memory cage.

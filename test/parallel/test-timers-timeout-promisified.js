@@ -47,7 +47,7 @@ assert.strictEqual(setPromiseTimeout, timerPromises.setTimeout);
   const ac = new AbortController();
   const signal = ac.signal;
   setPromiseTimeout(10, undefined, { signal })
-    .then(common.mustCall(() => { ac.abort(); }))
+    .then(() => { ac.abort(); })
     .then(common.mustCall());
 }
 

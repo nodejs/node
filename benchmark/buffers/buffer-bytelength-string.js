@@ -22,7 +22,7 @@ const chars = {
 function getInput(type, repeat, encoding) {
   const original = (repeat === 1) ? chars[type] : chars[type].repeat(repeat);
   if (encoding === 'base64') {
-    Buffer.from(original, 'utf8').toString('base64');
+    return Buffer.from(original, 'utf8').toString('base64');
   }
   return original;
 }

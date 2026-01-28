@@ -335,6 +335,12 @@ For most modules, it makes the most sense to have a main script and often not mu
 
 If `main` is not set, it defaults to `index.js` in the package's root folder.
 
+### type
+
+The `type` field defines how Node.js should interpret `.js` files in your package. This field is not used by npm.
+
+See the [Node.js documentation on the type field](https://nodejs.org/api/packages.html#type) for more information.
+
 ### browser
 
 If your module is meant to be used client-side the browser field should be used instead of the main field.
@@ -502,6 +508,19 @@ For GitHub, GitHub gist, Bitbucket, or GitLab repositories you can use the same 
 }
 ```
 
+**Note on normalization:** When you publish a package, npm normalizes the `repository` field to the full object format with a `url` property. If you use a shorthand format (like `"npm/example"`), you'll see a warning during `npm publish` indicating that the field was auto-corrected. While the shorthand format currently works, it's recommended to use the full object format in your `package.json` to avoid warnings and ensure future compatibility:
+
+```json
+{
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/npm/example.git"
+  }
+}
+```
+
+You can run `npm pkg fix` to automatically convert shorthand formats to the normalized object format.
+
 If the `package.json` for your package is not in the root directory (for example if it is part of a monorepo), you can specify the directory in which it lives:
 
 ```json
@@ -520,6 +539,20 @@ The "scripts" property is a dictionary containing script commands that are run a
 The key is the lifecycle event, and the value is the command to run at that point.
 
 See [`scripts`](/using-npm/scripts) to find out more about writing package scripts.
+
+### gypfile
+
+If you have a binding.gyp file in the root of your package and you have not defined your own `install` or `preinstall` scripts, npm will default to building your module using node-gyp.
+
+To prevent npm from automatically building your module with node-gyp, set `gypfile` to `false`:
+
+```json
+{
+  "gypfile": false
+}
+```
+
+This is useful for packages that include native addons but want to handle the build process differently, or packages that have a binding.gyp file but should not be built as a native addon.
 
 ### config
 
@@ -922,6 +955,53 @@ To make this limitation easier to deal with, overrides may also be defined as a 
     "@npm/foo": "$foo",
     // the referenced package does not need to match the overridden one
     "@npm/bar": "$foo"
+  }
+}
+```
+
+#### Replacing a dependency with a fork
+
+You can replace a package with a different package or fork using several methods:
+
+**Using the `npm:` prefix to replace with a different package name:**
+
+```json
+{
+  "overrides": {
+    "package-name": "npm:@scope/forked-package@1.0.0"
+  }
+}
+```
+
+**Using a GitHub repository (supports branches, tags, or commit hashes):**
+
+```json
+{
+  "overrides": {
+    "package-name": "github:username/repo#branch-name"
+  }
+}
+```
+
+**Using a local file path:**
+
+```json
+{
+  "overrides": {
+    "package-name": "file:../local-fork"
+  }
+}
+```
+
+These replacement methods work for both top-level overrides and nested overrides.
+For example, to replace a transitive dependency with a fork:
+
+```json
+{
+  "overrides": {
+    "parent-package": {
+      "vulnerable-dep": "github:username/patched-fork#v2.0.1"
+    }
   }
 }
 ```

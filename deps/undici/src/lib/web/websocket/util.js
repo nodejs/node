@@ -2,7 +2,8 @@
 
 const { states, opcodes } = require('./constants')
 const { isUtf8 } = require('node:buffer')
-const { collectASequenceOfCodePointsFast, removeHTTPWhitespace } = require('../fetch/data-url')
+const { removeHTTPWhitespace } = require('../fetch/data-url')
+const { collectASequenceOfCodePointsFast } = require('../infra')
 
 /**
  * @param {number} readyState

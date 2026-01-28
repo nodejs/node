@@ -58,5 +58,5 @@ if (id === 'undefined') {
     }));
   }));
 } else {
-  assert(0);  // Bad argument.
+  assert.fail('Bad argument');
 }

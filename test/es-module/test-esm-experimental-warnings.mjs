@@ -1,5 +1,5 @@
 import { spawnPromisified } from '../common/index.mjs';
-import { fileURL } from '../common/fixtures.mjs';
+import * as fixtures from '../common/fixtures.mjs';
 import assert from 'node:assert';
 import { execPath } from 'node:process';
 import { describe, it } from 'node:test';
@@ -10,7 +10,7 @@ describe('ESM: warn for obsolete hooks provided', { concurrency: !process.env.TE
     const { code, signal, stderr } = await spawnPromisified(execPath, [
       '--input-type=module',
       '--eval',
-      `import ${JSON.stringify(fileURL('es-module-loaders', 'module-named-exports.mjs'))}`,
+      `import ${JSON.stringify(fixtures.fileURL('es-module-loaders', 'module-named-exports.mjs'))}`,
     ]);
 
     assert.doesNotMatch(
@@ -28,7 +28,7 @@ describe('ESM: warn for obsolete hooks provided', { concurrency: !process.env.TE
         [
           /`--experimental-loader` may be removed in the future/,
           '--experimental-loader',
-          fileURL('es-module-loaders', 'hooks-custom.mjs'),
+          fixtures.fileURL('es-module-loaders', 'hooks-custom.mjs'),
         ],
       ]
     ) {
@@ -37,7 +37,7 @@ describe('ESM: warn for obsolete hooks provided', { concurrency: !process.env.TE
           ...args,
           '--input-type=module',
           '--eval',
-          `import ${JSON.stringify(fileURL('es-module-loaders', 'module-named-exports.mjs'))}`,
+          `import ${JSON.stringify(fixtures.fileURL('es-module-loaders', 'module-named-exports.mjs'))}`,
         ]);
 
         assert.match(stderr, /ExperimentalWarning/);

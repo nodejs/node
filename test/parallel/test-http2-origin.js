@@ -17,11 +17,11 @@ const {
 } = require('http2');
 const Countdown = require('../common/countdown');
 
-const { readKey } = require('../common/fixtures');
+const fixtures = require('../common/fixtures');
 
-const key = readKey('agent8-key.pem', 'binary');
-const cert = readKey('agent8-cert.pem', 'binary');
-const ca = readKey('fake-startcom-root-cert.pem', 'binary');
+const key = fixtures.readKey('agent8-key.pem', 'binary');
+const cert = fixtures.readKey('agent8-cert.pem', 'binary');
+const ca = fixtures.readKey('fake-startcom-root-cert.pem', 'binary');
 
 {
   const server = createSecureServer({ key, cert });

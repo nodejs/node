@@ -52,7 +52,7 @@ const util = require('util');
   const m = new SourceTextModule('while (true) {}');
   await m.link(common.mustNotCall());
   await m.evaluate({ timeout: 500 })
-    .then(() => assert(false), () => {});
+    .then(() => assert.fail(), () => {});
 })().then(common.mustCall());
 
 // Check the generated identifier for each module

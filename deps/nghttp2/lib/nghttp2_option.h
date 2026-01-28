@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <nghttp2/nghttp2.h>
 
@@ -160,4 +160,4 @@ struct nghttp2_option {
   uint8_t user_recv_ext_types[32];
 };
 
-#endif /* NGHTTP2_OPTION_H */
+#endif /* !defined(NGHTTP2_OPTION_H) */

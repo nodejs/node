@@ -117,7 +117,10 @@ DecimalFormatSymbols::DecimalFormatSymbols(const Locale& loc, const NumberingSys
 }
 
 DecimalFormatSymbols::DecimalFormatSymbols()
-        : UObject(), locale(Locale::getRoot()) {
+    : UObject(),
+      locale(Locale::getRoot()),
+      actualLocale(Locale::getRoot()),
+      validLocale(Locale::getRoot()) {
     initialize();
 }
 
@@ -135,8 +138,6 @@ DecimalFormatSymbols::createWithLastResortData(UErrorCode& status) {
 
 DecimalFormatSymbols::~DecimalFormatSymbols()
 {
-    delete actualLocale;
-    delete validLocale;
 }
 
 // -------------------------------------
@@ -164,12 +165,8 @@ DecimalFormatSymbols::operator=(const DecimalFormatSymbols& rhs)
             currencySpcAfterSym[i].fastCopyFrom(rhs.currencySpcAfterSym[i]);
         }
         locale = rhs.locale;
-
-        UErrorCode status = U_ZERO_ERROR;
-        U_LOCALE_BASED(locBased, *this);
-        locBased.setLocaleIDs(rhs.validLocale, rhs.actualLocale, status);
-        U_ASSERT(U_SUCCESS(status));
-
+        actualLocale = rhs.actualLocale;
+        validLocale = rhs.validLocale;
         fIsCustomCurrencySymbol = rhs.fIsCustomCurrencySymbol; 
         fIsCustomIntlCurrencySymbol = rhs.fIsCustomIntlCurrencySymbol; 
         fCodePointZero = rhs.fCodePointZero;
@@ -208,8 +205,8 @@ DecimalFormatSymbols::operator==(const DecimalFormatSymbols& that) const
     }
     // No need to check fCodePointZero since it is based on fSymbols
     return locale == that.locale &&
-        LocaleBased::equalIDs(actualLocale, that.actualLocale) &&
-        LocaleBased::equalIDs(validLocale, that.validLocale);
+           actualLocale == that.actualLocale &&
+           validLocale == that.validLocale;
 }
 
 // -------------------------------------
@@ -406,15 +403,10 @@ DecimalFormatSymbols::initialize(const Locale& loc, UErrorCode& status,
 
     // Set locale IDs
     // TODO: Is there a way to do this without depending on the resource bundle instance?
-    U_LOCALE_BASED(locBased, *this);
-    locBased.setLocaleIDs(
-        ures_getLocaleByType(
-            numberElementsRes.getAlias(),
-            ULOC_VALID_LOCALE, &status),
-        ures_getLocaleByType(
-            numberElementsRes.getAlias(),
-            ULOC_ACTUAL_LOCALE, &status),
-        status);
+    actualLocale = Locale(
+        ures_getLocaleByType(numberElementsRes.getAlias(), ULOC_ACTUAL_LOCALE, &status));
+    validLocale = Locale(
+        ures_getLocaleByType(numberElementsRes.getAlias(), ULOC_VALID_LOCALE, &status));
 
     // Now load the rest of the data from the data sink.
     // Start with loading this nsName if it is not Latin.

@@ -73,20 +73,20 @@ int nghttp3_gaptr_push(nghttp3_gaptr *gaptr, uint64_t offset, uint64_t datalen);
  * nghttp3_gaptr_first_gap_offset returns the offset to the first gap.
  * If there is no gap, it returns UINT64_MAX.
  */
-uint64_t nghttp3_gaptr_first_gap_offset(nghttp3_gaptr *gaptr);
+uint64_t nghttp3_gaptr_first_gap_offset(const nghttp3_gaptr *gaptr);
 
 /*
  * nghttp3_gaptr_get_first_gap_after returns the first gap which
  * includes or comes after |offset|.
  */
-nghttp3_range nghttp3_gaptr_get_first_gap_after(nghttp3_gaptr *gaptr,
+nghttp3_range nghttp3_gaptr_get_first_gap_after(const nghttp3_gaptr *gaptr,
                                                 uint64_t offset);
 
 /*
  * nghttp3_gaptr_is_pushed returns nonzero if range [offset, offset +
  * datalen) is completely pushed into this object.
  */
-int nghttp3_gaptr_is_pushed(nghttp3_gaptr *gaptr, uint64_t offset,
+int nghttp3_gaptr_is_pushed(const nghttp3_gaptr *gaptr, uint64_t offset,
                             uint64_t datalen);
 
 /*

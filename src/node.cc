@@ -1234,7 +1234,7 @@ InitializeOncePerProcessInternal(const std::vector<std::string>& args,
   }
 
   if (!(flags & ProcessInitializationFlags::kNoInitializeNodeV8Platform)) {
-    uv_thread_setname("MainThread");
+    uv_thread_setname("node-MainThread");
     per_process::v8_platform.Initialize(
         static_cast<int>(per_process::cli_options->v8_thread_pool_size));
     result->platform_ = per_process::v8_platform.Platform();
@@ -1374,6 +1374,21 @@ ExitCode GenerateAndWriteSnapshotData(const SnapshotData** snapshot_data_ptr,
   DCHECK(snapshot_config.builder_script_path.has_value());
   const std::string& builder_script =
       snapshot_config.builder_script_path.value();
+
+  // For the special builder node:generate_default_snapshot_source, generate
+  // the snapshot as C++ source and write it to snapshot.cc (for testing).
+  if (builder_script == "node:generate_default_snapshot_source") {
+    // Reset to empty to generate from scratch.
+    snapshot_config.builder_script_path = {};
+    exit_code =
+        node::SnapshotBuilder::GenerateAsSource("snapshot.cc",
+                                                args_maybe_patched,
+                                                result->exec_args(),
+                                                snapshot_config,
+                                                true /* use_array_literals */);
+    return exit_code;
+  }
+
   // node:embedded_snapshot_main indicates that we are using the
   // embedded snapshot and we are not supposed to clean it up.
   if (builder_script == "node:embedded_snapshot_main") {
@@ -1535,14 +1550,21 @@ static ExitCode StartInternal(int argc, char** argv) {
   uv_loop_configure(uv_default_loop(), UV_METRICS_IDLE_TIME);
   std::string sea_config = per_process::cli_options->experimental_sea_config;
   if (!sea_config.empty()) {
-#if !defined(DISABLE_SINGLE_EXECUTABLE_APPLICATION)
-    return sea::BuildSingleExecutableBlob(
-        sea_config, result->args(), result->exec_args());
-#else
+#if defined(DISABLE_SINGLE_EXECUTABLE_APPLICATION)
     fprintf(stderr, "Single executable application is disabled.\n");
     return ExitCode::kGenericUserError;
-#endif  // !defined(DISABLE_SINGLE_EXECUTABLE_APPLICATION)
+#else
+    return sea::WriteSingleExecutableBlob(
+        sea_config, result->args(), result->exec_args());
+#endif
   }
+
+  sea_config = per_process::cli_options->build_sea;
+  if (!sea_config.empty()) {
+    return sea::BuildSingleExecutable(
+        sea_config, result->args(), result->exec_args());
+  }
+
   // --build-snapshot indicates that we are in snapshot building mode.
   if (per_process::cli_options->per_isolate->build_snapshot) {
     if (per_process::cli_options->per_isolate->build_snapshot_config.empty() &&

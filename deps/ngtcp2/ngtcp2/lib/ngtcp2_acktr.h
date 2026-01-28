@@ -120,8 +120,6 @@ typedef struct ngtcp2_acktr {
      packet number. */
   ngtcp2_ksl ents;
   ngtcp2_log *log;
-  /* flags is bitwise OR of zero, or more of NGTCP2_ACKTR_FLAG_*. */
-  uint16_t flags;
   /* first_unacked_ts is timestamp when ngtcp2_acktr_entry is added
      first time after the last outgoing ACK frame. */
   ngtcp2_tstamp first_unacked_ts;
@@ -148,6 +146,9 @@ typedef struct ngtcp2_acktr {
       uint64_t ce;
     } ack;
   } ecn;
+
+  /* flags is bitwise OR of zero, or more of NGTCP2_ACKTR_FLAG_*. */
+  uint16_t flags;
 } ngtcp2_acktr;
 
 /*
@@ -235,19 +236,18 @@ void ngtcp2_acktr_immediate_ack(ngtcp2_acktr *acktr);
 
 /*
  * ngtcp2_acktr_create_ack_frame creates ACK frame in the object
- * pointed by |fr|, and returns |fr| if there are any received packets
- * to acknowledge.  If there are no packets to acknowledge, this
- * function returns NULL.  fr->ack.ranges must be able to contain at
+ * pointed by |ack|, and returns 0 if it successfully creates ACK
+ * frame in |ack|.  If there are no packets to acknowledge, this
+ * function returns -1.  |ack|->ranges must be able to contain at
  * least NGTCP2_MAX_ACK_RANGES elements.
  *
  * Call ngtcp2_acktr_commit_ack after a created ACK frame is
  * successfully serialized into a packet.
  */
-ngtcp2_frame *ngtcp2_acktr_create_ack_frame(ngtcp2_acktr *acktr,
-                                            ngtcp2_frame *fr, uint8_t type,
-                                            ngtcp2_tstamp ts,
-                                            ngtcp2_duration ack_delay,
-                                            uint64_t ack_delay_exponent);
+int ngtcp2_acktr_create_ack_frame(ngtcp2_acktr *acktr, ngtcp2_ack *ack,
+                                  uint8_t type, ngtcp2_tstamp ts,
+                                  ngtcp2_duration ack_delay,
+                                  uint64_t ack_delay_exponent);
 
 /*
  * ngtcp2_acktr_increase_ecn_counts increases ECN counts from |pi|.

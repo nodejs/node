@@ -57,7 +57,7 @@ typedef struct ngtcp2_pv_entry {
   /* flags is zero or more of NGTCP2_PV_ENTRY_FLAG_*. */
   uint8_t flags;
   /* data is a byte string included in PATH_CHALLENGE. */
-  uint8_t data[8];
+  uint8_t data[NGTCP2_PATH_CHALLENGE_DATALEN];
 } ngtcp2_pv_entry;
 
 void ngtcp2_pv_entry_init(ngtcp2_pv_entry *pvent, const uint8_t *data,

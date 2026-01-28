@@ -609,3 +609,248 @@ suite('StatementSync.prototype.setAllowBareNamedParameters()', () => {
     });
   });
 });
+
+suite('options.readBigInts', () => {
+  test('BigInts are returned when input is true', (t) => {
+    const db = new DatabaseSync(nextDb());
+    t.after(() => { db.close(); });
+    const setup = db.exec(`
+      CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER) STRICT;
+      INSERT INTO data (key, val) VALUES (1, 42);
+    `);
+    t.assert.strictEqual(setup, undefined);
+
+    const query = db.prepare('SELECT val FROM data', { readBigInts: true });
+    t.assert.deepStrictEqual(query.get(), { __proto__: null, val: 42n });
+  });
+
+  test('numbers are returned when input is false', (t) => {
+    const db = new DatabaseSync(nextDb());
+    t.after(() => { db.close(); });
+    const setup = db.exec(`
+      CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER) STRICT;
+      INSERT INTO data (key, val) VALUES (1, 42);
+    `);
+    t.assert.strictEqual(setup, undefined);
+
+    const query = db.prepare('SELECT val FROM data', { readBigInts: false });
+    t.assert.deepStrictEqual(query.get(), { __proto__: null, val: 42 });
+  });
+
+  test('throws when input is not a boolean', (t) => {
+    const db = new DatabaseSync(nextDb());
+    t.after(() => { db.close(); });
+    const setup = db.exec(
+      'CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER) STRICT;'
+    );
+    t.assert.strictEqual(setup, undefined);
+    t.assert.throws(() => {
+      db.prepare('SELECT val FROM data', { readBigInts: 'true' });
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: /The "options\.readBigInts" argument must be a boolean/,
+    });
+  });
+
+  test('setReadBigInts can override prepare option', (t) => {
+    const db = new DatabaseSync(nextDb());
+    t.after(() => { db.close(); });
+    const setup = db.exec(`
+      CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER) STRICT;
+      INSERT INTO data (key, val) VALUES (1, 42);
+    `);
+    t.assert.strictEqual(setup, undefined);
+
+    const query = db.prepare('SELECT val FROM data', { readBigInts: true });
+    t.assert.deepStrictEqual(query.get(), { __proto__: null, val: 42n });
+    t.assert.strictEqual(query.setReadBigInts(false), undefined);
+    t.assert.deepStrictEqual(query.get(), { __proto__: null, val: 42 });
+  });
+});
+
+suite('options.returnArrays', () => {
+  test('arrays are returned when input is true', (t) => {
+    const db = new DatabaseSync(nextDb());
+    t.after(() => { db.close(); });
+    const setup = db.exec(`
+      CREATE TABLE data(key INTEGER PRIMARY KEY, val TEXT) STRICT;
+      INSERT INTO data (key, val) VALUES (1, 'one');
+    `);
+    t.assert.strictEqual(setup, undefined);
+
+    const query = db.prepare(
+      'SELECT key, val FROM data WHERE key = 1',
+      { returnArrays: true }
+    );
+    t.assert.deepStrictEqual(query.get(), [1, 'one']);
+  });
+
+  test('objects are returned when input is false', (t) => {
+    const db = new DatabaseSync(nextDb());
+    t.after(() => { db.close(); });
+    const setup = db.exec(`
+      CREATE TABLE data(key INTEGER PRIMARY KEY, val TEXT) STRICT;
+      INSERT INTO data (key, val) VALUES (1, 'one');
+    `);
+    t.assert.strictEqual(setup, undefined);
+
+    const query = db.prepare(
+      'SELECT key, val FROM data WHERE key = 1',
+      { returnArrays: false }
+    );
+    t.assert.deepStrictEqual(query.get(), { __proto__: null, key: 1, val: 'one' });
+  });
+
+  test('throws when input is not a boolean', (t) => {
+    const db = new DatabaseSync(nextDb());
+    t.after(() => { db.close(); });
+    const setup = db.exec(
+      'CREATE TABLE data(key INTEGER PRIMARY KEY, val TEXT) STRICT;'
+    );
+    t.assert.strictEqual(setup, undefined);
+    t.assert.throws(() => {
+      db.prepare('SELECT key, val FROM data', { returnArrays: 'true' });
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: /The "options\.returnArrays" argument must be a boolean/,
+    });
+  });
+
+  test('setReturnArrays can override prepare option', (t) => {
+    const db = new DatabaseSync(nextDb());
+    t.after(() => { db.close(); });
+    const setup = db.exec(`
+      CREATE TABLE data(key INTEGER PRIMARY KEY, val TEXT) STRICT;
+      INSERT INTO data (key, val) VALUES (1, 'one');
+    `);
+    t.assert.strictEqual(setup, undefined);
+
+    const query = db.prepare(
+      'SELECT key, val FROM data WHERE key = 1',
+      { returnArrays: true }
+    );
+    t.assert.deepStrictEqual(query.get(), [1, 'one']);
+    t.assert.strictEqual(query.setReturnArrays(false), undefined);
+    t.assert.deepStrictEqual(query.get(), { __proto__: null, key: 1, val: 'one' });
+  });
+
+  test('all() returns arrays when input is true', (t) => {
+    const db = new DatabaseSync(nextDb());
+    t.after(() => { db.close(); });
+    const setup = db.exec(`
+      CREATE TABLE data(key INTEGER PRIMARY KEY, val TEXT) STRICT;
+      INSERT INTO data (key, val) VALUES (1, 'one');
+      INSERT INTO data (key, val) VALUES (2, 'two');
+    `);
+    t.assert.strictEqual(setup, undefined);
+
+    const query = db.prepare(
+      'SELECT key, val FROM data ORDER BY key',
+      { returnArrays: true }
+    );
+    t.assert.deepStrictEqual(query.all(), [
+      [1, 'one'],
+      [2, 'two'],
+    ]);
+  });
+
+  test('iterate() returns arrays when input is true', (t) => {
+    const db = new DatabaseSync(nextDb());
+    t.after(() => { db.close(); });
+    const setup = db.exec(`
+      CREATE TABLE data(key INTEGER PRIMARY KEY, val TEXT) STRICT;
+      INSERT INTO data (key, val) VALUES (1, 'one');
+      INSERT INTO data (key, val) VALUES (2, 'two');
+    `);
+    t.assert.strictEqual(setup, undefined);
+
+    const query = db.prepare(
+      'SELECT key, val FROM data ORDER BY key',
+      { returnArrays: true }
+    );
+    t.assert.deepStrictEqual(query.iterate().toArray(), [
+      [1, 'one'],
+      [2, 'two'],
+    ]);
+  });
+});
+
+suite('options.allowBareNamedParameters', () => {
+  test('bare named parameters are allowed when input is true', (t) => {
+    const db = new DatabaseSync(nextDb());
+    t.after(() => { db.close(); });
+    const setup = db.exec(
+      'CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER) STRICT;'
+    );
+    t.assert.strictEqual(setup, undefined);
+    const stmt = db.prepare(
+      'INSERT INTO data (key, val) VALUES ($k, $v)',
+      { allowBareNamedParameters: true }
+    );
+    t.assert.deepStrictEqual(
+      stmt.run({ k: 1, v: 2 }),
+      { changes: 1, lastInsertRowid: 1 },
+    );
+  });
+
+  test('bare named parameters throw when input is false', (t) => {
+    const db = new DatabaseSync(nextDb());
+    t.after(() => { db.close(); });
+    const setup = db.exec(
+      'CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER) STRICT;'
+    );
+    t.assert.strictEqual(setup, undefined);
+    const stmt = db.prepare(
+      'INSERT INTO data (key, val) VALUES ($k, $v)',
+      { allowBareNamedParameters: false }
+    );
+    t.assert.throws(() => {
+      stmt.run({ k: 1, v: 2 });
+    }, {
+      code: 'ERR_INVALID_STATE',
+      message: /Unknown named parameter 'k'/,
+    });
+  });
+
+  test('throws when input is not a boolean', (t) => {
+    const db = new DatabaseSync(nextDb());
+    t.after(() => { db.close(); });
+    const setup = db.exec(
+      'CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER) STRICT;'
+    );
+    t.assert.strictEqual(setup, undefined);
+    t.assert.throws(() => {
+      db.prepare(
+        'INSERT INTO data (key, val) VALUES ($k, $v)',
+        { allowBareNamedParameters: 'true' }
+      );
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: /The "options\.allowBareNamedParameters" argument must be a boolean/,
+    });
+  });
+
+  test('setAllowBareNamedParameters can override prepare option', (t) => {
+    const db = new DatabaseSync(nextDb());
+    t.after(() => { db.close(); });
+    const setup = db.exec(
+      'CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER) STRICT;'
+    );
+    t.assert.strictEqual(setup, undefined);
+    const stmt = db.prepare(
+      'INSERT INTO data (key, val) VALUES ($k, $v)',
+      { allowBareNamedParameters: false }
+    );
+    t.assert.throws(() => {
+      stmt.run({ k: 1, v: 2 });
+    }, {
+      code: 'ERR_INVALID_STATE',
+      message: /Unknown named parameter 'k'/,
+    });
+    t.assert.strictEqual(stmt.setAllowBareNamedParameters(true), undefined);
+    t.assert.deepStrictEqual(
+      stmt.run({ k: 2, v: 4 }),
+      { changes: 1, lastInsertRowid: 2 },
+    );
+  });
+});

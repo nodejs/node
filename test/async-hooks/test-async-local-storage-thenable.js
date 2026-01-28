@@ -48,6 +48,6 @@ store.run(data, common.mustCall(() => {
 // Returning a thenable in a then handler
 store.run(data, common.mustCall(() => {
   assert.strictEqual(store.getStore(), data);
-  Promise.resolve().then(() => thenable());
+  Promise.resolve().then(() => thenable()).then(common.mustCall());
   assert.strictEqual(store.getStore(), data);
 }));

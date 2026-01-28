@@ -1,4 +1,4 @@
-#if HAVE_OPENSSL
+#if HAVE_OPENSSL && HAVE_QUIC
 #include "guard.h"
 #ifndef OPENSSL_NO_QUIC
 #include "session.h"
@@ -161,7 +161,9 @@ constexpr std::string to_string(ngtcp2_cc_algo cc_algorithm) {
 #define V(name, label)                                                         \
   case NGTCP2_CC_ALGO_##name:                                                  \
     return #label;
-  switch (cc_algorithm) { CC_ALGOS(V) }
+  switch (cc_algorithm) { /* NOLINT(whitespace/newline) */
+    CC_ALGOS(V)
+  }
   return "<unknown>";
 #undef V
 }
@@ -2874,4 +2876,4 @@ void Session::InitPerContext(Realm* realm, Local<Object> target) {
 }  // namespace node
 
 #endif  // OPENSSL_NO_QUIC
-#endif  // HAVE_OPENSSL
+#endif  // HAVE_OPENSSL && HAVE_QUIC

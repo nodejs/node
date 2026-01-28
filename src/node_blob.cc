@@ -22,6 +22,7 @@ using v8::ArrayBuffer;
 using v8::ArrayBufferView;
 using v8::BackingStore;
 using v8::BackingStoreInitializationMode;
+using v8::BackingStoreOnFailureMode;
 using v8::Context;
 using v8::Function;
 using v8::FunctionCallbackInfo;
@@ -83,7 +84,14 @@ void Concat(const FunctionCallbackInfo<Value>& args) {
   }
 
   std::shared_ptr<BackingStore> store = ArrayBuffer::NewBackingStore(
-      isolate, total, BackingStoreInitializationMode::kUninitialized);
+      isolate,
+      total,
+      BackingStoreInitializationMode::kUninitialized,
+      BackingStoreOnFailureMode::kReturnNull);
+  if (!store) [[unlikely]] {
+    THROW_ERR_MEMORY_ALLOCATION_FAILED(isolate);
+    return;
+  }
   uint8_t* ptr = static_cast<uint8_t*>(store->Data());
   for (size_t n = 0; n < views.size(); n++) {
     uint8_t* from =

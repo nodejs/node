@@ -1,19 +1,29 @@
 {
-  "percent-encoding.window.js": {
-    "skip": "TODO: port from .window.js"
+  "IdnaTestV2.window.js": {
+    "fail": {
+      "expected": [
+        "ToASCII(\"𲤱20.音.ꡦ1.\") A4_2 (ignored)",
+        "ToASCII(\"xn--20-9802c.xn--0w5a.xn--1-eg4e.\") A4_2 (ignored)",
+        "ToASCII(\"xn--9-i0j5967eg3qz.ss\")",
+        "ToASCII(\"𲮚9ꍩ៓.ss\")",
+        "ToASCII(\"𲮚9ꍩ៓.SS\")"
+      ]
+    }
   },
   "historical.any.js": {
     "fail": {
-      "note": "We are faking location with a URL object for the sake of the testharness and it has searchParams.",
       "expected": [
         "searchParams on location object"
       ]
     }
   },
-  "url-setters-a-area.window.js": {
-    "skip": "already tested in url-setters.any.js"
-  },
   "javascript-urls.window.js": {
     "skip": "requires document.body reference"
+  },
+  "percent-encoding.window.js": {
+    "skip": "TODO: port from .window.js"
+  },
+  "url-setters-a-area.window.js": {
+    "skip": "already tested in url-setters.any.js"
   }
 }

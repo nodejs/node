@@ -3,7 +3,7 @@
     "fail": {
       "note": "Flaky on ppc, linux x64 and s390x #59142",
       "flaky": [
-        "evaluation in WPTRunner.runJsTests()"
+        "Error: this uncaught rejection is expected"
       ]
     }
   },
@@ -50,4 +50,4 @@
   "storage-buckets.tentative.https.any.js": {
     "skip": "Node.js does not implement Storage Buckets API"
   }
-} 
+}

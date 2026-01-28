@@ -166,6 +166,8 @@ Installing undici as a module allows you to use a newer version than what's bund
 
 ## Quick Start
 
+### Basic Request
+
 ```js
 import { request } from 'undici'
 
@@ -183,6 +185,50 @@ for await (const data of body) { console.log('data', data) }
 
 console.log('trailers', trailers)
 ```
+
+### Using Cache Interceptor
+
+Undici provides a powerful HTTP caching interceptor that follows HTTP caching best practices. Here's how to use it:
+
+```js
+import { fetch, Agent, interceptors, cacheStores } from 'undici';
+
+// Create a client with cache interceptor
+const client = new Agent().compose(interceptors.cache({
+  // Optional: Configure cache store (defaults to MemoryCacheStore)
+  store: new cacheStores.MemoryCacheStore({
+    maxSize: 100 * 1024 * 1024, // 100MB
+    maxCount: 1000,
+    maxEntrySize: 5 * 1024 * 1024 // 5MB
+  }),
+  
+  // Optional: Specify which HTTP methods to cache (default: ['GET', 'HEAD'])
+  methods: ['GET', 'HEAD']
+}));
+
+// Set the global dispatcher to use our caching client
+setGlobalDispatcher(client);
+
+// Now all fetch requests will use the cache
+async function getData() {
+  const response = await fetch('https://api.example.com/data');
+  // The server should set appropriate Cache-Control headers in the response
+  // which the cache will respect based on the cache policy
+  return response.json();
+}
+
+// First request - fetches from origin
+const data1 = await getData();
+
+// Second request - served from cache if within max-age
+const data2 = await getData();
+```
+
+#### Key Features:
+- **Automatic Caching**: Respects `Cache-Control` and `Expires` headers
+- **Validation**: Supports `ETag` and `Last-Modified` validation
+- **Storage Options**: In-memory or persistent SQLite storage
+- **Flexible**: Configure cache size, TTL, and more
 
 ## Global Installation
 
@@ -472,7 +518,7 @@ Note that consuming the response body is _mandatory_ for `request`:
 ```js
 // Do
 const { body, headers } = await request(url);
-await res.body.dump(); // force consumption of body
+await body.dump(); // force consumption of body
 
 // Do not
 const { headers } = await request(url);
@@ -486,6 +532,12 @@ const { headers } = await request(url);
 * https://github.com/wintercg/fetch/issues/6
 
 The [Fetch Standard](https://fetch.spec.whatwg.org) requires implementations to exclude certain headers from requests and responses. In browser environments, some headers are forbidden so the user agent remains in full control over them. In Undici, these constraints are removed to give more control to the user.
+
+#### Content-Encoding
+
+* https://www.rfc-editor.org/rfc/rfc9110#field.content-encoding
+
+Undici limits the number of `Content-Encoding` layers in a response to **5** to prevent resource exhaustion attacks. If a server responds with more than 5 content-encodings (e.g., `Content-Encoding: gzip, gzip, gzip, gzip, gzip, gzip`), the fetch will be rejected with an error. This limit matches the approach taken by [curl](https://curl.se/docs/CVE-2022-32206.html) and [urllib3](https://github.com/advisories/GHSA-gm62-xv2j-4rw9).
 
 #### `undici.upgrade([url, options]): Promise`
 

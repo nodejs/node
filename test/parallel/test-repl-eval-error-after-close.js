@@ -14,6 +14,7 @@ const assert = require('node:assert');
 
   const { replServer, output } = startNewREPLServer({
     eval(_cmd, _context, _file, cb) {
+      // eslint-disable-next-line node-core/must-call-assert
       close$.promise.then(() => {
         cb(new Error('Error returned from the eval callback'));
         eval$.resolve();

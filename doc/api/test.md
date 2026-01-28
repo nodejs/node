@@ -175,7 +175,7 @@ example of a state file:
 ```json
 [
   {
-    "test.js:10:5": { "passed_on_attempt": 0, "name": "test 1" },
+    "test.js:10:5": { "passed_on_attempt": 0, "name": "test 1" }
   },
   {
     "test.js:10:5": { "passed_on_attempt": 0, "name": "test 1" },
@@ -221,6 +221,57 @@ test('todo() method', (t) => {
 test('todo() method with message', (t) => {
   t.todo('this is a todo test and is not treated as a failure');
   throw new Error('this does not fail the test');
+});
+```
+
+## Expecting tests to fail
+
+<!-- YAML
+added:
+ - v25.5.0
+-->
+
+This flips the pass/fail reporting for a specific test or suite: A flagged test/test-case must throw
+in order to "pass"; a test/test-case that does not throw, fails.
+
+In the following, `doTheThing()` returns _currently_ `false` (`false` does not equal `true`, causing
+`strictEqual` to throw, so the test-case passes).
+
+```js
+it.expectFailure('should do the thing', () => {
+  assert.strictEqual(doTheThing(), true);
+});
+
+it('should do the thing', { expectFailure: true }, () => {
+  assert.strictEqual(doTheThing(), true);
+});
+```
+
+`skip` and/or `todo` are mutually exclusive to `expectFailure`, and `skip` or `todo`
+will "win" when both are applied (`skip` wins against both, and `todo` wins
+against `expectFailure`).
+
+These tests will be skipped (and not run):
+
+```js
+it.expectFailure('should do the thing', { skip: true }, () => {
+  assert.strictEqual(doTheThing(), true);
+});
+
+it.skip('should do the thing', { expectFailure: true }, () => {
+  assert.strictEqual(doTheThing(), true);
+});
+```
+
+These tests will be marked "todo" (silencing errors):
+
+```js
+it.expectFailure('should do the thing', { todo: true }, () => {
+  assert.strictEqual(doTheThing(), true);
+});
+
+it.todo('should do the thing', { expectFailure: true }, () => {
+  assert.strictEqual(doTheThing(), true);
 });
 ```
 
@@ -915,7 +966,7 @@ test('mocks the Date object with initial time', (context) => {
 You can use the `.setTime()` method to manually move the mocked date to another
 time. This method only accepts a positive integer.
 
-**Note:** This method will execute any mocked timers that are in the past
+**Note:** This method will **not** execute any mocked timers that are in the past
 from the new time.
 
 In the below example we are setting a new time for the mocked date.
@@ -952,15 +1003,14 @@ test('sets the time of a date object', (context) => {
 });
 ```
 
-If you have any timer that's set to run in the past, it will be executed as if
-the `.tick()` method has been called. This is useful if you want to test
-time-dependent functionality that's already in the past.
+Timers scheduled in the past will **not** run when you call `setTime()`. To execute those timers, you can use
+the `.tick()` method to move forward from the new time.
 
 ```mjs
 import assert from 'node:assert';
 import { test } from 'node:test';
 
-test('runs timers as setTime passes ticks', (context) => {
+test('setTime does not execute timers', (context) => {
   // Optionally choose what to mock
   context.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
   const fn = context.mock.fn();
@@ -972,7 +1022,10 @@ test('runs timers as setTime passes ticks', (context) => {
   assert.strictEqual(Date.now(), 800);
 
   context.mock.timers.setTime(1200);
-  // Timer is executed as the time is now reached
+  // Timer is still not executed
+  assert.strictEqual(fn.mock.callCount(), 0);
+  // Advance in time to execute the timer
+  context.mock.timers.tick(0);
   assert.strictEqual(fn.mock.callCount(), 1);
   assert.strictEqual(Date.now(), 1200);
 });
@@ -1786,7 +1839,7 @@ This function creates a hook that runs before executing a suite.
 describe('tests', async () => {
   before(() => console.log('about to run some test'));
   it('is a subtest', () => {
-    assert.ok('some relevant assertion here');
+    // Some relevant assertions here
   });
 });
 ```
@@ -1816,7 +1869,7 @@ This function creates a hook that runs after executing a suite.
 describe('tests', async () => {
   after(() => console.log('finished running tests'));
   it('is a subtest', () => {
-    assert.ok('some relevant assertion here');
+    // Some relevant assertion here
   });
 });
 ```
@@ -1849,7 +1902,7 @@ This function creates a hook that runs before each test in the current suite.
 describe('tests', async () => {
   beforeEach(() => console.log('about to run a test'));
   it('is a subtest', () => {
-    assert.ok('some relevant assertion here');
+    // Some relevant assertion here
   });
 });
 ```
@@ -1880,7 +1933,7 @@ The `afterEach()` hook is run even if the test fails.
 describe('tests', async () => {
   afterEach(() => console.log('finished running a test'));
   it('is a subtest', () => {
-    assert.ok('some relevant assertion here');
+    // Some relevant assertion here
   });
 });
 ```
@@ -3068,7 +3121,7 @@ Dates and timer objects are dependent on each other. If you use `setTime()` to
 pass the current time to the mocked `Date` object, the set timers with
 `setTimeout` and `setInterval` will **not** be affected.
 
-However, the `tick` method **will** advanced the mocked `Date` object.
+However, the `tick` method **will** advance the mocked `Date` object.
 
 ```mjs
 import assert from 'node:assert';
@@ -3472,7 +3525,7 @@ test('top level test', async (t) => {
   await t.test(
     'This is a subtest',
     (t) => {
-      assert.ok('some relevant assertion here');
+      // Some relevant assertion here
     },
   );
 });
@@ -3503,7 +3556,7 @@ finishes.
 ```js
 test('top level test', async (t) => {
   t.after((t) => t.diagnostic(`finished running ${t.name}`));
-  assert.ok('some relevant assertion here');
+  // Some relevant assertion here
 });
 ```
 
@@ -3535,7 +3588,7 @@ test('top level test', async (t) => {
   await t.test(
     'This is a subtest',
     (t) => {
-      assert.ok('some relevant assertion here');
+      // Some relevant assertion here
     },
   );
 });
@@ -3683,6 +3736,40 @@ added:
 -->
 
 The name of the test.
+
+### `context.passed`
+
+<!-- YAML
+added:
+  - v21.7.0
+  - v20.12.0
+-->
+
+* Type: {boolean} `false` before the test is executed, e.g. in a `beforeEach` hook.
+
+Indicated whether the test succeeded.
+
+### `context.error`
+
+<!-- YAML
+added:
+  - v21.7.0
+  - v20.12.0
+-->
+
+* Type: {Error|null}
+
+The failure reason for the test/case; wrapped and available via `context.error.cause`.
+
+### `context.attempt`
+
+<!-- YAML
+added: v25.0.0
+-->
+
+* Type: {number}
+
+Number of times the test has been attempted.
 
 ### `context.plan(count[,options])`
 

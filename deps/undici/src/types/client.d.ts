@@ -1,4 +1,4 @@
-import { URL } from 'url'
+import { URL } from 'node:url'
 import Dispatcher from './dispatcher'
 import buildConnector from './connector'
 import TClientStats from './client-stats'
@@ -92,6 +92,16 @@ export declare namespace Client {
      * @default 100
      */
     maxConcurrentStreams?: number;
+    /**
+     * @description Sets the HTTP/2 stream-level flow-control window size (SETTINGS_INITIAL_WINDOW_SIZE).
+     * @default 262144
+     */
+    initialWindowSize?: number;
+    /**
+     * @description Sets the HTTP/2 connection-level flow-control window size (ClientHttp2Session.setLocalWindowSize).
+     * @default 524288
+     */
+    connectionWindowSize?: number;
   }
   export interface SocketInfo {
     localAddress?: string

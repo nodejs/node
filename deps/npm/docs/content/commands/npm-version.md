@@ -180,9 +180,13 @@ The `newversion` argument should be a valid semver string, a valid second argume
 In the second case, the existing version will be incremented by 1 in the specified field.
 `from-git` will try to read the latest git tag, and use that as the new npm version.
 
+**Note:** If the current version is a prerelease version, `patch` will simply remove the prerelease suffix without incrementing the patch version number. For example, `1.2.0-5` becomes `1.2.0` with `npm version patch`, not `1.2.1`.
+
 If run in a git repo, it will also create a version commit and tag.
 This behavior is controlled by `git-tag-version` (see below), and can be disabled on the command line by running `npm --no-git-tag-version version`.
 It will fail if the working directory is not clean, unless the `-f` or `--force` flag is set.
+
+**Note:** Git integration requires a reasonably recent version of git (2.0.0 or later is recommended). If you encounter issues with git commands, ensure your git installation is up to date.
 
 If supplied with `-m` or [`--message` config](/using-npm/config#message) option, npm will use it as a commit message when creating a version commit.
 If the `message` config contains `%s` then that will be replaced with the resulting version number.

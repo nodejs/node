@@ -312,8 +312,8 @@ class ZipTest : public PlatformTest {
     EXPECT_EQ(base::File::FILE_OK, files.GetError());
 
     size_t expected_count = 0;
-    for (const base::FilePath& path : zip_contents_) {
-      if (expect_hidden_files || path.BaseName().value()[0] != '.') {
+    for (const base::FilePath& p : zip_contents_) {
+      if (expect_hidden_files || p.BaseName().value()[0] != '.') {
         ++expected_count;
       }
     }
@@ -1030,6 +1030,14 @@ TEST_F(ZipTest, UnzipSymlinksRejectsSymlinkTooLarge) {
 TEST_F(ZipTest, UnzipSymlinksNoFollowOwnLink) {
   const base::FilePath zip_path =
       GetDataDirectory().AppendASCII("symlink_follow_own_link.zip");
+  ASSERT_TRUE(base::PathExists(zip_path));
+  EXPECT_FALSE(zip::Unzip(zip_path, test_dir_, /*options=*/{},
+                          zip::UnzipSymlinkOption::PRESERVE));
+}
+
+TEST_F(ZipTest, UnzipSymlinksNoFollowOwnLinkDir) {
+  const base::FilePath zip_path =
+      GetDataDirectory().AppendASCII("symlink_follow_own_link_dir.zip");
   ASSERT_TRUE(base::PathExists(zip_path));
   EXPECT_FALSE(zip::Unzip(zip_path, test_dir_, /*options=*/{},
                           zip::UnzipSymlinkOption::PRESERVE));

@@ -9,9 +9,7 @@ const {
   isValidReasonPhrase,
   isCancelled,
   isAborted,
-  serializeJavascriptValueToJSONString,
   isErrorLike,
-  isomorphicEncode,
   environmentSettingsObject: relevantRealm
 } = require('./util')
 const {
@@ -22,6 +20,7 @@ const { webidl } = require('../webidl')
 const { URLSerializer } = require('./data-url')
 const { kConstruct } = require('../../core/symbols')
 const assert = require('node:assert')
+const { isomorphicEncode, serializeJavascriptValueToJSONString } = require('../infra')
 
 const textEncoder = new TextEncoder('utf-8')
 
@@ -454,7 +453,7 @@ function filterResponse (response, type) {
 
     return makeFilteredResponse(response, {
       type: 'opaque',
-      urlList: Object.freeze([]),
+      urlList: [],
       status: 0,
       statusText: '',
       body: null
@@ -556,7 +555,8 @@ function fromInnerResponse (innerResponse, guard) {
   setHeadersList(headers, innerResponse.headersList)
   setHeadersGuard(headers, guard)
 
-  if (innerResponse.body?.stream) {
+  // Note: If innerResponse's urlList contains a URL, it is a fetch response.
+  if (innerResponse.urlList.length !== 0 && innerResponse.body?.stream) {
     // If the target (response) is reclaimed, the cleanup callback may be called at some point with
     // the held value provided for it (innerResponse.body.stream). The held value can be any value:
     // a primitive or an object, even undefined. If the held value is an object, the registry keeps

@@ -627,7 +627,7 @@ always correctly detect named exports. In these cases, using the default
 import form described above can be a better option.
 
 Named exports detection covers many common export patterns, reexport patterns
-and build tool and transpiler outputs. See [cjs-module-lexer][] for the exact
+and build tool and transpiler outputs. See [merve][] for the exact
 semantics implemented.
 
 ### Differences between ES modules and CommonJS
@@ -1102,7 +1102,7 @@ Note: This function is directly invoked by the CommonJS resolution algorithm.
 Note: This function is directly invoked by the CommonJS resolution algorithm.
 
 > 1. Assert: _specifier_ begins with _"#"_.
-> 2. If _specifier_ is exactly equal to _"#"_ or starts with _"#/"_, then
+> 2. If _specifier_ is exactly equal to _"#"_, then
 >    1. Throw an _Invalid Module Specifier_ error.
 > 3. Let _packageURL_ be the result of **LOOKUP\_PACKAGE\_SCOPE**(_parentURL_).
 > 4. If _packageURL_ is not **null**, then
@@ -1282,7 +1282,7 @@ _isImports_, _conditions_)
 specifier resolution algorithm. An example that provides CommonJS-style
 resolution for ESM specifiers is [commonjs-extension-resolution-loader][].
 
-<!-- Note: The cjs-module-lexer link should be kept in-sync with the deps version -->
+<!-- Note: The merve link should be kept in-sync with the deps version -->
 
 [6.1.7 Array Index]: https://tc39.es/ecma262/#integer-index
 [Addons]: addons.md
@@ -1304,7 +1304,7 @@ resolution for ESM specifiers is [commonjs-extension-resolution-loader][].
 [`"exports"`]: packages.md#exports
 [`"type"`]: packages.md#type
 [`--input-type`]: cli.md#--input-typetype
-[`data:` URLs]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
+[`data:` URLs]: https://developer.mozilla.org/en-US/docs/Web/URI/Reference/Schemes/data
 [`export`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/export
 [`import()`]: #import-expressions
 [`import.meta.dirname`]: #importmetadirname
@@ -1320,10 +1320,10 @@ resolution for ESM specifiers is [commonjs-extension-resolution-loader][].
 [`process.dlopen`]: process.md#processdlopenmodule-filename-flags
 [`require(esm)`]: modules.md#loading-ecmascript-modules-using-require
 [`url.fileURLToPath()`]: url.md#urlfileurltopathurl-options
-[cjs-module-lexer]: https://github.com/nodejs/cjs-module-lexer/tree/2.0.0
 [commonjs-extension-resolution-loader]: https://github.com/nodejs/loaders-test/tree/main/commonjs-extension-resolution-loader
 [custom https loader]: module.md#import-from-https
 [import.meta.resolve]: #importmetaresolvespecifier
+[merve]: https://github.com/anonrig/merve/tree/v1.0.0
 [percent-encoded]: url.md#percent-encoding-in-urls
 [special scheme]: https://url.spec.whatwg.org/#special-scheme
 [status code]: process.md#exit-codes

@@ -5132,7 +5132,7 @@ void OsStackTraceGetter::UponLeavingGTest() GTEST_LOCK_EXCLUDED_(mutex_) {
 #endif  // GTEST_HAS_ABSL
 }
 
-#ifdef GTEST_HAS_DEATH_TEST
+#ifdef GTEST_INTERNAL_HAS_PREMATURE_EXIT_FILE
 // A helper class that creates the premature-exit file in its
 // constructor and deletes the file in its destructor.
 class ScopedPrematureExitFile {
@@ -5170,7 +5170,7 @@ class ScopedPrematureExitFile {
   ScopedPrematureExitFile(const ScopedPrematureExitFile&) = delete;
   ScopedPrematureExitFile& operator=(const ScopedPrematureExitFile&) = delete;
 };
-#endif  // GTEST_HAS_DEATH_TEST
+#endif  // GTEST_INTERNAL_HAS_PREMATURE_EXIT_FILE
 
 }  // namespace internal
 
@@ -5515,7 +5515,7 @@ void UnitTest::RecordProperty(const std::string& key,
 // We don't protect this under mutex_, as we only support calling it
 // from the main thread.
 int UnitTest::Run() {
-#ifdef GTEST_HAS_DEATH_TEST
+#ifdef GTEST_INTERNAL_HAS_PREMATURE_EXIT_FILE
   const bool in_death_test_child_process =
       !GTEST_FLAG_GET(internal_run_death_test).empty();
 
@@ -5546,7 +5546,7 @@ int UnitTest::Run() {
           : internal::posix::GetEnv("TEST_PREMATURE_EXIT_FILE"));
 #else
   const bool in_death_test_child_process = false;
-#endif  // GTEST_HAS_DEATH_TEST
+#endif  // GTEST_INTERNAL_HAS_PREMATURE_EXIT_FILE
 
   // Captures the value of GTEST_FLAG(catch_exceptions).  This value will be
   // used for the duration of the program.

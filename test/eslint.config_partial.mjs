@@ -110,13 +110,33 @@ export default [
           message: 'Calling `.catch(common.mustNotCall())` will not detect never-settling promises. Use `.then(common.mustCall())` instead.',
         },
         {
-          selector: 'CallExpression[callee.type="MemberExpression"][callee.object.type="Identifier"][callee.object.name="assert"][callee.property.type="Identifier"][callee.property.name="ok"][arguments.0.type="CallExpression"][arguments.0.callee.type="MemberExpression"][arguments.0.callee.object.regex][arguments.0.callee.property.type="Identifier"][arguments.0.callee.property.name="test"]',
+          selector: 'CallExpression:matches([callee.type="Identifier"][callee.name="assert"], [callee.type="MemberExpression"][callee.object.type="Identifier"][callee.object.name="assert"][callee.property.type="Identifier"][callee.property.name="ok"])[arguments.0.type="CallExpression"][arguments.0.callee.type="MemberExpression"][arguments.0.callee.object.regex][arguments.0.callee.property.type="Identifier"][arguments.0.callee.property.name="test"]',
           message: 'Use assert.match instead',
         },
         {
-          selector: 'CallExpression[callee.type="MemberExpression"][callee.object.type="Identifier"][callee.object.name="assert"][callee.property.type="Identifier"][callee.property.name="ok"][arguments.0.type="UnaryExpression"][arguments.0.operator="!"][arguments.0.argument.type="CallExpression"][arguments.0.argument.callee.type="MemberExpression"][arguments.0.argument.callee.object.regex][arguments.0.argument.callee.property.name="test"]',
+          selector: 'CallExpression:matches([callee.type="Identifier"][callee.name="assert"], [callee.type="MemberExpression"][callee.object.type="Identifier"][callee.object.name="assert"][callee.property.type="Identifier"][callee.property.name="ok"])[arguments.0.type="UnaryExpression"][arguments.0.operator="!"][arguments.0.argument.type="CallExpression"][arguments.0.argument.callee.type="MemberExpression"][arguments.0.argument.callee.object.regex][arguments.0.argument.callee.property.name="test"]',
           message: 'Use assert.doesNotMatch instead',
         },
+        ...((fixturesSpecifier) => [
+          {
+            selector: `ImportDeclaration[source.value=${fixturesSpecifier.toString().replace('(\\.js)?', '\\.mjs')}]:not(${[
+              'length=1',
+              '0.type="ImportNamespaceSpecifier"',
+            ].map((selector) => `[specifiers.${selector}]`).join('')})`,
+            message: 'Do not use named imports, use `import * as fixtures from` instead',
+          },
+          {
+            selector: `ImportDeclaration[source.value=${fixturesSpecifier}]:not(${[
+              'length=1',
+              '0.type="ImportDefaultSpecifier"',
+            ].map((selector) => `[specifiers.${selector}]`).join('')})`,
+            message: 'Do not use named imports, use `import fixtures from` instead',
+          },
+          {
+            selector: `:not(VariableDeclarator[id.type="Identifier"])>CallExpression[callee.name="require"][arguments.0.value=${fixturesSpecifier}]`,
+            message: 'Do not destructure, use `const fixtures =` instead',
+          },
+        ])(/^(\.\.\u002f)+common\u002ffixtures(\.js)?$/),
       ],
 
       // Stylistic rules.
@@ -146,9 +166,7 @@ export default [
   },
   {
     files: [
-      'test/es-module/**/*.{js,mjs}',
       'test/parallel/**/*.{js,mjs}',
-      'test/sequential/**/*.{js,mjs}',
     ],
     rules: {
       '@stylistic/js/comma-dangle': [
@@ -159,6 +177,24 @@ export default [
           functions: 'only-multiline',
           imports: 'always-multiline',
           objects: 'only-multiline',
+        },
+      ],
+    },
+  },
+  {
+    files: [
+      'test/es-module/**/*.{js,mjs}',
+      'test/sequential/**/*.{js,mjs}',
+    ],
+    rules: {
+      '@stylistic/js/comma-dangle': [
+        'error',
+        {
+          arrays: 'always-multiline',
+          exports: 'always-multiline',
+          functions: 'only-multiline',
+          imports: 'always-multiline',
+          objects: 'always-multiline',
         },
       ],
     },

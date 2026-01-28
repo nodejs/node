@@ -34,7 +34,7 @@ def MakeGuid(name, seed="msvs_new"):
 
     Args:
       name: Target name.
-      seed: Seed for MD5 hash.
+      seed: Seed for SHA-256 hash.
     Returns:
       A GUID-line string calculated from the name and seed.
 
@@ -44,8 +44,8 @@ def MakeGuid(name, seed="msvs_new"):
     determine the GUID to refer to explicitly.  It also means that the GUID will
     not change when the project for a target is rebuilt.
     """
-    # Calculate a MD5 signature for the seed and name.
-    d = hashlib.md5((str(seed) + str(name)).encode("utf-8")).hexdigest().upper()
+    # Calculate a SHA-256 signature for the seed and name.
+    d = hashlib.sha256((str(seed) + str(name)).encode("utf-8")).hexdigest().upper()
     # Convert most of the signature to GUID form (discard the rest)
     guid = (
         "{"

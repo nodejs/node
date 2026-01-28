@@ -270,7 +270,9 @@ Examples can be found in the [File System Permissions][] documentation.
 ### `--allow-inspector`
 
 <!-- YAML
-added: v25.0.0
+added:
+  - v25.0.0
+  - v24.12.0
 -->
 
 > Stability: 1.0 - Early development
@@ -399,13 +401,33 @@ Error: Access to this API has been restricted
 }
 ```
 
+### `--build-sea=config`
+
+<!-- YAML
+added:
+  - v25.5.0
+-->
+
+> Stability: 1.1 - Active development
+
+Generates a [single executable application][] from a JSON
+configuration file. The argument must be a path to the configuration file. If
+the path is not absolute, it is resolved relative to the current working
+directory.
+
+For configuration fields, cross-platform notes, and asset APIs, see
+the [single executable application][] documentation.
+
 ### `--build-snapshot`
 
 <!-- YAML
 added: v18.8.0
+changes:
+  - version:
+    - v25.4.0
+    pr-url: https://github.com/nodejs/node/pull/60954
+    description: The snapshot building process is no longer experimental.
 -->
-
-> Stability: 1 - Experimental
 
 Generates a snapshot blob when the process exits and writes it to
 disk, which can be loaded later with `--snapshot-blob`.
@@ -442,18 +464,25 @@ I am from the snapshot
 
 For more information, check out the [`v8.startupSnapshot` API][] documentation.
 
-Currently the support for run-time snapshot is experimental in that:
+The snapshot currently only supports loding a single entrypoint during the
+snapshot building process, which can load built-in modules, but not additional user-land modules.
+Users can bundle their applications into a single script with their bundler
+of choice before building a snapshot.
 
-1. User-land modules are not yet supported in the snapshot, so only
-   one single file can be snapshotted. Users can bundle their applications
-   into a single script with their bundler of choice before building
-   a snapshot, however.
-2. Only a subset of the built-in modules work in the snapshot, though the
-   Node.js core test suite checks that a few fairly complex applications
-   can be snapshotted. Support for more modules are being added. If any
-   crashes or buggy behaviors occur when building a snapshot, please file
-   a report in the [Node.js issue tracker][] and link to it in the
-   [tracking issue for user-land snapshots][].
+As it's complicated to ensure the serializablility of all built-in modules,
+which are also growing over time, only a subset of the built-in modules are
+well tested to be serializable during the snapshot building process.
+The Node.js core test suite checks that a few fairly complex applications
+can be snapshotted. The list of built-in modules being
+[captured by the built-in snapshot of Node.js][] is considered supported.
+When the snapshot builder encounters a built-in module that cannot be
+serialized, it may crash the snapshot building process. In that case a typical
+workaround would be to delay loading that module until
+runtime, using either [`v8.startupSnapshot.setDeserializeMainFunction()`][] or
+[`v8.startupSnapshot.addDeserializeCallback()`][]. If serialization for
+an additional module during the snapshot building process is needed,
+please file a request in the [Node.js issue tracker][] and link to it in the
+[tracking issue for user-land snapshots][].
 
 ### `--build-snapshot-config`
 
@@ -461,9 +490,12 @@ Currently the support for run-time snapshot is experimental in that:
 added:
   - v21.6.0
   - v20.12.0
+changes:
+  - version:
+    - v25.4.0
+    pr-url: https://github.com/nodejs/node/pull/60954
+    description: The snapshot building process is no longer experimental.
 -->
-
-> Stability: 1 - Experimental
 
 Specifies the path to a JSON configuration file which configures snapshot
 creation behavior.
@@ -1175,9 +1207,9 @@ changes:
 
 > This flag is discouraged and may be removed in a future version of Node.js.
 > Please use
-> [`--import` with `register()`][module customization hooks: enabling] instead.
+> [`--import` with `register()`][preloading asynchronous module customization hooks] instead.
 
-Specify the `module` containing exported [module customization hooks][].
+Specify the `module` containing exported [asynchronous module customization hooks][].
 `module` may be any string accepted as an [`import` specifier][].
 
 This feature requires `--allow-worker` if used with the [Permission Model][].
@@ -1216,27 +1248,6 @@ added: v25.0.0
 
 Enable experimental support for the QUIC protocol.
 
-### `--experimental-require-module`
-
-<!-- YAML
-added:
-  - v22.0.0
-  - v20.17.0
-changes:
-  - version:
-    - v23.0.0
-    - v22.12.0
-    - v20.19.0
-    pr-url: https://github.com/nodejs/node/pull/55085
-    description: This is now true by default.
--->
-
-> Stability: 1.1 - Active Development
-
-Supports loading a synchronous ES module graph in `require()`.
-
-See [Loading ECMAScript modules using `require()`][].
-
 ### `--experimental-sea-config`
 
 <!-- YAML
@@ -1258,6 +1269,17 @@ added:
 -->
 
 Use this flag to enable [ShadowRealm][] support.
+
+### `--experimental-storage-inspection`
+
+<!-- YAML
+added:
+  - v25.5.0
+-->
+
+> Stability: 1.1 - Active Development
+
+Enable experimental support for storage inspection
 
 ### `--experimental-test-coverage`
 
@@ -1499,9 +1521,12 @@ Specify the file name of the heap profile generated by `--heap-prof`.
 added:
   - v15.1.0
   - v14.18.0
+changes:
+  - version:
+    - v25.4.0
+    pr-url: https://github.com/nodejs/node/pull/60956
+    description: The flag is no longer experimental.
 -->
-
-> Stability: 1 - Experimental
 
 Writes a V8 heap snapshot to disk when the V8 heap usage is approaching the
 heap limit. `count` should be a non-negative integer (in which case
@@ -1909,6 +1934,11 @@ added:
   - v20.17.0
 changes:
   - version:
+    - v25.4.0
+    pr-url: https://github.com/nodejs/node/pull/60959
+    description: The flag was renamed from `--no-experimental-require-module` to
+                 `--no-require-module`, with the former marked as legacy.
+  - version:
     - v23.0.0
     - v22.12.0
     - v20.19.0
@@ -1916,11 +1946,9 @@ changes:
     description: This is now false by default.
 -->
 
-> Stability: 1.1 - Active Development
+> Stability: 3 - Legacy: Use [`--no-require-module`][] instead.
 
-Disable support for loading a synchronous ES module graph in `require()`.
-
-See [Loading ECMAScript modules using `require()`][].
+Legacy alias for [`--no-require-module`][].
 
 ### `--no-experimental-sqlite`
 
@@ -1999,12 +2027,44 @@ changes:
 Disables the family autoselection algorithm unless connection options explicitly
 enables it.
 
+<a id="--experimental-require-module"></a>
+
+### `--no-require-module`
+
+<!-- YAML
+added:
+  - v22.0.0
+  - v20.17.0
+changes:
+  - version:
+    - v25.4.0
+    pr-url: https://github.com/nodejs/node/pull/60959
+    description: This flag is no longer experimental.
+  - version:
+    - v25.4.0
+    pr-url: https://github.com/nodejs/node/pull/60959
+    description: This flag was renamed from `--no-experimental-require-module`
+                 to `--no-require-module`.
+  - version:
+    - v23.0.0
+    - v22.12.0
+    - v20.19.0
+    pr-url: https://github.com/nodejs/node/pull/55085
+    description: This is now false by default.
+-->
+
+Disable support for loading a synchronous ES module graph in `require()`.
+
+See [Loading ECMAScript modules using `require()`][].
+
 ### `--no-strip-types`
 
 <!-- YAML
 added: v22.6.0
 changes:
-  - version: v25.2.0
+  - version:
+      - v25.2.0
+      - v24.12.0
     pr-url: https://github.com/nodejs/node/pull/60600
     description: Type stripping is now stable, the flag was renamed from
                  `--no-experimental-strip-types` to `--no-strip-types`.
@@ -3387,9 +3447,11 @@ Any other value will result in colorized output being disabled.
 
 <!-- YAML
 added: v22.1.0
+changes:
+  - version: v25.4.0
+    pr-url: https://github.com/nodejs/node/pull/60971
+    description: This feature is no longer experimental.
 -->
-
-> Stability: 1.1 - Active Development
 
 Enable the [module compile cache][] for the Node.js instance. See the documentation of
 [module compile cache][] for details.
@@ -3612,6 +3674,7 @@ one is included in the list below.
 * `--report-on-signal`
 * `--report-signal`
 * `--report-uncaught-exception`
+* `--require-module`
 * `--require`, `-r`
 * `--secure-heap-min`
 * `--secure-heap`
@@ -4123,8 +4186,6 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [ExperimentalWarning: `vm.measureMemory` is an experimental feature]: vm.md#vmmeasurememoryoptions
 [File System Permissions]: permissions.md#file-system-permissions
 [Loading ECMAScript modules using `require()`]: modules.md#loading-ecmascript-modules-using-require
-[Module customization hooks]: module.md#customization-hooks
-[Module customization hooks: enabling]: module.md#enabling
 [Module resolution and loading]: packages.md#module-resolution-and-loading
 [Navigator API]: globals.md#navigator
 [Node.js issue tracker]: https://github.com/nodejs/node/issues
@@ -4151,9 +4212,10 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`--disable-sigusr1`]: #--disable-sigusr1
 [`--env-file-if-exists`]: #--env-file-if-existsfile
 [`--env-file`]: #--env-filefile
-[`--experimental-sea-config`]: single-executable-applications.md#generating-single-executable-preparation-blobs
+[`--experimental-sea-config`]: single-executable-applications.md#1-generating-single-executable-preparation-blobs
 [`--heap-prof-dir`]: #--heap-prof-dir
 [`--import`]: #--importmodule
+[`--no-require-module`]: #--no-require-module
 [`--no-strip-types`]: #--no-strip-types
 [`--openssl-config`]: #--openssl-configfile
 [`--preserve-symlinks`]: #--preserve-symlinks
@@ -4183,7 +4245,11 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`tls.DEFAULT_MAX_VERSION`]: tls.md#tlsdefault_max_version
 [`tls.DEFAULT_MIN_VERSION`]: tls.md#tlsdefault_min_version
 [`unhandledRejection`]: process.md#event-unhandledrejection
+[`v8.startupSnapshot.addDeserializeCallback()`]: v8.md#v8startupsnapshotadddeserializecallbackcallback-data
+[`v8.startupSnapshot.setDeserializeMainFunction()`]: v8.md#v8startupsnapshotsetdeserializemainfunctioncallback-data
 [`v8.startupSnapshot` API]: v8.md#startup-snapshot-api
+[asynchronous module customization hooks]: module.md#asynchronous-customization-hooks
+[captured by the built-in snapshot of Node.js]: https://github.com/nodejs/node/blob/b19525a33cc84033af4addd0f80acd4dc33ce0cf/test/parallel/test-bootstrap-modules.js#L24
 [collecting code coverage from tests]: test.md#collecting-code-coverage
 [conditional exports]: packages.md#conditional-exports
 [context-aware]: addons.md#context-aware-addons
@@ -4197,6 +4263,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [jitless]: https://v8.dev/blog/jitless
 [libuv threadpool documentation]: https://docs.libuv.org/en/latest/threadpool.html
 [module compile cache]: module.md#module-compile-cache
+[preloading asynchronous module customization hooks]: module.md#registration-of-asynchronous-customization-hooks
 [remote code execution]: https://www.owasp.org/index.php/Code_Injection
 [running tests from the command line]: test.md#running-tests-from-the-command-line
 [scavenge garbage collector]: https://v8.dev/blog/orinoco-parallel-scavenger

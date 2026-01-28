@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <nghttp2/nghttp2.h>
 #include "nghttp2_session.h"
@@ -97,4 +97,4 @@ void nghttp2_http_record_request_method(nghttp2_stream *stream,
 int nghttp2_http_parse_priority(nghttp2_extpri *dest, const uint8_t *value,
                                 size_t valuelen);
 
-#endif /* NGHTTP2_HTTP_H */
+#endif /* !defined(NGHTTP2_HTTP_H) */

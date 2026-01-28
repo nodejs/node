@@ -1,6 +1,6 @@
 import Client from './client'
 import TPoolStats from './pool-stats'
-import { URL } from 'url'
+import { URL } from 'node:url'
 import Dispatcher from './dispatcher'
 
 export default Pool

@@ -23,7 +23,7 @@ const microtaskMode = 'afterEvaluate';
   // the outer context results in the execution flow falling through, unless the
   // inner context microtask queue is manually drained, which we don't do here.
   mustNotCall1();
-})().then(common.mustNotCall());
+})().then(common.mustNotCall('never settling promise expected'));
 
 (async () => {
   const mustCall1 = common.mustCall();

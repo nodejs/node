@@ -337,8 +337,7 @@ function mockDispatch (opts, handler) {
       // synchronously throw the error, which breaks some tests.
       // Rather, we wait for the callback to resolve if it is a
       // promise, and then re-run handleReply with the new body.
-      body.then((newData) => handleReply(mockDispatches, newData))
-      return
+      return body.then((newData) => handleReply(mockDispatches, newData))
     }
 
     const responseData = getResponseData(body)
@@ -397,6 +396,18 @@ function checkNetConnect (netConnect, origin) {
   return false
 }
 
+function normalizeOrigin (origin) {
+  if (typeof origin !== 'string' && !(origin instanceof URL)) {
+    return origin
+  }
+
+  if (origin instanceof URL) {
+    return origin.origin
+  }
+
+  return origin.toLowerCase()
+}
+
 function buildAndValidateMockOptions (opts) {
   const { agent, ...mockOptions } = opts
 
@@ -431,5 +442,6 @@ module.exports = {
   buildAndValidateMockOptions,
   getHeaderByName,
   buildHeadersFromArray,
-  normalizeSearchParams
+  normalizeSearchParams,
+  normalizeOrigin
 }

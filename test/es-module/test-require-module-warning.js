@@ -30,7 +30,7 @@ spawnSyncAndAssert(process.execPath, [
       lines[3],
       /at Object\.<anonymous> \(.*require-module\.js:1:1\)/
     );
-  }
+  },
 });
 
 spawnSyncAndAssert(process.execPath, [
@@ -39,5 +39,5 @@ spawnSyncAndAssert(process.execPath, [
 ], {
   status: 9,
   trim: true,
-  stderr: /invalid value for --trace-require-module/
+  stderr: /invalid value for --trace-require-module/,
 });

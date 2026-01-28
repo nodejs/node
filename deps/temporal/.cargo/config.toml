@@ -1,3 +1,0 @@
-# TODO: track https://github.com/rust-lang/rust/issues/141626 for a resolution
-[target.x86_64-pc-windows-msvc]
-rustflags = ['-Csymbol-mangling-version=v0']

@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.34.6](https://github.com/nodejs/corepack/compare/v0.34.5...v0.34.6) (2026-01-23)
+
+
+### Bug Fixes
+
+* **docs:** fix PowerShell functions suggestions ([#784](https://github.com/nodejs/corepack/issues/784)) ([b1544c8](https://github.com/nodejs/corepack/commit/b1544c82a63781bd77d49f7b566fefd0104b7d6d))
+* update package manager versions ([#778](https://github.com/nodejs/corepack/issues/778)) ([efed597](https://github.com/nodejs/corepack/commit/efed59797d30caa362a1fa8475cd7d17dc3b7282))
+
 ## [0.34.5](https://github.com/nodejs/corepack/compare/v0.34.4...v0.34.5) (2025-11-24)
 
 

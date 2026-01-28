@@ -64,7 +64,9 @@ class SnapshotAgent extends MockAgent {
     this[kSnapshotLoaded] = false
 
     // For recording/update mode, we need a real agent to make actual requests
-    if (this[kSnapshotMode] === 'record' || this[kSnapshotMode] === 'update') {
+    // For playback mode, we need a real agent if there are excluded URLs
+    if (this[kSnapshotMode] === 'record' || this[kSnapshotMode] === 'update' ||
+        (this[kSnapshotMode] === 'playback' && opts.excludeUrls && opts.excludeUrls.length > 0)) {
       this[kRealAgent] = new Agent(opts)
     }
 
@@ -79,6 +81,12 @@ class SnapshotAgent extends MockAgent {
   dispatch (opts, handler) {
     handler = WrapHandler.wrap(handler)
     const mode = this[kSnapshotMode]
+
+    // Check if URL should be excluded (pass through without mocking/recording)
+    if (this[kSnapshotRecorder].isUrlExcluded(opts)) {
+      // Real agent is guaranteed by constructor when excludeUrls is configured
+      return this[kRealAgent].dispatch(opts, handler)
+    }
 
     if (mode === 'playback' || mode === 'update') {
       // Ensure snapshots are loaded
@@ -162,11 +170,9 @@ class SnapshotAgent extends MockAgent {
           headers: responseData.headers,
           body: responseBody,
           trailers: responseData.trailers
-        }).then(() => {
-          handler.onResponseEnd(controller, trailers)
-        }).catch((error) => {
-          handler.onResponseError(controller, error)
         })
+          .then(() => handler.onResponseEnd(controller, trailers))
+          .catch((error) => handler.onResponseError(controller, error))
       }
     }
 

@@ -58,6 +58,7 @@
       ['OS!="aix" and OS!="os400"', {
         'defines': [
           'BUILDING_V8_SHARED',  # Make V8_EXPORT visible.
+          'BUILDING_V8_PLATFORM_SHARED',  # Make V8_PLATFORM_EXPORT visible.
         ]
       }],
       ['node_shared=="true"', {
@@ -321,7 +322,7 @@
         }],
         ['v8_enable_temporal_support==1 and node_shared_temporal_capi=="false"', {
           'dependencies': [
-            '../../deps/temporal/temporal_capi/temporal_capi.gyp:temporal_capi',
+            '../../deps/crates/crates.gyp:temporal_capi',
           ],
         }],
       ],
@@ -363,7 +364,7 @@
         }],
         ['v8_enable_temporal_support==1 and node_shared_temporal_capi=="false"', {
           'dependencies': [
-            '../../deps/temporal/temporal_capi/temporal_capi.gyp:temporal_capi',
+            '../../deps/crates/crates.gyp:temporal_capi',
           ],
         }],
         ['v8_target_arch=="ia32"', {
@@ -1141,7 +1142,7 @@
           'conditions': [
             ['node_shared_temporal_capi=="false"', {
               'dependencies': [
-                '../../deps/temporal/temporal_capi/temporal_capi.gyp:temporal_capi',
+                '../../deps/crates/crates.gyp:temporal_capi',
               ],
             }],
           ],
@@ -1345,6 +1346,7 @@
         ['component=="shared_library"', {
           'defines': [
             'BUILDING_V8_SHARED',
+            'BUILDING_V8_PLATFORM_SHARED',
           ],
         }],
         ['v8_enable_i18n_support==1', {
@@ -1414,6 +1416,7 @@
       'defines!': [
         '_HAS_EXCEPTIONS=0',
         'BUILDING_V8_SHARED=1',
+        'BUILDING_V8_PLATFORM_SHARED=1',
       ],
       'cflags_cc!': ['-fno-exceptions'],
       'cflags_cc': ['-fexceptions'],
@@ -1440,6 +1443,7 @@
       'defines!': [
         '_HAS_EXCEPTIONS=0',
         'BUILDING_V8_SHARED=1',
+        'BUILDING_V8_PLATFORM_SHARED=1',
       ],
       'cflags_cc!': ['-fno-exceptions'],
       'cflags_cc': ['-fexceptions'],
@@ -1781,6 +1785,7 @@
       ],
       'defines!': [
         'BUILDING_V8_SHARED=1',
+        'BUILDING_V8_PLATFORM_SHARED=1',
       ],
       'dependencies': [
         'v8_libbase',
@@ -1862,6 +1867,7 @@
       'defines!': [
         '_HAS_EXCEPTIONS=0',
         'BUILDING_V8_SHARED=1',
+        'BUILDING_V8_PLATFORM_SHARED=1',
       ],
       'cflags_cc!': ['-fno-exceptions'],
       'cflags_cc': ['-fexceptions'],
@@ -1905,6 +1911,7 @@
       'defines!': [
         '_HAS_EXCEPTIONS=0',
         'BUILDING_V8_SHARED=1',
+        'BUILDING_V8_PLATFORM_SHARED=1',
       ],
       'msvs_settings': {
         'VCCLCompilerTool': {
@@ -2119,10 +2126,12 @@
           ],
           'defines': [
             'BUILDING_V8_SHARED',
+            'BUILDING_V8_PLATFORM_SHARED',
           ],
           'direct_dependent_settings': {
             'defines': [
               'USING_V8_SHARED',
+              'USING_V8_PLATFORM_SHARED',
             ],
           },
           'conditions': [

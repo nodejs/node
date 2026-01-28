@@ -28,7 +28,7 @@ which need to be included in the global Windows `PATH`.
 
 If you are using Nix, all the required tools are already listed in the
 `benchmarkTools` argument of the `shell.nix` file, so you can skip those
-prerequesites.
+prerequisites.
 
 ### HTTP benchmark requirements
 
@@ -47,16 +47,19 @@ By default, `wrk` will be used as the benchmarker. If it is not available,
 `autocannon` will be used in its place. When creating an HTTP benchmark, the
 benchmarker to be used should be specified by providing it as an argument:
 
-`node benchmark/run.js --set benchmarker=autocannon http`
-
-`node benchmark/http/simple.js benchmarker=autocannon`
+```bash
+node benchmark/run.js --set benchmarker=autocannon http
+node benchmark/http/simple.js benchmarker=autocannon
+```
 
 #### HTTPS benchmark requirements
 
 To run the `https` benchmarks, one of `autocannon` or `wrk` benchmarkers must
 be used.
 
-`node benchmark/https/simple.js benchmarker=autocannon`
+```bash
+node benchmark/https/simple.js benchmarker=autocannon
+```
 
 #### HTTP/2 benchmark requirements
 
@@ -64,7 +67,9 @@ To run the `http2` benchmarks, the `h2load` benchmarker must be used. The
 `h2load` tool is a component of the `nghttp2` project and may be installed
 from [nghttp2.org][] or built from source.
 
-`node benchmark/http2/simple.js benchmarker=h2load`
+```bash
+node benchmark/http2/simple.js benchmarker=h2load
+```
 
 ### Benchmark analysis requirements
 

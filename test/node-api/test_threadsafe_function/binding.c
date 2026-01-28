@@ -2,7 +2,7 @@
 // on a threading library for a new project it bears remembering that in the
 // future libuv may introduce API changes which may render it non-ABI-stable,
 // which, in turn, may affect the ABI stability of the project despite its use
-// of N-API.
+// of Node-API.
 #include <uv.h>
 #include <node_api.h>
 #include "../../js-native-api/common.h"
@@ -207,8 +207,11 @@ static napi_value StartThreadInternal(napi_env env,
 
   NODE_API_ASSERT(env, (ts_fn == NULL), "Existing thread-safe function");
   napi_value async_name;
-  NODE_API_CALL(env, napi_create_string_utf8(env,
-      "N-API Thread-safe Function Test", NAPI_AUTO_LENGTH, &async_name));
+  NODE_API_CALL(env,
+                napi_create_string_utf8(env,
+                                        "Node-API Thread-safe Function Test",
+                                        NAPI_AUTO_LENGTH,
+                                        &async_name));
   NODE_API_CALL(env,
       napi_get_value_uint32(env, argv[3], &ts_info.max_queue_size));
   NODE_API_CALL(env, napi_create_threadsafe_function(env,

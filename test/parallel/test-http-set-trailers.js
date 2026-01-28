@@ -96,9 +96,9 @@ const server = http.createServer((req, res) => {
   res.addTrailers({ 'x-foo': 'bar' });
   res.end('stuff\n');
 });
-server.listen(0, () => {
+server.listen(0, common.mustCall(() => {
   Promise.all([testHttp10, testHttp11, testClientTrailers]
     .map((f) => util.promisify(f))
     .map((f) => f(server.address().port)))
-    .then(() => server.close());
-});
+    .then(() => server.close()).then(common.mustCall());
+}));

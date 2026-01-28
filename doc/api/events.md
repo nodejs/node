@@ -1627,10 +1627,10 @@ See how to write a custom [rejection handler][rejection].
 <!-- YAML
 added: v0.9.12
 changes:
-  - version: REPLACEME
+  - version: v25.4.0
     pr-url: https://github.com/nodejs/node/pull/60214
     description: Now accepts EventTarget arguments.
-  - version: REPLACEME
+  - version: v25.4.0
     pr-url: https://github.com/nodejs/node/pull/60214
     description: Deprecation revoked.
   - version: v3.2.0

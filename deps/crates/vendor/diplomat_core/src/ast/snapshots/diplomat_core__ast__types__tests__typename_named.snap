@@ -1,0 +1,10 @@
+---
+source: core/src/ast/types.rs
+expression: "TypeName::from_syn(&syn::parse_quote! { MyLocalStruct }, None)"
+---
+Named:
+  path:
+    elements:
+      - MyLocalStruct
+  lifetimes: []
+

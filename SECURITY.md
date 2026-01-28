@@ -125,6 +125,26 @@ This policy recognizes that experimental platforms may not compile, may not
 pass the test suite, and do not have the same level of testing and support
 infrastructure as Tier 1 and Tier 2 platforms.
 
+### Experimental features behind compile-time flags
+
+Node.js includes certain experimental features that are only available when
+Node.js is compiled with specific flags. These features are intended for
+development, debugging, or testing purposes and are not enabled in official
+releases.
+
+* Security vulnerabilities that only affect features behind compile-time flags
+  will **not** be accepted as valid security issues.
+* Any issues with these features will be treated as normal bugs.
+* No CVEs will be issued for issues that only affect compile-time flag features.
+* Bug bounty rewards are not available for compile-time flag feature issues.
+
+This policy recognizes that experimental features behind compile-time flags
+are not ready for public consumption and may have incomplete implementations,
+missing security hardening, or other limitations that make them unsuitable
+for production use.
+
+### What constitutes a vulnerability
+
 Being able to cause the following through control of the elements that Node.js
 does not trust is considered a vulnerability:
 
@@ -289,6 +309,32 @@ the community they pose.
   Node.js releases won't be affected by such vulnerabilities. Users are
   responsible for keeping the software they use through Corepack up-to-date.
 
+#### Exposing Application-Level APIs to Untrusted Users (CWE-653)
+
+* Node.js trusts the application code that uses its APIs. When application code
+  exposes Node.js functionality to untrusted users in an unsafe manner, any
+  resulting crashes, data corruption, or other issues are not considered
+  vulnerabilities in Node.js itself. It is the application's responsibility to:
+  * Validate and sanitize all untrusted input before passing it to Node.js APIs.
+  * Design appropriate access controls and security boundaries.
+  * Avoid exposing low-level or dangerous APIs directly to untrusted users.
+
+* Examples of scenarios that are **not** Node.js vulnerabilities:
+  * Allowing untrusted users to register SQLite user-defined functions that can
+    perform arbitrary operations (e.g., closing database connections during query
+    execution, causing crashes or use-after-free conditions).
+  * Exposing `child_process.exec()` or similar APIs to untrusted users without
+    proper input validation, allowing command injection.
+  * Allowing untrusted users to control file paths passed to file system APIs
+    without validation, leading to path traversal issues.
+  * Permitting untrusted users to define custom code that executes with the
+    application's privileges (e.g., custom transforms, plugins, or callbacks).
+
+* These scenarios represent application-level security issues, not Node.js
+  vulnerabilities. The root cause is the application's failure to establish
+  proper security boundaries between trusted application logic and untrusted
+  user input.
+
 ## Assessing experimental features reports
 
 Experimental features are eligible for security reports just like any other
@@ -302,6 +348,21 @@ Security notifications will be distributed via the following methods.
 * <https://groups.google.com/group/nodejs-sec>
 * <https://nodejs.org/en/blog/vulnerability>
 
+### CVE publication timeline
+
+When security releases are published, there is a built-in delay before the
+corresponding CVEs are publicly disclosed. This delay occurs because:
+
+1. After the security release, we request the vulnerability reporter to disclose
+   the details on HackerOne.
+2. If the reporter does not disclose within one day, we proceed with forced
+   disclosure to publish the CVEs.
+3. The disclosure then goes through HackerOne's approval process before the CVEs
+   become publicly available.
+
+As a result, CVEs may not be immediately available when security releases are
+published, but will typically be disclosed within a few days of the release.
+
 ## Comments on this policy
 
 If you have suggestions on how this process could be improved, please visit
@@ -312,3 +373,100 @@ repository.
 
 In the event of a security incident, please refer to the
 [Security Incident Response Plan](https://github.com/nodejs/security-wg/blob/main/INCIDENT_RESPONSE_PLAN.md).
+
+## Node.js Security Team
+
+Node.js security team members are expected to keep all information that they
+have privileged access to by being on the team completely private to the team.
+This includes agreeing to not notify anyone outside the team of issues that have
+not yet been disclosed publicly, including the existence of issues, expectations
+of upcoming releases, and patching of any issues other than in the process of
+their work as a member of the security team.
+
+### Node.js Security Team Membership Policy
+
+The Node.js Security Team has access to security-sensitive issues and patches
+that aren't appropriate for public availability.
+
+The policy for inclusion is as follows:
+
+1. All members of @nodejs/TSC have access to private security reports and
+   private patches.
+2. Members of the @nodejs/releasers team
+   have access to private security patches in order to produce releases.
+3. On a case-by-case basis, individuals outside the Technical Steering
+   Committee are invited by the TSC to have access to private security reports
+   or private patches so that their expertise can be applied to an issue or
+   patch. This access may be temporary or permanent, as decided by the TSC.
+
+Membership on the security teams can be requested via an issue in the TSC repo.
+
+## Team responsible for Triaging security reports
+
+The responsibility of Triage is to determine whether Node.js must take any
+action to mitigate the issue, and if so, to ensure that the action is taken.
+
+Mitigation may take many forms, for example, a Node.js security release that
+includes a fix, documentation, an informational CVE or blog post.
+
+* [@mcollina](https://github.com/mcollina) - Matteo Collina
+* [@RafaelGSS](https://github.com/RafaelGSS) - Rafael Gonzaga
+* [@vdeturckheim](https://github.com/vdeturckheim) - Vladimir de Turckheim
+* [@BethGriggs](https://github.com/BethGriggs) - Beth Griggs
+
+## Team with access to private security reports against Node.js
+
+[TSC voting members](https://github.com/nodejs/node#tsc-voting-members)
+have access.
+
+In addition, these individuals have access:
+
+* [BethGriggs](https://github.com/BethGriggs) - **Beth Griggs**
+* [MylesBorins](https://github.com/MylesBorins) -  **Myles Borins**
+* [bengl](https://github.com/bengl)- **Bryan English**
+* [bnoordhuis](https://github.com/bnoordhuis) **Ben Noordhuis**
+* [cjihrig](https://github.com/cjihrig) **Colin Ihrig**
+* [joesepi](https://github.com/joesepi) - **Joe Sepi**
+* [juanarbol](https://github.com/juanarbol) **Juan Jose Arboleda**
+* [ulisesgascon](https://github.com/ulisesgascon) **Ulises Gascón**
+* [vdeturckheim](https://github.com/vdeturckheim) - **Vladimir de Turckheim**
+
+The list is from the [member page](https://hackerone.com/organizations/nodejs/settings/users) for
+the Node.js program on HackerOne.
+
+## Team with access to private security patches to Node.js
+
+<!-- ncu-team-sync.team(nodejs-private/security) -->
+
+* [@aduh95](https://github.com/aduh95) - Antoine du Hamel
+* [@anonrig](https://github.com/anonrig) - Yagiz Nizipli
+* [@bengl](https://github.com/bengl) - Bryan English
+* [@benjamingr](https://github.com/benjamingr) - Benjamin Gruenbaum
+* [@bmeck](https://github.com/bmeck) - Bradley Farias
+* [@bnoordhuis](https://github.com/bnoordhuis) - Ben Noordhuis
+* [@BridgeAR](https://github.com/BridgeAR) - Ruben Bridgewater
+* [@gireeshpunathil](https://github.com/gireeshpunathil) - Gireesh Punathil
+* [@guybedford](https://github.com/guybedford) - Guy Bedford
+* [@indutny](https://github.com/indutny) - Fedor Indutny
+* [@jasnell](https://github.com/jasnell) - James M Snell
+* [@joaocgreis](https://github.com/joaocgreis) - João Reis
+* [@joesepi](https://github.com/joesepi) - Joe Sepi
+* [@joyeecheung](https://github.com/joyeecheung) - Joyee Cheung
+* [@juanarbol](https://github.com/juanarbol) - Juan José
+* [@legendecas](https://github.com/legendecas) - Chengzhong Wu
+* [@marco-ippolito](https://github.com/marco-ippolito) - Marco Ippolito
+* [@mcollina](https://github.com/mcollina) - Matteo Collina
+* [@MoLow](https://github.com/MoLow) - Moshe Atlow
+* [@panva](https://github.com/panva) - Filip Skokan
+* [@RafaelGSS](https://github.com/RafaelGSS) - Rafael Gonzaga
+* [@richardlau](https://github.com/richardlau) - Richard Lau
+* [@ronag](https://github.com/ronag) - Robert Nagy
+* [@ruyadorno](https://github.com/ruyadorno) - Ruy Adorno
+* [@santigimeno](https://github.com/santigimeno) - Santiago Gimeno
+* [@ShogunPanda](https://github.com/ShogunPanda) - Paolo Insogna
+* [@targos](https://github.com/targos) - Michaël Zasso
+* [@tniessen](https://github.com/tniessen) - Tobias Nießen
+* [@UlisesGascon](https://github.com/UlisesGascon) - Ulises Gascón
+* [@vdeturckheim](https://github.com/vdeturckheim) - Vladimir de Turckheim
+
+<!-- ncu-team-sync end -->

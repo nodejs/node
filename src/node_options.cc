@@ -102,6 +102,15 @@ void PerProcessOptions::CheckOptions(std::vector<std::string>* errors,
 #endif  // V8_ENABLE_SANDBOX
 #endif  // HAVE_OPENSSL
 
+  if (!build_sea.empty()) {
+#if defined(DISABLE_SINGLE_EXECUTABLE_APPLICATION)
+    errors->push_back("Single executable application is disabled.\n");
+#elif !defined(HAVE_LIEF)
+    errors->push_back(
+        "Node.js must be built with LIEF to build support --build-sea.\n");
+#endif  // !defined(HAVE_LIEF)
+  }
+
   if (use_largepages != "off" &&
       use_largepages != "on" &&
       use_largepages != "silent") {
@@ -487,17 +496,23 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             kAllowedInEnvvar,
             true);
   AddOption("--experimental-print-required-tla",
-            "Print pending top-level await. If --experimental-require-module "
+            "Print pending top-level await. If --require-module "
             "is true, evaluate asynchronous graphs loaded by `require()` but "
             "do not run the microtasks, in order to to find and print "
             "top-level await in the graph",
             &EnvironmentOptions::print_required_tla,
             kAllowedInEnvvar);
-  AddOption("--experimental-require-module",
+  AddOption("--require-module",
             "Allow loading synchronous ES Modules in require().",
             &EnvironmentOptions::require_module,
             kAllowedInEnvvar,
             true);
+  AddOption("--experimental-require-module",
+            "Legacy alias for --require-module",
+            &EnvironmentOptions::require_module,
+            kAllowedInEnvvar,
+            true);
+  Implies("--experimental-require-module", "--require-module");
   AddOption("--diagnostic-dir",
             "set dir for all output files"
             " (default: current working directory)",
@@ -575,7 +590,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "experimental Web Storage API",
             &EnvironmentOptions::webstorage,
             kAllowedInEnvvar,
-            true);
+            HAVE_SQLITE);
   AddAlias("--webstorage", "--experimental-webstorage");
   AddOption("--localstorage-file",
             "file used to persist localStorage data",
@@ -788,6 +803,9 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddOption("--experimental-network-inspection",
             "experimental network inspection support",
             &EnvironmentOptions::experimental_network_inspection);
+  AddOption("--experimental-storage-inspection",
+            "experimental storage inspection support",
+            &EnvironmentOptions::experimental_storage_inspection);
   AddOption("--experimental-worker-inspection",
             "experimental worker inspection support",
             &EnvironmentOptions::experimental_worker_inspection);
@@ -1441,6 +1459,10 @@ PerProcessOptionsParser::PerProcessOptionsParser(
       "performance.",
       &PerProcessOptions::disable_wasm_trap_handler,
       kAllowedInEnvvar);
+
+  AddOption("--build-sea",
+            "Build a Node.js single executable application",
+            &PerProcessOptions::build_sea);
 }
 
 inline std::string RemoveBrackets(const std::string& host) {

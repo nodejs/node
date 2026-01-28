@@ -165,6 +165,7 @@ test('Catching a promise rejection after setImmediate is not' +
   });
   _reject(e);
   setImmediate(function() {
+    // eslint-disable-next-line node-core/must-call-assert
     promise.then(assert.fail, function() {});
   });
 });
@@ -241,6 +242,7 @@ test(
   function(done) {
     const e = new Error();
     onUnhandledFail(done);
+    // eslint-disable-next-line node-core/must-call-assert
     Promise.reject(e).then(assert.fail, function() {});
   }
 );
@@ -251,6 +253,7 @@ test(
   function(done) {
     const e = new Error();
     onUnhandledFail(done);
+    // eslint-disable-next-line node-core/must-call-assert
     new Promise(function(_, reject) {
       reject(e);
     }).then(assert.fail, function() {});
@@ -263,6 +266,7 @@ test('Attaching a promise catch in a process.nextTick is soon enough to' +
   onUnhandledFail(done);
   const promise = Promise.reject(e);
   process.nextTick(function() {
+    // eslint-disable-next-line node-core/must-call-assert
     promise.then(assert.fail, function() {});
   });
 });
@@ -275,6 +279,7 @@ test('Attaching a promise catch in a process.nextTick is soon enough to' +
     reject(e);
   });
   process.nextTick(function() {
+    // eslint-disable-next-line node-core/must-call-assert
     promise.then(assert.fail, function() {});
   });
 });
@@ -300,6 +305,7 @@ test('catching a promise which is asynchronously rejected (via ' +
           ' unhandledRejection', function(done) {
   const e = new Error();
   onUnhandledFail(done);
+  // eslint-disable-next-line node-core/must-call-assert
   Promise.resolve().then(function() {
     return new Promise(function(_, reject) {
       setTimeout(function() {
@@ -315,6 +321,7 @@ test('Catching a rejected promise derived from throwing in a' +
           ' fulfillment handler prevents unhandledRejection', function(done) {
   const e = new Error();
   onUnhandledFail(done);
+  // eslint-disable-next-line node-core/must-call-assert
   Promise.resolve().then(function() {
     throw e;
   }).then(assert.fail, function(reason) {
@@ -327,6 +334,7 @@ test('Catching a rejected promise derived from returning a' +
           ' prevents unhandledRejection', function(done) {
   const e = new Error();
   onUnhandledFail(done);
+  // eslint-disable-next-line node-core/must-call-assert
   Promise.resolve().then(function() {
     return Promise.reject(e);
   }).then(assert.fail, function(reason) {
@@ -383,6 +391,7 @@ test('Catching the Promise.all() of a collection that includes a ' +
           'rejected promise prevents unhandledRejection', function(done) {
   const e = new Error();
   onUnhandledFail(done);
+  // eslint-disable-next-line node-core/must-call-assert
   Promise.all([Promise.reject(e)]).then(assert.fail, function() {});
 });
 
@@ -399,6 +408,7 @@ test(
     });
     p = Promise.all([p]);
     process.nextTick(function() {
+      // eslint-disable-next-line node-core/must-call-assert
       p.then(assert.fail, function() {});
     });
   }
@@ -435,6 +445,7 @@ test('Waiting setTimeout(, 10) to catch a promise causes an' +
     throw e;
   });
   setTimeout(function() {
+    // eslint-disable-next-line node-core/must-call-assert
     thePromise.then(assert.fail, function(reason) {
       assert.strictEqual(reason, e);
     });
@@ -450,13 +461,13 @@ test('Waiting for some combination of process.nextTick + promise' +
 
   const a = Promise.reject(e);
   process.nextTick(function() {
-    Promise.resolve().then(function() {
+    Promise.resolve().then(common.mustCall(() => {
       process.nextTick(function() {
-        Promise.resolve().then(function() {
+        Promise.resolve().then(common.mustCall(() => {
           a.catch(function() {});
-        });
+        }));
       });
-    });
+    }));
   });
 });
 
@@ -466,18 +477,18 @@ test('Waiting for some combination of process.nextTick + promise' +
   const e = new Error();
   onUnhandledFail(done);
 
-  setImmediate(function() {
+  setImmediate(common.mustCall(() => {
     const a = Promise.reject(e);
     process.nextTick(function() {
-      Promise.resolve().then(function() {
+      Promise.resolve().then(common.mustCall(() => {
         process.nextTick(function() {
-          Promise.resolve().then(function() {
+          Promise.resolve().then(common.mustCall(() => {
             a.catch(function() {});
-          });
+          }));
         });
-      });
+      }));
     });
-  });
+  }));
 });
 
 test('Waiting for some combination of process.nextTick + promise ' +
@@ -486,18 +497,18 @@ test('Waiting for some combination of process.nextTick + promise ' +
   const e = new Error();
   onUnhandledFail(done);
 
-  setTimeout(function() {
+  setTimeout(common.mustCall(() => {
     const a = Promise.reject(e);
     process.nextTick(function() {
-      Promise.resolve().then(function() {
+      Promise.resolve().then(common.mustCall(() => {
         process.nextTick(function() {
-          Promise.resolve().then(function() {
+          Promise.resolve().then(common.mustCall(() => {
             a.catch(function() {});
-          });
+          }));
         });
-      });
+      }));
     });
-  }, 0);
+  }), 0);
 });
 
 test('Waiting for some combination of promise microtasks + ' +
@@ -508,15 +519,15 @@ test('Waiting for some combination of promise microtasks + ' +
 
 
   const a = Promise.reject(e);
-  Promise.resolve().then(function() {
+  Promise.resolve().then(common.mustCall(() => {
     process.nextTick(function() {
-      Promise.resolve().then(function() {
+      Promise.resolve().then(common.mustCall(() => {
         process.nextTick(function() {
           a.catch(function() {});
         });
-      });
+      }));
     });
-  });
+  }));
 });
 
 test(
@@ -527,18 +538,18 @@ test(
     const e = new Error();
     onUnhandledFail(done);
 
-    setImmediate(function() {
+    setImmediate(common.mustCall(() => {
       const a = Promise.reject(e);
-      Promise.resolve().then(function() {
+      Promise.resolve().then(common.mustCall(() => {
         process.nextTick(function() {
-          Promise.resolve().then(function() {
+          Promise.resolve().then(common.mustCall(() => {
             process.nextTick(function() {
               a.catch(function() {});
             });
-          });
+          }));
         });
-      });
-    });
+      }));
+    }));
   }
 );
 
@@ -548,18 +559,18 @@ test('Waiting for some combination of promise microtasks +' +
   const e = new Error();
   onUnhandledFail(done);
 
-  setTimeout(function() {
+  setTimeout(common.mustCall(() => {
     const a = Promise.reject(e);
-    Promise.resolve().then(function() {
+    Promise.resolve().then(common.mustCall(() => {
       process.nextTick(function() {
-        Promise.resolve().then(function() {
+        Promise.resolve().then(common.mustCall(() => {
           process.nextTick(function() {
             a.catch(function() {});
           });
-        });
+        }));
       });
-    });
-  }, 0);
+    }));
+  }), 0);
 });
 
 test('setImmediate + promise microtasks is too late to attach a catch' +
@@ -571,11 +582,11 @@ test('setImmediate + promise microtasks is too late to attach a catch' +
     assert.strictEqual(promise, p);
   }));
   const p = Promise.reject(e);
-  setImmediate(function() {
-    Promise.resolve().then(function() {
+  setImmediate(common.mustCall(() => {
+    Promise.resolve().then(common.mustCall(() => {
       p.catch(function() {});
-    });
-  });
+    }));
+  }));
 });
 
 test('setImmediate + promise microtasks is too late to attach a catch' +
@@ -585,17 +596,17 @@ test('setImmediate + promise microtasks is too late to attach a catch' +
     assert.strictEqual(reason, undefined);
     assert.strictEqual(promise, p);
   }));
-  setImmediate(function() {
-    Promise.resolve().then(function() {
-      Promise.resolve().then(function() {
-        Promise.resolve().then(function() {
-          Promise.resolve().then(function() {
+  setImmediate(common.mustCall(() => {
+    Promise.resolve().then(common.mustCall(() => {
+      Promise.resolve().then(common.mustCall(() => {
+        Promise.resolve().then(common.mustCall(() => {
+          Promise.resolve().then(common.mustCall(() => {
             p.catch(function() {});
-          });
-        });
-      });
-    });
-  });
+          }));
+        }));
+      }));
+    }));
+  }));
   const p = Promise.reject();
 });
 
@@ -607,17 +618,17 @@ test('setImmediate + promise microtasks is too late to attach a catch' +
     assert.strictEqual(promise, p);
   }));
   const p = Promise.reject();
-  setImmediate(function() {
-    Promise.resolve().then(function() {
-      Promise.resolve().then(function() {
-        Promise.resolve().then(function() {
-          Promise.resolve().then(function() {
+  setImmediate(common.mustCall(() => {
+    Promise.resolve().then(common.mustCall(() => {
+      Promise.resolve().then(common.mustCall(() => {
+        Promise.resolve().then(common.mustCall(() => {
+          Promise.resolve().then(common.mustCall(() => {
             p.catch(function() {});
-          });
-        });
-      });
-    });
-  });
+          }));
+        }));
+      }));
+    }));
+  }));
 });
 
 test('nextTick is immediately scheduled when called inside an event' +

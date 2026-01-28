@@ -689,6 +689,53 @@ assert.strictEqual(util.inspect(-5e-324), '-5e-324');
 }
 
 {
+  // No own errors or cause property.
+  const { stackTraceLimit } = Error;
+  Error.stackTraceLimit = 0;
+
+  const e1 = new Error('e1');
+  const e2 = new TypeError('e2');
+  const e3 = false;
+
+  const errors = [e1, e2, e3];
+  const aggregateError = new AggregateError(errors, 'Foobar');
+
+  assert.deepStrictEqual(aggregateError.errors, errors);
+  assert.strictEqual(
+    util.inspect(aggregateError),
+    '[AggregateError: Foobar] {\n  [errors]: [ [Error: e1], [TypeError: e2], false ]\n}'
+  );
+
+
+  const custom = new Error('No own errors property');
+  Object.setPrototypeOf(custom, aggregateError);
+
+  assert.strictEqual(
+    util.inspect(custom),
+    '[AggregateError: No own errors property]'
+  );
+
+  const cause = [new Error('cause')];
+  const causeError = new TypeError('Foobar', { cause: [new Error('cause')] });
+
+  assert.strictEqual(
+    util.inspect(causeError),
+    '[TypeError: Foobar] { [cause]: [ [Error: cause] ] }'
+  );
+
+  const custom2 = new Error('No own cause property');
+  Object.setPrototypeOf(custom2, causeError);
+
+  assert.deepStrictEqual(custom2.cause, cause);
+  assert.strictEqual(
+    util.inspect(custom2),
+    '[TypeError: No own cause property]'
+  );
+
+  Error.stackTraceLimit = stackTraceLimit;
+}
+
+{
   const tmp = Error.stackTraceLimit;
   // Force stackTraceLimit = 0 for this test, but make it non-enumerable
   // so it doesn't appear in inspect() output when inspecting Error in other tests.

@@ -77,7 +77,7 @@ async function main() {
     const filename = tmpdir.resolve('index.js');
     const options = {
       filename,
-      importModuleDynamically: USE_MAIN_CONTEXT_DEFAULT_LOADER
+      importModuleDynamically: USE_MAIN_CONTEXT_DEFAULT_LOADER,
     };
     await testNotFoundErrors(options);
     await testLoader(options);
@@ -90,7 +90,7 @@ async function main() {
     const filename = url.pathToFileURL(tmpdir.resolve('index.js')).href + '?t=1';
     const options = {
       filename,
-      importModuleDynamically: USE_MAIN_CONTEXT_DEFAULT_LOADER
+      importModuleDynamically: USE_MAIN_CONTEXT_DEFAULT_LOADER,
     };
     await testNotFoundErrors(options);
     await testLoader(options);
@@ -101,11 +101,11 @@ async function main() {
     tmpdir.refresh();
     process.chdir(tmpdir.path);
     const undefinedOptions = {
-      importModuleDynamically: USE_MAIN_CONTEXT_DEFAULT_LOADER
+      importModuleDynamically: USE_MAIN_CONTEXT_DEFAULT_LOADER,
     };
     const nonPathOptions = {
       filename: 'non-path',
-      importModuleDynamically: USE_MAIN_CONTEXT_DEFAULT_LOADER
+      importModuleDynamically: USE_MAIN_CONTEXT_DEFAULT_LOADER,
     };
     // Run the error tests first to avoid caching.
     await testNotFoundErrors(undefinedOptions);

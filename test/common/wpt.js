@@ -712,7 +712,7 @@ class WPTRunner {
             spec,
             {
               status: NODE_UNCAUGHT,
-              name: 'evaluation in WPTRunner.runJsTests()',
+              name: `${err}`,
               message: err.message,
               stack: inspect(err),
             },

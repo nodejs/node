@@ -37,7 +37,6 @@
 
 typedef struct nghttp3_tnode {
   nghttp3_pq_entry pe;
-  size_t num_children;
   int64_t id;
   uint64_t cycle;
   /* pri is a stream priority produced by nghttp3_pri_to_uint8. */

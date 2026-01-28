@@ -1,6 +1,7 @@
 'use strict'
 
 const { InvalidArgumentError } = require('../core/errors')
+const { runtimeFeatures } = require('../util/runtime-features.js')
 
 /**
  * @typedef {Object} HeaderFilters
@@ -25,10 +26,9 @@ function createHeaderFilters (matchOptions = {}) {
   }
 }
 
-let crypto
-try {
-  crypto = require('node:crypto')
-} catch { /* Fallback if crypto is not available */ }
+const crypto = runtimeFeatures.has('crypto')
+  ? require('node:crypto')
+  : null
 
 /**
  * @callback HashIdFunction

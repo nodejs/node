@@ -925,6 +925,11 @@ When passing a string as the `buffer`, please consider
 <!-- YAML
 added: v1.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/61084
+    description: Using GCM tag lengths other than 128 bits without specifying
+                 the `authTagLength` option when creating `decipher` is not
+                 allowed anymore.
   - version:
     - v22.0.0
     - v20.13.0
@@ -4526,12 +4531,13 @@ added:
  - v21.7.0
  - v20.12.0
 changes:
+  - version: v25.4.0
+    pr-url: https://github.com/nodejs/node/pull/60994
+    description: This API is no longer experimental.
   - version: v24.4.0
     pr-url: https://github.com/nodejs/node/pull/58121
     description: The `outputLength` option was added for XOF hash functions.
 -->
-
-> Stability: 1.2 - Release candidate
 
 * `algorithm` {string|undefined}
 * `data` {string|Buffer|TypedArray|DataView} When `data` is a
@@ -5998,7 +6004,7 @@ binary data. As such, many `crypto` classes have methods not
 typically found on other Node.js classes that implement the [streams][stream]
 API (e.g. `update()`, `final()`, or `digest()`). Also, many methods accepted
 and returned `'latin1'` encoded strings by default rather than `Buffer`s. This
-default was changed after Node.js v0.8 to use [`Buffer`][] objects by default
+default was changed in Node.js 0.9.3 to use [`Buffer`][] objects by default
 instead.
 
 ### Support for weak or compromised algorithms

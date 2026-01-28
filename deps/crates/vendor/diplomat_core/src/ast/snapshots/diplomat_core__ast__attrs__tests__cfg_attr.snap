@@ -1,0 +1,11 @@
+---
+source: core/src/ast/attrs.rs
+expression: attr
+---
+key_value_pairs:
+  - key: test.out
+    value: "24"
+  - key: other.out
+    value: test
+  - key: somefinal.out
+    value: "\"testing spaces\""

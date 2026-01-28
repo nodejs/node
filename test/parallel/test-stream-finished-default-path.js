@@ -5,16 +5,16 @@ const common = require('../common');
 const { Readable, finished } = require('stream');
 const assert = require('assert');
 const AsyncContextFrame = require('internal/async_context_frame');
-const internalAsyncHooks = require('internal/async_hooks');
+const { enabledHooksExist } = require('internal/async_hooks');
 
 // This test verifies that when there are no active async hooks, stream.finished() uses the default callback path
 
 const readable = new Readable();
 
 finished(readable, common.mustCall(() => {
-  assert.strictEqual(internalAsyncHooks.getHookArrays()[0].length === 0, true);
+  assert.strictEqual(enabledHooksExist(), false);
   assert.strictEqual(
-    AsyncContextFrame.current() || internalAsyncHooks.getHookArrays()[0].length > 0,
+    AsyncContextFrame.current() || enabledHooksExist(),
     false,
   );
 }));

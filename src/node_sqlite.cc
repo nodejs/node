@@ -1147,14 +1147,114 @@ void DatabaseSync::Prepare(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
+  std::optional<bool> return_arrays;
+  std::optional<bool> use_big_ints;
+  std::optional<bool> allow_bare_named_params;
+  std::optional<bool> allow_unknown_named_params;
+
+  if (args.Length() > 1 && !args[1]->IsUndefined()) {
+    if (!args[1]->IsObject()) {
+      THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
+                                 "The \"options\" argument must be an object.");
+      return;
+    }
+    Local<Object> options = args[1].As<Object>();
+
+    Local<Value> return_arrays_v;
+    if (!options
+             ->Get(env->context(),
+                   FIXED_ONE_BYTE_STRING(env->isolate(), "returnArrays"))
+             .ToLocal(&return_arrays_v)) {
+      return;
+    }
+    if (!return_arrays_v->IsUndefined()) {
+      if (!return_arrays_v->IsBoolean()) {
+        THROW_ERR_INVALID_ARG_TYPE(
+            env->isolate(),
+            "The \"options.returnArrays\" argument must be a boolean.");
+        return;
+      }
+      return_arrays = return_arrays_v->IsTrue();
+    }
+
+    Local<Value> read_big_ints_v;
+    if (!options
+             ->Get(env->context(),
+                   FIXED_ONE_BYTE_STRING(env->isolate(), "readBigInts"))
+             .ToLocal(&read_big_ints_v)) {
+      return;
+    }
+    if (!read_big_ints_v->IsUndefined()) {
+      if (!read_big_ints_v->IsBoolean()) {
+        THROW_ERR_INVALID_ARG_TYPE(
+            env->isolate(),
+            "The \"options.readBigInts\" argument must be a boolean.");
+        return;
+      }
+      use_big_ints = read_big_ints_v->IsTrue();
+    }
+
+    Local<Value> allow_bare_named_params_v;
+    if (!options
+             ->Get(env->context(),
+                   FIXED_ONE_BYTE_STRING(env->isolate(),
+                                         "allowBareNamedParameters"))
+             .ToLocal(&allow_bare_named_params_v)) {
+      return;
+    }
+    if (!allow_bare_named_params_v->IsUndefined()) {
+      if (!allow_bare_named_params_v->IsBoolean()) {
+        THROW_ERR_INVALID_ARG_TYPE(
+            env->isolate(),
+            "The \"options.allowBareNamedParameters\" argument must be a "
+            "boolean.");
+        return;
+      }
+      allow_bare_named_params = allow_bare_named_params_v->IsTrue();
+    }
+
+    Local<Value> allow_unknown_named_params_v;
+    if (!options
+             ->Get(env->context(),
+                   FIXED_ONE_BYTE_STRING(env->isolate(),
+                                         "allowUnknownNamedParameters"))
+             .ToLocal(&allow_unknown_named_params_v)) {
+      return;
+    }
+    if (!allow_unknown_named_params_v->IsUndefined()) {
+      if (!allow_unknown_named_params_v->IsBoolean()) {
+        THROW_ERR_INVALID_ARG_TYPE(
+            env->isolate(),
+            "The \"options.allowUnknownNamedParameters\" argument must be a "
+            "boolean.");
+        return;
+      }
+      allow_unknown_named_params = allow_unknown_named_params_v->IsTrue();
+    }
+  }
+
   Utf8Value sql(env->isolate(), args[0].As<String>());
   sqlite3_stmt* s = nullptr;
-  int r = sqlite3_prepare_v2(db->connection_, *sql, -1, &s, 0);
+  int r = sqlite3_prepare_v2(db->connection_, *sql, -1, &s, nullptr);
 
   CHECK_ERROR_OR_THROW(env->isolate(), db, r, SQLITE_OK, void());
   BaseObjectPtr<StatementSync> stmt =
       StatementSync::Create(env, BaseObjectPtr<DatabaseSync>(db), s);
   db->statements_.insert(stmt.get());
+
+  if (return_arrays.has_value()) {
+    stmt->return_arrays_ = return_arrays.value();
+  }
+  if (use_big_ints.has_value()) {
+    stmt->use_big_ints_ = use_big_ints.value();
+  }
+  if (allow_bare_named_params.has_value()) {
+    stmt->allow_bare_named_params_ = allow_bare_named_params.value();
+  }
+  if (allow_unknown_named_params.has_value()) {
+    stmt->allow_unknown_named_params_ = allow_unknown_named_params.value();
+  }
+
   args.GetReturnValue().Set(stmt->object());
 }
 
@@ -2664,8 +2764,7 @@ SQLTagStore::SQLTagStore(Environment* env,
                          int capacity)
     : BaseObject(env, object),
       database_(std::move(database)),
-      sql_tags_(capacity),
-      capacity_(capacity) {
+      sql_tags_(capacity) {
   MakeWeak();
 }
 
@@ -2700,11 +2799,13 @@ Local<FunctionTemplate> SQLTagStore::GetConstructorTemplate(Environment* env) {
   SetProtoMethod(isolate, tmpl, "iterate", Iterate);
   SetProtoMethod(isolate, tmpl, "run", Run);
   SetProtoMethod(isolate, tmpl, "clear", Clear);
-  SetProtoMethod(isolate, tmpl, "size", Size);
-  SetSideEffectFreeGetter(
-      isolate, tmpl, FIXED_ONE_BYTE_STRING(isolate, "capacity"), Capacity);
+  SetSideEffectFreeGetter(isolate,
+                          tmpl,
+                          FIXED_ONE_BYTE_STRING(isolate, "capacity"),
+                          CapacityGetter);
   SetSideEffectFreeGetter(
       isolate, tmpl, FIXED_ONE_BYTE_STRING(isolate, "db"), DatabaseGetter);
+  SetSideEffectFreeGetter(isolate, tmpl, env->size_string(), SizeGetter);
   return tmpl;
 }
 
@@ -2720,32 +2821,44 @@ BaseObjectPtr<SQLTagStore> SQLTagStore::Create(
   return MakeBaseObject<SQLTagStore>(env, obj, std::move(database), capacity);
 }
 
+void SQLTagStore::CapacityGetter(const FunctionCallbackInfo<Value>& args) {
+  SQLTagStore* store;
+  ASSIGN_OR_RETURN_UNWRAP(&store, args.This());
+  args.GetReturnValue().Set(static_cast<double>(store->sql_tags_.Capacity()));
+}
+
 void SQLTagStore::DatabaseGetter(const FunctionCallbackInfo<Value>& args) {
   SQLTagStore* store;
   ASSIGN_OR_RETURN_UNWRAP(&store, args.This());
   args.GetReturnValue().Set(store->database_->object());
 }
 
-void SQLTagStore::Run(const FunctionCallbackInfo<Value>& info) {
+void SQLTagStore::SizeGetter(const FunctionCallbackInfo<Value>& args) {
+  SQLTagStore* store;
+  ASSIGN_OR_RETURN_UNWRAP(&store, args.This());
+  args.GetReturnValue().Set(static_cast<double>(store->sql_tags_.Size()));
+}
+
+void SQLTagStore::Run(const FunctionCallbackInfo<Value>& args) {
   SQLTagStore* session;
-  ASSIGN_OR_RETURN_UNWRAP(&session, info.This());
-  Environment* env = Environment::GetCurrent(info);
+  ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
+  Environment* env = Environment::GetCurrent(args);
 
   THROW_AND_RETURN_ON_BAD_STATE(
       env, !session->database_->IsOpen(), "database is not open");
 
-  BaseObjectPtr<StatementSync> stmt = PrepareStatement(info);
+  BaseObjectPtr<StatementSync> stmt = PrepareStatement(args);
 
   if (!stmt) {
     return;
   }
 
-  uint32_t n_params = info.Length() - 1;
+  uint32_t n_params = args.Length() - 1;
   int r = sqlite3_reset(stmt->statement_);
   CHECK_ERROR_OR_THROW(env->isolate(), stmt->db_.get(), r, SQLITE_OK, void());
   int param_count = sqlite3_bind_parameter_count(stmt->statement_);
   for (int i = 0; i < static_cast<int>(n_params) && i < param_count; ++i) {
-    Local<Value> value = info[i + 1];
+    Local<Value> value = args[i + 1];
     if (!stmt->BindValue(value, i + 1)) {
       return;
     }
@@ -2755,7 +2868,7 @@ void SQLTagStore::Run(const FunctionCallbackInfo<Value>& info) {
   if (StatementExecutionHelper::Run(
           env, stmt->db_.get(), stmt->statement_, stmt->use_big_ints_)
           .ToLocal(&result)) {
-    info.GetReturnValue().Set(result);
+    args.GetReturnValue().Set(result);
   }
 }
 
@@ -2873,23 +2986,9 @@ void SQLTagStore::All(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
-void SQLTagStore::Size(const FunctionCallbackInfo<Value>& info) {
+void SQLTagStore::Clear(const FunctionCallbackInfo<Value>& args) {
   SQLTagStore* store;
-  ASSIGN_OR_RETURN_UNWRAP(&store, info.This());
-  info.GetReturnValue().Set(
-      Integer::New(info.GetIsolate(), store->sql_tags_.Size()));
-}
-
-void SQLTagStore::Capacity(const FunctionCallbackInfo<Value>& info) {
-  SQLTagStore* store;
-  ASSIGN_OR_RETURN_UNWRAP(&store, info.This());
-  info.GetReturnValue().Set(
-      Integer::New(info.GetIsolate(), store->sql_tags_.Capacity()));
-}
-
-void SQLTagStore::Clear(const FunctionCallbackInfo<Value>& info) {
-  SQLTagStore* store;
-  ASSIGN_OR_RETURN_UNWRAP(&store, info.This());
+  ASSIGN_OR_RETURN_UNWRAP(&store, args.This());
   store->sql_tags_.Clear();
 }
 
@@ -2944,10 +3043,10 @@ BaseObjectPtr<StatementSync> SQLTagStore::PrepareStatement(
   if (stmt == nullptr) {
     sqlite3_stmt* s = nullptr;
     int r = sqlite3_prepare_v2(
-        session->database_->connection_, sql.data(), sql.size(), &s, 0);
+        session->database_->connection_, sql.data(), sql.size(), &s, nullptr);
 
     if (r != SQLITE_OK) {
-      THROW_ERR_SQLITE_ERROR(isolate, "Failed to prepare statement");
+      THROW_ERR_SQLITE_ERROR(isolate, session->database_.get());
       sqlite3_finalize(s);
       return BaseObjectPtr<StatementSync>();
     }

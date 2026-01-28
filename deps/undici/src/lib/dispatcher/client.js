@@ -52,6 +52,8 @@ const {
   kOnError,
   kHTTPContext,
   kMaxConcurrentStreams,
+  kHTTP2InitialWindowSize,
+  kHTTP2ConnectionWindowSize,
   kResume
 } = require('../core/symbols.js')
 const connectH1 = require('./client-h1.js')
@@ -107,7 +109,10 @@ class Client extends DispatcherBase {
     autoSelectFamilyAttemptTimeout,
     // h2
     maxConcurrentStreams,
-    allowH2
+    allowH2,
+    useH2c,
+    initialWindowSize,
+    connectionWindowSize
   } = {}) {
     if (keepAlive !== undefined) {
       throw new InvalidArgumentError('unsupported keepAlive, use pipelining=0 instead')
@@ -199,6 +204,18 @@ class Client extends DispatcherBase {
       throw new InvalidArgumentError('maxConcurrentStreams must be a positive integer, greater than 0')
     }
 
+    if (useH2c != null && typeof useH2c !== 'boolean') {
+      throw new InvalidArgumentError('useH2c must be a valid boolean value')
+    }
+
+    if (initialWindowSize != null && (!Number.isInteger(initialWindowSize) || initialWindowSize < 1)) {
+      throw new InvalidArgumentError('initialWindowSize must be a positive integer, greater than 0')
+    }
+
+    if (connectionWindowSize != null && (!Number.isInteger(connectionWindowSize) || connectionWindowSize < 1)) {
+      throw new InvalidArgumentError('connectionWindowSize must be a positive integer, greater than 0')
+    }
+
     super()
 
     if (typeof connect !== 'function') {
@@ -206,6 +223,7 @@ class Client extends DispatcherBase {
         ...tls,
         maxCachedSessions,
         allowH2,
+        useH2c,
         socketPath,
         timeout: connectTimeout,
         ...(typeof autoSelectFamily === 'boolean' ? { autoSelectFamily, autoSelectFamilyAttemptTimeout } : undefined),
@@ -233,6 +251,14 @@ class Client extends DispatcherBase {
     this[kClosedResolve] = null
     this[kMaxResponseSize] = maxResponseSize > -1 ? maxResponseSize : -1
     this[kMaxConcurrentStreams] = maxConcurrentStreams != null ? maxConcurrentStreams : 100 // Max peerConcurrentStreams for a Node h2 server
+    // HTTP/2 window sizes are set to higher defaults than Node.js core for better performance:
+    // - initialWindowSize: 262144 (256KB) vs Node.js default 65535 (64KB - 1)
+    //   Allows more data to be sent before requiring acknowledgment, improving throughput
+    //   especially on high-latency networks. This matches common production HTTP/2 servers.
+    // - connectionWindowSize: 524288 (512KB) vs Node.js default (none set)
+    //   Provides better flow control for the entire connection across multiple streams.
+    this[kHTTP2InitialWindowSize] = initialWindowSize != null ? initialWindowSize : 262144
+    this[kHTTP2ConnectionWindowSize] = connectionWindowSize != null ? connectionWindowSize : 524288
     this[kHTTPContext] = null
 
     // kQueue is built up of 3 sections separated by
@@ -289,7 +315,6 @@ class Client extends DispatcherBase {
     )
   }
 
-  /* istanbul ignore: only used for test */
   [kConnect] (cb) {
     connect(this)
     this.once('connect', cb)

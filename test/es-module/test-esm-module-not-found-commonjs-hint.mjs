@@ -1,5 +1,5 @@
 import { spawnPromisified } from '../common/index.mjs';
-import { fixturesDir, fileURL as fixtureSubDir } from '../common/fixtures.mjs';
+import * as fixtures from '../common/fixtures.mjs';
 import assert from 'node:assert';
 import { execPath } from 'node:process';
 import { describe, it } from 'node:test';
@@ -7,7 +7,7 @@ import { describe, it } from 'node:test';
 
 describe('ESM: module not found hint', { concurrency: !process.env.TEST_PARALLEL }, () => {
   for (
-    const { input, expected, cwd = fixturesDir }
+    const { input, expected, cwd = fixtures.fixturesDir }
     of [
       {
         input: 'import "./print-error-message"',
@@ -23,7 +23,7 @@ describe('ESM: module not found hint', { concurrency: !process.env.TEST_PARALLEL
         input: 'import "../folder%25with percentage#/index.js"',
         // Did you mean to import "../es-modules/folder%2525with%20percentage%23/index.js"?
         expected: / "\.\.\/folder%2525with%20percentage%23\/index\.js"\?/,
-        cwd: fixtureSubDir('es-modules/tla/'),
+        cwd: fixtures.fileURL('es-modules/tla/'),
       },
       {
         input: 'import obj from "some_module/obj"',

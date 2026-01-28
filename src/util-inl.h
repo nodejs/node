@@ -22,6 +22,7 @@
 #ifndef SRC_UTIL_INL_H_
 #define SRC_UTIL_INL_H_
 
+#include "v8-isolate.h"
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include <cmath>
@@ -678,10 +679,15 @@ T FromV8Value(v8::Local<v8::Value> value) {
         "Type is out of unsigned integer range");
     if constexpr (!loose) {
       CHECK(value->IsUint32());
+      return static_cast<T>(value.As<v8::Uint32>()->Value());
     } else {
       CHECK(value->IsNumber());
+      v8::Isolate* isolate = v8::Isolate::GetCurrent();
+      v8::Local<v8::Context> context = isolate->GetCurrentContext();
+      v8::Maybe<uint32_t> maybe = value->Uint32Value(context);
+      CHECK(!maybe.IsNothing());
+      return static_cast<T>(maybe.FromJust());
     }
-    return static_cast<T>(value.As<v8::Uint32>()->Value());
   } else if constexpr (std::is_integral_v<T> && std::is_signed_v<T>) {
     static_assert(
         std::numeric_limits<T>::max() <= std::numeric_limits<int32_t>::max() &&

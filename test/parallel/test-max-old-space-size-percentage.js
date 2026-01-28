@@ -44,6 +44,10 @@ invalidPercentages.forEach((input) => {
   assert.match(result.stderr.toString(), input[1]);
 });
 
+if (process.config.variables.node_without_node_options) {
+  common.skip('missing NODE_OPTIONS support');
+}
+
 // Test NODE_OPTIONS with valid percentages
 validPercentages.forEach((input) => {
   const result = spawnSync(process.execPath, [], {

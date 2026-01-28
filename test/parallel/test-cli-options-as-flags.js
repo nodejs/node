@@ -12,6 +12,8 @@ const fixtureFile = fixtures.path(path.join('options-as-flags', 'fixture.cjs'));
 const configFile = fixtures.path(path.join('options-as-flags', 'test-config.json'));
 const envFile = fixtures.path(path.join('options-as-flags', '.test.env'));
 
+const onlyIfNodeOptionsSupport = { skip: process.config.variables.node_without_node_options };
+
 describe('getOptionsAsFlagsFromBinding', () => {
   it('should extract flags from command line arguments', async () => {
     const result = await spawnPromisified(process.execPath, [
@@ -28,7 +30,7 @@ describe('getOptionsAsFlagsFromBinding', () => {
     assert.strictEqual(flags.includes('--stack-trace-limit=512'), true);
   });
 
-  it('should extract flags from NODE_OPTIONS environment variable', async () => {
+  it('should extract flags from NODE_OPTIONS environment variable', onlyIfNodeOptionsSupport, async () => {
     const result = await spawnPromisified(process.execPath, [
       '--no-warnings',
       '--expose-internals',
@@ -49,7 +51,7 @@ describe('getOptionsAsFlagsFromBinding', () => {
     assert.strictEqual(flags.includes('--no-warnings'), true);
   });
 
-  it('should extract flags from config file', async () => {
+  it('should extract flags from config file', onlyIfNodeOptionsSupport, async () => {
     const result = await spawnPromisified(process.execPath, [
       '--no-warnings',
       '--expose-internals',
@@ -69,7 +71,7 @@ describe('getOptionsAsFlagsFromBinding', () => {
     assert.strictEqual(flags.includes('--no-warnings'), true);
   });
 
-  it('should extract flags from config file and command line', async () => {
+  it('should extract flags from config file and command line', onlyIfNodeOptionsSupport, async () => {
     const result = await spawnPromisified(process.execPath, [
       '--no-warnings',
       '--expose-internals',
@@ -92,7 +94,7 @@ describe('getOptionsAsFlagsFromBinding', () => {
     assert.strictEqual(flags.includes('--test-isolation=none'), true);
   });
 
-  it('should extract flags from .env file', async () => {
+  it('should extract flags from .env file', onlyIfNodeOptionsSupport, async () => {
     const result = await spawnPromisified(process.execPath, [
       '--no-warnings',
       '--expose-internals',

@@ -34,6 +34,7 @@
 #include <wolfssl/ssl.h>
 #include <wolfssl/quic.h>
 
+#include "ngtcp2_macro.h"
 #include "shared.h"
 
 #define PRINTF_DEBUG 0
@@ -297,9 +298,10 @@ int ngtcp2_crypto_hp_mask(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
   if (wolfSSL_EVP_EncryptInit_ex(actx, NULL, NULL, NULL, sample) !=
         WOLFSSL_SUCCESS ||
       wolfSSL_EVP_CipherUpdate(actx, dest, &len, PLAINTEXT,
-                               sizeof(PLAINTEXT) - 1) != WOLFSSL_SUCCESS ||
-      wolfSSL_EVP_EncryptFinal_ex(actx, dest + sizeof(PLAINTEXT) - 1, &len) !=
-        WOLFSSL_SUCCESS) {
+                               ngtcp2_strlen_lit(PLAINTEXT)) !=
+        WOLFSSL_SUCCESS ||
+      wolfSSL_EVP_EncryptFinal_ex(actx, dest + ngtcp2_strlen_lit(PLAINTEXT),
+                                  &len) != WOLFSSL_SUCCESS) {
     DEBUG_MSG("WOLFSSL: hp_mask FAILED\n");
     return -1;
   }

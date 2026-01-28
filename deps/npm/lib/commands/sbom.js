@@ -1,6 +1,6 @@
 const localeCompare = require('@isaacs/string-locale-compare')('en')
 const BaseCommand = require('../base-cmd.js')
-const { log, output } = require('proc-log')
+const { log, output, META } = require('proc-log')
 const { cyclonedxOutput } = require('../utils/sbom-cyclonedx.js')
 const { spdxOutput } = require('../utils/sbom-spdx.js')
 
@@ -65,7 +65,7 @@ class SBOM extends BaseCommand {
     // TODO(BREAKING_CHANGE): all sbom output is in json mode but setting it before
     // any of the errors will cause those to be thrown in json mode.
     this.npm.config.set('json', true)
-    output.buffer(this.#response)
+    output.standard(JSON.stringify(this.#response, null, 2), { [META]: true, redact: false })
   }
 
   async execWorkspaces (args) {

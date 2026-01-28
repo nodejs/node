@@ -15,7 +15,7 @@ const async_hooks = require('async_hooks');
 const seenEvents = [];
 
 const p = new Promise((resolve) => resolve(1));
-p.then(() => seenEvents.push('then'));
+p.then(() => seenEvents.push('then')).then(common.mustCall());
 
 const hooks = async_hooks.createHook({
   init: common.mustNotCall(),

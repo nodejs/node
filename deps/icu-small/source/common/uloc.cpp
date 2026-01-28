@@ -627,7 +627,7 @@ ulocimp_getKeywords(std::string_view localeID,
         do {
             bool duplicate = false;
             /* skip leading spaces */
-            while (localeID.front() == ' ') {
+            while (!localeID.empty() && localeID.front() == ' ') {
                 localeID.remove_prefix(1);
             }
             if (localeID.empty()) { /* handle trailing "; " */
@@ -1102,7 +1102,21 @@ ulocimp_setKeywordValue(std::string_view keywords,
         /* if input key/value specified removal of a keyword not present in locale, or
          * there was an error in CharString.append, leave original locale alone. */
         U_ASSERT(status != U_STRING_NOT_TERMINATED_WARNING);
-        return static_cast<int32_t>(keywords.size());
+        // The sink is expected to be a buffer which already contains the full
+        // locale string, so when it isn't going to be modified there's no need
+        // to actually write any data to it, as the data is already there. Only
+        // the first character needs to be overwritten (changing '\0' to '@').
+        needLen = static_cast<int32_t>(keywords.size());
+        int32_t capacity = 0;
+        char* buffer = sink.GetAppendBuffer(
+                needLen, needLen, nullptr, needLen, &capacity);
+        if (capacity < needLen || buffer == nullptr) {
+            status = U_BUFFER_OVERFLOW_ERROR;
+        } else {
+            *buffer = '@';
+            sink.Append(buffer, needLen);
+        }
+        return needLen;
     }
 
     needLen = updatedKeysAndValues.length();

@@ -1634,9 +1634,9 @@ static void RmSync(const FunctionCallbackInfo<Value>& args) {
   ToNamespacedPath(env, &path);
   THROW_IF_INSUFFICIENT_PERMISSIONS(
       env, permission::PermissionScope::kFileSystemWrite, path.ToStringView());
-  auto file_path = std::filesystem::path(path.ToStringView());
+  auto file_path = path.ToPath();
   std::error_code error;
-  auto file_status = std::filesystem::status(file_path, error);
+  auto file_status = std::filesystem::symlink_status(file_path, error);
 
   if (file_status.type() == std::filesystem::file_type::not_found) {
     return;
@@ -1649,8 +1649,7 @@ static void RmSync(const FunctionCallbackInfo<Value>& args) {
   // File is a directory and recursive is false
   if (file_status.type() == std::filesystem::file_type::directory &&
       !recursive) {
-    return THROW_ERR_FS_EISDIR(
-        isolate, "Path is a directory: %s", file_path.c_str());
+    return THROW_ERR_FS_EISDIR(isolate, "Path is a directory: %s", path);
   }
 
   // Allowed errors are:
@@ -2315,8 +2314,10 @@ static void WriteBuffer(const FunctionCallbackInfo<Value>& args) {
   const int argc = args.Length();
   CHECK_GE(argc, 4);
 
-  CHECK(args[0]->IsInt32());
-  const int fd = args[0].As<Int32>()->Value();
+  int fd;
+  if (!GetValidatedFd(env, args[0]).To(&fd)) {
+    return;
+  }
 
   CHECK(Buffer::HasInstance(args[1]));
   Local<Object> buffer_obj = args[1].As<Object>();
@@ -2382,8 +2383,10 @@ static void WriteBuffers(const FunctionCallbackInfo<Value>& args) {
   const int argc = args.Length();
   CHECK_GE(argc, 3);
 
-  CHECK(args[0]->IsInt32());
-  const int fd = args[0].As<Int32>()->Value();
+  int fd;
+  if (!GetValidatedFd(env, args[0]).To(&fd)) {
+    return;
+  }
 
   CHECK(args[1]->IsArray());
   Local<Array> chunks = args[1].As<Array>();
@@ -2442,8 +2445,10 @@ static void WriteString(const FunctionCallbackInfo<Value>& args) {
 
   const int argc = args.Length();
   CHECK_GE(argc, 4);
-  CHECK(args[0]->IsInt32());
-  const int fd = args[0].As<Int32>()->Value();
+  int fd;
+  if (!GetValidatedFd(env, args[0]).To(&fd)) {
+    return;
+  }
 
   const int64_t pos = GetOffset(args[2]);
 
@@ -2635,8 +2640,10 @@ static void Read(const FunctionCallbackInfo<Value>& args) {
   const int argc = args.Length();
   CHECK_GE(argc, 5);
 
-  CHECK(args[0]->IsInt32());
-  const int fd = args[0].As<Int32>()->Value();
+  int fd;
+  if (!GetValidatedFd(env, args[0]).To(&fd)) {
+    return;
+  }
 
   CHECK(Buffer::HasInstance(args[1]));
   Local<Object> buffer_obj = args[1].As<Object>();
@@ -2766,8 +2773,10 @@ static void ReadBuffers(const FunctionCallbackInfo<Value>& args) {
   const int argc = args.Length();
   CHECK_GE(argc, 3);
 
-  CHECK(args[0]->IsInt32());
-  const int fd = args[0].As<Int32>()->Value();
+  int fd;
+  if (!GetValidatedFd(env, args[0]).To(&fd)) {
+    return;
+  }
 
   CHECK(args[1]->IsArray());
   Local<Array> buffers = args[1].As<Array>();

@@ -45,7 +45,7 @@ export interface UtilBinding {
   guessHandleType(fd: number): 'TCP' | 'TTY' | 'UDP' | 'FILE' | 'PIPE' | 'UNKNOWN';
   parseEnv(content: string): Record<string, string>;
   styleText(format: Array<string> | string, text: string): string;
-  isInsideNodeModules(frameLimit: number, defaultValue: unknown): boolean;
+  isInsideNodeModules(frameLimit?: number): boolean;
   constructSharedArrayBuffer(length?: number): SharedArrayBuffer;
 
   constants: {

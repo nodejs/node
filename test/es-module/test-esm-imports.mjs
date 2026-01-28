@@ -15,6 +15,10 @@ const { requireImport, importImport } = importer;
   const internalImports = new Map([
     // Base case
     ['#test', maybeWrapped({ default: 'test' })],
+    // Root wildcard import
+    ['#/foo', maybeWrapped({ default: 'foo' })],
+    // Explicit #/ mapping
+    ['#/initialslash', maybeWrapped({ default: 'test' })],
     // import / require conditions
     ['#branch', maybeWrapped({ default: isRequire ? 'requirebranch' : 'importbranch' })],
     // Subpath imports
@@ -64,8 +68,6 @@ const { requireImport, importImport } = importer;
     ['#external/subpath/x%5Cy', 'must not include encoded "/" or "\\"'],
     // Target must have a name
     ['#', '#'],
-    // Initial slash target must have a leading name
-    ['#/initialslash', '#/initialslash'],
     // Percent-encoded target paths
     ['#encodedslash', 'must not include encoded "/" or "\\"'],
     ['#encodedbackslash', 'must not include encoded "/" or "\\"'],

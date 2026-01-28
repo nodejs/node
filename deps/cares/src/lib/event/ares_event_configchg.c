@@ -383,6 +383,7 @@ done:
 
 #  include <sys/types.h>
 #  include <unistd.h>
+#  include <stdbool.h>
 #  include <notify.h>
 #  include <dlfcn.h>
 #  include <fcntl.h>

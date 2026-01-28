@@ -17,11 +17,11 @@ const HEURISTICALLY_CACHEABLE_STATUS_CODES = [
 
 // Status codes which semantic is not handled by the cache
 // https://datatracker.ietf.org/doc/html/rfc9111#section-3
-// This list should not grow beyond 206 and 304 unless the RFC is updated
+// This list should not grow beyond 206 unless the RFC is updated
 // by a newer one including more. Please introduce another list if
 // implementing caching of responses with the 'must-understand' directive.
 const NOT_UNDERSTOOD_STATUS_CODES = [
-  206, 304
+  206
 ]
 
 const MAX_RESPONSE_AGE = 2147483647000
@@ -104,6 +104,7 @@ class CacheHandler {
         resHeaders,
         statusMessage
       )
+    const handler = this
 
     if (
       !util.safeHTTPMethods.includes(this.#cacheKey.method) &&
@@ -189,36 +190,92 @@ class CacheHandler {
       deleteAt
     }
 
-    if (typeof resHeaders.etag === 'string' && isEtagUsable(resHeaders.etag)) {
-      value.etag = resHeaders.etag
-    }
+    // Not modified, re-use the cached value
+    // https://www.rfc-editor.org/rfc/rfc9111.html#name-handling-304-not-modified
+    if (statusCode === 304) {
+      /**
+       * @type {import('../../types/cache-interceptor.d.ts').default.CacheValue}
+       */
+      const cachedValue = this.#store.get(this.#cacheKey)
+      if (!cachedValue) {
+        // Do not create a new cache entry, as a 304 won't have a body - so cannot be cached.
+        return downstreamOnHeaders()
+      }
 
-    this.#writeStream = this.#store.createWriteStream(this.#cacheKey, value)
-    if (!this.#writeStream) {
-      return downstreamOnHeaders()
-    }
+      // Re-use the cached value: statuscode, statusmessage, headers and body
+      value.statusCode = cachedValue.statusCode
+      value.statusMessage = cachedValue.statusMessage
+      value.etag = cachedValue.etag
+      value.headers = { ...cachedValue.headers, ...strippedHeaders }
 
-    const handler = this
-    this.#writeStream
-      .on('drain', () => controller.resume())
-      .on('error', function () {
-        // TODO (fix): Make error somehow observable?
-        handler.#writeStream = undefined
+      downstreamOnHeaders()
 
-        // Delete the value in case the cache store is holding onto state from
-        //  the call to createWriteStream
-        handler.#store.delete(handler.#cacheKey)
-      })
-      .on('close', function () {
-        if (handler.#writeStream === this) {
-          handler.#writeStream = undefined
+      this.#writeStream = this.#store.createWriteStream(this.#cacheKey, value)
+
+      if (!this.#writeStream || !cachedValue?.body) {
+        return
+      }
+
+      const bodyIterator = cachedValue.body.values()
+
+      const streamCachedBody = () => {
+        for (const chunk of bodyIterator) {
+          const full = this.#writeStream.write(chunk) === false
+          this.#handler.onResponseData?.(controller, chunk)
+          // when stream is full stop writing until we get a 'drain' event
+          if (full) {
+            break
+          }
         }
+      }
 
-        // TODO (fix): Should we resume even if was paused downstream?
-        controller.resume()
-      })
+      this.#writeStream
+        .on('error', function () {
+          handler.#writeStream = undefined
+          handler.#store.delete(handler.#cacheKey)
+        })
+        .on('drain', () => {
+          streamCachedBody()
+        })
+        .on('close', function () {
+          if (handler.#writeStream === this) {
+            handler.#writeStream = undefined
+          }
+        })
 
-    return downstreamOnHeaders()
+      streamCachedBody()
+    } else {
+      if (typeof resHeaders.etag === 'string' && isEtagUsable(resHeaders.etag)) {
+        value.etag = resHeaders.etag
+      }
+
+      this.#writeStream = this.#store.createWriteStream(this.#cacheKey, value)
+
+      if (!this.#writeStream) {
+        return downstreamOnHeaders()
+      }
+
+      this.#writeStream
+        .on('drain', () => controller.resume())
+        .on('error', function () {
+          // TODO (fix): Make error somehow observable?
+          handler.#writeStream = undefined
+
+          // Delete the value in case the cache store is holding onto state from
+          //  the call to createWriteStream
+          handler.#store.delete(handler.#cacheKey)
+        })
+        .on('close', function () {
+          if (handler.#writeStream === this) {
+            handler.#writeStream = undefined
+          }
+
+          // TODO (fix): Should we resume even if was paused downstream?
+          controller.resume()
+        })
+
+      downstreamOnHeaders()
+    }
   }
 
   onResponseData (controller, chunk) {

@@ -1,5 +1,5 @@
 import { spawnPromisified } from '../common/index.mjs';
-import * as fixtures from '../common/fixtures.js';
+import * as fixtures from '../common/fixtures.mjs';
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 

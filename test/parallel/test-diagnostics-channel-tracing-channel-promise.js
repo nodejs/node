@@ -37,5 +37,4 @@ channel.tracePromise(common.mustCall(function(value) {
   common.mustCall((value) => {
     assert.deepStrictEqual(value, expectedResult);
   }),
-  common.mustNotCall()
 );

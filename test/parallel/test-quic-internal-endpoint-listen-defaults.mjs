@@ -2,7 +2,7 @@
 import { hasQuic, skip } from '../common/index.mjs';
 
 import assert from 'node:assert';
-import { readKey } from '../common/fixtures.mjs';
+import * as fixtures from '../common/fixtures.mjs';
 import { SocketAddress } from 'node:net';
 
 if (!hasQuic) {
@@ -14,8 +14,8 @@ const { listen, QuicEndpoint } = await import('node:quic');
 const { createPrivateKey } = await import('node:crypto');
 const { getQuicEndpointState } = (await import('internal/quic/quic')).default;
 
-const keys = createPrivateKey(readKey('agent1-key.pem'));
-const certs = readKey('agent1-cert.pem');
+const keys = createPrivateKey(fixtures.readKey('agent1-key.pem'));
+const certs = fixtures.readKey('agent1-cert.pem');
 
 const endpoint = new QuicEndpoint();
 const state = getQuicEndpointState(endpoint);
@@ -28,15 +28,23 @@ assert.strictEqual(endpoint.address, undefined);
 await assert.rejects(listen(123, { keys, certs, endpoint }), {
   code: 'ERR_INVALID_ARG_TYPE',
 });
+// Buffer is not detached.
+assert.strictEqual(certs.buffer.detached, false);
 
 await assert.rejects(listen(() => {}, 123), {
   code: 'ERR_INVALID_ARG_TYPE',
 });
 
 await listen(() => {}, { keys, certs, endpoint });
+// Buffer is not detached.
+assert.strictEqual(certs.buffer.detached, false);
+
 await assert.rejects(listen(() => {}, { keys, certs, endpoint }), {
   code: 'ERR_INVALID_STATE',
 });
+// Buffer is not detached.
+assert.strictEqual(certs.buffer.detached, false);
+
 assert.ok(state.isBound);
 assert.ok(state.isReceiving);
 assert.ok(state.isListening);
@@ -58,6 +66,9 @@ assert.ok(endpoint.destroyed);
 await assert.rejects(listen(() => {}, { keys, certs, endpoint }), {
   code: 'ERR_INVALID_STATE',
 });
+// Buffer is not detached.
+assert.strictEqual(certs.buffer.detached, false);
+
 assert.throws(() => { endpoint.busy = true; }, {
   code: 'ERR_INVALID_STATE',
 });

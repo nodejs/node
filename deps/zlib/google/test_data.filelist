@@ -25,6 +25,7 @@ test/data/symlink_absolute_path.zip
 test/data/symlink_duplicate_link.zip
 test/data/symlink_evil_relative_path.zip
 test/data/symlink_follow_own_link.zip
+test/data/symlink_follow_own_link_dir.zip
 test/data/symlink_too_large.zip
 test/data/symlinks.zip
 test/data/test.zip
@@ -37,3 +38,5 @@ test/data/test_encrypted.zip
 test/data/test_mismatch_size.zip
 test/data/test_nocompress.zip
 test/data/test_posix_permissions.zip
+test/data/unicode_path_extra.zip
+test/data/unicode_path_extra_overflow.zip

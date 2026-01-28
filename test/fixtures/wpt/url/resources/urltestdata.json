@@ -6065,6 +6065,36 @@
     "search": "",
     "hash": ""
   },
+  {
+    "input": "https://0x.0x.0x.0x",
+    "base": null,
+    "href": "https://0.0.0.0/",
+    "origin": "https://0.0.0.0",
+    "protocol": "https:",
+    "username": "",
+    "password": "",
+    "host": "0.0.0.0",
+    "hostname": "0.0.0.0",
+    "port": "",
+    "pathname": "/",
+    "search": "",
+    "hash": ""
+  },
+  {
+    "input": "https://00.00.00.00",
+    "base": null,
+    "href": "https://0.0.0.0/",
+    "origin": "https://0.0.0.0",
+    "protocol": "https:",
+    "username": "",
+    "password": "",
+    "host": "0.0.0.0",
+    "hostname": "0.0.0.0",
+    "port": "",
+    "pathname": "/",
+    "search": "",
+    "hash": ""
+  },
   "More IPv4 parsing (via https://github.com/jsdom/whatwg-url/issues/92)",
   {
     "input": "https://0x100000000/test",

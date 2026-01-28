@@ -5,7 +5,7 @@ const { dirname, join, normalize, relative, resolve } = require('node:path')
 const PackageJson = require('@npmcli/package-json')
 const { readdirScoped } = require('@npmcli/fs')
 const { walkUp } = require('walk-up-path')
-const ancestorPath = require('common-ancestor-path')
+const { commonAncestorPath } = require('common-ancestor-path')
 const treeCheck = require('../tree-check.js')
 
 const Shrinkwrap = require('../shrinkwrap.js')
@@ -364,7 +364,7 @@ module.exports = cls => class ActualLoader extends cls {
     const nmContents = new Map()
     const tree = this.#actualTree
     for (const node of tree.inventory.values()) {
-      const ancestor = ancestorPath(node.realpath, this.path)
+      const ancestor = commonAncestorPath(node.realpath, this.path)
 
       const depPromises = []
       for (const [name, edge] of node.edgesOut.entries()) {

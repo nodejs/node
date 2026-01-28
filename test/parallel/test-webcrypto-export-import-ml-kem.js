@@ -89,7 +89,8 @@ async function testImportSpki({ name, publicUsages }, extractable) {
   } else {
     await assert.rejects(
       subtle.exportKey('spki', key), {
-        message: /key is not extractable/
+        message: /key is not extractable/,
+        name: 'InvalidAccessError',
       });
   }
 
@@ -127,7 +128,8 @@ async function testImportPkcs8({ name, privateUsages }, extractable) {
   } else {
     await assert.rejects(
       subtle.exportKey('pkcs8', key), {
-        message: /key is not extractable/
+        message: /key is not extractable/,
+        name: 'InvalidAccessError',
       });
   }
 
@@ -164,7 +166,8 @@ async function testImportPkcs8SeedOnly({ name, privateUsages }, extractable) {
   } else {
     await assert.rejects(
       subtle.exportKey('pkcs8', key), {
-        message: /key is not extractable/
+        message: /key is not extractable/,
+        name: 'InvalidAccessError',
       });
   }
 
@@ -202,7 +205,8 @@ async function testImportPkcs8PrivOnly({ name, privateUsages }, extractable) {
   } else {
     await assert.rejects(
       subtle.exportKey('pkcs8', key), {
-        message: /key is not extractable/
+        message: /key is not extractable/,
+        name: 'InvalidAccessError',
       });
   }
 

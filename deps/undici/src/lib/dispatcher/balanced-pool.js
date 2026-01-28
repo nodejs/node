@@ -140,6 +140,16 @@ class BalancedPool extends PoolBase {
     return this
   }
 
+  getUpstream (upstream) {
+    const upstreamOrigin = parseOrigin(upstream).origin
+
+    return this[kClients].find((pool) => (
+      pool[kUrl].origin === upstreamOrigin &&
+      pool.closed !== true &&
+      pool.destroyed !== true
+    ))
+  }
+
   get upstreams () {
     return this[kClients]
       .filter(dispatcher => dispatcher.closed !== true && dispatcher.destroyed !== true)

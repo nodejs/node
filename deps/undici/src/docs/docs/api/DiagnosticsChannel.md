@@ -254,3 +254,60 @@ diagnosticsChannel.channel('undici:websocket:pong').subscribe(({ payload, websoc
   console.log(websocket) // the WebSocket instance
 })
 ```
+
+## `undici:proxy:connected`
+
+This message is published after the `ProxyAgent` establishes a connection to the proxy server.
+
+```js
+import diagnosticsChannel from 'diagnostics_channel'
+
+diagnosticsChannel.channel('undici:proxy:connected').subscribe(({ socket, connectParams }) => {
+  console.log(socket)
+  console.log(connectParams)
+  // const { origin, port, path, signal, headers, servername } = connectParams
+})
+```
+
+## `undici:request:pending-requests`
+
+This message is published when the deduplicate interceptor's pending request map changes. This is useful for monitoring and debugging request deduplication behavior.
+
+The deduplicate interceptor automatically deduplicates concurrent requests for the same resource. When multiple identical requests are made while one is already in-flight, only one request is sent to the origin server, and all waiting handlers receive the same response.
+
+```js
+import diagnosticsChannel from 'diagnostics_channel'
+
+diagnosticsChannel.channel('undici:request:pending-requests').subscribe(({ type, size, key }) => {
+  console.log(type)  // 'added' or 'removed'
+  console.log(size)  // current number of pending requests
+  console.log(key)   // the deduplication key for this request
+})
+```
+
+### Event Properties
+
+- `type` (`string`): Either `'added'` when a new pending request is registered, or `'removed'` when a pending request completes (successfully or with an error).
+- `size` (`number`): The current number of pending requests after the change.
+- `key` (`string`): The deduplication key for the request, composed of the origin, method, path, and request headers.
+
+### Example: Monitoring Request Deduplication
+
+```js
+import diagnosticsChannel from 'diagnostics_channel'
+
+const channel = diagnosticsChannel.channel('undici:request:pending-requests')
+
+channel.subscribe(({ type, size, key }) => {
+  if (type === 'added') {
+    console.log(`New pending request: ${key} (${size} total pending)`)
+  } else {
+    console.log(`Request completed: ${key} (${size} remaining)`)
+  }
+})
+```
+
+This can be useful for:
+- Verifying that request deduplication is working as expected
+- Monitoring the number of concurrent in-flight requests
+- Debugging deduplication behavior in production environments
