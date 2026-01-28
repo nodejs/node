@@ -2,7 +2,7 @@
 
 <!--introduced_in=v26.0.0-->
 
-> Stability: 1 - Experimental
+> Stability: 1.0 - Early Development
 
 <!-- source_link=lib/logger.js -->
 
