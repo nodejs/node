@@ -101,7 +101,7 @@ assert(TextDecoder);
 }
 
 // Test TextDecoder, UTF-16be
-if (common.hasIntl) {
+{
   const dec = new TextDecoder('utf-16be');
   const res = dec.decode(Buffer.from('test€', 'utf-16le').swap16());
   assert.strictEqual(res, 'test€');
