@@ -29,7 +29,7 @@ This module is only available under the `node:` scheme.
 ## Overview
 
 The Virtual File System (VFS) allows you to create in-memory file systems that
-integrate seamlessly with Node.js's `fs` module and module loading system. This
+integrate seamlessly with the Node.js `fs` module and module loading system. This
 is useful for:
 
 * Bundling assets in Single Executable Applications (SEA)
