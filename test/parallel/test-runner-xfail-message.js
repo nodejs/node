@@ -5,7 +5,7 @@ const { spawn } = require('child_process');
 const assert = require('node:assert');
 
 if (process.env.CHILD_PROCESS === 'true') {
-  test('fail with message', { expectFailure: 'flaky test reason' }, () => {
+  test('fail with message', { expectFailure: 'doTheThing is not doing the thing because ...' }, () => {
     assert.fail('boom');
   });
 } else {
@@ -20,6 +20,6 @@ if (process.env.CHILD_PROCESS === 'true') {
 
   child.on('close', common.mustCall((code) => {
     assert.strictEqual(code, 0);
-    assert.match(stdout, /# EXPECTED FAILURE flaky test reason/);
+    assert.match(stdout, /# EXPECTED FAILURE doTheThing is not doing the thing because .../);
   }));
 }
