@@ -263,9 +263,9 @@ the VFS when `virtualCwd` is enabled in the constructor options.
 Throws `ERR_INVALID_STATE` if `virtualCwd` was not enabled during construction.
 
 When mounted with `virtualCwd` enabled, the VFS also hooks `process.chdir()` and
-`process.cwd()` to support virtual paths transparently. Since `process.chdir()`
-is not available in Worker threads, virtual cwd should only be used in the main
-thread.
+`process.cwd()` to support virtual paths transparently. In Worker threads,
+`process.chdir()` to virtual paths will work, but attempting to change to real
+filesystem paths will throw `ERR_WORKER_UNSUPPORTED_OPERATION`.
 
 ### `vfs.cwd()`
 
