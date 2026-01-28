@@ -174,6 +174,43 @@ async function failWriteSucceed({ file, watchedFile }) {
 
 tmpdir.refresh();
 
+function createGlobFileStructure(nameOfTheDir) {
+  const rootDir = tmpdir.resolve(nameOfTheDir);
+  mkdirSync(rootDir);
+
+  const rootDirGlob = path.resolve(rootDir, '**/*.js');
+  const directory1 = path.join(rootDir, 'directory1');
+  const directory2 = path.join(rootDir, 'directory2');
+
+  mkdirSync(directory1);
+  mkdirSync(directory2);
+
+  const tmpJsFile1 = createTmpFile('', '.js', directory1);
+  const tmpJsFile2 = createTmpFile('', '.js', directory1);
+  const tmpJsFile3 = createTmpFile('', '.js', directory2);
+  const tmpJsFile4 = createTmpFile('', '.js', directory2);
+  const tmpJsFile5 = createTmpFile('', '.js', directory2);
+
+  const mainJsFile = createTmpFile('console.log(\'running\')', '.js', rootDir);
+  const watchedFiles = [tmpJsFile1, tmpJsFile2, tmpJsFile3, tmpJsFile4, tmpJsFile5];
+
+
+  return { rootDir, rootDirGlob, mainJsFile, watchedFiles }
+}
+
+function expectRepeatedCompletes(mainJsFile, n) {
+  const expectedStdout = [];
+  for (let i = 0; i < n; i++) {
+    if (i !== 0) {
+      expectedStdout.push(`Restarting ${inspect((mainJsFile))}`);
+    }
+    expectedStdout.push('running');
+    expectedStdout.push(`Completed running ${inspect(mainJsFile)}. Waiting for file changes before restarting...`);
+  }
+  return expectedStdout;
+}
+
+
 describe('watch mode', { concurrency: !process.env.TEST_PARALLEL, timeout: 60_000 }, () => {
   it('should watch changes to a file', async () => {
     const file = createTmpFile();
@@ -899,48 +936,78 @@ process.on('message', (message) => {
   });
 
   it('should watch files from a given glob pattern --watch-path=./**/*.js', async () => {
+    const {
+      rootDirGlob,
+      mainJsFile,
+      watchedFiles
+    } = createGlobFileStructure('globtestdir-1');
 
-    const tmpDirForGlobTest = tmpdir.resolve('glob-test-dir');
-    mkdirSync(tmpDirForGlobTest);
-
-    const globPattern = path.resolve(tmpDirForGlobTest, '**/*.js');
-
-    const directory1 = path.join(tmpDirForGlobTest, 'directory1');
-    const directory2 = path.join(tmpDirForGlobTest, 'directory2');
-
-    mkdirSync(directory1);
-    mkdirSync(directory2);
-
-    const tmpJsFile1 = createTmpFile('', '.js', directory1);
-    const tmpJsFile2 = createTmpFile('', '.js', directory1);
-    const tmpJsFile3 = createTmpFile('', '.js', directory2);
-    const tmpJsFile4 = createTmpFile('', '.js', directory2);
-    const tmpJsFile5 = createTmpFile('', '.js', directory2);
-
-    const mainJsFile = createTmpFile('console.log(\'running\')', '.js', tmpDirForGlobTest);
-
-    const args = ['--watch-path', globPattern, mainJsFile];
-    const watchedFiles = [tmpJsFile1, tmpJsFile2, tmpJsFile3, tmpJsFile4, tmpJsFile5];
+    const args = ['--watch-path', rootDirGlob, mainJsFile];
 
     const { stderr, stdout } = await runWriteSucceed({
       args,
       watchedFile: watchedFiles,
     });
 
-    function expectRepeatedCompletes(n) {
-      const expectedStdout = [];
-      for (let i = 0; i < n; i++) {
-        if (i !== 0) {
-          expectedStdout.push(`Restarting ${inspect((mainJsFile))}`);
-        }
-        expectedStdout.push('running');
-        expectedStdout.push(`Completed running ${inspect(mainJsFile)}. Waiting for file changes before restarting...`);
-      }
-      return expectedStdout;
-    }
+    assert.strictEqual(stderr, '');
+    assert.deepStrictEqual(stdout, expectRepeatedCompletes(mainJsFile, 6));
+  });
+
+  it('should not be able to watch glob pattern paths without read access to the directory', async () => {
+    const {
+      rootDirGlob,
+      mainJsFile,
+      watchedFiles
+    } = createGlobFileStructure('globtestdir-2');
+
+    const args = ['--permission', '--watch-path', rootDirGlob, mainJsFile];
+    
+    const { stderr, stdout } = await runWriteSucceed({
+      args,
+      watchedFile: watchedFiles
+    });
+
+    assert.match(stderr, /ERR_ACCESS_DENIED/);
+    assert.deepStrictEqual(stdout, []);
+  });
+  
+  it('should not be able to watch glob pattern paths with partial read access', async () => {
+    const {
+      rootDir,
+      rootDirGlob,
+      mainJsFile,
+      watchedFiles
+    } = createGlobFileStructure('globtestdir-3');
+
+    const allowedSubDirectory = path.join(rootDir, 'directory1');
+    const args = ['--permission', '--allow-fs-read', allowedSubDirectory, '--watch-path', rootDirGlob, mainJsFile];
+    
+    const { stderr, stdout } = await runWriteSucceed({
+      args,
+      watchedFile: watchedFiles
+    });
+
+    assert.match(stderr, /ERR_ACCESS_DENIED/);
+    assert.deepStrictEqual(stdout, []);
+  });
+
+  it('should be able to watch glob pattern paths with full read access to the directory', async () => {
+    const {
+      rootDir,
+      rootDirGlob,
+      mainJsFile,
+      watchedFiles
+    } = createGlobFileStructure('globtestdir-4');
+
+    const args = ['--permission', '--allow-fs-read', rootDir, '--watch-path', rootDirGlob, mainJsFile];
+    
+    const { stderr, stdout } = await runWriteSucceed({
+      args,
+      watchedFile: watchedFiles
+    });
 
     assert.strictEqual(stderr, '');
-    assert.deepStrictEqual(stdout, expectRepeatedCompletes(6));
-
+    assert.deepStrictEqual(stdout, expectRepeatedCompletes(mainJsFile, 6));
   });
+
 });
