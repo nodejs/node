@@ -195,7 +195,7 @@ function createGlobFileStructure(nameOfTheDir) {
   const watchedFiles = [tmpJsFile1, tmpJsFile2, tmpJsFile3, tmpJsFile4, tmpJsFile5];
 
 
-  return { rootDir, rootDirGlob, mainJsFile, watchedFiles }
+  return { rootDir, rootDirGlob, mainJsFile, watchedFiles };
 }
 
 function expectRepeatedCompletes(mainJsFile, n) {
@@ -939,7 +939,7 @@ process.on('message', (message) => {
     const {
       rootDirGlob,
       mainJsFile,
-      watchedFiles
+      watchedFiles,
     } = createGlobFileStructure('globtestdir-1');
 
     const args = ['--watch-path', rootDirGlob, mainJsFile];
@@ -957,34 +957,31 @@ process.on('message', (message) => {
     const {
       rootDirGlob,
       mainJsFile,
-      watchedFiles
+      watchedFiles,
     } = createGlobFileStructure('globtestdir-2');
 
     const args = ['--permission', '--watch-path', rootDirGlob, mainJsFile];
-    
     const { stderr, stdout } = await runWriteSucceed({
       args,
-      watchedFile: watchedFiles
+      watchedFile: watchedFiles,
     });
 
     assert.match(stderr, /ERR_ACCESS_DENIED/);
     assert.deepStrictEqual(stdout, []);
   });
-  
   it('should not be able to watch glob pattern paths with partial read access', async () => {
     const {
       rootDir,
       rootDirGlob,
       mainJsFile,
-      watchedFiles
+      watchedFiles,
     } = createGlobFileStructure('globtestdir-3');
 
     const allowedSubDirectory = path.join(rootDir, 'directory1');
     const args = ['--permission', '--allow-fs-read', allowedSubDirectory, '--watch-path', rootDirGlob, mainJsFile];
-    
     const { stderr, stdout } = await runWriteSucceed({
       args,
-      watchedFile: watchedFiles
+      watchedFile: watchedFiles,
     });
 
     assert.match(stderr, /ERR_ACCESS_DENIED/);
@@ -996,14 +993,13 @@ process.on('message', (message) => {
       rootDir,
       rootDirGlob,
       mainJsFile,
-      watchedFiles
+      watchedFiles,
     } = createGlobFileStructure('globtestdir-4');
 
     const args = ['--permission', '--allow-fs-read', rootDir, '--watch-path', rootDirGlob, mainJsFile];
-    
     const { stderr, stdout } = await runWriteSucceed({
       args,
-      watchedFile: watchedFiles
+      watchedFile: watchedFiles,
     });
 
     assert.strictEqual(stderr, '');
