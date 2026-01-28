@@ -1225,6 +1225,40 @@ void Swap64(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(args[0]);
 }
 
+bool FastIsUtf8(v8::Local<v8::Value>,
+                Local<Value> buffer,
+                // NOLINTNEXTLINE(runtime/references) This is V8 api.
+                FastApiCallbackOptions& options) {
+  TRACK_V8_FAST_API_CALL("buffer.isUtf8");
+  ArrayBufferViewContents<uint8_t> view(buffer);
+  if (view.WasDetached()) {
+    node::THROW_ERR_INVALID_STATE(options.isolate,
+                                  "Cannot validate on a detached buffer");
+    return false;
+  }
+  return simdutf::validate_utf8(reinterpret_cast<const char*>(view.data()),
+                                view.length());
+}
+
+static v8::CFunction fast_is_utf8(v8::CFunction::Make(FastIsUtf8));
+
+bool FastIsAscii(v8::Local<v8::Value>,
+                 Local<Value> buffer,
+                 // NOLINTNEXTLINE(runtime/references) This is V8 api.
+                 FastApiCallbackOptions& options) {
+  TRACK_V8_FAST_API_CALL("buffer.isAscii");
+  ArrayBufferViewContents<uint8_t> view(buffer);
+  if (view.WasDetached()) {
+    node::THROW_ERR_INVALID_STATE(options.isolate,
+                                  "Cannot validate on a detached buffer");
+    return false;
+  }
+  return simdutf::validate_ascii(reinterpret_cast<const char*>(view.data()),
+                                 view.length());
+}
+
+static v8::CFunction fast_is_ascii(v8::CFunction::Make(FastIsAscii));
+
 static void IsUtf8(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   CHECK_EQ(args.Length(), 1);
@@ -1617,8 +1651,9 @@ void Initialize(Local<Object> target,
   SetMethod(context, target, "swap32", Swap32);
   SetMethod(context, target, "swap64", Swap64);
 
-  SetMethodNoSideEffect(context, target, "isUtf8", IsUtf8);
-  SetMethodNoSideEffect(context, target, "isAscii", IsAscii);
+  SetFastMethodNoSideEffect(context, target, "isUtf8", IsUtf8, &fast_is_utf8);
+  SetFastMethodNoSideEffect(
+      context, target, "isAscii", IsAscii, &fast_is_ascii);
 
   target
       ->Set(context,
@@ -1715,6 +1750,11 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 
   registry->Register(Atob);
   registry->Register(Btoa);
+
+  registry->Register(FastIsUtf8);
+  registry->Register(fast_is_utf8.GetTypeInfo());
+  registry->Register(FastIsAscii);
+  registry->Register(fast_is_ascii.GetTypeInfo());
 }
 
 }  // namespace Buffer
