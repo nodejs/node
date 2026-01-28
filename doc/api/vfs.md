@@ -52,7 +52,7 @@ const myVfs = vfs.create();
 // Create directories and files
 myVfs.mkdirSync('/app');
 myVfs.writeFileSync('/app/config.json', JSON.stringify({ port: 3000 }));
-myVfs.writeFileSync('/app/greet.js', 'module.exports = (name) => `Hello, ${name}!`;');
+myVfs.writeFileSync('/app/greet.js', 'module.exports = (name) => "Hello, " + name + "!";');
 
 // Mount the VFS at a path prefix
 myVfs.mount('/virtual');
@@ -79,7 +79,7 @@ const myVfs = vfs.create();
 // Create directories and files
 myVfs.mkdirSync('/app');
 myVfs.writeFileSync('/app/config.json', JSON.stringify({ port: 3000 }));
-myVfs.writeFileSync('/app/greet.js', 'module.exports = (name) => `Hello, ${name}!`;');
+myVfs.writeFileSync('/app/greet.js', 'module.exports = (name) => "Hello, " + name + "!";');
 
 // Mount the VFS at a path prefix
 myVfs.mount('/virtual');
