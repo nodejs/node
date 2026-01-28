@@ -245,6 +245,10 @@ it.expectFailure('should do the thing', () => {
 it('should do the thing', { expectFailure: true }, () => {
   assert.strictEqual(doTheThing(), true);
 });
+
+it('should do the thing', { expectFailure: 'flaky test' }, () => {
+  assert.strictEqual(doTheThing(), true);
+});
 ```
 
 `skip` and/or `todo` are mutually exclusive to `expectFailure`, and `skip` or `todo`
@@ -1677,6 +1681,9 @@ changes:
     thread. If `false`, only one test runs at a time.
     If unspecified, subtests inherit this value from their parent.
     **Default:** `false`.
+  * `expectFailure` {boolean|string} If truthy, the test is expected to fail.
+    If a string is provided, that string is displayed in the test results as the
+    reason why the test is expected to fail. **Default:** `false`.
   * `only` {boolean} If truthy, and the test context is configured to run
     `only` tests, then this test will be run. Otherwise, the test is skipped.
     **Default:** `false`.
