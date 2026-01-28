@@ -8,6 +8,7 @@
 #include "node_threadsafe_cow-inl.h"
 #include "simdutf.h"
 #include "util-inl.h"
+#include "v8-value.h"
 
 namespace node {
 namespace builtins {
