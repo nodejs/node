@@ -678,6 +678,178 @@ Customizes the signal sent to the process on watch mode restarts.
 .It Fl -zero-fill-buffers
 Automatically zero-fills all newly allocated Buffer instances.
 .
+
+.It Fl -build-snapshot
+Generates a snapshot blob when the process exits and writes it to disk,
+which can be loaded later with
+.Fl -snapshot-blob .
+.
+.It Fl -build-snapshot-config Ns = Ns Ar config.json
+Specifies the path to a JSON configuration file which configures snapshot
+creation behavior.
+.
+.It Fl -disable-sigusr1
+Disable the ability of starting a debugging session by sending a
+.Sy SIGUSR1
+signal to the process.
+.
+.It Fl -disable-warning Ns = Ns Ar code-or-type
+Disable specific process warnings by
+.Ar code
+or
+.Ar type .
+.
+.It Fl -dns-result-order Ns = Ns Ar order
+Set the default value of
+.Ar order
+in
+.Fn dns.lookup
+and
+.Fn dnsPromises.lookup .
+The value could be:
+.Ar ipv4first ,
+.Ar ipv6first ,
+or
+.Ar verbatim .
+.
+.It Fl -enable-network-family-autoselection
+Enables the family autoselection algorithm unless connection options explicitly
+disables it.
+.
+.It Fl -env-file Ns = Ns Ar file
+Loads environment variables from a file relative to the current directory,
+making them available to applications on
+.Sy process.env .
+.
+.It Fl -env-file-if-exists Ns = Ns Ar file
+Behavior is the same as
+.Fl -env-file ,
+but an error is not thrown if the file does not exist.
+.
+.It Fl -experimental-network-inspection
+Enable experimental support for the network inspection with Chrome DevTools.
+.
+.It Fl -experimental-print-required-tla
+If the ES module being
+.Fn require() 'd
+contains top-level
+.Sy await ,
+this flag allows Node.js to evaluate the module and try to locate the
+top-level awaits.
+.
+.It Fl -experimental-require-module
+Enable experimental CommonJS module requiring of ES modules.
+.
+.It Fl -experimental-sea-config Ns = Ns Ar config.json
+Use this flag to generate a blob that can be injected into the Node.js binary
+to produce a single executable application.
+.
+.It Fl -experimental-worker-inspection
+Enable experimental support for the worker inspection with Chrome DevTools.
+.
+.It Fl -force-node-api-uncaught-exceptions-policy
+Enforces
+.Sy uncaughtException
+event on Node-API asynchronous callbacks.
+.
+.It Fl -import Ns = Ns Ar module
+Preload the specified module at startup.
+Follows ECMAScript module resolution rules.
+.
+.It Fl -network-family-autoselection-attempt-timeout Ns = Ns Ar milliseconds
+Sets the default value for the network family autoselection attempt timeout.
+.
+.It Fl -no-async-context-frame
+Disables the use of
+.Sy AsyncLocalStorage
+backed by
+.Sy AsyncContextFrame
+and uses the prior implementation which relied on
+.Sy async_hooks .
+.
+.It Fl -no-experimental-detect-module
+Disable using syntax detection to determine module type.
+.
+.It Fl -no-experimental-global-navigator
+Disable exposition of Navigator API on the global scope.
+.
+.It Fl -no-experimental-require-module
+Legacy alias for
+.Fl -no-require-module .
+.
+.It Fl -no-network-family-autoselection
+Disables the family autoselection algorithm unless connection options explicitly
+enables it.
+.
+.It Fl -openssl-legacy-provider
+Enable OpenSSL 3.0 legacy provider.
+.
+.It Fl -openssl-shared-config
+Enable OpenSSL default configuration section,
+.Sy openssl_conf
+to be read from the OpenSSL configuration file.
+.
+.It Fl -report-dir
+Location at which the diagnostic report will be generated.
+.
+.It Fl -report-directory
+Location at which the diagnostic report will be generated.
+.
+.It Fl -report-exclude-env
+When passed the diagnostic report generated will not contain the
+.Sy environmentVariables
+data.
+.
+.It Fl -report-exclude-network
+Exclude
+.Sy header.networkInterfaces
+from the diagnostic report.
+.
+.It Fl -run Ns = Ns Ar command
+This runs a specified command from a package.json's
+.Sy "scripts"
+object.
+.
+.It Fl -snapshot-blob Ns = Ns Ar file
+When used with
+.Fl -build-snapshot ,
+.Fl -snapshot-blob
+specifies the path where the generated snapshot blob is written to.
+When used without
+.Fl -build-snapshot ,
+.Fl -snapshot-blob
+specifies the path to the blob that is used to restore the application state.
+.
+.It Fl -trace-env
+Print information about any access to environment variables done in the
+current Node.js instance to stderr.
+.
+.It Fl -trace-env-js-stack
+In addition to what
+.Fl -trace-env
+does, this prints the JavaScript stack trace of the access.
+.
+.It Fl -trace-env-native-stack
+In addition to what
+.Fl -trace-env
+does, this prints the native stack trace of the access.
+.
+.It Fl -trace-require-module Ns = Ns Ar mode
+Prints information about usage of loading ECMAScript modules using
+.Fn require() .
+.
+.It Fl -use-system-ca
+Node.js uses the trusted CA certificates present in the system store along with
+the
+.Fl -use-bundled-ca
+option and the
+.Ev NODE_EXTRA_CA_CERTS
+environment variable.
+.
+.It Fl -watch-preserve-output
+Disable the clearing of the console when watch mode restarts the process.
+.
+
 .It Fl c , Fl -check
 Check the script's syntax without executing it.
 Exits with an error code if script is invalid.
