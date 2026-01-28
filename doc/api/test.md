@@ -246,7 +246,7 @@ it('should do the thing', { expectFailure: true }, () => {
   assert.strictEqual(doTheThing(), true);
 });
 
-it('should do the thing', { expectFailure: 'flaky test' }, () => {
+it('should do the thing', { expectFailure: 'doTheThing is not doing the thing because ...' }, () => {
   assert.strictEqual(doTheThing(), true);
 });
 ```
