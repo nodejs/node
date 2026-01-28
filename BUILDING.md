@@ -114,7 +114,7 @@ may delay the release of binaries for these platforms.
 
 | Operating System | Architectures    | Versions                          | Notes                     |
 | ---------------- | ---------------- | --------------------------------- | ------------------------- |
-| GNU/Linux        | x64              | kernel >= 6.12, musl >= 1.2.5     | e.g. Alpine 3.22          |
+| GNU/Linux        | x64              | kernel >= 6.18, musl >= 1.2.5     | e.g. Alpine 3.23          |
 | GNU/Linux        | ppc64le >=power9 | kernel >= 4.18[^1], glibc >= 2.28 | e.g. Ubuntu 20.04, RHEL 8 |
 | GNU/Linux        | s390x >=z14      | kernel >= 4.18[^1], glibc >= 2.28 | e.g. RHEL 8               |
 | Windows          | arm64            | >= Windows 10                     |                           |
