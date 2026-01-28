@@ -61,7 +61,7 @@ namespace node {
   V(nbytes)                                                                    \
   NODE_VERSIONS_KEY_AMARO(V)                                                   \
   NODE_VERSIONS_KEY_UNDICI(V)                                                  \
-  V(cjs_module_lexer)
+  V(merve)
 
 #if HAVE_OPENSSL
 #define NODE_VERSIONS_KEY_CRYPTO(V) V(openssl) V(ncrypto)
