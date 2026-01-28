@@ -596,7 +596,16 @@ class WPTRunner {
     const title = spec.getMeta().title;
     let { initScript } = this;
 
-    initScript = `${initScript}\n\n//===\nglobalThis.location = new URL("${url.href}");`;
+    initScript = `${initScript}\n\n//===\nconst _location = new URL("${url.href}");\n` +
+    `globalThis.location = new Proxy(_location, {\n` +
+    `  has(target, prop) { return prop !== 'searchParams' && prop in target; },\n` +
+    `  get(target, prop) { return prop === 'searchParams' ? undefined : target[prop]; },\n` +
+    `  ownKeys(target) { return Object.keys(target).filter(k => k !== 'searchParams'); },\n` +
+    `  getOwnPropertyDescriptor(target, prop) {\n` +
+    `    if (prop === 'searchParams') return undefined;\n` +
+    `    return Object.getOwnPropertyDescriptor(target, prop);\n` +
+    `  }\n` +
+    `});`;
 
     if (title) {
       initScript = `${initScript}\n\n//===\nglobalThis.META_TITLE = "${title}";`;
