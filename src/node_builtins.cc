@@ -9,6 +9,7 @@
 #include "quic/guard.h"
 #include "simdutf.h"
 #include "util-inl.h"
+#include "v8-value.h"
 
 namespace node {
 namespace builtins {
@@ -441,7 +442,7 @@ void BuiltinLoader::SaveCodeCache(const std::string& id, Local<Data> data) {
     new_cached_data.reset(
         ScriptCompiler::CreateCodeCache(mod->GetUnboundModuleScript()));
   } else {
-    Local<Function> fun = data.As<Function>();
+    Local<Function> fun = data.As<Value>().As<Function>();
     new_cached_data.reset(ScriptCompiler::CreateCodeCacheForFunction(fun));
   }
   CHECK_NOT_NULL(new_cached_data);
