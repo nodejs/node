@@ -265,7 +265,7 @@ Throws `ERR_INVALID_STATE` if `virtualCwd` was not enabled during construction.
 When mounted with `virtualCwd` enabled, the VFS also hooks `process.chdir()` and
 `process.cwd()` to support virtual paths transparently. In Worker threads,
 `process.chdir()` to virtual paths will work, but attempting to change to real
-filesystem paths will throw `ERR_WORKER_UNSUPPORTED_OPERATION`.
+file system paths will throw `ERR_WORKER_UNSUPPORTED_OPERATION`.
 
 ### `vfs.cwd()`
 
@@ -455,6 +455,91 @@ try {
   console.log('Not running as SEA');
 }
 ```
+
+## Class: `RealFSProvider`
+
+<!-- YAML
+added: v26.0.0
+-->
+
+The `RealFSProvider` wraps a real file system directory, allowing it to be
+mounted at a different VFS path. This is useful for:
+
+* Mounting a directory at a different path
+* Enabling `virtualCwd` support in Worker threads (by mounting the real
+  file system through VFS)
+* Creating sandboxed views of real directories
+
+### `new RealFSProvider(rootPath)`
+
+<!-- YAML
+added: v26.0.0
+-->
+
+* `rootPath` {string} The real file system path to use as the provider root.
+
+Creates a new `RealFSProvider` that wraps the specified directory. All paths
+accessed through this provider are resolved relative to `rootPath`. Path
+traversal outside `rootPath` (via `..`) is prevented for security.
+
+```mjs
+import vfs from 'node:vfs';
+
+// Mount /home/user/project at /project
+const projectVfs = vfs.create(new vfs.RealFSProvider('/home/user/project'));
+projectVfs.mount('/project');
+
+// Now /project/src/index.js maps to /home/user/project/src/index.js
+import fs from 'node:fs';
+const content = fs.readFileSync('/project/src/index.js', 'utf8');
+```
+
+```cjs
+const vfs = require('node:vfs');
+
+// Mount /home/user/project at /project
+const projectVfs = vfs.create(new vfs.RealFSProvider('/home/user/project'));
+projectVfs.mount('/project');
+
+// Now /project/src/index.js maps to /home/user/project/src/index.js
+const fs = require('node:fs');
+const content = fs.readFileSync('/project/src/index.js', 'utf8');
+```
+
+### Using `virtualCwd` in Worker threads
+
+Since `process.chdir()` is not available in Worker threads, you can use
+`RealFSProvider` to enable virtual working directory support:
+
+```cjs
+const { Worker, isMainThread, parentPort } = require('node:worker_threads');
+const vfs = require('node:vfs');
+
+if (isMainThread) {
+  new Worker(__filename);
+} else {
+  // In worker: mount real file system with virtualCwd enabled
+  const realVfs = vfs.create(
+    new vfs.RealFSProvider('/home/user/project'),
+    { virtualCwd: true },
+  );
+  realVfs.mount('/project');
+
+  // Now we can use virtual chdir in the worker
+  realVfs.chdir('/project/src');
+  console.log(realVfs.cwd()); // '/project/src'
+}
+```
+
+### `realFSProvider.rootPath`
+
+<!-- YAML
+added: v26.0.0
+-->
+
+* {string}
+
+The real file system path that this provider wraps.
 
 ## Integration with `fs` module
 
