@@ -46,7 +46,8 @@
           url = "https://github.com/NixOS/nixpkgs.git";
           rev = "a5b50d31e0fd60227495ad2b2760cbda3581ec77";
           sparseCheckout = [ opensslSrc ];
-          hash = "sha256-mo5RQGyLuZlf84k9eOn576b0SuC8Qd9MFMYKQcmewPc=";
+          nonConeMode = true;
+          hash = "sha256-Qo3IoUeccGO2GxFSYufyYjZmN5LGSek0z82pN73YXic=";
         }
       }${opensslSrc}" { })
       openssl_3_6
