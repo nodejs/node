@@ -43,11 +43,20 @@ namespace internal {
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(Map)
 
-ACCESSORS(Map, instance_descriptors, Tagged<DescriptorArray>,
-          kInstanceDescriptorsOffset)
 #if V8_ENABLE_WEBASSEMBLY
+ACCESSORS_CHECKED2(Map, instance_descriptors, Tagged<DescriptorArray>,
+                   kInstanceDescriptorsOffset,
+                   // Fetching the instance descriptors of a Wasm map is safe
+                   // as long as that's the empty descriptor array (and not
+                   // a Custom Descriptor).
+                   !IsWasmStructMap(*this) ||
+                       HeapLayout::InReadOnlySpace(value),
+                   true)
 ACCESSORS_CHECKED(Map, custom_descriptor, Tagged<WasmStruct>,
                   kInstanceDescriptorsOffset, IsWasmStructMap(*this))
+#else
+ACCESSORS(Map, instance_descriptors, Tagged<DescriptorArray>,
+          kInstanceDescriptorsOffset)
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 RELEASE_ACQUIRE_ACCESSORS(Map, instance_descriptors, Tagged<DescriptorArray>,

@@ -221,8 +221,15 @@ Utf8::EncodingResult Utf8::Encode(v8::base::Vector<const Char> string,
   const Char* characters = string.begin();
   size_t content_capacity = capacity - write_null;
   CHECK_LE(content_capacity, capacity);
-  uint16_t last = Utf16::kNoPreviousCharacter;
   size_t read_index = 0;
+  if (kSourceIsOneByte) {
+    size_t writeable = std::min(string.size(), content_capacity);
+    size_t ascii_length =
+        Utf8::WriteLeadingAscii(characters, buffer, writeable);
+    read_index = ascii_length;
+    write_index = ascii_length;
+  }
+  uint16_t last = Utf16::kNoPreviousCharacter;
   for (; read_index < string.size(); read_index++) {
     Char character = characters[read_index];
 

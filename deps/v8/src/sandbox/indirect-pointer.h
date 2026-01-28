@@ -6,6 +6,7 @@
 #define V8_SANDBOX_INDIRECT_POINTER_H_
 
 #include "src/common/globals.h"
+#include "src/objects/objects.h"
 #include "src/sandbox/indirect-pointer-tag.h"
 #include "src/sandbox/isolate.h"
 

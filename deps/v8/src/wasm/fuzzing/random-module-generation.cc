@@ -1536,25 +1536,23 @@ class BodyGen {
       bool can_be_defaultable = std::all_of(
           struct_gen->fields().begin(), struct_gen->fields().end(),
           [](ValueType type) -> bool { return type.is_defaultable(); });
+      bool has_descriptor = builder_->builder()->HasDescriptor(index);
 
       WasmOpcode opcode;
       if (new_default && can_be_defaultable) {
-        opcode = kExprStructNewDefault;
+        opcode =
+            has_descriptor ? kExprStructNewDefaultDesc : kExprStructNewDefault;
       } else {
-        opcode = kExprStructNew;
+        opcode = has_descriptor ? kExprStructNewDesc : kExprStructNew;
         for (int i = 0; i < field_count; i++) {
           Generate(struct_gen->field(i).Unpacked(), data);
         }
       }
-      {
-        const TypeDefinition& struct_def =
-            builder_->builder()->GetType_Unsafe(index);
-        if (struct_def.has_descriptor()) {
-          GenerateRef(HeapType::Index(struct_def.descriptor, false,
-                                      RefTypeKind::kStruct)
-                          .AsExact(),
-                      data, kNonNullable);
-        }
+      if (has_descriptor) {
+        ModuleTypeIndex descriptor = builder_->builder()->GetDescriptor(index);
+        GenerateRef(
+            HeapType::Index(descriptor, false, RefTypeKind::kStruct).AsExact(),
+            data, kNonNullable);
       }
       builder_->EmitWithPrefix(opcode);
       builder_->EmitU32V(index);
@@ -4854,17 +4852,16 @@ WasmInitExpr GenerateStructNewInitExpr(
       range.get<bool>();
 
   if (use_new_default) {
-    ZoneVector<WasmInitExpr>* descriptor = nullptr;
     const TypeDefinition& struct_def = builder->GetType_Unsafe(index);
     if (struct_def.has_descriptor()) {
-      descriptor = zone->New<ZoneVector<WasmInitExpr>>(zone);
       ValueType type =
           ValueType::Ref(struct_def.descriptor, false, RefTypeKind::kStruct)
               .AsExact();
-      descriptor->push_back(GenerateInitExpr(
-          zone, range, builder, type, structs, arrays, recursion_depth + 1));
+      WasmInitExpr descriptor = GenerateInitExpr(
+          zone, range, builder, type, structs, arrays, recursion_depth + 1);
+      return WasmInitExpr::StructNewDefaultDesc(zone, index, descriptor);
     }
-    return WasmInitExpr::StructNewDefault(index, descriptor);
+    return WasmInitExpr::StructNewDefault(index);
   } else {
     ZoneVector<WasmInitExpr>* elements =
         zone->New<ZoneVector<WasmInitExpr>>(zone);
@@ -4881,6 +4878,7 @@ WasmInitExpr GenerateStructNewInitExpr(
               .AsExact();
       elements->push_back(GenerateInitExpr(zone, range, builder, type, structs,
                                            arrays, recursion_depth + 1));
+      return WasmInitExpr::StructNewDesc(index, elements);
     }
     return WasmInitExpr::StructNew(index, elements);
   }

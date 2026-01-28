@@ -415,6 +415,11 @@ class V8_EXPORT_PRIVATE ObjectRef {
   bool IsSmi() const;
   int AsSmi() const;
 
+  template <class T>
+  bool Is() const;
+  template <class T>
+  typename ref_traits<T>::ref_type As() const;
+
 #define HEAP_IS_METHOD_DECL(Name) bool Is##Name() const;
   HEAP_BROKER_OBJECT_LIST(HEAP_IS_METHOD_DECL)
 #undef HEAP_IS_METHOD_DECL
@@ -701,9 +706,7 @@ class V8_EXPORT_PRIVATE JSFunctionRef : public JSObjectRef {
   int InitialMapInstanceSizeWithMinSlack(JSHeapBroker* broker) const;
   FeedbackCellRef raw_feedback_cell(JSHeapBroker* broker) const;
   OptionalFeedbackVectorRef feedback_vector(JSHeapBroker* broker) const;
-#ifdef V8_ENABLE_LEAPTIERING
   JSDispatchHandle dispatch_handle() const;
-#endif
 };
 
 class RegExpBoilerplateDescriptionRef : public HeapObjectRef {
@@ -861,9 +864,7 @@ class FeedbackCellRef : public HeapObjectRef {
   OptionalFeedbackVectorRef feedback_vector(JSHeapBroker* broker) const;
   OptionalSharedFunctionInfoRef shared_function_info(
       JSHeapBroker* broker) const;
-#ifdef V8_ENABLE_LEAPTIERING
   JSDispatchHandle dispatch_handle() const;
-#endif
 };
 
 class FeedbackVectorRef : public HeapObjectRef {

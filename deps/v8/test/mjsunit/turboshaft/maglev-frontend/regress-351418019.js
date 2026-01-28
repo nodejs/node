@@ -17,60 +17,6 @@ var V8OptimizationStatus = {
   kIsFunction: 1 << 0,
 };
 
-function __isPropertyOfType(obj, name, type) {
-  let desc;
-
-  desc = Object.getOwnPropertyDescriptor(obj, name);
-
-  if (!desc) return false;
-  return typeof type === 'undefined' || typeof desc.value === type;
-}
-
-function __getProperties(obj, type) {
-  let properties = [];
-
-  for (let name of Object.getOwnPropertyNames(obj)) {
-    if (__isPropertyOfType(obj, name, type)) {
-      properties.push(name);
-    }
-  }
-
-  return properties;
-}
-function* __getObjects(root = this, level = 0) {
-
-  let obj_names = __getProperties(root, 'object');
-  for (let obj_name of obj_names) {
-    let obj = root[obj_name];
-    if (obj === root) continue;
-    yield obj;
-    yield* __getObjects(obj, level + 1);
-  }
-}
-
-function __getRandomObject(seed) {
-  let objects = [];
-  for (let obj of __getObjects()) {
-    objects.push(obj);
-  }
-
-  return objects[seed % objects.length];
-}
-
-function __getRandomProperty(obj, seed) {
-  let properties = __getProperties(obj);
-  return properties[seed % properties.length];
-}
-
-function __callRandomFunction(obj, seed, ...args) {
-  let functions = __getProperties(obj);
-  let random_function = functions[0];
-
-  obj[random_function](...args);
-}
-
-
-
 function __f_3() {
   return [[]];
 }
@@ -102,10 +48,10 @@ function __f_4(__v_2, __v_3) {
 
   try {
 
-    Object.defineProperty(__v_6, __getRandomProperty(__v_6, 874354), {
+    Object.defineProperty(__v_6, "deopt", {
       get: function () {
-        __callRandomFunction(__getRandomObject(501943), 864774, __v_6[1], __getRandomObject());
-        return __getRandomObject();
+        d8.dom.EventTarget(__v_6[1], undefined);
+        return undefined;
       }
     });
 
@@ -117,8 +63,8 @@ function __f_4(__v_2, __v_3) {
   } catch (e) {}
 
   try {
-    if (__v_0 != null && typeof __v_0 == "object") Object.defineProperty(__v_0, __getRandomProperty(__v_0), {
-      value: __getRandomObject(107254)
+    if (__v_0 != null && typeof __v_0 == "object") Object.defineProperty(__v_0, "deopt", {
+      value: d8.debugger
     });
   } catch (e) {}
 }

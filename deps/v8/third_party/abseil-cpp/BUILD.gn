@@ -67,6 +67,7 @@ group("absl_component_deps") {
     "//third_party/abseil-cpp/absl/container:fixed_array",
     "//third_party/abseil-cpp/absl/container:flat_hash_map",
     "//third_party/abseil-cpp/absl/container:flat_hash_set",
+    "//third_party/abseil-cpp/absl/container:hash_container_defaults",
     "//third_party/abseil-cpp/absl/container:inlined_vector",
     "//third_party/abseil-cpp/absl/container:node_hash_map",
     "//third_party/abseil-cpp/absl/container:node_hash_set",
@@ -128,6 +129,13 @@ group("absl_component_deps") {
   }
 
   visibility = [ ":absl" ]
+}
+
+# Abseil testing utilities should only be included in test binaries.
+source_set("test_support") {
+  testonly = true
+  public_deps = [ "//third_party/abseil-cpp/absl/hash:hash_testing" ]
+  deps = [ ":absl" ]
 }
 
 # Some third-party libraries use additional parts of absl that are banned in
@@ -318,6 +326,7 @@ if (absl_build_tests) {
         "absl/status:status_matchers_test",
         "absl/status:status_test",
         "absl/status:statusor_test",
+        "absl/strings:append_and_overwrite_test",
         "absl/strings:ascii_test",
         "absl/strings:char_formatting_test",
         "absl/strings:charset_test",

@@ -216,8 +216,7 @@ class V8_EXPORT_PRIVATE WasmEngine {
                         MaybeDirectHandle<JSReceiver> imports);
 
   std::shared_ptr<StreamingDecoder> StartStreamingCompilation(
-      Isolate* isolate, WasmEnabledFeatures enabled,
-      CompileTimeImports compile_imports, DirectHandle<Context> context,
+      WasmEnabledFeatures enabled, CompileTimeImports compile_imports,
       const char* api_method_name,
       std::shared_ptr<CompilationResultResolver> resolver);
 
@@ -452,10 +451,8 @@ class V8_EXPORT_PRIVATE WasmEngine {
   struct NativeModuleInfo;
 
   AsyncCompileJob* CreateAsyncCompileJob(
-      Isolate* isolate, WasmEnabledFeatures enabled,
-      CompileTimeImports compile_imports,
-      base::OwnedVector<const uint8_t> bytes, DirectHandle<Context> context,
-      const char* api_method_name,
+      WasmEnabledFeatures enabled, CompileTimeImports compile_imports,
+      base::OwnedVector<const uint8_t> bytes, const char* api_method_name,
       std::shared_ptr<CompilationResultResolver> resolver, int compilation_id);
 
   void TriggerCodeGC_Locked(size_t dead_code_limit);

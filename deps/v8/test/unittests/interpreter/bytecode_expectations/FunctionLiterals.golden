@@ -13,7 +13,7 @@ frame size: 0
 parameter count: 1
 bytecode array length: 5
 bytecodes: [
-  /*   34 S> */ B(CreateClosure), U8(0), U8(0), U8(2),
+  /*   34 S> */ B(CreateClosure), U8(0:SHARED_FUNCTION_INFO_TYPE), FBV(0), Flag8(0x2),
   /*   54 S> */ B(Return),
 ]
 constant pool: [
@@ -30,9 +30,9 @@ frame size: 1
 parameter count: 1
 bytecode array length: 9
 bytecodes: [
-  /*   34 S> */ B(CreateClosure), U8(0), U8(0), U8(2),
+  /*   34 S> */ B(CreateClosure), U8(0:SHARED_FUNCTION_INFO_TYPE), FBV(0), Flag8(0x2),
                 B(Star0),
-  /*   56 E> */ B(CallUndefinedReceiver0), R(0), U8(0),
+  /*   56 E> */ B(CallUndefinedReceiver0), R(0), FBV(0),
   /*   58 S> */ B(Return),
 ]
 constant pool: [
@@ -49,11 +49,11 @@ frame size: 2
 parameter count: 1
 bytecode array length: 13
 bytecodes: [
-  /*   34 S> */ B(CreateClosure), U8(0), U8(0), U8(2),
+  /*   34 S> */ B(CreateClosure), U8(0:SHARED_FUNCTION_INFO_TYPE), FBV(0), Flag8(0x2),
                 B(Star0),
                 B(LdaSmi), I8(1),
                 B(Star1),
-  /*   67 E> */ B(CallUndefinedReceiver1), R(0), R(1), U8(0),
+  /*   67 E> */ B(CallUndefinedReceiver1), R(0), R(1), FBV(0),
   /*   70 S> */ B(Return),
 ]
 constant pool: [

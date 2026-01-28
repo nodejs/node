@@ -5,6 +5,25 @@
 import("//build/config/sanitizers/sanitizers.gni")
 import("//third_party/abseil-cpp/absl.gni")
 
+absl_source_set("borrowed_fixup_buffer") {
+  sources = [ "internal/borrowed_fixup_buffer.cc" ]
+  public = [ "internal/borrowed_fixup_buffer.h" ]
+  deps = [
+    "//third_party/abseil-cpp/absl/base:config",
+    "//third_party/abseil-cpp/absl/base:core_headers",
+    "//third_party/abseil-cpp/absl/base:malloc_internal",
+    "//third_party/abseil-cpp/absl/hash",
+  ]
+}
+
+absl_test("borrowed_fixup_buffer_test") {
+  sources = [ "internal/borrowed_fixup_buffer_test.cc" ]
+  deps = [
+    ":borrowed_fixup_buffer",
+    "//third_party/abseil-cpp/absl/base:config",
+  ]
+}
+
 absl_source_set("stacktrace") {
   sources = [
     "internal/stacktrace_aarch64-inl.inc",
@@ -21,6 +40,7 @@ absl_source_set("stacktrace") {
   ]
   public = [ "stacktrace.h" ]
   deps = [
+    ":borrowed_fixup_buffer",
     ":debugging_internal",
     "//third_party/abseil-cpp/absl/base:config",
     "//third_party/abseil-cpp/absl/base:core_headers",
@@ -33,6 +53,7 @@ absl_source_set("stacktrace") {
 absl_test("stacktrace_test") {
   sources = [ "stacktrace_test.cc" ]
   deps = [
+    ":borrowed_fixup_buffer",
     ":stacktrace",
     "//third_party/abseil-cpp/absl/base:config",
     "//third_party/abseil-cpp/absl/base:core_headers",

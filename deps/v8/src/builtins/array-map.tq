@@ -137,23 +137,23 @@ struct Vector {
         @if(V8_ENABLE_UNDEFINED_DOUBLE) {
           typeswitch (UnsafeCast<(Number | Undefined | TheHole)>(
               this.fixedArray.objects[i])) {
-            case (TheHole): {
-            }
             case (n: Number): {
               elements.values[i] = Convert<float64_or_undefined_or_hole>(n);
             }
             case (Undefined): {
               elements.values[i] = kDoubleUndefined;
             }
+            case (TheHole): {
+            }
           }
         }
         @ifnot(V8_ENABLE_UNDEFINED_DOUBLE) {
           typeswitch (
               UnsafeCast<(Number | TheHole)>(this.fixedArray.objects[i])) {
-            case (TheHole): {
-            }
             case (n: Number): {
               elements.values[i] = Convert<float64_or_undefined_or_hole>(n);
+            }
+            case (TheHole): {
             }
           }
         }
