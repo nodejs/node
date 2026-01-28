@@ -224,6 +224,40 @@ test('todo() method with message', (t) => {
 });
 ```
 
+## `describe()` and `it()` aliases
+
+Suites and tests can also be written using the `describe()` and `it()`
+functions. [`describe()`][] is an alias for [`suite()`][], and [`it()`][] is an
+alias for [`test()`][].
+
+```js
+describe('A thing', () => {
+  it('should work', () => {
+    assert.strictEqual(1, 1);
+  });
+
+  it('should be ok', () => {
+    assert.strictEqual(2, 2);
+  });
+
+  describe('a nested thing', () => {
+    it('should work', () => {
+      assert.strictEqual(3, 3);
+    });
+  });
+});
+```
+
+`describe()` and `it()` are imported from the `node:test` module.
+
+```mjs
+import { describe, it } from 'node:test';
+```
+
+```cjs
+const { describe, it } = require('node:test');
+```
+
 ## Expecting tests to fail
 
 <!-- YAML
@@ -273,40 +307,6 @@ it.expectFailure('should do the thing', { todo: true }, () => {
 it.todo('should do the thing', { expectFailure: true }, () => {
   assert.strictEqual(doTheThing(), true);
 });
-```
-
-## `describe()` and `it()` aliases
-
-Suites and tests can also be written using the `describe()` and `it()`
-functions. [`describe()`][] is an alias for [`suite()`][], and [`it()`][] is an
-alias for [`test()`][].
-
-```js
-describe('A thing', () => {
-  it('should work', () => {
-    assert.strictEqual(1, 1);
-  });
-
-  it('should be ok', () => {
-    assert.strictEqual(2, 2);
-  });
-
-  describe('a nested thing', () => {
-    it('should work', () => {
-      assert.strictEqual(3, 3);
-    });
-  });
-});
-```
-
-`describe()` and `it()` are imported from the `node:test` module.
-
-```mjs
-import { describe, it } from 'node:test';
-```
-
-```cjs
-const { describe, it } = require('node:test');
 ```
 
 ## `only` tests
