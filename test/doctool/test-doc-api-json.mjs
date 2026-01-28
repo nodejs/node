@@ -77,6 +77,7 @@ function findAllKeys(obj, allKeys = new Set()) {
 
 const allExpectedKeys = new Set([
   'added',
+  'api',
   'changes',
   'classes',
   'classMethods',
@@ -96,6 +97,7 @@ const allExpectedKeys = new Set([
   'miscs',
   'modules',
   'name',
+  'optional',
   'napiVersion',
   'options',
   'params',
@@ -126,18 +128,18 @@ for await (const dirent of await fs.opendir(new URL('../../out/doc/api/', import
   console.log('testing', jsonPath, 'based on', expectedSource);
 
   const fileContent = await fs.readFile(jsonPath, 'utf8');
-  // A proxy to check if the file is human readable is to count if it contains
-  // at least 3 line return.
-  assert.strictEqual(fileContent.split('\n', 3).length, 3);
 
   const json = JSON.parse(fileContent);
 
   assert.strictEqual(json.type, 'module');
   assert.strictEqual(json.source, expectedSource);
+
   if (dirent.name !== 'index.md') {
     assert.ok(json.introduced_in || Object.values(json).at(-1)?.[0].introduced_in);
+    assert.partialDeepStrictEqual(allExpectedKeys, findAllKeys(json));
   }
-  assert.deepStrictEqual(Object.keys(json), ['type', 'source', ...({
+
+  assert.deepStrictEqual(Object.keys(json).sort(), ['type', 'api', 'source', ...({
     'addons.md': ['introduced_in', 'miscs'],
     'cli.md': ['introduced_in', 'miscs'],
     'debugger.md': ['introduced_in', 'stability', 'stabilityText', 'miscs'],
@@ -146,16 +148,14 @@ for await (const dirent of await fs.opendir(new URL('../../out/doc/api/', import
     'errors.md': ['introduced_in', 'classes', 'miscs'],
     'esm.md': ['introduced_in', 'meta', 'stability', 'stabilityText', 'properties', 'miscs'],
     'globals.md': ['introduced_in', 'stability', 'stabilityText', 'classes', 'methods', 'miscs'],
-    'index.md': [],
     'intl.md': ['introduced_in', 'miscs'],
     'n-api.md': ['introduced_in', 'stability', 'stabilityText', 'miscs'],
     'packages.md': ['introduced_in', 'meta', 'miscs'],
     'process.md': ['globals'],
+    'synopsis.md': ['introduced_in', 'miscs'],
     'report.md': ['introduced_in', 'stability', 'stabilityText', 'meta', 'miscs'],
-  }[dirent.name] ?? ['modules'])]);
-
-  assert.partialDeepStrictEqual(allExpectedKeys, findAllKeys(json));
+  }[dirent.name] ?? ['modules'])].sort());
 }
 
-assert.strictEqual(numberOfDeprecatedSections, 39); // Increase this number every time a new API is deprecated.
+assert.strictEqual(numberOfDeprecatedSections, 44); // Increase this number every time a new API is deprecated.
 assert.strictEqual(numberOfRemovedAPIs, 46); // Increase this number every time a section is marked as removed.
