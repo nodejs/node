@@ -574,7 +574,14 @@ EmitResult Trace::Flush(RegExpCompiler* compiler, RegExpNode* successor,
   assembler->PushBacktrack(&undo);
   if (successor->KeepRecursing(compiler)) {
     Trace new_state;
-    RETURN_IF_ERROR(successor->Emit(compiler, &new_state));
+    EmitResult r = successor->Emit(compiler, &new_state);
+    if (V8_UNLIKELY(r.IsError())) {
+      // TODO(jgruber): If this pattern emerges elsewhere, let's wrap affected
+      // labels in a scope object and add a convenience macro.
+      undo.UnuseNear();
+      undo.Unuse();
+      return r;
+    }
   } else {
     compiler->AddWork(successor);
     assembler->GoTo(successor->label());
@@ -1295,8 +1302,9 @@ void EmitClassRanges(RegExpMacroAssembler* macro_assembler,
     macro_assembler->LoadCurrentCharacter(cp_offset, on_failure, check_offset);
   }
 
-  if (cr->is_standard(zone) && macro_assembler->CheckSpecialClassRanges(
-                                   cr->standard_type(), on_failure)) {
+  if (cr->is_standard(zone) &&
+      macro_assembler->CanOptimizeSpecialClassRanges(cr->standard_type())) {
+    macro_assembler->CheckSpecialClassRanges(cr->standard_type(), on_failure);
     return;
   }
 
@@ -2182,24 +2190,13 @@ namespace {
 // Check for [0-9A-Z_a-z].
 void EmitWordCheck(RegExpMacroAssembler* assembler, Label* word,
                    Label* non_word, bool fall_through_on_word) {
-  if (assembler->CheckSpecialClassRanges(
-          fall_through_on_word ? StandardCharacterSet::kWord
-                               : StandardCharacterSet::kNotWord,
-          fall_through_on_word ? non_word : word)) {
-    // Optimized implementation available.
-    return;
-  }
-  assembler->CheckCharacterGT('z', non_word);
-  assembler->CheckCharacterLT('0', non_word);
-  assembler->CheckCharacterGT('a' - 1, word);
-  assembler->CheckCharacterLT('9' + 1, word);
-  assembler->CheckCharacterLT('A', non_word);
-  assembler->CheckCharacterLT('Z' + 1, word);
-  if (fall_through_on_word) {
-    assembler->CheckNotCharacter('_', non_word);
-  } else {
-    assembler->CheckCharacter('_', word);
-  }
+  StandardCharacterSet character_set = fall_through_on_word
+                                           ? StandardCharacterSet::kWord
+                                           : StandardCharacterSet::kNotWord;
+  // \w and \W is supported on all platforms.
+  DCHECK(assembler->CanOptimizeSpecialClassRanges(character_set));
+  assembler->CheckSpecialClassRanges(character_set,
+                                     fall_through_on_word ? non_word : word);
 }
 
 // Emit the code to check for a ^ in multiline mode (1-character lookbehind
@@ -2231,15 +2228,11 @@ EmitResult EmitHat(RegExpCompiler* compiler, RegExpNode* on_success,
   const bool can_skip_bounds_check = !may_be_at_or_before_subject_string_start;
   assembler->LoadCurrentCharacter(new_trace.cp_offset() - 1,
                                   new_trace.backtrack(), can_skip_bounds_check);
-  if (!assembler->CheckSpecialClassRanges(StandardCharacterSet::kLineTerminator,
-                                          new_trace.backtrack())) {
-    // Newline means \n, \r, 0x2028 or 0x2029.
-    if (!compiler->one_byte()) {
-      assembler->CheckCharacterAfterAnd(0x2028, 0xFFFE, &ok);
-    }
-    assembler->CheckCharacter('\n', &ok);
-    assembler->CheckNotCharacter('\r', new_trace.backtrack());
-  }
+  // Line Terminator is supported on all platforms.
+  DCHECK(assembler->CanOptimizeSpecialClassRanges(
+      StandardCharacterSet::kLineTerminator));
+  assembler->CheckSpecialClassRanges(StandardCharacterSet::kLineTerminator,
+                                     new_trace.backtrack());
   assembler->Bind(&ok);
   return on_success->Emit(compiler, &new_trace);
 }

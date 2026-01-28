@@ -45,6 +45,26 @@ builtin NumberToString(input: Number): String {
   return ::NumberToString(input);
 }
 
+builtin SmiToString(input: Smi): String {
+  return ::SmiToString(input);
+}
+
+builtin Int32ToString(input: int32): String {
+  const smi = SmiFromInt32(input);
+  const untagged = SmiToInt32(smi);
+  if (input == untagged) {
+    // Queries and populates the NumberToStringCache, but needs tagged
+    // inputs, so only call this for Smis.
+    return ::SmiToString(smi);
+  }
+  return number::IntToDecimalString(input);
+}
+
+@customInterfaceDescriptor
+builtin Float64ToString(input: float64): String {
+  return ::Float64ToString(input);
+}
+
 // ES6 section 7.1.2 ToBoolean ( argument )
 builtin ToBoolean(input: JSAny): Boolean {
   BranchIfToBooleanIsTrue(input) otherwise return TrueConstant(),

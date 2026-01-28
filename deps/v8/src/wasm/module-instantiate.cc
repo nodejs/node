@@ -8,6 +8,7 @@
 #include "src/asmjs/asm-js.h"
 #include "src/base/atomicops.h"
 #include "src/codegen/compiler.h"
+#include "src/compiler/fast-api-calls.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/logging/counters-scopes.h"
 #include "src/logging/metrics.h"
@@ -142,6 +143,26 @@ bool CompareWithNormalizedCType(const CTypeInfo& info,
 
 enum class ReceiverKind { kFirstParamIsReceiver, kAnyReceiver };
 
+#ifdef V8_ENABLE_TURBOFAN
+bool IsFastCallSupportedSignature(const v8::CFunctionInfo* sig) {
+  if (sig->ReturnInfo().GetType() == CTypeInfo::Type::kPointer) {
+    return false;
+  }
+  for (unsigned int i = 0; i < sig->ArgumentCount(); ++i) {
+    // In WebAssembly, we don't support any flags on arguments.
+    auto flags = static_cast<std::underlying_type_t<CTypeInfo::Flags>>(
+        sig->ArgumentInfo(i).GetFlags());
+    if (flags != 0) {
+      return false;
+    }
+    if (sig->ArgumentInfo(i).GetType() == CTypeInfo::Type::kPointer) {
+      return false;
+    }
+  }
+  return compiler::fast_api_call::CanOptimizeFastSignature(sig);
+}
+#endif
+
 bool IsSupportedWasmFastApiFunction(Isolate* isolate,
                                     const wasm::CanonicalSig* expected_sig,
                                     Tagged<SharedFunctionInfo> shared,
@@ -193,7 +214,7 @@ bool IsSupportedWasmFastApiFunction(Isolate* isolate,
        c_func_id < end; ++c_func_id) {
     const CFunctionInfo* info =
         shared->api_func_data()->GetCSignature(isolate, c_func_id);
-    if (!compiler::IsFastCallSupportedSignature(info)) {
+    if (!IsFastCallSupportedSignature(info)) {
       log_imported_function_mismatch(c_func_id,
                                      "signature not supported by the fast API");
       continue;
@@ -211,10 +232,6 @@ bool IsSupportedWasmFastApiFunction(Isolate* isolate,
       if (return_info.GetType() == CTypeInfo::Type::kVoid) {
         log_imported_function_mismatch(c_func_id, "too many return values");
         continue;
-      }
-      if (return_info.GetType() == CTypeInfo::Type::kPointer) {
-        log_imported_function_mismatch(c_func_id,
-                                       "pointer types unsupported in Wasm");
       }
       if (!CompareWithNormalizedCType(return_info, expected_sig->GetReturn(0),
                                       info->GetInt64Representation())) {
@@ -252,10 +269,6 @@ bool IsSupportedWasmFastApiFunction(Isolate* isolate,
       // Arg 0 is the receiver, skip over it since either the receiver does not
       // matter, or we already checked it above.
       CTypeInfo arg = info->ArgumentInfo(i + 1);
-      if (arg.GetType() == CTypeInfo::Type::kPointer) {
-        log_imported_function_mismatch(c_func_id,
-                                       "pointer types unsupported in Wasm");
-      }
       if (!CompareWithNormalizedCType(arg, expected_sig->GetParam(sig_index),
                                       info->GetInt64Representation())) {
         log_imported_function_mismatch(c_func_id, "parameter type mismatch");
@@ -677,11 +690,11 @@ WellKnownImport CheckForWellKnownImport(
 
 ResolvedWasmImport::ResolvedWasmImport(
     DirectHandle<WasmTrustedInstanceData> trusted_instance_data, int func_index,
-    DirectHandle<JSReceiver> callable, const wasm::CanonicalSig* expected_sig,
-    WellKnownImport preknown_import) {
+    DirectHandle<JSReceiver> callable, wasm::CanonicalValueType expected_type,
+    const wasm::CanonicalSig* expected_sig, WellKnownImport preknown_import) {
   SetCallable(Isolate::Current(), callable);
-  kind_ = ComputeKind(trusted_instance_data, func_index, expected_sig,
-                      preknown_import);
+  kind_ = ComputeKind(trusted_instance_data, func_index, expected_type,
+                      expected_sig, preknown_import);
   // When the import is a WasmSuspendingObject, the inner callable should be a
   // JS callable, which is checked by the constructor. But it can be corrupted
   // later and replaced with a wasm function. This leads to an invalid state
@@ -711,6 +724,7 @@ void ResolvedWasmImport::SetCallable(Isolate* isolate,
 
 ImportCallKind ResolvedWasmImport::ComputeKind(
     DirectHandle<WasmTrustedInstanceData> trusted_instance_data, int func_index,
+    wasm::CanonicalValueType expected_type,
     const wasm::CanonicalSig* expected_sig, WellKnownImport preknown_import) {
   // If we already have a compile-time import, simply pass that through.
   if (IsCompileTimeImport(preknown_import)) {
@@ -741,10 +755,7 @@ ImportCallKind ResolvedWasmImport::ComputeKind(
     if (Tagged<WasmExportedFunctionData> data;
         TryCast(*trusted_function_data_, &data)) {
       if (!wasm::GetTypeCanonicalizer()->IsCanonicalSubtype(
-              data->internal()->sig()->index(),
-              wasm::CanonicalValueType::RefNull(expected_sig->index(),
-                                                false /* ignored by callee */,
-                                                RefTypeKind::kFunction))) {
+              data->internal()->sig()->index(), expected_type)) {
         return ImportCallKind::kLinkError;
       }
       uint32_t function_index = static_cast<uint32_t>(data->function_index());
@@ -940,31 +951,25 @@ class InstanceBuilder {
   MaybeDirectHandle<WasmMemoryObject> AllocateMemory(uint32_t memory_index);
 
   // Processes a single imported function.
-  bool ProcessImportedFunction(
-      DirectHandle<WasmTrustedInstanceData> trusted_instance_data,
-      int import_index, int func_index, DirectHandle<Object> value,
-      WellKnownImport preknown_import);
+  bool ProcessImportedFunction(int import_index, DirectHandle<Object> value,
+                               WellKnownImport preknown_import);
 
   // Process a single imported table.
-  bool ProcessImportedTable(
-      DirectHandle<WasmTrustedInstanceData> trusted_instance_data,
-      int import_index, int table_index, DirectHandle<Object> value);
+  bool ProcessImportedTable(int import_index, int table_index,
+                            DirectHandle<Object> value);
 
   // Process a single imported global.
-  bool ProcessImportedGlobal(
-      DirectHandle<WasmTrustedInstanceData> trusted_instance_data,
-      int import_index, int global_index, DirectHandle<Object> value);
+  bool ProcessImportedGlobal(int import_index, int global_index,
+                             DirectHandle<Object> value);
 
   // Process a single imported WasmGlobalObject.
   bool ProcessImportedWasmGlobalObject(
-      DirectHandle<WasmTrustedInstanceData> trusted_instance_data,
       int import_index, const WasmGlobal& global,
       DirectHandle<WasmGlobalObject> global_object);
 
-  // Process the imports, including functions, tables, globals, and memory, in
-  // order, loading them from the {ffi_} object. Returns the number of imported
-  // functions, or {-1} on error.
-  int ProcessImports();
+  // Process the imports, including functions, tables, and globals, in
+  // order, loading them from the {ffi_} object. Returns true on success.
+  bool ProcessImports();
 
   // Process all imported memories, placing the WasmMemoryObjects in the
   // supplied {FixedArray}.
@@ -1338,8 +1343,7 @@ Maybe<bool> InstanceBuilder::Build_Phase1(
   // Process the imports for the module.
   //--------------------------------------------------------------------------
   if (!module_->import_table.empty()) {
-    int num_imported_functions = ProcessImports();
-    if (num_imported_functions < 0) return {};
+    if (!ProcessImports()) return {};
   }
 
   //--------------------------------------------------------------------------
@@ -1840,7 +1844,8 @@ void InstanceBuilder::SanitizeImports() {
       continue;
     }
 
-    if (import.kind == kExternalFunction) {
+    if (import.kind == kExternalFunction ||
+        import.kind == kExternalExactFunction) {
       WellKnownImport wki = well_known_imports.get(import.index);
       if (IsCompileTimeImport(wki)) {
         DirectHandle<JSFunction> fun =
@@ -1877,10 +1882,15 @@ void InstanceBuilder::SanitizeImports() {
   }
 }
 
-bool InstanceBuilder::ProcessImportedFunction(
-    DirectHandle<WasmTrustedInstanceData> trusted_instance_data,
-    int import_index, int func_index, DirectHandle<Object> value,
-    WellKnownImport preknown_import) {
+bool InstanceBuilder::ProcessImportedFunction(int import_index,
+                                              DirectHandle<Object> value,
+                                              WellKnownImport preknown_import) {
+  const WasmImport& import = module_->import_table[import_index];
+  uint32_t func_index = import.index;
+  const WasmFunction& wasm_func = module_->functions[func_index];
+  bool function_is_shared = module_->type(wasm_func.sig_index).is_shared;
+  DirectHandle<WasmTrustedInstanceData> trusted_instance_data =
+      trusted_data(function_is_shared);
   // Function imports must be callable.
   if (!IsCallable(*value)) {
     if (!IsWasmSuspendingObject(*value)) {
@@ -1898,12 +1908,14 @@ bool InstanceBuilder::ProcessImportedFunction(
         func_index, Cast<WasmExternalFunction>(*value)->func_ref());
   }
   auto callable = Cast<JSReceiver>(value);
-  CanonicalTypeIndex sig_index =
-      module_->canonical_sig_id(module_->functions[func_index].sig_index);
+  CanonicalTypeIndex sig_index = module_->canonical_sig_id(wasm_func.sig_index);
   const CanonicalSig* expected_sig =
       GetTypeCanonicalizer()->LookupFunctionSignature(sig_index);
+  CanonicalValueType expected_type = CanonicalValueType::Ref(
+      sig_index, function_is_shared, RefTypeKind::kFunction);
+  if (wasm_func.exact) expected_type = expected_type.AsExact();
   ResolvedWasmImport resolved(trusted_instance_data, func_index, callable,
-                              expected_sig, preknown_import);
+                              expected_type, expected_sig, preknown_import);
   if (resolved.well_known_status() != WellKnownImport::kGeneric &&
       v8_flags.trace_wasm_inlining) {
     PrintF("[import %d is well-known built-in %s]\n", import_index,
@@ -1989,16 +2001,17 @@ bool InstanceBuilder::ProcessImportedFunction(
   return true;
 }
 
-bool InstanceBuilder::ProcessImportedTable(
-    DirectHandle<WasmTrustedInstanceData> trusted_instance_data,
-    int import_index, int table_index, DirectHandle<Object> value) {
+bool InstanceBuilder::ProcessImportedTable(int import_index, int table_index,
+                                           DirectHandle<Object> value) {
+  const WasmTable& table = module_->tables[table_index];
+  DirectHandle<WasmTrustedInstanceData> trusted_instance_data =
+      trusted_data(table.shared);
+
   if (!IsWasmTableObject(*value)) {
     thrower_->LinkError("%s: table import requires a WebAssembly.Table",
                         ImportName(import_index).c_str());
     return false;
   }
-  const WasmTable& table = module_->tables[table_index];
-
   DirectHandle<WasmTableObject> table_object = Cast<WasmTableObject>(value);
 
   uint32_t imported_table_size =
@@ -2072,7 +2085,6 @@ bool InstanceBuilder::ProcessImportedTable(
 }
 
 bool InstanceBuilder::ProcessImportedWasmGlobalObject(
-    DirectHandle<WasmTrustedInstanceData> trusted_instance_data,
     int import_index, const WasmGlobal& global,
     DirectHandle<WasmGlobalObject> global_object) {
   if (static_cast<bool>(global_object->is_mutable()) != global.mutability) {
@@ -2081,6 +2093,8 @@ bool InstanceBuilder::ProcessImportedWasmGlobalObject(
         ImportName(import_index).c_str());
     return false;
   }
+  DirectHandle<WasmTrustedInstanceData> trusted_instance_data =
+      trusted_data(global.shared);
 
   wasm::ValueType actual_type = global_object->type();
   const WasmModule* source_module = nullptr;
@@ -2169,9 +2183,8 @@ bool InstanceBuilder::ProcessImportedWasmGlobalObject(
   return true;
 }
 
-bool InstanceBuilder::ProcessImportedGlobal(
-    DirectHandle<WasmTrustedInstanceData> trusted_instance_data,
-    int import_index, int global_index, DirectHandle<Object> value) {
+bool InstanceBuilder::ProcessImportedGlobal(int import_index, int global_index,
+                                            DirectHandle<Object> value) {
   // Immutable global imports are converted to numbers and written into
   // the {untagged_globals_} array buffer.
   //
@@ -2215,8 +2228,7 @@ bool InstanceBuilder::ProcessImportedGlobal(
 
   if (IsWasmGlobalObject(*value)) {
     auto global_object = Cast<WasmGlobalObject>(value);
-    return ProcessImportedWasmGlobalObject(trusted_instance_data, import_index,
-                                           global, global_object);
+    return ProcessImportedWasmGlobalObject(import_index, global, global_object);
   }
 
   if (global.mutability) {
@@ -2266,12 +2278,13 @@ bool InstanceBuilder::ProcessImportedGlobal(
   return false;
 }
 
-// Process the imports, including functions, tables, globals, and memory, in
-// order, loading them from the {ffi_} object. Returns the number of imported
-// functions.
-int InstanceBuilder::ProcessImports() {
+// Process the imports, including functions, tables, and globals, in
+// order, loading them from the {ffi_} object. Returns true on success.
+bool InstanceBuilder::ProcessImports() {
+#if DEBUG
   int num_imported_functions = 0;
   int num_imported_tables = 0;
+#endif  // DEBUG
 
   DCHECK_EQ(module_->import_table.size(), sanitized_imports_.size());
 
@@ -2284,29 +2297,28 @@ int InstanceBuilder::ProcessImports() {
     DirectHandle<Object> value = sanitized_imports_[index];
 
     switch (import.kind) {
-      case kExternalFunction: {
+      case kExternalFunction:
+      case kExternalExactFunction: {
         uint32_t func_index = import.index;
+#if DEBUG
         DCHECK_EQ(num_imported_functions, func_index);
-        ModuleTypeIndex sig_index = module_->functions[func_index].sig_index;
-        bool function_is_shared = module_->type(sig_index).is_shared;
-        if (!ProcessImportedFunction(trusted_data(function_is_shared), index,
-                                     func_index, value,
-                                     preknown_imports.get(func_index))) {
-          return -1;
-        }
         num_imported_functions++;
+#endif  // DEBUG
+        if (!ProcessImportedFunction(index, value,
+                                     preknown_imports.get(func_index))) {
+          return false;
+        }
         break;
       }
       case kExternalTable: {
         uint32_t table_index = import.index;
+#if DEBUG
         DCHECK_EQ(table_index, num_imported_tables);
-        bool table_is_shared = module_->tables[table_index].shared;
-        if (!ProcessImportedTable(trusted_data(table_is_shared), index,
-                                  table_index, value)) {
-          return -1;
-        }
         num_imported_tables++;
-        USE(num_imported_tables);
+#endif  // DEBUG
+        if (!ProcessImportedTable(index, table_index, value)) {
+          return false;
+        }
         break;
       }
       case kExternalMemory:
@@ -2314,10 +2326,8 @@ int InstanceBuilder::ProcessImports() {
         // {ProcessImportedMemories}.
         break;
       case kExternalGlobal: {
-        bool global_is_shared = module_->globals[import.index].shared;
-        if (!ProcessImportedGlobal(trusted_data(global_is_shared), index,
-                                   import.index, value)) {
-          return -1;
+        if (!ProcessImportedGlobal(index, import.index, value)) {
+          return false;
         }
         break;
       }
@@ -2326,7 +2336,7 @@ int InstanceBuilder::ProcessImports() {
         if (!IsWasmTagObject(*value)) {
           thrower_->LinkError("%s: tag import requires a WebAssembly.Tag",
                               ImportName(index).c_str());
-          return -1;
+          return false;
         }
         DirectHandle<WasmTagObject> imported_tag = Cast<WasmTagObject>(value);
         if (!imported_tag->MatchesSignature(module_->canonical_sig_id(
@@ -2334,7 +2344,7 @@ int InstanceBuilder::ProcessImports() {
           thrower_->LinkError(
               "%s: imported tag does not match the expected type",
               ImportName(index).c_str());
-          return -1;
+          return false;
         }
         Tagged<Object> tag = imported_tag->tag();
         DCHECK(IsUndefined(trusted_data_->tags_table()->get(import.index)));
@@ -2346,10 +2356,10 @@ int InstanceBuilder::ProcessImports() {
         UNREACHABLE();
     }
   }
-  if (num_imported_functions > 0) {
+  if (!well_known_imports_.empty()) {
     native_module_->UpdateWellKnownImports(base::VectorOf(well_known_imports_));
   }
-  return num_imported_functions;
+  return true;
 }
 
 bool InstanceBuilder::ProcessImportedMemories(
@@ -2646,6 +2656,7 @@ void InstanceBuilder::ProcessExports() {
         value = wrapper;
         break;
       }
+      case kExternalExactFunction:
       default:
         UNREACHABLE();
     }

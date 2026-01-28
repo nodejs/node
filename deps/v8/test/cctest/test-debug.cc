@@ -3504,8 +3504,9 @@ class ContextCheckEventListener : public v8::debug::DebugDelegate {
   void CheckContext() {
     v8::Local<v8::Context> context = CcTest::isolate()->GetCurrentContext();
     CHECK_EQ(context, expected_context_global.Get(CcTest::isolate()));
-    CHECK(context->GetEmbedderData(0)->StrictEquals(
-        expected_context_data_global.Get(CcTest::isolate())));
+    CHECK(v8::Local<v8::Value>::Cast(context->GetEmbedderDataV2(0))
+              ->StrictEquals(
+                  expected_context_data_global.Get(CcTest::isolate())));
     event_listener_hit_count++;
   }
 };
@@ -3538,10 +3539,12 @@ TEST(ContextData) {
   // Set and check different data values.
   v8::Local<v8::String> data_1 = v8_str(isolate, "1");
   v8::Local<v8::String> data_2 = v8_str(isolate, "2");
-  context_1->SetEmbedderData(0, data_1);
-  context_2->SetEmbedderData(0, data_2);
-  CHECK(context_1->GetEmbedderData(0)->StrictEquals(data_1));
-  CHECK(context_2->GetEmbedderData(0)->StrictEquals(data_2));
+  context_1->SetEmbedderDataV2(0, data_1);
+  context_2->SetEmbedderDataV2(0, data_2);
+  CHECK(v8::Local<v8::Value>::Cast(context_1->GetEmbedderDataV2(0))
+            ->StrictEquals(data_1));
+  CHECK(v8::Local<v8::Value>::Cast(context_2->GetEmbedderDataV2(0))
+            ->StrictEquals(data_2));
 
   // Simple test function which causes a break.
   const char* source = "function f() { debugger; }";
@@ -3595,8 +3598,9 @@ TEST(EvalContextData) {
 
   // Set and check a data value.
   v8::Local<v8::String> data_1 = v8_str(isolate, "1");
-  context_1->SetEmbedderData(0, data_1);
-  CHECK(context_1->GetEmbedderData(0)->StrictEquals(data_1));
+  context_1->SetEmbedderDataV2(0, data_1);
+  CHECK(v8::Local<v8::Value>::Cast(context_1->GetEmbedderDataV2(0))
+            ->StrictEquals(data_1));
 
   // Simple test function with eval that causes a break.
   const char* source = "function f() { eval('debugger;'); }";

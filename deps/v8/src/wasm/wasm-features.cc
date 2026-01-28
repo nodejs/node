@@ -42,7 +42,8 @@ WasmEnabledFeatures WasmEnabledFeatures::FromContext(
     Isolate* isolate, DirectHandle<NativeContext> context) {
   WasmEnabledFeatures features = WasmEnabledFeatures::FromFlags();
 
-  if (isolate->IsWasmCustomDescriptorsEnabled(context)) {
+  if (!v8_flags.wasm_jitless &&
+      isolate->IsWasmCustomDescriptorsEnabled(context)) {
     features.Add(WasmEnabledFeature::custom_descriptors);
   }
 

@@ -212,6 +212,17 @@ class V8_EXPORT_PRIVATE Utf8 {
   // - valid code point range.
   static bool ValidateEncoding(const uint8_t* str, size_t length);
 
+  template <typename Char>
+  static size_t WriteLeadingAscii(const Char* src, char* dest, size_t size);
+
+  template <>
+  size_t WriteLeadingAscii<uint8_t>(const uint8_t* src, char* dest,
+                                    size_t size);
+
+  template <>
+  size_t WriteLeadingAscii<uint16_t>(const uint16_t* src, char* dest,
+                                     size_t size);
+
   // Encode the given characters as Utf8 into the provided output buffer.
   struct EncodingResult {
     size_t bytes_written;

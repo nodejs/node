@@ -933,15 +933,15 @@ Type Type::Constant(JSHeapBroker* broker, ObjectRef ref, Zone* zone) {
   if (ref.IsSmi()) {
     return Constant(static_cast<double>(ref.AsSmi()), zone);
   }
-  if (ref.HoleType() != HoleType::kNone) {
-    return Type::Hole();
-  }
   if (ref.IsString() && !ref.IsInternalizedString()) {
     return Type::String();
   }
   if (ref.IsJSPrimitiveWrapper() &&
       ref.AsJSPrimitiveWrapper().IsStringWrapper(broker)) {
     return Type::StringWrapper();
+  }
+  if (ref.HoleType() != HoleType::kNone) {
+    return Type::Hole();
   }
   if (ref.IsJSTypedArray()) {
     return Type::TypedArray();

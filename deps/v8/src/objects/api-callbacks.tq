@@ -24,6 +24,7 @@ extern class InterceptorInfo extends HeapObject {
   definer: ExternalPointer;
 }
 
+@cppObjectLayoutDefinition
 extern class AccessCheckInfo extends Struct {
   callback: Foreign|Zero|Undefined;
   named_interceptor: InterceptorInfo|Zero|Undefined;
@@ -42,12 +43,12 @@ bitfield struct AccessorInfoFlags extends uint32 {
 }
 
 extern class AccessorInfo extends HeapObject {
-  name: Name;
   data: Object;
+  name: Name;
   // For simulator builds this field contains the address of the trampoline
   // callable from generated code and for native builds - the address of
   // the getter C function.
-  maybe_redirected_getter: ExternalPointer;
+  getter: ExternalPointer;
   setter: ExternalPointer;
   flags: AccessorInfoFlags;
   @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;

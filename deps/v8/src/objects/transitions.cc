@@ -779,6 +779,9 @@ void TransitionArray::Sort() {
   DisallowGarbageCollection no_gc;
   // In-place insertion sort.
   int length = number_of_transitions();
+  // Sorting matters only for binary search.
+  if (length <= kMaxElementsForLinearSearch) return;
+
   ReadOnlyRoots roots = GetReadOnlyRoots();
   for (int i = 1; i < length; i++) {
     Tagged<Name> key = GetKey(i);

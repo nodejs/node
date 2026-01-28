@@ -258,7 +258,6 @@ static void PrintRelocInfo(std::ostringstream& out, Isolate* isolate,
                   address, IsolateGroup::current()->external_ref_table());
     out << "    ;; external reference (" << reference_name << ")";
   } else if (rmode == RelocInfo::JS_DISPATCH_HANDLE) {
-#ifdef V8_ENABLE_LEAPTIERING
     JSDispatchHandle dispatch_handle = relocinfo->js_dispatch_handle();
     out << "    ;; js dispatch handle:0x" << std::hex << dispatch_handle;
     if (dispatch_handle != kNullJSDispatchHandle) {
@@ -271,9 +270,6 @@ static void PrintRelocInfo(std::ostringstream& out, Isolate* isolate,
         out << " " << CodeKindToString(kind);
       }
     }
-#else
-    UNREACHABLE();
-#endif
   } else if (RelocInfo::IsCodeTargetMode(rmode)) {
     out << "    ;; code:";
     Tagged<Code> code =

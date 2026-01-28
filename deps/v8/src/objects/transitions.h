@@ -316,6 +316,10 @@ class V8_EXPORT_PRIVATE TransitionsAccessor {
 // shared.
 class TransitionArray : public WeakFixedArray {
  public:
+  // Do linear search for small arrays, and for searches in the background
+  // thread.
+  static constexpr int kMaxElementsForLinearSearch = 32;
+
   inline int number_of_transitions() const;
 
   inline Tagged<WeakFixedArray> GetPrototypeTransitions();

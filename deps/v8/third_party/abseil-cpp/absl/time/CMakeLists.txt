@@ -77,6 +77,8 @@ absl_cc_library(
     "internal/cctz/src/time_zone_posix.h"
     "internal/cctz/src/tzfile.h"
     "internal/cctz/src/zone_info_source.cc"
+    $<$<PLATFORM_ID:Windows>:internal/cctz/src/time_zone_name_win.cc>
+    $<$<PLATFORM_ID:Windows>:internal/cctz/src/time_zone_name_win.h>
   COPTS
     ${ABSL_DEFAULT_COPTS}
   DEPS

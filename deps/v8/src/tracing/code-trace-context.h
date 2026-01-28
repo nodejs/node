@@ -7,10 +7,10 @@
 
 #include <string>
 
-#include "protos/perfetto/trace/chrome/v8.pbzero.h"
 #include "src/base/compiler-specific.h"
 #include "src/objects/tagged.h"
 #include "src/tracing/code-data-source.h"
+#include "src/tracing/perfetto-sdk.h"
 
 namespace v8 {
 namespace internal {

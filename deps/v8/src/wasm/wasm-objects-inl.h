@@ -27,6 +27,7 @@
 #include "src/objects/objects-inl.h"
 #include "src/objects/oddball-inl.h"
 #include "src/objects/script-inl.h"
+#include "src/objects/trusted-pointer-inl.h"
 #include "src/roots/roots.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-module.h"

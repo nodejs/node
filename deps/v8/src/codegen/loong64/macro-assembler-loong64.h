@@ -257,10 +257,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void JumpJSFunction(Register function_object,
                       JumpMode jump_mode = JumpMode::kJump);
 
-#ifdef V8_ENABLE_LEAPTIERING
   void CallJSDispatchEntry(JSDispatchHandle dispatch_handle,
                            uint16_t argument_count);
-#endif
 #ifdef V8_ENABLE_WEBASSEMBLY
   void ResolveWasmCodePointer(Register target, uint64_t signature_hash);
   void CallWasmCodePointer(Register target, uint64_t signature_hash,
@@ -274,9 +272,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // The return address on the stack is used by frame iteration.
   void StoreReturnAddressAndCall(Register target);
 
-  // TODO(olivf, 42204201) Rename this to AssertNotDeoptimized once
-  // non-leaptiering is removed from the codebase.
-  void BailoutIfDeoptimized();
+  void AssertNotDeoptimized();
   void CallForDeoptimization(Builtin target, int deopt_id, Label* exit,
                              DeoptimizeKind kind, Label* ret,
                              Label* jump_deoptimization_entry_label);
@@ -291,8 +287,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void DropArguments(Register count);
   void DropArgumentsAndPushNewReceiver(Register argc, Register receiver);
 
-  void Ld_d(Register rd, const MemOperand& rj);
-  void St_d(Register rd, const MemOperand& rj);
+  void Ld_d(Register rd, const MemOperand& rj, int* trap_pc = NULL);
+  void St_d(Register rd, const MemOperand& rj, int* trap_pc = NULL);
 
   void Push(Handle<HeapObject> handle);
   void Push(Tagged<Smi> smi);
@@ -631,29 +627,29 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // Change endianness
   void ByteSwap(Register dest, Register src, int operand_size);
 
-  void Ld_b(Register rd, const MemOperand& rj);
-  void Ld_bu(Register rd, const MemOperand& rj);
-  void St_b(Register rd, const MemOperand& rj);
+  void Ld_b(Register rd, const MemOperand& rj, int* trap_pc = NULL);
+  void Ld_bu(Register rd, const MemOperand& rj, int* trap_pc = NULL);
+  void St_b(Register rd, const MemOperand& rj, int* trap_pc = NULL);
 
-  void Ld_h(Register rd, const MemOperand& rj);
-  void Ld_hu(Register rd, const MemOperand& rj);
-  void St_h(Register rd, const MemOperand& rj);
+  void Ld_h(Register rd, const MemOperand& rj, int* trap_pc = NULL);
+  void Ld_hu(Register rd, const MemOperand& rj, int* trap_pc = NULL);
+  void St_h(Register rd, const MemOperand& rj, int* trap_pc = NULL);
 
-  void Ld_w(Register rd, const MemOperand& rj);
-  void Ld_wu(Register rd, const MemOperand& rj);
-  void St_w(Register rd, const MemOperand& rj);
+  void Ld_w(Register rd, const MemOperand& rj, int* trap_pc = NULL);
+  void Ld_wu(Register rd, const MemOperand& rj, int* trap_pc = NULL);
+  void St_w(Register rd, const MemOperand& rj, int* trap_pc = NULL);
 
-  void Fld_s(FPURegister fd, const MemOperand& src);
-  void Fst_s(FPURegister fj, const MemOperand& dst);
+  void Fld_s(FPURegister fd, const MemOperand& src, int* trap_pc = NULL);
+  void Fst_s(FPURegister fj, const MemOperand& dst, int* trap_pc = NULL);
 
-  void Fld_d(FPURegister fd, const MemOperand& src);
-  void Fst_d(FPURegister fj, const MemOperand& dst);
+  void Fld_d(FPURegister fd, const MemOperand& src, int* trap_pc = NULL);
+  void Fst_d(FPURegister fj, const MemOperand& dst, int* trap_pc = NULL);
 
-  void Ll_w(Register rd, const MemOperand& rj);
-  void Sc_w(Register rd, const MemOperand& rj);
+  void Ll_w(Register rd, const MemOperand& rj, int* trap_pc = NULL);
+  void Sc_w(Register rd, const MemOperand& rj, int* trap_pc = NULL);
 
-  void Ll_d(Register rd, const MemOperand& rj);
-  void Sc_d(Register rd, const MemOperand& rj);
+  void Ll_d(Register rd, const MemOperand& rj, int* trap_pc = NULL);
+  void Sc_d(Register rd, const MemOperand& rj, int* trap_pc = NULL);
 
   // These functions assume (and assert) that src1!=src2. It is permitted
   // for the result to alias either input register.
@@ -833,6 +829,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
     Branch(dest, lo, x, Operand(y));
   }
 
+  void JumpIfMarking(Label* is_marking,
+                     Label::Distance condition_met_distance = Label::kFar);
+  void JumpIfNotMarking(Label* not_marking,
+                        Label::Distance condition_met_distance = Label::kFar);
+
   // Push a standard frame, consisting of ra, fp, context and JS function.
   void PushStandardFrame(Register function_reg);
 
@@ -862,7 +863,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // Pointer compression Support
 
   // Loads a field containing any tagged value and decompresses it if necessary.
-  void LoadTaggedField(Register destination, const MemOperand& field_operand);
+  void LoadTaggedField(Register destination, const MemOperand& field_operand,
+                       int* trap_pc = NULL);
 
   // Loads a field containing a tagged signed value and decompresses it if
   // necessary.
@@ -873,20 +875,27 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void SmiUntagField(Register dst, const MemOperand& src);
 
   // Compresses and stores tagged value to given on-heap location.
-  void StoreTaggedField(Register src, const MemOperand& dst);
+  void StoreTaggedField(Register src, const MemOperand& dst,
+                        int* trap_pc = NULL);
 
-  void AtomicStoreTaggedField(Register dst, const MemOperand& src);
+  void AtomicStoreTaggedField(Register dst, const MemOperand& src,
+                              int* trap_pc = NULL);
 
-  void DecompressTaggedSigned(Register dst, const MemOperand& src);
-  void DecompressTagged(Register dst, const MemOperand& src);
+  void DecompressTaggedSigned(Register dst, const MemOperand& src,
+                              int* trap_pc = NULL);
+  void DecompressTagged(Register dst, const MemOperand& src,
+                        int* trap_pc = NULL);
   void DecompressTagged(Register dst, Register src);
   void DecompressTagged(Register dst, Tagged_t immediate);
   void DecompressProtected(const Register& destination,
-                           const MemOperand& field_operand);
+                           const MemOperand& field_operand,
+                           int* trap_pc = NULL);
 
-  void AtomicDecompressTaggedSigned(Register dst, const MemOperand& src);
+  void AtomicDecompressTaggedSigned(Register dst, const MemOperand& src,
+                                    int* trap_pc = NULL);
   // Returns the pc offset of the atomic load instruction.
-  int AtomicDecompressTagged(Register dst, const MemOperand& src);
+  void AtomicDecompressTagged(Register dst, const MemOperand& src,
+                              int* trap_pc = NULL);
 
   // ---------------------------------------------------------------------------
   // V8 Sandbox support
@@ -895,9 +904,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // the pointer is stored on the heap and ensures that the pointer will always
   // point into the sandbox.
   void DecodeSandboxedPointer(Register value);
-  void LoadSandboxedPointerField(Register destination,
-                                 MemOperand field_operand);
-  void StoreSandboxedPointerField(Register value, MemOperand dst_field_operand);
+  void LoadSandboxedPointerField(Register destination, MemOperand field_operand,
+                                 int* trap_pc = NULL);
+  void StoreSandboxedPointerField(Register value, MemOperand dst_field_operand,
+                                  int* trap_pc = NULL);
 
   // Loads a field containing an off-heap ("external") pointer and does
   // necessary decoding if sandbox is enabled.
@@ -910,6 +920,14 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // pointer table. Otherwise they are regular tagged fields.
   void LoadTrustedPointerField(Register destination, MemOperand field_operand,
                                IndirectPointerTag tag);
+  // As above, but for kUnknownIndirectPointerTag. The type of the loaded object
+  // is unknown, so this helper will check for a series of expected types and
+  // jump to the given labels if the loaded object has a matching type. If the
+  // object has none of the expected types, the destination register will be
+  // zeroed and execution continues as fall-through.
+  void LoadTrustedUnknownPointerField(
+      Register destination, MemOperand field_operand, Register scratch,
+      const std::initializer_list<std::tuple<InstanceType, Label*>>& cases);
 
   // Store a trusted pointer field.
   void StoreTrustedPointerField(Register value, MemOperand dst_field_operand);
@@ -935,7 +953,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // Store an indirect pointer field.
   // Only available when the sandbox is enabled, but always visible to avoid
   // having to place the #ifdefs into the caller.
-  void StoreIndirectPointerField(Register value, MemOperand dst_field_operand);
+  void StoreIndirectPointerField(Register value, MemOperand dst_field_operand,
+                                 int* trap_pc = NULL);
 
 #ifdef V8_ENABLE_SANDBOX
   // Retrieve the heap object referenced by the given indirect pointer handle,
@@ -962,7 +981,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void LoadCodePointerTableBase(Register destination);
 #endif
 
-#ifdef V8_ENABLE_LEAPTIERING
   void LoadEntrypointFromJSDispatchTable(Register destination,
                                          Register dispatch_handle,
                                          Register scratch);
@@ -975,7 +993,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void LoadEntrypointAndParameterCountFromJSDispatchTable(
       Register entrypoint, Register parameter_count, Register dispatch_handle,
       Register scratch);
-#endif  // V8_ENABLE_LEAPTIERING
 
   // Load a protected pointer field.
   void LoadProtectedPointerField(Register destination,
@@ -1141,7 +1158,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // leaptiering will be used on all platforms. At that point, the
   // non-leaptiering variants will disappear.
 
-#ifdef V8_ENABLE_LEAPTIERING
   // Invoke the JavaScript function in the given register. Changes the
   // current context to the context in the function before invoking.
   void InvokeFunction(Register function, Register actual_parameter_count,
@@ -1158,19 +1174,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
                           Register actual_parameter_count, InvokeType type,
                           ArgumentAdaptionMode argument_adaption_mode =
                               ArgumentAdaptionMode::kAdapt);
-#else
-  void InvokeFunction(Register function, Register expected_parameter_count,
-                      Register actual_parameter_count, InvokeType type);
-  // Invoke the JavaScript function in the given register. Changes the
-  // current context to the context in the function before invoking.
-  void InvokeFunctionWithNewTarget(Register function, Register new_target,
-                                   Register actual_parameter_count,
-                                   InvokeType type);
-  // Invoke the JavaScript function code by either calling or jumping.
-  void InvokeFunctionCode(Register function, Register new_target,
-                          Register expected_parameter_count,
-                          Register actual_parameter_count, InvokeType type);
-#endif
 
   // Exception handling.
 
@@ -1290,15 +1293,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // TODO(olivf): Rename to GenerateTailCallToUpdatedFunction.
   void GenerateTailCallToReturnedCode(Runtime::FunctionId function_id);
 
-#ifndef V8_ENABLE_LEAPTIERING
-  void ReplaceClosureCodeWithOptimizedCode(Register optimized_code,
-                                           Register closure);
-  void LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
-      Register flags, Register feedback_vector, CodeKind current_code_kind,
-      Label* flags_need_processing);
-  void OptimizeCodeOrTailCallOptimizedCodeSlot(Register flags,
-                                               Register feedback_vector);
-#endif  // !V8_ENABLE_LEAPTIERING
 
   template <typename Field>
   void DecodeField(Register dst, Register src) {

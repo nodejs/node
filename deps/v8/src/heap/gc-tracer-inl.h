@@ -32,7 +32,7 @@ GCTracer::Scope::Scope(GCTracer* tracer, ScopeId scope, ThreadKind thread_kind)
       thread_kind_(thread_kind),
       start_time_(base::TimeTicks::Now()) {
   DCHECK_IMPLIES(thread_kind_ == ThreadKind::kMain,
-                 tracer_->heap_->IsMainThread());
+                 LocalHeap::Current()->is_main_thread());
 
 #ifdef V8_RUNTIME_CALL_STATS
   if (V8_LIKELY(!TracingFlags::is_runtime_stats_enabled())) return;
@@ -105,9 +105,7 @@ constexpr bool GCTracer::Event::IsYoungGenerationEvent(Type type) {
          type == Type::INCREMENTAL_MINOR_MARK_SWEEPER;
 }
 
-CollectionEpoch GCTracer::CurrentEpoch(Scope::ScopeId id) const {
-  return Scope::NeedsYoungEpoch(id) ? epoch_young_ : epoch_full_;
-}
+CollectionEpoch GCTracer::CurrentEpoch() const { return epoch_; }
 
 double GCTracer::current_scope(Scope::ScopeId id) const {
   DCHECK_GT(Scope::NUMBER_OF_SCOPES, id);

@@ -1980,31 +1980,28 @@ Maybe<bool> GetSingleCalendarField(
   V(kYearFields, eraYear, result.date.era_year, double,                        \
     ToIntegerWithTruncation, ERA_CONDITION, SIMPLE_SETTER,                     \
     NOOP_REQUIRED_CHECK, ASSIGN)                                               \
-  V(kTimeFields, hour, result.time.hour, double,                               \
-    ToPositiveIntegerWithTruncation, SIMPLE_CONDITION, SIMPLE_SETTER,          \
-    NOOP_REQUIRED_CHECK, ASSIGN)                                               \
+  V(kTimeFields, hour, result.time.hour, double, ToIntegerWithTruncation,      \
+    SIMPLE_CONDITION, SIMPLE_SETTER, NOOP_REQUIRED_CHECK, ASSIGN)              \
   V(kTimeFields, microsecond, result.time.microsecond, double,                 \
-    ToPositiveIntegerWithTruncation, SIMPLE_CONDITION, SIMPLE_SETTER,          \
+    ToIntegerWithTruncation, SIMPLE_CONDITION, SIMPLE_SETTER,                  \
     NOOP_REQUIRED_CHECK, ASSIGN)                                               \
   V(kTimeFields, millisecond, result.time.millisecond, double,                 \
-    ToPositiveIntegerWithTruncation, SIMPLE_CONDITION, SIMPLE_SETTER,          \
+    ToIntegerWithTruncation, SIMPLE_CONDITION, SIMPLE_SETTER,                  \
     NOOP_REQUIRED_CHECK, ASSIGN)                                               \
-  V(kTimeFields, minute, result.time.minute, double,                           \
-    ToPositiveIntegerWithTruncation, SIMPLE_CONDITION, SIMPLE_SETTER,          \
-    NOOP_REQUIRED_CHECK, ASSIGN)                                               \
+  V(kTimeFields, minute, result.time.minute, double, ToIntegerWithTruncation,  \
+    SIMPLE_CONDITION, SIMPLE_SETTER, NOOP_REQUIRED_CHECK, ASSIGN)              \
   V(kMonthFields, month, result.date.month, double,                            \
     ToPositiveIntegerWithTruncation, SIMPLE_CONDITION, SIMPLE_SETTER,          \
     NOOP_REQUIRED_CHECK, ASSIGN)                                               \
   V(kMonthFields, monthCode, result.date.month_code, std::string, ToMonthCode, \
     SIMPLE_CONDITION, MOVING_SETTER, NOOP_REQUIRED_CHECK, ASSIGN)              \
   V(kTimeFields, nanosecond, result.time.nanosecond, double,                   \
-    ToPositiveIntegerWithTruncation, SIMPLE_CONDITION, SIMPLE_SETTER,          \
+    ToIntegerWithTruncation, SIMPLE_CONDITION, SIMPLE_SETTER,                  \
     NOOP_REQUIRED_CHECK, ASSIGN)                                               \
   V(kOffset, offset, result.offset, std::string, ToOffsetString,               \
     SIMPLE_CONDITION, MOVING_SETTER, NOOP_REQUIRED_CHECK, ASSIGN)              \
-  V(kTimeFields, second, result.time.second, double,                           \
-    ToPositiveIntegerWithTruncation, SIMPLE_CONDITION, SIMPLE_SETTER,          \
-    NOOP_REQUIRED_CHECK, ASSIGN)                                               \
+  V(kTimeFields, second, result.time.second, double, ToIntegerWithTruncation,  \
+    SIMPLE_CONDITION, SIMPLE_SETTER, NOOP_REQUIRED_CHECK, ASSIGN)              \
   V(kTimeZone, timeZone, result.time_zone, temporal_rs::TimeZone,              \
     ToTemporalTimeZoneIdentifier, SIMPLE_CONDITION, MOVING_SETTER,             \
     TIMEZONE_REQUIRED_CHECK, MOVE)                                             \

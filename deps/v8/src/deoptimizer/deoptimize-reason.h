@@ -73,6 +73,7 @@ namespace internal {
     "not a JavaScript object, Null or Undefined")                              \
   V(NotANumber, "not a Number")                                                \
   V(NotANumberOrBoolean, "not a Number or Boolean")                            \
+  V(NotANumberOrUndefined, "not a Number or Undefined")                        \
   V(NotANumberOrOddball, "not a Number or Oddball")                            \
   V(NotASmi, "not a Smi")                                                      \
   V(NotAString, "not a String")                                                \

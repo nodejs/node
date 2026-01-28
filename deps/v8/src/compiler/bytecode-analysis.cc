@@ -855,7 +855,7 @@ std::ostream& BytecodeAnalysis::BytecodeAnalysisImpl::PrintLivenessTo(
 
     os << ToString(*in_liveness) << " -> " << ToString(*out_liveness) << " | "
        << current_offset << ": ";
-    iterator.PrintTo(os) << std::endl;
+    iterator.PrintCurrentBytecodeTo(os) << std::endl;
   }
 
   return os;
@@ -1134,7 +1134,7 @@ bool BytecodeAnalysis::BytecodeAnalysisImpl::LivenessIsValid() {
         of << ".>";
         loop_indent++;
       }
-      forward_iterator.PrintTo(of);
+      forward_iterator.PrintCurrentBytecodeTo(of);
       if (Bytecodes::IsJump(forward_iterator.current_bytecode())) {
         of << " (@" << forward_iterator.GetJumpTargetOffset() << ")";
       }

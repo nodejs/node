@@ -21,13 +21,13 @@ bytecodes: [
   /*   45 S> */ B(LdaSmi), I8(1),
                 B(Star0),
   /*   64 S> */ B(Ldar), R(0),
-  /*   76 E> */ B(Add), R(0), U8(0),
+  /*   76 E> */ B(Add), R(0), FBV(0),
                 B(Star0),
   /*   86 S> */ B(LdaSmi), I8(10),
-  /*   95 E> */ B(TestGreaterThan), R(0), U8(1),
+  /*   95 E> */ B(TestGreaterThan), R(0), FBV(1),
                 B(JumpIfFalse), U8(4),
   /*  101 S> */ B(Jump), U8(6),
-  /*   48 E> */ B(JumpLoop), U8(15), I8(0), U8(2),
+  /*   48 E> */ B(JumpLoop), U8(15), I8(0), FBV(2),
   /*  110 S> */ B(Ldar), R(0),
   /*  122 S> */ B(Return),
 ]
@@ -51,10 +51,10 @@ bytecode array length: 19
 bytecodes: [
   /*   45 S> */ B(LdaSmi), I8(1),
                 B(Star0),
-  /*   67 S> */ B(Add), R(0), U8(0),
+  /*   67 S> */ B(Add), R(0), FBV(0),
                 B(Star0),
   /*   77 S> */ B(LdaSmi), I8(10),
-  /*   86 E> */ B(TestGreaterThan), R(0), U8(1),
+  /*   86 E> */ B(TestGreaterThan), R(0), FBV(1),
                 B(JumpIfFalse), U8(4),
   /*   92 S> */ B(Jump), U8(2),
   /*  118 S> */ B(Ldar), R(0),
@@ -77,7 +77,7 @@ bytecode array length: 8
 bytecodes: [
   /*   45 S> */ B(LdaSmi), I8(1),
                 B(Star0),
-  /*   62 S> */ B(Add), R(0), U8(0),
+  /*   62 S> */ B(Add), R(0), FBV(0),
                 B(Star0),
   /*   84 S> */ B(Return),
 ]

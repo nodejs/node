@@ -131,11 +131,11 @@ static const constexpr uint8_t character_json_scan_flags[256] = {
 };
 
 #define EXPECT_RETURN_ON_ERROR(token, msg, ret) \
-  if (V8_UNLIKELY(!Expect(token, msg))) {       \
+  if (V8_UNLIKELY(!Expect<token>(msg))) {       \
     return ret;                                 \
   }
 #define EXPECT_NEXT_RETURN_ON_ERROR(token, msg, ret) \
-  if (V8_UNLIKELY(!ExpectNext(token, msg))) {        \
+  if (V8_UNLIKELY(!ExpectNext<token>(msg))) {        \
     return ret;                                      \
   }
 
@@ -593,11 +593,9 @@ MaybeHandle<Object> JsonParser<Char>::ParseJson(bool should_track_json_source) {
     ASSIGN_RETURN_ON_EXCEPTION(isolate(), result, ParseJsonValueRecursive());
   }
 
-  if (!Check(JsonToken::EOS)) {
-    ReportUnexpectedToken(
-        peek(), MessageTemplate::kJsonParseUnexpectedNonWhiteSpaceCharacter);
-    return MaybeHandle<Object>();
-  }
+  EXPECT_NEXT_RETURN_ON_ERROR(
+      JsonToken::EOS,
+      MessageTemplate::kJsonParseUnexpectedNonWhiteSpaceCharacter, {});
   if (isolate_->has_exception()) {
     return MaybeHandle<Object>();
   }
@@ -616,7 +614,15 @@ JsonToken GetTokenForCharacter(Char c) {
 }  // namespace
 
 template <typename Char>
-void JsonParser<Char>::SkipWhitespace() {
+JsonToken JsonParser<Char>::peek() const {
+  // Check that the next token was scanned before using peek().
+  DCHECK_IMPLIES(!is_at_end(),
+                 GetTokenForCharacter(CurrentCharacter()) == next_);
+  return next_;
+}
+
+template <typename Char>
+void JsonParser<Char>::GetNextNonWhitespaceToken() {
   JsonToken local_next = JsonToken::EOS;
 
   cursor_ = std::find_if(cursor_, end_, [&](Char c) {
@@ -1446,7 +1452,7 @@ Handle<Object> JsonParser<Char>::BuildJsonArray(size_t start) {
 // Parse rawJSON value.
 template <typename Char>
 bool JsonParser<Char>::ParseRawJson() {
-  if (end_ == cursor_) {
+  if (is_at_end()) {
     isolate_->Throw(*isolate_->factory()->NewSyntaxError(
         MessageTemplate::kInvalidRawJsonValue));
     return false;
@@ -1490,7 +1496,7 @@ bool JsonParser<Char>::ParseRawJson() {
 template <typename Char>
 V8_INLINE MaybeHandle<Object> JsonParser<Char>::ParseJsonValueRecursive(
     Handle<Map> feedback) {
-  SkipWhitespace();
+  GetNextNonWhitespaceToken();
   switch (peek()) {
     case JsonToken::NUMBER:
       return ParseJsonNumber();
@@ -1598,7 +1604,7 @@ bool JsonParser<Char>::ParseJsonObjectProperties(
           MessageTemplate::kJsonParseExpectedDoubleQuotedPropertyName;
       JsonString key = ScanJsonPropertyKey(cont);
       if (V8_UNLIKELY(!ParseJsonPropertyValue(key))) return false;
-    } while (Check(JsonToken::COMMA));
+    } while (Check<JsonToken::COMMA>());
   } else {
     DCHECK_GT(descriptors->number_of_descriptors(), 0);
     InternalIndex idx{0};
@@ -1631,7 +1637,7 @@ bool JsonParser<Char>::ParseJsonObjectProperties(
             // Feedback doesn't match. Finish processing the current property
             // and continue in slow-path if we have more properties.
             if (V8_UNLIKELY(!ParseJsonPropertyValue(key))) return false;
-            if (Check(JsonToken::COMMA)) {
+            if (Check<JsonToken::COMMA>()) {
               return ParseJsonObjectProperties<FastIterableState::kJsonSlow>(
                   cont, first_token_msg, {});
             }
@@ -1646,6 +1652,11 @@ bool JsonParser<Char>::ParseJsonObjectProperties(
         if (key.is_index()) {
           if (V8_UNLIKELY(!ParseJsonPropertyValue(key))) return false;
           continue;
+        }
+        // Before accessing the descriptor array, make sure that it wasn't
+        // shrunk during a potential GC after the previous range check.
+        if (V8_UNLIKELY(idx.as_int() >= descriptors->number_of_descriptors())) {
+          break;
         }
         // Check if the key is fast iterable.
         // Some of the checks below are not relevant for the parser, but are
@@ -1694,7 +1705,7 @@ bool JsonParser<Char>::ParseJsonObjectProperties(
         // If key is not fast iterable or doesn't match the feedback, we
         // continue on the slow-path.
         if (V8_UNLIKELY(is_slow || !key_match)) {
-          if (Check(JsonToken::COMMA)) {
+          if (Check<JsonToken::COMMA>()) {
             return ParseJsonObjectProperties<FastIterableState::kJsonSlow>(
                 cont, first_token_msg, {});
           }
@@ -1704,7 +1715,7 @@ bool JsonParser<Char>::ParseJsonObjectProperties(
         ++idx;
       }
     } while (idx < InternalIndex(descriptors->number_of_descriptors()) &&
-             Check(JsonToken::COMMA));
+             Check<JsonToken::COMMA>());
     if constexpr (fast_iterable_state == FastIterableState::kUnknown) {
       if (idx == InternalIndex(descriptors->number_of_descriptors())) {
         descriptors->set_fast_iterable_if(FastIterableState::kJsonFast,
@@ -1712,7 +1723,7 @@ bool JsonParser<Char>::ParseJsonObjectProperties(
       }
     }
     // Additional, unknown properties. Scan them slow.
-    if (Check(JsonToken::COMMA)) {
+    if (Check<JsonToken::COMMA>()) {
       return ParseJsonObjectProperties<FastIterableState::kJsonSlow>(
           cont, first_token_msg, descriptors);
     }
@@ -1731,7 +1742,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonObject(Handle<Map> feedback) {
   }
 
   Consume(JsonToken::LBRACE);
-  if (Check(JsonToken::RBRACE)) {
+  if (Check<JsonToken::RBRACE>()) {
     return factory()->NewJSObject(object_constructor_);
   }
 
@@ -1788,7 +1799,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonArray() {
   }
 
   Consume(JsonToken::LBRACK);
-  if (Check(JsonToken::RBRACK)) {
+  if (Check<JsonToken::RBRACK>()) {
     return factory()->NewJSArray(0, PACKED_SMI_ELEMENTS);
   }
 
@@ -1796,11 +1807,11 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonArray() {
   size_t start = element_stack_.size();
 
   // Avoid allocating HeapNumbers until we really need to.
-  SkipWhitespace();
   bool saw_double = false;
   bool success = false;
   DCHECK_EQ(double_elements_.size(), 0);
   DCHECK_EQ(smi_elements_.size(), 0);
+  // GetNextNonWhitespaceToken was performed by Check(JsonToken::RBRACK).
   while (peek() == JsonToken::NUMBER) {
     double current_double;
     int current_smi;
@@ -1814,8 +1825,8 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonArray() {
         smi_elements_.push_back(current_smi);
       }
     }
-    if (Check(JsonToken::COMMA)) {
-      SkipWhitespace();
+    if (Check<JsonToken::COMMA>()) {
+      GetNextNonWhitespaceToken();
       continue;
     } else {
       EXPECT_RETURN_ON_ERROR(JsonToken::RBRACK,
@@ -1872,7 +1883,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonArray() {
   Handle<Object> value;
   if (V8_UNLIKELY(!ParseJsonValueRecursive().ToHandle(&value))) return {};
   element_stack_.emplace_back(value);
-  while (Check(JsonToken::COMMA)) {
+  while (Check<JsonToken::COMMA>()) {
     Handle<Map> feedback;
     if (IsJSObject(*value)) {
       Tagged<Map> maybe_feedback = Cast<JSObject>(*value)->map();
@@ -1953,7 +1964,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue() {
     // objects and arrays will cause the loop to continue until a first member
     // is completed.
     while (true) {
-      SkipWhitespace();
+      GetNextNonWhitespaceToken();
       // The switch is immediately followed by 'break' so we can use 'break' to
       // break out of the loop, and 'continue' to continue the loop.
 
@@ -1982,7 +1993,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue() {
 
         case JsonToken::LBRACE: {
           Consume(JsonToken::LBRACE);
-          if (Check(JsonToken::RBRACE)) {
+          if (Check<JsonToken::RBRACE>()) {
             // TODO(verwaest): Directly use the map instead.
             value = factory()->NewJSObject(object_constructor_);
             if constexpr (should_track_json_source) {
@@ -1997,7 +2008,9 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue() {
                                   property_stack_.size());
 
           // Parse the property key.
-          EXPECT_NEXT_RETURN_ON_ERROR(
+          // GetNextNonWhitespaceToken was already performed by
+          // Check(JsonToken::RBRACE).
+          EXPECT_RETURN_ON_ERROR(
               JsonToken::STRING,
               MessageTemplate::kJsonParseExpectedPropNameOrRBrace, {});
           property_stack_.emplace_back(ScanJsonPropertyKey(&cont));
@@ -2015,7 +2028,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue() {
 
         case JsonToken::LBRACK:
           Consume(JsonToken::LBRACK);
-          if (Check(JsonToken::RBRACK)) {
+          if (Check<JsonToken::RBRACK>()) {
             value = factory()->NewJSArray(0, PACKED_SMI_ELEMENTS);
             if constexpr (should_track_json_source) {
               val_node = factory()->NewFixedArray(0);
@@ -2101,7 +2114,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue() {
             property_val_node_stack.back() = val_node;
           }
 
-          if (V8_LIKELY(Check(JsonToken::COMMA))) {
+          if (V8_LIKELY(Check<JsonToken::COMMA>())) {
             // Parse the property key.
             EXPECT_NEXT_RETURN_ON_ERROR(
                 JsonToken::STRING,
@@ -2183,7 +2196,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue() {
             element_val_node_stack.emplace_back(val_node);
           }
           // Break to start producing the subsequent element value.
-          if (V8_LIKELY(Check(JsonToken::COMMA))) break;
+          if (V8_LIKELY(Check<JsonToken::COMMA>())) break;
 
           value = BuildJsonArray(cont.index);
           EXPECT_RETURN_ON_ERROR(

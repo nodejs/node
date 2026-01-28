@@ -918,6 +918,11 @@ void LookupIterator::TransitionToAccessorPair(DirectHandle<Object> pair,
   }
 }
 
+Tagged<JSObject> LookupIterator::GetHolderForApi() const {
+  DCHECK(state_ == INTERCEPTOR || state_ == ACCESSOR || state_ == ACCESS_CHECK);
+  return i::GetHolderForApi(Cast<JSObject>(*holder_));
+}
+
 bool LookupIterator::HolderIsReceiver() const {
   DCHECK_NE(state_, STRING_LOOKUP_START_OBJECT);
   DCHECK(has_property_ || state_ == INTERCEPTOR || state_ == JSPROXY ||

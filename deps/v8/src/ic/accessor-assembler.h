@@ -25,13 +25,21 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
   explicit AccessorAssembler(compiler::CodeAssemblerState* state)
       : CodeStubAssembler(state) {}
 
+  enum class FieldLocation { kInObject, kOutOfObject, kNotSpecified };
+  enum class FieldKind { kDouble, kNonDouble };
+  static constexpr int kNotSpecifiedFieldIndex = -1;
+
   void GenerateLoadIC();
   void GenerateLoadIC_Megamorphic();
   void GenerateLoadIC_Noninlined();
   void GenerateLoadIC_NoFeedback();
   void GenerateLoadGlobalIC_NoFeedback();
   void GenerateLoadICTrampoline();
-  void GenerateLoadICBaseline();
+  void GenerateLoadICUninitializedBaseline();
+  void GenerateLoadICFieldBaseline(FieldLocation field_location,
+                                   FieldKind field_kind, int field_index);
+  void GenerateLoadICConstantFromPrototypeBaseline();
+  void GenerateLoadICGenericBaseline();
   void GenerateLoadICTrampoline_Megamorphic();
   void GenerateLoadSuperIC();
   void GenerateLoadSuperICBaseline();
@@ -359,6 +367,9 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
                          Label* miss, ExitPoint* exit_point);
 
   void LoadSuperIC(const LoadICParameters* p);
+
+  void LoadIC_Field(const LazyLoadICParameters* p, FieldLocation field_location,
+                    FieldKind field_kind, int field_index);
 
   TNode<Object> LoadDescriptorValue(TNode<Map> map,
                                     TNode<IntPtrT> descriptor_entry);

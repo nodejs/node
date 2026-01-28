@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+@cppObjectLayoutDefinition
 extern class PromiseCapability extends Struct {
   promise: JSReceiver|Undefined;
   // Ideally, resolve and reject would be typed as Callable|Undefined. However,
@@ -20,15 +21,17 @@ const kPromiseReactionFulfill: constexpr PromiseReactionType
 const kPromiseReactionReject: constexpr PromiseReactionType
     generates 'PromiseReaction::kReject';
 const kPromiseReactionSize:
-    constexpr int31 generates 'PromiseReaction::kSize';
+    constexpr int31 generates 'sizeof(PromiseReaction)';
 const kPromiseReactionFulfillHandlerOffset: constexpr int31
-    generates 'PromiseReaction::kFulfillHandlerOffset';
+    generates 'ObjectTraits<PromiseReaction>::kFulfillHandlerOffset';
 const kPromiseReactionPromiseOrCapabilityOffset: constexpr int31
-    generates 'PromiseReaction::kPromiseOrCapabilityOffset';
+    generates 'ObjectTraits<PromiseReaction>::kPromiseOrCapabilityOffset';
 // @if(V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA)
 const kPromiseReactionContinuationPreservedEmbedderDataOffset: constexpr int31
-    generates 'PromiseReaction::kContinuationPreservedEmbedderDataOffset';
+    generates 'ObjectTraits<PromiseReaction>::kContinuationPreservedEmbedderDataOffset'
+    ;
 
+@cppObjectLayoutDefinition
 extern class PromiseReaction extends Struct {
   @if(V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA)
   continuation_preserved_embedder_data: Object|Undefined;
@@ -42,17 +45,18 @@ extern class PromiseReaction extends Struct {
 
 // PromiseReactionJobTask constants
 const kPromiseReactionJobTaskSizeOfAllPromiseReactionJobTasks: constexpr int31
-    generates 'PromiseReactionJobTask::kSizeOfAllPromiseReactionJobTasks';
+    generates 'sizeof(PromiseReactionJobTask)';
 const kPromiseReactionJobTaskHandlerOffset: constexpr int31
-    generates 'PromiseReactionJobTask::kHandlerOffset';
+    generates 'ObjectTraits<PromiseReactionJobTask>::kHandlerOffset';
 const kPromiseReactionJobTaskPromiseOrCapabilityOffset: constexpr int31
-    generates 'PromiseReactionJobTask::kPromiseOrCapabilityOffset';
+    generates 'ObjectTraits<PromiseReactionJobTask>::kPromiseOrCapabilityOffset';
 // @if(V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA)
 const kPromiseReactionJobTaskContinuationPreservedEmbedderDataOffset:
     constexpr int31
-    generates 'PromiseReactionJobTask::kContinuationPreservedEmbedderDataOffset'
+    generates 'ObjectTraits<PromiseReactionJobTask>::kContinuationPreservedEmbedderDataOffset'
     ;
 
+@cppObjectLayoutDefinition
 @abstract
 extern class PromiseReactionJobTask extends Microtask {
   argument: Object;
@@ -63,10 +67,13 @@ extern class PromiseReactionJobTask extends Microtask {
   promise_or_capability: JSPromise|PromiseCapability|Undefined;
 }
 
+@cppObjectLayoutDefinition
 extern class PromiseFulfillReactionJobTask extends PromiseReactionJobTask {}
 
+@cppObjectLayoutDefinition
 extern class PromiseRejectReactionJobTask extends PromiseReactionJobTask {}
 
+@cppObjectLayoutDefinition
 extern class PromiseResolveThenableJobTask extends Microtask {
   context: Context;
   promise_to_resolve: JSPromise;

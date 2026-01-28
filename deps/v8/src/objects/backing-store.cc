@@ -308,19 +308,12 @@ std::unique_ptr<BackingStore> BackingStore::TryAllocateAndPartiallyCommitMemory(
   // For accounting purposes, whether a GC was necessary.
   bool did_retry = false;
 
-  // A helper to try running a function up to 3 times, executing a GC
-  // if the first and second attempts failed.
   auto gc_retry = [&](const std::function<bool()>& fn) {
-    for (int i = 0; i < 3; i++) {
-      if (fn()) return true;
-      // Collect garbage and retry.
-      did_retry = true;
-      if (isolate != nullptr) {
-        isolate->heap()->MemoryPressureNotification(
-            MemoryPressureLevel::kCritical, true);
-      }
-    }
-    return false;
+    if (fn()) return true;
+    // Collect garbage and retry.
+    did_retry = true;
+    return isolate->heap()->allocator()->RetryCustomAllocate(
+        fn, internal::AllocationType::kOld);
   };
 
   size_t byte_capacity = maximum_pages * page_size;

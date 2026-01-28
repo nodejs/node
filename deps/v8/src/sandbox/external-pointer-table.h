@@ -109,6 +109,7 @@ struct ExternalPointerTableEntry {
 
  private:
   friend class ExternalPointerTable;
+  friend class ExternalPointerTableEntryPrinter;
 
   // TODO(saelo): generalize this payload struct and reuse it for all other
   // pointer table that use type tags. For that, we probably will have to make
@@ -199,7 +200,7 @@ struct ExternalPointerTableEntry {
     Address encoded_word_;
   };
 
-  inline Payload GetRawPayload() {
+  inline Payload GetRawPayload() const {
     return payload_.load(std::memory_order_relaxed);
   }
   inline void SetRawPayload(Payload new_payload) {
@@ -480,6 +481,23 @@ class V8_EXPORT_PRIVATE ExternalPointerTable
       uint32_t index, ExternalPointerHandle* handle_location,
       uint32_t start_of_evacuation_area);
 };
+
+#ifdef OBJECT_PRINT
+
+class ExternalPointerTableEntryPrinter {
+ public:
+  static void PrintHeader(const char* space_name);
+  static void PrintIfInUse(
+      ExternalPointerHandle handle, const ExternalPointerTableEntry& entry,
+      std::function<bool(ExternalPointerTag)> entry_callback);
+  static void PrintFooter();
+};
+
+template <>
+class TableEntryPrinter<ExternalPointerTableEntry>
+    : public ExternalPointerTableEntryPrinter {};
+
+#endif  // OBJECT_PRINT
 
 }  // namespace internal
 }  // namespace v8

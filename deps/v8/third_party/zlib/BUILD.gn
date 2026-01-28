@@ -551,6 +551,7 @@ if (build_with_chromium) {
       "google:compression_utils",
       "google:zip",
       "//base/test:test_support",
+      "//crypto",
       "//testing/gtest",
     ]
 
