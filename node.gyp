@@ -19,6 +19,7 @@
     'node_shared_http_parser%': 'false',
     'node_shared_libuv%': 'false',
     'node_shared_lief%': 'false',
+    'node_shared_merve%': 'false',
     'node_shared_nbytes%': 'false',
     'node_shared_nghttp2%': 'false',
     'node_shared_openssl%': 'false',

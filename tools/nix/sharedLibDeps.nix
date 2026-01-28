@@ -22,6 +22,10 @@
   cares = pkgs.c-ares;
   hdr-histogram = pkgs.hdrhistogram_c;
   http-parser = pkgs.llhttp;
+  merve = pkgs.callPackage (builtins.fetchurl {
+    url = "https://github.com/NixOS/nixpkgs/raw/469b8e35e54d2880d73337c5ef2f1416b9b1dd43/pkgs/by-name/me/merve/package.nix";
+    sha256 = "0r2fmip48hcy4za6xfaml627x9m4218g6vlk5fiajmypfvxybzfy";
+  }) { };
   nghttp2 = pkgs.nghttp2.overrideAttrs {
     patches = [
       (pkgs.fetchpatch2 {
