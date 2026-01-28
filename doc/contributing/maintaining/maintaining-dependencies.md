@@ -14,7 +14,7 @@ This a list of all the dependencies:
 * [base64][]
 * [brotli][]
 * [c-ares][]
-* [cjs-module-lexer][]
+* [merve][]
 * [corepack][]
 * [googletest][]
 * [histogram][]
@@ -238,12 +238,12 @@ used for the homonym generic-purpose lossless compression algorithm.
 The [c-ares](https://github.com/c-ares/c-ares) is a C library
 for asynchronous DNS requests.
 
-### cjs-module-lexer
+### merve
 
-The [cjs-module-lexer](https://github.com/nodejs/node/tree/HEAD/deps/cjs-module-lexer)
+The [merve](https://github.com/nodejs/node/tree/HEAD/deps/merve)
 dependency is used within the Node.js ESM implementation to detect the
 named exports of a CommonJS module.
-See [maintaining-cjs-module-lexer][] for more information.
+See [maintaining-merve][] for more information.
 
 ### corepack
 
@@ -406,7 +406,6 @@ according to [RFC 8878](https://datatracker.ietf.org/doc/html/rfc8878).
 [base64]: #base64
 [brotli]: #brotli
 [c-ares]: #c-ares
-[cjs-module-lexer]: #cjs-module-lexer
 [corepack]: #corepack
 [dependency-update-action]: ../../../.github/workflows/tools.yml
 [googletest]: #googletest
@@ -416,11 +415,12 @@ according to [RFC 8878](https://datatracker.ietf.org/doc/html/rfc8878).
 [libuv]: #libuv
 [llhttp]: #llhttp
 [maintaining-V8]: ./maintaining-V8.md
-[maintaining-cjs-module-lexer]: ./maintaining-cjs-module-lexer.md
 [maintaining-http]: ./maintaining-http.md
 [maintaining-icu]: ./maintaining-icu.md
+[maintaining-merve]: ./maintaining-merve.md
 [maintaining-openssl]: ./maintaining-openssl.md
 [maintaining-web-assembly]: ./maintaining-web-assembly.md
+[merve]: #merve
 [minimatch]: #minimatch
 [nghttp2]: #nghttp2
 [nghttp3]: #nghttp3
