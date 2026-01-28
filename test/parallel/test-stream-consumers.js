@@ -65,7 +65,7 @@ const kArrayBuffer =
 {
   const passthrough = new PassThrough();
 
-  bytes(passthrough).then(common.mustCall(async (uint8arr) => {
+  bytes(passthrough).then(common.mustCall((uint8arr) => {
     assert(uint8arr instanceof Uint8Array);
     assert.strictEqual(uint8arr.byteLength, 10);
     assert.deepStrictEqual(Buffer.from(uint8arr), buf);
