@@ -165,7 +165,12 @@ const customTypesMap = {
   'fs.StatFs': 'fs.html#class-fsstatfs',
   'fs.StatWatcher': 'fs.html#class-fsstatwatcher',
   'fs.WriteStream': 'fs.html#class-fswritestream',
-  'VirtualFileSystem': 'fs.html#class-virtualfilesystem',
+
+  'VirtualFileSystem': 'vfs.html#class-virtualfilesystem',
+  'VirtualProvider': 'vfs.html#class-virtualprovider',
+  'MemoryProvider': 'vfs.html#class-memoryprovider',
+  'SEAProvider': 'vfs.html#class-seaprovider',
+  'RealFSProvider': 'vfs.html#class-realfsprovider',
 
   'http.Agent': 'http.html#class-httpagent',
   'http.ClientRequest': 'http.html#class-httpclientrequest',
