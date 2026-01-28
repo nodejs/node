@@ -13800,10 +13800,10 @@ var init_esm2 = __esm({
   }
 });
 
-// .yarn/cache/tar-npm-7.5.2-6d8cfb7a13-a7d8b80113.zip/node_modules/tar/dist/esm/options.js
+// .yarn/cache/tar-npm-7.5.6-955ec951c2-08af380703.zip/node_modules/tar/dist/esm/options.js
 var argmap, isSyncFile, isAsyncFile, isSyncNoFile, isAsyncNoFile, dealiasKey, dealias;
 var init_options = __esm({
-  ".yarn/cache/tar-npm-7.5.2-6d8cfb7a13-a7d8b80113.zip/node_modules/tar/dist/esm/options.js"() {
+  ".yarn/cache/tar-npm-7.5.6-955ec951c2-08af380703.zip/node_modules/tar/dist/esm/options.js"() {
     argmap = /* @__PURE__ */ new Map([
       ["C", "cwd"],
       ["f", "file"],
@@ -13853,10 +13853,10 @@ var init_options = __esm({
   }
 });
 
-// .yarn/cache/tar-npm-7.5.2-6d8cfb7a13-a7d8b80113.zip/node_modules/tar/dist/esm/make-command.js
+// .yarn/cache/tar-npm-7.5.6-955ec951c2-08af380703.zip/node_modules/tar/dist/esm/make-command.js
 var makeCommand;
 var init_make_command = __esm({
-  ".yarn/cache/tar-npm-7.5.2-6d8cfb7a13-a7d8b80113.zip/node_modules/tar/dist/esm/make-command.js"() {
+  ".yarn/cache/tar-npm-7.5.6-955ec951c2-08af380703.zip/node_modules/tar/dist/esm/make-command.js"() {
     init_options();
     makeCommand = (syncFile, asyncFile, syncNoFile, asyncNoFile, validate) => {
       return Object.assign((opt_ = [], entries, cb) => {
@@ -14307,10 +14307,10 @@ var init_esm3 = __esm({
   }
 });
 
-// .yarn/cache/tar-npm-7.5.2-6d8cfb7a13-a7d8b80113.zip/node_modules/tar/dist/esm/large-numbers.js
+// .yarn/cache/tar-npm-7.5.6-955ec951c2-08af380703.zip/node_modules/tar/dist/esm/large-numbers.js
 var encode, encodePositive, encodeNegative, parse, twos, pos, onesComp, twosComp;
 var init_large_numbers = __esm({
-  ".yarn/cache/tar-npm-7.5.2-6d8cfb7a13-a7d8b80113.zip/node_modules/tar/dist/esm/large-numbers.js"() {
+  ".yarn/cache/tar-npm-7.5.6-955ec951c2-08af380703.zip/node_modules/tar/dist/esm/large-numbers.js"() {
     encode = (num, buf) => {
       if (!Number.isSafeInteger(num)) {
         throw Error("cannot encode number outside of javascript safe integer range");
@@ -14393,10 +14393,10 @@ var init_large_numbers = __esm({
   }
 });
 
-// .yarn/cache/tar-npm-7.5.2-6d8cfb7a13-a7d8b80113.zip/node_modules/tar/dist/esm/types.js
+// .yarn/cache/tar-npm-7.5.6-955ec951c2-08af380703.zip/node_modules/tar/dist/esm/types.js
 var isCode, name, code;
 var init_types = __esm({
-  ".yarn/cache/tar-npm-7.5.2-6d8cfb7a13-a7d8b80113.zip/node_modules/tar/dist/esm/types.js"() {
+  ".yarn/cache/tar-npm-7.5.6-955ec951c2-08af380703.zip/node_modules/tar/dist/esm/types.js"() {
     isCode = (c) => name.has(c);
     name = /* @__PURE__ */ new Map([
       ["0", "File"],
@@ -14441,10 +14441,10 @@ var init_types = __esm({
   }
 });
 
-// .yarn/cache/tar-npm-7.5.2-6d8cfb7a13-a7d8b80113.zip/node_modules/tar/dist/esm/header.js
+// .yarn/cache/tar-npm-7.5.6-955ec951c2-08af380703.zip/node_modules/tar/dist/esm/header.js
 var import_node_path, Header, splitPrefix, decString, decDate, numToDate, decNumber, nanUndef, decSmallNumber, MAXNUM, encNumber, encSmallNumber, octalString, padOctal, encDate, NULLS, encString;
 var init_header = __esm({
-  ".yarn/cache/tar-npm-7.5.2-6d8cfb7a13-a7d8b80113.zip/node_modules/tar/dist/esm/header.js"() {
+  ".yarn/cache/tar-npm-7.5.6-955ec951c2-08af380703.zip/node_modules/tar/dist/esm/header.js"() {
     import_node_path = require("node:path");
     init_large_numbers();
     init_types();
@@ -14652,10 +14652,10 @@ var init_header = __esm({
   }
 });
 
-// .yarn/cache/tar-npm-7.5.2-6d8cfb7a13-a7d8b80113.zip/node_modules/tar/dist/esm/pax.js
+// .yarn/cache/tar-npm-7.5.6-955ec951c2-08af380703.zip/node_modules/tar/dist/esm/pax.js
 var import_node_path2, Pax, merge, parseKV, parseKVLine;
 var init_pax = __esm({
-  ".yarn/cache/tar-npm-7.5.2-6d8cfb7a13-a7d8b80113.zip/node_modules/tar/dist/esm/pax.js"() {
+  ".yarn/cache/tar-npm-7.5.6-955ec951c2-08af380703.zip/node_modules/tar/dist/esm/pax.js"() {
     import_node_path2 = require("node:path");
     init_header();
     Pax = class _Pax {
@@ -14775,19 +14775,19 @@ var init_pax = __esm({
   }
 });
 
-// .yarn/cache/tar-npm-7.5.2-6d8cfb7a13-a7d8b80113.zip/node_modules/tar/dist/esm/normalize-windows-path.js
+// .yarn/cache/tar-npm-7.5.6-955ec951c2-08af380703.zip/node_modules/tar/dist/esm/normalize-windows-path.js
 var platform, normalizeWindowsPath;
 var init_normalize_windows_path = __esm({
-  ".yarn/cache/tar-npm-7.5.2-6d8cfb7a13-a7d8b80113.zip/node_modules/tar/dist/esm/normalize-windows-path.js"() {
+  ".yarn/cache/tar-npm-7.5.6-955ec951c2-08af380703.zip/node_modules/tar/dist/esm/normalize-windows-path.js"() {
     platform = process.env.TESTING_TAR_FAKE_PLATFORM || process.platform;
     normalizeWindowsPath = platform !== "win32" ? (p) => p : (p) => p && p.replace(/\\/g, "/");
   }
 });
 
-// .yarn/cache/tar-npm-7.5.2-6d8cfb7a13-a7d8b80113.zip/node_modules/tar/dist/esm/read-entry.js
+// .yarn/cache/tar-npm-7.5.6-955ec951c2-08af380703.zip/node_modules/tar/dist/esm/read-entry.js
 var ReadEntry;
 var init_read_entry = __esm({
-  ".yarn/cache/tar-npm-7.5.2-6d8cfb7a13-a7d8b80113.zip/node_modules/tar/dist/esm/read-entry.js"() {
+  ".yarn/cache/tar-npm-7.5.6-955ec951c2-08af380703.zip/node_modules/tar/dist/esm/read-entry.js"() {
     init_esm();
     init_normalize_windows_path();
     ReadEntry = class extends Minipass {
@@ -14908,10 +14908,10 @@ var init_read_entry = __esm({
   }
 });
 
-// .yarn/cache/tar-npm-7.5.2-6d8cfb7a13-a7d8b80113.zip/node_modules/tar/dist/esm/warn-method.js
+// .yarn/cache/tar-npm-7.5.6-955ec951c2-08af380703.zip/node_modules/tar/dist/esm/warn-method.js
 var warnMethod;
 var init_warn_method = __esm({
-  ".yarn/cache/tar-npm-7.5.2-6d8cfb7a13-a7d8b80113.zip/node_modules/tar/dist/esm/warn-method.js"() {
+  ".yarn/cache/tar-npm-7.5.6-955ec951c2-08af380703.zip/node_modules/tar/dist/esm/warn-method.js"() {
     warnMethod = (self2, code2, message, data = {}) => {
       if (self2.file) {
         data.file = self2.file;
@@ -14936,10 +14936,10 @@ var init_warn_method = __esm({
   }
 });
 
-// .yarn/cache/tar-npm-7.5.2-6d8cfb7a13-a7d8b80113.zip/node_modules/tar/dist/esm/parse.js
+// .yarn/cache/tar-npm-7.5.6-955ec951c2-08af380703.zip/node_modules/tar/dist/esm/parse.js
 var import_events3, maxMetaEntrySize, gzipHeader, zstdHeader, ZIP_HEADER_LEN, STATE, WRITEENTRY, READENTRY, NEXTENTRY, PROCESSENTRY, EX, GEX, META, EMITMETA, BUFFER2, QUEUE, ENDED, EMITTEDEND, EMIT, UNZIP, CONSUMECHUNK, CONSUMECHUNKSUB, CONSUMEBODY, CONSUMEMETA, CONSUMEHEADER, CONSUMING, BUFFERCONCAT, MAYBEEND, WRITING, ABORTED2, DONE, SAW_VALID_ENTRY, SAW_NULL_BLOCK, SAW_EOF, CLOSESTREAM, noop2, Parser;
 var init_parse = __esm({
-  ".yarn/cache/tar-npm-7.5.2-6d8cfb7a13-a7d8b80113.zip/node_modules/tar/dist/esm/parse.js"() {
+  ".yarn/cache/tar-npm-7.5.6-955ec951c2-08af380703.zip/node_modules/tar/dist/esm/parse.js"() {
     import_events3 = require("events");
     init_esm3();
     init_header();
@@ -15435,10 +15435,10 @@ var init_parse = __esm({
   }
 });
 
-// .yarn/cache/tar-npm-7.5.2-6d8cfb7a13-a7d8b80113.zip/node_modules/tar/dist/esm/strip-trailing-slashes.js
+// .yarn/cache/tar-npm-7.5.6-955ec951c2-08af380703.zip/node_modules/tar/dist/esm/strip-trailing-slashes.js
 var stripTrailingSlashes;
 var init_strip_trailing_slashes = __esm({
-  ".yarn/cache/tar-npm-7.5.2-6d8cfb7a13-a7d8b80113.zip/node_modules/tar/dist/esm/strip-trailing-slashes.js"() {
+  ".yarn/cache/tar-npm-7.5.6-955ec951c2-08af380703.zip/node_modules/tar/dist/esm/strip-trailing-slashes.js"() {
     stripTrailingSlashes = (str) => {
       let i = str.length - 1;
       let slashesStart = -1;
@@ -15451,7 +15451,7 @@ var init_strip_trailing_slashes = __esm({
   }
 });
 
-// .yarn/cache/tar-npm-7.5.2-6d8cfb7a13-a7d8b80113.zip/node_modules/tar/dist/esm/list.js
+// .yarn/cache/tar-npm-7.5.6-955ec951c2-08af380703.zip/node_modules/tar/dist/esm/list.js
 var list_exports = {};
 __export(list_exports, {
   filesFilter: () => filesFilter,
@@ -15459,7 +15459,7 @@ __export(list_exports, {
 });
 var import_node_fs, import_path2, onReadEntryFunction, filesFilter, listFileSync, listFile, list;
 var init_list = __esm({
-  ".yarn/cache/tar-npm-7.5.2-6d8cfb7a13-a7d8b80113.zip/node_modules/tar/dist/esm/list.js"() {
+  ".yarn/cache/tar-npm-7.5.6-955ec951c2-08af380703.zip/node_modules/tar/dist/esm/list.js"() {
     init_esm2();
     import_node_fs = __toESM(require("node:fs"), 1);
     import_path2 = require("path");
@@ -15558,10 +15558,10 @@ var init_list = __esm({
   }
 });
 
-// .yarn/cache/tar-npm-7.5.2-6d8cfb7a13-a7d8b80113.zip/node_modules/tar/dist/esm/get-write-flag.js
+// .yarn/cache/tar-npm-7.5.6-955ec951c2-08af380703.zip/node_modules/tar/dist/esm/get-write-flag.js
 var import_fs3, platform2, isWindows, O_CREAT, O_TRUNC, O_WRONLY, UV_FS_O_FILEMAP, fMapEnabled, fMapLimit, fMapFlag, getWriteFlag;
 var init_get_write_flag = __esm({
-  ".yarn/cache/tar-npm-7.5.2-6d8cfb7a13-a7d8b80113.zip/node_modules/tar/dist/esm/get-write-flag.js"() {
+  ".yarn/cache/tar-npm-7.5.6-955ec951c2-08af380703.zip/node_modules/tar/dist/esm/get-write-flag.js"() {
     import_fs3 = __toESM(require("fs"), 1);
     platform2 = process.env.__FAKE_PLATFORM__ || process.platform;
     isWindows = platform2 === "win32";
@@ -15657,10 +15657,10 @@ var init_esm4 = __esm({
   }
 });
 
-// .yarn/cache/tar-npm-7.5.2-6d8cfb7a13-a7d8b80113.zip/node_modules/tar/dist/esm/cwd-error.js
+// .yarn/cache/tar-npm-7.5.6-955ec951c2-08af380703.zip/node_modules/tar/dist/esm/cwd-error.js
 var CwdError;
 var init_cwd_error = __esm({
-  ".yarn/cache/tar-npm-7.5.2-6d8cfb7a13-a7d8b80113.zip/node_modules/tar/dist/esm/cwd-error.js"() {
+  ".yarn/cache/tar-npm-7.5.6-955ec951c2-08af380703.zip/node_modules/tar/dist/esm/cwd-error.js"() {
     CwdError = class extends Error {
       path;
       code;
@@ -15677,10 +15677,10 @@ var init_cwd_error = __esm({
   }
 });
 
-// .yarn/cache/tar-npm-7.5.2-6d8cfb7a13-a7d8b80113.zip/node_modules/tar/dist/esm/symlink-error.js
+// .yarn/cache/tar-npm-7.5.6-955ec951c2-08af380703.zip/node_modules/tar/dist/esm/symlink-error.js
 var SymlinkError;
 var init_symlink_error = __esm({
-  ".yarn/cache/tar-npm-7.5.2-6d8cfb7a13-a7d8b80113.zip/node_modules/tar/dist/esm/symlink-error.js"() {
+  ".yarn/cache/tar-npm-7.5.6-955ec951c2-08af380703.zip/node_modules/tar/dist/esm/symlink-error.js"() {
     SymlinkError = class extends Error {
       path;
       symlink;
@@ -15698,10 +15698,10 @@ var init_symlink_error = __esm({
   }
 });
 
-// .yarn/cache/tar-npm-7.5.2-6d8cfb7a13-a7d8b80113.zip/node_modules/tar/dist/esm/mkdir.js
+// .yarn/cache/tar-npm-7.5.6-955ec951c2-08af380703.zip/node_modules/tar/dist/esm/mkdir.js
 var import_node_fs3, import_promises, import_node_path4, checkCwd, mkdir, mkdir_, onmkdir, checkCwdSync, mkdirSync2;
 var init_mkdir = __esm({
-  ".yarn/cache/tar-npm-7.5.2-6d8cfb7a13-a7d8b80113.zip/node_modules/tar/dist/esm/mkdir.js"() {
+  ".yarn/cache/tar-npm-7.5.6-955ec951c2-08af380703.zip/node_modules/tar/dist/esm/mkdir.js"() {
     init_esm4();
     import_node_fs3 = __toESM(require("node:fs"), 1);
     import_promises = __toESM(require("node:fs/promises"), 1);
@@ -15855,10 +15855,10 @@ var init_mkdir = __esm({
   }
 });
 
-// .yarn/cache/tar-npm-7.5.2-6d8cfb7a13-a7d8b80113.zip/node_modules/tar/dist/esm/strip-absolute-path.js
+// .yarn/cache/tar-npm-7.5.6-955ec951c2-08af380703.zip/node_modules/tar/dist/esm/strip-absolute-path.js
 var import_node_path5, isAbsolute, parse3, stripAbsolutePath;
 var init_strip_absolute_path = __esm({
-  ".yarn/cache/tar-npm-7.5.2-6d8cfb7a13-a7d8b80113.zip/node_modules/tar/dist/esm/strip-absolute-path.js"() {
+  ".yarn/cache/tar-npm-7.5.6-955ec951c2-08af380703.zip/node_modules/tar/dist/esm/strip-absolute-path.js"() {
     import_node_path5 = require("node:path");
     ({ isAbsolute, parse: parse3 } = import_node_path5.win32);
     stripAbsolutePath = (path16) => {
@@ -15875,10 +15875,10 @@ var init_strip_absolute_path = __esm({
   }
 });
 
-// .yarn/cache/tar-npm-7.5.2-6d8cfb7a13-a7d8b80113.zip/node_modules/tar/dist/esm/winchars.js
+// .yarn/cache/tar-npm-7.5.6-955ec951c2-08af380703.zip/node_modules/tar/dist/esm/winchars.js
 var raw, win, toWin, toRaw, encode2, decode;
 var init_winchars = __esm({
-  ".yarn/cache/tar-npm-7.5.2-6d8cfb7a13-a7d8b80113.zip/node_modules/tar/dist/esm/winchars.js"() {
+  ".yarn/cache/tar-npm-7.5.6-955ec951c2-08af380703.zip/node_modules/tar/dist/esm/winchars.js"() {
     raw = ["|", "<", ">", "?", ":"];
     win = raw.map((char) => String.fromCharCode(61440 + char.charCodeAt(0)));
     toWin = new Map(raw.map((char, i) => [char, win[i]]));
@@ -15888,16 +15888,16 @@ var init_winchars = __esm({
   }
 });
 
-// .yarn/cache/tar-npm-7.5.2-6d8cfb7a13-a7d8b80113.zip/node_modules/tar/dist/esm/normalize-unicode.js
+// .yarn/cache/tar-npm-7.5.6-955ec951c2-08af380703.zip/node_modules/tar/dist/esm/normalize-unicode.js
 var normalizeCache, MAX, cache, normalizeUnicode;
 var init_normalize_unicode = __esm({
-  ".yarn/cache/tar-npm-7.5.2-6d8cfb7a13-a7d8b80113.zip/node_modules/tar/dist/esm/normalize-unicode.js"() {
+  ".yarn/cache/tar-npm-7.5.6-955ec951c2-08af380703.zip/node_modules/tar/dist/esm/normalize-unicode.js"() {
     normalizeCache = /* @__PURE__ */ Object.create(null);
     MAX = 1e4;
     cache = /* @__PURE__ */ new Set();
     normalizeUnicode = (s) => {
       if (!cache.has(s)) {
-        normalizeCache[s] = s.normalize("NFD");
+        normalizeCache[s] = s.normalize("NFD").toLocaleLowerCase("en").toLocaleUpperCase("en");
       } else {
         cache.delete(s);
       }
@@ -15917,10 +15917,10 @@ var init_normalize_unicode = __esm({
   }
 });
 
-// .yarn/cache/tar-npm-7.5.2-6d8cfb7a13-a7d8b80113.zip/node_modules/tar/dist/esm/path-reservations.js
+// .yarn/cache/tar-npm-7.5.6-955ec951c2-08af380703.zip/node_modules/tar/dist/esm/path-reservations.js
 var import_node_path6, platform3, isWindows2, getDirs, PathReservations;
 var init_path_reservations = __esm({
-  ".yarn/cache/tar-npm-7.5.2-6d8cfb7a13-a7d8b80113.zip/node_modules/tar/dist/esm/path-reservations.js"() {
+  ".yarn/cache/tar-npm-7.5.6-955ec951c2-08af380703.zip/node_modules/tar/dist/esm/path-reservations.js"() {
     import_node_path6 = require("node:path");
     init_normalize_unicode();
     init_strip_trailing_slashes();
@@ -15948,7 +15948,7 @@ var init_path_reservations = __esm({
       #running = /* @__PURE__ */ new Set();
       reserve(paths, fn2) {
         paths = isWindows2 ? ["win32 parallelization disabled"] : paths.map((p) => {
-          return stripTrailingSlashes((0, import_node_path6.join)(normalizeUnicode(p))).toLowerCase();
+          return stripTrailingSlashes((0, import_node_path6.join)(normalizeUnicode(p)));
         });
         const dirs = new Set(paths.map((path16) => getDirs(path16)).reduce((a, b) => a.concat(b)));
         this.#reservations.set(fn2, { dirs, paths });
@@ -16057,10 +16057,10 @@ var init_path_reservations = __esm({
   }
 });
 
-// .yarn/cache/tar-npm-7.5.2-6d8cfb7a13-a7d8b80113.zip/node_modules/tar/dist/esm/unpack.js
-var import_node_assert, import_node_crypto, import_node_fs4, import_node_path7, ONENTRY, CHECKFS, CHECKFS2, ISREUSABLE, MAKEFS, FILE, DIRECTORY, LINK, SYMLINK, HARDLINK, UNSUPPORTED, CHECKPATH, MKDIR, ONERROR, PENDING, PEND, UNPEND, ENDED2, MAYBECLOSE, SKIP, DOCHOWN, UID, GID, CHECKED_CWD, platform4, isWindows3, DEFAULT_MAX_DEPTH, unlinkFile, unlinkFileSync, uint32, Unpack, callSync, UnpackSync;
+// .yarn/cache/tar-npm-7.5.6-955ec951c2-08af380703.zip/node_modules/tar/dist/esm/unpack.js
+var import_node_assert, import_node_crypto, import_node_fs4, import_node_path7, ONENTRY, CHECKFS, CHECKFS2, ISREUSABLE, MAKEFS, FILE, DIRECTORY, LINK, SYMLINK, HARDLINK, UNSUPPORTED, CHECKPATH, STRIPABSOLUTEPATH, MKDIR, ONERROR, PENDING, PEND, UNPEND, ENDED2, MAYBECLOSE, SKIP, DOCHOWN, UID, GID, CHECKED_CWD, platform4, isWindows3, DEFAULT_MAX_DEPTH, unlinkFile, unlinkFileSync, uint32, Unpack, callSync, UnpackSync;
 var init_unpack = __esm({
-  ".yarn/cache/tar-npm-7.5.2-6d8cfb7a13-a7d8b80113.zip/node_modules/tar/dist/esm/unpack.js"() {
+  ".yarn/cache/tar-npm-7.5.6-955ec951c2-08af380703.zip/node_modules/tar/dist/esm/unpack.js"() {
     init_esm2();
     import_node_assert = __toESM(require("node:assert"), 1);
     import_node_crypto = require("node:crypto");
@@ -16085,6 +16085,7 @@ var init_unpack = __esm({
     HARDLINK = Symbol("hardlink");
     UNSUPPORTED = Symbol("unsupported");
     CHECKPATH = Symbol("checkPath");
+    STRIPABSOLUTEPATH = Symbol("stripAbsolutePath");
     MKDIR = Symbol("mkdir");
     ONERROR = Symbol("onError");
     PENDING = Symbol("pending");
@@ -16212,6 +16213,43 @@ var init_unpack = __esm({
           this.emit("end");
         }
       }
+      // return false if we need to skip this file
+      // return true if the field was successfully sanitized
+      [STRIPABSOLUTEPATH](entry, field) {
+        const p = entry[field];
+        if (!p || this.preservePaths)
+          return true;
+        const parts = p.split("/");
+        if (parts.includes("..") || /* c8 ignore next */
+        isWindows3 && /^[a-z]:\.\.$/i.test(parts[0] ?? "")) {
+          if (field === "path") {
+            this.warn("TAR_ENTRY_ERROR", `${field} contains '..'`, {
+              entry,
+              [field]: p
+            });
+            return false;
+          } else {
+            const entryDir = import_node_path7.default.posix.dirname(entry.path);
+            const resolved = import_node_path7.default.posix.normalize(import_node_path7.default.posix.join(entryDir, p));
+            if (resolved.startsWith("../") || resolved === "..") {
+              this.warn("TAR_ENTRY_ERROR", `${field} escapes extraction directory`, {
+                entry,
+                [field]: p
+              });
+              return false;
+            }
+          }
+        }
+        const [root, stripped] = stripAbsolutePath(p);
+        if (root) {
+          entry[field] = String(stripped);
+          this.warn("TAR_ENTRY_INFO", `stripping ${root} from absolute ${field}`, {
+            entry,
+            [field]: p
+          });
+        }
+        return true;
+      }
       [CHECKPATH](entry) {
         const p = normalizeWindowsPath(entry.path);
         const parts = p.split("/");
@@ -16239,23 +16277,8 @@ var init_unpack = __esm({
           });
           return false;
         }
-        if (!this.preservePaths) {
-          if (parts.includes("..") || /* c8 ignore next */
-          isWindows3 && /^[a-z]:\.\.$/i.test(parts[0] ?? "")) {
-            this.warn("TAR_ENTRY_ERROR", `path contains '..'`, {
-              entry,
-              path: p
-            });
-            return false;
-          }
-          const [root, stripped] = stripAbsolutePath(p);
-          if (root) {
-            entry.path = String(stripped);
-            this.warn("TAR_ENTRY_INFO", `stripping ${root} from absolute path`, {
-              entry,
-              path: p
-            });
-          }
+        if (!this[STRIPABSOLUTEPATH](entry, "path") || !this[STRIPABSOLUTEPATH](entry, "linkpath")) {
+          return false;
         }
         if (import_node_path7.default.isAbsolute(entry.path)) {
           entry.absolute = normalizeWindowsPath(import_node_path7.default.resolve(entry.path));
@@ -16741,14 +16764,14 @@ var init_unpack = __esm({
   }
 });
 
-// .yarn/cache/tar-npm-7.5.2-6d8cfb7a13-a7d8b80113.zip/node_modules/tar/dist/esm/extract.js
+// .yarn/cache/tar-npm-7.5.6-955ec951c2-08af380703.zip/node_modules/tar/dist/esm/extract.js
 var extract_exports = {};
 __export(extract_exports, {
   extract: () => extract
 });
 var import_node_fs5, extractFileSync, extractFile, extract;
 var init_extract = __esm({
-  ".yarn/cache/tar-npm-7.5.2-6d8cfb7a13-a7d8b80113.zip/node_modules/tar/dist/esm/extract.js"() {
+  ".yarn/cache/tar-npm-7.5.6-955ec951c2-08af380703.zip/node_modules/tar/dist/esm/extract.js"() {
     init_esm2();
     import_node_fs5 = __toESM(require("node:fs"), 1);
     init_list();
@@ -18494,10 +18517,10 @@ ${nodePath ? "$env:NODE_PATH=$env_node_path\n" : ""}${prependPath ? "$env:PATH=$
   }
 });
 
-// .yarn/cache/tar-npm-7.5.2-6d8cfb7a13-a7d8b80113.zip/node_modules/tar/dist/esm/mode-fix.js
+// .yarn/cache/tar-npm-7.5.6-955ec951c2-08af380703.zip/node_modules/tar/dist/esm/mode-fix.js
 var modeFix;
 var init_mode_fix = __esm({
-  ".yarn/cache/tar-npm-7.5.2-6d8cfb7a13-a7d8b80113.zip/node_modules/tar/dist/esm/mode-fix.js"() {
+  ".yarn/cache/tar-npm-7.5.6-955ec951c2-08af380703.zip/node_modules/tar/dist/esm/mode-fix.js"() {
     modeFix = (mode, isDir, portable) => {
       mode &= 4095;
       if (portable) {
@@ -18519,10 +18542,10 @@ var init_mode_fix = __esm({
   }
 });
 
-// .yarn/cache/tar-npm-7.5.2-6d8cfb7a13-a7d8b80113.zip/node_modules/tar/dist/esm/write-entry.js
+// .yarn/cache/tar-npm-7.5.6-955ec951c2-08af380703.zip/node_modules/tar/dist/esm/write-entry.js
 var import_fs11, import_path9, prefixPath, maxReadSize, PROCESS, FILE2, DIRECTORY2, SYMLINK2, HARDLINK2, HEADER, READ2, LSTAT, ONLSTAT, ONREAD, ONREADLINK, OPENFILE, ONOPENFILE, CLOSE, MODE, AWAITDRAIN, ONDRAIN, PREFIX, WriteEntry, WriteEntrySync, WriteEntryTar, getType;
 var init_write_entry = __esm({
-  ".yarn/cache/tar-npm-7.5.2-6d8cfb7a13-a7d8b80113.zip/node_modules/tar/dist/esm/write-entry.js"() {
+  ".yarn/cache/tar-npm-7.5.6-955ec951c2-08af380703.zip/node_modules/tar/dist/esm/write-entry.js"() {
     import_fs11 = __toESM(require("fs"), 1);
     init_esm();
     import_path9 = __toESM(require("path"), 1);
@@ -19488,10 +19511,10 @@ var init_esm5 = __esm({
   }
 });
 
-// .yarn/cache/tar-npm-7.5.2-6d8cfb7a13-a7d8b80113.zip/node_modules/tar/dist/esm/pack.js
+// .yarn/cache/tar-npm-7.5.6-955ec951c2-08af380703.zip/node_modules/tar/dist/esm/pack.js
 var import_fs12, import_path10, PackJob, EOF2, ONSTAT, ENDED3, QUEUE2, CURRENT, PROCESS2, PROCESSING, PROCESSJOB, JOBS, JOBDONE, ADDFSENTRY, ADDTARENTRY, STAT, READDIR, ONREADDIR, PIPE, ENTRY, ENTRYOPT, WRITEENTRYCLASS, WRITE, ONDRAIN2, Pack, PackSync;
 var init_pack = __esm({
-  ".yarn/cache/tar-npm-7.5.2-6d8cfb7a13-a7d8b80113.zip/node_modules/tar/dist/esm/pack.js"() {
+  ".yarn/cache/tar-npm-7.5.6-955ec951c2-08af380703.zip/node_modules/tar/dist/esm/pack.js"() {
     import_fs12 = __toESM(require("fs"), 1);
     init_write_entry();
     init_esm();
@@ -19537,6 +19560,7 @@ var init_pack = __esm({
     WRITE = Symbol("write");
     ONDRAIN2 = Symbol("ondrain");
     Pack = class extends Minipass {
+      sync = false;
       opt;
       cwd;
       maxReadSize;
@@ -19709,6 +19733,8 @@ var init_pack = __esm({
         job.stat = stat;
         if (!this.filter(job.path, stat)) {
           job.ignore = true;
+        } else if (stat.isFile() && stat.nlink > 1 && job === this[CURRENT] && !this.linkCache.get(`${stat.dev}:${stat.ino}`) && !this.sync) {
+          this[PROCESSJOB](job);
         }
         this[PROCESS2]();
       }
@@ -19919,14 +19945,14 @@ var init_pack = __esm({
   }
 });
 
-// .yarn/cache/tar-npm-7.5.2-6d8cfb7a13-a7d8b80113.zip/node_modules/tar/dist/esm/create.js
+// .yarn/cache/tar-npm-7.5.6-955ec951c2-08af380703.zip/node_modules/tar/dist/esm/create.js
 var create_exports = {};
 __export(create_exports, {
   create: () => create
 });
 var import_node_path8, createFileSync, createFile, addFilesSync, addFilesAsync, createSync, createAsync, create;
 var init_create = __esm({
-  ".yarn/cache/tar-npm-7.5.2-6d8cfb7a13-a7d8b80113.zip/node_modules/tar/dist/esm/create.js"() {
+  ".yarn/cache/tar-npm-7.5.6-955ec951c2-08af380703.zip/node_modules/tar/dist/esm/create.js"() {
     init_esm2();
     import_node_path8 = __toESM(require("node:path"), 1);
     init_list();
@@ -21677,7 +21703,7 @@ function String2(descriptor, ...args) {
 }
 
 // package.json
-var version = "0.34.5";
+var version = "0.34.6";
 
 // sources/Engine.ts
 var import_fs6 = __toESM(require("fs"));
@@ -21691,7 +21717,7 @@ var import_valid4 = __toESM(require_valid2());
 var config_default = {
   definitions: {
     npm: {
-      default: "11.6.3+sha1.3f581bca37cbdadf2be04346c0e5b0be96cdd54b",
+      default: "11.8.0+sha1.d1bc924deb3b4d412055b1755098a70bf8a4713b",
       fetchLatestFrom: {
         type: "npm",
         package: "npm"
@@ -21728,7 +21754,7 @@ var config_default = {
       }
     },
     pnpm: {
-      default: "10.23.0+sha1.b4a44ab0dc2adf2e36371d11d8eb0dc78ffc976c",
+      default: "10.28.1+sha1.20817ab95fb7f61154ba5ff3bcb61f27defb6142",
       fetchLatestFrom: {
         type: "npm",
         package: "pnpm"
@@ -21809,7 +21835,7 @@ var config_default = {
         package: "yarn"
       },
       transparent: {
-        default: "4.11.0+sha224.209a3e277c6bbc03df6e4206fbfcb0c1621c27ecf0688f79a0c619f0",
+        default: "4.12.0+sha224.877304a94a6946ab1d58a358df5ff8af2f7c9d86ea506f05f5c9df05",
         commands: [
           [
             "yarn",

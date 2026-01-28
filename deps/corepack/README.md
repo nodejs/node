@@ -219,12 +219,12 @@ On Windows PowerShell, you can add functions using the `$PROFILE` automatic
 variable:
 
 ```powershell
-echo "function yarn { corepack yarn `$args }" >> $PROFILE
-echo "function yarnpkg { corepack yarnpkg `$args }" >> $PROFILE
-echo "function pnpm { corepack pnpm `$args }" >> $PROFILE
-echo "function pnpx { corepack pnpx `$args }" >> $PROFILE
-echo "function npm { corepack npm `$args }" >> $PROFILE
-echo "function npx { corepack npx `$args }" >> $PROFILE
+echo 'function yarn { corepack yarn @args }'    >> $PROFILE
+echo 'function yarnpkg { corepack yarnpkg @args }' >> $PROFILE
+echo 'function pnpm { corepack pnpm @args }'    >> $PROFILE
+echo 'function pnpx { corepack pnpx @args }'    >> $PROFILE
+echo 'function npm { corepack npm @args }'      >> $PROFILE
+echo 'function npx { corepack npx @args }'      >> $PROFILE
 ```
 
 ### `corepack disable [... name]`
