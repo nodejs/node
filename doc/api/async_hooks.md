@@ -144,18 +144,20 @@ function destroy(asyncId) { }
 function promiseResolve(asyncId) { }
 ```
 
-## `async_hooks.createHook(callbacks)`
+## `async_hooks.createHook(options)`
 
 <!-- YAML
 added: v8.1.0
 -->
 
-* `callbacks` {Object} The [Hook Callbacks][] to register
+* `options` {Object} The [Hook Callbacks][] to register
   * `init` {Function} The [`init` callback][].
   * `before` {Function} The [`before` callback][].
   * `after` {Function} The [`after` callback][].
   * `destroy` {Function} The [`destroy` callback][].
   * `promiseResolve` {Function} The [`promiseResolve` callback][].
+  * `trackPromises` {boolean} Whether the hook should track `Promise`s. Cannot be `false` if
+    `promiseResolve` is set. **Default**: `true`.
 * Returns: {AsyncHook} Instance used for disabling and enabling hooks
 
 Registers functions to be called for different lifetime events of each async
@@ -354,7 +356,8 @@ Furthermore users of [`AsyncResource`][] create async resources independent
 of Node.js itself.
 
 There is also the `PROMISE` resource type, which is used to track `Promise`
-instances and asynchronous work scheduled by them.
+instances and asynchronous work scheduled by them. The `Promise`s are only
+tracked when `trackPromises` option is set to `true`.
 
 Users are able to define their own `type` when using the public embedder API.
 
@@ -910,6 +913,38 @@ only on chained promises. That means promises not created by `then()`/`catch()`
 will not have the `before` and `after` callbacks fired on them. For more details
 see the details of the V8 [PromiseHooks][] API.
 
+### Disabling promise execution tracking
+
+Tracking promise execution can cause a significant performance overhead.
+To opt out of promise tracking, set `trackPromises` to `false`:
+
+```cjs
+const { createHook } = require('node:async_hooks');
+const { writeSync } = require('node:fs');
+createHook({
+  init(asyncId, type, triggerAsyncId, resource) {
+    // This init hook does not get called when trackPromises is set to false.
+    writeSync(1, `init hook triggered for ${type}\n`);
+  },
+  trackPromises: false,  // Do not track promises.
+}).enable();
+Promise.resolve(1729);
+```
+
+```mjs
+import { createHook } from 'node:async_hooks';
+import { writeSync } from 'node:fs';
+
+createHook({
+  init(asyncId, type, triggerAsyncId, resource) {
+    // This init hook does not get called when trackPromises is set to false.
+    writeSync(1, `init hook triggered for ${type}\n`);
+  },
+  trackPromises: false,  // Do not track promises.
+}).enable();
+Promise.resolve(1729);
+```
+
 ## JavaScript embedder API
 
 Library developers that handle their own asynchronous resources performing tasks
@@ -934,7 +969,7 @@ The documentation for this class has moved [`AsyncLocalStorage`][].
 [`Worker`]: worker_threads.md#class-worker
 [`after` callback]: #afterasyncid
 [`before` callback]: #beforeasyncid
-[`createHook`]: #async_hookscreatehookcallbacks
+[`createHook`]: #async_hookscreatehookoptions
 [`destroy` callback]: #destroyasyncid
 [`executionAsyncResource`]: #async_hooksexecutionasyncresource
 [`init` callback]: #initasyncid-type-triggerasyncid-resource
