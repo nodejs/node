@@ -1969,7 +1969,7 @@ def configure_library(lib, output, pkgname=None):
 
 
 def configure_v8(o, configs):
-  set_configuration_variable(configs, 'v8_enable_v8_checks', release=1, debug=0)
+  set_configuration_variable(configs, 'v8_enable_v8_checks', release=0, debug=1)
 
   o['variables']['v8_enable_webassembly'] = 0 if options.v8_lite_mode else 1
   o['variables']['v8_enable_javascript_promise_hooks'] = 1
@@ -2600,11 +2600,10 @@ config_release_vars = configurations['Release']['variables']
 del configurations['Release']['variables']
 config_debug_vars = configurations['Debug']['variables']
 del configurations['Debug']['variables']
-output['conditions'].append(['build_type=="Release"', {
-  'variables': config_release_vars,
-}, {
-  'variables': config_debug_vars,
-}])
+if options.debug:
+  variables = variables | config_debug_vars
+else:
+  variables = variables | config_release_vars
 
 # make_global_settings should be a root level element too
 if 'make_global_settings' in output:

@@ -89,7 +89,7 @@ class JSGraph : public EmbedderGraph {
   }
 
   Node* V8Node(const Local<v8::Value>& value) override {
-    return V8Node(value.As<v8::Data>());
+    return V8Node(v8::Local<v8::Data>(value));
   }
 
   Node* AddNode(std::unique_ptr<Node> node) override {

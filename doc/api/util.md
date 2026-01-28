@@ -582,7 +582,7 @@ changes:
 
 > Stability: 1.1 - Active development
 
-* `frameCount` {number} Optional number of frames to capture as call site objects.
+* `frameCount` {integer} Optional number of frames to capture as call site objects.
   **Default:** `10`. Allowable range is between 1 and 200.
 * `options` {Object} Optional
   * `sourceMap` {boolean} Reconstruct the original location in the stacktrace from the source-map.
