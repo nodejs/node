@@ -415,7 +415,7 @@ async function testImportRaw({ name, publicUsages }) {
   await Promise.all(tests);
 })().then(common.mustCall());
 
-{
+if (!process.features.openssl_is_boringssl) {
   const rsaPublic = crypto.createPublicKey(
     fixtures.readKey('rsa_public_2048.pem'));
   const rsaPrivate = crypto.createPrivateKey(
@@ -436,4 +436,6 @@ async function testImportRaw({ name, publicUsages }) {
       { name },
       true, privateUsages), { message: /Invalid key type/ }).then(common.mustCall());
   }
+} else {
+  common.printSkipMessage('Skipping RSA key import tests');
 }

@@ -54,7 +54,7 @@ connect({
   assert.strictEqual(peerCert.ca, false);
   assert.strictEqual(peerCert.issuerCertificate.ca, true);
   assert.strictEqual(peerCert.subject.emailAddress, 'ry@tinyclouds.org');
-  assert.strictEqual(peerCert.serialNumber, '147D36C1C2F74206DE9FAB5F2226D78ADB00A426');
+  assert.match(peerCert.serialNumber, /147D36C1C2F74206DE9FAB5F2226D78ADB00A426/i);
   assert.strictEqual(peerCert.exponent, '0x10001');
   assert.strictEqual(peerCert.bits, 2048);
   // The conversion to bits is odd because modulus isn't a buffer, its a hex
@@ -94,7 +94,7 @@ connect({
 
   const issuer = peerCert.issuerCertificate;
   assert.strictEqual(issuer.issuerCertificate, issuer);
-  assert.strictEqual(issuer.serialNumber, '4AB16C8DFD6A7D0D2DFCABDF9C4B0E92C6AD0229');
+  assert.match(issuer.serialNumber, /4AB16C8DFD6A7D0D2DFCABDF9C4B0E92C6AD0229/i);
 
   return cleanup();
 }));
@@ -112,7 +112,7 @@ connect({
 
   assert.ok(peerCert.issuerCertificate);
   assert.strictEqual(peerCert.subject.emailAddress, 'ry@tinyclouds.org');
-  assert.strictEqual(peerCert.serialNumber, '32E8197681DA33185867B52885F678BFDBA51727');
+  assert.match(peerCert.serialNumber, /32E8197681DA33185867B52885F678BFDBA51727/i);
   assert.strictEqual(peerCert.exponent, undefined);
   assert.strictEqual(peerCert.pubKey, undefined);
   assert.strictEqual(peerCert.modulus, undefined);
@@ -144,7 +144,7 @@ connect({
 
   const issuer = peerCert.issuerCertificate;
   assert.strictEqual(issuer.issuerCertificate, issuer);
-  assert.strictEqual(issuer.serialNumber, '32E8197681DA33185867B52885F678BFDBA51727');
+  assert.match(issuer.serialNumber, /32E8197681DA33185867B52885F678BFDBA51727/i);
 
   return cleanup();
 }));

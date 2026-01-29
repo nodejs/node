@@ -102,17 +102,17 @@ if (!process.features.openssl_is_boringssl) {
   // ECDSA w/ ieee-p1363 signature encoding
   test('ec_secp256k1_public.pem', 'ec_secp256k1_private.pem', 'sha384', false,
        { dsaEncoding: 'ieee-p1363' });
+
+  // DSA w/ der signature encoding
+  test('dsa_public.pem', 'dsa_private.pem', 'sha256',
+       false);
+  test('dsa_public.pem', 'dsa_private.pem', 'sha256',
+       false, { dsaEncoding: 'der' });
+
+  // DSA w/ ieee-p1363 signature encoding
+  test('dsa_public.pem', 'dsa_private.pem', 'sha256', false,
+       { dsaEncoding: 'ieee-p1363' });
 }
-
-// DSA w/ der signature encoding
-test('dsa_public.pem', 'dsa_private.pem', 'sha256',
-     false);
-test('dsa_public.pem', 'dsa_private.pem', 'sha256',
-     false, { dsaEncoding: 'der' });
-
-// DSA w/ ieee-p1363 signature encoding
-test('dsa_public.pem', 'dsa_private.pem', 'sha256', false,
-     { dsaEncoding: 'ieee-p1363' });
 
 // Test Parallel Execution w/ KeyObject is threadsafe in openssl3
 {

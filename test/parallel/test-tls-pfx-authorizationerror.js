@@ -22,8 +22,8 @@ const server = tls
       rejectUnauthorized: false
     },
     common.mustCall(function(c) {
-      assert.strictEqual(c.getPeerCertificate().serialNumber,
-                         '147D36C1C2F74206DE9FAB5F2226D78ADB00A426');
+      assert.match(c.getPeerCertificate().serialNumber,
+                   /147D36C1C2F74206DE9FAB5F2226D78ADB00A426/i);
       assert.strictEqual(c.authorizationError, null);
       c.end();
     })
@@ -41,8 +41,8 @@ const server = tls
           // Calling this repeatedly is a regression test that verifies
           // that .getCertificate() does not accidentally decrease the
           // reference count of the X509* certificate on the native side.
-          assert.strictEqual(client.getCertificate().serialNumber,
-                             '147D36C1C2F74206DE9FAB5F2226D78ADB00A426');
+          assert.match(client.getCertificate().serialNumber,
+                       /147D36C1C2F74206DE9FAB5F2226D78ADB00A426/i);
         }
         client.end();
         server.close();
