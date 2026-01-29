@@ -3383,7 +3383,8 @@ changes:
     description: Watch mode is now stable.
 -->
 
-Starts Node.js in watch mode and specifies what paths to watch.
+Starts Node.js in watch mode and specifies what paths to watch (the paths could
+include glob patterns,e.g., `--watch-path='**/*.js'`).
 When in watch mode, changes in the watched paths cause the Node.js process to
 restart.
 This will turn off watching of required or imported modules, even when used in
@@ -3394,6 +3395,9 @@ This flag cannot be combined with
 
 Note: Using `--watch-path` implicitly enables `--watch`, which requires a file path
 and is incompatible with `--run`, as `--run` takes precedence and ignores watch mode.
+
+When using `--watch-path` with glob patterns, you must include quotations `'<glob-pattern>'` to
+ensure it does not get expanded by the shell interpreter
 
 ```bash
 node --watch-path=./src --watch-path=./tests index.js
