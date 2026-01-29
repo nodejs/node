@@ -222,6 +222,7 @@ class EnvironmentOptions : public Options {
   bool trace_env = false;
   bool trace_env_js_stack = false;
   bool trace_env_native_stack = false;
+  bool use_system_ca = false;
   std::string trace_require_module;
   bool extra_info_on_fatal_exception = true;
   std::string unhandled_rejections;
@@ -359,7 +360,6 @@ class PerProcessOptions : public Options {
   bool ssl_openssl_cert_store = false;
 #endif
   bool use_openssl_ca = false;
-  bool use_system_ca = false;
   bool use_bundled_ca = false;
   bool enable_fips_crypto = false;
   bool force_fips_crypto = false;
