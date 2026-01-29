@@ -141,6 +141,7 @@ BuiltinLoader::BuiltinCategories BuiltinLoader::GetBuiltinCategories() const {
         "quic",    // Experimental.
         "sqlite",  // Experimental.
         "sys",     // Deprecated.
+        "vfs",     // Experimental.
         "wasi",    // Experimental.
 #if !HAVE_SQLITE
         "internal/webstorage",  // Experimental.
