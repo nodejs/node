@@ -37,6 +37,13 @@ is useful for:
 * Creating virtual module systems
 * Embedding configuration or data files in applications
 
+## Mount mode
+
+The VFS operates in **mount mode only**. When mounted at a path prefix (e.g.,
+`/virtual`), the VFS handles all operations for paths starting with that
+prefix. There is no overlay mode that would merge virtual and real file system
+contents at the same paths.
+
 ## Basic usage
 
 The following example shows how to create a virtual file system, add files,
@@ -197,6 +204,12 @@ Mounts the virtual file system at the specified path prefix. After mounting,
 files in the VFS can be accessed via the `fs` module using paths that start
 with the prefix.
 
+If a real file system path already exists at the mount prefix, the VFS
+**shadows** that path. All operations to paths under the mount prefix will be
+directed to the VFS, making the real files inaccessible until the VFS is
+unmounted. See [Security considerations][] for important warnings about this
+behavior.
+
 ```cjs
 const vfs = require('node:vfs');
 
@@ -287,26 +300,26 @@ All paths are relative to the VFS root (not the mount point).
 
 #### Synchronous Methods
 
-* `vfs.readFileSync(path[, options])` - Read a file
-* `vfs.writeFileSync(path, data[, options])` - Write a file
+* `vfs.accessSync(path[, mode])` - Check file accessibility
 * `vfs.appendFileSync(path, data[, options])` - Append to a file
-* `vfs.statSync(path[, options])` - Get file stats
-* `vfs.lstatSync(path[, options])` - Get file stats (no symlink follow)
-* `vfs.readdirSync(path[, options])` - Read directory contents
-* `vfs.mkdirSync(path[, options])` - Create a directory
-* `vfs.rmdirSync(path)` - Remove a directory
-* `vfs.unlinkSync(path)` - Remove a file
-* `vfs.renameSync(oldPath, newPath)` - Rename a file or directory
+* `vfs.closeSync(fd)` - Close a file descriptor
 * `vfs.copyFileSync(src, dest[, mode])` - Copy a file
 * `vfs.existsSync(path)` - Check if path exists
-* `vfs.accessSync(path[, mode])` - Check file accessibility
+* `vfs.lstatSync(path[, options])` - Get file stats (no symlink follow)
+* `vfs.mkdirSync(path[, options])` - Create a directory
 * `vfs.openSync(path, flags[, mode])` - Open a file
-* `vfs.closeSync(fd)` - Close a file descriptor
+* `vfs.readFileSync(path[, options])` - Read a file
 * `vfs.readSync(fd, buffer, offset, length, position)` - Read from fd
-* `vfs.writeSync(fd, buffer, offset, length, position)` - Write to fd
-* `vfs.realpathSync(path[, options])` - Resolve symlinks
 * `vfs.readlinkSync(path[, options])` - Read symlink target
+* `vfs.readdirSync(path[, options])` - Read directory contents
+* `vfs.realpathSync(path[, options])` - Resolve symlinks
+* `vfs.renameSync(oldPath, newPath)` - Rename a file or directory
+* `vfs.rmdirSync(path)` - Remove a directory
+* `vfs.statSync(path[, options])` - Get file stats
 * `vfs.symlinkSync(target, path[, type])` - Create a symlink
+* `vfs.unlinkSync(path)` - Remove a file
+* `vfs.writeFileSync(path, data[, options])` - Write a file
+* `vfs.writeSync(fd, buffer, offset, length, position)` - Write to fd
 
 #### Promise Methods
 
@@ -649,4 +662,76 @@ const template = fs.readFileSync('/sea/templates/index.html', 'utf8');
 See the [Single Executable Applications][] documentation for more information
 on creating SEA builds with assets.
 
+## Symbolic links
+
+The VFS supports symbolic links within the virtual file system. Symlinks are
+created using `vfs.symlinkSync()` or `vfs.promises.symlink()` and can point
+to files or directories within the same VFS.
+
+### Cross-boundary symlinks
+
+Symbolic links in the VFS are **VFS-internal only**. They cannot:
+
+* Point from a VFS path to a real file system path
+* Point from a real file system path to a VFS path
+* Be followed across VFS mount boundaries
+
+When resolving symlinks, the VFS only follows links that target paths within
+the same VFS instance. Attempts to create symlinks with absolute paths that
+would resolve outside the VFS are allowed but will result in dangling symlinks.
+
+```cjs
+const vfs = require('node:vfs');
+
+const myVfs = vfs.create();
+myVfs.mkdirSync('/data');
+myVfs.writeFileSync('/data/config.json', '{}');
+
+// This works - symlink within VFS
+myVfs.symlinkSync('/data/config.json', '/config');
+myVfs.readFileSync('/config', 'utf8'); // '{}'
+
+// This creates a dangling symlink - target doesn't exist in VFS
+myVfs.symlinkSync('/etc/passwd', '/passwd-link');
+// myVfs.readFileSync('/passwd-link'); // Throws ENOENT
+```
+
+## Security considerations
+
+### Path shadowing
+
+When a VFS is mounted, it **shadows** any real file system paths under the
+mount prefix. This means:
+
+* Real files at the mount path become inaccessible
+* All operations are redirected to the VFS
+* Modules loaded from shadowed paths will use VFS content
+
+This behavior can be exploited maliciously. A module could mount a VFS over
+critical system paths (like `/etc` on Unix or `C:\Windows` on Windows) and
+intercept sensitive operations:
+
+```cjs
+// WARNING: Example of dangerous behavior - DO NOT DO THIS
+const vfs = require('node:vfs');
+
+const maliciousVfs = vfs.create();
+maliciousVfs.writeFileSync('/passwd', 'malicious content');
+maliciousVfs.mount('/etc');  // Shadows /etc/passwd!
+
+// Now fs.readFileSync('/etc/passwd') returns 'malicious content'
+```
+
+### Recommendations
+
+* **Audit dependencies**: Be cautious of third-party modules that use VFS, as
+  they could shadow important paths.
+* **Use unique mount points**: Mount VFS at paths that don't conflict with
+  real file system paths, such as `/@virtual` or `/vfs-{unique-id}`.
+* **Verify mount points**: Before trusting file content from paths that could
+  be shadowed, verify the mount state.
+* **Limit VFS usage**: Only use VFS in controlled environments where you trust
+  all loaded modules.
+
+[Security considerations]: #security-considerations
 [Single Executable Applications]: single-executable-applications.md
