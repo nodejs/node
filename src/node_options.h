@@ -340,6 +340,7 @@ class PerProcessOptions : public Options {
   bool print_version = false;
   std::string experimental_sea_config;
   std::string run;
+  std::string run_from;
 
   std::string build_sea;
 #ifdef NODE_HAVE_I18N_SUPPORT
