@@ -13,7 +13,6 @@ const child = spawnSync(process.execPath, [
   testFile,
 ], { encoding: 'utf8' });
 
-assert.match(child.stdout, new RegExp(`# Subtest: ${testFile}`));
-assert.match(child.stdout, /location:.*syntax-error-test\.mjs/);
+assert.match(child.stdout, /error:.*"Unexpected token 'true'"\n/);
 assert.match(child.stdout, /SyntaxError/);
 assert.strictEqual(child.status, 1);
