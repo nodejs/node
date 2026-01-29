@@ -193,6 +193,9 @@
     # Use Siphash as added protection against hash flooding attacks.
     'v8_use_siphash%': 0,
 
+    # Enable seeded array index hash.
+    'v8_enable_seeded_array_index_hash%': 1,
+
     # Use Perfetto (https://perfetto.dev) as the default TracingController. Not
     # currently implemented.
     'v8_use_perfetto%': 0,
@@ -453,6 +456,9 @@
       }],
       ['v8_use_siphash==1', {
         'defines': ['V8_USE_SIPHASH',],
+      }],
+      ['v8_enable_seeded_array_index_hash==1', {
+        'defines': ['V8_ENABLE_SEEDED_ARRAY_INDEX_HASH',],
       }],
       ['v8_enable_shared_ro_heap==1', {
         'defines': ['V8_SHARED_RO_HEAP',],
