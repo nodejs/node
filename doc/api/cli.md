@@ -831,15 +831,6 @@ added: v6.0.0
 Enable FIPS-compliant crypto at startup. (Requires Node.js to be built
 against FIPS-compatible OpenSSL.)
 
-### `--enable-network-family-autoselection`
-
-<!-- YAML
-added: v18.18.0
--->
-
-Enables the family autoselection algorithm unless connection options explicitly
-disables it.
-
 ### `--enable-source-maps`
 
 <!-- YAML
@@ -2286,7 +2277,7 @@ Write reports in a compact format, single-line JSON, more easily consumable
 by log processing systems than the default multi-line format designed for
 human consumption.
 
-### `--report-dir=directory`, `report-directory=directory`
+### `--report-dir=directory`, `--report-directory=directory`
 
 <!-- YAML
 added: v11.8.0
