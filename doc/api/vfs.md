@@ -116,6 +116,11 @@ added: REPLACEME
     loading modules from the VFS. **Default:** `true`.
   * `virtualCwd` {boolean} Whether to enable virtual working directory support.
     **Default:** `false`.
+  * `overlay` {boolean} Whether to enable overlay mode. In overlay mode, the VFS
+    only intercepts paths that exist in the VFS, allowing other paths to fall
+    through to the real file system. Useful for mocking specific files while
+    leaving others unchanged. See [Security considerations][] for important
+    warnings. **Default:** `false`.
 * Returns: {VirtualFileSystem}
 
 Creates a new `VirtualFileSystem` instance. If no provider is specified, a
@@ -232,7 +237,7 @@ accessible through the `fs` module. The VFS can be remounted at the same or a
 different path by calling `mount()` again. Unmounting also resets the virtual
 working directory if one was set.
 
-### `vfs.isMounted`
+### `vfs.mounted`
 
 <!-- YAML
 added: REPLACEME
@@ -241,6 +246,18 @@ added: REPLACEME
 * {boolean}
 
 Returns `true` if the VFS is currently mounted.
+
+### `vfs.overlay`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {boolean}
+
+Returns `true` if overlay mode is enabled. In overlay mode, the VFS only
+intercepts paths that exist in the VFS, allowing other paths to fall through
+to the real file system.
 
 ### `vfs.mountPoint`
 
@@ -721,6 +738,33 @@ maliciousVfs.mount('/etc');  // Shadows /etc/passwd!
 
 // Now fs.readFileSync('/etc/passwd') returns 'malicious content'
 ```
+
+### Overlay mode risks
+
+Overlay mode (`{ overlay: true }`) allows a VFS to selectively intercept file
+operations only for paths that exist in the VFS. While this is useful for
+mocking specific files in tests, it can also be exploited to covertly intercept
+access to specific files:
+
+```cjs
+// WARNING: Example of dangerous behavior - DO NOT DO THIS
+const vfs = require('node:vfs');
+
+// Create an overlay VFS that intercepts a specific file
+const spyVfs = vfs.create(new vfs.MemoryProvider(), { overlay: true });
+spyVfs.writeFileSync('/etc/shadow', 'intercepted!');
+spyVfs.mount('/');  // Mount at root with overlay mode
+
+// Only /etc/shadow is intercepted, other files work normally
+fs.readFileSync('/etc/passwd');  // Real file (works normally)
+fs.readFileSync('/etc/shadow');  // Returns 'intercepted!' (mocked)
+```
+
+This is particularly dangerous because:
+
+* It's harder to detect than full path shadowing
+* Only specific targeted files are affected
+* Other operations appear to work normally
 
 ### Recommendations
 
