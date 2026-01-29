@@ -1054,7 +1054,7 @@ If the list has no items, or if the `totalLength` is 0, then a new zero-length
 If `totalLength` is not provided, it is calculated from the `Buffer` instances
 in `list` by adding their lengths.
 
-If `totalLength` is provided, it is coerced to an unsigned integer. If the
+If `totalLength` is provided, it must be an unsigned integer. If the
 combined length of the `Buffer`s in `list` exceeds `totalLength`, the result is
 truncated to `totalLength`. If the combined length of the `Buffer`s in `list` is
 less than `totalLength`, the remaining space is filled with zeros.
