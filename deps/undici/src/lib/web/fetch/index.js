@@ -1677,9 +1677,9 @@ async function httpNetworkOrCacheFetch (
       // requestCurrentURL(request).password = TODO
 
       // In browsers, the user will be prompted to enter a username/password before the request
-      // is re-sent. To prevent an infinite 401 loop, return a network error for now.
+      // is re-sent. To prevent an infinite 401 loop, return the response for now.
       // https://github.com/nodejs/undici/pull/4756
-      return makeNetworkError()
+      return response
     }
 
     // 4. Set response to the result of running HTTP-network-or-cache fetch given
