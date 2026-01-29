@@ -5,11 +5,12 @@ const assert = require('assert');
 const http = require('http');
 const net = require('net');
 
-const server = http.createServer(common.mustCall((req, res) => {
+const server = http.createServer({
+  keepAliveTimeout: common.platformTimeout(100),
+  keepAliveTimeoutBuffer: common.platformTimeout(1000),
+}, common.mustCall((req, res) => {
   res.end();
 }, 2));
-
-server.keepAliveTimeout = common.platformTimeout(100);
 
 server.listen(0, common.mustCall(() => {
   const port = server.address().port;
