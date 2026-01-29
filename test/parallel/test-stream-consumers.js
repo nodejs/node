@@ -8,6 +8,7 @@ const {
   arrayBuffer,
   blob,
   buffer,
+  bytes,
   text,
   json,
 } = require('stream/consumers');
@@ -61,6 +62,18 @@ const kArrayBuffer =
   setTimeout(() => passthrough.end('there'), 10);
 }
 
+{
+  const passthrough = new PassThrough();
+
+  bytes(passthrough).then(common.mustCall((uint8arr) => {
+    assert(uint8arr instanceof Uint8Array);
+    assert.strictEqual(uint8arr.byteLength, 10);
+    assert.deepStrictEqual(Buffer.from(uint8arr), buf);
+  }));
+
+  passthrough.write('hello');
+  setTimeout(() => passthrough.end('there'), 10);
+}
 
 {
   const passthrough = new PassThrough();
@@ -212,6 +225,24 @@ const kArrayBuffer =
     assert.strictEqual(buf.byteLength, 30);
     assert.strictEqual(
       buf.toString(),
+      '[object Object][object Object]');
+  }));
+
+  stream.write({});
+  stream.end({});
+}
+
+{
+  const stream = new PassThrough({
+    readableObjectMode: true,
+    writableObjectMode: true,
+  });
+
+  bytes(stream).then(common.mustCall((uint8arr) => {
+    assert(uint8arr instanceof Uint8Array);
+    assert.strictEqual(uint8arr.byteLength, 30);
+    assert.strictEqual(
+      Buffer.from(uint8arr).toString(),
       '[object Object][object Object]');
   }));
 
