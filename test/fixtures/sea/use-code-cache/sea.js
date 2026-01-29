@@ -6,9 +6,12 @@ const createdRequire = createRequire(__filename);
 const { expectWarning, mustNotCall } = createdRequire(process.env.COMMON_DIRECTORY);
 
 const builtinWarning =
-`Currently the require() provided to the main script embedded into single-executable applications only supports loading built-in modules.
-To load a module from disk after the single executable application is launched, use require("module").createRequire().
-Support for bundled module loading or virtual file systems are under discussions in https://github.com/nodejs/single-executable`;
+    'Currently the require() provided to the main script embedded into ' +
+    'single-executable applications only supports loading built-in modules.\n' +
+    'To load a module from disk after the single executable application is ' +
+    'launched, use require("module").createRequire().\n' +
+    'Support for bundled module loading or virtual file systems are under ' +
+    'discussions in https://github.com/nodejs/single-executable';
 
 // This additionally makes sure that no unexpected warnings are emitted.
 if (!createdRequire('./sea-config.json').disableExperimentalSEAWarning) {
@@ -26,7 +29,7 @@ const { deepStrictEqual, strictEqual, throws } = require('assert');
 const { dirname } = require('node:path');
 
 // Checks that the source filename is used in the error stack trace.
-strictEqual(new Error('lol').stack.split('\n')[1], '    at sea.js:29:13');
+strictEqual(new Error('lol').stack.split('\n')[1], '    at sea.js:32:13');
 
 // Should be possible to require a core module that requires using the "node:"
 // scheme.
