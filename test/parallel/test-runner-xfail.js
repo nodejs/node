@@ -21,6 +21,10 @@ if (process.env.CHILD_PROCESS === 'true') {
     assert.fail('boom');
   });
 
+  test('fail with validation class', { expectFailure: { with: assert.AssertionError } }, () => {
+    assert.fail('boom');
+  });
+
   test('fail with validation error (wrong error)', { expectFailure: { with: /bang/ } }, () => {
     assert.fail('boom'); // Should result in real failure because error doesn't match
   });
