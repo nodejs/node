@@ -6,7 +6,7 @@ X
 
 Failed tests:
 
-✖ sync fail todo (*ms) # TODO
+⚠ sync fail todo (*ms) # TODO
   Error: thrown from sync fail todo
       *
       *
@@ -15,7 +15,7 @@ Failed tests:
       *
       *
       *
-✖ sync fail todo with message (*ms) # this is a failing todo
+⚠ sync fail todo with message (*ms) # this is a failing todo
   Error: thrown from sync fail todo with message
       *
       *
