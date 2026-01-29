@@ -22,10 +22,10 @@
 
 /* Key derivation function from X9.63/SECG */
 int ossl_ecdh_kdf_X9_63(unsigned char *out, size_t outlen,
-                        const unsigned char *Z, size_t Zlen,
-                        const unsigned char *sinfo, size_t sinfolen,
-                        const EVP_MD *md,
-                        OSSL_LIB_CTX *libctx, const char *propq)
+    const unsigned char *Z, size_t Zlen,
+    const unsigned char *sinfo, size_t sinfolen,
+    const EVP_MD *md,
+    OSSL_LIB_CTX *libctx, const char *propq)
 {
     int ret = 0;
     EVP_KDF_CTX *kctx = NULL;
@@ -35,11 +35,11 @@ int ossl_ecdh_kdf_X9_63(unsigned char *out, size_t outlen,
 
     if ((kctx = EVP_KDF_CTX_new(kdf)) != NULL) {
         *p++ = OSSL_PARAM_construct_utf8_string(OSSL_KDF_PARAM_DIGEST,
-                                                (char *)mdname, 0);
+            (char *)mdname, 0);
         *p++ = OSSL_PARAM_construct_octet_string(OSSL_KDF_PARAM_KEY,
-                                                 (void *)Z, Zlen);
+            (void *)Z, Zlen);
         *p++ = OSSL_PARAM_construct_octet_string(OSSL_KDF_PARAM_INFO,
-                                                 (void *)sinfo, sinfolen);
+            (void *)sinfo, sinfolen);
         *p = OSSL_PARAM_construct_end();
 
         ret = EVP_KDF_derive(kctx, out, outlen, params) > 0;
@@ -55,11 +55,11 @@ int ossl_ecdh_kdf_X9_63(unsigned char *out, size_t outlen,
  */
 #ifndef OPENSSL_NO_DEPRECATED_3_0
 int ECDH_KDF_X9_62(unsigned char *out, size_t outlen,
-                   const unsigned char *Z, size_t Zlen,
-                   const unsigned char *sinfo, size_t sinfolen,
-                   const EVP_MD *md)
+    const unsigned char *Z, size_t Zlen,
+    const unsigned char *sinfo, size_t sinfolen,
+    const EVP_MD *md)
 {
     return ossl_ecdh_kdf_X9_63(out, outlen, Z, Zlen, sinfo, sinfolen, md, NULL,
-                               NULL);
+        NULL);
 }
 #endif

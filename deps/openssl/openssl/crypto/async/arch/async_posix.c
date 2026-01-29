@@ -12,12 +12,12 @@
 
 #ifdef ASYNC_POSIX
 
-# include <stddef.h>
-# include <unistd.h>
-# include <openssl/err.h>
-# include <openssl/crypto.h>
+#include <stddef.h>
+#include <unistd.h>
+#include <openssl/err.h>
+#include <openssl/crypto.h>
 
-#define STACKSIZE       32768
+#define STACKSIZE 32768
 
 static CRYPTO_RWLOCK *async_mem_lock;
 
@@ -51,7 +51,7 @@ int ASYNC_is_capable(void)
 }
 
 int ASYNC_set_mem_functions(ASYNC_stack_alloc_fn alloc_fn,
-                            ASYNC_stack_free_fn free_fn)
+    ASYNC_stack_free_fn free_fn)
 {
     OPENSSL_init_crypto(OPENSSL_INIT_ASYNC, NULL);
 
@@ -71,7 +71,7 @@ int ASYNC_set_mem_functions(ASYNC_stack_alloc_fn alloc_fn,
 }
 
 void ASYNC_get_mem_functions(ASYNC_stack_alloc_fn *alloc_fn,
-                             ASYNC_stack_free_fn *free_fn)
+    ASYNC_stack_free_fn *free_fn)
 {
     if (alloc_fn != NULL)
         *alloc_fn = stack_alloc_impl;

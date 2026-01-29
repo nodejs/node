@@ -37,7 +37,7 @@ char *BN_bn2hex(const BIGNUM *a)
         }
     }
     *p = '\0';
- err:
+err:
     return buf;
 }
 
@@ -61,7 +61,7 @@ char *BN_bn2dec(const BIGNUM *a)
      */
     i = BN_num_bits(a) * 3;
     num = (i / 10 + i / 1000 + 1) + 1;
-    tbytes = num + 3;   /* negative and terminator and one spare? */
+    tbytes = num + 3; /* negative and terminator and one spare? */
     bn_data_num = num / BN_DEC_NUM + 1;
     bn_data = OPENSSL_malloc(bn_data_num * sizeof(BN_ULONG));
     buf = OPENSSL_malloc(tbytes);
@@ -106,7 +106,7 @@ char *BN_bn2dec(const BIGNUM *a)
         }
     }
     ok = 1;
- err:
+err:
     OPENSSL_free(bn_data);
     BN_free(t);
     if (ok)
@@ -158,7 +158,7 @@ int BN_hex2bn(BIGNUM **bn, const char *a)
     if (bn_expand(ret, i * 4) == NULL)
         goto err;
 
-    j = i;                      /* least significant 'hex' */
+    j = i; /* least significant 'hex' */
     m = 0;
     h = 0;
     while (j > 0) {
@@ -168,7 +168,7 @@ int BN_hex2bn(BIGNUM **bn, const char *a)
             c = a[j - m];
             k = OPENSSL_hexchar2int(c);
             if (k < 0)
-                k = 0;          /* paranoia */
+                k = 0; /* paranoia */
             l = (l << 4) | k;
 
             if (--m <= 0) {
@@ -187,7 +187,7 @@ int BN_hex2bn(BIGNUM **bn, const char *a)
     if (ret->top != 0)
         ret->neg = neg;
     return num;
- err:
+err:
     if (*bn == NULL)
         BN_free(ret);
     return 0;
@@ -257,7 +257,7 @@ int BN_dec2bn(BIGNUM **bn, const char *a)
     if (ret->top != 0)
         ret->neg = neg;
     return num;
- err:
+err:
     if (*bn == NULL)
         BN_free(ret);
     return 0;

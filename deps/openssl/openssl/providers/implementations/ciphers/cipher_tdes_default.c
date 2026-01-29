@@ -17,19 +17,19 @@
 #include "prov/implementations.h"
 
 /* ossl_tdes_ede3_ofb_functions */
-IMPLEMENT_tdes_cipher(ede3, EDE3,  ofb, OFB, TDES_FLAGS, 64*3,  8, 64, stream);
+IMPLEMENT_tdes_cipher(ede3, EDE3, ofb, OFB, TDES_FLAGS, 64 * 3, 8, 64, stream);
 /* ossl_tdes_ede3_cfb_functions */
-IMPLEMENT_tdes_cipher(ede3, EDE3,  cfb, CFB, TDES_FLAGS, 64*3,  8, 64, stream);
+IMPLEMENT_tdes_cipher(ede3, EDE3, cfb, CFB, TDES_FLAGS, 64 * 3, 8, 64, stream);
 /* ossl_tdes_ede3_cfb1_functions */
-IMPLEMENT_tdes_cipher(ede3, EDE3, cfb1, CFB, TDES_FLAGS, 64*3,  8, 64, stream);
+IMPLEMENT_tdes_cipher(ede3, EDE3, cfb1, CFB, TDES_FLAGS, 64 * 3, 8, 64, stream);
 /* ossl_tdes_ede3_cfb8_functions */
-IMPLEMENT_tdes_cipher(ede3, EDE3, cfb8, CFB, TDES_FLAGS, 64*3,  8, 64, stream);
+IMPLEMENT_tdes_cipher(ede3, EDE3, cfb8, CFB, TDES_FLAGS, 64 * 3, 8, 64, stream);
 
 /* ossl_tdes_ede2_ecb_functions */
-IMPLEMENT_tdes_cipher(ede2, EDE2, ecb, ECB, TDES_FLAGS, 64*2, 64, 0, block);
+IMPLEMENT_tdes_cipher(ede2, EDE2, ecb, ECB, TDES_FLAGS, 64 * 2, 64, 0, block);
 /* ossl_tdes_ede2_cbc_functions */
-IMPLEMENT_tdes_cipher(ede2, EDE2, cbc, CBC, TDES_FLAGS, 64*2, 64, 64, block);
+IMPLEMENT_tdes_cipher(ede2, EDE2, cbc, CBC, TDES_FLAGS, 64 * 2, 64, 64, block);
 /* ossl_tdes_ede2_ofb_functions */
-IMPLEMENT_tdes_cipher(ede2, EDE2, ofb, OFB, TDES_FLAGS, 64*2,  8, 64, stream);
+IMPLEMENT_tdes_cipher(ede2, EDE2, ofb, OFB, TDES_FLAGS, 64 * 2, 8, 64, stream);
 /* ossl_tdes_ede2_cfb_functions */
-IMPLEMENT_tdes_cipher(ede2, EDE2, cfb, CFB, TDES_FLAGS, 64*2,  8, 64, stream);
+IMPLEMENT_tdes_cipher(ede2, EDE2, cfb, CFB, TDES_FLAGS, 64 * 2, 8, 64, stream);

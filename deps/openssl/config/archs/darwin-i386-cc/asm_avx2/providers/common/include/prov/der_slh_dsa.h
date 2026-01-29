@@ -14,6 +14,7 @@
 #include "crypto/slh_dsa.h"
 
 /* Well known OIDs precompiled */
+/* clang-format off */
 
 /*
  * id-slh-dsa-sha2-128s OBJECT IDENTIFIER ::= { sigAlgs 20 }
@@ -99,5 +100,6 @@ extern const unsigned char ossl_der_oid_id_slh_dsa_shake_256s[DER_OID_SZ_id_slh_
 #define DER_OID_SZ_id_slh_dsa_shake_256f 11
 extern const unsigned char ossl_der_oid_id_slh_dsa_shake_256f[DER_OID_SZ_id_slh_dsa_shake_256f];
 
+/* clang-format on */
 
 int ossl_DER_w_algorithmIdentifier_SLH_DSA(WPACKET *pkt, int tag, SLH_DSA_KEY *key);

@@ -50,16 +50,16 @@ const EC_METHOD *EC_GFp_nist_method(void)
         ossl_ec_GFp_simple_cmp,
         ossl_ec_GFp_simple_make_affine,
         ossl_ec_GFp_simple_points_make_affine,
-        0 /* mul */ ,
-        0 /* precompute_mult */ ,
-        0 /* have_precompute_mult */ ,
+        0 /* mul */,
+        0 /* precompute_mult */,
+        0 /* have_precompute_mult */,
         ossl_ec_GFp_nist_field_mul,
         ossl_ec_GFp_nist_field_sqr,
-        0 /* field_div */ ,
+        0 /* field_div */,
         ossl_ec_GFp_simple_field_inv,
-        0 /* field_encode */ ,
-        0 /* field_decode */ ,
-        0,                      /* field_set_to_one */
+        0 /* field_encode */,
+        0 /* field_decode */,
+        0, /* field_set_to_one */
         ossl_ec_key_simple_priv2oct,
         ossl_ec_key_simple_oct2priv,
         0, /* set private */
@@ -90,8 +90,8 @@ int ossl_ec_GFp_nist_group_copy(EC_GROUP *dest, const EC_GROUP *src)
 }
 
 int ossl_ec_GFp_nist_group_set_curve(EC_GROUP *group, const BIGNUM *p,
-                                     const BIGNUM *a, const BIGNUM *b,
-                                     BN_CTX *ctx)
+    const BIGNUM *a, const BIGNUM *b,
+    BN_CTX *ctx)
 {
     int ret = 0;
     BN_CTX *new_ctx = NULL;
@@ -119,14 +119,14 @@ int ossl_ec_GFp_nist_group_set_curve(EC_GROUP *group, const BIGNUM *p,
 
     ret = ossl_ec_GFp_simple_group_set_curve(group, p, a, b, ctx);
 
- err:
+err:
     BN_CTX_end(ctx);
     BN_CTX_free(new_ctx);
     return ret;
 }
 
 int ossl_ec_GFp_nist_field_mul(const EC_GROUP *group, BIGNUM *r, const BIGNUM *a,
-                               const BIGNUM *b, BN_CTX *ctx)
+    const BIGNUM *b, BN_CTX *ctx)
 {
     int ret = 0;
     BN_CTX *ctx_new = NULL;
@@ -145,13 +145,13 @@ int ossl_ec_GFp_nist_field_mul(const EC_GROUP *group, BIGNUM *r, const BIGNUM *a
         goto err;
 
     ret = 1;
- err:
+err:
     BN_CTX_free(ctx_new);
     return ret;
 }
 
 int ossl_ec_GFp_nist_field_sqr(const EC_GROUP *group, BIGNUM *r, const BIGNUM *a,
-                               BN_CTX *ctx)
+    BN_CTX *ctx)
 {
     int ret = 0;
     BN_CTX *ctx_new = NULL;
@@ -170,7 +170,7 @@ int ossl_ec_GFp_nist_field_sqr(const EC_GROUP *group, BIGNUM *r, const BIGNUM *a
         goto err;
 
     ret = 1;
- err:
+err:
     BN_CTX_free(ctx_new);
     return ret;
 }

@@ -13,6 +13,7 @@
 #include "prov/der_ec.h"
 
 /* Well known OIDs precompiled */
+/* clang-format off */
 
 /*
  * ecdsa-with-SHA1 OBJECT IDENTIFIER ::= { id-ecSigType 1 }
@@ -277,3 +278,4 @@ const unsigned char ossl_der_oid_id_ecdsa_with_sha3_512[DER_OID_SZ_id_ecdsa_with
     DER_OID_V_id_ecdsa_with_sha3_512
 };
 
+/* clang-format on */

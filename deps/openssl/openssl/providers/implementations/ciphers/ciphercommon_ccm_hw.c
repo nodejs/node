@@ -11,13 +11,13 @@
 #include "prov/ciphercommon_ccm.h"
 
 int ossl_ccm_generic_setiv(PROV_CCM_CTX *ctx, const unsigned char *nonce,
-                           size_t nlen, size_t mlen)
+    size_t nlen, size_t mlen)
 {
     return CRYPTO_ccm128_setiv(&ctx->ccm_ctx, nonce, nlen, mlen) == 0;
 }
 
 int ossl_ccm_generic_setaad(PROV_CCM_CTX *ctx, const unsigned char *aad,
-                            size_t alen)
+    size_t alen)
 {
     CRYPTO_ccm128_aad(&ctx->ccm_ctx, aad, alen);
     return 1;
@@ -29,14 +29,15 @@ int ossl_ccm_generic_gettag(PROV_CCM_CTX *ctx, unsigned char *tag, size_t tlen)
 }
 
 int ossl_ccm_generic_auth_encrypt(PROV_CCM_CTX *ctx, const unsigned char *in,
-                                  unsigned char *out, size_t len,
-                                  unsigned char *tag, size_t taglen)
+    unsigned char *out, size_t len,
+    unsigned char *tag, size_t taglen)
 {
     int rv;
 
     if (ctx->str != NULL)
         rv = CRYPTO_ccm128_encrypt_ccm64(&ctx->ccm_ctx, in,
-                                         out, len, ctx->str) == 0;
+                 out, len, ctx->str)
+            == 0;
     else
         rv = CRYPTO_ccm128_encrypt(&ctx->ccm_ctx, in, out, len) == 0;
 
@@ -46,14 +47,15 @@ int ossl_ccm_generic_auth_encrypt(PROV_CCM_CTX *ctx, const unsigned char *in,
 }
 
 int ossl_ccm_generic_auth_decrypt(PROV_CCM_CTX *ctx, const unsigned char *in,
-                                  unsigned char *out, size_t len,
-                                  unsigned char *expected_tag, size_t taglen)
+    unsigned char *out, size_t len,
+    unsigned char *expected_tag, size_t taglen)
 {
     int rv = 0;
 
     if (ctx->str != NULL)
         rv = CRYPTO_ccm128_decrypt_ccm64(&ctx->ccm_ctx, in, out, len,
-                                         ctx->str) == 0;
+                 ctx->str)
+            == 0;
     else
         rv = CRYPTO_ccm128_decrypt(&ctx->ccm_ctx, in, out, len) == 0;
     if (rv) {

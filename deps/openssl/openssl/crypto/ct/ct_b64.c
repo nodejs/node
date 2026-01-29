@@ -59,13 +59,13 @@ err:
 }
 
 SCT *SCT_new_from_base64(unsigned char version, const char *logid_base64,
-                         ct_log_entry_type_t entry_type, uint64_t timestamp,
-                         const char *extensions_base64,
-                         const char *signature_base64)
+    ct_log_entry_type_t entry_type, uint64_t timestamp,
+    const char *extensions_base64,
+    const char *signature_base64)
 {
     SCT *sct = SCT_new();
     unsigned char *dec = NULL;
-    const unsigned char* p = NULL;
+    const unsigned char *p = NULL;
     int declen;
 
     if (sct == NULL) {
@@ -118,7 +118,7 @@ SCT *SCT_new_from_base64(unsigned char version, const char *logid_base64,
 
     return sct;
 
- err:
+err:
     OPENSSL_free(dec);
     SCT_free(sct);
     return NULL;
@@ -131,8 +131,8 @@ SCT *SCT_new_from_base64(unsigned char version, const char *logid_base64,
  * -1 on internal (malloc) failure
  */
 int CTLOG_new_from_base64_ex(CTLOG **ct_log, const char *pkey_base64,
-                             const char *name, OSSL_LIB_CTX *libctx,
-                             const char *propq)
+    const char *name, OSSL_LIB_CTX *libctx,
+    const char *propq)
 {
     unsigned char *pkey_der = NULL;
     int pkey_der_len;
@@ -168,7 +168,7 @@ int CTLOG_new_from_base64_ex(CTLOG **ct_log, const char *pkey_base64,
 }
 
 int CTLOG_new_from_base64(CTLOG **ct_log, const char *pkey_base64,
-                          const char *name)
+    const char *name)
 {
     return CTLOG_new_from_base64_ex(ct_log, pkey_base64, name, NULL, NULL);
 }

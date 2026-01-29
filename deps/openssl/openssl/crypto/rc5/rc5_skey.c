@@ -17,7 +17,7 @@
 #include "rc5_local.h"
 
 int RC5_32_set_key(RC5_32_KEY *key, int len, const unsigned char *data,
-                   int rounds)
+    int rounds)
 {
     RC5_32_INT L[64], l, ll, A, B, *S, k;
     int i, j, m, c, t, ii, jj;
@@ -25,8 +25,7 @@ int RC5_32_set_key(RC5_32_KEY *key, int len, const unsigned char *data,
     if (len > 255)
         return 0;
 
-    if ((rounds != RC5_16_ROUNDS) &&
-        (rounds != RC5_12_ROUNDS) && (rounds != RC5_8_ROUNDS))
+    if ((rounds != RC5_16_ROUNDS) && (rounds != RC5_12_ROUNDS) && (rounds != RC5_8_ROUNDS))
         rounds = RC5_16_ROUNDS;
 
     key->rounds = rounds;

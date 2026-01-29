@@ -37,8 +37,8 @@
  * returns pointer to OSSL_CRMF_PBMPARAMETER on success, NULL on error
  */
 OSSL_CRMF_PBMPARAMETER *OSSL_CRMF_pbmp_new(OSSL_LIB_CTX *libctx, size_t slen,
-                                           int owfnid, size_t itercnt,
-                                           int macnid)
+    int owfnid, size_t itercnt,
+    int macnid)
 {
     OSSL_CRMF_PBMPARAMETER *pbm = NULL;
     unsigned char *salt = NULL;
@@ -106,7 +106,7 @@ OSSL_CRMF_PBMPARAMETER *OSSL_CRMF_pbmp_new(OSSL_LIB_CTX *libctx, size_t slen,
 
     OPENSSL_free(salt);
     return pbm;
- err:
+err:
     OPENSSL_free(salt);
     OSSL_CRMF_PBMPARAMETER_free(pbm);
     return NULL;
@@ -125,10 +125,10 @@ OSSL_CRMF_PBMPARAMETER *OSSL_CRMF_pbmp_new(OSSL_LIB_CTX *libctx, size_t slen,
  */
 /* could be combined with other MAC calculations in the library */
 int OSSL_CRMF_pbm_new(OSSL_LIB_CTX *libctx, const char *propq,
-                      const OSSL_CRMF_PBMPARAMETER *pbmp,
-                      const unsigned char *msg, size_t msglen,
-                      const unsigned char *sec, size_t seclen,
-                      unsigned char **out, size_t *outlen)
+    const OSSL_CRMF_PBMPARAMETER *pbmp,
+    const unsigned char *msg, size_t msglen,
+    const unsigned char *sec, size_t seclen,
+    unsigned char **out, size_t *outlen)
 {
     int mac_nid, hmac_md_nid = NID_undef;
     char mdname[OSSL_MAX_NAME_SIZE];
@@ -142,7 +142,7 @@ int OSSL_CRMF_pbm_new(OSSL_LIB_CTX *libctx, const char *propq,
     int ok = 0;
 
     if (out == NULL || pbmp == NULL || pbmp->mac == NULL
-            || pbmp->mac->algorithm == NULL || msg == NULL || sec == NULL) {
+        || pbmp->mac->algorithm == NULL || msg == NULL || sec == NULL) {
         ERR_raise(ERR_LIB_CRMF, CRMF_R_NULL_ARGUMENT);
         goto err;
     }
@@ -175,8 +175,8 @@ int OSSL_CRMF_pbm_new(OSSL_LIB_CTX *libctx, const char *propq,
     if (!EVP_DigestFinal_ex(ctx, basekey, &bklen))
         goto err;
     if (!ASN1_INTEGER_get_int64(&iterations, pbmp->iterationCount)
-            || iterations < 100 /* min from RFC */
-            || iterations > OSSL_CRMF_PBM_MAX_ITERATION_COUNT) {
+        || iterations < 100 /* min from RFC */
+        || iterations > OSSL_CRMF_PBM_MAX_ITERATION_COUNT) {
         ERR_raise(ERR_LIB_CRMF, CRMF_R_BAD_PBM_ITERATIONCOUNT);
         goto err;
     }
@@ -200,18 +200,20 @@ int OSSL_CRMF_pbm_new(OSSL_LIB_CTX *libctx, const char *propq,
 
     if (!EVP_PBE_find(EVP_PBE_TYPE_PRF, mac_nid, NULL, &hmac_md_nid, NULL)
         || OBJ_obj2txt(hmac_mdname, sizeof(hmac_mdname),
-                       OBJ_nid2obj(hmac_md_nid), 0) <= 0) {
+               OBJ_nid2obj(hmac_md_nid), 0)
+            <= 0) {
         ERR_raise(ERR_LIB_CRMF, CRMF_R_UNSUPPORTED_ALGORITHM);
         goto err;
     }
     /* could be generalized to allow non-HMAC: */
     if (EVP_Q_mac(libctx, "HMAC", propq, hmac_mdname, NULL, basekey, bklen,
-                  msg, msglen, mac_res, EVP_MAX_MD_SIZE, outlen) == NULL)
+            msg, msglen, mac_res, EVP_MAX_MD_SIZE, outlen)
+        == NULL)
         goto err;
 
     ok = 1;
 
- err:
+err:
     OPENSSL_cleanse(basekey, bklen);
     EVP_MD_free(owf);
     EVP_MD_CTX_free(ctx);

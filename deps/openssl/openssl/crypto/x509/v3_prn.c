@@ -17,12 +17,12 @@
 /* Extension printing routines */
 
 static int unknown_ext_print(BIO *out, const unsigned char *ext, int extlen,
-                             unsigned long flag, int indent, int supported);
+    unsigned long flag, int indent, int supported);
 
 /* Print out a name+value stack */
 
 void X509V3_EXT_val_prn(BIO *out, STACK_OF(CONF_VALUE) *val, int indent,
-                        int ml)
+    int ml)
 {
     int i;
     CONF_VALUE *nval;
@@ -38,8 +38,7 @@ void X509V3_EXT_val_prn(BIO *out, STACK_OF(CONF_VALUE) *val, int indent,
             if (i > 0)
                 BIO_printf(out, "\n");
             BIO_printf(out, "%*s", indent, "");
-        }
-        else if (i > 0)
+        } else if (i > 0)
             BIO_printf(out, ", ");
         nval = sk_CONF_VALUE_value(val, i);
         if (!nval->name)
@@ -68,7 +67,7 @@ void X509V3_EXT_val_prn(BIO *out, STACK_OF(CONF_VALUE) *val, int indent,
 /* Main routine: print out a general extension */
 
 int X509V3_EXT_print(BIO *out, X509_EXTENSION *ext, unsigned long flag,
-                     int indent)
+    int indent)
 {
     void *ext_str = NULL;
     char *value = NULL;
@@ -119,14 +118,14 @@ int X509V3_EXT_print(BIO *out, X509_EXTENSION *ext, unsigned long flag,
             goto err;
         }
         X509V3_EXT_val_prn(out, nval, indent,
-                           method->ext_flags & X509V3_EXT_MULTILINE);
+            method->ext_flags & X509V3_EXT_MULTILINE);
     } else if (method->i2r) {
         if (!method->i2r(method, ext_str, out, indent))
             ok = 0;
     } else
         ok = 0;
 
- err:
+err:
     sk_CONF_VALUE_pop_free(nval, X509V3_conf_free);
     OPENSSL_free(value);
     if (method->it)
@@ -137,8 +136,8 @@ int X509V3_EXT_print(BIO *out, X509_EXTENSION *ext, unsigned long flag,
 }
 
 int X509V3_extensions_print(BIO *bp, const char *title,
-                            const STACK_OF(X509_EXTENSION) *exts,
-                            unsigned long flag, int indent)
+    const STACK_OF(X509_EXTENSION) *exts,
+    unsigned long flag, int indent)
 {
     int i, j;
 
@@ -157,8 +156,8 @@ int X509V3_extensions_print(BIO *bp, const char *title,
         ex = sk_X509_EXTENSION_value(exts, i);
         obj = X509_EXTENSION_get_object(ex);
         if ((flag & X509_FLAG_EXTENSIONS_ONLY_KID) != 0
-                && OBJ_obj2nid(obj) != NID_subject_key_identifier
-                && OBJ_obj2nid(obj) != NID_authority_key_identifier)
+            && OBJ_obj2nid(obj) != NID_subject_key_identifier
+            && OBJ_obj2nid(obj) != NID_authority_key_identifier)
             continue;
         if (indent && BIO_printf(bp, "%*s", indent, "") <= 0)
             return 0;
@@ -177,7 +176,7 @@ int X509V3_extensions_print(BIO *bp, const char *title,
 }
 
 static int unknown_ext_print(BIO *out, const unsigned char *ext, int extlen,
-                             unsigned long flag, int indent, int supported)
+    unsigned long flag, int indent, int supported)
 {
     switch (flag & X509V3_EXT_UNKNOWN_MASK) {
 

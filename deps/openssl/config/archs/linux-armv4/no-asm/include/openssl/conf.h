@@ -10,28 +10,30 @@
  * https://www.openssl.org/source/license.html
  */
 
+/* clang-format off */
 
+/* clang-format on */
 
-#ifndef  OPENSSL_CONF_H
-# define OPENSSL_CONF_H
-# pragma once
+#ifndef OPENSSL_CONF_H
+#define OPENSSL_CONF_H
+#pragma once
 
-# include <openssl/macros.h>
-# ifndef OPENSSL_NO_DEPRECATED_3_0
-#  define HEADER_CONF_H
-# endif
+#include <openssl/macros.h>
+#ifndef OPENSSL_NO_DEPRECATED_3_0
+#define HEADER_CONF_H
+#endif
 
-# include <openssl/bio.h>
-# include <openssl/lhash.h>
-# include <openssl/safestack.h>
-# include <openssl/e_os2.h>
-# include <openssl/types.h>
-# include <openssl/conferr.h>
-# ifndef OPENSSL_NO_STDIO
-#  include <stdio.h>
-# endif
+#include <openssl/bio.h>
+#include <openssl/lhash.h>
+#include <openssl/safestack.h>
+#include <openssl/e_os2.h>
+#include <openssl/types.h>
+#include <openssl/conferr.h>
+#ifndef OPENSSL_NO_STDIO
+#include <stdio.h>
+#endif
 
-#ifdef  __cplusplus
+#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -41,6 +43,7 @@ typedef struct {
     char *value;
 } CONF_VALUE;
 
+/* clang-format off */
 SKM_DEFINE_STACK_OF_INTERNAL(CONF_VALUE, CONF_VALUE, CONF_VALUE)
 #define sk_CONF_VALUE_num(sk) OPENSSL_sk_num(ossl_check_const_CONF_VALUE_sk_type(sk))
 #define sk_CONF_VALUE_value(sk, idx) ((CONF_VALUE *)OPENSSL_sk_value(ossl_check_const_CONF_VALUE_sk_type(sk), (idx)))
@@ -83,14 +86,15 @@ DEFINE_LHASH_OF_INTERNAL(CONF_VALUE);
 #define lh_CONF_VALUE_set_down_load(lh, dl) OPENSSL_LH_set_down_load(ossl_check_CONF_VALUE_lh_type(lh), dl)
 #define lh_CONF_VALUE_doall(lh, dfn) OPENSSL_LH_doall(ossl_check_CONF_VALUE_lh_type(lh), ossl_check_CONF_VALUE_lh_doallfunc_type(dfn))
 
+/* clang-format on */
 
 struct conf_st;
 struct conf_method_st;
 typedef struct conf_method_st CONF_METHOD;
 
-# ifndef OPENSSL_NO_DEPRECATED_3_0
-#  include <openssl/conftypes.h>
-# endif
+#ifndef OPENSSL_NO_DEPRECATED_3_0
+#include <openssl/conftypes.h>
+#endif
 
 /* Module definitions */
 typedef struct conf_imodule_st CONF_IMODULE;
@@ -100,32 +104,32 @@ STACK_OF(CONF_MODULE);
 STACK_OF(CONF_IMODULE);
 
 /* DSO module function typedefs */
-typedef int conf_init_func (CONF_IMODULE *md, const CONF *cnf);
-typedef void conf_finish_func (CONF_IMODULE *md);
+typedef int conf_init_func(CONF_IMODULE *md, const CONF *cnf);
+typedef void conf_finish_func(CONF_IMODULE *md);
 
-# define CONF_MFLAGS_IGNORE_ERRORS       0x1
-# define CONF_MFLAGS_IGNORE_RETURN_CODES 0x2
-# define CONF_MFLAGS_SILENT              0x4
-# define CONF_MFLAGS_NO_DSO              0x8
-# define CONF_MFLAGS_IGNORE_MISSING_FILE 0x10
-# define CONF_MFLAGS_DEFAULT_SECTION     0x20
+#define CONF_MFLAGS_IGNORE_ERRORS 0x1
+#define CONF_MFLAGS_IGNORE_RETURN_CODES 0x2
+#define CONF_MFLAGS_SILENT 0x4
+#define CONF_MFLAGS_NO_DSO 0x8
+#define CONF_MFLAGS_IGNORE_MISSING_FILE 0x10
+#define CONF_MFLAGS_DEFAULT_SECTION 0x20
 
 int CONF_set_default_method(CONF_METHOD *meth);
 void CONF_set_nconf(CONF *conf, LHASH_OF(CONF_VALUE) *hash);
 LHASH_OF(CONF_VALUE) *CONF_load(LHASH_OF(CONF_VALUE) *conf, const char *file,
-                                long *eline);
-# ifndef OPENSSL_NO_STDIO
+    long *eline);
+#ifndef OPENSSL_NO_STDIO
 LHASH_OF(CONF_VALUE) *CONF_load_fp(LHASH_OF(CONF_VALUE) *conf, FILE *fp,
-                                   long *eline);
-# endif
+    long *eline);
+#endif
 LHASH_OF(CONF_VALUE) *CONF_load_bio(LHASH_OF(CONF_VALUE) *conf, BIO *bp,
-                                    long *eline);
+    long *eline);
 STACK_OF(CONF_VALUE) *CONF_get_section(LHASH_OF(CONF_VALUE) *conf,
-                                       const char *section);
+    const char *section);
 char *CONF_get_string(LHASH_OF(CONF_VALUE) *conf, const char *group,
-                      const char *name);
+    const char *name);
 long CONF_get_number(LHASH_OF(CONF_VALUE) *conf, const char *group,
-                     const char *name);
+    const char *name);
 void CONF_free(LHASH_OF(CONF_VALUE) *conf);
 #ifndef OPENSSL_NO_STDIO
 int CONF_dump_fp(LHASH_OF(CONF_VALUE) *conf, FILE *out);
@@ -136,7 +140,7 @@ OSSL_DEPRECATEDIN_1_1_0 void OPENSSL_config(const char *config_name);
 #endif
 
 #ifndef OPENSSL_NO_DEPRECATED_1_1_0
-# define OPENSSL_no_config() \
+#define OPENSSL_no_config() \
     OPENSSL_init_crypto(OPENSSL_INIT_NO_LOAD_CONFIG, NULL)
 #endif
 
@@ -156,38 +160,40 @@ void NCONF_free(CONF *conf);
 void NCONF_free_data(CONF *conf);
 
 int NCONF_load(CONF *conf, const char *file, long *eline);
-# ifndef OPENSSL_NO_STDIO
+#ifndef OPENSSL_NO_STDIO
 int NCONF_load_fp(CONF *conf, FILE *fp, long *eline);
-# endif
+#endif
 int NCONF_load_bio(CONF *conf, BIO *bp, long *eline);
 STACK_OF(OPENSSL_CSTRING) *NCONF_get_section_names(const CONF *conf);
 STACK_OF(CONF_VALUE) *NCONF_get_section(const CONF *conf,
-                                        const char *section);
+    const char *section);
 char *NCONF_get_string(const CONF *conf, const char *group, const char *name);
 int NCONF_get_number_e(const CONF *conf, const char *group, const char *name,
-                       long *result);
+    long *result);
 #ifndef OPENSSL_NO_STDIO
 int NCONF_dump_fp(const CONF *conf, FILE *out);
 #endif
 int NCONF_dump_bio(const CONF *conf, BIO *out);
 
-#define NCONF_get_number(c,g,n,r) NCONF_get_number_e(c,g,n,r)
+#define NCONF_get_number(c, g, n, r) NCONF_get_number_e(c, g, n, r)
 
 /* Module functions */
 
 int CONF_modules_load(const CONF *cnf, const char *appname,
-                      unsigned long flags);
+    unsigned long flags);
 int CONF_modules_load_file_ex(OSSL_LIB_CTX *libctx, const char *filename,
-                              const char *appname, unsigned long flags);
+    const char *appname, unsigned long flags);
 int CONF_modules_load_file(const char *filename, const char *appname,
-                           unsigned long flags);
+    unsigned long flags);
 void CONF_modules_unload(int all);
 void CONF_modules_finish(void);
 #ifndef OPENSSL_NO_DEPRECATED_1_1_0
-# define CONF_modules_free() while(0) continue
+#define CONF_modules_free() \
+    while (0)               \
+    continue
 #endif
 int CONF_module_add(const char *name, conf_init_func *ifunc,
-                    conf_finish_func *ffunc);
+    conf_finish_func *ffunc);
 
 const char *CONF_imodule_get_name(const CONF_IMODULE *md);
 const char *CONF_imodule_get_value(const CONF_IMODULE *md);
@@ -202,13 +208,12 @@ void CONF_module_set_usr_data(CONF_MODULE *pmod, void *usr_data);
 char *CONF_get1_default_config_file(void);
 
 int CONF_parse_list(const char *list, int sep, int nospc,
-                    int (*list_cb) (const char *elem, int len, void *usr),
-                    void *arg);
+    int (*list_cb)(const char *elem, int len, void *usr),
+    void *arg);
 
 void OPENSSL_load_builtin_modules(void);
 
-
-# ifdef  __cplusplus
+#ifdef __cplusplus
 }
-# endif
+#endif
 #endif

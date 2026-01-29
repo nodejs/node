@@ -13,13 +13,13 @@
 #include "prov/seeding.h"
 
 #ifdef OPENSSL_RAND_SEED_RDCPU
-# if defined(OPENSSL_SYS_TANDEM) && defined(_TNS_X_TARGET)
-#  include <builtin.h> /* _rdrand64 */
-#  include <string.h> /* memcpy */
-# else
+#if defined(OPENSSL_SYS_TANDEM) && defined(_TNS_X_TARGET)
+#include <builtin.h> /* _rdrand64 */
+#include <string.h> /* memcpy */
+#else
 size_t OPENSSL_ia32_rdseed_bytes(unsigned char *buf, size_t len);
 size_t OPENSSL_ia32_rdrand_bytes(unsigned char *buf, size_t len);
-# endif
+#endif
 
 static size_t get_hardware_random_value(unsigned char *buf, size_t len);
 
@@ -88,16 +88,17 @@ static size_t get_hardware_random_value(unsigned char *buf, size_t len)
     return 0;
 }
 #else
-static size_t get_hardware_random_value(unsigned char *buf, size_t len) {
+static size_t get_hardware_random_value(unsigned char *buf, size_t len)
+{
     /* Whichever comes first, use RDSEED, RDRAND or nothing */
     if ((OPENSSL_ia32cap_P[2] & (1 << 18)) != 0) {
-	if (OPENSSL_ia32_rdseed_bytes(buf, len) != len)
-	    return 0;
+        if (OPENSSL_ia32_rdseed_bytes(buf, len) != len)
+            return 0;
     } else if ((OPENSSL_ia32cap_P[1] & (1 << (62 - 32))) != 0) {
-	if (OPENSSL_ia32_rdrand_bytes(buf, len) != len)
-	    return 0;
+        if (OPENSSL_ia32_rdrand_bytes(buf, len) != len)
+            return 0;
     } else
-	return 0;
+        return 0;
     return len;
 }
 #endif

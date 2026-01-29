@@ -7,16 +7,16 @@
  * https://www.openssl.org/source/license.html
  */
 
-#define declare_dh_bn(x) \
-    extern const BIGNUM ossl_bignum_dh##x##_p;              \
-    extern const BIGNUM ossl_bignum_dh##x##_q;              \
-    extern const BIGNUM ossl_bignum_dh##x##_g;              \
+#define declare_dh_bn(x)                       \
+    extern const BIGNUM ossl_bignum_dh##x##_p; \
+    extern const BIGNUM ossl_bignum_dh##x##_q; \
+    extern const BIGNUM ossl_bignum_dh##x##_g;
 
 declare_dh_bn(1024_160)
-declare_dh_bn(2048_224)
-declare_dh_bn(2048_256)
+    declare_dh_bn(2048_224)
+        declare_dh_bn(2048_256)
 
-extern const BIGNUM ossl_bignum_const_2;
+            extern const BIGNUM ossl_bignum_const_2;
 
 extern const BIGNUM ossl_bignum_ffdhe2048_p;
 extern const BIGNUM ossl_bignum_ffdhe3072_p;

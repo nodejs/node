@@ -46,7 +46,7 @@
 #include "internal/numbers.h"
 
 #ifndef INT128_MAX
-# error "Your compiler doesn't appear to support 128-bit integer types"
+#error "Your compiler doesn't appear to support 128-bit integer types"
 #endif
 
 typedef uint8_t u8;
@@ -65,51 +65,51 @@ typedef u8 felem_bytearray[66];
  * These values are big-endian.
  */
 static const felem_bytearray nistp521_curve_params[5] = {
-    {0x01, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, /* p */
-     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-     0xff, 0xff},
-    {0x01, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, /* a = -3 */
-     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-     0xff, 0xfc},
-    {0x00, 0x51, 0x95, 0x3e, 0xb9, 0x61, 0x8e, 0x1c, /* b */
-     0x9a, 0x1f, 0x92, 0x9a, 0x21, 0xa0, 0xb6, 0x85,
-     0x40, 0xee, 0xa2, 0xda, 0x72, 0x5b, 0x99, 0xb3,
-     0x15, 0xf3, 0xb8, 0xb4, 0x89, 0x91, 0x8e, 0xf1,
-     0x09, 0xe1, 0x56, 0x19, 0x39, 0x51, 0xec, 0x7e,
-     0x93, 0x7b, 0x16, 0x52, 0xc0, 0xbd, 0x3b, 0xb1,
-     0xbf, 0x07, 0x35, 0x73, 0xdf, 0x88, 0x3d, 0x2c,
-     0x34, 0xf1, 0xef, 0x45, 0x1f, 0xd4, 0x6b, 0x50,
-     0x3f, 0x00},
-    {0x00, 0xc6, 0x85, 0x8e, 0x06, 0xb7, 0x04, 0x04, /* x */
-     0xe9, 0xcd, 0x9e, 0x3e, 0xcb, 0x66, 0x23, 0x95,
-     0xb4, 0x42, 0x9c, 0x64, 0x81, 0x39, 0x05, 0x3f,
-     0xb5, 0x21, 0xf8, 0x28, 0xaf, 0x60, 0x6b, 0x4d,
-     0x3d, 0xba, 0xa1, 0x4b, 0x5e, 0x77, 0xef, 0xe7,
-     0x59, 0x28, 0xfe, 0x1d, 0xc1, 0x27, 0xa2, 0xff,
-     0xa8, 0xde, 0x33, 0x48, 0xb3, 0xc1, 0x85, 0x6a,
-     0x42, 0x9b, 0xf9, 0x7e, 0x7e, 0x31, 0xc2, 0xe5,
-     0xbd, 0x66},
-    {0x01, 0x18, 0x39, 0x29, 0x6a, 0x78, 0x9a, 0x3b, /* y */
-     0xc0, 0x04, 0x5c, 0x8a, 0x5f, 0xb4, 0x2c, 0x7d,
-     0x1b, 0xd9, 0x98, 0xf5, 0x44, 0x49, 0x57, 0x9b,
-     0x44, 0x68, 0x17, 0xaf, 0xbd, 0x17, 0x27, 0x3e,
-     0x66, 0x2c, 0x97, 0xee, 0x72, 0x99, 0x5e, 0xf4,
-     0x26, 0x40, 0xc5, 0x50, 0xb9, 0x01, 0x3f, 0xad,
-     0x07, 0x61, 0x35, 0x3c, 0x70, 0x86, 0xa2, 0x72,
-     0xc2, 0x40, 0x88, 0xbe, 0x94, 0x76, 0x9f, 0xd1,
-     0x66, 0x50}
+    { 0x01, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, /* p */
+        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+        0xff, 0xff },
+    { 0x01, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, /* a = -3 */
+        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+        0xff, 0xfc },
+    { 0x00, 0x51, 0x95, 0x3e, 0xb9, 0x61, 0x8e, 0x1c, /* b */
+        0x9a, 0x1f, 0x92, 0x9a, 0x21, 0xa0, 0xb6, 0x85,
+        0x40, 0xee, 0xa2, 0xda, 0x72, 0x5b, 0x99, 0xb3,
+        0x15, 0xf3, 0xb8, 0xb4, 0x89, 0x91, 0x8e, 0xf1,
+        0x09, 0xe1, 0x56, 0x19, 0x39, 0x51, 0xec, 0x7e,
+        0x93, 0x7b, 0x16, 0x52, 0xc0, 0xbd, 0x3b, 0xb1,
+        0xbf, 0x07, 0x35, 0x73, 0xdf, 0x88, 0x3d, 0x2c,
+        0x34, 0xf1, 0xef, 0x45, 0x1f, 0xd4, 0x6b, 0x50,
+        0x3f, 0x00 },
+    { 0x00, 0xc6, 0x85, 0x8e, 0x06, 0xb7, 0x04, 0x04, /* x */
+        0xe9, 0xcd, 0x9e, 0x3e, 0xcb, 0x66, 0x23, 0x95,
+        0xb4, 0x42, 0x9c, 0x64, 0x81, 0x39, 0x05, 0x3f,
+        0xb5, 0x21, 0xf8, 0x28, 0xaf, 0x60, 0x6b, 0x4d,
+        0x3d, 0xba, 0xa1, 0x4b, 0x5e, 0x77, 0xef, 0xe7,
+        0x59, 0x28, 0xfe, 0x1d, 0xc1, 0x27, 0xa2, 0xff,
+        0xa8, 0xde, 0x33, 0x48, 0xb3, 0xc1, 0x85, 0x6a,
+        0x42, 0x9b, 0xf9, 0x7e, 0x7e, 0x31, 0xc2, 0xe5,
+        0xbd, 0x66 },
+    { 0x01, 0x18, 0x39, 0x29, 0x6a, 0x78, 0x9a, 0x3b, /* y */
+        0xc0, 0x04, 0x5c, 0x8a, 0x5f, 0xb4, 0x2c, 0x7d,
+        0x1b, 0xd9, 0x98, 0xf5, 0x44, 0x49, 0x57, 0x9b,
+        0x44, 0x68, 0x17, 0xaf, 0xbd, 0x17, 0x27, 0x3e,
+        0x66, 0x2c, 0x97, 0xee, 0x72, 0x99, 0x5e, 0xf4,
+        0x26, 0x40, 0xc5, 0x50, 0xb9, 0x01, 0x3f, 0xad,
+        0x07, 0x61, 0x35, 0x3c, 0x70, 0x86, 0xa2, 0x72,
+        0xc2, 0x40, 0x88, 0xbe, 0x94, 0x76, 0x9f, 0xd1,
+        0x66, 0x50 }
 };
 
 /*-
@@ -142,15 +142,15 @@ static const limb bottom58bits = 0x3ffffffffffffff;
  */
 static void bin66_to_felem(felem out, const u8 in[66])
 {
-    out[0] = (*((limb *) & in[0])) & bottom58bits;
-    out[1] = (*((limb_aX *) & in[7]) >> 2) & bottom58bits;
-    out[2] = (*((limb_aX *) & in[14]) >> 4) & bottom58bits;
-    out[3] = (*((limb_aX *) & in[21]) >> 6) & bottom58bits;
-    out[4] = (*((limb_aX *) & in[29])) & bottom58bits;
-    out[5] = (*((limb_aX *) & in[36]) >> 2) & bottom58bits;
-    out[6] = (*((limb_aX *) & in[43]) >> 4) & bottom58bits;
-    out[7] = (*((limb_aX *) & in[50]) >> 6) & bottom58bits;
-    out[8] = (*((limb_aX *) & in[58])) & bottom57bits;
+    out[0] = (*((limb *)&in[0])) & bottom58bits;
+    out[1] = (*((limb_aX *)&in[7]) >> 2) & bottom58bits;
+    out[2] = (*((limb_aX *)&in[14]) >> 4) & bottom58bits;
+    out[3] = (*((limb_aX *)&in[21]) >> 6) & bottom58bits;
+    out[4] = (*((limb_aX *)&in[29])) & bottom58bits;
+    out[5] = (*((limb_aX *)&in[36]) >> 2) & bottom58bits;
+    out[6] = (*((limb_aX *)&in[43]) >> 4) & bottom58bits;
+    out[7] = (*((limb_aX *)&in[50]) >> 6) & bottom58bits;
+    out[8] = (*((limb_aX *)&in[58])) & bottom57bits;
 }
 
 /*
@@ -160,15 +160,15 @@ static void bin66_to_felem(felem out, const u8 in[66])
 static void felem_to_bin66(u8 out[66], const felem in)
 {
     memset(out, 0, 66);
-    (*((limb *) & out[0])) = in[0];
-    (*((limb_aX *) & out[7])) |= in[1] << 2;
-    (*((limb_aX *) & out[14])) |= in[2] << 4;
-    (*((limb_aX *) & out[21])) |= in[3] << 6;
-    (*((limb_aX *) & out[29])) = in[4];
-    (*((limb_aX *) & out[36])) |= in[5] << 2;
-    (*((limb_aX *) & out[43])) |= in[6] << 4;
-    (*((limb_aX *) & out[50])) |= in[7] << 6;
-    (*((limb_aX *) & out[58])) = in[8];
+    (*((limb *)&out[0])) = in[0];
+    (*((limb_aX *)&out[7])) |= in[1] << 2;
+    (*((limb_aX *)&out[14])) |= in[2] << 4;
+    (*((limb_aX *)&out[21])) |= in[3] << 6;
+    (*((limb_aX *)&out[29])) = in[4];
+    (*((limb_aX *)&out[36])) |= in[5] << 2;
+    (*((limb_aX *)&out[43])) |= in[6] << 4;
+    (*((limb_aX *)&out[50])) |= in[7] << 6;
+    (*((limb_aX *)&out[58])) = in[8];
 }
 
 /* BN_to_felem converts an OpenSSL BIGNUM into an felem */
@@ -295,8 +295,8 @@ static void felem_scalar128(largefelem out, limb scalar)
 static void felem_neg(felem out, const felem in)
 {
     /* In order to prevent underflow, we subtract from 0 mod p. */
-    static const limb two62m3 = (((limb) 1) << 62) - (((limb) 1) << 5);
-    static const limb two62m2 = (((limb) 1) << 62) - (((limb) 1) << 4);
+    static const limb two62m3 = (((limb)1) << 62) - (((limb)1) << 5);
+    static const limb two62m2 = (((limb)1) << 62) - (((limb)1) << 4);
 
     out[0] = two62m3 - in[0];
     out[1] = two62m2 - in[1];
@@ -321,8 +321,8 @@ static void felem_diff64(felem out, const felem in)
     /*
      * In order to prevent underflow, we add 0 mod p before subtracting.
      */
-    static const limb two62m3 = (((limb) 1) << 62) - (((limb) 1) << 5);
-    static const limb two62m2 = (((limb) 1) << 62) - (((limb) 1) << 4);
+    static const limb two62m3 = (((limb)1) << 62) - (((limb)1) << 5);
+    static const limb two62m2 = (((limb)1) << 62) - (((limb)1) << 4);
 
     out[0] += two62m3 - in[0];
     out[1] += two62m2 - in[1];
@@ -352,8 +352,8 @@ static void felem_diff_128_64(largefelem out, const felem in)
      * represent a number. 64p is represented with 8 limbs containing a number
      * with 58 bits set and one limb with a number with 57 bits set.
      */
-    static const limb two63m6 = (((limb) 1) << 63) - (((limb) 1) << 6);
-    static const limb two63m5 = (((limb) 1) << 63) - (((limb) 1) << 5);
+    static const limb two63m6 = (((limb)1) << 63) - (((limb)1) << 6);
+    static const limb two63m5 = (((limb)1) << 63) - (((limb)1) << 5);
 
     out[0] += two63m6 - in[0];
     out[1] += two63m5 - in[1];
@@ -378,10 +378,8 @@ static void felem_diff128(largefelem out, const largefelem in)
     /*
      * In order to prevent underflow, we add 0 mod p before subtracting.
      */
-    static const uint128_t two127m70 =
-        (((uint128_t) 1) << 127) - (((uint128_t) 1) << 70);
-    static const uint128_t two127m69 =
-        (((uint128_t) 1) << 127) - (((uint128_t) 1) << 69);
+    static const uint128_t two127m70 = (((uint128_t)1) << 127) - (((uint128_t)1) << 70);
+    static const uint128_t two127m69 = (((uint128_t)1) << 127) - (((uint128_t)1) << 69);
 
     out[0] += (two127m70 - in[0]);
     out[1] += (two127m69 - in[1]);
@@ -418,24 +416,15 @@ static void felem_square_ref(largefelem out, const felem in)
      * |inx2|
      */
 
-    out[0] = ((uint128_t) in[0]) * in[0];
-    out[1] = ((uint128_t) in[0]) * inx2[1];
-    out[2] = ((uint128_t) in[0]) * inx2[2] + ((uint128_t) in[1]) * in[1];
-    out[3] = ((uint128_t) in[0]) * inx2[3] + ((uint128_t) in[1]) * inx2[2];
-    out[4] = ((uint128_t) in[0]) * inx2[4] +
-             ((uint128_t) in[1]) * inx2[3] + ((uint128_t) in[2]) * in[2];
-    out[5] = ((uint128_t) in[0]) * inx2[5] +
-             ((uint128_t) in[1]) * inx2[4] + ((uint128_t) in[2]) * inx2[3];
-    out[6] = ((uint128_t) in[0]) * inx2[6] +
-             ((uint128_t) in[1]) * inx2[5] +
-             ((uint128_t) in[2]) * inx2[4] + ((uint128_t) in[3]) * in[3];
-    out[7] = ((uint128_t) in[0]) * inx2[7] +
-             ((uint128_t) in[1]) * inx2[6] +
-             ((uint128_t) in[2]) * inx2[5] + ((uint128_t) in[3]) * inx2[4];
-    out[8] = ((uint128_t) in[0]) * inx2[8] +
-             ((uint128_t) in[1]) * inx2[7] +
-             ((uint128_t) in[2]) * inx2[6] +
-             ((uint128_t) in[3]) * inx2[5] + ((uint128_t) in[4]) * in[4];
+    out[0] = ((uint128_t)in[0]) * in[0];
+    out[1] = ((uint128_t)in[0]) * inx2[1];
+    out[2] = ((uint128_t)in[0]) * inx2[2] + ((uint128_t)in[1]) * in[1];
+    out[3] = ((uint128_t)in[0]) * inx2[3] + ((uint128_t)in[1]) * inx2[2];
+    out[4] = ((uint128_t)in[0]) * inx2[4] + ((uint128_t)in[1]) * inx2[3] + ((uint128_t)in[2]) * in[2];
+    out[5] = ((uint128_t)in[0]) * inx2[5] + ((uint128_t)in[1]) * inx2[4] + ((uint128_t)in[2]) * inx2[3];
+    out[6] = ((uint128_t)in[0]) * inx2[6] + ((uint128_t)in[1]) * inx2[5] + ((uint128_t)in[2]) * inx2[4] + ((uint128_t)in[3]) * in[3];
+    out[7] = ((uint128_t)in[0]) * inx2[7] + ((uint128_t)in[1]) * inx2[6] + ((uint128_t)in[2]) * inx2[5] + ((uint128_t)in[3]) * inx2[4];
+    out[8] = ((uint128_t)in[0]) * inx2[8] + ((uint128_t)in[1]) * inx2[7] + ((uint128_t)in[2]) * inx2[6] + ((uint128_t)in[3]) * inx2[5] + ((uint128_t)in[4]) * in[4];
 
     /*
      * The remaining limbs fall above 2^521, with the first falling at 2^522.
@@ -447,34 +436,28 @@ static void felem_square_ref(largefelem out, const felem in)
      */
 
     /* 9 */
-    out[0] += ((uint128_t) in[1]) * inx4[8] +
-              ((uint128_t) in[2]) * inx4[7] +
-              ((uint128_t) in[3]) * inx4[6] + ((uint128_t) in[4]) * inx4[5];
+    out[0] += ((uint128_t)in[1]) * inx4[8] + ((uint128_t)in[2]) * inx4[7] + ((uint128_t)in[3]) * inx4[6] + ((uint128_t)in[4]) * inx4[5];
 
     /* 10 */
-    out[1] += ((uint128_t) in[2]) * inx4[8] +
-              ((uint128_t) in[3]) * inx4[7] +
-              ((uint128_t) in[4]) * inx4[6] + ((uint128_t) in[5]) * inx2[5];
+    out[1] += ((uint128_t)in[2]) * inx4[8] + ((uint128_t)in[3]) * inx4[7] + ((uint128_t)in[4]) * inx4[6] + ((uint128_t)in[5]) * inx2[5];
 
     /* 11 */
-    out[2] += ((uint128_t) in[3]) * inx4[8] +
-              ((uint128_t) in[4]) * inx4[7] + ((uint128_t) in[5]) * inx4[6];
+    out[2] += ((uint128_t)in[3]) * inx4[8] + ((uint128_t)in[4]) * inx4[7] + ((uint128_t)in[5]) * inx4[6];
 
     /* 12 */
-    out[3] += ((uint128_t) in[4]) * inx4[8] +
-              ((uint128_t) in[5]) * inx4[7] + ((uint128_t) in[6]) * inx2[6];
+    out[3] += ((uint128_t)in[4]) * inx4[8] + ((uint128_t)in[5]) * inx4[7] + ((uint128_t)in[6]) * inx2[6];
 
     /* 13 */
-    out[4] += ((uint128_t) in[5]) * inx4[8] + ((uint128_t) in[6]) * inx4[7];
+    out[4] += ((uint128_t)in[5]) * inx4[8] + ((uint128_t)in[6]) * inx4[7];
 
     /* 14 */
-    out[5] += ((uint128_t) in[6]) * inx4[8] + ((uint128_t) in[7]) * inx2[7];
+    out[5] += ((uint128_t)in[6]) * inx4[8] + ((uint128_t)in[7]) * inx2[7];
 
     /* 15 */
-    out[6] += ((uint128_t) in[7]) * inx4[8];
+    out[6] += ((uint128_t)in[7]) * inx4[8];
 
     /* 16 */
-    out[7] += ((uint128_t) in[8]) * inx2[8];
+    out[7] += ((uint128_t)in[8]) * inx2[8];
 }
 
 /*-
@@ -490,105 +473,41 @@ static void felem_mul_ref(largefelem out, const felem in1, const felem in2)
     felem in2x2;
     felem_scalar(in2x2, in2, 2);
 
-    out[0] = ((uint128_t) in1[0]) * in2[0];
+    out[0] = ((uint128_t)in1[0]) * in2[0];
 
-    out[1] = ((uint128_t) in1[0]) * in2[1] +
-             ((uint128_t) in1[1]) * in2[0];
+    out[1] = ((uint128_t)in1[0]) * in2[1] + ((uint128_t)in1[1]) * in2[0];
 
-    out[2] = ((uint128_t) in1[0]) * in2[2] +
-             ((uint128_t) in1[1]) * in2[1] +
-             ((uint128_t) in1[2]) * in2[0];
+    out[2] = ((uint128_t)in1[0]) * in2[2] + ((uint128_t)in1[1]) * in2[1] + ((uint128_t)in1[2]) * in2[0];
 
-    out[3] = ((uint128_t) in1[0]) * in2[3] +
-             ((uint128_t) in1[1]) * in2[2] +
-             ((uint128_t) in1[2]) * in2[1] +
-             ((uint128_t) in1[3]) * in2[0];
+    out[3] = ((uint128_t)in1[0]) * in2[3] + ((uint128_t)in1[1]) * in2[2] + ((uint128_t)in1[2]) * in2[1] + ((uint128_t)in1[3]) * in2[0];
 
-    out[4] = ((uint128_t) in1[0]) * in2[4] +
-             ((uint128_t) in1[1]) * in2[3] +
-             ((uint128_t) in1[2]) * in2[2] +
-             ((uint128_t) in1[3]) * in2[1] +
-             ((uint128_t) in1[4]) * in2[0];
+    out[4] = ((uint128_t)in1[0]) * in2[4] + ((uint128_t)in1[1]) * in2[3] + ((uint128_t)in1[2]) * in2[2] + ((uint128_t)in1[3]) * in2[1] + ((uint128_t)in1[4]) * in2[0];
 
-    out[5] = ((uint128_t) in1[0]) * in2[5] +
-             ((uint128_t) in1[1]) * in2[4] +
-             ((uint128_t) in1[2]) * in2[3] +
-             ((uint128_t) in1[3]) * in2[2] +
-             ((uint128_t) in1[4]) * in2[1] +
-             ((uint128_t) in1[5]) * in2[0];
+    out[5] = ((uint128_t)in1[0]) * in2[5] + ((uint128_t)in1[1]) * in2[4] + ((uint128_t)in1[2]) * in2[3] + ((uint128_t)in1[3]) * in2[2] + ((uint128_t)in1[4]) * in2[1] + ((uint128_t)in1[5]) * in2[0];
 
-    out[6] = ((uint128_t) in1[0]) * in2[6] +
-             ((uint128_t) in1[1]) * in2[5] +
-             ((uint128_t) in1[2]) * in2[4] +
-             ((uint128_t) in1[3]) * in2[3] +
-             ((uint128_t) in1[4]) * in2[2] +
-             ((uint128_t) in1[5]) * in2[1] +
-             ((uint128_t) in1[6]) * in2[0];
+    out[6] = ((uint128_t)in1[0]) * in2[6] + ((uint128_t)in1[1]) * in2[5] + ((uint128_t)in1[2]) * in2[4] + ((uint128_t)in1[3]) * in2[3] + ((uint128_t)in1[4]) * in2[2] + ((uint128_t)in1[5]) * in2[1] + ((uint128_t)in1[6]) * in2[0];
 
-    out[7] = ((uint128_t) in1[0]) * in2[7] +
-             ((uint128_t) in1[1]) * in2[6] +
-             ((uint128_t) in1[2]) * in2[5] +
-             ((uint128_t) in1[3]) * in2[4] +
-             ((uint128_t) in1[4]) * in2[3] +
-             ((uint128_t) in1[5]) * in2[2] +
-             ((uint128_t) in1[6]) * in2[1] +
-             ((uint128_t) in1[7]) * in2[0];
+    out[7] = ((uint128_t)in1[0]) * in2[7] + ((uint128_t)in1[1]) * in2[6] + ((uint128_t)in1[2]) * in2[5] + ((uint128_t)in1[3]) * in2[4] + ((uint128_t)in1[4]) * in2[3] + ((uint128_t)in1[5]) * in2[2] + ((uint128_t)in1[6]) * in2[1] + ((uint128_t)in1[7]) * in2[0];
 
-    out[8] = ((uint128_t) in1[0]) * in2[8] +
-             ((uint128_t) in1[1]) * in2[7] +
-             ((uint128_t) in1[2]) * in2[6] +
-             ((uint128_t) in1[3]) * in2[5] +
-             ((uint128_t) in1[4]) * in2[4] +
-             ((uint128_t) in1[5]) * in2[3] +
-             ((uint128_t) in1[6]) * in2[2] +
-             ((uint128_t) in1[7]) * in2[1] +
-             ((uint128_t) in1[8]) * in2[0];
+    out[8] = ((uint128_t)in1[0]) * in2[8] + ((uint128_t)in1[1]) * in2[7] + ((uint128_t)in1[2]) * in2[6] + ((uint128_t)in1[3]) * in2[5] + ((uint128_t)in1[4]) * in2[4] + ((uint128_t)in1[5]) * in2[3] + ((uint128_t)in1[6]) * in2[2] + ((uint128_t)in1[7]) * in2[1] + ((uint128_t)in1[8]) * in2[0];
 
     /* See comment in felem_square about the use of in2x2 here */
 
-    out[0] += ((uint128_t) in1[1]) * in2x2[8] +
-              ((uint128_t) in1[2]) * in2x2[7] +
-              ((uint128_t) in1[3]) * in2x2[6] +
-              ((uint128_t) in1[4]) * in2x2[5] +
-              ((uint128_t) in1[5]) * in2x2[4] +
-              ((uint128_t) in1[6]) * in2x2[3] +
-              ((uint128_t) in1[7]) * in2x2[2] +
-              ((uint128_t) in1[8]) * in2x2[1];
+    out[0] += ((uint128_t)in1[1]) * in2x2[8] + ((uint128_t)in1[2]) * in2x2[7] + ((uint128_t)in1[3]) * in2x2[6] + ((uint128_t)in1[4]) * in2x2[5] + ((uint128_t)in1[5]) * in2x2[4] + ((uint128_t)in1[6]) * in2x2[3] + ((uint128_t)in1[7]) * in2x2[2] + ((uint128_t)in1[8]) * in2x2[1];
 
-    out[1] += ((uint128_t) in1[2]) * in2x2[8] +
-              ((uint128_t) in1[3]) * in2x2[7] +
-              ((uint128_t) in1[4]) * in2x2[6] +
-              ((uint128_t) in1[5]) * in2x2[5] +
-              ((uint128_t) in1[6]) * in2x2[4] +
-              ((uint128_t) in1[7]) * in2x2[3] +
-              ((uint128_t) in1[8]) * in2x2[2];
+    out[1] += ((uint128_t)in1[2]) * in2x2[8] + ((uint128_t)in1[3]) * in2x2[7] + ((uint128_t)in1[4]) * in2x2[6] + ((uint128_t)in1[5]) * in2x2[5] + ((uint128_t)in1[6]) * in2x2[4] + ((uint128_t)in1[7]) * in2x2[3] + ((uint128_t)in1[8]) * in2x2[2];
 
-    out[2] += ((uint128_t) in1[3]) * in2x2[8] +
-              ((uint128_t) in1[4]) * in2x2[7] +
-              ((uint128_t) in1[5]) * in2x2[6] +
-              ((uint128_t) in1[6]) * in2x2[5] +
-              ((uint128_t) in1[7]) * in2x2[4] +
-              ((uint128_t) in1[8]) * in2x2[3];
+    out[2] += ((uint128_t)in1[3]) * in2x2[8] + ((uint128_t)in1[4]) * in2x2[7] + ((uint128_t)in1[5]) * in2x2[6] + ((uint128_t)in1[6]) * in2x2[5] + ((uint128_t)in1[7]) * in2x2[4] + ((uint128_t)in1[8]) * in2x2[3];
 
-    out[3] += ((uint128_t) in1[4]) * in2x2[8] +
-              ((uint128_t) in1[5]) * in2x2[7] +
-              ((uint128_t) in1[6]) * in2x2[6] +
-              ((uint128_t) in1[7]) * in2x2[5] +
-              ((uint128_t) in1[8]) * in2x2[4];
+    out[3] += ((uint128_t)in1[4]) * in2x2[8] + ((uint128_t)in1[5]) * in2x2[7] + ((uint128_t)in1[6]) * in2x2[6] + ((uint128_t)in1[7]) * in2x2[5] + ((uint128_t)in1[8]) * in2x2[4];
 
-    out[4] += ((uint128_t) in1[5]) * in2x2[8] +
-              ((uint128_t) in1[6]) * in2x2[7] +
-              ((uint128_t) in1[7]) * in2x2[6] +
-              ((uint128_t) in1[8]) * in2x2[5];
+    out[4] += ((uint128_t)in1[5]) * in2x2[8] + ((uint128_t)in1[6]) * in2x2[7] + ((uint128_t)in1[7]) * in2x2[6] + ((uint128_t)in1[8]) * in2x2[5];
 
-    out[5] += ((uint128_t) in1[6]) * in2x2[8] +
-              ((uint128_t) in1[7]) * in2x2[7] +
-              ((uint128_t) in1[8]) * in2x2[6];
+    out[5] += ((uint128_t)in1[6]) * in2x2[8] + ((uint128_t)in1[7]) * in2x2[7] + ((uint128_t)in1[8]) * in2x2[6];
 
-    out[6] += ((uint128_t) in1[7]) * in2x2[8] +
-              ((uint128_t) in1[8]) * in2x2[7];
+    out[6] += ((uint128_t)in1[7]) * in2x2[8] + ((uint128_t)in1[8]) * in2x2[7];
 
-    out[7] += ((uint128_t) in1[8]) * in2x2[8];
+    out[7] += ((uint128_t)in1[8]) * in2x2[8];
 }
 
 static const limb bottom52bits = 0xfffffffffffff;
@@ -604,67 +523,67 @@ static void felem_reduce(felem out, const largefelem in)
 {
     u64 overflow1, overflow2;
 
-    out[0] = ((limb) in[0]) & bottom58bits;
-    out[1] = ((limb) in[1]) & bottom58bits;
-    out[2] = ((limb) in[2]) & bottom58bits;
-    out[3] = ((limb) in[3]) & bottom58bits;
-    out[4] = ((limb) in[4]) & bottom58bits;
-    out[5] = ((limb) in[5]) & bottom58bits;
-    out[6] = ((limb) in[6]) & bottom58bits;
-    out[7] = ((limb) in[7]) & bottom58bits;
-    out[8] = ((limb) in[8]) & bottom58bits;
+    out[0] = ((limb)in[0]) & bottom58bits;
+    out[1] = ((limb)in[1]) & bottom58bits;
+    out[2] = ((limb)in[2]) & bottom58bits;
+    out[3] = ((limb)in[3]) & bottom58bits;
+    out[4] = ((limb)in[4]) & bottom58bits;
+    out[5] = ((limb)in[5]) & bottom58bits;
+    out[6] = ((limb)in[6]) & bottom58bits;
+    out[7] = ((limb)in[7]) & bottom58bits;
+    out[8] = ((limb)in[8]) & bottom58bits;
 
     /* out[i] < 2^58 */
 
-    out[1] += ((limb) in[0]) >> 58;
-    out[1] += (((limb) (in[0] >> 64)) & bottom52bits) << 6;
+    out[1] += ((limb)in[0]) >> 58;
+    out[1] += (((limb)(in[0] >> 64)) & bottom52bits) << 6;
     /*-
      * out[1] < 2^58 + 2^6 + 2^58
      *        = 2^59 + 2^6
      */
-    out[2] += ((limb) (in[0] >> 64)) >> 52;
+    out[2] += ((limb)(in[0] >> 64)) >> 52;
 
-    out[2] += ((limb) in[1]) >> 58;
-    out[2] += (((limb) (in[1] >> 64)) & bottom52bits) << 6;
-    out[3] += ((limb) (in[1] >> 64)) >> 52;
+    out[2] += ((limb)in[1]) >> 58;
+    out[2] += (((limb)(in[1] >> 64)) & bottom52bits) << 6;
+    out[3] += ((limb)(in[1] >> 64)) >> 52;
 
-    out[3] += ((limb) in[2]) >> 58;
-    out[3] += (((limb) (in[2] >> 64)) & bottom52bits) << 6;
-    out[4] += ((limb) (in[2] >> 64)) >> 52;
+    out[3] += ((limb)in[2]) >> 58;
+    out[3] += (((limb)(in[2] >> 64)) & bottom52bits) << 6;
+    out[4] += ((limb)(in[2] >> 64)) >> 52;
 
-    out[4] += ((limb) in[3]) >> 58;
-    out[4] += (((limb) (in[3] >> 64)) & bottom52bits) << 6;
-    out[5] += ((limb) (in[3] >> 64)) >> 52;
+    out[4] += ((limb)in[3]) >> 58;
+    out[4] += (((limb)(in[3] >> 64)) & bottom52bits) << 6;
+    out[5] += ((limb)(in[3] >> 64)) >> 52;
 
-    out[5] += ((limb) in[4]) >> 58;
-    out[5] += (((limb) (in[4] >> 64)) & bottom52bits) << 6;
-    out[6] += ((limb) (in[4] >> 64)) >> 52;
+    out[5] += ((limb)in[4]) >> 58;
+    out[5] += (((limb)(in[4] >> 64)) & bottom52bits) << 6;
+    out[6] += ((limb)(in[4] >> 64)) >> 52;
 
-    out[6] += ((limb) in[5]) >> 58;
-    out[6] += (((limb) (in[5] >> 64)) & bottom52bits) << 6;
-    out[7] += ((limb) (in[5] >> 64)) >> 52;
+    out[6] += ((limb)in[5]) >> 58;
+    out[6] += (((limb)(in[5] >> 64)) & bottom52bits) << 6;
+    out[7] += ((limb)(in[5] >> 64)) >> 52;
 
-    out[7] += ((limb) in[6]) >> 58;
-    out[7] += (((limb) (in[6] >> 64)) & bottom52bits) << 6;
-    out[8] += ((limb) (in[6] >> 64)) >> 52;
+    out[7] += ((limb)in[6]) >> 58;
+    out[7] += (((limb)(in[6] >> 64)) & bottom52bits) << 6;
+    out[8] += ((limb)(in[6] >> 64)) >> 52;
 
-    out[8] += ((limb) in[7]) >> 58;
-    out[8] += (((limb) (in[7] >> 64)) & bottom52bits) << 6;
+    out[8] += ((limb)in[7]) >> 58;
+    out[8] += (((limb)(in[7] >> 64)) & bottom52bits) << 6;
     /*-
      * out[x > 1] < 2^58 + 2^6 + 2^58 + 2^12
      *            < 2^59 + 2^13
      */
-    overflow1 = ((limb) (in[7] >> 64)) >> 52;
+    overflow1 = ((limb)(in[7] >> 64)) >> 52;
 
-    overflow1 += ((limb) in[8]) >> 58;
-    overflow1 += (((limb) (in[8] >> 64)) & bottom52bits) << 6;
-    overflow2 = ((limb) (in[8] >> 64)) >> 52;
+    overflow1 += ((limb)in[8]) >> 58;
+    overflow1 += (((limb)(in[8] >> 64)) & bottom52bits) << 6;
+    overflow2 = ((limb)(in[8] >> 64)) >> 52;
 
-    overflow1 <<= 1;            /* overflow1 < 2^13 + 2^7 + 2^59 */
-    overflow2 <<= 1;            /* overflow2 < 2^13 */
+    overflow1 <<= 1; /* overflow1 < 2^13 + 2^7 + 2^59 */
+    overflow2 <<= 1; /* overflow2 < 2^13 */
 
-    out[0] += overflow1;        /* out[0] < 2^60 */
-    out[1] += overflow2;        /* out[1] < 2^59 + 2^6 + 2^13 */
+    out[0] += overflow1; /* out[0] < 2^60 */
+    out[1] += overflow2; /* out[1] < 2^59 + 2^6 + 2^13 */
 
     out[1] += out[0] >> 58;
     out[0] &= bottom58bits;
@@ -679,28 +598,26 @@ static void felem_reduce(felem out, const largefelem in)
 static void felem_square_wrapper(largefelem out, const felem in);
 static void felem_mul_wrapper(largefelem out, const felem in1, const felem in2);
 
-static void (*felem_square_p)(largefelem out, const felem in) =
-    felem_square_wrapper;
-static void (*felem_mul_p)(largefelem out, const felem in1, const felem in2) =
-    felem_mul_wrapper;
+static void (*felem_square_p)(largefelem out, const felem in) = felem_square_wrapper;
+static void (*felem_mul_p)(largefelem out, const felem in1, const felem in2) = felem_mul_wrapper;
 
 void p521_felem_square(largefelem out, const felem in);
 void p521_felem_mul(largefelem out, const felem in1, const felem in2);
 
-# if defined(_ARCH_PPC64)
-#  include "crypto/ppc_arch.h"
-# endif
+#if defined(_ARCH_PPC64)
+#include "crypto/ppc_arch.h"
+#endif
 
 static void felem_select(void)
 {
-# if defined(_ARCH_PPC64)
+#if defined(_ARCH_PPC64)
     if ((OPENSSL_ppccap_P & PPC_MADD300) && (OPENSSL_ppccap_P & PPC_ALTIVEC)) {
         felem_square_p = p521_felem_square;
         felem_mul_p = p521_felem_mul;
 
         return;
     }
-# endif
+#endif
 
     /* Default */
     felem_square_p = felem_square_ref;
@@ -719,11 +636,11 @@ static void felem_mul_wrapper(largefelem out, const felem in1, const felem in2)
     felem_mul_p(out, in1, in2);
 }
 
-# define felem_square felem_square_p
-# define felem_mul felem_mul_p
+#define felem_square felem_square_p
+#define felem_mul felem_mul_p
 #else
-# define felem_square felem_square_ref
-# define felem_mul felem_mul_ref
+#define felem_square felem_square_ref
+#define felem_mul felem_mul_ref
 #endif
 
 static void felem_square_reduce(felem out, const felem in)
@@ -755,39 +672,39 @@ static void felem_inv(felem out, const felem in)
     unsigned i;
 
     felem_square(tmp, in);
-    felem_reduce(ftmp, tmp);    /* 2^1 */
+    felem_reduce(ftmp, tmp); /* 2^1 */
     felem_mul(tmp, in, ftmp);
-    felem_reduce(ftmp, tmp);    /* 2^2 - 2^0 */
+    felem_reduce(ftmp, tmp); /* 2^2 - 2^0 */
     felem_assign(ftmp2, ftmp);
     felem_square(tmp, ftmp);
-    felem_reduce(ftmp, tmp);    /* 2^3 - 2^1 */
+    felem_reduce(ftmp, tmp); /* 2^3 - 2^1 */
     felem_mul(tmp, in, ftmp);
-    felem_reduce(ftmp, tmp);    /* 2^3 - 2^0 */
+    felem_reduce(ftmp, tmp); /* 2^3 - 2^0 */
     felem_square(tmp, ftmp);
-    felem_reduce(ftmp, tmp);    /* 2^4 - 2^1 */
+    felem_reduce(ftmp, tmp); /* 2^4 - 2^1 */
 
     felem_square(tmp, ftmp2);
-    felem_reduce(ftmp3, tmp);   /* 2^3 - 2^1 */
+    felem_reduce(ftmp3, tmp); /* 2^3 - 2^1 */
     felem_square(tmp, ftmp3);
-    felem_reduce(ftmp3, tmp);   /* 2^4 - 2^2 */
+    felem_reduce(ftmp3, tmp); /* 2^4 - 2^2 */
     felem_mul(tmp, ftmp3, ftmp2);
-    felem_reduce(ftmp3, tmp);   /* 2^4 - 2^0 */
+    felem_reduce(ftmp3, tmp); /* 2^4 - 2^0 */
 
     felem_assign(ftmp2, ftmp3);
     felem_square(tmp, ftmp3);
-    felem_reduce(ftmp3, tmp);   /* 2^5 - 2^1 */
+    felem_reduce(ftmp3, tmp); /* 2^5 - 2^1 */
     felem_square(tmp, ftmp3);
-    felem_reduce(ftmp3, tmp);   /* 2^6 - 2^2 */
+    felem_reduce(ftmp3, tmp); /* 2^6 - 2^2 */
     felem_square(tmp, ftmp3);
-    felem_reduce(ftmp3, tmp);   /* 2^7 - 2^3 */
+    felem_reduce(ftmp3, tmp); /* 2^7 - 2^3 */
     felem_square(tmp, ftmp3);
-    felem_reduce(ftmp3, tmp);   /* 2^8 - 2^4 */
+    felem_reduce(ftmp3, tmp); /* 2^8 - 2^4 */
     felem_mul(tmp, ftmp3, ftmp);
-    felem_reduce(ftmp4, tmp);   /* 2^8 - 2^1 */
+    felem_reduce(ftmp4, tmp); /* 2^8 - 2^1 */
     felem_square(tmp, ftmp4);
-    felem_reduce(ftmp4, tmp);   /* 2^9 - 2^2 */
+    felem_reduce(ftmp4, tmp); /* 2^9 - 2^2 */
     felem_mul(tmp, ftmp3, ftmp2);
-    felem_reduce(ftmp3, tmp);   /* 2^8 - 2^0 */
+    felem_reduce(ftmp3, tmp); /* 2^8 - 2^0 */
     felem_assign(ftmp2, ftmp3);
 
     for (i = 0; i < 8; i++) {
@@ -795,7 +712,7 @@ static void felem_inv(felem out, const felem in)
         felem_reduce(ftmp3, tmp); /* 2^16 - 2^8 */
     }
     felem_mul(tmp, ftmp3, ftmp2);
-    felem_reduce(ftmp3, tmp);   /* 2^16 - 2^0 */
+    felem_reduce(ftmp3, tmp); /* 2^16 - 2^0 */
     felem_assign(ftmp2, ftmp3);
 
     for (i = 0; i < 16; i++) {
@@ -803,7 +720,7 @@ static void felem_inv(felem out, const felem in)
         felem_reduce(ftmp3, tmp); /* 2^32 - 2^16 */
     }
     felem_mul(tmp, ftmp3, ftmp2);
-    felem_reduce(ftmp3, tmp);   /* 2^32 - 2^0 */
+    felem_reduce(ftmp3, tmp); /* 2^32 - 2^0 */
     felem_assign(ftmp2, ftmp3);
 
     for (i = 0; i < 32; i++) {
@@ -811,7 +728,7 @@ static void felem_inv(felem out, const felem in)
         felem_reduce(ftmp3, tmp); /* 2^64 - 2^32 */
     }
     felem_mul(tmp, ftmp3, ftmp2);
-    felem_reduce(ftmp3, tmp);   /* 2^64 - 2^0 */
+    felem_reduce(ftmp3, tmp); /* 2^64 - 2^0 */
     felem_assign(ftmp2, ftmp3);
 
     for (i = 0; i < 64; i++) {
@@ -819,7 +736,7 @@ static void felem_inv(felem out, const felem in)
         felem_reduce(ftmp3, tmp); /* 2^128 - 2^64 */
     }
     felem_mul(tmp, ftmp3, ftmp2);
-    felem_reduce(ftmp3, tmp);   /* 2^128 - 2^0 */
+    felem_reduce(ftmp3, tmp); /* 2^128 - 2^0 */
     felem_assign(ftmp2, ftmp3);
 
     for (i = 0; i < 128; i++) {
@@ -827,7 +744,7 @@ static void felem_inv(felem out, const felem in)
         felem_reduce(ftmp3, tmp); /* 2^256 - 2^128 */
     }
     felem_mul(tmp, ftmp3, ftmp2);
-    felem_reduce(ftmp3, tmp);   /* 2^256 - 2^0 */
+    felem_reduce(ftmp3, tmp); /* 2^256 - 2^0 */
     felem_assign(ftmp2, ftmp3);
 
     for (i = 0; i < 256; i++) {
@@ -835,16 +752,16 @@ static void felem_inv(felem out, const felem in)
         felem_reduce(ftmp3, tmp); /* 2^512 - 2^256 */
     }
     felem_mul(tmp, ftmp3, ftmp2);
-    felem_reduce(ftmp3, tmp);   /* 2^512 - 2^0 */
+    felem_reduce(ftmp3, tmp); /* 2^512 - 2^0 */
 
     for (i = 0; i < 9; i++) {
         felem_square(tmp, ftmp3);
         felem_reduce(ftmp3, tmp); /* 2^521 - 2^9 */
     }
     felem_mul(tmp, ftmp3, ftmp4);
-    felem_reduce(ftmp3, tmp);   /* 2^521 - 2^2 */
+    felem_reduce(ftmp3, tmp); /* 2^521 - 2^2 */
     felem_mul(tmp, ftmp3, in);
-    felem_reduce(out, tmp);     /* 2^521 - 3 */
+    felem_reduce(out, tmp); /* 2^521 - 3 */
 }
 
 /* This is 2^521-1, expressed as an felem */
@@ -930,7 +847,7 @@ static limb felem_is_zero(const felem in)
 
 static int felem_is_zero_int(const void *in)
 {
-    return (int)(felem_is_zero(in) & ((limb) 1));
+    return (int)(felem_is_zero(in) & ((limb)1));
 }
 
 /*-
@@ -941,7 +858,7 @@ static int felem_is_zero_int(const void *in)
 static void felem_contract(felem out, const felem in)
 {
     limb is_p, is_greater, sign;
-    static const limb two58 = ((limb) 1) << 58;
+    static const limb two58 = ((limb)1) << 58;
 
     felem_assign(out, in);
 
@@ -1085,7 +1002,7 @@ static void felem_contract(felem out, const felem in)
  * while x_out == y_in is not (maybe this works, but it's not tested). */
 static void
 point_double(felem x_out, felem y_out, felem z_out,
-             const felem x_in, const felem y_in, const felem z_in)
+    const felem x_in, const felem y_in, const felem z_in)
 {
     largefelem tmp, tmp2;
     felem delta, gamma, beta, alpha, ftmp, ftmp2;
@@ -1095,15 +1012,15 @@ point_double(felem x_out, felem y_out, felem z_out,
 
     /* delta = z^2 */
     felem_square(tmp, z_in);
-    felem_reduce(delta, tmp);   /* delta[i] < 2^59 + 2^14 */
+    felem_reduce(delta, tmp); /* delta[i] < 2^59 + 2^14 */
 
     /* gamma = y^2 */
     felem_square(tmp, y_in);
-    felem_reduce(gamma, tmp);   /* gamma[i] < 2^59 + 2^14 */
+    felem_reduce(gamma, tmp); /* gamma[i] < 2^59 + 2^14 */
 
     /* beta = x*gamma */
     felem_mul(tmp, x_in, gamma);
-    felem_reduce(beta, tmp);    /* beta[i] < 2^59 + 2^14 */
+    felem_reduce(beta, tmp); /* beta[i] < 2^59 + 2^14 */
 
     /* alpha = 3*(x-delta)*(x+delta) */
     felem_diff64(ftmp, delta);
@@ -1203,9 +1120,9 @@ static void copy_conditional(felem out, const felem in, limb mask)
  * on constant-time.
  */
 static void point_add(felem x3, felem y3, felem z3,
-                      const felem x1, const felem y1, const felem z1,
-                      const int mixed, const felem x2, const felem y2,
-                      const felem z2)
+    const felem x1, const felem y1, const felem z1,
+    const int mixed, const felem x2, const felem y2,
+    const felem z2)
 {
     felem ftmp, ftmp2, ftmp3, ftmp4, ftmp5, ftmp6, x_out, y_out, z_out;
     largefelem tmp, tmp2;
@@ -1373,11 +1290,11 @@ static void point_add(felem x3, felem y3, felem z3,
     felem_scalar128(tmp2, 2);
     /* tmp2[i] < 17*2^121 */
     felem_diff128(tmp, tmp2);
-        /*-
-         * tmp[i] < 2^127 - 2^69 + 17*2^122
-         *        = 2^126 - 2^122 - 2^6 - 2^2 - 1
-         *        < 2^127
-         */
+    /*-
+     * tmp[i] < 2^127 - 2^69 + 17*2^122
+     *        = 2^126 - 2^122 - 2^6 - 2^2 - 1
+     *        < 2^127
+     */
     felem_reduce(y_out, tmp);
 
     copy_conditional(x_out, x2, z1_is_zero);
@@ -1427,123 +1344,123 @@ static void point_add(felem x3, felem y3, felem z3,
 
 /* gmul is the table of precomputed base points */
 static const felem gmul[16][3] = {
-{{0, 0, 0, 0, 0, 0, 0, 0, 0},
- {0, 0, 0, 0, 0, 0, 0, 0, 0},
- {0, 0, 0, 0, 0, 0, 0, 0, 0}},
-{{0x017e7e31c2e5bd66, 0x022cf0615a90a6fe, 0x00127a2ffa8de334,
-  0x01dfbf9d64a3f877, 0x006b4d3dbaa14b5e, 0x014fed487e0a2bd8,
-  0x015b4429c6481390, 0x03a73678fb2d988e, 0x00c6858e06b70404},
- {0x00be94769fd16650, 0x031c21a89cb09022, 0x039013fad0761353,
-  0x02657bd099031542, 0x03273e662c97ee72, 0x01e6d11a05ebef45,
-  0x03d1bd998f544495, 0x03001172297ed0b1, 0x011839296a789a3b},
- {1, 0, 0, 0, 0, 0, 0, 0, 0}},
-{{0x0373faacbc875bae, 0x00f325023721c671, 0x00f666fd3dbde5ad,
-  0x01a6932363f88ea7, 0x01fc6d9e13f9c47b, 0x03bcbffc2bbf734e,
-  0x013ee3c3647f3a92, 0x029409fefe75d07d, 0x00ef9199963d85e5},
- {0x011173743ad5b178, 0x02499c7c21bf7d46, 0x035beaeabb8b1a58,
-  0x00f989c4752ea0a3, 0x0101e1de48a9c1a3, 0x01a20076be28ba6c,
-  0x02f8052e5eb2de95, 0x01bfe8f82dea117c, 0x0160074d3c36ddb7},
- {1, 0, 0, 0, 0, 0, 0, 0, 0}},
-{{0x012f3fc373393b3b, 0x03d3d6172f1419fa, 0x02adc943c0b86873,
-  0x00d475584177952b, 0x012a4d1673750ee2, 0x00512517a0f13b0c,
-  0x02b184671a7b1734, 0x0315b84236f1a50a, 0x00a4afc472edbdb9},
- {0x00152a7077f385c4, 0x03044007d8d1c2ee, 0x0065829d61d52b52,
-  0x00494ff6b6631d0d, 0x00a11d94d5f06bcf, 0x02d2f89474d9282e,
-  0x0241c5727c06eeb9, 0x0386928710fbdb9d, 0x01f883f727b0dfbe},
- {1, 0, 0, 0, 0, 0, 0, 0, 0}},
-{{0x019b0c3c9185544d, 0x006243a37c9d97db, 0x02ee3cbe030a2ad2,
-  0x00cfdd946bb51e0d, 0x0271c00932606b91, 0x03f817d1ec68c561,
-  0x03f37009806a369c, 0x03c1f30baf184fd5, 0x01091022d6d2f065},
- {0x0292c583514c45ed, 0x0316fca51f9a286c, 0x00300af507c1489a,
-  0x0295f69008298cf1, 0x02c0ed8274943d7b, 0x016509b9b47a431e,
-  0x02bc9de9634868ce, 0x005b34929bffcb09, 0x000c1a0121681524},
- {1, 0, 0, 0, 0, 0, 0, 0, 0}},
-{{0x0286abc0292fb9f2, 0x02665eee9805b3f7, 0x01ed7455f17f26d6,
-  0x0346355b83175d13, 0x006284944cd0a097, 0x0191895bcdec5e51,
-  0x02e288370afda7d9, 0x03b22312bfefa67a, 0x01d104d3fc0613fe},
- {0x0092421a12f7e47f, 0x0077a83fa373c501, 0x03bd25c5f696bd0d,
-  0x035c41e4d5459761, 0x01ca0d1742b24f53, 0x00aaab27863a509c,
-  0x018b6de47df73917, 0x025c0b771705cd01, 0x01fd51d566d760a7},
- {1, 0, 0, 0, 0, 0, 0, 0, 0}},
-{{0x01dd92ff6b0d1dbd, 0x039c5e2e8f8afa69, 0x0261ed13242c3b27,
-  0x0382c6e67026e6a0, 0x01d60b10be2089f9, 0x03c15f3dce86723f,
-  0x03c764a32d2a062d, 0x017307eac0fad056, 0x018207c0b96c5256},
- {0x0196a16d60e13154, 0x03e6ce74c0267030, 0x00ddbf2b4e52a5aa,
-  0x012738241bbf31c8, 0x00ebe8dc04685a28, 0x024c2ad6d380d4a2,
-  0x035ee062a6e62d0e, 0x0029ed74af7d3a0f, 0x00eef32aec142ebd},
- {1, 0, 0, 0, 0, 0, 0, 0, 0}},
-{{0x00c31ec398993b39, 0x03a9f45bcda68253, 0x00ac733c24c70890,
-  0x00872b111401ff01, 0x01d178c23195eafb, 0x03bca2c816b87f74,
-  0x0261a9af46fbad7a, 0x0324b2a8dd3d28f9, 0x00918121d8f24e23},
- {0x032bc8c1ca983cd7, 0x00d869dfb08fc8c6, 0x01693cb61fce1516,
-  0x012a5ea68f4e88a8, 0x010869cab88d7ae3, 0x009081ad277ceee1,
-  0x033a77166d064cdc, 0x03955235a1fb3a95, 0x01251a4a9b25b65e},
- {1, 0, 0, 0, 0, 0, 0, 0, 0}},
-{{0x00148a3a1b27f40b, 0x0123186df1b31fdc, 0x00026e7beaad34ce,
-  0x01db446ac1d3dbba, 0x0299c1a33437eaec, 0x024540610183cbb7,
-  0x0173bb0e9ce92e46, 0x02b937e43921214b, 0x01ab0436a9bf01b5},
- {0x0383381640d46948, 0x008dacbf0e7f330f, 0x03602122bcc3f318,
-  0x01ee596b200620d6, 0x03bd0585fda430b3, 0x014aed77fd123a83,
-  0x005ace749e52f742, 0x0390fe041da2b842, 0x0189a8ceb3299242},
- {1, 0, 0, 0, 0, 0, 0, 0, 0}},
-{{0x012a19d6b3282473, 0x00c0915918b423ce, 0x023a954eb94405ae,
-  0x00529f692be26158, 0x0289fa1b6fa4b2aa, 0x0198ae4ceea346ef,
-  0x0047d8cdfbdedd49, 0x00cc8c8953f0f6b8, 0x001424abbff49203},
- {0x0256732a1115a03a, 0x0351bc38665c6733, 0x03f7b950fb4a6447,
-  0x000afffa94c22155, 0x025763d0a4dab540, 0x000511e92d4fc283,
-  0x030a7e9eda0ee96c, 0x004c3cd93a28bf0a, 0x017edb3a8719217f},
- {1, 0, 0, 0, 0, 0, 0, 0, 0}},
-{{0x011de5675a88e673, 0x031d7d0f5e567fbe, 0x0016b2062c970ae5,
-  0x03f4a2be49d90aa7, 0x03cef0bd13822866, 0x03f0923dcf774a6c,
-  0x0284bebc4f322f72, 0x016ab2645302bb2c, 0x01793f95dace0e2a},
- {0x010646e13527a28f, 0x01ca1babd59dc5e7, 0x01afedfd9a5595df,
-  0x01f15785212ea6b1, 0x0324e5d64f6ae3f4, 0x02d680f526d00645,
-  0x0127920fadf627a7, 0x03b383f75df4f684, 0x0089e0057e783b0a},
- {1, 0, 0, 0, 0, 0, 0, 0, 0}},
-{{0x00f334b9eb3c26c6, 0x0298fdaa98568dce, 0x01c2d24843a82292,
-  0x020bcb24fa1b0711, 0x02cbdb3d2b1875e6, 0x0014907598f89422,
-  0x03abe3aa43b26664, 0x02cbf47f720bc168, 0x0133b5e73014b79b},
- {0x034aab5dab05779d, 0x00cdc5d71fee9abb, 0x0399f16bd4bd9d30,
-  0x03582fa592d82647, 0x02be1cdfb775b0e9, 0x0034f7cea32e94cb,
-  0x0335a7f08f56f286, 0x03b707e9565d1c8b, 0x0015c946ea5b614f},
- {1, 0, 0, 0, 0, 0, 0, 0, 0}},
-{{0x024676f6cff72255, 0x00d14625cac96378, 0x00532b6008bc3767,
-  0x01fc16721b985322, 0x023355ea1b091668, 0x029de7afdc0317c3,
-  0x02fc8a7ca2da037c, 0x02de1217d74a6f30, 0x013f7173175b73bf},
- {0x0344913f441490b5, 0x0200f9e272b61eca, 0x0258a246b1dd55d2,
-  0x03753db9ea496f36, 0x025e02937a09c5ef, 0x030cbd3d14012692,
-  0x01793a67e70dc72a, 0x03ec1d37048a662e, 0x006550f700c32a8d},
- {1, 0, 0, 0, 0, 0, 0, 0, 0}},
-{{0x00d3f48a347eba27, 0x008e636649b61bd8, 0x00d3b93716778fb3,
-  0x004d1915757bd209, 0x019d5311a3da44e0, 0x016d1afcbbe6aade,
-  0x0241bf5f73265616, 0x0384672e5d50d39b, 0x005009fee522b684},
- {0x029b4fab064435fe, 0x018868ee095bbb07, 0x01ea3d6936cc92b8,
-  0x000608b00f78a2f3, 0x02db911073d1c20f, 0x018205938470100a,
-  0x01f1e4964cbe6ff2, 0x021a19a29eed4663, 0x01414485f42afa81},
- {1, 0, 0, 0, 0, 0, 0, 0, 0}},
-{{0x01612b3a17f63e34, 0x03813992885428e6, 0x022b3c215b5a9608,
-  0x029b4057e19f2fcb, 0x0384059a587af7e6, 0x02d6400ace6fe610,
-  0x029354d896e8e331, 0x00c047ee6dfba65e, 0x0037720542e9d49d},
- {0x02ce9eed7c5e9278, 0x0374ed703e79643b, 0x01316c54c4072006,
-  0x005aaa09054b2ee8, 0x002824000c840d57, 0x03d4eba24771ed86,
-  0x0189c50aabc3bdae, 0x0338c01541e15510, 0x00466d56e38eed42},
- {1, 0, 0, 0, 0, 0, 0, 0, 0}},
-{{0x007efd8330ad8bd6, 0x02465ed48047710b, 0x0034c6606b215e0c,
-  0x016ae30c53cbf839, 0x01fa17bd37161216, 0x018ead4e61ce8ab9,
-  0x005482ed5f5dee46, 0x037543755bba1d7f, 0x005e5ac7e70a9d0f},
- {0x0117e1bb2fdcb2a2, 0x03deea36249f40c4, 0x028d09b4a6246cb7,
-  0x03524b8855bcf756, 0x023d7d109d5ceb58, 0x0178e43e3223ef9c,
-  0x0154536a0c6e966a, 0x037964d1286ee9fe, 0x0199bcd90e125055},
- {1, 0, 0, 0, 0, 0, 0, 0, 0}}
+    { { 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+        { 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+        { 0, 0, 0, 0, 0, 0, 0, 0, 0 } },
+    { { 0x017e7e31c2e5bd66, 0x022cf0615a90a6fe, 0x00127a2ffa8de334,
+          0x01dfbf9d64a3f877, 0x006b4d3dbaa14b5e, 0x014fed487e0a2bd8,
+          0x015b4429c6481390, 0x03a73678fb2d988e, 0x00c6858e06b70404 },
+        { 0x00be94769fd16650, 0x031c21a89cb09022, 0x039013fad0761353,
+            0x02657bd099031542, 0x03273e662c97ee72, 0x01e6d11a05ebef45,
+            0x03d1bd998f544495, 0x03001172297ed0b1, 0x011839296a789a3b },
+        { 1, 0, 0, 0, 0, 0, 0, 0, 0 } },
+    { { 0x0373faacbc875bae, 0x00f325023721c671, 0x00f666fd3dbde5ad,
+          0x01a6932363f88ea7, 0x01fc6d9e13f9c47b, 0x03bcbffc2bbf734e,
+          0x013ee3c3647f3a92, 0x029409fefe75d07d, 0x00ef9199963d85e5 },
+        { 0x011173743ad5b178, 0x02499c7c21bf7d46, 0x035beaeabb8b1a58,
+            0x00f989c4752ea0a3, 0x0101e1de48a9c1a3, 0x01a20076be28ba6c,
+            0x02f8052e5eb2de95, 0x01bfe8f82dea117c, 0x0160074d3c36ddb7 },
+        { 1, 0, 0, 0, 0, 0, 0, 0, 0 } },
+    { { 0x012f3fc373393b3b, 0x03d3d6172f1419fa, 0x02adc943c0b86873,
+          0x00d475584177952b, 0x012a4d1673750ee2, 0x00512517a0f13b0c,
+          0x02b184671a7b1734, 0x0315b84236f1a50a, 0x00a4afc472edbdb9 },
+        { 0x00152a7077f385c4, 0x03044007d8d1c2ee, 0x0065829d61d52b52,
+            0x00494ff6b6631d0d, 0x00a11d94d5f06bcf, 0x02d2f89474d9282e,
+            0x0241c5727c06eeb9, 0x0386928710fbdb9d, 0x01f883f727b0dfbe },
+        { 1, 0, 0, 0, 0, 0, 0, 0, 0 } },
+    { { 0x019b0c3c9185544d, 0x006243a37c9d97db, 0x02ee3cbe030a2ad2,
+          0x00cfdd946bb51e0d, 0x0271c00932606b91, 0x03f817d1ec68c561,
+          0x03f37009806a369c, 0x03c1f30baf184fd5, 0x01091022d6d2f065 },
+        { 0x0292c583514c45ed, 0x0316fca51f9a286c, 0x00300af507c1489a,
+            0x0295f69008298cf1, 0x02c0ed8274943d7b, 0x016509b9b47a431e,
+            0x02bc9de9634868ce, 0x005b34929bffcb09, 0x000c1a0121681524 },
+        { 1, 0, 0, 0, 0, 0, 0, 0, 0 } },
+    { { 0x0286abc0292fb9f2, 0x02665eee9805b3f7, 0x01ed7455f17f26d6,
+          0x0346355b83175d13, 0x006284944cd0a097, 0x0191895bcdec5e51,
+          0x02e288370afda7d9, 0x03b22312bfefa67a, 0x01d104d3fc0613fe },
+        { 0x0092421a12f7e47f, 0x0077a83fa373c501, 0x03bd25c5f696bd0d,
+            0x035c41e4d5459761, 0x01ca0d1742b24f53, 0x00aaab27863a509c,
+            0x018b6de47df73917, 0x025c0b771705cd01, 0x01fd51d566d760a7 },
+        { 1, 0, 0, 0, 0, 0, 0, 0, 0 } },
+    { { 0x01dd92ff6b0d1dbd, 0x039c5e2e8f8afa69, 0x0261ed13242c3b27,
+          0x0382c6e67026e6a0, 0x01d60b10be2089f9, 0x03c15f3dce86723f,
+          0x03c764a32d2a062d, 0x017307eac0fad056, 0x018207c0b96c5256 },
+        { 0x0196a16d60e13154, 0x03e6ce74c0267030, 0x00ddbf2b4e52a5aa,
+            0x012738241bbf31c8, 0x00ebe8dc04685a28, 0x024c2ad6d380d4a2,
+            0x035ee062a6e62d0e, 0x0029ed74af7d3a0f, 0x00eef32aec142ebd },
+        { 1, 0, 0, 0, 0, 0, 0, 0, 0 } },
+    { { 0x00c31ec398993b39, 0x03a9f45bcda68253, 0x00ac733c24c70890,
+          0x00872b111401ff01, 0x01d178c23195eafb, 0x03bca2c816b87f74,
+          0x0261a9af46fbad7a, 0x0324b2a8dd3d28f9, 0x00918121d8f24e23 },
+        { 0x032bc8c1ca983cd7, 0x00d869dfb08fc8c6, 0x01693cb61fce1516,
+            0x012a5ea68f4e88a8, 0x010869cab88d7ae3, 0x009081ad277ceee1,
+            0x033a77166d064cdc, 0x03955235a1fb3a95, 0x01251a4a9b25b65e },
+        { 1, 0, 0, 0, 0, 0, 0, 0, 0 } },
+    { { 0x00148a3a1b27f40b, 0x0123186df1b31fdc, 0x00026e7beaad34ce,
+          0x01db446ac1d3dbba, 0x0299c1a33437eaec, 0x024540610183cbb7,
+          0x0173bb0e9ce92e46, 0x02b937e43921214b, 0x01ab0436a9bf01b5 },
+        { 0x0383381640d46948, 0x008dacbf0e7f330f, 0x03602122bcc3f318,
+            0x01ee596b200620d6, 0x03bd0585fda430b3, 0x014aed77fd123a83,
+            0x005ace749e52f742, 0x0390fe041da2b842, 0x0189a8ceb3299242 },
+        { 1, 0, 0, 0, 0, 0, 0, 0, 0 } },
+    { { 0x012a19d6b3282473, 0x00c0915918b423ce, 0x023a954eb94405ae,
+          0x00529f692be26158, 0x0289fa1b6fa4b2aa, 0x0198ae4ceea346ef,
+          0x0047d8cdfbdedd49, 0x00cc8c8953f0f6b8, 0x001424abbff49203 },
+        { 0x0256732a1115a03a, 0x0351bc38665c6733, 0x03f7b950fb4a6447,
+            0x000afffa94c22155, 0x025763d0a4dab540, 0x000511e92d4fc283,
+            0x030a7e9eda0ee96c, 0x004c3cd93a28bf0a, 0x017edb3a8719217f },
+        { 1, 0, 0, 0, 0, 0, 0, 0, 0 } },
+    { { 0x011de5675a88e673, 0x031d7d0f5e567fbe, 0x0016b2062c970ae5,
+          0x03f4a2be49d90aa7, 0x03cef0bd13822866, 0x03f0923dcf774a6c,
+          0x0284bebc4f322f72, 0x016ab2645302bb2c, 0x01793f95dace0e2a },
+        { 0x010646e13527a28f, 0x01ca1babd59dc5e7, 0x01afedfd9a5595df,
+            0x01f15785212ea6b1, 0x0324e5d64f6ae3f4, 0x02d680f526d00645,
+            0x0127920fadf627a7, 0x03b383f75df4f684, 0x0089e0057e783b0a },
+        { 1, 0, 0, 0, 0, 0, 0, 0, 0 } },
+    { { 0x00f334b9eb3c26c6, 0x0298fdaa98568dce, 0x01c2d24843a82292,
+          0x020bcb24fa1b0711, 0x02cbdb3d2b1875e6, 0x0014907598f89422,
+          0x03abe3aa43b26664, 0x02cbf47f720bc168, 0x0133b5e73014b79b },
+        { 0x034aab5dab05779d, 0x00cdc5d71fee9abb, 0x0399f16bd4bd9d30,
+            0x03582fa592d82647, 0x02be1cdfb775b0e9, 0x0034f7cea32e94cb,
+            0x0335a7f08f56f286, 0x03b707e9565d1c8b, 0x0015c946ea5b614f },
+        { 1, 0, 0, 0, 0, 0, 0, 0, 0 } },
+    { { 0x024676f6cff72255, 0x00d14625cac96378, 0x00532b6008bc3767,
+          0x01fc16721b985322, 0x023355ea1b091668, 0x029de7afdc0317c3,
+          0x02fc8a7ca2da037c, 0x02de1217d74a6f30, 0x013f7173175b73bf },
+        { 0x0344913f441490b5, 0x0200f9e272b61eca, 0x0258a246b1dd55d2,
+            0x03753db9ea496f36, 0x025e02937a09c5ef, 0x030cbd3d14012692,
+            0x01793a67e70dc72a, 0x03ec1d37048a662e, 0x006550f700c32a8d },
+        { 1, 0, 0, 0, 0, 0, 0, 0, 0 } },
+    { { 0x00d3f48a347eba27, 0x008e636649b61bd8, 0x00d3b93716778fb3,
+          0x004d1915757bd209, 0x019d5311a3da44e0, 0x016d1afcbbe6aade,
+          0x0241bf5f73265616, 0x0384672e5d50d39b, 0x005009fee522b684 },
+        { 0x029b4fab064435fe, 0x018868ee095bbb07, 0x01ea3d6936cc92b8,
+            0x000608b00f78a2f3, 0x02db911073d1c20f, 0x018205938470100a,
+            0x01f1e4964cbe6ff2, 0x021a19a29eed4663, 0x01414485f42afa81 },
+        { 1, 0, 0, 0, 0, 0, 0, 0, 0 } },
+    { { 0x01612b3a17f63e34, 0x03813992885428e6, 0x022b3c215b5a9608,
+          0x029b4057e19f2fcb, 0x0384059a587af7e6, 0x02d6400ace6fe610,
+          0x029354d896e8e331, 0x00c047ee6dfba65e, 0x0037720542e9d49d },
+        { 0x02ce9eed7c5e9278, 0x0374ed703e79643b, 0x01316c54c4072006,
+            0x005aaa09054b2ee8, 0x002824000c840d57, 0x03d4eba24771ed86,
+            0x0189c50aabc3bdae, 0x0338c01541e15510, 0x00466d56e38eed42 },
+        { 1, 0, 0, 0, 0, 0, 0, 0, 0 } },
+    { { 0x007efd8330ad8bd6, 0x02465ed48047710b, 0x0034c6606b215e0c,
+          0x016ae30c53cbf839, 0x01fa17bd37161216, 0x018ead4e61ce8ab9,
+          0x005482ed5f5dee46, 0x037543755bba1d7f, 0x005e5ac7e70a9d0f },
+        { 0x0117e1bb2fdcb2a2, 0x03deea36249f40c4, 0x028d09b4a6246cb7,
+            0x03524b8855bcf756, 0x023d7d109d5ceb58, 0x0178e43e3223ef9c,
+            0x0154536a0c6e966a, 0x037964d1286ee9fe, 0x0199bcd90e125055 },
+        { 1, 0, 0, 0, 0, 0, 0, 0, 0 } }
 };
 
 /*
  * select_point selects the |idx|th point from a precomputation table and
  * copies it to out.
  */
- /* pre_comp below is of the size provided in |size| */
+/* pre_comp below is of the size provided in |size| */
 static void select_point(const limb idx, unsigned int size,
-                         const felem pre_comp[][3], felem out[3])
+    const felem pre_comp[][3], felem out[3])
 {
     unsigned i, j;
     limb *outlimbs = &out[0][0];
@@ -1579,10 +1496,10 @@ static char get_bit(const felem_bytearray in, int i)
  * Output point (X, Y, Z) is stored in x_out, y_out, z_out
  */
 static void batch_mul(felem x_out, felem y_out, felem z_out,
-                      const felem_bytearray scalars[],
-                      const unsigned num_points, const u8 *g_scalar,
-                      const int mixed, const felem pre_comp[][17][3],
-                      const felem g_pre_comp[16][3])
+    const felem_bytearray scalars[],
+    const unsigned num_points, const u8 *g_scalar,
+    const int mixed, const felem pre_comp[][17][3],
+    const felem g_pre_comp[16][3])
 {
     int i, skip;
     unsigned num, gen_mul = (g_scalar != NULL);
@@ -1598,8 +1515,8 @@ static void batch_mul(felem x_out, felem y_out, felem z_out,
      * of the generator (last quarter of rounds) and additions of other
      * points multiples (every 5th round).
      */
-    skip = 1;                   /* save two point operations in the first
-                                 * round */
+    skip = 1; /* save two point operations in the first
+               * round */
     for (i = (num_points ? 520 : 130); i >= 0; --i) {
         /* double */
         if (!skip)
@@ -1618,7 +1535,7 @@ static void batch_mul(felem x_out, felem y_out, felem z_out,
             if (!skip) {
                 /* The 1 argument below is for "mixed" */
                 point_add(nq[0], nq[1], nq[2],
-                          nq[0], nq[1], nq[2], 1, tmp[0], tmp[1], tmp[2]);
+                    nq[0], nq[1], nq[2], 1, tmp[0], tmp[1], tmp[2]);
             } else {
                 memcpy(nq, tmp, 3 * sizeof(felem));
                 skip = 0;
@@ -1643,12 +1560,12 @@ static void batch_mul(felem x_out, felem y_out, felem z_out,
                 select_point(digit, 17, pre_comp[num], tmp);
                 felem_neg(tmp[3], tmp[1]); /* (X, -Y, Z) is the negative
                                             * point */
-                copy_conditional(tmp[1], tmp[3], (-(limb) sign));
+                copy_conditional(tmp[1], tmp[3], (-(limb)sign));
 
                 if (!skip) {
                     point_add(nq[0], nq[1], nq[2],
-                              nq[0], nq[1], nq[2],
-                              mixed, tmp[0], tmp[1], tmp[2]);
+                        nq[0], nq[1], nq[2],
+                        mixed, tmp[0], tmp[1], tmp[2]);
                 } else {
                     memcpy(nq, tmp, 3 * sizeof(felem));
                     skip = 0;
@@ -1688,9 +1605,9 @@ const EC_METHOD *EC_GFp_nistp521_method(void)
         ossl_ec_GFp_simple_point_set_to_infinity,
         ossl_ec_GFp_simple_point_set_affine_coordinates,
         ossl_ec_GFp_nistp521_point_get_affine_coordinates,
-        0 /* point_set_compressed_coordinates */ ,
-        0 /* point2oct */ ,
-        0 /* oct2point */ ,
+        0 /* point_set_compressed_coordinates */,
+        0 /* point2oct */,
+        0 /* oct2point */,
         ossl_ec_GFp_simple_add,
         ossl_ec_GFp_simple_dbl,
         ossl_ec_GFp_simple_invert,
@@ -1704,11 +1621,11 @@ const EC_METHOD *EC_GFp_nistp521_method(void)
         ossl_ec_GFp_nistp521_have_precompute_mult,
         ossl_ec_GFp_nist_field_mul,
         ossl_ec_GFp_nist_field_sqr,
-        0 /* field_div */ ,
+        0 /* field_div */,
         ossl_ec_GFp_simple_field_inv,
-        0 /* field_encode */ ,
-        0 /* field_decode */ ,
-        0,                      /* field_set_to_one */
+        0 /* field_encode */,
+        0 /* field_decode */,
+        0, /* field_set_to_one */
         ossl_ec_key_simple_priv2oct,
         ossl_ec_key_simple_oct2priv,
         0, /* set private */
@@ -1725,7 +1642,7 @@ const EC_METHOD *EC_GFp_nistp521_method(void)
         0, /* blind_coordinates */
         0, /* ladder_pre */
         0, /* ladder_step */
-        0  /* ladder_post */
+        0 /* ladder_post */
     };
 
     return &ret;
@@ -1789,8 +1706,8 @@ int ossl_ec_GFp_nistp521_group_init(EC_GROUP *group)
 }
 
 int ossl_ec_GFp_nistp521_group_set_curve(EC_GROUP *group, const BIGNUM *p,
-                                         const BIGNUM *a, const BIGNUM *b,
-                                         BN_CTX *ctx)
+    const BIGNUM *a, const BIGNUM *b,
+    BN_CTX *ctx)
 {
     int ret = 0;
     BIGNUM *curve_p, *curve_a, *curve_b;
@@ -1818,7 +1735,7 @@ int ossl_ec_GFp_nistp521_group_set_curve(EC_GROUP *group, const BIGNUM *p,
     }
     group->field_mod_func = BN_nist_mod_521;
     ret = ossl_ec_GFp_simple_group_set_curve(group, p, a, b, ctx);
- err:
+err:
     BN_CTX_end(ctx);
 #ifndef FIPS_MODULE
     BN_CTX_free(new_ctx);
@@ -1831,9 +1748,9 @@ int ossl_ec_GFp_nistp521_group_set_curve(EC_GROUP *group, const BIGNUM *p,
  * (X/Z^2, Y/Z^3)
  */
 int ossl_ec_GFp_nistp521_point_get_affine_coordinates(const EC_GROUP *group,
-                                                      const EC_POINT *point,
-                                                      BIGNUM *x, BIGNUM *y,
-                                                      BN_CTX *ctx)
+    const EC_POINT *point,
+    BIGNUM *x, BIGNUM *y,
+    BN_CTX *ctx)
 {
     felem z1, z2, x_in, y_in, x_out, y_out;
     largefelem tmp;
@@ -1842,8 +1759,7 @@ int ossl_ec_GFp_nistp521_point_get_affine_coordinates(const EC_GROUP *group,
         ERR_raise(ERR_LIB_EC, EC_R_POINT_AT_INFINITY);
         return 0;
     }
-    if ((!BN_to_felem(x_in, point->X)) || (!BN_to_felem(y_in, point->Y)) ||
-        (!BN_to_felem(z1, point->Z)))
+    if ((!BN_to_felem(x_in, point->X)) || (!BN_to_felem(y_in, point->Y)) || (!BN_to_felem(z1, point->Z)))
         return 0;
     felem_inv(z2, z1);
     felem_square(tmp, z2);
@@ -1873,32 +1789,32 @@ int ossl_ec_GFp_nistp521_point_get_affine_coordinates(const EC_GROUP *group,
 
 /* points below is of size |num|, and tmp_felems is of size |num+1/ */
 static void make_points_affine(size_t num, felem points[][3],
-                               felem tmp_felems[])
+    felem tmp_felems[])
 {
     /*
      * Runs in constant time, unless an input is the point at infinity (which
      * normally shouldn't happen).
      */
     ossl_ec_GFp_nistp_points_make_affine_internal(num,
-                                                  points,
-                                                  sizeof(felem),
-                                                  tmp_felems,
-                                                  (void (*)(void *))felem_one,
-                                                  felem_is_zero_int,
-                                                  (void (*)(void *, const void *))
-                                                  felem_assign,
-                                                  (void (*)(void *, const void *))
-                                                  felem_square_reduce, (void (*)
-                                                                        (void *,
-                                                                         const void
-                                                                         *,
-                                                                         const void
-                                                                         *))
-                                                  felem_mul_reduce,
-                                                  (void (*)(void *, const void *))
-                                                  felem_inv,
-                                                  (void (*)(void *, const void *))
-                                                  felem_contract);
+        points,
+        sizeof(felem),
+        tmp_felems,
+        (void (*)(void *))felem_one,
+        felem_is_zero_int,
+        (void (*)(void *, const void *))
+            felem_assign,
+        (void (*)(void *, const void *))
+            felem_square_reduce,
+        (void (*)(void *,
+            const void
+                *,
+            const void
+                *))
+            felem_mul_reduce,
+        (void (*)(void *, const void *))
+            felem_inv,
+        (void (*)(void *, const void *))
+            felem_contract);
 }
 
 /*
@@ -1906,9 +1822,9 @@ static void make_points_affine(size_t num, felem points[][3],
  * values Result is stored in r (r can equal one of the inputs).
  */
 int ossl_ec_GFp_nistp521_points_mul(const EC_GROUP *group, EC_POINT *r,
-                                    const BIGNUM *scalar, size_t num,
-                                    const EC_POINT *points[],
-                                    const BIGNUM *scalars[], BN_CTX *ctx)
+    const BIGNUM *scalar, size_t num,
+    const EC_POINT *points[],
+    const BIGNUM *scalars[], BN_CTX *ctx)
 {
     int ret = 0;
     int j;
@@ -1916,7 +1832,7 @@ int ossl_ec_GFp_nistp521_points_mul(const EC_GROUP *group, EC_POINT *r,
     BIGNUM *x, *y, *z, *tmp_scalar;
     felem_bytearray g_secret;
     felem_bytearray *secrets = NULL;
-    felem (*pre_comp)[17][3] = NULL;
+    felem(*pre_comp)[17][3] = NULL;
     felem *tmp_felems = NULL;
     unsigned i;
     int num_bytes;
@@ -1944,20 +1860,18 @@ int ossl_ec_GFp_nistp521_points_mul(const EC_GROUP *group, EC_POINT *r,
             g_pre_comp = &pre->g_pre_comp[0];
         else
             /* try to use the standard precomputation */
-            g_pre_comp = (felem(*)[3]) gmul;
+            g_pre_comp = (felem(*)[3])gmul;
         generator = EC_POINT_new(group);
         if (generator == NULL)
             goto err;
         /* get the generator from precomputation */
-        if (!felem_to_BN(x, g_pre_comp[1][0]) ||
-            !felem_to_BN(y, g_pre_comp[1][1]) ||
-            !felem_to_BN(z, g_pre_comp[1][2])) {
+        if (!felem_to_BN(x, g_pre_comp[1][0]) || !felem_to_BN(y, g_pre_comp[1][1]) || !felem_to_BN(z, g_pre_comp[1][2])) {
             ERR_raise(ERR_LIB_EC, ERR_R_BN_LIB);
             goto err;
         }
         if (!ossl_ec_GFp_simple_set_Jprojective_coordinates_GFp(group,
-                                                                generator,
-                                                                x, y, z, ctx))
+                generator,
+                x, y, z, ctx))
             goto err;
         if (0 == EC_POINT_cmp(group, generator, group->generator, ctx))
             /* precomputation matches generator */
@@ -1981,8 +1895,7 @@ int ossl_ec_GFp_nistp521_points_mul(const EC_GROUP *group, EC_POINT *r,
         secrets = OPENSSL_zalloc(sizeof(*secrets) * num_points);
         pre_comp = OPENSSL_zalloc(sizeof(*pre_comp) * num_points);
         if (mixed)
-            tmp_felems =
-                OPENSSL_malloc(sizeof(*tmp_felems) * (num_points * 17 + 1));
+            tmp_felems = OPENSSL_malloc(sizeof(*tmp_felems) * (num_points * 17 + 1));
         if ((secrets == NULL) || (pre_comp == NULL)
             || (mixed && (tmp_felems == NULL)))
             goto err;
@@ -2017,19 +1930,17 @@ int ossl_ec_GFp_nistp521_points_mul(const EC_GROUP *group, EC_POINT *r,
                         goto err;
                     }
                     num_bytes = BN_bn2lebinpad(tmp_scalar,
-                                               secrets[i], sizeof(secrets[i]));
+                        secrets[i], sizeof(secrets[i]));
                 } else {
                     num_bytes = BN_bn2lebinpad(p_scalar,
-                                               secrets[i], sizeof(secrets[i]));
+                        secrets[i], sizeof(secrets[i]));
                 }
                 if (num_bytes < 0) {
                     ERR_raise(ERR_LIB_EC, ERR_R_BN_LIB);
                     goto err;
                 }
                 /* precompute multiples */
-                if ((!BN_to_felem(x_out, p->X)) ||
-                    (!BN_to_felem(y_out, p->Y)) ||
-                    (!BN_to_felem(z_out, p->Z)))
+                if ((!BN_to_felem(x_out, p->X)) || (!BN_to_felem(y_out, p->Y)) || (!BN_to_felem(z_out, p->Z)))
                     goto err;
                 memcpy(pre_comp[i][1][0], x_out, sizeof(felem));
                 memcpy(pre_comp[i][1][1], y_out, sizeof(felem));
@@ -2037,16 +1948,16 @@ int ossl_ec_GFp_nistp521_points_mul(const EC_GROUP *group, EC_POINT *r,
                 for (j = 2; j <= 16; ++j) {
                     if (j & 1) {
                         point_add(pre_comp[i][j][0], pre_comp[i][j][1],
-                                  pre_comp[i][j][2], pre_comp[i][1][0],
-                                  pre_comp[i][1][1], pre_comp[i][1][2], 0,
-                                  pre_comp[i][j - 1][0],
-                                  pre_comp[i][j - 1][1],
-                                  pre_comp[i][j - 1][2]);
+                            pre_comp[i][j][2], pre_comp[i][1][0],
+                            pre_comp[i][1][1], pre_comp[i][1][2], 0,
+                            pre_comp[i][j - 1][0],
+                            pre_comp[i][j - 1][1],
+                            pre_comp[i][j - 1][2]);
                     } else {
                         point_double(pre_comp[i][j][0], pre_comp[i][j][1],
-                                     pre_comp[i][j][2], pre_comp[i][j / 2][0],
-                                     pre_comp[i][j / 2][1],
-                                     pre_comp[i][j / 2][2]);
+                            pre_comp[i][j][2], pre_comp[i][j / 2][0],
+                            pre_comp[i][j / 2][1],
+                            pre_comp[i][j / 2][2]);
                     }
                 }
             }
@@ -2074,29 +1985,28 @@ int ossl_ec_GFp_nistp521_points_mul(const EC_GROUP *group, EC_POINT *r,
         }
         /* do the multiplication with generator precomputation */
         batch_mul(x_out, y_out, z_out,
-                  (const felem_bytearray(*))secrets, num_points,
-                  g_secret,
-                  mixed, (const felem(*)[17][3])pre_comp,
-                  (const felem(*)[3])g_pre_comp);
+            (const felem_bytearray(*))secrets, num_points,
+            g_secret,
+            mixed, (const felem(*)[17][3])pre_comp,
+            (const felem(*)[3])g_pre_comp);
     } else {
         /* do the multiplication without generator precomputation */
         batch_mul(x_out, y_out, z_out,
-                  (const felem_bytearray(*))secrets, num_points,
-                  NULL, mixed, (const felem(*)[17][3])pre_comp, NULL);
+            (const felem_bytearray(*))secrets, num_points,
+            NULL, mixed, (const felem(*)[17][3])pre_comp, NULL);
     }
     /* reduce the output to its unique minimal representation */
     felem_contract(x_in, x_out);
     felem_contract(y_in, y_out);
     felem_contract(z_in, z_out);
-    if ((!felem_to_BN(x, x_in)) || (!felem_to_BN(y, y_in)) ||
-        (!felem_to_BN(z, z_in))) {
+    if ((!felem_to_BN(x, x_in)) || (!felem_to_BN(y, y_in)) || (!felem_to_BN(z, z_in))) {
         ERR_raise(ERR_LIB_EC, ERR_R_BN_LIB);
         goto err;
     }
     ret = ossl_ec_GFp_simple_set_Jprojective_coordinates_GFp(group, r, x, y, z,
-                                                             ctx);
+        ctx);
 
- err:
+err:
     BN_CTX_end(ctx);
     EC_POINT_free(generator);
     OPENSSL_free(secrets);
@@ -2151,22 +2061,20 @@ int ossl_ec_GFp_nistp521_precompute_mult(EC_GROUP *group, BN_CTX *ctx)
         memcpy(pre->g_pre_comp, gmul, sizeof(pre->g_pre_comp));
         goto done;
     }
-    if ((!BN_to_felem(pre->g_pre_comp[1][0], group->generator->X)) ||
-        (!BN_to_felem(pre->g_pre_comp[1][1], group->generator->Y)) ||
-        (!BN_to_felem(pre->g_pre_comp[1][2], group->generator->Z)))
+    if ((!BN_to_felem(pre->g_pre_comp[1][0], group->generator->X)) || (!BN_to_felem(pre->g_pre_comp[1][1], group->generator->Y)) || (!BN_to_felem(pre->g_pre_comp[1][2], group->generator->Z)))
         goto err;
     /* compute 2^130*G, 2^260*G, 2^390*G */
     for (i = 1; i <= 4; i <<= 1) {
         point_double(pre->g_pre_comp[2 * i][0], pre->g_pre_comp[2 * i][1],
-                     pre->g_pre_comp[2 * i][2], pre->g_pre_comp[i][0],
-                     pre->g_pre_comp[i][1], pre->g_pre_comp[i][2]);
+            pre->g_pre_comp[2 * i][2], pre->g_pre_comp[i][0],
+            pre->g_pre_comp[i][1], pre->g_pre_comp[i][2]);
         for (j = 0; j < 129; ++j) {
             point_double(pre->g_pre_comp[2 * i][0],
-                         pre->g_pre_comp[2 * i][1],
-                         pre->g_pre_comp[2 * i][2],
-                         pre->g_pre_comp[2 * i][0],
-                         pre->g_pre_comp[2 * i][1],
-                         pre->g_pre_comp[2 * i][2]);
+                pre->g_pre_comp[2 * i][1],
+                pre->g_pre_comp[2 * i][2],
+                pre->g_pre_comp[2 * i][0],
+                pre->g_pre_comp[2 * i][1],
+                pre->g_pre_comp[2 * i][2]);
         }
     }
     /* g_pre_comp[0] is the point at infinity */
@@ -2174,44 +2082,44 @@ int ossl_ec_GFp_nistp521_precompute_mult(EC_GROUP *group, BN_CTX *ctx)
     /* the remaining multiples */
     /* 2^130*G + 2^260*G */
     point_add(pre->g_pre_comp[6][0], pre->g_pre_comp[6][1],
-              pre->g_pre_comp[6][2], pre->g_pre_comp[4][0],
-              pre->g_pre_comp[4][1], pre->g_pre_comp[4][2],
-              0, pre->g_pre_comp[2][0], pre->g_pre_comp[2][1],
-              pre->g_pre_comp[2][2]);
+        pre->g_pre_comp[6][2], pre->g_pre_comp[4][0],
+        pre->g_pre_comp[4][1], pre->g_pre_comp[4][2],
+        0, pre->g_pre_comp[2][0], pre->g_pre_comp[2][1],
+        pre->g_pre_comp[2][2]);
     /* 2^130*G + 2^390*G */
     point_add(pre->g_pre_comp[10][0], pre->g_pre_comp[10][1],
-              pre->g_pre_comp[10][2], pre->g_pre_comp[8][0],
-              pre->g_pre_comp[8][1], pre->g_pre_comp[8][2],
-              0, pre->g_pre_comp[2][0], pre->g_pre_comp[2][1],
-              pre->g_pre_comp[2][2]);
+        pre->g_pre_comp[10][2], pre->g_pre_comp[8][0],
+        pre->g_pre_comp[8][1], pre->g_pre_comp[8][2],
+        0, pre->g_pre_comp[2][0], pre->g_pre_comp[2][1],
+        pre->g_pre_comp[2][2]);
     /* 2^260*G + 2^390*G */
     point_add(pre->g_pre_comp[12][0], pre->g_pre_comp[12][1],
-              pre->g_pre_comp[12][2], pre->g_pre_comp[8][0],
-              pre->g_pre_comp[8][1], pre->g_pre_comp[8][2],
-              0, pre->g_pre_comp[4][0], pre->g_pre_comp[4][1],
-              pre->g_pre_comp[4][2]);
+        pre->g_pre_comp[12][2], pre->g_pre_comp[8][0],
+        pre->g_pre_comp[8][1], pre->g_pre_comp[8][2],
+        0, pre->g_pre_comp[4][0], pre->g_pre_comp[4][1],
+        pre->g_pre_comp[4][2]);
     /* 2^130*G + 2^260*G + 2^390*G */
     point_add(pre->g_pre_comp[14][0], pre->g_pre_comp[14][1],
-              pre->g_pre_comp[14][2], pre->g_pre_comp[12][0],
-              pre->g_pre_comp[12][1], pre->g_pre_comp[12][2],
-              0, pre->g_pre_comp[2][0], pre->g_pre_comp[2][1],
-              pre->g_pre_comp[2][2]);
+        pre->g_pre_comp[14][2], pre->g_pre_comp[12][0],
+        pre->g_pre_comp[12][1], pre->g_pre_comp[12][2],
+        0, pre->g_pre_comp[2][0], pre->g_pre_comp[2][1],
+        pre->g_pre_comp[2][2]);
     for (i = 1; i < 8; ++i) {
         /* odd multiples: add G */
         point_add(pre->g_pre_comp[2 * i + 1][0],
-                  pre->g_pre_comp[2 * i + 1][1],
-                  pre->g_pre_comp[2 * i + 1][2], pre->g_pre_comp[2 * i][0],
-                  pre->g_pre_comp[2 * i][1], pre->g_pre_comp[2 * i][2], 0,
-                  pre->g_pre_comp[1][0], pre->g_pre_comp[1][1],
-                  pre->g_pre_comp[1][2]);
+            pre->g_pre_comp[2 * i + 1][1],
+            pre->g_pre_comp[2 * i + 1][2], pre->g_pre_comp[2 * i][0],
+            pre->g_pre_comp[2 * i][1], pre->g_pre_comp[2 * i][2], 0,
+            pre->g_pre_comp[1][0], pre->g_pre_comp[1][1],
+            pre->g_pre_comp[1][2]);
     }
     make_points_affine(15, &(pre->g_pre_comp[1]), tmp_felems);
 
- done:
+done:
     SETPRECOMP(group, nistp521, pre);
     ret = 1;
     pre = NULL;
- err:
+err:
     BN_CTX_end(ctx);
     EC_POINT_free(generator);
 #ifndef FIPS_MODULE

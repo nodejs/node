@@ -13,6 +13,7 @@
 #include "prov/der_ecx.h"
 
 /* Well known OIDs precompiled */
+/* clang-format off */
 
 /*
  * id-X25519        OBJECT IDENTIFIER ::= { id-edwards-curve-algs 110 }
@@ -42,3 +43,4 @@ const unsigned char ossl_der_oid_id_Ed448[DER_OID_SZ_id_Ed448] = {
     DER_OID_V_id_Ed448
 };
 
+/* clang-format on */

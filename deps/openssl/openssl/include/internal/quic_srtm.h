@@ -1,23 +1,23 @@
 /*
-* Copyright 2023 The OpenSSL Project Authors. All Rights Reserved.
-*
-* Licensed under the Apache License 2.0 (the "License").  You may not use
-* this file except in compliance with the License.  You can obtain a copy
-* in the file LICENSE in the source distribution or at
-* https://www.openssl.org/source/license.html
-*/
+ * Copyright 2023 The OpenSSL Project Authors. All Rights Reserved.
+ *
+ * Licensed under the Apache License 2.0 (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://www.openssl.org/source/license.html
+ */
 
 #ifndef OSSL_INTERNAL_QUIC_SRTM_H
-# define OSSL_INTERNAL_QUIC_SRTM_H
-# pragma once
+#define OSSL_INTERNAL_QUIC_SRTM_H
+#pragma once
 
-# include "internal/e_os.h"
-# include "internal/time.h"
-# include "internal/quic_types.h"
-# include "internal/quic_wire.h"
-# include "internal/quic_predef.h"
+#include "internal/e_os.h"
+#include "internal/time.h"
+#include "internal/quic_types.h"
+#include "internal/quic_wire.h"
+#include "internal/quic_predef.h"
 
-# ifndef OPENSSL_NO_QUIC
+#ifndef OPENSSL_NO_QUIC
 
 /*
  * QUIC Stateless Reset Token Manager
@@ -67,7 +67,7 @@ void ossl_quic_srtm_free(QUIC_SRTM *srtm);
  * copied. Returns 1 on success or 0 on failure.
  */
 int ossl_quic_srtm_add(QUIC_SRTM *srtm, void *opaque, uint64_t seq_num,
-                       const QUIC_STATELESS_RESET_TOKEN *token);
+    const QUIC_STATELESS_RESET_TOKEN *token);
 
 /*
  * Removes an entry by identifying it via its (opaque, seq_num) tuple.
@@ -97,13 +97,13 @@ int ossl_quic_srtm_cull(QUIC_SRTM *strm, void *opaque);
  * Returns 1 if an entry was found and 0 otherwise.
  */
 int ossl_quic_srtm_lookup(QUIC_SRTM *srtm,
-                          const QUIC_STATELESS_RESET_TOKEN *token,
-                          size_t idx,
-                          void **opaque, uint64_t *seq_num);
+    const QUIC_STATELESS_RESET_TOKEN *token,
+    size_t idx,
+    void **opaque, uint64_t *seq_num);
 
 /* Verify internal invariants and assert if they are not met. */
 void ossl_quic_srtm_check(const QUIC_SRTM *srtm);
 
-# endif
+#endif
 
 #endif

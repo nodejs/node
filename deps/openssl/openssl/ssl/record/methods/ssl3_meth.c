@@ -15,14 +15,14 @@
 #include "recmethod_local.h"
 
 static int ssl3_set_crypto_state(OSSL_RECORD_LAYER *rl, int level,
-                                 unsigned char *key, size_t keylen,
-                                 unsigned char *iv, size_t ivlen,
-                                 unsigned char *mackey, size_t mackeylen,
-                                 const EVP_CIPHER *ciph,
-                                 size_t taglen,
-                                 int mactype,
-                                 const EVP_MD *md,
-                                 COMP_METHOD *comp)
+    unsigned char *key, size_t keylen,
+    unsigned char *iv, size_t ivlen,
+    unsigned char *mackey, size_t mackeylen,
+    const EVP_CIPHER *ciph,
+    size_t taglen,
+    int mactype,
+    const EVP_MD *md,
+    COMP_METHOD *comp)
 {
     EVP_CIPHER_CTX *ciph_ctx;
     int enc = (rl->direction == OSSL_RECORD_DIRECTION_WRITE) ? 1 : 0;
@@ -69,7 +69,7 @@ static int ssl3_set_crypto_state(OSSL_RECORD_LAYER *rl, int level,
      * different to that in ciph if we have an ENGINE in use
      */
     if (EVP_CIPHER_get0_provider(EVP_CIPHER_CTX_get0_cipher(ciph_ctx)) != NULL
-            && !ossl_set_tls_provider_parameters(rl, ciph_ctx, ciph, md)) {
+        && !ossl_set_tls_provider_parameters(rl, ciph_ctx, ciph, md)) {
         /* ERR_raise already called */
         return OSSL_RECORD_RETURN_FATAL;
     }
@@ -93,8 +93,8 @@ static int ssl3_set_crypto_state(OSSL_RECORD_LAYER *rl, int level,
  *    1: Success or Mac-then-encrypt decryption failed (MAC will be randomised)
  */
 static int ssl3_cipher(OSSL_RECORD_LAYER *rl, TLS_RL_RECORD *inrecs,
-                       size_t n_recs, int sending, SSL_MAC_BUF *mac,
-                       size_t macsize)
+    size_t n_recs, int sending, SSL_MAC_BUF *mac,
+    size_t macsize)
 {
     TLS_RL_RECORD *rec;
     EVP_CIPHER_CTX *ds;
@@ -154,7 +154,7 @@ static int ssl3_cipher(OSSL_RECORD_LAYER *rl, TLS_RL_RECORD *inrecs,
         int outlen;
 
         if (!EVP_CipherUpdate(ds, rec->data, &outlen, rec->input,
-                              (unsigned int)l))
+                (unsigned int)l))
             return 0;
         rec->length = outlen;
 
@@ -166,8 +166,8 @@ static int ssl3_cipher(OSSL_RECORD_LAYER *rl, TLS_RL_RECORD *inrecs,
             mac->alloced = 0;
 
             *p++ = OSSL_PARAM_construct_octet_ptr(OSSL_CIPHER_PARAM_TLS_MAC,
-                                                  (void **)&mac->mac,
-                                                  macsize);
+                (void **)&mac->mac,
+                macsize);
             *p = OSSL_PARAM_construct_end();
 
             if (!EVP_CIPHER_CTX_get_params(ds, params)) {
@@ -185,13 +185,13 @@ static int ssl3_cipher(OSSL_RECORD_LAYER *rl, TLS_RL_RECORD *inrecs,
 
         if (!sending)
             return ssl3_cbc_remove_padding_and_mac(&rec->length,
-                                        rec->orig_len,
-                                        rec->data,
-                                        (mac != NULL) ? &mac->mac : NULL,
-                                        (mac != NULL) ? &mac->alloced : NULL,
-                                        bs,
-                                        macsize,
-                                        rl->libctx);
+                rec->orig_len,
+                rec->data,
+                (mac != NULL) ? &mac->mac : NULL,
+                (mac != NULL) ? &mac->alloced : NULL,
+                bs,
+                macsize,
+                rl->libctx);
     }
 
     return 1;
@@ -216,7 +216,7 @@ static const unsigned char ssl3_pad_2[48] = {
 };
 
 static int ssl3_mac(OSSL_RECORD_LAYER *rl, TLS_RL_RECORD *rec, unsigned char *md,
-                    int sending)
+    int sending)
 {
     unsigned char *mac_sec, *seq = rl->sequence;
     const EVP_MD_CTX *hash;
@@ -268,10 +268,11 @@ static int ssl3_mac(OSSL_RECORD_LAYER *rl, TLS_RL_RECORD *rec, unsigned char *md
 
         /* Final param == is SSLv3 */
         if (ssl3_cbc_digest_record(EVP_MD_CTX_get0_md(hash),
-                                   md, &md_size,
-                                   header, rec->input,
-                                   rec->length, rec->orig_len,
-                                   mac_sec, md_size, 1) <= 0)
+                md, &md_size,
+                header, rec->input,
+                rec->length, rec->orig_len,
+                mac_sec, md_size, 1)
+            <= 0)
             return 0;
 #endif
     } else {

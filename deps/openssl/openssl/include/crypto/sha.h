@@ -9,10 +9,10 @@
  */
 
 #ifndef OSSL_CRYPTO_SHA_H
-# define OSSL_CRYPTO_SHA_H
-# pragma once
+#define OSSL_CRYPTO_SHA_H
+#pragma once
 
-# include <openssl/sha.h>
+#include <openssl/sha.h>
 
 int ossl_sha256_192_init(SHA256_CTX *c);
 int sha512_224_init(SHA512_CTX *);

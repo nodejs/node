@@ -8,8 +8,8 @@
  */
 
 #ifndef OSSL_CRYPTO_ESS_H
-# define OSSL_CRYPTO_ESS_H
-# pragma once
+#define OSSL_CRYPTO_ESS_H
+#pragma once
 
 /*-
  * IssuerSerial ::= SEQUENCE {
@@ -31,7 +31,7 @@ struct ESS_issuer_serial {
  */
 
 struct ESS_cert_id {
-    ASN1_OCTET_STRING *hash;    /* Always SHA-1 digest. */
+    ASN1_OCTET_STRING *hash; /* Always SHA-1 digest. */
     ESS_ISSUER_SERIAL *issuer_serial;
 };
 
@@ -56,7 +56,7 @@ struct ESS_signing_cert {
  */
 
 struct ESS_cert_id_v2_st {
-    X509_ALGOR *hash_alg;       /* Default: SHA-256 */
+    X509_ALGOR *hash_alg; /* Default: SHA-256 */
     ASN1_OCTET_STRING *hash;
     ESS_ISSUER_SERIAL *issuer_serial;
 };

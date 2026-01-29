@@ -64,10 +64,10 @@ static ASN1_ITEM_EXP *asn1_item_list[] = {
     ASN1_ITEM_ref(DIST_POINT_NAME),
     ASN1_ITEM_ref(DIST_POINT),
 #ifndef OPENSSL_NO_EC
-# ifndef OPENSSL_NO_DEPRECATED_3_0
+#ifndef OPENSSL_NO_DEPRECATED_3_0
     ASN1_ITEM_ref(ECPARAMETERS),
     ASN1_ITEM_ref(ECPKPARAMETERS),
-# endif
+#endif
 #endif
     ASN1_ITEM_ref(EDIPARTYNAME),
     ASN1_ITEM_ref(EXTENDED_KEY_USAGE),

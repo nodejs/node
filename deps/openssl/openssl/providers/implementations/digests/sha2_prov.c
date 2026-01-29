@@ -29,11 +29,11 @@ static OSSL_FUNC_digest_set_ctx_params_fn sha1_set_ctx_params;
 static OSSL_FUNC_digest_settable_ctx_params_fn sha1_settable_ctx_params;
 
 static const OSSL_PARAM known_sha1_settable_ctx_params[] = {
-    {OSSL_DIGEST_PARAM_SSL3_MS, OSSL_PARAM_OCTET_STRING, NULL, 0, 0},
+    { OSSL_DIGEST_PARAM_SSL3_MS, OSSL_PARAM_OCTET_STRING, NULL, 0, 0 },
     OSSL_PARAM_END
 };
 static const OSSL_PARAM *sha1_settable_ctx_params(ossl_unused void *ctx,
-                                                  ossl_unused void *provctx)
+    ossl_unused void *provctx)
 {
     return known_sha1_settable_ctx_params;
 }
@@ -52,7 +52,7 @@ static int sha1_set_ctx_params(void *vctx, const OSSL_PARAM params[])
     p = OSSL_PARAM_locate_const(params, OSSL_DIGEST_PARAM_SSL3_MS);
     if (p != NULL && p->data_type == OSSL_PARAM_OCTET_STRING)
         return ossl_sha1_ctrl(ctx, EVP_CTRL_SSL3_MASTER_SECRET,
-                              p->data_size, p->data);
+            p->data_size, p->data);
     return 1;
 }
 
@@ -64,35 +64,35 @@ IMPLEMENT_digest_functions_with_settable_ctx(
 
 /* ossl_sha224_functions */
 IMPLEMENT_digest_functions(sha224, SHA256_CTX,
-                           SHA256_CBLOCK, SHA224_DIGEST_LENGTH, SHA2_FLAGS,
-                           SHA224_Init, SHA224_Update, SHA224_Final)
+    SHA256_CBLOCK, SHA224_DIGEST_LENGTH, SHA2_FLAGS,
+    SHA224_Init, SHA224_Update, SHA224_Final)
 
 /* ossl_sha256_functions */
 IMPLEMENT_digest_functions(sha256, SHA256_CTX,
-                           SHA256_CBLOCK, SHA256_DIGEST_LENGTH, SHA2_FLAGS,
-                           SHA256_Init, SHA256_Update, SHA256_Final)
+    SHA256_CBLOCK, SHA256_DIGEST_LENGTH, SHA2_FLAGS,
+    SHA256_Init, SHA256_Update, SHA256_Final)
 #ifndef FIPS_MODULE
 /* ossl_sha256_192_functions */
 IMPLEMENT_digest_functions(sha256_192, SHA256_CTX,
-                           SHA256_CBLOCK, SHA256_192_DIGEST_LENGTH, SHA2_FLAGS,
-                           ossl_sha256_192_init, SHA256_Update, SHA256_Final)
+    SHA256_CBLOCK, SHA256_192_DIGEST_LENGTH, SHA2_FLAGS,
+    ossl_sha256_192_init, SHA256_Update, SHA256_Final)
 #endif
 /* ossl_sha384_functions */
 IMPLEMENT_digest_functions(sha384, SHA512_CTX,
-                           SHA512_CBLOCK, SHA384_DIGEST_LENGTH, SHA2_FLAGS,
-                           SHA384_Init, SHA384_Update, SHA384_Final)
+    SHA512_CBLOCK, SHA384_DIGEST_LENGTH, SHA2_FLAGS,
+    SHA384_Init, SHA384_Update, SHA384_Final)
 
 /* ossl_sha512_functions */
 IMPLEMENT_digest_functions(sha512, SHA512_CTX,
-                           SHA512_CBLOCK, SHA512_DIGEST_LENGTH, SHA2_FLAGS,
-                           SHA512_Init, SHA512_Update, SHA512_Final)
+    SHA512_CBLOCK, SHA512_DIGEST_LENGTH, SHA2_FLAGS,
+    SHA512_Init, SHA512_Update, SHA512_Final)
 
 /* ossl_sha512_224_functions */
 IMPLEMENT_digest_functions(sha512_224, SHA512_CTX,
-                           SHA512_CBLOCK, SHA224_DIGEST_LENGTH, SHA2_FLAGS,
-                           sha512_224_init, SHA512_Update, SHA512_Final)
+    SHA512_CBLOCK, SHA224_DIGEST_LENGTH, SHA2_FLAGS,
+    sha512_224_init, SHA512_Update, SHA512_Final)
 
 /* ossl_sha512_256_functions */
 IMPLEMENT_digest_functions(sha512_256, SHA512_CTX,
-                           SHA512_CBLOCK, SHA256_DIGEST_LENGTH, SHA2_FLAGS,
-                           sha512_256_init, SHA512_Update, SHA512_Final)
+    SHA512_CBLOCK, SHA256_DIGEST_LENGTH, SHA2_FLAGS,
+    sha512_256_init, SHA512_Update, SHA512_Final)

@@ -14,4 +14,4 @@
  *                                                                           *
  *****************************************************************************/
 
-#define MAX_WARN_ALERT_COUNT    5
+#define MAX_WARN_ALERT_COUNT 5

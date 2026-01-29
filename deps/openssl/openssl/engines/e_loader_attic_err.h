@@ -9,29 +9,27 @@
  */
 
 #ifndef OSSL_E_LOADER_ATTIC_ERR_H
-# define OSSL_E_LOADER_ATTIC_ERR_H
-# pragma once
+#define OSSL_E_LOADER_ATTIC_ERR_H
+#pragma once
 
-# include <openssl/opensslconf.h>
-# include <openssl/symhacks.h>
+#include <openssl/opensslconf.h>
+#include <openssl/symhacks.h>
 
-
-# define ATTICerr(f, r) ERR_ATTIC_error(0, (r), OPENSSL_FILE, OPENSSL_LINE)
-
+#define ATTICerr(f, r) ERR_ATTIC_error(0, (r), OPENSSL_FILE, OPENSSL_LINE)
 
 /*
  * ATTIC reason codes.
  */
-# define ATTIC_R_AMBIGUOUS_CONTENT_TYPE                   100
-# define ATTIC_R_BAD_PASSWORD_READ                        101
-# define ATTIC_R_ERROR_VERIFYING_PKCS12_MAC               102
-# define ATTIC_R_INIT_FAILED                              103
-# define ATTIC_R_PASSPHRASE_CALLBACK_ERROR                104
-# define ATTIC_R_PATH_MUST_BE_ABSOLUTE                    105
-# define ATTIC_R_SEARCH_ONLY_SUPPORTED_FOR_DIRECTORIES    106
-# define ATTIC_R_UI_PROCESS_INTERRUPTED_OR_CANCELLED      107
-# define ATTIC_R_UNSUPPORTED_CONTENT_TYPE                 108
-# define ATTIC_R_UNSUPPORTED_SEARCH_TYPE                  109
-# define ATTIC_R_URI_AUTHORITY_UNSUPPORTED                110
+#define ATTIC_R_AMBIGUOUS_CONTENT_TYPE 100
+#define ATTIC_R_BAD_PASSWORD_READ 101
+#define ATTIC_R_ERROR_VERIFYING_PKCS12_MAC 102
+#define ATTIC_R_INIT_FAILED 103
+#define ATTIC_R_PASSPHRASE_CALLBACK_ERROR 104
+#define ATTIC_R_PATH_MUST_BE_ABSOLUTE 105
+#define ATTIC_R_SEARCH_ONLY_SUPPORTED_FOR_DIRECTORIES 106
+#define ATTIC_R_UI_PROCESS_INTERRUPTED_OR_CANCELLED 107
+#define ATTIC_R_UNSUPPORTED_CONTENT_TYPE 108
+#define ATTIC_R_UNSUPPORTED_SEARCH_TYPE 109
+#define ATTIC_R_URI_AUTHORITY_UNSUPPORTED 110
 
 #endif

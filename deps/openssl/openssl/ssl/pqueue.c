@@ -55,12 +55,12 @@ pitem *pqueue_insert(pqueue *pq, pitem *item)
     }
 
     for (curr = NULL, next = pq->items;
-         next != NULL; curr = next, next = next->next) {
+        next != NULL; curr = next, next = next->next) {
         /*
          * we can compare 64-bit value in big-endian encoding with memcmp:-)
          */
         int cmp = memcmp(next->priority, item->priority, 8);
-        if (cmp > 0) {          /* next > item */
+        if (cmp > 0) { /* next > item */
             item->next = next;
 
             if (curr == NULL)
@@ -71,7 +71,7 @@ pitem *pqueue_insert(pqueue *pq, pitem *item)
             return item;
         }
 
-        else if (cmp == 0)      /* duplicates not allowed */
+        else if (cmp == 0) /* duplicates not allowed */
             return NULL;
     }
 
