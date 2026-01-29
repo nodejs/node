@@ -9,7 +9,7 @@ const fs = require('fs');
   const myVfs = fs.createVirtual();
   assert.ok(myVfs);
   assert.strictEqual(typeof myVfs.writeFileSync, 'function');
-  assert.strictEqual(myVfs.isMounted, false);
+  assert.strictEqual(myVfs.mounted, false);
 }
 
 // Test adding and reading a static file
@@ -109,9 +109,9 @@ const fs = require('fs');
   myVfs.mkdirSync('/data', { recursive: true });
   myVfs.writeFileSync('/data/file.txt', 'mounted content');
 
-  assert.strictEqual(myVfs.isMounted, false);
+  assert.strictEqual(myVfs.mounted, false);
   myVfs.mount('/app/virtual');
-  assert.strictEqual(myVfs.isMounted, true);
+  assert.strictEqual(myVfs.mounted, true);
   assert.strictEqual(myVfs.mountPoint, '/app/virtual');
 
   // With mount, shouldHandle should work
@@ -119,7 +119,7 @@ const fs = require('fs');
   assert.strictEqual(myVfs.shouldHandle('/other/path'), false);
 
   myVfs.unmount();
-  assert.strictEqual(myVfs.isMounted, false);
+  assert.strictEqual(myVfs.mounted, false);
 }
 
 // Test internalModuleStat (used by Module._stat)
