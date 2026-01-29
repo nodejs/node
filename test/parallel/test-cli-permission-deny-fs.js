@@ -134,7 +134,14 @@ const path = require('path');
 {
   const { root } = path.parse(process.cwd());
   const abs = (p) => path.join(root, p);
-  const firstPath = abs(path.sep + process.cwd().split(path.sep, 2)[1]);
+  let firstPath = abs(path.sep + process.cwd().split(path.sep, 2)[1]);
+  if (path.resolve(firstPath) === root) {
+    // When the repository itself is in the filesystem root (e.g. "/"),
+    // allowing reads from `root` would also allow reading `/etc/passwd` and
+    // make the test meaningless. Allow reads from `<root>/test` instead,
+    // which still contains the fixture entry point.
+    firstPath = path.join(root, 'test');
+  }
   if (firstPath.startsWith('/etc')) {
     common.skip('/etc as firstPath');
   }
