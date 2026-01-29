@@ -137,7 +137,7 @@ specific_include_rules = {
   "heap\.cc": [
     "+third_party/rapidhash-v8/secret.h",
   ],
-  "hash-seed-inl\.h": [
+  "hash-seed\.cc": [
     "+third_party/rapidhash-v8/secret.h",
   ],
 }
