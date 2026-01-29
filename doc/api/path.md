@@ -322,7 +322,8 @@ added: v0.11.2
 * Returns: {boolean}
 
 The `path.isAbsolute()` method determines if the literal `path` is absolute.
-Therefore, it’s not safe for mitigating path traversals attacks.
+Therefore, it’s not safe for mitigating path traversals attacks. This method only checks whether a path is absolute and does not validate whether it is safe to use.
+
 
 If the given `path` is a zero-length string, `false` will be returned.
 
