@@ -70,7 +70,7 @@ skipIfBuildSEAIsNotSupported();
       cwd: tmpdir.path,
     }, {
       status: 1,
-      stderr: /Couldn't stat executable.*\/nonexistent\/path\/to\/node/,
+      stderr: /Couldn't stat executable.*\/nonexistent\/path\/to\/node: no such file or directory/,
     });
 }
 
