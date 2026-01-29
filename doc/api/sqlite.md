@@ -605,6 +605,98 @@ console.log(allUsers);
 // ]
 ```
 
+### `database.createModule(name, options)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `name` {string} The name of the virtual table module. This name is used in
+  `CREATE VIRTUAL TABLE ... USING name` statements and as an eponymous table
+  name.
+* `options` {Object} Module configuration settings.
+  * `columns` {Array} An array of column definitions. Each element is an object
+    with the following properties:
+    * `name` {string} The name of the column.
+    * `type` {string} The declared type of the column. Must be one of
+      `'INTEGER'`, `'TEXT'`, `'REAL'`, `'BLOB'`, or `'ANY'`.
+    * `hidden` {boolean} If `true`, the column is hidden and acts as a
+      parameter for table-valued function usage. **Default:** `false`.
+  * `rows` {Function} A function called to produce rows when the virtual table
+    is queried. The function receives values for hidden columns (parameters) as
+    arguments, in the order they are defined. Must return an iterable (such as
+    an array or generator) where each element is an array of column values.
+  * `directOnly` {boolean} If `true`, the virtual table can only be used in
+    top-level SQL statements and cannot be used inside triggers or views.
+    **Default:** `false`.
+  * `useBigIntArguments` {boolean} If `true`, integer parameters passed to
+    `rows` are converted to `BigInt`s. **Default:** `false`.
+
+Registers a virtual table module with the database. This method is a wrapper
+around [`sqlite3_create_module_v2()`][]. Virtual tables allow JavaScript code
+to provide the backing data for SQL tables. The registered module can be used
+in two ways:
+
+* **Eponymous table**: Query the module name directly without creating a table
+  (e.g., `SELECT * FROM module_name`).
+* **Named virtual table**: Use `CREATE VIRTUAL TABLE t USING module_name` to
+  create a persistent virtual table.
+
+Hidden columns can be used to pass parameters to the `rows` function using
+table-valued function syntax (e.g., `SELECT * FROM module_name(param1, param2)`).
+
+```cjs
+const { DatabaseSync } = require('node:sqlite');
+
+const db = new DatabaseSync(':memory:');
+
+db.createModule('generate_series', {
+  columns: [
+    { name: 'value', type: 'INTEGER' },
+    { name: 'start', type: 'INTEGER', hidden: true },
+    { name: 'stop', type: 'INTEGER', hidden: true },
+    { name: 'step', type: 'INTEGER', hidden: true },
+  ],
+  *rows(start, stop, step) {
+    start ??= 0;
+    stop ??= 10;
+    step ??= 1;
+    for (let i = start; i <= stop; i += step) {
+      yield [i];
+    }
+  },
+});
+
+console.log(db.prepare('SELECT * FROM generate_series(1, 5, 1)').all());
+// Prints: [ { value: 1 }, { value: 2 }, { value: 3 }, { value: 4 }, { value: 5 } ]
+```
+
+```mjs
+import { DatabaseSync } from 'node:sqlite';
+
+const db = new DatabaseSync(':memory:');
+
+db.createModule('generate_series', {
+  columns: [
+    { name: 'value', type: 'INTEGER' },
+    { name: 'start', type: 'INTEGER', hidden: true },
+    { name: 'stop', type: 'INTEGER', hidden: true },
+    { name: 'step', type: 'INTEGER', hidden: true },
+  ],
+  *rows(start, stop, step) {
+    start ??= 0;
+    stop ??= 10;
+    step ??= 1;
+    for (let i = start; i <= stop; i += step) {
+      yield [i];
+    }
+  },
+});
+
+console.log(db.prepare('SELECT * FROM generate_series(1, 5, 1)').all());
+// Prints: [ { value: 1 }, { value: 2 }, { value: 3 }, { value: 4 }, { value: 5 } ]
+```
+
 ### `database.createSession([options])`
 
 <!-- YAML
@@ -1494,6 +1586,7 @@ callback function to indicate what type of operation is being authorized.
 [`sqlite3_column_origin_name()`]: https://www.sqlite.org/c3ref/column_database_name.html
 [`sqlite3_column_table_name()`]: https://www.sqlite.org/c3ref/column_database_name.html
 [`sqlite3_create_function_v2()`]: https://www.sqlite.org/c3ref/create_function.html
+[`sqlite3_create_module_v2()`]: https://www.sqlite.org/c3ref/create_module.html
 [`sqlite3_create_window_function()`]: https://www.sqlite.org/c3ref/create_function.html
 [`sqlite3_db_filename()`]: https://sqlite.org/c3ref/db_filename.html
 [`sqlite3_exec()`]: https://www.sqlite.org/c3ref/exec.html
