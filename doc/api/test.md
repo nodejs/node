@@ -1435,6 +1435,9 @@ added:
   - v18.9.0
   - v16.19.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/61367
+    description: Add the `env` option.
   - version: v24.7.0
     pr-url: https://github.com/nodejs/node/pull/59443
     description: Added a rerunFailuresFilePath option.
@@ -1555,6 +1558,9 @@ changes:
   * `functionCoverage` {number} Require a minimum percent of covered functions. If code
     coverage does not reach the threshold specified, the process will exit with code `1`.
     **Default:** `0`.
+  * `env` {Object} Specify environment variables to be passed along to the test process.
+    This options is not compatible with `isolation='none'`. These variables will override
+    those from the main process, and are not merged with `process.env`.
 * Returns: {TestsStream}
 
 **Note:** `shard` is used to horizontally parallelize test running across
