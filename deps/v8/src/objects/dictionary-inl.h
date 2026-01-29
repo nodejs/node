@@ -275,14 +275,14 @@ bool NumberDictionaryBaseShape::IsMatch(uint32_t key, Object other) {
 }
 
 uint32_t NumberDictionaryBaseShape::Hash(ReadOnlyRoots roots, uint32_t key) {
-  return ComputeSeededHash(key, HashSeed(roots));
+  return ComputeSeededHash(key, HashSeed(roots).seed());
 }
 
 uint32_t NumberDictionaryBaseShape::HashForObject(ReadOnlyRoots roots,
                                                   Object other) {
   DCHECK(other.IsNumber());
   return ComputeSeededHash(static_cast<uint32_t>(other.Number()),
-                           HashSeed(roots));
+                           HashSeed(roots).seed());
 }
 
 Handle<Object> NumberDictionaryBaseShape::AsHandle(Isolate* isolate,

@@ -78,6 +78,7 @@
 !/third_party/googletest/src/googletest/include/gtest
 /third_party/googletest/src/googletest/include/gtest/*
 !/third_party/googletest/src/googletest/include/gtest/gtest_prod.h
+!/third_party/rapidhash-v8
 !/third_party/test262-harness
 !/third_party/v8
 !/third_party/wasm-api

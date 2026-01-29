@@ -6500,7 +6500,7 @@ UNINITIALIZED_TEST(ReinitializeStringHashSeed) {
     {
       v8::Isolate::Scope isolate_scope(isolate);
       CHECK_EQ(static_cast<uint64_t>(1337 * i),
-               HashSeed(reinterpret_cast<i::Isolate*>(isolate)));
+               HashSeed(reinterpret_cast<i::Isolate*>(isolate)).seed());
       v8::HandleScope handle_scope(isolate);
       v8::Local<v8::Context> context = v8::Context::New(isolate);
       CHECK(!context.IsEmpty());

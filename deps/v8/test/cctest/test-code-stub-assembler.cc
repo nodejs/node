@@ -501,7 +501,7 @@ TEST(ComputeIntegerHash) {
     Handle<Smi> key(Smi::FromInt(k), isolate);
     Handle<Object> result = ft.Call(key).ToHandleChecked();
 
-    uint32_t hash = ComputeSeededHash(k, HashSeed(isolate));
+    uint32_t hash = ComputeSeededHash(k, HashSeed(isolate).seed());
     Smi expected = Smi::FromInt(hash);
     CHECK_EQ(expected, Smi::cast(*result));
   }

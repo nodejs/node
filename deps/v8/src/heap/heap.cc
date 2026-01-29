@@ -5630,19 +5630,6 @@ void Heap::SetUpSpaces(LinearAllocationArea& new_allocation_info,
   heap_allocator_.Setup();
 }
 
-void Heap::InitializeHashSeed() {
-  DCHECK(!deserialization_complete_);
-  uint64_t new_hash_seed;
-  if (v8_flags.hash_seed == 0) {
-    int64_t rnd = isolate()->random_number_generator()->NextInt64();
-    new_hash_seed = static_cast<uint64_t>(rnd);
-  } else {
-    new_hash_seed = static_cast<uint64_t>(v8_flags.hash_seed);
-  }
-  ReadOnlyRoots(this).hash_seed().copy_in(
-      0, reinterpret_cast<byte*>(&new_hash_seed), kInt64Size);
-}
-
 // static
 void Heap::InitializeOncePerProcess() {
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT

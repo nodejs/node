@@ -10,6 +10,7 @@
 // Comment inserted to prevent header reordering.
 #include <type_traits>
 
+#include "src/common/globals.h"
 #include "src/objects/name-inl.h"
 #include "src/objects/string-inl.h"
 #include "src/strings/char-predicates-inl.h"
@@ -46,9 +47,89 @@ uint32_t StringHasher::GetTrivialHash(int length) {
   return String::CreateHashFieldValue(hash, String::HashFieldType::kHash);
 }
 
+uint32_t StringHasher::MakeArrayIndexHash(uint32_t value, uint32_t length) {
+  // For array indexes mix the length into the hash as an array index could
+  // be zero.
+  DCHECK_LE(length, String::kMaxArrayIndexSize);
+  DCHECK(TenToThe(String::kMaxCachedArrayIndexLength) <
+         (1 << String::kArrayIndexValueBits));
+
+  value <<= String::ArrayIndexValueBits::kShift;
+  value |= length << String::ArrayIndexLengthBits::kShift;
+
+  DCHECK(String::IsIntegerIndex(value));
+  DCHECK_EQ(length <= String::kMaxCachedArrayIndexLength,
+            Name::ContainsCachedArrayIndex(value));
+  return value;
+}
+
+uint32_t StringHasher::DecodeArrayIndexFromHashField(uint32_t raw_hash_field) {
+  DCHECK(String::ContainsCachedArrayIndex(raw_hash_field) ||
+         String::IsIntegerIndex(raw_hash_field));
+  return String::ArrayIndexValueBits::decode(raw_hash_field);
+}
+
+#ifdef V8_ENABLE_SEEDED_ARRAY_INDEX_HASH
+uint32_t StringHasher::SeedArrayIndexValue(uint32_t value,
+                                           const HashSeed seed) {
+  uint32_t m1 = seed.m1();
+  uint32_t m2 = seed.m2();
+  uint32_t m3 = seed.m3();
+  constexpr uint32_t kShift = Name::kArrayIndexHashShift;
+  constexpr uint32_t kMask = Name::kArrayIndexValueMask;
+  // 3-round xorshift-multiply.
+  uint32_t x = value;
+  x ^= x >> kShift;
+  x = (x * m1) & kMask;
+  x ^= x >> kShift;
+  x = (x * m2) & kMask;
+  x ^= x >> kShift;
+  x = (x * m3) & kMask;
+  x ^= x >> kShift;
+  return x;
+}
+
+uint32_t StringHasher::UnseedArrayIndexValue(uint32_t value,
+                                             const HashSeed seed) {
+  uint32_t m1_inv = seed.m1_inv();
+  uint32_t m2_inv = seed.m2_inv();
+  uint32_t m3_inv = seed.m3_inv();
+  uint32_t x = value;
+  constexpr uint32_t kShift = Name::kArrayIndexHashShift;
+  constexpr uint32_t kMask = Name::kArrayIndexValueMask;
+  // 3-round xorshift-multiply (inverse).
+  // Xorshift is an involution when kShift is at least half of the value width.
+  x ^= x >> kShift;
+  x = (x * m3_inv) & kMask;
+  x ^= x >> kShift;
+  x = (x * m2_inv) & kMask;
+  x ^= x >> kShift;
+  x = (x * m1_inv) & kMask;
+  x ^= x >> kShift;
+  return x;
+}
+#endif  // V8_ENABLE_SEEDED_ARRAY_INDEX_HASH
+
+uint32_t StringHasher::MakeArrayIndexHash(
+    uint32_t value, int length, [[maybe_unused]] const HashSeed seed) {
+#ifdef V8_ENABLE_SEEDED_ARRAY_INDEX_HASH
+  value = SeedArrayIndexValue(value, seed);
+#endif
+  return MakeArrayIndexHash(value, static_cast<uint32_t>(length));
+}
+
+uint32_t StringHasher::DecodeArrayIndexFromHashField(
+    uint32_t raw_hash_field, [[maybe_unused]] const HashSeed seed) {
+  uint32_t value = DecodeArrayIndexFromHashField(raw_hash_field);
+#ifdef V8_ENABLE_SEEDED_ARRAY_INDEX_HASH
+  value = UnseedArrayIndexValue(value, seed);
+#endif
+  return value;
+}
+
 template <typename char_t>
 uint32_t StringHasher::HashSequentialString(const char_t* chars_raw, int length,
-                                            uint64_t seed) {
+                                            const HashSeed seed) {
   static_assert(std::is_integral<char_t>::value);
   static_assert(sizeof(char_t) <= 2);
   using uchar = typename std::make_unsigned<char_t>::type;
@@ -63,7 +144,7 @@ uint32_t StringHasher::HashSequentialString(const char_t* chars_raw, int length,
         int i = 1;
         do {
           if (i == length) {
-            return MakeArrayIndexHash(index, length);
+            return MakeArrayIndexHash(index, length, seed);
           }
         } while (TryAddArrayIndexChar(&index, chars[i++]));
       }
@@ -80,7 +161,7 @@ uint32_t StringHasher::HashSequentialString(const char_t* chars_raw, int length,
         // Perform a regular hash computation, and additionally check
         // if there are non-digit characters.
         String::HashFieldType type = String::HashFieldType::kIntegerIndex;
-        uint32_t running_hash = static_cast<uint32_t>(seed);
+        uint32_t running_hash = static_cast<uint32_t>(seed.seed());
         uint64_t index_big = 0;
         const uchar* end = &chars[length];
         while (chars != end) {
@@ -112,7 +193,7 @@ uint32_t StringHasher::HashSequentialString(const char_t* chars_raw, int length,
   }
 
   // Non-index hash.
-  uint32_t running_hash = static_cast<uint32_t>(seed);
+  uint32_t running_hash = static_cast<uint32_t>(seed.seed());
   const uchar* end = &chars[length];
   while (chars != end) {
     running_hash = AddCharacterCore(running_hash, *chars++);

@@ -310,7 +310,6 @@ bool JsonParseInternalizer::RecurseAndApply(Handle<JSReceiver> holder,
 template <typename Char>
 JsonParser<Char>::JsonParser(Isolate* isolate, Handle<String> source)
     : isolate_(isolate),
-      hash_seed_(HashSeed(isolate)),
       object_constructor_(isolate_->object_function()),
       original_source_(source) {
   size_t start = 0;

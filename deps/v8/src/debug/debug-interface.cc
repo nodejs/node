@@ -899,7 +899,8 @@ uint32_t WasmScript::GetFunctionHash(int function_index) {
       wire_bytes.GetFunctionBytes(&func);
   // TODO(herhut): Maybe also take module, name and signature into account.
   return i::StringHasher::HashSequentialString(function_bytes.begin(),
-                                               function_bytes.length(), 0);
+                                               function_bytes.length(),
+                                               internal::HashSeed::Default());
 }
 
 int WasmScript::CodeOffset() const {

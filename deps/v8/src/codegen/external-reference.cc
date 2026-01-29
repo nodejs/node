@@ -1096,7 +1096,8 @@ FUNCTION_REFERENCE(jsreceiver_create_identity_hash,
 
 static uint32_t ComputeSeededIntegerHash(Isolate* isolate, int32_t key) {
   DisallowGarbageCollection no_gc;
-  return ComputeSeededHash(static_cast<uint32_t>(key), HashSeed(isolate));
+  return ComputeSeededHash(static_cast<uint32_t>(key),
+                           HashSeed(isolate).seed());
 }
 
 FUNCTION_REFERENCE(compute_integer_hash, ComputeSeededIntegerHash)

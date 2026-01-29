@@ -24,7 +24,8 @@ void SharedHeapDeserializer::DeserializeIntoIsolate() {
   DeserializeDeferredObjects();
 
   if (should_rehash()) {
-    // Hash seed was initialized in ReadOnlyDeserializer.
+    // The hash seed has already been initialized in ReadOnlyDeserializer, thus
+    // there is no need to call `HashSeed::InitializeRoots(isolate());`.
     Rehash();
   }
 }

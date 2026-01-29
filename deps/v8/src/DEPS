@@ -100,5 +100,14 @@ specific_include_rules = {
   ],
   "etw-jit-metadata-win\.h": [
     "+src/libplatform/etw/etw-provider-win.h",
-  ]
+  ],
+  "string-hasher-inl\.h": [
+    "+third_party/rapidhash-v8/rapidhash.h",
+  ],
+  "heap\.cc": [
+    "+third_party/rapidhash-v8/secret.h",
+  ],
+  "hash-seed\.cc": [
+    "+third_party/rapidhash-v8/secret.h",
+  ],
 }

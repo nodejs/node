@@ -399,6 +399,12 @@ declare_args() {
   # iOS (non-simulator) does not have executable pages for 3rd party
   # applications yet so disable jit.
   v8_jitless = v8_enable_lite_mode || target_is_ios_device
+
+  # Use a hard-coded secret value when hashing.
+  v8_use_default_hasher_secret = true
+
+  # Enable seeded array index hash.
+  v8_enable_seeded_array_index_hash = false
 }
 
 # Derived defaults.
@@ -802,6 +808,7 @@ config("external_startup_data") {
 # List of defines that can appear in externally visible header files and that
 # are controlled by args.gn.
 external_v8_defines = [
+  "V8_USE_DEFAULT_HASHER_SECRET=${v8_use_default_hasher_secret}",
   "V8_ENABLE_CHECKS",
   "V8_COMPRESS_POINTERS",
   "V8_COMPRESS_POINTERS_IN_SHARED_CAGE",
@@ -818,7 +825,9 @@ external_v8_defines = [
   "V8_ENABLE_CONSERVATIVE_STACK_SCANNING",
 ]
 
-enabled_external_v8_defines = []
+enabled_external_v8_defines = [
+  "V8_USE_DEFAULT_HASHER_SECRET=${v8_use_default_hasher_secret}",
+]
 
 if (v8_enable_v8_checks) {
   enabled_external_v8_defines += [ "V8_ENABLE_CHECKS" ]
@@ -969,6 +978,9 @@ config("features") {
   }
   if (v8_enable_lite_mode) {
     defines += [ "V8_LITE_MODE" ]
+  }
+  if (v8_enable_seeded_array_index_hash) {
+    defines += [ "V8_ENABLE_SEEDED_ARRAY_INDEX_HASH" ]
   }
   if (v8_enable_gdbjit) {
     defines += [ "ENABLE_GDB_JIT_INTERFACE" ]
@@ -3381,6 +3393,7 @@ v8_header_set("v8_internal_headers") {
     "src/numbers/conversions-inl.h",
     "src/numbers/conversions.h",
     "src/numbers/hash-seed-inl.h",
+    "src/numbers/hash-seed.h",
     "src/numbers/math-random.h",
     "src/objects/all-objects-inl.h",
     "src/objects/allocation-site-inl.h",
@@ -3710,6 +3723,8 @@ v8_header_set("v8_internal_headers") {
     "src/temporal/temporal-parser.h",
     "src/third_party/siphash/halfsiphash.h",
     "src/third_party/utf8-decoder/utf8-decoder.h",
+    "third_party/rapidhash-v8/rapidhash.h",
+    "third_party/rapidhash-v8/secret.h",
     "src/torque/runtime-macro-shims.h",
     "src/tracing/trace-event.h",
     "src/tracing/traced-value.h",
@@ -4872,6 +4887,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/logging/runtime-call-stats.cc",
     "src/logging/tracing-flags.cc",
     "src/numbers/conversions.cc",
+    "src/numbers/hash-seed.cc",
     "src/numbers/math-random.cc",
     "src/objects/backing-store.cc",
     "src/objects/bigint.cc",

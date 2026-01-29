@@ -662,7 +662,7 @@ int JumpTableOffset(const WasmModule* module, int func_index) {
 size_t GetWireBytesHash(base::Vector<const uint8_t> wire_bytes) {
   return StringHasher::HashSequentialString(
       reinterpret_cast<const char*>(wire_bytes.begin()), wire_bytes.length(),
-      kZeroHashSeed);
+      HashSeed::Default());
 }
 
 int NumFeedbackSlots(const WasmModule* module, int func_index) {

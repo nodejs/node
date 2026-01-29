@@ -10,6 +10,7 @@
 #include "src/heap/heap-inl.h"  // crbug.com/v8/8499
 #include "src/heap/read-only-heap.h"
 #include "src/logging/counters-scopes.h"
+#include "src/numbers/hash-seed.h"
 #include "src/objects/slots.h"
 #include "src/roots/static-roots.h"
 #include "src/snapshot/snapshot-data.h"
@@ -73,7 +74,7 @@ void ReadOnlyDeserializer::DeserializeIntoIsolate() {
   PostProcessNewObjectsIfStaticRootsEnabled();
 
   if (should_rehash()) {
-    isolate()->heap()->InitializeHashSeed();
+    HashSeed::InitializeRoots(isolate());
     Rehash();
   }
 }

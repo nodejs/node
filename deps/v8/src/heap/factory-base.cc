@@ -229,7 +229,8 @@ Handle<WeakFixedArray> FactoryBase<Impl>::NewWeakFixedArray(
 
 template <typename Impl>
 Handle<ByteArray> FactoryBase<Impl>::NewByteArray(int length,
-                                                  AllocationType allocation) {
+                                                  AllocationType allocation,
+                                                  AllocationAlignment alignment) {
   if (length < 0 || length > ByteArray::kMaxLength) {
     FATAL("Fatal JavaScript invalid size error %d", length);
     UNREACHABLE();
@@ -237,7 +238,7 @@ Handle<ByteArray> FactoryBase<Impl>::NewByteArray(int length,
   if (length == 0) return impl()->empty_byte_array();
   int size = ALIGN_TO_ALLOCATION_ALIGNMENT(ByteArray::SizeFor(length));
   HeapObject result = AllocateRawWithImmortalMap(
-      size, allocation, read_only_roots().byte_array_map());
+      size, allocation, read_only_roots().byte_array_map(), alignment);
   DisallowGarbageCollection no_gc;
   ByteArray array = ByteArray::cast(result);
   array.set_length(length);
@@ -972,7 +973,8 @@ inline Handle<String> FactoryBase<Impl>::SmiToString(Smi number,
     if (raw.raw_hash_field() == String::kEmptyHashField &&
         number.value() >= 0) {
       uint32_t raw_hash_field = StringHasher::MakeArrayIndexHash(
-          static_cast<uint32_t>(number.value()), raw.length());
+          static_cast<uint32_t>(number.value()), raw.length(),
+          HashSeed(read_only_roots()));
       raw.set_raw_hash_field(raw_hash_field);
     }
   }
@@ -1123,8 +1125,9 @@ FactoryBase<Impl>::AllocateRawTwoByteInternalizedString(
 
 template <typename Impl>
 HeapObject FactoryBase<Impl>::AllocateRawArray(int size,
-                                               AllocationType allocation) {
-  HeapObject result = AllocateRaw(size, allocation);
+                                               AllocationType allocation,
+                                               AllocationAlignment alignment) {
+  HeapObject result = AllocateRaw(size, allocation, alignment);
   if (!V8_ENABLE_THIRD_PARTY_HEAP_BOOL &&
       (size >
        isolate()->heap()->AsHeap()->MaxRegularHeapObjectSize(allocation)) &&

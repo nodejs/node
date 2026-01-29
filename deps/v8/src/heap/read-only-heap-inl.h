@@ -28,15 +28,21 @@ ReadOnlyRoots ReadOnlyHeap::EarlyGetReadOnlyRoots(HeapObject object) {
 // static
 ReadOnlyRoots ReadOnlyHeap::GetReadOnlyRoots(HeapObject object) {
 #ifdef V8_SHARED_RO_HEAP
+  return GetReadOnlyRoots();
+#else
+  return ReadOnlyRoots(GetHeapFromWritableObject(object));
+#endif  // V8_SHARED_RO_HEAP
+}
+
+#ifdef V8_SHARED_RO_HEAP
+ReadOnlyRoots ReadOnlyHeap::GetReadOnlyRoots() {
   auto* shared_ro_heap = SoleReadOnlyHeap::shared_ro_heap_;
   // If this check fails in code that runs during initialization use
   // EarlyGetReadOnlyRoots instead.
   DCHECK(shared_ro_heap && shared_ro_heap->roots_init_complete());
   return ReadOnlyRoots(shared_ro_heap->read_only_roots_);
-#else
-  return ReadOnlyRoots(GetHeapFromWritableObject(object));
-#endif  // V8_SHARED_RO_HEAP
 }
+#endif  // V8_SHARED_RO_HEAP
 
 }  // namespace internal
 }  // namespace v8

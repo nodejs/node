@@ -164,6 +164,11 @@ v8_flag(
     default = False,
 )
 
+v8_flag(
+    name = "v8_enable_seeded_array_index_hash",
+    default = False,
+)
+
 v8_int(
     name = "v8_typed_array_max_size_in_heap",
     default = 64,
@@ -339,6 +344,7 @@ v8_config(
         "v8_enable_verify_heap": "VERIFY_HEAP",
         "v8_enable_verify_predictable": "VERIFY_PREDICTABLE",
         "v8_enable_webassembly": "V8_ENABLE_WEBASSEMBLY",
+        "v8_enable_seeded_array_index_hash": "V8_ENABLE_SEEDED_ARRAY_INDEX_HASH",
         "v8_jitless": "V8_JITLESS",
     },
     defines = [
@@ -1685,6 +1691,8 @@ filegroup(
         "src/numbers/conversions-inl.h",
         "src/numbers/conversions.cc",
         "src/numbers/conversions.h",
+        "src/numbers/hash-seed.h",
+        "src/numbers/hash-seed.cc",
         "src/numbers/hash-seed-inl.h",
         "src/numbers/integer-literal-inl.h",
         "src/numbers/integer-literal.h",
@@ -2245,6 +2253,8 @@ filegroup(
         "src/execution/pointer-authentication-dummy.h",
         "src/heap/third-party/heap-api.h",
         "src/heap/third-party/heap-api-stub.cc",
+        "third_party/rapidhash-v8/rapidhash.h",
+        "third_party/rapidhash-v8/secret.h",
     ] + select({
         "@v8//bazel/config:v8_target_ia32": [
             "src/baseline/ia32/baseline-assembler-ia32-inl.h",
