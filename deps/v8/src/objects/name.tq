@@ -56,6 +56,11 @@ macro ContainsCachedArrayIndex(hash: uint32): bool {
   return (hash & kDoesNotContainCachedArrayIndexMask) == 0;
 }
 
+@if(V8_ENABLE_SEEDED_ARRAY_INDEX_HASH)
+  extern macro SeedArrayIndexValue(uint32): uint32;
+@if(V8_ENABLE_SEEDED_ARRAY_INDEX_HASH)
+  extern macro UnseedArrayIndexValue(uint32): uint32;
+
 const kArrayIndexValueBitsShift: uint32 = kNofHashBitFields;
 const kArrayIndexLengthBitsShift: uint32 =
     kNofHashBitFields + kArrayIndexValueBits;
@@ -73,8 +78,10 @@ macro IsIntegerIndex(hash: NameHash): bool {
   return hash.hash_field_type == HashFieldType::kIntegerIndex;
 }
 
-macro MakeArrayIndexHash(value: uint32, length: uint32): NameHash {
-  // This is in sync with StringHasher::MakeArrayIndexHash.
+// This is in sync with the private StringHasher::MakeArrayIndexHash without
+// seeding. Do not call directly, use the @export MakeArrayIndexHash wrapper
+// below.
+macro MakeArrayIndexHashRaw(value: uint32, length: uint32): NameHash {
   dcheck(length <= kMaxArrayIndexSize);
   const one: uint32 = 1;
   dcheck(TenToThe(kMaxCachedArrayIndexLength) < (one << kArrayIndexValueBits));
@@ -87,4 +94,36 @@ macro MakeArrayIndexHash(value: uint32, length: uint32): NameHash {
   const hash: NameHash = %RawDownCast<NameHash>(rawHash);
   dcheck(IsIntegerIndex(hash));
   return hash;
+}
+
+// This is in sync with the private StringHasher::DecodeArrayIndexFromHashField
+// without seeding. Do not call directly, use the @export
+// DecodeArrayIndexFromHashField wrapper below.
+macro DecodeArrayIndexFromHashFieldRaw(rawHashField: uint32): uint32 {
+  const hash: NameHash = %RawDownCast<NameHash>(rawHashField);
+  dcheck(ContainsCachedArrayIndex(rawHashField) || IsIntegerIndex(hash));
+  return hash.array_index_value;
+}
+
+// Mirror C++ public StringHasher::MakeArrayIndexHash.
+@export
+macro MakeArrayIndexHash(value: uint32, length: uint32): NameHash {
+  @if(V8_ENABLE_SEEDED_ARRAY_INDEX_HASH) {
+    return MakeArrayIndexHashRaw(SeedArrayIndexValue(value), length);
+  }
+  @ifnot(V8_ENABLE_SEEDED_ARRAY_INDEX_HASH) {
+    return MakeArrayIndexHashRaw(value, length);
+  }
+}
+
+// Mirror C++ public StringHasher::DecodeArrayIndexFromHashField.
+@export
+macro DecodeArrayIndexFromHashField(rawHashField: uint32): uint32 {
+  const value: uint32 = DecodeArrayIndexFromHashFieldRaw(rawHashField);
+  @if(V8_ENABLE_SEEDED_ARRAY_INDEX_HASH) {
+    return UnseedArrayIndexValue(value);
+  }
+  @ifnot(V8_ENABLE_SEEDED_ARRAY_INDEX_HASH) {
+    return value;
+  }
 }

@@ -8,7 +8,6 @@
 #include "src/numbers/hash-seed.h"
 #include "src/objects/fixed-array-inl.h"
 #include "src/roots/roots-inl.h"
-#include "third_party/rapidhash-v8/secret.h"
 
 namespace v8 {
 namespace internal {
@@ -19,23 +18,22 @@ inline HashSeed::HashSeed(Isolate* isolate)
 inline HashSeed::HashSeed(LocalIsolate* isolate)
     : HashSeed(ReadOnlyRoots(isolate)) {}
 
-inline HashSeed::HashSeed(ReadOnlyRoots roots) {
-  // roots.hash_seed is not aligned
-  MemCopy(&seed_, roots.hash_seed()->begin(), sizeof(seed_));
-  MemCopy(secret_, roots.hash_seed()->begin() + sizeof(seed_), sizeof(secret_));
-}
+inline HashSeed::HashSeed(ReadOnlyRoots roots)
+    : data_(reinterpret_cast<const Data*>(roots.hash_seed()->begin())) {}
 
-inline HashSeed::HashSeed(uint64_t seed, const uint64_t secret[3])
-    : seed_(seed),
-      secret_{
-          secret[0],
-          secret[1],
-          secret[2],
-      } {}
+inline HashSeed HashSeed::Default() { return HashSeed(kDefaultData); }
 
-inline HashSeed HashSeed::Default() {
-  return HashSeed(0, RAPIDHASH_DEFAULT_SECRET);
-}
+inline uint64_t HashSeed::seed() const { return data_->seed; }
+inline const uint64_t* HashSeed::secret() const { return data_->secrets; }
+
+#ifdef V8_ENABLE_SEEDED_ARRAY_INDEX_HASH
+inline uint32_t HashSeed::m1() const { return data_->m1; }
+inline uint32_t HashSeed::m1_inv() const { return data_->m1_inv; }
+inline uint32_t HashSeed::m2() const { return data_->m2; }
+inline uint32_t HashSeed::m2_inv() const { return data_->m2_inv; }
+inline uint32_t HashSeed::m3() const { return data_->m3; }
+inline uint32_t HashSeed::m3_inv() const { return data_->m3_inv; }
+#endif  // V8_ENABLE_SEEDED_ARRAY_INDEX_HASH
 
 }  // namespace internal
 }  // namespace v8
