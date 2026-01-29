@@ -25,8 +25,6 @@ if (!isMainThread) {
 if (!hasCrypto) {
   publicBuiltins.delete('crypto');
   publicBuiltins.delete('tls');
-  publicBuiltins.delete('_tls_common');
-  publicBuiltins.delete('_tls_wrap');
   publicBuiltins.delete('http2');
   publicBuiltins.delete('https');
   publicBuiltins.delete('inspector');
