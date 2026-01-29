@@ -20,7 +20,12 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "tcp_wrap.h"
-
+#ifdef _WIN32
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#endif
+#include <cerrno>
+#include <cstdlib>
 #include "connect_wrap.h"
 #include "connection_wrap.h"
 #include "env-inl.h"
@@ -33,8 +38,12 @@
 #include "stream_wrap.h"
 #include "util-inl.h"
 
-#include <cstdlib>
-
+#ifndef _WIN32
+#include <netinet/in.h>
+#include <netinet/ip.h>
+#include <netinet/ip6.h>
+#include <sys/socket.h>
+#endif
 
 namespace node {
 
@@ -71,7 +80,6 @@ MaybeLocal<Object> TCPWrap::Instantiate(Environment* env,
       constructor->NewInstance(env->context(), 1, &type_value));
 }
 
-
 void TCPWrap::Initialize(Local<Object> target,
                          Local<Value> unused,
                          Local<Context> context,
@@ -106,6 +114,8 @@ void TCPWrap::Initialize(Local<Object> target,
                  GetSockOrPeerName<TCPWrap, uv_tcp_getpeername>);
   SetProtoMethod(isolate, t, "setNoDelay", SetNoDelay);
   SetProtoMethod(isolate, t, "setKeepAlive", SetKeepAlive);
+  SetProtoMethod(isolate, t, "setTypeOfService", SetTypeOfService);
+  SetProtoMethod(isolate, t, "getTypeOfService", GetTypeOfService);
   SetProtoMethod(isolate, t, "reset", Reset);
 
 #ifdef _WIN32
@@ -127,9 +137,7 @@ void TCPWrap::Initialize(Local<Object> target,
   NODE_DEFINE_CONSTANT(constants, SERVER);
   NODE_DEFINE_CONSTANT(constants, UV_TCP_IPV6ONLY);
   NODE_DEFINE_CONSTANT(constants, UV_TCP_REUSEPORT);
-  target->Set(context,
-              env->constants_string(),
-              constants).Check();
+  target->Set(context, env->constants_string(), constants).Check();
 }
 
 void TCPWrap::RegisterExternalReferences(ExternalReferenceRegistry* registry) {
@@ -145,6 +153,8 @@ void TCPWrap::RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(GetSockOrPeerName<TCPWrap, uv_tcp_getpeername>);
   registry->Register(SetNoDelay);
   registry->Register(SetKeepAlive);
+  registry->Register(SetTypeOfService);
+  registry->Register(GetTypeOfService);
   registry->Register(Reset);
 #ifdef _WIN32
   registry->Register(SetSimultaneousAccepts);
@@ -177,14 +187,12 @@ void TCPWrap::New(const FunctionCallbackInfo<Value>& args) {
   new TCPWrap(env, args.This(), provider);
 }
 
-
 TCPWrap::TCPWrap(Environment* env, Local<Object> object, ProviderType provider)
     : ConnectionWrap(env, object, provider) {
   int r = uv_tcp_init(env->event_loop(), &handle_);
   CHECK_EQ(r, 0);  // How do we proxy this error up to javascript?
                    // Suggestion: uv_tcp_init() returns void.
 }
-
 
 void TCPWrap::SetNoDelay(const FunctionCallbackInfo<Value>& args) {
   TCPWrap* wrap;
@@ -194,7 +202,6 @@ void TCPWrap::SetNoDelay(const FunctionCallbackInfo<Value>& args) {
   int err = uv_tcp_nodelay(&wrap->handle_, enable);
   args.GetReturnValue().Set(err);
 }
-
 
 void TCPWrap::SetKeepAlive(const FunctionCallbackInfo<Value>& args) {
   TCPWrap* wrap;
@@ -208,6 +215,138 @@ void TCPWrap::SetKeepAlive(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(err);
 }
 
+// TODO(amyssnippet): This implementation uses raw setsockopt/getsockopt calls
+// as a temporary measure. Upstream support is tracked in
+// https://github.com/libuv/libuv/issues/5011.
+// Once uv_tcp_set_tos and uv_tcp_get_tos are available in libuv,
+// this should be refactored to use those APIs.
+void TCPWrap::SetTypeOfService(const FunctionCallbackInfo<Value>& args) {
+  TCPWrap* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(
+      &wrap, args.This(), args.GetReturnValue().Set(UV_EBADF));
+  Environment* env = wrap->env();
+
+  int tos = 0;
+  if (!args[0]->Int32Value(env->context()).To(&tos)) return;
+
+  uv_os_fd_t fd;
+  int err = uv_fileno(reinterpret_cast<uv_handle_t*>(&wrap->handle_), &fd);
+  if (err != 0) {
+    args.GetReturnValue().Set(err);
+    return;
+  }
+
+  // 1. Detect the socket family (IPv4 vs IPv6)
+  sockaddr_storage storage;
+  int addrlen = sizeof(storage);
+  int sock_err = uv_tcp_getsockname(
+      &wrap->handle_, reinterpret_cast<sockaddr*>(&storage), &addrlen);
+
+  // If we can't determine the family (e.g. closed socket), fail gracefully.
+  if (sock_err != 0) {
+    args.GetReturnValue().Set(sock_err);
+    return;
+  }
+
+  // 2. Select the correct protocol level and option name
+  int level;
+  int option;
+
+  if (storage.ss_family == AF_INET) {
+    level = IPPROTO_IP;
+    option = IP_TOS;
+  } else if (storage.ss_family == AF_INET6) {
+    level = IPPROTO_IPV6;
+    option = IPV6_TCLASS;
+  } else {
+    // Unsupported socket family (e.g. AF_UNIX)
+    args.GetReturnValue().Set(UV_EINVAL);
+    return;
+  }
+
+  // 3. Perform the system call (Platform specific casting)
+#ifdef _WIN32
+  if (setsockopt(reinterpret_cast<::SOCKET>(fd),
+                 level,
+                 option,
+                 reinterpret_cast<const char*>(&tos),
+                 static_cast<int>(sizeof(tos))) == 0) {
+    args.GetReturnValue().Set(0);
+  } else {
+    args.GetReturnValue().Set(uv_translate_sys_error(WSAGetLastError()));
+  }
+#else
+  if (setsockopt(fd, level, option, &tos, sizeof(tos)) == 0) {
+    args.GetReturnValue().Set(0);
+  } else {
+    args.GetReturnValue().Set(uv_translate_sys_error(errno));
+  }
+#endif
+}
+
+void TCPWrap::GetTypeOfService(const FunctionCallbackInfo<Value>& args) {
+  TCPWrap* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(
+      &wrap, args.This(), args.GetReturnValue().Set(UV_EBADF));
+
+  uv_os_fd_t fd;
+  int err = uv_fileno(reinterpret_cast<uv_handle_t*>(&wrap->handle_), &fd);
+  if (err != 0) {
+    args.GetReturnValue().Set(err);
+    return;
+  }
+
+  // Detect socket family explicitly
+  sockaddr_storage storage;
+  int addrlen = sizeof(storage);
+  int sock_err = uv_tcp_getsockname(
+      &wrap->handle_, reinterpret_cast<sockaddr*>(&storage), &addrlen);
+
+  int level;
+  int option;
+
+  // Select the correct constant based on family
+  if (sock_err == 0) {
+    if (storage.ss_family == AF_INET) {
+      level = IPPROTO_IP;
+      option = IP_TOS;
+    } else if (storage.ss_family == AF_INET6) {
+      level = IPPROTO_IPV6;
+      option = IPV6_TCLASS;
+    } else {
+      // Unknown or unsupported family
+      args.GetReturnValue().Set(UV_EINVAL);
+      return;
+    }
+  } else {
+    // If we can't determine the family, we can't safely get the TOS
+    args.GetReturnValue().Set(sock_err);
+    return;
+  }
+
+  int tos = 0;
+
+  // Perform the system call with platform-specific casting
+#ifdef _WIN32
+  int len = sizeof(tos);
+  if (getsockopt(reinterpret_cast<::SOCKET>(fd),
+                 level,
+                 option,
+                 reinterpret_cast<char*>(&tos),
+                 &len) == 0) {
+    args.GetReturnValue().Set(tos);
+  } else {
+    args.GetReturnValue().Set(uv_translate_sys_error(WSAGetLastError()));
+  }
+#else
+  socklen_t len = sizeof(tos);
+  if (getsockopt(fd, level, option, &tos, &len) == 0) {
+    args.GetReturnValue().Set(tos);
+  } else {
+    args.GetReturnValue().Set(uv_translate_sys_error(errno));
+  }
+#endif
+}
 
 #ifdef _WIN32
 void TCPWrap::SetSimultaneousAccepts(const FunctionCallbackInfo<Value>& args) {
@@ -220,7 +359,6 @@ void TCPWrap::SetSimultaneousAccepts(const FunctionCallbackInfo<Value>& args) {
 }
 #endif
 
-
 void TCPWrap::Open(const FunctionCallbackInfo<Value>& args) {
   TCPWrap* wrap;
   ASSIGN_OR_RETURN_UNWRAP(
@@ -231,8 +369,7 @@ void TCPWrap::Open(const FunctionCallbackInfo<Value>& args) {
   int fd = static_cast<int>(val);
   int err = uv_tcp_open(&wrap->handle_, fd);
 
-  if (err == 0)
-    wrap->set_fd(fd);
+  if (err == 0) wrap->set_fd(fd);
 
   args.GetReturnValue().Set(err);
 }
@@ -265,9 +402,8 @@ void TCPWrap::Bind(
   int err = uv_ip_addr(*ip_address, port, &addr);
 
   if (err == 0) {
-    err = uv_tcp_bind(&wrap->handle_,
-                      reinterpret_cast<const sockaddr*>(&addr),
-                      flags);
+    err = uv_tcp_bind(
+        &wrap->handle_, reinterpret_cast<const sockaddr*>(&addr), flags);
   }
   args.GetReturnValue().Set(err);
 }
@@ -276,11 +412,9 @@ void TCPWrap::Bind(const FunctionCallbackInfo<Value>& args) {
   Bind<sockaddr_in>(args, AF_INET, uv_ip4_addr);
 }
 
-
 void TCPWrap::Bind6(const FunctionCallbackInfo<Value>& args) {
   Bind<sockaddr_in6>(args, AF_INET6, uv_ip6_addr);
 }
-
 
 void TCPWrap::Listen(const FunctionCallbackInfo<Value>& args) {
   TCPWrap* wrap;
@@ -292,23 +426,19 @@ void TCPWrap::Listen(const FunctionCallbackInfo<Value>& args) {
 
   THROW_IF_INSUFFICIENT_PERMISSIONS(env, permission::PermissionScope::kNet, "");
 
-  int err = uv_listen(reinterpret_cast<uv_stream_t*>(&wrap->handle_),
-                      backlog,
-                      OnConnection);
+  int err = uv_listen(
+      reinterpret_cast<uv_stream_t*>(&wrap->handle_), backlog, OnConnection);
   args.GetReturnValue().Set(err);
 }
-
 
 void TCPWrap::Connect(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[2]->IsUint32());
   // explicit cast to fit to libuv's type expectation
   int port = static_cast<int>(args[2].As<Uint32>()->Value());
-  Connect<sockaddr_in>(args,
-                       [port](const char* ip_address, sockaddr_in* addr) {
-      return uv_ip4_addr(ip_address, port, addr);
+  Connect<sockaddr_in>(args, [port](const char* ip_address, sockaddr_in* addr) {
+    return uv_ip4_addr(ip_address, port, addr);
   });
 }
-
 
 void TCPWrap::Connect6(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -317,12 +447,13 @@ void TCPWrap::Connect6(const FunctionCallbackInfo<Value>& args) {
   if (!args[2]->Int32Value(env->context()).To(&port)) return;
   Connect<sockaddr_in6>(args,
                         [port](const char* ip_address, sockaddr_in6* addr) {
-      return uv_ip6_addr(ip_address, port, addr);
-  });
+                          return uv_ip6_addr(ip_address, port, addr);
+                        });
 }
 
 template <typename T>
-void TCPWrap::Connect(const FunctionCallbackInfo<Value>& args,
+void TCPWrap::Connect(
+    const FunctionCallbackInfo<Value>& args,
     std::function<int(const char* ip_address, T* addr)> uv_ip_addr) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -410,69 +541,67 @@ MaybeLocal<Object> AddressToJS(Environment* env,
   }
 
   switch (addr->sa_family) {
-  case AF_INET6:
-    a6 = reinterpret_cast<const sockaddr_in6*>(addr);
-    uv_inet_ntop(AF_INET6, &a6->sin6_addr, ip, sizeof ip);
-    // Add an interface identifier to a link local address.
-    if (IN6_IS_ADDR_LINKLOCAL(&a6->sin6_addr) && a6->sin6_scope_id > 0) {
-      const size_t addrlen = strlen(ip);
-      CHECK_LT(addrlen, sizeof(ip));
-      ip[addrlen] = '%';
-      size_t scopeidlen = sizeof(ip) - addrlen - 1;
-      CHECK_GE(scopeidlen, UV_IF_NAMESIZE);
-      const int r = uv_if_indextoiid(a6->sin6_scope_id,
-                                     ip + addrlen + 1,
-                                     &scopeidlen);
-      if (r) {
-        env->ThrowUVException(r, "uv_if_indextoiid");
+    case AF_INET6:
+      a6 = reinterpret_cast<const sockaddr_in6*>(addr);
+      uv_inet_ntop(AF_INET6, &a6->sin6_addr, ip, sizeof ip);
+      // Add an interface identifier to a link local address.
+      if (IN6_IS_ADDR_LINKLOCAL(&a6->sin6_addr) && a6->sin6_scope_id > 0) {
+        const size_t addrlen = strlen(ip);
+        CHECK_LT(addrlen, sizeof(ip));
+        ip[addrlen] = '%';
+        size_t scopeidlen = sizeof(ip) - addrlen - 1;
+        CHECK_GE(scopeidlen, UV_IF_NAMESIZE);
+        const int r =
+            uv_if_indextoiid(a6->sin6_scope_id, ip + addrlen + 1, &scopeidlen);
+        if (r) {
+          env->ThrowUVException(r, "uv_if_indextoiid");
+          return {};
+        }
+      }
+      port = ntohs(a6->sin6_port);
+      if (info->Set(env->context(),
+                    env->address_string(),
+                    OneByteString(env->isolate(), ip))
+              .IsNothing() ||
+          info->Set(env->context(), env->family_string(), env->ipv6_string())
+              .IsNothing() ||
+          info->Set(env->context(),
+                    env->port_string(),
+                    Integer::New(env->isolate(), port))
+              .IsNothing()) {
         return {};
       }
-    }
-    port = ntohs(a6->sin6_port);
-    if (info->Set(env->context(),
-                  env->address_string(),
-                  OneByteString(env->isolate(), ip))
-            .IsNothing() ||
-        info->Set(env->context(), env->family_string(), env->ipv6_string())
-            .IsNothing() ||
-        info->Set(env->context(),
-                  env->port_string(),
-                  Integer::New(env->isolate(), port))
-            .IsNothing()) {
-      return {};
-    }
-    break;
+      break;
 
-  case AF_INET:
-    a4 = reinterpret_cast<const sockaddr_in*>(addr);
-    uv_inet_ntop(AF_INET, &a4->sin_addr, ip, sizeof ip);
-    port = ntohs(a4->sin_port);
-    if (info->Set(env->context(),
-                  env->address_string(),
-                  OneByteString(env->isolate(), ip))
-            .IsNothing() ||
-        info->Set(env->context(), env->family_string(), env->ipv4_string())
-            .IsNothing() ||
-        info->Set(env->context(),
-                  env->port_string(),
-                  Integer::New(env->isolate(), port))
-            .IsNothing()) {
-      return {};
-    }
-    break;
+    case AF_INET:
+      a4 = reinterpret_cast<const sockaddr_in*>(addr);
+      uv_inet_ntop(AF_INET, &a4->sin_addr, ip, sizeof ip);
+      port = ntohs(a4->sin_port);
+      if (info->Set(env->context(),
+                    env->address_string(),
+                    OneByteString(env->isolate(), ip))
+              .IsNothing() ||
+          info->Set(env->context(), env->family_string(), env->ipv4_string())
+              .IsNothing() ||
+          info->Set(env->context(),
+                    env->port_string(),
+                    Integer::New(env->isolate(), port))
+              .IsNothing()) {
+        return {};
+      }
+      break;
 
-  default:
-    if (info->Set(env->context(),
-                  env->address_string(),
-                  String::Empty(env->isolate()))
-            .IsNothing()) {
-      return {};
-    }
+    default:
+      if (info->Set(env->context(),
+                    env->address_string(),
+                    String::Empty(env->isolate()))
+              .IsNothing()) {
+        return {};
+      }
   }
 
   return scope.Escape(info);
 }
-
 
 }  // namespace node
 
