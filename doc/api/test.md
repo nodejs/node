@@ -246,7 +246,16 @@ it('should do the thing', { expectFailure: true }, () => {
   assert.strictEqual(doTheThing(), true);
 });
 
-it('should do the thing', { expectFailure: 'doTheThing is not doing the thing because ...' }, () => {
+it('should do the thing', { expectFailure: 'feature not implemented' }, () => {
+  assert.strictEqual(doTheThing(), true);
+});
+
+it('should fail with specific error', {
+  expectFailure: {
+    with: /error message/,
+    message: 'reason for failure',
+  },
+}, () => {
   assert.strictEqual(doTheThing(), true);
 });
 ```
