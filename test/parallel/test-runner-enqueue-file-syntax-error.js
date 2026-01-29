@@ -18,5 +18,5 @@ stream.on('test:enqueue', common.mustCall((data) => {
 
 stream.on('test:fail', common.mustCall((data) => {
   assert.ok(data.details.error);
-  assert.ok(/SyntaxError/.test(data.details.error.name));
+  assert.match(data.details.error.message, /SyntaxError/);
 }));
