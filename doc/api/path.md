@@ -60,9 +60,9 @@ path.posix.basename('/tmp/myfile.html');
 // Returns: 'myfile.html'
 ```
 
-On Windows Node.js follows the concept of per-drive working directory.
+On Windows, Node.js follows the concept of per-drive working directory.
 This behavior can be observed when using a drive path without a backslash. For
-example, `path.resolve('C:\\')` can potentially return a different result than
+example, `path.resolve('C:\\')` can return a different result than
 `path.resolve('C:')`. For more information, see
 [this MSDN page][MSDN-Rel-Path].
 
@@ -322,7 +322,7 @@ added: v0.11.2
 * Returns: {boolean}
 
 The `path.isAbsolute()` method determines if the literal `path` is absolute.
-Therefore, it’s not safe for mitigating path traversals.
+Therefore, it’s not safe for mitigating path traversals attacks.
 
 If the given `path` is a zero-length string, `false` will be returned.
 
