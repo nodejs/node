@@ -80,20 +80,8 @@ assert(TextDecoder);
 
 ['unicode-1-1-utf-8', 'utf8', 'utf-8'].forEach((i) => {
   const dec = new TextDecoder(i, { fatal: true });
-  if (common.hasIntl) {
-    dec.decode(buf.slice(0, 8), { stream: true });
-    dec.decode(buf.slice(8));
-  } else {
-    assert.throws(
-      () => {
-        dec.decode(buf.slice(0, 8), { stream: true });
-      },
-      {
-        code: 'ERR_NO_ICU',
-        name: 'TypeError',
-        message: '"fatal" option is not supported on Node.js compiled without ICU'
-      });
-  }
+  dec.decode(buf.slice(0, 8), { stream: true });
+  dec.decode(buf.slice(8));
 });
 
 // Test TextDecoder, label undefined, options null
@@ -122,33 +110,16 @@ if (common.hasIntl) {
 // Test TextDecoder inspect with hidden fields
 {
   const dec = new TextDecoder('utf-8', { ignoreBOM: true });
-  if (common.hasIntl) {
-    assert.strictEqual(
-      util.inspect(dec, { showHidden: true }),
-      'TextDecoder {\n' +
-      '  encoding: \'utf-8\',\n' +
-      '  fatal: false,\n' +
-      '  ignoreBOM: true,\n' +
-      '  Symbol(flags): 4,\n' +
-      '  Symbol(handle): undefined\n' +
-      '}'
-    );
-  } else {
-    dec.decode(Uint8Array.of(0), { stream: true });
-    assert.strictEqual(
-      util.inspect(dec, { showHidden: true }),
-      'TextDecoder {\n' +
-      "  encoding: 'utf-8',\n" +
-      '  fatal: false,\n' +
-      '  ignoreBOM: true,\n' +
-      '  Symbol(flags): 4,\n' +
-      '  Symbol(handle): StringDecoder {\n' +
-      "    encoding: 'utf8',\n" +
-      '    Symbol(kNativeDecoder): <Buffer 00 00 00 00 00 00 01>\n' +
-      '  }\n' +
-      '}'
-    );
-  }
+  assert.strictEqual(
+    util.inspect(dec, { showHidden: true }),
+    'TextDecoder {\n' +
+    '  encoding: \'utf-8\',\n' +
+    '  fatal: false,\n' +
+    '  ignoreBOM: true,\n' +
+    '  Symbol(flags): 4,\n' +
+    '  Symbol(handle): undefined\n' +
+    '}'
+  );
 }
 
 
