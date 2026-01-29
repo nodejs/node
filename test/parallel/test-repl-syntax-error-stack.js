@@ -11,7 +11,7 @@ process.on('exit', () => {
   assert.strictEqual(found, true);
 });
 
-const { input, output } = startNewREPLServer({}, { disableDomainErrorAssert: true });
+const { input, output } = startNewREPLServer();
 
 output.write = (data) => {
   // Matching only on a minimal piece of the stack because the string will vary
