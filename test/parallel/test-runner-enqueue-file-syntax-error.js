@@ -1,22 +1,19 @@
-// Flags: --no-warnings
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('node:assert');
-const { run } = require('node:test');
+const { spawnSync } = require('node:child_process');
 const fixtures = require('../common/fixtures');
 
 const testFile = fixtures.path('test-runner', 'syntax-error-test.mjs');
-const stream = run({
-  files: [testFile],
-  isolation: 'none',
-});
+const child = spawnSync(process.execPath, [
+  '--no-warnings',
+  '--test',
+  '--test-reporter=tap',
+  '--test-isolation=none',
+  testFile,
+], { encoding: 'utf8' });
 
-stream.on('test:enqueue', common.mustCall((data) => {
-  assert.ok(data.file, 'test:enqueue event should have file field');
-  assert.strictEqual(data.file, testFile);
-}));
-
-stream.on('test:fail', common.mustCall((data) => {
-  assert.ok(data.details.error);
-  assert.match(data.details.error.message, /SyntaxError/);
-}));
+assert.match(child.stdout, new RegExp(`# Subtest: ${testFile}`));
+assert.match(child.stdout, /location:.*syntax-error-test\.mjs/);
+assert.match(child.stdout, /SyntaxError/);
+assert.strictEqual(child.status, 1);
