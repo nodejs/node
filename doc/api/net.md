@@ -747,7 +747,7 @@ it to interact with the client.
 <!-- YAML
 added: v0.3.4
 changes:
-  - version: ADDME
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/61503
     description: Added `typeOfService` option.
   - version: v15.14.0
