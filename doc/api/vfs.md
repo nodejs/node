@@ -1,9 +1,9 @@
 # Virtual File System
 
-<!--introduced_in=v26.0.0-->
+<!--introduced_in=REPLACEME-->
 
 <!-- YAML
-added: v26.0.0
+added: REPLACEME
 -->
 
 > Stability: 1 - Experimental
@@ -99,7 +99,7 @@ myVfs.unmount();
 ## `vfs.create([provider][, options])`
 
 <!-- YAML
-added: v26.0.0
+added: REPLACEME
 -->
 
 * `provider` {VirtualProvider} Optional provider instance. Defaults to a new
@@ -143,7 +143,7 @@ const vfsWithOptions = vfs.create({ moduleHooks: false });
 ## Class: `VirtualFileSystem`
 
 <!-- YAML
-added: v26.0.0
+added: REPLACEME
 -->
 
 The `VirtualFileSystem` class provides a file system interface backed by a
@@ -153,7 +153,7 @@ make virtual files accessible through the `fs` module.
 ### `new VirtualFileSystem([provider][, options])`
 
 <!-- YAML
-added: v26.0.0
+added: REPLACEME
 -->
 
 * `provider` {VirtualProvider} The provider to use. **Default:** `MemoryProvider`.
@@ -166,7 +166,7 @@ Creates a new `VirtualFileSystem` instance.
 ### `vfs.provider`
 
 <!-- YAML
-added: v26.0.0
+added: REPLACEME
 -->
 
 * {VirtualProvider}
@@ -188,7 +188,7 @@ console.log(myVfs.provider.readonly); // true
 ### `vfs.mount(prefix)`
 
 <!-- YAML
-added: v26.0.0
+added: REPLACEME
 -->
 
 * `prefix` {string} The path prefix where the VFS will be mounted.
@@ -211,7 +211,7 @@ require('node:fs').readFileSync('/virtual/data.txt', 'utf8'); // 'Hello'
 ### `vfs.unmount()`
 
 <!-- YAML
-added: v26.0.0
+added: REPLACEME
 -->
 
 Unmounts the virtual file system. After unmounting, virtual files are no longer
@@ -222,7 +222,7 @@ working directory if one was set.
 ### `vfs.isMounted`
 
 <!-- YAML
-added: v26.0.0
+added: REPLACEME
 -->
 
 * {boolean}
@@ -232,7 +232,7 @@ Returns `true` if the VFS is currently mounted.
 ### `vfs.mountPoint`
 
 <!-- YAML
-added: v26.0.0
+added: REPLACEME
 -->
 
 * {string | null}
@@ -242,7 +242,7 @@ The current mount point, or `null` if not mounted.
 ### `vfs.readonly`
 
 <!-- YAML
-added: v26.0.0
+added: REPLACEME
 -->
 
 * {boolean}
@@ -252,7 +252,7 @@ Returns `true` if the underlying provider is read-only.
 ### `vfs.chdir(path)`
 
 <!-- YAML
-added: v26.0.0
+added: REPLACEME
 -->
 
 * `path` {string} The new working directory path within the VFS.
@@ -270,7 +270,7 @@ file system paths will throw `ERR_WORKER_UNSUPPORTED_OPERATION`.
 ### `vfs.cwd()`
 
 <!-- YAML
-added: v26.0.0
+added: REPLACEME
 -->
 
 * Returns: {string|null}
@@ -338,7 +338,7 @@ async function example() {
 ## Class: `VirtualProvider`
 
 <!-- YAML
-added: v26.0.0
+added: REPLACEME
 -->
 
 The `VirtualProvider` class is an abstract base class for VFS providers.
@@ -349,7 +349,7 @@ Providers implement the actual file system storage and operations.
 #### `provider.readonly`
 
 <!-- YAML
-added: v26.0.0
+added: REPLACEME
 -->
 
 * {boolean}
@@ -359,7 +359,7 @@ Returns `true` if the provider is read-only.
 #### `provider.supportsSymlinks`
 
 <!-- YAML
-added: v26.0.0
+added: REPLACEME
 -->
 
 * {boolean}
@@ -397,7 +397,7 @@ class MyProvider extends VirtualProvider {
 ## Class: `MemoryProvider`
 
 <!-- YAML
-added: v26.0.0
+added: REPLACEME
 -->
 
 The `MemoryProvider` stores files in memory. It supports full read/write
@@ -412,7 +412,7 @@ const myVfs = create(new MemoryProvider());
 ### `memoryProvider.setReadOnly()`
 
 <!-- YAML
-added: v26.0.0
+added: REPLACEME
 -->
 
 Sets the provider to read-only mode. Once set to read-only, the provider
@@ -438,7 +438,7 @@ myVfs.provider.setReadOnly();
 ## Class: `SEAProvider`
 
 <!-- YAML
-added: v26.0.0
+added: REPLACEME
 -->
 
 The `SEAProvider` provides read-only access to assets bundled in a Single
@@ -459,7 +459,7 @@ try {
 ## Class: `RealFSProvider`
 
 <!-- YAML
-added: v26.0.0
+added: REPLACEME
 -->
 
 The `RealFSProvider` wraps a real file system directory, allowing it to be
@@ -473,7 +473,7 @@ mounted at a different VFS path. This is useful for:
 ### `new RealFSProvider(rootPath)`
 
 <!-- YAML
-added: v26.0.0
+added: REPLACEME
 -->
 
 * `rootPath` {string} The real file system path to use as the provider root.
@@ -534,7 +534,7 @@ if (isMainThread) {
 ### `realFSProvider.rootPath`
 
 <!-- YAML
-added: v26.0.0
+added: REPLACEME
 -->
 
 * {string}
