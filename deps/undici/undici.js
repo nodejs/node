@@ -1423,18 +1423,15 @@ var require_util = __commonJS({
             val = [val];
             obj[key] = val;
           }
-          val.push(headers[i + 1].toString("utf8"));
+          val.push(headers[i + 1].toString("latin1"));
         } else {
           const headersValue = headers[i + 1];
           if (typeof headersValue === "string") {
             obj[key] = headersValue;
           } else {
-            obj[key] = Array.isArray(headersValue) ? headersValue.map((x) => x.toString("utf8")) : headersValue.toString("utf8");
+            obj[key] = Array.isArray(headersValue) ? headersValue.map((x) => x.toString("latin1")) : headersValue.toString("latin1");
           }
         }
-      }
-      if ("content-length" in obj && "content-disposition" in obj) {
-        obj["content-disposition"] = Buffer.from(obj["content-disposition"]).toString("latin1");
       }
       return obj;
     }
@@ -1442,27 +1439,15 @@ var require_util = __commonJS({
     function parseRawHeaders(headers) {
       const headersLength = headers.length;
       const ret = new Array(headersLength);
-      let hasContentLength = false;
-      let contentDispositionIdx = -1;
       let key;
       let val;
-      let kLen = 0;
       for (let n = 0; n < headersLength; n += 2) {
         key = headers[n];
         val = headers[n + 1];
         typeof key !== "string" && (key = key.toString());
-        typeof val !== "string" && (val = val.toString("utf8"));
-        kLen = key.length;
-        if (kLen === 14 && key[7] === "-" && (key === "content-length" || key.toLowerCase() === "content-length")) {
-          hasContentLength = true;
-        } else if (kLen === 19 && key[7] === "-" && (key === "content-disposition" || key.toLowerCase() === "content-disposition")) {
-          contentDispositionIdx = n + 1;
-        }
+        typeof val !== "string" && (val = val.toString("latin1"));
         ret[n] = key;
         ret[n + 1] = val;
-      }
-      if (hasContentLength && contentDispositionIdx !== -1) {
-        ret[contentDispositionIdx] = Buffer.from(ret[contentDispositionIdx]).toString("latin1");
       }
       return ret;
     }
@@ -8573,9 +8558,11 @@ var require_client_h2 = __commonJS({
       }
       ++session[kOpenStreams];
       stream.setTimeout(requestTimeout);
+      let responseReceived = false;
       stream.once("response", (headers2) => {
         const { [HTTP2_HEADER_STATUS]: statusCode, ...realHeaders } = headers2;
         request.onResponseStarted();
+        responseReceived = true;
         if (request.aborted) {
           stream.removeAllListeners("data");
           return;
@@ -8589,20 +8576,16 @@ var require_client_h2 = __commonJS({
           stream.pause();
         }
       });
-      stream.once("end", (err) => {
+      stream.once("end", () => {
         stream.removeAllListeners("data");
-        if (stream.state?.state == null || stream.state.state < 6) {
+        if (responseReceived) {
           if (!request.aborted && !request.completed) {
             request.onComplete({});
           }
           client[kQueue][client[kRunningIdx]++] = null;
           client[kResume]();
         } else {
-          --session[kOpenStreams];
-          if (session[kOpenStreams] === 0) {
-            session.unref();
-          }
-          abort(err ?? new InformationalError("HTTP/2: stream half-closed (remote)"));
+          abort(new InformationalError("HTTP/2: stream half-closed (remote)"));
           client[kQueue][client[kRunningIdx]++] = null;
           client[kPendingIdx] = client[kRunningIdx];
           client[kResume]();
@@ -12595,7 +12578,7 @@ var require_fetch = __commonJS({
           if (isCancelled(fetchParams)) {
             return makeAppropriateNetworkError(fetchParams);
           }
-          return makeNetworkError();
+          return response;
         }
         fetchParams.controller.connection.destroy();
         response = await httpNetworkOrCacheFetch(fetchParams, true);
