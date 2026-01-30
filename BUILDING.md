@@ -130,6 +130,7 @@ welcome.
 
 | Operating System | Architectures | Versions                      | Notes                                          |
 | ---------------- | ------------- | ----------------------------- | ---------------------------------------------- |
+| GNU/Linux        | arm64         | kernel >= 6.12, musl >= 1.2.5 | e.g. Alpine 3.22                               |
 | GNU/Linux        | x86           | kernel >= 3.10, glibc >= 2.17 | Downgraded as of Node.js 10                    |
 | GNU/Linux        | armv7         | kernel >= 4.18, glibc >= 2.28 | Downgraded as of Node.js 24                    |
 | GNU/Linux        | loong64       | kernel >= 5.19, glibc >= 2.36 |                                                |
