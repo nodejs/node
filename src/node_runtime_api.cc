@@ -18,7 +18,7 @@
 
 EXTERN_C_START
 
-int32_t NAPI_CDECL node_rt_main(int32_t argc, char* argv[]) {
+int32_t NAPI_CDECL node_embedding_start(int32_t argc, char* argv[]) {
   return node::Start(argc, argv);
 }
 

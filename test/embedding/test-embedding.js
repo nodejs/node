@@ -171,4 +171,4 @@ spawnSyncAndAssert(
     trim: true,
     stdout: 'Hello World',
   },
-)
+);

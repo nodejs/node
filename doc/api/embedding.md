@@ -188,7 +188,7 @@ The following design principles are targeting to achieve that goal.
 
 #### Functions
 
-##### `node_rt_main`
+##### `node_embedding_start`
 
 <!-- YAML
 added: REPLACEME
@@ -199,7 +199,7 @@ added: REPLACEME
 Runs Node.js runtime instance the same way as the Node.js executable.
 
 ```c
-int32_t NAPI_CDECL node_rt_main(
+int32_t NAPI_CDECL node_embedding_start(
   int32_t argc,
   char* argv[]);
 ```

@@ -4,5 +4,5 @@
 // invoked from the libnode shared library as it would be run from the Node.js
 // CLI.
 int32_t test_main_c_api_nodejs_main(int32_t argc, char* argv[]) {
-  return node_rt_main(argc, argv);
+  return node_embedding_start(argc, argv);
 }

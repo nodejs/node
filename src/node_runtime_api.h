@@ -21,7 +21,7 @@
 EXTERN_C_START
 
 // Runs Node.js main function. It is the same as running Node.js from CLI.
-NAPI_EXTERN int32_t NAPI_CDECL node_rt_main(int32_t argc, char* argv[]);
+NAPI_EXTERN int32_t NAPI_CDECL node_embedding_start(int32_t argc, char* argv[]);
 
 EXTERN_C_END
 
