@@ -900,10 +900,10 @@ releases on a rotation basis as outlined in the
   * [mcollina](https://github.com/mcollina) - OpenJSF handle: `mcollina`
     **Matteo Collina** <<matteo.collina@gmail.com>> (he/him)
 * [Red Hat](https://redhat.com) / [IBM](https://ibm.com)
-  * [joesepi](https://github.com/joesepi) -
-    **Joe Sepi** <<joesepi@ibm.com>> (he/him)
-  * [mhdawson](https://github.com/mhdawson) -
-    **Michael Dawson** <<midawson@redhat.com>> (he/him)
+  * [BethGriggs](https://github.com/BethGriggs) -
+    **Beth Griggs** <<bethanyngriggs@gmail.com>> (she/her)
+  * [sxa](https://github.com/sxa) -
+    **Stewart X Addison** <<sxa@redhat.com>> (he/him)
 
 ## License
 
