@@ -1429,6 +1429,15 @@
           'ExceptionHandling': 1,
         },
       },
+      # Reduce optimisation of one file on AIX - it causes torque
+      # to segfault if you build node with "--shared"
+      'conditions': [
+        ['OS=="aix" and node_shared=="true"', {
+          'cflags': ['-O1'],
+          'cflags!': ['-O3'],
+          'sources': ['<(V8_ROOT)/src/torque/implementation-visitor.cc'],
+        }],
+      ],
     },  # torque_base
     {
       'target_name': 'torque_ls_base',
