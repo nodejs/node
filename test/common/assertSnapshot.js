@@ -10,6 +10,9 @@ const { hostname } = require('node:os');
 const stackFramesRegexp = /(?<=\n)(\s+)((.+?)\s+\()?(?:\(?(.+?):(\d+)(?::(\d+))?)\)?(\s+\{)?(\[\d+m)?(\n|$)/g;
 const windowNewlineRegexp = /\r/g;
 
+// Replaces the current Node.js executable version strings with a
+// placeholder. This could commonly present in an unhandled exception
+// output.
 function replaceNodeVersion(str) {
   return str.replaceAll(process.version, '<node-version>');
 }
@@ -24,29 +27,38 @@ function replaceInternalStackTrace(str) {
   return str.replaceAll(/(\W+).*[(\s]node:.*/g, '$1*');
 }
 
+// Replaces Windows line endings with posix line endings for unified snapshots
+// across platforms.
 function replaceWindowsLineEndings(str) {
   return str.replace(windowNewlineRegexp, '');
 }
 
+// Replaces all Windows path separators with posix separators for unified snapshots
+// across platforms.
 function replaceWindowsPaths(str) {
   return common.isWindows ? str.replaceAll(path.win32.sep, path.posix.sep) : str;
 }
 
+// Removes line trailing white spaces.
 function replaceTrailingSpaces(str) {
   return str.replaceAll(/[\t ]+\n/g, '\n');
 }
 
-// Replaces customized or platform specific executable names to be `node`.
+// Replaces customized or platform specific executable names to be `<node-exe>`.
 function generalizeExeName(str) {
   const baseName = path.basename(process.argv0 || 'node', '.exe');
-  return str.replaceAll(`${baseName} --`, 'node --');
+  return str.replaceAll(`${baseName} --`, '<node-exe> --');
 }
 
+// Replaces the pids in warning messages with a placeholder.
 function replaceWarningPid(str) {
   return str.replaceAll(/\(node:\d+\)/g, '(node:<pid>)');
 }
 
-function transformProjectRoot(replacement = '') {
+// Replaces path strings representing the nodejs/node repo full project root with
+// `<project-root>`. Also replaces file URLs containing the full project root path.
+// The project root path may contain unicode characters.
+function transformProjectRoot(replacement = '<project-root>') {
   const projectRoot = path.resolve(__dirname, '../..');
   // Handles URL encoded project root in file URL strings as well.
   const urlEncoded = pathToFileURL(projectRoot).pathname;

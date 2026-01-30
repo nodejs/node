@@ -64,7 +64,7 @@ Node.js <node-version>
 var ______________________________________________; throw 10
                                                     ^
 10
-(Use `node --trace-uncaught ...` to show where the exception was thrown)
+(Use `<node-exe> --trace-uncaught ...` to show where the exception was thrown)
 
 Node.js <node-version>
 
@@ -72,7 +72,7 @@ Node.js <node-version>
 var ______________________________________________; throw 10
                                                     ^
 10
-(Use `node --trace-uncaught ...` to show where the exception was thrown)
+(Use `<node-exe> --trace-uncaught ...` to show where the exception was thrown)
 
 Node.js <node-version>
 done

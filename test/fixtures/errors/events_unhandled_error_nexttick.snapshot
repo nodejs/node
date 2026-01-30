@@ -3,8 +3,8 @@ node:events:*
       ^
 
 Error
-    at Object.<anonymous> (/test/fixtures/errors/events_unhandled_error_nexttick.js:*:*)
+    at Object.<anonymous> (<project-root>/test/fixtures/errors/events_unhandled_error_nexttick.js:*:*)
 Emitted 'error' event at:
-    at /test/fixtures/errors/events_unhandled_error_nexttick.js:*:*
+    at <project-root>/test/fixtures/errors/events_unhandled_error_nexttick.js:*:*
 
 Node.js <node-version>

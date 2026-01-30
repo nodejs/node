@@ -7,7 +7,7 @@ describe('sourcemaps output', { concurrency: !process.env.TEST_PARALLEL }, () =>
   const defaultTransform = snapshot
     .transform(
       snapshot.basicTransform,
-      snapshot.transformProjectRoot('*'),
+      snapshot.transformProjectRoot(),
       snapshot.replaceInternalStackTrace,
     );
 

@@ -3,21 +3,21 @@ node:assert:*
     ^
 
 AssertionError [ERR_ASSERTION]: ifError got unwanted exception: test error
-    at z (/test/fixtures/errors/if-error-has-good-stack.js:*:*)
-    at y (/test/fixtures/errors/if-error-has-good-stack.js:*:*)
-    at x (/test/fixtures/errors/if-error-has-good-stack.js:*:*)
-    at Object.<anonymous> (/test/fixtures/errors/if-error-has-good-stack.js:*:*)
-    at c (/test/fixtures/errors/if-error-has-good-stack.js:*:*)
-    at b (/test/fixtures/errors/if-error-has-good-stack.js:*:*)
-    at a (/test/fixtures/errors/if-error-has-good-stack.js:*:*)
-    at Object.<anonymous> (/test/fixtures/errors/if-error-has-good-stack.js:*:*) {
+    at z (<project-root>/test/fixtures/errors/if-error-has-good-stack.js:*:*)
+    at y (<project-root>/test/fixtures/errors/if-error-has-good-stack.js:*:*)
+    at x (<project-root>/test/fixtures/errors/if-error-has-good-stack.js:*:*)
+    at Object.<anonymous> (<project-root>/test/fixtures/errors/if-error-has-good-stack.js:*:*)
+    at c (<project-root>/test/fixtures/errors/if-error-has-good-stack.js:*:*)
+    at b (<project-root>/test/fixtures/errors/if-error-has-good-stack.js:*:*)
+    at a (<project-root>/test/fixtures/errors/if-error-has-good-stack.js:*:*)
+    at Object.<anonymous> (<project-root>/test/fixtures/errors/if-error-has-good-stack.js:*:*) {
   generatedMessage: false,
   code: 'ERR_ASSERTION',
   actual: Error: test error
-      at c (/test/fixtures/errors/if-error-has-good-stack.js:*:*)
-      at b (/test/fixtures/errors/if-error-has-good-stack.js:*:*)
-      at a (/test/fixtures/errors/if-error-has-good-stack.js:*:*)
-      at Object.<anonymous> (/test/fixtures/errors/if-error-has-good-stack.js:*:*),
+      at c (<project-root>/test/fixtures/errors/if-error-has-good-stack.js:*:*)
+      at b (<project-root>/test/fixtures/errors/if-error-has-good-stack.js:*:*)
+      at a (<project-root>/test/fixtures/errors/if-error-has-good-stack.js:*:*)
+      at Object.<anonymous> (<project-root>/test/fixtures/errors/if-error-has-good-stack.js:*:*),
   expected: null,
   operator: 'ifError',
   diff: 'simple'
