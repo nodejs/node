@@ -573,8 +573,7 @@ NODE_EXTERN std::unique_ptr<InspectorParentHandle> GetInspectorParentHandle(
 
 MaybeLocal<Value> LoadEnvironment(Environment* env,
                                   StartExecutionCallbackWithModule cb,
-                                  EmbedderPreloadCallback preload,
-                                  void* callback_data) {
+                                  EmbedderPreloadCallback preload) {
   env->InitializeLibuv();
   env->InitializeDiagnostics();
   if (preload) {
@@ -582,7 +581,7 @@ MaybeLocal<Value> LoadEnvironment(Environment* env,
   }
   env->InitializeCompileCache();
 
-  return StartExecution(env, cb, callback_data);
+  return StartExecution(env, cb);
 }
 
 struct StartExecutionCallbackInfoWithModule::Impl {
@@ -590,7 +589,6 @@ struct StartExecutionCallbackInfoWithModule::Impl {
   Local<Object> process_object;
   Local<Function> native_require;
   Local<Function> run_module;
-  void* data = nullptr;
 };
 
 StartExecutionCallbackInfoWithModule::StartExecutionCallbackInfoWithModule()
@@ -605,6 +603,22 @@ StartExecutionCallbackInfoWithModule::StartExecutionCallbackInfoWithModule(
 StartExecutionCallbackInfoWithModule&
 StartExecutionCallbackInfoWithModule::operator=(
     StartExecutionCallbackInfoWithModule&&) = default;
+
+Environment* StartExecutionCallbackInfoWithModule::env() const {
+  return impl_->env;
+}
+
+Local<Object> StartExecutionCallbackInfoWithModule::process_object() const {
+  return impl_->process_object;
+}
+
+Local<Function> StartExecutionCallbackInfoWithModule::native_require() const {
+  return impl_->native_require;
+}
+
+Local<Function> StartExecutionCallbackInfoWithModule::run_module() const {
+  return impl_->run_module;
+}
 
 void StartExecutionCallbackInfoWithModule::set_env(Environment* env) {
   impl_->env = env;
@@ -623,30 +637,6 @@ void StartExecutionCallbackInfoWithModule::set_native_require(
 void StartExecutionCallbackInfoWithModule::set_run_module(
     Local<Function> run_module) {
   impl_->run_module = run_module;
-}
-
-void StartExecutionCallbackInfoWithModule::set_data(void* data) {
-  impl_->data = data;
-}
-
-Environment* StartExecutionCallbackInfoWithModule::env() const {
-  return impl_->env;
-}
-
-Local<Object> StartExecutionCallbackInfoWithModule::process_object() const {
-  return impl_->process_object;
-}
-
-Local<Function> StartExecutionCallbackInfoWithModule::native_require() const {
-  return impl_->native_require;
-}
-
-Local<Function> StartExecutionCallbackInfoWithModule::run_module() const {
-  return impl_->run_module;
-}
-
-void* StartExecutionCallbackInfoWithModule::data() const {
-  return impl_->data;
 }
 
 struct ModuleData::Impl {
@@ -687,46 +677,23 @@ std::string_view ModuleData::resource_name() const {
   return impl_->resource_name;
 }
 
-struct LegacyModuleData {
-  StartExecutionCallback cb;
-  void* callback_data;
-};
-
 MaybeLocal<Value> LoadEnvironment(Environment* env,
                                   StartExecutionCallback cb,
                                   EmbedderPreloadCallback preload) {
-  if (cb == nullptr) {
+  if (!cb) {
     return LoadEnvironment(
         env, StartExecutionCallbackWithModule{}, std::move(preload));
   }
 
   return LoadEnvironment(
       env,
-      [](const StartExecutionCallbackInfoWithModule& info)
+      [cb = std::move(cb)](const StartExecutionCallbackInfoWithModule& info)
           -> MaybeLocal<Value> {
-        const StartExecutionCallback* cb =
-            static_cast<const StartExecutionCallback*>(info.data());
         StartExecutionCallbackInfo legacy_info{
             info.process_object(), info.native_require(), info.run_module()};
-        return (*cb)(legacy_info);
+        return cb(legacy_info);
       },
-      nullptr,
-      &cb);
-}
-
-MaybeLocal<Value> RunModule(const StartExecutionCallbackInfoWithModule& info) {
-  const ModuleData* data = static_cast<const ModuleData*>(info.data());
-  Environment* env = info.env();
-  Local<Context> context = env->context();
-  Isolate* isolate = env->isolate();
-  Local<Value> main_script =
-      ToV8Value(context, data->source()).ToLocalChecked();
-  Local<Value> format =
-      v8::Integer::New(isolate, static_cast<int>(data->format()));
-  Local<Value> resource_name =
-      ToV8Value(context, data->resource_name()).ToLocalChecked();
-  Local<Value> args[] = {main_script, format, resource_name};
-  return info.run_module()->Call(context, Null(isolate), arraysize(args), args);
+      std::move(preload));
 }
 
 MaybeLocal<Value> LoadEnvironment(Environment* env,
@@ -745,7 +712,23 @@ MaybeLocal<Value> LoadEnvironment(Environment* env,
   // It could be empty when it's used by SEA to load an empty script.
   CHECK_IMPLIES(data->source().size() > 0, data->source().data());
   return LoadEnvironment(
-      env, RunModule, std::move(preload), const_cast<ModuleData*>(data));
+      env,
+      [data](const StartExecutionCallbackInfoWithModule& info)
+          -> MaybeLocal<Value> {
+        Environment* env = info.env();
+        Local<Context> context = env->context();
+        Isolate* isolate = env->isolate();
+        Local<Value> main_script =
+            ToV8Value(context, data->source()).ToLocalChecked();
+        Local<Value> format =
+            v8::Integer::New(isolate, static_cast<int>(data->format()));
+        Local<Value> resource_name =
+            ToV8Value(context, data->resource_name()).ToLocalChecked();
+        Local<Value> args[] = {main_script, format, resource_name};
+        return info.run_module()->Call(
+            context, Null(isolate), arraysize(args), args);
+      },
+      std::move(preload));
 }
 
 Environment* GetCurrentEnvironment(Local<Context> context) {

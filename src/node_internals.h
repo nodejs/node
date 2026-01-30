@@ -364,9 +364,7 @@ v8::Isolate* NewIsolate(v8::Isolate::CreateParams* params,
 // This overload automatically picks the right 'main_script_id' if no callback
 // was provided by the embedder.
 v8::MaybeLocal<v8::Value> StartExecution(
-    Environment* env,
-    StartExecutionCallbackWithModule cb = nullptr,
-    void* callback_data = nullptr);
+    Environment* env, StartExecutionCallbackWithModule cb = nullptr);
 v8::MaybeLocal<v8::Object> GetPerContextExports(
     v8::Local<v8::Context> context, IsolateData* isolate_data = nullptr);
 void MarkBootstrapComplete(const v8::FunctionCallbackInfo<v8::Value>& args);

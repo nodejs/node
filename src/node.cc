@@ -258,7 +258,7 @@ MaybeLocal<Value> StartExecution(Environment* env, const char* main_script_id) {
 // StartExecutionCallbackInfoWithModule. Currently the result is an array
 // containing [process, requireFunction, runModule].
 std::optional<StartExecutionCallbackInfoWithModule> CallbackInfoFromArray(
-    Environment* env, Local<Value> result, void* callback_data) {
+    Environment* env, Local<Value> result) {
   CHECK(result->IsArray());
   Local<Array> args = result.As<Array>();
   CHECK_EQ(args->Length(), 3);
@@ -277,13 +277,11 @@ std::optional<StartExecutionCallbackInfoWithModule> CallbackInfoFromArray(
   info.set_process_object(process_obj.As<Object>());
   info.set_native_require(require_fn.As<Function>());
   info.set_run_module(run_module.As<Function>());
-  info.set_data(callback_data);
   return info;
 }
 
 MaybeLocal<Value> StartExecution(Environment* env,
-                                 StartExecutionCallbackWithModule cb,
-                                 void* callback_data) {
+                                 StartExecutionCallbackWithModule cb) {
   InternalCallbackScope callback_scope(
       env,
       Object::New(env->isolate()),
@@ -292,7 +290,7 @@ MaybeLocal<Value> StartExecution(Environment* env,
 
   // Only snapshot builder or embedder applications set the
   // callback.
-  if (cb != nullptr) {
+  if (cb) {
     EscapableHandleScope scope(env->isolate());
 
     Local<Value> result;
@@ -306,9 +304,9 @@ MaybeLocal<Value> StartExecution(Environment* env,
       }
     }
 
-    auto info = CallbackInfoFromArray(env, result, callback_data);
+    auto info = CallbackInfoFromArray(env, result);
     if (!info.has_value()) {
-      MaybeLocal<Value>();
+      return MaybeLocal<Value>();
     }
 #if HAVE_INSPECTOR
     if (env->options()->debug_options().break_first_line) {

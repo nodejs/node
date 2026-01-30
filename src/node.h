@@ -736,13 +736,8 @@ enum class ModuleFormat : uint8_t {
 // The layout is opaque to allow future additions without breaking ABI.
 class NODE_EXTERN StartExecutionCallbackInfoWithModule {
  public:
+  StartExecutionCallbackInfoWithModule();
   ~StartExecutionCallbackInfoWithModule();
-
-  Environment* env() const;
-  v8::Local<v8::Object> process_object() const;
-  v8::Local<v8::Function> native_require() const;
-  v8::Local<v8::Function> run_module() const;
-  void* data() const;
 
   StartExecutionCallbackInfoWithModule(
       const StartExecutionCallbackInfoWithModule&) = delete;
@@ -752,12 +747,15 @@ class NODE_EXTERN StartExecutionCallbackInfoWithModule {
   StartExecutionCallbackInfoWithModule& operator=(
       StartExecutionCallbackInfoWithModule&&);
 
-  StartExecutionCallbackInfoWithModule();
+  Environment* env() const;
+  v8::Local<v8::Object> process_object() const;
+  v8::Local<v8::Function> native_require() const;
+  v8::Local<v8::Function> run_module() const;
+
   void set_env(Environment* env);
   void set_process_object(v8::Local<v8::Object> process_object);
   void set_native_require(v8::Local<v8::Function> native_require);
   void set_run_module(v8::Local<v8::Function> run_module);
-  void set_data(void* data);
 
  private:
   struct Impl;
@@ -796,8 +794,7 @@ NODE_EXTERN v8::MaybeLocal<v8::Value> LoadEnvironment(
 NODE_EXTERN v8::MaybeLocal<v8::Value> LoadEnvironment(
     Environment* env,
     StartExecutionCallbackWithModule cb,
-    EmbedderPreloadCallback preload = nullptr,
-    void* callback_data = nullptr);
+    EmbedderPreloadCallback preload = nullptr);
 
 NODE_EXTERN v8::MaybeLocal<v8::Value> LoadEnvironment(
     Environment* env,
@@ -812,6 +809,11 @@ class NODE_EXTERN ModuleData {
   ModuleData();
   ~ModuleData();
 
+  ModuleData(const ModuleData&) = delete;
+  ModuleData& operator=(const ModuleData&) = delete;
+  ModuleData(ModuleData&&);
+  ModuleData& operator=(ModuleData&&);
+
   void set_source(std::string_view source);
   void set_format(ModuleFormat format);
   void set_resource_name(std::string_view name);
@@ -819,11 +821,6 @@ class NODE_EXTERN ModuleData {
   std::string_view source() const;
   ModuleFormat format() const;
   std::string_view resource_name() const;
-
-  ModuleData(const ModuleData&) = delete;
-  ModuleData& operator=(const ModuleData&) = delete;
-  ModuleData(ModuleData&&);
-  ModuleData& operator=(ModuleData&&);
 
  private:
   struct Impl;
