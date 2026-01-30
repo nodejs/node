@@ -254,6 +254,13 @@ class V8_EXPORT V8 {
 #endif  // V8_ENABLE_SANDBOX
 
   /**
+   * Enabling the WebAssembly trap handler requires the process to be able to
+   * access enough virtual address space. Returns true if the
+   * system requirements are met at the time of the call.
+   */
+  static bool CanEnableWebAssemblyTrapHandler();
+
+  /**
    * Activate trap-based bounds checking for WebAssembly.
    *
    * \param use_v8_signal_handler Whether V8 should install its own signal
