@@ -193,11 +193,7 @@
         },
         "experimental-print-required-tla": {
           "type": "boolean",
-          "description": "Print pending top-level await. If --experimental-require-module is true, evaluate asynchronous graphs loaded by `require()` but do not run the microtasks, in order to to find and print top-level await in the graph"
-        },
-        "experimental-quic": {
-          "type": "boolean",
-          "description": "experimental QUIC support"
+          "description": "Print pending top-level await. If --require-module is true, evaluate asynchronous graphs loaded by `require()` but do not run the microtasks, in order to to find and print top-level await in the graph"
         },
         "experimental-repl-await": {
           "type": "boolean",
@@ -205,7 +201,7 @@
         },
         "experimental-require-module": {
           "type": "boolean",
-          "description": "Allow loading synchronous ES Modules in require()."
+          "description": "Legacy alias for --require-module"
         },
         "experimental-shadow-realm": {
           "type": "boolean",
@@ -436,6 +432,10 @@
             }
           ],
           "description": "CommonJS module to preload (option can be repeated)"
+        },
+        "require-module": {
+          "type": "boolean",
+          "description": "Allow loading synchronous ES Modules in require()."
         },
         "secure-heap": {
           "type": "number",
