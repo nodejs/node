@@ -1,18 +1,19 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('node:assert');
-const { spawnSync } = require('node:child_process');
 const fixtures = require('../common/fixtures');
+const { run } = require('node:test');
 
 const testFile = fixtures.path('test-runner', 'syntax-error-test.mjs');
-const child = spawnSync(process.execPath, [
-  '--no-warnings',
-  '--test',
-  '--test-reporter=tap',
-  '--test-isolation=none',
-  testFile,
-], { encoding: 'utf8' });
+const testRun = run({
+  files: [testFile],
+  isolation: 'none'
+});
 
-assert.match(child.stdout, /error:.*"Unexpected token 'true'"\n/);
-assert.match(child.stdout, /SyntaxError/);
-assert.strictEqual(child.status, 1);
+testRun.on('test:enqueue', common.mustCall((test) => {
+  assert.strictEqual(test.file, testFile);
+}));
+
+testRun.on('test:fail', common.mustCall((test) => {
+  assert.match(test.details.error.toString(), /SyntaxError: Unexpected token 'true'/);
+}));
