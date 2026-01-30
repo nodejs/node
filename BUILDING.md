@@ -110,6 +110,7 @@ platforms. This is true regardless of entries in the table below.
 | GNU/Linux        | x64              | kernel >= 3.10, musl >= 1.1.19    | Experimental | e.g. Alpine 3.8                      |
 | GNU/Linux        | x86              | kernel >= 3.10, glibc >= 2.17     | Experimental | Downgraded as of Node.js 10          |
 | GNU/Linux        | arm64            | kernel >= 4.18[^1], glibc >= 2.28 | Tier 1       | e.g. Ubuntu 20.04, Debian 10, RHEL 8 |
+| GNU/Linux        | arm64            | kernel >= 6.12, musl >= 1.2.5     | Experimental | e.g. Alpine 3.22                     |
 | GNU/Linux        | armv7            | kernel >= 4.18[^1], glibc >= 2.28 | Experimental | Downgraded as of Node.js 24          |
 | GNU/Linux        | armv6            | kernel >= 4.14, glibc >= 2.24     | Experimental | Downgraded as of Node.js 12          |
 | GNU/Linux        | ppc64le >=power9 | kernel >= 4.18[^1], glibc >= 2.28 | Tier 2       | e.g. Ubuntu 20.04, RHEL 8            |
