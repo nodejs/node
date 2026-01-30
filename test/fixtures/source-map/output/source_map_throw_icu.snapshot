@@ -6,4 +6,4 @@ Error: an error
     at Object.createElement (*/test/fixtures/source-map/icu.jsx:3:23)
     at Object.<anonymous> (*/test/fixtures/source-map/icu.jsx:9:5)
 
-Node.js *
+Node.js <node-version>

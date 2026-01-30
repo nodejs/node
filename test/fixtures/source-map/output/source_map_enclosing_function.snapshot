@@ -9,4 +9,4 @@ Error: an error!
     at functionA (*/test/fixtures/source-map/enclosing-call-site.js:2:3)
     at Object.<anonymous> (*/test/fixtures/source-map/enclosing-call-site.js:24:3)
 
-Node.js *
+Node.js <node-version>

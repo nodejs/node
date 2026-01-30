@@ -4,13 +4,14 @@ const path = require('node:path');
 const test = require('node:test');
 const fs = require('node:fs/promises');
 const assert = require('node:assert/strict');
+const { pathToFileURL } = require('node:url');
 const { hostname } = require('node:os');
 
 const stackFramesRegexp = /(?<=\n)(\s+)((.+?)\s+\()?(?:\(?(.+?):(\d+)(?::(\d+))?)\)?(\s+\{)?(\[\d+m)?(\n|$)/g;
 const windowNewlineRegexp = /\r/g;
 
 function replaceNodeVersion(str) {
-  return str.replaceAll(process.version, '*');
+  return str.replaceAll(process.version, '<node-version>');
 }
 
 function replaceStackTrace(str, replacement = '$1*$7$8\n') {
@@ -31,10 +32,28 @@ function replaceWindowsPaths(str) {
   return common.isWindows ? str.replaceAll(path.win32.sep, path.posix.sep) : str;
 }
 
+function replaceTrailingSpaces(str) {
+  return str.replaceAll(/[\t ]+\n/g, '\n');
+}
+
+// Replaces customized or platform specific executable names to be `node`.
+function generalizeExeName(str) {
+  const baseName = path.basename(process.argv0 || 'node', '.exe');
+  return str.replaceAll(`${baseName} --`, 'node --');
+}
+
+function replaceWarningPid(str) {
+  return str.replaceAll(/\(node:\d+\)/g, '(node:<pid>)');
+}
+
 function transformProjectRoot(replacement = '') {
   const projectRoot = path.resolve(__dirname, '../..');
+  // Handles URL encoded project root in file URL strings as well.
+  const urlEncoded = pathToFileURL(projectRoot).pathname;
   return (str) => {
-    return str.replaceAll('\\\'', "'").replaceAll(projectRoot, replacement);
+    return str.replaceAll('\\\'', "'")
+      .replaceAll(projectRoot, replacement)
+      .replaceAll(urlEncoded, replacement);
   };
 }
 
@@ -152,32 +171,41 @@ function pickTestFileFromLcov(str) {
   );
 }
 
-const defaultTransform = transform(
+// Transforms basic patterns like:
+// - platform specific path and line endings,
+// - line trailing spaces,
+// - executable specific path and versions.
+const basicTransform = transform(
   replaceWindowsLineEndings,
-  replaceStackTrace,
+  replaceTrailingSpaces,
   removeWindowsPathEscaping,
-  transformProjectRoot(),
   replaceWindowsPaths,
+  replaceNodeVersion,
+  generalizeExeName,
+  replaceWarningPid,
+);
+
+const defaultTransform = transform(
+  basicTransform,
+  replaceStackTrace,
+  transformProjectRoot(),
   replaceTestDuration,
   replaceTestLocationLine,
 );
 const specTransform = transform(
   replaceSpecDuration,
-  replaceWindowsLineEndings,
+  basicTransform,
   replaceStackTrace,
-  replaceWindowsPaths,
 );
 const junitTransform = transform(
   replaceJunitDuration,
-  replaceWindowsLineEndings,
+  basicTransform,
   replaceStackTrace,
-  replaceWindowsPaths,
 );
 const lcovTransform = transform(
-  replaceWindowsLineEndings,
+  basicTransform,
   replaceStackTrace,
   transformProjectRoot(),
-  replaceWindowsPaths,
   pickTestFileFromLcov,
 );
 
@@ -204,6 +232,7 @@ module.exports = {
   transform,
   transformProjectRoot,
   replaceTestDuration,
+  basicTransform,
   defaultTransform,
   specTransform,
   junitTransform,

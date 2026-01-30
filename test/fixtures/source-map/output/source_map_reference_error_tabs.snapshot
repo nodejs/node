@@ -6,4 +6,4 @@ ReferenceError: alert is not defined
     at Object.<anonymous> (*/test/fixtures/source-map/tabs.coffee:26:2)
     at Object.<anonymous> (*/test/fixtures/source-map/tabs.coffee:1:14)
 
-Node.js *
+Node.js <node-version>

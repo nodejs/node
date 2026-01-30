@@ -53,9 +53,9 @@ Failed tests:
       *
 ✖ async assertion fail (*ms)
   AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
-  
+
   true !== false
-  
+
       *
       *
       *
@@ -178,7 +178,7 @@ Failed tests:
       *
 ✖ assertion errors display actual and expected properly (*ms)
   AssertionError [ERR_ASSERTION]: Expected values to be loosely deep-equal:
-  
+
   {
     bar: 1,
     baz: {
@@ -193,9 +193,9 @@ Failed tests:
     ],
     foo: 1
   }
-  
+
   should loosely deep-equal
-  
+
   {
     baz: {
       date: 1970-01-01T00:00:00.000Z,

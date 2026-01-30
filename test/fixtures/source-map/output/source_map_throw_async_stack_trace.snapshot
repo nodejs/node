@@ -7,4 +7,4 @@ Error: message
     at async Promise.all (index 3)
     at async main (*/test/fixtures/source-map/output/source_map_throw_async_stack_trace.mts:17:3)
 
-Node.js *
+Node.js <node-version>

@@ -15,9 +15,9 @@ TAP version 13
       failureType: 'uncaughtException'
       error: |-
         The expression evaluated to a falsy value:
-        
+
           t.assert.ok(false)
-        
+
       code: 'ERR_ASSERTION'
       name: 'AssertionError'
       expected: true
@@ -53,9 +53,9 @@ TAP version 13
       failureType: 'uncaughtException'
       error: |-
         The expression evaluated to a falsy value:
-        
+
           t.assert.ok(false)
-        
+
       code: 'ERR_ASSERTION'
       name: 'AssertionError'
       expected: true

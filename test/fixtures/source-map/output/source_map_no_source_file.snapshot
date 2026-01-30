@@ -6,4 +6,4 @@ Error: foo
     at Throw (*/test/fixtures/source-map/file-not-exists.ts:2:9)
     at Object.<anonymous> (*/test/fixtures/source-map/file-not-exists.ts:5:1)
 
-Node.js *
+Node.js <node-version>
