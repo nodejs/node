@@ -24,6 +24,4 @@ var __importStar = (this && this.__importStar) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 var logger_1 = __importStar(require("logger"));
-var logger = logger_1.createLogger();
-new logger_1.JSONConsumer().attach();
-logger.info('import both');
+(0, logger_1.log)(new logger_1.default(), 'import both');
