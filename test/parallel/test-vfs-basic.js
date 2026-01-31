@@ -2,11 +2,11 @@
 
 require('../common');
 const assert = require('assert');
-const fs = require('fs');
+const vfs = require('node:vfs');
 
-// Test that VirtualFileSystem can be created via fs.createVirtual()
+// Test that VirtualFileSystem can be created via vfs.create()
 {
-  const myVfs = fs.createVirtual();
+  const myVfs = vfs.create();
   assert.ok(myVfs);
   assert.strictEqual(typeof myVfs.writeFileSync, 'function');
   assert.strictEqual(myVfs.mounted, false);
@@ -14,7 +14,7 @@ const fs = require('fs');
 
 // Test adding and reading a static file
 {
-  const myVfs = fs.createVirtual();
+  const myVfs = vfs.create();
   myVfs.mkdirSync('/test', { recursive: true });
   myVfs.writeFileSync('/test/file.txt', 'hello world');
 
@@ -33,7 +33,7 @@ const fs = require('fs');
 
 // Test statSync
 {
-  const myVfs = fs.createVirtual();
+  const myVfs = vfs.create();
   myVfs.mkdirSync('/test/dir', { recursive: true });
   myVfs.writeFileSync('/test/file.txt', 'content');
 
@@ -54,7 +54,7 @@ const fs = require('fs');
 
 // Test readdirSync
 {
-  const myVfs = fs.createVirtual();
+  const myVfs = vfs.create();
   myVfs.mkdirSync('/dir/subdir', { recursive: true });
   myVfs.writeFileSync('/dir/a.txt', 'a');
   myVfs.writeFileSync('/dir/b.txt', 'b');
@@ -89,7 +89,7 @@ const fs = require('fs');
 
 // Test removing entries
 {
-  const myVfs = fs.createVirtual();
+  const myVfs = vfs.create();
   myVfs.mkdirSync('/test', { recursive: true });
   myVfs.writeFileSync('/test/file.txt', 'content');
 
@@ -105,7 +105,7 @@ const fs = require('fs');
 
 // Test mount mode
 {
-  const myVfs = fs.createVirtual();
+  const myVfs = vfs.create();
   myVfs.mkdirSync('/data', { recursive: true });
   myVfs.writeFileSync('/data/file.txt', 'mounted content');
 
@@ -124,7 +124,7 @@ const fs = require('fs');
 
 // Test internalModuleStat (used by Module._stat)
 {
-  const myVfs = fs.createVirtual();
+  const myVfs = vfs.create();
   myVfs.mkdirSync('/dir', { recursive: true });
   myVfs.writeFileSync('/module.js', 'module.exports = {}');
 
@@ -135,7 +135,7 @@ const fs = require('fs');
 
 // Test reading directory as file throws EISDIR
 {
-  const myVfs = fs.createVirtual();
+  const myVfs = vfs.create();
   myVfs.mkdirSync('/mydir', { recursive: true });
 
   assert.throws(() => {
@@ -145,7 +145,7 @@ const fs = require('fs');
 
 // Test realpathSync
 {
-  const myVfs = fs.createVirtual();
+  const myVfs = vfs.create();
   myVfs.mkdirSync('/test', { recursive: true });
   myVfs.writeFileSync('/test/file.txt', 'content');
 

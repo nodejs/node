@@ -3,10 +3,11 @@
 const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
+const vfs = require('node:vfs');
 
 // Test globSync with VFS mounted directory
 {
-  const myVfs = fs.createVirtual();
+  const myVfs = vfs.create();
   myVfs.mkdirSync('/src/lib/deep', { recursive: true });
   myVfs.mkdirSync('/src/empty', { recursive: true });
   myVfs.writeFileSync('/src/index.js', 'export default 1;');
@@ -40,7 +41,7 @@ const fs = require('fs');
 
 // Test async glob (callback API) with VFS mounted directory
 {
-  const myVfs = fs.createVirtual();
+  const myVfs = vfs.create();
   myVfs.mkdirSync('/async-src/lib', { recursive: true });
   myVfs.writeFileSync('/async-src/index.js', 'export default 1;');
   myVfs.writeFileSync('/async-src/utils.js', 'export const util = 1;');
@@ -68,7 +69,7 @@ const fs = require('fs');
 
 // Test async glob (promise API) with VFS
 (async () => {
-  const myVfs = fs.createVirtual();
+  const myVfs = vfs.create();
   myVfs.mkdirSync('/promise-src', { recursive: true });
   myVfs.writeFileSync('/promise-src/a.ts', 'const a = 1;');
   myVfs.writeFileSync('/promise-src/b.ts', 'const b = 2;');
@@ -98,7 +99,7 @@ const fs = require('fs');
 
 // Test glob with withFileTypes option
 {
-  const myVfs = fs.createVirtual();
+  const myVfs = vfs.create();
   myVfs.mkdirSync('/typed/subdir', { recursive: true });
   myVfs.writeFileSync('/typed/file.txt', 'text');
   myVfs.writeFileSync('/typed/subdir/nested.txt', 'nested');
@@ -122,7 +123,7 @@ const fs = require('fs');
 
 // Test glob with multiple patterns
 {
-  const myVfs = fs.createVirtual();
+  const myVfs = vfs.create();
   myVfs.mkdirSync('/multi', { recursive: true });
   myVfs.writeFileSync('/multi/a.js', 'a');
   myVfs.writeFileSync('/multi/b.ts', 'b');
@@ -139,7 +140,7 @@ const fs = require('fs');
 
 // Test that unmounting stops glob from finding VFS files
 {
-  const myVfs = fs.createVirtual();
+  const myVfs = vfs.create();
   myVfs.mkdirSync('/unmount-test', { recursive: true });
   myVfs.writeFileSync('/unmount-test/file.js', 'content');
   myVfs.mount('/unmount-glob');
@@ -155,7 +156,7 @@ const fs = require('fs');
 
 // Test glob pattern that doesn't match anything
 {
-  const myVfs = fs.createVirtual();
+  const myVfs = vfs.create();
   myVfs.mkdirSync('/nomatch', { recursive: true });
   myVfs.writeFileSync('/nomatch/file.txt', 'content');
   myVfs.mount('/nomatchvfs');
@@ -168,7 +169,7 @@ const fs = require('fs');
 
 // Test cwd option with VFS (relative patterns)
 {
-  const myVfs = fs.createVirtual();
+  const myVfs = vfs.create();
   myVfs.mkdirSync('/cwd-test', { recursive: true });
   myVfs.writeFileSync('/cwd-test/a.js', 'a');
   myVfs.writeFileSync('/cwd-test/b.js', 'b');

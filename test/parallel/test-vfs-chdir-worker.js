@@ -2,15 +2,15 @@
 
 const common = require('../common');
 const assert = require('assert');
-const fs = require('fs');
+const vfs = require('node:vfs');
 const { Worker, isMainThread, parentPort, workerData } = require('worker_threads');
 
 if (isMainThread) {
   // Test 1: Verify that VFS setup in main thread doesn't automatically apply to workers
   {
-    const vfs = fs.createVirtual({ virtualCwd: true });
-    vfs.mkdirSync('/project', { recursive: true });
-    vfs.mount('/virtual');
+    const myVfs = vfs.create({ virtualCwd: true });
+    myVfs.mkdirSync('/project', { recursive: true });
+    myVfs.mount('/virtual');
 
     // Set virtual cwd in main thread
     process.chdir('/virtual/project');
@@ -29,7 +29,7 @@ if (isMainThread) {
 
     worker.on('exit', common.mustCall((code) => {
       assert.strictEqual(code, 0);
-      vfs.unmount();
+      myVfs.unmount();
     }));
   }
 
@@ -75,30 +75,30 @@ if (isMainThread) {
     parentPort.postMessage({ cwd: process.cwd() });
   } else if (test === 'worker-independent-vfs') {
     // Set up VFS independently in worker
-    const vfs = fs.createVirtual({ virtualCwd: true });
-    vfs.mkdirSync('/data', { recursive: true });
-    vfs.mount('/worker-virtual');
+    const myVfs = vfs.create({ virtualCwd: true });
+    myVfs.mkdirSync('/data', { recursive: true });
+    myVfs.mount('/worker-virtual');
 
     process.chdir('/worker-virtual/data');
     const cwd = process.cwd();
 
-    vfs.unmount();
+    myVfs.unmount();
 
     parentPort.postMessage({ success: true, cwd });
   } else if (test === 'worker-create-vfs') {
     // Test VFS creation and chdir in worker
-    const vfs = fs.createVirtual({ virtualCwd: true });
-    vfs.mkdirSync('/project/src', { recursive: true });
-    vfs.mount('/');
+    const myVfs = vfs.create({ virtualCwd: true });
+    myVfs.mkdirSync('/project/src', { recursive: true });
+    myVfs.mount('/');
 
-    vfs.chdir('/project/src');
+    myVfs.chdir('/project/src');
 
     parentPort.postMessage({
       success: true,
-      virtualCwdEnabled: vfs.virtualCwdEnabled,
-      vfsCwd: vfs.cwd(),
+      virtualCwdEnabled: myVfs.virtualCwdEnabled,
+      vfsCwd: myVfs.cwd(),
     });
 
-    vfs.unmount();
+    myVfs.unmount();
   }
 }

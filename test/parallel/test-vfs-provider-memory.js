@@ -2,11 +2,11 @@
 
 const common = require('../common');
 const assert = require('assert');
-const fs = require('fs');
+const vfs = require('node:vfs');
 
 // Test copyFileSync
 {
-  const myVfs = fs.createVirtual();
+  const myVfs = vfs.create();
   myVfs.writeFileSync('/source.txt', 'original content');
 
   myVfs.copyFileSync('/source.txt', '/dest.txt');
@@ -28,7 +28,7 @@ const fs = require('fs');
 
 // Test async copyFile
 (async () => {
-  const myVfs = fs.createVirtual();
+  const myVfs = vfs.create();
   myVfs.writeFileSync('/async-source.txt', 'async content');
 
   await myVfs.promises.copyFile('/async-source.txt', '/async-dest.txt');
@@ -43,7 +43,7 @@ const fs = require('fs');
 
 // Test copyFileSync with mode argument
 {
-  const myVfs = fs.createVirtual();
+  const myVfs = vfs.create();
   myVfs.writeFileSync('/src-mode.txt', 'mode content');
 
   // copyFileSync also accepts a mode argument (ignored for VFS but tests the code path)
@@ -53,7 +53,7 @@ const fs = require('fs');
 
 // Test appendFileSync
 {
-  const myVfs = fs.createVirtual();
+  const myVfs = vfs.create();
   myVfs.writeFileSync('/append.txt', 'hello');
 
   myVfs.appendFileSync('/append.txt', ' world');
@@ -70,7 +70,7 @@ const fs = require('fs');
 
 // Test async appendFile
 (async () => {
-  const myVfs = fs.createVirtual();
+  const myVfs = vfs.create();
   myVfs.writeFileSync('/async-append.txt', 'start');
 
   await myVfs.promises.appendFile('/async-append.txt', '-end');
@@ -79,7 +79,7 @@ const fs = require('fs');
 
 // Test appendFileSync with Buffer
 {
-  const myVfs = fs.createVirtual();
+  const myVfs = vfs.create();
   myVfs.writeFileSync('/buffer-append.txt', Buffer.from('start'));
 
   myVfs.appendFileSync('/buffer-append.txt', Buffer.from('-buffer'));
@@ -88,7 +88,7 @@ const fs = require('fs');
 
 // Test MemoryProvider readonly mode
 {
-  const myVfs = fs.createVirtual();
+  const myVfs = vfs.create();
   myVfs.writeFileSync('/file.txt', 'content');
   myVfs.mkdirSync('/dir', { recursive: true });
 
@@ -141,7 +141,7 @@ const fs = require('fs');
 
 // Test async operations on readonly VFS
 (async () => {
-  const myVfs = fs.createVirtual();
+  const myVfs = vfs.create();
   myVfs.writeFileSync('/readonly.txt', 'content');
   myVfs.provider.setReadOnly();
 
@@ -173,7 +173,7 @@ const fs = require('fs');
 
 // Test accessSync
 {
-  const myVfs = fs.createVirtual();
+  const myVfs = vfs.create();
   myVfs.writeFileSync('/access-test.txt', 'content');
 
   // Should not throw for existing file

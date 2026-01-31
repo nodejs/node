@@ -3,13 +3,14 @@
 require('../common');
 const assert = require('assert');
 const fs = require('fs');
+const vfs = require('node:vfs');
 
 // Test requiring a simple virtual module
 // VFS internal path: /hello.js
 // Mount point: /virtual
 // External path: /virtual/hello.js
 {
-  const myVfs = fs.createVirtual();
+  const myVfs = vfs.create();
   myVfs.writeFileSync('/hello.js', 'module.exports = "hello from vfs";');
   myVfs.mount('/virtual');
 
@@ -21,7 +22,7 @@ const fs = require('fs');
 
 // Test requiring a virtual module that exports an object
 {
-  const myVfs = fs.createVirtual();
+  const myVfs = vfs.create();
   myVfs.writeFileSync('/config.js', `
     module.exports = {
       name: 'test-config',
@@ -41,7 +42,7 @@ const fs = require('fs');
 
 // Test requiring a virtual module that requires another virtual module
 {
-  const myVfs = fs.createVirtual();
+  const myVfs = vfs.create();
   myVfs.writeFileSync('/utils.js', `
     module.exports = {
       add: function(a, b) { return a + b; }
@@ -63,7 +64,7 @@ const fs = require('fs');
 
 // Test requiring a JSON file from VFS
 {
-  const myVfs = fs.createVirtual();
+  const myVfs = vfs.create();
   myVfs.writeFileSync('/data.json', JSON.stringify({
     items: [1, 2, 3],
     enabled: true,
@@ -79,7 +80,7 @@ const fs = require('fs');
 
 // Test virtual package.json resolution
 {
-  const myVfs = fs.createVirtual();
+  const myVfs = vfs.create();
   myVfs.mkdirSync('/my-package', { recursive: true });
   myVfs.writeFileSync('/my-package/package.json', JSON.stringify({
     name: 'my-package',
@@ -98,7 +99,7 @@ const fs = require('fs');
 
 // Test that real modules still work when VFS is mounted
 {
-  const myVfs = fs.createVirtual();
+  const myVfs = vfs.create();
   myVfs.writeFileSync('/test.js', 'module.exports = 1;');
   myVfs.mount('/virtual6');
 
@@ -114,7 +115,7 @@ const fs = require('fs');
 
 // Test require with relative paths inside VFS module
 {
-  const myVfs = fs.createVirtual();
+  const myVfs = vfs.create();
   myVfs.mkdirSync('/lib', { recursive: true });
   myVfs.writeFileSync('/lib/helper.js', `
     module.exports = { help: function() { return 'helped'; } };
@@ -133,7 +134,7 @@ const fs = require('fs');
 
 // Test fs.readFileSync interception when VFS is active
 {
-  const myVfs = fs.createVirtual();
+  const myVfs = vfs.create();
   myVfs.writeFileSync('/file.txt', 'virtual content');
   myVfs.mount('/virtual9');
 
@@ -145,7 +146,7 @@ const fs = require('fs');
 
 // Test that unmounting stops interception
 {
-  const myVfs = fs.createVirtual();
+  const myVfs = vfs.create();
   myVfs.writeFileSync('/unmount-test.js', 'module.exports = "before unmount";');
   myVfs.mount('/virtual10');
 
