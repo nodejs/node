@@ -4,7 +4,7 @@
 require('../common');
 const assert = require('node:assert');
 const { describe, it } = require('node:test');
-const { createLogger, Logger, LogConsumer, JSONConsumer, LEVELS, channels } = require('node:logger');
+const { Logger, LogConsumer, JSONConsumer, LEVELS, channels } = require('node:logger');
 const { Writable } = require('node:stream');
 
 // Test helper to capture log output
@@ -48,9 +48,9 @@ describe('LEVELS constant', () => {
   });
 });
 
-describe('createLogger', () => {
-  it('should return a Logger instance', () => {
-    const logger = createLogger();
+describe('Logger constructor', () => {
+  it('should create a Logger instance', () => {
+    const logger = new Logger();
     assert(logger instanceof Logger);
   });
 });
@@ -58,7 +58,7 @@ describe('createLogger', () => {
 describe('Logger', () => {
   describe('methods', () => {
     it('should have all log methods', () => {
-      const logger = createLogger();
+      const logger = new Logger();
       assert.strictEqual(typeof logger.trace, 'function');
       assert.strictEqual(typeof logger.debug, 'function');
       assert.strictEqual(typeof logger.info, 'function');
@@ -72,7 +72,7 @@ describe('Logger', () => {
 
   describe('level filtering', () => {
     it('should filter logs based on configured level', () => {
-      const logger = createLogger({ level: 'warn' });
+      const logger = new Logger({ level: 'warn' });
       assert.strictEqual(logger.enabled('trace'), false);
       assert.strictEqual(logger.enabled('debug'), false);
       assert.strictEqual(logger.enabled('info'), false);
@@ -84,7 +84,7 @@ describe('Logger', () => {
 
   describe('msg field validation', () => {
     it('should throw when object is missing msg field', () => {
-      const logger = createLogger();
+      const logger = new Logger();
       assert.throws(() => {
         logger.info({ userId: 123 }); // Missing msg
       }, {
@@ -93,7 +93,7 @@ describe('Logger', () => {
     });
 
     it('should throw when msg is not a string', () => {
-      const logger = createLogger();
+      const logger = new Logger();
       assert.throws(() => {
         logger.info({ msg: 123 }); // msg is not a string
       }, {
@@ -102,7 +102,7 @@ describe('Logger', () => {
     });
 
     it('should accept string message without second argument', () => {
-      const logger = createLogger();
+      const logger = new Logger();
       // Should not throw
       logger.info('just a message');
     });
@@ -111,7 +111,7 @@ describe('Logger', () => {
   describe('invalid level', () => {
     it('should throw for invalid log level', () => {
       assert.throws(() => {
-        createLogger({ level: 'invalid' });
+        new Logger({ level: 'invalid' });
       }, {
         code: 'ERR_INVALID_ARG_VALUE',
       });
@@ -120,7 +120,7 @@ describe('Logger', () => {
 
   describe('invalid fields argument', () => {
     it('should throw when fields is not an object', () => {
-      const logger = createLogger();
+      const logger = new Logger();
       assert.throws(() => {
         logger.info('message', 'not an object');
       }, {
@@ -133,7 +133,7 @@ describe('Logger', () => {
 describe('child logger', () => {
   describe('context inheritance', () => {
     it('should create a new Logger instance with inherited level', () => {
-      const logger = createLogger({ level: 'info' });
+      const logger = new Logger({ level: 'info' });
       const childLogger = logger.child({ requestId: 'abc-123' });
 
       assert(childLogger instanceof Logger);
@@ -143,7 +143,7 @@ describe('child logger', () => {
     });
 
     it('should support nested child loggers', () => {
-      const logger = createLogger({ level: 'info' });
+      const logger = new Logger({ level: 'info' });
       const childLogger = logger.child({ requestId: 'abc-123' });
       const grandchildLogger = childLogger.child({ operation: 'query' });
 
@@ -154,7 +154,7 @@ describe('child logger', () => {
 
   describe('level override', () => {
     it('should allow overriding log level in child logger', () => {
-      const logger = createLogger({ level: 'info' });
+      const logger = new Logger({ level: 'info' });
       const childLogger = logger.child({ requestId: 'abc' }, { level: 'debug' });
 
       assert.strictEqual(logger.enabled('debug'), false);
@@ -168,7 +168,7 @@ describe('child logger', () => {
       const consumer = new JSONConsumer({ stream, level: 'info' });
       consumer.attach();
 
-      const logger = createLogger({ level: 'info' });
+      const logger = new Logger({ level: 'info' });
       const childLogger = logger.child({ requestId: 'xyz-789' });
 
       childLogger.info({ msg: 'child log', action: 'create' });
@@ -192,7 +192,7 @@ describe('child logger', () => {
       });
       consumer.attach();
 
-      const logger = createLogger({ level: 'info' });
+      const logger = new Logger({ level: 'info' });
       const childLogger = logger.child({ requestId: '123' });
 
       childLogger.info('request processed', { duration: 150 });
@@ -217,7 +217,7 @@ describe('child logger', () => {
       });
       consumer.attach();
 
-      const logger = createLogger({ level: 'info' });
+      const logger = new Logger({ level: 'info' });
       const childLogger = logger.child({ env: 'staging' });
 
       childLogger.info('test', { env: 'production' });
@@ -253,7 +253,7 @@ describe('LogConsumer', () => {
 
     const consumer = new TestConsumer({ level: 'warn' });
     consumer.attach();
-    const logger = createLogger({ level: 'warn' });
+    const logger = new Logger({ level: 'warn' });
 
     // This should be skipped (info < warn)
     logger.info({ msg: 'skipped' });
@@ -271,7 +271,7 @@ describe('JSONConsumer', () => {
       const stream = new TestStream();
       const consumer = new JSONConsumer({ stream, level: 'info' });
       consumer.attach();
-      const logger = createLogger({ level: 'info' });
+      const logger = new Logger({ level: 'info' });
 
       logger.info({ msg: 'test message', userId: 123 });
       consumer.flushSync();
@@ -294,7 +294,7 @@ describe('JSONConsumer', () => {
         fields: { hostname: 'test-host', pid: 12345 },
       });
       consumer.attach();
-      const logger = createLogger({ level: 'info' });
+      const logger = new Logger({ level: 'info' });
 
       logger.info({ msg: 'with fields' });
       consumer.flushSync();
@@ -312,7 +312,7 @@ describe('JSONConsumer', () => {
       const stream = new TestStream();
       const consumer = new JSONConsumer({ stream, level: 'info' });
       consumer.attach();
-      const logger = createLogger({ level: 'info' });
+      const logger = new Logger({ level: 'info' });
 
       logger.info('simple message');
       consumer.flushSync();
@@ -327,7 +327,7 @@ describe('JSONConsumer', () => {
       const stream = new TestStream();
       const consumer = new JSONConsumer({ stream, level: 'info' });
       consumer.attach();
-      const logger = createLogger({ level: 'info' });
+      const logger = new Logger({ level: 'info' });
 
       logger.info('user login', { userId: 123, ip: '127.0.0.1' });
       consumer.flushSync();
@@ -347,7 +347,7 @@ describe('Error serialization', () => {
       const stream = new TestStream();
       const consumer = new JSONConsumer({ stream, level: 'info' });
       consumer.attach();
-      const logger = createLogger({ level: 'info' });
+      const logger = new Logger({ level: 'info' });
 
       const err = new Error('test error');
       err.code = 'TEST_ERROR';
@@ -369,7 +369,7 @@ describe('Error serialization', () => {
       const stream = new TestStream();
       const consumer = new JSONConsumer({ stream, level: 'info' });
       consumer.attach();
-      const logger = createLogger({ level: 'info' });
+      const logger = new Logger({ level: 'info' });
 
       const err = new Error('boom');
       logger.error(err);
@@ -440,7 +440,7 @@ describe('multiple consumers', () => {
     const consumer2 = new JSONConsumer({ stream: stream2, level: 'warn' });
     consumer2.attach();
 
-    const logger = createLogger({ level: 'debug' });
+    const logger = new Logger({ level: 'debug' });
 
     logger.debug({ msg: 'debug message' });
     logger.info({ msg: 'info message' });
