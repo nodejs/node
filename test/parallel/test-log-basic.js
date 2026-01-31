@@ -1,4 +1,5 @@
 'use strict';
+// Flags: --experimental-logger
 
 const common = require('../common');
 
