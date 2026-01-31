@@ -641,30 +641,6 @@ channels.info.subscribe((record) => {
 });
 ```
 
-## `logger.createLogger([options])`
-
-<!-- YAML
-added: REPLACEME
--->
-
-* `options` {Object} Same options as `new Logger(options)`.
-* Returns: {Logger}
-
-Convenience function to create a new `Logger` instance.
-
-```js
-const { createLogger } = require('node:logger');
-
-const logger = createLogger({ level: 'debug' });
-```
-
-## Aliases
-
-For convenience, the following aliases are provided:
-
-* `Handler` - Alias for `LogConsumer`
-* `JSONHandler` - Alias for `JSONConsumer`
-
 ## Examples
 
 ### Basic usage
