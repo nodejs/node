@@ -60,11 +60,22 @@ const { _checkIsHttpToken, _checkInvalidHeaderChar } = require('_http_common');
 
 
 // Good header field values
+// Per Fetch spec, header values may contain any byte (0x00-0xff) except
+// NUL (0x00), LF (0x0a), and CR (0x0d).
 [
   'foo bar',
   'foo\tbar',
   '0123456789ABCdef',
   '!@#$%^&*()-_=+\\;\':"[]{}<>,./?|~`',
+  // CTL characters (except NUL, LF, CR) are valid per Fetch spec
+  '\x01\x02\x03\x04\x05\x06\x07\x08',  // 0x01-0x08
+  'foo\x0bbar',                         // VT (0x0b)
+  'foo\x0cbar',                         // FF (0x0c)
+  '\x0e\x0f\x10\x11\x12\x13\x14\x15',  // 0x0e-0x15
+  '\x16\x17\x18\x19\x1a\x1b\x1c\x1d',  // 0x16-0x1d
+  '\x1e\x1f',                           // 0x1e-0x1f
+  '\x7FMe!',                            // DEL (0x7f)
+  '\x80\x81\xff',                       // obs-text (0x80-0xff)
 ].forEach(function(str) {
   assert.strictEqual(
     _checkInvalidHeaderChar(str), false,
@@ -72,15 +83,13 @@ const { _checkIsHttpToken, _checkInvalidHeaderChar } = require('_http_common');
 });
 
 // Bad header field values
+// Only NUL (0x00), LF (0x0a), CR (0x0d), and characters > 0xff are invalid
 [
-  'foo\rbar',
-  'foo\nbar',
-  'foo\r\nbar',
-  '中文呢', // unicode
-  '\x7FMe!',
-  'Testing 123\x00',
-  'foo\vbar',
-  'Ding!\x07',
+  'foo\rbar',         // CR (0x0d)
+  'foo\nbar',         // LF (0x0a)
+  'foo\r\nbar',       // CRLF
+  '中文呢',           // unicode > 0xff
+  'Testing 123\x00',  // NUL (0x00)
 ].forEach(function(str) {
   assert.strictEqual(
     _checkInvalidHeaderChar(str), true,
