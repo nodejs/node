@@ -4,7 +4,7 @@
 require('../common');
 const assert = require('node:assert');
 const { describe, it } = require('node:test');
-const { Logger, JSONConsumer, stdSerializers } = require('node:logger');
+const { Logger, JSONConsumer, stdSerializers, serialize } = require('node:logger');
 const { Writable } = require('node:stream');
 
 // Test helper to capture log output
@@ -199,6 +199,117 @@ describe('Logger serializers', () => {
       assert.strictEqual(log.data.sanitized, true);
       assert.strictEqual(log.data.value, 42);
       assert.strictEqual(log.data.secret, undefined);
+    });
+  });
+
+  describe('serialize symbol', () => {
+    it('should use serialize symbol for custom object serialization', () => {
+      const stream = new TestStream();
+      const consumer = new JSONConsumer({ stream, level: 'info' });
+      consumer.attach();
+
+      class User {
+        constructor(id, name, password) {
+          this.id = id;
+          this.name = name;
+          this.password = password;
+        }
+
+        [serialize]() {
+          return { id: this.id, name: this.name };
+        }
+      }
+
+      const logger = new Logger({ level: 'info' });
+      const user = new User(123, 'Alice', 'secret123');
+
+      logger.info({ msg: 'User logged in', user });
+      consumer.flushSync();
+
+      assert.strictEqual(stream.logs.length, 1);
+      const log = stream.logs[0];
+      assert.strictEqual(log.user.id, 123);
+      assert.strictEqual(log.user.name, 'Alice');
+      assert.strictEqual(log.user.password, undefined);
+    });
+
+    it('should prefer serialize symbol over field serializer', () => {
+      const stream = new TestStream();
+      const consumer = new JSONConsumer({ stream, level: 'info' });
+      consumer.attach();
+
+      class Connection {
+        constructor(host, password) {
+          this.host = host;
+          this.password = password;
+        }
+
+        [serialize]() {
+          return { host: this.host, type: 'db' };
+        }
+      }
+
+      const logger = new Logger({
+        level: 'info',
+        serializers: {
+          // This should be ignored when object has serialize symbol
+          conn: (c) => ({ host: c.host, fromSerializer: true }),
+        },
+      });
+
+      const conn = new Connection('localhost', 'secret');
+      logger.info({ msg: 'Connected', conn });
+      consumer.flushSync();
+
+      const log = stream.logs[0];
+      assert.strictEqual(log.conn.host, 'localhost');
+      assert.strictEqual(log.conn.type, 'db');
+      assert.strictEqual(log.conn.fromSerializer, undefined);
+      assert.strictEqual(log.conn.password, undefined);
+    });
+
+    it('should work with child logger bindings', () => {
+      const stream = new TestStream();
+      const consumer = new JSONConsumer({ stream, level: 'info' });
+      consumer.attach();
+
+      class RequestContext {
+        constructor(id, internalToken) {
+          this.id = id;
+          this.internalToken = internalToken;
+        }
+
+        [serialize]() {
+          return { requestId: this.id };
+        }
+      }
+
+      const logger = new Logger({ level: 'info' });
+      const ctx = new RequestContext('req-456', 'internal-secret');
+      const childLogger = logger.child({ ctx });
+
+      childLogger.info({ msg: 'Processing' });
+      consumer.flushSync();
+
+      const log = stream.logs[0];
+      assert.strictEqual(log.ctx.requestId, 'req-456');
+      assert.strictEqual(log.ctx.internalToken, undefined);
+    });
+
+    it('should handle objects without serialize symbol normally', () => {
+      const stream = new TestStream();
+      const consumer = new JSONConsumer({ stream, level: 'info' });
+      consumer.attach();
+
+      const logger = new Logger({ level: 'info' });
+      const data = { foo: 'bar', count: 42 };
+
+      logger.info({ msg: 'Plain object', data });
+      consumer.flushSync();
+
+      const log = stream.logs[0];
+      assert.strictEqual(log.data.foo, 'bar');
+      assert.strictEqual(log.data.count, 42);
     });
   });
 });
