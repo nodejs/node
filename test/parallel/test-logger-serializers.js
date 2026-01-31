@@ -1,4 +1,5 @@
 'use strict';
+// Flags: --experimental-logger
 
 require('../common');
 const assert = require('assert');
