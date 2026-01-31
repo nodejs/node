@@ -1205,6 +1205,17 @@ Specify the `module` containing exported [asynchronous module customization hook
 
 This feature requires `--allow-worker` if used with the [Permission Model][].
 
+### `--experimental-logger`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Enable the experimental `node:logger` module for structured logging.
+See the [Logger][] documentation for more details.
+
 ### `--experimental-network-inspection`
 
 <!-- YAML
@@ -3594,6 +3605,7 @@ one is included in the list below.
 * `--experimental-import-meta-resolve`
 * `--experimental-json-modules`
 * `--experimental-loader`
+* `--experimental-logger`
 * `--experimental-modules`
 * `--experimental-print-required-tla`
 * `--experimental-quic`
@@ -4177,6 +4189,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [ExperimentalWarning: `vm.measureMemory` is an experimental feature]: vm.md#vmmeasurememoryoptions
 [File System Permissions]: permissions.md#file-system-permissions
 [Loading ECMAScript modules using `require()`]: modules.md#loading-ecmascript-modules-using-require
+[Logger]: logger.md
 [Module resolution and loading]: packages.md#module-resolution-and-loading
 [Navigator API]: globals.md#navigator
 [Node.js issue tracker]: https://github.com/nodejs/node/issues
