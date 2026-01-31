@@ -3,135 +3,136 @@
 require('../common');
 const assert = require('assert');
 const fs = require('fs');
+const vfs = require('node:vfs');
 
 // Test that virtualCwd option is disabled by default
 {
-  const vfs = fs.createVirtual();
-  assert.strictEqual(vfs.virtualCwdEnabled, false);
+  const myVfs = vfs.create();
+  assert.strictEqual(myVfs.virtualCwdEnabled, false);
 
   // Should throw when trying to use cwd() without enabling
   assert.throws(() => {
-    vfs.cwd();
+    myVfs.cwd();
   }, { code: 'ERR_INVALID_STATE' });
 
   // Should throw when trying to use chdir() without enabling
   assert.throws(() => {
-    vfs.chdir('/');
+    myVfs.chdir('/');
   }, { code: 'ERR_INVALID_STATE' });
 }
 
 // Test that virtualCwd option can be enabled
 {
-  const vfs = fs.createVirtual({ virtualCwd: true });
-  assert.strictEqual(vfs.virtualCwdEnabled, true);
+  const myVfs = vfs.create({ virtualCwd: true });
+  assert.strictEqual(myVfs.virtualCwdEnabled, true);
 
   // Initial cwd should be null
-  assert.strictEqual(vfs.cwd(), null);
+  assert.strictEqual(myVfs.cwd(), null);
 }
 
 // Test basic chdir functionality
 {
-  const vfs = fs.createVirtual({ virtualCwd: true });
-  vfs.mkdirSync('/project/src', { recursive: true });
-  vfs.writeFileSync('/project/src/index.js', 'module.exports = "hello";');
-  vfs.mount('/virtual');
+  const myVfs = vfs.create({ virtualCwd: true });
+  myVfs.mkdirSync('/project/src', { recursive: true });
+  myVfs.writeFileSync('/project/src/index.js', 'module.exports = "hello";');
+  myVfs.mount('/virtual');
 
   // Change to a directory that exists
-  vfs.chdir('/virtual/project');
-  assert.strictEqual(vfs.cwd(), '/virtual/project');
+  myVfs.chdir('/virtual/project');
+  assert.strictEqual(myVfs.cwd(), '/virtual/project');
 
   // Change to a subdirectory
-  vfs.chdir('/virtual/project/src');
-  assert.strictEqual(vfs.cwd(), '/virtual/project/src');
+  myVfs.chdir('/virtual/project/src');
+  assert.strictEqual(myVfs.cwd(), '/virtual/project/src');
 
-  vfs.unmount();
+  myVfs.unmount();
 }
 
 // Test chdir with non-existent path throws ENOENT
 {
-  const vfs = fs.createVirtual({ virtualCwd: true });
-  vfs.mkdirSync('/project', { recursive: true });
-  vfs.mount('/virtual');
+  const myVfs = vfs.create({ virtualCwd: true });
+  myVfs.mkdirSync('/project', { recursive: true });
+  myVfs.mount('/virtual');
 
   assert.throws(() => {
-    vfs.chdir('/virtual/nonexistent');
+    myVfs.chdir('/virtual/nonexistent');
   }, { code: 'ENOENT' });
 
-  vfs.unmount();
+  myVfs.unmount();
 }
 
 // Test chdir with file path throws ENOTDIR
 {
-  const vfs = fs.createVirtual({ virtualCwd: true });
-  vfs.writeFileSync('/file.txt', 'content');
-  vfs.mount('/virtual');
+  const myVfs = vfs.create({ virtualCwd: true });
+  myVfs.writeFileSync('/file.txt', 'content');
+  myVfs.mount('/virtual');
 
   assert.throws(() => {
-    vfs.chdir('/virtual/file.txt');
+    myVfs.chdir('/virtual/file.txt');
   }, { code: 'ENOTDIR' });
 
-  vfs.unmount();
+  myVfs.unmount();
 }
 
 // Test resolvePath with virtual cwd
 {
-  const vfs = fs.createVirtual({ virtualCwd: true });
-  vfs.mkdirSync('/project/src', { recursive: true });
-  vfs.writeFileSync('/project/src/index.js', 'module.exports = "hello";');
-  vfs.mount('/virtual');
+  const myVfs = vfs.create({ virtualCwd: true });
+  myVfs.mkdirSync('/project/src', { recursive: true });
+  myVfs.writeFileSync('/project/src/index.js', 'module.exports = "hello";');
+  myVfs.mount('/virtual');
 
   // Before setting cwd, relative paths use real cwd
-  const resolvedBefore = vfs.resolvePath('test.js');
+  const resolvedBefore = myVfs.resolvePath('test.js');
   assert.ok(resolvedBefore.endsWith('test.js'));
 
   // Set virtual cwd
-  vfs.chdir('/virtual/project');
+  myVfs.chdir('/virtual/project');
 
   // Absolute paths are returned as-is
-  assert.strictEqual(vfs.resolvePath('/absolute/path'), '/absolute/path');
+  assert.strictEqual(myVfs.resolvePath('/absolute/path'), '/absolute/path');
 
   // Relative paths are resolved relative to virtual cwd
-  assert.strictEqual(vfs.resolvePath('src/index.js'), '/virtual/project/src/index.js');
-  assert.strictEqual(vfs.resolvePath('./src/index.js'), '/virtual/project/src/index.js');
+  assert.strictEqual(myVfs.resolvePath('src/index.js'), '/virtual/project/src/index.js');
+  assert.strictEqual(myVfs.resolvePath('./src/index.js'), '/virtual/project/src/index.js');
 
   // Change to subdirectory and resolve again
-  vfs.chdir('/virtual/project/src');
-  assert.strictEqual(vfs.resolvePath('index.js'), '/virtual/project/src/index.js');
+  myVfs.chdir('/virtual/project/src');
+  assert.strictEqual(myVfs.resolvePath('index.js'), '/virtual/project/src/index.js');
 
-  vfs.unmount();
+  myVfs.unmount();
 }
 
 // Test resolvePath without virtual cwd enabled
 {
-  const vfs = fs.createVirtual({ virtualCwd: false });
-  vfs.mount('/virtual');
+  const myVfs = vfs.create({ virtualCwd: false });
+  myVfs.mount('/virtual');
 
   // Should still work, but uses real cwd for relative paths
-  const resolved = vfs.resolvePath('/absolute/path');
+  const resolved = myVfs.resolvePath('/absolute/path');
   assert.strictEqual(resolved, '/absolute/path');
 
-  vfs.unmount();
+  myVfs.unmount();
 }
 
 // Test process.chdir() interception
 {
-  const vfs = fs.createVirtual({ virtualCwd: true });
-  vfs.mkdirSync('/project/src', { recursive: true });
-  vfs.mount('/virtual');
+  const myVfs = vfs.create({ virtualCwd: true });
+  myVfs.mkdirSync('/project/src', { recursive: true });
+  myVfs.mount('/virtual');
 
   const originalCwd = process.cwd();
 
   // process.chdir to VFS path
   process.chdir('/virtual/project');
   assert.strictEqual(process.cwd(), '/virtual/project');
-  assert.strictEqual(vfs.cwd(), '/virtual/project');
+  assert.strictEqual(myVfs.cwd(), '/virtual/project');
 
   // process.chdir to another VFS path
   process.chdir('/virtual/project/src');
   assert.strictEqual(process.cwd(), '/virtual/project/src');
-  assert.strictEqual(vfs.cwd(), '/virtual/project/src');
+  assert.strictEqual(myVfs.cwd(), '/virtual/project/src');
 
-  vfs.unmount();
+  myVfs.unmount();
 
   // After unmount, process.cwd should return original cwd
   assert.strictEqual(process.cwd(), originalCwd);
@@ -139,9 +140,9 @@ const fs = require('fs');
 
 // Test process.chdir() to real path falls through
 {
-  const vfs = fs.createVirtual({ virtualCwd: true });
-  vfs.mkdirSync('/project', { recursive: true });
-  vfs.mount('/virtual');
+  const myVfs = vfs.create({ virtualCwd: true });
+  myVfs.mkdirSync('/project', { recursive: true });
+  myVfs.mount('/virtual');
 
   const originalCwd = process.cwd();
 
@@ -150,20 +151,20 @@ const fs = require('fs');
   const tmpDir = fs.realpathSync('/tmp');
   process.chdir('/tmp');
   assert.strictEqual(process.cwd(), tmpDir);
-  // vfs.cwd() should still be null (not set)
-  assert.strictEqual(vfs.cwd(), null);
+  // myVfs.cwd() should still be null (not set)
+  assert.strictEqual(myVfs.cwd(), null);
 
   // Change back to original
   process.chdir(originalCwd);
 
-  vfs.unmount();
+  myVfs.unmount();
 }
 
 // Test process.cwd() returns virtual cwd when set
 {
-  const vfs = fs.createVirtual({ virtualCwd: true });
-  vfs.mkdirSync('/project', { recursive: true });
-  vfs.mount('/virtual');
+  const myVfs = vfs.create({ virtualCwd: true });
+  myVfs.mkdirSync('/project', { recursive: true });
+  myVfs.mount('/virtual');
 
   const originalCwd = process.cwd();
 
@@ -171,10 +172,10 @@ const fs = require('fs');
   assert.strictEqual(process.cwd(), originalCwd);
 
   // Set virtual cwd
-  vfs.chdir('/virtual/project');
+  myVfs.chdir('/virtual/project');
   assert.strictEqual(process.cwd(), '/virtual/project');
 
-  vfs.unmount();
+  myVfs.unmount();
 
   // After unmount, returns real cwd
   assert.strictEqual(process.cwd(), originalCwd);
@@ -185,33 +186,33 @@ const fs = require('fs');
   const originalChdir = process.chdir;
   const originalCwd = process.cwd;
 
-  const vfs = fs.createVirtual({ virtualCwd: false });
-  vfs.mkdirSync('/project', { recursive: true });
-  vfs.mount('/virtual');
+  const myVfs = vfs.create({ virtualCwd: false });
+  myVfs.mkdirSync('/project', { recursive: true });
+  myVfs.mount('/virtual');
 
   // process.chdir and process.cwd should not be modified
   assert.strictEqual(process.chdir, originalChdir);
   assert.strictEqual(process.cwd, originalCwd);
 
-  vfs.unmount();
+  myVfs.unmount();
 }
 
 // Test virtual cwd is reset on unmount
 {
-  const vfs = fs.createVirtual({ virtualCwd: true });
-  vfs.mkdirSync('/project', { recursive: true });
-  vfs.mount('/virtual');
+  const myVfs = vfs.create({ virtualCwd: true });
+  myVfs.mkdirSync('/project', { recursive: true });
+  myVfs.mount('/virtual');
 
-  vfs.chdir('/virtual/project');
-  assert.strictEqual(vfs.cwd(), '/virtual/project');
+  myVfs.chdir('/virtual/project');
+  assert.strictEqual(myVfs.cwd(), '/virtual/project');
 
-  vfs.unmount();
+  myVfs.unmount();
 
   // After unmount, cwd should throw (not enabled)
   // Actually, virtualCwdEnabled is still true, just unmounted
   // Let's remount and check cwd is reset
-  vfs.mount('/virtual');
-  assert.strictEqual(vfs.cwd(), null);
+  myVfs.mount('/virtual');
+  assert.strictEqual(myVfs.cwd(), null);
 
-  vfs.unmount();
+  myVfs.unmount();
 }
