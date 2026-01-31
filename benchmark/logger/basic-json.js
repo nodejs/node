@@ -40,7 +40,8 @@ function main({ n, scenario }) {
 
     case 'string-long': {
       // Long string message (100 chars)
-      const longMsg = 'This is a much longer log message that contains more text to serialize and process during logging operations';
+      const longMsg = 'This is a much longer log message that contains ' +
+        'more text to serialize and process during logging operations';
       bench.start();
       for (let i = 0; i < n; i++) {
         logger.info(longMsg);

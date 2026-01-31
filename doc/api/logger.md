@@ -641,6 +641,78 @@ channels.info.subscribe((record) => {
 });
 ```
 
+## `logger.serialize`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {symbol}
+
+A symbol that objects can implement to define custom serialization behavior
+for logging. Similar to [`util.inspect.custom`][].
+
+When an object with a `[serialize]()` method is logged, the logger will call
+that method instead of serializing the object directly. This allows objects
+to control which properties are included in logs, filtering out sensitive
+data like passwords or tokens.
+
+```mjs
+import { Logger, JSONConsumer, serialize } from 'node:logger';
+
+class User {
+  constructor(id, name, password) {
+    this.id = id;
+    this.name = name;
+    this.password = password; // Sensitive!
+  }
+
+  // Define custom serialization
+  [serialize]() {
+    return {
+      id: this.id,
+      name: this.name,
+      // password is excluded
+    };
+  }
+}
+
+const consumer = new JSONConsumer();
+consumer.attach();
+
+const logger = new Logger();
+const user = new User(1, 'Alice', 'secret123');
+
+logger.info({ msg: 'User logged in', user });
+// Output: {"level":"info","time":...,"msg":"User logged in","user":{"id":1,"name":"Alice"}}
+// Note: password is not included in the output
+```
+
+```cjs
+const { Logger, JSONConsumer, serialize } = require('node:logger');
+
+class DatabaseConnection {
+  constructor(host, user, password) {
+    this.host = host;
+    this.user = user;
+    this.password = password;
+  }
+
+  [serialize]() {
+    return {
+      host: this.host,
+      user: this.user,
+      connected: this.isConnected,
+      // password is excluded
+    };
+  }
+}
+```
+
+The `serialize` symbol takes precedence over field-specific serializers.
+If an object has both a `[serialize]()` method and a matching serializer
+in the logger's `serializers` option, the `[serialize]()` method will be used.
+
 ## Examples
 
 ### Basic usage
@@ -764,3 +836,4 @@ consumer.attach();
 
 [RFC 5424]: https://www.rfc-editor.org/rfc/rfc5424.html
 [`logger.<level>.enabled`]: #loggerlevelenabled
+[`util.inspect.custom`]: util.md#utilinspectcustom
