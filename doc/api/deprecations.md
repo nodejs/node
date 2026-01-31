@@ -4329,6 +4329,9 @@ Creating SHAKE-128 and SHAKE-256 digests without an explicit `options.outputLeng
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58535
+    description: Runtime deprecation.
   - version:
      - v24.6.0
      - v22.19.0
