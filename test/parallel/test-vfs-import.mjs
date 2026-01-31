@@ -1,10 +1,10 @@
 import '../common/index.mjs';
 import assert from 'assert';
-import fs from 'fs';
+import vfs from 'node:vfs';
 
 // Test importing a simple virtual ES module
 {
-  const myVfs = fs.createVirtual();
+  const myVfs = vfs.create();
   myVfs.writeFileSync('/hello.mjs', 'export const message = "hello from vfs";');
   myVfs.mount('/virtual');
 
@@ -16,7 +16,7 @@ import fs from 'fs';
 
 // Test importing a virtual module with default export
 {
-  const myVfs = fs.createVirtual();
+  const myVfs = vfs.create();
   myVfs.writeFileSync('/default.mjs', 'export default { name: "test", value: 42 };');
   myVfs.mount('/virtual2');
 
@@ -29,7 +29,7 @@ import fs from 'fs';
 
 // Test importing a virtual module that imports another virtual module
 {
-  const myVfs = fs.createVirtual();
+  const myVfs = vfs.create();
   myVfs.writeFileSync('/utils.mjs', 'export function add(a, b) { return a + b; }');
   myVfs.writeFileSync('/main.mjs', `
     import { add } from '/virtual3/utils.mjs';
@@ -45,7 +45,7 @@ import fs from 'fs';
 
 // Test importing with relative paths
 {
-  const myVfs = fs.createVirtual();
+  const myVfs = vfs.create();
   myVfs.mkdirSync('/lib', { recursive: true });
   myVfs.writeFileSync('/lib/helper.mjs', 'export const helper = () => "helped";');
   myVfs.writeFileSync('/lib/index.mjs', `
@@ -62,7 +62,7 @@ import fs from 'fs';
 
 // Test importing JSON from VFS (with import assertion)
 {
-  const myVfs = fs.createVirtual();
+  const myVfs = vfs.create();
   myVfs.writeFileSync('/data.json', JSON.stringify({ items: [1, 2, 3], enabled: true }));
   myVfs.mount('/virtual5');
 
@@ -75,7 +75,7 @@ import fs from 'fs';
 
 // Test that real modules still work when VFS is mounted
 {
-  const myVfs = fs.createVirtual();
+  const myVfs = vfs.create();
   myVfs.writeFileSync('/test.mjs', 'export const x = 1;');
   myVfs.mount('/virtual6');
 
@@ -88,7 +88,7 @@ import fs from 'fs';
 
 // Test mixed CJS and ESM - ESM importing from VFS while CJS also works
 {
-  const myVfs = fs.createVirtual();
+  const myVfs = vfs.create();
   myVfs.writeFileSync('/esm-module.mjs', 'export const esmValue = "esm";');
   myVfs.writeFileSync('/cjs-module.js', 'module.exports = { cjsValue: "cjs" };');
   myVfs.mount('/virtual8');
