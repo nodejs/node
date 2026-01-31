@@ -29,7 +29,7 @@
 #if defined(V8_OS_AIX)
 #include <fenv.h>  // NOLINT(build/c++11)
 
-#include "src/wasm/float16.h"
+#include "src/base/float16.h"
 #endif
 
 #ifdef _MSC_VER

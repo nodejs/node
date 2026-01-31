@@ -811,7 +811,8 @@ class V8_EXPORT_PRIVATE LateLoadEliminationReducer : public Next {
                      .outputs_rep()[0]
                      .AllowImplicitRepresentationChangeTo(
                          load.outputs_rep()[0],
-                         Asm().output_graph().IsCreatedFromTurbofan()));
+                         Asm().output_graph().IsCreatedFromTurbofan(),
+                         Asm().output_graph().IsTurbolev()));
         }
 #if DEBUG_BOOL && V8_STATIC_ROOTS_BOOL
         // Note that this verification is only enabled on builds with static

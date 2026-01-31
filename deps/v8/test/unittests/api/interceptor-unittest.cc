@@ -34,6 +34,46 @@ TEST_F(InterceptorTest, FreezeApiObjectWithInterceptor) {
   ASSERT_TRUE(try_catch.HasCaught());
 }
 
+v8::Intercepted NamedDescriptor(Local<Name> property,
+                                const PropertyCallbackInfo<Value>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  Local<Name> names[] = {
+      v8::String::NewFromUtf8(isolate, "enumerable").ToLocalChecked(),
+      v8::String::NewFromUtf8(isolate, "configurable").ToLocalChecked(),
+      v8::String::NewFromUtf8(isolate, "writable").ToLocalChecked(),
+      v8::String::NewFromUtf8(isolate, "value").ToLocalChecked(),
+  };
+  Local<Value> values[] = {
+      v8::Boolean::New(isolate, true),
+      v8::Boolean::New(isolate, true),
+      v8::Boolean::New(isolate, true),
+      v8::Number::New(isolate, 42),
+  };
+  // The prototype must be an Object, so that `Object.prototype.get` can be
+  // looked up.
+  Local<Object> descriptor =
+      v8::Object::New(isolate, v8::Object::New(isolate), names, values, 4);
+  info.GetReturnValue().Set(descriptor);
+  return v8::Intercepted::kYes;
+}
+
+TEST_F(InterceptorTest, GetPropertyDescriptorWithObjectPrototypeProps) {
+  TryCatch try_catch(isolate());
+
+  Local<FunctionTemplate> tmpl = FunctionTemplate::New(isolate());
+  tmpl->InstanceTemplate()->SetHandler(NamedPropertyHandlerConfiguration(
+      nullptr, nullptr, NamedDescriptor, nullptr, nullptr, nullptr));
+
+  Local<Function> ctor = tmpl->GetFunction(context()).ToLocalChecked();
+  Local<Object> obj = ctor->NewInstance(context()).ToLocalChecked();
+
+  SetGlobalProperty("obj", obj);
+  TryRunJS(
+      "Object.prototype.get = 3;"
+      "obj.x = 4;");
+  ASSERT_TRUE(try_catch.HasCaught());
+}
+
 }  // namespace
 
 namespace internal {
@@ -133,14 +173,23 @@ class InterceptorLoggingTest : public TestWithNativeContext {
     return v8::Intercepted::kNo;
   }
 
+  // Allow usages of v8::PropertyCallbackInfo<T>::This() for now.
+  // TODO(https://crbug.com/455600234): remove.
+  START_ALLOW_USE_DEPRECATED()
+
   template <class T>
   static void LogCallback(const v8::PropertyCallbackInfo<T>& info,
                           const char* callback_name) {
+    CHECK_EQ(info.This(), info.HolderV2());
     InterceptorLoggingTest* test = reinterpret_cast<InterceptorLoggingTest*>(
-        info.This()->GetAlignedPointerFromInternalField(kTestIndex,
-                                                        kTestInterceptorTag));
+        info.HolderV2()->GetAlignedPointerFromInternalField(
+            kTestIndex, kTestInterceptorTag));
     test->Log(callback_name);
   }
+
+  // Allow usages of v8::PropertyCallbackInfo<T>::This() for now.
+  // TODO(https://crbug.com/455600234): remove.
+  END_ALLOW_USE_DEPRECATED()
 
   void Log(const char* callback_name) {
     if (log_is_empty_) {

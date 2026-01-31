@@ -484,6 +484,7 @@ absl_cc_test(
   COPTS
     ${ABSL_TEST_COPTS}
   DEPS
+    absl::config
     absl::container_memory
     absl::no_destructor
     absl::strings

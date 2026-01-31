@@ -962,28 +962,12 @@
   },
   ##############################################################################
   # Linux with RISC-V simulators
-  'v8_linux_riscv32_dbg': {
-    'swarming_dimensions': {
-      'os': 'Ubuntu-22.04',
-    },
-    'tests': [
-      {'name': 'v8testing', 'shards': 6},
-    ],
-  },
-  'v8_linux_riscv32_rel': {
-    'swarming_dimensions': {
-      'os': 'Ubuntu-22.04',
-    },
-    'tests': [
-      {'name': 'v8testing', 'shards': 3},
-    ],
-  },
   'v8_linux64_riscv64_dbg': {
     'swarming_dimensions': {
       'os': 'Ubuntu-22.04',
     },
     'tests': [
-      {'name': 'v8testing', 'shards': 6},
+      {'name': 'v8testing', 'shards': 9},
     ],
   },
   'v8_linux64_riscv64_rel': {
@@ -991,7 +975,7 @@
       'os': 'Ubuntu-22.04',
     },
     'tests': [
-      {'name': 'v8testing', 'shards': 3},
+      {'name': 'v8testing', 'shards': 4},
     ],
   },
   'v8_linux64_riscv64_pointer_compression_rel': {
@@ -999,7 +983,7 @@
       'os': 'Ubuntu-22.04',
     },
     'tests': [
-      {'name': 'v8testing', 'shards': 3},
+      {'name': 'v8testing', 'shards': 4},
     ],
   },
   ##############################################################################
@@ -1577,6 +1561,17 @@
       },
     ],
   },
+  # Used for Fuzzilli imports.
+  'V8 Linux64 - builder': {
+    'swarming_dimensions' : {
+      'cpu': 'x86-64-avx2',
+      'os': 'Ubuntu-22.04',
+    },
+    'tests': [
+      {'name': 'mjsunit'},
+      {'name': 'test262', 'shards': 2},
+    ],
+  },
   'V8 Linux64 - official': {
     'swarming_dimensions' : {
       'cpu': 'x86-64-avx2',
@@ -1994,7 +1989,7 @@
       'os': 'Ubuntu-22.04',
     },
     'tests': [
-      {'name': 'test262', 'shards': 7},
+      {'name': 'test262', 'shards': 10},
       {'name': 'v8testing', 'shards': 3},
       {'name': 'v8testing', 'variant': 'extra', 'shards': 3},
       {'name': 'v8testing', 'variant': 'slow_path', 'shards': 1},
@@ -2577,32 +2572,6 @@
     ],
   },
   'V8 Linux - ppc64 - sim': {
-    'swarming_dimensions': {
-      'os': 'Ubuntu-22.04',
-    },
-    'swarming_task_attrs': {
-      'expiration': 14400,
-      'hard_timeout': 3600,
-      'priority': 35,
-    },
-    'tests': [
-      {'name': 'v8testing', 'shards': 3},
-    ],
-  },
-  'V8 Linux - riscv32 - sim - debug': {
-    'swarming_dimensions': {
-      'os': 'Ubuntu-22.04',
-    },
-    'swarming_task_attrs': {
-      'expiration': 14400,
-      'hard_timeout': 3600,
-      'priority': 35,
-    },
-    'tests': [
-      {'name': 'v8testing', 'shards': 6},
-    ],
-  },
-  'V8 Linux - riscv32 - sim': {
     'swarming_dimensions': {
       'os': 'Ubuntu-22.04',
     },

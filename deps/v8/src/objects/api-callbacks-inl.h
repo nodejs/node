@@ -24,58 +24,58 @@ namespace internal {
 
 #include "torque-generated/src/objects/api-callbacks-tq-inl.inc"
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(AccessCheckInfo)
+// Make sure that Api can read Data value from both AccessorInfo and
+// InterceptorInfo without checking the type.
+static_assert(Internals::kCallbackInfoDataOffset == AccessorInfo::kDataOffset);
+static_assert(Internals::kCallbackInfoDataOffset ==
+              InterceptorInfo::kDataOffset);
+
 TQ_OBJECT_CONSTRUCTORS_IMPL(AccessorInfo)
 TQ_OBJECT_CONSTRUCTORS_IMPL(InterceptorInfo)
 
-EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST(AccessorInfo,
-                                                maybe_redirected_getter,
-                                                Address,
-                                                kMaybeRedirectedGetterOffset,
-                                                kAccessorInfoGetterTag)
+Tagged<UnionOf<Foreign, Smi, Undefined>> AccessCheckInfo::callback() const {
+  return callback_.load();
+}
+void AccessCheckInfo::set_callback(
+    Tagged<UnionOf<Foreign, Smi, Undefined>> value, WriteBarrierMode mode) {
+  callback_.store(this, value, mode);
+}
+
+Tagged<UnionOf<InterceptorInfo, Smi, Undefined>>
+AccessCheckInfo::named_interceptor() const {
+  return named_interceptor_.load();
+}
+void AccessCheckInfo::set_named_interceptor(
+    Tagged<UnionOf<InterceptorInfo, Smi, Undefined>> value,
+    WriteBarrierMode mode) {
+  named_interceptor_.store(this, value, mode);
+}
+
+Tagged<UnionOf<InterceptorInfo, Smi, Undefined>>
+AccessCheckInfo::indexed_interceptor() const {
+  return indexed_interceptor_.load();
+}
+void AccessCheckInfo::set_indexed_interceptor(
+    Tagged<UnionOf<InterceptorInfo, Smi, Undefined>> value,
+    WriteBarrierMode mode) {
+  indexed_interceptor_.store(this, value, mode);
+}
+
+Tagged<Object> AccessCheckInfo::data() const { return data_.load(); }
+void AccessCheckInfo::set_data(Tagged<Object> value, WriteBarrierMode mode) {
+  data_.store(this, value, mode);
+}
+
+REDIRECTED_CALLBACK_ACCESSORS_MAYBE_READ_ONLY_HOST(
+    AccessorInfo, getter, Address, kGetterOffset, kAccessorInfoGetterTag,
+    ExternalReference::DIRECT_GETTER_CALL)
+
 EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST(AccessorInfo, setter, Address,
                                                 kSetterOffset,
                                                 kAccessorInfoSetterTag)
 
-Address AccessorInfo::getter(i::IsolateForSandbox isolate) const {
-  Address result = maybe_redirected_getter(isolate);
-  if (!USE_SIMULATOR_BOOL) return result;
-  if (result == kNullAddress) return kNullAddress;
-  return ExternalReference::UnwrapRedirection(result);
-}
-
-void AccessorInfo::init_getter(i::IsolateForSandbox isolate,
-                               Address initial_value) {
-  init_maybe_redirected_getter(isolate, initial_value);
-  if (USE_SIMULATOR_BOOL) {
-    init_getter_redirection(isolate);
-  }
-}
-
-void AccessorInfo::set_getter(i::IsolateForSandbox isolate, Address value) {
-  set_maybe_redirected_getter(isolate, value);
-  if (USE_SIMULATOR_BOOL) {
-    init_getter_redirection(isolate);
-  }
-}
-
-void AccessorInfo::init_getter_redirection(i::IsolateForSandbox isolate) {
-  CHECK(USE_SIMULATOR_BOOL);
-  Address value = maybe_redirected_getter(isolate);
-  if (value == kNullAddress) return;
-  value =
-      ExternalReference::Redirect(value, ExternalReference::DIRECT_GETTER_CALL);
-  set_maybe_redirected_getter(isolate, value);
-}
-
-void AccessorInfo::remove_getter_redirection(i::IsolateForSandbox isolate) {
-  CHECK(USE_SIMULATOR_BOOL);
-  Address value = getter(isolate);
-  set_maybe_redirected_getter(isolate, value);
-}
-
 bool AccessorInfo::has_getter(Isolate* isolate) {
-  return maybe_redirected_getter(isolate) != kNullAddress;
+  return getter(isolate) != kNullAddress;
 }
 
 bool AccessorInfo::has_setter(Isolate* isolate) {
@@ -104,6 +104,17 @@ void AccessorInfo::set_setter_side_effect_type(SideEffectType value) {
 BIT_FIELD_ACCESSORS(AccessorInfo, flags, initial_property_attributes,
                     AccessorInfo::InitialAttributesBits)
 
+void AccessorInfo::RemoveCallbackRedirectionForSerialization(
+    IsolateForSandbox isolate) {
+  CHECK(USE_SIMULATOR_BOOL);
+  remove_getter_redirection(isolate);
+}
+void AccessorInfo::RestoreCallbackRedirectionAfterDeserialization(
+    IsolateForSandbox isolate) {
+  CHECK(USE_SIMULATOR_BOOL);
+  init_getter_redirection(isolate);
+}
+
 void AccessorInfo::clear_padding() {
   if (FIELD_SIZE(kOptionalPaddingOffset) == 0) return;
   memset(reinterpret_cast<void*>(address() + kOptionalPaddingOffset), 0,
@@ -125,10 +136,10 @@ INTERCEPTOR_INFO_HAS_GETTER(enumerator)
 
 #undef INTERCEPTOR_INFO_HAS_GETTER
 
-LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST_CHECKED2(
+LAZY_REDIRECTED_CALLBACK_ACCESSORS_MAYBE_READ_ONLY_HOST_CHECKED2(
     InterceptorInfo, named_getter, Address, kGetterOffset,
-    kApiNamedPropertyGetterCallbackTag, is_named(),
-    is_named() && (value != kNullAddress))
+    kApiNamedPropertyGetterCallbackTag, ExternalReference::DIRECT_GETTER_CALL,
+    is_named(), is_named() && (value != kNullAddress))
 LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST_CHECKED2(
     InterceptorInfo, named_setter, Address, kSetterOffset,
     kApiNamedPropertySetterCallbackTag, is_named(),
@@ -193,10 +204,37 @@ BOOL_ACCESSORS(InterceptorInfo, flags, has_no_side_effect,
 BOOL_ACCESSORS(InterceptorInfo, flags, has_new_callbacks_signature,
                HasNewCallbacksSignatureBit::kShift)
 
+void InterceptorInfo::RemoveCallbackRedirectionForSerialization(
+    IsolateForSandbox isolate) {
+  CHECK(USE_SIMULATOR_BOOL);
+  if (is_named()) {
+    remove_named_getter_redirection(isolate);
+  }
+}
+void InterceptorInfo::RestoreCallbackRedirectionAfterDeserialization(
+    IsolateForSandbox isolate) {
+  CHECK(USE_SIMULATOR_BOOL);
+  if (is_named()) {
+    init_named_getter_redirection(isolate);
+  }
+}
+
 void InterceptorInfo::clear_padding() {
   if (FIELD_SIZE(kOptionalPaddingOffset) == 0) return;
   memset(reinterpret_cast<void*>(address() + kOptionalPaddingOffset), 0,
          FIELD_SIZE(kOptionalPaddingOffset));
+}
+
+// Returns holder object suitable for Api callbacks - in case the holder is
+// JSGlobalObject returns respective JSGlobalProxy.
+inline Tagged<JSObject> GetHolderForApi(Tagged<JSObject> holder) {
+  Tagged<JSGlobalObject> global_object;
+  if (TryCast<JSGlobalObject>(holder, &global_object)) {
+    Tagged<JSGlobalProxy> global_proxy = global_object->global_proxy_for_api();
+    DCHECK(!global_proxy->IsDetachedFrom(global_object));
+    return global_proxy;
+  }
+  return Cast<JSObject>(holder);
 }
 
 }  // namespace internal

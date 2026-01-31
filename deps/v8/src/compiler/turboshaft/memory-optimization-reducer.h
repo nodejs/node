@@ -226,6 +226,24 @@ class MemoryOptimizationReducer : public Next {
       return V<None>::Invalid();
     }
     DCHECK_NE(store.write_barrier, WriteBarrierKind::kAssertNoWriteBarrier);
+
+    // Checking if we can realx a FullWriteBarrier into a PointerWriteBarrier.
+    // Note that it's important to do this here in REDUCE_INPUT_GRAPH rather
+    // than in a REDUCE method, since this allows DecideObjectIsSmi to see
+    // Allocates from the input_graph (which don't exist in the output graph
+    // since the current reducer lowers them).
+    if (store.write_barrier == WriteBarrierKind::kFullWriteBarrier &&
+        turboshaft::DecideObjectIsSmi(__ input_graph(), store.value()) ==
+            IsSmiDecision::kFalse) {
+      __ Store(__ MapToNewGraph(store.base()), __ MapToNewGraph(store.index()),
+               __ MapToNewGraph(store.value()), store.kind, store.stored_rep,
+               WriteBarrierKind::kPointerWriteBarrier, store.offset,
+               store.element_size_log2,
+               store.maybe_initializing_or_transitioning,
+               store.indirect_pointer_tag());
+      return V<None>::Invalid();
+    }
+
     return Next::ReduceInputGraphStore(ig_index, store);
   }
 
@@ -482,6 +500,12 @@ class MemoryOptimizationReducer : public Next {
 #else   // V8_ENABLE_SANDBOX
     UNREACHABLE();
 #endif  // V8_ENABLE_SANDBOX
+  }
+
+  V<None> REDUCE(MajorGCForCompilerTesting)() {
+    __ template CallRuntime<runtime::MajorGCForCompilerTesting>(
+        __ NoContextConstant(), {});
+    return V<None>::Invalid();
   }
 
  private:

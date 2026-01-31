@@ -1049,7 +1049,6 @@
   F(SCAVENGER_SCAVENGE_PIN_OBJECTS)                     \
   F(SCAVENGER_SCAVENGE_ROOTS)                           \
   F(SCAVENGER_SCAVENGE_STACK_ROOTS)                     \
-  F(SCAVENGER_SCAVENGE_UPDATE_REFS)                     \
   F(SCAVENGER_SCAVENGE_WEAK)                            \
   F(SCAVENGER_SCAVENGE_FINALIZE)                        \
   F(SCAVENGER_SCAVENGE_RESTORE_AND_QUARANTINE_PINNED)   \
@@ -1131,6 +1130,7 @@
   MC_INCREMENTAL_SCOPES(F)               \
   MINOR_MS_INCREMENTAL_SCOPES(F)         \
   F(HEAP_EMBEDDER_TRACING_EPILOGUE)      \
+  F(HEAP_ENSURE_SWEEPING_COMPLETED)      \
   F(HEAP_EPILOGUE)                       \
   F(HEAP_EPILOGUE_SAFEPOINT)             \
   F(HEAP_EXTERNAL_EPILOGUE)              \

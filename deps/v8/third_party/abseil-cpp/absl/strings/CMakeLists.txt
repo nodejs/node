@@ -76,6 +76,7 @@ absl_cc_library(
     ${ABSL_DEFAULT_COPTS}
   DEPS
     absl::string_view
+    absl::strings_append_and_overwrite
     absl::strings_internal
     absl::strings_resize_and_overwrite
     absl::base
@@ -139,6 +140,7 @@ absl_cc_library(
     absl::core_headers
     absl::endian
     absl::raw_logging_internal
+    absl::strings_resize_and_overwrite
     absl::type_traits
 )
 
@@ -167,6 +169,33 @@ absl_cc_test(
     absl::strings_resize_and_overwrite
     absl::absl_check
     absl::dynamic_annotations
+    GTest::gmock_main
+)
+
+absl_cc_library(
+  NAME
+    strings_append_and_overwrite
+  HDRS
+    "internal/append_and_overwrite.h"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+  DEPS
+    absl::config
+    absl::core_headers
+    absl::strings_resize_and_overwrite
+    absl::throw_delegate
+)
+
+absl_cc_test(
+  NAME
+    strings_append_and_overwrite_test
+  SRCS
+    "internal/append_and_overwrite_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEPS
+    absl::strings_resize_and_overwrite
+    absl::absl_check
     GTest::gmock_main
 )
 
@@ -1030,6 +1059,7 @@ absl_cc_library(
     absl::raw_logging_internal
     absl::span
     absl::strings
+    absl::strings_append_and_overwrite
     absl::strings_resize_and_overwrite
     absl::type_traits
     absl::weakly_mixed_integer

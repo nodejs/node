@@ -451,6 +451,20 @@ TEST(NumbersTest, Atoi) {
   VerifySimpleAtoiGood<std::string::size_type>(42, 42);
 }
 
+TEST(NumbersTest, AtodEmpty) {
+  double d;
+  EXPECT_FALSE(absl::SimpleAtod("", &d));
+  // Empty string_view takes a different code path from "".
+  EXPECT_FALSE(absl::SimpleAtod({}, &d));
+}
+
+TEST(NumbersTest, AtofEmpty) {
+  float f;
+  EXPECT_FALSE(absl::SimpleAtof("", &f));
+  // Empty string_view takes a different code path from "".
+  EXPECT_FALSE(absl::SimpleAtof({}, &f));
+}
+
 TEST(NumbersTest, Atod) {
   // DBL_TRUE_MIN and FLT_TRUE_MIN were not mandated in <cfloat> before C++17.
 #if !defined(DBL_TRUE_MIN)

@@ -32,6 +32,7 @@ RegExpCodeGenerator::RegExpCodeGenerator(
       iter_(bytecode_),
       labels_(zone_.AllocateArray<Label>(bytecode_->length())),
       jump_targets_(bytecode_->length(), &zone_),
+      indirect_jump_targets_(bytecode_->length(), &zone_),
       has_unsupported_bytecode_(false) {}
 
 RegExpCodeGenerator::Result RegExpCodeGenerator::Assemble(
@@ -194,6 +195,11 @@ VISIT(LoadCurrentCharacter) {
 VISIT(CheckPosition) {
   INIT(CheckPosition, cp_offset, on_failure);
   __ CheckPosition(cp_offset, on_failure);
+}
+
+VISIT(CheckSpecialClassRanges) {
+  INIT(CheckSpecialClassRanges, character_set, on_no_match);
+  __ CheckSpecialClassRanges(character_set, on_no_match);
 }
 
 VISIT(CheckCharacter) {
@@ -485,6 +491,46 @@ VISIT(SkipUntilOneOfMasked) {
                           on_match2, on_failure);
 }
 
+VISIT(SkipUntilOneOfMasked3) {
+  INIT(SkipUntilOneOfMasked3, bc0_cp_offset, bc0_advance_by, bc0_table,
+       bc1_cp_offset, bc1_on_failure, bc2_cp_offset, bc3_characters, bc3_mask,
+       bc4_by, bc5_cp_offset, bc6_characters, bc6_mask, bc6_on_equal,
+       bc7_characters, bc7_mask, bc7_on_equal, bc8_characters, bc8_mask,
+       fallthrough_jump_target);
+  // The nibble table is optionally constructed if we use SIMD.
+  Handle<ByteArray> nibble_table;
+  if (masm_->SkipUntilBitInTableUseSimd(bc0_advance_by)) {
+    static_assert(RegExpMacroAssembler::kTableSize == 128);
+    nibble_table = isolate_->factory()->NewByteArray(
+        RegExpMacroAssembler::kTableSize / kBitsPerByte, AllocationType::kOld);
+  }
+  Handle<ByteArray> table =
+      CreateBitTableByteArray(isolate_, bc0_table, nibble_table);
+  RegExpMacroAssembler::SkipUntilOneOfMasked3Args args = {
+      .bc0_cp_offset = bc0_cp_offset,
+      .bc0_advance_by = bc0_advance_by,
+      .bc0_table = table,
+      .bc0_nibble_table = nibble_table,
+      .bc1_cp_offset = bc1_cp_offset,
+      .bc1_on_failure = bc1_on_failure,
+      .bc2_cp_offset = bc2_cp_offset,
+      .bc3_characters = bc3_characters,
+      .bc3_mask = bc3_mask,
+      .bc4_by = bc4_by,
+      .bc5_cp_offset = bc5_cp_offset,
+      .bc6_characters = bc6_characters,
+      .bc6_mask = bc6_mask,
+      .bc6_on_equal = bc6_on_equal,
+      .bc7_characters = bc7_characters,
+      .bc7_mask = bc7_mask,
+      .bc7_on_equal = bc7_on_equal,
+      .bc8_characters = bc8_characters,
+      .bc8_mask = bc8_mask,
+      .fallthrough_jump_target = fallthrough_jump_target,
+  };
+  __ SkipUntilOneOfMasked3(args);
+}
+
 template <RegExpBytecode bc>
 void RegExpCodeGenerator::Visit() {
   // TODO(437003349): Remove fallback. All bytecodes need to be implemented
@@ -506,6 +552,10 @@ void RegExpCodeGenerator::PreVisitBytecodes() {
       uint32_t offset = Operands::template Get<operand>(pc, no_gc);
       if (!jump_targets_.Contains(offset)) {
         jump_targets_.Add(offset);
+        if constexpr (bc == RegExpBytecode::kPushBacktrack) {
+          DCHECK(!indirect_jump_targets_.Contains(offset));
+          indirect_jump_targets_.Add(offset);
+        }
         Label* label = &labels_[offset];
         new (label) Label();
       }
@@ -518,7 +568,11 @@ void RegExpCodeGenerator::PreVisitBytecodes() {
 void RegExpCodeGenerator::VisitBytecodes() {
   for (; !iter_.done() && !has_unsupported_bytecode_; iter_.advance()) {
     if (jump_targets_.Contains(iter_.current_offset())) {
-      __ Bind(&labels_[iter_.current_offset()]);
+      if (indirect_jump_targets_.Contains(iter_.current_offset())) {
+        __ BindJumpTarget(&labels_[iter_.current_offset()]);
+      } else {
+        __ Bind(&labels_[iter_.current_offset()]);
+      }
     }
     RegExpBytecodes::DispatchOnBytecode(
         iter_.current_bytecode(), [this]<RegExpBytecode bc>() { Visit<bc>(); });

@@ -10,8 +10,10 @@
 #include "src/compiler/turboshaft/duplication-optimization-reducer.h"
 #include "src/compiler/turboshaft/instruction-selection-normalization-reducer.h"
 #include "src/compiler/turboshaft/load-store-simplification-reducer.h"
+#include "src/compiler/turboshaft/load-store-verification-reducer.h"
 #include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/turboshaft/stack-check-lowering-reducer.h"
+#include "src/objects/objects-inl.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/compiler/turboshaft/wasm-js-lowering-reducer.h"
@@ -24,6 +26,9 @@ void CodeEliminationAndSimplificationPhase::Run(PipelineData* data,
   UnparkedScopeIfNeeded scope(data->broker(), DEBUG_BOOL);
 
   CopyingPhase<DeadCodeEliminationReducer, StackCheckLoweringReducer,
+#ifdef DEBUG
+               StoreLoadVerificationReducer,
+#endif
 #if V8_ENABLE_WEBASSEMBLY
                WasmJSLoweringReducer,
 #endif

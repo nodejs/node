@@ -1311,7 +1311,7 @@ TEST(SwisstableCollisions, LowEntropyInts) {
     for (size_t i = 0; i < 128 * 1024; ++i) {
       size_t v = absl::rotl(i, bit);
       set.insert(v);
-      ASSERT_LT(HashtableDebugAccess<decltype(set)>::GetNumProbes(set, v), 32)
+      ASSERT_LT(HashtableDebugAccess<decltype(set)>::GetNumProbes(set, v), 48)
           << bit << " " << i;
     }
   }

@@ -210,6 +210,10 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   DirectHandle<DeoptimizationFrameTranslation>
   NewDeoptimizationFrameTranslation(int length);
 
+  // Allocates a BytecodeArray object.
+  // The returned object will not yet be "published" (accessible from within
+  // the sandbox) as it must first be verified by the sandbox's
+  // BytecodeVerifier. Only afterwards will the object be usable.
   Handle<BytecodeArray> NewBytecodeArray(
       int length, const uint8_t* raw_bytecodes, int frame_size,
       uint16_t parameter_count, uint16_t max_arguments,

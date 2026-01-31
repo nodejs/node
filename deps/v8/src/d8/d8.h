@@ -429,6 +429,10 @@ class ShellOptions {
     }
     void Overwrite(T value) { value_ = value; }
 
+    bool WasSpecified() const { return specified_; }
+
+    const char* name() const { return name_; }
+
    private:
     const char* name_;
     T value_;
@@ -594,6 +598,8 @@ class Shell : public i::AllStatic {
   static void RealmGlobal(const v8::FunctionCallbackInfo<v8::Value>& info);
   static void RealmCreate(const v8::FunctionCallbackInfo<v8::Value>& info);
   static void RealmNavigate(const v8::FunctionCallbackInfo<v8::Value>& info);
+  static void RealmNavigateSameOrigin(
+      const v8::FunctionCallbackInfo<v8::Value>& info);
   static void RealmCreateAllowCrossRealmAccess(
       const v8::FunctionCallbackInfo<v8::Value>& info);
   static void RealmDetachGlobal(

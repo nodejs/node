@@ -55,6 +55,11 @@ class ArrayHeaderBase<Super, false> : public Super {
 V8_OBJECT template <class Super>
 class ArrayHeaderBase<Super, true> : public Super {
  public:
+  // Length and capacity are never supposed to be negative.
+  // See https://crbug.com/441221573.
+  inline uint32_t ulength() const;
+  inline uint32_t ucapacity() const;
+
   inline int length() const;
   inline int length(AcquireLoadTag tag) const;
   inline void set_length(int value);
@@ -121,10 +126,13 @@ class TaggedArrayBase : public detail::TaggedArrayHeader<ShapeT, Super> {
  public:
   using Shape = ShapeT;
 
-  inline Tagged<ElementT> get(int index) const;
-  inline Tagged<ElementT> get(int index, RelaxedLoadTag) const;
-  inline Tagged<ElementT> get(int index, AcquireLoadTag) const;
-  inline Tagged<ElementT> get(int index, SeqCstAccessTag) const;
+  // Index is never supposed to be negative.
+  // See https://crbug.com/441221573.
+
+  inline Tagged<ElementT> get(uint32_t index) const;
+  inline Tagged<ElementT> get(uint32_t index, RelaxedLoadTag) const;
+  inline Tagged<ElementT> get(uint32_t index, AcquireLoadTag) const;
+  inline Tagged<ElementT> get(uint32_t index, SeqCstAccessTag) const;
 
   inline void set(int index, Tagged<ElementT> value,
                   WriteBarrierMode mode = kDefaultMode);

@@ -187,13 +187,12 @@
 #define HWY_TARGET_STR_AVX3_SPR HWY_TARGET_STR_AVX3_ZEN4
 #endif
 
-// Support for avx10.2-512 was removed between clang 22 and 23 without a
-// feature test macro.
-#if HWY_COMPILER_CLANG >= 2200 && HWY_HAVE_EVEX512
+#if HWY_COMPILER_GCC_ACTUAL >= 1500 || HWY_COMPILER_CLANG >= 2200
+#if HWY_HAVE_EVEX512
 #define HWY_TARGET_STR_AVX10_2 HWY_TARGET_STR_AVX3_SPR ",avx10.2-512"
-// Recent compilers drop the -512 suffix because 512 bits are always available.
-#elif HWY_COMPILER_GCC_ACTUAL >= 1500 || HWY_COMPILER_CLANG >= 2200
+#else
 #define HWY_TARGET_STR_AVX10_2 HWY_TARGET_STR_AVX3_SPR ",avx10.2"
+#endif  // HWY_HAVE_EVEX512
 #else
 #define HWY_TARGET_STR_AVX10_2 HWY_TARGET_STR_AVX3_SPR
 #endif

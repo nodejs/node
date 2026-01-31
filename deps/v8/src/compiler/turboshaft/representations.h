@@ -335,7 +335,8 @@ class RegisterRepresentation : public MaybeRegisterRepresentation {
   }
 
   constexpr bool AllowImplicitRepresentationChangeTo(
-      RegisterRepresentation dst_rep, bool graph_created_from_turbofan) const;
+      RegisterRepresentation dst_rep, bool graph_created_from_turbofan,
+      bool is_turbolev) const;
 
   constexpr RegisterRepresentation MapTaggedToWord() const {
     if (this->value() == RegisterRepresentation::Tagged()) {
@@ -360,7 +361,9 @@ V8_INLINE size_t hash_value(MaybeRegisterRepresentation rep) {
 }
 
 constexpr bool RegisterRepresentation::AllowImplicitRepresentationChangeTo(
-    RegisterRepresentation dst_rep, bool graph_created_from_turbofan) const {
+    RegisterRepresentation dst_rep, bool graph_created_from_turbofan,
+    bool is_turbolev) const {
+  DCHECK(!(graph_created_from_turbofan && is_turbolev));
   if (*this == dst_rep) {
     return true;
   }
@@ -392,7 +395,9 @@ constexpr bool RegisterRepresentation::AllowImplicitRepresentationChangeTo(
     case RegisterRepresentation::Tagged():
       // We allow implicit untagged -> tagged conversions. This is only safe for
       // Smi values.
-      if (*this == RegisterRepresentation::WordPtr()) {
+      // TODO(dmercadier): consider disabling this for Turbolev and making
+      // conversions always explicit.
+      if (!is_turbolev && *this == RegisterRepresentation::WordPtr()) {
         return true;
       }
       break;
