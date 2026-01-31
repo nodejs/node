@@ -162,3 +162,13 @@ if (!process.config.variables.node_without_node_options) {
       stderr: `${binary}: NODE_REPL_EXTERNAL_MODULE can't be used with kDisableNodeOptionsEnv${os.EOL}`,
     });
 }
+
+// C-API specific tests
+spawnSyncAndAssert(
+  binary,
+  ['c-api-nodejs-main', '--eval', 'console.log("Hello World")'],
+  {
+    trim: true,
+    stdout: 'Hello World',
+  },
+);
