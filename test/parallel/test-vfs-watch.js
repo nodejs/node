@@ -373,3 +373,125 @@ const vfs = require('node:vfs');
     myVfs.addFile('/data/subdir/nested.txt', 'updated nested');
   }, 100);
 }
+
+// Test async iterator return() method
+{
+  const myVfs = vfs.create();
+  myVfs.writeFileSync('/return-test.txt', 'initial');
+
+  (async () => {
+    const watcher = myVfs.promises.watch('/return-test.txt', { persistent: false });
+
+    // Call return() to close the iterator early
+    const result = await watcher.return();
+    assert.strictEqual(result.done, true);
+    assert.strictEqual(result.value, undefined);
+  })().then(common.mustCall());
+}
+
+// Test async iterator throw() method
+{
+  const myVfs = vfs.create();
+  myVfs.writeFileSync('/throw-test.txt', 'initial');
+
+  (async () => {
+    const watcher = myVfs.promises.watch('/throw-test.txt', { persistent: false });
+
+    // Call throw() to close the iterator with an error
+    const result = await watcher.throw(new Error('test error'));
+    assert.strictEqual(result.done, true);
+    assert.strictEqual(result.value, undefined);
+  })().then(common.mustCall());
+}
+
+// Test pending events (events buffered before next() is called)
+{
+  const myVfs = vfs.create();
+  myVfs.writeFileSync('/pending-test.txt', 'initial');
+
+  (async () => {
+    const watcher = myVfs.promises.watch('/pending-test.txt', {
+      interval: 20,
+      persistent: false,
+    });
+
+    // Trigger a change and wait for it to be buffered
+    setTimeout(() => {
+      myVfs.writeFileSync('/pending-test.txt', 'updated');
+    }, 50);
+
+    // Wait a bit longer than the poll interval to ensure event is buffered
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    // Now iterate - the event should already be pending
+    let eventCount = 0;
+    const ac = new AbortController();
+    setTimeout(() => ac.abort(), 200);
+
+    try {
+      for await (const event of watcher) {
+        assert.ok(event.eventType);
+        eventCount++;
+        break; // Exit after first event
+      }
+    } catch {
+      // Ignore abort errors
+    }
+    assert.strictEqual(eventCount, 1);
+    await watcher.return();
+  })().then(common.mustCall());
+}
+
+// Test close while iteration is pending (waiting for next event)
+{
+  const myVfs = vfs.create();
+  myVfs.writeFileSync('/close-pending.txt', 'initial');
+
+  (async () => {
+    const watcher = myVfs.promises.watch('/close-pending.txt', {
+      interval: 50,
+      persistent: false,
+    });
+
+    // Start iterating in background (this will wait for events)
+    const iterPromise = (async () => {
+      const events = [];
+      for await (const event of watcher) {
+        events.push(event);
+      }
+      return events;
+    })();
+
+    // Close the watcher while iteration is waiting
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    await watcher.return();
+
+    // The iteration should complete with no events
+    const events = await iterPromise;
+    assert.strictEqual(events.length, 0);
+  })().then(common.mustCall());
+}
+
+// Test VFSStatWatcher ref() and unref() methods
+{
+  const myVfs = vfs.create();
+  myVfs.writeFileSync('/stat-ref-test.txt', 'content');
+
+  const listener = common.mustNotCall();
+  const statWatcher = myVfs.watchFile(
+    '/stat-ref-test.txt',
+    { interval: 50, persistent: false },
+    listener,
+  );
+
+  // Test unref() returns this
+  const unrefResult = statWatcher.unref();
+  assert.strictEqual(unrefResult, statWatcher);
+
+  // Test ref() returns this
+  const refResult = statWatcher.ref();
+  assert.strictEqual(refResult, statWatcher);
+
+  // Clean up
+  myVfs.unwatchFile('/stat-ref-test.txt', listener);
+}
