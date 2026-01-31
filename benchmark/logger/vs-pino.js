@@ -15,13 +15,13 @@ function main({ n, logger, scenario }) {
   let consumer;
 
   if (logger === 'node-logger') {
-    const { createLogger, JSONConsumer } = require('node:logger');
+    const { Logger, JSONConsumer } = require('node:logger');
 
     switch (scenario) {
       case 'simple': {
         consumer = new JSONConsumer({ stream: nullFd, level: 'info' });
         consumer.attach();
-        testLogger = createLogger({ level: 'info' });
+        testLogger = new Logger({ level: 'info' });
 
         bench.start();
         for (let i = 0; i < n; i++) {
@@ -34,7 +34,7 @@ function main({ n, logger, scenario }) {
       case 'child': {
         consumer = new JSONConsumer({ stream: nullFd, level: 'info' });
         consumer.attach();
-        const baseLogger = createLogger({ level: 'info' });
+        const baseLogger = new Logger({ level: 'info' });
         testLogger = baseLogger.child({ requestId: 'req-123', userId: 456 });
 
         bench.start();
@@ -48,7 +48,7 @@ function main({ n, logger, scenario }) {
       case 'disabled': {
         consumer = new JSONConsumer({ stream: nullFd, level: 'warn' });
         consumer.attach();
-        testLogger = createLogger({ level: 'warn' });
+        testLogger = new Logger({ level: 'warn' });
 
         bench.start();
         for (let i = 0; i < n; i++) {
@@ -61,7 +61,7 @@ function main({ n, logger, scenario }) {
       case 'fields': {
         consumer = new JSONConsumer({ stream: nullFd, level: 'info' });
         consumer.attach();
-        testLogger = createLogger({ level: 'info' });
+        testLogger = new Logger({ level: 'info' });
 
         bench.start();
         for (let i = 0; i < n; i++) {
