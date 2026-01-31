@@ -2,39 +2,53 @@
 #include "debug_utils-inl.h"
 #include "simdjson.h"
 
-#include <string>
-
 namespace node {
 
+constexpr std::string_view kConfigFileFlag = "--experimental-config-file";
+constexpr std::string_view kDefaultConfigFileFlag =
+    "--experimental-default-config-file";
+constexpr std::string_view kDefaultConfigFileName = "node.config.json";
+
+inline bool HasEqualsPrefix(std::string_view arg, std::string_view flag) {
+  return arg.size() > flag.size() && arg.starts_with(flag) &&
+         arg[flag.size()] == '=';
+}
+
 std::optional<std::string_view> ConfigReader::GetDataFromArgs(
-    const std::vector<std::string>& args) {
-  constexpr std::string_view flag_path = "--experimental-config-file";
-  constexpr std::string_view default_file =
-      "--experimental-default-config-file";
+    std::vector<std::string>* args) {
+  std::optional<std::string_view> result;
+  invalid_default_config_file_argument_ = false;
 
-  bool has_default_config_file = false;
+  for (size_t i = 0; i < args->size(); ++i) {
+    std::string& arg = (*args)[i];
 
-  for (auto it = args.begin(); it != args.end(); ++it) {
-    if (*it == flag_path) {
-      // Case: "--experimental-config-file foo"
-      if (auto next = std::next(it); next != args.end()) {
-        return *next;
+    if (arg == kConfigFileFlag) {
+      // --experimental-config-file
+      arg = std::string(kConfigFileFlag) + "=" +
+            std::string(kDefaultConfigFileName);
+      result = kDefaultConfigFileName;
+    } else if (HasEqualsPrefix(arg, kConfigFileFlag)) {
+      // --experimental-config-file=path
+      std::string_view path =
+          std::string_view(arg).substr(kConfigFileFlag.size() + 1);
+      if (!path.empty()) {
+        result = path;
       }
-    } else if (it->starts_with(flag_path)) {
-      // Case: "--experimental-config-file=foo"
-      if (it->size() > flag_path.size() && (*it)[flag_path.size()] == '=') {
-        return std::string_view(*it).substr(flag_path.size() + 1);
-      }
-    } else if (*it == default_file || it->starts_with(default_file)) {
-      has_default_config_file = true;
+    } else if (arg == kDefaultConfigFileFlag) {
+      // --experimental-default-config-file
+      arg = std::string(kConfigFileFlag) + "=" +
+            std::string(kDefaultConfigFileName);
+      result = kDefaultConfigFileName;
+    } else if (HasEqualsPrefix(arg, kDefaultConfigFileFlag)) {
+      invalid_default_config_file_argument_ = true;
     }
   }
 
-  if (has_default_config_file) {
-    return "node.config.json";
-  }
+  return result;
+}
 
-  return std::nullopt;
+bool ConfigReader::HasInvalidDefaultConfigFileArgument() const {
+  return invalid_default_config_file_argument_;
 }
 
 ParseResult ConfigReader::ProcessOptionValue(

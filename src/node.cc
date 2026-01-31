@@ -900,15 +900,21 @@ static ExitCode InitializeNodeWithArgsInternal(
   }
 
   std::string node_options_from_config;
-  if (auto path = per_process::config_reader.GetDataFromArgs(*argv)) {
-    switch (per_process::config_reader.ParseConfig(*path)) {
+  auto config_path = per_process::config_reader.GetDataFromArgs(argv);
+  if (per_process::config_reader.HasInvalidDefaultConfigFileArgument()) {
+    errors->push_back("--experimental-default-config-file does not take an "
+                      "argument");
+    return ExitCode::kInvalidCommandLineArgument;
+  }
+  if (config_path) {
+    switch (per_process::config_reader.ParseConfig(*config_path)) {
       case ParseResult::Valid:
         break;
       case ParseResult::InvalidContent:
-        errors->push_back(std::string(*path) + ": invalid content");
+        errors->push_back(std::string(*config_path) + ": invalid content");
         break;
       case ParseResult::FileError:
-        errors->push_back(std::string(*path) + ": not found");
+        errors->push_back(std::string(*config_path) + ": not found");
         break;
       default:
         UNREACHABLE();
