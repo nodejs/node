@@ -1,7 +1,9 @@
+// Flags: --expose-internals --no-warnings
+
 'use strict';
 require('../common');
 const assert = require('assert');
-const httpCommon = require('_http_common');
+const httpCommon = require('internal/http/common');
 const http = require('http');
 
 [Symbol(), {}, [], () => {}, 1n, true, '1', null, undefined].forEach((value) => {
