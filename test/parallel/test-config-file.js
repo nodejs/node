@@ -371,6 +371,34 @@ test('should use node.config.json as default', onlyIfNodeOptionsSupport, async (
   assert.strictEqual(result.code, 0);
 });
 
+test('should use node.config.json when --experimental-config-file has no argument',
+     onlyIfNodeOptionsSupport, async () => {
+       const result = await spawnPromisified(process.execPath, [
+         '--no-warnings',
+         '--experimental-config-file',
+         '-p', 'http.maxHeaderSize',
+       ], {
+         cwd: fixtures.path('rc/default'),
+       });
+       assert.strictEqual(result.stderr, '');
+       assert.strictEqual(result.stdout, '10\n');
+       assert.strictEqual(result.code, 0);
+     });
+
+test('should use node.config.json when --experimental-config-file= has empty argument',
+     onlyIfNodeOptionsSupport, async () => {
+       const result = await spawnPromisified(process.execPath, [
+         '--no-warnings',
+         '--experimental-config-file=',
+         '-p', 'http.maxHeaderSize',
+       ], {
+         cwd: fixtures.path('rc/default'),
+       });
+       assert.strictEqual(result.stderr, '');
+       assert.strictEqual(result.stdout, '10\n');
+       assert.strictEqual(result.code, 0);
+     });
+
 test('should override node.config.json when specificied', onlyIfNodeOptionsSupport, async () => {
   const result = await spawnPromisified(process.execPath, [
     '--no-warnings',

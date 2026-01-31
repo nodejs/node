@@ -602,8 +602,10 @@ It is possible to run code containing inline types unless the
 .It Fl -experimental-addon-modules
 Enable experimental import support for \fB.node\fR addons.
 .
-.It Fl -experimental-config-file Ns = Ns Ar config
+.It Fl -experimental-config-file= Ns Ar config , Fl -experimental-config-file , Fl -experimental-default-config-file
 If present, Node.js will look for a configuration file at the specified path.
+If the path is not specified, Node.js will look for a \fBnode.config.json\fR file
+in the current working directory.
 Node.js will read the configuration file and apply the settings. The
 configuration file should be a JSON file with the following structure. \fBvX.Y.Z\fR
 in the \fB$schema\fR must be replaced with the version of Node.js you are using.
@@ -689,9 +691,10 @@ Node.js will not sanitize or perform validation on the user-provided configurati
 so \fBNEVER\fR use untrusted configuration files.
 .
 .It Fl -experimental-default-config-file
-If the \fB--experimental-default-config-file\fR flag is present, Node.js will look for a
+This flag is an alias for \fB--experimental-config-file\fR without an argument.
+If present, Node.js will look for a
 \fBnode.config.json\fR file in the current working directory and load it as a
-as configuration file.
+configuration file.
 .
 .It Fl -experimental-eventsource
 Enable exposition of EventSource Web API on the global scope.
