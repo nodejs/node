@@ -2,11 +2,11 @@
 
 const common = require('../common');
 const assert = require('assert');
-const fs = require('fs');
+const vfs = require('node:vfs');
 
 // Test callback-based readFile
 {
-  const myVfs = fs.createVirtual();
+  const myVfs = vfs.create();
   myVfs.writeFileSync('/test.txt', 'hello world');
 
   myVfs.readFile('/test.txt', common.mustCall((err, data) => {
@@ -28,7 +28,7 @@ const fs = require('fs');
 
 // Test callback-based readFile with non-existent file
 {
-  const myVfs = fs.createVirtual();
+  const myVfs = vfs.create();
 
   myVfs.readFile('/nonexistent.txt', common.mustCall((err, data) => {
     assert.strictEqual(err.code, 'ENOENT');
@@ -38,7 +38,7 @@ const fs = require('fs');
 
 // Test callback-based readFile with directory
 {
-  const myVfs = fs.createVirtual();
+  const myVfs = vfs.create();
   myVfs.mkdirSync('/mydir', { recursive: true });
 
   myVfs.readFile('/mydir', common.mustCall((err, data) => {
@@ -49,7 +49,7 @@ const fs = require('fs');
 
 // Test callback-based stat
 {
-  const myVfs = fs.createVirtual();
+  const myVfs = vfs.create();
   myVfs.mkdirSync('/dir', { recursive: true });
   myVfs.writeFileSync('/file.txt', 'content');
 
@@ -74,7 +74,7 @@ const fs = require('fs');
 
 // Test callback-based lstat (same as stat for VFS)
 {
-  const myVfs = fs.createVirtual();
+  const myVfs = vfs.create();
   myVfs.writeFileSync('/file.txt', 'content');
 
   myVfs.lstat('/file.txt', common.mustCall((err, stats) => {
@@ -85,7 +85,7 @@ const fs = require('fs');
 
 // Test callback-based readdir
 {
-  const myVfs = fs.createVirtual();
+  const myVfs = vfs.create();
   myVfs.mkdirSync('/dir/subdir', { recursive: true });
   myVfs.writeFileSync('/dir/file1.txt', 'a');
   myVfs.writeFileSync('/dir/file2.txt', 'b');
@@ -121,7 +121,7 @@ const fs = require('fs');
 
 // Test callback-based realpath
 {
-  const myVfs = fs.createVirtual();
+  const myVfs = vfs.create();
   myVfs.mkdirSync('/path/to', { recursive: true });
   myVfs.writeFileSync('/path/to/file.txt', 'content');
 
@@ -143,7 +143,7 @@ const fs = require('fs');
 
 // Test callback-based access
 {
-  const myVfs = fs.createVirtual();
+  const myVfs = vfs.create();
   myVfs.writeFileSync('/accessible.txt', 'content');
 
   myVfs.access('/accessible.txt', common.mustCall((err) => {
@@ -159,7 +159,7 @@ const fs = require('fs');
 
 // Test promises.readFile
 (async () => {
-  const myVfs = fs.createVirtual();
+  const myVfs = vfs.create();
   myVfs.writeFileSync('/promise-test.txt', 'promise content');
 
   const bufferData = await myVfs.promises.readFile('/promise-test.txt');
@@ -186,7 +186,7 @@ const fs = require('fs');
 
 // Test promises.stat
 (async () => {
-  const myVfs = fs.createVirtual();
+  const myVfs = vfs.create();
   myVfs.mkdirSync('/stat-dir', { recursive: true });
   myVfs.writeFileSync('/stat-file.txt', 'hello');
 
@@ -205,7 +205,7 @@ const fs = require('fs');
 
 // Test promises.lstat
 (async () => {
-  const myVfs = fs.createVirtual();
+  const myVfs = vfs.create();
   myVfs.writeFileSync('/lstat-file.txt', 'content');
 
   const stats = await myVfs.promises.lstat('/lstat-file.txt');
@@ -214,7 +214,7 @@ const fs = require('fs');
 
 // Test promises.readdir
 (async () => {
-  const myVfs = fs.createVirtual();
+  const myVfs = vfs.create();
   myVfs.mkdirSync('/pdir/sub', { recursive: true });
   myVfs.writeFileSync('/pdir/a.txt', 'a');
   myVfs.writeFileSync('/pdir/b.txt', 'b');
@@ -240,7 +240,7 @@ const fs = require('fs');
 
 // Test promises.realpath
 (async () => {
-  const myVfs = fs.createVirtual();
+  const myVfs = vfs.create();
   myVfs.mkdirSync('/real/path', { recursive: true });
   myVfs.writeFileSync('/real/path/file.txt', 'content');
 
@@ -258,7 +258,7 @@ const fs = require('fs');
 
 // Test promises.access
 (async () => {
-  const myVfs = fs.createVirtual();
+  const myVfs = vfs.create();
   myVfs.writeFileSync('/access-test.txt', 'content');
 
   await myVfs.promises.access('/access-test.txt');
