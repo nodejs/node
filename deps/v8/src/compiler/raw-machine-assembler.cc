@@ -531,7 +531,6 @@ Node* RawMachineAssembler::Parameter(size_t index) {
   return parameters_[index];
 }
 
-
 void RawMachineAssembler::Goto(RawMachineLabel* label) {
   DCHECK(current_block_ != schedule()->end());
   schedule()->AddGoto(CurrentBlock(), Use(label));
@@ -685,6 +684,16 @@ void RawMachineAssembler::Unreachable() {
   schedule()->AddThrow(CurrentBlock(), ret);
   current_block_ = nullptr;
 }
+
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+void RawMachineAssembler::EnterSandbox() {
+  AddNode(machine()->SwitchSandboxMode(CodeSandboxingMode::kSandboxed));
+}
+
+void RawMachineAssembler::ExitSandbox() {
+  AddNode(machine()->SwitchSandboxMode(CodeSandboxingMode::kUnsandboxed));
+}
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
 
 void RawMachineAssembler::Comment(const std::string& msg) {
   size_t length = msg.length() + 1;

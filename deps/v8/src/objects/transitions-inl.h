@@ -270,9 +270,6 @@ int TransitionArray::SearchName(Tagged<Name> name, bool concurrent_search,
     return kNotFound;
   }
 
-  // Do linear search for small arrays, and for searches in the background
-  // thread.
-  const int kMaxElementsForLinearSearch = 8;
   if (number_of_transitions() <= kMaxElementsForLinearSearch ||
       concurrent_search) {
     return LinearSearchName(name, out_insertion_index);
@@ -284,6 +281,9 @@ int TransitionArray::SearchName(Tagged<Name> name, bool concurrent_search,
 int TransitionArray::BinarySearchName(Tagged<Name> name,
                                       int* out_insertion_index) {
   int end = number_of_transitions();
+  // Binary search must not be used for small number of descriptors since
+  // the descriptor array is not sorted yet.
+  DCHECK_LT(kMaxElementsForLinearSearch, end);
   uint32_t hash = name->hash();
 
   // Find the first index whose key's hash is greater-than-or-equal-to the

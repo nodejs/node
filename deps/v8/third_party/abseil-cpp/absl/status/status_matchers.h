@@ -20,6 +20,24 @@
 //
 // Defines the following utilities:
 //
+//   =================
+//   ABSL_EXPECT_OK(s)
+//
+//   ABSL_ASSERT_OK(s)
+//   =================
+//   Convenience macros for `EXPECT_THAT(s, IsOk())`, where `s` is either
+//   a `Status` or a `StatusOr<T>`.
+//
+//   There are no EXPECT_NOT_OK/ASSERT_NOT_OK macros since they would not
+//   provide much value (when they fail, they would just print the OK status
+//   which conveys no more information than `EXPECT_FALSE(s.ok())`. You can
+//   of course use `EXPECT_THAT(s, Not(IsOk()))` if you prefer _THAT style.
+//
+//   If you want to check for particular errors, better alternatives are:
+//   EXPECT_THAT(s, StatusIs(expected_error));
+//   EXPECT_THAT(s, StatusIs(_, _, HasSubstr("expected error")));
+//
+//
 //   ===============
 //   `IsOkAndHolds(m)`
 //   ===============
@@ -76,6 +94,13 @@
 namespace absl_testing {
 ABSL_NAMESPACE_BEGIN
 
+// Macros for testing the results of functions that return absl::Status or
+// absl::StatusOr<T> (for any type T).
+#define ABSL_EXPECT_OK(expression) \
+  EXPECT_THAT(expression, ::absl_testing::IsOk())
+#define ABSL_ASSERT_OK(expression) \
+  ASSERT_THAT(expression, ::absl_testing::IsOk())
+
 // Returns a gMock matcher that matches a StatusOr<> whose status is
 // OK and whose value matches the inner matcher.
 template <typename InnerMatcherT>
@@ -111,6 +136,29 @@ status_internal::StatusIsMatcher StatusIs(StatusCodeMatcherT&& code_matcher) {
 inline status_internal::IsOkMatcher IsOk() {
   return status_internal::IsOkMatcher();
 }
+
+// By defining ABSL_DEFINE_UNQUALIFIED_STATUS_TESTING_MACROS, this library also
+// provides unqualified versions of macros
+//
+// Unqualified macro names are likely to collide with those other projects, and
+// so are not recommended.  Further, this is true of any transitive dependency
+// of Abseil; it is impossible to be confident no downstream library will not
+// also define these macros itself nor depend on a different library that also
+// defines them.
+//
+// To enable this, define `ABSL_DEFINE_UNQUALIFIED_STATUS_TESTING_MACROS`
+// preferably at the command line, e.g.
+// `-DABSL_DEFINE_UNQUALIFIED_STATUS_TESTING_MACROS` or
+// `local_defines = ["ABSL_DEFINE_UNQUALIFIED_STATUS_TESTING_MACROS"]` if using
+// Bazel.
+//
+// These are turned on by default inside Google's internal codebase where their
+// use is historically ubiquitous.  Other OSS Google projects should use the
+// qualified versions or the `EXPECT_THAT(..., IsOk())` form.
+#ifdef ABSL_DEFINE_UNQUALIFIED_STATUS_TESTING_MACROS
+#define EXPECT_OK(expression) ABSL_EXPECT_OK(expression)
+#define ASSERT_OK(expression) ABSL_ASSERT_OK(expression)
+#endif  // ABSL_DEFINE_UNQUALIFIED_STATUS_TESTING_MACROS
 
 ABSL_NAMESPACE_END
 }  // namespace absl_testing

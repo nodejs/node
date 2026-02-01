@@ -782,7 +782,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   inline void Tst(const Register& rn, const Operand& operand);
   inline void Bic(const Register& rd, const Register& rn,
                   const Operand& operand);
-  inline void Blr(const Register& xn);
   inline void Cmp(const Register& rn, const Operand& operand);
   inline void CmpTagged(const Register& rn, const Operand& operand);
   inline void Subs(const Register& rd, const Register& rn,
@@ -1104,10 +1103,12 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void Jump(Handle<Code> code, RelocInfo::Mode rmode, Condition cond = al);
   void Jump(const ExternalReference& reference);
 
-  void Call(Register target);
   void Call(Address target, RelocInfo::Mode rmode);
   void Call(Handle<Code> code, RelocInfo::Mode rmode = RelocInfo::CODE_TARGET);
   void Call(ExternalReference target);
+
+  inline void Call(Label* label);
+  inline void Call(const Register& xn);
 
   // Generate an indirect call (for when a direct call's range is not adequate).
   void IndirectCall(Address target, RelocInfo::Mode rmode);
@@ -1135,10 +1136,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void CallJSFunction(Register function_object, uint16_t argument_count);
   void JumpJSFunction(Register function_object,
                       JumpMode jump_mode = JumpMode::kJump);
-#ifdef V8_ENABLE_LEAPTIERING
   void CallJSDispatchEntry(JSDispatchHandle dispatch_handle,
                            uint16_t argument_count);
-#endif
 #ifdef V8_ENABLE_WEBASSEMBLY
   void ResolveWasmCodePointer(Register target, uint64_t signature_hash);
   void CallWasmCodePointer(Register target, uint64_t signature_hash,
@@ -1152,9 +1151,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // The return address on the stack is used by frame iteration.
   void StoreReturnAddressAndCall(Register target);
 
-  // TODO(olivf, 42204201) Rename this to AssertNotDeoptimized once
-  // non-leaptiering is removed from the codebase.
-  void BailoutIfDeoptimized();
+  void AssertNotDeoptimized();
   void CallForDeoptimization(Builtin target, int deopt_id, Label* exit,
                              DeoptimizeKind kind, Label* ret,
                              Label* jump_deoptimization_entry_label);
@@ -1355,7 +1352,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
     ins(vd, vd_index, rn);
   }
 
-  inline void Bl(Label* label);
   inline void Br(const Register& xn);
 
   inline void Uxtb(const Register& rd, const Register& rn);
@@ -1739,7 +1735,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void LoadCodePointerTableBase(Register destination);
 #endif
 
-#ifdef V8_ENABLE_LEAPTIERING
   void LoadEntrypointFromJSDispatchTable(Register destination,
                                          Register dispatch_handle,
                                          Register scratch);
@@ -1752,7 +1747,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void LoadEntrypointAndParameterCountFromJSDispatchTable(
       Register entrypoint, Register parameter_count, Register dispatch_handle,
       Register scratch);
-#endif  // V8_ENABLE_LEAPTIERING
 
   // Load a protected pointer field.
   void LoadProtectedPointerField(Register destination,
@@ -2068,17 +2062,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
                             Register scratch) NOOP_UNLESS_DEBUG_CODE;
   // TODO(olivf): Rename to GenerateTailCallToUpdatedFunction.
   void GenerateTailCallToReturnedCode(Runtime::FunctionId function_id);
-#ifndef V8_ENABLE_LEAPTIERING
-  void ReplaceClosureCodeWithOptimizedCode(Register optimized_code,
-                                           Register closure);
-  Condition LoadFeedbackVectorFlagsAndCheckIfNeedsProcessing(
-      Register flags, Register feedback_vector, CodeKind current_code_kind);
-  void LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
-      Register flags, Register feedback_vector, CodeKind current_code_kind,
-      Label* flags_need_processing);
-  void OptimizeCodeOrTailCallOptimizedCodeSlot(Register flags,
-                                               Register feedback_vector);
-#endif  // !V8_ENABLE_LEAPTIERING
 
   // Helpers ------------------------------------------------------------------
 
@@ -2185,7 +2168,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // leaptiering will be used on all platforms. At that point, the
   // non-leaptiering variants will disappear.
 
-#ifdef V8_ENABLE_LEAPTIERING
   // Invoke the JavaScript function in the given register. Changes the
   // current context to the context in the function before invoking.
   void InvokeFunction(Register function, Register actual_parameter_count,
@@ -2202,18 +2184,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
                           Register actual_parameter_count, InvokeType type,
                           ArgumentAdaptionMode argument_adaption_mode =
                               ArgumentAdaptionMode::kAdapt);
-#else
-  void InvokeFunctionCode(Register function, Register new_target,
-                          Register expected_parameter_count,
-                          Register actual_parameter_count, InvokeType type);
-  // Invoke the JavaScript function in the given register.
-  // Changes the current context to the context in the function before invoking.
-  void InvokeFunctionWithNewTarget(Register function, Register new_target,
-                                   Register actual_parameter_count,
-                                   InvokeType type);
-  void InvokeFunction(Register function, Register expected_parameter_count,
-                      Register actual_parameter_count, InvokeType type);
-#endif
 
   // ---- InstructionStream generation helpers ----
 

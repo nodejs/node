@@ -36,7 +36,8 @@ bool MaglevInliner::IsSmallWithHeapNumberInputsOutputs(
   if (call_site->generic_call_node->use_repr_hints().contains_any(
           UseRepresentationSet{UseRepresentation::kFloat64,
                                UseRepresentation::kHoleyFloat64,
-                               UseRepresentation::kTruncatedInt32})) {
+                               UseRepresentation::kTruncatedInt32,
+                               UseRepresentation::kShiftedInt53})) {
     // TruncatedInt32 uses do not necessarily mean that the input is a
     // HeapNumber, but when emitted operation that truncate their inputs to
     // Int32, Maglev doesn't distinguish between Smis and HeapNumbers.
@@ -123,13 +124,9 @@ bool MaglevInliner::InlineCallSites() {
       graph_->RemoveUnreachableBlocks();
     }
 
-    // If --trace-maglev-inlining-verbose, we print the graph after each
-    // inlining step/call.
     if (V8_UNLIKELY(ShouldPrintMaglevGraph())) {
-      std::cout << "\nAfter inlining "
-                << call_site->generic_call_node->shared_function_info()
-                << std::endl;
-      PrintGraph(std::cout, graph_);
+      PrintMaglevGraph("After inlining",
+                       call_site->generic_call_node->shared_function_info());
     }
   }
   return true;
@@ -151,8 +148,7 @@ void MaglevInliner::RunOptimizer() {
   }
 
   if (V8_UNLIKELY(ShouldPrintMaglevGraph())) {
-    std::cout << "\nAfter optimization " << std::endl;
-    PrintGraph(std::cout, graph_);
+    PrintMaglevGraph("After optimization");
   }
 }
 
@@ -297,7 +293,7 @@ MaglevInliner::InliningResult MaglevInliner::BuildInlineFunction(
   // Update caller deopt frame with inlined arguments.
   caller_details->deopt_frame =
       inner_graph_builder.AddInlinedArgumentsToDeoptFrame(
-          caller_deopt_frame, inner_unit, call_node->closure().node(),
+          caller_deopt_frame, inner_unit, call_node->TargetInput().node(),
           call_site->caller_details.arguments);
 
   // We truncate the graph to build the function in-place, preserving the
@@ -314,9 +310,9 @@ MaglevInliner::InliningResult MaglevInliner::BuildInlineFunction(
   // value.
   ReduceResult result = inner_graph_builder.BuildInlineFunction(
       caller_deopt_frame->GetSourcePosition(),
-      call_node->context().node()->Unwrap(),
-      call_node->closure().node()->Unwrap(),
-      call_node->new_target().node()->Unwrap());
+      call_node->ContextInput().node()->Unwrap(),
+      call_node->TargetInput().node()->Unwrap(),
+      call_node->NewTargetInput().node()->Unwrap());
 
   if (result.IsDoneWithAbort()) {
     if (inner_graph_builder.should_abort_compilation()) {
@@ -380,6 +376,28 @@ std::vector<BasicBlock*> MaglevInliner::TruncateGraphAt(BasicBlock* block) {
   return saved_bb;
 }
 
+CodeTracer* MaglevInliner::GetCodeTracer() const {
+  return graph_->broker()->local_isolate()->AsIsolate()->GetCodeTracer();
+}
+
+void MaglevInliner::PrintMaglevGraph(
+    const char* msg, compiler::OptionalSharedFunctionInfoRef ref) {
+  if (graph_->compilation_info()->is_turbolev()) {
+    CodeTracer* code_tracer = GetCodeTracer();
+    CodeTracer::StreamScope tracing_scope(code_tracer);
+    tracing_scope.stream() << "\n----- " << msg << " ";
+    if (ref) tracing_scope.stream() << *ref;
+    tracing_scope.stream() << "-----" << std::endl;
+    PrintGraph(tracing_scope.stream(), graph_);
+  } else {
+    // TODO(victorgomes): port maglev printing to use the code tracer?
+    std::cout << "\n----- " << msg << " ";
+    if (ref) std::cout << *ref;
+    std::cout << "-----" << std::endl;
+    PrintGraph(std::cout, graph_);
+  }
+}
+
 // static
 void MaglevInliner::UpdatePredecessorsOf(BasicBlock* block,
                                          BasicBlock* prev_pred,
@@ -432,7 +450,11 @@ ProcessResult ReturnedValueRepresentationSelector::Process(
     case ValueRepresentation::kIntPtr:
       node->OverwriteWith<IntPtrToNumber>();
       break;
+    case ValueRepresentation::kShiftedInt53:
+      node->OverwriteWith<ShiftedInt53ToNumber>();
+      break;
     case ValueRepresentation::kTagged:
+    case ValueRepresentation::kRawPtr:
     case ValueRepresentation::kNone:
       UNREACHABLE();
   }

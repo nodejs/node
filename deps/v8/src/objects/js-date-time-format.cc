@@ -946,8 +946,6 @@ bool CalendarEquals(temporal_rs::AnyCalendarKind kind,
     case HijriTabularTypeIIFriday:
       return other_kind == "islamic-civil" || other_kind == "islamicc" ||
              other_kind == "islamic";
-    case HijriSimulatedMecca:
-      return other_kind == "islamic-rgsa" || other_kind == "islamic";
     case HijriTabularTypeIIThursday:
       return other_kind == "islamic-tbla" || other_kind == "islamic";
     case HijriUmmAlQura:
@@ -1030,9 +1028,12 @@ Maybe<DateTimeValueRecord> HandleDateTimeTemporalYearMonth(
     Isolate* isolate, DirectHandle<JSDateTimeFormat> date_time_format,
     DirectHandle<JSTemporalPlainYearMonth> temporal_year_month,
     const char* method_name) {
-  auto res = HandleDateTimeTemporalGeneric<JSTemporalPlainYearMonth>(
-      isolate, date_time_format, PatternKind::kPlainYearMonth,
-      temporal_year_month);
+  DateTimeValueRecord res;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, res,
+      HandleDateTimeTemporalGeneric<JSTemporalPlainYearMonth>(
+          isolate, date_time_format, PatternKind::kPlainYearMonth,
+          temporal_year_month));
   // 4. Let format be dateTimeFormat.[[TemporalPlainYearMonthFormat]].
   // 5. If format is null, throw a TypeError exception.
   // [[TemporalPlainYearMonthFormat]] is null when dateStyle is undefined and
@@ -1045,7 +1046,7 @@ Maybe<DateTimeValueRecord> HandleDateTimeTemporalYearMonth(
                     NewTypeError(MessageTemplate::kInvalidArgumentForTemporal,
                                  temporal_year_month));
   }
-  return res;
+  return Just(res);
 }
 
 // #sec-temporal-handledatetimetemporalmonthday
@@ -1053,9 +1054,12 @@ Maybe<DateTimeValueRecord> HandleDateTimeTemporalMonthDay(
     Isolate* isolate, DirectHandle<JSDateTimeFormat> date_time_format,
     DirectHandle<JSTemporalPlainMonthDay> temporal_month_day,
     const char* method_name) {
-  auto res = HandleDateTimeTemporalGeneric<JSTemporalPlainMonthDay>(
-      isolate, date_time_format, PatternKind::kPlainMonthDay,
-      temporal_month_day);
+  DateTimeValueRecord res;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, res,
+      HandleDateTimeTemporalGeneric<JSTemporalPlainMonthDay>(
+          isolate, date_time_format, PatternKind::kPlainMonthDay,
+          temporal_month_day));
   // 4. Let format be dateTimeFormat.[[TemporalPlainMonthDayFormat]].
   // 5. If format is null, throw a TypeError exception.
   // [[TemporalPlainMonthDayFormat]] is null when dateStyle is undefined and
@@ -1068,7 +1072,7 @@ Maybe<DateTimeValueRecord> HandleDateTimeTemporalMonthDay(
                     NewTypeError(MessageTemplate::kInvalidArgumentForTemporal,
                                  temporal_month_day));
   }
-  return res;
+  return Just(res);
 }
 
 // #sec-temporal-handledatetimetemporaldatetime
@@ -1083,8 +1087,11 @@ Maybe<DateTimeValueRecord> HandleDateTimeTemporalDateTime(
 Maybe<DateTimeValueRecord> HandleDateTimeTemporalDate(
     Isolate* isolate, DirectHandle<JSDateTimeFormat> date_time_format,
     DirectHandle<JSTemporalPlainDate> temporal_date, const char* method_name) {
-  auto res = HandleDateTimeTemporalGeneric<JSTemporalPlainDate>(
-      isolate, date_time_format, PatternKind::kPlainDate, temporal_date);
+  DateTimeValueRecord res;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, res,
+      HandleDateTimeTemporalGeneric<JSTemporalPlainDate>(
+          isolate, date_time_format, PatternKind::kPlainDate, temporal_date));
   // 4. Let format be dateTimeFormat.[[TemporalPlainDateFormat]].
   // 5. If format is null, throw a TypeError exception.
   // [[TemporalPlainDateFormat]] is null when dateStyle is undefined and
@@ -1097,15 +1104,18 @@ Maybe<DateTimeValueRecord> HandleDateTimeTemporalDate(
                     NewTypeError(MessageTemplate::kInvalidArgumentForTemporal,
                                  temporal_date));
   }
-  return res;
+  return Just(res);
 }
 
 // #sec-temporal-handledatetimetemporaltime
 Maybe<DateTimeValueRecord> HandleDateTimeTemporalTime(
     Isolate* isolate, DirectHandle<JSDateTimeFormat> date_time_format,
     DirectHandle<JSTemporalPlainTime> temporal_time, const char* method_name) {
-  auto res = HandleDateTimeTemporalGeneric<JSTemporalPlainTime>(
-      isolate, date_time_format, PatternKind::kPlainTime, temporal_time);
+  DateTimeValueRecord res;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, res,
+      HandleDateTimeTemporalGeneric<JSTemporalPlainTime>(
+          isolate, date_time_format, PatternKind::kPlainTime, temporal_time));
   // 4. Let format be dateTimeFormat.[[TemporalPlainTimeFormat]].
   // 5. If format is null, throw a TypeError exception.
   // [[TemporalPlainTimeFormat]] is null when timeStyle is undefined and
@@ -1118,7 +1128,7 @@ Maybe<DateTimeValueRecord> HandleDateTimeTemporalTime(
                     NewTypeError(MessageTemplate::kInvalidArgumentForTemporal,
                                  temporal_time));
   }
-  return res;
+  return Just(res);
 }
 #endif  // V8_TEMPORAL_SUPPORT
 
@@ -1267,6 +1277,7 @@ enum Inherit { kAll, kRelevant };
 enum EraOp { kCopyEra, kIgnoreEra };
 enum HourCycleOp { kCopyHourCycle, kIgnoreHourCycle };
 icu::UnicodeString GetDateTimeFormat(const icu::UnicodeString& options,
+                                     int32_t explicit_components_in_options,
                                      const std::set<char16_t>& required_options,
                                      const std::set<char16_t>& defaults_options,
                                      Inherit inherit, EraOp era_op,
@@ -1302,10 +1313,19 @@ icu::UnicodeString GetDateTimeFormat(const icu::UnicodeString& options,
   }
   // 13. Let anyPresent be false.
   // 14. For each property name prop of « "weekday", "year", "month", "day",
-  // "era", "dayPeriod", "hour", "minute", "second", "fractionalSecondDigits" »,
+  // dayPeriod", "hour", "minute", "second", "fractionalSecondDigits" »,
   // do
   //  a. If options.[[<prop>]] is not undefined, set anyPresent to true.
-  bool any_present = options.length() > 0;
+  bool any_present =
+      Weekday::decode(explicit_components_in_options) ||
+      Year::decode(explicit_components_in_options) ||
+      Month::decode(explicit_components_in_options) ||
+      Day::decode(explicit_components_in_options) ||
+      DayPeriod::decode(explicit_components_in_options) ||
+      Hour::decode(explicit_components_in_options) ||
+      Minute::decode(explicit_components_in_options) ||
+      Second::decode(explicit_components_in_options) ||
+      FractionalSecondDigits::decode(explicit_components_in_options);
 
   icu::UnicodeString result;
   // 15. Let needDefaults be true.
@@ -1407,8 +1427,9 @@ std::set<char16_t> ExplicitComponentsSet(int32_t components) {
 
 const icu::UnicodeString OrigionalOptions(
     const icu::UnicodeString& best_format,
-    int32_t explit_components_in_options) {
-  std::set<char16_t> keep = ExplicitComponentsSet(explit_components_in_options);
+    int32_t explicit_components_in_options) {
+  std::set<char16_t> keep =
+      ExplicitComponentsSet(explicit_components_in_options);
   icu::UnicodeString result;
   for (int32_t i = 0; i < best_format.length(); i++) {
     char16_t ch = best_format.charAt(i);
@@ -1426,8 +1447,9 @@ const icu::UnicodeString OrigionalOptions(
 // and step 45 and 46 of
 // https://tc39.es/proposal-temporal/#sec-createdatetimeformat
 icu::UnicodeString GetSkeletonForPatternKind(
-    const icu::UnicodeString& best_format, int32_t explit_components_in_options,
-    PatternKind kind, JSDateTimeFormat::DateTimeStyle date_style,
+    const icu::UnicodeString& best_format,
+    int32_t explicit_components_in_options, PatternKind kind,
+    JSDateTimeFormat::DateTimeStyle date_style,
     JSDateTimeFormat::DateTimeStyle time_style,
     bool has_to_locale_string_time_zone) {
   // [[weekday]] skeleton could be one or more 'E' or 'c'.
@@ -1518,7 +1540,7 @@ icu::UnicodeString GetSkeletonForPatternKind(
     }
   } else {
     const icu::UnicodeString& options =
-        OrigionalOptions(best_format, explit_components_in_options);
+        OrigionalOptions(best_format, explicit_components_in_options);
     // 5. Else,
     //    a. Assert: required is any.
     //    b. Let requiredOptions be « "weekday", "year", "month", "day",
@@ -1547,7 +1569,8 @@ icu::UnicodeString GetSkeletonForPatternKind(
         // j. Set dateTimeFormat.[[TemporalPlainDateFormat]] to
         // GetDateTimeFormat(formats, formatMatcher, formatOptions, date, date,
         // relevant).
-        return GetDateTimeFormat(options, kRequiredDate, kDefaultsDate,
+        return GetDateTimeFormat(options, explicit_components_in_options,
+                                 kRequiredDate, kDefaultsDate,
                                  Inherit::kRelevant, EraOp::kCopyEra,
                                  HourCycleOp::kIgnoreHourCycle);
       }
@@ -1563,9 +1586,10 @@ icu::UnicodeString GetSkeletonForPatternKind(
         // k. Set dateTimeFormat.[[TemporalPlainYearMonthFormat]] to
         // GetDateTimeFormat(formats, formatMatcher, formatOptions, year-month,
         // year-month, relevant).
-        return GetDateTimeFormat(
-            options, kRequiredYearMonth, kDefaultsYearMonth, Inherit::kRelevant,
-            EraOp::kCopyEra, HourCycleOp::kIgnoreHourCycle);
+        return GetDateTimeFormat(options, explicit_components_in_options,
+                                 kRequiredYearMonth, kDefaultsYearMonth,
+                                 Inherit::kRelevant, EraOp::kCopyEra,
+                                 HourCycleOp::kIgnoreHourCycle);
       }
       case PatternKind::kPlainMonthDay: {
         // 4. Else if required is month-day, then
@@ -1579,7 +1603,8 @@ icu::UnicodeString GetSkeletonForPatternKind(
         // l. Set dateTimeFormat.[[TemporalPlainMonthDayFormat]] to
         // GetDateTimeFormat(formats, formatMatcher, formatOptions, month-day,
         // month-day, relevant).
-        return GetDateTimeFormat(options, kRequiredMonthDay, kDefaultsMonthDay,
+        return GetDateTimeFormat(options, explicit_components_in_options,
+                                 kRequiredMonthDay, kDefaultsMonthDay,
                                  Inherit::kRelevant, EraOp::kIgnoreEra,
                                  HourCycleOp::kIgnoreHourCycle);
       }
@@ -1596,7 +1621,8 @@ icu::UnicodeString GetSkeletonForPatternKind(
         // m. Set dateTimeFormat.[[TemporalPlainTimeFormat]] to
         // GetDateTimeFormat(formats, formatMatcher, formatOptions, time, time,
         // relevant).
-        return GetDateTimeFormat(options, kRequiredTime, kDefaultsTime,
+        return GetDateTimeFormat(options, explicit_components_in_options,
+                                 kRequiredTime, kDefaultsTime,
                                  Inherit::kRelevant, EraOp::kIgnoreEra,
                                  HourCycleOp::kCopyHourCycle);
       }
@@ -1604,9 +1630,9 @@ icu::UnicodeString GetSkeletonForPatternKind(
         // n. Set dateTimeFormat.[[TemporalPlainDateTimeFormat]] to
         // GetDateTimeFormat(formats, formatMatcher, formatOptions, any, all,
         // relevant).
-        return GetDateTimeFormat(options, kRequiredAny, kDefaultsAll,
-                                 Inherit::kRelevant, EraOp::kCopyEra,
-                                 HourCycleOp::kCopyHourCycle);
+        return GetDateTimeFormat(options, explicit_components_in_options,
+                                 kRequiredAny, kDefaultsAll, Inherit::kRelevant,
+                                 EraOp::kCopyEra, HourCycleOp::kCopyHourCycle);
 
       case PatternKind::kInstant:
         //  o. If toLocaleStringTimeZone is present, then
@@ -1614,15 +1640,17 @@ icu::UnicodeString GetSkeletonForPatternKind(
           // i. Set dateTimeFormat.[[TemporalInstantFormat]] to
           // GetDateTimeFormat(formats, formatMatcher, formatOptions, any,
           // zoned-date-time, all).
-          return GetDateTimeFormat(options, kRequiredAny, kDefaultsAll,
-                                   Inherit::kAll, EraOp::kCopyEra,
-                                   HourCycleOp::kCopyHourCycle, true);
+          return GetDateTimeFormat(options, explicit_components_in_options,
+                                   kRequiredAny, kDefaultsAll, Inherit::kAll,
+                                   EraOp::kCopyEra, HourCycleOp::kCopyHourCycle,
+                                   true);
         } else {
           // i. Set dateTimeFormat.[[TemporalInstantFormat]] to
           // GetDateTimeFormat(formats, formatMatcher, formatOptions, any, all,
           // all).
-          return GetDateTimeFormat(options, kRequiredAny, kDefaultsAll,
-                                   Inherit::kAll, EraOp::kCopyEra,
+          return GetDateTimeFormat(options, explicit_components_in_options,
+                                   kRequiredAny, kDefaultsAll, Inherit::kAll,
+                                   EraOp::kCopyEra,
                                    HourCycleOp::kCopyHourCycle);
         }
 
@@ -1709,26 +1737,9 @@ std::optional<icu::UnicodeString> CallICUFormat(
   return result;
 }
 
-// ecma402/#sec-formatdatetime
-// FormatDateTime( dateTimeFormat, x )
-MaybeDirectHandle<String> FormatDateTime(
-    Isolate* isolate, const icu::SimpleDateFormat& date_format, double x) {
-  if (!DateCache::TryTimeClip(&x)) {
-    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kInvalidTimeValue));
-  }
-
-  icu::UnicodeString result;
-  date_format.format(x, result);
-
-  DCHECK_NE(v8_flags.icu_datetime_compat_lang, nullptr);
-  if (strcmp(v8_flags.icu_datetime_compat_lang, "*") == 0 ||
-      strcmp(v8_flags.icu_datetime_compat_lang,
-             date_format.getSmpFmtLocale().getLanguage()) == 0) {
-    // Revert ICU 72 change that introduced U+202F instead of U+0020
-    // to separate time from AM/PM. See https://crbug.com/1414292.
-    result = Replace202F(result);
-  }
-
+// Apply transformation requested by --icu-british-remove-full-weekday-comma
+void ApplyBritishRemoveFullWeekdayComma(
+    icu::UnicodeString& result, const icu::SimpleDateFormat& date_format) {
   if (v8_flags.icu_british_remove_full_weekday_comma) {
     // Revert ICU 76 adding a comma after a full weekday for en-AU/GB/IN.
     int32_t found = result.indexOf(',');
@@ -1750,6 +1761,28 @@ MaybeDirectHandle<String> FormatDateTime(
       }
     }
   }
+}
+
+// ecma402/#sec-formatdatetime
+// FormatDateTime( dateTimeFormat, x )
+MaybeDirectHandle<String> FormatDateTime(
+    Isolate* isolate, const icu::SimpleDateFormat& date_format, double x) {
+  if (!DateCache::TryTimeClip(&x)) {
+    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kInvalidTimeValue));
+  }
+
+  icu::UnicodeString result;
+  date_format.format(x, result);
+
+  DCHECK_NE(v8_flags.icu_datetime_compat_lang, nullptr);
+  if (strcmp(v8_flags.icu_datetime_compat_lang, "*") == 0 ||
+      strcmp(v8_flags.icu_datetime_compat_lang,
+             date_format.getSmpFmtLocale().getLanguage()) == 0) {
+    // Revert ICU 72 change that introduced U+202F instead of U+0020
+    // to separate time from AM/PM. See https://crbug.com/1414292.
+    result = Replace202F(result);
+  }
+  ApplyBritishRemoveFullWeekdayComma(result, date_format);
 
   return Intl::ToString(isolate, result);
 }
@@ -1768,7 +1801,10 @@ MaybeDirectHandle<String> FormatMillisecondsByKindToString(
         isolate,
         NewTypeError(MessageTemplate::kInvalidArgumentForTemporal, value));
   }
-  return Intl::ToString(isolate, result.value());
+  icu::UnicodeString result_unwrapped = std::move(result).value();
+  auto simple = date_time_format->icu_simple_date_format()->raw();
+  ApplyBritishRemoveFullWeekdayComma(result_unwrapped, *simple);
+  return Intl::ToString(isolate, result_unwrapped);
 }
 
 MaybeDirectHandle<String> FormatDateTimeWithTemporalSupport(
@@ -2627,7 +2663,8 @@ MaybeDirectHandle<JSDateTimeFormat> JSDateTimeFormat::CreateDateTimeFormat(
   if (maybe_calendar.FromJust()) {
     auto ca_extension_it = r.extensions.find("ca");
     if (ca_extension_it != r.extensions.end() &&
-        ca_extension_it->second != calendar_stdstr) {
+        ca_extension_it->second != calendar_stdstr &&
+        Intl::IsValidCalendar(icu_locale, calendar_stdstr)) {
       icu_locale.setUnicodeKeywordValue("ca", nullptr, status);
       DCHECK(U_SUCCESS(status));
     }
@@ -2635,7 +2672,8 @@ MaybeDirectHandle<JSDateTimeFormat> JSDateTimeFormat::CreateDateTimeFormat(
   if (maybe_numberingSystem.FromJust()) {
     auto nu_extension_it = r.extensions.find("nu");
     if (nu_extension_it != r.extensions.end() &&
-        nu_extension_it->second != numbering_system_str) {
+        nu_extension_it->second != numbering_system_str &&
+        Intl::IsValidNumberingSystem(numbering_system_str)) {
       icu_locale.setUnicodeKeywordValue("nu", nullptr, status);
       DCHECK(U_SUCCESS(status));
     }
@@ -3465,9 +3503,24 @@ MaybeDirectHandle<T> FormatRangeCommonWithTemporalSupport(
     Isolate* isolate, DirectHandle<JSDateTimeFormat> date_time_format,
     DirectHandle<Object> x_obj, DirectHandle<Object> y_obj,
     const char* method_name) {
+  bool x_is_temporal = IsTemporalObject(x_obj);
+  bool y_is_temporal = IsTemporalObject(y_obj);
+  // These steps come from formatRange/formatRangeToParts
+
+  // 4. Let x be ?ToDateTimeFormattable(startDate).
+  if (!x_is_temporal) {
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, x_obj,
+                               Object::ToNumber(isolate, x_obj));
+  }
+  // 4. Let y be ?ToDateTimeFormattable(startDate).
+  if (!y_is_temporal) {
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, y_obj,
+                               Object::ToNumber(isolate, y_obj));
+  }
+
   // 5. If either of ! IsTemporalObject(x) or ! IsTemporalObject(y) is true,
   // then
-  if (IsTemporalObject(x_obj) || IsTemporalObject(y_obj)) {
+  if (x_is_temporal || y_is_temporal) {
     // a. If ! SameTemporalType(x, y) is false, throw a TypeError exception.
     if (!SameTemporalType(x_obj, y_obj)) {
       THROW_NEW_ERROR(

@@ -354,11 +354,6 @@ class FeedbackCollectorReducer : public Next {
         __ BitcastSmiToWordPtr(a), __ BitcastSmiToWordPtr(b)));
   }
 
-  V<Word32> SmiEqual(V<Smi> a, V<Smi> b) {
-    return __ WordPtrEqual(__ BitcastSmiToWordPtr(a),
-                           __ BitcastSmiToWordPtr(b));
-  }
-
   V<WordPtr> ChangePositiveInt32ToIntPtr(V<Word32> input) {
     TSA_DCHECK(this, __ Int32LessThanOrEqual(0, input));
     return __ ChangeUint32ToUintPtr(input);
@@ -620,6 +615,23 @@ class BuiltinsReducer : public Next {
     __ Unreachable();
   }
 
+  template <typename Desc>
+    requires(!Desc::kCanTriggerLazyDeopt)
+  auto CallRuntime(compiler::turboshaft::V<Context> context,
+                   const Desc::Arguments& args) {
+    return Next::template CallRuntime<Desc>(context, args);
+  }
+
+  template <typename Desc>
+    requires(Desc::kCanTriggerLazyDeopt)
+  auto CallRuntime(compiler::turboshaft::V<Context> context,
+                   const Desc::Arguments& args) {
+    return Next::template CallRuntime<Desc>(
+        compiler::turboshaft::OptionalV<
+            compiler::turboshaft::FrameState>::Nullopt(),
+        context, args, compiler::LazyDeoptOnThrow::kNo);
+  }
+
  private:
   compiler::turboshaft::OperationMatcher matcher_{__ data()->graph()};
   Isolate* isolate() { return __ data() -> isolate(); }
@@ -628,12 +640,12 @@ class BuiltinsReducer : public Next {
 template <template <typename> typename Reducer,
           template <typename> typename FeedbackReducer>
 class TurboshaftBuiltinsAssembler
-    : public compiler::turboshaft::TSAssembler<
+    : public compiler::turboshaft::Assembler<
           Reducer, BuiltinsReducer, FeedbackReducer,
           compiler::turboshaft::MachineLoweringReducer,
           compiler::turboshaft::VariableReducer> {
  public:
-  using Base = compiler::turboshaft::TSAssembler<
+  using Base = compiler::turboshaft::Assembler<
       Reducer, BuiltinsReducer, FeedbackReducer,
       compiler::turboshaft::MachineLoweringReducer,
       compiler::turboshaft::VariableReducer>;

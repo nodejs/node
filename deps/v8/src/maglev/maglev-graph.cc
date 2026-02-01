@@ -135,11 +135,13 @@ void Graph::RemoveUnreachableBlocks() {
   while (!worklist.empty()) {
     BasicBlock* current = worklist.back();
     worklist.pop_back();
+    if (current->is_dead()) continue;
 
     for (auto handler : current->exception_handlers()) {
       if (!handler->HasExceptionHandler()) continue;
       if (handler->ShouldLazyDeopt()) continue;
       BasicBlock* catch_block = handler->catch_block();
+      if (catch_block->is_dead()) continue;
       if (!reachable_blocks[catch_block->id()]) {
         reachable_blocks[catch_block->id()] = true;
         worklist.push_back(catch_block);
@@ -156,6 +158,7 @@ void Graph::RemoveUnreachableBlocks() {
   // Sweep dead blocks and remove unreachable predecessors.
   IterateGraphAndSweepDeadBlocks([&](BasicBlock* bb) {
     if (!reachable_blocks[bb->id()]) return true;
+    DCHECK(!bb->is_dead());
     // If block doesn't have a merge state, it has only one predecessor, so
     // it must be the reachable one.
     if (!bb->has_state()) return false;

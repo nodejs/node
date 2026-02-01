@@ -46,17 +46,10 @@ class TurbolevEarlyLoweringReducer : public Next {
 
     if (first_instance_type == last_instance_type) {
 #if V8_STATIC_ROOTS_BOOL
-      if (InstanceTypeChecker::UniqueMapOfInstanceType(first_instance_type)) {
-        std::optional<RootIndex> expected_index =
-            InstanceTypeChecker::UniqueMapOfInstanceType(first_instance_type);
-        CHECK(expected_index.has_value());
-        Handle<HeapObject> expected_map =
-            Cast<HeapObject>(isolate_->root_handle(expected_index.value()));
-        __ DeoptimizeIfNot(__ TaggedEqual(map, __ HeapConstant(expected_map)),
-                           frame_state, DeoptimizeReason::kWrongInstanceType,
-                           feedback);
-        return;
-      }
+      // If this DCHECK fails, then we could special-case for this and just do a
+      // single map compare rather than loading the instance type.
+      DCHECK(
+          !InstanceTypeChecker::UniqueMapOfInstanceType(first_instance_type));
 #endif  // V8_STATIC_ROOTS_BOOL
       V<Word32> instance_type = __ LoadInstanceTypeField(map);
       __ DeoptimizeIfNot(__ Word32Equal(instance_type, first_instance_type),

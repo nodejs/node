@@ -1067,4 +1067,12 @@ arm64 host
 #define V8_TARGET_BIG_ENDIAN_BOOL false
 #endif
 
+// V8_USE_PERFETTO_SDK and V8_USE_PERFETTO_JSON_EXPORT must imply
+// V8_USE_PERFETTO.
+#if (defined(V8_USE_PERFETTO_SDK) || defined(V8_USE_PERFETTO_JSON_EXPORT)) && \
+    !defined(V8_USE_PERFETTO)
+#error Inconsistent build configuration: To build the V8 with Perfetto \
+features, set V8_USE_PERFETTO as well.
+#endif
+
 #endif  // V8CONFIG_H_

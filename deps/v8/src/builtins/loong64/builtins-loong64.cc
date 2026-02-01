@@ -296,56 +296,31 @@ static void AssertCodeIsBaseline(MacroAssembler* masm, Register code,
 static void GetSharedFunctionInfoBytecodeOrBaseline(
     MacroAssembler* masm, Register sfi, Register bytecode, Register scratch1,
     Label* is_baseline, Label* is_unavailable) {
-  DCHECK(!AreAliased(bytecode, scratch1));
   ASM_CODE_COMMENT(masm);
-  Label done;
+  DCHECK(!AreAliased(bytecode, scratch1));
+  Label is_interpreter_data, is_bytecode_array;
 
   Register data = bytecode;
-  __ LoadTrustedPointerField(
+  __ LoadTrustedUnknownPointerField(
       data,
       FieldMemOperand(sfi, SharedFunctionInfo::kTrustedFunctionDataOffset),
-      kUnknownIndirectPointerTag);
+      scratch1,
+      {
+          {INTERPRETER_DATA_TYPE, &is_interpreter_data},
+          {BYTECODE_ARRAY_TYPE, &is_bytecode_array},
+#if !V8_JITLESS_BOOL
+          {CODE_TYPE, is_baseline},
+#endif
+      });
+  // Fallthrough means none of the types matched. The destination register is
+  // zeroed.);
+  __ Branch(is_unavailable);
 
-  if (V8_JITLESS_BOOL) {
-    __ GetObjectType(data, scratch1, scratch1);
-    __ Branch(&done, ne, scratch1, Operand(INTERPRETER_DATA_TYPE));
-  } else {
-#if V8_STATIC_ROOTS_BOOL
-    if (v8_flags.debug_code) {
-      Label not_baseline;
-      __ BranchObjectTypeFast(&not_baseline, ne, data, scratch1, CODE_TYPE);
-      AssertCodeIsBaseline(masm, data, scratch1);
-      __ Branch(is_baseline);
-      __ bind(&not_baseline);
-    } else {
-      __ BranchObjectTypeFast(is_baseline, eq, data, scratch1, CODE_TYPE);
-    }
-
-    // scratch1 already contains the compressed map.
-    __ BranchInstanceTypeWithUniqueCompressedMap(
-        &done, ne, scratch1, Register::no_reg(), INTERPRETER_DATA_TYPE);
-#else
-    if (v8_flags.debug_code) {
-      Label not_baseline;
-      __ GetObjectType(data, scratch1, scratch1);
-      __ Branch(&not_baseline, ne, scratch1, Operand(CODE_TYPE));
-      AssertCodeIsBaseline(masm, data, scratch1);
-      __ Branch(is_baseline);
-      __ bind(&not_baseline);
-    } else {
-      __ GetObjectType(data, scratch1, scratch1);
-      __ Branch(is_baseline, eq, scratch1, Operand(CODE_TYPE));
-    }
-
-    __ Branch(&done, ne, scratch1, Operand(INTERPRETER_DATA_TYPE));
-#endif  // V8_STATIC_ROOTS_BOOL
-  }
-
+  __ bind(&is_interpreter_data);
   __ LoadInterpreterDataBytecodeArray(bytecode, data);
 
-  __ bind(&done);
-  __ GetObjectType(bytecode, scratch1, scratch1);
-  __ Branch(is_unavailable, ne, scratch1, Operand(BYTECODE_ARRAY_TYPE));
+  __ bind(&is_bytecode_array);
+  // In this case, the bytecode register already contains the bytecode array.
 }
 
 // static
@@ -396,7 +371,6 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
 
   // Compute actual arguments count value as a formal parameter count without
   // receiver, loaded from the dispatch table entry or shared function info.
-#if V8_ENABLE_LEAPTIERING
   Register dispatch_handle = kJavaScriptCallDispatchHandleRegister;
   Register code = kJavaScriptCallCodeStartRegister;
   Register scratch = t5;
@@ -412,16 +386,6 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   __ BranchShort(&is_bigger, kGreaterThan, argc, Operand(JSParameterCount(0)));
   __ li(argc, Operand(JSParameterCount(0)));
   __ bind(&is_bigger);
-#else
-  __ LoadTaggedField(
-      argc, FieldMemOperand(a5, JSFunction::kSharedFunctionInfoOffset));
-  __ Ld_hu(argc, FieldMemOperand(
-                     argc, SharedFunctionInfo::kFormalParameterCountOffset));
-
-  // Generator functions are always created from user code and thus the
-  // formal parameter count is never equal to kDontAdaptArgumentsSentinel,
-  // which is used only for certain non-generator builtin functions.
-#endif  // V8_ENABLE_LEAPTIERING
 
   // ----------- S t a t e -------------
   //  -- a0    : actual arguments count
@@ -484,13 +448,8 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
     // undefined because generator functions are non-constructable.
     __ Move(a3, a1);  // new.target
     __ Move(a1, a5);  // target
-#if V8_ENABLE_LEAPTIERING
     // Actual arguments count and code start are already initialized above.
     __ Jump(code);
-#else
-    // Actual arguments count is already initialized above.
-    __ JumpJSFunction(a1);
-#endif  // V8_ENABLE_LEAPTIERING
   }
 
   __ bind(&prepare_step_in_if_stepping);
@@ -1013,19 +972,6 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
     __ AssertFeedbackVector(feedback_vector, scratch);
   }
 
-#ifndef V8_ENABLE_LEAPTIERING
-  // Check for an tiering state.
-  Label flags_need_processing;
-  Register flags = no_reg;
-  {
-    UseScratchRegisterScope temps(masm);
-    flags = temps.Acquire();
-    // flags will be used only in |flags_need_processing|
-    // and outside it can be reused.
-    __ LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
-        flags, feedback_vector, CodeKind::BASELINE, &flags_need_processing);
-  }
-#endif  // !V8_ENABLE_LEAPTIERING
 
   {
     UseScratchRegisterScope temps(masm);
@@ -1101,19 +1047,6 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
   // TODO(v8:11429): Document this frame setup better.
   __ Ret();
 
-#ifndef V8_ENABLE_LEAPTIERING
-  __ bind(&flags_need_processing);
-  {
-    ASM_CODE_COMMENT_STRING(masm, "Optimized marker check");
-    UseScratchRegisterScope temps(masm);
-    temps.Exclude(flags);
-    // Ensure the flags is not allocated again.
-    // Drop the frame created by the baseline call.
-    __ Pop(ra, fp);
-    __ OptimizeCodeOrTailCallOptimizedCodeSlot(flags, feedback_vector);
-    __ Trap();
-  }
-#endif  // !V8_ENABLE_LEAPTIERING
 
   __ bind(&call_stack_guard);
   {
@@ -1214,17 +1147,6 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   __ LoadFeedbackVector(feedback_vector, closure, a5, &push_stack_frame);
 
 #ifndef V8_JITLESS
-#ifndef V8_ENABLE_LEAPTIERING
-  // If feedback vector is valid, check for optimized code and update invocation
-  // count.
-
-  // Check the tiering state.
-  Label flags_need_processing;
-  Register flags = t0;
-  __ LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
-      flags, feedback_vector, CodeKind::INTERPRETED_FUNCTION,
-      &flags_need_processing);
-#endif  // !V8_ENABLE_LEAPTIERING
 
   ResetFeedbackVectorOsrUrgency(masm, feedback_vector, a5);
 
@@ -1382,47 +1304,9 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   __ jmp(&after_stack_check_interrupt);
 
 #ifndef V8_JITLESS
-#ifndef V8_ENABLE_LEAPTIERING
-  __ bind(&flags_need_processing);
-  __ OptimizeCodeOrTailCallOptimizedCodeSlot(flags, feedback_vector);
-#endif  // !V8_ENABLE_LEAPTIERING
 
   __ bind(&is_baseline);
   {
-#ifndef V8_ENABLE_LEAPTIERING
-    // Load the feedback vector from the closure.
-    __ LoadTaggedField(
-        feedback_vector,
-        FieldMemOperand(closure, JSFunction::kFeedbackCellOffset));
-    __ LoadTaggedField(
-        feedback_vector,
-        FieldMemOperand(feedback_vector, FeedbackCell::kValueOffset));
-
-    Label install_baseline_code;
-    // Check if feedback vector is valid. If not, call prepare for baseline to
-    // allocate it.
-    __ LoadTaggedField(
-        t0, FieldMemOperand(feedback_vector, HeapObject::kMapOffset));
-    __ Ld_hu(t0, FieldMemOperand(t0, Map::kInstanceTypeOffset));
-    __ Branch(&install_baseline_code, ne, t0, Operand(FEEDBACK_VECTOR_TYPE));
-
-    // Check for an tiering state.
-    __ LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
-        flags, feedback_vector, CodeKind::BASELINE, &flags_need_processing);
-
-    // TODO(loong64, 42204201): This fastcase is difficult to support with the
-    // sandbox as it requires getting write access to the dispatch table. See
-    // `JSFunction::UpdateCode`. We might want to remove it for all
-    // configurations as it does not seem to be performance sensitive.
-
-    // Load the baseline code into the closure.
-    __ Move(a2, kInterpreterBytecodeArrayRegister);
-    static_assert(kJavaScriptCallCodeStartRegister == a2, "ABI mismatch");
-    __ ReplaceClosureCodeWithOptimizedCode(a2, closure);
-    __ JumpCodeObject(a2, kJSEntrypointTag);
-
-    __ bind(&install_baseline_code);
-#endif  // !V8_ENABLE_LEAPTIERING
 
     __ GenerateTailCallToReturnedCode(Runtime::kInstallBaselineCode);
   }
@@ -1795,12 +1679,14 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   __ Ld_d(t0, MemOperand(fp, StandardFrameConstants::kFunctionOffset));
   __ LoadTaggedField(
       t0, FieldMemOperand(t0, JSFunction::kSharedFunctionInfoOffset));
-  __ LoadTrustedPointerField(
+  Label is_interpreter_data;
+  __ LoadTrustedUnknownPointerField(
       t0, FieldMemOperand(t0, SharedFunctionInfo::kTrustedFunctionDataOffset),
-      kUnknownIndirectPointerTag);
-  __ JumpIfObjectType(&builtin_trampoline, ne, t0, INTERPRETER_DATA_TYPE,
-                      kInterpreterDispatchTableRegister);
+      kInterpreterDispatchTableRegister,
+      {{INTERPRETER_DATA_TYPE, &is_interpreter_data}});
+  __ Branch(&builtin_trampoline);
 
+  __ bind(&is_interpreter_data);
   __ LoadInterpreterDataInterpreterTrampoline(t0, t0);
   __ LoadCodeInstructionStart(t0, t0, kJSEntrypointTag);
   __ Branch(&trampoline_loaded);
@@ -2683,13 +2569,7 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
   //  -- cp : the function context.
   // -----------------------------------
 
-#ifdef V8_ENABLE_LEAPTIERING
   __ InvokeFunctionCode(a1, no_reg, a0, InvokeType::kJump);
-#else
-  __ Ld_hu(
-      a2, FieldMemOperand(a2, SharedFunctionInfo::kFormalParameterCountOffset));
-  __ InvokeFunctionCode(a1, no_reg, a2, a0, InvokeType::kJump);
-#endif  // V8_ENABLE_LEAPTIERING
 }
 
 // static
@@ -3564,9 +3444,11 @@ void Builtins::Generate_WasmReject(MacroAssembler* masm) {
 void Builtins::Generate_WasmFXResume(MacroAssembler* masm) {
   __ EnterFrame(StackFrame::WASM_STACK_EXIT);
   Register target_stack = WasmFXResumeDescriptor::GetRegisterParameter(0);
+  Register arg_buffer = WasmFXResumeDescriptor::GetRegisterParameter(1);
   Label suspend;
   SwitchStacks(masm, ExternalReference::wasm_resume_wasmfx_stack(),
-               target_stack, &suspend, no_reg, {target_stack});
+               target_stack, &suspend, no_reg, {target_stack, arg_buffer});
+  DCHECK(!AreAliased(a1, arg_buffer, target_stack));
   LoadJumpBuffer(masm, target_stack, true, a1);
   __ Trap();
   __ bind(&suspend);
@@ -3578,8 +3460,9 @@ void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
   __ EnterFrame(StackFrame::WASM_STACK_EXIT);
   Register tag = WasmFXSuspendDescriptor::GetRegisterParameter(0);
   Register cont = WasmFXSuspendDescriptor::GetRegisterParameter(1);
+  Register arg_buffer = WasmFXSuspendDescriptor::GetRegisterParameter(2);
   Label resume;
-  __ Push(cont, kContextRegister);
+  __ Push(arg_buffer, cont, kContextRegister);
   {
     FrameScope scope(masm, StackFrame::MANUAL);
     DCHECK_NE(kCArgRegs[4], cont);
@@ -3599,7 +3482,7 @@ void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
   Register target_stack = a1;
   __ Move(target_stack, kReturnRegister0);
   cont = kReturnRegister0;
-  __ Pop(cont, kContextRegister);
+  __ Pop(arg_buffer, cont, kContextRegister);
 
   Label ok;
   __ Branch(&ok, ne, target_stack, Operand(zero_reg));
@@ -3608,9 +3491,11 @@ void Builtins::Generate_WasmFXSuspend(MacroAssembler* masm) {
 
   __ bind(&ok);
   DCHECK_EQ(cont, kReturnRegister0);
-  LoadJumpBuffer(masm, target_stack, true, a3);
+  DCHECK(!AreAliased(a4, arg_buffer, target_stack));
+  LoadJumpBuffer(masm, target_stack, true, a4);
   __ Trap();
   __ bind(&resume);
+  __ Move(kReturnRegister0, WasmFXResumeDescriptor::GetRegisterParameter(1));
   __ LeaveFrame(StackFrame::WASM_STACK_EXIT);
   __ Ret();
 }
@@ -4467,8 +4352,7 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
   if (mode == CallApiCallbackMode::kGeneric) {
     __ LoadExternalPointerField(
         api_function_address,
-        FieldMemOperand(func_templ,
-                        FunctionTemplateInfo::kMaybeRedirectedCallbackOffset),
+        FieldMemOperand(func_templ, FunctionTemplateInfo::kCallbackOffset),
         kFunctionTemplateInfoCallbackTag);
   }
 
@@ -4545,9 +4429,9 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   static_assert(PCA::kShouldThrowOnErrorIndex == 1);
   static_assert(PCA::kHolderIndex == 2);
   static_assert(PCA::kIsolateIndex == 3);
-  static_assert(PCA::kHolderV2Index == 4);
+  static_assert(PCA::kUnusedIndex == 4);
   static_assert(PCA::kReturnValueIndex == 5);
-  static_assert(PCA::kDataIndex == 6);
+  static_assert(PCA::kCallbackInfoIndex == 6);
   static_assert(PCA::kThisIndex == 7);
   static_assert(PCA::kArgsLength == 8);
 
@@ -4557,18 +4441,16 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   //   sp[1 * kSystemPointerSize]: kShouldThrowOnErrorIndex
   //   sp[2 * kSystemPointerSize]: kHolderIndex
   //   sp[3 * kSystemPointerSize]: kIsolateIndex
-  //   sp[4 * kSystemPointerSize]: kHolderV2Index
+  //   sp[4 * kSystemPointerSize]: kUnusedIndex
   //   sp[5 * kSystemPointerSize]: kReturnValueIndex
-  //   sp[6 * kSystemPointerSize]: kDataIndex
+  //   sp[6 * kSystemPointerSize]: kCallbackInfoIndex
   //   sp[7 * kSystemPointerSize]: kThisIndex / receiver
 
-  __ LoadTaggedField(scratch,
-                     FieldMemOperand(callback, AccessorInfo::kDataOffset));
   __ LoadRoot(undef, RootIndex::kUndefinedValue);
   __ li(scratch2, ER::isolate_address());
   Register holderV2 = zero_reg;
-  __ Push(receiver, scratch,  // kThisIndex, kDataIndex
-          undef, holderV2);   // kReturnValueIndex, kHolderV2Index
+  __ Push(receiver, callback,  // kThisIndex, kCallbackInfoIndex
+          undef, holderV2);    // kReturnValueIndex, kUnusedIndex
   __ Push(scratch2, holder);  // kIsolateIndex, kHolderIndex
 
   // |name_arg| clashes with |holder|, so we need to push holder first.
@@ -4582,7 +4464,7 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   __ RecordComment("Load api_function_address");
   __ LoadExternalPointerField(
       api_function_address,
-      FieldMemOperand(callback, AccessorInfo::kMaybeRedirectedGetterOffset),
+      FieldMemOperand(callback, AccessorInfo::kGetterOffset),
       kAccessorInfoGetterTag);
 
   FrameScope frame_scope(masm, StackFrame::MANUAL);
@@ -5034,13 +4916,8 @@ void Builtins::Generate_RestartFrameTrampoline(MacroAssembler* masm) {
 
   // The arguments are already in the stack (including any necessary padding),
   // we should not try to massage the arguments again.
-#ifdef V8_ENABLE_LEAPTIERING
   __ InvokeFunction(a1, a0, InvokeType::kJump,
                     ArgumentAdaptionMode::kDontAdapt);
-#else
-  __ li(a2, Operand(kDontAdaptArgumentsSentinel));
-  __ InvokeFunction(a1, a2, a0, InvokeType::kJump);
-#endif
 }
 
 #undef __

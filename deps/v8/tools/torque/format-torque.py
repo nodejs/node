@@ -37,8 +37,7 @@ def preprocess(input):
   input = re.sub(r'\bcase\s*(\([^{]*\))\s*:\s*deferred\s*{', r' if /*cAsEdEfF*/ \1 {', input)
   input = re.sub(r'\bcase\s*(\([^{]*\))\s*:\s*{', r' if /*cA*/ \1 {', input)
 
-  input = re.sub(r'\bgenerates\s+\'([^\']+)\'\s*',
-      r'_GeNeRaTeS00_/*\1@*/', input)
+  input = re.sub(r'\bgenerates\s+\'([^\']+)\'\s*', r'_GeNeRaT_/*\1@*/', input)
   input = re.sub(r'\bconstexpr\s+\'([^\']+)\'\s*', r'_CoNsExP_/*\1@*/', input)
 
   def createFunctionReplacement(m):
@@ -118,14 +117,12 @@ def postprocess(output):
   output = re.sub(r'\bif\s*\/\*tPsW\*\/', r'typeswitch', output)
   output = re.sub(r'\bif\s*\/\*cA\*\/\s*(\([^{]*\))\s*{', r'case \1: {', output)
   output = re.sub(r'\bif\s*\/\*cAsEdEfF\*\/\s*(\([^{]*\))\s*{', r'case \1: deferred {', output)
-  output = re.sub(r'\n_GeNeRaTeS00_\s*\/\*([^@]+)@\*\/',
-      r"\n    generates '\1'", output)
-  output = re.sub(r'_GeNeRaTeS00_\s*\/\*([^@]+)@\*\/',
-      r"generates '\1'", output)
+  output = re.sub(r'\n_GeNeRaT_\s*\/\*([^@]+)@\*\/', r"\n    generates '\1'",
+                  output)
+  output = re.sub(r'_GeNeRaT_\s*\/\*([^@]+)@\*\/', r"generates '\1'", output)
   output = re.sub(r'\n_CoNsExP_\s*\/\*([^@]+)@\*\/', r"\n    constexpr '\1'",
                   output)
-  output = re.sub(r'_CoNsExP_\s*\/\*([^@]+)@\*\/',
-      r"constexpr '\1'", output)
+  output = re.sub(r'_CoNsExP_\s*\/\*([^@]+)@\*\/', r"constexpr '\1'", output)
   output = re.sub(r'// !!torqueclass (.*)\n\s*class(?:\s*/\*-*\*/)?', r"\1",
                   output)
   output = re.sub(r'// !!torquefunc (.*)\n\s*function(?:\s*/\*-*\*/)?', r"\1",

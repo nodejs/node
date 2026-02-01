@@ -3262,3 +3262,116 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   arr.forEach(instance.exports.fn1);
 })();
+
+(function TestWebAssemblyPromisingWithInterpreter() {
+  print(arguments.callee.name);
+
+  let builder = new WasmModuleBuilder();
+
+  let k_sig_r_r = builder.addType(kSig_r_r);
+
+  let imported_func = builder.addImport("mod", "func", kSig_r_v);
+
+  builder.addFunction("main", k_sig_r_r)
+    .addBody([kExprCallFunction, imported_func]).exportFunc();
+  let instance = builder.instantiate({ mod: { func: () => {} } });
+
+  // WebAssembly.promising is not available when running with the wasm-interpreter,
+  // so we need to handle the TypeError gracefully.
+  try {
+    let promise = WebAssembly.promising(instance.exports.main);
+    promise();
+
+  } catch (e) {
+
+    if (e instanceof TypeError &&
+        e.message.includes("WebAssembly.promising is not a function")) {
+    } else {
+      throw e;
+    }
+  }
+})();
+
+(function TestFloatNaNSelect() {
+  print(arguments.callee.name);
+
+  const builder = new WasmModuleBuilder();
+
+  builder.addFunction("select_nan", kSig_i_i)
+    .addBody([
+      kExprF32Const, 0x11, 0x00, 0xc0, 0xff,
+      kExprF32Const, 0x22, 0x00, 0xc0, 0xff,
+      kExprLocalGet, 0,
+      kExprSelect,
+      kExprI32ReinterpretF32,
+    ])
+    .exportFunc();
+
+  const instance = builder.instantiate();
+  assertEquals(0xffc00022, instance.exports.select_nan(0) >>> 0);
+  assertEquals(0xffc00011, instance.exports.select_nan(1) >>> 0);
+})();
+
+(function TestFloatNaNGlobalGetSet() {
+  print(arguments.callee.name);
+
+  const builder = new WasmModuleBuilder();
+
+  builder.addGlobal(kWasmF32, true);
+
+  builder.addFunction("set_get_nan", kSig_i_v)
+    .addBody([
+      kExprF32Const, 0x33, 0x00, 0xc0, 0xff,
+      kExprGlobalSet, 0,
+      kExprGlobalGet, 0,
+      kExprI32ReinterpretF32,
+    ])
+    .exportFunc();
+
+  const instance = builder.instantiate();
+  assertEquals(0xffc00033, instance.exports.set_get_nan() >>> 0);
+})();
+
+(function TestFloatNaNChainedOps() {
+  print(arguments.callee.name);
+
+  const builder = new WasmModuleBuilder();
+  builder.addMemory(1, 1);
+
+  builder.addFunction("chained_nan_ops", kSig_i_v)
+    .addLocals(kWasmF32, 1)
+    .addBody([
+      kExprF32Const, 0x44, 0x00, 0xc0, 0xff,
+      kExprLocalSet, 0,
+      kExprI32Const, 0,
+      kExprLocalGet, 0,
+      kExprF32StoreMem, 2, 0,
+      kExprI32Const, 0,
+      kExprF32LoadMem, 2, 0,
+      kExprI32ReinterpretF32,
+    ])
+    .exportFunc();
+
+  const instance = builder.instantiate();
+  assertEquals(0xffc00044, instance.exports.chained_nan_ops() >>> 0);
+})();
+
+(function TestFloatNaNFromArithmetic() {
+  print(arguments.callee.name);
+
+  const builder = new WasmModuleBuilder();
+
+  builder.addFunction("arithmetic_nan", kSig_i_v)
+    .addBody([
+      ...wasmF32Const(0),
+      ...wasmF32ConstSignalingNaN(),
+      kExprF32Div,
+      kExprI32ReinterpretF32,
+    ])
+    .exportFunc();
+
+  const instance = builder.instantiate();
+  const result = instance.exports.arithmetic_nan();
+  const ArithmeticNaNBitMask = 0x7fc00000;
+  assertTrue((result & ArithmeticNaNBitMask) === ArithmeticNaNBitMask);
+})();

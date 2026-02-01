@@ -10,6 +10,7 @@
 
 #include "include/v8-internal.h"
 #include "src/base/atomic-utils.h"
+#include "src/heap/heap-write-barrier.h"
 #include "src/sandbox/code-pointer-table-inl.h"
 #include "src/sandbox/isolate-inl.h"
 #include "src/sandbox/trusted-pointer-table-inl.h"
@@ -52,7 +53,6 @@ V8_INLINE void InitSelfIndirectPointerField(
 #endif
 }
 
-namespace {
 #ifdef V8_ENABLE_SANDBOX
 template <IndirectPointerTag tag>
 V8_INLINE Tagged<Object> ResolveTrustedPointerHandle(
@@ -66,20 +66,10 @@ V8_INLINE Tagged<Object> ResolveCodePointerHandle(
   CodePointerTable* table = IsolateGroup::current()->code_pointer_table();
   return Tagged<Object>(table->GetCodeObject(handle));
 }
-#endif  // V8_ENABLE_SANDBOX
-}  // namespace
 
 template <IndirectPointerTag tag>
-V8_INLINE Tagged<Object> ReadIndirectPointerField(Address field_address,
-                                                  IsolateForSandbox isolate,
-                                                  AcquireLoadTag) {
-#ifdef V8_ENABLE_SANDBOX
-  // Load the indirect pointer handle from the object.
-  // Technically, we could use memory_order_consume here as the loads are
-  // dependent, but that appears to be deprecated in favor of acquire ordering.
-  auto location = reinterpret_cast<IndirectPointerHandle*>(field_address);
-  IndirectPointerHandle handle = base::AsAtomic32::Acquire_Load(location);
-
+V8_INLINE Tagged<Object> ReadIndirectPointerHandle(IndirectPointerHandle handle,
+                                                   IsolateForSandbox isolate) {
   // Resolve the handle. The tag implies the pointer table to use.
   if constexpr (tag == kUnknownIndirectPointerTag) {
     // In this case we need to check if the handle is a code pointer handle and
@@ -98,6 +88,21 @@ V8_INLINE Tagged<Object> ReadIndirectPointerField(Address field_address,
   } else {
     return ResolveTrustedPointerHandle<tag>(handle, isolate);
   }
+}
+
+#endif  // V8_ENABLE_SANDBOX
+
+template <IndirectPointerTag tag>
+V8_INLINE Tagged<Object> ReadIndirectPointerField(Address field_address,
+                                                  IsolateForSandbox isolate,
+                                                  AcquireLoadTag) {
+#ifdef V8_ENABLE_SANDBOX
+  // Load the indirect pointer handle from the object.
+  // Technically, we could use memory_order_consume here as the loads are
+  // dependent, but that appears to be deprecated in favor of acquire ordering.
+  auto location = reinterpret_cast<IndirectPointerHandle*>(field_address);
+  IndirectPointerHandle handle = base::AsAtomic32::Acquire_Load(location);
+  return ReadIndirectPointerHandle<tag>(handle, isolate);
 #else
   UNREACHABLE();
 #endif

@@ -22,7 +22,7 @@
 namespace v8 {
 namespace internal {
 
-class Counters;
+class DelayedCounterUpdates;
 
 namespace wasm {
 
@@ -85,14 +85,19 @@ enum class DecodingMethod {
 };
 
 // Decodes the bytes of a wasm module in {wire_bytes} while recording events and
-// updating counters.
+// updating counters in the given isolate.
+V8_EXPORT_PRIVATE ModuleResult DecodeWasmModule(
+    Isolate*, WasmEnabledFeatures, base::Vector<const uint8_t> wire_bytes,
+    bool validate_functions, ModuleOrigin origin,
+    DecodingMethod decoding_method, WasmDetectedFeatures* detected_features);
+// Decodes the bytes of a wasm module in {wire_bytes} and returns delayed
+// counter updates and the metrics event to the caller.
 V8_EXPORT_PRIVATE ModuleResult DecodeWasmModule(
     WasmEnabledFeatures enabled_features,
     base::Vector<const uint8_t> wire_bytes, bool validate_functions,
-    ModuleOrigin origin, Counters* counters,
-    std::shared_ptr<metrics::Recorder> metrics_recorder,
-    v8::metrics::Recorder::ContextId context_id, DecodingMethod decoding_method,
-    WasmDetectedFeatures* detected_features);
+    ModuleOrigin origin, DelayedCounterUpdates* delayed_counters,
+    std::optional<v8::metrics::WasmModuleDecoded>* metrics_event,
+    DecodingMethod decoding_method, WasmDetectedFeatures* detected_features);
 // Decodes the bytes of a wasm module in {wire_bytes} without recording events
 // or updating counters.
 V8_EXPORT_PRIVATE ModuleResult DecodeWasmModule(

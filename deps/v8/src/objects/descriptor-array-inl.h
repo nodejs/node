@@ -33,7 +33,16 @@ namespace internal {
 #include "torque-generated/src/objects/descriptor-array-tq-inl.inc"
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(DescriptorArray)
-TQ_OBJECT_CONSTRUCTORS_IMPL(EnumCache)
+
+Tagged<FixedArray> EnumCache::keys() const { return keys_.load(); }
+void EnumCache::set_keys(Tagged<FixedArray> value, WriteBarrierMode mode) {
+  keys_.store(this, value, mode);
+}
+
+Tagged<FixedArray> EnumCache::indices() const { return indices_.load(); }
+void EnumCache::set_indices(Tagged<FixedArray> value, WriteBarrierMode mode) {
+  indices_.store(this, value, mode);
+}
 
 RELAXED_INT16_ACCESSORS(DescriptorArray, number_of_all_descriptors,
                         kNumberOfAllDescriptorsOffset)
@@ -82,9 +91,6 @@ InternalIndex DescriptorArray::Search(Tagged<Name> name, int valid_descriptors,
     return InternalIndex::NotFound();
   }
 
-  // Do linear search for small arrays, and for searches in the background
-  // thread.
-  const int kMaxElementsForLinearSearch = 8;
   if (valid_descriptors <= kMaxElementsForLinearSearch || concurrent_search) {
     return LinearSearch(name, valid_descriptors);
   }
@@ -97,6 +103,9 @@ InternalIndex DescriptorArray::BinarySearch(Tagged<Name> name,
   // We have to binary search all descriptors, not just valid ones, since the
   // binary search ordering is across all descriptors.
   int end = number_of_descriptors();
+  // Binary search must not be used for small number of descriptors since
+  // the descriptor array is not sorted yet.
+  DCHECK_LT(kMaxElementsForLinearSearch, end);
   uint32_t hash = name->hash();
 
   // Find the first descriptor whose key's hash is greater-than-or-equal-to the
@@ -344,16 +353,35 @@ void DescriptorArray::Set(InternalIndex descriptor_number, Descriptor* desc) {
 void DescriptorArray::Append(Descriptor* desc) {
   DisallowGarbageCollection no_gc;
   int descriptor_number = number_of_descriptors();
-  DCHECK_LE(descriptor_number + 1, number_of_all_descriptors());
-  set_number_of_descriptors(descriptor_number + 1);
+  int new_number_of_descriptors = descriptor_number + 1;
+  DCHECK_LE(new_number_of_descriptors, number_of_all_descriptors());
+  set_number_of_descriptors(new_number_of_descriptors);
   Set(InternalIndex(descriptor_number), desc);
+
+  // Resetting the fast iterable state is bottlenecked in SetKey().
+  DCHECK_NE(fast_iterable(), FastIterableState::kJsonFast);
+
+  if (new_number_of_descriptors <= kMaxElementsForLinearSearch) {
+    // Ensure there are no name collisions.
+    CHECK_EQ(LinearSearch(*desc->GetKey(), descriptor_number),
+             InternalIndex::NotFound());
+    return;
+
+  } else if (new_number_of_descriptors == kMaxElementsForLinearSearch + 1) {
+    // Sort descriptors as we've just crossed the unsorted-sorted boundary.
+    SortImpl(new_number_of_descriptors);
+
+    uint32_t desc_hash = desc->GetKey()->hash();
+    CheckNameCollisionDuringInsertion(desc, desc_hash,
+                                      desc->GetSortedKeyIndex());
+    return;
+  }
 
   uint32_t desc_hash = desc->GetKey()->hash();
   // Hash value can't be zero, see String::ComputeAndSetHash()
   uint32_t collision_hash = 0;
 
   int insertion;
-
   for (insertion = descriptor_number; insertion > 0; --insertion) {
     Tagged<Name> key = GetSortedKey(insertion - 1);
     collision_hash = key->hash();
@@ -363,12 +391,16 @@ void DescriptorArray::Append(Descriptor* desc) {
 
   SetSortedKey(insertion, descriptor_number);
 
-  // Resetting the fast iterable state is bottlenecked in SetKey().
-  DCHECK_NE(fast_iterable(), FastIterableState::kJsonFast);
-
   if (V8_LIKELY(collision_hash != desc_hash)) return;
 
   CheckNameCollisionDuringInsertion(desc, desc_hash, insertion);
+}
+
+void DescriptorArray::Sort() {
+  const int len = number_of_descriptors();
+  // Sorting matters only for binary search.
+  if (len <= kMaxElementsForLinearSearch) return;
+  SortImpl(len);
 }
 
 void DescriptorArray::SwapSortedKeys(int first, int second) {

@@ -27,33 +27,6 @@ MutablePageMetadata* MutablePageMetadata::FromHeapObject(const Isolate* i,
   return cast(MemoryChunkMetadata::FromHeapObject(i, o));
 }
 
-void MutablePageMetadata::IncrementExternalBackingStoreBytes(
-    ExternalBackingStoreType type, size_t amount) {
-  base::CheckedIncrement(&external_backing_store_bytes_[static_cast<int>(type)],
-                         amount);
-  owner()->IncrementExternalBackingStoreBytes(type, amount);
-}
-
-void MutablePageMetadata::DecrementExternalBackingStoreBytes(
-    ExternalBackingStoreType type, size_t amount) {
-  base::CheckedDecrement(&external_backing_store_bytes_[static_cast<int>(type)],
-                         amount);
-  owner()->DecrementExternalBackingStoreBytes(type, amount);
-}
-
-void MutablePageMetadata::MoveExternalBackingStoreBytes(
-    ExternalBackingStoreType type, MutablePageMetadata* from,
-    MutablePageMetadata* to, size_t amount) {
-  DCHECK_NOT_NULL(from->owner());
-  DCHECK_NOT_NULL(to->owner());
-  base::CheckedDecrement(
-      &(from->external_backing_store_bytes_[static_cast<int>(type)]), amount);
-  base::CheckedIncrement(
-      &(to->external_backing_store_bytes_[static_cast<int>(type)]), amount);
-  Space::MoveExternalBackingStoreBytes(type, from->owner(), to->owner(),
-                                       amount);
-}
-
 template <AccessMode mode>
 void MutablePageMetadata::ClearLiveness() {
   marking_bitmap()->Clear<mode>();

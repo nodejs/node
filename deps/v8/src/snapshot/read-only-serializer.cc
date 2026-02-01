@@ -51,8 +51,9 @@ class ObjectPreProcessor final {
   }
 
   void EncodeExternalPointerSlot(ExternalPointerSlot slot, Address value) {
-    // Note it's possible that `value != slot.load(...)`, e.g. for
-    // AccessorInfo::remove_getter_indirection.
+    // Note it's possible that `value != slot.load(...)`, e.g. after
+    // AccessorInfo::RemoveCallbackRedirectionForSerialization() and other
+    // similar functions.
     ExternalReferenceEncoder::Value encoder_value =
         extref_encoder_.Encode(value);
     DCHECK_LT(encoder_value.index(),
@@ -87,7 +88,7 @@ class ObjectPreProcessor final {
 
   void PreProcessAccessorInfo(Tagged<AccessorInfo> o) {
     EncodeExternalPointerSlot(
-        o->RawExternalPointerField(AccessorInfo::kMaybeRedirectedGetterOffset,
+        o->RawExternalPointerField(AccessorInfo::kGetterOffset,
                                    kAccessorInfoGetterTag),
         o->getter(isolate_));  // Pass the non-redirected value.
     EncodeExternalPointerSlot(o->RawExternalPointerField(
@@ -96,13 +97,22 @@ class ObjectPreProcessor final {
   void PreProcessInterceptorInfo(Tagged<InterceptorInfo> o) {
     const bool is_named = o->is_named();
 
-#define PROCESS_FIELD(Name, name)                       \
-  EncodeExternalPointerSlot(o->RawExternalPointerField( \
-      InterceptorInfo::k##Name##Offset,                 \
-      is_named ? kApiNamedProperty##Name##CallbackTag   \
-               : kApiIndexedProperty##Name##CallbackTag));
+#define PROCESS_FIELD(Name, name)                             \
+  EncodeExternalPointerSlot(                                  \
+      o->RawExternalPointerField(                             \
+          InterceptorInfo::k##Name##Offset,                   \
+          is_named ? kApiNamedProperty##Name##CallbackTag     \
+                   : kApiIndexedProperty##Name##CallbackTag), \
+      is_named /* Pass the non-redirected value. */           \
+          ? o->named_##name(isolate_)                         \
+          : o->indexed_##name(isolate_));
 
-    INTERCEPTOR_INFO_CALLBACK_LIST(PROCESS_FIELD)
+    // Hoist |is_named| checks out.
+    if (is_named) {
+      INTERCEPTOR_INFO_CALLBACK_LIST(PROCESS_FIELD)
+    } else {
+      INTERCEPTOR_INFO_CALLBACK_LIST(PROCESS_FIELD)
+    }
 #undef PROCESS_FIELD
   }
   void PreProcessJSExternalObject(Tagged<JSExternalObject> o) {
@@ -113,9 +123,8 @@ class ObjectPreProcessor final {
   }
   void PreProcessFunctionTemplateInfo(Tagged<FunctionTemplateInfo> o) {
     EncodeExternalPointerSlot(
-        o->RawExternalPointerField(
-            FunctionTemplateInfo::kMaybeRedirectedCallbackOffset,
-            kFunctionTemplateInfoCallbackTag),
+        o->RawExternalPointerField(FunctionTemplateInfo::kCallbackOffset,
+                                   kFunctionTemplateInfoCallbackTag),
         o->callback(isolate_));  // Pass the non-redirected value.
   }
 #if V8_ENABLE_GEARBOX
@@ -145,9 +154,7 @@ class ObjectPreProcessor final {
     o->ClearInstructionStartForSerialization(isolate_);
     CHECK(!o->has_source_position_table_or_bytecode_offset_table());
     CHECK(!o->has_deoptimization_data_or_interpreter_data());
-#ifdef V8_ENABLE_LEAPTIERING
     CHECK_EQ(o->js_dispatch_handle(), kNullJSDispatchHandle);
-#endif
 #if V8_ENABLE_GEARBOX
     ResetGearboxPlaceholderBuiltin(o);
 #endif
@@ -426,10 +433,14 @@ class ReadOnlyHeapImageSerializer {
       return {{free_space.address() + sizeof(FreeSpace),
                free_space->Size() - static_cast<int>(sizeof(FreeSpace))}};
     }
+    if (Tagged<Hole> hole; TryCast<Hole>(obj, &hole)) {
+      return {{hole.address() + HeapObject::kHeaderSize,
+               sizeof(Hole) - HeapObject::kHeaderSize}};
+    }
 #ifdef V8_ENABLE_WEBASSEMBLY
     if (Tagged<WasmNull> wasm_null; TryCast<WasmNull>(obj, &wasm_null)) {
       return {{wasm_null.address() + WasmNull::kHeaderSize,
-               WasmNull::Size() - WasmNull::kHeaderSize}};
+               WasmNull::kSize - WasmNull::kHeaderSize}};
     }
 #endif
     return {};
@@ -464,10 +475,11 @@ class ReadOnlyHeapImageSerializer {
 
         // Either way, do the remaining serialization up to the water mark.
         ptrdiff_t segment_size = page->HighWaterMark() - pos;
-        CHECK_GE(segment_size, 0);
-        ReadOnlySegmentForSerialization segment(isolate_, page, pos,
-                                                segment_size, &pre_processor_);
-        EmitSegment(&segment);
+        if (segment_size > 0) {
+          ReadOnlySegmentForSerialization segment(
+              isolate_, page, pos, segment_size, &pre_processor_);
+          EmitSegment(&segment);
+        }
         return;
       }
 
@@ -481,7 +493,7 @@ class ReadOnlyHeapImageSerializer {
       // Serialize a segment from the current pos, up to the start of the
       // unmapped body.
       ptrdiff_t segment_size = unmapped_body->start - pos;
-      CHECK_GE(segment_size, 0);
+      CHECK_GT(segment_size, 0);
       ReadOnlySegmentForSerialization segment(isolate_, page, pos, segment_size,
                                               &pre_processor_);
       EmitSegment(&segment);

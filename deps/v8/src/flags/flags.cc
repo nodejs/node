@@ -124,35 +124,55 @@ bool Flag::ShouldCheckFlagContradictions() {
   return v8_flags.abort_on_contradictory_flags && !v8_flags.fuzzing;
 }
 
+namespace {
+
+struct FlagError : public std::ostringstream {
+  static constexpr const char kHint[] =
+      "If a test variant caused this, it might be necessary to specify "
+      "additional contradictory flags in "
+      "tools/testrunner/local/variants.py.";
+  // MSVC complains about non-returning destructor; disable that.
+  MSVC_SUPPRESS_WARNING(4722)
+  ~FlagError() {
+    base::OS::PrintError("Flag processing error: %s.\n", str().c_str());
+    base::OS::PrintError("%s\n", kHint);
+    // TODO(457654443): consider merging exit_on_contradictory_flags and
+    // abort_on_contradictory_flags into a single, more generic flag specifying
+    // how to handle flag processing errors.
+    if (v8_flags.exit_on_contradictory_flags) {
+      base::OS::ExitProcess(-1);
+    } else {
+      DCHECK(v8_flags.abort_on_contradictory_flags);
+      base::OS::Abort();
+    }
+  }
+};
+
+bool ShouldCheckDisallowUnsafeFlagContradictions(const char* implied_by) {
+  static constexpr char kDisallowUnsafeFlagsStr[] = "disallow_unsafe_flags";
+  return implied_by && v8_flags.disallow_unsafe_flags &&
+         !std::strcmp(implied_by, kDisallowUnsafeFlagsStr);
+}
+
+}  // namespace
+
 bool Flag::CheckFlagChange(SetBy new_set_by, bool change_flag,
                            const char* implied_by) {
   if (new_set_by == SetBy::kWeakImplication &&
       (set_by_ == SetBy::kImplication || set_by_ == SetBy::kCommandLine)) {
     return false;
   }
-  if (ShouldCheckFlagContradictions()) {
-    static constexpr const char kHint[] =
-        "If a test variant caused this, it might be necessary to specify "
-        "additional contradictory flags in "
-        "tools/testrunner/local/variants.py.";
-    struct FatalError : public std::ostringstream {
-      // MSVC complains about non-returning destructor; disable that.
-      MSVC_SUPPRESS_WARNING(4722)
-      ~FatalError() {
-        base::FatalNoSecurityImpact("%s.\n%s", str().c_str(), kHint);
-      }
-    };
+  if (ShouldCheckFlagContradictions() ||
+      ShouldCheckDisallowUnsafeFlagContradictions(implied_by)) {
     // Readonly flags cannot change value.
     if (change_flag && IsReadOnly()) {
-      // Exit instead of abort for certain testing situations.
-      if (v8_flags.exit_on_contradictory_flags) base::OS::ExitProcess(0);
       if (implied_by == nullptr) {
-        FatalError{} << "Contradictory value for readonly flag "
-                     << FlagName{name()};
+        FlagError{} << "Contradictory value for readonly flag "
+                    << FlagName{name()};
       } else {
         DCHECK(IsAnyImplication(new_set_by));
-        FatalError{} << "Contradictory value for readonly flag "
-                     << FlagName{name()} << " implied by " << implied_by;
+        FlagError{} << "Contradictory value for readonly flag "
+                    << FlagName{name()} << " implied by " << implied_by;
       }
     }
     // For bool flags, we only check for a conflict if the value actually
@@ -169,42 +189,38 @@ bool Flag::CheckFlagChange(SetBy new_set_by, bool change_flag,
         break;
       case SetBy::kWeakImplication:
         if (new_set_by == SetBy::kWeakImplication && check_implications) {
-          FatalError{} << "Contradictory weak flag implications from "
-                       << FlagName{implied_by_} << " and "
-                       << FlagName{implied_by} << " for flag "
-                       << FlagName{name()};
+          FlagError{} << "Contradictory weak flag implications from "
+                      << FlagName{implied_by_} << " and "
+                      << FlagName{implied_by} << " for flag "
+                      << FlagName{name()};
         }
         break;
       case SetBy::kImplication:
         if (new_set_by == SetBy::kImplication && check_implications) {
-          FatalError{} << "Contradictory flag implications from "
-                       << FlagName{implied_by_} << " and "
-                       << FlagName{implied_by} << " for flag "
-                       << FlagName{name()};
+          FlagError{} << "Contradictory flag implications from "
+                      << FlagName{implied_by_} << " and "
+                      << FlagName{implied_by} << " for flag "
+                      << FlagName{name()};
         }
         break;
       case SetBy::kCommandLine:
         if (new_set_by == SetBy::kImplication && check_implications) {
-          // Exit instead of abort for certain testing situations.
-          if (v8_flags.exit_on_contradictory_flags) base::OS::ExitProcess(0);
           if (is_bool_flag) {
-            FatalError{} << "Flag " << FlagName{name()} << ": value implied by "
-                         << FlagName{implied_by}
-                         << " conflicts with explicit specification";
+            FlagError{} << "Flag " << FlagName{name()} << ": value implied by "
+                        << FlagName{implied_by}
+                        << " conflicts with explicit specification";
           } else {
-            FatalError{} << "Flag " << FlagName{name()} << " is implied by "
-                         << FlagName{implied_by}
-                         << " but also specified explicitly";
+            FlagError{} << "Flag " << FlagName{name()} << " is implied by "
+                        << FlagName{implied_by}
+                        << " but also specified explicitly";
           }
         } else if (new_set_by == SetBy::kCommandLine && check_implications) {
-          // Exit instead of abort for certain testing situations.
-          if (v8_flags.exit_on_contradictory_flags) base::OS::ExitProcess(0);
           if (is_bool_flag) {
-            FatalError{} << "Command-line provided flag " << FlagName{name()}
-                         << " specified as both true and false";
+            FlagError{} << "Command-line provided flag " << FlagName{name()}
+                        << " specified as both true and false";
           } else {
-            FatalError{} << "Command-line provided flag " << FlagName{name()}
-                         << " specified multiple times";
+            FlagError{} << "Command-line provided flag " << FlagName{name()}
+                        << " specified multiple times";
           }
         }
         break;
@@ -220,11 +236,15 @@ bool Flag::CheckFlagChange(SetBy new_set_by, bool change_flag,
     implied_by_ = implied_by;
 #ifdef DEBUG
     // This only works when implied_by is a flag_name or !flag_name, but it
-    // can also be a condition e.g. flag_name > 3. Since this is only used for
+    // can also be a condition e.g. flag_name < 3. Since this is only used for
     // checks in DEBUG mode, we will just ignore the more complex conditions
     // for now - that will just lead to a nullptr which won't be followed.
-    implied_by_ptr_ = static_cast<Flag*>(FindImplicationFlagByName(
-        implied_by[0] == '!' ? implied_by + 1 : implied_by));
+    if (strchr(implied_by, '<') != nullptr) {
+      implied_by_ptr_ = nullptr;
+    } else {
+      implied_by_ptr_ = static_cast<Flag*>(FindImplicationFlagByName(
+          implied_by[0] == '!' ? implied_by + 1 : implied_by));
+    }
     DCHECK_NE(implied_by_ptr_, this);
 #endif
   }
@@ -467,7 +487,10 @@ uint32_t ComputeFlagListHash() {
   for (const Flag& flag : flags) {
     if (flag.IsDefault()) continue;
 #ifdef DEBUG
-    if (flag.ImpliedBy(&v8_flags.predictable)) {
+    if (flag.ImpliedBy(&v8_flags.predictable) &&
+        // Ignore --random-seed, which is implied by predictable but also just
+        // its own thing.
+        !flag.PointsTo(&v8_flags.random_seed)) {
       flags_implied_by_predictable.insert(flag.name());
     }
 #endif
@@ -509,8 +532,7 @@ uint32_t ComputeFlagListHash() {
         flag.PointsTo(&v8_flags.cppheap_concurrent_marking) ||
         flag.PointsTo(&v8_flags.cppheap_incremental_marking) ||
         flag.PointsTo(&v8_flags.single_threaded_gc) ||
-        flag.PointsTo(&v8_flags.fuzzing_and_concurrent_recompilation) ||
-        flag.PointsTo(&v8_flags.predictable_and_random_seed_is_0)) {
+        flag.PointsTo(&v8_flags.fuzzing_and_concurrent_recompilation)) {
 #ifdef DEBUG
       if (flag.ImpliedBy(&v8_flags.predictable)) {
         flags_ignored_because_of_predictable.insert(flag.name());
@@ -584,7 +606,9 @@ static void SplitArgument(const char* arg, char* buffer, int buffer_size,
   if (*arg == '=') {
     // Make a copy so we can NUL-terminate the flag name.
     size_t n = arg - *name;
-    CHECK(n < static_cast<size_t>(buffer_size));  // buffer is too small
+    if (n >= static_cast<size_t>(buffer_size)) {
+      FlagError{} << "Flag name is too long: " << FlagName(*name);
+    }
     MemCopy(buffer, *name, n);
     buffer[n] = '\0';
     *name = buffer;
@@ -1006,6 +1030,15 @@ class ImplicationProcessor {
   // Returns {true} if any flag value was changed.
   bool EnforceImplications() {
     bool changed = false;
+
+    // For each flag, alias with a mutable reference so that implications don't
+    // need the v8_flags prefix.
+#define FLAG_MODE_APPLY_NAME(name) \
+  auto& name = v8_flags.name;      \
+  USE(name);
+#include "src/flags/flag-definitions.h"
+#undef FLAG_MODE_APPLY_NAME
+
 #define FLAG_MODE_DEFINE_IMPLICATIONS
 #include "src/flags/flag-definitions.h"  // NOLINT(build/include)
 #undef FLAG_MODE_DEFINE_IMPLICATIONS
@@ -1062,6 +1095,21 @@ class ImplicationProcessor {
     // returned false.
     DCHECK_EQ(value, conclusion_flag->GetDefaultValue<T>());
     return true;
+  }
+
+  // Called from DEFINE_NOT_EXPLICITLY_SET_IMPLICATION in flag-definitions.h.
+  void TriggerNotExplicitlySetImplication(bool premise,
+                                          const char* premise_name,
+                                          const char* conclusion_name) {
+    if (!premise) {
+      return;
+    }
+    Flag* conclusion_flag = FindImplicationFlagByName(conclusion_name);
+    if (conclusion_flag->set_by_ != Flag::SetBy::kCommandLine) {
+      return;
+    }
+    FlagError{} << "Command-line provided flag " << FlagName{conclusion_name}
+                << " is prohibited by " << FlagName{premise_name};
   }
 
   void CheckForCycle() {
@@ -1134,6 +1182,7 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
       CONTRADICTION(disable_optimizing_compilers,
                     turboshaft_wasm_in_js_inlining),
       CONTRADICTION(jit_fuzzing, max_lazy),
+      CONTRADICTION(jitless, maglev_as_top_tier),
       CONTRADICTION(jitless, maglev_future),
       CONTRADICTION(jitless, turbolev_future),
       CONTRADICTION(jitless, stress_concurrent_inlining),
@@ -1144,6 +1193,9 @@ void FlagList::ResolveContradictionsWhenFuzzing() {
       CONTRADICTION(lite_mode, stress_concurrent_inlining),
       CONTRADICTION(lite_mode, stress_concurrent_inlining_attach_code),
       CONTRADICTION(lite_mode, stress_maglev),
+      CONTRADICTION(maglev_as_top_tier, stress_concurrent_inlining),
+      CONTRADICTION(maglev_as_top_tier, stress_concurrent_inlining_attach_code),
+      CONTRADICTION(maglev_as_top_tier, turbolev_future),
       CONTRADICTION(optimize_for_size, predictable_gc_schedule),
       CONTRADICTION(predictable, stress_concurrent_inlining_attach_code),
       CONTRADICTION(predictable_gc_schedule, stress_compaction),

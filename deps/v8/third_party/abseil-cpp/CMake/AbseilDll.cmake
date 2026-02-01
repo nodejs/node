@@ -127,6 +127,8 @@ set(ABSL_INTERNAL_DLL_FILES
   "debugging/internal/address_is_readable.h"
   "debugging/internal/addresses.h"
   "debugging/internal/bounded_utf8_length_sequence.h"
+  "debugging/internal/borrowed_fixup_buffer.h"
+  "debugging/internal/borrowed_fixup_buffer.cc"
   "debugging/internal/decode_rust_punycode.cc"
   "debugging/internal/decode_rust_punycode.h"
   "debugging/internal/demangle.cc"
@@ -292,6 +294,7 @@ set(ABSL_INTERNAL_DLL_FILES
   "strings/cord_buffer.h"
   "strings/escaping.cc"
   "strings/escaping.h"
+  "strings/internal/append_and_overwrite.h"
   "strings/internal/charconv_bigint.cc"
   "strings/internal/charconv_bigint.h"
   "strings/internal/charconv_parse.cc"
@@ -444,7 +447,12 @@ set(ABSL_INTERNAL_DLL_FILES
   "debugging/leak_check.cc"
 )
 
-if(NOT MSVC)
+if(MSVC)
+  list(APPEND ABSL_INTERNAL_DLL_FILES
+    "time/internal/cctz/src/time_zone_name_win.cc"
+    "time/internal/cctz/src/time_zone_name_win.h"
+  )
+else()
   list(APPEND ABSL_INTERNAL_DLL_FILES
     "flags/commandlineflag.cc"
     "flags/commandlineflag.h"

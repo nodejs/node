@@ -97,6 +97,7 @@ Register LiftoffAssembler::LoadOldFramePointer() {
     return fp;
   }
   LiftoffRegister old_fp = GetUnusedRegister(RegClass::kGpReg, {});
+  FreezeCacheState frozen(*this);
   Label done, call_runtime;
   LoadWord(old_fp.gp(), MemOperand(fp, TypedFrameConstants::kFrameTypeOffset));
   BranchShort(
@@ -1532,37 +1533,55 @@ void LiftoffAssembler::emit_i32x4_dot_i16x8_s(LiftoffRegister dst,
                                               LiftoffRegister lhs,
                                               LiftoffRegister rhs) {
   VU.SetSimd128(E16);
-  vwmul_vv(kSimd128ScratchReg3, lhs.fp().toV(), rhs.fp().toV());
-  VU.SetSimd128x2(E32);
+  // kSimd128ScratchReg is used as a register group together with
+  // kSimd128ScratchReg2.
+  // kSimd128ScratchReg3 and kSimd128ScratchReg4 are used as a register
+  // group (independently), but neither will write in the second register
+  // of the group.
+  vwmul_vv(kSimd128ScratchReg, lhs.fp().toV(), rhs.fp().toV());
+  VU.SetSimd128x2(E32, CpuFeatures::vlen() == 128 ? tu : ta);
   li(kScratchReg, 0b01010101);
   vmv_sx(v0, kScratchReg);
-  vcompress_vv(kSimd128ScratchReg, kSimd128ScratchReg3, v0);
+  // The vcompress_vv instructions here and below will not overwrite any
+  // bits in the register that follow the destination register, as we
+  // have only 4 1-bits in the index constants and the tail is set to
+  // undisturbed (tu).
+  vcompress_vv(kSimd128ScratchReg3, kSimd128ScratchReg, v0);
 
   li(kScratchReg, 0b10101010);
   vmv_sx(kSimd128ScratchReg2, kScratchReg);
-  vcompress_vv(v0, kSimd128ScratchReg3, kSimd128ScratchReg2);
+  vcompress_vv(kSimd128ScratchReg4, kSimd128ScratchReg, kSimd128ScratchReg2);
   VU.SetSimd128(E32);
-  vadd_vv(dst.fp().toV(), kSimd128ScratchReg, v0);
+  vadd_vv(dst.fp().toV(), kSimd128ScratchReg3, kSimd128ScratchReg4);
 }
 
 void LiftoffAssembler::emit_i16x8_dot_i8x16_i7x16_s(LiftoffRegister dst,
                                                     LiftoffRegister lhs,
                                                     LiftoffRegister rhs) {
   VU.SetSimd128(E8);
-  vwmul_vv(kSimd128ScratchReg3, lhs.fp().toV(), rhs.fp().toV());
-  VU.SetSimd128x2(E16);
+  // kSimd128ScratchReg is used as a register group together with
+  // kSimd128ScratchReg2.
+  // kSimd128ScratchReg3 and kSimd128ScratchReg4 are used as a register
+  // group (independently), but neither will write in the second register
+  // of the group.
+  vwmul_vv(kSimd128ScratchReg, lhs.fp().toV(), rhs.fp().toV());
+  VU.SetSimd128x2(E16, CpuFeatures::vlen() == 128 ? tu : ta);
 
   constexpr int32_t FIRST_INDEX = 0b0101010101010101;
   constexpr int32_t SECOND_INDEX = 0b1010101010101010;
   li(kScratchReg, FIRST_INDEX);
   vmv_sx(v0, kScratchReg);
-  vcompress_vv(kSimd128ScratchReg, kSimd128ScratchReg3, v0);
+  // The vcompress_vv instructions here and below will not overwrite any
+  // bits in the register that follow the destination register, as we
+  // have only 8 1-bits in the index constants and the tail is set to
+  // undisturbed (tu).
+  vcompress_vv(kSimd128ScratchReg3, kSimd128ScratchReg, v0);
 
   li(kScratchReg, SECOND_INDEX);
   vmv_sx(kSimd128ScratchReg2, kScratchReg);
-  vcompress_vv(v0, kSimd128ScratchReg3, kSimd128ScratchReg2);
+  vcompress_vv(kSimd128ScratchReg4, kSimd128ScratchReg, kSimd128ScratchReg2);
   VU.SetSimd128(E16);
-  vadd_vv(dst.fp().toV(), kSimd128ScratchReg, v0);
+  vadd_vv(dst.fp().toV(), kSimd128ScratchReg3, kSimd128ScratchReg4);
 }
 
 void LiftoffAssembler::emit_i32x4_dot_i8x16_i7x16_add_s(LiftoffRegister dst,
@@ -1581,13 +1600,29 @@ void LiftoffAssembler::emit_i32x4_dot_i8x16_i7x16_add_s(LiftoffRegister dst,
   constexpr int32_t THIRD_INDEX = 0b0100010001000100;
   constexpr int32_t FOURTH_INDEX = 0b1000100010001000;
 
-  LiftoffRegister temp = GetUnusedRegister(
-      kFpCacheRegList.GetAdjacentFpRegsSet().MaskOut(LiftoffRegList{acc}));
-  VRegister temp1 =
-      GetUnusedRegister(kFpCacheRegList.GetAdjacentFpRegsSet().MaskOut(
-                            LiftoffRegList{temp, acc})).fp().toV();
+  VRegister temp0 = v0;
+  VRegister temp1 = v0;
+  if (CpuFeatures::vlen() == 128) {
+    LiftoffRegister temp = GetUnusedRegister(
+        kFpCacheRegList.GetAdjacentFpRegsSet().MaskOut(LiftoffRegList{acc}));
+    temp0 = temp.fp().toV();
+    temp = GetUnusedRegister(kFpCacheRegList.GetAdjacentFpRegsSet().MaskOut(
+        LiftoffRegList{temp, acc}));
+    temp1 = temp.fp().toV();
+  } else {
+    LiftoffRegister temp =
+        GetUnusedRegister(kFpCacheRegList.MaskOut(LiftoffRegList{acc}));
+    temp0 = temp.fp().toV();
+    temp =
+        GetUnusedRegister(kFpCacheRegList.MaskOut(LiftoffRegList{temp, acc}));
+    temp1 = temp.fp().toV();
+  }
 
-  VU.SetSimd128x2(E16);
+  // The vcompress_vv instructions below will not overwrite any
+  // bits in the register that follows compressed_part{1|2|3|4}, as we have
+  // only 8 1-bits in the index constants and the tail is set to undisturbed
+  // (tu).
+  VU.SetSimd128x2(E16, CpuFeatures::vlen() == 128 ? tu : ta);
   li(kScratchReg, FIRST_INDEX);
   vmv_sx(v0, kScratchReg);
   Simd128Register compressed_part1 = kSimd128ScratchReg3;
@@ -1600,7 +1635,7 @@ void LiftoffAssembler::emit_i32x4_dot_i8x16_i7x16_add_s(LiftoffRegister dst,
 
   li(kScratchReg, THIRD_INDEX);
   vmv_sx(v0, kScratchReg);
-  Simd128Register compressed_part3 = temp.fp().toV();
+  Simd128Register compressed_part3 = temp0;
   vcompress_vv(compressed_part3, intermediate, v0);  // i16*4 a
 
   li(kScratchReg, FOURTH_INDEX);

@@ -47,6 +47,9 @@
 //    * `absl::Span` has no static extent template parameter, nor constructors
 //      which exist only because of the static extent parameter.
 //    * `absl::Span` has an explicit mutable-reference constructor
+//    * `absl::Span::subspan(pos, len)` always truncates `len` to
+//      `size() - pos`, whereas `std::span::subspan()` only truncates when the
+//      `len` parameter is defaulted.
 //
 // For more information, see the class comments below.
 #ifndef ABSL_TYPES_SPAN_H_
@@ -448,6 +451,11 @@ class ABSL_ATTRIBUTE_VIEW Span {
   // must be <= size(). Any `len` value that points past the end of the span
   // will be trimmed to at most size() - `pos`. A default `len` value of `npos`
   // ensures the returned subspan continues until the end of the span.
+  //
+  // Note that trimming behavior differs from `std::span::subspan()`.
+  // `std::span::subspan()` requires `len == npos || pos + len <= size()`.
+  // In other words, `std::span::subspan()` only trims `len` when its value is
+  // defaulted.
   //
   // Examples:
   //
