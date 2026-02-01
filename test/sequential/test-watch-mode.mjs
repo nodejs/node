@@ -54,14 +54,23 @@ function runInBackground({ args = [], options = {}, completed = 'Completed runni
           stdout = [];
           stderr = '';
         } else if (data.startsWith('Failed running')) {
-          if (shouldFail) {
-            future.resolve({ stderr, stdout });
+          const settle = () => {
+            if (shouldFail) {
+              future.resolve({ stderr, stdout });
+            } else {
+              future.reject({ stderr, stdout });
+            }
+            future = Promise.withResolvers();
+            stdout = [];
+            stderr = '';
+          };
+          // If stderr is empty, wait for it to receive data before settling.
+          // This handles the race condition where stdout arrives before stderr.
+          if (stderr === '') {
+            child.stderr.once('data', settle);
           } else {
-            future.reject({ stderr, stdout });
+            settle();
           }
-          future = Promise.withResolvers();
-          stdout = [];
-          stderr = '';
         }
       }
     });
