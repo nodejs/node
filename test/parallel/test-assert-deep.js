@@ -126,6 +126,11 @@ test('deepEqual', () => {
   }
 });
 
+test('loose deepEqual', () => {
+  assertOnlyDeepEqual([null, undefined, undefined], [null, undefined, null]);
+  assertNotDeepOrStrict([null, undefined, undefined, 1], [null, undefined, null, 2]);
+});
+
 test('date', () => {
   assertNotDeepOrStrict(date, date2);
   assert.throws(
@@ -246,6 +251,13 @@ function assertOnlyDeepEqual(a, b, err) {
     () => assert.deepStrictEqual(b, a),
     err || { code: 'ERR_ASSERTION' }
   );
+
+  const partial = mustCall(() => {
+    assert.partialDeepStrictEqual(b, a);
+    assert.partialDeepStrictEqual(a, b);
+  });
+
+  assert.throws(partial, err || { code: 'ERR_ASSERTION' });
 }
 
 test('es6 Maps and Sets', () => {
