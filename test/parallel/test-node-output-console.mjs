@@ -12,8 +12,13 @@ function replaceStackTrace(str) {
 }
 
 describe('console output', { concurrency: !process.env.TEST_PARALLEL }, () => {
+  const stripProjectRoot = snapshot.transformProjectRoot('');
+
   function normalize(str) {
-    return str.replaceAll(snapshot.replaceWindowsPaths(process.cwd()), '').replaceAll('/', '*').replaceAll(process.version, '*').replaceAll(/\d+/g, '*');
+    return stripProjectRoot(str)
+      .replaceAll('/', '*')
+      .replaceAll(process.version, '*')
+      .replaceAll(/\d+/g, '*');
   }
   const tests = [
     { name: 'console/2100bytes.js' },

@@ -9,6 +9,7 @@ import { pathToFileURL } from 'node:url';
 const skipForceColors =
   (common.isWindows && (Number(os.release().split('.')[0]) !== 10 || Number(os.release().split('.')[2]) < 14393)); // See https://github.com/nodejs/node/pull/33132
 
+const stripProjectRoot = snapshot.transformProjectRoot('');
 
 function replaceStackTrace(str) {
   return snapshot.replaceStackTrace(str, '$1at *$7\n');
@@ -22,7 +23,8 @@ function replaceForceColorsStackTrace(str) {
 describe('errors output', { concurrency: !process.env.TEST_PARALLEL }, () => {
   function normalize(str) {
     const baseName = basename(process.argv0 || 'node', '.exe');
-    return str.replaceAll(snapshot.replaceWindowsPaths(process.cwd()), '')
+    return stripProjectRoot(str)
+      // Also strip the URL-encoded form of cwd (for file:// URLs).
       .replaceAll(pathToFileURL(process.cwd()).pathname, '')
       .replaceAll('//', '*')
       .replaceAll(/\/(\w)/g, '*$1')
