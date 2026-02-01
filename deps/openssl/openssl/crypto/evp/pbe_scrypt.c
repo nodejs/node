@@ -21,24 +21,24 @@
  */
 
 #ifdef SCRYPT_MAX_MEM
-# if SCRYPT_MAX_MEM == 0
-#  undef SCRYPT_MAX_MEM
+#if SCRYPT_MAX_MEM == 0
+#undef SCRYPT_MAX_MEM
 /*
  * Although we could theoretically allocate SIZE_MAX memory that would leave
  * no memory available for anything else so set limit as half that.
  */
-#  define SCRYPT_MAX_MEM (SIZE_MAX/2)
-# endif
+#define SCRYPT_MAX_MEM (SIZE_MAX / 2)
+#endif
 #else
 /* Default memory limit: 32 MB */
-# define SCRYPT_MAX_MEM  (1024 * 1024 * 32)
+#define SCRYPT_MAX_MEM (1024 * 1024 * 32)
 #endif
 
 int EVP_PBE_scrypt_ex(const char *pass, size_t passlen,
-                      const unsigned char *salt, size_t saltlen,
-                      uint64_t N, uint64_t r, uint64_t p, uint64_t maxmem,
-                      unsigned char *key, size_t keylen,
-                      OSSL_LIB_CTX *ctx, const char *propq)
+    const unsigned char *salt, size_t saltlen,
+    uint64_t N, uint64_t r, uint64_t p, uint64_t maxmem,
+    unsigned char *key, size_t keylen,
+    OSSL_LIB_CTX *ctx, const char *propq)
 {
     const char *empty = "";
     int rv = 1;
@@ -71,10 +71,10 @@ int EVP_PBE_scrypt_ex(const char *pass, size_t passlen,
         return 0;
 
     *z++ = OSSL_PARAM_construct_octet_string(OSSL_KDF_PARAM_PASSWORD,
-                                              (unsigned char *)pass,
-                                                      passlen);
+        (unsigned char *)pass,
+        passlen);
     *z++ = OSSL_PARAM_construct_octet_string(OSSL_KDF_PARAM_SALT,
-                                             (unsigned char *)salt, saltlen);
+        (unsigned char *)salt, saltlen);
     *z++ = OSSL_PARAM_construct_uint64(OSSL_KDF_PARAM_SCRYPT_N, &N);
     *z++ = OSSL_PARAM_construct_uint64(OSSL_KDF_PARAM_SCRYPT_R, &r);
     *z++ = OSSL_PARAM_construct_uint64(OSSL_KDF_PARAM_SCRYPT_P, &p);
@@ -88,12 +88,12 @@ int EVP_PBE_scrypt_ex(const char *pass, size_t passlen,
 }
 
 int EVP_PBE_scrypt(const char *pass, size_t passlen,
-                   const unsigned char *salt, size_t saltlen,
-                   uint64_t N, uint64_t r, uint64_t p, uint64_t maxmem,
-                   unsigned char *key, size_t keylen)
+    const unsigned char *salt, size_t saltlen,
+    uint64_t N, uint64_t r, uint64_t p, uint64_t maxmem,
+    unsigned char *key, size_t keylen)
 {
     return EVP_PBE_scrypt_ex(pass, passlen, salt, saltlen, N, r, p, maxmem,
-                             key, keylen, NULL, NULL);
+        key, keylen, NULL, NULL);
 }
 
 #endif

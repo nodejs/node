@@ -312,11 +312,12 @@ void BindingData::EncodeUtf8String(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(args.Length(), 1);
   CHECK(args[0]->IsString());
 
-  Local<String> str = args[0].As<String>();
-  size_t length = str->Utf8LengthV2(isolate);
+  Local<String> source = args[0].As<String>();
 
-  Local<ArrayBuffer> ab;
-  {
+  // For small strings, use the V8 path
+  static constexpr int kSmallStringThreshold = 32;
+  if (source->Length() <= kSmallStringThreshold) {
+    size_t length = source->Utf8LengthV2(isolate);
     std::unique_ptr<BackingStore> bs = ArrayBuffer::NewBackingStore(
         isolate,
         length,
@@ -328,16 +329,88 @@ void BindingData::EncodeUtf8String(const FunctionCallbackInfo<Value>& args) {
       return;
     }
 
-    // We are certain that `data` is sufficiently large
-    str->WriteUtf8V2(isolate,
-                     static_cast<char*>(bs->Data()),
-                     bs->MaxByteLength(),
-                     String::WriteFlags::kReplaceInvalidUtf8);
-
-    ab = ArrayBuffer::New(isolate, std::move(bs));
+    source->WriteUtf8V2(isolate,
+                        static_cast<char*>(bs->Data()),
+                        bs->MaxByteLength(),
+                        String::WriteFlags::kReplaceInvalidUtf8);
+    Local<ArrayBuffer> ab = ArrayBuffer::New(isolate, std::move(bs));
+    args.GetReturnValue().Set(Uint8Array::New(ab, 0, length));
+    return;
   }
 
-  args.GetReturnValue().Set(Uint8Array::New(ab, 0, length));
+  size_t length = source->Length();
+  size_t utf8_length = 0;
+  bool is_one_byte = source->IsOneByte();
+
+  if (is_one_byte) {
+    // One-byte string (Latin1) - copy to buffer first, then process
+    MaybeStackBuffer<uint8_t, MAX_SIZE_FOR_STACK_ALLOC> latin1_buffer(length);
+    source->WriteOneByteV2(isolate, 0, length, latin1_buffer.out());
+
+    auto data = reinterpret_cast<const char*>(latin1_buffer.out());
+
+    // Check if it's pure ASCII - if so, we can just copy
+    simdutf::result result = simdutf::validate_ascii_with_errors(data, length);
+    if (result.error == simdutf::SUCCESS) {
+      // Pure ASCII - direct copy
+      std::unique_ptr<BackingStore> bs = ArrayBuffer::NewBackingStore(
+          isolate, length, BackingStoreInitializationMode::kUninitialized);
+      CHECK(bs);
+      memcpy(bs->Data(), data, length);
+      Local<ArrayBuffer> ab = ArrayBuffer::New(isolate, std::move(bs));
+      args.GetReturnValue().Set(Uint8Array::New(ab, 0, length));
+      return;
+    }
+
+    // Latin1 with non-ASCII characters - need conversion
+    utf8_length = simdutf::utf8_length_from_latin1(data, length);
+    std::unique_ptr<BackingStore> bs = ArrayBuffer::NewBackingStore(
+        isolate, utf8_length, BackingStoreInitializationMode::kUninitialized);
+    CHECK(bs);
+    [[maybe_unused]] size_t written = simdutf::convert_latin1_to_utf8(
+        data, length, static_cast<char*>(bs->Data()));
+    DCHECK_EQ(written, utf8_length);
+    Local<ArrayBuffer> ab = ArrayBuffer::New(isolate, std::move(bs));
+    args.GetReturnValue().Set(Uint8Array::New(ab, 0, utf8_length));
+    return;
+  }
+
+  // Two-byte string (UTF-16) - copy to buffer first
+  MaybeStackBuffer<uint16_t, MAX_SIZE_FOR_STACK_ALLOC> utf16_buffer(length);
+  source->WriteV2(isolate, 0, length, utf16_buffer.out());
+
+  auto data = reinterpret_cast<char16_t*>(utf16_buffer.out());
+
+  // Check for unpaired surrogates
+  simdutf::result validation_result =
+      simdutf::validate_utf16_with_errors(data, length);
+
+  if (validation_result.error == simdutf::SUCCESS) {
+    // Valid UTF-16 - use the fast path
+    utf8_length = simdutf::utf8_length_from_utf16(data, length);
+    std::unique_ptr<BackingStore> bs = ArrayBuffer::NewBackingStore(
+        isolate, utf8_length, BackingStoreInitializationMode::kUninitialized);
+    CHECK(bs);
+    [[maybe_unused]] size_t written = simdutf::convert_utf16_to_utf8(
+        data, length, static_cast<char*>(bs->Data()));
+    DCHECK_EQ(written, utf8_length);
+    Local<ArrayBuffer> ab = ArrayBuffer::New(isolate, std::move(bs));
+    args.GetReturnValue().Set(Uint8Array::New(ab, 0, utf8_length));
+    return;
+  }
+
+  // Invalid UTF-16 with unpaired surrogates - convert to well-formed in place
+  simdutf::to_well_formed_utf16(data, length, data);
+
+  utf8_length = simdutf::utf8_length_from_utf16(data, length);
+  std::unique_ptr<BackingStore> bs = ArrayBuffer::NewBackingStore(
+      isolate, utf8_length, BackingStoreInitializationMode::kUninitialized);
+  CHECK(bs);
+  [[maybe_unused]] size_t written = simdutf::convert_utf16_to_utf8(
+      data, length, static_cast<char*>(bs->Data()));
+  DCHECK_EQ(written, utf8_length);
+  Local<ArrayBuffer> ab = ArrayBuffer::New(isolate, std::move(bs));
+  args.GetReturnValue().Set(Uint8Array::New(ab, 0, utf8_length));
 }
 
 // Convert the input into an encoded string

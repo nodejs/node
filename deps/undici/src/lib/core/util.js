@@ -431,20 +431,15 @@ function parseHeaders (headers, obj) {
         val = [val]
         obj[key] = val
       }
-      val.push(headers[i + 1].toString('utf8'))
+      val.push(headers[i + 1].toString('latin1'))
     } else {
       const headersValue = headers[i + 1]
       if (typeof headersValue === 'string') {
         obj[key] = headersValue
       } else {
-        obj[key] = Array.isArray(headersValue) ? headersValue.map(x => x.toString('utf8')) : headersValue.toString('utf8')
+        obj[key] = Array.isArray(headersValue) ? headersValue.map(x => x.toString('latin1')) : headersValue.toString('latin1')
       }
     }
-  }
-
-  // See https://github.com/nodejs/node/pull/46528
-  if ('content-length' in obj && 'content-disposition' in obj) {
-    obj['content-disposition'] = Buffer.from(obj['content-disposition']).toString('latin1')
   }
 
   return obj
@@ -461,32 +456,18 @@ function parseRawHeaders (headers) {
    */
   const ret = new Array(headersLength)
 
-  let hasContentLength = false
-  let contentDispositionIdx = -1
   let key
   let val
-  let kLen = 0
 
   for (let n = 0; n < headersLength; n += 2) {
     key = headers[n]
     val = headers[n + 1]
 
     typeof key !== 'string' && (key = key.toString())
-    typeof val !== 'string' && (val = val.toString('utf8'))
+    typeof val !== 'string' && (val = val.toString('latin1'))
 
-    kLen = key.length
-    if (kLen === 14 && key[7] === '-' && (key === 'content-length' || key.toLowerCase() === 'content-length')) {
-      hasContentLength = true
-    } else if (kLen === 19 && key[7] === '-' && (key === 'content-disposition' || key.toLowerCase() === 'content-disposition')) {
-      contentDispositionIdx = n + 1
-    }
     ret[n] = key
     ret[n + 1] = val
-  }
-
-  // See https://github.com/nodejs/node/pull/46528
-  if (hasContentLength && contentDispositionIdx !== -1) {
-    ret[contentDispositionIdx] = Buffer.from(ret[contentDispositionIdx]).toString('latin1')
   }
 
   return ret

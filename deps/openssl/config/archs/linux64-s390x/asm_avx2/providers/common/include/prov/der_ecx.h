@@ -14,6 +14,7 @@
 #include "crypto/ecx.h"
 
 /* Well known OIDs precompiled */
+/* clang-format off */
 
 /*
  * id-X25519        OBJECT IDENTIFIER ::= { id-edwards-curve-algs 110 }
@@ -43,6 +44,7 @@ extern const unsigned char ossl_der_oid_id_Ed25519[DER_OID_SZ_id_Ed25519];
 #define DER_OID_SZ_id_Ed448 5
 extern const unsigned char ossl_der_oid_id_Ed448[DER_OID_SZ_id_Ed448];
 
+/* clang-format on */
 
 int ossl_DER_w_algorithmIdentifier_ED25519(WPACKET *pkt, int cont, ECX_KEY *ec);
 int ossl_DER_w_algorithmIdentifier_ED448(WPACKET *pkt, int cont, ECX_KEY *ec);

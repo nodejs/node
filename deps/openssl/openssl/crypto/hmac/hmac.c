@@ -23,7 +23,7 @@
 #include "hmac_local.h"
 
 int HMAC_Init_ex(HMAC_CTX *ctx, const void *key, int len,
-                 const EVP_MD *md, ENGINE *impl)
+    const EVP_MD *md, ENGINE *impl)
 {
     int rv = 0, reset = 0;
     int i, j;
@@ -65,9 +65,9 @@ int HMAC_Init_ex(HMAC_CTX *ctx, const void *key, int len,
             return 0;
         if (j < len) {
             if (!EVP_DigestInit_ex(ctx->md_ctx, md, impl)
-                    || !EVP_DigestUpdate(ctx->md_ctx, key, len)
-                    || !EVP_DigestFinal_ex(ctx->md_ctx, keytmp,
-                                           &keytmp_length))
+                || !EVP_DigestUpdate(ctx->md_ctx, key, len)
+                || !EVP_DigestFinal_ex(ctx->md_ctx, keytmp,
+                    &keytmp_length))
                 return 0;
         } else {
             if (len < 0 || len > (int)sizeof(keytmp))
@@ -77,26 +77,26 @@ int HMAC_Init_ex(HMAC_CTX *ctx, const void *key, int len,
         }
         if (keytmp_length != HMAC_MAX_MD_CBLOCK_SIZE)
             memset(&keytmp[keytmp_length], 0,
-                   HMAC_MAX_MD_CBLOCK_SIZE - keytmp_length);
+                HMAC_MAX_MD_CBLOCK_SIZE - keytmp_length);
 
         for (i = 0; i < HMAC_MAX_MD_CBLOCK_SIZE; i++)
             pad[i] = 0x36 ^ keytmp[i];
         if (!EVP_DigestInit_ex(ctx->i_ctx, md, impl)
-                || !EVP_DigestUpdate(ctx->i_ctx, pad,
-                                     EVP_MD_get_block_size(md)))
+            || !EVP_DigestUpdate(ctx->i_ctx, pad,
+                EVP_MD_get_block_size(md)))
             goto err;
 
         for (i = 0; i < HMAC_MAX_MD_CBLOCK_SIZE; i++)
             pad[i] = 0x5c ^ keytmp[i];
         if (!EVP_DigestInit_ex(ctx->o_ctx, md, impl)
-                || !EVP_DigestUpdate(ctx->o_ctx, pad,
-                                     EVP_MD_get_block_size(md)))
+            || !EVP_DigestUpdate(ctx->o_ctx, pad,
+                EVP_MD_get_block_size(md)))
             goto err;
     }
     if (!EVP_MD_CTX_copy_ex(ctx->md_ctx, ctx->i_ctx))
         goto err;
     rv = 1;
- err:
+err:
     if (reset) {
         OPENSSL_cleanse(keytmp, sizeof(keytmp));
         OPENSSL_cleanse(pad, sizeof(pad));
@@ -148,7 +148,7 @@ int HMAC_Final(HMAC_CTX *ctx, unsigned char *md, unsigned int *len)
     if (!EVP_DigestFinal_ex(ctx->md_ctx, md, len))
         goto err;
     return 1;
- err:
+err:
     return 0;
 }
 
@@ -240,14 +240,14 @@ int HMAC_CTX_copy(HMAC_CTX *dctx, HMAC_CTX *sctx)
 #endif
 
     return 1;
- err:
+err:
     hmac_ctx_cleanup(dctx);
     return 0;
 }
 
 unsigned char *HMAC(const EVP_MD *evp_md, const void *key, int key_len,
-                    const unsigned char *data, size_t data_len,
-                    unsigned char *md, unsigned int *md_len)
+    const unsigned char *data, size_t data_len,
+    unsigned char *md, unsigned int *md_len)
 {
     static unsigned char static_md[EVP_MAX_MD_SIZE];
     int size = EVP_MD_get_size(evp_md);
@@ -256,8 +256,8 @@ unsigned char *HMAC(const EVP_MD *evp_md, const void *key, int key_len,
 
     if (size > 0) {
         ret = EVP_Q_mac(NULL, "HMAC", NULL, EVP_MD_get0_name(evp_md), NULL,
-                        key, key_len, data, data_len,
-                        md == NULL ? static_md : md, size, &temp_md_len);
+            key, key_len, data, data_len,
+            md == NULL ? static_md : md, size, &temp_md_len);
         if (md_len != NULL)
             *md_len = (unsigned int)temp_md_len;
     }

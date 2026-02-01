@@ -16,7 +16,7 @@
 #include "provider_local.h"
 
 OSSL_PROVIDER *OSSL_PROVIDER_try_load_ex(OSSL_LIB_CTX *libctx, const char *name,
-                                         OSSL_PARAM *params, int retain_fallbacks)
+    OSSL_PARAM *params, int retain_fallbacks)
 {
     OSSL_PROVIDER *prov = NULL, *actual;
     int isnew = 0;
@@ -50,7 +50,7 @@ OSSL_PROVIDER *OSSL_PROVIDER_try_load_ex(OSSL_LIB_CTX *libctx, const char *name,
 }
 
 OSSL_PROVIDER *OSSL_PROVIDER_try_load(OSSL_LIB_CTX *libctx, const char *name,
-                                      int retain_fallbacks)
+    int retain_fallbacks)
 {
     return OSSL_PROVIDER_try_load_ex(libctx, name, NULL, retain_fallbacks);
 }
@@ -87,15 +87,15 @@ int OSSL_PROVIDER_get_params(const OSSL_PROVIDER *prov, OSSL_PARAM params[])
 }
 
 const OSSL_ALGORITHM *OSSL_PROVIDER_query_operation(const OSSL_PROVIDER *prov,
-                                                    int operation_id,
-                                                    int *no_cache)
+    int operation_id,
+    int *no_cache)
 {
     return ossl_provider_query_operation(prov, operation_id, no_cache);
 }
 
 void OSSL_PROVIDER_unquery_operation(const OSSL_PROVIDER *prov,
-                                     int operation_id,
-                                     const OSSL_ALGORITHM *algs)
+    int operation_id,
+    const OSSL_ALGORITHM *algs)
 {
     ossl_provider_unquery_operation(prov, operation_id, algs);
 }
@@ -116,15 +116,15 @@ int OSSL_PROVIDER_self_test(const OSSL_PROVIDER *prov)
 }
 
 int OSSL_PROVIDER_get_capabilities(const OSSL_PROVIDER *prov,
-                                   const char *capability,
-                                   OSSL_CALLBACK *cb,
-                                   void *arg)
+    const char *capability,
+    OSSL_CALLBACK *cb,
+    void *arg)
 {
     return ossl_provider_get_capabilities(prov, capability, cb, arg);
 }
 
 int OSSL_PROVIDER_add_builtin(OSSL_LIB_CTX *libctx, const char *name,
-                              OSSL_provider_init_fn *init_fn)
+    OSSL_provider_init_fn *init_fn)
 {
     OSSL_PROVIDER_INFO entry;
 
@@ -150,9 +150,9 @@ const char *OSSL_PROVIDER_get0_name(const OSSL_PROVIDER *prov)
 }
 
 int OSSL_PROVIDER_do_all(OSSL_LIB_CTX *ctx,
-                         int (*cb)(OSSL_PROVIDER *provider,
-                                   void *cbdata),
-                         void *cbdata)
+    int (*cb)(OSSL_PROVIDER *provider,
+        void *cbdata),
+    void *cbdata)
 {
     return ossl_provider_doall_activated(ctx, cb, cbdata);
 }

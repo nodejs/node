@@ -124,10 +124,10 @@ sub init
     my $test_client_port;
 
     # Sometimes, our random selection of client ports gets unlucky
-    # And we randomly select a port thats already in use.  This causes
+    # And we randomly select a port that's already in use.  This causes
     # this test to fail, so lets harden ourselves against that by doing
     # a test bind to the randomly selected port, and only continue once we
-    # find a port thats available.
+    # find a port that's available.
     my $test_client_addr = $have_IPv6 ? "[::1]" : "127.0.0.1";
     my $found_port = 0;
     for (my $i = 0; $i <= 10; $i++) {

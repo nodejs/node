@@ -32,7 +32,7 @@ int LLVMFuzzerTestOneInput(const uint8_t *buf, size_t len)
 
 #define BUF_SIZE 65536
 
-int main(int argc, char** argv)
+int main(int argc, char **argv)
 {
     FuzzerInitialize(&argc, &argv);
 

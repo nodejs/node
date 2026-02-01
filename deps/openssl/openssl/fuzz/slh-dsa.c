@@ -59,7 +59,7 @@ static uint8_t *consume_uint8t(const uint8_t *buf, size_t *len, uint8_t *val)
  *         or NULL on failure.
  */
 static EVP_PKEY *slh_dsa_gen_key(const char *name, uint32_t keysize,
-                                 OSSL_PARAM params[], uint8_t *param_broken)
+    OSSL_PARAM params[], uint8_t *param_broken)
 {
     EVP_PKEY_CTX *ctx;
     EVP_PKEY *new = NULL;
@@ -166,7 +166,7 @@ static const char *select_keytype(uint8_t selector, uint32_t *keysize)
  * @param out2 Pointer to store the second generated key.
  */
 static void slh_dsa_gen_keys(uint8_t **buf, size_t *len,
-                             void **out1, void **out2)
+    void **out1, void **out2)
 {
     uint8_t selector = 0;
     const char *keytype = NULL;
@@ -203,7 +203,7 @@ static void slh_dsa_gen_keys(uint8_t **buf, size_t *len,
  *             other key generation functions).
  */
 static void slh_dsa_gen_key_with_params(uint8_t **buf, size_t *len,
-                                        void **out1, void **out2)
+    void **out1, void **out2)
 {
     uint8_t selector = 0;
     const char *keytype = NULL;
@@ -241,7 +241,7 @@ static void slh_dsa_gen_key_with_params(uint8_t **buf, size_t *len,
         broken = (bufptr == NULL) ? 1 : 0;
 
     params[0] = OSSL_PARAM_construct_octet_string(OSSL_PKEY_PARAM_PUB_KEY,
-                                                  (char *)bufptr, buflen);
+        (char *)bufptr, buflen);
 
     buflen = keysize * 2;
     /* select an invalid length if the 4th bit is true  */
@@ -255,7 +255,7 @@ static void slh_dsa_gen_key_with_params(uint8_t **buf, size_t *len,
     if (!broken)
         broken = (bufptr == NULL) ? 1 : 0;
     params[1] = OSSL_PARAM_construct_octet_string(OSSL_PKEY_PARAM_PRIV_KEY,
-                                                  (char *)bufptr, buflen);
+        (char *)bufptr, buflen);
 
     params[2] = OSSL_PARAM_construct_end();
 
@@ -304,7 +304,7 @@ static void slh_dsa_clean_keys(void *in1, void *in2, void *out1, void *out2)
  * @param out2 Unused output parameter (placeholder for consistency).
  */
 static void slh_dsa_sign_verify(uint8_t **buf, size_t *len, void *key1,
-                                void *key2, void **out1, void **out2)
+    void *key2, void **out1, void **out2)
 {
     EVP_PKEY_CTX *ctx = NULL;
     EVP_PKEY *key = NULL;
@@ -348,18 +348,18 @@ static void slh_dsa_sign_verify(uint8_t **buf, size_t *len, void *key1,
 
     if (selector & 0x1)
         params[paramidx++] = OSSL_PARAM_construct_octet_string(OSSL_SIGNATURE_PARAM_CONTEXT_STRING,
-                                                               msg, msg_len);
+            msg, msg_len);
 
     if (selector & 0x2) {
         intval1 = selector & 0x4;
         params[paramidx++] = OSSL_PARAM_construct_int(OSSL_SIGNATURE_PARAM_MESSAGE_ENCODING,
-                                                      &intval1);
+            &intval1);
     }
 
     if (selector & 0x8) {
         intval2 = selector & 0x10;
         params[paramidx++] = OSSL_PARAM_construct_int(OSSL_SIGNATURE_PARAM_DETERMINISTIC,
-                                                      &intval2);
+            &intval2);
     }
 
     params[paramidx] = OSSL_PARAM_construct_end();
@@ -378,7 +378,7 @@ static void slh_dsa_sign_verify(uint8_t **buf, size_t *len, void *key1,
     /*
      * the context_string parameter can be no more than 255 bytes, so if
      * our random input buffer is greater than that, we expect failure above,
-     * which we check for.  In that event, theres nothing more we can do here
+     * which we check for.  In that event, there's nothing more we can do here
      * so bail out
      */
     if (expect_init_rc == 0)
@@ -415,7 +415,7 @@ out:
  * @param out2 Unused output parameter (placeholder for consistency).
  */
 static void slh_dsa_export_import(uint8_t **buf, size_t *len, void *key1,
-                                  void *key2, void **out1, void **out2)
+    void *key2, void **out1, void **out2)
 {
     int rc;
     EVP_PKEY *alice = (EVP_PKEY *)key1;
@@ -439,7 +439,7 @@ static void slh_dsa_export_import(uint8_t **buf, size_t *len, void *key1,
      * EVP_PKEY returns:
      * 1 if the keys are equivalent
      * 0 if the keys are not equivalent
-     * -1 if the key types are differnt
+     * -1 if the key types are different
      * -2 if the operation is not supported
      */
     OPENSSL_assert(EVP_PKEY_eq(alice, new) == 1);
@@ -509,7 +509,7 @@ struct op_table_entry {
      * @param out2  Pointer to store the second output of the operation.
      */
     void (*doit)(uint8_t **buf, size_t *len, void *in1, void *in2,
-                 void **out1, void **out2);
+        void **out1, void **out2);
 
     /**
      * @brief Function pointer for cleaning up after the operation.
@@ -523,27 +523,22 @@ struct op_table_entry {
 };
 
 static struct op_table_entry ops[] = {
-    {
-        "Generate SLH-DSA keys",
+    { "Generate SLH-DSA keys",
         slh_dsa_gen_keys,
         NULL,
-        slh_dsa_clean_keys
-    }, {
-        "Generate SLH-DSA keys with params",
+        slh_dsa_clean_keys },
+    { "Generate SLH-DSA keys with params",
         slh_dsa_gen_key_with_params,
         NULL,
-        slh_dsa_clean_keys
-    }, {
-        "SLH-DSA Export/Import",
+        slh_dsa_clean_keys },
+    { "SLH-DSA Export/Import",
         slh_dsa_gen_keys,
         slh_dsa_export_import,
-        slh_dsa_clean_keys
-    }, {
-        "SLH-DSA sign and verify",
+        slh_dsa_clean_keys },
+    { "SLH-DSA sign and verify",
         NULL,
         slh_dsa_sign_verify,
-        slh_dsa_clean_keys
-    }
+        slh_dsa_clean_keys }
 };
 
 int FuzzerInitialize(int *argc, char ***argv)
@@ -578,7 +573,7 @@ int FuzzerTestOneInput(const uint8_t *buf, size_t len)
         return -1;
     /*
      * Get the first byte of the buffer to tell us what operation
-     * to preform
+     * to perform
      */
     buffer_cursor = consume_uint8t(buf, &len, &operation);
     if (buffer_cursor == NULL)

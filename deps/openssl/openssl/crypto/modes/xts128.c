@@ -13,17 +13,17 @@
 #include "crypto/modes.h"
 
 #ifndef STRICT_ALIGNMENT
-# ifdef __GNUC__
+#ifdef __GNUC__
 typedef u64 u64_a1 __attribute((__aligned__(1)));
-# else
+#else
 typedef u64 u64_a1;
-# endif
+#endif
 #endif
 
 int CRYPTO_xts128_encrypt(const XTS128_CONTEXT *ctx,
-                          const unsigned char iv[16],
-                          const unsigned char *inp, unsigned char *out,
-                          size_t len, int enc)
+    const unsigned char iv[16],
+    const unsigned char *inp, unsigned char *out,
+    size_t len, int enc)
 {
     DECLARE_IS_ENDIAN;
     union {
@@ -38,7 +38,7 @@ int CRYPTO_xts128_encrypt(const XTS128_CONTEXT *ctx,
 
     memcpy(tweak.c, iv, 16);
 
-    (*ctx->block2) (tweak.c, tweak.c, ctx->key2);
+    (*ctx->block2)(tweak.c, tweak.c, ctx->key2);
 
     if (!enc && (len % 16))
         len -= 16;
@@ -52,7 +52,7 @@ int CRYPTO_xts128_encrypt(const XTS128_CONTEXT *ctx,
         scratch.u[0] = ((u64_a1 *)inp)[0] ^ tweak.u[0];
         scratch.u[1] = ((u64_a1 *)inp)[1] ^ tweak.u[1];
 #endif
-        (*ctx->block1) (scratch.c, scratch.c, ctx->key1);
+        (*ctx->block1)(scratch.c, scratch.c, ctx->key1);
 #if defined(STRICT_ALIGNMENT)
         scratch.u[0] ^= tweak.u[0];
         scratch.u[1] ^= tweak.u[1];
@@ -97,7 +97,7 @@ int CRYPTO_xts128_encrypt(const XTS128_CONTEXT *ctx,
         }
         scratch.u[0] ^= tweak.u[0];
         scratch.u[1] ^= tweak.u[1];
-        (*ctx->block1) (scratch.c, scratch.c, ctx->key1);
+        (*ctx->block1)(scratch.c, scratch.c, ctx->key1);
         scratch.u[0] ^= tweak.u[0];
         scratch.u[1] ^= tweak.u[1];
         memcpy(out - 16, scratch.c, 16);
@@ -135,7 +135,7 @@ int CRYPTO_xts128_encrypt(const XTS128_CONTEXT *ctx,
         scratch.u[0] = ((u64_a1 *)inp)[0] ^ tweak1.u[0];
         scratch.u[1] = ((u64_a1 *)inp)[1] ^ tweak1.u[1];
 #endif
-        (*ctx->block1) (scratch.c, scratch.c, ctx->key1);
+        (*ctx->block1)(scratch.c, scratch.c, ctx->key1);
         scratch.u[0] ^= tweak1.u[0];
         scratch.u[1] ^= tweak1.u[1];
 
@@ -146,7 +146,7 @@ int CRYPTO_xts128_encrypt(const XTS128_CONTEXT *ctx,
         }
         scratch.u[0] ^= tweak.u[0];
         scratch.u[1] ^= tweak.u[1];
-        (*ctx->block1) (scratch.c, scratch.c, ctx->key1);
+        (*ctx->block1)(scratch.c, scratch.c, ctx->key1);
 #if defined(STRICT_ALIGNMENT)
         scratch.u[0] ^= tweak.u[0];
         scratch.u[1] ^= tweak.u[1];

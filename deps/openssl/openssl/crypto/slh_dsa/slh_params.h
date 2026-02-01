@@ -23,13 +23,13 @@ typedef struct slh_dsa_params_st {
     const char *alg;
     int type;
     int is_shake;
-    uint32_t n;  /* Security parameter (Hash output size in bytes) (16, 24, 32) */
-    uint32_t h;  /* The total height of the tree (63, 64, 66, 68). #keypairs = 2^h */
-    uint32_t d;  /* The number of tree layers (7, 8, 17, 22) */
+    uint32_t n; /* Security parameter (Hash output size in bytes) (16, 24, 32) */
+    uint32_t h; /* The total height of the tree (63, 64, 66, 68). #keypairs = 2^h */
+    uint32_t d; /* The number of tree layers (7, 8, 17, 22) */
     uint32_t hm; /* The height (h') of each merkle tree. (h = hm * d ) */
-    uint32_t a;  /* Height of a FORS tree */
-    uint32_t k;  /* The number of FORS trees */
-    uint32_t m;  /* The size of H_MSG() output */
+    uint32_t a; /* Height of a FORS tree */
+    uint32_t k; /* The number of FORS trees */
+    uint32_t m; /* The size of H_MSG() output */
     uint32_t security_category;
     uint32_t pk_len;
     uint32_t sig_len;

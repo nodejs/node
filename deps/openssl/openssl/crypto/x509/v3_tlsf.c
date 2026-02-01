@@ -17,17 +17,16 @@
 #include "x509_local.h"
 
 static STACK_OF(CONF_VALUE) *i2v_TLS_FEATURE(const X509V3_EXT_METHOD *method,
-                                             TLS_FEATURE *tls_feature,
-                                             STACK_OF(CONF_VALUE) *ext_list);
+    TLS_FEATURE *tls_feature,
+    STACK_OF(CONF_VALUE) *ext_list);
 static TLS_FEATURE *v2i_TLS_FEATURE(const X509V3_EXT_METHOD *method,
-                                    X509V3_CTX *ctx,
-                                    STACK_OF(CONF_VALUE) *nval);
+    X509V3_CTX *ctx,
+    STACK_OF(CONF_VALUE) *nval);
 
-ASN1_ITEM_TEMPLATE(TLS_FEATURE) =
-        ASN1_EX_TEMPLATE_TYPE(ASN1_TFLG_SEQUENCE_OF, 0, TLS_FEATURE, ASN1_INTEGER)
+ASN1_ITEM_TEMPLATE(TLS_FEATURE) = ASN1_EX_TEMPLATE_TYPE(ASN1_TFLG_SEQUENCE_OF, 0, TLS_FEATURE, ASN1_INTEGER)
 static_ASN1_ITEM_TEMPLATE_END(TLS_FEATURE)
 
-IMPLEMENT_ASN1_ALLOC_FUNCTIONS(TLS_FEATURE)
+    IMPLEMENT_ASN1_ALLOC_FUNCTIONS(TLS_FEATURE)
 
 const X509V3_EXT_METHOD ossl_v3_tls_feature = {
     NID_tlsfeature, 0,
@@ -39,7 +38,6 @@ const X509V3_EXT_METHOD ossl_v3_tls_feature = {
     0, 0,
     NULL
 };
-
 
 typedef struct {
     long num;
@@ -58,8 +56,8 @@ static TLS_FEATURE_NAME tls_feature_tbl[] = {
  * returned.
  */
 static STACK_OF(CONF_VALUE) *i2v_TLS_FEATURE(const X509V3_EXT_METHOD *method,
-                                             TLS_FEATURE *tls_feature,
-                                             STACK_OF(CONF_VALUE) *ext_list)
+    TLS_FEATURE *tls_feature,
+    STACK_OF(CONF_VALUE) *ext_list)
 {
     int i;
     size_t j;
@@ -85,7 +83,7 @@ static STACK_OF(CONF_VALUE) *i2v_TLS_FEATURE(const X509V3_EXT_METHOD *method,
  * error, NULL is returned.
  */
 static TLS_FEATURE *v2i_TLS_FEATURE(const X509V3_EXT_METHOD *method,
-                                    X509V3_CTX *ctx, STACK_OF(CONF_VALUE) *nval)
+    X509V3_CTX *ctx, STACK_OF(CONF_VALUE) *nval)
 {
     TLS_FEATURE *tlsf;
     char *extval, *endptr;
@@ -114,8 +112,7 @@ static TLS_FEATURE *v2i_TLS_FEATURE(const X509V3_EXT_METHOD *method,
             tlsextid = tls_feature_tbl[j].num;
         else {
             tlsextid = strtol(extval, &endptr, 10);
-            if (((*endptr) != '\0') || (extval == endptr) || (tlsextid < 0) ||
-                (tlsextid > 65535)) {
+            if (((*endptr) != '\0') || (extval == endptr) || (tlsextid < 0) || (tlsextid > 65535)) {
                 ERR_raise(ERR_LIB_X509V3, X509V3_R_INVALID_SYNTAX);
                 X509V3_conf_add_error_name_value(val);
                 goto err;
@@ -123,8 +120,8 @@ static TLS_FEATURE *v2i_TLS_FEATURE(const X509V3_EXT_METHOD *method,
         }
 
         if ((ai = ASN1_INTEGER_new()) == NULL
-                || !ASN1_INTEGER_set(ai, tlsextid)
-                || sk_ASN1_INTEGER_push(tlsf, ai) <= 0) {
+            || !ASN1_INTEGER_set(ai, tlsextid)
+            || sk_ASN1_INTEGER_push(tlsf, ai) <= 0) {
             ERR_raise(ERR_LIB_X509V3, ERR_R_ASN1_LIB);
             goto err;
         }
@@ -133,7 +130,7 @@ static TLS_FEATURE *v2i_TLS_FEATURE(const X509V3_EXT_METHOD *method,
     }
     return tlsf;
 
- err:
+err:
     sk_ASN1_INTEGER_pop_free(tlsf, ASN1_INTEGER_free);
     ASN1_INTEGER_free(ai);
     return NULL;

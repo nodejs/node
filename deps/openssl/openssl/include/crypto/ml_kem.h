@@ -8,22 +8,22 @@
  */
 
 #ifndef OPENSSL_HEADER_ML_KEM_H
-# define OPENSSL_HEADER_ML_KEM_H
-# pragma once
+#define OPENSSL_HEADER_ML_KEM_H
+#pragma once
 
-# include <openssl/e_os2.h>
-# include <openssl/bio.h>
-# include <openssl/core_dispatch.h>
-# include <crypto/evp.h>
+#include <openssl/e_os2.h>
+#include <openssl/bio.h>
+#include <openssl/core_dispatch.h>
+#include <crypto/evp.h>
 
-# define ML_KEM_DEGREE 256
+#define ML_KEM_DEGREE 256
 /*
  * With (q-1) an odd multiple of 256, and 17 ("zeta") as a primitive 256th root
  * of unity, the polynomial (X^256+1) splits in Z_q[X] into 128 irreducible
  * quadratic factors of the form (X^2 - zeta^(2i + 1)).  This is used to
  * implement efficient multiplication in the ring R_q via the "NTT" transform.
  */
-# define ML_KEM_PRIME          (ML_KEM_DEGREE * 13 + 1)
+#define ML_KEM_PRIME (ML_KEM_DEGREE * 13 + 1)
 
 /*
  * Various ML-KEM primitives need random input, 32-bytes at a time.  Key
@@ -44,15 +44,15 @@
  * Note that the matrix "m" we store in the public key is the transpose of the
  * "A" matrix from FIPS 203!
  */
-# define ML_KEM_RANDOM_BYTES    32 /* rho, sigma, ... */
-# define ML_KEM_SEED_BYTES      (ML_KEM_RANDOM_BYTES * 2) /* Keygen (d, z) */
+#define ML_KEM_RANDOM_BYTES 32 /* rho, sigma, ... */
+#define ML_KEM_SEED_BYTES (ML_KEM_RANDOM_BYTES * 2) /* Keygen (d, z) */
 
-# define ML_KEM_PKHASH_BYTES        32 /* Salts the shared-secret */
-# define ML_KEM_SHARED_SECRET_BYTES 32
+#define ML_KEM_PKHASH_BYTES 32 /* Salts the shared-secret */
+#define ML_KEM_SHARED_SECRET_BYTES 32
 
-# if ML_KEM_PKHASH_BYTES != ML_KEM_RANDOM_BYTES
-#  error "unexpected ML-KEM public key hash size"
-# endif
+#if ML_KEM_PKHASH_BYTES != ML_KEM_RANDOM_BYTES
+#error "unexpected ML-KEM public key hash size"
+#endif
 
 /*-
  * The ML-KEM specification can be found in
@@ -90,42 +90,42 @@
  * Variant-specific constants and structures
  * -----------------------------------------
  */
-# define EVP_PKEY_ML_KEM_512    NID_ML_KEM_512
-# define ML_KEM_512_BITS        512
-# define ML_KEM_512_RANK        2
-# define ML_KEM_512_ETA1        3
-# define ML_KEM_512_ETA2        2
-# define ML_KEM_512_DU          10
-# define ML_KEM_512_DV          4
-# define ML_KEM_512_SECBITS     128
+#define EVP_PKEY_ML_KEM_512 NID_ML_KEM_512
+#define ML_KEM_512_BITS 512
+#define ML_KEM_512_RANK 2
+#define ML_KEM_512_ETA1 3
+#define ML_KEM_512_ETA2 2
+#define ML_KEM_512_DU 10
+#define ML_KEM_512_DV 4
+#define ML_KEM_512_SECBITS 128
 
-# define EVP_PKEY_ML_KEM_768    NID_ML_KEM_768
-# define ML_KEM_768_BITS        768
-# define ML_KEM_768_RANK        3
-# define ML_KEM_768_ETA1        2
-# define ML_KEM_768_ETA2        2
-# define ML_KEM_768_DU          10
-# define ML_KEM_768_DV          4
-# define ML_KEM_768_SECBITS     192
+#define EVP_PKEY_ML_KEM_768 NID_ML_KEM_768
+#define ML_KEM_768_BITS 768
+#define ML_KEM_768_RANK 3
+#define ML_KEM_768_ETA1 2
+#define ML_KEM_768_ETA2 2
+#define ML_KEM_768_DU 10
+#define ML_KEM_768_DV 4
+#define ML_KEM_768_SECBITS 192
 
-# define EVP_PKEY_ML_KEM_1024   NID_ML_KEM_1024
-# define ML_KEM_1024_BITS       1024
-# define ML_KEM_1024_RANK       4
-# define ML_KEM_1024_ETA1       2
-# define ML_KEM_1024_ETA2       2
-# define ML_KEM_1024_DU         11
-# define ML_KEM_1024_DV         5
-# define ML_KEM_1024_SECBITS    256
+#define EVP_PKEY_ML_KEM_1024 NID_ML_KEM_1024
+#define ML_KEM_1024_BITS 1024
+#define ML_KEM_1024_RANK 4
+#define ML_KEM_1024_ETA1 2
+#define ML_KEM_1024_ETA2 2
+#define ML_KEM_1024_DU 11
+#define ML_KEM_1024_DV 5
+#define ML_KEM_1024_SECBITS 256
 
-# define ML_KEM_KEY_RANDOM_PCT  (1 << 0)
-# define ML_KEM_KEY_FIXED_PCT   (1 << 1)
-# define ML_KEM_KEY_PREFER_SEED (1 << 2)
-# define ML_KEM_KEY_RETAIN_SEED (1 << 3)
+#define ML_KEM_KEY_RANDOM_PCT (1 << 0)
+#define ML_KEM_KEY_FIXED_PCT (1 << 1)
+#define ML_KEM_KEY_PREFER_SEED (1 << 2)
+#define ML_KEM_KEY_RETAIN_SEED (1 << 3)
 /* Mask to check whether PCT on import is enabled */
-# define ML_KEM_KEY_PCT_TYPE \
+#define ML_KEM_KEY_PCT_TYPE \
     (ML_KEM_KEY_RANDOM_PCT | ML_KEM_KEY_FIXED_PCT)
 /* Default provider flags */
-# define ML_KEM_KEY_PROV_FLAGS_DEFAULT \
+#define ML_KEM_KEY_PROV_FLAGS_DEFAULT \
     (ML_KEM_KEY_RANDOM_PCT | ML_KEM_KEY_PREFER_SEED | ML_KEM_KEY_RETAIN_SEED)
 
 /*
@@ -150,7 +150,7 @@ typedef struct {
     int secbits;
 } ML_KEM_VINFO;
 
-/* Retrive global variant-specific parameters */
+/* Retrieve global variant-specific parameters */
 const ML_KEM_VINFO *ossl_ml_kem_get_vinfo(int evp_type);
 
 /* Known as ML_KEM_KEY via crypto/types.h */
@@ -175,14 +175,14 @@ typedef struct ossl_ml_kem_key_st {
      * storage is allocated once a public or private key is specified, at
      * which point the key becomes immutable.
      */
-    uint8_t *rho;                           /* Public matrix seed */
-    uint8_t *pkhash;                        /* Public key hash */
-    struct ossl_ml_kem_scalar_st *t;        /* Public key vector */
-    struct ossl_ml_kem_scalar_st *m;        /* Pre-computed pubkey matrix */
-    struct ossl_ml_kem_scalar_st *s;        /* Private key secret vector */
-    uint8_t *z;                             /* Private key FO failure secret */
-    uint8_t *d;                             /* Private key seed */
-    int prov_flags;                         /* prefer/retain seed and PCT flags */
+    uint8_t *rho; /* Public matrix seed */
+    uint8_t *pkhash; /* Public key hash */
+    struct ossl_ml_kem_scalar_st *t; /* Public key vector */
+    struct ossl_ml_kem_scalar_st *m; /* Pre-computed pubkey matrix */
+    struct ossl_ml_kem_scalar_st *s; /* Private key secret vector */
+    uint8_t *z; /* Private key FO failure secret */
+    uint8_t *d; /* Private key seed */
+    int prov_flags; /* prefer/retain seed and PCT flags */
 
     /*
      * Fixed-size built-in buffer, which holds the |rho| and the public key
@@ -190,18 +190,18 @@ typedef struct ossl_ml_kem_key_st {
      * With seed-only keys, that are not yet expanded, this instead holds the
      * |z| and |d| components in that order.
      */
-    uint8_t seedbuf[64];                    /* |rho| + |pkhash| / |z| + |d| */
-    uint8_t *encoded_dk;                    /* Unparsed P8 private key */
+    uint8_t seedbuf[64]; /* |rho| + |pkhash| / |z| + |d| */
+    uint8_t *encoded_dk; /* Unparsed P8 private key */
 } ML_KEM_KEY;
 
 /* The public key is always present, when the private is */
-# define ossl_ml_kem_key_vinfo(key)     ((key)->vinfo)
-# define ossl_ml_kem_have_pubkey(key)   ((key)->t != NULL)
-# define ossl_ml_kem_have_prvkey(key)   ((key)->s != NULL)
-# define ossl_ml_kem_have_seed(key)     ((key)->d != NULL)
-# define ossl_ml_kem_have_dkenc(key)    ((key)->encoded_dk != NULL)
-# define ossl_ml_kem_decoded_key(key)   ((key)->encoded_dk != NULL \
-                                         || ((key)->s == NULL && (key)->d != NULL))
+#define ossl_ml_kem_key_vinfo(key) ((key)->vinfo)
+#define ossl_ml_kem_have_pubkey(key) ((key)->t != NULL)
+#define ossl_ml_kem_have_prvkey(key) ((key)->s != NULL)
+#define ossl_ml_kem_have_seed(key) ((key)->d != NULL)
+#define ossl_ml_kem_have_dkenc(key) ((key)->encoded_dk != NULL)
+#define ossl_ml_kem_decoded_key(key) ((key)->encoded_dk != NULL \
+    || ((key)->s == NULL && (key)->d != NULL))
 
 /*
  * ----- ML-KEM key lifecycle
@@ -212,7 +212,7 @@ typedef struct ossl_ml_kem_key_st {
  * or private key material.
  */
 ML_KEM_KEY *ossl_ml_kem_key_new(OSSL_LIB_CTX *libctx, const char *properties,
-                                int evp_type);
+    int evp_type);
 /* Reset a key clearing all public and private key material */
 void ossl_ml_kem_key_reset(ML_KEM_KEY *key);
 /* Deallocate the key */
@@ -234,48 +234,38 @@ ML_KEM_KEY *ossl_ml_kem_key_dup(const ML_KEM_KEY *key, int selection);
  *
  * Return 1 on success, 0 otherwise.
  */
-__owur
-int ossl_ml_kem_parse_public_key(const uint8_t *in, size_t len,
-                                 ML_KEM_KEY *key);
-__owur
-int ossl_ml_kem_parse_private_key(const uint8_t *in, size_t len,
-                                  ML_KEM_KEY *key);
+__owur int ossl_ml_kem_parse_public_key(const uint8_t *in, size_t len,
+    ML_KEM_KEY *key);
+__owur int ossl_ml_kem_parse_private_key(const uint8_t *in, size_t len,
+    ML_KEM_KEY *key);
 ML_KEM_KEY *ossl_ml_kem_set_seed(const uint8_t *seed, size_t seedlen,
-                                 ML_KEM_KEY *key);
-__owur
-int ossl_ml_kem_genkey(uint8_t *pubenc, size_t publen, ML_KEM_KEY *key);
+    ML_KEM_KEY *key);
+__owur int ossl_ml_kem_genkey(uint8_t *pubenc, size_t publen, ML_KEM_KEY *key);
 
 /*
  * Perform an ML-KEM operation with a given ML-KEM key.  The key can generally
  * be either a private or public key, with the exception of encoding a private
  * key or performing KEM decapsulation.
  */
-__owur
-int ossl_ml_kem_encode_public_key(uint8_t *out, size_t len,
-                                  const ML_KEM_KEY *key);
-__owur
-int ossl_ml_kem_encode_private_key(uint8_t *out, size_t len,
-                                   const ML_KEM_KEY *key);
-__owur
-int ossl_ml_kem_encode_seed(uint8_t *out, size_t len,
-                            const ML_KEM_KEY *key);
+__owur int ossl_ml_kem_encode_public_key(uint8_t *out, size_t len,
+    const ML_KEM_KEY *key);
+__owur int ossl_ml_kem_encode_private_key(uint8_t *out, size_t len,
+    const ML_KEM_KEY *key);
+__owur int ossl_ml_kem_encode_seed(uint8_t *out, size_t len,
+    const ML_KEM_KEY *key);
 
-__owur
-int ossl_ml_kem_encap_seed(uint8_t *ctext, size_t clen,
-                           uint8_t *shared_secret, size_t slen,
-                           const uint8_t *entropy, size_t elen,
-                           const ML_KEM_KEY *key);
-__owur
-int ossl_ml_kem_encap_rand(uint8_t *ctext, size_t clen,
-                           uint8_t *shared_secret, size_t slen,
-                           const ML_KEM_KEY *key);
-__owur
-int ossl_ml_kem_decap(uint8_t *shared_secret, size_t slen,
-                      const uint8_t *ctext, size_t clen,
-                      const ML_KEM_KEY *key);
+__owur int ossl_ml_kem_encap_seed(uint8_t *ctext, size_t clen,
+    uint8_t *shared_secret, size_t slen,
+    const uint8_t *entropy, size_t elen,
+    const ML_KEM_KEY *key);
+__owur int ossl_ml_kem_encap_rand(uint8_t *ctext, size_t clen,
+    uint8_t *shared_secret, size_t slen,
+    const ML_KEM_KEY *key);
+__owur int ossl_ml_kem_decap(uint8_t *shared_secret, size_t slen,
+    const uint8_t *ctext, size_t clen,
+    const ML_KEM_KEY *key);
 
 /* Compare the public key hashes of two keys */
-__owur
-int ossl_ml_kem_pubkey_cmp(const ML_KEM_KEY *key1, const ML_KEM_KEY *key2);
+__owur int ossl_ml_kem_pubkey_cmp(const ML_KEM_KEY *key1, const ML_KEM_KEY *key2);
 
-#endif  /* OPENSSL_HEADER_ML_KEM_H */
+#endif /* OPENSSL_HEADER_ML_KEM_H */

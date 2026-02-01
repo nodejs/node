@@ -648,6 +648,29 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
   });
 });
 
+describe('env', () => {
+  it('should allow env variables to be configured', async () => {
+    // Need to inherit some process.env variables so it runs reliably across different environments.
+    const env = { ...process.env, FOOBAR: 'FUZZBUZZ' };
+    // Set a variable on main process env and test it does not exist within test env.
+    process.env.ABC = 'XYZ';
+
+    const stream = run({ files: [join(testFixtures, 'process-env.js')], env });
+    stream.on('test:fail', common.mustNotCall());
+    stream.on('test:pass', common.mustCall(1));
+    // eslint-disable-next-line no-unused-vars
+    for await (const _ of stream);
+    delete process.env.ABC;
+  });
+
+  it('should throw error when env is specified with isolation=none', async () => {
+    assert.throws(() => run({ env: { foo: 'bar' }, isolation: 'none' }), {
+      code: 'ERR_INVALID_ARG_VALUE',
+      message: /The property 'options\.env' is not supported with isolation='none'\. Received { foo: 'bar' }/
+    });
+  });
+});
+
 describe('forceExit', () => {
   it('throws for non-boolean values', () => {
     [Symbol(), {}, 0, 1, '1', Promise.resolve([])].forEach((forceExit) => {

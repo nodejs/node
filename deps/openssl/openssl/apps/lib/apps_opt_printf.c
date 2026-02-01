@@ -22,4 +22,3 @@ int opt_printf_stderr(const char *fmt, ...)
     va_end(ap);
     return ret;
 }
-

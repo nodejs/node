@@ -18,7 +18,7 @@
 #include "cms_local.h"
 
 static int dh_cms_set_peerkey(EVP_PKEY_CTX *pctx,
-                              X509_ALGOR *alg, ASN1_BIT_STRING *pubkey)
+    X509_ALGOR *alg, ASN1_BIT_STRING *pubkey)
 {
     const ASN1_OBJECT *aoid;
     int atype;
@@ -64,13 +64,13 @@ static int dh_cms_set_peerkey(EVP_PKEY_CTX *pctx,
 
     pkpeer = EVP_PKEY_new();
     if (pkpeer == NULL
-            || !EVP_PKEY_copy_parameters(pkpeer, pk)
-            || EVP_PKEY_set1_encoded_public_key(pkpeer, buf, plen) <= 0)
+        || !EVP_PKEY_copy_parameters(pkpeer, pk)
+        || EVP_PKEY_set1_encoded_public_key(pkpeer, buf, plen) <= 0)
         goto err;
 
     if (EVP_PKEY_derive_set_peer(pctx, pkpeer) > 0)
         rv = 1;
- err:
+err:
     ASN1_INTEGER_free(public_key);
     BN_free(bnpub);
     OPENSSL_free(buf);
@@ -104,7 +104,7 @@ static int dh_cms_set_shared_info(EVP_PKEY_CTX *pctx, CMS_RecipientInfo *ri)
     }
 
     if (EVP_PKEY_CTX_set_dh_kdf_type(pctx, EVP_PKEY_DH_KDF_X9_42) <= 0
-            || EVP_PKEY_CTX_set_dh_kdf_md(pctx, EVP_sha1()) <= 0)
+        || EVP_PKEY_CTX_set_dh_kdf_md(pctx, EVP_sha1()) <= 0)
         goto err;
 
     if (alg->parameter->type != V_ASN1_SEQUENCE)
@@ -136,7 +136,7 @@ static int dh_cms_set_shared_info(EVP_PKEY_CTX *pctx, CMS_RecipientInfo *ri)
         goto err;
     /* Use OBJ_nid2obj to ensure we use built in OID that isn't freed */
     if (EVP_PKEY_CTX_set0_dh_kdf_oid(pctx,
-                                     OBJ_nid2obj(EVP_CIPHER_get_type(kekcipher)))
+            OBJ_nid2obj(EVP_CIPHER_get_type(kekcipher)))
         <= 0)
         goto err;
 
@@ -152,7 +152,7 @@ static int dh_cms_set_shared_info(EVP_PKEY_CTX *pctx, CMS_RecipientInfo *ri)
     dukm = NULL;
 
     rv = 1;
- err:
+err:
     X509_ALGOR_free(kekalg);
     EVP_CIPHER_free(kekcipher);
     OPENSSL_free(dukm);
@@ -171,9 +171,9 @@ static int dh_cms_decrypt(CMS_RecipientInfo *ri)
         ASN1_BIT_STRING *pubkey;
 
         if (!CMS_RecipientInfo_kari_get0_orig_id(ri, &alg, &pubkey,
-                                                 NULL, NULL, NULL))
+                NULL, NULL, NULL))
             return 0;
-        if (alg ==  NULL || pubkey == NULL)
+        if (alg == NULL || pubkey == NULL)
             return 0;
         if (!dh_cms_set_peerkey(pctx, alg, pubkey)) {
             ERR_raise(ERR_LIB_CMS, CMS_R_PEER_KEY_ERROR);
@@ -212,7 +212,7 @@ static int dh_cms_encrypt(CMS_RecipientInfo *ri)
     /* Get ephemeral key */
     pkey = EVP_PKEY_CTX_get0_pkey(pctx);
     if (!CMS_RecipientInfo_kari_get0_orig_id(ri, &talg, &pubkey,
-                                             NULL, NULL, NULL))
+            NULL, NULL, NULL))
         goto err;
 
     /* Is everything uninitialised? */
@@ -239,7 +239,7 @@ static int dh_cms_encrypt(CMS_RecipientInfo *ri)
 
         penc = NULL;
         (void)X509_ALGOR_set0(talg, OBJ_nid2obj(NID_dhpublicnumber),
-                              V_ASN1_UNDEF, NULL); /* cannot fail */
+            V_ASN1_UNDEF, NULL); /* cannot fail */
     }
 
     /* See if custom parameters set */
@@ -317,11 +317,11 @@ static int dh_cms_encrypt(CMS_RecipientInfo *ri)
     ASN1_STRING_set0(wrap_str, penc, penclen);
     penc = NULL;
     rv = X509_ALGOR_set0(talg, OBJ_nid2obj(NID_id_smime_alg_ESDH),
-                         V_ASN1_SEQUENCE, wrap_str);
+        V_ASN1_SEQUENCE, wrap_str);
     if (!rv)
         ASN1_STRING_free(wrap_str);
 
- err:
+err:
     OPENSSL_free(penc);
     X509_ALGOR_free(wrap_alg);
     OPENSSL_free(dukm);

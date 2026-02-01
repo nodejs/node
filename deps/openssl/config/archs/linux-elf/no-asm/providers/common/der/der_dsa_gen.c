@@ -19,6 +19,7 @@
 #include "prov/der_dsa.h"
 
 /* Well known OIDs precompiled */
+/* clang-format off */
 
 /*
  * id-dsa OBJECT IDENTIFIER ::= {
@@ -92,3 +93,4 @@ const unsigned char ossl_der_oid_id_dsa_with_sha3_512[DER_OID_SZ_id_dsa_with_sha
     DER_OID_V_id_dsa_with_sha3_512
 };
 
+/* clang-format on */

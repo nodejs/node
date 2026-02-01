@@ -2,7 +2,6 @@
 {-
    use lib catdir($config{sourcedir}, 'Configurations');
    use platform;
-   use Data::Dumper;
 
    our %lib_info = (
        map { my %x = ();

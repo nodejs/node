@@ -305,6 +305,11 @@ class Session : public BaseObject {
 
 class SQLTagStore : public BaseObject {
  public:
+  enum InternalFields {
+    kDatabaseObject = BaseObject::kInternalFieldCount,
+    kInternalFieldCount
+  };
+
   SQLTagStore(Environment* env,
               v8::Local<v8::Object> object,
               BaseObjectWeakPtr<DatabaseSync> database,

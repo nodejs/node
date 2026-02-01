@@ -8,8 +8,8 @@
  */
 
 #ifndef OPENSSL_RCU_H
-# define OPENSSL_RCU_H
-# pragma once
+#define OPENSSL_RCU_H
+#pragma once
 
 #include "crypto/context.h"
 
@@ -28,6 +28,6 @@ int ossl_rcu_call(CRYPTO_RCU_LOCK *lock, rcu_cb_fn cb, void *data);
 void *ossl_rcu_uptr_deref(void **p);
 void ossl_rcu_assign_uptr(void **p, void **v);
 #define ossl_rcu_deref(p) ossl_rcu_uptr_deref((void **)p)
-#define ossl_rcu_assign_ptr(p,v) ossl_rcu_assign_uptr((void **)p, (void **)v)
+#define ossl_rcu_assign_ptr(p, v) ossl_rcu_assign_uptr((void **)p, (void **)v)
 
 #endif

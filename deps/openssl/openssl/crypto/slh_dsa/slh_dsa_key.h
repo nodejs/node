@@ -11,7 +11,7 @@
 
 #define SLH_DSA_MAX_N 32
 #define SLH_DSA_SK_SEED(key) ((key)->priv)
-#define SLH_DSA_SK_PRF(key)  ((key)->priv + (key)->params->n)
+#define SLH_DSA_SK_PRF(key) ((key)->priv + (key)->params->n)
 #define SLH_DSA_PK_SEED(key) ((key)->priv + (key)->params->n * 2)
 #define SLH_DSA_PK_ROOT(key) ((key)->priv + (key)->params->n * 3)
 #define SLH_DSA_PUB(key) SLH_DSA_PK_SEED(key)

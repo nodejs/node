@@ -8,44 +8,44 @@
  */
 
 #ifndef OSSL_CMLL_PLATFORM_H
-# define OSSL_CMLL_PLATFORM_H
-# pragma once
+#define OSSL_CMLL_PLATFORM_H
+#pragma once
 
-# if defined(CMLL_ASM) && (defined(__sparc) || defined(__sparc__))
+#if defined(CMLL_ASM) && (defined(__sparc) || defined(__sparc__))
 
 /* Fujitsu SPARC64 X support */
-#  include "crypto/sparc_arch.h"
+#include "crypto/sparc_arch.h"
 
-#  ifndef OPENSSL_NO_CAMELLIA
-#   define SPARC_CMLL_CAPABLE      (OPENSSL_sparcv9cap_P[1] & CFR_CAMELLIA)
-#   include <openssl/camellia.h>
+#ifndef OPENSSL_NO_CAMELLIA
+#define SPARC_CMLL_CAPABLE (OPENSSL_sparcv9cap_P[1] & CFR_CAMELLIA)
+#include <openssl/camellia.h>
 
 void cmll_t4_set_key(const unsigned char *key, int bits, CAMELLIA_KEY *ks);
 void cmll_t4_encrypt(const unsigned char *in, unsigned char *out,
-                     const CAMELLIA_KEY *key);
+    const CAMELLIA_KEY *key);
 void cmll_t4_decrypt(const unsigned char *in, unsigned char *out,
-                     const CAMELLIA_KEY *key);
+    const CAMELLIA_KEY *key);
 
 void cmll128_t4_cbc_encrypt(const unsigned char *in, unsigned char *out,
-                            size_t len, const CAMELLIA_KEY *key,
-                            unsigned char *ivec, int /*unused*/);
+    size_t len, const CAMELLIA_KEY *key,
+    unsigned char *ivec, int /*unused*/);
 void cmll128_t4_cbc_decrypt(const unsigned char *in, unsigned char *out,
-                            size_t len, const CAMELLIA_KEY *key,
-                            unsigned char *ivec, int /*unused*/);
+    size_t len, const CAMELLIA_KEY *key,
+    unsigned char *ivec, int /*unused*/);
 void cmll256_t4_cbc_encrypt(const unsigned char *in, unsigned char *out,
-                            size_t len, const CAMELLIA_KEY *key,
-                            unsigned char *ivec, int /*unused*/);
+    size_t len, const CAMELLIA_KEY *key,
+    unsigned char *ivec, int /*unused*/);
 void cmll256_t4_cbc_decrypt(const unsigned char *in, unsigned char *out,
-                            size_t len, const CAMELLIA_KEY *key,
-                            unsigned char *ivec, int /*unused*/);
+    size_t len, const CAMELLIA_KEY *key,
+    unsigned char *ivec, int /*unused*/);
 void cmll128_t4_ctr32_encrypt(const unsigned char *in, unsigned char *out,
-                              size_t blocks, const CAMELLIA_KEY *key,
-                              unsigned char *ivec);
+    size_t blocks, const CAMELLIA_KEY *key,
+    unsigned char *ivec);
 void cmll256_t4_ctr32_encrypt(const unsigned char *in, unsigned char *out,
-                              size_t blocks, const CAMELLIA_KEY *key,
-                              unsigned char *ivec);
-#  endif /* OPENSSL_NO_CAMELLIA */
+    size_t blocks, const CAMELLIA_KEY *key,
+    unsigned char *ivec);
+#endif /* OPENSSL_NO_CAMELLIA */
 
-# endif /* CMLL_ASM && sparc */
+#endif /* CMLL_ASM && sparc */
 
 #endif /* OSSL_CRYPTO_CIPHERMODE_PLATFORM_H */

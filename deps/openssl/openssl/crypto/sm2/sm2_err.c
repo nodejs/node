@@ -13,36 +13,36 @@
 
 #ifndef OPENSSL_NO_SM2
 
-# ifndef OPENSSL_NO_ERR
+#ifndef OPENSSL_NO_ERR
 
 static const ERR_STRING_DATA SM2_str_reasons[] = {
-    {ERR_PACK(ERR_LIB_SM2, 0, SM2_R_ASN1_ERROR), "asn1 error"},
-    {ERR_PACK(ERR_LIB_SM2, 0, SM2_R_BAD_SIGNATURE), "bad signature"},
-    {ERR_PACK(ERR_LIB_SM2, 0, SM2_R_BUFFER_TOO_SMALL), "buffer too small"},
-    {ERR_PACK(ERR_LIB_SM2, 0, SM2_R_DIST_ID_TOO_LARGE), "dist id too large"},
-    {ERR_PACK(ERR_LIB_SM2, 0, SM2_R_ID_NOT_SET), "id not set"},
-    {ERR_PACK(ERR_LIB_SM2, 0, SM2_R_ID_TOO_LARGE), "id too large"},
-    {ERR_PACK(ERR_LIB_SM2, 0, SM2_R_INVALID_CURVE), "invalid curve"},
-    {ERR_PACK(ERR_LIB_SM2, 0, SM2_R_INVALID_DIGEST), "invalid digest"},
-    {ERR_PACK(ERR_LIB_SM2, 0, SM2_R_INVALID_DIGEST_TYPE),
-    "invalid digest type"},
-    {ERR_PACK(ERR_LIB_SM2, 0, SM2_R_INVALID_ENCODING), "invalid encoding"},
-    {ERR_PACK(ERR_LIB_SM2, 0, SM2_R_INVALID_FIELD), "invalid field"},
-    {ERR_PACK(ERR_LIB_SM2, 0, SM2_R_INVALID_PRIVATE_KEY),
-    "invalid private key"},
-    {ERR_PACK(ERR_LIB_SM2, 0, SM2_R_NO_PARAMETERS_SET), "no parameters set"},
-    {ERR_PACK(ERR_LIB_SM2, 0, SM2_R_USER_ID_TOO_LARGE), "user id too large"},
-    {0, NULL}
+    { ERR_PACK(ERR_LIB_SM2, 0, SM2_R_ASN1_ERROR), "asn1 error" },
+    { ERR_PACK(ERR_LIB_SM2, 0, SM2_R_BAD_SIGNATURE), "bad signature" },
+    { ERR_PACK(ERR_LIB_SM2, 0, SM2_R_BUFFER_TOO_SMALL), "buffer too small" },
+    { ERR_PACK(ERR_LIB_SM2, 0, SM2_R_DIST_ID_TOO_LARGE), "dist id too large" },
+    { ERR_PACK(ERR_LIB_SM2, 0, SM2_R_ID_NOT_SET), "id not set" },
+    { ERR_PACK(ERR_LIB_SM2, 0, SM2_R_ID_TOO_LARGE), "id too large" },
+    { ERR_PACK(ERR_LIB_SM2, 0, SM2_R_INVALID_CURVE), "invalid curve" },
+    { ERR_PACK(ERR_LIB_SM2, 0, SM2_R_INVALID_DIGEST), "invalid digest" },
+    { ERR_PACK(ERR_LIB_SM2, 0, SM2_R_INVALID_DIGEST_TYPE),
+        "invalid digest type" },
+    { ERR_PACK(ERR_LIB_SM2, 0, SM2_R_INVALID_ENCODING), "invalid encoding" },
+    { ERR_PACK(ERR_LIB_SM2, 0, SM2_R_INVALID_FIELD), "invalid field" },
+    { ERR_PACK(ERR_LIB_SM2, 0, SM2_R_INVALID_PRIVATE_KEY),
+        "invalid private key" },
+    { ERR_PACK(ERR_LIB_SM2, 0, SM2_R_NO_PARAMETERS_SET), "no parameters set" },
+    { ERR_PACK(ERR_LIB_SM2, 0, SM2_R_USER_ID_TOO_LARGE), "user id too large" },
+    { 0, NULL }
 };
 
-# endif
+#endif
 
 int ossl_err_load_SM2_strings(void)
 {
-# ifndef OPENSSL_NO_ERR
+#ifndef OPENSSL_NO_ERR
     if (ERR_reason_error_string(SM2_str_reasons[0].error) == NULL)
         ERR_load_strings_const(SM2_str_reasons);
-# endif
+#endif
     return 1;
 }
 #else

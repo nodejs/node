@@ -28,8 +28,9 @@ $0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
 die "can't locate x86_64-xlate.pl";
 
 if (`$ENV{CC} -Wa,-v -c -o /dev/null -x assembler /dev/null 2>&1`
-        =~ /GNU assembler version ([2-9]\.[0-9]+)/) {
-    $avxifma = ($1>=2.40);
+        =~ /GNU assembler version ([0-9]+)\.([0-9]+)/) {
+    my $ver = $1 + $2/100.0;	# 3.1->3.01, 3.10->3.10
+    $avxifma = ($ver >= 2.40);
 }
 
 if (!$avxifma && `$ENV{CC} -v 2>&1`
@@ -39,8 +40,9 @@ if (!$avxifma && `$ENV{CC} -v 2>&1`
 }
 
 if ($win64 && ($flavour =~ /nasm/ || $ENV{ASM} =~ /nasm/) &&
-       `nasm -v 2>&1` =~ /NASM version ([2-9]\.[0-9]+)(?:\.([0-9]+))?(rc[0-9]+)?/) {
-    $avxifma = ($1>2.16) + ($1==2.16 && ((!defined($2) && !defined($3)) || (defined($2))));
+       `nasm -v 2>&1` =~ /NASM version ([0-9]+)\.([0-9]+)(?:\.([0-9]+))?(rc[0-9]+)?/) {
+    my $ver = $1 + $2/100.0 + $3/10000.0; # 3.1.0->3.01, 3.10.1->3.1001
+    $avxifma = ($ver > 2.16) + ($ver == 2.16 && !defined($4));
 }
 
 open OUT,"| \"$^X\" \"$xlate\" $flavour \"$output\""

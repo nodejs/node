@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2021-2024 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2021-2026 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -44,6 +44,17 @@ foreach (@ARGV) {
     $keys{$k} = 1;
     push @{$values{$k}}, $v;
 }
+
+# special case for LIBDIR vs libdir.
+# For installations, They both get their value from ./Configure's --libdir or
+# corresponding config target attribute, but LIBDIR only gets a value if the
+# configuration is a relative path, while libdir always gets a value, so if
+# the former doesn't have a value, we give it the latter's value, and rely
+# on mechanisms further down to do the rest of the processing.
+# If they're both empty, it's still fine.
+print STDERR "DEBUG: LIBDIR = $values{LIBDIR}->[0], libdir = $values{libdir}->[0] => ";
+$values{LIBDIR}->[0] = $values{libdir}->[0] unless $values{LIBDIR}->[0];
+print STDERR "LIBDIR = $values{LIBDIR}->[0]\n";
 
 # warn if there are missing values, and also if there are unexpected values
 foreach my $k (sort keys %all) {

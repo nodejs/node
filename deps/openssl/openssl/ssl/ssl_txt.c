@@ -49,17 +49,20 @@ int SSL_SESSION_print(BIO *bp, const SSL_SESSION *x)
     if (x->cipher == NULL) {
         if (((x->cipher_id) & 0xff000000) == 0x02000000) {
             if (BIO_printf(bp, "    Cipher    : %06lX\n",
-                           x->cipher_id & 0xffffff) <= 0)
+                    x->cipher_id & 0xffffff)
+                <= 0)
                 goto err;
         } else {
             if (BIO_printf(bp, "    Cipher    : %04lX\n",
-                           x->cipher_id & 0xffff) <= 0)
+                    x->cipher_id & 0xffff)
+                <= 0)
                 goto err;
         }
     } else {
         if (BIO_printf(bp, "    Cipher    : %s\n",
-                       ((x->cipher->name == NULL) ? "unknown"
-                                                  : x->cipher->name)) <= 0)
+                ((x->cipher->name == NULL) ? "unknown"
+                                           : x->cipher->name))
+            <= 0)
             goto err;
     }
     if (BIO_puts(bp, "    Session-ID: ") <= 0)
@@ -90,8 +93,7 @@ int SSL_SESSION_print(BIO *bp, const SSL_SESSION *x)
         goto err;
     if (BIO_puts(bp, "\n    PSK identity hint: ") <= 0)
         goto err;
-    if (BIO_printf
-        (bp, "%s", x->psk_identity_hint ? x->psk_identity_hint : "None") <= 0)
+    if (BIO_printf(bp, "%s", x->psk_identity_hint ? x->psk_identity_hint : "None") <= 0)
         goto err;
 #endif
 #ifndef OPENSSL_NO_SRP
@@ -102,15 +104,15 @@ int SSL_SESSION_print(BIO *bp, const SSL_SESSION *x)
 #endif
     if (x->ext.tick_lifetime_hint) {
         if (BIO_printf(bp,
-                       "\n    TLS session ticket lifetime hint: %ld (seconds)",
-                       x->ext.tick_lifetime_hint) <= 0)
+                "\n    TLS session ticket lifetime hint: %ld (seconds)",
+                x->ext.tick_lifetime_hint)
+            <= 0)
             goto err;
     }
     if (x->ext.tick) {
         if (BIO_puts(bp, "\n    TLS session ticket:\n") <= 0)
             goto err;
-        if (BIO_dump_indent
-            (bp, (const char *)x->ext.tick, (int)x->ext.ticklen, 4)
+        if (BIO_dump_indent(bp, (const char *)x->ext.tick, (int)x->ext.ticklen, 4)
             <= 0)
             goto err;
     }
@@ -125,19 +127,22 @@ int SSL_SESSION_print(BIO *bp, const SSL_SESSION *x)
                 goto err;
         } else {
             if (BIO_printf(bp, "\n    Compression: %d (%s)", comp->id,
-                           comp->name) <= 0)
+                    comp->name)
+                <= 0)
                 goto err;
         }
     }
 #endif
     if (!ossl_time_is_zero(x->time)) {
         if (BIO_printf(bp, "\n    Start Time: %lld",
-                       (long long)ossl_time_to_time_t(x->time)) <= 0)
+                (long long)ossl_time_to_time_t(x->time))
+            <= 0)
             goto err;
     }
     if (!ossl_time_is_zero(x->timeout)) {
         if (BIO_printf(bp, "\n    Timeout   : %lld (sec)",
-                       (long long)ossl_time2seconds(x->timeout)) <= 0)
+                (long long)ossl_time2seconds(x->timeout))
+            <= 0)
             goto err;
     }
     if (BIO_puts(bp, "\n") <= 0)
@@ -146,21 +151,24 @@ int SSL_SESSION_print(BIO *bp, const SSL_SESSION *x)
     if (BIO_puts(bp, "    Verify return code: ") <= 0)
         goto err;
     if (BIO_printf(bp, "%ld (%s)\n", x->verify_result,
-                   X509_verify_cert_error_string(x->verify_result)) <= 0)
+            X509_verify_cert_error_string(x->verify_result))
+        <= 0)
         goto err;
 
     if (BIO_printf(bp, "    Extended master secret: %s\n",
-                   x->flags & SSL_SESS_FLAG_EXTMS ? "yes" : "no") <= 0)
+            x->flags & SSL_SESS_FLAG_EXTMS ? "yes" : "no")
+        <= 0)
         goto err;
 
     if (istls13) {
         if (BIO_printf(bp, "    Max Early Data: %u\n",
-                       (unsigned int)x->ext.max_early_data) <= 0)
+                (unsigned int)x->ext.max_early_data)
+            <= 0)
             goto err;
     }
 
     return 1;
- err:
+err:
     return 0;
 }
 
@@ -201,6 +209,6 @@ int SSL_SESSION_print_keylog(BIO *bp, const SSL_SESSION *x)
         goto err;
 
     return 1;
- err:
+err:
     return 0;
 }

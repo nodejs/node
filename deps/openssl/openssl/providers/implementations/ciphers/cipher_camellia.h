@@ -12,7 +12,7 @@
 #include "crypto/cmll_platform.h"
 
 typedef struct prov_camellia_ctx_st {
-    PROV_CIPHER_CTX base;      /* Must be first */
+    PROV_CIPHER_CTX base; /* Must be first */
     union {
         OSSL_UNION_ALIGN;
         CAMELLIA_KEY ks;

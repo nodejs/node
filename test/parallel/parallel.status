@@ -76,14 +76,32 @@ test-domain-throw-error-then-throw-from-uncaught-exception-handler: PASS, FLAKY
 test-domain-with-abort-on-uncaught-exception: PASS, FLAKY
 # https://github.com/nodejs/node/issues/54346
 test-esm-loader-hooks-inspect-wait: PASS, FLAKY
+# https://github.com/nodejs/node/issues/61520
 test-fs-promises-watch-iterator: SKIP
+test-fs-promises-watch-ignore-function: SKIP
+test-fs-promises-watch-ignore-glob: SKIP
+test-fs-promises-watch-ignore-mixed: SKIP
+test-fs-promises-watch-ignore-regexp: SKIP
+test-fs-watch-ignore-function: SKIP
+test-fs-watch-ignore-glob: SKIP
+test-fs-watch-ignore-mixed: SKIP
+test-fs-watch-ignore-regexp: SKIP
 # https://github.com/nodejs/node/issues/50050
 test-tick-processor-arguments: SKIP
 
 [$system==freebsd]
 # https://github.com/nodejs/node/issues/54346
 test-esm-loader-hooks-inspect-wait: PASS, FLAKY
+# https://github.com/nodejs/node/issues/61520
 test-fs-promises-watch-iterator: SKIP
+test-fs-promises-watch-ignore-function: SKIP
+test-fs-promises-watch-ignore-glob: SKIP
+test-fs-promises-watch-ignore-mixed: SKIP
+test-fs-promises-watch-ignore-regexp: SKIP
+test-fs-watch-ignore-function: SKIP
+test-fs-watch-ignore-glob: SKIP
+test-fs-watch-ignore-mixed: SKIP
+test-fs-watch-ignore-regexp: SKIP
 
 [$system==aix]
 # https://github.com/nodejs/node/issues/54346

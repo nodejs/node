@@ -16,27 +16,27 @@
 #include "cipher_cast.h"
 
 static int cipher_hw_cast5_initkey(PROV_CIPHER_CTX *ctx,
-                                   const unsigned char *key, size_t keylen)
+    const unsigned char *key, size_t keylen)
 {
-    PROV_CAST_CTX *bctx =  (PROV_CAST_CTX *)ctx;
+    PROV_CAST_CTX *bctx = (PROV_CAST_CTX *)ctx;
 
     CAST_set_key(&(bctx->ks.ks), keylen, key);
     return 1;
 }
 
-# define PROV_CIPHER_HW_cast_mode(mode, UCMODE)                                \
-IMPLEMENT_CIPHER_HW_##UCMODE(mode, cast5, PROV_CAST_CTX, CAST_KEY,             \
-                             CAST_##mode)                                      \
-static const PROV_CIPHER_HW cast5_##mode = {                                   \
-    cipher_hw_cast5_initkey,                                                   \
-    cipher_hw_cast5_##mode##_cipher                                            \
-};                                                                             \
-const PROV_CIPHER_HW *ossl_prov_cipher_hw_cast5_##mode(size_t keybits)         \
-{                                                                              \
-    return &cast5_##mode;                                                      \
-}
+#define PROV_CIPHER_HW_cast_mode(mode, UCMODE)                             \
+    IMPLEMENT_CIPHER_HW_##UCMODE(mode, cast5, PROV_CAST_CTX, CAST_KEY,     \
+        CAST_##mode) static const PROV_CIPHER_HW cast5_##mode              \
+        = {                                                                \
+              cipher_hw_cast5_initkey,                                     \
+              cipher_hw_cast5_##mode##_cipher                              \
+          };                                                               \
+    const PROV_CIPHER_HW *ossl_prov_cipher_hw_cast5_##mode(size_t keybits) \
+    {                                                                      \
+        return &cast5_##mode;                                              \
+    }
 
 PROV_CIPHER_HW_cast_mode(cbc, CBC)
-PROV_CIPHER_HW_cast_mode(ecb, ECB)
-PROV_CIPHER_HW_cast_mode(ofb64, OFB)
-PROV_CIPHER_HW_cast_mode(cfb64, CFB)
+    PROV_CIPHER_HW_cast_mode(ecb, ECB)
+        PROV_CIPHER_HW_cast_mode(ofb64, OFB)
+            PROV_CIPHER_HW_cast_mode(cfb64, CFB)

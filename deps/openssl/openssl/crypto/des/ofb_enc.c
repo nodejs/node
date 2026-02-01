@@ -22,8 +22,8 @@
  * will come from the 3rd and half the 4th byte.
  */
 void DES_ofb_encrypt(const unsigned char *in, unsigned char *out, int numbits,
-                     long length, DES_key_schedule *schedule,
-                     DES_cblock *ivec)
+    long length, DES_key_schedule *schedule,
+    DES_cblock *ivec)
 {
     register DES_LONG d0, d1, vv0, vv1, v0, v1, n = (numbits + 7) / 8;
     register DES_LONG mask0, mask1;
@@ -72,10 +72,10 @@ void DES_ofb_encrypt(const unsigned char *in, unsigned char *out, int numbits,
         } else if (num == 64) {
             v0 = vv0;
             v1 = vv1;
-        } else if (num > 32) {  /* && num != 64 */
+        } else if (num > 32) { /* && num != 64 */
             v0 = ((v1 >> (num - 32)) | (vv0 << (64 - num))) & 0xffffffffL;
             v1 = ((vv0 >> (num - 32)) | (vv1 << (64 - num))) & 0xffffffffL;
-        } else {                /* num < 32 */
+        } else { /* num < 32 */
 
             v0 = ((v0 >> num) | (v1 << (32 - num))) & 0xffffffffL;
             v1 = ((v1 >> num) | (vv0 << (32 - num))) & 0xffffffffL;

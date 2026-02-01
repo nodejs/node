@@ -33,8 +33,6 @@ let warningEmitted = /** @type {boolean} */ (false)
 class DecompressHandler extends DecoratorHandler {
   /** @type {Transform[]} */
   #decompressors = []
-  /** @type {NodeJS.WritableStream&NodeJS.ReadableStream|null} */
-  #pipelineStream
   /** @type {Readonly<number[]>} */
   #skipStatusCodes
   /** @type {boolean} */
@@ -139,7 +137,7 @@ class DecompressHandler extends DecoratorHandler {
     const lastDecompressor = this.#decompressors[this.#decompressors.length - 1]
     this.#setupDecompressorEvents(lastDecompressor, controller)
 
-    this.#pipelineStream = pipeline(this.#decompressors, (err) => {
+    pipeline(this.#decompressors, (err) => {
       if (err) {
         super.onResponseError(controller, err)
         return
@@ -154,7 +152,6 @@ class DecompressHandler extends DecoratorHandler {
    */
   #cleanupDecompressors () {
     this.#decompressors.length = 0
-    this.#pipelineStream = null
   }
 
   /**
@@ -190,7 +187,7 @@ class DecompressHandler extends DecoratorHandler {
       this.#setupMultipleDecompressors(controller)
     }
 
-    super.onResponseStart(controller, statusCode, newHeaders, statusMessage)
+    return super.onResponseStart(controller, statusCode, newHeaders, statusMessage)
   }
 
   /**
