@@ -1,10 +1,8 @@
 'use strict';
 
-const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { spawnSync } = require('node:child_process');
-
+const { spawnSyncAndAssert } = require('../common/child_process');
 const tmpdir = require('../common/tmpdir');
 
 tmpdir.refresh();
@@ -32,16 +30,11 @@ fs.writeFileSync(
 );
 fs.chmodSync(scriptPath, 0o755);
 
-const r = spawnSync(process.execPath, ['./script'], {
+spawnSyncAndAssert(process.execPath, ['./script'], {
   cwd: dir,
-  encoding: 'utf8'
+  encoding: 'utf8',
+}, {
+  status: 1,
+  stderr: /.+/,
+  trim: true,
 });
-
-assert.ifError(r.error);
-
-assert.notEqual(
-  r.status,
-  0,
-  `unexpected exit code 0; stdout=${JSON.stringify(r.stdout)} stderr=${JSON.stringify(r.stderr)}`
-);
-assert.ok(r.stderr && r.stderr.length > 0, 'expected stderr to contain an error message');
