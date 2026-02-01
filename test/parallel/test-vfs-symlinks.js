@@ -316,6 +316,37 @@ const vfs = require('node:vfs');
   myVfs.unmount();
 }
 
+// Test symlink target created after symlink (dangling symlink becomes valid)
+{
+  const myVfs = vfs.create();
+  myVfs.mkdirSync('/dir');
+
+  // Create symlink pointing to non-existent target
+  myVfs.symlinkSync('/dir/target.txt', '/dir/link');
+  myVfs.mount('/virtual');
+
+  // Initially the symlink is broken
+  assert.throws(() => {
+    myVfs.statSync('/virtual/dir/link');
+  }, { code: 'ENOENT' });
+
+  // lstatSync works (symlink itself exists)
+  assert.strictEqual(myVfs.lstatSync('/virtual/dir/link').isSymbolicLink(), true);
+
+  // Now create the target file
+  myVfs.writeFileSync('/virtual/dir/target.txt', 'created after symlink');
+
+  // Now the symlink should work
+  const content = myVfs.readFileSync('/virtual/dir/link', 'utf8');
+  assert.strictEqual(content, 'created after symlink');
+
+  // Stat should also work now
+  const stats = myVfs.statSync('/virtual/dir/link');
+  assert.strictEqual(stats.isFile(), true);
+
+  myVfs.unmount();
+}
+
 // Test symlink with parent traversal (..)
 {
   const myVfs = vfs.create();
