@@ -212,6 +212,14 @@ export default [
   },
   {
     files: [
+      'test/wpt/test-*.js',
+    ],
+    rules: {
+      'node-core/no-duplicate-wpt-runner-paths': 'error',
+    },
+  },
+  {
+    files: [
       'test/es-module/test-esm-example-loader.js',
       'test/es-module/test-esm-type-flag.js',
       'test/es-module/test-esm-type-flag-alias.js',
