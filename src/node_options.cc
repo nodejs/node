@@ -868,12 +868,16 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "set environment variables from supplied file",
             &EnvironmentOptions::optional_env_file);
   Implies("--env-file-if-exists", "[has_env_file_string]");
-  AddOption("--experimental-config-file",
+  AddOption("--experimental-config-file=",
             "set config file from supplied file",
-            &EnvironmentOptions::experimental_config_file_path);
-  AddOption("--experimental-default-config-file",
-            "set config file from default config file",
-            &EnvironmentOptions::experimental_default_config_file);
+            &EnvironmentOptions::experimental_config_file_path,
+            kDisallowedInEnvvar);
+  AddOption("--experimental-config-file",
+            "set default config file",
+            &EnvironmentOptions::experimental_default_config_file,
+            kDisallowedInEnvvar);
+  AddAlias("--experimental-config-file <arg>", "--experimental-config-file=");
+  AddAlias("--experimental-default-config-file", "--experimental-config-file");
   AddOption("--test",
             "launch test runner on startup",
             &EnvironmentOptions::test_runner,

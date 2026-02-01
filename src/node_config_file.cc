@@ -17,13 +17,22 @@ std::optional<std::string_view> ConfigReader::GetDataFromArgs(
   for (auto it = args.begin(); it != args.end(); ++it) {
     if (*it == flag_path) {
       // Case: "--experimental-config-file foo"
-      if (auto next = std::next(it); next != args.end()) {
+      if (auto next = std::next(it);
+          next != args.end() && !next->starts_with("-")) {
         return *next;
       }
+      // Case: "--experimental-config-file" without argument, use default
+      has_default_config_file = true;
     } else if (it->starts_with(flag_path)) {
       // Case: "--experimental-config-file=foo"
       if (it->size() > flag_path.size() && (*it)[flag_path.size()] == '=') {
-        return std::string_view(*it).substr(flag_path.size() + 1);
+        std::string_view value =
+            std::string_view(*it).substr(flag_path.size() + 1);
+        if (value.empty()) {
+          has_default_config_file = true;
+        } else {
+          return value;
+        }
       }
     } else if (*it == default_file || it->starts_with(default_file)) {
       has_default_config_file = true;
