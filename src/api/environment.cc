@@ -572,7 +572,7 @@ NODE_EXTERN std::unique_ptr<InspectorParentHandle> GetInspectorParentHandle(
 }
 
 MaybeLocal<Value> LoadEnvironment(Environment* env,
-                                  StartExecutionCallback cb,
+                                  StartExecutionCallbackWithModule cb,
                                   EmbedderPreloadCallback preload) {
   env->InitializeLibuv();
   env->InitializeDiagnostics();
@@ -584,22 +584,149 @@ MaybeLocal<Value> LoadEnvironment(Environment* env,
   return StartExecution(env, cb);
 }
 
+struct StartExecutionCallbackInfoWithModule::Impl {
+  Environment* env = nullptr;
+  Local<Object> process_object;
+  Local<Function> native_require;
+  Local<Function> run_module;
+};
+
+StartExecutionCallbackInfoWithModule::StartExecutionCallbackInfoWithModule()
+    : impl_(std::make_unique<Impl>()) {}
+
+StartExecutionCallbackInfoWithModule::~StartExecutionCallbackInfoWithModule() =
+    default;
+
+StartExecutionCallbackInfoWithModule::StartExecutionCallbackInfoWithModule(
+    StartExecutionCallbackInfoWithModule&&) = default;
+
+StartExecutionCallbackInfoWithModule&
+StartExecutionCallbackInfoWithModule::operator=(
+    StartExecutionCallbackInfoWithModule&&) = default;
+
+Environment* StartExecutionCallbackInfoWithModule::env() const {
+  return impl_->env;
+}
+
+Local<Object> StartExecutionCallbackInfoWithModule::process_object() const {
+  return impl_->process_object;
+}
+
+Local<Function> StartExecutionCallbackInfoWithModule::native_require() const {
+  return impl_->native_require;
+}
+
+Local<Function> StartExecutionCallbackInfoWithModule::run_module() const {
+  return impl_->run_module;
+}
+
+void StartExecutionCallbackInfoWithModule::set_env(Environment* env) {
+  impl_->env = env;
+}
+
+void StartExecutionCallbackInfoWithModule::set_process_object(
+    Local<Object> process_object) {
+  impl_->process_object = process_object;
+}
+
+void StartExecutionCallbackInfoWithModule::set_native_require(
+    Local<Function> native_require) {
+  impl_->native_require = native_require;
+}
+
+void StartExecutionCallbackInfoWithModule::set_run_module(
+    Local<Function> run_module) {
+  impl_->run_module = run_module;
+}
+
+struct ModuleData::Impl {
+  std::string_view source;
+  ModuleFormat format = ModuleFormat::kCommonJS;
+  std::string_view resource_name;
+};
+
+ModuleData::ModuleData() : impl_(std::make_unique<Impl>()) {}
+
+ModuleData::~ModuleData() = default;
+
+ModuleData::ModuleData(ModuleData&&) = default;
+
+ModuleData& ModuleData::operator=(ModuleData&&) = default;
+
+void ModuleData::set_source(std::string_view source) {
+  impl_->source = source;
+}
+
+void ModuleData::set_format(ModuleFormat format) {
+  impl_->format = format;
+}
+
+void ModuleData::set_resource_name(std::string_view name) {
+  impl_->resource_name = name;
+}
+
+std::string_view ModuleData::source() const {
+  return impl_->source;
+}
+
+ModuleFormat ModuleData::format() const {
+  return impl_->format;
+}
+
+std::string_view ModuleData::resource_name() const {
+  return impl_->resource_name;
+}
+
+MaybeLocal<Value> LoadEnvironment(Environment* env,
+                                  StartExecutionCallback cb,
+                                  EmbedderPreloadCallback preload) {
+  if (!cb) {
+    return LoadEnvironment(
+        env, StartExecutionCallbackWithModule{}, std::move(preload));
+  }
+
+  return LoadEnvironment(
+      env,
+      [cb = std::move(cb)](const StartExecutionCallbackInfoWithModule& info)
+          -> MaybeLocal<Value> {
+        StartExecutionCallbackInfo legacy_info{
+            info.process_object(), info.native_require(), info.run_module()};
+        return cb(legacy_info);
+      },
+      std::move(preload));
+}
+
 MaybeLocal<Value> LoadEnvironment(Environment* env,
                                   std::string_view main_script_source_utf8,
                                   EmbedderPreloadCallback preload) {
+  ModuleData data;
+  data.set_source(main_script_source_utf8);
+  data.set_format(ModuleFormat::kCommonJS);
+  data.set_resource_name(env->exec_path());
+  return LoadEnvironment(env, &data, std::move(preload));
+}
+
+MaybeLocal<Value> LoadEnvironment(Environment* env,
+                                  const ModuleData* data,
+                                  EmbedderPreloadCallback preload) {
   // It could be empty when it's used by SEA to load an empty script.
-  CHECK_IMPLIES(main_script_source_utf8.size() > 0,
-                main_script_source_utf8.data());
+  CHECK_IMPLIES(data->source().size() > 0, data->source().data());
   return LoadEnvironment(
       env,
-      [&](const StartExecutionCallbackInfo& info) -> MaybeLocal<Value> {
-        Local<Value> main_script;
-        if (!ToV8Value(env->context(), main_script_source_utf8)
-                 .ToLocal(&main_script)) {
-          return {};
-        }
-        return info.run_cjs->Call(
-            env->context(), Null(env->isolate()), 1, &main_script);
+      [data](const StartExecutionCallbackInfoWithModule& info)
+          -> MaybeLocal<Value> {
+        Environment* env = info.env();
+        Local<Context> context = env->context();
+        Isolate* isolate = env->isolate();
+        Local<Value> main_script =
+            ToV8Value(context, data->source()).ToLocalChecked();
+        Local<Value> format =
+            v8::Integer::New(isolate, static_cast<int>(data->format()));
+        Local<Value> resource_name =
+            ToV8Value(context, data->resource_name()).ToLocalChecked();
+        Local<Value> args[] = {main_script, format, resource_name};
+        return info.run_module()->Call(
+            context, Null(isolate), arraysize(args), args);
       },
       std::move(preload));
 }
