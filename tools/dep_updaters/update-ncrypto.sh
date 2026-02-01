@@ -41,7 +41,6 @@ cleanup () {
 trap cleanup INT TERM EXIT
 
 echo "Fetching ncrypto source archive..."
-NCRYPTO_TARBALL="ncrypto-v$NEW_VERSION.tar.gz"
 curl -sL "https://api.github.com/repos/nodejs/ncrypto/tarball/v$NEW_VERSION" \
 | tar xz --strip-components=1 -C "$WORKSPACE" --wildcards \
     '*/README.md' \
@@ -54,8 +53,6 @@ mv "$WORKSPACE/README.md" "$DEPS_DIR/ncrypto/."
 mv "$WORKSPACE/src/engine.cpp" "$DEPS_DIR/ncrypto/engine.cc"
 mv "$WORKSPACE/src/ncrypto.cpp" "$DEPS_DIR/ncrypto/ncrypto.cc"
 mv "$WORKSPACE/include/"* "$DEPS_DIR/ncrypto/."
-
-cleanup
 
 # Update the version number on maintaining-dependencies.md
 # and print the new version as the last line of the script as we need
