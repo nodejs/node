@@ -1,12 +1,14 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
+  "required": [],
   "properties": {
     "$schema": {
       "type": "string"
     },
     "nodeOptions": {
       "additionalProperties": false,
+      "required": [],
       "properties": {
         "addons": {
           "type": "boolean",
@@ -26,11 +28,11 @@
               "type": "string"
             },
             {
+              "type": "array",
+              "minItems": 1,
               "items": {
-                "type": "string",
-                "minItems": 1
-              },
-              "type": "array"
+                "type": "string"
+              }
             }
           ],
           "description": "allow permissions to read the filesystem"
@@ -41,11 +43,11 @@
               "type": "string"
             },
             {
+              "type": "array",
+              "minItems": 1,
               "items": {
-                "type": "string",
-                "minItems": 1
-              },
-              "type": "array"
+                "type": "string"
+              }
             }
           ],
           "description": "allow permissions to write in the filesystem"
@@ -76,11 +78,11 @@
               "type": "string"
             },
             {
+              "type": "array",
+              "minItems": 1,
               "items": {
-                "type": "string",
-                "minItems": 1
-              },
-              "type": "array"
+                "type": "string"
+              }
             }
           ],
           "description": "additional user conditions for conditional exports and imports"
@@ -127,11 +129,11 @@
               "type": "string"
             },
             {
+              "type": "array",
+              "minItems": 1,
               "items": {
-                "type": "string",
-                "minItems": 1
-              },
-              "type": "array"
+                "type": "string"
+              }
             }
           ],
           "description": "silence specific process warnings"
@@ -182,11 +184,11 @@
               "type": "string"
             },
             {
+              "type": "array",
+              "minItems": 1,
               "items": {
-                "type": "string",
-                "minItems": 1
-              },
-              "type": "array"
+                "type": "string"
+              }
             }
           ],
           "description": "use the specified module as a custom loader"
@@ -289,11 +291,11 @@
               "type": "string"
             },
             {
+              "type": "array",
+              "minItems": 1,
               "items": {
-                "type": "string",
-                "minItems": 1
-              },
-              "type": "array"
+                "type": "string"
+              }
             }
           ],
           "description": "ES module to preload (option can be repeated)"
@@ -424,11 +426,11 @@
               "type": "string"
             },
             {
+              "type": "array",
+              "minItems": 1,
               "items": {
-                "type": "string",
-                "minItems": 1
-              },
-              "type": "array"
+                "type": "string"
+              }
             }
           ],
           "description": "CommonJS module to preload (option can be repeated)"
@@ -467,11 +469,11 @@
               "type": "string"
             },
             {
+              "type": "array",
+              "minItems": 1,
               "items": {
-                "type": "string",
-                "minItems": 1
-              },
-              "type": "array"
+                "type": "string"
+              }
             }
           ],
           "description": "exclude files from coverage report that match this glob pattern"
@@ -486,11 +488,11 @@
               "type": "string"
             },
             {
+              "type": "array",
+              "minItems": 1,
               "items": {
-                "type": "string",
-                "minItems": 1
-              },
-              "type": "array"
+                "type": "string"
+              }
             }
           ],
           "description": "include files in coverage report that match this glob pattern"
@@ -513,11 +515,11 @@
               "type": "string"
             },
             {
+              "type": "array",
+              "minItems": 1,
               "items": {
-                "type": "string",
-                "minItems": 1
-              },
-              "type": "array"
+                "type": "string"
+              }
             }
           ],
           "description": "run tests whose name matches this regular expression"
@@ -532,11 +534,11 @@
               "type": "string"
             },
             {
+              "type": "array",
+              "minItems": 1,
               "items": {
-                "type": "string",
-                "minItems": 1
-              },
-              "type": "array"
+                "type": "string"
+              }
             }
           ],
           "description": "report test output using the given reporter"
@@ -547,11 +549,11 @@
               "type": "string"
             },
             {
+              "type": "array",
+              "minItems": 1,
               "items": {
-                "type": "string",
-                "minItems": 1
-              },
-              "type": "array"
+                "type": "string"
+              }
             }
           ],
           "description": "report given reporter to the given destination"
@@ -570,11 +572,11 @@
               "type": "string"
             },
             {
+              "type": "array",
+              "minItems": 1,
               "items": {
-                "type": "string",
-                "minItems": 1
-              },
-              "type": "array"
+                "type": "string"
+              }
             }
           ],
           "description": "run tests whose name do not match this regular expression"
@@ -729,11 +731,11 @@
               "type": "string"
             },
             {
+              "type": "array",
+              "minItems": 1,
               "items": {
-                "type": "string",
-                "minItems": 1
-              },
-              "type": "array"
+                "type": "string"
+              }
             }
           ],
           "description": "path to watch"
@@ -752,6 +754,7 @@
     "permission": {
       "type": "object",
       "additionalProperties": false,
+      "required": [],
       "properties": {
         "allow-addons": {
           "type": "boolean",
@@ -767,11 +770,11 @@
               "type": "string"
             },
             {
+              "type": "array",
+              "minItems": 1,
               "items": {
-                "type": "string",
-                "minItems": 1
-              },
-              "type": "array"
+                "type": "string"
+              }
             }
           ],
           "description": "allow permissions to read the filesystem"
@@ -782,11 +785,11 @@
               "type": "string"
             },
             {
+              "type": "array",
+              "minItems": 1,
               "items": {
-                "type": "string",
-                "minItems": 1
-              },
-              "type": "array"
+                "type": "string"
+              }
             }
           ],
           "description": "allow permissions to write in the filesystem"
@@ -816,6 +819,7 @@
     "test": {
       "type": "object",
       "additionalProperties": false,
+      "required": [],
       "properties": {
         "experimental-test-coverage": {
           "type": "boolean",
@@ -843,11 +847,11 @@
               "type": "string"
             },
             {
+              "type": "array",
+              "minItems": 1,
               "items": {
-                "type": "string",
-                "minItems": 1
-              },
-              "type": "array"
+                "type": "string"
+              }
             }
           ],
           "description": "exclude files from coverage report that match this glob pattern"
@@ -862,11 +866,11 @@
               "type": "string"
             },
             {
+              "type": "array",
+              "minItems": 1,
               "items": {
-                "type": "string",
-                "minItems": 1
-              },
-              "type": "array"
+                "type": "string"
+              }
             }
           ],
           "description": "include files in coverage report that match this glob pattern"
@@ -893,11 +897,11 @@
               "type": "string"
             },
             {
+              "type": "array",
+              "minItems": 1,
               "items": {
-                "type": "string",
-                "minItems": 1
-              },
-              "type": "array"
+                "type": "string"
+              }
             }
           ],
           "description": "run tests whose name matches this regular expression"
@@ -912,11 +916,11 @@
               "type": "string"
             },
             {
+              "type": "array",
+              "minItems": 1,
               "items": {
-                "type": "string",
-                "minItems": 1
-              },
-              "type": "array"
+                "type": "string"
+              }
             }
           ],
           "description": "report test output using the given reporter"
@@ -927,11 +931,11 @@
               "type": "string"
             },
             {
+              "type": "array",
+              "minItems": 1,
               "items": {
-                "type": "string",
-                "minItems": 1
-              },
-              "type": "array"
+                "type": "string"
+              }
             }
           ],
           "description": "report given reporter to the given destination"
@@ -950,11 +954,11 @@
               "type": "string"
             },
             {
+              "type": "array",
+              "minItems": 1,
               "items": {
-                "type": "string",
-                "minItems": 1
-              },
-              "type": "array"
+                "type": "string"
+              }
             }
           ],
           "description": "run tests whose name do not match this regular expression"
@@ -972,6 +976,7 @@
     "watch": {
       "type": "object",
       "additionalProperties": false,
+      "required": [],
       "properties": {
         "watch": {
           "type": "boolean",
@@ -987,11 +992,11 @@
               "type": "string"
             },
             {
+              "type": "array",
+              "minItems": 1,
               "items": {
-                "type": "string",
-                "minItems": 1
-              },
-              "type": "array"
+                "type": "string"
+              }
             }
           ],
           "description": "path to watch"
