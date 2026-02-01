@@ -2,7 +2,7 @@
 
 Node.js is an open-source, cross-platform JavaScript runtime environment.
 
-For information on using Node.js, see the [Node.js website][].
+For more information on using Node.js, see the [Node.js website]().
 
 The Node.js project uses an [open governance model](./GOVERNANCE.md). The
 [OpenJS Foundation][] provides support for the project.
@@ -148,6 +148,8 @@ For information about the governance of the Node.js project, see
 
 <!--lint disable prohibited-strings-->
 
+* [lfqthh](https://github.com/lfathh) -
+  **lfathh** <<lfathhbusines@gmail.com>> (he/him)
 * [aduh95](https://github.com/aduh95) -
   **Antoine du Hamel** <<duhamelantoine1995@gmail.com>> (he/him)
 * [anonrig](https://github.com/anonrig) -
