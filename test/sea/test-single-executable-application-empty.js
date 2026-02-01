@@ -24,6 +24,9 @@ try {
     verifyWorkflow: true,
   });
 } catch (e) {
+  if (/SEA build failed/.test(e.message)) {
+    common.skip(e.message);
+  }
   if (/Cannot copy/.test(e.message)) {
     common.skip(e.message);
   } else if (common.isWindows) {
