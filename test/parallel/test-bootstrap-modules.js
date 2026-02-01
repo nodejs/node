@@ -90,6 +90,7 @@ expected.beforePreExec = new Set([
   'Internal Binding fs',
   'NativeModule internal/encoding',
   'NativeModule internal/encoding/single-byte',
+  'NativeModule internal/encoding/util',
   'NativeModule internal/blob',
   'NativeModule internal/fs/utils',
   'NativeModule fs',
