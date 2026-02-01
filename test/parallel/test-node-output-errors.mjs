@@ -3,8 +3,6 @@ import * as fixtures from '../common/fixtures.mjs';
 import * as snapshot from '../common/assertSnapshot.js';
 import * as os from 'node:os';
 import { describe, it } from 'node:test';
-import { basename } from 'node:path';
-import { pathToFileURL } from 'node:url';
 
 const skipForceColors =
   (common.isWindows && (Number(os.release().split('.')[0]) !== 10 || Number(os.release().split('.')[2]) < 14393)); // See https://github.com/nodejs/node/pull/33132
@@ -20,29 +18,29 @@ function replaceForceColorsStackTrace(str) {
 }
 
 describe('errors output', { concurrency: !process.env.TEST_PARALLEL }, () => {
-  function normalize(str) {
-    const baseName = basename(process.argv0 || 'node', '.exe');
-    return str.replaceAll(snapshot.replaceWindowsPaths(process.cwd()), '')
-      .replaceAll(pathToFileURL(process.cwd()).pathname, '')
-      .replaceAll('//', '*')
-      .replaceAll(/\/(\w)/g, '*$1')
-      .replaceAll('*test*', '*')
-      .replaceAll('*fixtures*errors*', '*')
-      .replaceAll('file:**', 'file:*/')
-      .replaceAll(`${baseName} --`, '* --');
-  }
-
   function normalizeNoNumbers(str) {
-    return normalize(str).replaceAll(/\d+:\d+/g, '*:*').replaceAll(/:\d+/g, ':*').replaceAll('*fixtures*message*', '*');
+    return str.replaceAll(/\d+:\d+/g, '*:*').replaceAll(/:\d+/g, ':*').replaceAll('*fixtures*message*', '*');
   }
-  const common = snapshot
-    .transform(snapshot.replaceWindowsLineEndings, snapshot.replaceWindowsPaths);
-  const defaultTransform = snapshot.transform(common, normalize, snapshot.replaceNodeVersion);
-  const errTransform = snapshot.transform(common, normalizeNoNumbers, snapshot.replaceNodeVersion);
-  const promiseTransform = snapshot.transform(common, replaceStackTrace,
-                                              normalizeNoNumbers, snapshot.replaceNodeVersion);
-  const forceColorsTransform = snapshot.transform(common, normalize,
-                                                  replaceForceColorsStackTrace, snapshot.replaceNodeVersion);
+  const defaultTransform = snapshot.transform(
+    snapshot.basicTransform,
+    snapshot.transformProjectRoot(),
+  );
+  const errTransform = snapshot.transform(
+    snapshot.basicTransform,
+    snapshot.transformProjectRoot(),
+    normalizeNoNumbers,
+  );
+  const promiseTransform = snapshot.transform(
+    snapshot.basicTransform,
+    snapshot.transformProjectRoot(),
+    replaceStackTrace,
+    normalizeNoNumbers,
+  );
+  const forceColorsTransform = snapshot.transform(
+    snapshot.basicTransform,
+    snapshot.transformProjectRoot(),
+    replaceForceColorsStackTrace,
+  );
 
   const tests = [
     { name: 'errors/async_error_eval_cjs.js' },

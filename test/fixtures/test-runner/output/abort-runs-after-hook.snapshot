@@ -5,7 +5,7 @@ not ok 1 - test that aborts
   ---
   duration_ms: *
   type: 'test'
-  location: '/test/fixtures/test-runner/output/abort-runs-after-hook.js:(LINE):1'
+  location: '<project-root>/test/fixtures/test-runner/output/abort-runs-after-hook.js:(LINE):1'
   failureType: 'uncaughtException'
   error: 'boom'
   code: 'ERR_TEST_FAILURE'

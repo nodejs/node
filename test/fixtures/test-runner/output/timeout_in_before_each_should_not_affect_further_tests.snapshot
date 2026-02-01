@@ -10,7 +10,7 @@ gonna timeout
       ---
       duration_ms: *
       type: 'test'
-      location: '/test/fixtures/test-runner/output/timeout_in_before_each_should_not_affect_further_tests.js:(LINE):3'
+      location: '<project-root>/test/fixtures/test-runner/output/timeout_in_before_each_should_not_affect_further_tests.js:(LINE):3'
       failureType: 'hookFailed'
       error: 'failed running beforeEach hook'
       code: 'ERR_TEST_FAILURE'
@@ -28,7 +28,7 @@ not ok 1 - before each timeout
   ---
   duration_ms: *
   type: 'suite'
-  location: '/test/fixtures/test-runner/output/timeout_in_before_each_should_not_affect_further_tests.js:(LINE):1'
+  location: '<project-root>/test/fixtures/test-runner/output/timeout_in_before_each_should_not_affect_further_tests.js:(LINE):1'
   failureType: 'subtestsFailed'
   error: '1 subtest failed'
   code: 'ERR_TEST_FAILURE'
@@ -41,7 +41,7 @@ not gonna timeout
       ---
       duration_ms: *
       type: 'test'
-      location: '/test/fixtures/test-runner/output/timeout_in_before_each_should_not_affect_further_tests.js:(LINE):3'
+      location: '<project-root>/test/fixtures/test-runner/output/timeout_in_before_each_should_not_affect_further_tests.js:(LINE):3'
       failureType: 'hookFailed'
       error: 'failed running afterEach hook'
       code: 'ERR_TEST_FAILURE'
@@ -59,7 +59,7 @@ not ok 2 - after each timeout
   ---
   duration_ms: *
   type: 'suite'
-  location: '/test/fixtures/test-runner/output/timeout_in_before_each_should_not_affect_further_tests.js:(LINE):1'
+  location: '<project-root>/test/fixtures/test-runner/output/timeout_in_before_each_should_not_affect_further_tests.js:(LINE):1'
   failureType: 'subtestsFailed'
   error: '1 subtest failed'
   code: 'ERR_TEST_FAILURE'

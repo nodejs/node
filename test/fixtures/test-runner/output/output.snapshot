@@ -52,7 +52,7 @@ not ok 9 - sync fail todo # TODO
   ---
   duration_ms: *
   type: 'test'
-  location: '/test/fixtures/test-runner/output/output.js:(LINE):1'
+  location: '<project-root>/test/fixtures/test-runner/output/output.js:(LINE):1'
   failureType: 'testCodeFailure'
   error: 'thrown from sync fail todo'
   code: 'ERR_TEST_FAILURE'
@@ -70,7 +70,7 @@ not ok 10 - sync fail todo with message # TODO this is a failing todo
   ---
   duration_ms: *
   type: 'test'
-  location: '/test/fixtures/test-runner/output/output.js:(LINE):1'
+  location: '<project-root>/test/fixtures/test-runner/output/output.js:(LINE):1'
   failureType: 'testCodeFailure'
   error: 'thrown from sync fail todo with message'
   code: 'ERR_TEST_FAILURE'
@@ -107,7 +107,7 @@ not ok 14 - sync throw fail
   ---
   duration_ms: *
   type: 'test'
-  location: '/test/fixtures/test-runner/output/output.js:(LINE):1'
+  location: '<project-root>/test/fixtures/test-runner/output/output.js:(LINE):1'
   failureType: 'testCodeFailure'
   error: 'thrown from sync throw fail'
   code: 'ERR_TEST_FAILURE'
@@ -137,7 +137,7 @@ not ok 17 - async throw fail
   ---
   duration_ms: *
   type: 'test'
-  location: '/test/fixtures/test-runner/output/output.js:(LINE):1'
+  location: '<project-root>/test/fixtures/test-runner/output/output.js:(LINE):1'
   failureType: 'testCodeFailure'
   error: 'thrown from async throw fail'
   code: 'ERR_TEST_FAILURE'
@@ -155,7 +155,7 @@ not ok 18 - async skip fail # SKIP
   ---
   duration_ms: *
   type: 'test'
-  location: '/test/fixtures/test-runner/output/output.js:(LINE):1'
+  location: '<project-root>/test/fixtures/test-runner/output/output.js:(LINE):1'
   failureType: 'testCodeFailure'
   error: 'thrown from async throw fail'
   code: 'ERR_TEST_FAILURE'
@@ -173,13 +173,13 @@ not ok 19 - async assertion fail
   ---
   duration_ms: *
   type: 'test'
-  location: '/test/fixtures/test-runner/output/output.js:(LINE):1'
+  location: '<project-root>/test/fixtures/test-runner/output/output.js:(LINE):1'
   failureType: 'testCodeFailure'
   error: |-
     Expected values to be strictly equal:
-    
+
     true !== false
-    
+
   code: 'ERR_ASSERTION'
   name: 'AssertionError'
   expected: false
@@ -205,7 +205,7 @@ not ok 21 - reject fail
   ---
   duration_ms: *
   type: 'test'
-  location: '/test/fixtures/test-runner/output/output.js:(LINE):1'
+  location: '<project-root>/test/fixtures/test-runner/output/output.js:(LINE):1'
   failureType: 'testCodeFailure'
   error: 'rejected from reject fail'
   code: 'ERR_TEST_FAILURE'
@@ -254,7 +254,7 @@ ok 26 - immediate resolve pass
       ---
       duration_ms: *
       type: 'test'
-      location: '/test/fixtures/test-runner/output/output.js:(LINE):11'
+      location: '<project-root>/test/fixtures/test-runner/output/output.js:(LINE):11'
       failureType: 'testCodeFailure'
       error: 'thrown from subtest sync throw fail'
       code: 'ERR_TEST_FAILURE'
@@ -276,7 +276,7 @@ not ok 27 - subtest sync throw fail
   ---
   duration_ms: *
   type: 'test'
-  location: '/test/fixtures/test-runner/output/output.js:(LINE):1'
+  location: '<project-root>/test/fixtures/test-runner/output/output.js:(LINE):1'
   failureType: 'subtestsFailed'
   error: '1 subtest failed'
   code: 'ERR_TEST_FAILURE'
@@ -286,7 +286,7 @@ not ok 28 - sync throw non-error fail
   ---
   duration_ms: *
   type: 'test'
-  location: '/test/fixtures/test-runner/output/output.js:(LINE):1'
+  location: '<project-root>/test/fixtures/test-runner/output/output.js:(LINE):1'
   failureType: 'testCodeFailure'
   error: 'Symbol(thrown symbol from sync throw non-error fail)'
   code: 'ERR_TEST_FAILURE'
@@ -371,7 +371,7 @@ not ok 34 - sync skip option is false fail
   ---
   duration_ms: *
   type: 'test'
-  location: '/test/fixtures/test-runner/output/output.js:(LINE):1'
+  location: '<project-root>/test/fixtures/test-runner/output/output.js:(LINE):1'
   failureType: 'testCodeFailure'
   error: 'this should be executed'
   code: 'ERR_TEST_FAILURE'
@@ -443,7 +443,7 @@ not ok 44 - callback fail
   ---
   duration_ms: *
   type: 'test'
-  location: '/test/fixtures/test-runner/output/output.js:(LINE):1'
+  location: '<project-root>/test/fixtures/test-runner/output/output.js:(LINE):1'
   failureType: 'testCodeFailure'
   error: 'callback failure'
   code: 'ERR_TEST_FAILURE'
@@ -474,7 +474,7 @@ not ok 48 - callback also returns a Promise
   ---
   duration_ms: *
   type: 'test'
-  location: '/test/fixtures/test-runner/output/output.js:(LINE):1'
+  location: '<project-root>/test/fixtures/test-runner/output/output.js:(LINE):1'
   failureType: 'callbackAndPromisePresent'
   error: 'passed a callback but also returned a Promise'
   code: 'ERR_TEST_FAILURE'
@@ -484,7 +484,7 @@ not ok 49 - callback throw
   ---
   duration_ms: *
   type: 'test'
-  location: '/test/fixtures/test-runner/output/output.js:(LINE):1'
+  location: '<project-root>/test/fixtures/test-runner/output/output.js:(LINE):1'
   failureType: 'testCodeFailure'
   error: 'thrown from callback throw'
   code: 'ERR_TEST_FAILURE'
@@ -502,7 +502,7 @@ not ok 50 - callback called twice
   ---
   duration_ms: *
   type: 'test'
-  location: '/test/fixtures/test-runner/output/output.js:(LINE):1'
+  location: '<project-root>/test/fixtures/test-runner/output/output.js:(LINE):1'
   failureType: 'multipleCallbackInvocations'
   error: 'callback invoked multiple times'
   code: 'ERR_TEST_FAILURE'
@@ -521,7 +521,7 @@ not ok 52 - callback called twice in future tick
   ---
   duration_ms: *
   type: 'test'
-  location: '/test/fixtures/test-runner/output/output.js:(LINE):1'
+  location: '<project-root>/test/fixtures/test-runner/output/output.js:(LINE):1'
   failureType: 'uncaughtException'
   error: 'callback invoked multiple times'
   code: 'ERR_TEST_FAILURE'
@@ -533,7 +533,7 @@ not ok 53 - callback async throw
   ---
   duration_ms: *
   type: 'test'
-  location: '/test/fixtures/test-runner/output/output.js:(LINE):1'
+  location: '<project-root>/test/fixtures/test-runner/output/output.js:(LINE):1'
   failureType: 'uncaughtException'
   error: 'thrown from callback async throw'
   code: 'ERR_TEST_FAILURE'
@@ -577,7 +577,7 @@ not ok 56 - custom inspect symbol fail
   ---
   duration_ms: *
   type: 'test'
-  location: '/test/fixtures/test-runner/output/output.js:(LINE):1'
+  location: '<project-root>/test/fixtures/test-runner/output/output.js:(LINE):1'
   failureType: 'testCodeFailure'
   error: 'customized'
   code: 'ERR_TEST_FAILURE'
@@ -587,7 +587,7 @@ not ok 57 - custom inspect symbol that throws fail
   ---
   duration_ms: *
   type: 'test'
-  location: '/test/fixtures/test-runner/output/output.js:(LINE):1'
+  location: '<project-root>/test/fixtures/test-runner/output/output.js:(LINE):1'
   failureType: 'testCodeFailure'
   error: |-
     {
@@ -602,7 +602,7 @@ not ok 57 - custom inspect symbol that throws fail
       ---
       duration_ms: *
       type: 'test'
-      location: '/test/fixtures/test-runner/output/output.js:(LINE):11'
+      location: '<project-root>/test/fixtures/test-runner/output/output.js:(LINE):11'
       failureType: 'testCodeFailure'
       error: 'thrown from subtest sync throw fails at first'
       code: 'ERR_TEST_FAILURE'
@@ -623,7 +623,7 @@ not ok 57 - custom inspect symbol that throws fail
       ---
       duration_ms: *
       type: 'test'
-      location: '/test/fixtures/test-runner/output/output.js:(LINE):11'
+      location: '<project-root>/test/fixtures/test-runner/output/output.js:(LINE):11'
       failureType: 'testCodeFailure'
       error: 'thrown from subtest sync throw fails at second'
       code: 'ERR_TEST_FAILURE'
@@ -642,7 +642,7 @@ not ok 58 - subtest sync throw fails
   ---
   duration_ms: *
   type: 'test'
-  location: '/test/fixtures/test-runner/output/output.js:(LINE):1'
+  location: '<project-root>/test/fixtures/test-runner/output/output.js:(LINE):1'
   failureType: 'subtestsFailed'
   error: '2 subtests failed'
   code: 'ERR_TEST_FAILURE'
@@ -652,7 +652,7 @@ not ok 59 - timed out async test
   ---
   duration_ms: *
   type: 'test'
-  location: '/test/fixtures/test-runner/output/output.js:(LINE):1'
+  location: '<project-root>/test/fixtures/test-runner/output/output.js:(LINE):1'
   failureType: 'testTimeoutFailure'
   error: 'test timed out after 5ms'
   code: 'ERR_TEST_FAILURE'
@@ -662,7 +662,7 @@ not ok 60 - timed out callback test
   ---
   duration_ms: *
   type: 'test'
-  location: '/test/fixtures/test-runner/output/output.js:(LINE):1'
+  location: '<project-root>/test/fixtures/test-runner/output/output.js:(LINE):1'
   failureType: 'testTimeoutFailure'
   error: 'test timed out after 5ms'
   code: 'ERR_TEST_FAILURE'
@@ -690,7 +690,7 @@ not ok 64 - rejected thenable
   ---
   duration_ms: *
   type: 'test'
-  location: '/test/fixtures/test-runner/output/output.js:(LINE):1'
+  location: '<project-root>/test/fixtures/test-runner/output/output.js:(LINE):1'
   failureType: 'testCodeFailure'
   error: 'custom error'
   code: 'ERR_TEST_FAILURE'
@@ -700,7 +700,7 @@ not ok 65 - unfinished test with uncaughtException
   ---
   duration_ms: *
   type: 'test'
-  location: '/test/fixtures/test-runner/output/output.js:(LINE):1'
+  location: '<project-root>/test/fixtures/test-runner/output/output.js:(LINE):1'
   failureType: 'uncaughtException'
   error: 'foo'
   code: 'ERR_TEST_FAILURE'
@@ -714,7 +714,7 @@ not ok 66 - unfinished test with unhandledRejection
   ---
   duration_ms: *
   type: 'test'
-  location: '/test/fixtures/test-runner/output/output.js:(LINE):1'
+  location: '<project-root>/test/fixtures/test-runner/output/output.js:(LINE):1'
   failureType: 'unhandledRejection'
   error: 'bar'
   code: 'ERR_TEST_FAILURE'
@@ -728,11 +728,11 @@ not ok 67 - assertion errors display actual and expected properly
   ---
   duration_ms: *
   type: 'test'
-  location: '/test/fixtures/test-runner/output/output.js:(LINE):1'
+  location: '<project-root>/test/fixtures/test-runner/output/output.js:(LINE):1'
   failureType: 'testCodeFailure'
   error: |-
     Expected values to be loosely deep-equal:
-    
+
     {
       bar: 1,
       baz: {
@@ -747,9 +747,9 @@ not ok 67 - assertion errors display actual and expected properly
       ],
       foo: 1
     }
-    
+
     should loosely deep-equal
-    
+
     {
       baz: {
         date: 1970-01-01T00:00:00.000Z,
@@ -798,7 +798,7 @@ not ok 68 - invalid subtest fail
   ---
   duration_ms: *
   type: 'test'
-  location: '/test/fixtures/test-runner/output/output.js:(LINE):7'
+  location: '<project-root>/test/fixtures/test-runner/output/output.js:(LINE):7'
   failureType: 'parentAlreadyFinished'
   error: 'test could not be started because its parent finished'
   code: 'ERR_TEST_FAILURE'

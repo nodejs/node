@@ -4,7 +4,7 @@ not ok 1 - suite 1
   ---
   duration_ms: *
   type: 'suite'
-  location: '/test/fixtures/test-runner/output/filtered-suite-throws.js:(LINE):1'
+  location: '<project-root>/test/fixtures/test-runner/output/filtered-suite-throws.js:(LINE):1'
   failureType: 'testCodeFailure'
   error: 'boom 1'
   code: 'ERR_TEST_FAILURE'
@@ -26,7 +26,7 @@ not ok 1 - suite 1
       ---
       duration_ms: *
       type: 'test'
-      location: '/test/fixtures/test-runner/output/filtered-suite-throws.js:(LINE):3'
+      location: '<project-root>/test/fixtures/test-runner/output/filtered-suite-throws.js:(LINE):3'
       failureType: 'cancelledByParent'
       error: 'test did not finish before its parent and was cancelled'
       code: 'ERR_TEST_FAILURE'
@@ -36,7 +36,7 @@ not ok 2 - suite 2
   ---
   duration_ms: *
   type: 'suite'
-  location: '/test/fixtures/test-runner/output/filtered-suite-throws.js:(LINE):1'
+  location: '<project-root>/test/fixtures/test-runner/output/filtered-suite-throws.js:(LINE):1'
   failureType: 'testCodeFailure'
   error: 'boom 1'
   code: 'ERR_TEST_FAILURE'
