@@ -157,3 +157,33 @@ const vfs = require('node:vfs');
     myVfs.realpathSync('/nonexistent');
   }, { code: 'ENOENT' });
 }
+
+// Test rmdir on non-empty directory throws ENOTEMPTY
+{
+  const myVfs = vfs.create();
+  myVfs.mkdirSync('/parent', { recursive: true });
+  myVfs.writeFileSync('/parent/file.txt', 'content');
+
+  assert.throws(() => {
+    myVfs.rmdirSync('/parent');
+  }, { code: 'ENOTEMPTY' });
+
+  // After removing the file, rmdir should succeed
+  myVfs.unlinkSync('/parent/file.txt');
+  myVfs.rmdirSync('/parent');
+  assert.strictEqual(myVfs.existsSync('/parent'), false);
+}
+
+// Test mkdir on existing directory throws EEXIST (without recursive)
+{
+  const myVfs = vfs.create();
+  myVfs.mkdirSync('/existing', { recursive: true });
+
+  assert.throws(() => {
+    myVfs.mkdirSync('/existing');
+  }, { code: 'EEXIST' });
+
+  // With recursive: true, it should not throw
+  myVfs.mkdirSync('/existing', { recursive: true });
+  assert.strictEqual(myVfs.existsSync('/existing'), true);
+}
