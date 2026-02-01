@@ -713,6 +713,46 @@ myVfs.symlinkSync('/etc/passwd', '/passwd-link');
 // myVfs.readFileSync('/passwd-link'); // Throws ENOENT
 ```
 
+## Worker threads
+
+VFS instances are **not shared across worker threads**. Each worker thread has
+its own V8 isolate and module cache, which means:
+
+* A VFS mounted in the main thread is not accessible from worker threads
+* Each worker thread must create and mount its own VFS instance
+* VFS data is not synchronized between threads - changes in one thread are not
+  visible in another
+
+If you need to share virtual file content with worker threads, you must either:
+
+1. **Recreate the VFS in each worker** - Pass the data to workers via
+   `workerData` and have each worker create its own VFS:
+
+```cjs
+const { Worker, isMainThread, workerData } = require('node:worker_threads');
+const vfs = require('node:vfs');
+
+if (isMainThread) {
+  const fileData = { '/config.json': '{"key": "value"}' };
+  new Worker(__filename, { workerData: fileData });
+} else {
+  // Worker: recreate VFS from passed data
+  const myVfs = vfs.create();
+  for (const [path, content] of Object.entries(workerData)) {
+    myVfs.writeFileSync(path, content);
+  }
+  myVfs.mount('/virtual');
+  // Now the worker has its own copy of the VFS
+}
+```
+
+2. **Use `RealFSProvider`** - If the data exists on the real file system, use
+   `RealFSProvider` in each worker to mount the same directory.
+
+This limitation exists because implementing cross-thread VFS access would
+require moving the implementation to C++ with shared memory management, which
+significantly increases complexity. This may be addressed in future versions.
+
 ## Security considerations
 
 ### Path shadowing
