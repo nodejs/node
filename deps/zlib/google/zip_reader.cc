@@ -5,11 +5,14 @@
 #include "third_party/zlib/google/zip_reader.h"
 
 #include <algorithm>
+#include <cstdint>
 #include <string_view>
 #include <utility>
 
 #include "base/check.h"
+#include "base/containers/span.h"
 #include "base/containers/heap_array.h"
+#include "base/strings/string_view_util.h"
 #include "base/files/file.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
@@ -86,8 +89,8 @@ class StringWriterDelegate : public WriterDelegate {
   explicit StringWriterDelegate(std::string* output) : output_(output) {}
 
   // WriterDelegate methods:
-  bool WriteBytes(const char* data, int num_bytes) override {
-    output_->append(data, num_bytes);
+  bool WriteBytes(base::span<const uint8_t> data) override {
+    *output_ += base::as_string_view(data);
     return true;
   }
 
@@ -485,8 +488,10 @@ bool ZipReader::ExtractCurrentEntry(WriterDelegate* delegate,
 
     uint64_t num_bytes_to_write = std::min<uint64_t>(
         remaining_capacity, base::checked_cast<uint64_t>(num_bytes_read));
-    if (!delegate->WriteBytes(buf, num_bytes_to_write))
+    if (!delegate->WriteBytes(base::as_byte_span(buf).first(
+            base::checked_cast<size_t>(num_bytes_to_write)))) {
       break;
+    }
 
     if (remaining_capacity == base::checked_cast<uint64_t>(num_bytes_read)) {
       // Ensures function returns true if the entire file has been read.
@@ -679,7 +684,9 @@ void ZipReader::ExtractChunk(base::File output_file,
     return;
   }
 
-  if (num_bytes_read != output_file.Write(offset, buffer, num_bytes_read)) {
+  if (!output_file.WriteAndCheck(
+          offset, base::as_byte_span(buffer).first(
+                      static_cast<size_t>(num_bytes_read)))) {
     LOG(ERROR) << "Cannot write " << num_bytes_read
                << " bytes to file at offset " << offset;
     std::move(failure_callback).Run();
@@ -734,11 +741,12 @@ bool FileWriterDelegate::PrepareOutput() {
   return true;
 }
 
-bool FileWriterDelegate::WriteBytes(const char* data, int num_bytes) {
-  int bytes_written = file_->WriteAtCurrentPos(data, num_bytes);
-  if (bytes_written > 0)
-    file_length_ += bytes_written;
-  return bytes_written == num_bytes;
+bool FileWriterDelegate::WriteBytes(base::span<const uint8_t> data) {
+  const std::optional<size_t> bytes_written = file_->WriteAtCurrentPos(data);
+  if (bytes_written > 0) {
+    file_length_ += *bytes_written;
+  }
+  return bytes_written == data.size();
 }
 
 void FileWriterDelegate::SetTimeModified(const base::Time& time) {
