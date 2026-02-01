@@ -947,7 +947,7 @@ void StartLoadingCertificatesOffThread(
 //    with all the other flags.
 // 7. Certificates from --use-bundled-ca, --use-system-ca and
 //    NODE_EXTRA_CA_CERTS are cached after first load. Certificates
-//    from --use-system-ca are not cached and always reloaded from
+//    from --use-openssl-ca are not cached and always reloaded from
 //    disk.
 // 8. If users have reset the root cert store by calling
 //    tls.setDefaultCACertificates(), the store will be populated with
