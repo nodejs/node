@@ -315,6 +315,9 @@ Throws `ERR_INVALID_STATE` if `virtualCwd` was not enabled during construction.
 The `VirtualFileSystem` class provides methods that mirror the `fs` module API.
 All paths are relative to the VFS root (not the mount point).
 
+These methods accept the same argument types as their `fs` counterparts,
+including `string`, `Buffer`, `TypedArray`, and `DataView` where applicable.
+
 #### Synchronous Methods
 
 * `vfs.accessSync(path[, mode])` - Check file accessibility
