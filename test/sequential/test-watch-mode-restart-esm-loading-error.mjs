@@ -7,6 +7,7 @@ import { spawn } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
 import { inspect } from 'node:util';
 import { createInterface } from 'node:readline';
+import { once } from 'node:events';
 
 if (common.isIBMi)
   common.skip('IBMi does not support `fs.watch()`');
@@ -42,14 +43,23 @@ function runInBackground({ args = [], options = {}, completed = 'Completed runni
           stdout = [];
           stderr = '';
         } else if (data.startsWith('Failed running')) {
-          if (shouldFail) {
-            future.resolve({ stderr, stdout });
+          const settle = () => {
+            if (shouldFail) {
+              future.resolve({ stderr, stdout });
+            } else {
+              future.reject({ stderr, stdout });
+            }
+            future = Promise.withResolvers();
+            stdout = [];
+            stderr = '';
+          };
+          // If stderr is empty, wait for it to receive data before settling.
+          // This handles the race condition where stdout arrives before stderr.
+          if (stderr === '') {
+            child.stderr.once('data', settle);
           } else {
-            future.reject({ stderr, stdout });
+            settle();
           }
-          future = Promise.withResolvers();
-          stdout = [];
-          stderr = '';
         }
       }
     });
