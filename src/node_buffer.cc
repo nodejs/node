@@ -771,18 +771,23 @@ void SlowByteLengthUtf8(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
+  size_t utf8_length;
+
+  // Fast path for external one-byte strings (common case for ASCII/Latin1)
+  if (source->IsExternalOneByte()) {
+    auto ext = source->GetExternalOneByteStringResource();
+    utf8_length = simdutf::utf8_length_from_latin1(ext->data(), ext->length());
+    args.GetReturnValue().Set(static_cast<uint64_t>(utf8_length));
+    return;
+  }
+
+  // For non-external strings, use ValueView
   String::ValueView view(isolate, source);
   size_t length = view.length();
-  size_t utf8_length;
 
   if (view.is_one_byte()) {
     auto data = reinterpret_cast<const char*>(view.data8());
-    simdutf::result result = simdutf::validate_ascii_with_errors(data, length);
-    if (result.error == simdutf::SUCCESS) {
-      utf8_length = length;  // Pure ASCII, length stays the same
-    } else {
-      utf8_length = simdutf::utf8_length_from_latin1(data, length);
-    }
+    utf8_length = simdutf::utf8_length_from_latin1(data, length);
   } else {
     auto data = reinterpret_cast<const char16_t*>(view.data16());
     if (simdutf::validate_utf16(data, length)) {
@@ -805,21 +810,32 @@ uint32_t FastByteLengthUtf8(
   CHECK(sourceValue->IsString());
   Local<String> sourceStr = sourceValue.As<String>();
 
+  int length = sourceStr->Length();
+
   // For short inputs, use V8's path - function call overhead not worth it
   static constexpr int kSmallStringThreshold = 128;
-  if (sourceStr->Length() <= kSmallStringThreshold) {
+  if (length <= kSmallStringThreshold) {
     return sourceStr->Utf8LengthV2(isolate);
   }
 
+  // Fast path for external one-byte strings (common case for ASCII/Latin1)
+  if (sourceStr->IsExternalOneByte()) {
+    auto ext = sourceStr->GetExternalOneByteStringResource();
+    return simdutf::utf8_length_from_latin1(ext->data(), ext->length());
+  }
+
+  // For one-byte (Latin1/ASCII) strings, V8 is already fast and ValueView
+  // creation has overhead. Use higher threshold before switching to simdutf.
+  static constexpr int kOneByteLargeThreshold = 1024;
+  if (sourceStr->IsOneByte() && length <= kOneByteLargeThreshold) {
+    return sourceStr->Utf8LengthV2(isolate);
+  }
+
+  // For larger strings or two-byte strings, use ValueView + simdutf
   String::ValueView view(isolate, sourceStr);
-  size_t length = view.length();
 
   if (view.is_one_byte()) {
     auto data = reinterpret_cast<const char*>(view.data8());
-    simdutf::result result = simdutf::validate_ascii_with_errors(data, length);
-    if (result.error == simdutf::SUCCESS) {
-      return length;  // Pure ASCII, length stays the same
-    }
     return simdutf::utf8_length_from_latin1(data, length);
   }
 
