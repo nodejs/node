@@ -10,13 +10,6 @@
       ]
     }
   },
-  "historical.any.js": {
-    "fail": {
-      "expected": [
-        "searchParams on location object"
-      ]
-    }
-  },
   "javascript-urls.window.js": {
     "skip": "requires document.body reference"
   },
