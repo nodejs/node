@@ -13,7 +13,7 @@ function replaceStackTrace(str) {
 
 describe('console output', { concurrency: !process.env.TEST_PARALLEL }, () => {
   function normalize(str) {
-    return str.replaceAll(snapshot.replaceWindowsPaths(process.cwd()), '').replaceAll('/', '*').replaceAll(process.version, '*').replaceAll(/\d+/g, '*');
+    return str.replaceAll(/\d+/g, '*');
   }
   const tests = [
     { name: 'console/2100bytes.js' },
@@ -23,12 +23,16 @@ describe('console output', { concurrency: !process.env.TEST_PARALLEL }, () => {
     {
       name: 'console/stack_overflow.js',
       transform: snapshot
-        .transform(snapshot.replaceWindowsLineEndings, snapshot.replaceWindowsPaths, normalize)
+        .transform(
+          snapshot.basicTransform,
+          snapshot.transformProjectRoot(),
+          normalize
+        )
     },
     !skipForceColors ? { name: 'console/force_colors.js', env: { FORCE_COLOR: 1 } } : null,
   ].filter(Boolean);
   const defaultTransform = snapshot
-    .transform(snapshot.replaceWindowsLineEndings, snapshot.replaceWindowsPaths, replaceStackTrace);
+    .transform(snapshot.basicTransform, replaceStackTrace);
   for (const { name, transform, env } of tests) {
     it(name, async () => {
       await snapshot.spawnAndAssert(
