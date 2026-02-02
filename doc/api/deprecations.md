@@ -3758,6 +3758,9 @@ Type: Application (non-`node_modules` code only)
 have security implications. Use the [WHATWG URL API][] instead. CVEs are not
 issued for `url.parse()` vulnerabilities.
 
+Passing a string argument to [`url.format()`][] invokes `url.parse()`
+internally, and is therefore also covered by this deprecation.
+
 ### DEP0170: Invalid port when using `url.parse()`
 
 <!-- YAML
