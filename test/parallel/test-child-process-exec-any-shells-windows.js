@@ -33,7 +33,7 @@ const testCopy = (shellName, shellPath) => {
 const system32 = `${process.env.SystemRoot}\\System32`;
 
 // Test CMD
-test(true);
+test(null);
 test('cmd');
 testCopy('cmd.exe', `${system32}\\cmd.exe`);
 test('cmd.exe');
