@@ -60,12 +60,16 @@ function replaceWarningPid(str) {
 // The project root path may contain unicode characters.
 function transformProjectRoot(replacement = '<project-root>') {
   const projectRoot = path.resolve(__dirname, '../..');
+  // Handles output already processed by `replaceWindowsPaths`.
+  const winPath = replaceWindowsPaths(projectRoot);
   // Handles URL encoded project root in file URL strings as well.
   const urlEncoded = pathToFileURL(projectRoot).pathname;
   return (str) => {
     return str.replaceAll('\\\'', "'")
+      // Replace fileUrl first as `winPath` could be a substring of the fileUrl.
+      .replaceAll(urlEncoded, replacement)
       .replaceAll(projectRoot, replacement)
-      .replaceAll(urlEncoded, replacement);
+      .replaceAll(winPath, replacement);
   };
 }
 
