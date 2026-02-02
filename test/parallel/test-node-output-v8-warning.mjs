@@ -14,13 +14,15 @@ function replaceExecName(str) {
 }
 
 describe('v8 output', { concurrency: !process.env.TEST_PARALLEL }, () => {
+  const stripProjectRoot = snapshot.transformProjectRoot('');
+
   function normalize(str) {
-    return str.replaceAll(snapshot.replaceWindowsPaths(process.cwd()), '')
-    .replaceAll(/:\d+/g, ':*')
-    .replaceAll('/', '*')
-    .replaceAll('*test*', '*')
-    .replaceAll(/.*?\*fixtures\*v8\*/g, '(node:*) V8: *') // Replace entire path before fixtures/v8
-    .replaceAll('*fixtures*v8*', '*');
+    return stripProjectRoot(str)
+      .replaceAll(/:\d+/g, ':*')
+      .replaceAll('/', '*')
+      .replaceAll('*test*', '*')
+      .replaceAll(/.*?\*fixtures\*v8\*/g, '(node:*) V8: *') // Replace entire path before fixtures/v8
+      .replaceAll('*fixtures*v8*', '*');
   }
   const common = snapshot
     .transform(snapshot.replaceWindowsLineEndings, snapshot.replaceWindowsPaths, replaceNodeVersion, replaceExecName);

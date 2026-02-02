@@ -8,8 +8,14 @@ function replaceNodeVersion(str) {
 }
 
 describe('vm output', { concurrency: !process.env.TEST_PARALLEL }, () => {
+  const stripProjectRoot = snapshot.transformProjectRoot('');
+
   function normalize(str) {
-    return str.replaceAll(snapshot.replaceWindowsPaths(process.cwd()), '').replaceAll('//', '*').replaceAll(/\/(\w)/g, '*$1').replaceAll('*test*', '*').replaceAll(/node:vm:\d+:\d+/g, 'node:vm:*');
+    return stripProjectRoot(str)
+      .replaceAll('//', '*')
+      .replaceAll(/\/(\w)/g, '*$1')
+      .replaceAll('*test*', '*')
+      .replaceAll(/node:vm:\d+:\d+/g, 'node:vm:*');
   }
 
   const defaultTransform = snapshot
