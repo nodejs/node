@@ -4,13 +4,17 @@ const path = require('node:path');
 const test = require('node:test');
 const fs = require('node:fs/promises');
 const assert = require('node:assert/strict');
+const { pathToFileURL } = require('node:url');
 const { hostname } = require('node:os');
 
 const stackFramesRegexp = /(?<=\n)(\s+)((.+?)\s+\()?(?:\(?(.+?):(\d+)(?::(\d+))?)\)?(\s+\{)?(\[\d+m)?(\n|$)/g;
 const windowNewlineRegexp = /\r/g;
 
+// Replaces the current Node.js executable version strings with a
+// placeholder. This could commonly present in an unhandled exception
+// output.
 function replaceNodeVersion(str) {
-  return str.replaceAll(process.version, '*');
+  return str.replaceAll(process.version, '<node-version>');
 }
 
 function replaceStackTrace(str, replacement = '$1*$7$8\n') {
@@ -23,18 +27,49 @@ function replaceInternalStackTrace(str) {
   return str.replaceAll(/(\W+).*[(\s]node:.*/g, '$1*');
 }
 
+// Replaces Windows line endings with posix line endings for unified snapshots
+// across platforms.
 function replaceWindowsLineEndings(str) {
   return str.replace(windowNewlineRegexp, '');
 }
 
+// Replaces all Windows path separators with posix separators for unified snapshots
+// across platforms.
 function replaceWindowsPaths(str) {
   return common.isWindows ? str.replaceAll(path.win32.sep, path.posix.sep) : str;
 }
 
-function transformProjectRoot(replacement = '') {
+// Removes line trailing white spaces.
+function replaceTrailingSpaces(str) {
+  return str.replaceAll(/[\t ]+\n/g, '\n');
+}
+
+// Replaces customized or platform specific executable names to be `<node-exe>`.
+function generalizeExeName(str) {
+  const baseName = path.basename(process.argv0 || 'node', '.exe');
+  return str.replaceAll(`${baseName} --`, '<node-exe> --');
+}
+
+// Replaces the pids in warning messages with a placeholder.
+function replaceWarningPid(str) {
+  return str.replaceAll(/\(node:\d+\)/g, '(node:<pid>)');
+}
+
+// Replaces path strings representing the nodejs/node repo full project root with
+// `<project-root>`. Also replaces file URLs containing the full project root path.
+// The project root path may contain unicode characters.
+function transformProjectRoot(replacement = '<project-root>') {
   const projectRoot = path.resolve(__dirname, '../..');
+  // Handles output already processed by `replaceWindowsPaths`.
+  const winPath = replaceWindowsPaths(projectRoot);
+  // Handles URL encoded project root in file URL strings as well.
+  const urlEncoded = pathToFileURL(projectRoot).pathname;
   return (str) => {
-    return str.replaceAll('\\\'', "'").replaceAll(projectRoot, replacement);
+    return str.replaceAll('\\\'', "'")
+      // Replace fileUrl first as `winPath` could be a substring of the fileUrl.
+      .replaceAll(urlEncoded, replacement)
+      .replaceAll(projectRoot, replacement)
+      .replaceAll(winPath, replacement);
   };
 }
 
@@ -152,32 +187,41 @@ function pickTestFileFromLcov(str) {
   );
 }
 
-const defaultTransform = transform(
+// Transforms basic patterns like:
+// - platform specific path and line endings,
+// - line trailing spaces,
+// - executable specific path and versions.
+const basicTransform = transform(
   replaceWindowsLineEndings,
-  replaceStackTrace,
+  replaceTrailingSpaces,
   removeWindowsPathEscaping,
-  transformProjectRoot(),
   replaceWindowsPaths,
+  replaceNodeVersion,
+  generalizeExeName,
+  replaceWarningPid,
+);
+
+const defaultTransform = transform(
+  basicTransform,
+  replaceStackTrace,
+  transformProjectRoot(),
   replaceTestDuration,
   replaceTestLocationLine,
 );
 const specTransform = transform(
   replaceSpecDuration,
-  replaceWindowsLineEndings,
+  basicTransform,
   replaceStackTrace,
-  replaceWindowsPaths,
 );
 const junitTransform = transform(
   replaceJunitDuration,
-  replaceWindowsLineEndings,
+  basicTransform,
   replaceStackTrace,
-  replaceWindowsPaths,
 );
 const lcovTransform = transform(
-  replaceWindowsLineEndings,
+  basicTransform,
   replaceStackTrace,
   transformProjectRoot(),
-  replaceWindowsPaths,
   pickTestFileFromLcov,
 );
 
@@ -204,6 +248,7 @@ module.exports = {
   transform,
   transformProjectRoot,
   replaceTestDuration,
+  basicTransform,
   defaultTransform,
   specTransform,
   junitTransform,
