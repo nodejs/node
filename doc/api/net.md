@@ -747,7 +747,7 @@ it to interact with the client.
 <!-- YAML
 added: v0.3.4
 changes:
-  - version: REPLACEME
+  - version: v25.6.0
     pr-url: https://github.com/nodejs/node/pull/61503
     description: Added `typeOfService` option.
   - version: v15.14.0
@@ -1468,7 +1468,7 @@ The optional `callback` parameter will be added as a one-time listener for the
 ### `socket.getTypeOfService()`
 
 <!-- YAML
-added: REPLACEME
+added: v25.6.0
 -->
 
 * Returns: {integer} The current TOS value.
@@ -1487,7 +1487,7 @@ should verify platform-specific semantics.
 ### `socket.setTypeOfService(tos)`
 
 <!-- YAML
-added: REPLACEME
+added: v25.6.0
 -->
 
 * `tos` {integer} The TOS value to set (0-255).
