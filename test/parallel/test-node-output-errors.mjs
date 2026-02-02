@@ -4,11 +4,9 @@ import * as snapshot from '../common/assertSnapshot.js';
 import * as os from 'node:os';
 import { describe, it } from 'node:test';
 import { basename } from 'node:path';
-import { pathToFileURL } from 'node:url';
 
 const skipForceColors =
   (common.isWindows && (Number(os.release().split('.')[0]) !== 10 || Number(os.release().split('.')[2]) < 14393)); // See https://github.com/nodejs/node/pull/33132
-
 
 function replaceStackTrace(str) {
   return snapshot.replaceStackTrace(str, '$1at *$7\n');
@@ -22,8 +20,7 @@ function replaceForceColorsStackTrace(str) {
 describe('errors output', { concurrency: !process.env.TEST_PARALLEL }, () => {
   function normalize(str) {
     const baseName = basename(process.argv0 || 'node', '.exe');
-    return str.replaceAll(snapshot.replaceWindowsPaths(process.cwd()), '')
-      .replaceAll(pathToFileURL(process.cwd()).pathname, '')
+    return str
       .replaceAll('//', '*')
       .replaceAll(/\/(\w)/g, '*$1')
       .replaceAll('*test*', '*')
@@ -36,7 +33,11 @@ describe('errors output', { concurrency: !process.env.TEST_PARALLEL }, () => {
     return normalize(str).replaceAll(/\d+:\d+/g, '*:*').replaceAll(/:\d+/g, ':*').replaceAll('*fixtures*message*', '*');
   }
   const common = snapshot
-    .transform(snapshot.replaceWindowsLineEndings, snapshot.replaceWindowsPaths);
+    .transform(
+      snapshot.replaceWindowsLineEndings,
+      snapshot.replaceWindowsPaths,
+      snapshot.transformProjectRoot(''),
+    );
   const defaultTransform = snapshot.transform(common, normalize, snapshot.replaceNodeVersion);
   const errTransform = snapshot.transform(common, normalizeNoNumbers, snapshot.replaceNodeVersion);
   const promiseTransform = snapshot.transform(common, replaceStackTrace,

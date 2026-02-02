@@ -8,10 +8,10 @@ import { basename } from 'node:path';
 import { describe, it } from 'node:test';
 
 describe('eval output', { concurrency: true }, () => {
-  function normalize(str) {
-    return str.replaceAll(snapshot.replaceWindowsPaths(process.cwd()), '')
-      .replaceAll(/\d+:\d+/g, '*:*');
-  }
+  const normalize = snapshot.transform(
+    snapshot.transformProjectRoot(''),
+    (str) => str.replaceAll(/\d+:\d+/g, '*:*'),
+  );
 
   const defaultTransform = snapshot.transform(
     normalize,
