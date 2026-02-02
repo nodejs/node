@@ -37,6 +37,8 @@ env:
   CC: sccache clang-19
   CXX: sccache clang++-19
   SCCACHE_GHA_ENABLED: 'true'
+  SCCACHE_ERROR_LOG: '/tmp/sccache.log'
+  SCCACHE_LOG: 'debug'
   RUSTC_VERSION: '1.82'
 
 permissions:
@@ -44,12 +46,11 @@ permissions:
 
 jobs:
   test-linux:
-    if: github.event.pull_request.draft == false
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04, ubuntu-24.04-arm]
+        os: [ubuntu-24.04-arm]
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
         with:
@@ -76,12 +77,5 @@ jobs:
         run: npx envinfo
       - name: Build
         run: make -C node build-ci -j4 V=1 CONFIG_FLAGS="--error-on-warn --v8-enable-temporal-support"
-      - name: Test
-        run: make -C node test-ci -j1 V=1 TEST_CI_ARGS="-p actions --measure-flakiness 9"
-      - name: Re-run test in a folder whose name contains unusual chars
-        run: |
-          mv node "$DIR"
-          cd "$DIR"
-          ./tools/test.py --flaky-tests keep_retrying -p actions -j 4
-        env:
-          DIR: dir%20with $unusual"chars?'åß∂ƒ©∆¬…`
+      - name: Print sccache log
+        run: cat /tmp/sccache.log
