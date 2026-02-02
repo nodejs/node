@@ -1,6 +1,7 @@
+// Flags: --expose-internals
 'use strict';
 
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const vfs = require('node:vfs');
 
@@ -186,4 +187,113 @@ const vfs = require('node:vfs');
   // With recursive: true, it should not throw
   myVfs.mkdirSync('/existing', { recursive: true });
   assert.strictEqual(myVfs.existsSync('/existing'), true);
+}
+
+// Test mounting at root '/' (exercises joinMountPath with '/' relativePath)
+{
+  const myVfs = vfs.create();
+  myVfs.mkdirSync('/app/data', { recursive: true });
+  myVfs.writeFileSync('/app/data/config.json', '{}');
+
+  // Mount at root
+  myVfs.mount('/');
+  assert.strictEqual(myVfs.mountPoint, '/');
+
+  // Access the mount point root itself (relativePath = '/')
+  assert.strictEqual(myVfs.shouldHandle('/'), true);
+  assert.strictEqual(myVfs.shouldHandle('/app'), true);
+  assert.strictEqual(myVfs.shouldHandle('/app/data/config.json'), true);
+
+  myVfs.unmount();
+}
+
+// Test deeply nested paths (exercises getParentPath and getBaseName internally)
+{
+  const myVfs = vfs.create();
+  myVfs.mkdirSync('/a/b/c/d/e', { recursive: true });
+  myVfs.writeFileSync('/a/b/c/d/e/file.txt', 'deep');
+
+  // Read the deeply nested file
+  assert.strictEqual(myVfs.readFileSync('/a/b/c/d/e/file.txt', 'utf8'), 'deep');
+
+  // Readdir at various levels
+  assert.ok(myVfs.readdirSync('/a').includes('b'));
+  assert.ok(myVfs.readdirSync('/a/b').includes('c'));
+  assert.ok(myVfs.readdirSync('/a/b/c/d/e').includes('file.txt'));
+
+  // Stat files at root level
+  myVfs.writeFileSync('/root-file.txt', 'root');
+  const stat = myVfs.statSync('/root-file.txt');
+  assert.strictEqual(stat.isFile(), true);
+}
+
+// Test truncateSync on file handle
+{
+  const myVfs = vfs.create();
+  myVfs.writeFileSync('/truncate.txt', 'hello world');
+
+  // Open file and truncate
+  const fd = myVfs.openSync('/truncate.txt', 'r+');
+  const handle = require('internal/vfs/fd').getVirtualFd(fd);
+
+  // Truncate to smaller size
+  handle.entry.truncateSync(5);
+  myVfs.closeSync(fd);
+
+  assert.strictEqual(myVfs.readFileSync('/truncate.txt', 'utf8'), 'hello');
+}
+
+// Test truncateSync extending file
+{
+  const myVfs = vfs.create();
+  myVfs.writeFileSync('/extend.txt', 'hi');
+
+  const fd = myVfs.openSync('/extend.txt', 'r+');
+  const handle = require('internal/vfs/fd').getVirtualFd(fd);
+
+  // Truncate to larger size (extends with null bytes)
+  handle.entry.truncateSync(10);
+  myVfs.closeSync(fd);
+
+  const content = myVfs.readFileSync('/extend.txt');
+  assert.strictEqual(content.length, 10);
+  assert.strictEqual(content.slice(0, 2).toString(), 'hi');
+}
+
+// Test async truncate
+{
+  const myVfs = vfs.create();
+  myVfs.writeFileSync('/async-truncate.txt', 'async content');
+
+  const fd = myVfs.openSync('/async-truncate.txt', 'r+');
+  const handle = require('internal/vfs/fd').getVirtualFd(fd);
+
+  handle.entry.truncate(5).then(common.mustCall(() => {
+    myVfs.closeSync(fd);
+    assert.strictEqual(myVfs.readFileSync('/async-truncate.txt', 'utf8'), 'async');
+  }));
+}
+
+// Test rename operation
+{
+  const myVfs = vfs.create();
+  myVfs.writeFileSync('/old-name.txt', 'content');
+
+  myVfs.renameSync('/old-name.txt', '/new-name.txt');
+
+  assert.strictEqual(myVfs.existsSync('/old-name.txt'), false);
+  assert.strictEqual(myVfs.existsSync('/new-name.txt'), true);
+  assert.strictEqual(myVfs.readFileSync('/new-name.txt', 'utf8'), 'content');
+}
+
+// Test copyFile operation
+{
+  const myVfs = vfs.create();
+  myVfs.writeFileSync('/source.txt', 'copy me');
+
+  myVfs.copyFileSync('/source.txt', '/dest.txt');
+
+  assert.strictEqual(myVfs.existsSync('/source.txt'), true);
+  assert.strictEqual(myVfs.existsSync('/dest.txt'), true);
+  assert.strictEqual(myVfs.readFileSync('/dest.txt', 'utf8'), 'copy me');
 }

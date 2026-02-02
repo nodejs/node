@@ -1,3 +1,4 @@
+// Flags: --expose-internals
 'use strict';
 
 const common = require('../common');
@@ -232,3 +233,290 @@ fs.mkdirSync(testDir, { recursive: true });
   // Clean up
   fs.unlinkSync(path.join(testDir, 'real.txt'));
 }
+
+// Test file handle operations via openSync
+{
+  const realVfs = vfs.create(new vfs.RealFSProvider(testDir));
+
+  fs.writeFileSync(path.join(testDir, 'handle-test.txt'), 'hello world');
+
+  const fd = realVfs.openSync('/handle-test.txt', 'r');
+  assert.ok(fd >= 10000);
+  const handle = require('internal/vfs/fd').getVirtualFd(fd);
+
+  // Read via file handle
+  const buffer = Buffer.alloc(5);
+  const bytesRead = handle.entry.readSync(buffer, 0, 5, 0);
+  assert.strictEqual(bytesRead, 5);
+  assert.strictEqual(buffer.toString(), 'hello');
+
+  realVfs.closeSync(fd);
+
+  // Clean up
+  fs.unlinkSync(path.join(testDir, 'handle-test.txt'));
+}
+
+// Test file handle write operations
+{
+  const realVfs = vfs.create(new vfs.RealFSProvider(testDir));
+
+  const fd = realVfs.openSync('/write-handle.txt', 'w');
+  const handle = require('internal/vfs/fd').getVirtualFd(fd);
+
+  const buffer = Buffer.from('written via handle');
+  const bytesWritten = handle.entry.writeSync(buffer, 0, buffer.length, 0);
+  assert.strictEqual(bytesWritten, buffer.length);
+
+  realVfs.closeSync(fd);
+
+  // Verify content
+  assert.strictEqual(fs.readFileSync(path.join(testDir, 'write-handle.txt'), 'utf8'), 'written via handle');
+
+  // Clean up
+  fs.unlinkSync(path.join(testDir, 'write-handle.txt'));
+}
+
+// Test async file handle read
+(async () => {
+  const realVfs = vfs.create(new vfs.RealFSProvider(testDir));
+
+  fs.writeFileSync(path.join(testDir, 'async-handle.txt'), 'async read test');
+
+  const fd = realVfs.openSync('/async-handle.txt', 'r');
+  const handle = require('internal/vfs/fd').getVirtualFd(fd);
+
+  const buffer = Buffer.alloc(10);
+  const result = await handle.entry.read(buffer, 0, 10, 0);
+  assert.strictEqual(result.bytesRead, 10);
+  assert.strictEqual(buffer.toString(), 'async read');
+
+  realVfs.closeSync(fd);
+
+  // Clean up
+  fs.unlinkSync(path.join(testDir, 'async-handle.txt'));
+})().then(common.mustCall());
+
+// Test async file handle write
+(async () => {
+  const realVfs = vfs.create(new vfs.RealFSProvider(testDir));
+
+  const fd = realVfs.openSync('/async-write.txt', 'w');
+  const handle = require('internal/vfs/fd').getVirtualFd(fd);
+
+  const buffer = Buffer.from('async write');
+  const result = await handle.entry.write(buffer, 0, buffer.length, 0);
+  assert.strictEqual(result.bytesWritten, buffer.length);
+
+  realVfs.closeSync(fd);
+
+  // Verify content
+  assert.strictEqual(fs.readFileSync(path.join(testDir, 'async-write.txt'), 'utf8'), 'async write');
+
+  // Clean up
+  fs.unlinkSync(path.join(testDir, 'async-write.txt'));
+})().then(common.mustCall());
+
+// Test async file handle stat
+(async () => {
+  const realVfs = vfs.create(new vfs.RealFSProvider(testDir));
+
+  fs.writeFileSync(path.join(testDir, 'stat-handle.txt'), 'stat test');
+
+  const fd = realVfs.openSync('/stat-handle.txt', 'r');
+  const handle = require('internal/vfs/fd').getVirtualFd(fd);
+
+  const stat = await handle.entry.stat();
+  assert.strictEqual(stat.isFile(), true);
+
+  realVfs.closeSync(fd);
+
+  // Clean up
+  fs.unlinkSync(path.join(testDir, 'stat-handle.txt'));
+})().then(common.mustCall());
+
+// Test async file handle truncate
+(async () => {
+  const realVfs = vfs.create(new vfs.RealFSProvider(testDir));
+
+  fs.writeFileSync(path.join(testDir, 'truncate-handle.txt'), 'truncate this');
+
+  const fd = realVfs.openSync('/truncate-handle.txt', 'r+');
+  const handle = require('internal/vfs/fd').getVirtualFd(fd);
+
+  await handle.entry.truncate(8);
+  realVfs.closeSync(fd);
+
+  // Verify content was truncated
+  assert.strictEqual(fs.readFileSync(path.join(testDir, 'truncate-handle.txt'), 'utf8'), 'truncate');
+
+  // Clean up
+  fs.unlinkSync(path.join(testDir, 'truncate-handle.txt'));
+})().then(common.mustCall());
+
+// Test async file handle close
+(async () => {
+  const realVfs = vfs.create(new vfs.RealFSProvider(testDir));
+
+  fs.writeFileSync(path.join(testDir, 'close-handle.txt'), 'close test');
+
+  const fd = realVfs.openSync('/close-handle.txt', 'r');
+  const handle = require('internal/vfs/fd').getVirtualFd(fd);
+
+  await handle.entry.close();
+  assert.strictEqual(handle.entry.closed, true);
+
+  // Clean up
+  fs.unlinkSync(path.join(testDir, 'close-handle.txt'));
+})().then(common.mustCall());
+
+// Test recursive mkdir
+{
+  const realVfs = vfs.create(new vfs.RealFSProvider(testDir));
+
+  realVfs.mkdirSync('/deep/nested/dir', { recursive: true });
+  assert.strictEqual(fs.existsSync(path.join(testDir, 'deep/nested/dir')), true);
+
+  // Clean up
+  fs.rmdirSync(path.join(testDir, 'deep/nested/dir'));
+  fs.rmdirSync(path.join(testDir, 'deep/nested'));
+  fs.rmdirSync(path.join(testDir, 'deep'));
+}
+
+// Test lstatSync
+{
+  const realVfs = vfs.create(new vfs.RealFSProvider(testDir));
+
+  fs.writeFileSync(path.join(testDir, 'lstat.txt'), 'lstat test');
+
+  const stat = realVfs.lstatSync('/lstat.txt');
+  assert.strictEqual(stat.isFile(), true);
+
+  // Clean up
+  fs.unlinkSync(path.join(testDir, 'lstat.txt'));
+}
+
+// Test async lstat
+(async () => {
+  const realVfs = vfs.create(new vfs.RealFSProvider(testDir));
+
+  fs.writeFileSync(path.join(testDir, 'async-lstat.txt'), 'async lstat');
+
+  const stat = await realVfs.promises.lstat('/async-lstat.txt');
+  assert.strictEqual(stat.isFile(), true);
+
+  // Clean up
+  fs.unlinkSync(path.join(testDir, 'async-lstat.txt'));
+})().then(common.mustCall());
+
+// Test async copyFile
+(async () => {
+  const realVfs = vfs.create(new vfs.RealFSProvider(testDir));
+
+  fs.writeFileSync(path.join(testDir, 'async-src.txt'), 'async copy');
+
+  await realVfs.promises.copyFile('/async-src.txt', '/async-dest.txt');
+
+  assert.strictEqual(fs.existsSync(path.join(testDir, 'async-dest.txt')), true);
+  assert.strictEqual(fs.readFileSync(path.join(testDir, 'async-dest.txt'), 'utf8'), 'async copy');
+
+  // Clean up
+  fs.unlinkSync(path.join(testDir, 'async-src.txt'));
+  fs.unlinkSync(path.join(testDir, 'async-dest.txt'));
+})().then(common.mustCall());
+
+// Test async mkdir and rmdir
+(async () => {
+  const realVfs = vfs.create(new vfs.RealFSProvider(testDir));
+
+  await realVfs.promises.mkdir('/async-dir');
+  assert.strictEqual(fs.existsSync(path.join(testDir, 'async-dir')), true);
+
+  await realVfs.promises.rmdir('/async-dir');
+  assert.strictEqual(fs.existsSync(path.join(testDir, 'async-dir')), false);
+})().then(common.mustCall());
+
+// Test async rename
+(async () => {
+  const realVfs = vfs.create(new vfs.RealFSProvider(testDir));
+
+  fs.writeFileSync(path.join(testDir, 'async-old.txt'), 'async rename');
+
+  await realVfs.promises.rename('/async-old.txt', '/async-new.txt');
+
+  assert.strictEqual(fs.existsSync(path.join(testDir, 'async-old.txt')), false);
+  assert.strictEqual(fs.existsSync(path.join(testDir, 'async-new.txt')), true);
+
+  // Clean up
+  fs.unlinkSync(path.join(testDir, 'async-new.txt'));
+})().then(common.mustCall());
+
+// Test async readdir
+(async () => {
+  const realVfs = vfs.create(new vfs.RealFSProvider(testDir));
+
+  fs.mkdirSync(path.join(testDir, 'async-readdir'), { recursive: true });
+  fs.writeFileSync(path.join(testDir, 'async-readdir', 'file.txt'), 'content');
+
+  const entries = await realVfs.promises.readdir('/async-readdir');
+  assert.deepStrictEqual(entries, ['file.txt']);
+
+  // Clean up
+  fs.unlinkSync(path.join(testDir, 'async-readdir', 'file.txt'));
+  fs.rmdirSync(path.join(testDir, 'async-readdir'));
+})().then(common.mustCall());
+
+// Test async unlink
+(async () => {
+  const realVfs = vfs.create(new vfs.RealFSProvider(testDir));
+
+  fs.writeFileSync(path.join(testDir, 'async-unlink.txt'), 'to delete');
+
+  await realVfs.promises.unlink('/async-unlink.txt');
+  assert.strictEqual(fs.existsSync(path.join(testDir, 'async-unlink.txt')), false);
+})().then(common.mustCall());
+
+// Test file handle readFile and writeFile
+(async () => {
+  const realVfs = vfs.create(new vfs.RealFSProvider(testDir));
+
+  fs.writeFileSync(path.join(testDir, 'handle-rw.txt'), 'original');
+
+  const fd = realVfs.openSync('/handle-rw.txt', 'r+');
+  const handle = require('internal/vfs/fd').getVirtualFd(fd);
+
+  // Read via readFile
+  const content = handle.entry.readFileSync('utf8');
+  assert.strictEqual(content, 'original');
+
+  // Write via writeFile
+  handle.entry.writeFileSync('replaced');
+  realVfs.closeSync(fd);
+
+  assert.strictEqual(fs.readFileSync(path.join(testDir, 'handle-rw.txt'), 'utf8'), 'replaced');
+
+  // Clean up
+  fs.unlinkSync(path.join(testDir, 'handle-rw.txt'));
+})().then(common.mustCall());
+
+// Test async readFile and writeFile on handle
+(async () => {
+  const realVfs = vfs.create(new vfs.RealFSProvider(testDir));
+
+  fs.writeFileSync(path.join(testDir, 'async-rw.txt'), 'async original');
+
+  const fd = realVfs.openSync('/async-rw.txt', 'r+');
+  const handle = require('internal/vfs/fd').getVirtualFd(fd);
+
+  // Async read
+  const content = await handle.entry.readFile('utf8');
+  assert.strictEqual(content, 'async original');
+
+  // Async write
+  await handle.entry.writeFile('async replaced');
+  realVfs.closeSync(fd);
+
+  assert.strictEqual(fs.readFileSync(path.join(testDir, 'async-rw.txt'), 'utf8'), 'async replaced');
+
+  // Clean up
+  fs.unlinkSync(path.join(testDir, 'async-rw.txt'));
+})().then(common.mustCall());
