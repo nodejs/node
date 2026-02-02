@@ -74,6 +74,8 @@ class TCPWrap : public ConnectionWrap<TCPWrap, uv_tcp_t> {
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetNoDelay(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetKeepAlive(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetTypeOfService(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetTypeOfService(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Bind(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Bind6(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Listen(const v8::FunctionCallbackInfo<v8::Value>& args);
