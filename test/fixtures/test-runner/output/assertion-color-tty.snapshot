@@ -14,7 +14,7 @@
 [31m✖ failing assertion [90m(*ms)[39m[39m
   [AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
   [32mactual[39m [31mexpected[39m
-  
+
   [39m'[39m[32m![39m[39mH[39m[39me[39m[39ml[39m[39ml[39m[39mo[39m[39m [39m[39mW[39m[39mo[39m[39mr[39m[39ml[39m[39md[39m[31m![39m[39m'[39m
   ] {
     generatedMessage: [33mtrue[39m,

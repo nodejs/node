@@ -1,7 +1,7 @@
 
-*throw_non_error.js:*
+<project-root>/test/fixtures/errors/throw_non_error.js:*
 throw ({ foo: 'bar' });
 ^
 { foo: 'bar' }
 
-Node.js *
+Node.js <node-version>
