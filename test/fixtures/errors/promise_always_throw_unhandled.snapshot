@@ -1,4 +1,4 @@
-*promise_always_throw_unhandled.js:*
+<project-root>/test/fixtures/errors/promise_always_throw_unhandled.js:*
   throw new Error('One');
         ^
 
@@ -14,4 +14,4 @@ Error: One
     at *
     at *
 
-Node.js *
+Node.js <node-version>
