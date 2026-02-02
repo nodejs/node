@@ -10,7 +10,7 @@
     "@stylistic/eslint-plugin": "^5.7.1",
     "eslint": "^9.39.2",
     "eslint-formatter-tap": "^9.0.1",
-    "eslint-plugin-jsdoc": "^62.4.1",
+    "eslint-plugin-jsdoc": "^61.5.0",
     "globals": "^17.2.0"
   }
 }
