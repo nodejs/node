@@ -1,0 +1,350 @@
+.TH "NPM-EXEC" "1" "October 2025" "NPM@11.6.2" ""
+.SH "NAME"
+\fBnpm-exec\fR - Run a command from a local or remote npm package
+.SS "Synopsis"
+.P
+.RS 2
+.nf
+npm exec -- <pkg>\[lB]@<version>\[rB] \[lB]args...\[rB]
+npm exec --package=<pkg>\[lB]@<version>\[rB] -- <cmd> \[lB]args...\[rB]
+npm exec -c '<cmd> \[lB]args...\[rB]'
+npm exec --package=foo -c '<cmd> \[lB]args...\[rB]'
+
+alias: x
+.fi
+.RE
+.SS "Description"
+.P
+This command allows you to run an arbitrary command from an npm package (either one installed locally, or fetched remotely), in a similar context as running it via \fBnpm run\fR.
+.P
+Run without positional arguments or \fB--call\fR, this allows you to interactively run commands in the same sort of shell environment that \fBpackage.json\fR scripts are run. Interactive mode is not supported in CI environments when standard input is a TTY, to prevent hangs.
+.P
+Whatever packages are specified by the \fB--package\fR option will be provided in the \fBPATH\fR of the executed command, along with any locally installed package executables. The \fB--package\fR option may be specified multiple times, to execute the supplied command in an environment where all specified packages are available.
+.P
+If any requested packages are not present in the local project dependencies, then a prompt is printed, which can be suppressed by providing either \fB--yes\fR or \fB--no\fR. When standard input is not a TTY or a CI environment is detected, \fB--yes\fR is assumed. The requested packages are installed to a folder in the npm cache, which is added to the \fBPATH\fR environment variable in the executed process.
+.P
+Package names provided without a specifier will be matched with whatever version exists in the local project. Package names with a specifier will only be considered a match if they have the exact same name and version as the local dependency.
+.P
+If no \fB-c\fR or \fB--call\fR option is provided, then the positional arguments are used to generate the command string. If no \fB--package\fR options are provided, then npm will attempt to determine the executable name from the package specifier provided as the first positional argument according to the following heuristic:
+.RS 0
+.IP \(bu 4
+If the package has a single entry in its \fBbin\fR field in \fBpackage.json\fR, or if all entries are aliases of the same command, then that command will be used.
+.IP \(bu 4
+If the package has multiple \fBbin\fR entries, and one of them matches the unscoped portion of the \fBname\fR field, then that command will be used.
+.IP \(bu 4
+If this does not result in exactly one option (either because there are no bin entries, or none of them match the \fBname\fR of the package), then \fBnpm exec\fR exits with an error.
+.RE 0
+
+.P
+To run a binary \fIother than\fR the named binary, specify one or more \fB--package\fR options, which will prevent npm from inferring the package from the first command argument.
+.SS "\fBnpx\fR vs \fBnpm exec\fR"
+.P
+When run via the \fBnpx\fR binary, all flags and options \fImust\fR be set prior to any positional arguments. When run via \fBnpm exec\fR, a double-hyphen \fB--\fR flag can be used to suppress npm's parsing of switches and options that should be sent to the executed command.
+.P
+For example:
+.P
+.RS 2
+.nf
+$ npx foo@latest bar --package=@npmcli/foo
+.fi
+.RE
+.P
+In this case, npm will resolve the \fBfoo\fR package name, and run the following command:
+.P
+.RS 2
+.nf
+$ foo bar --package=@npmcli/foo
+.fi
+.RE
+.P
+Since the \fB--package\fR option comes \fIafter\fR the positional arguments, it is treated as an argument to the executed command.
+.P
+In contrast, due to npm's argument parsing logic, running this command is different:
+.P
+.RS 2
+.nf
+$ npm exec foo@latest bar --package=@npmcli/foo
+.fi
+.RE
+.P
+In this case, npm will parse the \fB--package\fR option first, resolving the \fB@npmcli/foo\fR package. Then, it will execute the following command in that context:
+.P
+.RS 2
+.nf
+$ foo@latest bar
+.fi
+.RE
+.P
+The double-hyphen character is recommended to explicitly tell npm to stop parsing command line options and switches. The following command would thus be equivalent to the \fBnpx\fR command above:
+.P
+.RS 2
+.nf
+$ npm exec -- foo@latest bar --package=@npmcli/foo
+.fi
+.RE
+.SS "Configuration"
+.SS "\fBpackage\fR"
+.RS 0
+.IP \(bu 4
+Default:
+.IP \(bu 4
+Type: String (can be set multiple times)
+.RE 0
+
+.P
+The package or packages to install for npm help exec
+.SS "\fBcall\fR"
+.RS 0
+.IP \(bu 4
+Default: ""
+.IP \(bu 4
+Type: String
+.RE 0
+
+.P
+Optional companion option for \fBnpm exec\fR, \fBnpx\fR that allows for specifying a custom command to be run along with the installed packages.
+.P
+.RS 2
+.nf
+npm exec --package yo --package generator-node --call "yo node"
+.fi
+.RE
+.SS "\fBworkspace\fR"
+.RS 0
+.IP \(bu 4
+Default:
+.IP \(bu 4
+Type: String (can be set multiple times)
+.RE 0
+
+.P
+Enable running a command in the context of the configured workspaces of the current project while filtering by running only the workspaces defined by this configuration option.
+.P
+Valid values for the \fBworkspace\fR config are either:
+.RS 0
+.IP \(bu 4
+Workspace names
+.IP \(bu 4
+Path to a workspace directory
+.IP \(bu 4
+Path to a parent workspace directory (will result in selecting all workspaces within that folder)
+.RE 0
+
+.P
+When set for the \fBnpm init\fR command, this may be set to the folder of a workspace which does not yet exist, to create the folder and set it up as a brand new workspace within the project.
+.P
+This value is not exported to the environment for child processes.
+.SS "\fBworkspaces\fR"
+.RS 0
+.IP \(bu 4
+Default: null
+.IP \(bu 4
+Type: null or Boolean
+.RE 0
+
+.P
+Set to true to run the command in the context of \fBall\fR configured workspaces.
+.P
+Explicitly setting this to false will cause commands like \fBinstall\fR to ignore workspaces altogether. When not set explicitly:
+.RS 0
+.IP \(bu 4
+Commands that operate on the \fBnode_modules\fR tree (install, update, etc.) will link workspaces into the \fBnode_modules\fR folder. - Commands that do other things (test, exec, publish, etc.) will operate on the root project, \fIunless\fR one or more workspaces are specified in the \fBworkspace\fR config.
+.RE 0
+
+.P
+This value is not exported to the environment for child processes.
+.SS "\fBinclude-workspace-root\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Include the workspace root when workspaces are enabled for a command.
+.P
+When false, specifying individual workspaces via the \fBworkspace\fR config, or all workspaces via the \fBworkspaces\fR flag, will cause npm to operate only on the specified workspaces, and not on the root project.
+.P
+This value is not exported to the environment for child processes.
+.SS "Examples"
+.P
+Run the version of \fBtap\fR in the local dependencies, with the provided arguments:
+.P
+.RS 2
+.nf
+$ npm exec -- tap --bail test/foo.js
+$ npx tap --bail test/foo.js
+.fi
+.RE
+.P
+Run a command \fIother than\fR the command whose name matches the package name by specifying a \fB--package\fR option:
+.P
+.RS 2
+.nf
+$ npm exec --package=foo -- bar --bar-argument
+# ~ or ~
+$ npx --package=foo bar --bar-argument
+.fi
+.RE
+.P
+Run an arbitrary shell script, in the context of the current project:
+.P
+.RS 2
+.nf
+$ npm x -c 'eslint && say "hooray, lint passed"'
+$ npx -c 'eslint && say "hooray, lint passed"'
+.fi
+.RE
+.SS "Workspaces support"
+.P
+You may use the \fB\[rs]fBworkspace\[rs]fR\fR \fI\(la/using-npm/config#workspace\(ra\fR or \fB\[rs]fBworkspaces\[rs]fR\fR \fI\(la/using-npm/config#workspaces\(ra\fR configs in order to run an arbitrary command from an npm package (either one installed locally, or fetched remotely) in the context of the specified workspaces. If no positional argument or \fB--call\fR option is provided, it will open an interactive subshell in the context of each of these configured workspaces one at a time.
+.P
+Given a project with configured workspaces, e.g:
+.P
+.RS 2
+.nf
+.
++-- package.json
+`-- packages
+   +-- a
+   |   `-- package.json
+   +-- b
+   |   `-- package.json
+   `-- c
+       `-- package.json
+.fi
+.RE
+.P
+Assuming the workspace configuration is properly set up at the root level \fBpackage.json\fR file. e.g:
+.P
+.RS 2
+.nf
+{
+    "workspaces": \[lB] "./packages/*" \[rB]
+}
+.fi
+.RE
+.P
+You can execute an arbitrary command from a package in the context of each of the configured workspaces when using the \fB\[rs]fBworkspaces\[rs]fR config options\fR \fI\(la/using-npm/config#workspace\(ra\fR, in this example we're using \fBeslint\fR to lint any js file found within each workspace folder:
+.P
+.RS 2
+.nf
+npm exec --ws -- eslint ./*.js
+.fi
+.RE
+.SS "Filtering workspaces"
+.P
+It's also possible to execute a command in a single workspace using the \fBworkspace\fR config along with a name or directory path:
+.P
+.RS 2
+.nf
+npm exec --workspace=a -- eslint ./*.js
+.fi
+.RE
+.P
+The \fBworkspace\fR config can also be specified multiple times in order to run a specific script in the context of multiple workspaces. When defining values for the \fBworkspace\fR config in the command line, it also possible to use \fB-w\fR as a shorthand, e.g:
+.P
+.RS 2
+.nf
+npm exec -w a -w b -- eslint ./*.js
+.fi
+.RE
+.P
+This last command will run the \fBeslint\fR command in both \fB./packages/a\fR and \fB./packages/b\fR folders.
+.SS "Compatibility with Older npx Versions"
+.P
+The \fBnpx\fR binary was rewritten in npm v7.0.0, and the standalone \fBnpx\fR package deprecated at that time. \fBnpx\fR uses the \fBnpm exec\fR command instead of a separate argument parser and install process, with some affordances to maintain backwards compatibility with the arguments it accepted in previous versions.
+.P
+This resulted in some shifts in its functionality:
+.RS 0
+.IP \(bu 4
+Any \fBnpm\fR config value may be provided.
+.IP \(bu 4
+To prevent security and user-experience problems from mistyping package names, \fBnpx\fR prompts before installing anything. Suppress this prompt with the \fB-y\fR or \fB--yes\fR option.
+.IP \(bu 4
+The \fB--no-install\fR option is deprecated, and will be converted to \fB--no\fR.
+.IP \(bu 4
+Shell fallback functionality is removed, as it is not advisable.
+.IP \(bu 4
+The \fB-p\fR argument is a shorthand for \fB--parseable\fR in npm, but shorthand for \fB--package\fR in npx. This is maintained, but only for the \fBnpx\fR executable.
+.IP \(bu 4
+The \fB--ignore-existing\fR option is removed. Locally installed bins are always present in the executed process \fBPATH\fR.
+.IP \(bu 4
+The \fB--npm\fR option is removed. \fBnpx\fR will always use the \fBnpm\fR it ships with.
+.IP \(bu 4
+The \fB--node-arg\fR and \fB-n\fR options are removed.
+.IP \(bu 4
+The \fB--always-spawn\fR option is redundant, and thus removed.
+.IP \(bu 4
+The \fB--shell\fR option is replaced with \fB--script-shell\fR, but maintained in the \fBnpx\fR executable for backwards compatibility.
+.RE 0
+
+.SS "A note on caching"
+.P
+The npm cli utilizes its internal package cache when using the package name specified. You can use the following to change how and when the cli uses this cache. See npm help cache for more on how the cache works.
+.SS "prefer-online"
+.P
+Forces staleness checks for packages, making the cli look for updates immediately even if the package is already in the cache.
+.SS "prefer-offline"
+.P
+Bypasses staleness checks for packages. Missing data will still be requested from the server. To force full offline mode, use \fBoffline\fR.
+.SS "offline"
+.P
+Forces full offline mode. Any packages not locally cached will result in an error.
+.SS "workspace"
+.RS 0
+.IP \(bu 4
+Default:
+.IP \(bu 4
+Type: String (can be set multiple times)
+.RE 0
+
+.P
+Enable running a command in the context of the configured workspaces of the current project while filtering by running only the workspaces defined by this configuration option.
+.P
+Valid values for the \fBworkspace\fR config are either:
+.RS 0
+.IP \(bu 4
+Workspace names
+.IP \(bu 4
+Path to a workspace directory
+.IP \(bu 4
+Path to a parent workspace directory (will result to selecting all of the nested workspaces)
+.RE 0
+
+.P
+This value is not exported to the environment for child processes.
+.SS "workspaces"
+.RS 0
+.IP \(bu 4
+Alias: \fB--ws\fR
+.IP \(bu 4
+Type: Boolean
+.IP \(bu 4
+Default: \fBfalse\fR
+.RE 0
+
+.P
+Run scripts in the context of all configured workspaces for the current project.
+.SS "See Also"
+.RS 0
+.IP \(bu 4
+npm help run
+.IP \(bu 4
+npm help scripts
+.IP \(bu 4
+npm help test
+.IP \(bu 4
+npm help start
+.IP \(bu 4
+npm help restart
+.IP \(bu 4
+npm help stop
+.IP \(bu 4
+npm help config
+.IP \(bu 4
+npm help workspaces
+.IP \(bu 4
+npm help npx
+.RE 0

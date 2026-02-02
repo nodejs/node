@@ -1,0 +1,7 @@
+Tests weakness of edges from JSWeakRef and WeakCell.
+
+Running test: testHeapSnapshotJSWeakRefs
+WeakRef target edge type: weak
+WeakCell target edge type: weak
+WeakCell holdings edge type: hidden
+WeakCell unregister token edge type: weak

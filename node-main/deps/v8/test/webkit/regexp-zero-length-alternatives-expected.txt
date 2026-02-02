@@ -1,0 +1,169 @@
+# Copyright 2013 the V8 project authors. All rights reserved.
+# Copyright (C) 2005, 2006, 2007, 2008, 2009 Apple Inc. All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1.  Redistributions of source code must retain the above copyright
+#     notice, this list of conditions and the following disclaimer.
+# 2.  Redistributions in binary form must reproduce the above copyright
+#     notice, this list of conditions and the following disclaimer in the
+#     documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY APPLE INC. AND ITS CONTRIBUTORS ``AS IS'' AND ANY
+# EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL APPLE INC. OR ITS CONTRIBUTORS BE LIABLE FOR ANY
+# DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+# ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+Test regular expression processing with alternatives that match consuming no characters
+
+On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE".
+
+
+PASS emptyStr.match(re1) is [""]
+PASS s1.match(re1) is [""]
+PASS s2.match(re1) is ["aaaa"]
+PASS s3.match(re1) is ["aa"]
+PASS emptyStr.match(re2) is [""]
+PASS s1.match(re2) is [""]
+PASS s2.match(re2) is ["aaaa"]
+PASS s3.match(re2) is ["aa"]
+PASS emptyStr.match(re3) is [""]
+PASS s1.match(re3) is [""]
+PASS s2.match(re3) is ["aaaa"]
+PASS s3.match(re3) is ["aa"]
+PASS emptyStr.match(re4) is ["", undefined]
+PASS s1.match(re4) is ["", undefined]
+PASS s2.match(re4) is ["aaaa", "a"]
+PASS s3.match(re4) is ["aa", "a"]
+PASS emptyStr.match(re5) is ["", undefined]
+PASS s1.match(re5) is ["", undefined]
+PASS s2.match(re5) is ["aaaa", "a"]
+PASS s3.match(re5) is ["aa", "a"]
+PASS emptyStr.match(re6) is ["", undefined]
+PASS s1.match(re6) is ["", undefined]
+PASS s2.match(re6) is ["aaaa", "a"]
+PASS s3.match(re6) is ["aa", "a"]
+PASS emptyStr.match(re7) is [""]
+PASS s1.match(re7) is [""]
+PASS s2.match(re7) is ["aaa"]
+PASS s3.match(re7) is ["aa"]
+PASS emptyStr.match(re8) is [""]
+PASS s1.match(re8) is [""]
+PASS s2.match(re8) is ["aaaa"]
+PASS s3.match(re8) is ["aa"]
+PASS emptyStr.match(re9) is [""]
+PASS s1.match(re9) is [""]
+PASS s2.match(re9) is ["aaaa"]
+PASS s3.match(re9) is ["aa"]
+PASS emptyStr.match(re10) is [""]
+PASS s1.match(re10) is [""]
+PASS s2.match(re10) is [""]
+PASS s3.match(re10) is [""]
+PASS emptyStr.match(re11) is [""]
+PASS s1.match(re11) is [""]
+PASS s2.match(re11) is [""]
+PASS s3.match(re11) is [""]
+PASS emptyStr.match(re12) is [""]
+PASS s1.match(re12) is [""]
+PASS s2.match(re12) is [""]
+PASS s3.match(re12) is [""]
+PASS emptyStr.match(re13) is ["", undefined]
+PASS s1.match(re13) is ["", undefined]
+PASS s2.match(re13) is ["", undefined]
+PASS s3.match(re13) is ["", undefined]
+PASS emptyStr.match(re14) is ["", undefined]
+PASS s1.match(re14) is ["", undefined]
+PASS s2.match(re14) is ["", undefined]
+PASS s3.match(re14) is ["", undefined]
+PASS emptyStr.match(re15) is ["", undefined]
+PASS s1.match(re15) is ["", undefined]
+PASS s2.match(re15) is ["", undefined]
+PASS s3.match(re15) is ["", undefined]
+PASS emptyStr.match(re16) is [""]
+PASS s1.match(re16) is [""]
+PASS s2.match(re16) is ["a"]
+PASS s3.match(re16) is ["a"]
+PASS emptyStr.match(re17) is [""]
+PASS s1.match(re17) is [""]
+PASS s2.match(re17) is ["a"]
+PASS s3.match(re17) is ["a"]
+PASS emptyStr.match(re18) is [""]
+PASS s1.match(re18) is [""]
+PASS s2.match(re18) is ["a"]
+PASS s3.match(re18) is ["a"]
+PASS emptyStr.match(re19) is ["", undefined]
+PASS s1.match(re19) is ["", undefined]
+PASS s2.match(re19) is ["a", "a"]
+PASS s3.match(re19) is ["a", "a"]
+PASS emptyStr.match(re20) is ["", undefined]
+PASS s1.match(re20) is ["", undefined]
+PASS s2.match(re20) is ["a", "a"]
+PASS s3.match(re20) is ["a", "a"]
+PASS emptyStr.match(re21) is ["", undefined]
+PASS s1.match(re21) is ["", undefined]
+PASS s2.match(re21) is ["a", "a"]
+PASS s3.match(re21) is ["a", "a"]
+PASS emptyStr.match(re22) is [""]
+PASS s1.match(re22) is [""]
+PASS s2.match(re22) is [""]
+PASS s3.match(re22) is [""]
+PASS emptyStr.match(re23) is [""]
+PASS s1.match(re23) is [""]
+PASS s2.match(re23) is [""]
+PASS s3.match(re23) is [""]
+PASS emptyStr.match(re24) is [""]
+PASS s1.match(re24) is [""]
+PASS s2.match(re24) is [""]
+PASS s3.match(re24) is [""]
+PASS emptyStr.match(re25) is ["", undefined]
+PASS s1.match(re25) is ["", undefined]
+PASS s2.match(re25) is ["", undefined]
+PASS s3.match(re25) is ["", undefined]
+PASS emptyStr.match(re26) is ["", undefined]
+PASS s1.match(re26) is ["", undefined]
+PASS s2.match(re26) is ["", undefined]
+PASS s3.match(re26) is ["", undefined]
+PASS emptyStr.match(re27) is ["", undefined]
+PASS s1.match(re27) is ["", undefined]
+PASS s2.match(re27) is ["", undefined]
+PASS s3.match(re27) is ["", undefined]
+PASS emptyStr.match(re28) is null
+PASS s1.match(re28) is ["x"]
+PASS s2.match(re28) is null
+PASS s3.match(re28) is ["aax"]
+PASS emptyStr.match(re29) is null
+PASS s1.match(re29) is ["x"]
+PASS s2.match(re29) is null
+PASS s3.match(re29) is ["aax"]
+PASS emptyStr.match(re30) is null
+PASS s1.match(re30) is ["x"]
+PASS s2.match(re30) is null
+PASS s3.match(re30) is ["aax"]
+PASS emptyStr.match(re31) is [""]
+PASS s1.match(re31) is [""]
+PASS s3.match(re31) is ["aa"]
+PASS s4.match(re31) is ["abab"]
+PASS emptyStr.match(re32) is [""]
+PASS s1.match(re32) is [""]
+PASS s2.match(re32) is ["aaaa"]
+PASS s4.match(re32) is ["abab"]
+PASS s5.match(re32) is ["ab"]
+PASS s6.match(re32) is [""]
+PASS emptyStr.match(re33) is [""]
+PASS s1.match(re33) is [""]
+PASS s7.match(re33) is ["g0"]
+PASS emptyStr.match(re34) is [""]
+PASS s1.match(re34) is [""]
+PASS s2.match(re34) is [""]
+PASS s3.match(re34) is [""]
+PASS successfullyParsed is true
+
+TEST COMPLETE
+

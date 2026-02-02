@@ -1,0 +1,15 @@
+Tests url in Debugger.CallFrame.
+[
+    [0] : {
+        url : 
+    }
+    [1] : {
+        url : 
+    }
+    [2] : {
+        url : 
+    }
+    [3] : {
+        url : 
+    }
+]

@@ -1,0 +1,79 @@
+Check that continue-to-location works with different strategies.
+
+Running test: testAwaitAny
+(anonymous) (expr.js:0:0)
+
+asyncFact (test.js:9:2)
+(anonymous) (expr.js:0:0)
+
+asyncFact (test.js:11:2)
+-- await --
+asyncFact (test.js:10:20)
+asyncFact (test.js:10:20)
+asyncFact (test.js:10:20)
+(anonymous) (expr.js:0:0)
+
+
+Running test: testAwaitCurrent
+(anonymous) (expr.js:0:0)
+
+asyncFact (test.js:9:2)
+(anonymous) (expr.js:0:0)
+
+asyncFact (test.js:11:2)
+-- await --
+(anonymous) (expr.js:0:0)
+
+
+Running test: testAny
+(anonymous) (expr.js:0:0)
+
+fact (test.js:16:2)
+(anonymous) (expr.js:0:0)
+
+fact (test.js:18:2)
+fact (test.js:17:14)
+fact (test.js:17:14)
+fact (test.js:17:14)
+(anonymous) (expr.js:0:0)
+
+
+Running test: testCurrent
+(anonymous) (expr.js:0:0)
+
+fact (test.js:16:2)
+(anonymous) (expr.js:0:0)
+
+fact (test.js:18:2)
+(anonymous) (expr.js:0:0)
+
+
+Running test: testTopLevelAny
+(anonymous) (expr.js:0:0)
+
+topLevel (test.js:23:2)
+(anonymous) (expr.js:0:0)
+
+(anonymous) (:1:10)
+topLevel (test.js:23:2)
+(anonymous) (expr.js:0:0)
+
+(anonymous) (:4:10)
+topLevel (test.js:23:2)
+(anonymous) (expr.js:0:0)
+
+
+Running test: testTopLevelCurrent
+(anonymous) (expr.js:0:0)
+
+topLevel (test.js:23:2)
+(anonymous) (expr.js:0:0)
+
+(anonymous) (:1:10)
+topLevel (test.js:23:2)
+(anonymous) (expr.js:0:0)
+
+(anonymous) (:4:10)
+topLevel (test.js:23:2)
+(anonymous) (expr.js:0:0)
+

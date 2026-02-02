@@ -1,0 +1,49 @@
+From 93f86001b67609106c658fe0908a9b7931245b8a Mon Sep 17 00:00:00 2001
+From: pedro martelletto <martelletto@google.com>
+Date: Thu, 3 Apr 2025 16:46:42 +0000
+Subject: [PATCH] [zlib] Deflate: move zmemzero after NULL check
+
+ZALLOC() might fail, in which case dereferencing the returned pointer
+results in undefined behaviour. N.B. These conditions are not reachable
+from Chromium, as Chromium will abort rather than return nullptr from
+malloc. Found by libfido2's fuzz harness.
+---
+ third_party/zlib/deflate.c | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/third_party/zlib/deflate.c b/third_party/zlib/deflate.c
+index 8a5281c2b6cd8..49496bb3b0561 100644
+--- a/third_party/zlib/deflate.c
++++ b/third_party/zlib/deflate.c
+@@ -485,14 +485,7 @@ int ZEXPORT deflateInit2_(z_streamp strm, int level, int method,
+     s->window = (Bytef *) ZALLOC(strm,
+                                  s->w_size + WINDOW_PADDING,
+                                  2*sizeof(Byte));
+-    /* Avoid use of unitialized values in the window, see crbug.com/1137613 and
+-     * crbug.com/1144420 */
+-    zmemzero(s->window, (s->w_size + WINDOW_PADDING) * (2 * sizeof(Byte)));
+     s->prev   = (Posf *)  ZALLOC(strm, s->w_size, sizeof(Pos));
+-    /* Avoid use of uninitialized value, see:
+-     * https://bugs.chromium.org/p/oss-fuzz/issues/detail?id=11360
+-     */
+-    zmemzero(s->prev, s->w_size * sizeof(Pos));
+     s->head   = (Posf *)  ZALLOC(strm, s->hash_size, sizeof(Pos));
+ 
+     s->high_water = 0;      /* nothing written to s->window yet */
+@@ -551,6 +544,13 @@ int ZEXPORT deflateInit2_(z_streamp strm, int level, int method,
+         deflateEnd (strm);
+         return Z_MEM_ERROR;
+     }
++    /* Avoid use of unitialized values in the window, see crbug.com/1137613 and
++     * crbug.com/1144420 */
++    zmemzero(s->window, (s->w_size + WINDOW_PADDING) * (2 * sizeof(Byte)));
++    /* Avoid use of uninitialized value, see:
++     * https://bugs.chromium.org/p/oss-fuzz/issues/detail?id=11360
++     */
++    zmemzero(s->prev, s->w_size * sizeof(Pos));
+ #ifdef LIT_MEM
+     s->d_buf = (ushf *)(s->pending_buf + (s->lit_bufsize << 1));
+     s->l_buf = s->pending_buf + (s->lit_bufsize << 2);
+-- 
+2.49.0.504.g3bcea36a83-goog
+

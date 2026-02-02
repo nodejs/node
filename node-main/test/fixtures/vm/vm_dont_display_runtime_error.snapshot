@@ -1,0 +1,13 @@
+beginning
+middle
+test.vm:1
+throw new Error("boo!")
+^
+
+Error: boo!
+    at test.vm:1:7
+    at Script.runInThisContext (node:vm:*)
+    at Object.runInThisContext (node:vm:*)
+    at Object.<anonymous> (*fixtures*vm*vm_dont_display_runtime_error.js:41:4)
+
+Node.js *
