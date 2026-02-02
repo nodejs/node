@@ -157,8 +157,12 @@ const int8_t unhex_table[256] = {
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
     -1, -1, -1, -1, -1, -1, -1, -1, -1};
 
-inline char nibble(uint8_t x) {
-  return x + '0' + ((x > 9) * 39);
+inline constexpr char nibble(uint8_t x) {
+  auto v = x + '0';
+  if (x > 9) {
+    v += 'a' - '0' - 10;
+  }
+  return v;
 }
 
 size_t HexEncode(const char *src, size_t slen, char *dst, size_t dlen) {
