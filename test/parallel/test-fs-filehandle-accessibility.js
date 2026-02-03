@@ -16,20 +16,20 @@ tmpdir.refresh();
 
 async function testFileHandleAccessibility() {
   // Test 1: FileHandle should be accessible from fs.FileHandle
-  assert(fs.FileHandle !== undefined, 'fs.FileHandle should be defined');
-  assert(typeof fs.FileHandle === 'function', 'fs.FileHandle should be a function/class');
+  assert(fs.FileHandle, 'fs.FileHandle should be defined');
+  assert.strictEqual(typeof fs.FileHandle, 'function');
 
   // Test 2: FileHandle should be accessible from fs.promises.FileHandle
-  assert(fsPromises.FileHandle !== undefined, 'fs.promises.FileHandle should be defined');
-  assert(typeof fsPromises.FileHandle === 'function', 'fs.promises.FileHandle should be a function/class');
+  assert(fsPromises.FileHandle, 'fs.promises.FileHandle should be defined');
+  assert.strictEqual(typeof fsPromises.FileHandle, 'function');
 
   // Test 3: Both references should point to the same class
-  assert.strictEqual(fs.FileHandle, fsPromises.FileHandle, 'fs.FileHandle and fs.promises.FileHandle should be the same');
+  assert.strictEqual(fs.FileHandle, fsPromises.FileHandle);
 }
 
 async function testIsFileHandleMethod() {
   // Test 4: FileHandle.isFileHandle should exist
-  assert(typeof fs.FileHandle.isFileHandle === 'function', 'FileHandle.isFileHandle should be a function');
+  assert.strictEqual(typeof fs.FileHandle.isFileHandle, 'function');
 
   // Test 5: Test isFileHandle with actual FileHandle instance
   const testFilePath = path.join(tmpDir, 'test_filehandle.txt');
@@ -37,7 +37,7 @@ async function testIsFileHandleMethod() {
 
   const fileHandle = await fsPromises.open(testFilePath, 'r');
   try {
-    assert(fs.FileHandle.isFileHandle(fileHandle) === true, 'isFileHandle should return true for FileHandle instance');
+    assert.strictEqual(fs.FileHandle.isFileHandle(fileHandle), true);
   } finally {
     await fileHandle.close();
   }
@@ -52,12 +52,12 @@ async function testIsFileHandleMethod() {
   }
 
   // Test 7: Test isFileHandle with non-FileHandle objects
-  assert(fs.FileHandle.isFileHandle({}) === false, 'isFileHandle should return false for plain object');
-  assert(fs.FileHandle.isFileHandle(null) === false, 'isFileHandle should return false for null');
-  assert(fs.FileHandle.isFileHandle(undefined) === false, 'isFileHandle should return false for undefined');
-  assert(fs.FileHandle.isFileHandle(5) === false, 'isFileHandle should return false for number (fd)');
-  assert(fs.FileHandle.isFileHandle('path/to/file') === false, 'isFileHandle should return false for string');
-  assert(fs.FileHandle.isFileHandle(Buffer.from('test')) === false, 'isFileHandle should return false for Buffer');
+  assert.strictEqual(fs.FileHandle.isFileHandle({}), false);
+  assert.strictEqual(fs.FileHandle.isFileHandle(null), false);
+  assert.strictEqual(fs.FileHandle.isFileHandle(undefined), false);
+  assert.strictEqual(fs.FileHandle.isFileHandle(5), false);
+  assert.strictEqual(fs.FileHandle.isFileHandle('path/to/file'), false);
+  assert.strictEqual(fs.FileHandle.isFileHandle(Buffer.from('test')), false);
 
   // Clean up
   await fsPromises.unlink(testFilePath);

@@ -178,7 +178,7 @@ longer be used.
 #### `FileHandle.isFileHandle(value)`
 
 <!-- YAML
-added: v22.0.0
+added: REPLACEME
 -->
 
 * `value` {any} The value to test.
